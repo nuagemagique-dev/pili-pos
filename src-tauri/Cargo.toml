@@ -1,0 +1,36 @@
+[package]
+name = "tsb-pos"
+version.workspace = true
+edition.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+pos-core = { path = "../crates/pos-core" }
+pos-fiscal = { path = "../crates/pos-fiscal" }
+pos-print = { path = "../crates/pos-print" }
+pos-db = { path = "../crates/pos-db" }
+pos-hubrise = { path = "../crates/pos-hubrise" }
+pos-hubrise-types = { path = "../crates/pos-hubrise-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+bcrypt = "0.17"
+dirs = "6"
+dotenvy = "0.15"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing-appender = "0.2"
+
+[features]
+default = []
+allow-offline = []

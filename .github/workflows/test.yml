@@ -1,0 +1,144 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, feat/*]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Layer 1: Rust unit tests ──────────────────────────────────
+  rust-tests:
+    name: Rust unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps (webkit2gtk for Tauri)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test --workspace --lib
+
+      - name: Run clippy
+        run: cargo clippy --workspace -- -D warnings
+        continue-on-error: true  # warn but don't block
+
+  # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
+  playwright-e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps webkit
+
+      - name: Run E2E tests
+        run: npx playwright test --reporter=github
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ui/test-results/
+          retention-days: 7
+
+  # ── Layer 3: Integration (real binary + WebDriver) ────────────
+  # Runs only on the main branch to avoid burning CI minutes on
+  # feature branches. Uses the real Tauri binary with a test DB.
+  integration:
+    name: Integration (real binary)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [rust-tests, playwright-e2e]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf \
+            xvfb
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Tauri app
+        run: cargo tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""  # skip signing in CI
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install Playwright
+        working-directory: ui
+        run: |
+          npm ci
+          npx playwright install --with-deps webkit
+
+      - name: Seed test database
+        run: |
+          mkdir -p /tmp/tsb-pos
+          sqlite3 /tmp/tsb-pos/pos.db < e2e/fixtures/seed.sql
+
+      - name: Start POS binary
+        run: |
+          export XDG_DATA_HOME=/tmp
+          export WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
+          xvfb-run -- ./target/release/tsb-pos &
+          # Wait for healthcheck
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9999/health && break || sleep 1
+          done
+
+      - name: Run integration tests
+        working-directory: ui
+        run: npx playwright test --project=integration --reporter=github
+        env:
+          INTEGRATION_CDP_URL: http://127.0.0.1:9222
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-report
+          path: ui/test-results/
+          retention-days: 7

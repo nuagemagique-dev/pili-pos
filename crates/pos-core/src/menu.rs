@@ -1,0 +1,42 @@
+use serde::{Deserialize, Serialize};
+
+use crate::vat::VatCode;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Category {
+    pub id: i64,
+    pub name: String,
+    pub sort_order: i32,
+    pub color: Option<String>,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MenuItem {
+    pub id: i64,
+    pub category_id: i64,
+    pub name: String,
+    pub price_cents: i64,
+    pub vat_code: VatCode,
+    pub kitchen_printer: bool,
+    pub sort_order: i32,
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModifierGroup {
+    pub id: i64,
+    pub menu_item_id: i64,
+    pub name: String,
+    pub min_select: i32,
+    pub max_select: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Modifier {
+    pub id: i64,
+    pub group_id: i64,
+    pub name: String,
+    pub price_cents: i64,
+    pub sort_order: i32,
+}

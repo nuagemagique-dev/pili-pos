@@ -1,0 +1,26 @@
+[package]
+name = "pos-fiscal"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+qrcode = "0.14"
+p256 = { version = "0.13", features = ["ecdsa"] }
+sha1 = "0.10"
+base64 = "0.22"
+hex = "0.4"
+image = { version = "0.25", default-features = false, features = ["png"] }
+rusqlite = { workspace = true }
+
+[dev-dependencies]
+pos-db = { path = "../pos-db" }
+pos-print = { path = "../pos-print" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+wiremock = "0.6"

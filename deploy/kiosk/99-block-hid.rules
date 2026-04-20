@@ -1,0 +1,18 @@
+# udev rules — block USB HID devices (keyboards, mice) on the POS
+# terminal to prevent physical access to the shell via a plugged-in
+# keyboard. The built-in touchscreen is NOT a USB HID device (it's
+# an I2C or eDP panel), so it's unaffected.
+#
+# Install: cp 99-block-hid.rules /etc/udev/rules.d/
+#          udevadm control --reload-rules && udevadm trigger
+#
+# To allow a specific keyboard (e.g., for initial setup), remove
+# this file temporarily and re-trigger.
+
+# Block generic USB keyboards
+SUBSYSTEM=="input", ATTRS{idVendor}!="", ATTRS{bInterfaceClass}=="03", ATTRS{bInterfaceSubClass}=="01", ATTRS{bInterfaceProtocol}=="01", ENV{DEVNAME}!="", RUN+="/bin/sh -c 'echo 0 > /sys$devpath/authorized'"
+
+# Block generic USB mice (prevents a mouse from navigating to
+# right-click → shell menus if any window manager is layered on
+# top of Cage by accident)
+SUBSYSTEM=="input", ATTRS{idVendor}!="", ATTRS{bInterfaceClass}=="03", ATTRS{bInterfaceSubClass}=="01", ATTRS{bInterfaceProtocol}=="02", ENV{DEVNAME}!="", RUN+="/bin/sh -c 'echo 0 > /sys$devpath/authorized'"

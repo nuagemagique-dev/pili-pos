@@ -1,0 +1,56 @@
+[Unit]
+Description=Tokyo Sushi Bar POS (Cage Wayland kiosk)
+After=network-online.target
+Wants=network-online.target
+# Ensure display hardware is ready
+After=systemd-logind.service
+Requires=systemd-logind.service
+
+[Service]
+Type=simple
+User=pos
+Group=pos
+
+# Cage runs as a Wayland compositor in kiosk mode
+# It launches the Tauri app fullscreen — no window decorations, no escape
+ExecStart=/usr/bin/cage -- /opt/tsb-pos/tsb-pos
+
+# Environment for Wayland + GPU
+Environment=WLR_LIBINPUT_NO_DEVICES=1
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WLR_RENDERER=pixman
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=GDK_BACKEND=wayland
+Environment=MOZ_ENABLE_WAYLAND=1
+
+# Tauri/WebKitGTK settings
+Environment=WEBKIT_DISABLE_COMPOSITING_MODE=1
+
+# POS application settings
+Environment=RUST_LOG=info
+
+# Auto-restart on crash (fiscal compliance — POS must be operational)
+Restart=on-failure
+RestartSec=3
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Security hardening
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/tsb-pos
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+# Allow access to input devices (touchscreen) and GPU
+SupplementaryGroups=input video render
+
+# Watchdog — restart if unresponsive for 30s
+WatchdogSec=30
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

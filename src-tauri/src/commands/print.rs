@@ -1,0 +1,267 @@
+use tauri::State;
+
+use pos_fiscal::ticket::FiscalTicket;
+use pos_hubrise_types::{Order, ServiceType};
+use pos_print::customer_slip::{
+    format_customer_slip, CustomerInfo, CustomerLine, CustomerSlip,
+};
+use pos_print::drawer;
+use pos_print::kitchen_ticket::{format_kitchen_ticket, KitchenItem, KitchenTicket};
+use pos_print::receipt;
+use pos_print::transport;
+use rusqlite::params;
+
+use crate::state::AppState;
+
+/// Print a fiscal receipt to the configured thermal printer.
+#[tauri::command]
+pub async fn print_receipt(
+    state: State<'_, AppState>,
+    ticket: FiscalTicket,
+) -> Result<(), String> {
+    let printer_address = state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .printer_address
+        .clone();
+
+    let address = printer_address
+        .ok_or_else(|| "Printer not configured".to_string())?;
+
+    let data = receipt::format_receipt(&ticket);
+    transport::send_to_printer(&address, &data)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Open the cash drawer connected to the printer.
+#[tauri::command]
+pub async fn open_drawer(state: State<'_, AppState>) -> Result<(), String> {
+    let printer_address = state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .printer_address
+        .clone();
+
+    let address = printer_address
+        .ok_or_else(|| "Printer not configured".to_string())?;
+
+    let data = drawer::kick_drawer_bytes();
+    transport::send_to_printer(&address, &data)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Check if the printer is reachable.
+#[tauri::command]
+pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
+    let printer_address = state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .printer_address
+        .clone();
+
+    match printer_address {
+        Some(address) => {
+            let printer = transport::TcpPrinter::new(&address);
+            Ok(printer.ping().await)
+        }
+        None => Ok(false),
+    }
+}
+
+// ── Webshop (non-fiscal) tickets ──────────────────────────────────
+
+/// Canonical "Printer not configured" error string. The UI maps
+/// this to an i18n toast so it can present a friendly message
+/// without parsing transport errors.
+const ERR_PRINTER_NOT_CONFIGURED: &str = "Printer not configured";
+
+/// Load and deserialize the stored HubRise Order JSON for a local
+/// `orders.id`. Returns the printer-ready payload or a user-facing
+/// error message on failure.
+fn load_webshop_order(
+    state: &State<'_, AppState>,
+    order_id: i64,
+) -> Result<Order, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let raw: Option<String> = db
+        .query_row(
+            "SELECT raw_hubrise_json FROM orders WHERE id = ?1 AND is_fiscal = 0",
+            params![order_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let raw = raw.ok_or_else(|| "order has no HubRise payload".to_string())?;
+    serde_json::from_str::<Order>(&raw).map_err(|e| e.to_string())
+}
+
+/// Pull the configured printer address from `AppState.config` or
+/// return the canonical not-configured error.
+fn printer_address(state: &State<'_, AppState>) -> Result<String, String> {
+    state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .printer_address
+        .clone()
+        .ok_or_else(|| ERR_PRINTER_NOT_CONFIGURED.to_string())
+}
+
+/// Map the stored HubRise service_type to a French label for
+/// printing. Matches the labels used on the POS cards.
+fn service_type_label(svc: Option<ServiceType>) -> String {
+    match svc {
+        Some(ServiceType::Delivery) => "Livraison",
+        Some(ServiceType::Collection) => "A emporter",
+        Some(ServiceType::EatIn) => "Sur place",
+        None => "-",
+    }
+    .to_string()
+}
+
+/// First 8 chars of a HubRise order id, or `"--------"` if absent.
+fn short_ref(order: &Order) -> String {
+    order.id.chars().take(8).collect::<String>()
+}
+
+/// Parse a HubRise money string like `"12.50 EUR"` into eurocents.
+fn money_cents(money: &str) -> i64 {
+    let n = money.split_whitespace().next().unwrap_or("0");
+    let parsed: f64 = n.parse().unwrap_or(0.0);
+    (parsed * 100.0).round() as i64
+}
+
+/// Extract "HH:MM" from an RFC3339 timestamp, or None on failure.
+fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
+    // Expected shape: YYYY-MM-DDTHH:MM:SS(Z|+HH:MM)
+    if rfc3339.len() < 16 {
+        return None;
+    }
+    // "HH:MM" lives at [11..16]
+    Some(rfc3339[11..16].to_string())
+}
+
+/// Print a kitchen ticket (items + options + notes, non-fiscal).
+#[tauri::command]
+pub async fn print_webshop_kitchen(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<(), String> {
+    let order = load_webshop_order(&state, order_id)?;
+    let address = printer_address(&state)?;
+
+    let items: Vec<KitchenItem> = order
+        .items
+        .iter()
+        .map(|it| KitchenItem {
+            quantity: it.quantity.parse::<i64>().unwrap_or(1),
+            product_name: it.product_name.clone(),
+            options: it
+                .options
+                .iter()
+                .map(|o| o.name.clone())
+                .collect(),
+            notes: it.customer_notes.clone(),
+        })
+        .collect();
+
+    let ticket = KitchenTicket {
+        source: order.channel.clone().unwrap_or_else(|| "Web".to_string()),
+        service_type: service_type_label(order.service_type),
+        short_ref: short_ref(&order),
+        ready_at: order.confirmed_time.as_deref().and_then(hhmm_from_rfc3339),
+        items,
+        order_notes: order.customer_notes.clone(),
+    };
+
+    let bytes = format_kitchen_ticket(&ticket);
+    transport::send_to_printer(&address, &bytes)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Print a customer slip (items + total + customer, non-fiscal).
+#[tauri::command]
+pub async fn print_webshop_customer(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<(), String> {
+    let order = load_webshop_order(&state, order_id)?;
+    let address = printer_address(&state)?;
+
+    // Restaurant header pulled from AppState.config (configured in
+    // `state.rs` at POS boot).
+    let (restaurant_name, restaurant_address) = {
+        let cfg = state.config.lock().map_err(|e| e.to_string())?;
+        (cfg.restaurant_name.clone(), cfg.restaurant_address.clone())
+    };
+
+    let lines: Vec<CustomerLine> = order
+        .items
+        .iter()
+        .map(|it| {
+            let qty = it.quantity.parse::<i64>().unwrap_or(1);
+            let unit = money_cents(&it.price);
+            CustomerLine {
+                quantity: qty,
+                product_name: it.product_name.clone(),
+                line_total_cents: unit * qty,
+            }
+        })
+        .collect();
+
+    let total_cents = order
+        .total
+        .as_deref()
+        .map(money_cents)
+        .unwrap_or_else(|| lines.iter().map(|l| l.line_total_cents).sum());
+
+    let customer = order
+        .customer
+        .as_ref()
+        .map(|c| {
+            let name = match (&c.first_name, &c.last_name) {
+                (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+                (Some(f), None) => Some(f.clone()),
+                (None, Some(l)) => Some(l.clone()),
+                (None, None) => None,
+            };
+            CustomerInfo {
+                name,
+                phone: c.phone.clone(),
+                address_1: c.address_1.clone(),
+                postal_code: c.postal_code.clone(),
+                city: c.city.clone(),
+            }
+        })
+        .unwrap_or_default();
+
+    let printed_at = chrono::Utc::now()
+        .format("%Y-%m-%d %H:%M")
+        .to_string();
+
+    let slip = CustomerSlip {
+        restaurant_name,
+        restaurant_address,
+        printed_at,
+        source: order.channel.clone().unwrap_or_else(|| "Web".to_string()),
+        service_type: service_type_label(order.service_type),
+        short_ref: short_ref(&order),
+        lines,
+        total_cents,
+        customer,
+    };
+
+    let bytes = format_customer_slip(&slip);
+    transport::send_to_printer(&address, &bytes)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}

@@ -1,0 +1,30 @@
+{
+  "productName": "tsb-pos",
+  "version": "0.1.0",
+  "identifier": "dev.nuagemagique.tsb-pos",
+  "build": {
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev --prefix ../ui",
+    "beforeBuildCommand": "npm run build --prefix ../ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Tokyo Sushi Bar — POS",
+        "width": 1920,
+        "height": 1080,
+        "fullscreen": false,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": false
+    }
+  }
+}
