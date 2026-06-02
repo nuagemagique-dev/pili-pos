@@ -9,7 +9,7 @@ use pos_core::order::{Order, OrderLine};
 use pos_core::vat::VatCode;
 
 /// Software version string sent to FDM.
-pub const POS_SW_VERSION: &str = "tsb-pos/0.1.0";
+pub const POS_SW_VERSION: &str = "moyun-pos/1.0.0";
 
 // ── Common Fields ──────────────────────────────────────────────
 

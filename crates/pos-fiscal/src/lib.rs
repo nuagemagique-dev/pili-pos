@@ -1,4 +1,5 @@
 pub mod archive;
+pub mod canonical;
 pub mod counter;
 pub mod event;
 pub mod fdm_client;

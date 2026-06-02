@@ -50,6 +50,27 @@ impl FiscalCounter {
         Ok(value)
     }
 
+    /// What `next()` *would* return without mutating the DB.
+    ///
+    /// Used by command handlers to reserve a ticket number for the
+    /// FDM request **before** committing the increment. If the FDM
+    /// call fails, the counter stays untouched and a retry sees the
+    /// same value — which is the only way to honour the SCE 2.0
+    /// "strictly sequential, no gaps" requirement when the network
+    /// is unreliable.
+    ///
+    /// The actual commit (via `next()`) happens inside the same
+    /// transaction as the `fiscal_events` archive — that pair is
+    /// what ensures atomicity. See
+    /// `docs/SUBMISSION_ARTIFACTS/COUNTER_STRATEGY.md`.
+    pub fn peek_next(
+        conn: &rusqlite::Connection,
+        event_label: EventLabel,
+    ) -> Result<i64, rusqlite::Error> {
+        let cur = Self::current(conn, event_label)?;
+        Ok(if cur >= MAX_COUNTER { 1 } else { cur + 1 })
+    }
+
     /// Get the current counter value without incrementing.
     pub fn current(conn: &rusqlite::Connection, event_label: EventLabel) -> Result<i64, rusqlite::Error> {
         let label = serde_json::to_string(&event_label)
@@ -122,5 +143,32 @@ mod tests {
         FiscalCounter::next(&conn, EventLabel::N).unwrap();
         FiscalCounter::next(&conn, EventLabel::N).unwrap();
         assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 2);
+    }
+
+    #[test]
+    fn peek_next_does_not_mutate() {
+        let conn = setup();
+        // Initial: peek returns 1, doesn't advance.
+        assert_eq!(FiscalCounter::peek_next(&conn, EventLabel::N).unwrap(), 1);
+        assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 0);
+        assert_eq!(FiscalCounter::peek_next(&conn, EventLabel::N).unwrap(), 1);
+        assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 0);
+        // After next(), peek shows the FOLLOWING value.
+        assert_eq!(FiscalCounter::next(&conn, EventLabel::N).unwrap(), 1);
+        assert_eq!(FiscalCounter::peek_next(&conn, EventLabel::N).unwrap(), 2);
+        assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 1);
+    }
+
+    #[test]
+    fn peek_next_matches_next_when_committed() {
+        // Property the command handlers rely on: a peek followed by
+        // a next() (with nothing else in between) must produce the
+        // same value.
+        let conn = setup();
+        for _ in 0..5 {
+            let speculative = FiscalCounter::peek_next(&conn, EventLabel::N).unwrap();
+            let actual = FiscalCounter::next(&conn, EventLabel::N).unwrap();
+            assert_eq!(speculative, actual);
+        }
     }
 }

@@ -179,11 +179,21 @@ impl FdmClient {
             variables,
         };
 
+        // Send the request as canonical JSON (sorted keys, no whitespace).
+        // Same wire-correct payload, but with deterministic bytes — which
+        // matters for: (1) request log diffs in the cert rehearsal capture,
+        // (2) reproducing exact requests when chasing FDM-reported errors,
+        // (3) future request-hash dedup in the local retry table. The FDM
+        // does its own canonicalization for signing, so this does not
+        // affect the digital signature it returns.
+        let body_canonical = crate::canonical::to_canonical(&body)
+            .map_err(|e| FdmError::GraphQl(format!("canonical serialization: {e}")))?;
+
         let resp = self
             .http
             .post(&self.url)
             .header("Content-Type", "application/json")
-            .json(&body)
+            .body(body_canonical)
             .send()
             .await
             .map_err(|e| {

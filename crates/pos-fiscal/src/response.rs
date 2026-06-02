@@ -22,6 +22,12 @@ pub struct SignResult {
     pub buffer_capacity_used: f64,
     pub warnings: Option<Vec<MessageItem>>,
     pub informations: Option<Vec<MessageItem>>,
+    /// Footer lines printed at the bottom of a fiscal ticket. The
+    /// FDM returns `[]` on N events and either an absent field or an
+    /// empty array on others — `#[serde(default)]` accepts both shapes
+    /// and yields `vec![]` when the field is missing (the v1.7 fixtures
+    /// for M121 signOrder and M171 training sale omit it entirely).
+    #[serde(default)]
     pub footer: Vec<String>,
 }
 

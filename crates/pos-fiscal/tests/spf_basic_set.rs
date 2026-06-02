@@ -51,6 +51,7 @@ fn test_config(fdm_url: &str) -> PosConfig {
         printer_address: None,
         training_mode: false,
         language: "fr".to_string(),
+        backup_dir: None,
     }
 }
 
@@ -226,7 +227,7 @@ async fn test_direct_sale() {
     assert_eq!(ticket_no, 1);
 
     // Build and send
-    let sale = build_sale_input(&config, &order, &lines, ticket_no, &bp_id, PaymentType::Cash, total);
+    let sale = build_sale_input(&config, &order, &lines, ticket_no, &bp_id, PaymentType::Cash, total, None);
 
     // Verify structure
     assert_eq!(sale.common.pos_id, "CFOD0061234567");
@@ -310,7 +311,7 @@ async fn test_complete_refund() {
         },
     ];
 
-    let mut sale = build_sale_input(&config, &order, &lines, 2, &bp_id, PaymentType::Cash, -2500);
+    let mut sale = build_sale_input(&config, &order, &lines, 2, &bp_id, PaymentType::Cash, -2500, None);
 
     // Attach reference to original sale (required for refunds)
     sale.fdm_ref = Some(FdmReferenceInput {
@@ -391,7 +392,7 @@ async fn test_interrupted_sale_table_flow() {
     mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::N, 1, true).await;
 
     let n_ticket = FiscalCounter::next(&conn, EventLabel::N).unwrap();
-    let sale = build_sale_input(&config, &order, &all_lines, n_ticket, &bp_id, PaymentType::CardDebit, total);
+    let sale = build_sale_input(&config, &order, &all_lines, n_ticket, &bp_id, PaymentType::CardDebit, total, None);
 
     let n_result = fdm.sign_sale(sale, false).await.unwrap();
     assert_eq!(n_result.fdm_ref.event_label, EventLabel::N);
@@ -468,7 +469,7 @@ async fn test_training_mode() {
     let ticket_no = FiscalCounter::next(&conn, EventLabel::T).unwrap();
     assert_eq!(ticket_no, 1);
 
-    let sale = build_sale_input(&config, &order, &lines, ticket_no, &bp_id, PaymentType::Cash, total);
+    let sale = build_sale_input(&config, &order, &lines, ticket_no, &bp_id, PaymentType::Cash, total, None);
 
     // isTraining = true is passed to FDM
     let fdm = FdmClient::new(config.fdm_url.as_str());
@@ -739,7 +740,7 @@ async fn test_full_service_day() {
     // 3. Table 1 pays (N event)
     mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::N, 1, true).await;
     let n1 = FiscalCounter::next(&conn, EventLabel::N).unwrap();
-    let sale1 = build_sale_input(&config, &order1, &lines1, n1, &bp_id, PaymentType::Cash, 1790);
+    let sale1 = build_sale_input(&config, &order1, &lines1, n1, &bp_id, PaymentType::Cash, 1790, None);
     let sale1_result = fdm.sign_sale(sale1, false).await.unwrap();
 
     // 4. Copy of table 1 receipt

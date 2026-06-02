@@ -35,6 +35,13 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
+    // Cert demo: inject FDM warnings/errors via env vars MOCK_FDM_WARNING /
+    // MOCK_FDM_ERROR (comma-separated codes accepted). Allows capturing the
+    // POS UI response for §V of the certification manual without rebuilding.
+    if let Some(payload) = inject_status_error(&mutation_name) {
+        return Json(payload);
+    }
+
     let event_label = match mutation_name.as_str() {
         "signSale" => if is_training { "T" } else { "N" },
         "signOrder" | "signPreBill" | "signCostCenterChange" => "P",
@@ -187,6 +194,19 @@ fn compute_vat_calc(txn: &serde_json::Value) -> Vec<VatCalcItem> {
 }
 
 fn status_response() -> serde_json::Value {
+    let warnings = parse_codes("MOCK_FDM_WARNING").map(codes_to_messages);
+    let errors = parse_codes("MOCK_FDM_ERROR").map(codes_to_messages);
+    let buffer_pct: f64 = std::env::var("MOCK_FDM_BUFFER_PCT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1.2);
+    let initialized = errors.is_none()
+        || std::env::var("MOCK_FDM_INITIALIZED")
+            .ok()
+            .as_deref()
+            .map(|v| v != "false")
+            .unwrap_or(true);
+
     serde_json::json!({
         "data": {
             "Status": {
@@ -194,15 +214,135 @@ fn status_response() -> serde_json::Value {
                     "fdmId": "BMC0MOCK0001",
                     "fdmSwVersion": "MOCK-FDM-1.0",
                     "fdmDateTime": chrono::Utc::now().to_rfc3339(),
-                    "bufferCapacityUsed": 1.2
+                    "bufferCapacityUsed": buffer_pct
                 },
-                "initialized": true,
+                "initialized": initialized,
                 "informations": null,
-                "warnings": null,
-                "errors": null
+                "warnings": warnings,
+                "errors": errors
             }
         }
     })
+}
+
+fn parse_codes(env_key: &str) -> Option<Vec<String>> {
+    let raw = std::env::var(env_key).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(
+        trimmed
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    )
+}
+
+fn codes_to_messages(codes: Vec<String>) -> serde_json::Value {
+    let items: Vec<serde_json::Value> = codes
+        .into_iter()
+        .map(|code| {
+            let (category, show_pos) = code_severity(&code);
+            serde_json::json!({
+                "message": code_to_human(&code),
+                "extensions": {
+                    "category": category,
+                    "code": code,
+                    "showPos": show_pos,
+                }
+            })
+        })
+        .collect();
+    serde_json::Value::Array(items)
+}
+
+fn code_severity(code: &str) -> (&'static str, &'static str) {
+    // (category, showPos) — values match FDM spec v1.4 §V table.
+    match code {
+        "BUFFER_NEAR_FULL"
+        | "BUFFER_FULL"
+        | "FDM_LOCKED"
+        | "FDM_NOT_OPERATIONAL"
+        | "UNKNOWN_POS"
+        | "CLIENT_CERT_EXPIRED" => ("ERROR", "MANDATORY"),
+        "RTC_NOT_INITIALIZED"
+        | "CORRUPT_RECORD_ENCOUNTERED"
+        | "UPDATE_PARAMS_FAILED"
+        | "UPDATE_CLIENT_CERT_FAILED"
+        | "UPDATE_VAT_RATES_FAILED"
+        | "UPDATE_POS_ALLOWLIST_FAILED"
+        | "DUPLICATE_REQUEST"
+        | "TOO_MANY_MEMORY_ERRORS" => ("ERROR", "NEVER"),
+        _ => ("WARNING", "OPTIONAL"),
+    }
+}
+
+fn code_to_human(code: &str) -> &'static str {
+    match code {
+        "CLIENT_CERT_NEAR_EXPIRATION" => "Le certificat du client expire dans moins de 4 mois",
+        "CLIENT_CERT_EXPIRED" => "Le certificat du client a expiré",
+        "RTC_SYNC_FAILED" => "Le FDM n'a pas pu synchroniser l'horloge en temps réel",
+        "UPDATE_URLS_FAILED" => "Le FDM n'a pas pu mettre à jour les URLs",
+        "UPDATE_TRUST_CERT_FAILED" => "Le FDM échoue à mettre à jour les certificats de confiance",
+        "UPDATE_TASK_LIST_FAILED" => "Le FDM n'a pas pu télécharger la liste de tâches",
+        "TASK_FEEDBACK_FAILED" => "Le FDM n'a pas pu signaler le résultat de la tâche",
+        "NOP_FAILED" => "Le FDM n'a pas pu poster un message NOP",
+        "BUFFER_NEAR_FULL" => "L'utilisation du buffer du FDM dépasse 70%",
+        "SERVER_CERT_RESOLVE_FAILED" => "Le FDM n'a pas pu résoudre le certificat du serveur",
+        "TRANSACTION_UPLOAD_FAILED" => "Le FDM a tenté plus de 10 fois de poster une transaction sans succès",
+        "INITIALIZATION_FAILED" => "L'initialisation du FDM a échoué",
+        "BUFFER_FULL" => "Le buffer du FDM est plein",
+        "FDM_LOCKED" => "Le FDM est verrouillé",
+        "UNAUTHORIZED" => "Le FDM a reçu des requêtes non-autorisées",
+        "INVALID_REQUEST" => "Le FDM n'a pas pu traiter la requête",
+        "INTERNAL_ERROR" => "Le FDM a rencontré un problème technique",
+        "UNDEFINED_ERROR" => "Le FDM a rencontré une erreur indéfinie",
+        "UNDEFINED_OTHER" => "Toute autre erreur rencontrée",
+        "FDM_NOT_OPERATIONAL" => "Le FDM ne fonctionne pas",
+        "UNKNOWN_POS" => "Le FDM a reçu un message d'un POS non repris dans la liste d'autorisation",
+        _ => "Erreur FDM",
+    }
+}
+
+/// When `MOCK_FDM_ERROR` is set with critical codes, intercept sign mutations
+/// and return a GraphQL error envelope (mirroring real FDM behaviour). Used
+/// for cert evidence captures (§V).
+fn inject_status_error(mutation_name: &str) -> Option<serde_json::Value> {
+    if mutation_name == "Status" {
+        return None;
+    }
+    let errors = parse_codes("MOCK_FDM_ERROR")?;
+    let critical = errors.iter().any(|c| {
+        matches!(
+            c.as_str(),
+            "BUFFER_FULL"
+                | "FDM_LOCKED"
+                | "FDM_NOT_OPERATIONAL"
+                | "UNKNOWN_POS"
+                | "UNAUTHORIZED"
+                | "INVALID_REQUEST"
+                | "INTERNAL_ERROR"
+                | "UNDEFINED_ERROR"
+        )
+    });
+    if !critical {
+        return None;
+    }
+    let messages: Vec<serde_json::Value> = errors
+        .iter()
+        .map(|code| {
+            serde_json::json!({
+                "message": code_to_human(code),
+                "extensions": { "code": code },
+            })
+        })
+        .collect();
+    Some(serde_json::json!({
+        "data": null,
+        "errors": messages,
+    }))
 }
 
 #[derive(Serialize)]

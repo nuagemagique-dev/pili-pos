@@ -67,6 +67,7 @@ fn config(fdm_url: &str) -> PosConfig {
         printer_address: None,
         training_mode: false,
         language: "fr".to_string(),
+        backup_dir: None,
     }
 }
 
@@ -432,6 +433,7 @@ async fn test_full_service_day_e2e() {
         payments: vec![],
         total: order_mod.total_cents as f64 / 100.0,
         is_training: false,
+        rounding: None,
     });
 
     assert_eq!(pb_ticket_data.ticket_type_label, "PRO FORMA");
@@ -483,7 +485,7 @@ async fn test_full_service_day_e2e() {
 
     let sale = build_sale_input(
         &cfg, &order_mod, &lines_mod, n1_ticket, &bp_id,
-        PaymentType::Cash, order_mod.total_cents,
+        PaymentType::Cash, order_mod.total_cents, None,
     );
 
     // Verify sale structure
@@ -583,6 +585,7 @@ async fn test_full_service_day_e2e() {
         payments: vec![TicketPayment { method: "Cash".to_string(), amount: 50.10 }],
         total: 50.10,
         is_training: false,
+        rounding: None,
     });
 
     assert_eq!(ticket.ticket_type_label, "VAT RECEIPT");
@@ -646,7 +649,7 @@ async fn test_full_service_day_e2e() {
     assert_eq!(n2_ticket, 2, "Second N event");
 
     let lines2 = orders::get_order_lines(&db, order2.id).unwrap();
-    let sale2 = build_sale_input(&cfg, &order2_db, &lines2, n2_ticket, &bp_id, PaymentType::CardDebit, 1790);
+    let sale2 = build_sale_input(&cfg, &order2_db, &lines2, n2_ticket, &bp_id, PaymentType::CardDebit, 1790, None);
     assert_eq!(sale2.financials[0].payment_type, PaymentType::CardDebit);
 
     let n2_result = fdm.sign_sale(sale2, false).await.unwrap();
