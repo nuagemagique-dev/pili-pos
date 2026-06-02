@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-const SCHEMA_SQL: &str = r#"
+pub(crate) const SCHEMA_SQL: &str = r#"
 CREATE TABLE IF NOT EXISTS languages (
     code TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -212,13 +212,38 @@ CREATE TABLE IF NOT EXISTS hubrise_outbox (
 );
 CREATE INDEX IF NOT EXISTS idx_hubrise_outbox_pending
     ON hubrise_outbox(created_at) WHERE sent_at IS NULL;
+
+-- Peppol B2B e-invoice delivery audit trail. From 2026-01-01 Belgian
+-- VAT-registered B2B invoices must be delivered via the Peppol network
+-- (Royal Decree, BIS Billing 3.0 profile). Every UBL document we hand
+-- to our Access Point produces one row here, kept indefinitely for the
+-- cert/legal audit trail. Never delete — same retention rule as
+-- fiscal_events.
+CREATE TABLE IF NOT EXISTS peppol_deliveries (
+    id INTEGER PRIMARY KEY,
+    fiscal_event_id INTEGER REFERENCES fiscal_events(id),
+    invoice_no TEXT NOT NULL,
+    customer_endpoint_id TEXT NOT NULL,
+    ap_vendor TEXT NOT NULL,
+    ap_message_id TEXT,
+    ubl_xml TEXT NOT NULL,
+    ap_response_json TEXT,
+    status TEXT NOT NULL CHECK(status IN ('queued','accepted','failed')) DEFAULT 'queued',
+    error_msg TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    accepted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_peppol_deliveries_invoice
+    ON peppol_deliveries(invoice_no);
 "#;
 
+/// Apply all schema migrations. Delegates to the versioned runner in
+/// `crate::migrate` so every entry point goes through the same
+/// `_migrations_applied` tracking. Kept as a re-export for the many
+/// existing call sites (`pos_db::schema::run_migrations`) so we don't
+/// have to chase down imports every time a migration changes.
 pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute_batch("PRAGMA journal_mode=WAL;")?;
-    conn.execute_batch("PRAGMA foreign_keys=ON;")?;
-    conn.execute_batch(SCHEMA_SQL)?;
-    Ok(())
+    crate::migrate::run_migrations(conn)
 }
 
 #[cfg(test)]
