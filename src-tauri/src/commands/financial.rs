@@ -33,6 +33,16 @@ pub async fn money_in_out(
     direction: MoneyDirection,
     reason: String,
 ) -> Result<FinancialResult, String> {
+    do_money_in_out(state.inner(), employee_insz, amount_cents, direction, reason).await
+}
+
+pub async fn do_money_in_out(
+    state: &AppState,
+    employee_insz: String,
+    amount_cents: i64,
+    direction: MoneyDirection,
+    reason: String,
+) -> Result<FinancialResult, String> {
     let (config, bp_id, ticket_number) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
@@ -98,6 +108,13 @@ pub async fn money_in_out(
 #[tauri::command]
 pub async fn open_drawer_fiscal(
     state: State<'_, AppState>,
+    employee_insz: String,
+) -> Result<FinancialResult, String> {
+    do_open_drawer_fiscal(state.inner(), employee_insz).await
+}
+
+pub async fn do_open_drawer_fiscal(
+    state: &AppState,
     employee_insz: String,
 ) -> Result<FinancialResult, String> {
     let (config, bp_id, ticket_number) = {

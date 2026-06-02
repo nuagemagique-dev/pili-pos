@@ -2,8 +2,12 @@ pub mod auth;
 pub mod checkout;
 pub mod copy;
 pub mod financial;
+#[cfg(feature = "hubrise")]
 pub mod hubrise;
+#[cfg(feature = "hubrise")]
 pub mod hubrise_push;
+#[cfg(feature = "peppol")]
+pub mod invoice;
 pub mod menu;
 pub mod order;
 pub mod print;

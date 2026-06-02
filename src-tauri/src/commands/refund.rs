@@ -30,6 +30,13 @@ pub fn list_refundable_events(
     state: State<'_, AppState>,
     limit: Option<i64>,
 ) -> Result<Vec<RefundableEvent>, String> {
+    do_list_refundable_events(state.inner(), limit)
+}
+
+pub fn do_list_refundable_events(
+    state: &AppState,
+    limit: Option<i64>,
+) -> Result<Vec<RefundableEvent>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     fiscal::list_refundable_events(&db, limit.unwrap_or(20))
         .map_err(|e| e.to_string())
@@ -46,6 +53,15 @@ pub fn list_refundable_events(
 #[tauri::command]
 pub async fn refund_checkout(
     state: State<'_, AppState>,
+    original_fiscal_event_id: i64,
+    items: Vec<RefundItem>,
+    employee_insz: String,
+) -> Result<CheckoutResult, String> {
+    do_refund_checkout(state.inner(), original_fiscal_event_id, items, employee_insz).await
+}
+
+pub async fn do_refund_checkout(
+    state: &AppState,
     original_fiscal_event_id: i64,
     items: Vec<RefundItem>,
     employee_insz: String,
@@ -121,11 +137,14 @@ pub async fn refund_checkout(
         (updated_order, lines)
     };
 
-    // 3. Get next ticket number
+    // 3. RESERVE the next ticket number (peek, no commit). See the
+    // identical pattern in `checkout.rs` — the counter is committed
+    // inside the archive transaction below, after the FDM accepts
+    // the refund.
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
-        FiscalCounter::next(&db, label).map_err(|e| e.to_string())?
+        FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
     // 4. Build SaleInput with negative lines + original fdm_ref
@@ -171,13 +190,15 @@ pub async fn refund_checkout(
         }
     };
 
-    // 6. Archive + close refund order atomically
+    // 6. COMMIT counter + archive + close refund order atomically.
     let ticket;
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
 
         let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
+        let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
+        debug_assert_eq!(committed_no, ticket_number);
         archive::archive_event(&tx, ArchiveParams {
             event_type: label,
             sequence_number: ticket_number,
@@ -220,7 +241,7 @@ pub async fn refund_checkout(
             restaurant_name: &config.restaurant_name,
             restaurant_address: &config.restaurant_address,
             restaurant_vat: &config.restaurant_vat,
-            restaurant_est_no: "",
+            restaurant_est_no: &config.restaurant_est_no,
             lines: ticket_lines,
             payments,
             total: refund_order.total_cents as f64 / 100.0,

@@ -9,6 +9,7 @@ use pos_fiscal::response::SignResult;
 use pos_fiscal::ticket::{self, FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
+#[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
 use crate::state::AppState;
 
@@ -30,6 +31,18 @@ pub struct CheckoutResult {
 #[tauri::command]
 pub async fn checkout(
     state: State<'_, AppState>,
+    order_id: i64,
+    payment_method: CheckoutPaymentMethod,
+) -> Result<CheckoutResult, String> {
+    do_checkout(state.inner(), order_id, payment_method).await
+}
+
+/// Inner implementation of [`checkout`], decoupled from Tauri's
+/// `State` wrapper so integration tests can drive it directly. The
+/// wrapper above is the production entry point; everything below is
+/// the same code, just reachable from `cargo test`.
+pub async fn do_checkout(
+    state: &AppState,
     order_id: i64,
     payment_method: CheckoutPaymentMethod,
 ) -> Result<CheckoutResult, String> {
@@ -66,11 +79,23 @@ pub async fn checkout(
         });
     }
 
-    // 2. Get next sequence number
+    // 2. RESERVE (peek, don't commit) the next sequence number.
+    //
+    // We deliberately do NOT call `FiscalCounter::next` here yet.
+    // Allocating before the FDM round-trip would create a gap in
+    // the sequence whenever the FDM call fails — a direct violation
+    // of the SCE 2.0 "strictly sequential, no gaps" requirement.
+    //
+    // Instead we peek (read-only) to obtain the value we'll send to
+    // the FDM, then commit the increment inside the same SQLite
+    // transaction that writes the archive (step 6-8 below). If the
+    // FDM fails, the counter stays untouched and the next attempt
+    // sees the same value — combined with the FDM's idempotency on
+    // `posFiscalTicketNo`, this is safe to retry indefinitely.
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
-        FiscalCounter::next(&db, label).map_err(|e| e.to_string())?
+        FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
     // 3. Belgian 5-cent rounding (cash only, per Belgian law).
@@ -134,10 +159,18 @@ pub async fn checkout(
         }
     };
 
-    // 6-8. Archive fiscal event + close order ATOMICALLY inside a
-    // single SQLite transaction. A power cut between archive and close
-    // would leave an orphaned fiscal record (event signed but order
-    // still "open"). The transaction ensures both succeed or neither.
+    // 6-8. COMMIT counter + archive fiscal event + close order
+    // ATOMICALLY in a single SQLite transaction.
+    //
+    // Now that the FDM has returned (or returned a non-fatal error
+    // we've decided to record), we commit the counter increment via
+    // `FiscalCounter::next` inside the same tx that archives the
+    // event. Three rows of state are kept consistent:
+    //   - `fiscal_counters.current_value` advances by 1
+    //   - `fiscal_events` gets the new row
+    //   - `orders.status` flips to closed
+    // If any of the three fails the whole tx rolls back, including
+    // the counter advance — so no gap is ever observable.
     let ticket;
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -146,6 +179,12 @@ pub async fn checkout(
             .map_err(|e| e.to_string())?;
 
         let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
+        let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
+        debug_assert_eq!(
+            committed_no, ticket_number,
+            "counter drifted between peek and commit — single-terminal invariant violated"
+        );
+
         archive::archive_event(
             &tx,
             ArchiveParams {
@@ -202,7 +241,7 @@ pub async fn checkout(
             restaurant_name: &config.restaurant_name,
             restaurant_address: &config.restaurant_address,
             restaurant_vat: &config.restaurant_vat,
-            restaurant_est_no: "",
+            restaurant_est_no: &config.restaurant_est_no,
             lines: ticket_lines,
             payments,
             total: order.total_cents as f64 / 100.0,
@@ -243,7 +282,9 @@ pub async fn checkout(
     // blocked by a HubRise or internet outage. The background outbox
     // worker (started in main.rs alongside the poller) drains the
     // queue when connectivity is available, with exponential backoff
-    // on transient failures.
+    // on transient failures. Gated behind the `hubrise` feature so the
+    // certification build (no HubRise) skips this entirely.
+    #[cfg(feature = "hubrise")]
     {
         let payment_name = match payment_method {
             CheckoutPaymentMethod::Cash => "Cash",
@@ -270,6 +311,10 @@ pub async fn checkout(
 /// Check FDM connection status.
 #[tauri::command]
 pub async fn check_fdm_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    do_check_fdm_status(state.inner()).await
+}
+
+pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let fdm = FdmClient::new(&config.fdm_url);
 

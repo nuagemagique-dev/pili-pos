@@ -26,6 +26,14 @@ pub async fn copy_ticket(
     fiscal_event_id: i64,
     employee_insz: String,
 ) -> Result<CopyResult, String> {
+    do_copy_ticket(state.inner(), fiscal_event_id, employee_insz).await
+}
+
+pub async fn do_copy_ticket(
+    state: &AppState,
+    fiscal_event_id: i64,
+    employee_insz: String,
+) -> Result<CopyResult, String> {
     // 1. Load the original event
     let (original_ref, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -116,7 +124,7 @@ pub async fn copy_ticket(
                     restaurant_name: &config.restaurant_name,
                     restaurant_address: &config.restaurant_address,
                     restaurant_vat: &config.restaurant_vat,
-                    restaurant_est_no: "",
+                    restaurant_est_no: &config.restaurant_est_no,
                     lines: ticket_lines,
                     payments: vec![TicketPayment {
                         method: "—".to_string(),
@@ -145,6 +153,13 @@ pub async fn copy_ticket(
 #[tauri::command]
 pub fn list_fiscal_events(
     state: State<'_, AppState>,
+    limit: Option<i64>,
+) -> Result<serde_json::Value, String> {
+    do_list_fiscal_events(state.inner(), limit)
+}
+
+pub fn do_list_fiscal_events(
+    state: &AppState,
     limit: Option<i64>,
 ) -> Result<serde_json::Value, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;

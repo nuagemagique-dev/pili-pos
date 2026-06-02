@@ -1,14 +1,18 @@
 use tauri::State;
 
 use pos_fiscal::ticket::FiscalTicket;
+#[cfg(feature = "hubrise")]
 use pos_hubrise_types::{Order, ServiceType};
+#[cfg(feature = "hubrise")]
 use pos_print::customer_slip::{
     format_customer_slip, CustomerInfo, CustomerLine, CustomerSlip,
 };
 use pos_print::drawer;
+#[cfg(feature = "hubrise")]
 use pos_print::kitchen_ticket::{format_kitchen_ticket, KitchenItem, KitchenTicket};
 use pos_print::receipt;
 use pos_print::transport;
+#[cfg(feature = "hubrise")]
 use rusqlite::params;
 
 use crate::state::AppState;
@@ -76,7 +80,13 @@ pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 // ── Webshop (non-fiscal) tickets ──────────────────────────────────
+//
+// Everything below is HubRise/webshop-specific (loads orders from
+// `raw_hubrise_json` and emits non-fiscal kitchen/customer slips).
+// The certification build excludes the `hubrise` feature, so this
+// whole section disappears from that binary.
 
+#[cfg(feature = "hubrise")]
 /// Canonical "Printer not configured" error string. The UI maps
 /// this to an i18n toast so it can present a friendly message
 /// without parsing transport errors.
@@ -85,6 +95,7 @@ const ERR_PRINTER_NOT_CONFIGURED: &str = "Printer not configured";
 /// Load and deserialize the stored HubRise Order JSON for a local
 /// `orders.id`. Returns the printer-ready payload or a user-facing
 /// error message on failure.
+#[cfg(feature = "hubrise")]
 fn load_webshop_order(
     state: &State<'_, AppState>,
     order_id: i64,
@@ -103,6 +114,7 @@ fn load_webshop_order(
 
 /// Pull the configured printer address from `AppState.config` or
 /// return the canonical not-configured error.
+#[cfg(feature = "hubrise")]
 fn printer_address(state: &State<'_, AppState>) -> Result<String, String> {
     state
         .config
@@ -115,6 +127,7 @@ fn printer_address(state: &State<'_, AppState>) -> Result<String, String> {
 
 /// Map the stored HubRise service_type to a French label for
 /// printing. Matches the labels used on the POS cards.
+#[cfg(feature = "hubrise")]
 fn service_type_label(svc: Option<ServiceType>) -> String {
     match svc {
         Some(ServiceType::Delivery) => "Livraison",
@@ -126,11 +139,13 @@ fn service_type_label(svc: Option<ServiceType>) -> String {
 }
 
 /// First 8 chars of a HubRise order id, or `"--------"` if absent.
+#[cfg(feature = "hubrise")]
 fn short_ref(order: &Order) -> String {
     order.id.chars().take(8).collect::<String>()
 }
 
 /// Parse a HubRise money string like `"12.50 EUR"` into eurocents.
+#[cfg(feature = "hubrise")]
 fn money_cents(money: &str) -> i64 {
     let n = money.split_whitespace().next().unwrap_or("0");
     let parsed: f64 = n.parse().unwrap_or(0.0);
@@ -138,6 +153,7 @@ fn money_cents(money: &str) -> i64 {
 }
 
 /// Extract "HH:MM" from an RFC3339 timestamp, or None on failure.
+#[cfg(feature = "hubrise")]
 fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
     // Expected shape: YYYY-MM-DDTHH:MM:SS(Z|+HH:MM)
     if rfc3339.len() < 16 {
@@ -148,6 +164,7 @@ fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
 }
 
 /// Print a kitchen ticket (items + options + notes, non-fiscal).
+#[cfg(feature = "hubrise")]
 #[tauri::command]
 pub async fn print_webshop_kitchen(
     state: State<'_, AppState>,
@@ -188,6 +205,7 @@ pub async fn print_webshop_kitchen(
 }
 
 /// Print a customer slip (items + total + customer, non-fiscal).
+#[cfg(feature = "hubrise")]
 #[tauri::command]
 pub async fn print_webshop_customer(
     state: State<'_, AppState>,

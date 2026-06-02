@@ -23,6 +23,13 @@ pub async fn work_in(
     state: State<'_, AppState>,
     employee_insz: String,
 ) -> Result<SocialResult, String> {
+    do_work_in(state.inner(), employee_insz).await
+}
+
+pub async fn do_work_in(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<SocialResult, String> {
     do_work_event(state, employee_insz, true).await
 }
 
@@ -33,11 +40,18 @@ pub async fn work_out(
     state: State<'_, AppState>,
     employee_insz: String,
 ) -> Result<SocialResult, String> {
+    do_work_out(state.inner(), employee_insz).await
+}
+
+pub async fn do_work_out(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<SocialResult, String> {
     do_work_event(state, employee_insz, false).await
 }
 
 async fn do_work_event(
-    state: State<'_, AppState>,
+    state: &AppState,
     employee_insz: String,
     is_in: bool,
 ) -> Result<SocialResult, String> {

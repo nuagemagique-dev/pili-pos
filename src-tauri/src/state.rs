@@ -1,4 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
+#[cfg(feature = "hubrise")]
+use std::sync::Arc;
 
 use pos_core::config::PosConfig;
 use pos_db::schema;
@@ -17,12 +19,18 @@ use tokio_util::sync::CancellationToken;
 ///
 /// `shutdown_token` is cancelled when the Tauri window closes; the
 /// poller task observes it via `tokio::select!` to exit gracefully.
+///
+/// `poller_db` and `shared_http` are gated behind the `hubrise` feature
+/// because they only exist to serve the webshop integration; the
+/// certification build (which excludes hubrise) doesn't need them.
 pub struct AppState {
     pub db: Mutex<Connection>,
+    #[cfg(feature = "hubrise")]
     pub poller_db: Arc<Mutex<Connection>>,
     pub config: Mutex<PosConfig>,
     /// Current booking period ID (UUID, set on first sale of the day / shift).
     pub booking_period_id: Mutex<String>,
+    #[cfg(feature = "hubrise")]
     pub shared_http: reqwest::Client,
     pub shutdown_token: CancellationToken,
 }
@@ -31,7 +39,7 @@ impl AppState {
     pub fn new() -> anyhow::Result<Self> {
         let db_path = dirs::data_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("tsb-pos")
+            .join("moyun-pos")
             .join("pos.db");
 
         std::fs::create_dir_all(db_path.parent().unwrap())?;
@@ -58,7 +66,8 @@ impl AppState {
         }
 
         // Dedicated background-poller connection to the same WAL-mode
-        // SQLite file (pos-db enables WAL in run_migrations).
+        // SQLite file (pos-db enables WAL in run_migrations). HubRise only.
+        #[cfg(feature = "hubrise")]
         let poller_conn = Connection::open(&db_path)?;
 
         // Default config — in production, load from config file or DB
@@ -75,15 +84,18 @@ impl AppState {
 
         let booking_period_id = uuid::Uuid::new_v4().to_string();
 
+        #[cfg(feature = "hubrise")]
         let shared_http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .build()?;
 
         Ok(Self {
             db: Mutex::new(conn),
+            #[cfg(feature = "hubrise")]
             poller_db: Arc::new(Mutex::new(poller_conn)),
             config: Mutex::new(config),
             booking_period_id: Mutex::new(booking_period_id),
+            #[cfg(feature = "hubrise")]
             shared_http,
             shutdown_token: CancellationToken::new(),
         })

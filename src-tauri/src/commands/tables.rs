@@ -28,6 +28,10 @@ pub struct TableInfo {
 /// informational value (UX Guide §2.1).
 #[tauri::command]
 pub fn list_tables(state: State<'_, AppState>, table_count: i32) -> Result<Vec<TableInfo>, String> {
+    do_list_tables(state.inner(), table_count)
+}
+
+pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInfo>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut tables = Vec::new();
 
@@ -72,6 +76,14 @@ pub fn list_tables(state: State<'_, AppState>, table_count: i32) -> Result<Vec<T
 #[tauri::command]
 pub async fn sign_table_order(
     state: State<'_, AppState>,
+    order_id: i64,
+    cost_center_ref: String,
+) -> Result<(), String> {
+    do_sign_table_order(state.inner(), order_id, cost_center_ref).await
+}
+
+pub async fn do_sign_table_order(
+    state: &AppState,
     order_id: i64,
     cost_center_ref: String,
 ) -> Result<(), String> {
@@ -120,6 +132,13 @@ pub async fn sign_table_order(
 #[tauri::command]
 pub async fn sign_pre_bill(
     state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<(), String> {
+    do_sign_pre_bill(state.inner(), order_id).await
+}
+
+pub async fn do_sign_pre_bill(
+    state: &AppState,
     order_id: i64,
 ) -> Result<(), String> {
     let (order, lines, config, bp_id) = {

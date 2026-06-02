@@ -28,6 +28,13 @@ pub async fn generate_x_report(
     state: State<'_, AppState>,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
+    do_generate_x_report(state.inner(), employee_insz).await
+}
+
+pub async fn do_generate_x_report(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<ReportResult, String> {
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
     let (config, bp_id, turnover_data, ticket_number, print_data) = {
@@ -78,6 +85,10 @@ pub async fn generate_x_report(
 /// reminding the manager to run the end-of-day Z before leaving.
 #[tauri::command]
 pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
+    do_needs_z_report(state.inner())
+}
+
+pub fn do_needs_z_report(state: &AppState) -> Result<bool, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let has_z = pos_db::queries::reports::has_z_report_today(&db)
         .map_err(|e| e.to_string())?;
@@ -91,6 +102,10 @@ pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
 /// List past Z-reports for the history view (newest first).
 #[tauri::command]
 pub fn list_z_reports(state: State<'_, AppState>) -> Result<Vec<ZReportSummary>, String> {
+    do_list_z_reports(state.inner())
+}
+
+pub fn do_list_z_reports(state: &AppState) -> Result<Vec<ZReportSummary>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::reports::list_z_reports(&db).map_err(|e| e.to_string())
 }
@@ -99,6 +114,13 @@ pub fn list_z_reports(state: State<'_, AppState>) -> Result<Vec<ZReportSummary>,
 #[tauri::command]
 pub async fn generate_z_report(
     state: State<'_, AppState>,
+    employee_insz: String,
+) -> Result<ReportResult, String> {
+    do_generate_z_report(state.inner(), employee_insz).await
+}
+
+pub async fn do_generate_z_report(
+    state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -169,6 +191,10 @@ pub async fn generate_z_report(
 /// Create a timestamped backup of the live database.
 #[tauri::command]
 pub fn backup_database(state: State<'_, AppState>) -> Result<String, String> {
+    do_backup_database(state.inner())
+}
+
+pub fn do_backup_database(state: &AppState) -> Result<String, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let config = state.config.lock().map_err(|e| e.to_string())?;
     backup_database_impl(&db, &config)
@@ -182,7 +208,7 @@ fn backup_database_impl(
         Some(dir) => std::path::PathBuf::from(dir),
         None => dirs::data_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("tsb-pos")
+            .join("moyun-pos")
             .join("backups"),
     };
     std::fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
