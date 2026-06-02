@@ -1,0 +1,171 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1003,
+    "posDateTime": "2024-07-29T13:57:03+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "terminalId": "TER-1-BAR",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T1",
+      "type": "TABLE",
+      "reference": "O1"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "costCenter": {
+            "id": "C1",
+            "type": "CHAIR",
+            "reference": "O1"
+          },
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12
+              }
+            ]
+          },
+          "lineTotal": 12
+        },
+        {
+          "costCenter": {
+            "id": "C1",
+            "type": "CHAIR",
+            "reference": "O1"
+          },
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28
+              }
+            ]
+          },
+          "lineTotal": 28
+        },
+        {
+          "costCenter": {
+            "id": "C2",
+            "type": "CHAIR",
+            "reference": "O2"
+          },
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "A",
+                "price": 3.04
+              }
+            ]
+          },
+          "lineTotal": 3.04
+        },
+        {
+          "costCenter": {
+            "id": "C2",
+            "type": "CHAIR",
+            "reference": "O2"
+          },
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22010",
+            "productName": "dish of the day",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 30,
+            "vats": [
+              {
+                "label": "B",
+                "price": 30
+              }
+            ]
+          },
+          "lineTotal": 30
+        },
+        {
+          "costCenter": {
+            "id": "C3",
+            "type": "CHAIR",
+            "reference": "O3"
+          },
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 2.5
+              }
+            ]
+          },
+          "lineTotal": 2.5
+        },
+        {
+          "costCenter": {
+            "id": "C3",
+            "type": "CHAIR",
+            "reference": "O3"
+          },
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "2001",
+            "productName": "Carpaccio",
+            "departmentId": "20",
+            "departmentName": "Starters",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 20
+              }
+            ]
+          },
+          "lineTotal": 20
+        }
+      ],
+      "transactionTotal": 95.54
+    }
+  }
+}

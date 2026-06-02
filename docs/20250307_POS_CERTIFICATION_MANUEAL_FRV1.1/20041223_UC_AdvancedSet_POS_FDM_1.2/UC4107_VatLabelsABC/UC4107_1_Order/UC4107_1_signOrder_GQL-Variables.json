@@ -1,0 +1,94 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 134696,
+    "posDateTime": "2024-05-03T16:06:11+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-03",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T53",
+      "type": "TABLE",
+      "reference": "173"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio",
+            "departmentId": "20",
+            "departmentName": "STARTERS",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 40,
+                "priceChanges": [
+                  {
+                    "groupingId": 1,
+                    "id": "1",
+                    "name": "korting5p",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -2
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 38
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12
+              }
+            ]
+          },
+          "lineTotal": 12
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 2.5
+              }
+            ]
+          },
+          "lineTotal": 2.5
+        }
+      ],
+      "transactionTotal": 52.5
+    }
+  }
+}

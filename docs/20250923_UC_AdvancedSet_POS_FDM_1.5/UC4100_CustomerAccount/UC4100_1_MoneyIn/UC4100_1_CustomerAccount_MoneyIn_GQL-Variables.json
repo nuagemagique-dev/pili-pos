@@ -1,0 +1,31 @@
+{
+  "data": {
+    "language": "FR",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 54900,
+    "posDateTime": "2024-05-02T15:20:05+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "POS-2-REC",
+    "deviceId": "80:1A:A6:75:66:FC",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-02",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "amount": 500,
+        "inputMethod": "MANUAL",
+        "amountType": "MONEY_IN_OUT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

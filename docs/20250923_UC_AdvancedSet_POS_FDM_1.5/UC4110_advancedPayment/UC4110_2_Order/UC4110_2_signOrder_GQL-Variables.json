@@ -1,0 +1,105 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6102,
+    "posDateTime": "2023-04-15T12:30:03+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "8445aa9d-34f1-49d6-bb49-a7846d393d75",
+    "bookingDate": "2023-04-15",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "100",
+      "type": "CUSTOMER",
+      "reference": "offertnr"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30085",
+            "productName": "Menu",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": 1500
+              }
+            ]
+          },
+          "lineTotal": 1500
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30099",
+            "productName": "Wine pairing",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 50,
+            "vats": [
+              {
+                "label": "A",
+                "price": 1000
+              }
+            ]
+          },
+          "lineTotal": 1000
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "80085",
+            "productName": "Prepayment Food",
+            "departmentId": "8",
+            "departmentName": "Prepayments",
+            "quantity": -1,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 750,
+            "vats": [
+              {
+                "label": "B",
+                "price": -750
+              }
+            ]
+          },
+          "lineTotal": -750
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "80099",
+            "productName": "Prepayment Drinks",
+            "departmentId": "8",
+            "departmentName": "Prepayments",
+            "quantity": -1,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 500,
+            "vats": [
+              {
+                "label": "A",
+                "price": -500
+              }
+            ]
+          },
+          "lineTotal": -500
+        }
+      ],
+      "transactionTotal": 1250
+    }
+  }
+}

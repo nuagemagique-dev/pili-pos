@@ -1,0 +1,3 @@
+1. Sale: 2 Dry Martini & 1 Burger of the Chef,
+   Client pays with Customer Credit (Sale, payment type: customer credit)
+2. A week later client pays with Mastercard (Financial: payment correction)

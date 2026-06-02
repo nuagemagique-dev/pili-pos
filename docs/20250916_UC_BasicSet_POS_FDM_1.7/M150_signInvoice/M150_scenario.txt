@@ -1,0 +1,4 @@
+Invoice for customer (Id 100 - customerVatNo BE0308357159)
+for tickets 
+    N 14/50
+    N 16/52 

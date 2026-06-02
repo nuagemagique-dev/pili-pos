@@ -1,0 +1,59 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 72,
+    "posDateTime": "2024-05-03T15:52:07+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "abcde456-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-03",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "fdmRef": {
+      "fdmId": "FOD01000001",
+      "fdmDateTime": "2024-05-03T13:45:45Z",
+      "eventLabel": "N",
+      "eventCounter": 57,
+      "totalCounter": 137
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": -59.66,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      },
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 0.01,
+        "amountType": "ROUNDING",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      },
+      {
+        "id": "3",
+        "name": "EFT",
+        "type": "CARD_DEBIT",
+        "inputMethod": "AUTOMATIC",
+        "provider": "BANCONTACT",
+        "amount": 59.66,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

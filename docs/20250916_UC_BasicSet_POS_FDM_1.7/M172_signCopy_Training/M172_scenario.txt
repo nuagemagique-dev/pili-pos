@@ -1,0 +1,1 @@
+In training mode: print of a copy of ticket (sale) N 35/73

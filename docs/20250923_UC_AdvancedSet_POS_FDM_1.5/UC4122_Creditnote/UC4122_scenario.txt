@@ -1,0 +1,4 @@
+Refund of ticket, sale of 4 dame blanche (unit price 11.52EUR) *had already been invoiced*
+Sale 1 of 4 dry Martini (unit price:12EUR) Payment type customer credit
+Sale 2 of 4 burger of the chef (unit price: 28 EUR) and 4 Coca-Cola (unit price 3.04EUR) Payment type customer credit
+Invoice of refund and sale 1 & 2

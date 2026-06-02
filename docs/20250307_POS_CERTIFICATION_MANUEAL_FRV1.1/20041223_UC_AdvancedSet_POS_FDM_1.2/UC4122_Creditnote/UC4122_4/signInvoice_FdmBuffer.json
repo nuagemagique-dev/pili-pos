@@ -1,0 +1,62 @@
+{
+  "enrichedEventData": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1200,
+    "posDateTime": "2024-06-30T13:10:00+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-2-DIN",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-06-30",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "invoiceNo": "20240005",
+    "customerVatNo": "BE0308357159",
+    "costCenter": {
+      "id": "2",
+      "type": "CUSTOMER",
+      "reference": "AUDI"
+    },
+    "fdmRefs": [
+      {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-05-30T11:00:04Z",
+        "eventLabel": "N",
+        "eventCounter": 29,
+        "totalCounter": 76
+      },
+      {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-06-18T11:00:09Z",
+        "eventLabel": "N",
+        "eventCounter": 30,
+        "totalCounter": 77
+      },
+      {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-06-22T11:00:06Z",
+        "eventLabel": "N",
+        "eventCounter": 31,
+        "totalCounter": 78
+      }
+    ],
+    "eventOperation": "INVOICE",
+    "fdmSwVersion": "1.2.0",
+    "bufferCapacityUsed": 0.25,
+    "fdmId": "FOD01000001",
+    "fdmDateTime": "2024-06-30T11:10:05Z",
+    "eventLabel": "I",
+    "eventCounter": 5,
+    "totalCounter": 80
+  },
+  "fdmLocalisation": {
+    "geoLocation": {
+      "latitude": 50.86073,
+      "longitude": 4.35612
+    }
+  },
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA=="
+}

@@ -1,0 +1,9 @@
+2 people order on table 1: 2 x Carpaccio beef + 2 x Burger of the chef + 1 x Dame Blanche + 2 x Dry martini + 1 x Bourgogne Red 
+
+The bill will be split in 2 as follows:  
+
+Bill 1: 1 x Carpaccio beef + 1 x Burger of the chef + 1 x Dame Blanche + 1 x Dry martini + 1/2 Bourgogne Red
+Bill 1 is paid cash + tip of 5,00 EUR 
+
+Bill 2: 1 x Carpaccio beef + 1 x Burger of the chef + 1 x Dry martini + 1/2 Bourgogne Red
+Bill 2 is paid half by visa and half by cash

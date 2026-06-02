@@ -1,0 +1,139 @@
+{
+  "enrichedEventData": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6603,
+    "posDateTime": "2024-10-07T13:48:00+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-10-07",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": -1.0,
+            "quantityType": "PIECE",
+            "negQuantityReason": "REFUND",
+            "unitPrice": 12.0,
+            "vats": [
+              {
+                "label": "A",
+                "price": -12.0
+              }
+            ]
+          },
+          "lineTotal": -12.0
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1.0,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "A",
+                "price": 3.04
+              }
+            ]
+          },
+          "lineTotal": 3.04
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "25008",
+            "productName": "crème brûlée",
+            "departmentId": "25",
+            "departmentName": "Desserts",
+            "quantity": 1.0,
+            "quantityType": "PIECE",
+            "unitPrice": 10.0,
+            "vats": [
+              {
+                "label": "B",
+                "price": 10.0
+              }
+            ]
+          },
+          "lineTotal": 10.0
+        }
+      ],
+      "transactionTotal": 1.04
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 1.04,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      },
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 0.01,
+        "amountType": "TIP",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ],
+    "vatCalc": [
+      {
+        "label": "A",
+        "rate": 21,
+        "taxableAmount": -7.4,
+        "vatAmount": -1.56,
+        "totalAmount": -8.96,
+        "outOfScope": false
+      },
+      {
+        "label": "B",
+        "rate": 12,
+        "taxableAmount": 8.93,
+        "vatAmount": 1.07,
+        "totalAmount": 10.0,
+        "outOfScope": false
+      }
+    ],
+    "eventOperation": "SALE",
+    "fdmSwVersion": "1.2.0",
+    "bufferCapacityUsed": 0.25,
+    "fdmId": "FOD01000001",
+    "fdmDateTime": "2024-10-07T11:48:09Z",
+    "eventLabel": "N",
+    "eventCounter": 18,
+    "totalCounter": 62
+  },
+  "fdmLocalisation": {
+    "geoLocation": {
+      "latitude": 50.86073,
+      "longitude": 4.35612
+    }
+  },
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA=="
+}

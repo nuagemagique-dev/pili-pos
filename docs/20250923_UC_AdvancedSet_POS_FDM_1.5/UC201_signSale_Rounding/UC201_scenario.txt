@@ -1,0 +1,6 @@
+DINING ROOM:
+Direct Sale of 
+	- 2 Coca Cola (unit price 3.04 EUR, VAT code A) 
+
+Transaction Total = 6.08 EUR
+Payment by CASH , rounding! (0.02 EUR)

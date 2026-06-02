@@ -1,0 +1,1 @@
+Drawer 1 is opened without any action

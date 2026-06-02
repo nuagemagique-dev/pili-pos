@@ -1,0 +1,59 @@
+mutation M171B_signSale_Training(
+  $data: SaleInput!
+  $training: Boolean! = false
+) {
+  signSale(data: $data, isTraining: $training) {
+    posId
+    posFiscalTicketNo
+    posDateTime
+    terminalId
+    deviceId
+    fdmSwVersion
+    eventOperation
+    digitalSignature
+    # Skip fields that are always null in training
+    shortSignature @skip(if: $training)
+    verificationUrl @skip(if: $training)
+    bufferCapacityUsed
+    fdmRef {
+      fdmId
+      fdmDateTime
+      eventLabel
+      eventCounter
+      totalCounter
+    }
+    vatCalc @skip(if: $training) {
+      label
+      rate
+      taxableAmount
+      vatAmount
+      totalAmount
+      outOfScope
+    }
+    warnings {
+      ...messageFields
+    }
+    informations {
+      ...messageFields
+    }
+  }
+}
+fragment messageFields on MessageItem {
+  __typename
+  message
+  locations {
+    line
+    column
+  }
+  extensions {
+    __typename
+    category
+    code
+    data {
+      __typename
+      name
+      value
+    }
+    showPos
+  }
+}

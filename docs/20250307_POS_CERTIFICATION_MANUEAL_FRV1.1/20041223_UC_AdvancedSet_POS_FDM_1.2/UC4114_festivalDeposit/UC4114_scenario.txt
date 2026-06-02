@@ -1,0 +1,3 @@
+Sale 5 Coca-Cola (with 5 bottle deposits). Payment by card.
+
+Refund on card 10 bottle deposits.

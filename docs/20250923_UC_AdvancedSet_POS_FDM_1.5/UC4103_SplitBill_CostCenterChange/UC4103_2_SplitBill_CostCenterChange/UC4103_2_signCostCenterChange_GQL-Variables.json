@@ -1,0 +1,340 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6003,
+    "posDateTime": "2024-09-03T12:27:03+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "NONE",
+    "employeeId": "84022899837",
+    "transfer": {
+      "from": [
+        {
+          "costCenter": {
+            "id": "1",
+            "type": "TABLE",
+            "reference": "20240903_001"
+          },
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "20001",
+                  "productName": "Carpaccio beef",
+                  "departmentId": "20",
+                  "departmentName": "Starters",
+                  "quantity": -2,
+                  "negQuantityReason": "COST_CENTER_CHANGE",
+                  "quantityType": "PIECE",
+                  "unitPrice": 20,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": -40
+                    }
+                  ]
+                },
+                "lineTotal": -40
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "22001",
+                  "productName": "Burger of the chef",
+                  "departmentId": "22",
+                  "departmentName": "Main Dishes",
+                  "quantity": -2,
+                  "negQuantityReason": "COST_CENTER_CHANGE",
+                  "quantityType": "PIECE",
+                  "unitPrice": 28,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": -56
+                    }
+                  ]
+                },
+                "lineTotal": -56
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "25003",
+                  "productName": "Dame Blanche",
+                  "departmentId": "25",
+                  "departmentName": "Desserts",
+                  "quantity": -1,
+                  "negQuantityReason": "COST_CENTER_CHANGE",
+                  "quantityType": "PIECE",
+                  "unitPrice": 11.52,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": -11.52
+                    }
+                  ]
+                },
+                "lineTotal": -11.52
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "10006",
+                  "productName": "Dry martini",
+                  "departmentId": "10",
+                  "departmentName": "Aperitifs",
+                  "quantity": -2,
+                  "negQuantityReason": "COST_CENTER_CHANGE",
+                  "quantityType": "PIECE",
+                  "unitPrice": 12,
+                  "vats": [
+                    {
+                      "label": "A",
+                      "price": -24
+                    }
+                  ]
+                },
+                "lineTotal": -24
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "15001",
+                  "productName": "Bourgogne Red",
+                  "departmentId": "15",
+                  "departmentName": "Wines",
+                  "quantity": -1,
+                  "negQuantityReason": "COST_CENTER_CHANGE",
+                  "quantityType": "PIECE",
+                  "unitPrice": 35,
+                  "vats": [
+                    {
+                      "label": "A",
+                      "price": -35
+                    }
+                  ]
+                },
+                "lineTotal": -35
+              }
+            ],
+            "transactionTotal": -166.52
+          }
+        }
+      ],
+      "to": [
+        {
+          "costCenter": {
+            "id": "1",
+            "type": "TABLE",
+            "reference": "20240903_001",
+            "costCenter": {
+              "id": "1",
+              "type": "CHAIR",
+              "reference": "20240903_001_1"
+            }
+          },
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "20001",
+                  "productName": "Carpaccio beef",
+                  "departmentId": "20",
+                  "departmentName": "Starters",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 20,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": 20
+                    }
+                  ]
+                },
+                "lineTotal": 20
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "22001",
+                  "productName": "Burger of the chef",
+                  "departmentId": "22",
+                  "departmentName": "Main Dishes",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 28,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": 28
+                    }
+                  ]
+                },
+                "lineTotal": 28
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "25003",
+                  "productName": "Dame Blanche",
+                  "departmentId": "25",
+                  "departmentName": "Desserts",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 11.52,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": 11.52
+                    }
+                  ]
+                },
+                "lineTotal": 11.52
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "10006",
+                  "productName": "Dry martini",
+                  "departmentId": "10",
+                  "departmentName": "Aperitifs",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 12,
+                  "vats": [
+                    {
+                      "label": "A",
+                      "price": 12
+                    }
+                  ]
+                },
+                "lineTotal": 12
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "15001",
+                  "productName": "Bourgogne Red",
+                  "departmentId": "15",
+                  "departmentName": "Wines",
+                  "quantity": 0.5,
+                  "quantityType": "PIECE",
+                  "unitPrice": 35,
+                  "vats": [
+                    {
+                      "label": "A",
+                      "price": 17.5
+                    }
+                  ]
+                },
+                "lineTotal": 17.5
+              }
+            ],
+            "transactionTotal": 89.02
+          }
+        },
+        {
+          "costCenter": {
+            "id": "1",
+            "type": "TABLE",
+            "reference": "20240903_001",
+            "costCenter": {
+              "id": "2",
+              "type": "CHAIR",
+              "reference": "20240903_001_2"
+            }
+          },
+          "transaction": {
+            "transactionLines": [
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "20001",
+                  "productName": "Carpaccio beef",
+                  "departmentId": "20",
+                  "departmentName": "Starters",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 20,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": 20
+                    }
+                  ]
+                },
+                "lineTotal": 20
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "22001",
+                  "productName": "Burger of the chef",
+                  "departmentId": "22",
+                  "departmentName": "Main Dishes",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 28,
+                  "vats": [
+                    {
+                      "label": "B",
+                      "price": 28
+                    }
+                  ]
+                },
+                "lineTotal": 28
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "10006",
+                  "productName": "Dry martini",
+                  "departmentId": "10",
+                  "departmentName": "Aperitifs",
+                  "quantity": 1,
+                  "quantityType": "PIECE",
+                  "unitPrice": 12,
+                  "vats": [
+                    {
+                      "label": "A",
+                      "price": 12
+                    }
+                  ]
+                },
+                "lineTotal": 12
+              },
+              {
+                "lineType": "SINGLE_PRODUCT",
+                "mainProduct": {
+                  "productId": "15001",
+                  "productName": "Bourgogne Red",
+                  "departmentId": "15",
+                  "departmentName": "Wines",
+                  "quantity": 0.5,
+                  "quantityType": "PIECE",
+                  "unitPrice": 35,
+                  "vats": [
+                    {
+                      "label": "A",
+                      "price": 17.5
+                    }
+                  ]
+                },
+                "lineTotal": 17.5
+              }
+            ],
+            "transactionTotal": 77.5
+          }
+        }
+      ]
+    }
+  }
+}

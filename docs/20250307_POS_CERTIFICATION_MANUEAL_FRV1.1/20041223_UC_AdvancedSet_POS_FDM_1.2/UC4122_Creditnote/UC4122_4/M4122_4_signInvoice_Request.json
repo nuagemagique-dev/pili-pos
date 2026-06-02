@@ -1,0 +1,51 @@
+{
+  "operationName": "M4122_4_signInvoice",
+  "variables": {
+    "data": {
+      "language": "NL",
+      "vatNo": "BE0000000097",
+      "estNo": "2000000042",
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 1200,
+      "posDateTime": "2024-06-30T13:10:00+02:00",
+      "posSwVersion": "1.8.3",
+      "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+      "terminalId": "TER-2-DIN",
+      "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+      "bookingDate": "2024-06-30",
+      "ticketMedium": "PAPER",
+      "employeeId": "84022899837",
+      "customerVatNo": "BE0308357159",
+      "costCenter": {
+        "id": "2",
+        "type": "CUSTOMER",
+        "reference": "AUDI"
+      },
+      "invoiceNo": "20240005",
+      "fdmRefs": [
+        {
+          "fdmId": "FOD01000001",
+          "fdmDateTime": "2024-05-30T11:00:04Z",
+          "eventLabel": "N",
+          "eventCounter": 29,
+          "totalCounter": 76
+        },
+        {
+          "fdmId": "FOD01000001",
+          "fdmDateTime": "2024-06-18T11:00:09Z",
+          "eventLabel": "N",
+          "eventCounter": 30,
+          "totalCounter": 77
+        },
+        {
+          "fdmId": "FOD01000001",
+          "fdmDateTime": "2024-06-22T11:00:06Z",
+          "eventLabel": "N",
+          "eventCounter": 31,
+          "totalCounter": 78
+        }
+      ]
+    }
+  },
+  "query": "mutation M4122_4_signInvoice($data: InvoiceInput!, $training: Boolean! = false) {\n  signInvoice(data: $data, isTraining: $training) {\n    posId\n    posFiscalTicketNo\n    posDateTime\n    terminalId\n    deviceId\n    fdmSwVersion\n    eventOperation\n    digitalSignature\n    bufferCapacityUsed\n    fdmRef {\n      fdmId\n      fdmDateTime\n      eventLabel\n      eventCounter\n      totalCounter\n    }\n    warnings {\n      message\n      locations {\n        line\n        column\n      }\n      extensions {\n        category\n        code\n        data {\n          name\n          value\n        }\n        showPos\n      }\n    }\n    informations {\n      message\n      locations {\n        line\n        column\n      }\n      extensions {\n        category\n        code\n        data {\n          name\n          value\n        }\n        showPos\n      }\n    }\n  }\n}\n"
+}

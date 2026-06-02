@@ -1,0 +1,75 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1175,
+    "posDateTime": "2024-06-22T13:00:00+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-06-18",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "costCenter": {
+      "id": "2",
+      "type": "CUSTOMER",
+      "reference": "AUDI"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 4,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 112
+              }
+            ]
+          },
+          "lineTotal": 112
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 4,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12.16
+              }
+            ]
+          },
+          "lineTotal": 12.16
+        }
+      ],
+      "transactionTotal": 124.16
+    },
+    "financials": [
+      {
+        "id": "2",
+        "name": "CUSTOMER",
+        "type": "CUSTOMER_CREDIT",
+        "inputMethod": "MANUAL",
+        "amount": 124.16,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

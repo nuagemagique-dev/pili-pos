@@ -1,0 +1,11 @@
+OPERATION 1: Order of 1 Carpaccio Beef, 1 Burger of the Chef and 2 Dry Martini on table 1
+
+OPERATION 2: Table split: 1 Burger of the Chef and 1 Dry Martini are moved to (empty) table 2
+
+OPERATION 3: Prebill for table 1 (1 Carpaccio Beef & 1 Dry Martini)
+
+OPERATION 4: Prebill for table 2 (1 Burger of the Chef & 1 Dry Martini)
+
+OPERATION 5: Finalise order on table1: cash payment 32 EUR, tip 3 EUR CASH
+
+OPERATION 6: Finalise order on table2: payment with VISA card 40 EUR

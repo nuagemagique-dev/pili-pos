@@ -1,0 +1,119 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 211,
+    "posDateTime": "2024-07-30T13:15:35+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "F0:1D:3D:CC:13:C8",
+    "terminalId": "POS-1-BAR",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-30",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "reportBookingDate": "2024-07-30",
+    "reportNo": 2,
+    "posDevices": [
+      {
+        "posId": "CPOS0031234567",
+        "terminalId": "TER-1-BAR",
+        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
+        "lastPosDateTime": "2024-07-30T08:40:12+02:00"
+      },
+      {
+        "posId": "CPOS0031234567",
+        "terminalId": "TER-2-DIN",
+        "firstPosDateTime": "2024-07-30T11:45:12+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12+02:00"
+      },
+      {
+        "posId": "CPOS0031234567",
+        "terminalId": "POS-1-BAR",
+        "firstPosDateTime": "2024-07-30T13:00:35+02:00",
+        "lastPosDateTime": "2024-07-30T13:10:35+02:00"
+      },
+      {
+        "posId": "CPOS0031234568",
+        "terminalId": "POS-2-REC",
+        "firstPosDateTime": "2024-07-30T09:40:12+02:00",
+        "lastPosDateTime": "2024-07-30T09:45:12+02:00"
+      }
+    ],
+    "fdmDevices": [
+      {
+        "fdmId": "FOD01000001",
+        "firstFdmDateTime": "2024-04-22T06:30:12Z",
+        "firstTotalCounter": 49,
+        "lastFdmDateTime": "2024-07-30T11:10:42Z",
+        "lastTotalCounter": 59
+      }
+    ],
+    "users": [
+      {
+        "employeeId": "75061189702",
+        "totalAmount": 0,
+        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
+        "lastPosDateTime": "2024-07-30T09:40:12+02:00",
+        "socialEvents": [],
+        "payments": [
+          {
+            "id": "1",
+            "name": "CONTANT",
+            "type": "CASH",
+            "amount": [
+              {
+                "type": "PAYMENT",
+                "normalAmount": 0,
+                "negativeCorrections": 0,
+                "positiveCorrections": 0,
+                "correctionsCount": 0,
+                "totalAmount": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "employeeId": "84022899837",
+        "totalAmount": 102.04,
+        "firstPosDateTime": "2024-07-30T09:45:12+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12+02:00",
+        "socialEvents": [],
+        "payments": [
+          {
+            "id": "1",
+            "name": "CONTANT",
+            "type": "CASH",
+            "amount": [
+              {
+                "type": "PAYMENT",
+                "normalAmount": 99,
+                "negativeCorrections": 0,
+                "positiveCorrections": 0,
+                "correctionsCount": 0,
+                "totalAmount": 99
+              }
+            ]
+          },
+          {
+            "id": "2",
+            "name": "Master Card",
+            "type": "CARD_CREDIT",
+            "amount": [
+              {
+                "type": "PAYMENT",
+                "normalAmount": 3.04,
+                "negativeCorrections": 0,
+                "positiveCorrections": 0,
+                "correctionsCount": 0,
+                "totalAmount": 3.04
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

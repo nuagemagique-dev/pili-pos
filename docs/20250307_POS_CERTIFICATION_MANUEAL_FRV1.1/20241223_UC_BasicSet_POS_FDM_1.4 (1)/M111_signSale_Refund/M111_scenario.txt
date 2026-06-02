@@ -1,0 +1,5 @@
+Dining room:
+Refund ticket (full refund):  
+Products on original ticket N 1000/1200:
+    - 2 Dry Martini (unit price 12 EUR, VAT code A) 
+    - 1 Burger of the Chef (unit price 28 EUR, VAT code B)

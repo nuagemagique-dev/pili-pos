@@ -1,0 +1,79 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6001,
+    "posDateTime": "2023-03-31T12:30:03+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "2f1e4fc0-81fd-11da-9156-00036a0f876a",
+    "bookingDate": "2023-03-31",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "100",
+      "type": "CUSTOMER",
+      "reference": "offertnr"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "80085",
+            "productName": "Prepayment Food",
+            "departmentId": "8",
+            "departmentName": "Prepayments",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 750,
+            "vats": [
+              {
+                "label": "B",
+                "price": 750
+              }
+            ]
+          },
+          "lineTotal": 750
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "80099",
+            "productName": "Prepayment Drinks",
+            "departmentId": "8",
+            "departmentName": "Prepayments",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 500,
+            "vats": [
+              {
+                "label": "A",
+                "price": 500
+              }
+            ]
+          },
+          "lineTotal": 500
+        }
+      ],
+      "transactionTotal": 1250
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 1250,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

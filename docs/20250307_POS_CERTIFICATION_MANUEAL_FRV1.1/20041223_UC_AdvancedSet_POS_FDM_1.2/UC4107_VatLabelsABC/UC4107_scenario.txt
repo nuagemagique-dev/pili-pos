@@ -1,0 +1,9 @@
+1. order on table 53: 2 carpaccio with price change 5%, 1 dry martini, 1 perrier
+
+2. Price change: 20% on table 53 (price change grouping) 
+
+3. Prebill (printed)
+
+4. Order 1 crème brûlée (take away) price change 25%
+
+5. Vat ticket, payment cash

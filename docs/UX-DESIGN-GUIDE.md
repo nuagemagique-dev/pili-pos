@@ -1,6 +1,6 @@
 # UX Design Guide — Restaurant POS Touch Interface
 
-> Guide de design pour l'interface POS tactile tsb-pos.
+> Guide de design pour l'interface POS tactile moyun-pos.
 > Synthèse des meilleures pratiques issues de l'industrie POS restaurant.
 > À lire avant d'implémenter les composants Vue dans `ui/src/`.
 

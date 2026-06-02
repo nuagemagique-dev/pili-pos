@@ -1,0 +1,9 @@
+Reastaurant Reservation for 4 persons. To pay in advance (sale): prepayment van 100€ pp. 400€ payed in cash.
+
+Order 4 menu (200€pp) en 4 wine package (75€pp)
+
+Order: prepayment is deducted
+
+Prebill
+
+Sale payment cash

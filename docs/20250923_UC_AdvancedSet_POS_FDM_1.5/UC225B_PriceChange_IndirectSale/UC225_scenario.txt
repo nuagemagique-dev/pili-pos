@@ -1,0 +1,10 @@
+1. Order of 2 Carpaccio Beef (unit price 20,00, VAT-code B)
+2. Sale: 20% ticket discount is granted.
+
+VERSION A:
+1. signOrder 2 Carpaccio Beef (unit price 20.00, VAT-code B)
+2. signSale (2 Carpaccio Beef with PriceChange)
+
+VERSION B
+1. signOrder 2 Carpaccio Beef (unit price 20.00, VAT-code B)
+2. signSale (2 Carpaccio Beef, -2 Carpaccio Beef, 2 Carpaccio Beef with PriceChange)

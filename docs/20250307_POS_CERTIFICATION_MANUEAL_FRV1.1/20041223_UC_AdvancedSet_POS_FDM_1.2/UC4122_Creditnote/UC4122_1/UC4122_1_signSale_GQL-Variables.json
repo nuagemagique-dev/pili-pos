@@ -1,0 +1,57 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1000,
+    "posDateTime": "2024-05-30T13:00:00+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-30",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "costCenter": {
+      "id": "2",
+      "type": "CUSTOMER",
+      "reference": "AUDI"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "25003",
+            "productName": "Dame blanche",
+            "departmentId": "25",
+            "departmentName": "Desserts",
+            "quantity": -4,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 11.52,
+            "vats": [
+              {
+                "label": "B",
+                "price": -46.08
+              }
+            ]
+          },
+          "lineTotal": -46.08
+        }
+      ],
+      "transactionTotal": -46.08
+    },
+    "financials": [
+      {
+        "id": "2",
+        "name": "CUSTOMER",
+        "type": "CUSTOMER_CREDIT",
+        "inputMethod": "MANUAL",
+        "amount": -46.08,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

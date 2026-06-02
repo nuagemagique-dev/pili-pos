@@ -1,0 +1,6 @@
+
+SALE (2 Carpaccio, unit price 20 EUR, B and 2 bottle S, unit price 0.01, X), 
+payment in USD: CASH 50USD (= 44 EUR)
+
+
+

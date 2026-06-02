@@ -1,0 +1,116 @@
+{
+  "enrichedEventData": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1001,
+    "posDateTime": "2024-07-29T13:15:00+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-2-DIN",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": -2.0,
+            "quantityType": "PIECE",
+            "negQuantityReason": "REFUND",
+            "unitPrice": 12.0,
+            "vats": [
+              {
+                "label": "A",
+                "price": -24.0
+              }
+            ]
+          },
+          "lineTotal": -24.0
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the Chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": -1.0,
+            "quantityType": "PIECE",
+            "negQuantityReason": "REFUND",
+            "unitPrice": 28.0,
+            "vats": [
+              {
+                "label": "B",
+                "price": -28.0
+              }
+            ]
+          },
+          "lineTotal": -28.0
+        }
+      ],
+      "transactionTotal": -52.0
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": -52.0,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ],
+    "fdmRef": {
+      "fdmId": "FOD01000001",
+      "fdmDateTime": "2024-07-29T11:00:08Z",
+      "eventLabel": "N",
+      "eventCounter": 15,
+      "totalCounter": 59
+    },
+    "vatCalc": [
+      {
+        "label": "A",
+        "rate": 21,
+        "taxableAmount": -19.83,
+        "vatAmount": -4.17,
+        "totalAmount": -24.0,
+        "outOfScope": false
+      },
+      {
+        "label": "B",
+        "rate": 12,
+        "taxableAmount": -25.0,
+        "vatAmount": -3.0,
+        "totalAmount": -28.0,
+        "outOfScope": false
+      }
+    ],
+    "eventOperation": "SALE",
+    "fdmSwVersion": "1.2.0",
+    "bufferCapacityUsed": 0.25,
+    "fdmId": "FOD01000001",
+    "fdmDateTime": "2024-07-29T11:15:00Z",
+    "eventLabel": "N",
+    "eventCounter": 16,
+    "totalCounter": 60
+  },
+  "fdmLocalisation": {
+    "geoLocation": {
+      "latitude": 50.86073,
+      "longitude": 4.35612
+    }
+  },
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA=="
+}

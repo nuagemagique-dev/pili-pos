@@ -1,0 +1,11 @@
+scenario M112A: 
+ASSUMPTION: the cash register supports a partial refund in combination with a new sale
+
+1. Original Ticket: direct sale of  
+    * 2 dry Martini (unit price 12 EUR, VAT code A)
+    * 1 burger of the chef (unit price 28 EUR, VAT code B)
+
+2. Partial refund:
+    * refund of 1 Dry Martini (unit price 12 EUR, VAT code A)
+    * sale of 1 Coca Cola (unit price 3.04 EUR, VAT code A) & 1 crème brûlée (unit price 10 EUR, VAT code B)
+    Payment by cash.

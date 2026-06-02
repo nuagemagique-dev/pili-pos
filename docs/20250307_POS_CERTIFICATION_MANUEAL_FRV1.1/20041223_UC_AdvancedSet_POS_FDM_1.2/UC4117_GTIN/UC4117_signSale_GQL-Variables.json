@@ -1,0 +1,56 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6000,
+    "posDateTime": "2024-09-03T12:25:03+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "a1b2c3d4",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "DIGITAL",
+    "employeeId": "75061189731",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "gtin": "5000112659177",
+            "productId": "12010",
+            "productName": "Coca-Cola can",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "C",
+                "price": 2.5
+              }
+            ]
+          },
+          "lineTotal": 2.5
+        }
+      ],
+      "transactionTotal": 2.5
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CASH",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 2.5,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

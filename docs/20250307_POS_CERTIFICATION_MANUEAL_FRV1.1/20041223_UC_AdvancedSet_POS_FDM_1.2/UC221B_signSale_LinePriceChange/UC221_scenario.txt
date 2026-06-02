@@ -1,0 +1,16 @@
+!!! PROMO on " of Burger of the Chef" (unit price 28.00 EUR, VAT-code B): if you order 2 pcs, there is a 50% discount on the second one
+
+DIRECT SALE of 2 Burger of the Chef and 1 Dry Martini (unit price 12.00 EUR, VAT-code A)
+Payment Cash
+
+version A:
+- productline 2 Burger of the Chef
+- productline -1 Burger of the Chef (negQuantityReason: PRICECHANGE)
+- productline 1 Burger of the Chef with line PRICECHANGE
+- productline 1 Dry Martini
+
+version B:
+- productline 1 Burger of the Chef
+- productline 1 Burger of the Chef with line PRICECHANGE
+- productline 1 Dry Martini
+

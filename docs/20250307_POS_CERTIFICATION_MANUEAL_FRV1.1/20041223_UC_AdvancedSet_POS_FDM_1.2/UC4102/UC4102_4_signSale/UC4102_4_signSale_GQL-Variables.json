@@ -1,0 +1,173 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6015,
+    "posDateTime": "2024-05-02T16:15:05+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-02",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "25",
+      "type": "TABLE",
+      "reference": "T0123"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "12",
+            "departmentName": "Aperitifs",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12
+              }
+            ]
+          },
+          "lineTotal": 12
+        },
+        {
+          "lineType": "COMPOSITE_PRODUCT",
+          "mainProduct": {
+            "productId": "30001",
+            "productName": "Business menu",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 38,
+            "vats": []
+          },
+          "subProducts": [
+            {
+              "productId": "20001",
+              "productName": "Carpaccio Beef",
+              "departmentId": "20",
+              "departmentName": "Starters",
+              "quantity": 1,
+              "quantityType": "PIECE",
+              "unitPrice": 20,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 20,
+                  "priceChanges": [
+                    {
+                      "groupingId": 1,
+                      "id": "5",
+                      "name": "MenuDiscount",
+                      "scope": "LINE",
+                      "type": "INTERNAL",
+                      "amount": -5
+                    },
+                    {
+                      "groupingId": 2,
+                      "id": "6",
+                      "name": "ComplaintDiscount",
+                      "scope": "LINE",
+                      "type": "PUBLIC",
+                      "amount": -7.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "productId": "22001",
+              "productName": "Burger of the Chef",
+              "departmentId": "22",
+              "departmentName": "Main Dishes",
+              "quantity": 1,
+              "quantityType": "PIECE",
+              "unitPrice": 28,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 28,
+                  "priceChanges": [
+                    {
+                      "groupingId": 1,
+                      "id": "5",
+                      "name": "MenuDiscount",
+                      "scope": "LINE",
+                      "type": "INTERNAL",
+                      "amount": -5
+                    },
+                    {
+                      "groupingId": 2,
+                      "id": "6",
+                      "name": "ComplaintDiscount",
+                      "scope": "LINE",
+                      "type": "PUBLIC",
+                      "amount": -11.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lineTotal": 19
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 2.5
+              }
+            ]
+          },
+          "lineTotal": 2.5
+        }
+      ],
+      "transactionTotal": 33.5
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 33.5,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      },
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 1.5,
+        "amountType": "TIP",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ]
+  }
+}

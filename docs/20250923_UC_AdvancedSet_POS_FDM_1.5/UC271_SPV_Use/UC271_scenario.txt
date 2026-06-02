@@ -1,0 +1,8 @@
+Client comes tot diner: orders 2 dry Martini & 2 business menu all-in
+Client pays with a SPV (valid for 1 menu all-in) and CARD
+
+1. Order on table1: 2 dry Martini
+
+2. Order on table1: 2 business menu all-in
+3. Prebill
+4. Finalise ticket, payment by SPV & card

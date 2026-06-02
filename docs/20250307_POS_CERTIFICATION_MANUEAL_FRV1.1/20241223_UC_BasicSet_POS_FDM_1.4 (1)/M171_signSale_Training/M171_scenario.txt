@@ -1,0 +1,4 @@
+Sale of
+    2 Perrier (unit price 2.50 EUR, VAT code A)
+    1 Burger of the Chef (unit price 28.00 EUR, VAT code B)
+in training mode. Paymentmethod: CASH

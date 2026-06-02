@@ -1,0 +1,20 @@
+Correction of a price change
+
+Order of:
+- 2 Perrier unitPrice 2.5: total vat price 5.0 
+- 1 Coca Cola unitPrice 3.04: total vat price 3.04
+Ticket discount of 1.00
+- PriceChange -0.62 on transactionLine 2 perrier
+- PriceChange -0.38 on transactionLine 1 coca cola
+
+Discount is applied immediately
+
+Correction:
+- 1 Perrier removed
+
+Add a product modifier:
+- Add ice cubes 0.1 on Perrier
+    - PriceChange +0.1
+    - PriceChange 
+Order of:
+- Chardonnay White but corrected to Bourgogne Red

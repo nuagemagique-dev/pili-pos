@@ -1,0 +1,63 @@
+mutation UC4104_8_signSale($data: SaleInput!, $training: Boolean! = false) {
+  signSale(data: $data, isTraining: $training) {
+    posId
+    posFiscalTicketNo
+    posDateTime
+    terminalId
+    deviceId
+    fdmSwVersion
+    eventOperation
+    digitalSignature
+    shortSignature
+    verificationUrl
+    bufferCapacityUsed
+    fdmRef {
+      fdmId
+      fdmDateTime
+      eventLabel
+      eventCounter
+      totalCounter
+    }
+    vatCalc {
+      label
+      rate
+      taxableAmount
+      vatAmount
+      totalAmount
+      outOfScope
+    }
+    warnings {
+      message
+      locations {
+        line
+        column
+      }
+      extensions {
+        category
+        code
+        data {
+          name
+          value
+        }
+        showPos
+      }
+    }
+    informations {
+      message
+      locations {
+        line
+        column
+      }
+      extensions {
+        category
+        code
+        data {
+          name
+          value
+        }
+        showPos
+      }
+    }
+    footer
+  }
+}

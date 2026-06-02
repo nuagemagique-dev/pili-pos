@@ -1,0 +1,5 @@
+DINING ROOM:
+Direct Sale of 
+	- 2 Dry Martini (unit price 12 EUR, VAT code A) 
+	- 1 Burger of the Chef (unit price 28 EUR, VAT code B).
+Payment by CASH (52 EUR)

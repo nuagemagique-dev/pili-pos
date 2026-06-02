@@ -1,0 +1,80 @@
+{
+  "enrichedEventData": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1005,
+    "posDateTime": "2024-07-29T14:48:03+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T1",
+      "type": "TABLE",
+      "reference": "O158"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 2.0,
+            "quantityType": "PIECE",
+            "unitPrice": 12.0,
+            "vats": [
+              {
+                "label": "A",
+                "price": 24.0
+              }
+            ]
+          },
+          "lineTotal": 16.0
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "28007",
+            "productName": "Tapas variation",
+            "departmentId": "28",
+            "departmentName": "Tapas",
+            "quantity": 4.0,
+            "quantityType": "PIECE",
+            "unitPrice": 3.34,
+            "vats": [
+              {
+                "label": "B",
+                "price": 13.36
+              }
+            ]
+          },
+          "lineTotal": 13.36
+        }
+      ],
+      "transactionTotal": 37.36
+    },
+    "eventOperation": "PRE_BILL",
+    "fdmSwVersion": "1.2.0",
+    "bufferCapacityUsed": 0.25,
+    "fdmId": "FOD01000001",
+    "fdmDateTime": "2024-07-29T12:48:12Z",
+    "eventLabel": "P",
+    "eventCounter": 24,
+    "totalCounter": 55
+  },
+  "fdmLocalisation": {
+    "geoLocation": {
+      "latitude": 50.86073,
+      "longitude": 4.35612
+    }
+  },
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA=="
+}

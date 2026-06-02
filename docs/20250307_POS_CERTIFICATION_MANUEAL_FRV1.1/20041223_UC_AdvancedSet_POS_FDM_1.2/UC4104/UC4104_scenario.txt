@@ -1,0 +1,26 @@
+
+(ROUNDING ONLY FOR CASH)
+
+1. Table 20:  order 3 x carpaccio (3 x 20 EUR, B) and a bottle of Chardonnay white (40 EUR). 
+
+2. The bottle of Chardonnay white turns out sour and is taken back and a bottle of Bourgogne red (35 EUR) is ordered.
+
+3. Order of the main courses: 1 x burger of the chef (28 EUR, B) + 1 x business menu (38 EUR, B) + 1 x catch of the day (0.4 kg, 45 EUR/kg, B)
+
+4. One person leaves and pays his part of the bill: 1 x carpaccio, 1x burger of the chef and 0.3333 x Bourgogne red + 5 EUR TIP (CASH)
+
+5. Eventually the other two guests ask for the pre bill.
+The manager decides to give them 10% discount because of the bad bottle of white wine.
+
+6. Pre bill.
+
+7. They decide to split the bill in 2: one person uses an MPV (VOUCHER STORE) and gives another 3,33 EUR cash tip 
+
+8. The other pays his share by card and
+gives his VAT number (BE0308357159) to the waiter and asks to make an invoice at the end of the month.
+
+9. Payment Type of first VAT-ticket is changed to card (only 5 EUR tip was paid by cash).
+
+10. Next day at noon, one of the customers asks a copy of his VAT ticket (Bill2) 
+
+11. At the end of the month the invoice for Bill3 is created.

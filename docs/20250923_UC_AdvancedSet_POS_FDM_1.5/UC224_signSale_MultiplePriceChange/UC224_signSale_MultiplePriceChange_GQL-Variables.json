@@ -1,0 +1,99 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 5001,
+    "posDateTime": "2024-09-02T10:20:23+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "defcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-02",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the Chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28,
+                "priceChanges": [
+                  {
+                    "id": "11",
+                    "groupingId": 1,
+                    "name": "Discount20P",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -5.6
+                  },
+                  {
+                    "id": "11",
+                    "name": "Discount20P",
+                    "scope": "EVENT",
+                    "type": "PUBLIC",
+                    "amount": -4.48,
+                    "groupingId": 2
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 17.92
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 2.5,
+                "priceChanges": [
+                  {
+                    "id": "11",
+                    "name": "Discount20P",
+                    "scope": "EVENT",
+                    "type": "PUBLIC",
+                    "amount": -0.5,
+                    "groupingId": 2
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 2
+        }
+      ],
+      "transactionTotal": 19.92
+    },
+    "financials": [
+      {
+        "id": "15",
+        "name": "BANCONTACT",
+        "type": "CARD_DEBIT",
+        "inputMethod": "AUTOMATIC",
+        "provider": "VISA",
+        "amount": 19.92,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

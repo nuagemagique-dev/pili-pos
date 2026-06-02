@@ -1,0 +1,107 @@
+{
+  "enrichedEventData": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1015,
+    "posDateTime": "2024-07-29T17:10:39+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 2.0,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 5.0
+              }
+            ]
+          },
+          "lineTotal": 5.0
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the Chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1.0,
+            "quantityType": "PIECE",
+            "unitPrice": 28.0,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28.0
+              }
+            ]
+          },
+          "lineTotal": 28.0
+        }
+      ],
+      "transactionTotal": 33.0
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 33.0,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ],
+    "vatCalc": [
+      {
+        "label": "A",
+        "rate": 21,
+        "taxableAmount": 4.13,
+        "vatAmount": 0.87,
+        "totalAmount": 5.0,
+        "outOfScope": false
+      },
+      {
+        "label": "B",
+        "rate": 12,
+        "taxableAmount": 25.0,
+        "vatAmount": 3.0,
+        "totalAmount": 28.0,
+        "outOfScope": false
+      }
+    ],
+    "eventOperation": "SALE",
+    "fdmSwVersion": "1.2.0",
+    "bufferCapacityUsed": 0.25,
+    "fdmId": "FOD01000001",
+    "fdmDateTime": "2024-07-29T15:10:41Z",
+    "eventLabel": "T",
+    "eventCounter": 4,
+    "totalCounter": 64
+  },
+  "fdmLocalisation": {
+    "geoLocation": {
+      "latitude": 50.86073,
+      "longitude": 4.35612
+    }
+  },
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA=="
+}

@@ -1,0 +1,65 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 51,
+    "posDateTime": "2024-05-03T15:27:39+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "abcde456-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-03",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T20",
+      "type": "TABLE",
+      "reference": "150"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio",
+            "departmentId": "20",
+            "departmentName": "STARTERS",
+            "quantity": 3,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 60
+              }
+            ]
+          },
+          "lineTotal": 60
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "15002",
+            "productName": "Chardonnay white",
+            "departmentId": "15",
+            "departmentName": "WINES",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 40,
+            "vats": [
+              {
+                "label": "A",
+                "price": 40
+              }
+            ]
+          },
+          "lineTotal": 40
+        }
+      ],
+      "transactionTotal": 100
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE1956789512",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6017,
+    "posDateTime": "2024-05-02T16:16:05+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-02",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "fdmRef": {
+      "fdmId": "FOD01000001",
+      "fdmDateTime": "2024-05-02T14:15:14Z",
+      "eventLabel": "N",
+      "eventCounter": 52,
+      "totalCounter": 124
+    }
+  }
+}

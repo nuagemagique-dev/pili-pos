@@ -1,0 +1,5 @@
+{
+    "operationName": "Q100_Status",
+    "variables": {},
+    "query": "query Q100_Status {\n  status(language: EN) {\n    __typename\n    initialized\n    device {\n      bufferCapacityUsed\n      fdmDateTime\n      fdmId\n      fdmSwVersion\n    }\n    errors {\n      ...messageFields\n    }\n    warnings {\n      ...messageFields\n    }\n    informations {\n      ...messageFields\n    }\n    __typename\n  }\n}\n\nfragment messageFields on MessageItem {\n  message\n  locations {\n    line\n    column\n    __typename\n  }\n  extensions {\n    category\n    code\n    data {\n      name\n      value\n      __typename\n    }\n    showPos\n    __typename\n  }\n  __typename\n}\n"
+}

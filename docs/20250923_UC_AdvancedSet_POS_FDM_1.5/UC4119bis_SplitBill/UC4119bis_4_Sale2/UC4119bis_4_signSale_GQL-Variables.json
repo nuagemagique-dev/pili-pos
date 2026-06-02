@@ -1,0 +1,100 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 3570,
+    "posDateTime": "2024-08-29T14:24:00+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-08-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T1",
+      "type": "TABLE",
+      "reference": "O158",
+      "costCenter": {
+        "id": "C2",
+        "type": "CHAIR",
+        "reference": "C2_1"
+      }
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio Beef",
+            "departmentId": "20",
+            "departmentName": "Starters",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 20
+              }
+            ]
+          },
+          "lineTotal": 20
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "15003",
+            "productName": "Wine (glass)",
+            "departmentId": "15",
+            "departmentName": "Wines",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 8,
+            "vats": [
+              {
+                "label": "A",
+                "price": 8
+              }
+            ]
+          },
+          "lineTotal": 8
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "A",
+                "price": 3.04
+              }
+            ]
+          },
+          "lineTotal": 3.04
+        }
+      ],
+      "transactionTotal": 31.04
+    },
+    "financials": [
+      {
+        "id": "3",
+        "name": "Credit Card",
+        "type": "CARD_CREDIT",
+        "inputMethod": "AUTOMATIC",
+        "amount": 31.04,
+        "amountType": "PAYMENT",
+        "provider": "Visa"
+      }
+    ]
+  }
+}

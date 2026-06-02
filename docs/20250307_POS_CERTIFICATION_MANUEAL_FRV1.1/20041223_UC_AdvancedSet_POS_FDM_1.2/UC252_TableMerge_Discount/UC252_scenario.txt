@@ -1,0 +1,7 @@
+•	Order of 1 Dry Martini, 1 Perrier and 1 Burger of the CHEF on table 1
+
+•	Order of 1 Dry Martini with a discount of 20%, 1 Business menu all-in on table 2
+
+•	Table merge: Orders are moved from table 1 and table 2 to table 5 
+
+•	Finalise order on table5, payment by credit card

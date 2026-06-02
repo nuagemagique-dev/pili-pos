@@ -1,0 +1,4 @@
+Order on T1 (BAR):
+    1 Burger of the Chef (unit price 28 EUR, VAT code B)
+    1 Dry Martini(unit price 12 EUR, VAT code A)    
+is moved to T5 (Dining Room)

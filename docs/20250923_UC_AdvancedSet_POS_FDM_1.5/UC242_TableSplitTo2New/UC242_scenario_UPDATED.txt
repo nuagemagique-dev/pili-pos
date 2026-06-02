@@ -1,0 +1,9 @@
+•	Order of 1x carpaccio beef, 1 x catch of the day (0.500 kl à 45EUR/kg) and 2 dry martini on table 1 (P order)
+
+•	Table split: 
+o	1 catch of the day and 1 dry martini are moved to table 2 (P CostcenterChange)
+o	1 carpaccio and 1 dry martini to table 35
+
+•	Finalise order on table 35: cash payment 32 EUR
+
+•	Finalise order on table 2: cash payment 34.5 EUR

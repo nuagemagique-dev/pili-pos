@@ -1,0 +1,53 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6020,
+    "posDateTime": "2024-09-03T12:40:03+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "DIGITAL",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "90001",
+            "productName": "Bottle S",
+            "departmentId": "90",
+            "departmentName": "Bottle Deposits",
+            "quantity": -10,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 0.01,
+            "vats": [
+              {
+                "label": "X",
+                "price": -0.1
+              }
+            ]
+          },
+          "lineTotal": -0.1
+        }
+      ],
+      "transactionTotal": -0.1
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CARD",
+        "type": "CARD_DEBIT",
+        "inputMethod": "AUTOMATIC",
+        "provider": "VISA",
+        "amount": -0.1,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

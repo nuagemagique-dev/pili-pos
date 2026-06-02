@@ -1,0 +1,24 @@
+{
+  "data": {
+    "signDrawerOpen": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 1007,
+      "posDateTime": "2024-07-29T15:12:04+02:00",
+      "terminalId": "TER-1-BAR",
+      "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+      "eventOperation": "DRAWER_OPEN",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-07-29T13:12:05Z",
+        "eventLabel": "F",
+        "eventCounter": 7,
+        "totalCounter": 57
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "warnings": [],
+      "informations": []
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "operationName": "M171_signSale_Training",
+  "variables": {
+    "data": {
+      "language": "NL",
+      "vatNo": "BE0000000097",
+      "estNo": "2000000042",
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 1015,
+      "posDateTime": "2024-07-29T17:10:39+02:00",
+      "posSwVersion": "1.8.3",
+      "terminalId": "TER-1-BAR",
+      "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+      "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+      "bookingDate": "2024-07-29",
+      "ticketMedium": "PAPER",
+      "employeeId": "75061189702",
+      "transaction": {
+        "transactionLines": [
+          {
+            "lineType": "SINGLE_PRODUCT",
+            "mainProduct": {
+              "productId": "12007",
+              "productName": "Perrier",
+              "departmentId": "12",
+              "departmentName": "Soft Drinks",
+              "quantity": 2,
+              "quantityType": "PIECE",
+              "unitPrice": 2.5,
+              "vats": [
+                {
+                  "label": "A",
+                  "price": 5
+                }
+              ]
+            },
+            "lineTotal": 5
+          },
+          {
+            "lineType": "SINGLE_PRODUCT",
+            "mainProduct": {
+              "productId": "22001",
+              "productName": "Burger of the Chef",
+              "departmentId": "22",
+              "departmentName": "Main Dishes",
+              "quantity": 1,
+              "quantityType": "PIECE",
+              "unitPrice": 28,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 28
+                }
+              ]
+            },
+            "lineTotal": 28
+          }
+        ],
+        "transactionTotal": 33
+      },
+      "financials": [
+        {
+          "id": "1",
+          "name": "CONTANT",
+          "type": "CASH",
+          "inputMethod": "MANUAL",
+          "amount": 33,
+          "amountType": "PAYMENT",
+          "drawer": {
+            "id": "1",
+            "name": "Drawer 1"
+          }
+        }
+      ]
+    },
+    "training": true
+  },
+  "query": "mutation M171_signSale_Training($data: SaleInput!, $training: Boolean! = false) {\n  signSale(data: $data, isTraining: $training) {\n    posId\n    posFiscalTicketNo\n    posDateTime\n    terminalId\n    deviceId\n    fdmSwVersion\n    eventOperation\n    digitalSignature\n    shortSignature\n    bufferCapacityUsed\n    fdmRef {\n      fdmId\n      fdmDateTime\n      eventLabel\n      eventCounter\n      totalCounter\n    }\n    vatCalc {\n      label\n      rate\n      taxableAmount\n      vatAmount\n      totalAmount\n      outOfScope\n    }\n    warnings {\n      message\n      locations {\n        line\n        column\n      }\n      extensions {\n        category\n        code\n        data {\n          name\n          value\n        }\n        showPos\n      }\n    }\n    informations {\n      message\n      locations {\n        line\n        column\n      }\n      extensions {\n        category\n        code\n        data {\n          name\n          value\n        }\n        showPos\n      }\n    }\n  }\n}\n"
+}
