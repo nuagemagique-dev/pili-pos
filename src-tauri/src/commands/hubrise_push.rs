@@ -59,7 +59,7 @@ pub fn build_hubrise_order_body(
         "status": "completed",
         "service_type": service_type,
         "channel": "POS",
-        "connection_name": "tsb-pos",
+        "connection_name": "moyun-pos",
         "items": items,
         "total": total,
         "payments": [payment],

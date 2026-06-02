@@ -1,7 +1,7 @@
 //! HubRise mock HTTP server.
 //!
 //! Minimal in-memory implementation of the HubRise REST API used by
-//! `tsb-service` (webshop client) and `tsb-pos` (POS client) during
+//! `tsb-service` (webshop client) and `moyun-pos` (POS client) during
 //! development — no real HubRise account required.
 //!
 //! Docs revision baseline: see `HUBRISE_DOCS_REVISION`. Update this
@@ -93,7 +93,7 @@ async fn main() {
     println!("Docs revision baseline: {HUBRISE_DOCS_REVISION}");
     println!("Pre-seeded clients:");
     println!("  - tsb-webshop  token=dev-token-webshop");
-    println!("  - tsb-pos      token=dev-token-pos");
+    println!("  - moyun-pos    token=dev-token-pos");
     println!("Press Ctrl+C to stop");
 
     axum::serve(listener, app).await.expect("axum serve");
@@ -184,7 +184,7 @@ async fn oauth_authorize(
     let code = Uuid::new_v4().to_string();
 
     let token = match q.client_id.as_deref() {
-        Some("tsb-pos") | Some("tsb-pos-dev") => "dev-token-pos",
+        Some("moyun-pos") | Some("moyun-pos-dev") => "dev-token-pos",
         _ => "dev-token-webshop",
     }
     .to_string();

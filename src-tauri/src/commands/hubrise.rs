@@ -55,7 +55,7 @@ fn default_oauth_config() -> OAuthConfig {
         base_url: std::env::var("HUBRISE_BASE_URL")
             .unwrap_or_else(|_| "http://localhost:3001/v1".to_string()),
         client_id: std::env::var("HUBRISE_POS_CLIENT_ID")
-            .unwrap_or_else(|_| "tsb-pos".to_string()),
+            .unwrap_or_else(|_| "moyun-pos".to_string()),
         client_secret: std::env::var("HUBRISE_POS_CLIENT_SECRET")
             .unwrap_or_else(|_| String::new()),
         redirect_uri: std::env::var("HUBRISE_POS_REDIRECT_URI")

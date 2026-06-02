@@ -1,4 +1,4 @@
-//! HubRise client for tsb-pos.
+//! HubRise client for moyun-pos.
 //!
 //! Single "cloud" crate encapsulating all HubRise traffic for the
 //! Rust/Tauri POS: OAuth connection, 30-second event polling,

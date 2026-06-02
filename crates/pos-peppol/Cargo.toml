@@ -1,0 +1,18 @@
+[package]
+name = "pos-peppol"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+serde = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+quick-xml = { version = "0.36", features = ["serialize"] }
+reqwest = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+async-trait = "0.1"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { workspace = true }
