@@ -26,7 +26,7 @@ sudo udevadm trigger
 2. **SSH key-only**: disable password auth in `/etc/ssh/sshd_config`.
 3. **Firewall**: allow only SSH (22) + HubRise outbound (443) +
    FDM LAN (8080) + printer LAN (9100). Block everything else.
-4. **Auto-start**: the existing `tsb-pos.service` systemd unit
+4. **Auto-start**: the existing `moyun-pos.service` systemd unit
    handles this — ensure it's `WantedBy=graphical.target`.
 5. **LUKS FDE**: encrypt the root partition with LUKS + TPM2
    auto-unlock (see hardening #7 in the audit).

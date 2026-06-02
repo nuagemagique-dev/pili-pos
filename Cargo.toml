@@ -10,10 +10,11 @@ members = [
     "crates/pos-hubrise-types",
     "crates/pos-hubrise-mock",
     "crates/pos-hubrise",
+    "crates/pos-peppol",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 license = "Proprietary"
 authors = ["Bruno <bruno@nuagemagique.dev>"]

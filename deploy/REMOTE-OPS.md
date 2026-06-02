@@ -1,4 +1,4 @@
-# Remote Operations — tsb-pos
+# Remote Operations — moyun-pos
 
 Guide pour le dépannage, la lecture des logs et la mise à jour du
 POS à distance sans être physiquement au restaurant.
@@ -52,23 +52,23 @@ curl -sf https://pos.tokyosushibarliege.be:9999/health
 Les logs structurés (`tracing`) sont écrits dans :
 
 ```
-/home/tsb/.local/share/tsb-pos/logs/pos.log
+/home/tsb/.local/share/moyun-pos/logs/pos.log
 ```
 
 Rotation quotidienne. Rétention : dépend du cron de cleanup (à configurer).
 
 ```bash
 # Dernières 50 lignes
-tail -50 /home/tsb/.local/share/tsb-pos/logs/pos.log
+tail -50 /home/tsb/.local/share/moyun-pos/logs/pos.log
 
 # Chercher les erreurs
-grep -i "error\|warn\|failed" /home/tsb/.local/share/tsb-pos/logs/pos.log | tail -20
+grep -i "error\|warn\|failed" /home/tsb/.local/share/moyun-pos/logs/pos.log | tail -20
 
 # Suivre en temps réel
-tail -f /home/tsb/.local/share/tsb-pos/logs/pos.log
+tail -f /home/tsb/.local/share/moyun-pos/logs/pos.log
 
 # Chercher un order HubRise spécifique
-grep "abc12345" /home/tsb/.local/share/tsb-pos/logs/pos.log
+grep "abc12345" /home/tsb/.local/share/moyun-pos/logs/pos.log
 ```
 
 **Patterns courants dans les logs** :
@@ -85,7 +85,7 @@ grep "abc12345" /home/tsb/.local/share/tsb-pos/logs/pos.log
 ## État de la base de données
 
 ```bash
-sqlite3 /home/tsb/.local/share/tsb-pos/pos.db
+sqlite3 /home/tsb/.local/share/moyun-pos/pos.db
 
 -- Commandes ouvertes
 SELECT id, table_number, order_type, total_cents, created_at
@@ -104,17 +104,17 @@ SELECT account_name, location_name, last_poll_at
 FROM hubrise_connection;
 
 -- Backups effectués
-ls -la /home/tsb/.local/share/tsb-pos/backups/
+ls -la /home/tsb/.local/share/moyun-pos/backups/
 ```
 
 ## Restart du service
 
 ```bash
-sudo systemctl restart tsb-pos
-sudo systemctl status tsb-pos
+sudo systemctl restart moyun-pos
+sudo systemctl status moyun-pos
 
 # Voir les logs systemd (journal)
-sudo journalctl -u tsb-pos --since "1 hour ago" --no-pager
+sudo journalctl -u moyun-pos --since "1 hour ago" --no-pager
 ```
 
 ## Mise à jour du binaire
@@ -123,19 +123,19 @@ sudo journalctl -u tsb-pos --since "1 hour ago" --no-pager
 
 ```bash
 # 1. Arrêter le service
-sudo systemctl stop tsb-pos
+sudo systemctl stop moyun-pos
 
 # 2. Backup du binaire actuel
-cp /opt/tsb-pos/tsb-pos /opt/tsb-pos/tsb-pos.bak
+cp /opt/moyun-pos/moyun-pos /opt/moyun-pos/moyun-pos.bak
 
 # 3. Copier le nouveau binaire
-scp tsb-pos tsb@<hostname>:/opt/tsb-pos/tsb-pos
+scp moyun-pos tsb@<hostname>:/opt/moyun-pos/moyun-pos
 # ou via un download :
-curl -L https://releases.tsb.nuagemagique.dev/pos/latest/tsb-pos -o /opt/tsb-pos/tsb-pos
-chmod +x /opt/tsb-pos/tsb-pos
+curl -L https://releases.tsb.nuagemagique.dev/pos/latest/moyun-pos -o /opt/moyun-pos/moyun-pos
+chmod +x /opt/moyun-pos/moyun-pos
 
 # 4. Redémarrer
-sudo systemctl start tsb-pos
+sudo systemctl start moyun-pos
 
 # 5. Vérifier le health
 sleep 3 && curl -s http://127.0.0.1:9999/health | jq
@@ -144,9 +144,9 @@ sleep 3 && curl -s http://127.0.0.1:9999/health | jq
 ### Rollback
 
 ```bash
-sudo systemctl stop tsb-pos
-cp /opt/tsb-pos/tsb-pos.bak /opt/tsb-pos/tsb-pos
-sudo systemctl start tsb-pos
+sudo systemctl stop moyun-pos
+cp /opt/moyun-pos/moyun-pos.bak /opt/moyun-pos/moyun-pos
+sudo systemctl start moyun-pos
 ```
 
 ### Méthode depuis le dashboard (futur)
@@ -155,7 +155,7 @@ Quand `deploy/update.sh` est configuré en cron :
 
 ```bash
 # Depuis n'importe où avec SSH :
-ssh tsb@<hostname> '/opt/tsb-pos/deploy/update.sh'
+ssh tsb@<hostname> '/opt/moyun-pos/deploy/update.sh'
 ```
 
 Ou via un bouton dans tsb-dashboard qui exécute la commande par SSH
@@ -165,10 +165,10 @@ Ou via un bouton dans tsb-dashboard qui exécute la commande par SSH
 
 ```bash
 # Backup immédiat (sans attendre un Z-report)
-sqlite3 /home/tsb/.local/share/tsb-pos/pos.db ".backup /home/tsb/.local/share/tsb-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
+sqlite3 /home/tsb/.local/share/moyun-pos/pos.db ".backup /home/tsb/.local/share/moyun-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
 
 # Vérifier les backups
-ls -lh /home/tsb/.local/share/tsb-pos/backups/
+ls -lh /home/tsb/.local/share/moyun-pos/backups/
 ```
 
 ## Dépannage courant
@@ -177,24 +177,24 @@ ls -lh /home/tsb/.local/share/tsb-pos/backups/
 
 ```bash
 # 1. Check si le process tourne
-pgrep -a tsb-pos
+pgrep -a moyun-pos
 
 # 2. Si oui mais gelé → kill + restart
-sudo systemctl restart tsb-pos
+sudo systemctl restart moyun-pos
 
 # 3. Si non → check les logs du crash
-sudo journalctl -u tsb-pos --since "10 minutes ago" --no-pager | tail -30
+sudo journalctl -u moyun-pos --since "10 minutes ago" --no-pager | tail -30
 ```
 
 ### "Les commandes en ligne n'arrivent plus"
 
 ```bash
 # 1. Check la connexion HubRise
-sqlite3 /home/tsb/.local/share/tsb-pos/pos.db "SELECT last_poll_at FROM hubrise_connection;"
+sqlite3 /home/tsb/.local/share/moyun-pos/pos.db "SELECT last_poll_at FROM hubrise_connection;"
 # Si last_poll_at > 5 min → le poller est bloqué
 
 # 2. Check les erreurs de poll
-grep "hubrise poll" /home/tsb/.local/share/tsb-pos/logs/pos.log | tail -5
+grep "hubrise poll" /home/tsb/.local/share/moyun-pos/logs/pos.log | tail -5
 
 # 3. Si "unauthorized" → reconnecter depuis Config > HubRise
 # 4. Si "error" → vérifier la connectivité internet du terminal
@@ -205,7 +205,7 @@ ping -c 3 api.hubrise.com
 
 ```bash
 # 1. Check la config imprimante
-sqlite3 /home/tsb/.local/share/tsb-pos/pos.db "SELECT printer_address FROM pos_config;" 2>/dev/null
+sqlite3 /home/tsb/.local/share/moyun-pos/pos.db "SELECT printer_address FROM pos_config;" 2>/dev/null
 
 # 2. Ping l'imprimante
 nc -z -w 2 <printer-ip> 9100 && echo "OK" || echo "UNREACHABLE"
@@ -232,6 +232,6 @@ ping le healthcheck toutes les 5 min et alerte par email/Slack
 si le POS ne répond pas :
 
 ```bash
-# /etc/cron.d/tsb-pos-monitor (sur le serveur OVH)
+# /etc/cron.d/moyun-pos-monitor (sur le serveur OVH)
 */5 * * * * root curl -sf --max-time 10 https://pos.tokyosushibarliege.be:9999/health > /dev/null || echo "POS DOWN" | mail -s "ALERT: POS offline" bruno@nuagemagique.dev
 ```

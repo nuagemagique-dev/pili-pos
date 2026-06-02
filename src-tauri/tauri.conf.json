@@ -1,7 +1,7 @@
 {
-  "productName": "tsb-pos",
-  "version": "0.1.0",
-  "identifier": "dev.nuagemagique.tsb-pos",
+  "productName": "moyun-pos",
+  "version": "1.0.0",
+  "identifier": "dev.nuagemagique.moyun-pos",
   "build": {
     "frontendDist": "../ui/dist",
     "devUrl": "http://localhost:1420",

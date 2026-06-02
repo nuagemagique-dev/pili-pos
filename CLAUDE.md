@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-**Name:** tsb-pos  
+**Name:** moyun-pos  
 **Purpose:** Point-of-Sale terminal application for Belgian HoReCa restaurants, certified SCE 2.0 compliant. First deployment target: Tokyo Sushi Bar (Brussels).  
 **License:** Proprietary (nuagemagique.dev)  
 **Author:** Bruno — backend developer, Go/TypeScript/Rust stack, Brussels
@@ -72,11 +72,46 @@ This is a **Tauri v2 desktop application** running on Linux (Debian minimal + Ca
 
 ## SCE 2.0 Fiscal Compliance — CRITICAL REQUIREMENTS
 
-Reference documents (included in `docs/` directory):
-- `docs/SCE2-POS-SPEC-v2.1.md` — **Read before implementing pos-fiscal.** Complete POS technical spec: GraphQL schema, mutations, types, enums, input objects, event types, VAT codes, ticket requirements, communication rules, digital signature
-- `docs/SCE2-FDM-SPEC-v1.3.md` — **Read before implementing pos-fiscal.** FDM spec: hardware requirements, QR code encoding algorithm (with C# reference implementation), cloud communication protocol, enriched JSON structure
-- `docs/UX-DESIGN-GUIDE.md` — **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design
-- Original PDFs from SPF Finances: https://www.systemedecaisseenregistreuse.be/fr/sce-20-0
+Reference documents (in the `docs/` directory) — these are the **official SPF Finances specifications and certification test scenarios**. Read the relevant ones before implementing `pos-fiscal`.
+
+Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corresponding PDF. **Open the `.md` for fast text search and grep; open the matching PDF under `docs/original_pdfs/` for diagrams, screenshots, and exact visual layout.** Every `.md` links to its source PDF at the top.
+
+**Core specifications:**
+- `docs/20260417_DESCRIPTIONDETAILLEES_POS_FR_2.2.md` — **POS detailed description v2.2** (FR). Complete POS technical spec: GraphQL schema, mutations, types, enums, input objects, event types, VAT codes, ticket requirements, communication rules, digital signature.
+- `docs/20260417_DESCRIPTION DETAILLEE FDM_am_29_04_2024_FR_1.4.md` — **FDM detailed description v1.4** (FR). FDM spec: hardware requirements, QR code encoding algorithm, enriched JSON structure, behaviour on POS↔FDM link.
+- `docs/20260209_ADDENDUM_1_DESCRIPTIONS DETAILLEES POS_FDM FR_2.1 ES.md` — **Addendum 1** to the POS/FDM detailed descriptions (ES = events/signatures). Always cross-check this when reading the two specs above.
+- `docs/FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.09_20251017_FINAL.md` — **FPS Finance ↔ FDM cloud API protocol v1.09**. Describes the mTLS communication between the FDM and the SPF Finances cloud. The POS does NOT speak this protocol directly, but understand the lifecycle (provisioning, daily sync, status reporting) before designing FDM error handling.
+
+**Certification manual & application form** (in `docs/20250307_POS_CERTIFICATION_MANUEAL_FRV1.1/`):
+- `20250307_FR - Manuel de certification_POS_V11.md` — main manual (110 p).
+- `20250115_Manual_Intro_ToRead_FR.md` — read this first (intro / how to use the manual).
+- `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM.md` — certification request form.
+- `20250115_AnnexePourVosExemples.docx` — annex template for submitting examples (Word doc, no `.md` extraction).
+- Embedded copies of earlier UC sets: `20241223_UC_BasicSet_POS_FDM_1.4 (1)/`, `20041223_UC_AdvancedSet_POS_FDM_1.2/` — superseded by the newer UC folders below; kept for reference.
+
+**Test scenarios (use cases the implementation must pass to obtain certification):**
+- `docs/20250916_UC_BasicSet_POS_FDM_1.7/` — **Basic Set v1.7** — minimum mandatory flows.
+  - Sales: `M110_signSale`, `M111_signSale_Refund`, `M112A/B_signSale_RefundPartial`
+  - Orders / pro forma: `M121_signOrder`, `M122_signCostCenterChange`, `M123_signPrebill`
+  - Cash drawer: `M130_signMoneyInOut`, `M131_signDrawerOpen`, `M132_signPaymentCorrection`, `M133_signMoneyInOut_DrawerDeclaration`
+  - Staff (social): `M140_signWorkIn`, `M141_signWorkOut`
+  - Invoicing & copies: `M150_signInvoice`, `M160_signCopy_Sale`, `M161_signCopy_Order`
+  - Training mode: `M170_signWorkIn_Training`, `M171/171B_signSale_Training`, `M172_signCopy_Training`
+  - FDM queries: `Q100_Status`, `Q110_Status_multi_lang_messages`
+  - Test setup: `UC_TestSetup_20240806.md`, changelog: `CHANGELOG-UC_BasicSet1.7.md`
+- `docs/20250916_UC_Reports_1.3/` — **Reports v1.3** — X/Z report scenarios.
+  - `M180_signReportTurnoverX`, `M181_signReportTurnoverZ`, `M182_signReportUserX`, `M183_signReportUserZ`, `M184_signReportTurnoverZUserZ`
+  - `InputReport/` — input fixtures, `Scenario Reports.md` — full scenario doc (⚠️ source PDF is diagram-only — open the PDF for the flow charts), changelog: `CHANGELOG-UC_ReportsBasicSet1.3.md`
+- `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` — **Advanced Set v1.5** — optional/advanced flows (out of MVP scope, but the data model must not preclude them). Covers: composite products, price changes, rounding, table split/merge, MPV/SPV vouchers, foreign currency & tips, customer accounts, cost-center changes, advance payments / deposits, weighted products, GTIN, supplements, credit notes, etc. `UC200…UC4123`. Changelog: `CHANGELOG-UC_AdvancedSet_1.5.md`. Bundle: `20250916_AdvancedSet_1.5.zip`.
+
+**Design guide:**
+- `docs/UX-DESIGN-GUIDE.md` — **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design.
+
+**Original PDFs:** all SPF Finances PDFs are preserved under `docs/original_pdfs/` (mirroring the subfolder structure above). Every `.md` links back to its source PDF in its header.
+
+**Source (official):** https://www.systemedecaisseenregistreuse.be/fr/sce-20-0
+
+**MVP-relevant test scenarios (Tokyo Sushi Bar dine-in only):** focus first on `M110`, `M121`, `M123`, `M130`, `M131`, `M140`, `M141`, `M160`, `M170`–`M172`, `Q100`, and the Z-report `M181`. The Advanced Set can be deferred until post-certification.
 
 ### Event Types
 The POS must support 8 event types sent to the FDM:
@@ -140,7 +175,7 @@ Every dine-in ticket must include:
 ## Workspace Structure
 
 ```
-tsb-pos/
+moyun-pos/
 ├── Cargo.toml                  # Workspace root
 ├── CLAUDE.md                   # This file
 ├── src-tauri/
@@ -525,7 +560,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - `cargo tauri dev` for hot-reload development
 - Mock FDM: implement a local mock server that simulates GraphQL responses
 - Later: connect to zwartedoos.be virtual FDM for realistic testing
-- SQLite DB file: `~/.local/share/tsb-pos/pos.db` (dev) or `/var/lib/tsb-pos/pos.db` (prod)
+- SQLite DB file: `~/.local/share/moyun-pos/pos.db` (dev) or `/var/lib/moyun-pos/pos.db` (prod)
 
 ---
 
@@ -533,7 +568,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ```bash
 # Setup workspace
-cargo init --name tsb-pos
+cargo init --name moyun-pos
 cargo tauri init
 
 # Dev mode

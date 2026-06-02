@@ -116,14 +116,14 @@ jobs:
 
       - name: Seed test database
         run: |
-          mkdir -p /tmp/tsb-pos
-          sqlite3 /tmp/tsb-pos/pos.db < e2e/fixtures/seed.sql
+          mkdir -p /tmp/moyun-pos
+          sqlite3 /tmp/moyun-pos/pos.db < e2e/fixtures/seed.sql
 
       - name: Start POS binary
         run: |
           export XDG_DATA_HOME=/tmp
           export WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
-          xvfb-run -- ./target/release/tsb-pos &
+          xvfb-run -- ./target/release/moyun-pos &
           # Wait for healthcheck
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:9999/health && break || sleep 1

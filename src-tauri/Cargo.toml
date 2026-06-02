@@ -1,5 +1,5 @@
 [package]
-name = "tsb-pos"
+name = "moyun-pos"
 version.workspace = true
 edition.workspace = true
 
@@ -13,8 +13,9 @@ pos-core = { path = "../crates/pos-core" }
 pos-fiscal = { path = "../crates/pos-fiscal" }
 pos-print = { path = "../crates/pos-print" }
 pos-db = { path = "../crates/pos-db" }
-pos-hubrise = { path = "../crates/pos-hubrise" }
-pos-hubrise-types = { path = "../crates/pos-hubrise-types" }
+pos-hubrise = { path = "../crates/pos-hubrise", optional = true }
+pos-hubrise-types = { path = "../crates/pos-hubrise-types", optional = true }
+pos-peppol = { path = "../crates/pos-peppol", optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -31,6 +32,31 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
 
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3"
+
 [features]
-default = []
+# Default dev build: includes the HubRise webshop integration so we can
+# keep iterating on it. The certification build excludes hubrise entirely
+# (`cargo build --release --no-default-features --features cert`).
+default = ["hubrise", "peppol"]
+# Enables the optional HubRise (webshop) integration: poller, outbox,
+# /health endpoint that reports outbox depth, and the IPC commands.
+hubrise = ["dep:pos-hubrise", "dep:pos-hubrise-types"]
+# Enables Peppol BIS Billing 3.0 B2B e-invoicing (mandatory from
+# 2026-01-01 for Belgian VAT-registered B2B sales). Includes the UBL
+# serializer, the AccessPoint trait, and the `issue_b2b_invoice`
+# command. The cert build keeps this feature ON because Peppol is in
+# the declared scope of the certification submission.
+peppol = ["dep:pos-peppol"]
+# Marker feature for the certification build. Pulls in `peppol` because
+# Peppol BIS Billing 3.0 is part of the declared cert scope (B2B
+# e-invoicing is mandatory for Belgian VAT-registered sellers from
+# 2026-01-01). Build command: `cargo build --release
+# --no-default-features --features cert`.
+cert = ["peppol"]
+# Dev-only escape hatch: lets checkout succeed when the FDM is offline.
+# NEVER ship this in a production build — SCE 2.0 mandates that the POS
+# must block transactions when the FDM is unreachable.
 allow-offline = []

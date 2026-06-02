@@ -13,7 +13,7 @@ Group=pos
 
 # Cage runs as a Wayland compositor in kiosk mode
 # It launches the Tauri app fullscreen — no window decorations, no escape
-ExecStart=/usr/bin/cage -- /opt/tsb-pos/tsb-pos
+ExecStart=/usr/bin/cage -- /opt/moyun-pos/moyun-pos
 
 # Environment for Wayland + GPU
 Environment=WLR_LIBINPUT_NO_DEVICES=1
@@ -38,7 +38,7 @@ StartLimitIntervalSec=60
 # Security hardening
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/var/lib/tsb-pos
+ReadWritePaths=/var/lib/moyun-pos
 PrivateTmp=yes
 NoNewPrivileges=yes
 

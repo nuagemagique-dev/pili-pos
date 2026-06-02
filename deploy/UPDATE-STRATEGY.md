@@ -1,4 +1,4 @@
-# Update Strategy — tsb-pos
+# Update Strategy — moyun-pos
 
 ## Problem
 
@@ -14,7 +14,7 @@ The simplest MVP-viable strategy:
 
 ```
 ┌─────────────────────┐
-│   GitHub Releases    │ ← CI builds a new tsb-pos binary on tag push
+│   GitHub Releases    │ ← CI builds a new moyun-pos binary on tag push
 │   (or S3 bucket)     │
 └──────────┬──────────┘
            │ https (Cloudflare)
@@ -36,21 +36,21 @@ The existing `deploy/update.sh` can be extended to:
 
 1. Fetch the latest release version from a manifest URL
    (e.g., `https://releases.tsb.nuagemagique.dev/pos/latest.json`)
-2. Compare with the local version (`tsb-pos --version`)
+2. Compare with the local version (`moyun-pos --version`)
 3. If newer: download binary + sha256 checksum
 4. Verify checksum
-5. Stop service: `systemctl stop tsb-pos`
-6. Swap binary: `mv tsb-pos.new /opt/tsb-pos/tsb-pos`
-7. Restart: `systemctl start tsb-pos`
-8. Log the update to `/var/log/tsb-pos-updates.log`
+5. Stop service: `systemctl stop moyun-pos`
+6. Swap binary: `mv moyun-pos.new /opt/moyun-pos/moyun-pos`
+7. Restart: `systemctl start moyun-pos`
+8. Log the update to `/var/log/moyun-pos-updates.log`
 
 ### Trigger
 
 **Option A — Nightly cron (simplest)**:
 
 ```
-# /etc/cron.d/tsb-pos-update
-0 4 * * * root /opt/tsb-pos/deploy/update.sh >> /var/log/tsb-pos-updates.log 2>&1
+# /etc/cron.d/moyun-pos-update
+0 4 * * * root /opt/moyun-pos/deploy/update.sh >> /var/log/moyun-pos-updates.log 2>&1
 ```
 
 Runs at 04:00 when the restaurant is closed. If no update is
@@ -79,15 +79,15 @@ to a second iteration.
 If an update breaks the POS:
 
 1. SSH in
-2. `systemctl stop tsb-pos`
-3. `cp /opt/tsb-pos/tsb-pos.bak /opt/tsb-pos/tsb-pos`
+2. `systemctl stop moyun-pos`
+3. `cp /opt/moyun-pos/moyun-pos.bak /opt/moyun-pos/moyun-pos`
    (update.sh should always keep the previous binary as `.bak`)
-4. `systemctl start tsb-pos`
+4. `systemctl start moyun-pos`
 
 ## Version Embedding
 
-Add `--version` flag to `tsb-pos` by setting the version in
-`tauri.conf.json` (already present: `"version": "0.1.0"`) and
+Add `--version` flag to `moyun-pos` by setting the version in
+`tauri.conf.json` (already present: `"version": "1.0.0"`) and
 exposing it via a Tauri command or CLI flag.
 
 ## Security

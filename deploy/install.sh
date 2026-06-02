@@ -2,16 +2,16 @@
 # ─────────────────────────────────────────────────────────────────
 # Tokyo Sushi Bar — POS Installation Script
 # Target: Debian 12 minimal, x86_64 (Intel J6412)
-# Usage:  sudo ./install.sh [--binary /path/to/tsb-pos] [--seed /path/to/seed.sql]
+# Usage:  sudo ./install.sh [--binary /path/to/moyun-pos] [--seed /path/to/seed.sql]
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 # ── Configuration ───────────────────────────────────────────────
 POS_USER="pos"
-POS_HOME="/var/lib/tsb-pos"
-POS_BIN_DIR="/opt/tsb-pos"
+POS_HOME="/var/lib/moyun-pos"
+POS_BIN_DIR="/opt/moyun-pos"
 POS_DB_PATH="${POS_HOME}/pos.db"
-SERVICE_FILE="/etc/systemd/system/tsb-pos.service"
+SERVICE_FILE="/etc/systemd/system/moyun-pos.service"
 
 # Network defaults (can be overridden)
 STATIC_IP="${STATIC_IP:-}"
@@ -111,13 +111,13 @@ echo "  ✓ $POS_BIN_DIR and $POS_HOME ready"
 if [[ -n "$BINARY_PATH" && -f "$BINARY_PATH" ]]; then
     echo ""
     echo "▸ Installing POS binary..."
-    cp "$BINARY_PATH" "$POS_BIN_DIR/tsb-pos"
-    chmod 755 "$POS_BIN_DIR/tsb-pos"
-    echo "  ✓ Binary installed to $POS_BIN_DIR/tsb-pos"
+    cp "$BINARY_PATH" "$POS_BIN_DIR/moyun-pos"
+    chmod 755 "$POS_BIN_DIR/moyun-pos"
+    echo "  ✓ Binary installed to $POS_BIN_DIR/moyun-pos"
 else
     echo ""
     echo "▸ No binary provided (--binary). Skipping."
-    echo "  Copy the release binary to $POS_BIN_DIR/tsb-pos manually."
+    echo "  Copy the release binary to $POS_BIN_DIR/moyun-pos manually."
 fi
 
 # ── Step 5: Initialize SQLite database ─────────────────────────
@@ -151,14 +151,14 @@ fi
 echo ""
 echo "▸ Installing systemd service..."
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [[ -f "$SCRIPT_DIR/tsb-pos.service" ]]; then
-    cp "$SCRIPT_DIR/tsb-pos.service" "$SERVICE_FILE"
+if [[ -f "$SCRIPT_DIR/moyun-pos.service" ]]; then
+    cp "$SCRIPT_DIR/moyun-pos.service" "$SERVICE_FILE"
 else
-    echo "  ⚠ tsb-pos.service not found in script directory, skipping"
+    echo "  ⚠ moyun-pos.service not found in script directory, skipping"
 fi
 
 systemctl daemon-reload
-systemctl enable tsb-pos.service
+systemctl enable moyun-pos.service
 echo "  ✓ Service installed and enabled"
 
 # ── Step 7: Network configuration ──────────────────────────────
@@ -215,15 +215,15 @@ echo ""
 echo "══════════════════════════════════════════════════"
 echo "  Installation complete!"
 echo ""
-echo "  Binary:   $POS_BIN_DIR/tsb-pos"
+echo "  Binary:   $POS_BIN_DIR/moyun-pos"
 echo "  Database: $POS_DB_PATH"
-echo "  Service:  tsb-pos.service"
+echo "  Service:  moyun-pos.service"
 echo ""
-echo "  Start:    sudo systemctl start tsb-pos"
-echo "  Logs:     sudo journalctl -u tsb-pos -f"
-echo "  Status:   sudo systemctl status tsb-pos"
+echo "  Start:    sudo systemctl start moyun-pos"
+echo "  Logs:     sudo journalctl -u moyun-pos -f"
+echo "  Status:   sudo systemctl status moyun-pos"
 echo ""
 echo "  To deploy a new version:"
-echo "    1. scp tsb-pos pos@<ip>:/tmp/"
-echo "    2. ssh root@<ip> 'systemctl stop tsb-pos && cp /tmp/tsb-pos $POS_BIN_DIR/ && systemctl start tsb-pos'"
+echo "    1. scp moyun-pos pos@<ip>:/tmp/"
+echo "    2. ssh root@<ip> 'systemctl stop moyun-pos && cp /tmp/moyun-pos $POS_BIN_DIR/ && systemctl start moyun-pos'"
 echo "══════════════════════════════════════════════════"

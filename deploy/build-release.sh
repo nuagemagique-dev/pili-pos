@@ -41,16 +41,16 @@ if [[ "${1:-}" == "--docker" ]]; then
         "
 
     # Copy the binary out
-    BINARY=$(find "$PROJECT_ROOT/target/$TARGET/release/bundle" -name "tsb-pos" -type f 2>/dev/null | head -1)
+    BINARY=$(find "$PROJECT_ROOT/target/$TARGET/release/bundle" -name "moyun-pos" -type f 2>/dev/null | head -1)
     if [[ -z "$BINARY" ]]; then
-        BINARY="$PROJECT_ROOT/target/$TARGET/release/tsb-pos"
+        BINARY="$PROJECT_ROOT/target/$TARGET/release/moyun-pos"
     fi
 
     if [[ -f "$BINARY" ]]; then
-        cp "$BINARY" "$OUTPUT_DIR/tsb-pos"
+        cp "$BINARY" "$OUTPUT_DIR/moyun-pos"
         echo ""
-        echo "✓ Binary: $OUTPUT_DIR/tsb-pos"
-        ls -lh "$OUTPUT_DIR/tsb-pos"
+        echo "✓ Binary: $OUTPUT_DIR/moyun-pos"
+        ls -lh "$OUTPUT_DIR/moyun-pos"
     else
         echo "✗ Binary not found. Check build output."
         exit 1
@@ -75,19 +75,19 @@ else
     cd "$PROJECT_ROOT"
     cargo tauri build
 
-    BINARY="$PROJECT_ROOT/target/release/tsb-pos"
+    BINARY="$PROJECT_ROOT/target/release/moyun-pos"
     if [[ -f "$BINARY" ]]; then
-        cp "$BINARY" "$OUTPUT_DIR/tsb-pos"
+        cp "$BINARY" "$OUTPUT_DIR/moyun-pos"
         echo ""
-        echo "✓ Binary: $OUTPUT_DIR/tsb-pos"
-        ls -lh "$OUTPUT_DIR/tsb-pos"
+        echo "✓ Binary: $OUTPUT_DIR/moyun-pos"
+        ls -lh "$OUTPUT_DIR/moyun-pos"
     fi
 fi
 
 # Copy deploy files alongside binary
 cp "$PROJECT_ROOT/deploy/install.sh" "$OUTPUT_DIR/"
 cp "$PROJECT_ROOT/deploy/update.sh" "$OUTPUT_DIR/"
-cp "$PROJECT_ROOT/deploy/tsb-pos.service" "$OUTPUT_DIR/"
+cp "$PROJECT_ROOT/deploy/moyun-pos.service" "$OUTPUT_DIR/"
 cp "$PROJECT_ROOT/src-tauri/seed.sql" "$OUTPUT_DIR/"
 chmod +x "$OUTPUT_DIR/install.sh" "$OUTPUT_DIR/update.sh"
 
@@ -99,6 +99,6 @@ echo "  Files:"
 ls -1 "$OUTPUT_DIR/"
 echo ""
 echo "  To install on POS terminal:"
-echo "    scp -r $OUTPUT_DIR/* root@<pos-ip>:/tmp/tsb-pos/"
-echo "    ssh root@<pos-ip> 'cd /tmp/tsb-pos && ./install.sh --binary ./tsb-pos --seed ./seed.sql'"
+echo "    scp -r $OUTPUT_DIR/* root@<pos-ip>:/tmp/moyun-pos/"
+echo "    ssh root@<pos-ip> 'cd /tmp/moyun-pos && ./install.sh --binary ./moyun-pos --seed ./seed.sql'"
 echo "═══════════════════════════════════════════════════"

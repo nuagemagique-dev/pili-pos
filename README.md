@@ -1,8 +1,8 @@
-# tsb-pos
+# moyun-pos
 
 Desktop kiosk POS for Tokyo Sushi Bar.
 
-`tsb-pos` is a Tauri v2 application with a Rust backend and a Vue 3 touchscreen UI, designed for on-site restaurant operations and fiscal workflows.
+`moyun-pos` is a Tauri v2 application with a Rust backend and a Vue 3 touchscreen UI, designed for on-site restaurant operations and fiscal workflows.
 
 ## Stack
 
@@ -86,18 +86,18 @@ Build a release package with bundled deployment artifacts:
 Install on target terminal:
 
 ```bash
-sudo ./deploy/install.sh --binary /path/to/tsb-pos --seed /path/to/seed.sql
+sudo ./deploy/install.sh --binary /path/to/moyun-pos --seed /path/to/seed.sql
 ```
 
 Update an installed terminal:
 
 ```bash
-sudo ./deploy/update.sh /path/to/tsb-pos [--seed /path/to/seed.sql]
+sudo ./deploy/update.sh /path/to/moyun-pos [--seed /path/to/seed.sql]
 ```
 
 ## Operations
 
-- Service unit: `deploy/tsb-pos.service`
+- Service unit: `deploy/moyun-pos.service`
 - Remote troubleshooting: `deploy/REMOTE-OPS.md`
 - Update/rollback strategy: `deploy/UPDATE-STRATEGY.md`
 - Kiosk lockdown files: `deploy/kiosk/`
