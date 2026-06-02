@@ -13,8 +13,8 @@ let interval: ReturnType<typeof setInterval>;
 // then leave the dot in its static color as the persistent cue.
 type FdmVisualState = "ok" | "warn" | "err";
 const visualState = computed<FdmVisualState>(() => {
-  if (fdm.lastError) return "err";
-  if (!fdm.connected) return "warn";
+  if (fdm.severity === "blocking") return "err";
+  if (fdm.severity === "warning" || !fdm.connected) return "warn";
   return "ok";
 });
 const pulseActive = ref(false);
@@ -27,16 +27,33 @@ watch(visualState, (next, prev) => {
   }
 });
 
-// UX Guide §8.3: human-readable FDM error messages
+// UX Guide §8.3: human-readable FDM error messages.
+// Covers every "showPos != NEVER" code listed in the SCE 2.0
+// certification manual §V (mandatory and optional displays).
 const ERROR_MESSAGES: Record<string, string> = {
+  // Mandatory (M) — must be displayed on the POS
   BUFFER_FULL: "La boîte noire est pleine. Contactez votre technicien.",
+  FDM_LOCKED: "La boîte noire est verrouillée. Contactez votre technicien.",
   FDM_NOT_OPERATIONAL: "La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes.",
   UNKNOWN_POS: "Cette caisse n'est pas reconnue par la boîte noire.",
+  BUFFER_NEAR_FULL: "La boîte noire est presque pleine. Programmez une intervention.",
   CLIENT_CERT_EXPIRED: "Le certificat de la boîte noire a expiré. Contactez votre technicien.",
-  CLIENT_CERT_NEAR_EXPIRATION: "Le certificat expire bientôt.",
-  BUFFER_NEAR_FULL: "La boîte noire est presque pleine.",
-  FDM_LOCKED: "La boîte noire est verrouillée.",
-  UNAUTHORIZED: "Caisse non autorisée.",
+  // Optional (O) — recommended display
+  CLIENT_CERT_NEAR_EXPIRATION: "Le certificat de la boîte noire expire bientôt.",
+  UNAUTHORIZED: "La caisse n'est pas autorisée à parler à la boîte noire.",
+  INVALID_REQUEST: "Erreur de communication avec la boîte noire. Contactez votre technicien.",
+  INTERNAL_ERROR: "Erreur technique de la boîte noire. Contactez votre technicien.",
+  UNDEFINED_ERROR: "Erreur indéfinie de la boîte noire. Contactez votre technicien.",
+  UNDEFINED_OTHER: "Erreur de la boîte noire. Contactez votre technicien.",
+  RTC_SYNC_FAILED: "L'horloge de la boîte noire n'a pas pu se synchroniser.",
+  UPDATE_URLS_FAILED: "Mise à jour des URLs de la boîte noire échouée.",
+  UPDATE_TRUST_CERT_FAILED: "Mise à jour des certificats de confiance échouée.",
+  UPDATE_TASK_LIST_FAILED: "Téléchargement des tâches FDM échoué.",
+  TASK_FEEDBACK_FAILED: "La boîte noire n'a pas pu signaler le résultat d'une tâche.",
+  NOP_FAILED: "Communication intermédiaire avec la boîte noire échouée.",
+  SERVER_CERT_RESOLVE_FAILED: "Impossible de résoudre le certificat du serveur FDM.",
+  TRANSACTION_UPLOAD_FAILED: "La boîte noire échoue à transmettre les transactions au SPF Finances.",
+  INITIALIZATION_FAILED: "L'initialisation de la boîte noire a échoué.",
 };
 
 function translateError(raw: string | null): string | null {
