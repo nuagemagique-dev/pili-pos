@@ -1,6 +1,6 @@
-use std::sync::Mutex;
 #[cfg(feature = "hubrise")]
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use pos_core::config::PosConfig;
 use pos_db::schema;
@@ -52,15 +52,17 @@ impl AppState {
         // happened between FDM archive and the status UPDATE in
         // checkout.rs. Without this, orphaned orders would stay
         // "open" forever and pollute the tables view.
-        let recovered = conn.execute(
-            "UPDATE orders SET status = 'closed', closed_at = datetime('now')
+        let recovered = conn
+            .execute(
+                "UPDATE orders SET status = 'closed', closed_at = datetime('now')
              WHERE status = 'open'
                AND id IN (
                  SELECT DISTINCT order_id FROM fiscal_events
                  WHERE event_type = 'N' AND order_id IS NOT NULL
                )",
-            [],
-        ).unwrap_or(0);
+                [],
+            )
+            .unwrap_or(0);
         if recovered > 0 {
             tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
         }
@@ -70,17 +72,7 @@ impl AppState {
         #[cfg(feature = "hubrise")]
         let poller_conn = Connection::open(&db_path)?;
 
-        // Default config — in production, load from config file or DB
-        let config = PosConfig {
-            pos_id: "CFOD0061234567".to_string(),
-            terminal_id: "POS1".to_string(),
-            device_id: "DEV001".to_string(),
-            restaurant_name: "Tokyo Sushi Bar".to_string(),
-            restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
-            restaurant_vat: "BE0499999960".to_string(),
-            fdm_url: "http://localhost:8081/graphql".to_string(),
-            ..Default::default()
-        };
+        let config = Self::load_config()?;
 
         let booking_period_id = uuid::Uuid::new_v4().to_string();
 
@@ -98,6 +90,46 @@ impl AppState {
             #[cfg(feature = "hubrise")]
             shared_http,
             shutdown_token: CancellationToken::new(),
+        })
+    }
+
+    /// Resolve the POS configuration, in priority order:
+    ///
+    /// 1. `MOYUN_POS_CONFIG` env var — explicit path; any load error
+    ///    is fatal.
+    /// 2. `/etc/moyun-pos/pos.json` — the production path documented
+    ///    in the installation manual. If the file exists, a parse
+    ///    error is fatal: a fiscal terminal must never boot with a
+    ///    partial or wrong identity.
+    /// 3. Development fallback — hardcoded test identity, warned
+    ///    loudly so it can't be mistaken for a production setup.
+    fn load_config() -> anyhow::Result<PosConfig> {
+        if let Ok(path) = std::env::var("MOYUN_POS_CONFIG") {
+            let config = PosConfig::load_from_file(std::path::Path::new(&path))?;
+            tracing::info!(%path, "config loaded from MOYUN_POS_CONFIG");
+            return Ok(config);
+        }
+
+        let production_path = std::path::Path::new("/etc/moyun-pos/pos.json");
+        if production_path.exists() {
+            let config = PosConfig::load_from_file(production_path)?;
+            tracing::info!("config loaded from /etc/moyun-pos/pos.json");
+            return Ok(config);
+        }
+
+        tracing::warn!(
+            "no config file found (MOYUN_POS_CONFIG unset, /etc/moyun-pos/pos.json absent) — \
+             using development defaults with a TEST identity"
+        );
+        Ok(PosConfig {
+            pos_id: "CFOD0061234567".to_string(),
+            terminal_id: "POS1".to_string(),
+            device_id: "DEV001".to_string(),
+            restaurant_name: "Tokyo Sushi Bar".to_string(),
+            restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
+            restaurant_vat: "BE0499999960".to_string(),
+            fdm_url: "http://localhost:8081/graphql".to_string(),
+            ..Default::default()
         })
     }
 }
