@@ -48,81 +48,194 @@ impl FdmClient {
     // ── Status Query ───────────────────────────────────────────
 
     pub async fn status(&self) -> Result<FdmStatus, FdmError> {
-        let query = r#"query { Status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }"#;
+        // The POS detailed description v2.2 SDL declares the field as
+        // `Status`, but the official Q100/Q110 UC fixtures query
+        // lowercase `status`. The two SPF documents contradict each
+        // other, so we try `Status` first and transparently fall back
+        // to `status` if the FDM rejects the capitalised field. An
+        // alias keeps the response shape identical in both cases.
+        const SELECTION: &str = "{ device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } }";
 
         #[derive(serde::Deserialize)]
         struct StatusData {
-            #[serde(rename = "Status")]
+            #[serde(rename = "fdmStatus")]
             status: FdmStatus,
         }
 
-        let resp: GraphQlResponse<StatusData> = self.execute_raw(query, serde_json::Value::Null).await?;
+        let upper = format!("query {{ fdmStatus: Status(language: FR) {SELECTION} }}");
+        let resp: GraphQlResponse<StatusData> =
+            self.execute_raw(&upper, serde_json::Value::Null).await?;
+        if let Some(d) = resp.data {
+            return Ok(d.status);
+        }
+
+        let first_err = format_gql_errors(resp.errors);
+        let lower = format!("query {{ fdmStatus: status(language: FR) {SELECTION} }}");
+        let resp: GraphQlResponse<StatusData> =
+            self.execute_raw(&lower, serde_json::Value::Null).await?;
         match resp.data {
             Some(d) => Ok(d.status),
-            None => Err(FdmError::GraphQl(format_gql_errors(resp.errors))),
+            // Report the original error — it is the one that matches
+            // the spec-mandated spelling.
+            None => Err(FdmError::GraphQl(first_err)),
         }
     }
 
     // ── Sign Mutations ─────────────────────────────────────────
 
-    pub async fn sign_sale(&self, data: SaleInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signSale", "SaleInput", &data, is_training).await
+    pub async fn sign_sale(
+        &self,
+        data: SaleInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signSale", "SaleInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_order(&self, data: OrderInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signOrder", "OrderInput", &data, is_training).await
+    pub async fn sign_order(
+        &self,
+        data: OrderInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signOrder", "OrderInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_pre_bill(&self, data: PreBillInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signPreBill", "PreBillInput", &data, is_training).await
+    pub async fn sign_pre_bill(
+        &self,
+        data: PreBillInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signPreBill", "PreBillInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_work_in(&self, data: WorkInOutInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signWorkIn", "WorkInOutInput", &data, is_training).await
+    pub async fn sign_work_in(
+        &self,
+        data: WorkInOutInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signWorkIn", "WorkInOutInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_work_out(&self, data: WorkInOutInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signWorkOut", "WorkInOutInput", &data, is_training).await
+    pub async fn sign_work_out(
+        &self,
+        data: WorkInOutInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signWorkOut", "WorkInOutInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_copy(&self, data: CopyInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signCopy", "CopyInput", &data, is_training).await
+    pub async fn sign_copy(
+        &self,
+        data: CopyInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signCopy", "CopyInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_money_in_out(&self, data: MoneyInOutInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signMoneyInOut", "MoneyInOutInput", &data, is_training).await
+    pub async fn sign_money_in_out(
+        &self,
+        data: MoneyInOutInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signMoneyInOut", "MoneyInOutInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_drawer_open(&self, data: DrawerOpenInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signDrawerOpen", "DrawerOpenInput", &data, is_training).await
+    pub async fn sign_drawer_open(
+        &self,
+        data: DrawerOpenInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signDrawerOpen", "DrawerOpenInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_payment_correction(&self, data: PaymentCorrectionInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signPaymentCorrection", "PaymentCorrectionInput", &data, is_training).await
+    pub async fn sign_payment_correction(
+        &self,
+        data: PaymentCorrectionInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation(
+            "signPaymentCorrection",
+            "PaymentCorrectionInput",
+            &data,
+            is_training,
+        )
+        .await
     }
 
-    pub async fn sign_invoice(&self, data: InvoiceInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signInvoice", "InvoiceInput", &data, is_training).await
+    pub async fn sign_invoice(
+        &self,
+        data: InvoiceInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signInvoice", "InvoiceInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_report_turnover_x(&self, data: ReportTurnoverXInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signReportTurnoverX", "ReportTurnoverXInput", &data, is_training).await
+    pub async fn sign_report_turnover_x(
+        &self,
+        data: ReportTurnoverXInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation(
+            "signReportTurnoverX",
+            "ReportTurnoverXInput",
+            &data,
+            is_training,
+        )
+        .await
     }
 
-    pub async fn sign_report_turnover_z(&self, data: ReportTurnoverZInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signReportTurnoverZ", "ReportTurnoverZInput", &data, is_training).await
+    pub async fn sign_report_turnover_z(
+        &self,
+        data: ReportTurnoverZInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation(
+            "signReportTurnoverZ",
+            "ReportTurnoverZInput",
+            &data,
+            is_training,
+        )
+        .await
     }
 
-    pub async fn sign_report_user_x(&self, data: ReportUserXInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signReportUserX", "ReportUserXInput", &data, is_training).await
+    pub async fn sign_report_user_x(
+        &self,
+        data: ReportUserXInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signReportUserX", "ReportUserXInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_report_user_z(&self, data: ReportUserZInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signReportUserZ", "ReportUserZInput", &data, is_training).await
+    pub async fn sign_report_user_z(
+        &self,
+        data: ReportUserZInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation("signReportUserZ", "ReportUserZInput", &data, is_training)
+            .await
     }
 
-    pub async fn sign_cost_center_change(&self, data: CostCenterChangeInput, is_training: bool) -> Result<SignResult, FdmError> {
-        self.sign_mutation("signCostCenterChange", "CostCenterChangeInput", &data, is_training).await
+    pub async fn sign_cost_center_change(
+        &self,
+        data: CostCenterChangeInput,
+        is_training: bool,
+    ) -> Result<SignResult, FdmError> {
+        self.sign_mutation(
+            "signCostCenterChange",
+            "CostCenterChangeInput",
+            &data,
+            is_training,
+        )
+        .await
     }
 
     // ── Internal ───────────────────────────────────────────────
@@ -150,7 +263,10 @@ impl FdmClient {
         let resp: GraphQlResponse<serde_json::Value> = self.execute_raw(&query, &vars).await?;
 
         if resp.errors.as_ref().is_some_and(|e| !e.is_empty()) {
-            let msg = resp.errors.as_ref().unwrap()
+            let msg = resp
+                .errors
+                .as_ref()
+                .unwrap()
                 .iter()
                 .map(|e| e.message.clone())
                 .collect::<Vec<_>>()
@@ -158,7 +274,9 @@ impl FdmClient {
             return Err(FdmError::GraphQl(msg));
         }
 
-        let data = resp.data.ok_or_else(|| FdmError::GraphQl("No data in response".into()))?;
+        let data = resp
+            .data
+            .ok_or_else(|| FdmError::GraphQl("No data in response".into()))?;
 
         // The response is at data.<mutationName>
         let result_value = data

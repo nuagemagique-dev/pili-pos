@@ -10,8 +10,7 @@ static TOTAL_COUNTER: AtomicI64 = AtomicI64::new(0);
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new()
-        .route("/graphql", post(handle_graphql));
+    let app = Router::new().route("/graphql", post(handle_graphql));
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8081".to_string());
     let addr = format!("0.0.0.0:{port}");
@@ -30,7 +29,8 @@ struct GqlRequest {
 
 async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> {
     let mutation_name = extract_mutation_name(&req.query);
-    let is_training = req.variables
+    let is_training = req
+        .variables
         .get("isTraining")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
@@ -43,14 +43,22 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
     }
 
     let event_label = match mutation_name.as_str() {
-        "signSale" => if is_training { "T" } else { "N" },
+        "signSale" => {
+            if is_training {
+                "T"
+            } else {
+                "N"
+            }
+        }
         "signOrder" | "signPreBill" | "signCostCenterChange" => "P",
         "signWorkIn" | "signWorkOut" => "S",
         "signCopy" => "C",
         "signInvoice" => "I",
         "signMoneyInOut" | "signDrawerOpen" | "signPaymentCorrection" => "F",
-        "signReportTurnoverX" | "signReportTurnoverZ" | "signReportUserX" | "signReportUserZ" => "R",
-        "Status" => return Json(status_response()),
+        "signReportTurnoverX" | "signReportTurnoverZ" | "signReportUserX" | "signReportUserZ" => {
+            "R"
+        }
+        "Status" => return Json(status_response(&req.query)),
         _ => "N",
     };
 
@@ -78,11 +86,23 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
 
     // Extract fields from variables.data
     let data = req.variables.get("data").cloned().unwrap_or_default();
-    let pos_id = data.get("posId").and_then(|v| v.as_str()).unwrap_or("CFOD0061234567");
-    let ticket_no = data.get("posFiscalTicketNo").and_then(|v| v.as_i64()).unwrap_or(ec);
-    let pos_dt = data.get("posDateTime").and_then(|v| v.as_str()).unwrap_or("");
+    let pos_id = data
+        .get("posId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("CFOD0061234567");
+    let ticket_no = data
+        .get("posFiscalTicketNo")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(ec);
+    let pos_dt = data
+        .get("posDateTime")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let terminal_id = data.get("terminalId").and_then(|v| v.as_str());
-    let device_id = data.get("deviceId").and_then(|v| v.as_str()).unwrap_or("DEV001");
+    let device_id = data
+        .get("deviceId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("DEV001");
 
     let sig_raw = format!("mock-sig-{ec}-{tc}-{}", chrono::Utc::now().timestamp());
     let digital_sig = base64::engine::general_purpose::STANDARD.encode(sig_raw.as_bytes());
@@ -135,7 +155,10 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
     println!("[{event_label}] {mutation_name} #{ec} (total: {tc})");
 
     let mut data_map = serde_json::Map::new();
-    data_map.insert(mutation_name.clone(), serde_json::to_value(&result).unwrap());
+    data_map.insert(
+        mutation_name.clone(),
+        serde_json::to_value(&result).unwrap(),
+    );
 
     Json(serde_json::json!({ "data": data_map }))
 }
@@ -143,11 +166,22 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
 fn extract_mutation_name(query: &str) -> String {
     // Find pattern: mutationName( or mutationName(
     let mutations = [
-        "signSale", "signOrder", "signPreBill", "signWorkIn", "signWorkOut",
-        "signCopy", "signInvoice", "signMoneyInOut", "signDrawerOpen",
-        "signPaymentCorrection", "signCostCenterChange",
-        "signReportTurnoverX", "signReportTurnoverZ",
-        "signReportUserX", "signReportUserZ", "Status",
+        "signSale",
+        "signOrder",
+        "signPreBill",
+        "signWorkIn",
+        "signWorkOut",
+        "signCopy",
+        "signInvoice",
+        "signMoneyInOut",
+        "signDrawerOpen",
+        "signPaymentCorrection",
+        "signCostCenterChange",
+        "signReportTurnoverX",
+        "signReportTurnoverZ",
+        "signReportUserX",
+        "signReportUserZ",
+        "Status",
     ];
     for m in mutations {
         if query.contains(m) {
@@ -162,7 +196,8 @@ fn compute_vat_calc(txn: &serde_json::Value) -> Vec<VatCalcItem> {
 
     if let Some(lines) = txn.get("transactionLines").and_then(|v| v.as_array()) {
         for line in lines {
-            if let Some(vats) = line.get("mainProduct")
+            if let Some(vats) = line
+                .get("mainProduct")
                 .and_then(|p| p.get("vats"))
                 .and_then(|v| v.as_array())
             {
@@ -178,22 +213,50 @@ fn compute_vat_calc(txn: &serde_json::Value) -> Vec<VatCalcItem> {
     let rates: std::collections::HashMap<&str, f64> =
         [("A", 21.0), ("B", 12.0), ("C", 6.0), ("D", 0.0), ("X", 0.0)].into();
 
-    totals.iter().map(|(label, &total)| {
-        let rate = rates.get(label.as_str()).copied().unwrap_or(0.0);
-        let taxable = if rate > 0.0 { (total / (1.0 + rate / 100.0) * 100.0).round() / 100.0 } else { total };
-        let vat_amount = ((total - taxable) * 100.0).round() / 100.0;
-        VatCalcItem {
-            label: label.clone(),
-            rate,
-            taxable_amount: taxable,
-            vat_amount,
-            total_amount: total,
-            out_of_scope: label == "X",
-        }
-    }).collect()
+    totals
+        .iter()
+        .map(|(label, &total)| {
+            let rate = rates.get(label.as_str()).copied().unwrap_or(0.0);
+            let taxable = if rate > 0.0 {
+                (total / (1.0 + rate / 100.0) * 100.0).round() / 100.0
+            } else {
+                total
+            };
+            let vat_amount = ((total - taxable) * 100.0).round() / 100.0;
+            VatCalcItem {
+                label: label.clone(),
+                rate,
+                taxable_amount: taxable,
+                vat_amount,
+                total_amount: total,
+                out_of_scope: label == "X",
+            }
+        })
+        .collect()
 }
 
-fn status_response() -> serde_json::Value {
+/// Extract the response key for the status field: a real GraphQL
+/// server keys the payload on the alias when one is used
+/// (`fdmStatus: Status(...)` → `data.fdmStatus`), else on the field
+/// name as written (`Status` per the spec SDL, `status` per the
+/// Q100/Q110 UC fixtures).
+fn status_response_key(query: &str) -> String {
+    for field in ["Status", "status"] {
+        if let Some(pos) = query.find(&format!("{field}(")) {
+            let before = query[..pos].trim_end();
+            if let Some(prefix) = before.strip_suffix(':')
+                && let Some(alias) = prefix.split_whitespace().last()
+            {
+                return alias.to_string();
+            }
+            return field.to_string();
+        }
+    }
+    "Status".to_string()
+}
+
+fn status_response(query: &str) -> serde_json::Value {
+    let key = status_response_key(query);
     let warnings = parse_codes("MOCK_FDM_WARNING").map(codes_to_messages);
     let errors = parse_codes("MOCK_FDM_ERROR").map(codes_to_messages);
     let buffer_pct: f64 = std::env::var("MOCK_FDM_BUFFER_PCT")
@@ -209,7 +272,7 @@ fn status_response() -> serde_json::Value {
 
     serde_json::json!({
         "data": {
-            "Status": {
+            key: {
                 "device": {
                     "fdmId": "BMC0MOCK0001",
                     "fdmSwVersion": "MOCK-FDM-1.0",
@@ -259,22 +322,29 @@ fn codes_to_messages(codes: Vec<String>) -> serde_json::Value {
 }
 
 fn code_severity(code: &str) -> (&'static str, &'static str) {
-    // (category, showPos) — values match FDM spec v1.4 §V table.
+    // (category, showPos) — values follow the §V table of the
+    // certification manual (warnings vs errors, affichage M/O/N).
     match code {
-        "BUFFER_NEAR_FULL"
-        | "BUFFER_FULL"
-        | "FDM_LOCKED"
-        | "FDM_NOT_OPERATIONAL"
-        | "UNKNOWN_POS"
-        | "CLIENT_CERT_EXPIRED" => ("ERROR", "MANDATORY"),
+        // Warnings, mandatory display
+        "CLIENT_CERT_EXPIRED" | "BUFFER_NEAR_FULL" => ("WARNING", "MANDATORY"),
+        // Warnings, never displayed on the POS
         "RTC_NOT_INITIALIZED"
         | "CORRUPT_RECORD_ENCOUNTERED"
         | "UPDATE_PARAMS_FAILED"
         | "UPDATE_CLIENT_CERT_FAILED"
         | "UPDATE_VAT_RATES_FAILED"
         | "UPDATE_POS_ALLOWLIST_FAILED"
-        | "DUPLICATE_REQUEST"
-        | "TOO_MANY_MEMORY_ERRORS" => ("ERROR", "NEVER"),
+        | "DUPLICATE_REQUEST" => ("WARNING", "NEVER"),
+        // Errors, mandatory display
+        "BUFFER_FULL" | "FDM_LOCKED" | "FDM_NOT_OPERATIONAL" | "UNKNOWN_POS" => {
+            ("ERROR", "MANDATORY")
+        }
+        // Errors, never displayed
+        "TOO_MANY_MEMORY_ERRORS" => ("ERROR", "NEVER"),
+        // Errors, optional display
+        "UNAUTHORIZED" | "INVALID_REQUEST" | "INTERNAL_ERROR" | "UNDEFINED_ERROR"
+        | "UNDEFINED_OTHER" => ("ERROR", "OPTIONAL"),
+        // Everything else in the table is a warning with optional display
         _ => ("WARNING", "OPTIONAL"),
     }
 }
@@ -291,7 +361,9 @@ fn code_to_human(code: &str) -> &'static str {
         "NOP_FAILED" => "Le FDM n'a pas pu poster un message NOP",
         "BUFFER_NEAR_FULL" => "L'utilisation du buffer du FDM dépasse 70%",
         "SERVER_CERT_RESOLVE_FAILED" => "Le FDM n'a pas pu résoudre le certificat du serveur",
-        "TRANSACTION_UPLOAD_FAILED" => "Le FDM a tenté plus de 10 fois de poster une transaction sans succès",
+        "TRANSACTION_UPLOAD_FAILED" => {
+            "Le FDM a tenté plus de 10 fois de poster une transaction sans succès"
+        }
         "INITIALIZATION_FAILED" => "L'initialisation du FDM a échoué",
         "BUFFER_FULL" => "Le buffer du FDM est plein",
         "FDM_LOCKED" => "Le FDM est verrouillé",
@@ -301,7 +373,9 @@ fn code_to_human(code: &str) -> &'static str {
         "UNDEFINED_ERROR" => "Le FDM a rencontré une erreur indéfinie",
         "UNDEFINED_OTHER" => "Toute autre erreur rencontrée",
         "FDM_NOT_OPERATIONAL" => "Le FDM ne fonctionne pas",
-        "UNKNOWN_POS" => "Le FDM a reçu un message d'un POS non repris dans la liste d'autorisation",
+        "UNKNOWN_POS" => {
+            "Le FDM a reçu un message d'un POS non repris dans la liste d'autorisation"
+        }
         _ => "Erreur FDM",
     }
 }
