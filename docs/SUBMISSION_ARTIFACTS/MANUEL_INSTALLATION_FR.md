@@ -133,7 +133,7 @@ Champs :
 | `fdm_url` | URL GraphQL du FDM sur le LAN | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante (ou chemin série/USB) | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
-| `language` | Langue par défaut de l'interface : `fr` / `nl` / `en` / `zh` | Client |
+| `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) — toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/moyun-pos/backups`) | Distributeur |
 
 ### 4.3 Configuration réseau LAN

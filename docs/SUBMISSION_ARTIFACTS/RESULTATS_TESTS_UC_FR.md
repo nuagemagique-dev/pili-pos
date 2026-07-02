@@ -15,6 +15,8 @@ Pour chaque UC, il fournit :
 
 **Note importante :** les fixtures SPF Finances etant la source de verite, les valeurs ci-dessous correspondent exactement a celles publiees par le SPF dans `docs/20250916_UC_BasicSet_POS_FDM_1.7/` et `docs/20250916_UC_Reports_1.3/`. Notre code (couche `pos-fiscal`) parse et produit ces JSON ; les tests `uc_fixtures.rs`, `reports_fixtures.rs` et `spf_e2e_basic.rs` valident automatiquement la conformite a chaque commit.
 
+**Preuves generees par l'implementation :** en complement des fixtures publiees, le repertoire `evidence/uc/` contient, pour chaque UC rejoue par la suite e2e (`spf_e2e_basic.rs`, `spf_e2e_reports.rs`), le JSON de requete **reellement construit par moyun-pos** (colonne `event_data_json` de l'archive fiscale) et la reponse FDM archivee. Regeneration : `scripts/capture_uc_evidence.sh`. Ces fichiers prouvent que la couche commande produit des payloads conformes, pas seulement qu'elle sait parser les fixtures.
+
 ---
 
 # Basic Set v1.7 (22 UC)

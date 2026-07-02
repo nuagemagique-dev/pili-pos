@@ -486,3 +486,41 @@ Action opérateur : signature électronique qualifiée au moment de la soumissio
 **Verdict honnête :** on est à ~60 % du dossier complet (en termes de "matching 100% les exigences"). Les annexes FR sont propres mais le formulaire central et plusieurs gros bloc-de-preuve manquent. Compter **5-8 jours de travail** pour atteindre 100 %.
 
 Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résultats UC)** parce que c'est ce que le reviewer SPF lit en premier. Les screenshots (B2) sont indispensables pour §V. La liste produits SPF (D) est indispensable pour exécuter les UC correctement au rendez-vous d'admission.
+
+---
+
+# MISE À JOUR DU 2026-07-02
+
+Écarts comblés depuis le scan initial :
+
+- **Gap 9 (langues NL/DE des tickets) — RÉSOLU côté code.** Les mentions
+  fiscales imprimées existent désormais en FR/NL/DE
+  (`ReceiptLanguage` dans `crates/pos-fiscal/src/ticket.rs`, libellés
+  fixes dans `crates/pos-print/src/receipt.rs`), pilotées par la clé
+  `language` de `/etc/moyun-pos/pos.json`. Au passage, correction d'un
+  écart de conformité : les mentions étaient en anglais ("VAT RECEIPT",
+  "THIS IS NOT A VALID VAT RECEIPT") ; elles utilisent maintenant les
+  libellés exacts du manuel §VI ("TICKET DE CAISSE TVA",
+  "REMBOURSEMENT DU TICKET DE CAISSE TVA", "CECI N'EST PAS UN TICKET
+  DE CAISSE TVA VALABLE", "COPIE", …). Le libellé DE est une traduction
+  de style officiel à confirmer sur la version DE de la spec.
+- **Gap 8 (accès distant) — DÉCIDÉ.** RustDesk portable (open source,
+  binaire autonome, démarré ponctuellement à la demande), déclaré dans
+  `REPONSES_MANUEL_CERT_FR.md` §II.E et `GARANTIE_MAJ_LANGUES_FR.md`.
+- **Nouveau gap découvert et RÉSOLU : chargement du fichier de
+  configuration.** `MANUEL_INSTALLATION_FR.md` documentait
+  `/etc/moyun-pos/pos.json` mais le binaire ne lisait aucun fichier
+  (identité codée en dur). `PosConfig::load_from_file` +
+  `AppState::load_config` implémentés : env `MOYUN_POS_CONFIG`
+  prioritaire, puis `/etc/moyun-pos/pos.json` (erreur de parse =
+  fatal), sinon identité de développement avec avertissement.
+- **Étape 1 du runbook (`ASSEMBLAGE_FINAL_FR.md`) revalidée** :
+  `cargo test --workspace` (194 tests verts), `cargo clippy -D
+  warnings` propre, `cargo fmt --check` propre, build cert
+  (`--no-default-features --features cert`) OK, zéro symbole hubrise
+  dans le binaire. Chemins de build corrigés (`target/release/`, pas
+  `src-tauri/target/release/`).
+
+Écarts restants inchangés : répétition zwartedoos.be (compte FDM
+virtuel en cours de commande), captures d'écran UI (bloc B2), image
+kiosk (bloc E3), signature qualifiée (E1).

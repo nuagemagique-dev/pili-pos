@@ -174,7 +174,7 @@ Toute modification du logiciel POS post-certification nécessite une nouvelle de
 Aucune solution permanente d'accès à distance n'est installée sur la machine de test livrée à l'Intake (la spec SCE 2.0 demande un appliance scellé, sans SSH ni service de gestion réseau). Cependant, pour faciliter les interventions techniques entre la soumission et le rendez-vous d'admission :
 
 - **Accès local au rendez-vous d'admission.** Lors de l'Intake, l'agent SPF peut accéder à la machine de test localement via la console physique (login `spf` documenté au §II.C). C'est suffisant pour vérifier la version, exécuter les tests, et copier la DB.
-- **Pour les mises à jour de certification.** Si l'agent SPF souhaite valider une nouvelle build entre deux rendez-vous, un canal temporaire peut être ouvert (par exemple TeamViewer Quick Support démarré ponctuellement par le producteur) sur demande explicite.
+- **Pour les mises à jour de certification.** Si l'agent SPF souhaite valider une nouvelle build entre deux rendez-vous, un canal temporaire peut être ouvert (RustDesk portable — open source, binaire autonome — démarré ponctuellement par le producteur) sur demande explicite.
 
 Cette absence de solution d'accès à distance permanente est délibérée : pour un terminal de caisse fiscale, ouvrir un canal d'administration distante augmente la surface d'attaque sans bénéfice opérationnel (le producteur n'a pas accès à la caisse du client en service).
 
@@ -555,24 +555,24 @@ Récap mappings UC <-> commande Tauri <-> test :
 
 **Statut implémentation :** le composant Vue `ui/src/components/FdmStatus.vue` mappe 8 codes FDM vers des messages FR et les affiche dans une pilule du bandeau (rouge / jaune / vert). Le sondage du status FDM (`FdmClient::status`) tourne en arrière-plan toutes les 30 secondes.
 
-**Statut tests/captures :** voir *GAP_AUDIT_FR.md* bloc B1 + B2. Le mock FDM actuel (`crates/pos-fdm-mock`) ne supporte pas l'injection d'erreurs runtime. Travail prévu : ajout d'une variable d'environnement `MOCK_FDM_ERROR` pour pouvoir capturer chaque code dans l'UI réelle.
+**Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.7). Les **captures d'écran** de l'UI restent à produire (bloc B2, `CAPTURES_ECRAN_RUNBOOK_FR.md`).
 
-Tableau de réponse (à compléter après captures d'écran - bloc B2) :
+Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 
 | Code | Nature | Affichage requis | Affichage moyun-pos | Capture |
 |---|---|---|---|---|
 | CLIENT_CERT_NEAR_EXPIRATION | Warning | O | ☑ (mappé dans FdmStatus.vue, message "Le certificat du client expire dans moins de 4 mois") | À fournir |
-| CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé, message "Le certificat du client a expiré - contactez le SPF Finances") | À fournir |
-| RTC_SYNC_FAILED | Warning | O | ☐ (non implémenté - sera ajouté au mapping FR FdmStatus.vue) | - |
-| UPDATE_URLS_FAILED | Warning | O | ☐ (idem) | - |
-| UPDATE_TRUST_CERT_FAILED | Warning | O | ☐ | - |
-| UPDATE_TASK_LIST_FAILED | Warning | O | ☐ | - |
-| TASK_FEEDBACK_FAILED | Warning | O | ☐ | - |
-| NOP_FAILED | Warning | O | ☐ | - |
-| BUFFER_NEAR_FULL | Warning | M | ☑ (mappé "Le buffer FDM est presque plein. Programmez une connexion Internet stable.") | À fournir |
-| SERVER_CERT_RESOLVE_FAILED | Warning | O | ☐ | - |
-| TRANSACTION_UPLOAD_FAILED | Warning | O | ☐ | - |
-| INITIALIZATION_FAILED | Warning | O | ☐ | - |
+| CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé, message "Le certificat du client a expiré - contactez le SPF Finances") | JSON : `evidence/fdm_errors/CLIENT_CERT_EXPIRED_*.json` ; écran à fournir |
+| RTC_SYNC_FAILED | Warning | O | ☑ (mappé « L'horloge de la boîte noire n'a pas pu se synchroniser. ») | JSON : `evidence/fdm_errors/RTC_SYNC_FAILED_*.json` |
+| UPDATE_URLS_FAILED | Warning | O | ☑ (mappé « Mise à jour des URLs de la boîte noire échouée. ») | - |
+| UPDATE_TRUST_CERT_FAILED | Warning | O | ☑ (mappé « Mise à jour des certificats de confiance échouée. ») | - |
+| UPDATE_TASK_LIST_FAILED | Warning | O | ☑ (mappé « Téléchargement des tâches FDM échoué. ») | - |
+| TASK_FEEDBACK_FAILED | Warning | O | ☑ (mappé « La boîte noire n'a pas pu signaler le résultat d'une tâche. ») | - |
+| NOP_FAILED | Warning | O | ☑ (mappé « Communication intermédiaire avec la boîte noire échouée. ») | - |
+| BUFFER_NEAR_FULL | Warning | M | ☑ (mappé "Le buffer FDM est presque plein. Programmez une connexion Internet stable.") | JSON : `evidence/fdm_errors/BUFFER_NEAR_FULL_*.json` ; écran à fournir |
+| SERVER_CERT_RESOLVE_FAILED | Warning | O | ☑ (mappé « Impossible de résoudre le certificat du serveur FDM. ») | - |
+| TRANSACTION_UPLOAD_FAILED | Warning | O | ☑ (mappé « La boîte noire échoue à transmettre les transactions au SPF Finances. ») | - |
+| INITIALIZATION_FAILED | Warning | O | ☑ (mappé « L'initialisation de la boîte noire a échoué. ») | - |
 | RTC_NOT_INITIALIZED | Warning | N (non-affichable) | - | - |
 | CORRUPT_RECORD_ENCOUNTERED | Warning | N | - | - |
 | UPDATE_PARAMS_FAILED | Warning | N | - | - |
@@ -580,18 +580,18 @@ Tableau de réponse (à compléter après captures d'écran - bloc B2) :
 | UPDATE_VAT_RATES_FAILED | Warning | N | - | - |
 | UPDATE_POS_ALLOWLIST_FAILED | Warning | N | - | - |
 | DUPLICATE_REQUEST | Warning | N | - | - |
-| BUFFER_FULL | Erreur | M | ☑ (mappé "La boîte noire est pleine. Contactez votre technicien.") + modale bloquante au checkout | À fournir |
-| FDM_LOCKED | Erreur | M | ☑ (mappé "Le FDM est verrouillé. Contactez votre technicien.") + modale bloquante | À fournir |
+| BUFFER_FULL | Erreur | M | ☑ (mappé "La boîte noire est pleine. Contactez votre technicien.") + modale bloquante au checkout | JSON : `evidence/fdm_errors/BUFFER_FULL_*.json` ; écran à fournir |
+| FDM_LOCKED | Erreur | M | ☑ (mappé "Le FDM est verrouillé. Contactez votre technicien.") + modale bloquante | JSON : `evidence/fdm_errors/FDM_LOCKED_*.json` ; écran à fournir |
 | TOO_MANY_MEMORY_ERRORS | Erreur | N | - | - |
-| UNAUTHORIZED | Erreur | O | ☑ (mappé "Le POS n'est pas autorisé à parler à ce FDM. Vérifiez la configuration.") | À fournir |
+| UNAUTHORIZED | Erreur | O | ☑ (mappé "Le POS n'est pas autorisé à parler à ce FDM. Vérifiez la configuration.") | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; écran à fournir |
 | INVALID_REQUEST | Erreur | O | ☑ (mappé via la pilule status FDM, message "Erreur de communication FDM. Contactez votre technicien.") | À fournir |
 | INTERNAL_ERROR | Erreur | O | ☑ (mappé idem) | À fournir |
 | UNDEFINED_ERROR | Erreur | O | ☑ (mappé idem) | À fournir |
 | UNDEFINED_OTHER | Erreur | O | ☑ (mappé via "Erreur FDM" générique) | À fournir |
-| FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé "La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes.") + modale bloquante | À fournir |
-| UNKNOWN_POS | Erreur | M | ☑ (mappé "Ce POS n'est pas enregistré sur ce FDM. Vérifiez la configuration.") | À fournir |
+| FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé "La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes.") + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran à fournir |
+| UNKNOWN_POS | Erreur | M | ☑ (mappé "Ce POS n'est pas enregistré sur ce FDM. Vérifiez la configuration.") | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran à fournir |
 
-**☐ Le test a été effectué et le JSON ainsi que les captures d'écran ont été ajoutés** - à cocher après bloc B2.
+**☐ Le test a été effectué et le JSON ainsi que les captures d'écran ont été ajoutés** - JSON ajoutés (`evidence/fdm_errors/`, 8 codes × 4 fichiers) ; case à cocher après les captures d'écran du bloc B2.
 
 ---
 
@@ -634,7 +634,17 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 
 Les tickets sont émis en **français** par défaut (clientèle francophone de Bruxelles). Le code source supporte le rendu multilingue via la table `translations` (cf. *SCHEMA_BD_FR.md*), mais le client TSB n'a pas demandé d'émission NL/DE/EN systématique.
 
-Pour répondre à la spec belge, le POS génère le ticket dans la langue déclarée par l'opérateur connecté (`users.language_preference` - défaut `fr`). Pour TSB, les serveurs sont francophones et chinois, donc émission FR. Le NL et le DE sont supportés mais désactivés par config en production TSB (aucune demande client).
+Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket dans la langue configurée au niveau du POS (clé `language` de la configuration, cf. `MANUEL_INSTALLATION_FR.md`), mappée sur une langue nationale via `ReceiptLanguage::from_code` (`crates/pos-fiscal/src/ticket.rs`) : `fr` → FR, `nl` → NL, `de` → DE ; toute langue d'affichage non officielle (zh, en) retombe sur le FR. Les trois jeux de mentions implémentés :
+
+| Mention | FR | NL | DE |
+|---|---|---|---|
+| Dénomination ticket N | TICKET DE CAISSE TVA | BTW-KASTICKET | MWST.-KASSENZETTEL |
+| Remboursement | REMBOURSEMENT DU TICKET DE CAISSE TVA | TERUGBETALING BTW-KASTICKET | RUECKERSTATTUNG MWST.-KASSENZETTEL |
+| Mention d'invalidité (bas de ticket non-N) | CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE | DIT IS GEEN GELDIG BTW-KASTICKET | DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL |
+| Copie | COPIE | KOPIE | KOPIE |
+| Facture | FACTURE | FACTUUR | RECHNUNG |
+
+Les libellés FR proviennent de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). Pour TSB, l'exploitation est configurée en `fr` (serveurs francophones et sinophones).
 
 **Cette politique de langue par client est documentée dans `MANUEL_INSTALLATION_FR.md` §"Langue du ticket".**
 

@@ -17,7 +17,7 @@ La correspondance exacte entre le build de certification soumis au SPF Finances 
 
 Le dépôt source contient :
 - `Cargo.lock` commité - fige les versions exactes de toutes les dépendances Rust transitives.
-- `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.95.0`).
+- `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.96.0`).
 - `package-lock.json` (UI Vue) - fige les versions exactes des dépendances Node.
 
 La commande de build cert est documentée et figée :
@@ -108,7 +108,7 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 - **Raison secondaire :** la spec SCE 2.0 demande un appliance scellé. Un agent SSH ou un client TeamViewer permanent contredit l'esprit du scellement.
 
 **Compromis pratique :** pour les interventions techniques planifiées (mise à jour, debug d'un problème reporté par le client) :
-- L'opérateur peut démarrer ponctuellement un client TeamViewer Quick Support (binaire portable, sans installation système) à la demande du producteur.
+- L'opérateur peut démarrer ponctuellement un client RustDesk portable (open source, binaire autonome, sans installation système) à la demande du producteur.
 - Une fois la session terminée, le binaire est effacé.
 - Aucun accès permanent.
 
@@ -128,18 +128,17 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 
 ### 3.1 Langues supportées par le code source
 
-Le code de `moyun-pos` supporte le rendu multilingue des tickets via :
+Le code de `moyun-pos` supporte le rendu multilingue des tickets via deux mécanismes complémentaires :
 
-- Table `translations` polymorphe (cf. *SCHEMA_BD_FR.md*) - couvre catégories, articles, modificateurs.
-- Paramètre opérateur `users.language_preference` (valeurs `fr` / `nl` / `de` / `en` / `zh`).
-- Crate `pos-print` fait le rendu du ticket en utilisant la traduction correspondante à la langue de l'opérateur ou de la session.
+- **Libellés produits** : table `translations` polymorphe (cf. *SCHEMA_BD_FR.md*) - couvre catégories, articles, modificateurs. Les lignes du ticket portent le libellé dénormalisé dans la langue active au moment de la vente.
+- **Mentions fiscales imprimées** : jeux de libellés FR/NL/DE embarqués dans le code (`crates/pos-fiscal/src/ticket.rs` : `ReceiptLanguage`, `ticket_type_label`, `invalid_disclaimer` ; `crates/pos-print/src/receipt.rs` : libellés fixes Date/Ticket/TOTAL/TVA). La langue est déterminée par la clé `language` du fichier de configuration `/etc/moyun-pos/pos.json`, mappée sur une langue nationale : `fr`/`nl`/`de` directement, toute autre valeur (en, zh) retombe sur le FR.
 
-Langues supportées par le code et présentes dans le seed de certification SPF :
-- `fr` (français) - **complète**
-- `nl` (néerlandais) - **complète**
-- `de` (allemand) - **complète**
-- `en` (anglais) - **complète**
-- `zh` (chinois simplifié) - **complémentaire** (langue de travail interne, équipe sinophone)
+Langues des mentions fiscales supportées par le code :
+- `fr` (français) - **complète** (libellés issus de la description détaillée POS v2.2 et du manuel §VI)
+- `nl` (néerlandais) - **complète** (libellés issus des circulaires GKS)
+- `de` (allemand) - **complète** (traduction de style officiel, translittération ASCII, à confirmer sur la version DE de la spec)
+
+Langues d'affichage de l'interface (indépendantes du ticket) : `fr`, `en`, `zh`.
 
 ### 3.2 Politique de production pour Tokyo Sushi Bar
 
@@ -155,16 +154,16 @@ La spec SCE 2.0 indique que le ticket doit être disponible dans la langue du cl
 - Bruxelles bilingue : FR et NL acceptables, le restaurateur choisit selon sa clientèle.
 - Tokyo Sushi Bar étant à Bruxelles et déclarant une clientèle francophone majoritaire, l'émission FR uniquement est conforme.
 
-**Pour activer une langue supplémentaire** : la procédure est une mise à jour de configuration (pas du code) :
+**Pour basculer la langue des mentions fiscales (FR → NL ou DE)** : la procédure est une mise à jour de configuration (pas du code) :
 1. Compléter les traductions manquantes dans la table `translations` pour les articles.
-2. Activer la langue dans `pos.json::supported_languages`.
-3. L'opérateur peut basculer entre langues via le bouton de langue dans l'écran checkout.
+2. Éditer la clé `language` de `/etc/moyun-pos/pos.json` (`fr` / `nl` / `de`).
+3. Redémarrer le service `moyun-pos` (la configuration est lue au boot).
 
-Aucune modification du binaire `moyun-pos` n'est nécessaire pour ajouter une langue : c'est de la **configuration de données**, pas du code. Donc pas de nouveau cycle de certification.
+Les trois jeux de mentions FR/NL/DE étant déjà compilés dans le binaire, aucune modification du binaire `moyun-pos` n'est nécessaire pour changer de langue : c'est de la **configuration**, pas du code. Donc pas de nouveau cycle de certification.
 
 ### 3.3 Tickets multilingues pour la machine de test SPF
 
-Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré avec les 4 langues officielles (FR, NL, DE, EN) complétées pour les produits du manuel (Dry Martini, Burger of the Chef, etc.). L'agent SPF pourra basculer entre langues via le bouton de configuration ou en changeant la `language_preference` de l'utilisateur de test.
+Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré avec les traductions FR/NL/DE/EN des produits du manuel (Dry Martini, Burger of the Chef, etc.). L'agent SPF pourra basculer la langue des mentions fiscales en éditant la clé `language` de `/etc/moyun-pos/pos.json` (procédure §3.2) et constater le changement sur le ticket suivant.
 
 ---
 
@@ -176,5 +175,5 @@ Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré av
 | Build = déploiement client | Binaire Tauri scellé + SHA-1 vérifiable | `sha1sum /opt/moyun-pos/moyun-pos` |
 | Pas de modification post-cert | Système de fichiers racine en lecture seule + tag git signé | Vérification au boot, lecture du tag dans `/etc/moyun-pos/version` |
 | Nouvelle MAJ = nouveau cert | Procédure §II.E + Article 109 du manuel | Chaque tag `vX.Y.Z+1` ouvre une nouvelle demande SPF |
-| Pas d'accès distant permanent | Pas de SSH, pas de TeamViewer installé | Vérification au scan réseau du POS (aucun port ouvert) |
-| Ticket dans la langue du client | `translations` + `users.language_preference` | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |
+| Pas d'accès distant permanent | Pas de SSH, aucun client distant installé | Vérification au scan réseau du POS (aucun port ouvert) |
+| Ticket dans la langue du client | `translations` (libellés produits) + `pos.json::language` (mentions fiscales FR/NL/DE) | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |

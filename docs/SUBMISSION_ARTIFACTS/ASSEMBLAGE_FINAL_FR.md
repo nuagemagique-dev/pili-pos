@@ -16,7 +16,7 @@ cargo clippy --workspace -- -D warnings   # doit être propre
 cargo fmt --all --check       # doit être propre
 
 cargo build --release --no-default-features --features cert
-nm src-tauri/target/release/moyun-pos | grep -c pos_hubrise   # doit afficher 0
+nm target/release/moyun-pos | grep -c pos_hubrise   # doit afficher 0
 ```
 
 ## Étape 2 - Exécuter la répétition pré-soumission
@@ -38,7 +38,7 @@ corriger dans le code, rebuilder, re-répéter.
 Une install Debian 12 minimale avec :
 
 - .deb de build cert de `moyun-pos` (construit à partir de
-  `src-tauri/target/release/`).
+  `target/release/`).
 - Binaire `pos-fdm-mock` (pour le fallback de démo d'admission).
 - Compositeur Cage Wayland.
 - Unité systemd `moyun-pos.service` (autostart plein écran).

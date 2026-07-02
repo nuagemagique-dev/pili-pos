@@ -377,10 +377,10 @@ cargo fmt --all --check
 cargo build --release --no-default-features --features cert
 
 # 3. Vérifier l'absence de symboles d'intégrations tierces
-nm src-tauri/target/release/moyun-pos | grep -c pos_hubrise   # → doit être 0
+nm target/release/moyun-pos | grep -c pos_hubrise   # → doit être 0
 
 # 4. Calculer le hash SHA-1 du binaire
-sha1sum src-tauri/target/release/moyun-pos
+sha1sum target/release/moyun-pos
 
 # 5. Tag git signé GPG
 git tag -s vX.Y.Z -m "moyun-pos vX.Y.Z - <résumé>"

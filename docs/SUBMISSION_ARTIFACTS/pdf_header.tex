@@ -1,0 +1,15 @@
+% Shared pandoc/xelatex header for the SPF submission PDFs.
+% Maps Unicode symbols the body fonts lack onto LaTeX math glyphs,
+% so checked/unchecked boxes stay distinguishable in the PDFs.
+\usepackage{amssymb}
+\usepackage{newunicodechar}
+\newunicodechar{☐}{\ensuremath{\square}}
+\newunicodechar{☑}{\ensuremath{\boxtimes}}
+\newunicodechar{☒}{\ensuremath{\boxtimes}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✔}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{⚠}{\textbf{(!)}}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{←}{\ensuremath{\leftarrow}}
+\newunicodechar{↔}{\ensuremath{\leftrightarrow}}

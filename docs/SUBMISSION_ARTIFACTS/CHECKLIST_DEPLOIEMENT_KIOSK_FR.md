@@ -73,7 +73,7 @@ cd ~/moyun-pos                          # le dépôt source
 # 1) Confirmer que le binaire cert ne contient aucune intégration
 #    tierce désactivée (symboles résiduels attendus = 0).
 cargo build --release --no-default-features --features cert
-nm src-tauri/target/release/moyun-pos | grep -c pos_hubrise         # → 0
+nm target/release/moyun-pos | grep -c pos_hubrise         # → 0
 
 # 2) Confirmer que fiscal_events est append-only (pas de DELETE/UPDATE
 #    dans le code).
@@ -89,7 +89,7 @@ MOYUN_STAGING_FDM_URL=https://... \
 # → tous les UC passent avec signatures vérifiées
 
 # 5) Calculer le SHA-1 du binaire cert pour le formulaire.
-sha1sum src-tauri/target/release/moyun-pos
+sha1sum target/release/moyun-pos
 ```
 
 Sur le **kiosk lui-même**, le relecteur peut vérifier que la version

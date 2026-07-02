@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────
+# moyun-pos — certification build + integrity report
+#
+# Implements the five steps declared in
+# docs/SUBMISSION_ARTIFACTS/GARANTIE_MAJ_LANGUES_FR.md §1.2:
+#   1. Compile the certification build (no hubrise, peppol on).
+#   2. Verify the binary contains no third-party-integration symbols.
+#   3. Verify the source contains no DELETE/UPDATE on fiscal_events.
+#   4. Compute SHA-1, SHA-256 and MD5 of the binary.
+#   5. Emit a build_info_YYYYMMDD-HHMMSS.txt report.
+#
+# The SHA-1 value goes on the SPF Finances request form (§I.D).
+# Usage: scripts/build_and_hash.sh
+# ─────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+BINARY="$PROJECT_ROOT/target/release/moyun-pos"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+REPORT="$PROJECT_ROOT/build_info_${STAMP}.txt"
+
+echo "── 1/5 Certification build ──────────────────────────────"
+(cd src-tauri && cargo build --release --no-default-features --features cert)
+[[ -f "$BINARY" ]] || { echo "✗ binary not found: $BINARY"; exit 1; }
+
+echo "── 2/5 Third-party symbol check ─────────────────────────"
+HUBRISE_SYMS=$(nm "$BINARY" 2>/dev/null | grep -c pos_hubrise || true)
+if [[ "$HUBRISE_SYMS" != "0" ]]; then
+    echo "✗ found $HUBRISE_SYMS pos_hubrise symbol(s) in cert binary"
+    exit 1
+fi
+if strings "$BINARY" | grep -q "api.hubrise.com"; then
+    echo "✗ found HubRise API endpoint string in cert binary"
+    exit 1
+fi
+echo "✓ no third-party integration symbols"
+
+echo "── 3/5 Fiscal-archive mutation scan ─────────────────────"
+# The fiscal archive is append-only by law. No source file may
+# contain a DELETE or UPDATE statement targeting fiscal_events.
+if grep -rniE "(DELETE[[:space:]]+FROM|UPDATE)[[:space:]]+fiscal_events" \
+        crates src-tauri/src --include="*.rs" --include="*.sql"; then
+    echo "✗ forbidden mutation of fiscal_events found in source"
+    exit 1
+fi
+echo "✓ no DELETE/UPDATE on fiscal_events in source"
+
+echo "── 4/5 Hashes ───────────────────────────────────────────"
+SHA1=$(shasum -a 1 "$BINARY" | awk '{print $1}')
+SHA256=$(shasum -a 256 "$BINARY" | awk '{print $1}')
+MD5=$(md5sum "$BINARY" 2>/dev/null | awk '{print $1}' || md5 -q "$BINARY")
+echo "SHA-1  : $SHA1"
+
+echo "── 5/5 Report ───────────────────────────────────────────"
+GIT_SHA=$(git rev-parse HEAD)
+GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "(untagged)")
+GIT_DIRTY=$([[ -n "$(git status --porcelain)" ]] && echo "DIRTY" || echo "clean")
+
+cat > "$REPORT" <<REPORT_EOF
+moyun-pos certification build report
+Generated : ${STAMP}
+Host      : $(uname -srm)
+
+Build command : cargo build --release --no-default-features --features cert
+Toolchain     : $(rustc --version)
+Git commit    : ${GIT_SHA}
+Git tag       : ${GIT_TAG}
+Working tree  : ${GIT_DIRTY}
+
+Binary        : ${BINARY}
+Size          : $(wc -c < "$BINARY" | tr -d ' ') bytes
+SHA-1         : ${SHA1}
+SHA-256       : ${SHA256}
+MD5           : ${MD5}
+
+Checks
+  pos_hubrise symbols ............ 0
+  hubrise endpoint strings ....... none
+  fiscal_events DELETE/UPDATE .... none in source
+REPORT_EOF
+
+cat "$REPORT"
+echo ""
+echo "✓ report written to $REPORT"
+if [[ "$GIT_DIRTY" == "DIRTY" ]]; then
+    echo "⚠ working tree is dirty — do NOT declare this hash to the SPF;"
+    echo "  commit, tag (vX.Y.Z, GPG-signed) and rebuild first."
+fi
