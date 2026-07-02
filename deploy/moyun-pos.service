@@ -15,9 +15,15 @@ Group=pos
 # It launches the Tauri app fullscreen — no window decorations, no escape
 ExecStart=/usr/bin/cage -- /opt/moyun-pos/moyun-pos
 
+# Runtime dir for the Wayland socket. `pos` is a system user
+# (UID < 1000), so /run/user/1000 would never exist for it —
+# RuntimeDirectory= gives us /run/moyun-pos owned by pos.
+RuntimeDirectory=moyun-pos
+RuntimeDirectoryMode=0700
+
 # Environment for Wayland + GPU
 Environment=WLR_LIBINPUT_NO_DEVICES=1
-Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_RUNTIME_DIR=/run/moyun-pos
 Environment=WLR_RENDERER=pixman
 Environment=WAYLAND_DISPLAY=wayland-1
 Environment=GDK_BACKEND=wayland
@@ -45,8 +51,9 @@ NoNewPrivileges=yes
 # Allow access to input devices (touchscreen) and GPU
 SupplementaryGroups=input video render
 
-# Watchdog — restart if unresponsive for 30s
-WatchdogSec=30
+# NOTE: no WatchdogSec — the app does not send sd_notify WATCHDOG=1
+# pings, so enabling it would make systemd kill a healthy app every
+# interval. Crash recovery is covered by Restart=on-failure above.
 
 # Resource limits
 LimitNOFILE=65536

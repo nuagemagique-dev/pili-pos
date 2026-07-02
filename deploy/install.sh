@@ -90,13 +90,9 @@ else
     usermod -aG input,video,render "$POS_USER" 2>/dev/null || true
 fi
 
-# Ensure XDG_RUNTIME_DIR exists for Wayland
-mkdir -p /run/user/1000
-chown "$POS_USER:$POS_USER" /run/user/1000
-chmod 700 /run/user/1000
-
-# loginctl enable-linger so runtime dir persists
-loginctl enable-linger "$POS_USER" 2>/dev/null || true
+# XDG_RUNTIME_DIR is provided by RuntimeDirectory=moyun-pos in the
+# systemd unit (/run/moyun-pos) — no manual runtime dir or linger
+# hack needed for a system user.
 
 # ── Step 3: Directory structure ────────────────────────────────
 echo ""
@@ -147,6 +143,36 @@ else
     echo "  ✓ Database already exists at $POS_DB_PATH"
 fi
 
+# ── Step 5b: POS configuration file ────────────────────────────
+echo ""
+echo "▸ Installing POS configuration..."
+mkdir -p /etc/moyun-pos
+if [[ ! -f /etc/moyun-pos/pos.json ]]; then
+    cat > /etc/moyun-pos/pos.json <<'POSCONF'
+{
+  "pos_id": "CHANGE_ME_14CH",
+  "terminal_id": "POS1",
+  "device_id": "DEV001",
+  "restaurant_name": "CHANGE ME",
+  "restaurant_address": "CHANGE ME",
+  "restaurant_vat": "BE0000000000",
+  "restaurant_est_no": "0000000000",
+  "fdm_url": "http://192.168.1.20:8080/graphql",
+  "printer_address": "192.168.1.10:9100",
+  "training_mode": false,
+  "language": "fr",
+  "backup_dir": "/var/lib/moyun-pos/backups"
+}
+POSCONF
+    chmod 640 /etc/moyun-pos/pos.json
+    chown root:"$POS_USER" /etc/moyun-pos/pos.json
+    echo "  ⚠ Template written to /etc/moyun-pos/pos.json — EDIT the"
+    echo "    identity fields (pos_id, restaurant_*, fdm_url) before"
+    echo "    starting the service."
+else
+    echo "  ✓ /etc/moyun-pos/pos.json already present, left untouched"
+fi
+
 # ── Step 6: Systemd service ────────────────────────────────────
 echo ""
 echo "▸ Installing systemd service..."
@@ -194,6 +220,11 @@ done
 # Disable automatic updates (controlled deployments only)
 systemctl disable unattended-upgrades 2>/dev/null || true
 
+# Mask apt timers — no unattended package activity on a fiscal
+# appliance (GARANTIE_MAJ_LANGUES_FR.md §1.3: apt disabled via
+# systemd-mask; updates go through deploy/update.sh only).
+systemctl mask apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+
 # Set timezone to Brussels
 timedatectl set-timezone Europe/Brussels 2>/dev/null || true
 
@@ -223,7 +254,12 @@ echo "  Start:    sudo systemctl start moyun-pos"
 echo "  Logs:     sudo journalctl -u moyun-pos -f"
 echo "  Status:   sudo systemctl status moyun-pos"
 echo ""
-echo "  To deploy a new version:"
-echo "    1. scp moyun-pos pos@<ip>:/tmp/"
-echo "    2. ssh root@<ip> 'systemctl stop moyun-pos && cp /tmp/moyun-pos $POS_BIN_DIR/ && systemctl start moyun-pos'"
+echo "  BEFORE production use:"
+echo "    1. Edit /etc/moyun-pos/pos.json (POS identity + FDM URL)."
+echo "    2. Seal the appliance (GARANTIE_MAJ_LANGUES_FR.md §1.3):"
+echo "       - root filesystem read-only: add 'ro' to the root line"
+echo "         in /etc/fstab (keep $POS_HOME on a rw mount)."
+echo "       - verify no SSH server: dpkg -l openssh-server → absent."
+echo "    3. Updates: run deploy/update.sh from a USB stick with"
+echo "       root access on the console — no remote channel."
 echo "══════════════════════════════════════════════════"
