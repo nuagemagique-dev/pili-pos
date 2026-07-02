@@ -34,7 +34,9 @@ pub struct TextStyle {
 
 impl EscPosBuilder {
     pub fn new() -> Self {
-        let mut builder = Self { buf: Vec::with_capacity(4096) };
+        let mut builder = Self {
+            buf: Vec::with_capacity(4096),
+        };
         builder.init();
         builder
     }
@@ -65,7 +67,8 @@ impl EscPosBuilder {
         self.buf.extend_from_slice(&[ESC, b'E', u8::from(s.bold)]);
 
         // ESC - n — Underline (0=off, 1=1-dot, 2=2-dot)
-        self.buf.extend_from_slice(&[ESC, b'-', u8::from(s.underline)]);
+        self.buf
+            .extend_from_slice(&[ESC, b'-', u8::from(s.underline)]);
 
         // GS ! n — Character size selection
         // Bits 0-3: width magnification, bits 4-7: height magnification
@@ -149,25 +152,30 @@ impl EscPosBuilder {
     pub fn qr_code(&mut self, data: &str, module_size: u8) -> &mut Self {
         // Function 165: Select the model (Model 2)
         // GS ( k pL pH cn fn n1 n2
-        self.buf.extend_from_slice(&[GS, b'(', b'k', 4, 0, 49, 65, 50, 0]);
+        self.buf
+            .extend_from_slice(&[GS, b'(', b'k', 4, 0, 49, 65, 50, 0]);
 
         // Function 167: Set module size (1-16)
-        self.buf.extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 67, module_size]);
+        self.buf
+            .extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 67, module_size]);
 
         // Function 169: Set error correction level (49=M)
         // 48=L, 49=M, 50=Q, 51=H
-        self.buf.extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 69, 49]);
+        self.buf
+            .extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 69, 49]);
 
         // Function 180: Store QR data
         let data_bytes = data.as_bytes();
         let store_len = data_bytes.len() + 3; // +3 for cn, fn, m
         let pl = (store_len & 0xFF) as u8;
         let ph = ((store_len >> 8) & 0xFF) as u8;
-        self.buf.extend_from_slice(&[GS, b'(', b'k', pl, ph, 49, 80, 48]);
+        self.buf
+            .extend_from_slice(&[GS, b'(', b'k', pl, ph, 49, 80, 48]);
         self.buf.extend_from_slice(data_bytes);
 
         // Function 181: Print QR code
-        self.buf.extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 81, 48]);
+        self.buf
+            .extend_from_slice(&[GS, b'(', b'k', 3, 0, 49, 81, 48]);
 
         self
     }
@@ -175,12 +183,20 @@ impl EscPosBuilder {
     /// Print a raster image from a 1-bit bitmap.
     /// `width_pixels` must be a multiple of 8.
     /// `data`: row-major, MSB first, 1=black, 0=white.
-    pub fn raster_image(&mut self, width_pixels: u16, height_pixels: u16, data: &[u8]) -> &mut Self {
+    pub fn raster_image(
+        &mut self,
+        width_pixels: u16,
+        height_pixels: u16,
+        data: &[u8],
+    ) -> &mut Self {
         let bytes_per_row = width_pixels.div_ceil(8);
         // GS v 0 m xL xH yL yH d1...dk
         // m=0: normal mode
         self.buf.extend_from_slice(&[
-            GS, b'v', b'0', 0,
+            GS,
+            b'v',
+            b'0',
+            0,
             (bytes_per_row & 0xFF) as u8,
             ((bytes_per_row >> 8) & 0xFF) as u8,
             (height_pixels & 0xFF) as u8,
@@ -284,7 +300,10 @@ mod tests {
     #[test]
     fn bold_on() {
         let mut b = EscPosBuilder::new();
-        b.style(TextStyle { bold: true, ..Default::default() });
+        b.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         let bytes = b.build();
         // ESC E 1 should be in the output
         assert!(bytes.windows(3).any(|w| w == [0x1B, b'E', 1]));
@@ -314,7 +333,11 @@ mod tests {
         let mut b = EscPosBuilder::new();
         b.open_drawer();
         let bytes = b.build();
-        assert!(bytes.windows(5).any(|w| w == [0x1B, b'p', 0x00, 0x19, 0xFA]));
+        assert!(
+            bytes
+                .windows(5)
+                .any(|w| w == [0x1B, b'p', 0x00, 0x19, 0xFA])
+        );
     }
 
     #[test]

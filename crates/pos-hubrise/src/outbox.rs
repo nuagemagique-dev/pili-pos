@@ -14,7 +14,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 
@@ -73,12 +73,14 @@ async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
     //    spike if HubRise was down for weeks.
     {
         let db = ctx.db.lock().expect("outbox db poisoned");
-        let expired = db.execute(
-            "UPDATE hubrise_outbox
+        let expired = db
+            .execute(
+                "UPDATE hubrise_outbox
              SET sent_at = 'expired', error_msg = 'TTL exceeded (7 days)'
              WHERE sent_at IS NULL AND created_at < datetime('now', '-7 days')",
-            [],
-        ).unwrap_or(0);
+                [],
+            )
+            .unwrap_or(0);
         if expired > 0 {
             tracing::warn!(expired, "outbox: expired old rows (TTL 7 days)");
         }
@@ -112,7 +114,11 @@ async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
              LIMIT ?2",
         )?;
         let mapped = stmt.query_map(params![MAX_ATTEMPTS, BATCH_SIZE], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
         })?;
         mapped.collect::<std::result::Result<Vec<_>, _>>()?
     };
@@ -141,8 +147,14 @@ async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
                 if let Some(last_str) = last {
                     let backoff_secs = BASE_BACKOFF_SECS * (1u64 << attempts.min(8) as u32);
                     // Parse SQLite datetime "YYYY-MM-DD HH:MM:SS" as UTC.
-                    if let Ok(last_dt) = chrono::NaiveDateTime::parse_from_str(&last_str, "%Y-%m-%dT%H:%M:%SZ")
-                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(&last_str, "%Y-%m-%d %H:%M:%S"))
+                    if let Ok(last_dt) =
+                        chrono::NaiveDateTime::parse_from_str(&last_str, "%Y-%m-%dT%H:%M:%SZ")
+                            .or_else(|_| {
+                                chrono::NaiveDateTime::parse_from_str(
+                                    &last_str,
+                                    "%Y-%m-%d %H:%M:%S",
+                                )
+                            })
                     {
                         let cutoff = last_dt + chrono::Duration::seconds(backoff_secs as i64);
                         chrono::Utc::now().naive_utc() < cutoff
@@ -178,10 +190,7 @@ async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
         let db = ctx.db.lock().expect("outbox db poisoned");
         match result {
             Ok(resp) => {
-                let hubrise_id = resp
-                    .get("id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let hubrise_id = resp.get("id").and_then(|v| v.as_str()).unwrap_or("");
                 db.execute(
                     "UPDATE hubrise_outbox SET sent_at = datetime('now'), error_msg = NULL WHERE id = ?1",
                     params![id],
@@ -221,7 +230,11 @@ mod tests {
         let conn = test_conn();
         enqueue(&conn, 42, r#"{"status":"completed"}"#).unwrap();
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM hubrise_outbox WHERE order_id = 42", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM hubrise_outbox WHERE order_id = 42",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(count, 1);
     }
@@ -233,7 +246,11 @@ mod tests {
         enqueue(&conn, 2, "{}").unwrap();
         enqueue(&conn, 3, "{}").unwrap();
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(count, 3);
     }
@@ -246,21 +263,26 @@ mod tests {
             "INSERT INTO hubrise_outbox (order_id, body_json, created_at)
              VALUES (99, '{}', datetime('now', '-8 days'))",
             [],
-        ).unwrap();
+        )
+        .unwrap();
         // Run the expire logic.
-        let expired = conn.execute(
-            "UPDATE hubrise_outbox
+        let expired = conn
+            .execute(
+                "UPDATE hubrise_outbox
              SET sent_at = 'expired', error_msg = 'TTL exceeded (7 days)'
              WHERE sent_at IS NULL AND created_at < datetime('now', '-7 days')",
-            [],
-        ).unwrap();
+                [],
+            )
+            .unwrap();
         assert_eq!(expired, 1);
         // Verify it's no longer pending.
         let pending: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL",
-                [], |r| r.get(0),
-            ).unwrap();
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(pending, 0);
     }
 
@@ -268,12 +290,14 @@ mod tests {
     fn recent_rows_not_expired() {
         let conn = test_conn();
         enqueue(&conn, 1, "{}").unwrap();
-        let expired = conn.execute(
-            "UPDATE hubrise_outbox
+        let expired = conn
+            .execute(
+                "UPDATE hubrise_outbox
              SET sent_at = 'expired', error_msg = 'TTL exceeded'
              WHERE sent_at IS NULL AND created_at < datetime('now', '-7 days')",
-            [],
-        ).unwrap();
+                [],
+            )
+            .unwrap();
         assert_eq!(expired, 0);
     }
 }

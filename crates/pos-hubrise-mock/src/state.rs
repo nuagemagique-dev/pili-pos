@@ -3,7 +3,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
-use pos_hubrise_types::{Catalog, CallbackEvent, CallbackRegistration, Order};
+use pos_hubrise_types::{CallbackEvent, CallbackRegistration, Catalog, Order};
 
 /// Global mock state. Wrapped in `Arc<Mutex>` for sharing across axum handlers.
 pub struct MockState {

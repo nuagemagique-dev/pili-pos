@@ -26,10 +26,7 @@ pub async fn work_in(
     do_work_in(state.inner(), employee_insz).await
 }
 
-pub async fn do_work_in(
-    state: &AppState,
-    employee_insz: String,
-) -> Result<SocialResult, String> {
+pub async fn do_work_in(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
     do_work_event(state, employee_insz, true).await
 }
 
@@ -43,10 +40,7 @@ pub async fn work_out(
     do_work_out(state.inner(), employee_insz).await
 }
 
-pub async fn do_work_out(
-    state: &AppState,
-    employee_insz: String,
-) -> Result<SocialResult, String> {
+pub async fn do_work_out(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
     do_work_event(state, employee_insz, false).await
 }
 
@@ -58,7 +52,11 @@ async fn do_work_event(
     let (config, bp_id, ticket_number) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         let tn = FiscalCounter::next(&db, EventLabel::S).map_err(|e| e.to_string())?;
         (config, bp, tn)
     };
@@ -75,16 +73,20 @@ async fn do_work_event(
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::S,
-            sequence_number: ticket_number,
-            order_id: None,
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::S,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     Ok(SocialResult {

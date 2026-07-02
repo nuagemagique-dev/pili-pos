@@ -1,6 +1,6 @@
 //! SQLite-backed singleton store for the HubRise connection row.
 
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::errors::Result;
 

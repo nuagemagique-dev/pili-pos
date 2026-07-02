@@ -31,8 +31,8 @@
 
 use pos_peppol::ubl::{
     self, Address, Amount, Country, CustomerParty, EndpointId, InvoiceUbl, Item,
-    LegalMonetaryTotal, LineItem, Party, PartyName, PartyTaxScheme, Price, Quantity,
-    SupplierParty, TaxCategory, TaxScheme, TaxTotal, vat_label_to_bis,
+    LegalMonetaryTotal, LineItem, Party, PartyName, PartyTaxScheme, Price, Quantity, SupplierParty,
+    TaxCategory, TaxScheme, TaxTotal, vat_label_to_bis,
 };
 use pos_peppol::{AccessPoint, LoggingAccessPoint};
 use serde::{Deserialize, Serialize};
@@ -107,11 +107,14 @@ fn build_ubl(
     let mut total_vat = 0.0_f64;
     let mut ubl_lines: Vec<LineItem> = Vec::with_capacity(lines.len());
     for (idx, l) in lines.iter().enumerate() {
-        let (cat_id, percent_str) =
-            vat_label_to_bis(&l.vat_label).map_err(|e| e.to_string())?;
+        let (cat_id, percent_str) = vat_label_to_bis(&l.vat_label).map_err(|e| e.to_string())?;
         let rate: f64 = percent_str.parse().unwrap_or(0.0);
         let incl = l.unit_price_incl_vat * l.quantity;
-        let ex = if rate > 0.0 { incl / (1.0 + rate / 100.0) } else { incl };
+        let ex = if rate > 0.0 {
+            incl / (1.0 + rate / 100.0)
+        } else {
+            incl
+        };
         let vat = incl - ex;
         total_ex_vat += ex;
         total_vat += vat;
@@ -139,7 +142,11 @@ fn build_ubl(
             price: Price {
                 amount: Amount {
                     currency_id: "EUR".to_string(),
-                    value: if l.quantity > 0.0 { ex / l.quantity } else { 0.0 },
+                    value: if l.quantity > 0.0 {
+                        ex / l.quantity
+                    } else {
+                        0.0
+                    },
                 },
             },
         });
@@ -250,7 +257,16 @@ pub async fn issue_b2b_invoice(
     buyer: BuyerInput,
     lines: Vec<B2bLine>,
 ) -> Result<B2bInvoiceResult, String> {
-    do_issue_b2b_invoice(state.inner(), fiscal_event_id, invoice_no, issue_date, supplier, buyer, lines).await
+    do_issue_b2b_invoice(
+        state.inner(),
+        fiscal_event_id,
+        invoice_no,
+        issue_date,
+        supplier,
+        buyer,
+        lines,
+    )
+    .await
 }
 
 pub async fn do_issue_b2b_invoice(

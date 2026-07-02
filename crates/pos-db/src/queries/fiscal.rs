@@ -18,12 +18,15 @@ pub struct FiscalEventRef {
 }
 
 /// Get a fiscal event by ID.
-pub fn get_fiscal_event(conn: &Connection, event_id: i64) -> Result<Option<FiscalEventRef>, rusqlite::Error> {
+pub fn get_fiscal_event(
+    conn: &Connection,
+    event_id: i64,
+) -> Result<Option<FiscalEventRef>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, event_type, sequence_number, order_id,
                 fdm_id, fdm_datetime, event_label,
                 short_signature, qr_data, fdm_response_json
-         FROM fiscal_events WHERE id = ?1"
+         FROM fiscal_events WHERE id = ?1",
     )?;
 
     let mut rows = stmt.query_map(params![event_id], |row| {
@@ -46,7 +49,9 @@ pub fn get_fiscal_event(conn: &Connection, event_id: i64) -> Result<Option<Fisca
     match rows.next() {
         Some(Ok(mut event)) => {
             // Extract counters from fdm_response_json if available
-            if let Some(fdm_ref) = event.fdm_response_json.as_deref()
+            if let Some(fdm_ref) = event
+                .fdm_response_json
+                .as_deref()
                 .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
                 .and_then(|val| val.get("fdmRef").cloned())
             {
@@ -61,13 +66,16 @@ pub fn get_fiscal_event(conn: &Connection, event_id: i64) -> Result<Option<Fisca
 }
 
 /// List recent fiscal events (for copy selection).
-pub fn list_recent_events(conn: &Connection, limit: i64) -> Result<Vec<FiscalEventRef>, rusqlite::Error> {
+pub fn list_recent_events(
+    conn: &Connection,
+    limit: i64,
+) -> Result<Vec<FiscalEventRef>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, event_type, sequence_number, order_id,
                 fdm_id, fdm_datetime, event_label,
                 short_signature, qr_data, fdm_response_json
          FROM fiscal_events
-         ORDER BY id DESC LIMIT ?1"
+         ORDER BY id DESC LIMIT ?1",
     )?;
 
     let rows = stmt.query_map(params![limit], |row| {
@@ -103,7 +111,10 @@ pub struct RefundableEvent {
 }
 
 /// List recent N-type events that can be refunded.
-pub fn list_refundable_events(conn: &Connection, limit: i64) -> Result<Vec<RefundableEvent>, rusqlite::Error> {
+pub fn list_refundable_events(
+    conn: &Connection,
+    limit: i64,
+) -> Result<Vec<RefundableEvent>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT fe.id, fe.sequence_number, fe.order_id,
                 o.table_number, o.total_cents, fe.created_at
@@ -112,7 +123,7 @@ pub fn list_refundable_events(conn: &Connection, limit: i64) -> Result<Vec<Refun
          WHERE fe.event_type = 'N'
            AND o.status = 'closed'
          ORDER BY fe.created_at DESC
-         LIMIT ?1"
+         LIMIT ?1",
     )?;
 
     let rows = stmt.query_map(params![limit], |row| {

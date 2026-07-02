@@ -194,8 +194,7 @@ pub fn read_variables(fixture: &UcFixture) -> serde_json::Value {
         .variables_path
         .as_ref()
         .unwrap_or_else(|| panic!("{} has no Variables.json", fixture.uc_id));
-    let raw = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
+    let raw =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    serde_json::from_str(&raw).unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
 }

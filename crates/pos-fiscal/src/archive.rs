@@ -39,7 +39,8 @@ pub fn archive_event(
     conn: &rusqlite::Connection,
     params: ArchiveParams<'_>,
 ) -> Result<i64, rusqlite::Error> {
-    let response_json = params.sign_result
+    let response_json = params
+        .sign_result
         .map(|r| serde_json::to_string(r).unwrap_or_default());
 
     let fdm_id = params.sign_result.map(|r| r.fdm_ref.fdm_id.clone());
@@ -103,31 +104,28 @@ pub fn get_archived_event(
          WHERE event_type = ?1 AND sequence_number = ?2",
     )?;
 
-    let mut rows = stmt.query_map(
-        rusqlite::params![event_type_str, sequence_number],
-        |row| {
-            let label_str: String = row.get(1)?;
-            let event_label = serde_json::from_str::<EventLabel>(&format!("\"{label_str}\""))
-                .unwrap_or(EventLabel::N);
+    let mut rows = stmt.query_map(rusqlite::params![event_type_str, sequence_number], |row| {
+        let label_str: String = row.get(1)?;
+        let event_label = serde_json::from_str::<EventLabel>(&format!("\"{label_str}\""))
+            .unwrap_or(EventLabel::N);
 
-            Ok(ArchivedEvent {
-                id: row.get(0)?,
-                event_type: event_label,
-                sequence_number: row.get(2)?,
-                order_id: row.get(3)?,
-                pos_id: row.get(4)?,
-                terminal_id: row.get(5)?,
-                user_insz: row.get(6)?,
-                event_data_json: row.get(7)?,
-                fdm_response_json: row.get(8)?,
-                fdm_id: row.get(9)?,
-                fdm_datetime: row.get(10)?,
-                event_label: row.get(11)?,
-                short_signature: row.get(12)?,
-                qr_data: row.get(13)?,
-            })
-        },
-    )?;
+        Ok(ArchivedEvent {
+            id: row.get(0)?,
+            event_type: event_label,
+            sequence_number: row.get(2)?,
+            order_id: row.get(3)?,
+            pos_id: row.get(4)?,
+            terminal_id: row.get(5)?,
+            user_insz: row.get(6)?,
+            event_data_json: row.get(7)?,
+            fdm_response_json: row.get(8)?,
+            fdm_id: row.get(9)?,
+            fdm_datetime: row.get(10)?,
+            event_label: row.get(11)?,
+            short_signature: row.get(12)?,
+            qr_data: row.get(13)?,
+        })
+    })?;
 
     match rows.next() {
         Some(Ok(event)) => Ok(Some(event)),
@@ -166,7 +164,9 @@ mod tests {
 
         assert!(id > 0);
 
-        let event = get_archived_event(&conn, EventLabel::N, 1).unwrap().unwrap();
+        let event = get_archived_event(&conn, EventLabel::N, 1)
+            .unwrap()
+            .unwrap();
         assert_eq!(event.pos_id, "CFOD0061234567");
         assert_eq!(event.order_id, None);
         assert_eq!(event.event_data_json, r#"{"test": true}"#);

@@ -58,10 +58,7 @@ impl AccessPoint for LoggingAccessPoint {
             "LoggingAccessPoint: would submit UBL document"
         );
         Ok(DeliveryReceipt {
-            message_id: format!(
-                "logging-{}",
-                uuid::Uuid::new_v4().simple()
-            ),
+            message_id: format!("logging-{}", uuid::Uuid::new_v4().simple()),
             accepted_at: chrono::Utc::now().to_rfc3339(),
             raw_response: "{}".into(),
         })

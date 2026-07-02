@@ -16,11 +16,11 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_fiscal::types::EventLabel;
-use moyun_pos::commands::checkout::{do_checkout, CheckoutPaymentMethod};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -46,13 +46,8 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
         [],
     )
     .unwrap();
-    let order = pos_db::queries::orders::create_order(
-        &conn,
-        OrderType::DineIn,
-        Some(1),
-        TEST_INSZ,
-    )
-    .expect("create order");
+    let order = pos_db::queries::orders::create_order(&conn, OrderType::DineIn, Some(1), TEST_INSZ)
+        .expect("create order");
     pos_db::queries::orders::add_order_line(
         &conn,
         NewOrderLine {
@@ -94,10 +89,7 @@ async fn checkout_fdm_failure_does_not_advance_counter() {
         .await
         .expect("checkout returned (the command itself does not panic)");
 
-    assert!(
-        !result.success,
-        "checkout should fail when FDM returns 500"
-    );
+    assert!(!result.success, "checkout should fail when FDM returns 500");
 
     // The cert-critical assertion: counter must still be 0, so the
     // next attempt uses ticket number 1, not 2.
@@ -123,7 +115,7 @@ async fn checkout_fdm_failure_does_not_advance_counter() {
 /// or archive in an inconsistent state.
 #[tokio::test]
 async fn refund_fdm_failure_does_not_advance_counter() {
-    use moyun_pos::commands::refund::{do_refund_checkout, RefundItem};
+    use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
 
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);

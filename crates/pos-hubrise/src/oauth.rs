@@ -151,4 +151,3 @@ mod tests {
         assert!(resp.customer_list_id.is_none());
     }
 }
-

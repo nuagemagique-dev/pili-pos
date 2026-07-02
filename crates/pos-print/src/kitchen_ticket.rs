@@ -56,12 +56,18 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket) -> Vec<u8> {
     p.separator('=');
 
     p.align(Alignment::Center);
-    p.style(TextStyle { bold: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
     p.textln(&format!("{}  |  {}", ticket.source, ticket.service_type));
     p.style_reset();
     p.textln(&format!("Ref: {}", ticket.short_ref));
     if let Some(ready) = &ticket.ready_at {
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln(&format!("Pret a: {}", ready));
         p.style_reset();
     }
@@ -73,7 +79,10 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket) -> Vec<u8> {
     for item in &ticket.items {
         // Main line: " 2x  Maki saumon x8"
         let line = format!(" {}x {}", item.quantity, item.product_name);
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln(&line);
         p.style_reset();
 
@@ -92,7 +101,10 @@ pub fn format_kitchen_ticket(ticket: &KitchenTicket) -> Vec<u8> {
     if let Some(note) = &ticket.order_notes {
         p.separator('-');
         p.align(Alignment::Center);
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln(&format!("\"{}\"", note));
         p.style_reset();
     }

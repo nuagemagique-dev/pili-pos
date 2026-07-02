@@ -73,13 +73,10 @@ impl TcpPrinter {
     /// status query fails or times out, an optimistic default is
     /// returned (print still happened, just no health feedback).
     pub async fn send(&self, data: &[u8]) -> Result<PrinterStatus, TransportError> {
-        let stream = tokio::time::timeout(
-            CONNECT_TIMEOUT,
-            TcpStream::connect(&self.address),
-        )
-        .await
-        .map_err(|_| TransportError::Timeout)?
-        .map_err(|e| TransportError::Connect(e.to_string()))?;
+        let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(&self.address))
+            .await
+            .map_err(|_| TransportError::Timeout)?
+            .map_err(|e| TransportError::Connect(e.to_string()))?;
 
         let mut stream = stream;
 
@@ -106,13 +103,10 @@ impl TcpPrinter {
 
     /// Check if the printer is reachable by attempting a TCP connection.
     pub async fn ping(&self) -> bool {
-        tokio::time::timeout(
-            Duration::from_secs(2),
-            TcpStream::connect(&self.address),
-        )
-        .await
-        .map(|r| r.is_ok())
-        .unwrap_or(false)
+        tokio::time::timeout(Duration::from_secs(2), TcpStream::connect(&self.address))
+            .await
+            .map(|r| r.is_ok())
+            .unwrap_or(false)
     }
 
     pub fn address(&self) -> &str {
@@ -142,7 +136,8 @@ async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
         let _ = stream.flush().await;
 
         let mut buf = [0u8; 1];
-        let read_result = tokio::time::timeout(STATUS_READ_TIMEOUT, stream.read_exact(&mut buf)).await;
+        let read_result =
+            tokio::time::timeout(STATUS_READ_TIMEOUT, stream.read_exact(&mut buf)).await;
 
         match read_result {
             Ok(Ok(_)) => {

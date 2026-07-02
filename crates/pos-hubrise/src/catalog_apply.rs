@@ -3,7 +3,7 @@
 //! FK references from fiscal archives.
 
 use pos_hubrise_types::Catalog;
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{Connection, Transaction, params};
 
 use crate::catalog_mapper::{decode_category_translations, decode_sku_translations};
 use crate::errors::Result;
@@ -146,10 +146,34 @@ fn upsert_product(tx: &Transaction<'_>, product: &pos_hubrise_types::Product) ->
         "DELETE FROM translations WHERE entity_type = 'menu_item' AND entity_id = ?1",
         params![local_id],
     )?;
-    insert_translation(tx, "menu_item", local_id, "fr", &decoded.translations.fr.name)?;
-    insert_translation(tx, "menu_item", local_id, "en", &decoded.translations.en.name)?;
-    insert_translation(tx, "menu_item", local_id, "nl", &decoded.translations.nl.name)?;
-    insert_translation(tx, "menu_item", local_id, "zh", &decoded.translations.zh.name)?;
+    insert_translation(
+        tx,
+        "menu_item",
+        local_id,
+        "fr",
+        &decoded.translations.fr.name,
+    )?;
+    insert_translation(
+        tx,
+        "menu_item",
+        local_id,
+        "en",
+        &decoded.translations.en.name,
+    )?;
+    insert_translation(
+        tx,
+        "menu_item",
+        local_id,
+        "nl",
+        &decoded.translations.nl.name,
+    )?;
+    insert_translation(
+        tx,
+        "menu_item",
+        local_id,
+        "zh",
+        &decoded.translations.zh.name,
+    )?;
 
     Ok(())
 }

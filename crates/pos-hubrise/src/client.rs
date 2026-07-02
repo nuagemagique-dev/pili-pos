@@ -1,8 +1,8 @@
 //! Thin HTTP wrapper around `reqwest` for HubRise API calls.
 
 use reqwest::header::{HeaderMap, HeaderValue};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::errors::{HubriseError, Result};
 
@@ -15,7 +15,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(http: reqwest::Client, base_url: impl Into<String>, access_token: impl Into<String>) -> Self {
+    pub fn new(
+        http: reqwest::Client,
+        base_url: impl Into<String>,
+        access_token: impl Into<String>,
+    ) -> Self {
         Self {
             http,
             base_url: base_url.into(),
@@ -36,7 +40,12 @@ impl Client {
     }
 
     pub async fn get_json<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
-        let resp = self.http.get(self.url(path)).headers(self.headers()).send().await?;
+        let resp = self
+            .http
+            .get(self.url(path))
+            .headers(self.headers())
+            .send()
+            .await?;
         let status = resp.status();
         let body_bytes = resp.bytes().await?;
         if !status.is_success() {

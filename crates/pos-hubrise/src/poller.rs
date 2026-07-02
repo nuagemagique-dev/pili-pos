@@ -11,15 +11,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use pos_hubrise_types::{CallbackEvent, Catalog, Order, ServiceType};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 
 use crate::catalog_apply;
 use crate::client::Client;
-use crate::dispatcher::{
-    mark_failed, mark_processed, persist_event, DispatchOutcome,
-};
+use crate::dispatcher::{DispatchOutcome, mark_failed, mark_processed, persist_event};
 use crate::errors::{HubriseError, Result};
 use crate::token_store;
 
@@ -110,7 +108,9 @@ async fn poll_once(ctx: &PollerCtx) -> Result<()> {
                     hook(outcome, event.clone());
                 }
                 // Ack on the remote side so the event isn't replayed.
-                let _ = client.delete(&format!("/callback/events/{}", event.id)).await;
+                let _ = client
+                    .delete(&format!("/callback/events/{}", event.id))
+                    .await;
             }
             Err(e) => {
                 let db = ctx.db.lock().expect("poller db poisoned");
@@ -203,8 +203,7 @@ fn ingest_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
         ServiceType::Collection => "collection",
         ServiceType::EatIn => "eat_in",
     });
-    let total_cents =
-        parse_money_cents(order.total.as_deref().unwrap_or("0.00 EUR"));
+    let total_cents = parse_money_cents(order.total.as_deref().unwrap_or("0.00 EUR"));
     // Prefer the HubRise `channel` (e.g. "Deliveroo", "Uber Eats") as
     // the local `source` so the UI can differentiate platforms. Fall
     // back to "webshop" when the channel is absent.

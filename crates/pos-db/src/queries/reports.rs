@@ -24,14 +24,17 @@ pub struct PaymentTotal {
 }
 
 /// Get event totals for a given booking date (for turnover reports).
-pub fn get_event_totals(conn: &Connection, booking_date: &str) -> Result<Vec<EventTotal>, rusqlite::Error> {
+pub fn get_event_totals(
+    conn: &Connection,
+    booking_date: &str,
+) -> Result<Vec<EventTotal>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT event_type, COUNT(*), COALESCE(SUM(
             CAST(json_extract(event_data_json, '$.transaction.transactionTotal') AS REAL) * 100
         ), 0)
          FROM fiscal_events
          WHERE DATE(created_at) = ?1
-         GROUP BY event_type"
+         GROUP BY event_type",
     )?;
 
     let rows = stmt.query_map(params![booking_date], |row| {
@@ -46,13 +49,16 @@ pub fn get_event_totals(conn: &Connection, booking_date: &str) -> Result<Vec<Eve
 }
 
 /// Get VAT totals from closed orders for a given date.
-pub fn get_vat_totals(conn: &Connection, booking_date: &str) -> Result<Vec<VatTotal>, rusqlite::Error> {
+pub fn get_vat_totals(
+    conn: &Connection,
+    booking_date: &str,
+) -> Result<Vec<VatTotal>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT ol.vat_code, SUM(ol.unit_price_cents * ol.quantity)
          FROM order_lines ol
          JOIN orders o ON o.id = ol.order_id
          WHERE o.status = 'closed' AND DATE(o.closed_at) = ?1
-         GROUP BY ol.vat_code"
+         GROUP BY ol.vat_code",
     )?;
 
     let rows = stmt.query_map(params![booking_date], |row| {
@@ -66,12 +72,15 @@ pub fn get_vat_totals(conn: &Connection, booking_date: &str) -> Result<Vec<VatTo
 }
 
 /// Get payment totals for a given date.
-pub fn get_payment_totals(conn: &Connection, booking_date: &str) -> Result<Vec<PaymentTotal>, rusqlite::Error> {
+pub fn get_payment_totals(
+    conn: &Connection,
+    booking_date: &str,
+) -> Result<Vec<PaymentTotal>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT method, SUM(amount_cents), COUNT(*)
          FROM payments
          WHERE DATE(created_at) = ?1
-         GROUP BY method"
+         GROUP BY method",
     )?;
 
     let rows = stmt.query_map(params![booking_date], |row| {
@@ -87,12 +96,11 @@ pub fn get_payment_totals(conn: &Connection, booking_date: &str) -> Result<Vec<P
 
 /// Get the next Z-report sequence number.
 pub fn next_z_report_number(conn: &Connection) -> Result<i64, rusqlite::Error> {
-    let current: i64 = conn
-        .query_row(
-            "SELECT COALESCE(MAX(sequence_number), 0) FROM z_reports",
-            [],
-            |row| row.get(0),
-        )?;
+    let current: i64 = conn.query_row(
+        "SELECT COALESCE(MAX(sequence_number), 0) FROM z_reports",
+        [],
+        |row| row.get(0),
+    )?;
     Ok(current + 1)
 }
 
@@ -154,7 +162,10 @@ pub fn save_z_report(
 }
 
 /// Get the first and last fiscal event datetimes for a booking date.
-pub fn get_datetime_range(conn: &Connection, booking_date: &str) -> Result<(String, String), rusqlite::Error> {
+pub fn get_datetime_range(
+    conn: &Connection,
+    booking_date: &str,
+) -> Result<(String, String), rusqlite::Error> {
     conn.query_row(
         "SELECT
             COALESCE(MIN(created_at), datetime('now')),

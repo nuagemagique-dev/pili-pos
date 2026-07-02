@@ -59,7 +59,11 @@ fn test_order(table: Option<i32>) -> Order {
     Order {
         id: 1,
         table_number: table,
-        order_type: if table.is_some() { OrderType::DineIn } else { OrderType::Takeaway },
+        order_type: if table.is_some() {
+            OrderType::DineIn
+        } else {
+            OrderType::Takeaway
+        },
         status: OrderStatus::Open,
         user_insz: "85073000148".to_string(),
         created_at: chrono::Utc::now(),
@@ -98,7 +102,10 @@ fn drink_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
 }
 
 fn total_cents(lines: &[OrderLine]) -> i64 {
-    lines.iter().map(|l| l.unit_price_cents * l.quantity as i64).sum()
+    lines
+        .iter()
+        .map(|l| l.unit_price_cents * l.quantity as i64)
+        .sum()
 }
 
 /// Build a mock SignResult for a given mutation.
@@ -143,25 +150,21 @@ fn mock_sign_result(
             None
         },
         vat_calc: if include_vat_calc {
-            Some(vec![
-                pos_fiscal::response::VatCalcItem {
-                    label: VatLabel::B,
-                    rate: 12.0,
-                    taxable_amount: 22.32,
-                    vat_amount: 2.68,
-                    total_amount: 25.00,
-                    out_of_scope: false,
-                },
-            ])
+            Some(vec![pos_fiscal::response::VatCalcItem {
+                label: VatLabel::B,
+                rate: 12.0,
+                taxable_amount: 22.32,
+                vat_amount: 2.68,
+                total_amount: 25.00,
+                out_of_scope: false,
+            }])
         } else {
             None
         },
         buffer_capacity_used: 1.5,
         warnings: None,
         informations: None,
-        footer: vec![
-            "www.systemedecaisseenregistreuse.be".to_string(),
-        ],
+        footer: vec!["www.systemedecaisseenregistreuse.be".to_string()],
     }
 }
 
@@ -210,7 +213,15 @@ async fn test_direct_sale() {
     let bp_id = Uuid::new_v4().to_string();
 
     // Set up mock FDM
-    mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::N, 1, true).await;
+    mock_fdm_mutation(
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::N,
+        1,
+        true,
+    )
+    .await;
 
     // Build order: 2x Saumon roll (12.50) + 1x Bière Asahi (3.90)
     let lines = vec![
@@ -227,7 +238,16 @@ async fn test_direct_sale() {
     assert_eq!(ticket_no, 1);
 
     // Build and send
-    let sale = build_sale_input(&config, &order, &lines, ticket_no, &bp_id, PaymentType::Cash, total, None);
+    let sale = build_sale_input(
+        &config,
+        &order,
+        &lines,
+        ticket_no,
+        &bp_id,
+        PaymentType::Cash,
+        total,
+        None,
+    );
 
     // Verify structure
     assert_eq!(sale.common.pos_id, "CFOD0061234567");
@@ -267,20 +287,25 @@ async fn test_direct_sale() {
     let valid = signature::verify_short_signature(
         &result.digital_signature,
         result.short_signature.as_ref().unwrap(),
-    ).unwrap();
+    )
+    .unwrap();
     assert!(valid);
 
     // Archive
-    let event_id = archive::archive_event(&conn, ArchiveParams {
-        event_type: EventLabel::N,
-        sequence_number: ticket_no,
-        order_id: None, // test DB has no orders
-        pos_id: &config.pos_id,
-        terminal_id: &config.terminal_id,
-        user_insz: &order.user_insz,
-        request_json: &serde_json::to_string(&result).unwrap(),
-        sign_result: Some(&result),
-    }).unwrap();
+    let event_id = archive::archive_event(
+        &conn,
+        ArchiveParams {
+            event_type: EventLabel::N,
+            sequence_number: ticket_no,
+            order_id: None, // test DB has no orders
+            pos_id: &config.pos_id,
+            terminal_id: &config.terminal_id,
+            user_insz: &order.user_insz,
+            request_json: &serde_json::to_string(&result).unwrap(),
+            sign_result: Some(&result),
+        },
+    )
+    .unwrap();
     assert!(event_id > 0);
 }
 
@@ -295,23 +320,40 @@ async fn test_complete_refund() {
     let config = test_config(&format!("{}/graphql", server.uri()));
     let bp_id = Uuid::new_v4().to_string();
 
-    mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::N, 2, true).await;
+    mock_fdm_mutation(
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::N,
+        2,
+        true,
+    )
+    .await;
 
     // Refund: negative quantities referencing original
     let order = test_order(Some(5));
-    let lines = vec![
-        OrderLine {
-            id: 1, order_id: 1, menu_item_id: 29,
-            quantity: -2, // negative = refund
-            unit_price_cents: 1250,
-            vat_code: VatCode::B,
-            name: "Saumon roll x8".to_string(),
-            modifiers_json: None,
-            created_at: chrono::Utc::now(),
-        },
-    ];
+    let lines = vec![OrderLine {
+        id: 1,
+        order_id: 1,
+        menu_item_id: 29,
+        quantity: -2, // negative = refund
+        unit_price_cents: 1250,
+        vat_code: VatCode::B,
+        name: "Saumon roll x8".to_string(),
+        modifiers_json: None,
+        created_at: chrono::Utc::now(),
+    }];
 
-    let mut sale = build_sale_input(&config, &order, &lines, 2, &bp_id, PaymentType::Cash, -2500, None);
+    let mut sale = build_sale_input(
+        &config,
+        &order,
+        &lines,
+        2,
+        &bp_id,
+        PaymentType::Cash,
+        -2500,
+        None,
+    );
 
     // Attach reference to original sale (required for refunds)
     sale.fdm_ref = Some(FdmReferenceInput {
@@ -348,11 +390,17 @@ async fn test_interrupted_sale_table_flow() {
 
     // Step 1: Customer sits at table 7, orders first round
     let order = test_order(Some(7));
-    let initial_lines = vec![
-        food_line(50, "Maki saumon x6", 470, 1),
-    ];
+    let initial_lines = vec![food_line(50, "Maki saumon x6", 470, 1)];
 
-    mock_fdm_mutation(&server, "signOrder", EventOperation::Order, EventLabel::P, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signOrder",
+        EventOperation::Order,
+        EventLabel::P,
+        1,
+        false,
+    )
+    .await;
 
     let p_ticket = FiscalCounter::next(&conn, EventLabel::P).unwrap();
     let order_input = build_order_input(&config, &order, &initial_lines, p_ticket, &bp_id, &cc_ref);
@@ -367,16 +415,20 @@ async fn test_interrupted_sale_table_flow() {
     assert_eq!(p_result.event_operation, EventOperation::Order);
 
     // Archive P event
-    archive::archive_event(&conn, ArchiveParams {
-        event_type: EventLabel::P,
-        sequence_number: p_ticket,
-        order_id: None, // test DB has no orders
-        pos_id: &config.pos_id,
-        terminal_id: &config.terminal_id,
-        user_insz: &order.user_insz,
-        request_json: "{}",
-        sign_result: Some(&p_result),
-    }).unwrap();
+    archive::archive_event(
+        &conn,
+        ArchiveParams {
+            event_type: EventLabel::P,
+            sequence_number: p_ticket,
+            order_id: None, // test DB has no orders
+            pos_id: &config.pos_id,
+            terminal_id: &config.terminal_id,
+            user_insz: &order.user_insz,
+            request_json: "{}",
+            sign_result: Some(&p_result),
+        },
+    )
+    .unwrap();
 
     // Step 2: Customer adds more items
     // (In real flow, another signOrder would be sent)
@@ -389,10 +441,27 @@ async fn test_interrupted_sale_table_flow() {
     let total = total_cents(&all_lines); // 1230
 
     // Need a new mock for signSale (wiremock consumes the previous ones)
-    mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::N, 1, true).await;
+    mock_fdm_mutation(
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::N,
+        1,
+        true,
+    )
+    .await;
 
     let n_ticket = FiscalCounter::next(&conn, EventLabel::N).unwrap();
-    let sale = build_sale_input(&config, &order, &all_lines, n_ticket, &bp_id, PaymentType::CardDebit, total, None);
+    let sale = build_sale_input(
+        &config,
+        &order,
+        &all_lines,
+        n_ticket,
+        &bp_id,
+        PaymentType::CardDebit,
+        total,
+        None,
+    );
 
     let n_result = fdm.sign_sale(sale, false).await.unwrap();
     assert_eq!(n_result.fdm_ref.event_label, EventLabel::N);
@@ -422,7 +491,15 @@ async fn test_pre_bill() {
         drink_line(156, "Bière Kirin", 380, 1),
     ];
 
-    mock_fdm_mutation(&server, "signPreBill", EventOperation::PreBill, EventLabel::P, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signPreBill",
+        EventOperation::PreBill,
+        EventLabel::P,
+        1,
+        false,
+    )
+    .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::P).unwrap();
     let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_no, &bp_id);
@@ -464,12 +541,29 @@ async fn test_training_mode() {
     let total = total_cents(&lines);
 
     // Training uses T label for counters
-    mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::T, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::T,
+        1,
+        false,
+    )
+    .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::T).unwrap();
     assert_eq!(ticket_no, 1);
 
-    let sale = build_sale_input(&config, &order, &lines, ticket_no, &bp_id, PaymentType::Cash, total, None);
+    let sale = build_sale_input(
+        &config,
+        &order,
+        &lines,
+        ticket_no,
+        &bp_id,
+        PaymentType::Cash,
+        total,
+        None,
+    );
 
     // isTraining = true is passed to FDM
     let fdm = FdmClient::new(config.fdm_url.as_str());
@@ -481,16 +575,20 @@ async fn test_training_mode() {
     assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 0);
 
     // Archive with T label
-    archive::archive_event(&conn, ArchiveParams {
-        event_type: EventLabel::T,
-        sequence_number: ticket_no,
-        order_id: None, // test DB has no orders
-        pos_id: &config.pos_id,
-        terminal_id: &config.terminal_id,
-        user_insz: &order.user_insz,
-        request_json: "{}",
-        sign_result: Some(&result),
-    }).unwrap();
+    archive::archive_event(
+        &conn,
+        ArchiveParams {
+            event_type: EventLabel::T,
+            sequence_number: ticket_no,
+            order_id: None, // test DB has no orders
+            pos_id: &config.pos_id,
+            terminal_id: &config.terminal_id,
+            user_insz: &order.user_insz,
+            request_json: "{}",
+            sign_result: Some(&result),
+        },
+    )
+    .unwrap();
 
     // Verify training event archived with T label
     let archived = archive::get_archived_event(&conn, EventLabel::T, 1).unwrap();
@@ -518,7 +616,15 @@ async fn test_copy_ticket() {
         total_counter: 100,
     };
 
-    mock_fdm_mutation(&server, "signCopy", EventOperation::Copy, EventLabel::C, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signCopy",
+        EventOperation::Copy,
+        EventLabel::C,
+        1,
+        false,
+    )
+    .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::C).unwrap();
     let copy = build_copy_input(&config, ticket_no, "85073000148", &bp_id, &original_ref);
@@ -552,9 +658,14 @@ async fn test_z_report() {
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
     mock_fdm_mutation(
-        &server, "signReportTurnoverZ", EventOperation::ReportTurnoverZ,
-        EventLabel::R, 1, false,
-    ).await;
+        &server,
+        "signReportTurnoverZ",
+        EventOperation::ReportTurnoverZ,
+        EventLabel::R,
+        1,
+        false,
+    )
+    .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::R).unwrap();
     let report_no = 1_i64;
@@ -576,8 +687,16 @@ async fn test_z_report() {
         }],
         turnover: TurnoverInput {
             transactions: vec![
-                EventTotalInput { event_label: EventLabel::N, ticket_count: 45, amount: 3250.00 },
-                EventTotalInput { event_label: EventLabel::P, ticket_count: 12, amount: 0.0 },
+                EventTotalInput {
+                    event_label: EventLabel::N,
+                    ticket_count: 45,
+                    amount: 3250.00,
+                },
+                EventTotalInput {
+                    event_label: EventLabel::P,
+                    ticket_count: 12,
+                    amount: 0.0,
+                },
             ],
             departments: vec![DepartmentTotalInput {
                 department_id: "FOOD".to_string(),
@@ -585,8 +704,20 @@ async fn test_z_report() {
                 amount: 3250.00,
             }],
             vats: vec![
-                VatTotalInput { label: VatLabel::B, rate: 12.0, taxable_amount: 2589.29, vat_amount: 310.71, total_amount: 2900.00 },
-                VatTotalInput { label: VatLabel::A, rate: 21.0, taxable_amount: 289.26, vat_amount: 60.74, total_amount: 350.00 },
+                VatTotalInput {
+                    label: VatLabel::B,
+                    rate: 12.0,
+                    taxable_amount: 2589.29,
+                    vat_amount: 310.71,
+                    total_amount: 2900.00,
+                },
+                VatTotalInput {
+                    label: VatLabel::A,
+                    rate: 21.0,
+                    taxable_amount: 289.26,
+                    vat_amount: 60.74,
+                    total_amount: 350.00,
+                },
             ],
             payments: vec![PaymentTotalInput {
                 id: "cash".to_string(),
@@ -611,8 +742,13 @@ async fn test_z_report() {
     };
 
     let report = build_report_turnover_z(
-        &config, ticket_no, "85073000148", &bp_id,
-        report_no, &today, turnover_data,
+        &config,
+        ticket_no,
+        "85073000148",
+        &bp_id,
+        report_no,
+        &today,
+        turnover_data,
     );
 
     // Verify Z-report structure
@@ -655,7 +791,15 @@ async fn test_employee_work_in_out() {
     let bp_id = Uuid::new_v4().to_string();
 
     // Work In
-    mock_fdm_mutation(&server, "signWorkIn", EventOperation::WorkIn, EventLabel::S, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signWorkIn",
+        EventOperation::WorkIn,
+        EventLabel::S,
+        1,
+        false,
+    )
+    .await;
 
     let s_ticket = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     let work_in = build_work_in_out(&config, s_ticket, "85073000148", &bp_id);
@@ -667,7 +811,15 @@ async fn test_employee_work_in_out() {
     assert_eq!(result.fdm_ref.event_label, EventLabel::S);
 
     // Work Out
-    mock_fdm_mutation(&server, "signWorkOut", EventOperation::WorkOut, EventLabel::S, 2, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signWorkOut",
+        EventOperation::WorkOut,
+        EventLabel::S,
+        2,
+        false,
+    )
+    .await;
 
     let s_ticket2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     assert_eq!(s_ticket2, 2);
@@ -722,14 +874,30 @@ async fn test_full_service_day() {
     let bp_id = Uuid::new_v4().to_string();
 
     // 1. Employee clocks in
-    mock_fdm_mutation(&server, "signWorkIn", EventOperation::WorkIn, EventLabel::S, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signWorkIn",
+        EventOperation::WorkIn,
+        EventLabel::S,
+        1,
+        false,
+    )
+    .await;
     let fdm = FdmClient::new(config.fdm_url.as_str());
     let s1 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     let wi = build_work_in_out(&config, s1, "85073000148", &bp_id);
     fdm.sign_work_in(wi, false).await.unwrap();
 
     // 2. Table 1 orders (P event)
-    mock_fdm_mutation(&server, "signOrder", EventOperation::Order, EventLabel::P, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signOrder",
+        EventOperation::Order,
+        EventLabel::P,
+        1,
+        false,
+    )
+    .await;
     let p1 = FiscalCounter::next(&conn, EventLabel::P).unwrap();
     let order1 = test_order(Some(1));
     let lines1 = vec![food_line(3, "M1", 1790, 1)];
@@ -738,19 +906,52 @@ async fn test_full_service_day() {
     fdm.sign_order(oi, false).await.unwrap();
 
     // 3. Table 1 pays (N event)
-    mock_fdm_mutation(&server, "signSale", EventOperation::Sale, EventLabel::N, 1, true).await;
+    mock_fdm_mutation(
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::N,
+        1,
+        true,
+    )
+    .await;
     let n1 = FiscalCounter::next(&conn, EventLabel::N).unwrap();
-    let sale1 = build_sale_input(&config, &order1, &lines1, n1, &bp_id, PaymentType::Cash, 1790, None);
+    let sale1 = build_sale_input(
+        &config,
+        &order1,
+        &lines1,
+        n1,
+        &bp_id,
+        PaymentType::Cash,
+        1790,
+        None,
+    );
     let sale1_result = fdm.sign_sale(sale1, false).await.unwrap();
 
     // 4. Copy of table 1 receipt
-    mock_fdm_mutation(&server, "signCopy", EventOperation::Copy, EventLabel::C, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signCopy",
+        EventOperation::Copy,
+        EventLabel::C,
+        1,
+        false,
+    )
+    .await;
     let c1 = FiscalCounter::next(&conn, EventLabel::C).unwrap();
     let copy = build_copy_input(&config, c1, "85073000148", &bp_id, &sale1_result.fdm_ref);
     fdm.sign_copy(copy, false).await.unwrap();
 
     // 5. Z-report
-    mock_fdm_mutation(&server, "signReportTurnoverZ", EventOperation::ReportTurnoverZ, EventLabel::R, 1, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signReportTurnoverZ",
+        EventOperation::ReportTurnoverZ,
+        EventLabel::R,
+        1,
+        false,
+    )
+    .await;
     let r1 = FiscalCounter::next(&conn, EventLabel::R).unwrap();
     let report_data = TurnoverReportData {
         pos_devices: vec![PosDeviceInput {
@@ -767,18 +968,42 @@ async fn test_full_service_day() {
             last_total_counter: 5,
         }],
         turnover: TurnoverInput {
-            transactions: vec![EventTotalInput { event_label: EventLabel::N, ticket_count: 1, amount: 17.90 }],
-            departments: vec![DepartmentTotalInput { department_id: "FOOD".to_string(), department_name: "Restaurant".to_string(), amount: 17.90 }],
-            vats: vec![VatTotalInput { label: VatLabel::B, rate: 12.0, taxable_amount: 15.98, vat_amount: 1.92, total_amount: 17.90 }],
+            transactions: vec![EventTotalInput {
+                event_label: EventLabel::N,
+                ticket_count: 1,
+                amount: 17.90,
+            }],
+            departments: vec![DepartmentTotalInput {
+                department_id: "FOOD".to_string(),
+                department_name: "Restaurant".to_string(),
+                amount: 17.90,
+            }],
+            vats: vec![VatTotalInput {
+                label: VatLabel::B,
+                rate: 12.0,
+                taxable_amount: 15.98,
+                vat_amount: 1.92,
+                total_amount: 17.90,
+            }],
             payments: vec![PaymentTotalInput {
-                id: "cash".to_string(), name: "Cash".to_string(), payment_type: PaymentType::Cash,
+                id: "cash".to_string(),
+                name: "Cash".to_string(),
+                payment_type: PaymentType::Cash,
                 amount: vec![PaymentTotalAmountInput {
-                    amount_type: PaymentLineType::Payment, normal_amount: 17.90,
-                    negative_corrections: 0.0, positive_corrections: 0.0, corrections_count: 0, total_amount: 17.90,
-                    normal_foreign: None, corrections_foreign: None,
+                    amount_type: PaymentLineType::Payment,
+                    normal_amount: 17.90,
+                    negative_corrections: 0.0,
+                    positive_corrections: 0.0,
+                    corrections_count: 0,
+                    total_amount: 17.90,
+                    normal_foreign: None,
+                    corrections_foreign: None,
                 }],
             }],
-            drawers_open_count: 1, neg_quantities: vec![], price_changes: vec![], invoices: None,
+            drawers_open_count: 1,
+            neg_quantities: vec![],
+            price_changes: vec![],
+            invoices: None,
         },
     };
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -786,7 +1011,15 @@ async fn test_full_service_day() {
     fdm.sign_report_turnover_z(z, false).await.unwrap();
 
     // 6. Employee clocks out
-    mock_fdm_mutation(&server, "signWorkOut", EventOperation::WorkOut, EventLabel::S, 2, false).await;
+    mock_fdm_mutation(
+        &server,
+        "signWorkOut",
+        EventOperation::WorkOut,
+        EventLabel::S,
+        2,
+        false,
+    )
+    .await;
     let s2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     let wo = build_work_in_out(&config, s2, "85073000148", &bp_id);
     fdm.sign_work_out(wo, false).await.unwrap();

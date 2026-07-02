@@ -4,12 +4,10 @@ use pos_fiscal::ticket::FiscalTicket;
 #[cfg(feature = "hubrise")]
 use pos_hubrise_types::{Order, ServiceType};
 #[cfg(feature = "hubrise")]
-use pos_print::customer_slip::{
-    format_customer_slip, CustomerInfo, CustomerLine, CustomerSlip,
-};
+use pos_print::customer_slip::{CustomerInfo, CustomerLine, CustomerSlip, format_customer_slip};
 use pos_print::drawer;
 #[cfg(feature = "hubrise")]
-use pos_print::kitchen_ticket::{format_kitchen_ticket, KitchenItem, KitchenTicket};
+use pos_print::kitchen_ticket::{KitchenItem, KitchenTicket, format_kitchen_ticket};
 use pos_print::receipt;
 use pos_print::transport;
 #[cfg(feature = "hubrise")]
@@ -19,10 +17,7 @@ use crate::state::AppState;
 
 /// Print a fiscal receipt to the configured thermal printer.
 #[tauri::command]
-pub async fn print_receipt(
-    state: State<'_, AppState>,
-    ticket: FiscalTicket,
-) -> Result<(), String> {
+pub async fn print_receipt(state: State<'_, AppState>, ticket: FiscalTicket) -> Result<(), String> {
     let printer_address = state
         .config
         .lock()
@@ -30,8 +25,7 @@ pub async fn print_receipt(
         .printer_address
         .clone();
 
-    let address = printer_address
-        .ok_or_else(|| "Printer not configured".to_string())?;
+    let address = printer_address.ok_or_else(|| "Printer not configured".to_string())?;
 
     let data = receipt::format_receipt(&ticket);
     transport::send_to_printer(&address, &data)
@@ -50,8 +44,7 @@ pub async fn open_drawer(state: State<'_, AppState>) -> Result<(), String> {
         .printer_address
         .clone();
 
-    let address = printer_address
-        .ok_or_else(|| "Printer not configured".to_string())?;
+    let address = printer_address.ok_or_else(|| "Printer not configured".to_string())?;
 
     let data = drawer::kick_drawer_bytes();
     transport::send_to_printer(&address, &data)
@@ -96,10 +89,7 @@ const ERR_PRINTER_NOT_CONFIGURED: &str = "Printer not configured";
 /// `orders.id`. Returns the printer-ready payload or a user-facing
 /// error message on failure.
 #[cfg(feature = "hubrise")]
-fn load_webshop_order(
-    state: &State<'_, AppState>,
-    order_id: i64,
-) -> Result<Order, String> {
+fn load_webshop_order(state: &State<'_, AppState>, order_id: i64) -> Result<Order, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let raw: Option<String> = db
         .query_row(
@@ -179,11 +169,7 @@ pub async fn print_webshop_kitchen(
         .map(|it| KitchenItem {
             quantity: it.quantity.parse::<i64>().unwrap_or(1),
             product_name: it.product_name.clone(),
-            options: it
-                .options
-                .iter()
-                .map(|o| o.name.clone())
-                .collect(),
+            options: it.options.iter().map(|o| o.name.clone()).collect(),
             notes: it.customer_notes.clone(),
         })
         .collect();
@@ -261,9 +247,7 @@ pub async fn print_webshop_customer(
         })
         .unwrap_or_default();
 
-    let printed_at = chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M")
-        .to_string();
+    let printed_at = chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string();
 
     let slip = CustomerSlip {
         restaurant_name,

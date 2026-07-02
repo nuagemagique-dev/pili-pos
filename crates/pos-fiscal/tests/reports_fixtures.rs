@@ -16,6 +16,7 @@
 //! 3. **v1.3 schema drift**:
 //!    - X-reports must NOT carry `reportBookingDate` (changelog entry).
 //!    - Z-reports MUST carry `reportBookingDate`.
+//!
 //!    The matching `inputs::ReportTurnoverXInput` / `ReportUserXInput`
 //!    structs have no `report_booking_date` field, and the Z variants
 //!    have it as required — this test asserts that the fixtures agree.
@@ -58,10 +59,9 @@ fn extract_single_payload(json: &serde_json::Value) -> &serde_json::Value {
 }
 
 fn read_json(path: &Path) -> serde_json::Value {
-    let raw = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
+    let raw =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    serde_json::from_str(&raw).unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
 }
 
 fn parse_sign_result(path: &Path) -> SignResult {
@@ -204,12 +204,11 @@ fn m184_combined_z_response_parses_and_counters_increment() {
 fn x_reports_omit_report_booking_date() {
     for uc in ["M180_signReportTurnoverX", "M182_signReportUserX"] {
         let dir = reports_root().join(uc);
-        let vp = find_variables(&dir)
-            .unwrap_or_else(|| panic!("{uc}: no Variables.json found"));
+        let vp = find_variables(&dir).unwrap_or_else(|| panic!("{uc}: no Variables.json found"));
         let vars = read_json(&vp);
-        let data = vars.get("data").unwrap_or_else(|| {
-            panic!("{uc}: Variables.json has no data envelope")
-        });
+        let data = vars
+            .get("data")
+            .unwrap_or_else(|| panic!("{uc}: Variables.json has no data envelope"));
         assert!(
             data.get("reportBookingDate").is_none(),
             "{uc}: X-report Variables.json must not carry reportBookingDate (v1.3)"
@@ -224,12 +223,11 @@ fn x_reports_omit_report_booking_date() {
 fn z_reports_include_report_booking_date() {
     for uc in ["M181_signReportTurnoverZ", "M183_signReportUserZ"] {
         let dir = reports_root().join(uc);
-        let vp = find_variables(&dir)
-            .unwrap_or_else(|| panic!("{uc}: no Variables.json found"));
+        let vp = find_variables(&dir).unwrap_or_else(|| panic!("{uc}: no Variables.json found"));
         let vars = read_json(&vp);
-        let data = vars.get("data").unwrap_or_else(|| {
-            panic!("{uc}: Variables.json has no data envelope")
-        });
+        let data = vars
+            .get("data")
+            .unwrap_or_else(|| panic!("{uc}: Variables.json has no data envelope"));
         assert!(
             data.get("reportBookingDate").is_some(),
             "{uc}: Z-report Variables.json must carry reportBookingDate"

@@ -6,7 +6,7 @@ use tauri::State;
 
 use pos_fiscal::archive::{self, ArchiveParams};
 use pos_fiscal::counter::FiscalCounter;
-use pos_fiscal::event::{build_report_turnover_x, build_report_turnover_z, TurnoverReportData};
+use pos_fiscal::event::{TurnoverReportData, build_report_turnover_x, build_report_turnover_z};
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::*;
 use pos_fiscal::types::*;
@@ -40,7 +40,11 @@ pub async fn do_generate_x_report(
     let (config, bp_id, turnover_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         let data = build_turnover_data(&db, &config, &today)?;
         let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
         let pd = build_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
@@ -48,25 +52,36 @@ pub async fn do_generate_x_report(
     };
 
     let report = build_report_turnover_x(
-        &config, ticket_number, &employee_insz, &bp_id, turnover_data,
+        &config,
+        ticket_number,
+        &employee_insz,
+        &bp_id,
+        turnover_data,
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_report_turnover_x(report, config.training_mode).await.ok();
+    let sign_result = fdm
+        .sign_report_turnover_x(report, config.training_mode)
+        .await
+        .ok();
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::R,
-            sequence_number: ticket_number,
-            order_id: None,
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::R,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     // Auto-print report on thermal printer
@@ -90,8 +105,7 @@ pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
 
 pub fn do_needs_z_report(state: &AppState) -> Result<bool, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    let has_z = pos_db::queries::reports::has_z_report_today(&db)
-        .map_err(|e| e.to_string())?;
+    let has_z = pos_db::queries::reports::has_z_report_today(&db).map_err(|e| e.to_string())?;
     if has_z {
         return Ok(false);
     }
@@ -128,7 +142,11 @@ pub async fn do_generate_z_report(
     let (config, bp_id, turnover_data, ticket_number, report_no, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         let data = build_turnover_data(&db, &config, &today)?;
         let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
         let rn = report_queries::next_z_report_number(&db).map_err(|e| e.to_string())?;
@@ -137,31 +155,42 @@ pub async fn do_generate_z_report(
     };
 
     let report = build_report_turnover_z(
-        &config, ticket_number, &employee_insz, &bp_id,
-        report_no, &today, turnover_data,
+        &config,
+        ticket_number,
+        &employee_insz,
+        &bp_id,
+        report_no,
+        &today,
+        turnover_data,
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_report_turnover_z(report, config.training_mode).await.ok();
+    let sign_result = fdm
+        .sign_report_turnover_z(report, config.training_mode)
+        .await
+        .ok();
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let fiscal_event_id = archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::R,
-            sequence_number: ticket_number,
-            order_id: None,
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        let fiscal_event_id = archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::R,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
 
         // Save Z-report record
-        report_queries::save_z_report(
-            &db, &today, report_no, &request_json, Some(fiscal_event_id),
-        ).map_err(|e| e.to_string())?;
+        report_queries::save_z_report(&db, &today, report_no, &request_json, Some(fiscal_event_id))
+            .map_err(|e| e.to_string())?;
 
         // Auto-backup after Z-report — best-effort, failure never blocks
         // the Z itself. Uses SQLite's built-in backup API which is safe
@@ -238,40 +267,41 @@ fn build_print_data(
     ticket_number: i64,
     employee_insz: &str,
 ) -> Result<ReportPrintData, String> {
-    let event_totals = report_queries::get_event_totals(db, today)
-        .map_err(|e| e.to_string())?;
-    let vat_totals = report_queries::get_vat_totals(db, today)
-        .map_err(|e| e.to_string())?;
-    let payment_totals = report_queries::get_payment_totals(db, today)
-        .map_err(|e| e.to_string())?;
-    let (first_dt, last_dt) = report_queries::get_datetime_range(db, today)
-        .map_err(|e| e.to_string())?;
-    let drawer_opens = report_queries::count_drawer_opens(db, today)
-        .map_err(|e| e.to_string())?;
+    let event_totals = report_queries::get_event_totals(db, today).map_err(|e| e.to_string())?;
+    let vat_totals = report_queries::get_vat_totals(db, today).map_err(|e| e.to_string())?;
+    let payment_totals =
+        report_queries::get_payment_totals(db, today).map_err(|e| e.to_string())?;
+    let (first_dt, last_dt) =
+        report_queries::get_datetime_range(db, today).map_err(|e| e.to_string())?;
+    let drawer_opens = report_queries::count_drawer_opens(db, today).map_err(|e| e.to_string())?;
 
     let grand_total_cents: i64 = payment_totals.iter().map(|p| p.amount_cents).sum();
 
-    let vat_rows: Vec<ReportVatTotal> = vat_totals.iter().map(|vt| {
-        let (rate, code) = match vt.vat_code.as_str() {
-            "A" => (21.0, "A"),
-            "B" => (12.0, "B"),
-            "C" => (6.0, "C"),
-            "D" => (0.0, "D"),
-            _ => (0.0, "X"),
-        };
-        let total_incl = vt.total_cents;
-        let vat_cents = if rate > 0.0 {
-            total_incl - ((total_incl as f64 * 10000.0 / (10000.0 + rate * 100.0)).round() as i64)
-        } else {
-            0
-        };
-        ReportVatTotal {
-            code: code.to_string(),
-            rate,
-            total_incl_cents: total_incl,
-            vat_cents,
-        }
-    }).collect();
+    let vat_rows: Vec<ReportVatTotal> = vat_totals
+        .iter()
+        .map(|vt| {
+            let (rate, code) = match vt.vat_code.as_str() {
+                "A" => (21.0, "A"),
+                "B" => (12.0, "B"),
+                "C" => (6.0, "C"),
+                "D" => (0.0, "D"),
+                _ => (0.0, "X"),
+            };
+            let total_incl = vt.total_cents;
+            let vat_cents = if rate > 0.0 {
+                total_incl
+                    - ((total_incl as f64 * 10000.0 / (10000.0 + rate * 100.0)).round() as i64)
+            } else {
+                0
+            };
+            ReportVatTotal {
+                code: code.to_string(),
+                rate,
+                total_incl_cents: total_incl,
+                vat_cents,
+            }
+        })
+        .collect();
 
     Ok(ReportPrintData {
         report_type: report_type.to_string(),
@@ -286,17 +316,23 @@ fn build_print_data(
         last_datetime: last_dt,
         employee_insz: employee_insz.to_string(),
         is_training: config.training_mode,
-        event_totals: event_totals.iter().map(|et| ReportEventTotal {
-            label: et.event_label.clone(),
-            count: et.ticket_count,
-            amount_cents: et.amount_cents,
-        }).collect(),
+        event_totals: event_totals
+            .iter()
+            .map(|et| ReportEventTotal {
+                label: et.event_label.clone(),
+                count: et.ticket_count,
+                amount_cents: et.amount_cents,
+            })
+            .collect(),
         vat_totals: vat_rows,
-        payment_totals: payment_totals.iter().map(|pt| ReportPaymentTotal {
-            method: pt.method.clone(),
-            count: pt.count,
-            amount_cents: pt.amount_cents,
-        }).collect(),
+        payment_totals: payment_totals
+            .iter()
+            .map(|pt| ReportPaymentTotal {
+                method: pt.method.clone(),
+                count: pt.count,
+                amount_cents: pt.amount_cents,
+            })
+            .collect(),
         grand_total_cents,
         drawer_opens,
         fdm_id: None,
@@ -340,10 +376,10 @@ fn build_turnover_data(
     config: &pos_core::config::PosConfig,
     booking_date: &str,
 ) -> Result<TurnoverReportData, String> {
-    let event_totals = pos_db::queries::reports::get_event_totals(db, booking_date)
-        .map_err(|e| e.to_string())?;
-    let vat_totals = pos_db::queries::reports::get_vat_totals(db, booking_date)
-        .map_err(|e| e.to_string())?;
+    let event_totals =
+        pos_db::queries::reports::get_event_totals(db, booking_date).map_err(|e| e.to_string())?;
+    let vat_totals =
+        pos_db::queries::reports::get_vat_totals(db, booking_date).map_err(|e| e.to_string())?;
     let payment_totals = pos_db::queries::reports::get_payment_totals(db, booking_date)
         .map_err(|e| e.to_string())?;
     let (first_dt, last_dt) = pos_db::queries::reports::get_datetime_range(db, booking_date)
@@ -351,55 +387,80 @@ fn build_turnover_data(
     let drawers_count = pos_db::queries::reports::count_drawer_opens(db, booking_date)
         .map_err(|e| e.to_string())?;
 
-    let transactions: Vec<EventTotalInput> = event_totals.iter().map(|et| {
-        let label = match et.event_label.as_str() {
-            "N" => EventLabel::N, "P" => EventLabel::P, "F" => EventLabel::F,
-            "S" => EventLabel::S, "I" => EventLabel::I, "R" => EventLabel::R,
-            "C" => EventLabel::C, "T" => EventLabel::T, _ => EventLabel::N,
-        };
-        EventTotalInput {
-            event_label: label,
-            ticket_count: et.ticket_count,
-            amount: et.amount_cents as f64 / 100.0,
-        }
-    }).collect();
+    let transactions: Vec<EventTotalInput> = event_totals
+        .iter()
+        .map(|et| {
+            let label = match et.event_label.as_str() {
+                "N" => EventLabel::N,
+                "P" => EventLabel::P,
+                "F" => EventLabel::F,
+                "S" => EventLabel::S,
+                "I" => EventLabel::I,
+                "R" => EventLabel::R,
+                "C" => EventLabel::C,
+                "T" => EventLabel::T,
+                _ => EventLabel::N,
+            };
+            EventTotalInput {
+                event_label: label,
+                ticket_count: et.ticket_count,
+                amount: et.amount_cents as f64 / 100.0,
+            }
+        })
+        .collect();
 
-    let vats: Vec<VatTotalInput> = vat_totals.iter().map(|vt| {
-        let (label, rate) = match vt.vat_code.as_str() {
-            "A" => (VatLabel::A, 21.0),
-            "B" => (VatLabel::B, 12.0),
-            "C" => (VatLabel::C, 6.0),
-            "D" => (VatLabel::D, 0.0),
-            _ => (VatLabel::X, 0.0),
-        };
-        let total = vt.total_cents as f64 / 100.0;
-        let taxable = if rate > 0.0 { total / (1.0 + rate / 100.0) } else { total };
-        let vat_amount = total - taxable;
-        VatTotalInput { label, rate, taxable_amount: taxable, vat_amount, total_amount: total }
-    }).collect();
+    let vats: Vec<VatTotalInput> = vat_totals
+        .iter()
+        .map(|vt| {
+            let (label, rate) = match vt.vat_code.as_str() {
+                "A" => (VatLabel::A, 21.0),
+                "B" => (VatLabel::B, 12.0),
+                "C" => (VatLabel::C, 6.0),
+                "D" => (VatLabel::D, 0.0),
+                _ => (VatLabel::X, 0.0),
+            };
+            let total = vt.total_cents as f64 / 100.0;
+            let taxable = if rate > 0.0 {
+                total / (1.0 + rate / 100.0)
+            } else {
+                total
+            };
+            let vat_amount = total - taxable;
+            VatTotalInput {
+                label,
+                rate,
+                taxable_amount: taxable,
+                vat_amount,
+                total_amount: total,
+            }
+        })
+        .collect();
 
-    let payments: Vec<PaymentTotalInput> = payment_totals.iter().map(|pt| {
-        let ptype = match pt.method.as_str() {
-            "cash" => PaymentType::Cash,
-            "card" => PaymentType::CardDebit,
-            _ => PaymentType::Other,
-        };
-        PaymentTotalInput {
-            id: pt.method.clone(),
-            name: pt.method.clone(),
-            payment_type: ptype,
-            amount: vec![PaymentTotalAmountInput {
-                amount_type: PaymentLineType::Payment,
-                normal_amount: pt.amount_cents as f64 / 100.0,
-                negative_corrections: 0.0,
-                positive_corrections: 0.0,
-                corrections_count: 0,
-                total_amount: pt.amount_cents as f64 / 100.0,
-                normal_foreign: None,
-                corrections_foreign: None,
-            }],
-        }
-    }).collect();
+    let payments: Vec<PaymentTotalInput> = payment_totals
+        .iter()
+        .map(|pt| {
+            let ptype = match pt.method.as_str() {
+                "cash" => PaymentType::Cash,
+                "card" => PaymentType::CardDebit,
+                _ => PaymentType::Other,
+            };
+            PaymentTotalInput {
+                id: pt.method.clone(),
+                name: pt.method.clone(),
+                payment_type: ptype,
+                amount: vec![PaymentTotalAmountInput {
+                    amount_type: PaymentLineType::Payment,
+                    normal_amount: pt.amount_cents as f64 / 100.0,
+                    negative_corrections: 0.0,
+                    positive_corrections: 0.0,
+                    corrections_count: 0,
+                    total_amount: pt.amount_cents as f64 / 100.0,
+                    normal_foreign: None,
+                    corrections_foreign: None,
+                }],
+            }
+        })
+        .collect();
 
     let pos_devices = vec![PosDeviceInput {
         pos_id: config.pos_id.clone(),
@@ -425,7 +486,10 @@ fn build_turnover_data(
             departments: vec![DepartmentTotalInput {
                 department_id: "FOOD".to_string(),
                 department_name: "Restaurant".to_string(),
-                amount: vat_totals.iter().map(|v| v.total_cents as f64 / 100.0).sum(),
+                amount: vat_totals
+                    .iter()
+                    .map(|v| v.total_cents as f64 / 100.0)
+                    .sum(),
             }],
             vats,
             payments,

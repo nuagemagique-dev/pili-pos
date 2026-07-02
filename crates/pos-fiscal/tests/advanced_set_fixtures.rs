@@ -52,10 +52,9 @@ fn find_response(dir: &Path) -> Option<PathBuf> {
 }
 
 fn read_json(path: &Path) -> serde_json::Value {
-    let raw = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
+    let raw =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    serde_json::from_str(&raw).unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
 }
 
 fn discover_fixtures() -> Vec<UcFixture> {
@@ -117,9 +116,9 @@ fn discover_fixtures() -> Vec<UcFixture> {
 /// yield a non-empty list of `SignResult`s.
 fn parse_response_flexible(path: &Path) -> (Vec<SignResult>, bool) {
     let envelope = read_json(path);
-    let data = envelope.get("data").unwrap_or_else(|| {
-        panic!("{}: response has no `data`", path.display())
-    });
+    let data = envelope
+        .get("data")
+        .unwrap_or_else(|| panic!("{}: response has no `data`", path.display()));
     let obj = data
         .as_object()
         .unwrap_or_else(|| panic!("{}: data not an object", path.display()));
@@ -200,10 +199,7 @@ fn advanced_set_v1_5_fixtures_deserialize() {
     if !failed.is_empty() {
         eprintln!("Failed ({}):", failed.len());
         for (uc, err) in &failed {
-            eprintln!(
-                "  ✗ {uc}\n    {}",
-                err.lines().next().unwrap_or(err)
-            );
+            eprintln!("  ✗ {uc}\n    {}", err.lines().next().unwrap_or(err));
         }
         panic!(
             "{} of {} Advanced Set fixtures failed",

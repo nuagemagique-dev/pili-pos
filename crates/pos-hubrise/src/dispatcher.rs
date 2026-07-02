@@ -3,7 +3,7 @@
 //! Events are persisted in SQLite first (idempotence), then dispatched.
 
 use pos_hubrise_types::CallbackEvent;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 
 use crate::catalog_apply::apply;
 use crate::client::Client;
@@ -26,12 +26,7 @@ pub fn persist_event(conn: &Connection, event: &CallbackEvent, raw: &str) -> Res
         "INSERT OR IGNORE INTO hubrise_events
             (id, resource_type, event_type, payload_json, received_at)
          VALUES (?1, ?2, ?3, ?4, datetime('now'))",
-        params![
-            event.id,
-            event.resource_type,
-            event.event_type,
-            raw
-        ],
+        params![event.id, event.resource_type, event.event_type, raw],
     )?;
     Ok(inserted > 0)
 }

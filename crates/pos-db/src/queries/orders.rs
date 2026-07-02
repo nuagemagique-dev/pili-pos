@@ -69,7 +69,10 @@ pub fn create_order(
     })
 }
 
-pub fn add_order_line(conn: &Connection, input: NewOrderLine<'_>) -> Result<OrderLine, rusqlite::Error> {
+pub fn add_order_line(
+    conn: &Connection,
+    input: NewOrderLine<'_>,
+) -> Result<OrderLine, rusqlite::Error> {
     let now = Utc::now();
     let now_str = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
@@ -146,7 +149,10 @@ pub fn get_order(conn: &Connection, order_id: i64) -> Result<Order, rusqlite::Er
     )
 }
 
-pub fn get_order_lines(conn: &Connection, order_id: i64) -> Result<Vec<OrderLine>, rusqlite::Error> {
+pub fn get_order_lines(
+    conn: &Connection,
+    order_id: i64,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at
          FROM order_lines WHERE order_id = ?1 ORDER BY id",
@@ -167,12 +173,11 @@ pub fn list_open_orders(conn: &Connection) -> Result<Vec<Order>, rusqlite::Error
 }
 
 fn recalculate_order_totals(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> {
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(unit_price_cents * quantity), 0) FROM order_lines WHERE order_id = ?1",
-            params![order_id],
-            |row| row.get(0),
-        )?;
+    let total: i64 = conn.query_row(
+        "SELECT COALESCE(SUM(unit_price_cents * quantity), 0) FROM order_lines WHERE order_id = ?1",
+        params![order_id],
+        |row| row.get(0),
+    )?;
 
     conn.execute(
         "UPDATE orders SET subtotal_cents = ?1, total_cents = ?1 WHERE id = ?2",
@@ -191,12 +196,12 @@ fn map_order(row: &rusqlite::Row<'_>) -> Result<Order, rusqlite::Error> {
     Ok(Order {
         id: row.get(0)?,
         table_number: row.get(1)?,
-        order_type: order_type_str
-            .parse()
-            .map_err(|e: String| rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::from(e)))?,
-        status: status_str
-            .parse()
-            .map_err(|e: String| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::from(e)))?,
+        order_type: order_type_str.parse().map_err(|e: String| {
+            rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::from(e))
+        })?,
+        status: status_str.parse().map_err(|e: String| {
+            rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::from(e))
+        })?,
         user_insz: row.get(4)?,
         created_at: parse_datetime(&created_str),
         closed_at: closed_str.as_deref().map(parse_datetime),
@@ -215,9 +220,9 @@ fn map_order_line(row: &rusqlite::Row<'_>) -> Result<OrderLine, rusqlite::Error>
         menu_item_id: row.get(2)?,
         quantity: row.get(3)?,
         unit_price_cents: row.get(4)?,
-        vat_code: vat_str
-            .parse()
-            .map_err(|e: String| rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::from(e)))?,
+        vat_code: vat_str.parse().map_err(|e: String| {
+            rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::from(e))
+        })?,
         name: row.get(6)?,
         modifiers_json: row.get(7)?,
         created_at: parse_datetime(&created_str),
@@ -274,22 +279,34 @@ mod tests {
     #[test]
     fn no_reuse_when_order_has_lines() {
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
             [],
         ).unwrap();
 
         let order1 = create_order(&conn, OrderType::DineIn, Some(3), "00000000029").unwrap();
-        add_order_line(&conn, NewOrderLine {
-            order_id: order1.id, menu_item_id: 1, quantity: 1,
-            unit_price_cents: 1000, vat_code: VatCode::B,
-            name: "Item", modifiers_json: None,
-        }).unwrap();
+        add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order1.id,
+                menu_item_id: 1,
+                quantity: 1,
+                unit_price_cents: 1000,
+                vat_code: VatCode::B,
+                name: "Item",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
 
         // Second call should create a NEW order since the first one has lines
         let order2 = create_order(&conn, OrderType::DineIn, Some(3), "00000000029").unwrap();
-        assert_ne!(order1.id, order2.id, "should create new order when existing has lines");
+        assert_ne!(
+            order1.id, order2.id,
+            "should create new order when existing has lines"
+        );
     }
 
     #[test]
@@ -303,18 +320,27 @@ mod tests {
     #[test]
     fn update_quantity_recalculates_total() {
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
             [],
         ).unwrap();
 
         let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
-        let line = add_order_line(&conn, NewOrderLine {
-            order_id: order.id, menu_item_id: 1, quantity: 1,
-            unit_price_cents: 1000, vat_code: VatCode::B,
-            name: "Gyoza", modifiers_json: None,
-        }).unwrap();
+        let line = add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 1,
+                quantity: 1,
+                unit_price_cents: 1000,
+                vat_code: VatCode::B,
+                name: "Gyoza",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
 
         assert_eq!(get_order(&conn, order.id).unwrap().total_cents, 1000);
 
@@ -325,7 +351,8 @@ mod tests {
     #[test]
     fn multiple_lines_sum_correctly() {
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1250, 'B')",
             [],
@@ -336,16 +363,32 @@ mod tests {
         ).unwrap();
 
         let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
-        add_order_line(&conn, NewOrderLine {
-            order_id: order.id, menu_item_id: 1, quantity: 2,
-            unit_price_cents: 1250, vat_code: VatCode::B,
-            name: "Saumon roll x8", modifiers_json: None,
-        }).unwrap();
-        add_order_line(&conn, NewOrderLine {
-            order_id: order.id, menu_item_id: 2, quantity: 1,
-            unit_price_cents: 450, vat_code: VatCode::A,
-            name: "Biere Asahi", modifiers_json: None,
-        }).unwrap();
+        add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 1,
+                quantity: 2,
+                unit_price_cents: 1250,
+                vat_code: VatCode::B,
+                name: "Saumon roll x8",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
+        add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 2,
+                quantity: 1,
+                unit_price_cents: 450,
+                vat_code: VatCode::A,
+                name: "Biere Asahi",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
 
         let total = get_order(&conn, order.id).unwrap().total_cents;
         assert_eq!(total, 2 * 1250 + 450); // 2950
@@ -354,18 +397,27 @@ mod tests {
     #[test]
     fn get_order_lines_returns_correct_items() {
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
             [],
         ).unwrap();
 
         let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
-        add_order_line(&conn, NewOrderLine {
-            order_id: order.id, menu_item_id: 1, quantity: 3,
-            unit_price_cents: 1000, vat_code: VatCode::B,
-            name: "Edamame", modifiers_json: None,
-        }).unwrap();
+        add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 1,
+                quantity: 3,
+                unit_price_cents: 1000,
+                vat_code: VatCode::B,
+                name: "Edamame",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
 
         let lines = get_order_lines(&conn, order.id).unwrap();
         assert_eq!(lines.len(), 1);
@@ -384,7 +436,8 @@ mod tests {
         conn.execute(
             "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
             params![o1.id],
-        ).unwrap();
+        )
+        .unwrap();
 
         let open = list_open_orders(&conn).unwrap();
         assert_eq!(open.len(), 1);
@@ -396,24 +449,34 @@ mod tests {
         // After checkout, the order is closed. Tapping the same table
         // should create a fresh order, not reuse the closed one.
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
             [],
         ).unwrap();
 
         let order1 = create_order(&conn, OrderType::DineIn, Some(5), "00000000029").unwrap();
-        add_order_line(&conn, NewOrderLine {
-            order_id: order1.id, menu_item_id: 1, quantity: 1,
-            unit_price_cents: 1000, vat_code: VatCode::B,
-            name: "Item", modifiers_json: None,
-        }).unwrap();
+        add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order1.id,
+                menu_item_id: 1,
+                quantity: 1,
+                unit_price_cents: 1000,
+                vat_code: VatCode::B,
+                name: "Item",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
 
         // Simulate checkout: close the order
         conn.execute(
             "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
             params![order1.id],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Tapping table 5 again should get a fresh order
         let order2 = create_order(&conn, OrderType::DineIn, Some(5), "00000000029").unwrap();
@@ -428,7 +491,8 @@ mod tests {
         // (the guard is in the Tauri command layer), but the order total
         // reflects it. This test documents the DB behavior.
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
             [],
@@ -438,7 +502,8 @@ mod tests {
         conn.execute(
             "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
             params![order.id],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Verify the order is actually closed
         let closed = get_order(&conn, order.id).unwrap();
@@ -448,22 +513,27 @@ mod tests {
     #[test]
     fn add_and_remove_lines() {
         let conn = setup();
-        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", []).unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1250, 'B')",
             [],
         ).unwrap();
 
         let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
-        let line = add_order_line(&conn, NewOrderLine {
-            order_id: order.id,
-            menu_item_id: 1,
-            quantity: 2,
-            unit_price_cents: 1250,
-            vat_code: VatCode::B,
-            name: "Saumon roll",
-            modifiers_json: None,
-        }).unwrap();
+        let line = add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 1,
+                quantity: 2,
+                unit_price_cents: 1250,
+                vat_code: VatCode::B,
+                name: "Saumon roll",
+                modifiers_json: None,
+            },
+        )
+        .unwrap();
 
         let updated = get_order(&conn, order.id).unwrap();
         assert_eq!(updated.total_cents, 2500);

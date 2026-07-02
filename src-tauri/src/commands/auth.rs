@@ -65,11 +65,7 @@ pub fn create_user(state: State<'_, AppState>, input: CreateUserInput) -> Result
 /// Set or change a user's 4-digit PIN. The PIN is bcrypt-hashed
 /// before storage — the plaintext never hits the DB.
 #[tauri::command]
-pub fn set_pin(
-    state: State<'_, AppState>,
-    insz: String,
-    new_pin: String,
-) -> Result<(), String> {
+pub fn set_pin(state: State<'_, AppState>, insz: String, new_pin: String) -> Result<(), String> {
     if new_pin.len() != 4 || !new_pin.chars().all(|c| c.is_ascii_digit()) {
         return Err("PIN must be exactly 4 digits".to_string());
     }

@@ -6,7 +6,7 @@
 
 use pos_hubrise::{
     client::Client as HubriseClient,
-    oauth::{build_authorize_url, exchange_code, OAuthConfig},
+    oauth::{OAuthConfig, build_authorize_url, exchange_code},
     token_store::{self, StoredConnection},
 };
 use serde::{Deserialize, Serialize};
@@ -56,8 +56,7 @@ fn default_oauth_config() -> OAuthConfig {
             .unwrap_or_else(|_| "http://localhost:3001/v1".to_string()),
         client_id: std::env::var("HUBRISE_POS_CLIENT_ID")
             .unwrap_or_else(|_| "moyun-pos".to_string()),
-        client_secret: std::env::var("HUBRISE_POS_CLIENT_SECRET")
-            .unwrap_or_else(|_| String::new()),
+        client_secret: std::env::var("HUBRISE_POS_CLIENT_SECRET").unwrap_or_else(|_| String::new()),
         redirect_uri: std::env::var("HUBRISE_POS_REDIRECT_URI")
             .unwrap_or_else(|_| "urn:ietf:wg:oauth:2.0:oob".to_string()),
         scope: std::env::var("HUBRISE_POS_SCOPE").unwrap_or_else(|_| {
@@ -282,7 +281,11 @@ fn summary_from_raw(
         let first = c.get("first_name").and_then(|v| v.as_str()).unwrap_or("");
         let last = c.get("last_name").and_then(|v| v.as_str()).unwrap_or("");
         let joined = format!("{first} {last}").trim().to_string();
-        if joined.is_empty() { None } else { Some(joined) }
+        if joined.is_empty() {
+            None
+        } else {
+            Some(joined)
+        }
     });
     let confirmed_time = value
         .get("confirmed_time")
@@ -292,14 +295,29 @@ fn summary_from_raw(
     let address = value
         .get("customer")
         .map(|c| CustomerAddress {
-            address_1: c.get("address_1").and_then(|v| v.as_str()).map(String::from),
-            address_2: c.get("address_2").and_then(|v| v.as_str()).map(String::from),
-            postal_code: c.get("postal_code").and_then(|v| v.as_str()).map(String::from),
+            address_1: c
+                .get("address_1")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            address_2: c
+                .get("address_2")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            postal_code: c
+                .get("postal_code")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             city: c.get("city").and_then(|v| v.as_str()).map(String::from),
         })
         .unwrap_or_default();
 
-    (items, customer_notes, customer_name, confirmed_time, address)
+    (
+        items,
+        customer_notes,
+        customer_name,
+        confirmed_time,
+        address,
+    )
 }
 
 #[tauri::command]

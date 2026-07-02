@@ -67,9 +67,9 @@ pub fn get_menu_items(
 
 fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
     let vat_str: String = row.get(3)?;
-    let vat_code: VatCode = vat_str
-        .parse()
-        .map_err(|e: String| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::from(e)))?;
+    let vat_code: VatCode = vat_str.parse().map_err(|e: String| {
+        rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::from(e))
+    })?;
 
     Ok(MenuItem {
         id: row.get(0)?,
@@ -104,11 +104,8 @@ mod tests {
     #[test]
     fn insert_and_query_category() {
         let conn = setup();
-        conn.execute(
-            "INSERT INTO categories (id, sort_order) VALUES (1, 0)",
-            [],
-        )
-        .unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO translations (entity_type, entity_id, field, lang, value)
              VALUES ('category', 1, 'name', 'fr', 'Sushi')",
@@ -124,11 +121,8 @@ mod tests {
     #[test]
     fn insert_and_query_menu_item() {
         let conn = setup();
-        conn.execute(
-            "INSERT INTO categories (id, sort_order) VALUES (1, 0)",
-            [],
-        )
-        .unwrap();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
         conn.execute(
             "INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order)
              VALUES (1, 1, 1250, 'B', 0)",

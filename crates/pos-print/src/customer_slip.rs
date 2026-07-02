@@ -44,7 +44,11 @@ pub fn format_customer_slip(slip: &CustomerSlip) -> Vec<u8> {
 
     // ── Restaurant header ────────────────────────────────────────
     p.align(Alignment::Center);
-    p.style(TextStyle { bold: true, double_height: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        ..Default::default()
+    });
     p.textln(&slip.restaurant_name);
     p.style_reset();
     p.textln(&slip.restaurant_address);
@@ -66,7 +70,11 @@ pub fn format_customer_slip(slip: &CustomerSlip) -> Vec<u8> {
     p.separator('-');
 
     // ── Total ────────────────────────────────────────────────────
-    p.style(TextStyle { bold: true, double_height: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        ..Default::default()
+    });
     p.text_columns("TOTAL", &format_eur(slip.total_cents));
     p.style_reset();
     p.separator('-');
@@ -81,7 +89,10 @@ pub fn format_customer_slip(slip: &CustomerSlip) -> Vec<u8> {
     if has_customer {
         p.align(Alignment::Left);
         if let Some(name) = &c.name {
-            p.style(TextStyle { bold: true, ..Default::default() });
+            p.style(TextStyle {
+                bold: true,
+                ..Default::default()
+            });
             p.textln(name);
             p.style_reset();
         }
@@ -105,7 +116,10 @@ pub fn format_customer_slip(slip: &CustomerSlip) -> Vec<u8> {
 
     // ── Non-fiscal disclaimer (always) ───────────────────────────
     p.align(Alignment::Center);
-    p.style(TextStyle { bold: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
     p.textln("Ce ticket n'est pas");
     p.textln("un recu TVA valide");
     p.style_reset();

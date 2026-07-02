@@ -33,7 +33,14 @@ pub async fn money_in_out(
     direction: MoneyDirection,
     reason: String,
 ) -> Result<FinancialResult, String> {
-    do_money_in_out(state.inner(), employee_insz, amount_cents, direction, reason).await
+    do_money_in_out(
+        state.inner(),
+        employee_insz,
+        amount_cents,
+        direction,
+        reason,
+    )
+    .await
 }
 
 pub async fn do_money_in_out(
@@ -46,14 +53,17 @@ pub async fn do_money_in_out(
     let (config, bp_id, ticket_number) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         let tn = FiscalCounter::next(&db, EventLabel::F).map_err(|e| e.to_string())?;
         (config, bp, tn)
     };
 
-    let common = pos_fiscal::event::build_common_fields(
-        &config, ticket_number, &employee_insz, &bp_id,
-    );
+    let common =
+        pos_fiscal::event::build_common_fields(&config, ticket_number, &employee_insz, &bp_id);
 
     // Direction conveyed by sign: positive = money in, negative = money out
     let amount = match direction {
@@ -81,20 +91,27 @@ pub async fn do_money_in_out(
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_money_in_out(input, config.training_mode).await.ok();
+    let sign_result = fdm
+        .sign_money_in_out(input, config.training_mode)
+        .await
+        .ok();
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::F,
-            sequence_number: ticket_number,
-            order_id: None,
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::F,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     Ok(FinancialResult {
@@ -120,14 +137,17 @@ pub async fn do_open_drawer_fiscal(
     let (config, bp_id, ticket_number) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         let tn = FiscalCounter::next(&db, EventLabel::F).map_err(|e| e.to_string())?;
         (config, bp, tn)
     };
 
-    let common = pos_fiscal::event::build_common_fields(
-        &config, ticket_number, &employee_insz, &bp_id,
-    );
+    let common =
+        pos_fiscal::event::build_common_fields(&config, ticket_number, &employee_insz, &bp_id);
 
     let input = DrawerOpenInput {
         common,
@@ -144,16 +164,20 @@ pub async fn do_open_drawer_fiscal(
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::F,
-            sequence_number: ticket_number,
-            order_id: None,
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::F,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     // Kick the physical drawer open

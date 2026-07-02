@@ -93,7 +93,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
 
     // ── Restaurant header ──────────────────────────────────────
     p.align(Alignment::Center);
-    p.style(TextStyle { bold: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
     p.textln(&data.restaurant_name);
     p.style_reset();
     p.textln(&data.restaurant_address);
@@ -112,7 +115,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
 
     // ── Transaction summary ────────────────────────────────────
     if !data.event_totals.is_empty() {
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln("TRANSACTIONS");
         p.style_reset();
         p.separator('-');
@@ -127,7 +133,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             total_count += et.count;
         }
         p.separator('-');
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.text_columns(
             &format!("Total ({})", total_count),
             &fmt_price(data.grand_total_cents),
@@ -138,12 +147,18 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
 
     // ── VAT breakdown ──────────────────────────────────────────
     if !data.vat_totals.is_empty() {
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln("TVA");
         p.style_reset();
         p.separator('-');
 
-        p.style(TextStyle { font_b: true, ..Default::default() });
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
         p.textln("Code   Taux     Base HT      TVA");
         for vt in &data.vat_totals {
             let base_cents = vt.total_incl_cents - vt.vat_cents;
@@ -162,7 +177,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
 
     // ── Payment breakdown ──────────────────────────────────────
     if !data.payment_totals.is_empty() {
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln("PAIEMENTS");
         p.style_reset();
         p.separator('-');
@@ -194,7 +212,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     // ── FDM control data ───────────────────────────────────────
     if let Some(ref fdm_id) = data.fdm_id {
         p.align(Alignment::Center);
-        p.style(TextStyle { font_b: true, ..Default::default() });
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
         p.textln(&format!("FDM: {fdm_id}"));
         if let Some(ref dt) = data.fdm_datetime {
             p.textln(dt);
@@ -209,7 +230,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     if data.report_type == "Z" {
         p.blank_line();
         p.align(Alignment::Center);
-        p.style(TextStyle { bold: true, ..Default::default() });
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
         p.textln("FIN DE JOURNEE");
         p.textln("Compteurs remis a zero");
         p.style_reset();

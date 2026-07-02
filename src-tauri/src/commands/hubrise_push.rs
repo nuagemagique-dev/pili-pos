@@ -5,7 +5,7 @@
 //! to avoid circular workspace dependencies.
 
 use pos_core::order::{Order, OrderLine, OrderType};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Format an integer cents amount as `"12.50 EUR"` — the wire format
 /// HubRise expects for monetary values.
@@ -20,11 +20,7 @@ fn cents_to_hubrise(cents: i64) -> String {
 /// The order is pushed as `status: "completed"` because POS orders
 /// are only pushed AFTER successful checkout (FDM signed + paid).
 /// HubRise doesn't need to advance them through a state machine.
-pub fn build_hubrise_order_body(
-    order: &Order,
-    lines: &[OrderLine],
-    payment_method: &str,
-) -> Value {
+pub fn build_hubrise_order_body(order: &Order, lines: &[OrderLine], payment_method: &str) -> Value {
     let service_type = match order.order_type {
         OrderType::DineIn => "eat_in",
         OrderType::Takeaway => "collection",

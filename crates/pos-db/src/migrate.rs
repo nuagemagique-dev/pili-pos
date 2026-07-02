@@ -101,11 +101,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 /// SCHEMA_SQL): if `fiscal_events` exists and `_migrations_applied` is
 /// empty, mark v1 as already-applied so we don't re-run it.
 fn backfill_legacy_db(conn: &Connection) -> Result<(), rusqlite::Error> {
-    let already_tracked: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM _migrations_applied",
-        [],
-        |row| row.get(0),
-    )?;
+    let already_tracked: i64 =
+        conn.query_row("SELECT COUNT(*) FROM _migrations_applied", [], |row| {
+            row.get(0)
+        })?;
     if already_tracked > 0 {
         return Ok(());
     }

@@ -2,7 +2,7 @@
 //! order from the POS (accept / in_preparation / completed / delay).
 
 use pos_hubrise_types::Order;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::client::Client;
 use crate::errors::Result;
@@ -26,11 +26,7 @@ pub async fn patch_order_status(
 /// because the mapping from local `pos_core::Order` to HubRise wire
 /// shape lives in the Tauri command layer (avoids a circular dep
 /// between pos-hubrise and pos-core).
-pub async fn create_order(
-    client: &Client,
-    location_id: &str,
-    body: &Value,
-) -> Result<Value> {
+pub async fn create_order(client: &Client, location_id: &str, body: &Value) -> Result<Value> {
     let path = format!("/locations/{}/orders", location_id);
     client.post_json(&path, body).await
 }

@@ -12,9 +12,13 @@ pub fn get_user(conn: &Connection, insz: &str) -> Result<Option<User>, rusqlite:
         Ok(User {
             insz: row.get(0)?,
             name: row.get(1)?,
-            role: role_str
-                .parse()
-                .map_err(|e: String| rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::from(e)))?,
+            role: role_str.parse().map_err(|e: String| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    2,
+                    rusqlite::types::Type::Text,
+                    Box::from(e),
+                )
+            })?,
             active: row.get::<_, i32>(3)? != 0,
             has_pin: row.get::<_, bool>(4)?,
         })
@@ -38,9 +42,13 @@ pub fn list_users(conn: &Connection) -> Result<Vec<User>, rusqlite::Error> {
         Ok(User {
             insz: row.get(0)?,
             name: row.get(1)?,
-            role: role_str
-                .parse()
-                .map_err(|e: String| rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::from(e)))?,
+            role: role_str.parse().map_err(|e: String| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    2,
+                    rusqlite::types::Type::Text,
+                    Box::from(e),
+                )
+            })?,
             active: row.get::<_, i32>(3)? != 0,
             has_pin: row.get::<_, bool>(4)?,
         })

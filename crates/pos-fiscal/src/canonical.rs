@@ -171,7 +171,10 @@ mod tests {
         let v = serde_json::json!({"a": [1, 2, {"nested": true}]});
         let s = to_canonical(&v).unwrap();
         assert!(!s.contains(' '), "canonical output must not contain spaces");
-        assert!(!s.contains('\n'), "canonical output must not contain newlines");
+        assert!(
+            !s.contains('\n'),
+            "canonical output must not contain newlines"
+        );
         assert!(!s.contains('\t'), "canonical output must not contain tabs");
     }
 

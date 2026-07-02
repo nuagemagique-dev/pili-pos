@@ -50,7 +50,11 @@ pub fn decode_sku_translations(custom_fields: &Option<Value>) -> DecodedSkuTrans
 
 fn pick_product_translation(translations: &Value, lang: &str) -> ProductTranslation {
     let node = translations.get(lang).cloned().unwrap_or(Value::Null);
-    let name = node.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let name = node
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let description = node
         .get("description")
         .and_then(|v| v.as_str())
@@ -110,7 +114,10 @@ mod tests {
         assert_eq!(decoded.translations.fr.name, "Coca-Cola 33cl");
         assert_eq!(decoded.translations.en.name, "Coke 33cl");
         assert_eq!(decoded.translations.zh.name, "可口可乐");
-        assert_eq!(decoded.translations.fr.description, Some("Boisson".to_string()));
+        assert_eq!(
+            decoded.translations.fr.description,
+            Some("Boisson".to_string())
+        );
     }
 
     #[test]
@@ -143,7 +150,10 @@ mod tests {
     fn decode_category_with_plain_string() {
         let desc = Some("Just a plain description".to_string());
         let decoded = decode_category_translations(&desc);
-        assert_eq!(decoded.raw_description, Some("Just a plain description".to_string()));
+        assert_eq!(
+            decoded.raw_description,
+            Some("Just a plain description".to_string())
+        );
         assert_eq!(decoded.fr, ""); // empty, not the raw string
     }
 

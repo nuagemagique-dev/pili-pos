@@ -101,10 +101,7 @@ pub struct EndpointId {
     pub value: String,
 }
 
-fn serialize_endpoint_id<S: serde::Serializer>(
-    id: &EndpointId,
-    s: S,
-) -> Result<S::Ok, S::Error> {
+fn serialize_endpoint_id<S: serde::Serializer>(id: &EndpointId, s: S) -> Result<S::Ok, S::Error> {
     use serde::ser::SerializeStruct;
     // quick_xml-friendly: we serialize as `<cbc:EndpointID schemeID="…">value</cbc:EndpointID>`
     // by emitting both an `@schemeID` attribute and a `$value` text node.
@@ -170,7 +167,10 @@ pub struct LineItem {
     pub id: String,
     #[serde(rename = "cbc:InvoicedQuantity", serialize_with = "serialize_quantity")]
     pub quantity: Quantity,
-    #[serde(rename = "cbc:LineExtensionAmount", serialize_with = "serialize_amount")]
+    #[serde(
+        rename = "cbc:LineExtensionAmount",
+        serialize_with = "serialize_amount"
+    )]
     pub line_extension_amount: Amount,
     #[serde(rename = "cac:Item")]
     pub item: Item,
@@ -238,7 +238,10 @@ pub struct TaxTotal {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LegalMonetaryTotal {
-    #[serde(rename = "cbc:LineExtensionAmount", serialize_with = "serialize_amount")]
+    #[serde(
+        rename = "cbc:LineExtensionAmount",
+        serialize_with = "serialize_amount"
+    )]
     pub line_extension_amount: Amount,
     #[serde(rename = "cbc:TaxExclusiveAmount", serialize_with = "serialize_amount")]
     pub tax_exclusive_amount: Amount,
@@ -270,8 +273,7 @@ pub fn vat_label_to_bis(label: &str) -> Result<(&'static str, &'static str), Pep
 /// open tag, then close it manually. This is a thin wrapper — for
 /// production use, swap to a fully namespace-aware emitter.
 pub fn to_ubl_xml(invoice: &InvoiceUbl) -> Result<String, PeppolError> {
-    let body = quick_xml::se::to_string(invoice)
-        .map_err(|e| PeppolError::Xml(e.to_string()))?;
+    let body = quick_xml::se::to_string(invoice).map_err(|e| PeppolError::Xml(e.to_string()))?;
     // quick_xml::se::to_string emits `<Invoice>…</Invoice>` — we need the
     // BIS Billing 3.0 namespace declarations on the root. Strip the
     // outer pair we got, re-wrap with proper xmlns attributes.
@@ -416,8 +418,14 @@ mod tests {
     fn ubl_xml_contains_required_namespaces() {
         let xml = to_ubl_xml(&sample_invoice()).expect("serialize");
         assert!(xml.contains("urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"));
-        assert!(xml.contains("urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"));
-        assert!(xml.contains("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"));
+        assert!(
+            xml.contains(
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+            )
+        );
+        assert!(
+            xml.contains("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2")
+        );
         assert!(xml.contains("urn:cen.eu:en16931:2017#compliant"));
     }
 

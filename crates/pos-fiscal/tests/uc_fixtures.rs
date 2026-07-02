@@ -186,8 +186,8 @@ fn extract_data_payload<'a>(
 }
 
 fn parse_sign_result(path: &Path) -> SignResult {
-    let raw = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    let raw =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     let envelope: serde_json::Value = serde_json::from_str(&raw)
         .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()));
     // Sign mutations always have exactly one inner key — no fallback needed.
@@ -201,8 +201,8 @@ fn parse_sign_result(path: &Path) -> SignResult {
 }
 
 fn parse_fdm_status(path: &Path) -> FdmStatus {
-    let raw = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    let raw =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     let envelope: serde_json::Value = serde_json::from_str(&raw)
         .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()));
     // Q100 has a single "Status" key; Q110 wraps the same payload under
@@ -217,10 +217,9 @@ fn parse_fdm_status(path: &Path) -> FdmStatus {
 }
 
 fn read_variables(path: &Path) -> serde_json::Value {
-    let raw = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-    serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
+    let raw =
+        fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    serde_json::from_str(&raw).unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()))
 }
 
 /// Generic check that the `data` payload of `Variables.json` carries
@@ -228,9 +227,9 @@ fn read_variables(path: &Path) -> serde_json::Value {
 /// structs flatten `CommonFields`, so these are the keys we'd expect
 /// to round-trip through any of our builders.
 fn assert_common_fields_present(uc_id: &str, vars: &serde_json::Value) {
-    let data = vars.get("data").unwrap_or_else(|| {
-        panic!("{uc_id}: Variables.json has no `data` envelope")
-    });
+    let data = vars
+        .get("data")
+        .unwrap_or_else(|| panic!("{uc_id}: Variables.json has no `data` envelope"));
     let required: &[&str] = &[
         "posId",
         "posFiscalTicketNo",
@@ -397,7 +396,11 @@ fn basic_set_v1_7_fixtures_deserialize_and_match_schema() {
         for (uc, err) in &failed {
             eprintln!("  ✗ {uc}\n    {err}");
         }
-        panic!("{} of {} Basic Set fixtures failed", failed.len(), fixtures.len());
+        panic!(
+            "{} of {} Basic Set fixtures failed",
+            failed.len(),
+            fixtures.len()
+        );
     }
 }
 
@@ -407,7 +410,9 @@ fn basic_set_v1_7_fixtures_deserialize_and_match_schema() {
 /// "happy path" and the v1.7 footer field shape.
 #[test]
 fn m110_sign_sale_response_shape() {
-    let p = basic_set_root().join("M110_signSale").join("signSale_Response.json");
+    let p = basic_set_root()
+        .join("M110_signSale")
+        .join("signSale_Response.json");
     let r = parse_sign_result(&p);
     assert_eq!(r.event_operation, EventOperation::Sale);
     assert_eq!(r.fdm_ref.event_label, EventLabel::N);
@@ -423,7 +428,9 @@ fn m110_sign_sale_response_shape() {
 /// entirely — proves our `#[serde(default)]` on footer is needed.
 #[test]
 fn m121_sign_order_response_omits_n_only_fields() {
-    let p = basic_set_root().join("M121_signOrder").join("signOrder_Response.json");
+    let p = basic_set_root()
+        .join("M121_signOrder")
+        .join("signOrder_Response.json");
     let r = parse_sign_result(&p);
     assert_eq!(r.event_operation, EventOperation::Order);
     assert_eq!(r.fdm_ref.event_label, EventLabel::P);
@@ -446,9 +453,18 @@ fn m171_training_sale_has_no_vat_calc() {
     assert_eq!(r.event_operation, EventOperation::Sale);
     assert_eq!(r.fdm_ref.event_label, EventLabel::T);
     assert!(r.vat_calc.is_none(), "training event must omit vatCalc");
-    assert!(r.short_signature.is_none(), "training event has no shortSignature");
-    assert!(r.verification_url.is_none(), "training event has no verificationUrl");
-    assert!(!r.digital_signature.is_empty(), "training event still signs");
+    assert!(
+        r.short_signature.is_none(),
+        "training event has no shortSignature"
+    );
+    assert!(
+        r.verification_url.is_none(),
+        "training event has no verificationUrl"
+    );
+    assert!(
+        !r.digital_signature.is_empty(),
+        "training event still signs"
+    );
 }
 
 /// Q100: status query. Single check — confirms our `FdmStatus` shape
@@ -456,7 +472,9 @@ fn m171_training_sale_has_no_vat_calc() {
 /// to gate transactions when buffer/errors trip thresholds.
 #[test]
 fn q100_status_response_shape() {
-    let p = basic_set_root().join("Q100_Status").join("status_response.json");
+    let p = basic_set_root()
+        .join("Q100_Status")
+        .join("status_response.json");
     let s = parse_fdm_status(&p);
     assert!(!s.device.fdm_id.is_empty());
     assert!(!s.device.fdm_sw_version.is_empty());

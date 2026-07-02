@@ -15,7 +15,10 @@ pub struct FiscalCounter;
 impl FiscalCounter {
     /// Get the next sequence number for a given event label.
     /// This MUST be called inside a transaction to ensure crash safety.
-    pub fn next(conn: &rusqlite::Connection, event_label: EventLabel) -> Result<i64, rusqlite::Error> {
+    pub fn next(
+        conn: &rusqlite::Connection,
+        event_label: EventLabel,
+    ) -> Result<i64, rusqlite::Error> {
         let label = serde_json::to_string(&event_label)
             .unwrap_or_default()
             .trim_matches('"')
@@ -26,7 +29,7 @@ impl FiscalCounter {
             "CREATE TABLE IF NOT EXISTS fiscal_counters (
                 event_label TEXT PRIMARY KEY,
                 current_value INTEGER NOT NULL DEFAULT 0
-            )"
+            )",
         )?;
 
         // Upsert: increment or initialize
@@ -72,7 +75,10 @@ impl FiscalCounter {
     }
 
     /// Get the current counter value without incrementing.
-    pub fn current(conn: &rusqlite::Connection, event_label: EventLabel) -> Result<i64, rusqlite::Error> {
+    pub fn current(
+        conn: &rusqlite::Connection,
+        event_label: EventLabel,
+    ) -> Result<i64, rusqlite::Error> {
         let label = serde_json::to_string(&event_label)
             .unwrap_or_default()
             .trim_matches('"')
@@ -82,7 +88,7 @@ impl FiscalCounter {
             "CREATE TABLE IF NOT EXISTS fiscal_counters (
                 event_label TEXT PRIMARY KEY,
                 current_value INTEGER NOT NULL DEFAULT 0
-            )"
+            )",
         )?;
 
         let value: i64 = conn
@@ -103,7 +109,8 @@ mod tests {
 
     fn setup() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;").unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .unwrap();
         conn
     }
 

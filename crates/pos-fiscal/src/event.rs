@@ -70,10 +70,10 @@ fn build_transaction(lines: &[OrderLine]) -> TransactionInput {
                     quantity: line.quantity as f64,
                     quantity_type: QuantityType::Piece,
                     neg_quantity_reason: if line.quantity < 0 {
-                    Some(NegQuantityReason::Refund)
-                } else {
-                    None
-                },
+                        Some(NegQuantityReason::Refund)
+                    } else {
+                        None
+                    },
                     unit_price,
                     vats: vec![VatInput {
                         label: vat_label,
@@ -110,6 +110,9 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 
 /// Build a SaleInput from an order + its lines + payment info.
 /// For refunds, pass `original_fdm_ref` referencing the original ticket.
+// The argument list mirrors the spec-mandated SaleInput composition;
+// grouping them into an ad-hoc struct would just move the same fields.
+#[allow(clippy::too_many_arguments)]
 pub fn build_sale_input(
     config: &PosConfig,
     order: &Order,
@@ -123,9 +126,9 @@ pub fn build_sale_input(
     let common = build_common_fields(config, ticket_number, &order.user_insz, booking_period_id);
     let transaction = build_transaction(lines);
 
-    let cost_center = order.table_number.map(|t| {
-        build_table_cost_center(t, &Uuid::new_v4().to_string())
-    });
+    let cost_center = order
+        .table_number
+        .map(|t| build_table_cost_center(t, &Uuid::new_v4().to_string()));
 
     let payment_amount = payment_amount_cents as f64 / 100.0;
     let financials = vec![PaymentLineInput {
@@ -194,9 +197,9 @@ pub fn build_pre_bill_input(
 ) -> PreBillInput {
     let common = build_common_fields(config, ticket_number, &order.user_insz, booking_period_id);
     let transaction = build_transaction(lines);
-    let cost_center = order.table_number.map(|t| {
-        build_table_cost_center(t, &Uuid::new_v4().to_string())
-    });
+    let cost_center = order
+        .table_number
+        .map(|t| build_table_cost_center(t, &Uuid::new_v4().to_string()));
 
     PreBillInput {
         common,
@@ -393,7 +396,16 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let sale = build_sale_input(&config, &order, &lines, 1, &bp_id, PaymentType::Cash, 2500, None);
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            &bp_id,
+            PaymentType::Cash,
+            2500,
+            None,
+        );
 
         assert_eq!(sale.common.pos_id, "CFOD0061234567");
         assert_eq!(sale.common.employee_id, "00000000029");
@@ -413,7 +425,16 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let sale = build_sale_input(&config, &order, &lines, 1, &bp_id, PaymentType::Cash, 2500, None);
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            &bp_id,
+            PaymentType::Cash,
+            2500,
+            None,
+        );
         let json = serde_json::to_string(&sale).unwrap();
 
         assert!(json.contains("posId"));
@@ -434,7 +455,10 @@ mod tests {
         let order_input = build_order_input(&config, &order, &lines, 1, &bp_id, &cc_ref);
 
         assert_eq!(order_input.cost_center.id, "T05");
-        assert_eq!(order_input.cost_center.cost_center_type, CostCenterType::Table);
+        assert_eq!(
+            order_input.cost_center.cost_center_type,
+            CostCenterType::Table
+        );
         assert_eq!(order_input.cost_center.reference, cc_ref);
         assert_eq!(order_input.transaction.transaction_lines.len(), 1);
     }
@@ -475,7 +499,16 @@ mod tests {
         }];
         let bp_id = Uuid::new_v4().to_string();
 
-        let sale = build_sale_input(&config, &order, &lines, 1, &bp_id, PaymentType::Cash, -2500, None);
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            &bp_id,
+            PaymentType::Cash,
+            -2500,
+            None,
+        );
 
         let product = &sale.transaction.transaction_lines[0].main_product;
         assert_eq!(product.neg_quantity_reason, Some(NegQuantityReason::Refund));
@@ -488,7 +521,16 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let sale = build_sale_input(&config, &order, &lines, 1, &bp_id, PaymentType::Cash, 2500, None);
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            &bp_id,
+            PaymentType::Cash,
+            2500,
+            None,
+        );
 
         let product = &sale.transaction.transaction_lines[0].main_product;
         assert_eq!(product.neg_quantity_reason, None);
@@ -499,9 +541,14 @@ mod tests {
         let config = test_config();
         let order = test_order();
         let lines = vec![OrderLine {
-            id: 1, order_id: 1, menu_item_id: 42,
-            quantity: -1, unit_price_cents: 1250, vat_code: VatCode::B,
-            name: "Saumon roll x8".to_string(), modifiers_json: None,
+            id: 1,
+            order_id: 1,
+            menu_item_id: 42,
+            quantity: -1,
+            unit_price_cents: 1250,
+            vat_code: VatCode::B,
+            name: "Saumon roll x8".to_string(),
+            modifiers_json: None,
             created_at: chrono::Utc::now(),
         }];
         let bp_id = Uuid::new_v4().to_string();
@@ -514,7 +561,13 @@ mod tests {
         };
 
         let sale = build_sale_input(
-            &config, &order, &lines, 2, &bp_id, PaymentType::Cash, -1250,
+            &config,
+            &order,
+            &lines,
+            2,
+            &bp_id,
+            PaymentType::Cash,
+            -1250,
             Some(&original_ref),
         );
 
@@ -537,7 +590,16 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let sale = build_sale_input(&config, &order, &lines, 1, &bp_id, PaymentType::Cash, 2500, None);
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            &bp_id,
+            PaymentType::Cash,
+            2500,
+            None,
+        );
         assert!(sale.fdm_ref.is_none());
 
         // Verify JSON serialization does NOT include fdmRef
