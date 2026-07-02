@@ -1,14 +1,73 @@
-use pos_fiscal::ticket::FiscalTicket;
+use pos_fiscal::ticket::{FiscalTicket, ReceiptLanguage};
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
 
+/// Fixed receipt labels per ticket language (FR/NL/DE — §VI of the
+/// certification manual requires the ticket in a national language).
+/// ASCII only: the ESC/POS transport sends raw bytes without a
+/// code-page handshake, so accented characters are avoided.
+struct Labels {
+    vat_no: &'static str,
+    est_no: &'static str,
+    date: &'static str,
+    ticket: &'static str,
+    terminal: &'static str,
+    subtotal: &'static str,
+    rounding: &'static str,
+    total: &'static str,
+    vat_header: &'static str,
+    refund: &'static str,
+}
+
+fn labels(lang: ReceiptLanguage) -> &'static Labels {
+    match lang {
+        ReceiptLanguage::Fr => &Labels {
+            vat_no: "TVA",
+            est_no: "Etab",
+            date: "Date:",
+            ticket: "Ticket:",
+            terminal: "Terminal:",
+            subtotal: "Sous-total",
+            rounding: "Arrondi",
+            total: "TOTAL",
+            vat_header: "TVA    Taux    Base HT    TVA",
+            refund: "REMBOURSEMENT",
+        },
+        ReceiptLanguage::Nl => &Labels {
+            vat_no: "BTW",
+            est_no: "Vest",
+            date: "Datum:",
+            ticket: "Ticket:",
+            terminal: "Terminal:",
+            subtotal: "Subtotaal",
+            rounding: "Afronding",
+            total: "TOTAAL",
+            vat_header: "BTW    Tarief  Basis      BTW",
+            refund: "TERUGBETALING",
+        },
+        ReceiptLanguage::De => &Labels {
+            vat_no: "MwSt",
+            est_no: "Niederl",
+            date: "Datum:",
+            ticket: "Bon:",
+            terminal: "Terminal:",
+            subtotal: "Zwischensumme",
+            rounding: "Rundung",
+            total: "GESAMT",
+            vat_header: "MwSt   Satz    Netto      MwSt",
+            refund: "RUECKERSTATTUNG",
+        },
+    }
+}
+
 /// Format a FiscalTicket into ESC/POS binary commands.
 /// Follows SCE 2.0 printing requirements:
-/// - Event N: "VAT RECEIPT" header, QR code, FDM control data
-/// - Event T: "TRAINING" watermark + "THIS IS NOT A VALID VAT RECEIPT"
-/// - Other events: "THIS IS NOT A VALID VAT RECEIPT" at bottom
+/// - Event N: "TICKET DE CAISSE TVA" header, QR code, FDM control data
+/// - Event T: "TRAINING" watermark + invalid-ticket mention
+/// - Other events: spec-mandated invalid-ticket mention at bottom (FR/NL/DE)
 pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     let mut p = EscPosBuilder::new();
+    let l = labels(ticket.lang);
 
     // ── Training mode banner ───────────────────────────────────
     if ticket.is_training {
@@ -26,28 +85,35 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
 
     // ── Ticket type label ──────────────────────────────────────
     p.align(Alignment::Center);
-    p.style(TextStyle { bold: true, double_height: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        ..Default::default()
+    });
     p.textln(&ticket.ticket_type_label);
     p.style_reset();
     p.blank_line();
 
     // ── Restaurant header ──────────────────────────────────────
     p.align(Alignment::Center);
-    p.style(TextStyle { bold: true, ..Default::default() });
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
     p.textln(&ticket.restaurant_name);
     p.style_reset();
     p.textln(&ticket.restaurant_address);
-    p.textln(&format!("TVA: {}", ticket.restaurant_vat));
+    p.textln(&format!("{}: {}", l.vat_no, ticket.restaurant_vat));
     if !ticket.restaurant_est_no.is_empty() {
-        p.textln(&format!("Etab: {}", ticket.restaurant_est_no));
+        p.textln(&format!("{}: {}", l.est_no, ticket.restaurant_est_no));
     }
     p.blank_line();
 
     // ── Date/time + ticket number ──────────────────────────────
     p.align(Alignment::Left);
-    p.text_columns("Date:", &format_datetime(&ticket.pos_datetime));
-    p.text_columns("Ticket:", &format!("#{}", ticket.ticket_number));
-    p.text_columns("Terminal:", &ticket.terminal_id);
+    p.text_columns(l.date, &format_datetime(&ticket.pos_datetime));
+    p.text_columns(l.ticket, &format!("#{}", ticket.ticket_number));
+    p.text_columns(l.terminal, &ticket.terminal_id);
     p.separator('-');
 
     // ── Line items ─────────────────────────────────────────────
@@ -65,12 +131,16 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
 
     // ── Subtotal / Rounding / Total ────────────────────────────
     if let Some(rounding) = ticket.rounding {
-        p.text_columns("Sous-total", &format_price(ticket.subtotal));
-        p.text_columns("Arrondi", &format_price(rounding));
+        p.text_columns(l.subtotal, &format_price(ticket.subtotal));
+        p.text_columns(l.rounding, &format_price(rounding));
     }
 
-    p.style(TextStyle { bold: true, double_height: true, ..Default::default() });
-    p.text_columns("TOTAL", &format_price(ticket.total));
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        ..Default::default()
+    });
+    p.text_columns(l.total, &format_price(ticket.total));
     p.style_reset();
 
     p.separator('-');
@@ -83,9 +153,12 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     // ── VAT breakdown ──────────────────────────────────────────
     if !ticket.vat_breakdown.is_empty() {
         p.blank_line();
-        p.style(TextStyle { font_b: true, ..Default::default() });
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
         // Header row
-        p.textln("TVA    Taux    Base HT    TVA");
+        p.textln(l.vat_header);
         for vat in &ticket.vat_breakdown {
             if vat.out_of_scope {
                 continue;
@@ -93,10 +166,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
             let label = format!("{:?}", vat.label);
             let base = format_price(vat.taxable_amount);
             let vat_amt = format_price(vat.vat_amount);
-            let line = format!(
-                " {label}    {:>4.0}%  {base:>8}  {vat_amt:>8}",
-                vat.rate,
-            );
+            let line = format!(" {label}    {:>4.0}%  {base:>8}  {vat_amt:>8}", vat.rate,);
             p.textln(&line);
         }
         p.style_reset();
@@ -107,14 +177,16 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     // ── FDM control data ───────────────────────────────────────
     if let Some(ref fdm_ref) = ticket.fdm_ref {
         p.align(Alignment::Center);
-        p.style(TextStyle { font_b: true, ..Default::default() });
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
         p.textln(&format!("FDM: {}", fdm_ref.fdm_id));
         p.textln(&fdm_ref.fdm_date_time);
         let label = format!("{:?}", fdm_ref.event_label);
         p.textln(&format!(
             "{label} {}/{}",
-            fdm_ref.event_counter,
-            fdm_ref.total_counter
+            fdm_ref.event_counter, fdm_ref.total_counter
         ));
         if let Some(ref sig) = ticket.short_signature {
             p.textln(&format!("Sig: {sig}"));
@@ -134,7 +206,10 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     // ── Footer (from FDM / SPF Finances) ───────────────────────
     if !ticket.footer.is_empty() {
         p.align(Alignment::Center);
-        p.style(TextStyle { font_b: true, ..Default::default() });
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
         for line in &ticket.footer {
             p.textln(line);
         }
@@ -145,8 +220,11 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     if ticket.needs_invalid_disclaimer() {
         p.blank_line();
         p.align(Alignment::Center);
-        p.style(TextStyle { bold: true, ..Default::default() });
-        p.textln("THIS IS NOT A VALID VAT RECEIPT");
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
+        p.textln(ticket.invalid_disclaimer());
         p.style_reset();
     }
 
@@ -154,8 +232,12 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     if ticket.is_refund {
         p.blank_line();
         p.align(Alignment::Center);
-        p.style(TextStyle { bold: true, double_height: true, ..Default::default() });
-        p.textln("REFUND");
+        p.style(TextStyle {
+            bold: true,
+            double_height: true,
+            ..Default::default()
+        });
+        p.textln(l.refund);
         p.style_reset();
     }
 
@@ -244,8 +326,9 @@ mod tests {
             short_signature: None,
             verification_url: None,
             footer: vec![],
-            ticket_type_label: "VAT RECEIPT".to_string(),
+            ticket_type_label: "TICKET DE CAISSE TVA".to_string(),
             is_refund: false,
+            lang: ReceiptLanguage::default(),
         }
     }
 
@@ -260,7 +343,7 @@ mod tests {
     fn receipt_contains_vat_receipt_label() {
         let ticket = sample_ticket();
         let bytes = format_receipt(&ticket);
-        assert!(bytes.windows(11).any(|w| w == b"VAT RECEIPT"));
+        assert!(bytes.windows(20).any(|w| w == b"TICKET DE CAISSE TVA"));
     }
 
     #[test]
@@ -287,7 +370,11 @@ mod tests {
         ticket.ticket_type_label = "TRAINING".to_string();
         let bytes = format_receipt(&ticket);
         assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
-        assert!(bytes.windows(31).any(|w| w == b"THIS IS NOT A VALID VAT RECEIPT"));
+        assert!(
+            bytes
+                .windows(46)
+                .any(|w| w == b"CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE")
+        );
     }
 
     #[test]
@@ -302,6 +389,10 @@ mod tests {
     #[test]
     fn drawer_open_command() {
         let bytes = format_drawer_open();
-        assert!(bytes.windows(5).any(|w| w == [0x1B, b'p', 0x00, 0x19, 0xFA]));
+        assert!(
+            bytes
+                .windows(5)
+                .any(|w| w == [0x1B, b'p', 0x00, 0x19, 0xFA])
+        );
     }
 }

@@ -49,12 +49,15 @@ pub async fn do_checkout(
     // 1. Read order + lines from DB
     let (order, lines, config, booking_period_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let order = pos_db::queries::orders::get_order(&db, order_id)
-            .map_err(|e| e.to_string())?;
-        let lines = pos_db::queries::orders::get_order_lines(&db, order_id)
-            .map_err(|e| e.to_string())?;
+        let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
+        let lines =
+            pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         (order, lines, config, bp)
     };
 
@@ -94,7 +97,11 @@ pub async fn do_checkout(
     // `posFiscalTicketNo`, this is safe to retry indefinitely.
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
+        let label = if config.training_mode {
+            EventLabel::T
+        } else {
+            EventLabel::N
+        };
         FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
@@ -171,14 +178,15 @@ pub async fn do_checkout(
     //   - `orders.status` flips to closed
     // If any of the three fails the whole tx rolls back, including
     // the counter advance — so no gap is ever observable.
-    let ticket;
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let tx = db
-            .unchecked_transaction()
-            .map_err(|e| e.to_string())?;
+        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
 
-        let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
+        let label = if config.training_mode {
+            EventLabel::T
+        } else {
+            EventLabel::N
+        };
         let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
         debug_assert_eq!(
             committed_no, ticket_number,
@@ -210,7 +218,7 @@ pub async fn do_checkout(
     }
 
     // 7. Build fiscal ticket for display/print
-    ticket = sign_result.as_ref().map(|result| {
+    let ticket = sign_result.as_ref().map(|result| {
         let ticket_lines: Vec<TicketLine> = lines
             .iter()
             .map(|l| TicketLine {
@@ -247,6 +255,7 @@ pub async fn do_checkout(
             total: order.total_cents as f64 / 100.0,
             is_training: config.training_mode,
             rounding: rounding_eur,
+            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
         })
     });
 

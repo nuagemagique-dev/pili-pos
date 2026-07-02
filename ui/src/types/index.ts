@@ -97,6 +97,8 @@ export interface FiscalTicket {
   footer: string[];
   ticket_type_label: string;
   is_refund: boolean;
+  /** Language of the printed fiscal mentions (FR/NL/DE). */
+  lang: 'fr' | 'nl' | 'de';
 }
 
 export interface TicketLine {

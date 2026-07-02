@@ -29,8 +29,8 @@ use pos_core::config::PosConfig;
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 use pos_core::vat::VatCode;
-use pos_db::queries::{fiscal, orders, reports, users};
 use pos_db::queries::orders::NewOrderLine;
+use pos_db::queries::{fiscal, orders, reports, users};
 use pos_fiscal::archive::{self, ArchiveParams, get_archived_event};
 use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::*;
@@ -146,7 +146,10 @@ async fn mock_mutation(
     };
 
     let mut data = serde_json::Map::new();
-    data.insert(mutation_key.to_string(), serde_json::to_value(&result).unwrap());
+    data.insert(
+        mutation_key.to_string(),
+        serde_json::to_value(&result).unwrap(),
+    );
     let body = serde_json::json!({ "data": data });
 
     Mock::given(method("POST"))
@@ -180,7 +183,8 @@ async fn test_full_service_day_e2e() {
     let fdm = FdmClient::new(&cfg.fdm_url);
 
     // Seed test menu data (categories + items used in this test)
-    db.execute_batch("
+    db.execute_batch(
+        "
         INSERT INTO categories (id, sort_order) VALUES (1, 1), (4, 4), (16, 16);
         INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order) VALUES
             (3, 1, 1790, 'B', 3),    -- M1 (plateau)
@@ -188,7 +192,9 @@ async fn test_full_service_day_e2e() {
             (50, 4, 470, 'B', 6),     -- Maki saumon x6
             (129, 1, 400, 'B', 1),    -- Soupe miso
             (160, 16, 390, 'A', 9);   -- Biere Asahi
-    ").unwrap();
+    ",
+    )
+    .unwrap();
 
     // ────────────────────────────────────────────────────────────
     // STEP 1: Login — Create user in SQLite, validate INSZ
@@ -211,8 +217,14 @@ async fn test_full_service_day_e2e() {
     // ────────────────────────────────────────────────────────────
 
     let _s1_result = mock_mutation(
-        &server, "signWorkIn", EventOperation::WorkIn, EventLabel::S, 1, None,
-    ).await;
+        &server,
+        "signWorkIn",
+        EventOperation::WorkIn,
+        EventLabel::S,
+        1,
+        None,
+    )
+    .await;
 
     let s1_ticket = FiscalCounter::next(&db, EventLabel::S).unwrap();
     assert_eq!(s1_ticket, 1, "First S event should be #1");
@@ -222,16 +234,20 @@ async fn test_full_service_day_e2e() {
     assert_eq!(wi_result.event_operation, EventOperation::WorkIn);
     assert_eq!(wi_result.fdm_ref.event_label, EventLabel::S);
 
-    let wi_event_id = archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::S,
-        sequence_number: s1_ticket,
-        order_id: None,
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: "{}",
-        sign_result: Some(&wi_result),
-    }).unwrap();
+    let wi_event_id = archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::S,
+            sequence_number: s1_ticket,
+            order_id: None,
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: "{}",
+            sign_result: Some(&wi_result),
+        },
+    )
+    .unwrap();
     assert!(wi_event_id > 0);
 
     // ────────────────────────────────────────────────────────────
@@ -252,36 +268,48 @@ async fn test_full_service_day_e2e() {
     // STEP 4: Take Order — Round 1 (add lines + Event P signOrder)
     // ────────────────────────────────────────────────────────────
 
-    let line1 = orders::add_order_line(&db, NewOrderLine {
-        order_id: order.id,
-        menu_item_id: 10,
-        quantity: 1,
-        unit_price_cents: 2480,
-        vat_code: VatCode::B,
-        name: "Plateau sushi mix",
-        modifiers_json: None,
-    }).unwrap();
+    let line1 = orders::add_order_line(
+        &db,
+        NewOrderLine {
+            order_id: order.id,
+            menu_item_id: 10,
+            quantity: 1,
+            unit_price_cents: 2480,
+            vat_code: VatCode::B,
+            name: "Plateau sushi mix",
+            modifiers_json: None,
+        },
+    )
+    .unwrap();
     assert_eq!(line1.unit_price_cents, 2480);
 
-    let line2 = orders::add_order_line(&db, NewOrderLine {
-        order_id: order.id,
-        menu_item_id: 129,
-        quantity: 2,
-        unit_price_cents: 400,
-        vat_code: VatCode::B,
-        name: "Soupe miso",
-        modifiers_json: None,
-    }).unwrap();
+    let line2 = orders::add_order_line(
+        &db,
+        NewOrderLine {
+            order_id: order.id,
+            menu_item_id: 129,
+            quantity: 2,
+            unit_price_cents: 400,
+            vat_code: VatCode::B,
+            name: "Soupe miso",
+            modifiers_json: None,
+        },
+    )
+    .unwrap();
 
-    let line3 = orders::add_order_line(&db, NewOrderLine {
-        order_id: order.id,
-        menu_item_id: 160,
-        quantity: 2,
-        unit_price_cents: 390,
-        vat_code: VatCode::A, // Beverages = 21%
-        name: "Bière Asahi",
-        modifiers_json: None,
-    }).unwrap();
+    let line3 = orders::add_order_line(
+        &db,
+        NewOrderLine {
+            order_id: order.id,
+            menu_item_id: 160,
+            quantity: 2,
+            unit_price_cents: 390,
+            vat_code: VatCode::A, // Beverages = 21%
+            name: "Bière Asahi",
+            modifiers_json: None,
+        },
+    )
+    .unwrap();
 
     // Verify order totals auto-recalculated
     let order_r1 = orders::get_order(&db, order.id).unwrap();
@@ -291,8 +319,14 @@ async fn test_full_service_day_e2e() {
     // Send signOrder (P event) to FDM
     let cc_ref = Uuid::new_v4().to_string();
     let _p1_result = mock_mutation(
-        &server, "signOrder", EventOperation::Order, EventLabel::P, 1, None,
-    ).await;
+        &server,
+        "signOrder",
+        EventOperation::Order,
+        EventLabel::P,
+        1,
+        None,
+    )
+    .await;
 
     let p1_ticket = FiscalCounter::next(&db, EventLabel::P).unwrap();
     assert_eq!(p1_ticket, 1);
@@ -302,43 +336,60 @@ async fn test_full_service_day_e2e() {
 
     let order_input = build_order_input(&cfg, &order_r1, &lines_r1, p1_ticket, &bp_id, &cc_ref);
     assert_eq!(order_input.cost_center.id, "T07");
-    assert_eq!(order_input.cost_center.cost_center_type, CostCenterType::Table);
+    assert_eq!(
+        order_input.cost_center.cost_center_type,
+        CostCenterType::Table
+    );
 
     let p1_result = fdm.sign_order(order_input, false).await.unwrap();
     assert_eq!(p1_result.fdm_ref.event_label, EventLabel::P);
 
-    archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::P,
-        sequence_number: p1_ticket,
-        order_id: Some(order.id),
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: &serde_json::to_string(&p1_result).unwrap(),
-        sign_result: Some(&p1_result),
-    }).unwrap();
+    archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::P,
+            sequence_number: p1_ticket,
+            order_id: Some(order.id),
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: &serde_json::to_string(&p1_result).unwrap(),
+            sign_result: Some(&p1_result),
+        },
+    )
+    .unwrap();
 
     // ────────────────────────────────────────────────────────────
     // STEP 5: Add Items — Round 2 (more lines + second signOrder)
     // ────────────────────────────────────────────────────────────
 
-    let _line4 = orders::add_order_line(&db, NewOrderLine {
-        order_id: order.id,
-        menu_item_id: 50,
-        quantity: 2,
-        unit_price_cents: 470,
-        vat_code: VatCode::B,
-        name: "Maki saumon x6",
-        modifiers_json: None,
-    }).unwrap();
+    let _line4 = orders::add_order_line(
+        &db,
+        NewOrderLine {
+            order_id: order.id,
+            menu_item_id: 50,
+            quantity: 2,
+            unit_price_cents: 470,
+            vat_code: VatCode::B,
+            name: "Maki saumon x6",
+            modifiers_json: None,
+        },
+    )
+    .unwrap();
 
     // Order total: 4060 + 2*470 = 5000
     let order_r2 = orders::get_order(&db, order.id).unwrap();
     assert_eq!(order_r2.total_cents, 5000);
 
     let _p2_result = mock_mutation(
-        &server, "signOrder", EventOperation::Order, EventLabel::P, 2, None,
-    ).await;
+        &server,
+        "signOrder",
+        EventOperation::Order,
+        EventLabel::P,
+        2,
+        None,
+    )
+    .await;
 
     let p2_ticket = FiscalCounter::next(&db, EventLabel::P).unwrap();
     assert_eq!(p2_ticket, 2, "Second P event should be #2");
@@ -349,16 +400,20 @@ async fn test_full_service_day_e2e() {
     let order_input2 = build_order_input(&cfg, &order_r2, &lines_r2, p2_ticket, &bp_id, &cc_ref);
     let p2_fdm = fdm.sign_order(order_input2, false).await.unwrap();
 
-    archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::P,
-        sequence_number: p2_ticket,
-        order_id: Some(order.id),
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: "{}",
-        sign_result: Some(&p2_fdm),
-    }).unwrap();
+    archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::P,
+            sequence_number: p2_ticket,
+            order_id: Some(order.id),
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: "{}",
+            sign_result: Some(&p2_fdm),
+        },
+    )
+    .unwrap();
 
     // ────────────────────────────────────────────────────────────
     // STEP 6: Modify Order (change qty, remove item)
@@ -386,8 +441,14 @@ async fn test_full_service_day_e2e() {
     // ────────────────────────────────────────────────────────────
 
     let _pb_result = mock_mutation(
-        &server, "signPreBill", EventOperation::PreBill, EventLabel::P, 3, None,
-    ).await;
+        &server,
+        "signPreBill",
+        EventOperation::PreBill,
+        EventLabel::P,
+        3,
+        None,
+    )
+    .await;
 
     let pb_ticket = FiscalCounter::next(&db, EventLabel::P).unwrap();
     assert_eq!(pb_ticket, 3, "Third P event");
@@ -397,24 +458,37 @@ async fn test_full_service_day_e2e() {
     // Verify pre-bill structure: 4 lines, no financials
     assert_eq!(pre_bill.transaction.transaction_lines.len(), 4);
     let expected_total = 24.80 + 3.0 * 4.00 + 1.0 * 3.90 + 2.0 * 4.70;
-    assert!((pre_bill.transaction.transaction_total - expected_total).abs() < 0.01,
-        "Pre-bill total should be {expected_total}, got {}", pre_bill.transaction.transaction_total);
+    assert!(
+        (pre_bill.transaction.transaction_total - expected_total).abs() < 0.01,
+        "Pre-bill total should be {expected_total}, got {}",
+        pre_bill.transaction.transaction_total
+    );
 
     let pb_fdm = fdm.sign_pre_bill(pre_bill, false).await.unwrap();
     assert_eq!(pb_fdm.event_operation, EventOperation::PreBill);
-    assert!(pb_fdm.short_signature.is_none(), "Pre-bill must NOT have shortSignature");
-    assert!(pb_fdm.verification_url.is_none(), "Pre-bill must NOT have verificationUrl");
+    assert!(
+        pb_fdm.short_signature.is_none(),
+        "Pre-bill must NOT have shortSignature"
+    );
+    assert!(
+        pb_fdm.verification_url.is_none(),
+        "Pre-bill must NOT have verificationUrl"
+    );
 
-    archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::P,
-        sequence_number: pb_ticket,
-        order_id: Some(order.id),
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: "{}",
-        sign_result: Some(&pb_fdm),
-    }).unwrap();
+    archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::P,
+            sequence_number: pb_ticket,
+            order_id: Some(order.id),
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: "{}",
+            sign_result: Some(&pb_fdm),
+        },
+    )
+    .unwrap();
 
     // Generate pre-bill receipt
     let pb_ticket_data = FiscalTicket::from_sign_result(TicketParams {
@@ -423,39 +497,53 @@ async fn test_full_service_day_e2e() {
         restaurant_address: &cfg.restaurant_address,
         restaurant_vat: &cfg.restaurant_vat,
         restaurant_est_no: &cfg.restaurant_est_no,
-        lines: lines_mod.iter().map(|l| TicketLine {
-            quantity: l.quantity as f64,
-            description: l.name.clone(),
-            unit_price: l.unit_price_cents as f64 / 100.0,
-            total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-            vat_code: l.vat_code.as_str().to_string(),
-        }).collect(),
+        lines: lines_mod
+            .iter()
+            .map(|l| TicketLine {
+                quantity: l.quantity as f64,
+                description: l.name.clone(),
+                unit_price: l.unit_price_cents as f64 / 100.0,
+                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                vat_code: l.vat_code.as_str().to_string(),
+            })
+            .collect(),
         payments: vec![],
         total: order_mod.total_cents as f64 / 100.0,
         is_training: false,
         rounding: None,
+        lang: pos_fiscal::ticket::ReceiptLanguage::default(),
     });
 
     assert_eq!(pb_ticket_data.ticket_type_label, "PRO FORMA");
-    assert!(pb_ticket_data.needs_invalid_disclaimer(),
-        "Pre-bill must include 'THIS IS NOT A VALID VAT RECEIPT'");
+    assert!(
+        pb_ticket_data.needs_invalid_disclaimer(),
+        "Pre-bill must include the invalid-ticket mention"
+    );
 
     let pb_escpos = receipt::format_receipt(&pb_ticket_data);
-    assert!(pb_escpos.windows(9).any(|w| w == b"PRO FORMA"),
-        "Pre-bill ESC/POS must contain 'PRO FORMA'");
-    assert!(pb_escpos.windows(31).any(|w| w == b"THIS IS NOT A VALID VAT RECEIPT"),
-        "Pre-bill must have disclaimer");
+    assert!(
+        pb_escpos.windows(9).any(|w| w == b"PRO FORMA"),
+        "Pre-bill ESC/POS must contain 'PRO FORMA'"
+    );
+    assert!(
+        pb_escpos
+            .windows(46)
+            .any(|w| w == b"CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"),
+        "Pre-bill must have disclaimer"
+    );
 
     // ────────────────────────────────────────────────────────────
     // STEP 8: Cash Payment + Close (Event N → signSale)
     // ────────────────────────────────────────────────────────────
 
     // FDM returns VAT calculations for event N
-    let food_total_cents: i64 = lines_mod.iter()
+    let food_total_cents: i64 = lines_mod
+        .iter()
         .filter(|l| l.vat_code == VatCode::B)
         .map(|l| l.unit_price_cents * l.quantity as i64)
         .sum(); // 2480 + 1200 + 940 = 4620
-    let drink_total_cents: i64 = lines_mod.iter()
+    let drink_total_cents: i64 = lines_mod
+        .iter()
         .filter(|l| l.vat_code == VatCode::A)
         .map(|l| l.unit_price_cents * l.quantity as i64)
         .sum(); // 390
@@ -472,20 +560,46 @@ async fn test_full_service_day_e2e() {
     let drink_vat = ((drink_total - drink_taxable) * 100.0).round() / 100.0;
 
     let sale_vat_calc = vec![
-        VatCalcItem { label: VatLabel::B, rate: 12.0, taxable_amount: food_taxable, vat_amount: food_vat, total_amount: food_total, out_of_scope: false },
-        VatCalcItem { label: VatLabel::A, rate: 21.0, taxable_amount: drink_taxable, vat_amount: drink_vat, total_amount: drink_total, out_of_scope: false },
+        VatCalcItem {
+            label: VatLabel::B,
+            rate: 12.0,
+            taxable_amount: food_taxable,
+            vat_amount: food_vat,
+            total_amount: food_total,
+            out_of_scope: false,
+        },
+        VatCalcItem {
+            label: VatLabel::A,
+            rate: 21.0,
+            taxable_amount: drink_taxable,
+            vat_amount: drink_vat,
+            total_amount: drink_total,
+            out_of_scope: false,
+        },
     ];
 
     let _sale_mock = mock_mutation(
-        &server, "signSale", EventOperation::Sale, EventLabel::N, 1, Some(sale_vat_calc.clone()),
-    ).await;
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::N,
+        1,
+        Some(sale_vat_calc.clone()),
+    )
+    .await;
 
     let n1_ticket = FiscalCounter::next(&db, EventLabel::N).unwrap();
     assert_eq!(n1_ticket, 1, "First N event");
 
     let sale = build_sale_input(
-        &cfg, &order_mod, &lines_mod, n1_ticket, &bp_id,
-        PaymentType::Cash, order_mod.total_cents, None,
+        &cfg,
+        &order_mod,
+        &lines_mod,
+        n1_ticket,
+        &bp_id,
+        PaymentType::Cash,
+        order_mod.total_cents,
+        None,
     );
 
     // Verify sale structure
@@ -495,10 +609,18 @@ async fn test_full_service_day_e2e() {
     assert!((sale.financials[0].amount - 50.10).abs() < 0.01);
 
     // Verify VAT labels on lines
-    let food_lines: Vec<_> = sale.transaction.transaction_lines.iter()
-        .filter(|l| l.main_product.vats[0].label == VatLabel::B).collect();
-    let drink_lines: Vec<_> = sale.transaction.transaction_lines.iter()
-        .filter(|l| l.main_product.vats[0].label == VatLabel::A).collect();
+    let food_lines: Vec<_> = sale
+        .transaction
+        .transaction_lines
+        .iter()
+        .filter(|l| l.main_product.vats[0].label == VatLabel::B)
+        .collect();
+    let drink_lines: Vec<_> = sale
+        .transaction
+        .transaction_lines
+        .iter()
+        .filter(|l| l.main_product.vats[0].label == VatLabel::A)
+        .collect();
     assert_eq!(food_lines.len(), 3, "3 food lines with VAT B");
     assert_eq!(drink_lines.len(), 1, "1 drink line with VAT A");
 
@@ -513,10 +635,13 @@ async fn test_full_service_day_e2e() {
     assert!(n1_result.verification_url.is_some());
 
     // Verify shortSignature integrity
-    assert!(signature::verify_short_signature(
-        &n1_result.digital_signature,
-        n1_result.short_signature.as_ref().unwrap(),
-    ).unwrap());
+    assert!(
+        signature::verify_short_signature(
+            &n1_result.digital_signature,
+            n1_result.short_signature.as_ref().unwrap(),
+        )
+        .unwrap()
+    );
 
     // Verify VAT calc from FDM
     let vat_calc = n1_result.vat_calc.as_ref().unwrap();
@@ -528,16 +653,20 @@ async fn test_full_service_day_e2e() {
     assert!((vat_a.total_amount - drink_total).abs() < 0.01);
 
     // Archive sale
-    let _n1_event_id = archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::N,
-        sequence_number: n1_ticket,
-        order_id: Some(order.id),
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: &sale_json,
-        sign_result: Some(&n1_result),
-    }).unwrap();
+    let _n1_event_id = archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::N,
+            sequence_number: n1_ticket,
+            order_id: Some(order.id),
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: &sale_json,
+            sign_result: Some(&n1_result),
+        },
+    )
+    .unwrap();
 
     // Verify archived event in DB
     let archived = get_archived_event(&db, EventLabel::N, 1).unwrap().unwrap();
@@ -553,13 +682,15 @@ async fn test_full_service_day_e2e() {
     db.execute(
         "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
         rusqlite::params![order.id],
-    ).unwrap();
+    )
+    .unwrap();
 
     // Record payment
     db.execute(
         "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'cash', ?2)",
         rusqlite::params![order.id, order_mod.total_cents],
-    ).unwrap();
+    )
+    .unwrap();
 
     let closed_order = orders::get_order(&db, order.id).unwrap();
     assert_eq!(closed_order.status, pos_core::order::OrderStatus::Closed);
@@ -575,20 +706,27 @@ async fn test_full_service_day_e2e() {
         restaurant_address: &cfg.restaurant_address,
         restaurant_vat: &cfg.restaurant_vat,
         restaurant_est_no: &cfg.restaurant_est_no,
-        lines: lines_mod.iter().map(|l| TicketLine {
-            quantity: l.quantity as f64,
-            description: l.name.clone(),
-            unit_price: l.unit_price_cents as f64 / 100.0,
-            total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-            vat_code: l.vat_code.as_str().to_string(),
-        }).collect(),
-        payments: vec![TicketPayment { method: "Cash".to_string(), amount: 50.10 }],
+        lines: lines_mod
+            .iter()
+            .map(|l| TicketLine {
+                quantity: l.quantity as f64,
+                description: l.name.clone(),
+                unit_price: l.unit_price_cents as f64 / 100.0,
+                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                vat_code: l.vat_code.as_str().to_string(),
+            })
+            .collect(),
+        payments: vec![TicketPayment {
+            method: "Cash".to_string(),
+            amount: 50.10,
+        }],
         total: 50.10,
         is_training: false,
         rounding: None,
+        lang: pos_fiscal::ticket::ReceiptLanguage::default(),
     });
 
-    assert_eq!(ticket.ticket_type_label, "VAT RECEIPT");
+    assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
     assert!(!ticket.needs_invalid_disclaimer());
     assert!(!ticket.is_refund);
     assert!(ticket.fdm_ref.is_some());
@@ -597,21 +735,48 @@ async fn test_full_service_day_e2e() {
 
     // Verify ESC/POS content
     assert!(!escpos.is_empty());
-    assert!(escpos.windows(11).any(|w| w == b"VAT RECEIPT"), "Must contain 'VAT RECEIPT'");
-    assert!(escpos.windows(15).any(|w| w == b"Tokyo Sushi Bar"), "Must contain restaurant name");
-    assert!(escpos.windows(12).any(|w| w == b"BE0499999960"), "Must contain VAT number");
-    assert!(escpos.windows(10).any(|w| w == b"Soupe miso"), "Must contain line item");
-    assert!(escpos.windows(14).any(|w| w == b"Maki saumon x6"), "Must contain line item");
-    assert!(escpos.windows(12).any(|w| w == b"BMC0TEST0001"), "Must contain FDM ID");
-    assert!(escpos.windows(4).any(|w| w == b"Cash"), "Must contain payment method");
+    assert!(
+        escpos.windows(20).any(|w| w == b"TICKET DE CAISSE TVA"),
+        "Must contain 'TICKET DE CAISSE TVA'"
+    );
+    assert!(
+        escpos.windows(15).any(|w| w == b"Tokyo Sushi Bar"),
+        "Must contain restaurant name"
+    );
+    assert!(
+        escpos.windows(12).any(|w| w == b"BE0499999960"),
+        "Must contain VAT number"
+    );
+    assert!(
+        escpos.windows(10).any(|w| w == b"Soupe miso"),
+        "Must contain line item"
+    );
+    assert!(
+        escpos.windows(14).any(|w| w == b"Maki saumon x6"),
+        "Must contain line item"
+    );
+    assert!(
+        escpos.windows(12).any(|w| w == b"BMC0TEST0001"),
+        "Must contain FDM ID"
+    );
+    assert!(
+        escpos.windows(4).any(|w| w == b"Cash"),
+        "Must contain payment method"
+    );
 
     // Verify QR code command is present (GS ( k)
-    assert!(escpos.windows(3).any(|w| w[0] == 0x1D && w[1] == b'(' && w[2] == b'k'),
-        "Must contain QR code GS(k command");
+    assert!(
+        escpos
+            .windows(3)
+            .any(|w| w[0] == 0x1D && w[1] == b'(' && w[2] == b'k'),
+        "Must contain QR code GS(k command"
+    );
 
     // Verify cut command at the end (GS V)
-    assert!(escpos.windows(2).any(|w| w[0] == 0x1D && w[1] == b'V'),
-        "Must end with paper cut");
+    assert!(
+        escpos.windows(2).any(|w| w[0] == 0x1D && w[1] == b'V'),
+        "Must end with paper cut"
+    );
 
     // Generate QR code separately for verification
     let qr_url = ticket.verification_url.as_ref().unwrap();
@@ -623,52 +788,83 @@ async fn test_full_service_day_e2e() {
     // ────────────────────────────────────────────────────────────
 
     let order2 = orders::create_order(&db, OrderType::DineIn, Some(3), &user.insz).unwrap();
-    orders::add_order_line(&db, NewOrderLine {
-        order_id: order2.id,
-        menu_item_id: 3,
-        quantity: 1,
-        unit_price_cents: 1790,
-        vat_code: VatCode::B,
-        name: "M1",
-        modifiers_json: None,
-    }).unwrap();
+    orders::add_order_line(
+        &db,
+        NewOrderLine {
+            order_id: order2.id,
+            menu_item_id: 3,
+            quantity: 1,
+            unit_price_cents: 1790,
+            vat_code: VatCode::B,
+            name: "M1",
+            modifiers_json: None,
+        },
+    )
+    .unwrap();
 
     let order2_db = orders::get_order(&db, order2.id).unwrap();
     assert_eq!(order2_db.total_cents, 1790);
 
     let _sale2_mock = mock_mutation(
-        &server, "signSale", EventOperation::Sale, EventLabel::N, 2,
+        &server,
+        "signSale",
+        EventOperation::Sale,
+        EventLabel::N,
+        2,
         Some(vec![VatCalcItem {
-            label: VatLabel::B, rate: 12.0,
-            taxable_amount: 15.98, vat_amount: 1.92, total_amount: 17.90,
+            label: VatLabel::B,
+            rate: 12.0,
+            taxable_amount: 15.98,
+            vat_amount: 1.92,
+            total_amount: 17.90,
             out_of_scope: false,
         }]),
-    ).await;
+    )
+    .await;
 
     let n2_ticket = FiscalCounter::next(&db, EventLabel::N).unwrap();
     assert_eq!(n2_ticket, 2, "Second N event");
 
     let lines2 = orders::get_order_lines(&db, order2.id).unwrap();
-    let sale2 = build_sale_input(&cfg, &order2_db, &lines2, n2_ticket, &bp_id, PaymentType::CardDebit, 1790, None);
+    let sale2 = build_sale_input(
+        &cfg,
+        &order2_db,
+        &lines2,
+        n2_ticket,
+        &bp_id,
+        PaymentType::CardDebit,
+        1790,
+        None,
+    );
     assert_eq!(sale2.financials[0].payment_type, PaymentType::CardDebit);
 
     let n2_result = fdm.sign_sale(sale2, false).await.unwrap();
 
-    archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::N,
-        sequence_number: n2_ticket,
-        order_id: Some(order2.id),
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: "{}",
-        sign_result: Some(&n2_result),
-    }).unwrap();
+    archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::N,
+            sequence_number: n2_ticket,
+            order_id: Some(order2.id),
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: "{}",
+            sign_result: Some(&n2_result),
+        },
+    )
+    .unwrap();
 
-    db.execute("UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
-        rusqlite::params![order2.id]).unwrap();
-    db.execute("INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'card', ?2)",
-        rusqlite::params![order2.id, 1790]).unwrap();
+    db.execute(
+        "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
+        rusqlite::params![order2.id],
+    )
+    .unwrap();
+    db.execute(
+        "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'card', ?2)",
+        rusqlite::params![order2.id, 1790],
+    )
+    .unwrap();
 
     // No more open orders
     let open_after = orders::list_open_orders(&db).unwrap();
@@ -679,9 +875,14 @@ async fn test_full_service_day_e2e() {
     // ────────────────────────────────────────────────────────────
 
     let _z_mock = mock_mutation(
-        &server, "signReportTurnoverZ", EventOperation::ReportTurnoverZ,
-        EventLabel::R, 1, None,
-    ).await;
+        &server,
+        "signReportTurnoverZ",
+        EventOperation::ReportTurnoverZ,
+        EventLabel::R,
+        1,
+        None,
+    )
+    .await;
 
     let r1_ticket = FiscalCounter::next(&db, EventLabel::R).unwrap();
     assert_eq!(r1_ticket, 1, "First R event");
@@ -711,9 +912,21 @@ async fn test_full_service_day_e2e() {
         }],
         turnover: TurnoverInput {
             transactions: vec![
-                EventTotalInput { event_label: EventLabel::N, ticket_count: 2, amount: grand_total as f64 / 100.0 },
-                EventTotalInput { event_label: EventLabel::P, ticket_count: 3, amount: 0.0 },
-                EventTotalInput { event_label: EventLabel::S, ticket_count: 1, amount: 0.0 },
+                EventTotalInput {
+                    event_label: EventLabel::N,
+                    ticket_count: 2,
+                    amount: grand_total as f64 / 100.0,
+                },
+                EventTotalInput {
+                    event_label: EventLabel::P,
+                    ticket_count: 3,
+                    amount: 0.0,
+                },
+                EventTotalInput {
+                    event_label: EventLabel::S,
+                    ticket_count: 1,
+                    amount: 0.0,
+                },
             ],
             departments: vec![DepartmentTotalInput {
                 department_id: "FOOD".to_string(),
@@ -722,13 +935,15 @@ async fn test_full_service_day_e2e() {
             }],
             vats: vec![
                 VatTotalInput {
-                    label: VatLabel::B, rate: 12.0,
+                    label: VatLabel::B,
+                    rate: 12.0,
                     taxable_amount: total_food as f64 / 100.0 / 1.12,
                     vat_amount: total_food as f64 / 100.0 - total_food as f64 / 100.0 / 1.12,
                     total_amount: total_food as f64 / 100.0,
                 },
                 VatTotalInput {
-                    label: VatLabel::A, rate: 21.0,
+                    label: VatLabel::A,
+                    rate: 21.0,
                     taxable_amount: total_drink as f64 / 100.0 / 1.21,
                     vat_amount: total_drink as f64 / 100.0 - total_drink as f64 / 100.0 / 1.21,
                     total_amount: total_drink as f64 / 100.0,
@@ -736,21 +951,33 @@ async fn test_full_service_day_e2e() {
             ],
             payments: vec![
                 PaymentTotalInput {
-                    id: "cash".to_string(), name: "Cash".to_string(), payment_type: PaymentType::Cash,
+                    id: "cash".to_string(),
+                    name: "Cash".to_string(),
+                    payment_type: PaymentType::Cash,
                     amount: vec![PaymentTotalAmountInput {
                         amount_type: PaymentLineType::Payment,
-                        normal_amount: 50.10, negative_corrections: 0.0,
-                        positive_corrections: 0.0, corrections_count: 0, total_amount: 50.10,
-                        normal_foreign: None, corrections_foreign: None,
+                        normal_amount: 50.10,
+                        negative_corrections: 0.0,
+                        positive_corrections: 0.0,
+                        corrections_count: 0,
+                        total_amount: 50.10,
+                        normal_foreign: None,
+                        corrections_foreign: None,
                     }],
                 },
                 PaymentTotalInput {
-                    id: "card".to_string(), name: "Card".to_string(), payment_type: PaymentType::CardDebit,
+                    id: "card".to_string(),
+                    name: "Card".to_string(),
+                    payment_type: PaymentType::CardDebit,
                     amount: vec![PaymentTotalAmountInput {
                         amount_type: PaymentLineType::Payment,
-                        normal_amount: 17.90, negative_corrections: 0.0,
-                        positive_corrections: 0.0, corrections_count: 0, total_amount: 17.90,
-                        normal_foreign: None, corrections_foreign: None,
+                        normal_amount: 17.90,
+                        negative_corrections: 0.0,
+                        positive_corrections: 0.0,
+                        corrections_count: 0,
+                        total_amount: 17.90,
+                        normal_foreign: None,
+                        corrections_foreign: None,
                     }],
                 },
             ],
@@ -778,16 +1005,20 @@ async fn test_full_service_day_e2e() {
     let z_result = fdm.sign_report_turnover_z(z_report, false).await.unwrap();
     assert_eq!(z_result.event_operation, EventOperation::ReportTurnoverZ);
 
-    let z_event_id = archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::R,
-        sequence_number: r1_ticket,
-        order_id: None,
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: &z_json,
-        sign_result: Some(&z_result),
-    }).unwrap();
+    let z_event_id = archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::R,
+            sequence_number: r1_ticket,
+            order_id: None,
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: &z_json,
+            sign_result: Some(&z_result),
+        },
+    )
+    .unwrap();
 
     reports::save_z_report(&db, &today, report_no, &z_json, Some(z_event_id)).unwrap();
 
@@ -800,8 +1031,14 @@ async fn test_full_service_day_e2e() {
     // ────────────────────────────────────────────────────────────
 
     let _wo_mock = mock_mutation(
-        &server, "signWorkOut", EventOperation::WorkOut, EventLabel::S, 2, None,
-    ).await;
+        &server,
+        "signWorkOut",
+        EventOperation::WorkOut,
+        EventLabel::S,
+        2,
+        None,
+    )
+    .await;
 
     let s2_ticket = FiscalCounter::next(&db, EventLabel::S).unwrap();
     assert_eq!(s2_ticket, 2, "Second S event (work-out)");
@@ -810,32 +1047,64 @@ async fn test_full_service_day_e2e() {
     let wo_result = fdm.sign_work_out(work_out, false).await.unwrap();
     assert_eq!(wo_result.event_operation, EventOperation::WorkOut);
 
-    archive::archive_event(&db, ArchiveParams {
-        event_type: EventLabel::S,
-        sequence_number: s2_ticket,
-        order_id: None,
-        pos_id: &cfg.pos_id,
-        terminal_id: &cfg.terminal_id,
-        user_insz: &user.insz,
-        request_json: "{}",
-        sign_result: Some(&wo_result),
-    }).unwrap();
+    archive::archive_event(
+        &db,
+        ArchiveParams {
+            event_type: EventLabel::S,
+            sequence_number: s2_ticket,
+            order_id: None,
+            pos_id: &cfg.pos_id,
+            terminal_id: &cfg.terminal_id,
+            user_insz: &user.insz,
+            request_json: "{}",
+            sign_result: Some(&wo_result),
+        },
+    )
+    .unwrap();
 
     // ════════════════════════════════════════════════════════════
     // FINAL VERIFICATION — complete state audit
     // ════════════════════════════════════════════════════════════
 
     // Counter state
-    assert_eq!(FiscalCounter::current(&db, EventLabel::S).unwrap(), 2, "S: work-in + work-out");
-    assert_eq!(FiscalCounter::current(&db, EventLabel::P).unwrap(), 3, "P: 2 orders + 1 pre-bill");
-    assert_eq!(FiscalCounter::current(&db, EventLabel::N).unwrap(), 2, "N: 2 sales");
-    assert_eq!(FiscalCounter::current(&db, EventLabel::R).unwrap(), 1, "R: 1 Z-report");
-    assert_eq!(FiscalCounter::current(&db, EventLabel::T).unwrap(), 0, "T: never used");
-    assert_eq!(FiscalCounter::current(&db, EventLabel::C).unwrap(), 0, "C: no copies");
+    assert_eq!(
+        FiscalCounter::current(&db, EventLabel::S).unwrap(),
+        2,
+        "S: work-in + work-out"
+    );
+    assert_eq!(
+        FiscalCounter::current(&db, EventLabel::P).unwrap(),
+        3,
+        "P: 2 orders + 1 pre-bill"
+    );
+    assert_eq!(
+        FiscalCounter::current(&db, EventLabel::N).unwrap(),
+        2,
+        "N: 2 sales"
+    );
+    assert_eq!(
+        FiscalCounter::current(&db, EventLabel::R).unwrap(),
+        1,
+        "R: 1 Z-report"
+    );
+    assert_eq!(
+        FiscalCounter::current(&db, EventLabel::T).unwrap(),
+        0,
+        "T: never used"
+    );
+    assert_eq!(
+        FiscalCounter::current(&db, EventLabel::C).unwrap(),
+        0,
+        "C: no copies"
+    );
 
     // Fiscal events in DB
     let all_events = fiscal::list_recent_events(&db, 100).unwrap();
-    assert_eq!(all_events.len(), 8, "Total fiscal events: S+P+P+P+N+N+R+S = 8");
+    assert_eq!(
+        all_events.len(),
+        8,
+        "Total fiscal events: S+P+P+P+N+N+R+S = 8"
+    );
 
     // Count by type
     let n_events: Vec<_> = all_events.iter().filter(|e| e.event_type == "N").collect();
@@ -850,31 +1119,49 @@ async fn test_full_service_day_e2e() {
     // All N events have FDM control data
     for n in &n_events {
         assert!(n.fdm_id.is_some(), "N event must have fdmId");
-        assert!(n.short_signature.is_some(), "N event must have shortSignature");
-        assert!(n.qr_data.is_some(), "N event must have QR data (verificationUrl)");
+        assert!(
+            n.short_signature.is_some(),
+            "N event must have shortSignature"
+        );
+        assert!(
+            n.qr_data.is_some(),
+            "N event must have QR data (verificationUrl)"
+        );
     }
 
     // Orders table
-    let all_orders: i64 = db.query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0)).unwrap();
+    let all_orders: i64 = db
+        .query_row("SELECT COUNT(*) FROM orders", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(all_orders, 2, "2 orders created");
-    let closed_orders: i64 = db.query_row(
-        "SELECT COUNT(*) FROM orders WHERE status = 'closed'", [], |r| r.get(0),
-    ).unwrap();
+    let closed_orders: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM orders WHERE status = 'closed'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(closed_orders, 2, "Both orders closed");
 
     // Payments table
-    let payment_count: i64 = db.query_row("SELECT COUNT(*) FROM payments", [], |r| r.get(0)).unwrap();
+    let payment_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM payments", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(payment_count, 2, "2 payments recorded");
-    let total_paid: i64 = db.query_row(
-        "SELECT SUM(amount_cents) FROM payments", [], |r| r.get(0),
-    ).unwrap();
+    let total_paid: i64 = db
+        .query_row("SELECT SUM(amount_cents) FROM payments", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(total_paid, 5010 + 1790, "Total payments = 68.00 EUR");
 
     // Z-reports table
-    let z_count: i64 = db.query_row("SELECT COUNT(*) FROM z_reports", [], |r| r.get(0)).unwrap();
+    let z_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM z_reports", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(z_count, 1, "1 Z-report stored");
 
     // Users table
-    let user_count: i64 = db.query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0)).unwrap();
+    let user_count: i64 = db
+        .query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(user_count, 1, "1 user in system");
 }

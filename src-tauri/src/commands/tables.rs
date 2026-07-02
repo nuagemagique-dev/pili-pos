@@ -1,8 +1,8 @@
 use serde::Serialize;
 use tauri::State;
 
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::archive::{self, ArchiveParams};
+use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
@@ -90,9 +90,14 @@ pub async fn do_sign_table_order(
     let (order, lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
-        let lines = pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
+        let lines =
+            pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         (order, lines, config, bp)
     };
 
@@ -105,7 +110,14 @@ pub async fn do_sign_table_order(
         FiscalCounter::next(&db, EventLabel::P).map_err(|e| e.to_string())?
     };
 
-    let order_input = build_order_input(&config, &order, &lines, ticket_number, &bp_id, &cost_center_ref);
+    let order_input = build_order_input(
+        &config,
+        &order,
+        &lines,
+        ticket_number,
+        &bp_id,
+        &cost_center_ref,
+    );
     let request_json = serde_json::to_string(&order_input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
@@ -113,16 +125,20 @@ pub async fn do_sign_table_order(
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::P,
-            sequence_number: ticket_number,
-            order_id: Some(order_id),
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &order.user_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::P,
+                sequence_number: ticket_number,
+                order_id: Some(order_id),
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &order.user_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -130,23 +146,22 @@ pub async fn do_sign_table_order(
 
 /// Send a signPreBill (provisional bill P event).
 #[tauri::command]
-pub async fn sign_pre_bill(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<(), String> {
+pub async fn sign_pre_bill(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
     do_sign_pre_bill(state.inner(), order_id).await
 }
 
-pub async fn do_sign_pre_bill(
-    state: &AppState,
-    order_id: i64,
-) -> Result<(), String> {
+pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), String> {
     let (order, lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
-        let lines = pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
+        let lines =
+            pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         (order, lines, config, bp)
     };
 
@@ -163,40 +178,47 @@ pub async fn do_sign_pre_bill(
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(&db, ArchiveParams {
-            event_type: EventLabel::P,
-            sequence_number: ticket_number,
-            order_id: Some(order_id),
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &order.user_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::P,
+                sequence_number: ticket_number,
+                order_id: Some(order_id),
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &order.user_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     // Print pro forma receipt
     if let (Some(addr), Some(result)) = (config.printer_address.as_ref(), sign_result.as_ref()) {
-        let ticket = pos_fiscal::ticket::FiscalTicket::from_sign_result(
-            pos_fiscal::ticket::TicketParams {
+        let ticket =
+            pos_fiscal::ticket::FiscalTicket::from_sign_result(pos_fiscal::ticket::TicketParams {
                 result,
                 restaurant_name: &config.restaurant_name,
                 restaurant_address: &config.restaurant_address,
                 restaurant_vat: &config.restaurant_vat,
                 restaurant_est_no: &config.restaurant_est_no,
-                lines: lines.iter().map(|l| pos_fiscal::ticket::TicketLine {
-                    quantity: l.quantity as f64,
-                    description: l.name.clone(),
-                    unit_price: l.unit_price_cents as f64 / 100.0,
-                    total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                    vat_code: l.vat_code.as_str().to_string(),
-                }).collect(),
+                lines: lines
+                    .iter()
+                    .map(|l| pos_fiscal::ticket::TicketLine {
+                        quantity: l.quantity as f64,
+                        description: l.name.clone(),
+                        unit_price: l.unit_price_cents as f64 / 100.0,
+                        total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                        vat_code: l.vat_code.as_str().to_string(),
+                    })
+                    .collect(),
                 payments: vec![],
                 total: order.total_cents as f64 / 100.0,
                 is_training: config.training_mode,
                 rounding: None,
-            },
-        );
+                lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+            });
         let data = pos_print::receipt::format_receipt(&ticket);
         let _ = pos_print::transport::send_to_printer(addr, &data).await;
     }

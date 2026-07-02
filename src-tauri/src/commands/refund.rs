@@ -18,7 +18,7 @@ use crate::state::AppState;
 #[serde(rename_all = "camelCase")]
 pub struct RefundItem {
     pub menu_item_id: i64,
-    pub quantity: i32,         // positive — backend negates it
+    pub quantity: i32, // positive — backend negates it
     pub unit_price_cents: i64,
     pub name: String,
     pub vat_code: String,
@@ -38,8 +38,7 @@ pub fn do_list_refundable_events(
     limit: Option<i64>,
 ) -> Result<Vec<RefundableEvent>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    fiscal::list_refundable_events(&db, limit.unwrap_or(20))
-        .map_err(|e| e.to_string())
+    fiscal::list_refundable_events(&db, limit.unwrap_or(20)).map_err(|e| e.to_string())
 }
 
 /// Process a full or partial refund for a previously signed ticket.
@@ -57,7 +56,13 @@ pub async fn refund_checkout(
     items: Vec<RefundItem>,
     employee_insz: String,
 ) -> Result<CheckoutResult, String> {
-    do_refund_checkout(state.inner(), original_fiscal_event_id, items, employee_insz).await
+    do_refund_checkout(
+        state.inner(),
+        original_fiscal_event_id,
+        items,
+        employee_insz,
+    )
+    .await
 }
 
 pub async fn do_refund_checkout(
@@ -83,10 +88,14 @@ pub async fn do_refund_checkout(
             .ok_or_else(|| "Original fiscal event not found".to_string())?;
 
         let fdm_id = event.fdm_id.ok_or("Original event has no FDM ID")?;
-        let fdm_datetime = event.fdm_datetime.ok_or("Original event has no FDM datetime")?;
+        let fdm_datetime = event
+            .fdm_datetime
+            .ok_or("Original event has no FDM datetime")?;
         let event_label_str = event.event_label.ok_or("Original event has no label")?;
         let event_counter = event.event_counter.ok_or("Original event has no counter")?;
-        let total_counter = event.total_counter.ok_or("Original event has no total counter")?;
+        let total_counter = event
+            .total_counter
+            .ok_or("Original event has no total counter")?;
 
         let label = match event_label_str.as_str() {
             "N" => EventLabel::N,
@@ -102,7 +111,11 @@ pub async fn do_refund_checkout(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state.booking_period_id.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
         (fdm_ref, config, bp)
     };
 
@@ -114,26 +127,30 @@ pub async fn do_refund_checkout(
             pos_core::order::OrderType::Takeaway,
             None,
             &employee_insz,
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         for item in &items {
-            let vat_code: pos_core::vat::VatCode = item.vat_code.parse()
-                .map_err(|e: String| e)?;
-            pos_db::queries::orders::add_order_line(&db, pos_db::queries::orders::NewOrderLine {
-                order_id: order.id,
-                menu_item_id: item.menu_item_id,
-                quantity: -(item.quantity),  // NEGATE for refund
-                unit_price_cents: item.unit_price_cents,
-                vat_code,
-                name: &item.name,
-                modifiers_json: None,
-            }).map_err(|e| e.to_string())?;
+            let vat_code: pos_core::vat::VatCode = item.vat_code.parse().map_err(|e: String| e)?;
+            pos_db::queries::orders::add_order_line(
+                &db,
+                pos_db::queries::orders::NewOrderLine {
+                    order_id: order.id,
+                    menu_item_id: item.menu_item_id,
+                    quantity: -(item.quantity), // NEGATE for refund
+                    unit_price_cents: item.unit_price_cents,
+                    vat_code,
+                    name: &item.name,
+                    modifiers_json: None,
+                },
+            )
+            .map_err(|e| e.to_string())?;
         }
 
-        let updated_order = pos_db::queries::orders::get_order(&db, order.id)
-            .map_err(|e| e.to_string())?;
-        let lines = pos_db::queries::orders::get_order_lines(&db, order.id)
-            .map_err(|e| e.to_string())?;
+        let updated_order =
+            pos_db::queries::orders::get_order(&db, order.id).map_err(|e| e.to_string())?;
+        let lines =
+            pos_db::queries::orders::get_order_lines(&db, order.id).map_err(|e| e.to_string())?;
         (updated_order, lines)
     };
 
@@ -143,7 +160,11 @@ pub async fn do_refund_checkout(
     // the refund.
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
+        let label = if config.training_mode {
+            EventLabel::T
+        } else {
+            EventLabel::N
+        };
         FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
@@ -169,7 +190,9 @@ pub async fn do_refund_checkout(
         Ok(result) => (Some(result), true),
         Err(pos_fiscal::fdm_client::FdmError::NotConnected) => {
             #[cfg(feature = "allow-offline")]
-            { (None, false) }
+            {
+                (None, false)
+            }
             #[cfg(not(feature = "allow-offline"))]
             {
                 return Ok(CheckoutResult {
@@ -191,35 +214,43 @@ pub async fn do_refund_checkout(
     };
 
     // 6. COMMIT counter + archive + close refund order atomically.
-    let ticket;
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
 
-        let label = if config.training_mode { EventLabel::T } else { EventLabel::N };
+        let label = if config.training_mode {
+            EventLabel::T
+        } else {
+            EventLabel::N
+        };
         let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
         debug_assert_eq!(committed_no, ticket_number);
-        archive::archive_event(&tx, ArchiveParams {
-            event_type: label,
-            sequence_number: ticket_number,
-            order_id: Some(refund_order.id),
-            pos_id: &config.pos_id,
-            terminal_id: &config.terminal_id,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: sign_result.as_ref(),
-        }).map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &tx,
+            ArchiveParams {
+                event_type: label,
+                sequence_number: ticket_number,
+                order_id: Some(refund_order.id),
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
 
         tx.execute(
             "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
             rusqlite::params![refund_order.id],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         tx.commit().map_err(|e| e.to_string())?;
     }
 
     // 7. Build fiscal ticket for display/print
-    ticket = sign_result.as_ref().map(|result| {
+    let ticket = sign_result.as_ref().map(|result| {
         let ticket_lines: Vec<TicketLine> = refund_lines
             .iter()
             .map(|l| TicketLine {
@@ -247,20 +278,21 @@ pub async fn do_refund_checkout(
             total: refund_order.total_cents as f64 / 100.0,
             is_training: config.training_mode,
             rounding: None,
+            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
         })
     });
 
     // 8. Auto-print REFUND receipt + open drawer
-    if let Some(ref t) = ticket {
-        if let Some(ref addr) = config.printer_address {
-            let receipt_data = pos_print::receipt::format_receipt(t);
-            if let Err(e) = pos_print::transport::send_to_printer(addr, &receipt_data).await {
-                tracing::warn!(%e, "refund receipt print failed (non-fatal)");
-            }
-            // Open drawer for cash refund
-            let drawer_data = pos_print::drawer::kick_drawer_bytes();
-            let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
+    if let Some(ref t) = ticket
+        && let Some(ref addr) = config.printer_address
+    {
+        let receipt_data = pos_print::receipt::format_receipt(t);
+        if let Err(e) = pos_print::transport::send_to_printer(addr, &receipt_data).await {
+            tracing::warn!(%e, "refund receipt print failed (non-fatal)");
         }
+        // Open drawer for cash refund
+        let drawer_data = pos_print::drawer::kick_drawer_bytes();
+        let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
     }
 
     Ok(CheckoutResult {

@@ -3,6 +3,35 @@ use serde::{Deserialize, Serialize};
 use crate::response::{FdmReference, SignResult, VatCalcItem};
 use crate::types::EventLabel;
 
+/// Language of the printed fiscal ticket.
+///
+/// §VI of the certification manual requires the official ticket
+/// mentions in a national language (FR/NL/DE). The exact FR wording
+/// comes from the POS detailed description v2.2; NL from the GKS
+/// circulars ("DIT IS GEEN GELDIG BTW-KASTICKET"); DE is the official
+/// -style translation, to be cross-checked against the DE spec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReceiptLanguage {
+    #[default]
+    Fr,
+    Nl,
+    De,
+}
+
+impl ReceiptLanguage {
+    /// Map a POS display-language code to a ticket language.
+    /// Non-official languages (zh, en, ja…) fall back to FR — the
+    /// fiscal ticket must be in a Belgian national language.
+    pub fn from_code(code: &str) -> Self {
+        match code {
+            "nl" => Self::Nl,
+            "de" => Self::De,
+            _ => Self::Fr,
+        }
+    }
+}
+
 /// All data needed to print a fiscal ticket / VAT receipt.
 /// Built from order data + FDM SignResult response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +73,10 @@ pub struct FiscalTicket {
     // ── Ticket labels ──
     pub ticket_type_label: String,
     pub is_refund: bool,
+    /// Language of the printed mentions (defaults to FR for tickets
+    /// archived before this field existed).
+    #[serde(default)]
+    pub lang: ReceiptLanguage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +107,8 @@ pub struct TicketParams<'a> {
     pub is_training: bool,
     /// Rounding amount in euros (e.g. 0.02 or -0.01). None for card.
     pub rounding: Option<f64>,
+    /// Language of the printed mentions.
+    pub lang: ReceiptLanguage,
 }
 
 impl FiscalTicket {
@@ -83,17 +118,8 @@ impl FiscalTicket {
         let lines = params.lines;
         let is_refund = lines.iter().all(|l| l.quantity < 0.0);
 
-        let ticket_type_label = match result.fdm_ref.event_label {
-            EventLabel::N if is_refund => "REFUND".to_string(),
-            EventLabel::N => "VAT RECEIPT".to_string(),
-            EventLabel::P => "PRO FORMA".to_string(),
-            EventLabel::T => "TRAINING".to_string(),
-            EventLabel::C => "COPY".to_string(),
-            EventLabel::I => "INVOICE".to_string(),
-            EventLabel::F => "FINANCIAL".to_string(),
-            EventLabel::S => "SOCIAL".to_string(),
-            EventLabel::R => "REPORT".to_string(),
-        };
+        let ticket_type_label =
+            ticket_type_label(result.fdm_ref.event_label, is_refund, params.lang).to_string();
 
         Self {
             restaurant_name: params.restaurant_name.to_string(),
@@ -121,12 +147,67 @@ impl FiscalTicket {
             footer: result.footer.clone(),
             ticket_type_label,
             is_refund,
+            lang: params.lang,
         }
     }
 
-    /// Check whether this ticket needs "THIS IS NOT A VALID VAT RECEIPT" disclaimer.
+    /// Check whether this ticket needs the "not a valid VAT receipt"
+    /// disclaimer mandated by the POS detailed description §1.3–1.8.
     pub fn needs_invalid_disclaimer(&self) -> bool {
         !matches!(self.event_label, EventLabel::N)
+    }
+
+    /// The spec-mandated bottom mention for non-N tickets, in the
+    /// ticket's language.
+    pub fn invalid_disclaimer(&self) -> &'static str {
+        invalid_disclaimer(self.lang)
+    }
+}
+
+/// Spec-mandated bottom mention for every printed non-N event
+/// (POS detailed description v2.2, §1.3–1.8 and the ticket-content
+/// table of the certification manual §VI).
+pub fn invalid_disclaimer(lang: ReceiptLanguage) -> &'static str {
+    match lang {
+        ReceiptLanguage::Fr => "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE",
+        ReceiptLanguage::Nl => "DIT IS GEEN GELDIG BTW-KASTICKET",
+        ReceiptLanguage::De => "DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL",
+    }
+}
+
+/// Header label ("dénomination complète", cert manual §VI element I)
+/// per event type and language.
+pub fn ticket_type_label(
+    label: EventLabel,
+    is_refund: bool,
+    lang: ReceiptLanguage,
+) -> &'static str {
+    use EventLabel::*;
+    use ReceiptLanguage::*;
+    match (label, lang) {
+        (N, Fr) if is_refund => "REMBOURSEMENT DU TICKET DE CAISSE TVA",
+        (N, Nl) if is_refund => "TERUGBETALING BTW-KASTICKET",
+        (N, De) if is_refund => "RUECKERSTATTUNG MWST.-KASSENZETTEL",
+        (N, Fr) => "TICKET DE CAISSE TVA",
+        (N, Nl) => "BTW-KASTICKET",
+        (N, De) => "MWST.-KASSENZETTEL",
+        // "PRO FORMA" and "TRAINING" are the literal mentions used by
+        // the spec in all three language versions.
+        (P, _) => "PRO FORMA",
+        (T, _) => "TRAINING",
+        (C, Fr) => "COPIE",
+        (C, Nl | De) => "KOPIE",
+        (I, Fr) => "FACTURE",
+        (I, Nl) => "FACTUUR",
+        (I, De) => "RECHNUNG",
+        (F, Fr) => "FINANCIER",
+        (F, Nl) => "FINANCIEEL",
+        (F, De) => "FINANZBEWEGUNG",
+        (S, Fr) => "SOCIAL",
+        (S, Nl) => "SOCIAAL",
+        (S, De) => "SOZIAL",
+        (R, Fr | Nl) => "RAPPORT",
+        (R, De) => "BERICHT",
     }
 }
 
@@ -172,7 +253,9 @@ mod tests {
             fdm_sw_version: "1.0".to_string(),
             digital_signature: "AAAA".to_string(),
             short_signature: Some("abc123".to_string()),
-            verification_url: Some("https://www.gs2.be/12345678901234567890123456789012345678".to_string()),
+            verification_url: Some(
+                "https://www.gs2.be/12345678901234567890123456789012345678".to_string(),
+            ),
             vat_calc: None,
             buffer_capacity_used: 0.01,
             warnings: None,
@@ -193,15 +276,22 @@ mod tests {
             restaurant_vat: "BE0499999960",
             restaurant_est_no: "",
             lines: vec![TicketLine {
-                quantity: 1.0, description: "Test".into(),
-                unit_price: 10.0, total: 10.0, vat_code: "B".into(),
+                quantity: 1.0,
+                description: "Test".into(),
+                unit_price: 10.0,
+                total: 10.0,
+                vat_code: "B".into(),
             }],
-            payments: vec![TicketPayment { method: "Cash".into(), amount: 10.0 }],
+            payments: vec![TicketPayment {
+                method: "Cash".into(),
+                amount: 10.0,
+            }],
             total: 10.0,
             is_training: false,
             rounding: None,
+            lang: ReceiptLanguage::default(),
         });
-        assert_eq!(ticket.ticket_type_label, "VAT RECEIPT");
+        assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
         assert!(!ticket.is_refund);
         assert!(!ticket.needs_invalid_disclaimer());
     }
@@ -211,17 +301,28 @@ mod tests {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
-            lines: vec![
-                TicketLine { quantity: -2.0, description: "Refund item".into(), unit_price: 5.0, total: -10.0, vat_code: "B".into() },
-            ],
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
+            lines: vec![TicketLine {
+                quantity: -2.0,
+                description: "Refund item".into(),
+                unit_price: 5.0,
+                total: -10.0,
+                vat_code: "B".into(),
+            }],
             payments: vec![],
             total: -10.0,
             is_training: false,
             rounding: None,
+            lang: ReceiptLanguage::default(),
         });
         assert!(ticket.is_refund);
-        assert_eq!(ticket.ticket_type_label, "REFUND");
+        assert_eq!(
+            ticket.ticket_type_label,
+            "REMBOURSEMENT DU TICKET DE CAISSE TVA"
+        );
     }
 
     #[test]
@@ -229,9 +330,16 @@ mod tests {
         let result = mock_sign_result(EventLabel::T);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
-            lines: vec![], payments: vec![], total: 0.0,
-            is_training: true, rounding: None,
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
+            lines: vec![],
+            payments: vec![],
+            total: 0.0,
+            is_training: true,
+            rounding: None,
+            lang: ReceiptLanguage::default(),
         });
         assert_eq!(ticket.ticket_type_label, "TRAINING");
         assert!(ticket.needs_invalid_disclaimer());
@@ -242,9 +350,16 @@ mod tests {
         let result = mock_sign_result(EventLabel::P);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
-            lines: vec![], payments: vec![], total: 0.0,
-            is_training: false, rounding: None,
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
+            lines: vec![],
+            payments: vec![],
+            total: 0.0,
+            is_training: false,
+            rounding: None,
+            lang: ReceiptLanguage::default(),
         });
         assert_eq!(ticket.ticket_type_label, "PRO FORMA");
         assert!(ticket.needs_invalid_disclaimer());
@@ -255,11 +370,18 @@ mod tests {
         let result = mock_sign_result(EventLabel::C);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
-            lines: vec![], payments: vec![], total: 0.0,
-            is_training: false, rounding: None,
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
+            lines: vec![],
+            payments: vec![],
+            total: 0.0,
+            is_training: false,
+            rounding: None,
+            lang: ReceiptLanguage::default(),
         });
-        assert_eq!(ticket.ticket_type_label, "COPY");
+        assert_eq!(ticket.ticket_type_label, "COPIE");
         assert!(ticket.needs_invalid_disclaimer());
     }
 
@@ -268,9 +390,16 @@ mod tests {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
-            lines: vec![], payments: vec![], total: 0.0,
-            is_training: false, rounding: None,
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
+            lines: vec![],
+            payments: vec![],
+            total: 0.0,
+            is_training: false,
+            rounding: None,
+            lang: ReceiptLanguage::default(),
         });
         assert!(ticket.fdm_ref.is_some());
         assert_eq!(ticket.fdm_ref.unwrap().fdm_id, "FDM001");
@@ -286,15 +415,25 @@ mod tests {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
             lines: vec![TicketLine {
-                quantity: 1.0, description: "Item".into(),
-                unit_price: 12.53, total: 12.53, vat_code: "B".into(),
+                quantity: 1.0,
+                description: "Item".into(),
+                unit_price: 12.53,
+                total: 12.53,
+                vat_code: "B".into(),
             }],
-            payments: vec![TicketPayment { method: "Cash".into(), amount: 12.55 }],
+            payments: vec![TicketPayment {
+                method: "Cash".into(),
+                amount: 12.55,
+            }],
             total: 12.53,
             is_training: false,
             rounding: Some(0.02),
+            lang: ReceiptLanguage::default(),
         });
         assert_eq!(ticket.subtotal, 12.53);
         assert!((ticket.total - 12.55).abs() < 0.001);
@@ -306,11 +445,16 @@ mod tests {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Test", restaurant_address: "", restaurant_vat: "", restaurant_est_no: "",
-            lines: vec![], payments: vec![],
+            restaurant_name: "Test",
+            restaurant_address: "",
+            restaurant_vat: "",
+            restaurant_est_no: "",
+            lines: vec![],
+            payments: vec![],
             total: 12.53,
             is_training: false,
             rounding: None,
+            lang: ReceiptLanguage::default(),
         });
         assert_eq!(ticket.subtotal, 12.53);
         assert_eq!(ticket.total, 12.53);
@@ -337,10 +481,10 @@ mod tests {
 
     #[test]
     fn round_up_3_and_4() {
-        assert_eq!(round_to_5_cents(1003), 2);  // 10.03 → 10.05
-        assert_eq!(round_to_5_cents(1004), 1);  // 10.04 → 10.05
-        assert_eq!(round_to_5_cents(1253), 2);  // 12.53 → 12.55
-        assert_eq!(round_to_5_cents(1254), 1);  // 12.54 → 12.55
+        assert_eq!(round_to_5_cents(1003), 2); // 10.03 → 10.05
+        assert_eq!(round_to_5_cents(1004), 1); // 10.04 → 10.05
+        assert_eq!(round_to_5_cents(1253), 2); // 12.53 → 12.55
+        assert_eq!(round_to_5_cents(1254), 1); // 12.54 → 12.55
     }
 
     #[test]
@@ -351,8 +495,8 @@ mod tests {
 
     #[test]
     fn round_up_8_and_9() {
-        assert_eq!(round_to_5_cents(1008), 2);  // 10.08 → 10.10
-        assert_eq!(round_to_5_cents(1009), 1);  // 10.09 → 10.10
+        assert_eq!(round_to_5_cents(1008), 2); // 10.08 → 10.10
+        assert_eq!(round_to_5_cents(1009), 1); // 10.09 → 10.10
     }
 
     #[test]
