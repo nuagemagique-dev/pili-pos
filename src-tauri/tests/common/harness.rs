@@ -79,10 +79,14 @@ impl TestApp {
             pos_id: "CFOD0061234567".to_string(),
             terminal_id: "POS1".to_string(),
             device_id: "DEV001".to_string(),
-            restaurant_name: "Tokyo Sushi Bar".to_string(),
-            restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
-            restaurant_vat: "BE0499999960".to_string(),
-            restaurant_est_no: "TEST-EST-001".to_string(),
+            // Identity from the official SPF test setup
+            // (UC_TestSetup_20240806: "THE FPS FINANCES EXPERIENCE",
+            // VAT BE0000000097, establishment 2000000042) so exported
+            // §IV evidence carries conforming identification fields.
+            restaurant_name: "The FPS Finances Experience".to_string(),
+            restaurant_address: "Boulevard Albert II 33, 1030 Brussels".to_string(),
+            restaurant_vat: "BE0000000097".to_string(),
+            restaurant_est_no: "2000000042".to_string(),
             fdm_url: format!("{}/graphql", fdm.uri()),
             printer_address: None,
             training_mode: false,
@@ -170,6 +174,44 @@ impl TestApp {
             |row| row.get(0),
         )
         .ok()
+    }
+
+    /// §IV evidence export. When `UC_EVIDENCE_DIR` is set, dump every
+    /// archived fiscal event of this test as pretty-printed JSON:
+    ///
+    /// - `<UC>_event<N>_<label>_request.json` — the event payload our
+    ///   command layer actually built and sent to the FDM
+    ///   (`fiscal_events.event_data_json`).
+    /// - `<UC>_event<N>_<label>_response.json` — the (fixture) FDM
+    ///   response that was archived alongside it.
+    ///
+    /// No-op when the env var is unset, so normal `cargo test` runs
+    /// are unaffected. Run `scripts/capture_uc_evidence.sh` to
+    /// produce the full evidence set.
+    pub fn dump_evidence(&self, uc_id: &str) {
+        let Ok(dir) = std::env::var("UC_EVIDENCE_DIR") else {
+            return;
+        };
+        let dir = std::path::Path::new(&dir);
+        std::fs::create_dir_all(dir).expect("create evidence dir");
+
+        let pretty = |raw: &str| -> String {
+            serde_json::from_str::<serde_json::Value>(raw)
+                .and_then(|v| serde_json::to_string_pretty(&v))
+                .unwrap_or_else(|_| raw.to_string())
+        };
+
+        for (i, ev) in self.fiscal_events().iter().enumerate() {
+            let label = ev.event_type.as_str();
+            if let Some(ref req) = ev.event_data_json {
+                let p = dir.join(format!("{uc_id}_event{n}_{label}_request.json", n = i + 1));
+                std::fs::write(p, pretty(req)).expect("write request evidence");
+            }
+            if let Some(ref resp) = ev.fdm_response_json {
+                let p = dir.join(format!("{uc_id}_event{n}_{label}_response.json", n = i + 1));
+                std::fs::write(p, pretty(resp)).expect("write response evidence");
+            }
+        }
     }
 }
 

@@ -31,8 +31,8 @@ mod common;
 
 use common::*;
 
-use pos_fiscal::types::EventLabel;
 use moyun_pos::commands::report::{do_generate_x_report, do_generate_z_report};
+use pos_fiscal::types::EventLabel;
 
 const TEST_INSZ: &str = "12345678901";
 
@@ -51,8 +51,12 @@ async fn m180_generate_x_report_archives_r_event_without_resetting_counter() {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "R");
     // X-reports do NOT carry a report number — only Z does.
-    assert!(result.report_no.is_none(), "X-report must not assign a Z report number");
+    assert!(
+        result.report_no.is_none(),
+        "X-report must not assign a Z report number"
+    );
     assert_eq!(app.counter_for(EventLabel::R), 1);
+    app.dump_evidence("M180");
 }
 
 #[tokio::test]
@@ -92,6 +96,9 @@ async fn m181_generate_z_report_archives_r_event_with_z_report_record() {
         fiscal_event_id, events[0].id,
         "z_reports must link back to the R fiscal event"
     );
+    // Release the DB guard — dump_evidence re-locks state.db.
+    drop(conn);
+    app.dump_evidence("M181");
 }
 
 #[tokio::test]

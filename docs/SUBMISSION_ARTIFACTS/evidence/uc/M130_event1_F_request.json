@@ -1,0 +1,25 @@
+{
+  "bookingDate": "2026-07-02",
+  "bookingPeriodId": "e92dbec5-1a89-455a-9460-910042e992d5",
+  "deviceId": "DEV001",
+  "employeeId": "12345678901",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 50.0,
+      "amountType": "MONEY_IN_OUT",
+      "id": "MOV1",
+      "inputMethod": "MANUAL",
+      "name": "Cash float opening",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-07-02T21:50:01.225534+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}

@@ -1,0 +1,41 @@
+{
+  "bufferCapacityUsed": 0.25,
+  "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+  "eventOperation": "SALE",
+  "fdmRef": {
+    "eventCounter": 16,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-29T11:15:00Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 60
+  },
+  "fdmSwVersion": "1.2.0",
+  "footer": [],
+  "informations": null,
+  "posDateTime": "2024-07-29T13:15:00+02:00",
+  "posFiscalTicketNo": 1001,
+  "posId": "CPOS0031234567",
+  "shortSignature": "ca39a3ee5e6b4b0d3255bfef95601890afd80709",
+  "terminalId": "TER-2-DIN",
+  "vatCalc": [
+    {
+      "label": "A",
+      "outOfScope": false,
+      "rate": 21.0,
+      "taxableAmount": -19.83,
+      "totalAmount": -24.0,
+      "vatAmount": -4.17
+    },
+    {
+      "label": "B",
+      "outOfScope": false,
+      "rate": 12.0,
+      "taxableAmount": -25.0,
+      "totalAmount": -28.0,
+      "vatAmount": -3.0
+    }
+  ],
+  "verificationUrl": "https://gs2.be/",
+  "warnings": []
+}

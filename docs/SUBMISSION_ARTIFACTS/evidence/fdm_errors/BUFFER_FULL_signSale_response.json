@@ -1,0 +1,11 @@
+{
+    "data": null,
+    "errors": [
+        {
+            "extensions": {
+                "code": "BUFFER_FULL"
+            },
+            "message": "Le buffer du FDM est plein"
+        }
+    ]
+}

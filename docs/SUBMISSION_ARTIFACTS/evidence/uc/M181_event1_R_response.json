@@ -1,0 +1,24 @@
+{
+  "bufferCapacityUsed": 0.25,
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+  "eventOperation": "REPORT_TURNOVER_Z",
+  "fdmRef": {
+    "eventCounter": 4,
+    "eventLabel": "R",
+    "fdmDateTime": "2024-07-30T11:05:41Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 58
+  },
+  "fdmSwVersion": "1.2.0",
+  "footer": [],
+  "informations": [],
+  "posDateTime": "2024-07-30T13:05:35+02:00",
+  "posFiscalTicketNo": 209,
+  "posId": "CPOS0031234567",
+  "shortSignature": null,
+  "terminalId": "POS-1-BAR",
+  "vatCalc": null,
+  "verificationUrl": null,
+  "warnings": []
+}

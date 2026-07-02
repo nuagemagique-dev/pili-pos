@@ -1,0 +1,11 @@
+{
+    "data": null,
+    "errors": [
+        {
+            "extensions": {
+                "code": "FDM_NOT_OPERATIONAL"
+            },
+            "message": "Le FDM ne fonctionne pas"
+        }
+    ]
+}

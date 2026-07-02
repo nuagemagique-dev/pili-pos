@@ -1,0 +1,25 @@
+{
+    "data": {
+        "Status": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-07-02T19:25:08.781227+00:00",
+                "fdmId": "BMC0MOCK0001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [
+                {
+                    "extensions": {
+                        "category": "ERROR",
+                        "code": "FDM_LOCKED",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le FDM est verrouill\u00e9"
+                }
+            ],
+            "informations": null,
+            "initialized": true,
+            "warnings": null
+        }
+    }
+}

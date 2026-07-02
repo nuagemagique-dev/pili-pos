@@ -1,0 +1,3 @@
+{
+    "query": "query { Status { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations warnings { category code message { nl fr de en } showPos } errors { category code message { nl fr de en } showPos } } }"
+}

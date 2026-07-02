@@ -1,0 +1,11 @@
+{
+    "data": null,
+    "errors": [
+        {
+            "extensions": {
+                "code": "FDM_LOCKED"
+            },
+            "message": "Le FDM est verrouill\u00e9"
+        }
+    ]
+}

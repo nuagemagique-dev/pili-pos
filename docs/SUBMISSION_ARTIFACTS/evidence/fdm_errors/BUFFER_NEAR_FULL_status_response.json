@@ -1,0 +1,25 @@
+{
+    "data": {
+        "Status": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-07-02T19:25:09.550323+00:00",
+                "fdmId": "BMC0MOCK0001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": null,
+            "informations": null,
+            "initialized": true,
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "WARNING",
+                        "code": "BUFFER_NEAR_FULL",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "L'utilisation du buffer du FDM d\u00e9passe 70%"
+                }
+            ]
+        }
+    }
+}

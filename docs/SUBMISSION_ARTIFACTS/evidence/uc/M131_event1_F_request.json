@@ -1,0 +1,19 @@
+{
+  "bookingDate": "2026-07-02",
+  "bookingPeriodId": "d7cf653a-f2c7-4bac-afa1-86d2f28b6f83",
+  "deviceId": "DEV001",
+  "drawer": {
+    "id": "DRAWER1",
+    "name": "Tiroir principal"
+  },
+  "employeeId": "12345678901",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-07-02T21:50:01.223811+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}

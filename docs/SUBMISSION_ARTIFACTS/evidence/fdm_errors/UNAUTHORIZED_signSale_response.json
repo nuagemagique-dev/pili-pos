@@ -1,0 +1,11 @@
+{
+    "data": null,
+    "errors": [
+        {
+            "extensions": {
+                "code": "UNAUTHORIZED"
+            },
+            "message": "Le FDM a re\u00e7u des requ\u00eates non-autoris\u00e9es"
+        }
+    ]
+}

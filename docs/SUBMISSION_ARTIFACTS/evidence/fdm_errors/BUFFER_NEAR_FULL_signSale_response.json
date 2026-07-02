@@ -1,0 +1,47 @@
+{
+    "data": {
+        "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3ODMwMjAzMDk=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+                "eventCounter": 1,
+                "eventLabel": "N",
+                "fdmDateTime": "2026-07-02T19:25:09.432313+00:00",
+                "fdmId": "BMC0MOCK0001",
+                "totalCounter": 1
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [
+                "www.systemedecaisseenregistreuse.be"
+            ],
+            "informations": null,
+            "posDateTime": "2024-07-29T13:00:00+02:00",
+            "posFiscalTicketNo": 1000,
+            "posId": "CPOS0031234567",
+            "shortSignature": "bff0242f4c3b44aa89fe5bcb92baccd67f297fb7",
+            "terminalId": "TER-2-DIN",
+            "vatCalc": [
+                {
+                    "label": "A",
+                    "outOfScope": false,
+                    "rate": 21.0,
+                    "taxableAmount": 19.83,
+                    "totalAmount": 24.0,
+                    "vatAmount": 4.17
+                },
+                {
+                    "label": "B",
+                    "outOfScope": false,
+                    "rate": 12.0,
+                    "taxableAmount": 25.0,
+                    "totalAmount": 28.0,
+                    "vatAmount": 3.0
+                }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
+            "warnings": null
+        }
+    }
+}

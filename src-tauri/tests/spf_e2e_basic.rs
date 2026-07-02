@@ -33,16 +33,16 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use moyun_pos::commands::copy::do_copy_ticket;
+use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
+use moyun_pos::commands::social::{do_work_in, do_work_out};
+use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_fiscal::types::EventLabel;
-use moyun_pos::commands::checkout::{do_checkout, CheckoutPaymentMethod};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::financial::{do_money_in_out, do_open_drawer_fiscal, MoneyDirection};
-use moyun_pos::commands::refund::{do_refund_checkout, RefundItem};
-use moyun_pos::commands::social::{do_work_in, do_work_out};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 
 // ── Seeding helpers ────────────────────────────────────────────────
 
@@ -71,13 +71,8 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
         [],
     )
     .unwrap();
-    let order = pos_db::queries::orders::create_order(
-        &conn,
-        OrderType::DineIn,
-        Some(1),
-        TEST_INSZ,
-    )
-    .expect("create order");
+    let order = pos_db::queries::orders::create_order(&conn, OrderType::DineIn, Some(1), TEST_INSZ)
+        .expect("create order");
     pos_db::queries::orders::add_order_line(
         &conn,
         NewOrderLine {
@@ -119,6 +114,7 @@ async fn m110_sign_sale_archives_n_event_and_closes_order() {
     assert!(events[0].fdm_response_json.is_some());
     assert_eq!(app.order_status(order_id).as_deref(), Some("closed"));
     assert_eq!(app.counter_for(EventLabel::N), 1);
+    app.dump_evidence("M110");
 }
 
 // ── M111 — Full refund of a prior sale ─────────────────────────────
@@ -167,6 +163,7 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
         .get("fdmRef")
         .unwrap_or_else(|| panic!("refund must carry fdmRef; got: {refund_request}"));
     assert!(fdm_ref.get("fdmId").is_some(), "fdmRef must include fdmId");
+    app.dump_evidence("M111");
 }
 
 // ── M112A — Partial refund chain (multi-step) ──────────────────────
@@ -181,7 +178,10 @@ async fn m112a_partial_refund_chains_to_original_sale() {
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
     mock_from_fixture(
         &app,
-        &load_uc(&basic_set_root(), "M112A_signSale_RefundPartial/M112A_2_PartialRefund"),
+        &load_uc(
+            &basic_set_root(),
+            "M112A_signSale_RefundPartial/M112A_2_PartialRefund",
+        ),
     )
     .await;
 
@@ -206,6 +206,7 @@ async fn m112a_partial_refund_chains_to_original_sale() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].event_type, "N");
     assert_eq!(events[1].event_type, "N");
+    app.dump_evidence("M112A");
 }
 
 // ── M121 — Order (event P, pro forma) ──────────────────────────────
@@ -232,6 +233,7 @@ async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
         0,
         "P must not advance the N counter"
     );
+    app.dump_evidence("M121");
 }
 
 // ── M123 — Pre-bill (event P) ──────────────────────────────────────
@@ -248,6 +250,7 @@ async fn m123_sign_pre_bill_archives_p_event_and_keeps_order_open() {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "P");
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
+    app.dump_evidence("M123");
 }
 
 // ── M130 — Money in/out (event F) ──────────────────────────────────
@@ -271,6 +274,7 @@ async fn m130_money_in_out_archives_f_event() {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "F");
     assert_eq!(app.counter_for(EventLabel::F), 1);
+    app.dump_evidence("M130");
 }
 
 // ── M131 — Drawer open (event F) ───────────────────────────────────
@@ -287,6 +291,7 @@ async fn m131_drawer_open_archives_f_event() {
     let events = app.fiscal_events();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "F");
+    app.dump_evidence("M131");
 }
 
 // ── M140 — Work-in (event S) ───────────────────────────────────────
@@ -303,6 +308,7 @@ async fn m140_work_in_archives_s_event() {
     assert_eq!(events[0].event_type, "S");
     assert_eq!(events[0].user_insz, TEST_INSZ);
     assert_eq!(app.counter_for(EventLabel::S), 1);
+    app.dump_evidence("M140");
 }
 
 // ── M141 — Work-out (event S) ──────────────────────────────────────
@@ -319,6 +325,7 @@ async fn m141_work_out_archives_s_event() {
     let events = app.fiscal_events();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "S");
+    app.dump_evidence("M141");
 }
 
 // ── M160 — Copy of a previous sale (event C) ───────────────────────
@@ -353,6 +360,7 @@ async fn m160_copy_of_sale_archives_c_event_with_ref_to_original() {
         .get("fdmRef")
         .unwrap_or_else(|| panic!("copy request must carry fdmRef; got: {copy_request}"));
     assert!(fdm_ref.get("fdmId").is_some());
+    app.dump_evidence("M160");
 }
 
 // ── M170 — Work-in in training mode (event T-S equivalent) ─────────
@@ -375,6 +383,7 @@ async fn m170_work_in_training_does_not_advance_normal_s_counter() {
     // FDM is the one that brands the event T. The archive will carry
     // the FDM's T label, which is what cert reviewers verify.
     assert_eq!(events[0].event_type, "S");
+    app.dump_evidence("M170");
 }
 
 // ── M171 — Sale in training mode → POS allocates T counter ─────────
@@ -404,4 +413,5 @@ async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
         0,
         "training sale must NOT touch the production N counter"
     );
+    app.dump_evidence("M171");
 }

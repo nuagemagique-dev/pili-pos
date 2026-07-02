@@ -1,0 +1,25 @@
+{
+    "data": {
+        "Status": {
+            "device": {
+                "bufferCapacityUsed": 1.2,
+                "fdmDateTime": "2026-07-02T19:25:09.357921+00:00",
+                "fdmId": "BMC0MOCK0001",
+                "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": null,
+            "informations": null,
+            "initialized": true,
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "WARNING",
+                        "code": "CLIENT_CERT_EXPIRED",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le certificat du client a expir\u00e9"
+                }
+            ]
+        }
+    }
+}

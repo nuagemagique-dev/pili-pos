@@ -1,0 +1,44 @@
+{
+  "bookingDate": "2026-07-02",
+  "bookingPeriodId": "853740ba-fd4f-4b82-957e-f2f7a7b0fc71",
+  "costCenter": {
+    "id": "T01",
+    "reference": "CC1",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "12345678901",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-07-02T21:50:01.226980+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 10.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "FOOD",
+          "departmentName": "Restaurant",
+          "productId": "1",
+          "productName": "Test item",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 10.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 10.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 10.0
+  },
+  "vatNo": "BE0000000097"
+}
