@@ -8,13 +8,31 @@ avec des signatures non-mockées.
 
 Le harness de répétition est dans
 `crates/pos-fiscal/tests/e2e_staging.rs` (opt-in via `--ignored`).
+La séquence complète est **automatisée** : le test
+`staging_basic_set_smoke` rejoue S work-in → P order → P pre-bill →
+N vente → N remboursement → C copie → F tiroir → F entrée d'argent →
+R rapport X → S work-out, et vérifie pour chaque `SignResult` :
+label attendu, `totalCounter` strictement croissant, `eventCounter`
+monotone par label, `digitalSignature` présent, et
+`shortSignature == SHA-1(digitalSignature)` quand présent.
+
+Le harness a été validé à blanc contre le mock FDM local
+(`pos-fdm-mock`) — les 10 événements passent. Seules les credentials
+du FDM virtuel manquent pour la répétition réelle.
 
 ## Checklist pré-répétition
 
-- [ ] Compte FDM virtuel zwartedoos.be provisionné.
+- [ ] Compte FDM virtuel provisionné (Checkbox / module2 /
+      zwartedoos — emails envoyés, en attente).
 - [ ] Credentials placés dans `.env.staging` (gitignored).
 - [ ] `MOYUN_STAGING_FDM_URL` exporté dans le shell qui lance les tests
       de répétition.
+- [ ] Si le FDM virtuel est provisionné pour une identité précise :
+      exporter `MOYUN_STAGING_POS_ID`, `MOYUN_STAGING_VAT`,
+      `MOYUN_STAGING_EST_NO` en conséquence (défauts = identité de
+      test SPF `BE0000000097` / `2000000042`).
+- [ ] Sur re-run : bumper `MOYUN_STAGING_TICKET_START` pour garder la
+      numérotation strictement croissante côté FDM.
 - [ ] Build cert en place :
       `cargo build --release --no-default-features --features cert`.
 
@@ -23,9 +41,18 @@ Le harness de répétition est dans
 ```bash
 MOYUN_STAGING_FDM_URL=https://... \
 MOYUN_STAGING_DUMP=1 \
-    cargo test --package pos-fiscal --test e2e_staging -- --ignored --nocapture \
-    | tee -a docs/SUBMISSION_ARTIFACTS/JOURNAL_TESTS_PRE_SOUMISSION_FR.md
+    cargo test -p pos-fiscal --test e2e_staging -- --ignored --nocapture
 ```
+
+Avec `MOYUN_STAGING_DUMP=1`, chaque paire requête/réponse est écrite
+dans `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md`
+(horodaté, URL FDM incluse) — à committer après la répétition réelle
+et à référencer depuis ce journal.
+
+Restent **manuels** (hors périmètre du smoke automatisé) : le rapport Z
+(réinitialise les compteurs FDM — section 7), le test de
+déconnexion/reconnexion (section 9, nécessite l'app complète), et
+l'inspection visuelle du ticket imprimé (scan QR).
 
 ## Journal de répétition
 

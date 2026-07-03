@@ -169,7 +169,7 @@ la surface d'attaque réseau côté client.
 | Risque | Probabilité | Impact | Mitigation |
 |---|---|---|---|
 | Modification spec SCE 2.0 (Addendum) | Élevée | Variable | Veille mensuelle sur `systemedecaisseenregistreuse.be`. Délai 90 j minimum entre publication et mise en conformité. |
-| Refus de certification | Moyenne | Élevé | Répétition pré-soumission contre FDM virtuel (cf. `PRE_SUBMISSION_TEST_LOG.md`). Préparation soignée des 16 documents du dossier. |
+| Refus de certification | Moyenne | Élevé | Répétition pré-soumission contre FDM virtuel (cf. `JOURNAL_TESTS_PRE_SOUMISSION_FR.md`). Préparation soignée des 16 documents du dossier. |
 | Cooldown 3 mois en cas de refus | - | Élevé | Idem - pré-soumission rehearsal sérieuse. |
 
 ## 6. Conformité GDPR (RGPD)
