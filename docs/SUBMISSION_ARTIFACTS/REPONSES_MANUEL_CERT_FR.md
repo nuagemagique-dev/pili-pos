@@ -190,7 +190,7 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Ordinateur portable | ☐ | ☐ | |
 | Tablette | ☐ | ☐ | |
 | Kiosk | ☑ | ☑ | ☑ Le POS est seulement un kiosk |
-| **FDM** | ☑ | ☑ | BMC FDM Light (zwartedoos.be / boxapos.com). Pour l'Intake : FDM virtuel zwartedoos.be (acceptable selon manuel §1202). |
+| **FDM** | ☑ | ☑ | Checkbox CBX01 (TAIGER BV ; distribution Eutronix, réf. TAFIP0002.00). Pour l'Intake : FDM physique de développement Checkbox. |
 | **Multiprise** | ☑ | ☐ | Fourni à l'Intake pour faciliter le branchement physique |
 | **Imprimante thermique** | ☑ | ☑ | Epson TM-m30III (80 mm, USB + LAN + RJ11 pour tiroir-caisse) |
 | **Connectivité** | | | |
@@ -290,7 +290,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 |---|---|
 | Load-balancing | ☐ Non (un seul FDM par POS) |
 | Si OUI, middleware ? | N/A |
-| POS compatible avec d'autres marques FDM | ☐ Non (testé contre BMC Light + simulateur zwartedoos.be uniquement) |
+| POS compatible avec d'autres marques FDM | ☑ Oui par conception (protocole GraphQL standard SPF, aucune extension propriétaire). FDM de référence testé : Checkbox CBX01 (TAIGER BV). Autres marques certifiées FDM 2.0 : compatibles par protocole, non testées sur matériel. |
 | ☑ Les terminaux ne peuvent pas communiquer avec le FDM à moins d'être identifiés avec posId | Confirmé. Chaque requête sortante du POS porte le champ `posId` 14 caractères dans le payload GraphQL (vérifié dans `crates/pos-fiscal/src/inputs.rs::CommonFields`). |
 
 ## §III.E Connexion au FDM

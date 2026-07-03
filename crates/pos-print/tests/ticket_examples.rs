@@ -24,7 +24,7 @@ fn out_dir() -> Option<std::path::PathBuf> {
 
 fn fdm_ref(label: EventLabel, event_counter: i64, total_counter: i64) -> FdmReference {
     FdmReference {
-        fdm_id: "BMC01000042".to_string(),
+        fdm_id: "CBX01000042".to_string(),
         fdm_date_time: "2026-07-03T12:34:57+02:00".to_string(),
         event_label: label,
         event_counter,
@@ -217,7 +217,7 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
         ],
         grand_total_cents: 152_350,
         drawer_opens: 3,
-        fdm_id: Some("BMC01000042".to_string()),
+        fdm_id: Some("CBX01000042".to_string()),
         fdm_datetime: Some("2026-07-03T22:42:00+02:00".to_string()),
         short_signature: Some("7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c".to_string()),
         ticket_number: 3,

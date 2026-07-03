@@ -25,7 +25,7 @@ déploiement) doivent figurer dans le dossier.
 | Numéro de TVA | BE0499999960 |
 | Secteur | HoReCa - restaurant avec service en salle |
 | Cuisine | Japonaise (sushi + plats chauds) |
-| Périmètre de déploiement | 1 terminal POS + 1 FDM (initialement virtuel, puis BMC Light) + 1 imprimante thermique + 1 tiroir-caisse |
+| Périmètre de déploiement | 1 terminal POS + 1 FDM Checkbox CBX01 (émulateur Checkbox durant le développement) + 1 imprimante thermique + 1 tiroir-caisse |
 | Cible de mise en production | Post-certification, T3 2026 |
 
 ## Déploiements futurs

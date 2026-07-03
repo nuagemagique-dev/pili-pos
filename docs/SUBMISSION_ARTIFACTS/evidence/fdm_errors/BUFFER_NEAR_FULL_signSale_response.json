@@ -3,13 +3,13 @@
         "signSale": {
             "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMS0xLTE3ODMwNjgxMTQ=",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3ODMwNzc0MDQ=",
             "eventOperation": "SALE",
             "fdmRef": {
                 "eventCounter": 1,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-07-03T08:41:54.287155+00:00",
-                "fdmId": "BMC0MOCK0001",
+                "fdmDateTime": "2026-07-03T11:16:44.782724+00:00",
+                "fdmId": "CBX0MOCK0001",
                 "totalCounter": 1
             },
             "fdmSwVersion": "MOCK-FDM-1.0",
@@ -20,7 +20,7 @@
             "posDateTime": "2024-07-29T13:00:00+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "9534177ae8358434c701444e0fcf84c08f9ae991",
+            "shortSignature": "8f6ae88ab28cd5d9306b6332dfdc781559dce663",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
                 {

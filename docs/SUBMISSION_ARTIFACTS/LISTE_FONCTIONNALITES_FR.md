@@ -172,5 +172,5 @@ contractuelle indépendante de la certification SCE 2.0.
 - **Imprimante thermique** : Epson TM-m30III (USB / LAN / WiFi /
   Bluetooth). Protocole ESC/POS.
 - **Tiroir-caisse** : standard RJ11 connecté à l'imprimante.
-- **FDM** : BMC Light (€12,95/mois) ou FDM virtuel
-  zwartedoos.be. Connexion LAN (HTTP/GraphQL).
+- **FDM** : Checkbox CBX01 (TAIGER BV, ~€195 HTVA, achat unique
+  via Eutronix réf. TAFIP0002.00). Connexion LAN (HTTP/GraphQL).

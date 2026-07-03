@@ -135,7 +135,7 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         device_id: device_id.to_string(),
         event_operation: event_op.to_string(),
         fdm_ref: FdmRef {
-            fdm_id: "BMC0MOCK0001".to_string(),
+            fdm_id: "CBX0MOCK0001".to_string(),
             fdm_date_time: chrono::Utc::now().to_rfc3339(),
             event_label: event_label.to_string(),
             event_counter: ec,
@@ -326,7 +326,7 @@ fn status_response(query: &str) -> serde_json::Value {
             key,
             serde_json::json!({
                 "device": {
-                    "fdmId": "BMC0MOCK0001",
+                    "fdmId": "CBX0MOCK0001",
                     "fdmSwVersion": "MOCK-FDM-1.0",
                     "fdmDateTime": chrono::Utc::now().to_rfc3339(),
                     "bufferCapacityUsed": buffer_pct

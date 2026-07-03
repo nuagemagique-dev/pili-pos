@@ -30,7 +30,7 @@ Selon le formulaire (`20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM.pdf`) :
 | Multi-FDM | NON (un seul FDM par POS) |
 | Peppol B2B | OUI (UBL 2.1 BIS Billing 3.0 ; achat AP en cours) |
 | Stratégie de compteurs | Par type d'événement, documentée dans `STRATEGIE_COMPTEURS_FR.md` |
-| Matériel FDM pour l'admission | FDM virtuel (zwartedoos.be) - acceptable selon ligne 1202 du manuel de certification |
+| Matériel FDM pour l'admission | FDM physique de développement Checkbox (TAIGER BV, modèle certifié CBX01) ; émulateur Checkbox en secours (acceptable selon ligne 1202 du manuel de certification) |
 
 ## Gabarit d'email
 
@@ -51,8 +51,8 @@ Pièces jointes :
 - Lien de téléchargement image kiosque (USB):
   https://... (lien expirant à 30j)
 
-FDM utilisé pour le rendez-vous d'admission : FDM virtuel zwartedoos.be
-(conforme au §1202 du manuel de certification).
+FDM utilisé pour le rendez-vous d'admission : FDM physique de
+développement Checkbox (TAIGER BV, modèle certifié CBX01).
 
 Le code source, les tests et le dossier complet sont disponibles
 sur demande. Je reste à votre disposition pour fixer le rendez-vous

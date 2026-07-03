@@ -9,8 +9,8 @@ machine de test au démarrage de la clé USB.
       fanless équivalent avec écran tactile PCAP 15.6" 1920×1080).
 - [ ] Imprimante thermique Epson TM-m30III (USB ou TCP).
 - [ ] Tiroir-caisse RJ11 raccordé à l'imprimante.
-- [ ] Credentials du FDM virtuel (zwartedoos.be) configurés dans
-      `/etc/moyun-pos/pos.json::fdm_url`.
+- [ ] URL du FDM Checkbox (boîtier physique sur le LAN, ou émulateur)
+      configurée dans `/etc/moyun-pos/pos.json::fdm_url`.
 
 ## Couche OS
 
@@ -83,7 +83,7 @@ grep -r "DELETE FROM fiscal_events\|UPDATE fiscal_events" \
 # 3) Lancer la suite de tests hors-ligne.
 cargo test --workspace --no-fail-fast                           # → tout vert
 
-# 4) Smoke test contre le FDM virtuel (zwartedoos.be).
+# 4) Smoke test contre le FDM Checkbox (émulateur ou boîtier physique).
 MOYUN_STAGING_FDM_URL=https://... \
   cargo test --package pos-fiscal --test e2e_staging -- --ignored
 # → tous les UC passent avec signatures vérifiées

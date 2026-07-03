@@ -1,8 +1,9 @@
 # Journal de répétition pré-soumission
 
-Ce document capture la répétition en direct contre le **FDM virtuel
-zwartedoos.be** avant l'envoi du dossier cert à SPF Finances. Selon
-le §1202 du manuel cert, le FDM virtuel est une cible acceptable pour
+Ce document capture la répétition en direct contre le **FDM de
+développement Checkbox (émulateur ou boîtier physique)** avant
+l'envoi du dossier cert à SPF Finances. Selon le §1202 du manuel
+cert, un FDM virtuel/émulateur est une cible acceptable pour
 l'admission ; cette répétition prouve le comportement de bout en bout
 avec des signatures non-mockées.
 
@@ -17,13 +18,13 @@ monotone par label, `digitalSignature` présent, et
 `shortSignature == SHA-1(digitalSignature)` quand présent.
 
 Le harness a été validé à blanc contre le mock FDM local
-(`pos-fdm-mock`) — les 10 événements passent. Seules les credentials
-du FDM virtuel manquent pour la répétition réelle.
+(`pos-fdm-mock`) — les 10 événements passent. Seul le kit de
+développement Checkbox manque pour la répétition réelle.
 
 ## Checklist pré-répétition
 
-- [ ] Compte FDM virtuel provisionné (Checkbox / module2 /
-      zwartedoos — emails envoyés, en attente).
+- [ ] Kit de développement Checkbox reçu (FDM physique + émulateur ;
+      devis TAIGER/Eutronix en cours).
 - [ ] Credentials placés dans `.env.staging` (gitignored).
 - [ ] `MOYUN_STAGING_FDM_URL` exporté dans le shell qui lance les tests
       de répétition.

@@ -23,7 +23,7 @@ Source : `docs/20250307_POS_CERTIFICATION_MANUEAL_FRV1.1/20250307_FR - Manuel de
 - ☐ Formulaire signé - À FAIRE (signature électronique qualifiée)
 
 ### §I.B Résultats de test
-- ☐ Document PDF complété - **GAP MAJEUR**. Le manuel attend un PDF de tests pré-remplis pour chaque UC (M110, M111, M121, M123, etc.). On a `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` mais c'est un placeholder pour la répétition zwartedoos.be, pas le PDF de résultats UC par UC avec JSON et tickets joints en annexe.
+- ☐ Document PDF complété - **GAP MAJEUR**. Le manuel attend un PDF de tests pré-remplis pour chaque UC (M110, M111, M121, M123, etc.). On a `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` mais c'est un placeholder pour la répétition Checkbox, pas le PDF de résultats UC par UC avec JSON et tickets joints en annexe.
 
 ### §I.C Manuels du POS
 - ☐ Manuel d'utilisateur - **OK** : `MANUEL_UTILISATEUR_FR.md`
@@ -153,7 +153,7 @@ Items à cocher dans le tableau :
 ### §III.D Connexion du POS au FDM
 - Mode : Autonome / LAN / Cloud / Configurable - À déclarer (**LAN**)
 - Load-balancing - À déclarer (Non)
-- POS compatible avec d'autres marques FDM - À déclarer (Non - BMC seulement)
+- POS compatible avec d'autres marques FDM - À déclarer (Oui par conception - protocole standard ; référence Checkbox CBX01)
 - Terminaux identifiés par posId - À déclarer (Oui)
 
 ### §III.E Connexion au FDM
@@ -448,7 +448,7 @@ Action opérateur : signature électronique qualifiée au moment de la soumissio
 
 14. **Adresse complète + n° TVA du producteur** : à compléter
 15. **Signature électronique qualifiée** : Bruno doit obtenir un certificat eID ou Itsme pour signer le PDF final
-16. **Compte zwartedoos.be** : FDM virtuel à provisionner pour la répétition
+16. **Kit de développement Checkbox** : FDM physique + émulateur à commander (€380 HTVA, devis TAIGER/Eutronix) pour la répétition
 17. **Image kiosk** : script packer/debootstrap pour produire l'ISO bootable
 18. **Mot de passe SPF** sur la machine de test : compte utilisateur SPF avec credentials à communiquer au rendez-vous d'admission
 
@@ -478,7 +478,7 @@ Action opérateur : signature électronique qualifiée au moment de la soumissio
 
 ## Bloc E - Process opérateur (variable)
 - E1. eID / Itsme pour signature qualifiée
-- E2. Compte zwartedoos.be
+- E2. Kit de développement Checkbox
 - E3. Image kiosk
 
 ---
@@ -521,6 +521,6 @@ Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résul
   dans le binaire. Chemins de build corrigés (`target/release/`, pas
   `src-tauri/target/release/`).
 
-Écarts restants inchangés : répétition zwartedoos.be (compte FDM
-virtuel en cours de commande), captures d'écran UI (bloc B2), image
+Écarts restants inchangés : répétition Checkbox (kit de
+développement en cours de commande), captures d'écran UI (bloc B2), image
 kiosk (bloc E3), signature qualifiée (E1).

@@ -29,8 +29,8 @@ Bar, ainsi que la configuration livrée à l'Intake SPF Finances.
        +----------+--+    +--+---------------+
        |             |    |                  |
        |   FDM       |    |   IMPRIMANTE     |
-       |  BMC Light  |    |   Epson TM-m30III|
-       |  (zwartedoos)    |                  |
+       |  Checkbox   |    |   Epson TM-m30III|
+       |  CBX01      |    |                  |
        | IP : 192.168.1.20|  IP : 192.168.1.30|
        | TCP 80 GraphQL   |  TCP 9100 ESC/POS|
        +------------------+  +-------+--------+
@@ -88,7 +88,7 @@ Bar, ainsi que la configuration livrée à l'Intake SPF Finances.
 |---|---|---|---|---|
 | 1 | Terminal POS | Penetek A3216 M82 (Intel Celeron J6412, 8 Go RAM, 128 Go SSD, écran tactile PCAP 15.6" 1920×1080, fanless, IP65) | IP statique LAN `192.168.1.10` | RJ45 vers routeur (1×), USB-A (4×) disponibles |
 | 2 | Routeur LAN | TP-Link Archer C6 (ou équivalent) - fourni avec la machine-test à l'Intake | IP gateway `192.168.1.1`, DHCP `192.168.1.100-200`, baux réservés pour FDM et imprimante | WAN RJ45 (Internet), LAN RJ45 (4×) |
-| 3 | FDM | BMC FDM Light (zwartedoos.be / boxapos.com) - **FDM virtuel zwartedoos.be pour l'Intake (acceptable selon manuel §1202)** | IP statique LAN `192.168.1.20` (réservation DHCP). TCP port 80 ouvert (GraphQL). | RJ45 vers routeur |
+| 3 | FDM | Checkbox CBX01 (TAIGER BV, via Eutronix réf. TAFIP0002.00) - **FDM physique de développement Checkbox pour l'Intake ; émulateur en secours (acceptable selon manuel §1202)** | IP statique LAN `192.168.1.20` (réservation DHCP). TCP port 80 ouvert (GraphQL). | RJ45 vers routeur |
 | 4 | Imprimante thermique | Epson TM-m30III (80 mm thermique) | IP statique LAN `192.168.1.30` (réservation DHCP). TCP port 9100 ouvert (ESC/POS raw). RJ11 sortant vers tiroir. | RJ45 vers routeur. USB et Wifi disponibles mais non utilisés. RJ11 vers tiroir-caisse. |
 | 5 | Tiroir-caisse | Tiroir RJ11 standard (modèle générique compatible Epson) | N/A (passif) | RJ11 depuis l'imprimante. Ouverture par séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA` envoyée par le POS. |
 
@@ -137,7 +137,7 @@ Bar, ainsi que la configuration livrée à l'Intake SPF Finances.
 |---|---|---|---|---|
 | Routeur | `gw-tsb` | `192.168.1.1` | - | DHCP, gateway, DNS |
 | POS | `pos-tsb-01` | `192.168.1.10` | (à renseigner) | moyun-pos (Tauri app, kiosk) |
-| FDM | `fdm-tsb` | `192.168.1.20` | (à renseigner) | BMC GraphQL endpoint |
+| FDM | `fdm-tsb` | `192.168.1.20` | (à renseigner) | Checkbox GraphQL endpoint |
 | Imprimante | `printer-tsb` | `192.168.1.30` | (à renseigner) | ESC/POS raw TCP 9100 |
 
 ### Réservations DHCP
@@ -191,7 +191,7 @@ En cas d'audit SPF Finances, le SCE peut être réassemblé à l'identique à pa
 Pour la machine de test livrée au rendez-vous d'admission SPF Finances :
 
 - Routeur fourni par le distributeur (mini-routeur de prêt).
-- FDM virtuel zwartedoos.be utilisé à la place du FDM physique BMC Light (acceptable selon manuel de certification §1202). L'URL FDM dans `pos.json` pointe alors vers l'endpoint zwartedoos.be plutôt que vers une IP LAN.
+- FDM physique de développement Checkbox utilisé pour l'Intake ; l'émulateur Checkbox reste utilisable en secours (acceptable selon manuel de certification §1202). Dans ce cas, l'URL FDM dans `pos.json` pointe vers l'endpoint de l'émulateur plutôt que vers une IP LAN.
 - Tiroir-caisse RJ11 fourni avec l'imprimante.
 - Compte SPF pré-créé sur la machine de test (login `spf`, mot de passe communiqué à l'Intake).
 

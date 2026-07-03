@@ -138,7 +138,7 @@ The POS must support 8 event types sent to the FDM:
 ### POS ↔ FDM Communication
 - Protocol: **GraphQL** (mutations sent by POS to FDM)
 - Transport: HTTP over LAN (WiFi or RJ45 to FDM device)
-- FDM: BMC/zwartedoos.be FDM Light (€12.95/month) — single POS connection
+- FDM: Checkbox CBX01 (TAIGER BV, ~€195 excl. VAT one-time via Eutronix ref. TAFIP0002.00) — single POS connection
 - The POS **NEVER** communicates directly with SPF Finances — that's the FDM's job
 - FDM returns: ECDSA secp256r1 signature + control data (fdmId, fdmDateTime, eventLabel, counters, shortSignature)
 
@@ -508,11 +508,12 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - USB ports, RJ45 LAN, COM ports, RJ11 cash drawer
 
 ### FDM (Fiscal Data Module)
-- **BMC FDM Light** (€12.95/month) from zwartedoos.be / boxapos.com
-- 7x7cm device, WiFi + RJ45
+- **Checkbox CBX01** (TAIGER BV, ~€195 excl. VAT one-time) — distributed by Eutronix (ref. TAFIP0002.00)
+- LAN (RJ45) + WiFi + USB, power supply included
 - Connects to POS via LAN (GraphQL over HTTP)
 - Connects to SPF Finances cloud via mTLS (handled by FDM itself)
-- For development: use zwartedoos.be **virtual FDM** (online simulator, same codebase)
+- For development: Checkbox dev kit (€380 excl. VAT) = physical dev FDM + GraphQL emulator + docs + support
+- Alternative (protocol-compatible, untested on hardware): BMC FDM Light (€12.95/month, zwartedoos.be)
 
 ### Printer
 - **Epson TM-m30III** — 80mm thermal, USB + LAN + WiFi + Bluetooth
@@ -549,7 +550,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 | Money type | i64 eurocents | Never use floats for financial calculations |
 | Printer protocol | Raw ESC/POS | Direct binary commands, no driver dependency, works on any thermal printer |
 | OS | Debian + Cage | Minimal attack surface, auto-starts in kiosk mode, no desktop clutter |
-| FDM vendor | BMC Light | €12.95/month, cheapest tier, single POS sufficient for TSB |
+| FDM vendor | Checkbox CBX01 (TAIGER BV) | €195 one-time via Eutronix (beats BMC's €12.95/month rental after ~15 months); dev kit €380 with physical FDM + emulator; standard GraphQL protocol = no lock-in |
 | CJK fonts | Noto Sans CJK SC | Free, comprehensive Chinese simplified coverage for menu items. Staff is Chinese-speaking. |
 
 ---
@@ -559,7 +560,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - Dev machine: macOS or Linux desktop
 - `cargo tauri dev` for hot-reload development
 - Mock FDM: implement a local mock server that simulates GraphQL responses
-- Later: connect to zwartedoos.be virtual FDM for realistic testing
+- Later: connect to the Checkbox emulator / physical dev FDM for realistic testing
 - SQLite DB file: `~/.local/share/moyun-pos/pos.db` (dev) or `/var/lib/moyun-pos/pos.db` (prod)
 
 ---

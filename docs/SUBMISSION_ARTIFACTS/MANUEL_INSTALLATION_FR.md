@@ -9,7 +9,7 @@ moyun-pos chez un client HoReCa.
 | Élément | Modèle / spécifications | Qté |
 |---|---|---|
 | Terminal POS | Penetek A3216 M82 ou Advantech USC-360J (Intel J6412, 8 Go RAM, 128 Go SSD, écran 15,6" 1920×1080 PCAP, IP65) | 1 |
-| Boîtier FDM | BMC Light (boxapos.com / zwartedoos.be) ou équivalent agréé SPF Finances | 1 |
+| Boîtier FDM | Checkbox CBX01 (TAIGER BV, via Eutronix réf. TAFIP0002.00) ou équivalent agréé SPF Finances | 1 |
 | Imprimante thermique | Epson TM-m30III (USB ou LAN) | 1 |
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
 | Câble Ethernet | RJ45 Cat-5e ou supérieur | 2 (POS + FDM) |
@@ -287,10 +287,14 @@ Les INSZ de test SPF (depuis `UC_TestSetup_20240806.md`) :
 
 ### 7.3 Fournisseurs FDM agréés
 
-- **BMC Light** : boxapos.com - €12,95/mois, LAN+WiFi, le moins cher.
-- **Unifiedpost** : alternative, à partir de €25/mois.
-- **FDM virtuel zwartedoos.be** : pour la phase de tests
-  pré-certification - gratuit, en ligne.
+- **Checkbox CBX01** : TAIGER BV, distribution via Eutronix
+  (réf. TAFIP0002.00) - ~€195 HTVA, achat unique, LAN+WiFi+USB,
+  alimentation incluse. **Référence retenue.**
+- **BMC Light** : boxapos.com / zwartedoos.be - €12,95/mois
+  (location), LAN+WiFi. Alternative.
+- **Émulateur Checkbox** : inclus dans le kit de développement
+  TAIGER (€380 HTVA, avec FDM physique de développement) - pour la
+  phase de tests pré-certification.
 
 ### 7.4 Contact distributeur
 

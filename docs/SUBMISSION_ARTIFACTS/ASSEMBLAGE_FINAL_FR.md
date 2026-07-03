@@ -21,10 +21,11 @@ nm target/release/moyun-pos | grep -c pos_hubrise   # doit afficher 0
 
 ## Étape 2 - Exécuter la répétition pré-soumission
 
-Une fois le compte FDM virtuel zwartedoos.be activé :
+Une fois le kit de développement Checkbox reçu (FDM physique +
+émulateur) :
 
 ```bash
-export MOYUN_STAGING_FDM_URL=https://...   # depuis le dashboard zwartedoos.be
+export MOYUN_STAGING_FDM_URL=https://...   # URL émulateur / FDM Checkbox
 cargo test --package pos-fiscal --test e2e_staging -- --ignored --nocapture \
   | tee -a docs/SUBMISSION_ARTIFACTS/JOURNAL_TESTS_PRE_SOUMISSION_FR.md
 ```
@@ -100,7 +101,8 @@ pas été automatisés :
 
 - Signature du formulaire (requiert un certificat de signature
   électronique qualifiée).
-- Achat du FDM virtuel zwartedoos.be (requiert paiement + KYC).
+- Achat du kit de développement Checkbox (€380 HTVA, devis
+  TAIGER/Eutronix en cours).
 - Construction de l'image OS (reportée à une PR de suivi avec un
   script packer).
 - Achat d'un contrat Peppol Access Point (relation commerciale

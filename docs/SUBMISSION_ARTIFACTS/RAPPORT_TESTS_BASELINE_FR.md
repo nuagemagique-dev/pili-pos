@@ -50,7 +50,7 @@ Totaux actuels à la dernière révision du dossier :
 | `pos_fiscal::uc_fixtures` (intégration) | parsing fixtures Basic Set v1.7 | 5 | 0 | 0 |
 | `pos_fiscal::reports_fixtures` (intégration) | parsing fixtures Reports v1.3 | 8 | 0 | 0 |
 | `pos_fiscal::advanced_set_fixtures` (intégration) | fixtures Advanced Set v1.5 (141 UC) | 1 | 0 | 0 |
-| `pos_fiscal::e2e_staging` (intégration, opt-in) | contre FDM virtuel zwartedoos.be | 0 | 0 | 2 |
+| `pos_fiscal::e2e_staging` (intégration, opt-in) | contre FDM/émulateur Checkbox | 0 | 0 | 2 |
 | intégration webshop (unit) | tests unitaires crate webshop (exclue de la build cert) | 19 | 0 | 0 |
 | `pos_peppol` (unit) | sérialiseur UBL 2.1 BIS Billing 3.0 | 5 | 0 | 0 |
 | `pos_print` (unit) | ESC/POS, layout ticket | 39 | 0 | 0 |
@@ -64,8 +64,8 @@ Doc-tests : 0 dans toutes les crates (pas d'exemples `///` rédigés).
 
 Les 2 tests ignorés dans `pos_fiscal::e2e_staging` constituent le
 harness de répétition pré-soumission ; ils requièrent
-`MOYUN_STAGING_FDM_URL` pointant vers un vrai FDM virtuel
-zwartedoos.be, et sont exécutables via
+`MOYUN_STAGING_FDM_URL` pointant vers un vrai FDM (émulateur ou
+FDM de développement Checkbox), et sont exécutables via
 `cargo test --package pos-fiscal --test e2e_staging -- --ignored`.
 Ils ne font PAS partie de la barrière CI hors-ligne.
 
