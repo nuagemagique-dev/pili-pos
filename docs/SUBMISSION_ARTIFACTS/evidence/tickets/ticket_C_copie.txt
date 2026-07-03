@@ -1,0 +1,36 @@
+                     COPIE
+
+                Tokyo Sushi Bar
+           Rue Grétry 42, 4000 Liège
+               TVA: BE0499999960
+                Etab: 2123456789
+
+Date:                           2026-07-03 12:34
+Ticket:                                       #2
+Terminal:                                   POS1
+------------------------------------------------
+Saumon roll x8                            8.50 B
+Coca 33cl                                 3.50 A
+------------------------------------------------
+TOTAL                                      12.00
+------------------------------------------------
+Espèces                                    12.00
+
+TVA    Taux    Base HT    TVA
+ A      21%      2.89      0.61
+ B      12%      7.59      0.91
+================================================
+                FDM: BMC01000042
+           2026-07-03T12:34:57+02:00
+                     C 2/62
+
+[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+      www.systemedecaisseenregistreuse.be
+
+ CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+
+
+
+
+✂-----------------------------------------------

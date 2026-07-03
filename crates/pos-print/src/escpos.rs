@@ -41,9 +41,12 @@ impl EscPosBuilder {
         builder
     }
 
-    /// ESC @ — Initialize printer (reset to defaults).
+    /// ESC @ — Initialize printer (reset to defaults), then ESC t 19
+    /// — select code page CP858 (Latin-1 + €) so French accents on
+    /// product names/addresses print correctly.
     pub fn init(&mut self) -> &mut Self {
         self.buf.extend_from_slice(&[ESC, b'@']);
+        self.buf.extend_from_slice(&[ESC, b't', 19]);
         self
     }
 
@@ -88,9 +91,12 @@ impl EscPosBuilder {
 
     // ── Text Output ────────────────────────────────────────────
 
-    /// Write text (encoded as ASCII/CP437). No automatic line feed.
+    /// Write text encoded as CP858 (selected in `init`). Characters
+    /// outside CP858 print as `?`. No automatic line feed.
     pub fn text(&mut self, s: &str) -> &mut Self {
-        self.buf.extend_from_slice(s.as_bytes());
+        for ch in s.chars() {
+            self.buf.push(encode_cp858(ch));
+        }
         self
     }
 
@@ -103,17 +109,15 @@ impl EscPosBuilder {
     /// Write a line of text padded/truncated to fit the line width.
     /// Left-aligned text, right-aligned value on the same line.
     pub fn text_columns(&mut self, left: &str, right: &str) -> &mut Self {
+        // Widths count printed characters (CP858 is single-byte, so
+        // one char == one column), not UTF-8 bytes.
         let width = self.chars_per_line() as usize;
-        let right_len = right.len().min(width);
+        let right_len = right.chars().count().min(width);
         let left_max = width.saturating_sub(right_len + 1);
-        let left_truncated = if left.len() > left_max {
-            &left[..left_max]
-        } else {
-            left
-        };
-        let padding = width - left_truncated.len() - right_len;
+        let left_truncated: String = left.chars().take(left_max).collect();
+        let padding = width - left_truncated.chars().count() - right_len;
 
-        self.text(left_truncated);
+        self.text(&left_truncated);
         for _ in 0..padding {
             self.buf.push(b' ');
         }
@@ -257,9 +261,9 @@ impl EscPosBuilder {
         self.buf.len()
     }
 
-    /// Whether the buffer is empty (only init command).
+    /// Whether the buffer is empty (only init commands).
     pub fn is_empty(&self) -> bool {
-        self.buf.len() <= 2 // ESC @ is 2 bytes
+        self.buf.len() <= 5 // ESC @ (2) + ESC t 19 (3)
     }
 }
 
@@ -267,6 +271,76 @@ impl Default for EscPosBuilder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Characters of CP858 above 0x7F that the receipts actually need
+/// (French/Dutch/German accents + € + box/pseudo-graphics we use).
+/// Kept as one table so encoding (printer) and decoding (renderer)
+/// can never disagree.
+const CP858_HIGH: &[(char, u8)] = &[
+    ('Ç', 0x80),
+    ('ü', 0x81),
+    ('é', 0x82),
+    ('â', 0x83),
+    ('ä', 0x84),
+    ('à', 0x85),
+    ('ç', 0x87),
+    ('ê', 0x88),
+    ('ë', 0x89),
+    ('è', 0x8A),
+    ('ï', 0x8B),
+    ('î', 0x8C),
+    ('ì', 0x8D),
+    ('Ä', 0x8E),
+    ('É', 0x90),
+    ('ô', 0x93),
+    ('ö', 0x94),
+    ('ò', 0x95),
+    ('û', 0x96),
+    ('ù', 0x97),
+    ('ÿ', 0x98),
+    ('Ö', 0x99),
+    ('Ü', 0x9A),
+    ('ß', 0xE1),
+    ('´', 0xEF),
+    ('À', 0xB7),
+    ('Â', 0xB6),
+    ('È', 0xD4),
+    ('Ê', 0xD2),
+    ('Ë', 0xD3),
+    ('Î', 0xD7),
+    ('Ï', 0xD8),
+    ('Ô', 0xE2),
+    ('Û', 0xEA),
+    ('Ù', 0xEB),
+    ('€', 0xD5),
+    ('°', 0xF8),
+    ('²', 0xFD),
+    ('·', 0xFA),
+];
+
+/// Encode one char to CP858; unknown characters become `?`.
+pub fn encode_cp858(ch: char) -> u8 {
+    if ch.is_ascii() {
+        return ch as u8;
+    }
+    CP858_HIGH
+        .iter()
+        .find(|(c, _)| *c == ch)
+        .map(|(_, b)| *b)
+        .unwrap_or(b'?')
+}
+
+/// Decode one CP858 byte back to a char (renderer side).
+pub fn decode_cp858(byte: u8) -> char {
+    if byte < 0x80 {
+        return byte as char;
+    }
+    CP858_HIGH
+        .iter()
+        .find(|(_, b)| *b == byte)
+        .map(|(c, _)| *c)
+        .unwrap_or('?')
 }
 
 #[cfg(test)]
@@ -294,7 +368,8 @@ mod tests {
         let mut b = EscPosBuilder::new();
         b.align(Alignment::Center);
         let bytes = b.build();
-        assert_eq!(&bytes[2..5], &[0x1B, b'a', 1]);
+        // init = ESC @ (2) + ESC t 19 (3)
+        assert_eq!(&bytes[5..8], &[0x1B, b'a', 1]);
     }
 
     #[test]
@@ -314,7 +389,7 @@ mod tests {
         let mut b = EscPosBuilder::new();
         b.text_columns("Saumon", "12.50");
         let bytes = b.build();
-        let line_start = 2; // skip ESC @
+        let line_start = 5; // skip ESC @ + ESC t 19
         let line = &bytes[line_start..bytes.len() - 1]; // exclude final LF
         assert_eq!(line.len(), 48);
     }
