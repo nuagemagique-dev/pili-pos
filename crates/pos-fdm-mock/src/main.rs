@@ -164,6 +164,11 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
 }
 
 fn extract_mutation_name(query: &str) -> String {
+    // Both spec spellings of the status field (SDL says `Status`, the
+    // Q100/Q110 UC fixtures use `status`) route to the status handler.
+    if query.contains("Status(") || query.contains("status(") {
+        return "Status".to_string();
+    }
     // Find pattern: mutationName( or mutationName(
     let mutations = [
         "signSale",
@@ -235,44 +240,91 @@ fn compute_vat_calc(txn: &serde_json::Value) -> Vec<VatCalcItem> {
         .collect()
 }
 
-/// Extract the response key for the status field: a real GraphQL
-/// server keys the payload on the alias when one is used
-/// (`fdmStatus: Status(...)` → `data.fdmStatus`), else on the field
-/// name as written (`Status` per the spec SDL, `status` per the
-/// Q100/Q110 UC fixtures).
-fn status_response_key(query: &str) -> String {
-    for field in ["Status", "status"] {
-        if let Some(pos) = query.find(&format!("{field}(")) {
-            let before = query[..pos].trim_end();
-            if let Some(prefix) = before.strip_suffix(':')
-                && let Some(alias) = prefix.split_whitespace().last()
+/// All status-field occurrences in the query, in source order, as
+/// `(response_key, language)`. Handles both spec spellings and GraphQL
+/// aliases, so a Q110-style multi-language query
+/// (`status(language: EN) … messagesFR: status(language: FR) …`)
+/// yields one data key per alias.
+fn status_occurrences(query: &str) -> Vec<(String, String)> {
+    let mut found: Vec<(usize, String, String)> = Vec::new();
+    for field in ["Status(", "status("] {
+        for (pos, _) in query.match_indices(field) {
+            // "fdmStatus: Status(" also contains "tatus(" inside the
+            // alias — only accept occurrences where the char before
+            // the match is not alphanumeric (i.e. a real field name).
+            if pos > 0
+                && query[..pos]
+                    .chars()
+                    .last()
+                    .is_some_and(|c| c.is_alphanumeric())
             {
-                return alias.to_string();
+                continue;
             }
-            return field.to_string();
+            let before = query[..pos].trim_end();
+            let key = match before.strip_suffix(':') {
+                Some(prefix) => prefix
+                    .split_whitespace()
+                    .last()
+                    .unwrap_or(field.trim_end_matches('('))
+                    .to_string(),
+                None => field.trim_end_matches('(').to_string(),
+            };
+            let rest = &query[pos..];
+            let lang = rest
+                .split_once("language:")
+                .and_then(|(_, r)| r.split(')').next())
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| "FR".to_string());
+            found.push((pos, key, lang));
         }
     }
-    "Status".to_string()
+    found.sort_by_key(|(pos, _, _)| *pos);
+    found.into_iter().map(|(_, k, l)| (k, l)).collect()
 }
 
 fn status_response(query: &str) -> serde_json::Value {
-    let key = status_response_key(query);
-    let warnings = parse_codes("MOCK_FDM_WARNING").map(codes_to_messages);
-    let errors = parse_codes("MOCK_FDM_ERROR").map(codes_to_messages);
+    let occurrences = status_occurrences(query);
+    let occurrences = if occurrences.is_empty() {
+        vec![("Status".to_string(), "FR".to_string())]
+    } else {
+        occurrences
+    };
+
+    // Keep the reported buffer usage coherent with injected buffer
+    // codes so §V evidence is self-consistent (a BUFFER_NEAR_FULL
+    // warning alongside a 1.2% buffer reading would contradict the
+    // >70% threshold the message claims).
+    let injected: Vec<String> = parse_codes("MOCK_FDM_WARNING")
+        .into_iter()
+        .chain(parse_codes("MOCK_FDM_ERROR"))
+        .flatten()
+        .collect();
+    let default_buffer_pct = if injected.iter().any(|c| c == "BUFFER_FULL") {
+        100.0
+    } else if injected.iter().any(|c| c == "BUFFER_NEAR_FULL") {
+        82.53
+    } else {
+        1.2
+    };
     let buffer_pct: f64 = std::env::var("MOCK_FDM_BUFFER_PCT")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(1.2);
-    let initialized = errors.is_none()
+        .unwrap_or(default_buffer_pct);
+    let has_errors = parse_codes("MOCK_FDM_ERROR").is_some();
+    let initialized = !has_errors
         || std::env::var("MOCK_FDM_INITIALIZED")
             .ok()
             .as_deref()
             .map(|v| v != "false")
             .unwrap_or(true);
 
-    serde_json::json!({
-        "data": {
-            key: {
+    let mut data = serde_json::Map::new();
+    for (key, lang) in occurrences {
+        let warnings = parse_codes("MOCK_FDM_WARNING").map(|c| codes_to_messages(c, &lang));
+        let errors = parse_codes("MOCK_FDM_ERROR").map(|c| codes_to_messages(c, &lang));
+        data.insert(
+            key,
+            serde_json::json!({
                 "device": {
                     "fdmId": "BMC0MOCK0001",
                     "fdmSwVersion": "MOCK-FDM-1.0",
@@ -283,9 +335,10 @@ fn status_response(query: &str) -> serde_json::Value {
                 "informations": null,
                 "warnings": warnings,
                 "errors": errors
-            }
-        }
-    })
+            }),
+        );
+    }
+    serde_json::json!({ "data": data })
 }
 
 fn parse_codes(env_key: &str) -> Option<Vec<String>> {
@@ -303,17 +356,16 @@ fn parse_codes(env_key: &str) -> Option<Vec<String>> {
     )
 }
 
-fn codes_to_messages(codes: Vec<String>) -> serde_json::Value {
+fn codes_to_messages(codes: Vec<String>, lang: &str) -> serde_json::Value {
     let items: Vec<serde_json::Value> = codes
         .into_iter()
         .map(|code| {
-            let (category, show_pos) = code_severity(&code);
             serde_json::json!({
-                "message": code_to_human(&code),
+                "message": code_to_human(&code, lang),
                 "extensions": {
-                    "category": category,
+                    "category": code_category(&code),
                     "code": code,
-                    "showPos": show_pos,
+                    "showPos": code_show_pos(&code),
                 }
             })
         })
@@ -321,35 +373,96 @@ fn codes_to_messages(codes: Vec<String>) -> serde_json::Value {
     serde_json::Value::Array(items)
 }
 
-fn code_severity(code: &str) -> (&'static str, &'static str) {
-    // (category, showPos) — values follow the §V table of the
-    // certification manual (warnings vs errors, affichage M/O/N).
+/// `extensions.category` per the POS spec v2.2 is the message ORIGIN
+/// (`SPF_FOD` | `FDM` | `OTHER`), not its severity — severity is
+/// implied by which array (warnings/errors/informations) carries the
+/// message. All tb_messages codes are SPF_FOD-defined.
+fn code_category(code: &str) -> &'static str {
     match code {
-        // Warnings, mandatory display
-        "CLIENT_CERT_EXPIRED" | "BUFFER_NEAR_FULL" => ("WARNING", "MANDATORY"),
-        // Warnings, never displayed on the POS
+        "CLIENT_CERT_NEAR_EXPIRATION"
+        | "CLIENT_CERT_EXPIRED"
+        | "RTC_SYNC_FAILED"
+        | "UPDATE_URLS_FAILED"
+        | "UPDATE_TRUST_CERT_FAILED"
+        | "UPDATE_TASK_LIST_FAILED"
+        | "TASK_FEEDBACK_FAILED"
+        | "NOP_FAILED"
+        | "BUFFER_NEAR_FULL"
+        | "SERVER_CERT_RESOLVE_FAILED"
+        | "TRANSACTION_UPLOAD_FAILED"
+        | "INITIALIZATION_FAILED"
+        | "RTC_NOT_INITIALIZED"
+        | "CORRUPT_RECORD_ENCOUNTERED"
+        | "UPDATE_PARAMS_FAILED"
+        | "UPDATE_CLIENT_CERT_FAILED"
+        | "UPDATE_VAT_RATES_FAILED"
+        | "UPDATE_POS_ALLOWLIST_FAILED"
+        | "DUPLICATE_REQUEST"
+        | "TOO_MANY_MEMORY_ERRORS"
+        | "BUFFER_FULL"
+        | "FDM_LOCKED"
+        | "UNAUTHORIZED"
+        | "INVALID_REQUEST"
+        | "INTERNAL_ERROR"
+        | "UNDEFINED_ERROR"
+        | "UNDEFINED_OTHER"
+        | "FDM_NOT_OPERATIONAL"
+        | "UNKNOWN_POS" => "SPF_FOD",
+        _ => "OTHER",
+    }
+}
+
+/// `showPos` — display obligation per the §V table of the
+/// certification manual (affichage M/O/N).
+fn code_show_pos(code: &str) -> &'static str {
+    match code {
+        // Mandatory display
+        "CLIENT_CERT_EXPIRED"
+        | "BUFFER_NEAR_FULL"
+        | "BUFFER_FULL"
+        | "FDM_LOCKED"
+        | "FDM_NOT_OPERATIONAL"
+        | "UNKNOWN_POS" => "MANDATORY",
+        // Never displayed on the POS
         "RTC_NOT_INITIALIZED"
         | "CORRUPT_RECORD_ENCOUNTERED"
         | "UPDATE_PARAMS_FAILED"
         | "UPDATE_CLIENT_CERT_FAILED"
         | "UPDATE_VAT_RATES_FAILED"
         | "UPDATE_POS_ALLOWLIST_FAILED"
-        | "DUPLICATE_REQUEST" => ("WARNING", "NEVER"),
-        // Errors, mandatory display
-        "BUFFER_FULL" | "FDM_LOCKED" | "FDM_NOT_OPERATIONAL" | "UNKNOWN_POS" => {
-            ("ERROR", "MANDATORY")
-        }
-        // Errors, never displayed
-        "TOO_MANY_MEMORY_ERRORS" => ("ERROR", "NEVER"),
-        // Errors, optional display
-        "UNAUTHORIZED" | "INVALID_REQUEST" | "INTERNAL_ERROR" | "UNDEFINED_ERROR"
-        | "UNDEFINED_OTHER" => ("ERROR", "OPTIONAL"),
-        // Everything else in the table is a warning with optional display
-        _ => ("WARNING", "OPTIONAL"),
+        | "DUPLICATE_REQUEST"
+        | "TOO_MANY_MEMORY_ERRORS" => "NEVER",
+        // Everything else in the table is optional display
+        _ => "OPTIONAL",
     }
 }
 
-fn code_to_human(code: &str) -> &'static str {
+/// Human message for a code, localized like a real FDM would (Q110).
+/// The frequently-demoed codes carry full NL/DE/EN translations; the
+/// long tail falls back to the FR table, which is what the intake
+/// examiner reads anyway.
+fn code_to_human(code: &str, lang: &str) -> &'static str {
+    match (code, lang) {
+        ("BUFFER_NEAR_FULL", "NL") => "Het buffergebruik van de FDM overschrijdt 70%",
+        ("BUFFER_NEAR_FULL", "DE") => "Die Pufferauslastung des FDM übersteigt 70%",
+        ("BUFFER_NEAR_FULL", "EN") => "FDM buffer usage exceeds 70%",
+        ("BUFFER_FULL", "NL") => "De buffer van de FDM is vol",
+        ("BUFFER_FULL", "DE") => "Der Puffer des FDM ist voll",
+        ("BUFFER_FULL", "EN") => "The FDM buffer is full",
+        ("CLIENT_CERT_EXPIRED", "NL") => "Het certificaat van de klant is vervallen",
+        ("CLIENT_CERT_EXPIRED", "DE") => "Das Zertifikat des Kunden ist abgelaufen",
+        ("CLIENT_CERT_EXPIRED", "EN") => "The client certificate has expired",
+        ("FDM_NOT_OPERATIONAL", "NL") => "De FDM werkt niet",
+        ("FDM_NOT_OPERATIONAL", "DE") => "Das FDM funktioniert nicht",
+        ("FDM_NOT_OPERATIONAL", "EN") => "The FDM is not operational",
+        ("FDM_LOCKED", "NL") => "De FDM is vergrendeld",
+        ("FDM_LOCKED", "DE") => "Das FDM ist gesperrt",
+        ("FDM_LOCKED", "EN") => "The FDM is locked",
+        _ => code_to_human_fr(code),
+    }
+}
+
+fn code_to_human_fr(code: &str) -> &'static str {
     match code {
         "CLIENT_CERT_NEAR_EXPIRATION" => "Le certificat du client expire dans moins de 4 mois",
         "CLIENT_CERT_EXPIRED" => "Le certificat du client a expiré",
@@ -408,7 +521,7 @@ fn inject_status_error(mutation_name: &str) -> Option<serde_json::Value> {
         .iter()
         .map(|code| {
             serde_json::json!({
-                "message": code_to_human(code),
+                "message": code_to_human(code, "FR"),
                 "extensions": { "code": code },
             })
         })

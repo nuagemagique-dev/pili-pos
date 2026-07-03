@@ -71,7 +71,10 @@ print(json.dumps(req, indent=2, ensure_ascii=False))
 EOF
 )
 
-STATUS_REQUEST='{"query":"query { Status { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations warnings { category code message { nl fr de en } showPos } errors { category code message { nl fr de en } showPos } } }"}'
+# Exactly the query FdmClient::status() sends (spec SDL spelling with
+# alias; message is a localized scalar, origin/code/display live under
+# extensions — POS spec v2.2 MessageItem shape).
+STATUS_REQUEST='{"query":"query { fdmStatus: Status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } }"}'
 
 capture() { # $1 = env spec, $2 = code label for filenames
     local spec="$1" code="$2"

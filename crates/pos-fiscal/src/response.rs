@@ -104,6 +104,30 @@ pub struct FdmDevice {
     pub buffer_capacity_used: f64,
 }
 
+/// Messages-only view of a status field — the shape of the
+/// per-language `messagesFR/NL/DE` aliases in the Q110 query.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FdmMessages {
+    pub informations: Option<Vec<MessageItem>>,
+    pub warnings: Option<Vec<MessageItem>>,
+    pub errors: Option<Vec<MessageItem>>,
+}
+
+/// Q110 response: full status (EN messages) plus the same messages
+/// localized to each official language via GraphQL aliases.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiLangStatus {
+    #[serde(alias = "status", alias = "Status", rename = "fdmStatus")]
+    pub status: FdmStatus,
+    #[serde(rename = "messagesFR")]
+    pub messages_fr: FdmMessages,
+    #[serde(rename = "messagesNL")]
+    pub messages_nl: FdmMessages,
+    #[serde(rename = "messagesDE")]
+    pub messages_de: FdmMessages,
+}
+
 // ── GraphQL Response Wrapper ───────────────────────────────────
 
 #[derive(Debug, Clone, Deserialize)]

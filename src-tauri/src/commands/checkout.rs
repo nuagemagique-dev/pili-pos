@@ -327,7 +327,17 @@ pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, 
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let fdm = FdmClient::new(&config.fdm_url);
 
-    match fdm.status().await {
+    // FDM messages come back localized to the operator's UI language
+    // (Q100/Q110). The FDM only speaks FR/NL/DE/EN, so unsupported UI
+    // languages (zh) fall back to FR — the fiscal reference language.
+    let lang = match config.language.as_str() {
+        "nl" => pos_fiscal::types::Language::Nl,
+        "de" => pos_fiscal::types::Language::De,
+        "en" => pos_fiscal::types::Language::En,
+        _ => pos_fiscal::types::Language::Fr,
+    };
+
+    match fdm.status_with_language(lang).await {
         Ok(status) => serde_json::to_value(status).map_err(|e| e.to_string()),
         Err(e) => Ok(serde_json::json!({
             "connected": false,

@@ -19,7 +19,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use pos_fiscal::response::{FdmStatus, SignResult};
+use pos_fiscal::response::{FdmStatus, MultiLangStatus, SignResult};
 use pos_fiscal::types::{EventLabel, EventOperation};
 
 // ── Fixture locator ────────────────────────────────────────────────
@@ -478,4 +478,30 @@ fn q100_status_response_shape() {
     let s = parse_fdm_status(&p);
     assert!(!s.device.fdm_id.is_empty());
     assert!(!s.device.fdm_sw_version.is_empty());
+}
+
+/// Q110: multi-language status. The published envelope carries the
+/// primary `status` payload plus `messagesFR/NL/DE` aliases — exactly
+/// the shape `FdmClient::status_multi_lang` deserializes. Proves the
+/// full Q110 response round-trips into `MultiLangStatus`.
+#[test]
+fn q110_multi_lang_status_response_shape() {
+    let p = basic_set_root()
+        .join("Q110_Status_multi_lang_messages")
+        .join("status_response.json");
+    let raw = fs::read_to_string(&p).unwrap_or_else(|e| panic!("cannot read {}: {e}", p.display()));
+    let envelope: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+    let data = envelope.get("data").expect("data key").clone();
+    let multi: MultiLangStatus =
+        serde_json::from_value(data).expect("Q110 envelope deserializes into MultiLangStatus");
+
+    assert!(!multi.status.device.fdm_id.is_empty());
+    assert!(multi.status.initialized);
+    // The fixture reports a healthy FDM: empty (not absent) arrays in
+    // every language block.
+    for msgs in [&multi.messages_fr, &multi.messages_nl, &multi.messages_de] {
+        assert!(msgs.errors.as_ref().is_some_and(Vec::is_empty));
+        assert!(msgs.warnings.as_ref().is_some_and(Vec::is_empty));
+        assert!(msgs.informations.as_ref().is_some_and(Vec::is_empty));
+    }
 }

@@ -1,9 +1,9 @@
 {
     "data": {
-        "Status": {
+        "fdmStatus": {
             "device": {
                 "bufferCapacityUsed": 1.2,
-                "fdmDateTime": "2026-07-02T19:25:09.357921+00:00",
+                "fdmDateTime": "2026-07-03T08:41:54.231778+00:00",
                 "fdmId": "BMC0MOCK0001",
                 "fdmSwVersion": "MOCK-FDM-1.0"
             },
@@ -13,7 +13,7 @@
             "warnings": [
                 {
                     "extensions": {
-                        "category": "WARNING",
+                        "category": "SPF_FOD",
                         "code": "CLIENT_CERT_EXPIRED",
                         "showPos": "MANDATORY"
                     },

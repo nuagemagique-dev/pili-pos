@@ -1,16 +1,16 @@
 {
     "data": {
-        "Status": {
+        "fdmStatus": {
             "device": {
                 "bufferCapacityUsed": 1.2,
-                "fdmDateTime": "2026-07-02T19:25:08.781227+00:00",
+                "fdmDateTime": "2026-07-03T08:41:53.849225+00:00",
                 "fdmId": "BMC0MOCK0001",
                 "fdmSwVersion": "MOCK-FDM-1.0"
             },
             "errors": [
                 {
                     "extensions": {
-                        "category": "ERROR",
+                        "category": "SPF_FOD",
                         "code": "FDM_LOCKED",
                         "showPos": "MANDATORY"
                     },

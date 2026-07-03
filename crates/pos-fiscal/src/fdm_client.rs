@@ -47,22 +47,50 @@ impl FdmClient {
 
     // ── Status Query ───────────────────────────────────────────
 
+    /// Full selection for a status field: device block + messages.
+    const STATUS_SELECTION: &'static str = "{ device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } }";
+
+    /// Messages-only selection, used for the per-language aliases of
+    /// the Q110 multi-language query.
+    const MESSAGES_SELECTION: &'static str = "{ informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } }";
+
+    /// GraphQL enum literal for a message language.
+    fn gql_language(lang: crate::types::Language) -> &'static str {
+        match lang {
+            crate::types::Language::Fr => "FR",
+            crate::types::Language::Nl => "NL",
+            crate::types::Language::De => "DE",
+            crate::types::Language::En => "EN",
+        }
+    }
+
+    /// Status with FR messages — the default for the POS runtime.
     pub async fn status(&self) -> Result<FdmStatus, FdmError> {
+        self.status_with_language(crate::types::Language::Fr).await
+    }
+
+    /// Status with FDM messages localized to `lang` (Q100). The FDM
+    /// supports FR/NL/DE/EN; callers map unsupported UI languages
+    /// (e.g. zh) to one of these before calling.
+    pub async fn status_with_language(
+        &self,
+        lang: crate::types::Language,
+    ) -> Result<FdmStatus, FdmError> {
         // The POS detailed description v2.2 SDL declares the field as
         // `Status`, but the official Q100/Q110 UC fixtures query
         // lowercase `status`. The two SPF documents contradict each
         // other, so we try `Status` first and transparently fall back
         // to `status` if the FDM rejects the capitalised field. An
         // alias keeps the response shape identical in both cases.
-        const SELECTION: &str = "{ device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } }";
-
         #[derive(serde::Deserialize)]
         struct StatusData {
             #[serde(rename = "fdmStatus")]
             status: FdmStatus,
         }
 
-        let upper = format!("query {{ fdmStatus: Status(language: FR) {SELECTION} }}");
+        let gql_lang = Self::gql_language(lang);
+        let selection = Self::STATUS_SELECTION;
+        let upper = format!("query {{ fdmStatus: Status(language: {gql_lang}) {selection} }}");
         let resp: GraphQlResponse<StatusData> =
             self.execute_raw(&upper, serde_json::Value::Null).await?;
         if let Some(d) = resp.data {
@@ -70,13 +98,47 @@ impl FdmClient {
         }
 
         let first_err = format_gql_errors(resp.errors);
-        let lower = format!("query {{ fdmStatus: status(language: FR) {SELECTION} }}");
+        let lower = format!("query {{ fdmStatus: status(language: {gql_lang}) {selection} }}");
         let resp: GraphQlResponse<StatusData> =
             self.execute_raw(&lower, serde_json::Value::Null).await?;
         match resp.data {
             Some(d) => Ok(d.status),
             // Report the original error — it is the one that matches
             // the spec-mandated spelling.
+            None => Err(FdmError::GraphQl(first_err)),
+        }
+    }
+
+    /// Q110 — status with messages in all official languages, fetched
+    /// in a single request via GraphQL aliases (mirrors the published
+    /// `Q110_Status_multi_lang_messages` query: primary status in EN,
+    /// plus `messagesFR/NL/DE` aliases).
+    pub async fn status_multi_lang(&self) -> Result<MultiLangStatus, FdmError> {
+        let sel = Self::STATUS_SELECTION;
+        let msg = Self::MESSAGES_SELECTION;
+
+        let build = |field: &str| {
+            format!(
+                "query {{ fdmStatus: {field}(language: EN) {sel} \
+                 messagesFR: {field}(language: FR) {msg} \
+                 messagesNL: {field}(language: NL) {msg} \
+                 messagesDE: {field}(language: DE) {msg} }}"
+            )
+        };
+
+        let resp: GraphQlResponse<MultiLangStatus> = self
+            .execute_raw(&build("Status"), serde_json::Value::Null)
+            .await?;
+        if let Some(d) = resp.data {
+            return Ok(d);
+        }
+
+        let first_err = format_gql_errors(resp.errors);
+        let resp: GraphQlResponse<MultiLangStatus> = self
+            .execute_raw(&build("status"), serde_json::Value::Null)
+            .await?;
+        match resp.data {
+            Some(d) => Ok(d),
             None => Err(FdmError::GraphQl(first_err)),
         }
     }
