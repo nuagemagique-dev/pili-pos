@@ -81,28 +81,26 @@ rapports X.
 
 ## Écarts d'implémentation suivis
 
-Ce sont des reports volontaires - la validation fixture ne les
-requiert pas, mais ils seront repris dans la build de soumission
-cert :
+Les deux écarts identifiés lors de l'audit fixture sont **résolus**
+dans la build de soumission :
 
-1. **Co-émission de `trigger_end_of_day_z_report`.** L'actuel
-   `src-tauri/src/commands/report.rs::generate_z_report` n'émet **que**
-   `signReportTurnoverZ`. M184 démontre la double émission canonique
-   selon la spec (TurnoverZ + UserZ dans une seule opération). Les
-   briques existent déjà (`FdmClient::sign_report_user_z`,
-   `ReportUserZInput`) ; ce qui manque c'est (a) une requête DB pour
-   les agrégats par utilisateur sur une date de réservation donnée,
-   et (b) l'orchestration dans la commande Tauri. **Reporté à la
-   Phase 10 (polissage UI + dossier)** pour pouvoir implémenter la
-   requête DB, la commande et le bouton "Fin de journée" comme un
-   seul changement cohérent plutôt que de l'étaler sur plusieurs
-   phases.
-2. **Info device FDM dans les payloads Z** est actuellement un
-   placeholder dans `build_turnover_data` (fdmId = vide, compteurs = 0).
-   Pour passer contre un vrai FDM, il faut le populer depuis la
-   dernière réponse `FdmClient::status()`. **Sera traité en Phase 4**
-   en parallèle du travail de gating opérationnel FDM + sondage de
-   statut.
+1. **Co-émission M184 — implémentée.**
+   `src-tauri/src/commands/report.rs::do_generate_z_report` émet
+   désormais le Z canonique : `signReportTurnoverZ` + `signReportUserZ`
+   dans **une seule opération GraphQL**
+   (`FdmClient::sign_report_turnover_z_user_z`), avec deux numéros de
+   ticket séquentiels et un archivage **atomique** des deux événements
+   R (transaction SQLite : les deux archivés ou aucun). Les agrégats
+   par utilisateur viennent de
+   `pos-db::queries::reports::{get_user_activity, get_user_payment_totals,
+   get_user_social_events}`. Le rapport utilisateur X (M182) dispose de
+   sa propre commande `do_generate_user_x_report`, déclenchée depuis le
+   menu Rapports. E2E : `spf_e2e_reports.rs::{m184_*, m182_*}`.
+2. **Info device FDM dans les payloads X/Z — réelle.** Le bloc
+   `fdmDevices` est peuplé depuis les références FDM archivées de la
+   journée (`get_fdm_ref_range` : fdmId + premier/dernier
+   `totalCounter`), plus de placeholder. Vérifié par l'assertion
+   `fdmDevices[0].fdmId == <identité archivée>` dans le test M180.
 
 ---
 
@@ -114,5 +112,5 @@ cargo test --package pos-fiscal --test reports_fixtures -- --nocapture
 ```
 
 S'exécute également dans le cadre de la suite de tests workspace
-complète. Totaux actuels dans le workspace : **190 passants,
+complète. Totaux actuels dans le workspace : **220 passants,
 0 échec.**

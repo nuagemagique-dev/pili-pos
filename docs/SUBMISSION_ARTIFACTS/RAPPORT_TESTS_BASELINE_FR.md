@@ -42,23 +42,25 @@ Totaux actuels à la dernière révision du dossier :
 
 | Binaire de test | Couche | Passants | Échecs | Ignorés |
 |---|---|---:|---:|---:|
-| `pos_core` (unit) | types domaine, TVA | 6 | 0 | 0 |
-| `pos_db` (unit) | schéma, requêtes, migrations | 29 | 0 | 0 |
+| `pos_core` (unit) | types domaine, TVA, config | 10 | 0 | 0 |
+| `pos_db` (unit) | schéma, requêtes, migrations, agrégats rapports | 34 | 0 | 0 |
 | `pos_fiscal` (unit) | types d'événements, signature, compteur, JSON canonique | 50 | 0 | 0 |
 | `pos_fiscal::full_service` (intégration) | workflow fiscal de bout en bout | 1 | 0 | 0 |
 | `pos_fiscal::spf_basic_set` (intégration) | 10 UC obligatoires contre wiremock FDM | 10 | 0 | 0 |
-| `pos_fiscal::uc_fixtures` (intégration) | parsing fixtures Basic Set v1.7 | 5 | 0 | 0 |
+| `pos_fiscal::uc_fixtures` (intégration) | parsing fixtures Basic Set v1.7 (dont Q110 multi-langue) | 6 | 0 | 0 |
 | `pos_fiscal::reports_fixtures` (intégration) | parsing fixtures Reports v1.3 | 8 | 0 | 0 |
+| `pos_fiscal::client_status` (intégration) | contrat Q100/Q110 du client FDM (langue, fallback d'orthographe, aliases multi-langues) | 3 | 0 | 0 |
 | `pos_fiscal::advanced_set_fixtures` (intégration) | fixtures Advanced Set v1.5 (141 UC) | 1 | 0 | 0 |
 | `pos_fiscal::e2e_staging` (intégration, opt-in) | contre FDM/émulateur Checkbox | 0 | 0 | 2 |
 | intégration webshop (unit) | tests unitaires crate webshop (exclue de la build cert) | 19 | 0 | 0 |
 | `pos_peppol` (unit) | sérialiseur UBL 2.1 BIS Billing 3.0 | 5 | 0 | 0 |
-| `pos_print` (unit) | ESC/POS, layout ticket | 39 | 0 | 0 |
-| `moyun-pos::spf_e2e_basic` (intégration) | 12 UC Basic Set end-to-end via commandes Tauri | 12 | 0 | 0 |
+| `pos_print` (unit) | ESC/POS (CP858), layout ticket + rapports | 44 | 0 | 0 |
+| `pos_print::ticket_examples` (intégration) | générateur des transcriptions §VI (7 exemples) | 7 | 0 | 0 |
+| `moyun-pos::spf_e2e_basic` (intégration) | 16 UC Basic Set end-to-end via commandes Tauri (dont M150, M161, M172) | 16 | 0 | 0 |
 | `moyun-pos::spf_e2e_no_gap` (intégration) | invariant compteur sans trou sur échec FDM | 2 | 0 | 0 |
-| `moyun-pos::spf_e2e_reports` (intégration) | M180, M181 + rotation période de réservation | 3 | 0 | 0 |
+| `moyun-pos::spf_e2e_reports` (intégration) | M180, M182, M184 (Z combiné) + rotation période de réservation | 4 | 0 | 0 |
 | `pos_fdm_mock`, `moyun-pos` main | - | 0 | 0 | 0 |
-| **Total** | | **190** | **0** | **2** (staging, opt-in) |
+| **Total** | | **220** | **0** | **2** (staging, opt-in) |
 
 Doc-tests : 0 dans toutes les crates (pas d'exemples `///` rédigés).
 
@@ -73,27 +75,28 @@ Ils ne font PAS partie de la barrière CI hors-ligne.
 
 | Finalité | Binaires de test | Nombre |
 |---|---|---:|
-| Couverture domaine & unit du noyau fiscal | `pos_core`, `pos_db`, `pos_fiscal`, `pos_print`, `pos_peppol` | 129 |
-| *Parsing* des fixtures SPF Finances (formes requête + réponse) | `uc_fixtures`, `reports_fixtures`, `advanced_set_fixtures` | 14 |
-| Aller-retour FDM par mutation (wiremock au niveau `FdmClient`) | `spf_basic_set`, `full_service` | 11 |
-| **Orchestration au niveau applicatif** (commande Tauri → tx → archive) | `spf_e2e_basic`, `spf_e2e_no_gap`, `spf_e2e_reports` | 17 |
+| Couverture domaine & unit du noyau fiscal | `pos_core`, `pos_db`, `pos_fiscal`, `pos_print` (+ transcriptions §VI), `pos_peppol` | 150 |
+| *Parsing* des fixtures SPF Finances (formes requête + réponse) | `uc_fixtures`, `reports_fixtures`, `advanced_set_fixtures` | 15 |
+| Aller-retour FDM par mutation (wiremock au niveau `FdmClient`) | `spf_basic_set`, `full_service`, `client_status` | 14 |
+| **Orchestration au niveau applicatif** (commande Tauri → tx → archive) | `spf_e2e_basic`, `spf_e2e_no_gap`, `spf_e2e_reports` | 22 |
 | Intégrations webshop (exclues de la build cert) | tests crate webshop | 19 |
-| **Total** | | **190** |
+| **Total** | | **220** |
 
 ### Carte de couverture e2e applicatif
 
 | Famille d'UC | Testé à travers | Nombre de tests |
 |---|---|---:|
 | Vente (M110) | `m110_sign_sale_archives_n_event_and_closes_order` | 1 |
-| Remboursement complet / partiel (M111, M112A) | `m111_...`, `m112a_...` | 2 |
+| Remboursement complet / partiel (M111, M112B) | `m111_...`, `m112b_...` | 2 |
 | Commande / Pré-ticket (M121, M123) | `m121_...`, `m123_...` | 2 |
 | Mouvements caisse (M130, M131) | `m130_...`, `m131_...` | 2 |
 | Social (M140, M141) | `m140_...`, `m141_...` | 2 |
-| Copie (M160) | `m160_...` | 1 |
-| Formation (M170, M171) | `m170_...`, `m171_...` | 2 |
-| Rapports X / Z (M180, M181) + période de réservation | trois tests `spf_e2e_reports` | 3 |
+| Facture (M150) + invariant compteur I | `m150_sign_invoice_...`, `m150_invoice_fdm_failure_...` | 2 |
+| Copie (M160, M161) | `m160_...`, `m161_...` | 2 |
+| Formation (M170, M171, M172) | `m170_...`, `m171_...`, `m172_...` | 3 |
+| Rapports X / Z (M180, M182, M184) + période de réservation | quatre tests `spf_e2e_reports` | 4 |
 | Invariant compteur sans trou (régression FDM-fail) | `checkout_fdm_failure_...`, `refund_fdm_failure_...` | 2 |
-| **Total e2e applicatif** | | **17** |
+| **Total e2e applicatif** | | **22** |
 
 ---
 

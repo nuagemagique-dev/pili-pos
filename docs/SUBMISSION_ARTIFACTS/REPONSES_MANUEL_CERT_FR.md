@@ -529,7 +529,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 **Statut moyun-pos :**
 
 - Les 22 fixtures Basic Set v1.7 + 5 Reports v1.3 + 141 Advanced Set v1.5 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
-- 12 UC Basic Set + 3 Reports + 2 no-gap sont couverts par les tests e2e applicatifs (commande Tauri → tx SQLite → archive). *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
+- 16 UC Basic Set + 4 Reports + 2 no-gap sont couverts par les tests e2e applicatifs (commande Tauri → tx SQLite → archive). *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
 - **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf* (annexe en cours de finalisation - bloc C de `GAP_AUDIT_FR.md`).
 
 Récap mappings UC <-> commande Tauri <-> test :
@@ -538,7 +538,7 @@ Récap mappings UC <-> commande Tauri <-> test :
 |---|---|---|---|
 | M110 | signSale | `checkout::checkout` | `spf_e2e_basic::m110_*` |
 | M111 | signSale refund full | `refund::refund_checkout` | `spf_e2e_basic::m111_*` |
-| M112A/B | signSale refund partial | `refund::refund_checkout` (multi-step) | `spf_e2e_basic::m112a_*` |
+| M112B | signSale refund partial (événement séparé, chaîné) | `refund::refund_checkout` (multi-step) | `spf_e2e_basic::m112b_*` |
 | M121 | signOrder | `tables::sign_table_order` | `spf_e2e_basic::m121_*` |
 | M123 | signPreBill | `tables::sign_pre_bill` | `spf_e2e_basic::m123_*` |
 | M130 | signMoneyInOut | `financial::money_in_out` | `spf_e2e_basic::m130_*` |
@@ -546,8 +546,12 @@ Récap mappings UC <-> commande Tauri <-> test :
 | M140 | signWorkIn | `social::work_in` | `spf_e2e_basic::m140_*` |
 | M141 | signWorkOut | `social::work_out` | `spf_e2e_basic::m141_*` |
 | M160 | signCopy | `copy::copy_ticket` | `spf_e2e_basic::m160_*` |
-| M170/171 | signSale/Copy training | (même commandes, flag is_training) | `spf_e2e_basic::m170_*` / `m171_*` |
-| M180/181 | signReport X/Z | `report::generate_x_report` / `generate_z_report` | `spf_e2e_reports::*` |
+| M170/171/172 | signSale/Copy training | (mêmes commandes, flag is_training) | `spf_e2e_basic::m170_*` / `m171_*` / `m172_*` |
+| M150 | signInvoice | `invoice::sign_invoice_fiscal` | `spf_e2e_basic::m150_*` |
+| M161 | signCopy (commande P) | `copy::copy_ticket` | `spf_e2e_basic::m161_*` |
+| M180 | signReportTurnoverX | `report::generate_x_report` | `spf_e2e_reports::m180_*` |
+| M182 | signReportUserX | `report::generate_user_x_report` | `spf_e2e_reports::m182_*` |
+| M184 (Z combiné) | signReportTurnoverZ + signReportUserZ (un document) | `report::generate_z_report` | `spf_e2e_reports::m184_*` |
 
 ---
 
@@ -650,7 +654,7 @@ Les libellés FR proviennent de la description détaillée POS v2.2 et du tablea
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée côté `pos-fiscal` mais l'UI complète + le câblage AP Peppol sont planifiés post-cert. Au rendez-vous d'admission, l'émission de factures est démontrable mais limitée au flux `LoggingAccessPoint` (no-op cert-friendly).
+*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté fiscal : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes — forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I (e2e `spf_e2e_basic::m150_*`). L'UI complète + le câblage AP Peppol sont planifiés post-cert. Au rendez-vous d'admission, la livraison Peppol est démontrable mais limitée au flux `LoggingAccessPoint` (no-op cert-friendly).
 
 Les 11 éléments obligatoires (a-k) sur la facture seront cochés une fois le flux UI complet (post-cert, version 0.2.0).
 

@@ -50,6 +50,23 @@ async function generateX() {
   }
 }
 
+async function generateUserX() {
+  if (!auth.currentUser || loading.value) return;
+  loading.value = true;
+  try {
+    const result = await ipc.generateUserXReport(auth.currentUser.insz);
+    if (result.success) {
+      toast.show(`${t('report_generated')} (X util.)`, "success", 4000);
+    } else {
+      toast.show(result.error ?? "Report failed", "error", 5000);
+    }
+  } catch (e) {
+    toast.show(String(e), "error", 5000);
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function generateZ() {
   if (!auth.currentUser || loading.value) return;
   loading.value = true;
@@ -244,6 +261,13 @@ function formatRefundTime(iso: string): string {
         <button class="report-btn x-btn" :disabled="loading" @click="generateX">
           <span v-if="loading" class="spinner" aria-hidden="true"></span>
           <span v-else>{{ t('generate') }} X</span>
+        </button>
+      </div>
+      <div class="report-row">
+        <div><h2>{{ t('report_user_x') }}</h2><p>{{ t('report_user_x_desc') }}</p></div>
+        <button class="report-btn x-btn" :disabled="loading" @click="generateUserX">
+          <span v-if="loading" class="spinner" aria-hidden="true"></span>
+          <span v-else>{{ t('generate') }} X util.</span>
         </button>
       </div>
       <div class="report-row">

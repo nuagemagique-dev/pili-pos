@@ -1,6 +1,6 @@
 {
-  "bookingDate": "2026-07-02",
-  "bookingPeriodId": "853740ba-fd4f-4b82-957e-f2f7a7b0fc71",
+  "bookingDate": "2026-07-03",
+  "bookingPeriodId": "be140c58-3286-4e70-a9b8-54d867dd4b8b",
   "costCenter": {
     "id": "T01",
     "reference": "CC1",
@@ -10,7 +10,7 @@
   "employeeId": "12345678901",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-07-02T21:50:01.226980+02:00",
+  "posDateTime": "2026-07-03T14:02:03.997955+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",

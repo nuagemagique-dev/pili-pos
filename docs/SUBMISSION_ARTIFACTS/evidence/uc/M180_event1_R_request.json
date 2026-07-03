@@ -1,24 +1,24 @@
 {
-  "bookingDate": "2026-07-02",
-  "bookingPeriodId": "800f51ae-3bf1-4a6b-9c6d-90d7fd9a947b",
+  "bookingDate": "2026-07-03",
+  "bookingPeriodId": "9ba402e1-60dc-4ea6-a80f-1268b21a59f2",
   "deviceId": "DEV001",
   "employeeId": "12345678901",
   "estNo": "2000000042",
   "fdmDevices": [
     {
-      "fdmId": "",
-      "firstFdmDateTime": "2026-07-02 19:50:01",
-      "firstTotalCounter": 0,
-      "lastFdmDateTime": "2026-07-02 19:50:01",
-      "lastTotalCounter": 0
+      "fdmId": "CBX0MOCK0001",
+      "firstFdmDateTime": "2026-07-03T09:00:01+02:00",
+      "firstTotalCounter": 41,
+      "lastFdmDateTime": "2026-07-03T12:00:01+02:00",
+      "lastTotalCounter": 42
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-07-02T21:50:01.368285+02:00",
+  "posDateTime": "2026-07-03T14:02:04.213683+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-07-02 19:50:01",
-      "lastPosDateTime": "2026-07-02 19:50:01",
+      "firstPosDateTime": "2026-07-03 12:02:04",
+      "lastPosDateTime": "2026-07-03 12:02:04",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -38,9 +38,36 @@
     ],
     "drawersOpenCount": 0,
     "negQuantities": [],
-    "payments": [],
+    "payments": [
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 12.0,
+            "positiveCorrections": 0.0,
+            "totalAmount": 12.0,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "cash",
+        "name": "cash",
+        "type": "CASH"
+      }
+    ],
     "priceChanges": [],
-    "transactions": [],
+    "transactions": [
+      {
+        "amount": 12.0,
+        "eventLabel": "N",
+        "ticketCount": 1
+      },
+      {
+        "amount": 0.0,
+        "eventLabel": "S",
+        "ticketCount": 1
+      }
+    ],
     "vats": []
   },
   "vatNo": "BE0000000097"

@@ -43,10 +43,10 @@ Deux colonnes :
 |---|---|---|---|
 | M110_signSale | N | ✓ | ✓ |
 | M111_signSale_Refund | N | ✓ | ✓ |
-| M112A_signSale_RefundPartial / M112A_1_OriginalSale | N | ✓ | ✓ (chaîné) |
-| M112A_signSale_RefundPartial / M112A_2_PartialRefund | N | ✓ | ✓ (chaîné) |
-| M112B_signSale_RefundPartial / M112B_1_OriginalSale | N | ✓ | - (variante de M112A) |
-| M112B_signSale_RefundPartial / M112B_2_PartialRefund | N | ✓ | - (variante de M112A) |
+| M112A_signSale_RefundPartial / M112A_1_OriginalSale | N | ✓ | - (pattern non déclaré, couvert via M112B) |
+| M112A_signSale_RefundPartial / M112A_2_PartialRefund | N | ✓ | - (pattern non déclaré, couvert via M112B) |
+| M112B_signSale_RefundPartial / M112B_1_OriginalSale | N | ✓ | ✓ (chaîné) |
+| M112B_signSale_RefundPartial / M112B_2_PartialRefund | N | ✓ | ✓ (chaîné) |
 | M121_signOrder | P | ✓ | ✓ |
 | M122_signCostCenterChange | P | ✓ | - (pas d'IPC encore) |
 | M123_signPrebill | P | ✓ | ✓ |
@@ -56,38 +56,37 @@ Deux colonnes :
 | M133_signMoneyInOut_DrawerDeclaration | F | ✓ | - (variante de M130) |
 | M140_signWorkIn | S | ✓ | ✓ |
 | M141_signWorkOut | S | ✓ | ✓ |
-| M150_signInvoice | I | ✓ | - (couvert via Peppol B2B) |
+| M150_signInvoice | I | ✓ | ✓ (`sign_invoice_fiscal`, chaîné à la vente) |
 | M160_signCopy_Sale | C | ✓ | ✓ |
-| M161_signCopy_Order | C | ✓ | - (variante de M160) |
+| M161_signCopy_Order | C | ✓ | ✓ (copie d'un événement P) |
 | M170_signWorkIn_Training | T | ✓ | ✓ |
 | M171_signSale_Training | T | ✓ | ✓ |
 | M171B_signSale_Training | T | ✓ | - (variante de M171) |
-| M172_signCopy_Training | T | ✓ | - (variante de M160 + formation) |
-| Q100_Status | - (statut) | ✓ | - (mismatch fixture/code envelope, voir ci-dessous) |
-| Q110_Status_multi_lang_messages | - (statut) | ✓ | - (idem) |
+| M172_signCopy_Training | T | ✓ | ✓ (copie d'un événement T) |
+| Q100_Status | - (statut) | ✓ | ✓ au niveau client (`client_status.rs`, voir ci-dessous) |
+| Q110_Status_multi_lang_messages | - (statut) | ✓ | ✓ au niveau client (`client_status.rs`) |
 
-**Parse fixture : 24 / 24 passent. E2e applicatif : 12 orchestrations
-uniques + 3 Reports.** Les 9 lignes "variante" sont couvertes
-transitivement par l'e2e de l'UC parent (par ex. M112B est le même
-chemin de code que M112A avec un mix TVA différent ; M171B varie le
-footer de réponse ; M161 et M172 partagent `do_copy_ticket` avec
-M160).
+**Parse fixture : 24 / 24 passent. E2e applicatif : 16 orchestrations
+uniques dans `spf_e2e_basic.rs` + 4 Reports dans `spf_e2e_reports.rs`.**
+Les lignes "variante" restantes (M133, M171B) sont couvertes
+transitivement par l'e2e de l'UC parent ; M112A n'est pas un pattern
+offert par le POS (le remboursement partiel est toujours émis en
+événement séparé = pattern M112B, déclaré au dossier) ; M122 et M132
+sont reportés et non déclarés.
 
-### Divergence d'enveloppe Q100/Q110
+### Enveloppe Q100/Q110 — divergence résolue
 
 Les fixtures SPF Q100/Q110 enveloppent le payload sous `data.status`
-(minuscule), alors que `FdmClient::status` émet un
-`query { Status(...) }` et attend la réponse sous `data.Status`
-(majuscule). Les tests parse-only contournent cela via un fallback
-`&["Status", "status"]` dans `extract_data_payload`. Le harness e2e
-ne peut pas appliquer le contournement (reqwest décode directement
-dans la forme stricte), donc Q100/Q110 sont actuellement parse-only.
-Un petit changement dans `FdmClient` - accepter l'une ou l'autre clé
-dans la réponse - comble l'écart.
+(minuscule), alors que le schéma POS v2.2 documente `Status`
+(majuscule). `FdmClient::status*` gère désormais les deux orthographes :
+il interroge `Status` puis retombe sur `status` si le FDM répond avec
+la forme minuscule. Ce contrat est verrouillé par les 3 tests wiremock
+de `crates/pos-fiscal/tests/client_status.rs` (argument de langue,
+fallback d'orthographe, parsing de l'enveloppe multi-langue Q110).
 
-**Labels d'événements exercés :** N, P, F, S, I, C, T (7 sur 8). Le
-label R (rapports) est couvert en Phase 3 par
-`tests/reports_fixtures.rs`.
+**Labels d'événements exercés :** les 8 sur 8 — N, P, F, S, I, C, T
+dans `spf_e2e_basic.rs`, et R dans `spf_e2e_reports.rs` (M180, M182,
+M184) en complément du parsing `tests/reports_fixtures.rs`.
 
 ---
 

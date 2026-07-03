@@ -233,6 +233,40 @@ pub fn build_copy_input(
     }
 }
 
+// ── Event I — Invoice ──────────────────────────────────────────
+
+/// Build an InvoiceInput (event I) for a B2B invoice covering one or
+/// more prior sales. `fdm_refs` reference the underlying N events
+/// (the M150 fixture shows an invoice consolidating two sales).
+pub fn build_invoice_input(
+    config: &PosConfig,
+    ticket_number: i64,
+    employee_insz: &str,
+    booking_period_id: &str,
+    invoice_no: &str,
+    customer_vat_no: &str,
+    fdm_refs: &[FdmReference],
+) -> InvoiceInput {
+    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+
+    InvoiceInput {
+        common,
+        invoice_no: invoice_no.to_string(),
+        customer_vat_no: customer_vat_no.to_string(),
+        cost_center: None,
+        fdm_refs: fdm_refs
+            .iter()
+            .map(|r| FdmReferenceInput {
+                fdm_id: r.fdm_id.clone(),
+                fdm_date_time: r.fdm_date_time.clone(),
+                event_label: r.event_label,
+                event_counter: r.event_counter,
+                total_counter: r.total_counter,
+            })
+            .collect(),
+    }
+}
+
 // ── Event S — Social (Work In/Out) ─────────────────────────────
 
 /// Build a WorkInOutInput for employee clock in/out.

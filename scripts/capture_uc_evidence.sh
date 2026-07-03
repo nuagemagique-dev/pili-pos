@@ -21,6 +21,7 @@ cd "$PROJECT_ROOT"
 
 OUT="$PROJECT_ROOT/docs/SUBMISSION_ARTIFACTS/evidence/uc"
 mkdir -p "$OUT"
+rm -f "$OUT"/*.json   # stale evidence from renamed/renumbered UCs
 
 UC_EVIDENCE_DIR="$OUT" cargo test -p moyun-pos \
     --test spf_e2e_basic --test spf_e2e_reports

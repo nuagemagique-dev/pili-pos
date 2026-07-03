@@ -165,6 +165,10 @@ export function generateZReport(employeeInsz: string): Promise<ReportResult> {
   return invoke("generate_z_report", { employeeInsz });
 }
 
+export function generateUserXReport(employeeInsz: string): Promise<ReportResult> {
+  return invoke("generate_user_x_report", { employeeInsz });
+}
+
 export interface ZReportSummary {
   id: number;
   reportDate: string;

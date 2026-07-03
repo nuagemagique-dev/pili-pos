@@ -143,7 +143,7 @@ cargo test --package pos-fiscal --test advanced_set_fixtures
 
 # Côté e2e applicatif : remboursement complet, partiel et fdmRef
 cargo test --package moyun-pos --test spf_e2e_basic m111_
-cargo test --package moyun-pos --test spf_e2e_basic m112a_
+cargo test --package moyun-pos --test spf_e2e_basic m112b_
 
 # Côté no-gap : compteur intact si FDM échoue pendant remboursement
 cargo test --package moyun-pos --test spf_e2e_no_gap refund_fdm

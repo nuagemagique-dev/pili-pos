@@ -1,19 +1,17 @@
 {
-  "bookingDate": "2026-07-02",
-  "bookingPeriodId": "18f9d031-4b61-465f-a8f4-97cac8ba2c02",
+  "bookingDate": "2026-07-03",
+  "bookingPeriodId": "bb88b341-be1f-473e-a904-6efe43973467",
+  "costCenter": {
+    "id": "T01",
+    "reference": "bab36a0c-7084-43bc-979f-d51ef7da1972",
+    "type": "TABLE"
+  },
   "deviceId": "DEV001",
   "employeeId": "12345678901",
   "estNo": "2000000042",
-  "fdmRef": {
-    "eventCounter": 15,
-    "eventLabel": "N",
-    "fdmDateTime": "2024-07-29T11:00:08Z",
-    "fdmId": "FOD01000001",
-    "totalCounter": 59
-  },
   "financials": [
     {
-      "amount": -10.0,
+      "amount": 10.0,
       "amountType": "PAYMENT",
       "id": "PAY1",
       "inputMethod": "MANUAL",
@@ -22,8 +20,8 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-07-02T21:50:01.234743+02:00",
-  "posFiscalTicketNo": 2,
+  "posDateTime": "2026-07-03T14:02:04.039335+02:00",
+  "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
   "terminalId": "POS1",
@@ -31,27 +29,26 @@
   "transaction": {
     "transactionLines": [
       {
-        "lineTotal": -10.0,
+        "lineTotal": 10.0,
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "FOOD",
           "departmentName": "Restaurant",
-          "negQuantityReason": "REFUND",
           "productId": "1",
           "productName": "Test item",
-          "quantity": -1.0,
+          "quantity": 1.0,
           "quantityType": "PIECE",
           "unitPrice": 10.0,
           "vats": [
             {
               "label": "B",
-              "price": -10.0
+              "price": 10.0
             }
           ]
         }
       }
     ],
-    "transactionTotal": -10.0
+    "transactionTotal": 10.0
   },
   "vatNo": "BE0000000097"
 }

@@ -5,40 +5,68 @@
 //! | UC | Pattern | Command |
 //! |---|---|---|
 //! | M180 | Turnover-X archive (no booking-date) | `report::do_generate_x_report` |
-//! | M181 | Turnover-Z archive + counter reset + DB backup write | `report::do_generate_z_report` |
+//! | M182 | User-X archive (per-operator block) | `report::do_generate_user_x_report` |
+//! | M184 | Combined Z: Turnover-Z + User-Z in ONE GraphQL op, both archived atomically | `report::do_generate_z_report` |
 //!
-//! Currently NOT covered (but parsed by `crates/pos-fiscal/tests/reports_fixtures.rs`):
+//! M181/M183 (the standalone Z mutations) are exercised through the
+//! M184 flow — the POS always emits the end-of-day Z as the combined
+//! operation, which carries both `signReportTurnoverZ` and
+//! `signReportUserZ` mutations from those UCs.
 //!
-//! - **M182 / M183** (User-X / User-Z): the production `report::*`
-//!   commands don't emit User reports yet; they only emit the
-//!   Turnover envelope. The cert plan (Phase 10) tracks this as a
-//!   follow-up — adding `do_generate_user_z_report` is a small task,
-//!   but until the IPC surface exists there's nothing to drive from
-//!   the harness.
-//! - **M184** (atomic Turnover-Z + User-Z co-emission): same reason —
-//!   the orchestration doesn't exist in `commands::report` yet. Once
-//!   it does, a sibling test here exercises the atomic-tx rollback
-//!   path (kill the 2nd mutation → no rows persisted at all).
-//!
-//! The "T1–T8 input staging" published by SPF is also not replayed
-//! here. Those fixtures pre-populate `fiscal_events` so the X/Z
-//! aggregate maths have something to sum over. For the cert dossier
-//! the maths are covered by `pos-db::queries::reports::tests` (unit);
-//! the e2e checks the FDM round-trip + archive, which is independent
-//! of the aggregate content.
+//! The "T1–T8 input staging" published by SPF is not replayed here.
+//! Those fixtures pre-populate `fiscal_events` so the X/Z aggregate
+//! maths have something to sum over; the aggregate maths are covered
+//! by `pos-db::queries::reports::tests` (unit). Here a minimal
+//! service day is seeded directly in SQLite so the reports carry
+//! real per-user and FDM-device data.
 
 mod common;
 
 use common::*;
 
-use moyun_pos::commands::report::{do_generate_x_report, do_generate_z_report};
+use moyun_pos::commands::report::{
+    do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
+};
 use pos_fiscal::types::EventLabel;
 
 const TEST_INSZ: &str = "12345678901";
 
+/// Seed one operator's service day: a work-in (S), a closed cash sale
+/// (N) and its payment. Gives the report builders real per-user
+/// aggregates and an archived FDM reference range to read.
+fn seed_service_day(app: &TestApp) {
+    let conn = app.state.db.lock().unwrap();
+    conn.execute_batch(
+        r#"
+        INSERT INTO orders (id, order_type, status, user_insz, closed_at)
+        VALUES (1, 'dine_in', 'closed', '12345678901', datetime('now'));
+        INSERT INTO payments (order_id, method, amount_cents)
+        VALUES (1, 'cash', 1200);
+        INSERT INTO fiscal_events (
+            event_type, sequence_number, pos_id, terminal_id, user_insz,
+            event_data_json, fdm_response_json
+        ) VALUES (
+            'S', 900, 'CFOD0061234567', 'POS1', '12345678901',
+            '{"posDateTime":"2026-07-03T09:00:00+02:00"}',
+            '{"eventOperation":"WORK_IN","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T09:00:01+02:00","eventLabel":"S","eventCounter":1,"totalCounter":41}}'
+        );
+        INSERT INTO fiscal_events (
+            event_type, sequence_number, pos_id, terminal_id, user_insz,
+            event_data_json, fdm_response_json
+        ) VALUES (
+            'N', 901, 'CFOD0061234567', 'POS1', '12345678901',
+            '{"posDateTime":"2026-07-03T12:00:00+02:00","transaction":{"transactionTotal":12.0}}',
+            '{"eventOperation":"SALE","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T12:00:01+02:00","eventLabel":"N","eventCounter":2,"totalCounter":42}}'
+        );
+        "#,
+    )
+    .unwrap();
+}
+
 #[tokio::test]
 async fn m180_generate_x_report_archives_r_event_without_resetting_counter() {
     let app = TestApp::new().await;
+    seed_service_day(&app);
     mock_from_fixture(&app, &load_uc(&reports_root(), "M180")).await;
 
     let result = do_generate_x_report(&app.state, TEST_INSZ.to_string())
@@ -48,26 +76,70 @@ async fn m180_generate_x_report_archives_r_event_without_resetting_counter() {
     assert_eq!(result.report_type, "X");
 
     let events = app.fiscal_events();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].event_type, "R");
+    let r_events: Vec<_> = events.iter().filter(|e| e.event_type == "R").collect();
+    assert_eq!(r_events.len(), 1);
     // X-reports do NOT carry a report number — only Z does.
     assert!(
         result.report_no.is_none(),
         "X-report must not assign a Z report number"
     );
     assert_eq!(app.counter_for(EventLabel::R), 1);
+
+    // The fdmDevices block must carry the REAL device identity read
+    // from the archived responses, not a placeholder.
+    let request: serde_json::Value =
+        serde_json::from_str(r_events[0].event_data_json.as_ref().unwrap()).unwrap();
+    assert_eq!(
+        request["fdmDevices"][0]["fdmId"], "CBX0MOCK0001",
+        "X-report must embed the archived FDM identity"
+    );
+    assert_eq!(request["fdmDevices"][0]["firstTotalCounter"], 41);
+    assert_eq!(request["fdmDevices"][0]["lastTotalCounter"], 42);
     app.dump_evidence("M180");
 }
 
 #[tokio::test]
-async fn m181_generate_z_report_archives_r_event_with_z_report_record() {
+async fn m182_generate_user_x_report_archives_r_event_with_user_block() {
     let app = TestApp::new().await;
-    mock_from_fixture(&app, &load_uc(&reports_root(), "M181")).await;
+    seed_service_day(&app);
+    mock_from_fixture(&app, &load_uc(&reports_root(), "M182")).await;
+
+    let result = do_generate_user_x_report(&app.state, TEST_INSZ.to_string())
+        .await
+        .expect("user x-report returned");
+    assert!(result.success, "M182 failed: {:?}", result.error);
+    assert_eq!(result.report_type, "X-USER");
+    assert!(result.report_no.is_none());
+
+    let events = app.fiscal_events();
+    let r_events: Vec<_> = events.iter().filter(|e| e.event_type == "R").collect();
+    assert_eq!(r_events.len(), 1);
+
+    // The archived request must carry the per-operator block with the
+    // seeded INSZ, its sales total, and the WORK_IN registration.
+    let request: serde_json::Value =
+        serde_json::from_str(r_events[0].event_data_json.as_ref().unwrap()).unwrap();
+    let users = request["users"].as_array().expect("users array");
+    assert_eq!(users.len(), 1);
+    assert_eq!(users[0]["employeeId"], TEST_INSZ);
+    assert_eq!(users[0]["totalAmount"], 12.0);
+    assert_eq!(users[0]["socialEvents"][0]["inOut"], "IN");
+    assert_eq!(users[0]["payments"][0]["amount"][0]["totalAmount"], 12.0);
+    app.dump_evidence("M182");
+}
+
+#[tokio::test]
+async fn m184_generate_z_report_signs_both_reports_in_one_operation() {
+    let app = TestApp::new().await;
+    seed_service_day(&app);
+    // The published M184 fixture response IS the combined envelope:
+    // data.signReportTurnoverZ + data.signReportUserZ.
+    mock_from_fixture(&app, &load_uc(&reports_root(), "M184")).await;
 
     let result = do_generate_z_report(&app.state, TEST_INSZ.to_string())
         .await
         .expect("z-report returned");
-    assert!(result.success, "M181 Z-report failed: {:?}", result.error);
+    assert!(result.success, "M184 Z failed: {:?}", result.error);
     assert_eq!(result.report_type, "Z");
     assert_eq!(
         result.report_no,
@@ -75,16 +147,44 @@ async fn m181_generate_z_report_archives_r_event_with_z_report_record() {
         "first Z of the day must carry report_no = 1"
     );
 
-    let events = app.fiscal_events();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].event_type, "R");
+    // Exactly ONE HTTP round-trip to the FDM — both mutations travel
+    // in the same GraphQL document.
+    let requests = app.fdm.received_requests().await.unwrap();
+    assert_eq!(
+        requests.len(),
+        1,
+        "M184 must sign both Z reports in a single FDM call"
+    );
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    let query = body["query"].as_str().unwrap();
+    assert!(query.contains("signReportTurnoverZ"));
+    assert!(query.contains("signReportUserZ"));
 
-    // Z-report record persisted alongside the fiscal event.
+    // Both R events archived, with sequential ticket numbers.
+    let events = app.fiscal_events();
+    let r_events: Vec<_> = events.iter().filter(|e| e.event_type == "R").collect();
+    assert_eq!(r_events.len(), 2, "turnover Z + user Z must both archive");
+    assert_eq!(r_events[0].sequence_number + 1, r_events[1].sequence_number);
+    assert_eq!(app.counter_for(EventLabel::R), 2);
+
+    let op = |e: &&FiscalEventRow| -> String {
+        serde_json::from_str::<serde_json::Value>(e.fdm_response_json.as_ref().unwrap())
+            .unwrap()["eventOperation"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(op(&r_events[0]), "REPORT_TURNOVER_Z");
+    assert_eq!(op(&r_events[1]), "REPORT_USER_Z");
+
+    // The user Z request carries the per-operator block.
+    let user_request: serde_json::Value =
+        serde_json::from_str(r_events[1].event_data_json.as_ref().unwrap()).unwrap();
+    assert_eq!(user_request["users"][0]["employeeId"], TEST_INSZ);
+    assert_eq!(user_request["reportNo"], 1);
+
+    // The z_reports row links back to the TURNOVER R event.
     let conn = app.state.db.lock().unwrap();
-    let z_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM z_reports", [], |row| row.get(0))
-        .unwrap();
-    assert_eq!(z_count, 1, "exactly one z_reports row expected");
     let fiscal_event_id: i64 = conn
         .query_row(
             "SELECT fiscal_event_id FROM z_reports WHERE sequence_number = 1",
@@ -93,12 +193,12 @@ async fn m181_generate_z_report_archives_r_event_with_z_report_record() {
         )
         .unwrap();
     assert_eq!(
-        fiscal_event_id, events[0].id,
-        "z_reports must link back to the R fiscal event"
+        fiscal_event_id, r_events[0].id,
+        "z_reports must link back to the turnover R fiscal event"
     );
     // Release the DB guard — dump_evidence re-locks state.db.
     drop(conn);
-    app.dump_evidence("M181");
+    app.dump_evidence("M184");
 }
 
 #[tokio::test]
@@ -108,7 +208,7 @@ async fn z_report_starts_new_booking_period() {
     // fresh window. The booking-period UUID lives on AppState and
     // is rotated inside `do_generate_z_report`.
     let app = TestApp::new().await;
-    mock_from_fixture(&app, &load_uc(&reports_root(), "M181")).await;
+    mock_from_fixture(&app, &load_uc(&reports_root(), "M184")).await;
 
     let bp_before = app.state.booking_period_id.lock().unwrap().clone();
     do_generate_z_report(&app.state, TEST_INSZ.to_string())

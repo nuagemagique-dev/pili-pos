@@ -386,6 +386,12 @@ ASSUMPTION: the cash register supports a partial refund in combination with a ne
     Payment by cash.
 ```
 
+**Note de déclaration :** le POS moyun-pos ne propose pas le pattern M112A
+(remboursement partiel combiné à une nouvelle vente sur un même ticket).
+Le dossier déclare le pattern **M112B** (remboursement en événement séparé,
+chaîné à la vente d'origine via `fdmReference`) — voir la section
+M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
+
 ### M112A_1_OriginalSale
 
 **Mutation invoquee :** `inconnue`
@@ -543,7 +549,7 @@ ASSUMPTION: the cash register supports a partial refund in combination with a ne
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing uniquement — pattern non déclaré, voir M112B).
 
 ### M112A_2_PartialRefund
 
@@ -734,7 +740,7 @@ ASSUMPTION: the cash register supports a partial refund in combination with a ne
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing uniquement — pattern non déclaré, voir M112B).
 
 
 ## M112B_signSale_RefundPartial
@@ -750,6 +756,13 @@ ASSUMPTION: the cash register supports a partial refund in combination with a ne
     * sale of 1 Coca Cola (unit price 3.04 EUR, VAT code A) & 1 crème brûlée (unit price 10 EUR, VAT code B)
     Payment by cash.
 ```
+
+**Note de déclaration :** c'est CE pattern (remboursement partiel en
+événement séparé, chaîné à la vente d'origine via `fdmReference`) que le
+POS implémente et déclare. Couverture e2e applicative :
+`m112b_partial_refund_is_separate_event_chained_to_original` dans
+`src-tauri/tests/spf_e2e_basic.rs` ; preuves générées dans
+`evidence/uc/M112B_*.json`.
 
 ### M112B_1_OriginalSale
 
@@ -3155,6 +3168,15 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 ## M181_signReportTurnoverZ
 
+**Note de déclaration :** le POS moyun-pos n'émet jamais le Z financier
+seul : la clôture de journée émet toujours le **Z combiné M184**
+(`signReportTurnoverZ` + `signReportUserZ` dans un même document GraphQL,
+deux `posFiscalTicketNo` séquentiels) — voir la section M184 ci-dessous.
+La fixture M181 est validée en *parsing* et sa forme `signReportTurnoverZ`
+est exactement celle émise dans la première moitié du document M184.
+Couverture e2e applicative du Z : `m184_*` dans
+`src-tauri/tests/spf_e2e_reports.rs`.
+
 **Mutation invoquee :** `signReportTurnoverZ`
 
 **Champs a verifier (manuel SCE 2.0 §IV) :**
@@ -3369,6 +3391,13 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 ## M182_signReportUserX
 
+**Note de déclaration :** implémenté par la commande
+`generate_user_x_report` (`src-tauri/src/commands/report.rs`,
+`do_generate_user_x_report`). Couverture e2e applicative :
+`m182_generate_user_x_report_archives_r_event_with_user_block` dans
+`src-tauri/tests/spf_e2e_reports.rs` ; preuves dans
+`evidence/uc/M182_*.json`.
+
 **Mutation invoquee :** `signReportUserX`
 
 **Champs a verifier (manuel SCE 2.0 §IV) :**
@@ -3548,6 +3577,11 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 
 ## M183_signReportUserZ
+
+**Note de déclaration :** comme pour M181, le POS n'émet jamais le Z
+utilisateurs seul — il est toujours émis dans le document combiné M184
+(seconde moitié). La fixture M183 est validée en *parsing* et sa forme
+`signReportUserZ` est exactement celle émise dans le document M184.
 
 **Mutation invoquee :** `signReportUserZ`
 
@@ -3730,6 +3764,18 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 
 ## M184_signReportTurnoverZUserZ
+
+**Note de déclaration :** c'est CE mode d'émission du Z que le POS
+implémente et déclare : `do_generate_z_report`
+(`src-tauri/src/commands/report.rs`) envoie `signReportTurnoverZ` +
+`signReportUserZ` dans **un seul document GraphQL**
+(`FdmClient::sign_report_turnover_z_user_z`), alloue deux
+`posFiscalTicketNo` séquentiels et archive les deux événements R dans
+une même transaction SQLite. Couverture e2e applicative :
+`m184_generate_z_report_signs_both_reports_in_one_operation` et
+`z_report_starts_new_booking_period` dans
+`src-tauri/tests/spf_e2e_reports.rs` ; preuves dans
+`evidence/uc/M184_*.json` (2 événements R).
 
 **Mutation invoquee :** `signReportTurnoverZ`
 
@@ -3963,8 +4009,8 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 | Famille | UC | Status fixture | Status e2e applicatif |
 |---|---|:-:|:-:|
-| Basic Set v1.7 | 22 | OK (22/22) | OK (12 UC e2e couverts dans `spf_e2e_basic.rs`, 10 variants couverts transitivement) |
-| Reports v1.3 | 5 | OK (5/5) | OK (3 e2e couverts dans `spf_e2e_reports.rs`) |
+| Basic Set v1.7 | 22 | OK (22/22) | OK (16 UC e2e couverts dans `spf_e2e_basic.rs` — dont M112B, M150, M161, M172 ; M112A non déclaré, remplacé par M112B) |
+| Reports v1.3 | 5 | OK (5/5) | OK (4 e2e couverts dans `spf_e2e_reports.rs` : M180, M182, M184 combiné ×2 ; M181/M183 émis via M184) |
 | **Total** | **27** | **OK** | **OK** |
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.

@@ -246,6 +246,149 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     p.build()
 }
 
+// ── User report (M182 X / M183 Z / M184 combined Z) ────────────
+
+/// Data needed to print a user report on the thermal printer.
+pub struct UserReportPrintData {
+    /// "X" or "Z"
+    pub report_type: String,
+    /// Z-report sequence number (None for X)
+    pub report_no: Option<i64>,
+    pub restaurant_name: String,
+    pub restaurant_address: String,
+    pub restaurant_vat: String,
+    pub terminal_id: String,
+    pub report_date: String,
+    pub employee_insz: String,
+    pub is_training: bool,
+    pub users: Vec<UserReportUser>,
+    pub fdm_id: Option<String>,
+    pub fdm_datetime: Option<String>,
+    pub short_signature: Option<String>,
+    pub ticket_number: i64,
+}
+
+/// Per-operator block of the user report.
+pub struct UserReportUser {
+    pub insz: String,
+    pub first_datetime: String,
+    pub last_datetime: String,
+    pub total_cents: i64,
+    pub payments: Vec<ReportPaymentTotal>,
+    /// ("WORK_IN"/"WORK_OUT", posDateTime) registrations of the day.
+    pub social_events: Vec<(String, String)>,
+}
+
+/// Format a user report (per-operator turnover + presence) for the
+/// thermal printer. Printed as a second sequential ticket after the
+/// financial Z (M184) or on demand for the user X (M182).
+pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
+    let mut p = EscPosBuilder::new();
+
+    if data.is_training {
+        p.align(Alignment::Center);
+        p.style(TextStyle {
+            bold: true,
+            double_height: true,
+            double_width: true,
+            ..Default::default()
+        });
+        p.textln("TRAINING");
+        p.style_reset();
+        p.separator('=');
+    }
+
+    p.align(Alignment::Center);
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        double_width: true,
+        ..Default::default()
+    });
+    let title = match data.report_no {
+        Some(no) => format!("RAPPORT UTIL. {} #{}", data.report_type, no),
+        None => format!("RAPPORT UTIL. {}", data.report_type),
+    };
+    p.textln(&title);
+    p.style_reset();
+    p.blank_line();
+
+    p.align(Alignment::Center);
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
+    p.textln(&data.restaurant_name);
+    p.style_reset();
+    p.textln(&data.restaurant_address);
+    p.textln(&format!("TVA: {}", data.restaurant_vat));
+    p.blank_line();
+
+    p.align(Alignment::Left);
+    p.text_columns("Date:", &data.report_date);
+    p.text_columns("Terminal:", &data.terminal_id);
+    p.text_columns("Employe:", &data.employee_insz);
+    p.text_columns("Ticket:", &format!("#{}", data.ticket_number));
+    p.separator('=');
+
+    for user in &data.users {
+        p.style(TextStyle {
+            bold: true,
+            ..Default::default()
+        });
+        p.text_columns(&format!("INSZ {}", user.insz), &fmt_price(user.total_cents));
+        p.style_reset();
+        p.text_columns("  Premier event:", &fmt_datetime(&user.first_datetime));
+        p.text_columns("  Dernier event:", &fmt_datetime(&user.last_datetime));
+        for (op, dt) in &user.social_events {
+            let label = match op.as_str() {
+                "WORK_IN" => "  Pointage IN:",
+                "WORK_OUT" => "  Pointage OUT:",
+                other => other,
+            };
+            p.text_columns(label, &fmt_datetime(dt));
+        }
+        for pt in &user.payments {
+            let method = payment_method_name(&pt.method);
+            p.text_columns(
+                &format!("  {} ({}x)", method, pt.count),
+                &fmt_price(pt.amount_cents),
+            );
+        }
+        p.separator('-');
+    }
+
+    let grand_total: i64 = data.users.iter().map(|u| u.total_cents).sum();
+    p.style(TextStyle {
+        bold: true,
+        double_height: true,
+        ..Default::default()
+    });
+    p.text_columns("TOTAL", &fmt_price(grand_total));
+    p.style_reset();
+    p.separator('=');
+
+    if let Some(ref fdm_id) = data.fdm_id {
+        p.align(Alignment::Center);
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
+        p.textln(&format!("FDM: {fdm_id}"));
+        if let Some(ref dt) = data.fdm_datetime {
+            p.textln(dt);
+        }
+        if let Some(ref sig) = data.short_signature {
+            p.textln(&format!("Sig: {sig}"));
+        }
+        p.style_reset();
+    }
+
+    p.feed(4);
+    p.cut();
+    p.build()
+}
+
 // ── Helpers ────────────────────────────────────────────────────
 
 fn fmt_price(cents: i64) -> String {
@@ -411,5 +554,53 @@ mod tests {
         data.is_training = true;
         let bytes = format_report(&data);
         assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
+    }
+
+    fn sample_user_report(report_type: &str) -> UserReportPrintData {
+        UserReportPrintData {
+            report_type: report_type.to_string(),
+            report_no: if report_type == "Z" { Some(1) } else { None },
+            restaurant_name: "Tokyo Sushi Bar".to_string(),
+            restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
+            restaurant_vat: "BE0499999960".to_string(),
+            terminal_id: "POS1".to_string(),
+            report_date: "2026-04-12".to_string(),
+            employee_insz: "94060242576".to_string(),
+            is_training: false,
+            users: vec![UserReportUser {
+                insz: "12345678901".to_string(),
+                first_datetime: "2026-04-12 11:30:00".to_string(),
+                last_datetime: "2026-04-12 22:15:00".to_string(),
+                total_cents: 12500,
+                payments: vec![ReportPaymentTotal {
+                    method: "cash".to_string(),
+                    count: 3,
+                    amount_cents: 12500,
+                }],
+                social_events: vec![
+                    ("WORK_IN".to_string(), "2026-04-12 11:30:00".to_string()),
+                    ("WORK_OUT".to_string(), "2026-04-12 22:15:00".to_string()),
+                ],
+            }],
+            fdm_id: Some("CBX01000042".to_string()),
+            fdm_datetime: Some("2026-04-12T22:16:00+02:00".to_string()),
+            short_signature: None,
+            ticket_number: 46,
+        }
+    }
+
+    #[test]
+    fn user_report_contains_insz_and_pointages() {
+        let bytes = format_user_report(&sample_user_report("Z"));
+        assert!(bytes.windows(16).any(|w| w == b"INSZ 12345678901"));
+        assert!(bytes.windows(12).any(|w| w == b"Pointage IN:"));
+        assert!(bytes.windows(13).any(|w| w == b"Pointage OUT:"));
+    }
+
+    #[test]
+    fn user_report_has_fdm_block_and_cut() {
+        let bytes = format_user_report(&sample_user_report("X"));
+        assert!(bytes.windows(16).any(|w| w == b"FDM: CBX01000042"));
+        assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
 }

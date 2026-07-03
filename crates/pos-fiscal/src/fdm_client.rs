@@ -286,6 +286,53 @@ impl FdmClient {
             .await
     }
 
+    /// M184 — end-of-day Z: the financial Z and the user Z are signed
+    /// in ONE GraphQL operation, exactly like the published
+    /// `M184_signReportTurnoverZUserZ` query (two mutation fields in a
+    /// single document). Returns `(turnover_result, user_result)`.
+    pub async fn sign_report_turnover_z_user_z(
+        &self,
+        turnover: ReportTurnoverZInput,
+        user: ReportUserZInput,
+        is_training: bool,
+    ) -> Result<(SignResult, SignResult), FdmError> {
+        let sel = Self::SIGN_RESULT_SELECTION;
+        let query = format!(
+            "mutation($turnover: ReportTurnoverZInput!, $user: ReportUserZInput!, $isTraining: Boolean!) {{ signReportTurnoverZ(data: $turnover, isTraining: $isTraining) {sel} signReportUserZ(data: $user, isTraining: $isTraining) {sel} }}"
+        );
+
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Vars<'a> {
+            turnover: &'a ReportTurnoverZInput,
+            user: &'a ReportUserZInput,
+            is_training: bool,
+        }
+
+        let vars = Vars {
+            turnover: &turnover,
+            user: &user,
+            is_training,
+        };
+
+        let resp: GraphQlResponse<serde_json::Value> = self.execute_raw(&query, &vars).await?;
+        if resp.errors.as_ref().is_some_and(|e| !e.is_empty()) {
+            return Err(FdmError::GraphQl(format_gql_errors(resp.errors)));
+        }
+        let data = resp
+            .data
+            .ok_or_else(|| FdmError::GraphQl("No data in response".into()))?;
+
+        let parse = |key: &str| -> Result<SignResult, FdmError> {
+            let value = data
+                .get(key)
+                .ok_or_else(|| FdmError::GraphQl(format!("Missing {key} in response")))?;
+            serde_json::from_value(value.clone())
+                .map_err(|e| FdmError::GraphQl(format!("Failed to parse {key}: {e}")))
+        };
+        Ok((parse("signReportTurnoverZ")?, parse("signReportUserZ")?))
+    }
+
     pub async fn sign_cost_center_change(
         &self,
         data: CostCenterChangeInput,
@@ -302,6 +349,10 @@ impl FdmClient {
 
     // ── Internal ───────────────────────────────────────────────
 
+    /// Selection set shared by every sign mutation (single or M184
+    /// combined) — the full `SignResult` shape.
+    const SIGN_RESULT_SELECTION: &'static str = "{ posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer }";
+
     async fn sign_mutation<D: Serialize>(
         &self,
         mutation_name: &str,
@@ -309,8 +360,9 @@ impl FdmClient {
         data: &D,
         is_training: bool,
     ) -> Result<SignResult, FdmError> {
+        let sel = Self::SIGN_RESULT_SELECTION;
         let query = format!(
-            "mutation($data: {input_type}!, $isTraining: Boolean!) {{ {mutation_name}(data: $data, isTraining: $isTraining) {{ posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef {{ fdmId fdmDateTime eventLabel eventCounter totalCounter }} fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc {{ label rate taxableAmount vatAmount totalAmount outOfScope }} bufferCapacityUsed warnings {{ message extensions {{ category code showPos }} }} informations {{ message extensions {{ category code showPos }} }} footer }} }}"
+            "mutation($data: {input_type}!, $isTraining: Boolean!) {{ {mutation_name}(data: $data, isTraining: $isTraining) {sel} }}"
         );
 
         #[derive(serde::Serialize)]

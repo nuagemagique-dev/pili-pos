@@ -38,6 +38,13 @@ use pos_peppol::{AccessPoint, LoggingAccessPoint};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use pos_fiscal::archive::{self, ArchiveParams};
+use pos_fiscal::counter::FiscalCounter;
+use pos_fiscal::event::build_invoice_input;
+use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::response::FdmReference;
+use pos_fiscal::types::EventLabel;
+
 use crate::state::AppState;
 
 /// One line on the B2B invoice as supplied by the UI. Quantities are
@@ -242,10 +249,168 @@ fn build_ubl(
     })
 }
 
+/// What the UI receives after the FDM signs the I event.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InvoiceSignResult {
+    pub success: bool,
+    /// Row id of the archived I event — pass to `issue_b2b_invoice`.
+    pub fiscal_event_id: Option<i64>,
+    pub invoice_no: Option<String>,
+    pub error: Option<String>,
+}
+
+/// M150 — sign the SCE 2.0 invoice fiscal event (I). Consolidates one
+/// or more prior sales (their archived FDM references become the
+/// `fdmRefs` of the invoice, as in the published M150 fixture), sends
+/// `signInvoice` to the FDM and archives the I event. The Peppol/UBL
+/// delivery is a separate step (`issue_b2b_invoice`).
+#[tauri::command]
+pub async fn sign_invoice_fiscal(
+    state: State<'_, AppState>,
+    sale_fiscal_event_ids: Vec<i64>,
+    customer_vat_no: String,
+    employee_insz: String,
+) -> Result<InvoiceSignResult, String> {
+    do_sign_invoice_fiscal(
+        state.inner(),
+        sale_fiscal_event_ids,
+        customer_vat_no,
+        employee_insz,
+    )
+    .await
+}
+
+pub async fn do_sign_invoice_fiscal(
+    state: &AppState,
+    sale_fiscal_event_ids: Vec<i64>,
+    customer_vat_no: String,
+    employee_insz: String,
+) -> Result<InvoiceSignResult, String> {
+    if sale_fiscal_event_ids.is_empty() {
+        return Err("invoice must reference at least one sale".to_string());
+    }
+
+    let (config, bp_id, fdm_refs, invoice_no, ticket_number) = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
+
+        // Rebuild the FDM reference of every underlying sale from its
+        // archived response.
+        let mut refs = Vec::with_capacity(sale_fiscal_event_ids.len());
+        for id in &sale_fiscal_event_ids {
+            let event = pos_db::queries::fiscal::get_fiscal_event(&db, *id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("fiscal event {id} not found"))?;
+            let label_str = event
+                .event_label
+                .ok_or_else(|| format!("event {id} has no FDM label"))?;
+            let label = match label_str.as_str() {
+                "N" => EventLabel::N,
+                other => {
+                    return Err(format!(
+                        "event {id} is {other}, only N sales are invoiceable"
+                    ));
+                }
+            };
+            refs.push(FdmReference {
+                fdm_id: event
+                    .fdm_id
+                    .ok_or_else(|| format!("event {id} has no FDM id"))?,
+                fdm_date_time: event
+                    .fdm_datetime
+                    .ok_or_else(|| format!("event {id} has no FDM datetime"))?,
+                event_label: label,
+                event_counter: event
+                    .event_counter
+                    .ok_or_else(|| format!("event {id} has no event counter"))?,
+                total_counter: event
+                    .total_counter
+                    .ok_or_else(|| format!("event {id} has no total counter"))?,
+            });
+        }
+
+        // Invoice numbering: <year><seq 4 digits>, sequential over the
+        // archived I events (the M150 fixture uses "20240005").
+        let issued: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM fiscal_events WHERE event_type = 'I'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        let invoice_no = format!("{}{:04}", chrono::Utc::now().format("%Y"), issued + 1);
+
+        // Peek — the counter only commits together with the archive,
+        // so an FDM failure never creates a sequence gap.
+        let tn = FiscalCounter::peek_next(&db, EventLabel::I).map_err(|e| e.to_string())?;
+        (config, bp, refs, invoice_no, tn)
+    };
+
+    let input = build_invoice_input(
+        &config,
+        ticket_number,
+        &employee_insz,
+        &bp_id,
+        &invoice_no,
+        &customer_vat_no,
+        &fdm_refs,
+    );
+    let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
+
+    let fdm = FdmClient::new(&config.fdm_url);
+    let sign_result = match fdm.sign_invoice(input, config.training_mode).await {
+        Ok(r) => r,
+        Err(e) => {
+            return Ok(InvoiceSignResult {
+                success: false,
+                fiscal_event_id: None,
+                invoice_no: None,
+                error: Some(format!("FDM refused signInvoice: {e}")),
+            });
+        }
+    };
+
+    let fiscal_event_id = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
+        let committed = FiscalCounter::next(&tx, EventLabel::I).map_err(|e| e.to_string())?;
+        debug_assert_eq!(committed, ticket_number, "I counter drifted");
+        let id = archive::archive_event(
+            &tx,
+            ArchiveParams {
+                event_type: EventLabel::I,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: Some(&sign_result),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
+        id
+    };
+
+    Ok(InvoiceSignResult {
+        success: true,
+        fiscal_event_id: Some(fiscal_event_id),
+        invoice_no: Some(invoice_no),
+        error: None,
+    })
+}
+
 /// Issue a B2B invoice via Peppol. The caller is expected to have
 /// already produced and signed the SCE-2.0 invoice fiscal event via
-/// the standard `signInvoice` flow — this command does NOT re-emit
-/// the fiscal event. It only takes the resulting `fiscal_event_id`
+/// `sign_invoice_fiscal` above — this command does NOT re-emit the
+/// fiscal event. It only takes the resulting `fiscal_event_id`
 /// and the buyer's details, builds the UBL, and ships it.
 #[tauri::command]
 pub async fn issue_b2b_invoice(

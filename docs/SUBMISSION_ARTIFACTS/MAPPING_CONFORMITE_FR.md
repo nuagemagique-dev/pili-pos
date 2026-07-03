@@ -28,11 +28,11 @@ Format :
 | 11 | Signature ECDSA secp256r1 vérifiable depuis la réponse FDM | POS v2.2 §III.5 | `crates/pos-fiscal/src/signature.rs::verify_signature` | `crates/pos-fiscal/src/signature.rs::tests` |
 | 12 | Retry idempotent sur échecs FDM transitoires | POS v2.2 §III.7 | `crates/pos-fiscal/src/inputs.rs::idempotency_key` | `crates/pos-fiscal/src/inputs.rs::tests::idempotent_retry_returns_same_key` |
 | 13 | JSON canonique pour reproductibilité de signature | POS v2.2 §III.5 (entrées de signature) | `crates/pos-fiscal/src/canonical.rs` | `crates/pos-fiscal/src/canonical.rs::tests::deterministic_50x` |
-| 14 | Les événements C portent un `fdmRef` vers l'original | POS v2.2 §II.4.6 | `src-tauri/src/commands/copy.rs` | Fixture UC_BasicSet M170 (`crates/pos-fiscal/tests/uc_fixtures.rs`) |
-| 15 | Événements I avec n° TVA client + cost-center optionnel | POS v2.2 §II.4.5 | `crates/pos-fiscal/src/inputs.rs::InvoiceInput` | Fixture UC_BasicSet M150 |
-| 16 | F-WAR ouverture tiroir émis à chaque kick tiroir | POS v2.2 §II.4.7 | `src-tauri/src/commands/financial.rs::open_drawer_fiscal` | Fixture UC_BasicSet M141 |
-| 17 | S pointage entrée/sortie pour Dimona ONSS | POS v2.2 §II.4.8 | `src-tauri/src/commands/social.rs::{work_in,work_out}` | Fixtures UC_BasicSet M160/M161 |
-| 18 | Rapport Z atomique (Turnover + User) | Reports v1.3 §II.3 | `src-tauri/src/commands/report.rs::generate_z_report` (tx unique) | `crates/pos-fiscal/tests/reports_fixtures.rs::z_report_counter_monotonicity` |
+| 14 | Les événements C portent un `fdmRef` vers l'original | POS v2.2 §II.4.6 | `src-tauri/src/commands/copy.rs` | e2e `spf_e2e_basic::{m160_*, m161_*, m172_*}` + fixture UC_BasicSet M160/M161 |
+| 15 | Événements I avec n° TVA client + cost-center optionnel | POS v2.2 §II.4.5 | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` | e2e `spf_e2e_basic::m150_*` + fixture UC_BasicSet M150 |
+| 16 | F-WAR ouverture tiroir émis à chaque kick tiroir | POS v2.2 §II.4.7 | `src-tauri/src/commands/financial.rs::open_drawer_fiscal` | e2e `spf_e2e_basic::m131_*` + fixture UC_BasicSet M131 |
+| 17 | S pointage entrée/sortie pour Dimona ONSS | POS v2.2 §II.4.8 | `src-tauri/src/commands/social.rs::{work_in,work_out}` | e2e `spf_e2e_basic::{m140_*, m141_*}` + fixtures UC_BasicSet M140/M141 |
+| 18 | Rapport Z atomique (Turnover + User) | Reports v1.3 §II.3 | `src-tauri/src/commands/report.rs::do_generate_z_report` (mutation M184 combinée + tx unique) | e2e `spf_e2e_reports::m184_*` + `reports_fixtures.rs` |
 
 ## Spec FDM v1.4 + Addendum 1
 
@@ -62,9 +62,10 @@ Les 141 fixtures se chargent et se désérialisent proprement. Voir
 ## Remboursements & corrections
 
 Voir `FLUX_REMBOURSEMENT_FR.md`. M111 (remboursement complet),
-M112A/B (remboursement partiel), M132 (correction de paiement),
-UC4122 (note de crédit) tous couverts dans
-`src-tauri/src/commands/refund.rs`.
+M112B (remboursement partiel comme événement séparé — le pattern
+déclaré, cf. e2e `spf_e2e_basic::m112b_*`), UC4122 (note de crédit)
+couverts dans `src-tauri/src/commands/refund.rs`. M132 (correction
+de paiement) : reporté, non déclaré.
 
 ## Peppol B2B (obligation parallèle, hors SCE-2.0)
 

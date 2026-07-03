@@ -193,6 +193,7 @@ fn main() {
         commands::tables::sign_pre_bill,
         // Reports
         commands::report::generate_x_report,
+        commands::report::generate_user_x_report,
         commands::report::generate_z_report,
         commands::report::list_z_reports,
         commands::report::needs_z_report,
@@ -219,6 +220,7 @@ fn main() {
         commands::hubrise::hubrise_set_confirmed_time,
         // Peppol B2B (Phase 9)
         #[cfg(feature = "peppol")]
+        commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,
     ]);
 
@@ -258,6 +260,7 @@ fn main() {
         commands::tables::sign_pre_bill,
         // Reports
         commands::report::generate_x_report,
+        commands::report::generate_user_x_report,
         commands::report::generate_z_report,
         commands::report::list_z_reports,
         commands::report::needs_z_report,
@@ -276,6 +279,7 @@ fn main() {
         commands::financial::open_drawer_fiscal,
         // Peppol B2B (Phase 9)
         #[cfg(feature = "peppol")]
+        commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,
     ]);
 

@@ -143,6 +143,8 @@ const messages: Record<string, Record<AppLanguage, string>> = {
   "report_x": { fr: "Rapport X", en: "X Report", zh: "X报表" },
   "report_z": { fr: "Rapport Z", en: "Z Report", zh: "Z报表" },
   "report_x_desc": { fr: "Résumé en cours de journée", en: "Mid-day summary", zh: "日中汇总" },
+  "report_user_x": { fr: "Rapport utilisateurs X", en: "User X Report", zh: "员工X报表" },
+  "report_user_x_desc": { fr: "Ventes et pointages par employé", en: "Per-employee sales & presence", zh: "按员工统计销售和打卡" },
   "report_z_desc": { fr: "Fin de journée (remise à zéro)", en: "End of day (reset)", zh: "日结（清零）" },
   "generate": { fr: "Générer", en: "Generate", zh: "生成" },
   "report_generated": { fr: "Rapport généré", en: "Report generated", zh: "报表已生成" },

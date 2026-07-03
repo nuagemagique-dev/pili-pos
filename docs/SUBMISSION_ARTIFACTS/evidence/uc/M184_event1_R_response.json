@@ -4,16 +4,16 @@
   "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
   "eventOperation": "REPORT_TURNOVER_Z",
   "fdmRef": {
-    "eventCounter": 4,
+    "eventCounter": 3,
     "eventLabel": "R",
-    "fdmDateTime": "2024-07-30T11:05:41Z",
+    "fdmDateTime": "2024-07-30T11:05:43.231Z",
     "fdmId": "FOD01000001",
-    "totalCounter": 58
+    "totalCounter": 47
   },
   "fdmSwVersion": "1.2.0",
   "footer": [],
   "informations": [],
-  "posDateTime": "2024-07-30T13:05:35+02:00",
+  "posDateTime": "2024-07-30T13:05:35.152+02:00",
   "posFiscalTicketNo": 209,
   "posId": "CPOS0031234567",
   "shortSignature": null,

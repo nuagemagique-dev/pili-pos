@@ -201,7 +201,21 @@ impl TestApp {
                 .unwrap_or_else(|_| raw.to_string())
         };
 
-        for (i, ev) in self.fiscal_events().iter().enumerate() {
+        // Only export events whose request was built by the command
+        // layer (every real payload embeds the common identification
+        // fields, so `posId` is always present). Rows seeded directly
+        // in SQLite by a test fixture carry synthetic minimal JSON
+        // and must not end up in the dossier evidence.
+        let real: Vec<_> = self
+            .fiscal_events()
+            .into_iter()
+            .filter(|ev| {
+                ev.event_data_json
+                    .as_deref()
+                    .is_some_and(|j| j.contains("\"posId\""))
+            })
+            .collect();
+        for (i, ev) in real.iter().enumerate() {
             let label = ev.event_type.as_str();
             if let Some(ref req) = ev.event_data_json {
                 let p = dir.join(format!("{uc_id}_event{n}_{label}_request.json", n = i + 1));

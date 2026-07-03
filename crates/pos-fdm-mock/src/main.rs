@@ -42,7 +42,52 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         return Json(payload);
     }
 
-    let event_label = match mutation_name.as_str() {
+    if mutation_name == "Status" {
+        return Json(status_response(&req.query));
+    }
+
+    // M184 — the end-of-day Z carries BOTH Z mutations in one GraphQL
+    // document (`$turnover` + `$user` variables). Each gets its own
+    // counters, like a real FDM signing two events back to back.
+    if req.query.contains("signReportTurnoverZ") && req.query.contains("signReportUserZ") {
+        let turnover = req.variables.get("turnover").cloned().unwrap_or_default();
+        let user = req.variables.get("user").cloned().unwrap_or_default();
+        let r1 = build_sign_result("signReportTurnoverZ", is_training, &turnover);
+        let r2 = build_sign_result("signReportUserZ", is_training, &user);
+        println!(
+            "[R+R] signReportTurnoverZ+signReportUserZ #{}+#{} (M184)",
+            r1.fdm_ref.event_counter, r2.fdm_ref.event_counter
+        );
+        return Json(serde_json::json!({ "data": {
+            "signReportTurnoverZ": r1,
+            "signReportUserZ": r2,
+        }}));
+    }
+
+    let data = req.variables.get("data").cloned().unwrap_or_default();
+    let result = build_sign_result(&mutation_name, is_training, &data);
+
+    println!(
+        "[{}] {mutation_name} #{} (total: {})",
+        result.fdm_ref.event_label, result.fdm_ref.event_counter, result.fdm_ref.total_counter
+    );
+
+    let mut data_map = serde_json::Map::new();
+    data_map.insert(
+        mutation_name.clone(),
+        serde_json::to_value(&result).unwrap(),
+    );
+
+    Json(serde_json::json!({ "data": data_map }))
+}
+
+/// Build one signed result for a mutation, advancing the counters.
+fn build_sign_result(
+    mutation_name: &str,
+    is_training: bool,
+    data: &serde_json::Value,
+) -> SignResult {
+    let event_label = match mutation_name {
         "signSale" => {
             if is_training {
                 "T"
@@ -58,11 +103,10 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         "signReportTurnoverX" | "signReportTurnoverZ" | "signReportUserX" | "signReportUserZ" => {
             "R"
         }
-        "Status" => return Json(status_response(&req.query)),
         _ => "N",
     };
 
-    let event_op = match mutation_name.as_str() {
+    let event_op = match mutation_name {
         "signSale" => "SALE",
         "signOrder" => "ORDER",
         "signPreBill" => "PRE_BILL",
@@ -84,8 +128,6 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
     let ec = EVENT_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
     let tc = TOTAL_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
 
-    // Extract fields from variables.data
-    let data = req.variables.get("data").cloned().unwrap_or_default();
     let pos_id = data
         .get("posId")
         .and_then(|v| v.as_str())
@@ -127,7 +169,7 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         None
     };
 
-    let result = SignResult {
+    SignResult {
         pos_id: pos_id.to_string(),
         pos_fiscal_ticket_no: ticket_no,
         pos_date_time: pos_dt.to_string(),
@@ -150,17 +192,7 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         warnings: None,
         informations: None,
         footer: vec!["www.systemedecaisseenregistreuse.be".to_string()],
-    };
-
-    println!("[{event_label}] {mutation_name} #{ec} (total: {tc})");
-
-    let mut data_map = serde_json::Map::new();
-    data_map.insert(
-        mutation_name.clone(),
-        serde_json::to_value(&result).unwrap(),
-    );
-
-    Json(serde_json::json!({ "data": data_map }))
+    }
 }
 
 fn extract_mutation_name(query: &str) -> String {

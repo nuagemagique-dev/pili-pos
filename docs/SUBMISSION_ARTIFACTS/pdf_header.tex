@@ -13,3 +13,8 @@
 \newunicodechar{→}{\ensuremath{\rightarrow}}
 \newunicodechar{←}{\ensuremath{\leftarrow}}
 \newunicodechar{↔}{\ensuremath{\leftrightarrow}}
+% CJK fallback: body font (Helvetica Neue) has no CJK glyphs; map the
+% few Chinese characters used in the dossier onto a macOS CJK font.
+\newfontfamily{\cjkfallback}{Hiragino Sans GB}
+\newunicodechar{中}{{\cjkfallback 中}}
+\newunicodechar{文}{{\cjkfallback 文}}

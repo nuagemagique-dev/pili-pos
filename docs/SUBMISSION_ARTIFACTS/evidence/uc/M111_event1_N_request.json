@@ -1,9 +1,9 @@
 {
-  "bookingDate": "2026-07-02",
-  "bookingPeriodId": "2e4f0315-7d82-408b-a39e-7a6d1e023131",
+  "bookingDate": "2026-07-03",
+  "bookingPeriodId": "7efa2ffa-dcc4-43ee-b1b5-f19bdd5d314c",
   "costCenter": {
     "id": "T01",
-    "reference": "6e559f71-e475-46fa-b0db-bfe5e69fc09b",
+    "reference": "37457403-f139-4563-8d90-fde390762831",
     "type": "TABLE"
   },
   "deviceId": "DEV001",
@@ -20,7 +20,7 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-07-02T21:50:01.227076+02:00",
+  "posDateTime": "2026-07-03T14:02:03.999708+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",

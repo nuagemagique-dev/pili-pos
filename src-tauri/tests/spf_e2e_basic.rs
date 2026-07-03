@@ -11,23 +11,24 @@
 //! |---|---|---|
 //! | M110 | Sale → N archive, order closed | `checkout::do_checkout` |
 //! | M111 | Full refund of N | `refund::do_refund_checkout` |
-//! | M112A| Original sale + partial refund chain | both, in sequence |
+//! | M112B| Original sale + partial refund as SEPARATE event (declared pattern, cf. FLUX_REMBOURSEMENT_FR.md) | both, in sequence |
 //! | M121 | Order (P) → P archive, order stays open | `tables::do_sign_table_order` |
 //! | M123 | Pre-bill → P archive, order stays open | `tables::do_sign_pre_bill` |
 //! | M130 | Money in/out (F) | `financial::do_money_in_out` |
 //! | M131 | Drawer open (F) | `financial::do_open_drawer_fiscal` |
 //! | M140 | Work-in (S) | `social::do_work_in` |
 //! | M141 | Work-out (S) | `social::do_work_out` |
-//! | M150 | Invoice (I) | tested as a B2B sale variant via do_checkout |
+//! | M150 | Invoice (I) referencing prior sales | `invoice::do_sign_invoice_fiscal` |
 //! | M160 | Copy of a sale (C) → C archive carrying fdmRef | `copy::do_copy_ticket` |
 //! | M170 | Work-in in training (T) | `social::do_work_in` w/ training_mode=true |
 //! | M171 | Sale in training (T) → T archive, N counter untouched | `checkout::do_checkout` |
+//! | M161 | Copy of an order (C referencing a P event) | `copy::do_copy_ticket` |
+//! | M172 | Copy in training mode | `copy::do_copy_ticket` w/ training_mode=true |
 //!
-//! Status queries Q100/Q110 are NOT exercised here: the published
-//! fixtures use lowercase `data.status` envelope while our `FdmClient`
-//! expects `data.Status`. That's a fixture-vs-code discrepancy logged
-//! in `docs/SUBMISSION_ARTIFACTS/FIXTURE_COVERAGE.md`; once aligned
-//! (likely via FdmClient fallback) it'll get its own test.
+//! Status queries Q100/Q110 are exercised at the client level in
+//! `pos-fiscal/tests/client_status.rs` (dual `Status`/`status`
+//! spelling fallback + Q110 multi-language aliases) and against the
+//! published fixtures in `uc_fixtures.rs`.
 
 mod common;
 
@@ -36,6 +37,7 @@ use common::*;
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::copy::do_copy_ticket;
 use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use moyun_pos::commands::invoice::do_sign_invoice_fiscal;
 use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
 use moyun_pos::commands::social::{do_work_in, do_work_out};
 use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
@@ -169,18 +171,22 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
 // ── M112A — Partial refund chain (multi-step) ──────────────────────
 
 #[tokio::test]
-async fn m112a_partial_refund_chains_to_original_sale() {
+async fn m112b_partial_refund_is_separate_event_chained_to_original() {
+    // The dossier declares the M112B pattern (FLUX_REMBOURSEMENT_FR.md):
+    // a partial refund is ALWAYS its own fiscal event referencing the
+    // original sale — never mixed with new-sale lines on one ticket
+    // (that mixed pattern is M112A, which this POS does not offer).
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
 
     // Multi-step: original sale uses M110-shaped response; partial
-    // refund uses M112A_2_PartialRefund.
+    // refund uses M112B_2_PartialRefund.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
     mock_from_fixture(
         &app,
         &load_uc(
             &basic_set_root(),
-            "M112A_signSale_RefundPartial/M112A_2_PartialRefund",
+            "M112B_signSale_RefundPartial/M112B_2_PartialRefund",
         ),
     )
     .await;
@@ -200,13 +206,30 @@ async fn m112a_partial_refund_chains_to_original_sale() {
     let result = do_refund_checkout(&app.state, original_event_id, items, TEST_INSZ.to_string())
         .await
         .unwrap();
-    assert!(result.success, "M112A refund failed: {:?}", result.error);
+    assert!(result.success, "M112B refund failed: {:?}", result.error);
 
     let events = app.fiscal_events();
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].event_type, "N");
     assert_eq!(events[1].event_type, "N");
-    app.dump_evidence("M112A");
+    // The refund is a SEPARATE event carrying only negative lines,
+    // chained to the original via fdmRef (M112B pattern).
+    let refund_request: serde_json::Value =
+        serde_json::from_str(events[1].event_data_json.as_ref().unwrap()).unwrap();
+    assert!(
+        refund_request.get("fdmRef").is_some(),
+        "partial refund must reference the original sale"
+    );
+    let lines = refund_request["transaction"]["transactionLines"]
+        .as_array()
+        .unwrap();
+    assert!(
+        lines
+            .iter()
+            .all(|l| l["mainProduct"]["quantity"].as_f64().unwrap() < 0.0),
+        "M112B: refund event must not mix positive (new sale) lines"
+    );
+    app.dump_evidence("M112B");
 }
 
 // ── M121 — Order (event P, pro forma) ──────────────────────────────
@@ -414,4 +437,159 @@ async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
         "training sale must NOT touch the production N counter"
     );
     app.dump_evidence("M171");
+}
+
+// ── M150 — Invoice (event I) referencing prior sales ───────────────
+
+#[tokio::test]
+async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
+    let app = TestApp::new().await;
+    let order_id = seed_minimal_open_order(&app);
+
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M150")).await;
+
+    do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    let sale_event_id = app.fiscal_events()[0].id;
+
+    let result = do_sign_invoice_fiscal(
+        &app.state,
+        vec![sale_event_id],
+        "BE0308357159".to_string(),
+        TEST_INSZ.to_string(),
+    )
+    .await
+    .unwrap();
+    assert!(result.success, "M150 invoice failed: {:?}", result.error);
+
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[1].event_type, "I");
+    assert_eq!(app.counter_for(EventLabel::I), 1);
+    assert_eq!(Some(events[1].id), result.fiscal_event_id);
+
+    // The archived I request must carry the invoice number, the
+    // customer VAT and the fdmRefs of the underlying sale (M150
+    // fixture shape).
+    let request: serde_json::Value =
+        serde_json::from_str(events[1].event_data_json.as_ref().unwrap()).unwrap();
+    assert_eq!(request["customerVatNo"], "BE0308357159");
+    assert_eq!(
+        request["invoiceNo"].as_str(),
+        result.invoice_no.as_deref(),
+        "archived invoiceNo must match the returned one"
+    );
+    let refs = request["fdmRefs"].as_array().expect("fdmRefs array");
+    assert_eq!(refs.len(), 1);
+    assert_eq!(refs[0]["eventLabel"], "N");
+    app.dump_evidence("M150");
+}
+
+#[tokio::test]
+async fn m150_invoice_fdm_failure_does_not_advance_i_counter() {
+    let app = TestApp::new().await;
+    let order_id = seed_minimal_open_order(&app);
+    // Only the sale is mocked — the signInvoice call hits an
+    // unmatched route and fails, like an unreachable FDM.
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
+
+    do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    let sale_event_id = app.fiscal_events()[0].id;
+
+    let result = do_sign_invoice_fiscal(
+        &app.state,
+        vec![sale_event_id],
+        "BE0308357159".to_string(),
+        TEST_INSZ.to_string(),
+    )
+    .await
+    .unwrap();
+    assert!(!result.success, "invoice must fail when the FDM refuses");
+    assert_eq!(
+        app.counter_for(EventLabel::I),
+        0,
+        "failed signInvoice must not create a counter gap"
+    );
+    assert_eq!(app.fiscal_events().len(), 1, "no I event archived");
+}
+
+// ── M161 — Copy of an order (event C referencing a P event) ────────
+
+#[tokio::test]
+async fn m161_copy_of_order_archives_c_event_with_ref_to_p_event() {
+    let app = TestApp::new().await;
+    let order_id = seed_minimal_open_order(&app);
+
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M161")).await;
+
+    do_sign_table_order(&app.state, order_id, "CC1".to_string())
+        .await
+        .unwrap();
+    let p_event_id = app.fiscal_events()[0].id;
+
+    let result = do_copy_ticket(&app.state, p_event_id, TEST_INSZ.to_string())
+        .await
+        .unwrap();
+    assert!(result.success, "M161 copy failed: {:?}", result.error);
+
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[1].event_type, "C");
+    assert_eq!(app.counter_for(EventLabel::C), 1);
+
+    // The C event must reference the ORIGINAL P event.
+    let copy_request: serde_json::Value =
+        serde_json::from_str(events[1].event_data_json.as_ref().unwrap()).unwrap();
+    assert_eq!(
+        copy_request["fdmRef"]["eventLabel"], "P",
+        "copy of an order must chain to the P event"
+    );
+    app.dump_evidence("M161");
+}
+
+// ── M172 — Copy in training mode ────────────────────────────────────
+
+#[tokio::test]
+async fn m172_copy_in_training_mode_archives_c_event() {
+    let app = TestApp::new().await;
+    set_training_mode(&app, true);
+    let order_id = seed_minimal_open_order(&app);
+
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M171")).await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M172")).await;
+
+    do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    let t_event_id = app.fiscal_events()[0].id;
+
+    let result = do_copy_ticket(&app.state, t_event_id, TEST_INSZ.to_string())
+        .await
+        .unwrap();
+    assert!(
+        result.success,
+        "M172 training copy failed: {:?}",
+        result.error
+    );
+
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 2);
+    // The archive carries the FDM's label — T in training mode (the
+    // published M172 response brands the copy T).
+    let copy_request: serde_json::Value =
+        serde_json::from_str(events[1].event_data_json.as_ref().unwrap()).unwrap();
+    assert_eq!(
+        copy_request["fdmRef"]["eventLabel"], "T",
+        "training copy must chain to the T sale"
+    );
+    assert!(
+        copy_request["isTraining"].is_null(),
+        "training rides the isTraining GraphQL variable, not the input"
+    );
+    app.dump_evidence("M172");
 }

@@ -17,13 +17,14 @@ build `--no-default-features --features cert`).
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `do_work_in` avec `training_mode=true` |
 | C | Copie de ticket | `signCopy` | `src-tauri/src/commands/copy.rs::do_copy_ticket` |
-| I | Facture B2B | `signInvoice` | (Phase Peppol - voir `PEPPOL_AP_DECISION.md`) |
+| I | Facture B2B | `signInvoice` | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`) |
 | F | Mouvement de fonds | `signMoneyInOut` | `src-tauri/src/commands/financial.rs::do_money_in_out` |
 | F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `src-tauri/src/commands/financial.rs::do_open_drawer_fiscal` |
 | S | Pointage entrée | `signWorkIn` | `src-tauri/src/commands/social.rs::do_work_in` |
 | S | Pointage sortie | `signWorkOut` | `src-tauri/src/commands/social.rs::do_work_out` |
 | R | Rapport X (intermédiaire) | `signReportTurnoverX` | `src-tauri/src/commands/report.rs::do_generate_x_report` |
-| R | Rapport Z (clôture) | `signReportTurnoverZ` | `src-tauri/src/commands/report.rs::do_generate_z_report` |
+| R | Rapport utilisateurs X | `signReportUserX` | `src-tauri/src/commands/report.rs::do_generate_user_x_report` |
+| R | Rapport Z (clôture, M184) | `signReportTurnoverZ` + `signReportUserZ` (une seule opération GraphQL) | `src-tauri/src/commands/report.rs::do_generate_z_report` |
 
 ### 1.2 Codes TVA gérés
 

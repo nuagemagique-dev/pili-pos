@@ -26,7 +26,7 @@
 //! journal (`JOURNAL_TESTS_PRE_SOUMISSION_FR.md`) documents:
 //!
 //! S work-in → P order → P pre-bill → N sale → N refund → C copy →
-//! F drawer-open → F money-in → R turnover-X → S work-out.
+//! F drawer-open → F money-in → R turnover-X → R user-X → S work-out.
 //!
 //! For every `SignResult` it asserts: echoed identification fields,
 //! expected event label, strictly increasing `totalCounter`, per-label
@@ -48,20 +48,20 @@ use pos_core::config::PosConfig;
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use pos_core::vat::VatCode;
 use pos_fiscal::event::{
-    TurnoverReportData, build_copy_input, build_order_input, build_pre_bill_input,
-    build_report_turnover_x, build_sale_input, build_work_in_out,
+    TurnoverReportData, UserReportData, build_copy_input, build_order_input, build_pre_bill_input,
+    build_report_turnover_x, build_report_user_x, build_sale_input, build_work_in_out,
 };
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::{
-    DrawerOpenInput, EventTotalInput, FdmDeviceInput, MoneyInOutInput, MoneyInOutLineInput,
-    NegQuantityTotalInput, PaymentTotalAmountInput, PaymentTotalInput, PosDeviceInput,
-    TurnoverInput, VatTotalInput,
+    DrawerOpenInput, EventTotalInput, FdmDeviceInput, InOutItemInput, MoneyInOutInput,
+    MoneyInOutLineInput, NegQuantityTotalInput, PaymentTotalAmountInput, PaymentTotalInput,
+    PosDeviceInput, TurnoverInput, UserItemInput, VatTotalInput,
 };
 use pos_fiscal::response::SignResult;
 use pos_fiscal::signature::verify_short_signature;
 use pos_fiscal::types::{
-    EventLabel, InputMethod, MoneyInOutLineType, NegQuantityReason, PaymentLineType, PaymentType,
-    VatLabel,
+    EventLabel, InOut, InputMethod, MoneyInOutLineType, NegQuantityReason, PaymentLineType,
+    PaymentType, VatLabel,
 };
 use uuid::Uuid;
 
@@ -570,7 +570,51 @@ async fn staging_basic_set_smoke() {
         result,
     );
 
-    // 10. S — work-out (M141): the service day closes.
+    // 10. R — user X report (M182): per-operator turnover +
+    //     presence, referencing the same device blocks.
+    let first = r.results.first().expect("results");
+    let last = r.results.last().expect("results");
+    let user_data = UserReportData {
+        pos_devices: vec![PosDeviceInput {
+            pos_id: config.pos_id.clone(),
+            terminal_id: Some(config.terminal_id.clone()),
+            first_pos_date_time: first.pos_date_time.clone(),
+            last_pos_date_time: last.pos_date_time.clone(),
+        }],
+        fdm_devices: vec![FdmDeviceInput {
+            fdm_id: first.fdm_ref.fdm_id.clone(),
+            first_fdm_date_time: first.fdm_ref.fdm_date_time.clone(),
+            first_total_counter: first.fdm_ref.total_counter,
+            last_fdm_date_time: last.fdm_ref.fdm_date_time.clone(),
+            last_total_counter: last.fdm_ref.total_counter,
+        }],
+        users: vec![UserItemInput {
+            employee_id: insz.clone(),
+            total_amount: 0.0, // sale + full refund net out
+            first_pos_date_time: first.pos_date_time.clone(),
+            last_pos_date_time: last.pos_date_time.clone(),
+            social_events: vec![InOutItemInput {
+                pos_date_time: first.pos_date_time.clone(),
+                in_out: InOut::In,
+            }],
+            payments: vec![],
+        }],
+    };
+    let n = next_ticket();
+    let input = build_report_user_x(&config, n, &insz, &booking_period_id, user_data);
+    let result = client
+        .sign_report_user_x(input.clone(), false)
+        .await
+        .expect("signReportUserX");
+    r.check(
+        "10. signReportUserX (R) — M182",
+        EventLabel::R,
+        n,
+        &input,
+        result,
+    );
+
+    // 11. S — work-out (M141): the service day closes.
     let n = next_ticket();
     let input = build_work_in_out(&config, n, &insz, &booking_period_id);
     let result = client
@@ -578,7 +622,7 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signWorkOut");
     r.check(
-        "10. signWorkOut (S) — M141",
+        "11. signWorkOut (S) — M141",
         EventLabel::S,
         n,
         &input,
@@ -586,7 +630,7 @@ async fn staging_basic_set_smoke() {
     );
 
     eprintln!(
-        "staging_basic_set_smoke: 10/10 events signed, counters \
+        "staging_basic_set_smoke: 11/11 events signed, counters \
          monotonic, all short signatures verified."
     );
     r.finish();

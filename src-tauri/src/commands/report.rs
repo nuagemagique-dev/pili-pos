@@ -1,12 +1,18 @@
 use chrono::Timelike;
 use pos_db::queries::reports::{self as report_queries, ZReportSummary};
-use pos_print::report::{ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal};
+use pos_print::report::{
+    ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal, UserReportPrintData,
+    UserReportUser,
+};
 use serde::Serialize;
 use tauri::State;
 
 use pos_fiscal::archive::{self, ArchiveParams};
 use pos_fiscal::counter::FiscalCounter;
-use pos_fiscal::event::{TurnoverReportData, build_report_turnover_x, build_report_turnover_z};
+use pos_fiscal::event::{
+    TurnoverReportData, UserReportData, build_report_turnover_x, build_report_turnover_z,
+    build_report_user_x, build_report_user_z,
+};
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::*;
 use pos_fiscal::types::*;
@@ -124,7 +130,9 @@ pub fn do_list_z_reports(state: &AppState) -> Result<Vec<ZReportSummary>, String
     pos_db::queries::reports::list_z_reports(&db).map_err(|e| e.to_string())
 }
 
-/// Generate a Z-report (end-of-day, resets counters).
+/// Generate the end-of-day Z (M184): the financial Z and the user Z
+/// are built together, signed by the FDM in ONE GraphQL operation,
+/// and archived atomically (both R events or none).
 #[tauri::command]
 pub async fn generate_z_report(
     state: State<'_, AppState>,
@@ -139,7 +147,17 @@ pub async fn do_generate_z_report(
 ) -> Result<ReportResult, String> {
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
-    let (config, bp_id, turnover_data, ticket_number, report_no, print_data) = {
+    let (
+        config,
+        bp_id,
+        turnover_data,
+        user_data,
+        turnover_ticket,
+        user_ticket,
+        report_no,
+        print_data,
+        user_print_data,
+    ) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = state
@@ -148,49 +166,91 @@ pub async fn do_generate_z_report(
             .map_err(|e| e.to_string())?
             .clone();
         let data = build_turnover_data(&db, &config, &today)?;
+        let users = build_user_report_data(&db, &config, &today)?;
+        // Two sequential ticket numbers — the M184 fixture shows the
+        // user Z carrying posFiscalTicketNo = turnover Z + 1.
         let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
+        let un = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
         let rn = report_queries::next_z_report_number(&db).map_err(|e| e.to_string())?;
         let pd = build_print_data(&db, &config, &today, "Z", Some(rn), tn, &employee_insz)?;
-        (config, bp, data, tn, rn, pd)
+        let upd = build_user_print_data(&db, &config, &today, "Z", Some(rn), un, &employee_insz)?;
+        (config, bp, data, users, tn, un, rn, pd, upd)
     };
 
-    let report = build_report_turnover_z(
+    let turnover_report = build_report_turnover_z(
         &config,
-        ticket_number,
+        turnover_ticket,
         &employee_insz,
         &bp_id,
         report_no,
         &today,
         turnover_data,
     );
-    let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
+    let user_report = build_report_user_z(
+        &config,
+        user_ticket,
+        &employee_insz,
+        &bp_id,
+        report_no,
+        &today,
+        user_data,
+    );
+    let turnover_json = serde_json::to_string(&turnover_report).map_err(|e| e.to_string())?;
+    let user_json = serde_json::to_string(&user_report).map_err(|e| e.to_string())?;
 
+    // M184 — one GraphQL operation signs both reports.
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm
-        .sign_report_turnover_z(report, config.training_mode)
+    let signed = fdm
+        .sign_report_turnover_z_user_z(turnover_report, user_report, config.training_mode)
         .await
         .ok();
+    let (turnover_result, user_result) = match signed {
+        Some((t, u)) => (Some(t), Some(u)),
+        None => (None, None),
+    };
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
+        // Both R events + the z_reports row commit atomically: a crash
+        // between the two archives can never leave a half-recorded Z.
+        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
         let fiscal_event_id = archive::archive_event(
-            &db,
+            &tx,
             ArchiveParams {
                 event_type: EventLabel::R,
-                sequence_number: ticket_number,
+                sequence_number: turnover_ticket,
                 order_id: None,
                 pos_id: &config.pos_id,
                 terminal_id: &config.terminal_id,
                 user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
+                request_json: &turnover_json,
+                sign_result: turnover_result.as_ref(),
             },
         )
         .map_err(|e| e.to_string())?;
-
-        // Save Z-report record
-        report_queries::save_z_report(&db, &today, report_no, &request_json, Some(fiscal_event_id))
-            .map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &tx,
+            ArchiveParams {
+                event_type: EventLabel::R,
+                sequence_number: user_ticket,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &user_json,
+                sign_result: user_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+        report_queries::save_z_report(
+            &tx,
+            &today,
+            report_no,
+            &turnover_json,
+            Some(fiscal_event_id),
+        )
+        .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
 
         // Auto-backup after Z-report — best-effort, failure never blocks
         // the Z itself. Uses SQLite's built-in backup API which is safe
@@ -206,13 +266,82 @@ pub async fn do_generate_z_report(
         *bp = uuid::Uuid::new_v4().to_string();
     }
 
-    // Auto-print report on thermal printer
-    print_report(&config, print_data, sign_result.as_ref()).await;
+    // Auto-print: financial Z first, then the user Z as a second
+    // sequential ticket.
+    print_report(&config, print_data, turnover_result.as_ref()).await;
+    print_user_report(&config, user_print_data, user_result.as_ref()).await;
 
     Ok(ReportResult {
         success: true,
         report_type: "Z".to_string(),
         report_no: Some(report_no),
+        error: None,
+    })
+}
+
+/// Generate a user X-report (M182, non-resetting) on demand from the
+/// Reports menu.
+#[tauri::command]
+pub async fn generate_user_x_report(
+    state: State<'_, AppState>,
+    employee_insz: String,
+) -> Result<ReportResult, String> {
+    do_generate_user_x_report(state.inner(), employee_insz).await
+}
+
+pub async fn do_generate_user_x_report(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<ReportResult, String> {
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+    let (config, bp_id, user_data, ticket_number, print_data) = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+        let bp = state
+            .booking_period_id
+            .lock()
+            .map_err(|e| e.to_string())?
+            .clone();
+        let users = build_user_report_data(&db, &config, &today)?;
+        let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
+        let pd = build_user_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
+        (config, bp, users, tn, pd)
+    };
+
+    let report = build_report_user_x(&config, ticket_number, &employee_insz, &bp_id, user_data);
+    let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
+
+    let fdm = FdmClient::new(&config.fdm_url);
+    let sign_result = fdm
+        .sign_report_user_x(report, config.training_mode)
+        .await
+        .ok();
+
+    {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        archive::archive_event(
+            &db,
+            ArchiveParams {
+                event_type: EventLabel::R,
+                sequence_number: ticket_number,
+                order_id: None,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &employee_insz,
+                request_json: &request_json,
+                sign_result: sign_result.as_ref(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    print_user_report(&config, print_data, sign_result.as_ref()).await;
+
+    Ok(ReportResult {
+        success: true,
+        report_type: "X-USER".to_string(),
+        report_no: None,
         error: None,
     })
 }
@@ -469,14 +598,7 @@ fn build_turnover_data(
         last_pos_date_time: last_dt.clone(),
     }];
 
-    // FDM device info would come from last FDM status query — use placeholder
-    let fdm_devices = vec![FdmDeviceInput {
-        fdm_id: String::new(),
-        first_fdm_date_time: first_dt,
-        first_total_counter: 0,
-        last_fdm_date_time: last_dt,
-        last_total_counter: 0,
-    }];
+    let fdm_devices = build_fdm_devices(db, booking_date, &first_dt, &last_dt)?;
 
     Ok(TurnoverReportData {
         pos_devices,
@@ -499,4 +621,195 @@ fn build_turnover_data(
             invoices: None,
         },
     })
+}
+
+/// The `fdmDevices` block of every X/Z report, read from the FDM
+/// references archived that day (the FDM owns those numbers; the POS
+/// replays them). Empty-identity fallback only when the day has no
+/// signed event yet.
+fn build_fdm_devices(
+    db: &rusqlite::Connection,
+    booking_date: &str,
+    fallback_first_dt: &str,
+    fallback_last_dt: &str,
+) -> Result<Vec<FdmDeviceInput>, String> {
+    let range = report_queries::get_fdm_ref_range(db, booking_date).map_err(|e| e.to_string())?;
+    Ok(match range {
+        Some(r) => vec![FdmDeviceInput {
+            fdm_id: r.fdm_id,
+            first_fdm_date_time: r.first_datetime,
+            first_total_counter: r.first_total_counter,
+            last_fdm_date_time: r.last_datetime,
+            last_total_counter: r.last_total_counter,
+        }],
+        None => vec![FdmDeviceInput {
+            fdm_id: String::new(),
+            first_fdm_date_time: fallback_first_dt.to_string(),
+            first_total_counter: 0,
+            last_fdm_date_time: fallback_last_dt.to_string(),
+            last_total_counter: 0,
+        }],
+    })
+}
+
+/// Map a local payment method string onto the fiscal PaymentType.
+fn payment_type_of(method: &str) -> PaymentType {
+    match method {
+        "cash" => PaymentType::Cash,
+        "card" => PaymentType::CardDebit,
+        _ => PaymentType::Other,
+    }
+}
+
+/// Build the `users` block of the user reports (M182/M183/M184) from
+/// the day's archived events, orders and payments.
+fn build_user_report_data(
+    db: &rusqlite::Connection,
+    config: &pos_core::config::PosConfig,
+    booking_date: &str,
+) -> Result<UserReportData, String> {
+    let activity =
+        report_queries::get_user_activity(db, booking_date).map_err(|e| e.to_string())?;
+    let payment_totals =
+        report_queries::get_user_payment_totals(db, booking_date).map_err(|e| e.to_string())?;
+    let social =
+        report_queries::get_user_social_events(db, booking_date).map_err(|e| e.to_string())?;
+    let (first_dt, last_dt) =
+        report_queries::get_datetime_range(db, booking_date).map_err(|e| e.to_string())?;
+
+    let users: Vec<UserItemInput> = activity
+        .iter()
+        .map(|ua| UserItemInput {
+            employee_id: ua.user_insz.clone(),
+            total_amount: ua.total_cents as f64 / 100.0,
+            first_pos_date_time: ua.first_datetime.clone(),
+            last_pos_date_time: ua.last_datetime.clone(),
+            social_events: social
+                .iter()
+                .filter(|s| s.user_insz == ua.user_insz)
+                .map(|s| InOutItemInput {
+                    pos_date_time: s.pos_datetime.clone(),
+                    in_out: if s.operation == "WORK_IN" {
+                        InOut::In
+                    } else {
+                        InOut::Out
+                    },
+                })
+                .collect(),
+            payments: payment_totals
+                .iter()
+                .filter(|p| p.user_insz == ua.user_insz)
+                .map(|p| PaymentTotalInput {
+                    id: p.method.clone(),
+                    name: p.method.clone(),
+                    payment_type: payment_type_of(&p.method),
+                    amount: vec![PaymentTotalAmountInput {
+                        amount_type: PaymentLineType::Payment,
+                        normal_amount: p.amount_cents as f64 / 100.0,
+                        negative_corrections: 0.0,
+                        positive_corrections: 0.0,
+                        corrections_count: 0,
+                        total_amount: p.amount_cents as f64 / 100.0,
+                        normal_foreign: None,
+                        corrections_foreign: None,
+                    }],
+                })
+                .collect(),
+        })
+        .collect();
+
+    Ok(UserReportData {
+        pos_devices: vec![PosDeviceInput {
+            pos_id: config.pos_id.clone(),
+            terminal_id: Some(config.terminal_id.clone()),
+            first_pos_date_time: first_dt.clone(),
+            last_pos_date_time: last_dt.clone(),
+        }],
+        fdm_devices: build_fdm_devices(db, booking_date, &first_dt, &last_dt)?,
+        users,
+    })
+}
+
+/// Build the data struct for the printed user report.
+fn build_user_print_data(
+    db: &rusqlite::Connection,
+    config: &pos_core::config::PosConfig,
+    today: &str,
+    report_type: &str,
+    report_no: Option<i64>,
+    ticket_number: i64,
+    employee_insz: &str,
+) -> Result<UserReportPrintData, String> {
+    let activity = report_queries::get_user_activity(db, today).map_err(|e| e.to_string())?;
+    let payment_totals =
+        report_queries::get_user_payment_totals(db, today).map_err(|e| e.to_string())?;
+    let social = report_queries::get_user_social_events(db, today).map_err(|e| e.to_string())?;
+
+    let users: Vec<UserReportUser> = activity
+        .iter()
+        .map(|ua| UserReportUser {
+            insz: ua.user_insz.clone(),
+            first_datetime: ua.first_datetime.clone(),
+            last_datetime: ua.last_datetime.clone(),
+            total_cents: ua.total_cents,
+            payments: payment_totals
+                .iter()
+                .filter(|p| p.user_insz == ua.user_insz)
+                .map(|p| ReportPaymentTotal {
+                    method: p.method.clone(),
+                    count: p.count,
+                    amount_cents: p.amount_cents,
+                })
+                .collect(),
+            social_events: social
+                .iter()
+                .filter(|s| s.user_insz == ua.user_insz)
+                .map(|s| (s.operation.clone(), s.pos_datetime.clone()))
+                .collect(),
+        })
+        .collect();
+
+    Ok(UserReportPrintData {
+        report_type: report_type.to_string(),
+        report_no,
+        restaurant_name: config.restaurant_name.clone(),
+        restaurant_address: config.restaurant_address.clone(),
+        restaurant_vat: config.restaurant_vat.clone(),
+        terminal_id: config.terminal_id.clone(),
+        report_date: today.to_string(),
+        employee_insz: employee_insz.to_string(),
+        is_training: config.training_mode,
+        users,
+        fdm_id: None,
+        fdm_datetime: None,
+        short_signature: None,
+        ticket_number,
+    })
+}
+
+/// Send the formatted user report to the thermal printer (best-effort).
+async fn print_user_report(
+    config: &pos_core::config::PosConfig,
+    mut data: UserReportPrintData,
+    sign_result: Option<&pos_fiscal::response::SignResult>,
+) {
+    if let Some(sr) = sign_result {
+        data.fdm_id = Some(sr.fdm_ref.fdm_id.clone());
+        data.fdm_datetime = Some(sr.fdm_ref.fdm_date_time.clone());
+        data.short_signature = sr.short_signature.clone();
+    }
+
+    if let Some(ref addr) = config.printer_address {
+        let bytes = pos_print::report::format_user_report(&data);
+        match pos_print::transport::send_to_printer(addr, &bytes).await {
+            Ok(status) => {
+                if !status.paper_ok {
+                    tracing::warn!(?status.warnings, "printer: paper issue after user report");
+                }
+            }
+            Err(e) => {
+                tracing::warn!(%e, "user report print failed (non-fatal)");
+            }
+        }
+    }
 }

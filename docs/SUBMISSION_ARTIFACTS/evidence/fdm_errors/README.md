@@ -23,7 +23,8 @@ affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et
 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED).
 
 **Provenance mock :** ces captures documentent le comportement du POS.
-Elles seront re-capturées contre le FDM virtuel zwartedoos.be lors de
-la répétition pré-soumission (Étape 2 de `ASSEMBLAGE_FINAL_FR.md`)
-pour les codes que le FDM virtuel permet de provoquer. Les captures
+Elles seront re-capturées contre le kit de développement Checkbox
+(FDM de développement / émulateur GraphQL) lors de la répétition
+pré-soumission (Étape 2 de `ASSEMBLAGE_FINAL_FR.md`) pour les codes
+que l'émulateur permet de provoquer. Les captures
 d'écran UI correspondantes suivent `CAPTURES_ECRAN_RUNBOOK_FR.md`.
