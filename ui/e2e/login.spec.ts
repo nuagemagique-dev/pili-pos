@@ -45,7 +45,7 @@ test.describe('Login View', () => {
     for (const d of ['1', '1', '1', '1']) {
       await page.click(`.nk:has-text("${d}")`);
     }
-    await page.click('.submit-btn');
+    // The 4th digit auto-submits the PIN.
     await expect(page).toHaveURL(/tables/);
   });
 
@@ -61,7 +61,7 @@ test.describe('Login View', () => {
     for (const d of ['9', '9', '9', '9']) {
       await page.click(`.nk:has-text("${d}")`);
     }
-    await page.click('.submit-btn');
+    // The 4th digit auto-submits the PIN.
     await expect(page.locator('.error-msg')).toBeVisible();
     // Dots should be cleared (no filled class)
     await expect(page.locator('.pin-dot.filled')).toHaveCount(0);
