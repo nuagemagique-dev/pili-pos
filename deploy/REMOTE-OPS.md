@@ -1,237 +1,155 @@
-# Remote Operations — moyun-pos
+# Opérations à distance — moyun-pos
 
-Guide pour le dépannage, la lecture des logs et la mise à jour du
-POS à distance sans être physiquement au restaurant.
+Guide de dépannage et de mise à jour d'un terminal moyun-pos sans être
+sur place. Le terminal est une appliance scellée : **pas de serveur
+SSH, aucun port en écoute, aucun accès distant permanent**
+(`GARANTIE_MAJ_LANGUES_FR.md` §2.2). Le seul canal distant est une
+session **RustDesk** ouverte à la demande, le temps de l'intervention.
 
-## Prérequis
+## Session RustDesk à la demande
 
-- Le terminal POS est connecté au réseau du restaurant
-- Cloudflare Tunnel (ou VPN) expose le SSH du terminal
-- Tu as la clé SSH privée pour le user `tsb` sur le terminal
+- Client : RustDesk portable (AppImage), version épinglée dans
+  `deploy/install.sh` (`RUSTDESK_VERSION` + SHA-256), installé dans
+  `/opt/moyun-pos/bin/rustdesk`. Aucun service, jamais lancé au boot.
+- Ouverture : un responsable présent sur place démarre la session à la
+  demande du distributeur ; l'identifiant et le mot de passe à usage
+  unique affichés sont communiqués par téléphone. La session se
+  termine à la fermeture de RustDesk ou au redémarrage du terminal.
+- Machine de test SPF : sur demande du SPF Finances, les identifiants
+  d'une session de test sont fournis avec la machine (manuel §II.E).
 
-## Connexion SSH
+> **À valider dans l'image kiosk (QEMU puis matériel) avant la
+> soumission :** capture d'écran sous Cage via
+> `xdg-desktop-portal-wlr` + PipeWire, saisie clavier distante
+> (problèmes connus de RustDesk sur les compositeurs wlroots), et le
+> point de déclenchement de la session depuis l'interface du POS
+> (réservé au rôle administrateur). Ce document sera complété avec la
+> procédure exacte une fois ces points vérifiés.
 
-```bash
-ssh tsb@<terminal-hostname>
-# ou via Cloudflare Tunnel :
-cloudflared access ssh --hostname pos.tokyosushibarliege.be
-```
+Pendant la session, le distributeur travaille sur la console de
+maintenance (`Ctrl+Alt+F2`, login `root`).
 
-## Healthcheck rapide
+## Emplacements
 
-Le POS expose un endpoint HTTP local sur le port 9999 :
-
-```bash
-curl -s http://127.0.0.1:9999/health | jq
-```
-
-Retourne :
-```json
-{
-  "status": "ok",
-  "uptime_secs": 43200,
-  "outbox_pending": 0
-}
-```
-
-**Depuis le dashboard / un cron externe** :
-
-```bash
-curl -sf https://pos.tokyosushibarliege.be:9999/health
-# (si exposé via le tunnel — recommandé pour le monitoring)
-```
-
-**À surveiller** :
-- `outbox_pending > 10` → HubRise est probablement down, les
-  orders s'empilent. Pas d'action immédiate — le worker retry.
-  Si > 100, investiguer la connectivité.
-- `status != "ok"` → le process a un souci. Restart via systemd.
+| Quoi | Où |
+|---|---|
+| Base de données | `/var/lib/moyun-pos/pos.db` |
+| Logs applicatifs (rotation quotidienne) | `/var/lib/moyun-pos/logs/pos.log.AAAA-MM-JJ` |
+| Sauvegardes (auto après Z, manuelles, pré-MAJ) | `/var/lib/moyun-pos/backups/` |
+| Configuration | `/etc/moyun-pos/pos.json` |
+| Binaire | `/opt/moyun-pos/moyun-pos` |
+| Service | `moyun-pos.service` (Cage sur tty1) |
 
 ## Lecture des logs
 
-Les logs structurés (`tracing`) sont écrits dans :
-
-```
-/home/tsb/.local/share/moyun-pos/logs/pos.log
-```
-
-Rotation quotidienne. Rétention : dépend du cron de cleanup (à configurer).
-
 ```bash
-# Dernières 50 lignes
-tail -50 /home/tsb/.local/share/moyun-pos/logs/pos.log
+# Journal systemd du kiosque
+journalctl -u moyun-pos --since "1 hour ago" --no-pager
 
-# Chercher les erreurs
-grep -i "error\|warn\|failed" /home/tsb/.local/share/moyun-pos/logs/pos.log | tail -20
-
-# Suivre en temps réel
-tail -f /home/tsb/.local/share/moyun-pos/logs/pos.log
-
-# Chercher un order HubRise spécifique
-grep "abc12345" /home/tsb/.local/share/moyun-pos/logs/pos.log
+# Logs applicatifs
+tail -50 /var/lib/moyun-pos/logs/pos.log.$(date +%F)
+grep -i "error\|warn\|failed" /var/lib/moyun-pos/logs/pos.log.* | tail -20
 ```
 
-**Patterns courants dans les logs** :
-| Pattern | Signification |
+**Messages courants** :
+| Message | Signification |
 |---|---|
-| `hubrise poll error` | Le poller n'arrive pas à contacter HubRise (réseau?) |
-| `hubrise poll: unauthorized` | Le token a expiré → reconnecter via Settings |
-| `outbox: push failed` | Un order n'a pas pu être envoyé à HubRise (retry auto) |
-| `outbox: expired old rows` | Le TTL de 7j a expiré des orders non-pushées |
-| `receipt print failed` | L'imprimante ne répond pas (papier? câble?) |
-| `boot: recovered orphaned checkout` | Un crash mid-checkout a été récupéré au démarrage |
-| `post-Z backup failed` | Le backup auto après Z-report a échoué (espace disque?) |
+| `receipt print failed` | L'imprimante ne répond pas (papier ? câble ?) |
+| `boot: recovered orphaned checkout` | Un crash en plein encaissement a été récupéré au démarrage |
+| `post-Z backup failed` | La sauvegarde automatique après le rapport Z a échoué (espace disque ?) |
+| `no config file found` | `/etc/moyun-pos/pos.json` absent : le POS tourne avec une identité de TEST |
 
-## État de la base de données
+## État de la base de données (lecture seule)
 
 ```bash
-sqlite3 /home/tsb/.local/share/moyun-pos/pos.db
+sqlite3 -readonly /var/lib/moyun-pos/pos.db
 
 -- Commandes ouvertes
 SELECT id, table_number, order_type, total_cents, created_at
 FROM orders WHERE status = 'open';
 
--- Outbox HubRise en attente
-SELECT id, order_id, attempts, error_msg, created_at
-FROM hubrise_outbox WHERE sent_at IS NULL;
+-- Derniers événements fiscaux
+SELECT id, event_type, sequence_number, event_label, created_at
+FROM fiscal_events ORDER BY id DESC LIMIT 10;
 
--- Dernier Z-report
+-- Dernier rapport Z
 SELECT sequence_number, report_date, created_at
 FROM z_reports ORDER BY sequence_number DESC LIMIT 1;
-
--- Connexion HubRise active
-SELECT account_name, location_name, last_poll_at
-FROM hubrise_connection;
-
--- Backups effectués
-ls -la /home/tsb/.local/share/moyun-pos/backups/
 ```
 
-## Restart du service
+Ne jamais écrire dans `fiscal_events` : l'archive fiscale est
+append-only par la loi.
+
+## Redémarrage du service
 
 ```bash
-sudo systemctl restart moyun-pos
-sudo systemctl status moyun-pos
-
-# Voir les logs systemd (journal)
-sudo journalctl -u moyun-pos --since "1 hour ago" --no-pager
+systemctl restart moyun-pos
+systemctl status moyun-pos
 ```
 
 ## Mise à jour du binaire
 
-### Méthode manuelle (SSH)
+Toute modification du POS fait l'objet d'une demande de certification
+de mise à jour auprès du SPF Finances (manuel §II.E) ; seul un binaire
+dont le SHA-1 correspond à la valeur déclarée peut être installé.
 
-```bash
-# 1. Arrêter le service
-sudo systemctl stop moyun-pos
-
-# 2. Backup du binaire actuel
-cp /opt/moyun-pos/moyun-pos /opt/moyun-pos/moyun-pos.bak
-
-# 3. Copier le nouveau binaire
-scp moyun-pos tsb@<hostname>:/opt/moyun-pos/moyun-pos
-# ou via un download :
-curl -L https://releases.tsb.nuagemagique.dev/pos/latest/moyun-pos -o /opt/moyun-pos/moyun-pos
-chmod +x /opt/moyun-pos/moyun-pos
-
-# 4. Redémarrer
-sudo systemctl start moyun-pos
-
-# 5. Vérifier le health
-sleep 3 && curl -s http://127.0.0.1:9999/health | jq
-```
+1. Transférer le nouveau binaire sur le terminal (transfert de fichiers
+   RustDesk, ou clé USB sur place) dans `/root/`.
+2. Sur la console de maintenance :
+   ```bash
+   /opt/moyun-pos/deploy/update.sh /root/moyun-pos --sha1 <SHA-1 déclaré>
+   ```
+   Le script vérifie le SHA-1, sauvegarde le binaire et la base,
+   applique les migrations puis redémarre le service.
+3. Vérifier : `sha1sum /opt/moyun-pos/moyun-pos` et un ticket de test.
 
 ### Rollback
 
 ```bash
-sudo systemctl stop moyun-pos
+systemctl stop moyun-pos
 cp /opt/moyun-pos/moyun-pos.bak /opt/moyun-pos/moyun-pos
-sudo systemctl start moyun-pos
+systemctl start moyun-pos
 ```
 
-### Méthode depuis le dashboard (futur)
+Un rollback ne réinstalle que le binaire précédent (version déjà
+certifiée). **Ne jamais restaurer une sauvegarde de base par-dessus
+`pos.db`** : les événements fiscaux enregistrés depuis la sauvegarde
+seraient perdus, ce qui est interdit.
 
-Quand `deploy/update.sh` est configuré en cron :
-
-```bash
-# Depuis n'importe où avec SSH :
-ssh tsb@<hostname> '/opt/moyun-pos/deploy/update.sh'
-```
-
-Ou via un bouton dans tsb-dashboard qui exécute la commande par SSH
-(même pattern que les workflows CI existants pour tsb-service).
-
-## Backup manuel
+## Sauvegarde manuelle
 
 ```bash
-# Backup immédiat (sans attendre un Z-report)
-sqlite3 /home/tsb/.local/share/moyun-pos/pos.db ".backup /home/tsb/.local/share/moyun-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
-
-# Vérifier les backups
-ls -lh /home/tsb/.local/share/moyun-pos/backups/
+sqlite3 /var/lib/moyun-pos/pos.db \
+  ".backup /var/lib/moyun-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
+ls -lh /var/lib/moyun-pos/backups/
 ```
 
 ## Dépannage courant
 
-### "Le POS est gelé / ne répond pas"
+### « Le POS est gelé / ne répond pas »
 
 ```bash
-# 1. Check si le process tourne
 pgrep -a moyun-pos
-
-# 2. Si oui mais gelé → kill + restart
-sudo systemctl restart moyun-pos
-
-# 3. Si non → check les logs du crash
-sudo journalctl -u moyun-pos --since "10 minutes ago" --no-pager | tail -30
+systemctl restart moyun-pos
+journalctl -u moyun-pos --since "10 minutes ago" --no-pager | tail -30
 ```
 
-### "Les commandes en ligne n'arrivent plus"
+### « L'imprimante n'imprime plus »
 
 ```bash
-# 1. Check la connexion HubRise
-sqlite3 /home/tsb/.local/share/moyun-pos/pos.db "SELECT last_poll_at FROM hubrise_connection;"
-# Si last_poll_at > 5 min → le poller est bloqué
-
-# 2. Check les erreurs de poll
-grep "hubrise poll" /home/tsb/.local/share/moyun-pos/logs/pos.log | tail -5
-
-# 3. Si "unauthorized" → reconnecter depuis Config > HubRise
-# 4. Si "error" → vérifier la connectivité internet du terminal
-ping -c 3 api.hubrise.com
-```
-
-### "L'imprimante n'imprime plus"
-
-```bash
-# 1. Check la config imprimante
-sqlite3 /home/tsb/.local/share/moyun-pos/pos.db "SELECT printer_address FROM pos_config;" 2>/dev/null
-
-# 2. Ping l'imprimante
+grep printer_address /etc/moyun-pos/pos.json
 nc -z -w 2 <printer-ip> 9100 && echo "OK" || echo "UNREACHABLE"
-
-# 3. Test d'impression basique (envoie un ESC/POS init + text + cut)
-echo -ne '\x1b@Hello POS\n\x1dV\x42\x03' | nc <printer-ip> 9100
 ```
 
-### "Le FDM ne répond pas"
+### « Le FDM ne répond pas »
+
+Le POS bloque toute transaction tant que le FDM est injoignable
+(comportement obligatoire). Vérifier le lien :
 
 ```bash
-# Le timeout est de 10s. Si ça échoue :
-curl -sf http://<fdm-ip>:8080/graphql -X POST \
+FDM_URL=$(sed -n 's/.*"fdm_url": *"\([^"]*\)".*/\1/p' /etc/moyun-pos/pos.json)
+curl -sf "$FDM_URL" -X POST \
   -H "Content-Type: application/json" \
-  -d '{"query":"{ Status(language: FR) { device { fdmId } } }"}' \
-  | jq
-# Si timeout ou erreur → vérifier le câble réseau vers le FDM
-```
-
-## Monitoring (recommandé)
-
-Configurer un cron sur le serveur OVH (ou un Uptime Robot) qui
-ping le healthcheck toutes les 5 min et alerte par email/Slack
-si le POS ne répond pas :
-
-```bash
-# /etc/cron.d/moyun-pos-monitor (sur le serveur OVH)
-*/5 * * * * root curl -sf --max-time 10 https://pos.tokyosushibarliege.be:9999/health > /dev/null || echo "POS DOWN" | mail -s "ALERT: POS offline" bruno@nuagemagique.dev
+  -d '{"query":"{ Status(language: FR) { device { fdmId } } }"}'
+# Timeout ou erreur → vérifier le câble réseau / l'alimentation du FDM
 ```

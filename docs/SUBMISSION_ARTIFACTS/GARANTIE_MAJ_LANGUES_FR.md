@@ -20,12 +20,14 @@ Le dépôt source contient :
 - `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.96.0`).
 - `package-lock.json` (UI Vue) - fige les versions exactes des dépendances Node.
 
-La commande de build cert est documentée et figée :
+La build cert est produite par une commande unique et figée, exécutée dans un conteneur Debian 12 `linux/amd64` :
 ```bash
-cargo build --release --no-default-features --features cert
+./deploy/build-release.sh --docker
+# → scripts/build_and_hash.sh : npm ci + build de l'UI, puis
+#   cargo build --release --no-default-features --features cert
 ```
 
-Deux compilations successives sur des machines différentes avec ce même `Cargo.lock` + même toolchain produisent un binaire identique octet par octet (modulo les timestamps embarqués, qui sont contrôlés par `SOURCE_DATE_EPOCH`).
+Le conteneur fixe l'environnement de compilation : `rustup` y installe la toolchain épinglée par `rust-toolchain.toml`, les chemins de compilation (`/workspace`, registre Cargo) sont identiques d'une build à l'autre, et l'UI embarquée est construite depuis `package-lock.json`. Deux builds du même tag dans ce conteneur doivent donc produire le même SHA-1 ; cette propriété est vérifiée avant soumission par deux builds successives du tag cert, dont les rapports `build_info_*.txt` sont joints au dossier.
 
 ### 1.2 Empreinte SHA-1 du binaire
 
@@ -44,7 +46,7 @@ sha1sum /opt/moyun-pos/moyun-pos
 
 ### 1.3 Environnement kiosk scellé
 
-Le déploiement consiste à copier l'exécutable Tauri `moyun-pos` sur la machine cible via `deploy/install.sh` (premier déploiement) ou `deploy/update.sh` (mise à jour). Il n'y a pas d'image disque (.iso) : le binaire est transféré directement par `scp` et activé via systemd.
+Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite avec `deploy/install.sh` ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB ou par transfert de fichiers pendant une session RustDesk à la demande — jamais par `scp`, aucun serveur SSH n'étant installé.
 
 L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 
@@ -89,12 +91,12 @@ La procédure de mise à jour est la suivante :
    - Soumission d'une nouvelle demande de certification (mise à jour) au SPF Finances.
 
 2. **Sur la machine de test SPF (pendant le cycle de mise à jour) :**
-   - Le producteur transfère le nouveau binaire `moyun-pos` sur la machine de test (via `scp` ou remise physique sur clé USB).
-   - Le binaire est installé via `deploy/update.sh` (arrêt du service, remplacement du binaire, redémarrage). Cf. *MANUEL_INSTALLATION_FR.md*.
+   - Le producteur transfère le nouveau binaire `moyun-pos` sur la machine de test (remise physique sur clé USB, ou transfert de fichiers pendant une session RustDesk à la demande, cf. §2.2).
+   - Le binaire est installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>` : le script refuse tout binaire dont le SHA-1 diffère de la valeur déclarée, sauvegarde binaire et base, applique les migrations puis redémarre le service. Cf. *MANUEL_INSTALLATION_FR.md* §6.
    - Tests de validation effectués par l'agent SPF.
 
 3. **Côté client (après acceptation SPF de la mise à jour) :**
-   - Mise à jour du binaire client par le distributeur via `deploy/update.sh` lors d'une intervention sur site (ou via SSH si accès à distance temporaire accordé).
+   - Mise à jour du binaire client par le distributeur via `deploy/update.sh --sha1`, sur site ou pendant une session RustDesk à la demande (jamais par SSH : aucun serveur SSH n'est installé).
    - Sauvegarde préalable de la DB `pos.db` (cf. backups automatiques nocturnes).
    - Vérification post-update du SHA-1.
 
@@ -108,9 +110,10 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 - **Raison secondaire :** la spec SCE 2.0 demande un appliance scellé. Un agent SSH ou un client TeamViewer permanent contredit l'esprit du scellement.
 
 **Compromis pratique :** pour les interventions techniques planifiées (mise à jour, debug d'un problème reporté par le client) :
-- L'opérateur peut démarrer ponctuellement un client RustDesk portable (open source, binaire autonome, sans installation système) à la demande du producteur.
-- Une fois la session terminée, le binaire est effacé.
-- Aucun accès permanent.
+- Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à l'installation, placé dans `/opt/moyun-pos/bin/rustdesk`. Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
+- Ouverture : un responsable présent sur place démarre la session à la demande du producteur ; l'identifiant et le mot de passe à usage unique sont communiqués par téléphone.
+- La session prend fin à la fermeture de RustDesk ou au redémarrage du terminal. Aucun accès permanent, aucun port en écoute hors session.
+- Pour la machine de test, le SPF Finances peut demander qu'une session de test soit ouverte et ses identifiants fournis (manuel §II.E).
 
 **Au rendez-vous d'admission SPF Finances :**
 
@@ -180,5 +183,5 @@ Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré av
 | Build = déploiement client | Binaire Tauri scellé + SHA-1 vérifiable | `sha1sum /opt/moyun-pos/moyun-pos` |
 | Pas de modification post-cert | Système de fichiers racine en lecture seule + tag git signé | Vérification au boot, lecture du tag dans `/etc/moyun-pos/version` |
 | Nouvelle MAJ = nouveau cert | Procédure §II.E + Article 109 du manuel | Chaque tag `vX.Y.Z+1` ouvre une nouvelle demande SPF |
-| Pas d'accès distant permanent | Pas de SSH, aucun client distant installé | Vérification au scan réseau du POS (aucun port ouvert) |
+| Pas d'accès distant permanent | Pas de SSH ; RustDesk portable présent mais jamais lancé au boot | Vérification au scan réseau du POS (aucun port ouvert hors session) |
 | Ticket dans la langue de la région linguistique de l'établissement | `translations` (libellés produits) + `pos.json::language` (mentions fiscales FR/NL/DE) | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |

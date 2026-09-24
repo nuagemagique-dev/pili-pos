@@ -1,63 +1,69 @@
 [Unit]
-Description=Tokyo Sushi Bar POS (Cage Wayland kiosk)
-After=network-online.target
-Wants=network-online.target
-# Ensure display hardware is ready
-After=systemd-logind.service
-Requires=systemd-logind.service
+Description=moyun-pos kiosk (Cage Wayland compositor on tty1)
+# Layout follows Cage's reference unit ("Starting Cage on boot with
+# systemd", cage-kiosk/cage wiki): Cage needs a logind session on a
+# real VT to take the display and input devices, hence PAMName= and
+# TTYPath= below plus /etc/pam.d/moyun-pos (deploy/kiosk/pam.d-moyun-pos).
+After=systemd-user-sessions.service plymouth-quit-wait.service network-online.target
+Wants=dbus.socket systemd-logind.service network-online.target
+Before=graphical.target
+ConditionPathExists=/dev/tty0
+# The kiosk owns tty1; no login prompt is ever shown there.
+Conflicts=getty@tty1.service
+After=getty@tty1.service
 
 [Service]
 Type=simple
 User=pos
 Group=pos
+PAMName=moyun-pos
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+UtmpIdentifier=tty1
+UtmpMode=user
 
-# Cage runs as a Wayland compositor in kiosk mode
-# It launches the Tauri app fullscreen — no window decorations, no escape
-ExecStart=/usr/bin/cage -- /opt/moyun-pos/moyun-pos
+# -s allows VT switching so the distributor can reach the
+# password-protected maintenance console with Ctrl+Alt+F2
+# (MANUEL_INSTALLATION_FR.md §4.1). All other Cage keybindings are
+# off by design (Cage has no configuration file).
+ExecStart=/usr/bin/cage -s -- /opt/moyun-pos/moyun-pos
 
-# Runtime dir for the Wayland socket. `pos` is a system user
-# (UID < 1000), so /run/user/1000 would never exist for it —
-# RuntimeDirectory= gives us /run/moyun-pos owned by pos.
-RuntimeDirectory=moyun-pos
-RuntimeDirectoryMode=0700
+# Database, logs and backups live in /var/lib/moyun-pos, the path
+# declared for SPF data acquisition. systemd exports it to the app as
+# $STATE_DIRECTORY (src-tauri/src/paths.rs).
+StateDirectory=moyun-pos
+StateDirectoryMode=0750
 
-# Environment for Wayland + GPU
-Environment=WLR_LIBINPUT_NO_DEVICES=1
-Environment=XDG_RUNTIME_DIR=/run/moyun-pos
 Environment=WLR_RENDERER=pixman
-Environment=WAYLAND_DISPLAY=wayland-1
 Environment=GDK_BACKEND=wayland
-Environment=MOZ_ENABLE_WAYLAND=1
-
-# Tauri/WebKitGTK settings
 Environment=WEBKIT_DISABLE_COMPOSITING_MODE=1
-
-# POS application settings
 Environment=RUST_LOG=info
 
-# Auto-restart on crash (fiscal compliance — POS must be operational)
-Restart=on-failure
+# Fiscal compliance: the POS must be operational — restart whenever it
+# exits, crash or not.
+Restart=always
 RestartSec=3
 StartLimitBurst=5
 StartLimitIntervalSec=60
 
-# Security hardening
+# Hardening
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/var/lib/moyun-pos
 PrivateTmp=yes
 NoNewPrivileges=yes
 
-# Allow access to input devices (touchscreen) and GPU
+# Touchscreen and GPU access
 SupplementaryGroups=input video render
 
 # NOTE: no WatchdogSec — the app does not send sd_notify WATCHDOG=1
 # pings, so enabling it would make systemd kill a healthy app every
-# interval. Crash recovery is covered by Restart=on-failure above.
+# interval. Crash recovery is covered by Restart=always above.
 
-# Resource limits
 LimitNOFILE=65536
 MemoryMax=2G
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target

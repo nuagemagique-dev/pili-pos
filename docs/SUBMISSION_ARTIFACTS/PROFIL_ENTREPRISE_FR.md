@@ -134,12 +134,13 @@ Le distributeur (= développeur dans le cas présent) accède aux
 machines déployées **uniquement** :
 
 - À l'installation initiale, en présence physique chez le client.
-- Pour les mises à jour, en présence physique (le kiosque n'a pas
-  de SSH ouvert).
-- Pour le support, par téléphone / visite physique.
+- Pour les mises à jour et le support : sur site, ou par une session
+  RustDesk ouverte à la demande par un responsable présent sur place
+  (le kiosque n'a pas de serveur SSH ni de port en écoute).
 
-Aucun accès à distance n'est implémenté ni autorisé. Cela élimine
-la surface d'attaque réseau côté client.
+Aucun accès à distance permanent n'est implémenté ni autorisé
+(cf. `GARANTIE_MAJ_LANGUES_FR.md` §2.2), ce qui limite la surface
+d'attaque réseau côté client au temps d'une intervention.
 
 ## 5. Analyse de risques
 

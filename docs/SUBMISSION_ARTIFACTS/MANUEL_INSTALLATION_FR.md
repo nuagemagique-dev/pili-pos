@@ -272,8 +272,16 @@ Une mise à jour suit la procédure officielle SPF Finances
 
 Procédure technique de déploiement :
 
-1. Préparer une nouvelle clé USB avec l'image `vX.Y.Z+1`.
-2. Sur site, accès maintenance (`Ctrl+Alt+F2`).
+1. Remettre le binaire `vX.Y.Z+1` sur le terminal : clé USB sur site,
+   ou transfert de fichiers pendant une session RustDesk ouverte à la
+   demande par un responsable sur place (`deploy/REMOTE-OPS.md`).
+2. Accès maintenance (`Ctrl+Alt+F2`, login `root`), puis :
+   ```bash
+   /opt/moyun-pos/deploy/update.sh /root/moyun-pos --sha1 <SHA-1 déclaré>
+   ```
+   Le script refuse tout binaire dont le SHA-1 diffère de la valeur
+   déclarée. Les étapes 3 à 7 ci-dessous décrivent la variante
+   « réinstallation complète de l'image » depuis une clé USB.
 3. Sauvegarder la base courante :
    ```bash
    sqlite3 /var/lib/moyun-pos/pos.db ".backup /tmp/pos-before-update.db"

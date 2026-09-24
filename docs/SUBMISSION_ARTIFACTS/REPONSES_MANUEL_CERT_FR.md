@@ -166,14 +166,14 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
 
 **Procédure de mise à jour du POS :**
 
-Toute modification du logiciel POS post-certification nécessite une nouvelle demande de certification (mise à jour). Sur la machine de test, la mise à jour est appliquée par re-déploiement de l'image kiosk (procédure identique au premier déploiement). Aucune mise à jour automatique en arrière-plan n'est implémentée : c'est une décision explicite de scellement.
+Toute modification du logiciel POS post-certification nécessite une nouvelle demande de certification (mise à jour). Sur la machine de test, le nouveau binaire est remis sur clé USB ou transféré pendant une session RustDesk à la demande, puis installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>`, qui refuse tout binaire dont le SHA-1 diffère de la valeur déclarée. Aucune mise à jour automatique en arrière-plan n'est implémentée : c'est une décision explicite de scellement. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.
 
 **Solution d'accès à distance pour l'agent SPF :**
 
 Aucune solution permanente d'accès à distance n'est installée sur la machine de test livrée à l'Intake (la spec SCE 2.0 demande un appliance scellé, sans SSH ni service de gestion réseau). Cependant, pour faciliter les interventions techniques entre la soumission et le rendez-vous d'admission :
 
 - **Accès local au rendez-vous d'admission.** Lors de l'Intake, l'agent SPF peut accéder à la machine de test localement via la console physique (login `spf` documenté au §II.C). C'est suffisant pour vérifier la version, exécuter les tests, et copier la DB.
-- **Pour les mises à jour de certification.** Si l'agent SPF souhaite valider une nouvelle build entre deux rendez-vous, un canal temporaire peut être ouvert (RustDesk portable — open source, binaire autonome — démarré ponctuellement par le producteur) sur demande explicite.
+- **Accès à distance : RustDesk portable, à la demande.** RustDesk (open source, AppImage autonome, version épinglée) est présent sur la machine de test comme sur les terminaux clients, mais n'est jamais lancé au boot. Une session est ouverte ponctuellement pour une mise à jour de certification ou une intervention technique ; sur demande du SPF Finances, les identifiants d'une session de test sont fournis. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.2.
 
 Cette absence de solution d'accès à distance permanente est délibérée : pour un terminal de caisse fiscale, ouvrir un canal d'administration distante augmente la surface d'attaque sans bénéfice opérationnel (le producteur n'a pas accès à la caisse du client en service).
 

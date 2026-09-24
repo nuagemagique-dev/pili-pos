@@ -20,13 +20,16 @@ machine de test au démarrage de la clé USB.
 - [ ] Service systemd `moyun-pos.service` activé.
 - [ ] Heure système synchronisée via chrony (les horodatages fiscaux
       corrects sont une exigence cert).
+- [ ] RustDesk portable dans `/opt/moyun-pos/bin/rustdesk` (SHA-256
+      épinglé), aucun service, non lancé au boot.
 - [ ] Pas de serveur SSH (appliance scellée). Accès console uniquement
       sur le terminal physique.
 
 ## Couche application
 
-- [ ] Build cert de `moyun-pos` installée dans `/opt/moyun-pos/`. Compilée
-      avec : `cargo build --release --no-default-features --features cert`.
+- [ ] Build cert de `moyun-pos` installée dans `/opt/moyun-pos/`. Produite
+      par `deploy/build-release.sh --docker` (build Linux x86_64,
+      `--no-default-features --features cert`, UI embarquée).
 - [ ] Binaire `pos-fdm-mock` dans `/opt/moyun-pos/bin/pos-fdm-mock`
       (utilisé pendant la démo d'admission si le FDM virtuel est
       injoignable).

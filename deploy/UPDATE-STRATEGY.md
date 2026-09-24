@@ -1,99 +1,58 @@
 # Update Strategy — moyun-pos
 
-## Problem
+## Constraints
 
-The POS runs on a single Debian terminal in the restaurant. To
-deploy a bug fix or feature update, the current process is manual:
-SSH → stop service → copy binary → restart. This doesn't scale
-and requires the deployer to be online at the restaurant's
-close-of-day.
+- **Every modification of the POS requires an update certification
+  request to SPF Finances** (certification manual §II.E), tested on the
+  SPF test machine. A terminal may only run a binary whose SHA-1 was
+  declared for that version.
+- The terminal is a sealed appliance: no SSH server, no listening port,
+  no unattended package activity, read-only root filesystem (target).
+- Remote access is an on-demand RustDesk session only
+  (`REMOTE-OPS.md`); there is no permanent remote channel.
 
-## Recommended Approach: systemd pull + restart
+A self-updating terminal (nightly pull from a release server) is
+therefore ruled out: it would install binaries without an operator
+checking that the SPF accepted them, and it needs a permanent outbound
+channel.
 
-The simplest MVP-viable strategy:
+## Release flow
 
-```
-┌─────────────────────┐
-│   GitHub Releases    │ ← CI builds a new moyun-pos binary on tag push
-│   (or S3 bucket)     │
-└──────────┬──────────┘
-           │ https (Cloudflare)
-           ▼
-┌─────────────────────┐
-│   POS Terminal       │
-│   cron / systemd     │ ← Nightly check for new version
-│   timer              │
-│   ┌───────────────┐  │
-│   │ update.sh     │  │ ← Downloads binary, verifies checksum,
-│   │               │  │    swaps, restarts service
-│   └───────────────┘  │
-└─────────────────────┘
-```
+1. Tag `vX.Y.Z` (GPG-signed) on the certified commit.
+2. `deploy/build-release.sh --docker` builds the cert binary in a
+   linux/amd64 Debian 12 container with the toolchain pinned by
+   `rust-toolchain.toml`, and writes the `build_info_*.txt` report
+   (SHA-1 / SHA-256).
+3. File the update certification request with the changelog and the
+   new SHA-1; wait for SPF approval.
+4. Deploy to terminals.
 
-### update.sh (already exists in deploy/)
+## Deploying to a terminal
 
-The existing `deploy/update.sh` can be extended to:
+`deploy/update.sh <binary> --sha1 <declared SHA-1>` on the maintenance
+console. It refuses a binary whose SHA-1 differs from the declared
+value, backs up the binary and the database, applies schema migrations
+offline (`moyun-pos --init-db`), and restarts the kiosk.
 
-1. Fetch the latest release version from a manifest URL
-   (e.g., `https://releases.tsb.nuagemagique.dev/pos/latest.json`)
-2. Compare with the local version (`moyun-pos --version`)
-3. If newer: download binary + sha256 checksum
-4. Verify checksum
-5. Stop service: `systemctl stop moyun-pos`
-6. Swap binary: `mv moyun-pos.new /opt/moyun-pos/moyun-pos`
-7. Restart: `systemctl start moyun-pos`
-8. Log the update to `/var/log/moyun-pos-updates.log`
+The binary reaches the terminal either:
 
-### Trigger
+- **on site** — USB stick, maintenance console (`Ctrl+Alt+F2`); or
+- **remotely** — RustDesk file transfer during an on-demand session
+  opened by the manager on site.
 
-**Option A — Nightly cron (simplest)**:
-
-```
-# /etc/cron.d/moyun-pos-update
-0 4 * * * root /opt/moyun-pos/deploy/update.sh >> /var/log/moyun-pos-updates.log 2>&1
-```
-
-Runs at 04:00 when the restaurant is closed. If no update is
-available, the script exits silently.
-
-**Option B — Dashboard-triggered**:
-
-tsb-dashboard has a "Deploy" button that SSHs into the terminal
-(same pattern as the current CI workflow for tsb-service) and runs
-`update.sh`. Requires the terminal to be reachable via Cloudflare
-Tunnel or a VPN.
-
-**Option C — Tauri plugin (future)**:
-
-`tauri-plugin-updater` supports signed auto-updates with a
-built-in UI prompt. Requires:
-- A release server (S3 + CloudFront + JSON manifest)
-- Code-signing key pair
-- Rust integration in `main.rs`
-
-This is the most polished UX but is infrastructure-heavy. Defer
-to a second iteration.
+Schedule updates outside service hours, after the day's Z report.
 
 ## Rollback
 
-If an update breaks the POS:
+`update.sh` keeps the previous binary as `/opt/moyun-pos/moyun-pos.bak`
+(also a certified version). Rolling back swaps the binary only; the
+database is never restored from a backup, since that would drop fiscal
+events recorded since.
 
-1. SSH in
-2. `systemctl stop moyun-pos`
-3. `cp /opt/moyun-pos/moyun-pos.bak /opt/moyun-pos/moyun-pos`
-   (update.sh should always keep the previous binary as `.bak`)
-4. `systemctl start moyun-pos`
+## Later: whole-image updates
 
-## Version Embedding
-
-Add `--version` flag to `moyun-pos` by setting the version in
-`tauri.conf.json` (already present: `"version": "1.0.0"`) and
-exposing it via a Tauri command or CLI flag.
-
-## Security
-
-- Binaries MUST be signed (minisign, ed25519) and verified by
-  update.sh before swap. Unsigned binaries = rejected.
-- HTTPS only for the download (Cloudflare terminates TLS).
-- The update script runs as root (needs to stop/start systemd
-  services) — keep it minimal and auditable.
+Once the kiosk image is built with a read-only root (mkosi), updates
+move to A/B image partitions (`systemd-sysupdate`): the new image is
+written to the inactive slot and verified before reboot, so an update
+never leaves a half-installed system. The SHA-1 check on the
+`moyun-pos` binary stays the acceptance gate.

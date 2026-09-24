@@ -1,32 +1,39 @@
 # Kiosk Lockdown
 
-Config files for hardening the POS terminal in production
-(Penetek A3216 M82, Debian 12 minimal, Cage compositor).
+How the POS terminal (Debian 12 minimal, Cage compositor) is locked
+down. `deploy/install.sh` applies all of it.
 
 ## Files
 
 | File | Destination | Purpose |
 |------|-------------|---------|
-| `cage.ini` | `/etc/cage/config` | Disable all keybindings (Alt+Tab, Ctrl+Alt+Backspace, Super) so the operator can't escape the POS window |
-| `99-block-hid.rules` | `/etc/udev/rules.d/` | Block USB HID keyboards and mice so a physically plugged device can't access a shell |
+| `pam.d-moyun-pos` | `/etc/pam.d/moyun-pos` | PAM stack for `moyun-pos.service` (`PAMName=moyun-pos`): opens the logind session Cage needs on tty1 |
 
-## Installation
+## What keeps the operator inside the POS
 
-```bash
-sudo cp cage.ini /etc/cage/config
-sudo cp 99-block-hid.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-```
+- **Cage** runs `moyun-pos` fullscreen with no window decorations and
+  no shell or launcher. Cage has no configuration file and no
+  keybindings besides VT switching; the unit passes `-s` so the
+  distributor can reach the maintenance console.
+- **tty1** is owned by the kiosk unit (`Conflicts=getty@tty1.service`):
+  no login prompt behind the POS.
+- **Maintenance console** — `Ctrl+Alt+F2` with a USB keyboard gives a
+  getty login. Only `root` (random password generated at install,
+  kept by the distributor) and the SPF test account on the admission
+  machine can log in; `pos` has no password and a `nologin` shell.
+- **No SSH server**, no listening port. Remote support is an on-demand
+  RustDesk session (`/opt/moyun-pos/bin/rustdesk`, pinned AppImage,
+  never started at boot) — see `../REMOTE-OPS.md`.
+- **BIOS password** and boot order locked to the internal disk
+  (`MANUEL_INSTALLATION_FR.md` §3.1).
 
-## Additional recommendations
+USB keyboards are deliberately *not* blocked: the maintenance procedure
+and the SPF agent's checks at admission rely on plugging one in.
 
-1. **No shell accessible without SSH**: remove `getty` from
-   systemd targets, or password-protect it with a strong passphrase.
-2. **SSH key-only**: disable password auth in `/etc/ssh/sshd_config`.
-3. **Firewall**: allow only SSH (22) + HubRise outbound (443) +
-   FDM LAN (8080) + printer LAN (9100). Block everything else.
-4. **Auto-start**: the existing `moyun-pos.service` systemd unit
-   handles this — ensure it's `WantedBy=graphical.target`.
-5. **LUKS FDE**: encrypt the root partition with LUKS + TPM2
-   auto-unlock (see hardening #7 in the audit).
+## Still to do in the kiosk image
+
+1. Read-only root filesystem, `/var/lib/moyun-pos` on a separate rw
+   mount (`GARANTIE_MAJ_LANGUES_FR.md` §1.3).
+2. LUKS full-disk encryption with TPM2 auto-unlock.
+3. Firewall: allow outbound LAN traffic to the FDM and printer only,
+   plus outbound 443 while a RustDesk session is running.

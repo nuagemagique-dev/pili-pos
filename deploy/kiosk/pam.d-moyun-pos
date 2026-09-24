@@ -1,0 +1,8 @@
+# /etc/pam.d/moyun-pos — PAM stack for the kiosk session opened by
+# moyun-pos.service (PAMName=moyun-pos). pam_systemd registers the
+# logind session Cage needs to take the display and input devices, and
+# provides XDG_RUNTIME_DIR. Taken from Cage's reference setup.
+auth           required        pam_unix.so nullok
+account        required        pam_unix.so
+session        required        pam_unix.so
+session        required        pam_systemd.so

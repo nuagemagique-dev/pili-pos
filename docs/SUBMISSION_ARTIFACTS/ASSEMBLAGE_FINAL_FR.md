@@ -15,9 +15,17 @@ cargo test --workspace        # doit être tout vert
 cargo clippy --workspace -- -D warnings   # doit être propre
 cargo fmt --all --check       # doit être propre
 
-cargo build --release --no-default-features --features cert
-nm target/release/moyun-pos | grep -c pos_hubrise   # doit afficher 0
+# Build cert Linux x86_64 dans un conteneur Debian 12 (toolchain
+# épinglée par rust-toolchain.toml via rustup). Construit l'UI,
+# compile avec --no-default-features --features cert, vérifie
+# l'absence de symboles hubrise et d'URL de dev-server, calcule les
+# empreintes et écrit build_info_*.txt.
+./deploy/build-release.sh --docker
 ```
+
+Le SHA-1 à déclarer est celui du binaire **Linux** produit par cette
+commande (rapport `build_info_*.txt` copié dans `deploy/dist/`),
+jamais celui d'une build de développement macOS.
 
 ## Étape 2 - Exécuter la répétition pré-soumission
 
@@ -38,15 +46,15 @@ corriger dans le code, rebuilder, re-répéter.
 
 Une install Debian 12 minimale avec :
 
-- .deb de build cert de `moyun-pos` (construit à partir de
-  `target/release/`).
+- Binaire cert `moyun-pos` (paquet `deploy/dist/` produit par
+  `deploy/build-release.sh --docker`).
 - Binaire `pos-fdm-mock` (pour le fallback de démo d'admission).
 - Compositeur Cage Wayland.
 - Unité systemd `moyun-pos.service` (autostart plein écran).
 - `pos.db` initialisée avec `seed_spf_test.sql` (produits prédéfinis du
   manuel §III.N + utilisateurs de test SPF).
 - `chrony` configuré pour NTP.
-- Pas de serveur SSH.
+- Pas de serveur SSH ; RustDesk portable présent, jamais lancé au boot.
 
 Approche recommandée : un script packer / debootstrap dans une PR de
 suivi. Pour la soumission, une install manuelle sur une image disque
