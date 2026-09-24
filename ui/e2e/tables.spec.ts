@@ -47,7 +47,7 @@ test.describe('Tables View', () => {
 
     const occupied = page.locator('.table-card.occupied');
     await expect(occupied).toHaveCount(1);
-    await expect(occupied.locator('.table-total')).toContainText('35.50');
+    await expect(occupied.locator('.table-total')).toContainText('35,50');
   });
 
   test('tapping a free table navigates to order view', async ({ page }) => {
