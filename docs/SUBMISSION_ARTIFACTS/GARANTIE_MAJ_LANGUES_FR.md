@@ -157,7 +157,7 @@ L'anglais (zones touristiques) n'est pas proposé comme langue de ticket : toute
 
 Le paramètre fait partie de la checklist de mise en service (`MANUEL_INSTALLATION_FR.md`) et figure sur chaque installation déclarée dans `LISTE_DISTRIBUTEURS_FR.md`.
 
-**Premier client - Tokyo Sushi Bar :** établissement situé Rue de la Cathédrale 59, 4000 Liège, en **région de langue française** → `language = "fr"`, tickets imprimés en français.
+**Exemple :** un établissement situé à 4000 Liège se trouve en **région de langue française** → `language = "fr"`, tickets imprimés en français.
 
 **Pour basculer la langue des mentions fiscales (FR → NL ou DE)**, par exemple pour une installation dans une autre région linguistique, la procédure est une mise à jour de configuration (pas du code) :
 1. Compléter les traductions manquantes dans la table `translations` pour les articles.

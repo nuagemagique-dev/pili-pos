@@ -3,7 +3,7 @@
 **Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
 **Nom du produit :** moyun-pos
 **Version :** 1.0.0 (build de soumission cert)
-**Client cible :** Tokyo Sushi Bar (Liège, BE)
+**Clients cibles :** établissements HoReCa en Belgique (restaurants avec service en salle)
 **Date de soumission :** 2026-05-14
 **Specs implémentées :** POS v2.2 + FDM v1.4 + Addendum 1 + Basic Set v1.7 + Reports v1.3 + Advanced Set v1.5
 
@@ -150,8 +150,8 @@ ajoute à `fiscal_events`, de sorte que :
 ## 6. Pipeline d'impression
 
 - Crate : `crates/pos-print`.
-- Transport : `pos-print::transport` supporte TCP, USB et série. Le
-  déploiement Tokyo Sushi Bar utilise TCP vers la TM-m30III à une IP
+- Transport : `pos-print::transport` supporte TCP, USB et série. La
+  configuration de référence utilise TCP vers la TM-m30III à une IP
   LAN statique.
 - Layout : `pos-print::receipt` formate le ticket fiscal SCE-2.0
   selon la spec POS v2.2 §III.3 - en-tête (nom restaurant, adresse,

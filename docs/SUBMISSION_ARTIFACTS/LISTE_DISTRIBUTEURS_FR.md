@@ -1,8 +1,10 @@
-# Liste des distributeurs et clients
+# Aperçu des distributeurs potentiels
 
-Conformément au formulaire de demande de certification SPF Finances
-(§p.3-4), le distributeur et au moins un client déclaré (premier
-déploiement) doivent figurer dans le dossier.
+Pièce jointe réglementaire du formulaire de demande de certification
+(p. 3 : « Un aperçu des distributeurs potentiels (leur dénomination
+sociale et numéro de TVA) »). Le producteur assure lui-même la vente et
+l'installation (réponse « Oui » à « Serez-vous également responsable de
+la vente et de l'installation vous-même ? »).
 
 ## Distributeur
 
@@ -16,23 +18,17 @@ déploiement) doivent figurer dans le dossier.
 | Téléphone | +32 494 46 50 26 |
 | Rôle | Développeur unique et intégrateur de la build de certification |
 
-## Client initial
+## Autres distributeurs
 
-| Champ | Valeur |
-|---|---|
-| Nom légal | Tokyo Sushi Bar SRL |
-| Adresse | Rue de la Cathédrale 59, 4000 Liège, Belgique |
-| Numéro de TVA | BE0772.499.585 |
-| Région linguistique | Région de langue française (tickets émis en FR) |
-| Secteur | HoReCa - restaurant avec service en salle |
-| Cuisine | Japonaise (sushi + plats chauds) |
-| Périmètre de déploiement | 1 terminal POS + 1 FDM Checkbox CBX01 (émulateur Checkbox durant le développement) + 1 imprimante thermique + 1 tiroir-caisse |
-| Cible de mise en production | Post-certification (date à fixer après la décision du SPF Finances) |
+Aucun distributeur tiers à la date de la demande. Tout nouveau
+distributeur sera communiqué au service compétent, conformément au
+formulaire (« Tout changement dans les données ci-dessous doit être
+immédiatement communiqué au service compétent »).
 
-## Déploiements futurs
+## Portée
 
 La présente certification porte sur `moyun-pos v1.0.0` en tant que
-produit. Les déploiements ultérieurs chez d'autres clients HoReCa
-seront ajoutés ici par le distributeur. Aucune modification de code
-n'est attendue par client - l'image de marque et les données menu
-sont de la configuration, pas du code.
+produit, destiné aux établissements HoReCa. Aucune modification de code
+n'est attendue d'un établissement à l'autre : identité de
+l'établissement, langue des tickets et catalogue sont de la
+configuration (`/etc/moyun-pos/pos.json` + base SQLite), pas du code.

@@ -109,8 +109,8 @@ Une release post-certification déclenchera :
 ### 4.4 Accès au code source
 
 - Dépôt git **privé**, accès limité au développeur.
-- Pas de partage du code source au client ni au distributeur dans
-  le cas Tokyo Sushi Bar (le distributeur est le développeur).
+- Pas de partage du code source aux clients ; le distributeur est
+  le développeur.
 - Le code source sera communiqué au SPF Finances **sur demande**
   pour audit, sous accord de confidentialité standard.
 
@@ -125,7 +125,7 @@ En cas de découverte d'un bug critique en production :
 4. Si le bug affecte le périmètre certifié : déclaration au SPF
    Finances dans les 15 jours suivant le déploiement de la
    correction.
-5. Communication au client (Tokyo Sushi Bar) avec instructions de
+5. Communication aux clients concernés avec instructions de
    contournement le cas échéant.
 
 ### 4.6 Accès du distributeur aux machines déployées
@@ -235,9 +235,9 @@ Voir `SECURITE_BD_FR.md` pour le détail.
 Synthèse :
 - Chiffrement au repos via FileVault / LUKS au niveau système
   d'exploitation (à activer à l'installation).
-- Chiffrement en transit : la liaison POScorrespond àFDM peut être en HTTP si
-  les deux appareils sont sur un LAN privé non routé (cas Tokyo
-  Sushi Bar). Pour les déploiements multi-sites, HTTPS via VPN.
+- Chiffrement en transit : la liaison POS↔FDM peut être en HTTP si
+  les deux appareils sont sur un LAN privé non routé (configuration
+  de référence). Pour les déploiements multi-sites, HTTPS via VPN.
 - Authentification : PIN par utilisateur (optionnel), INSZ
   obligatoire.
 - Audit log : `fiscal_events` couvre TOUTES les actions fiscales,
@@ -283,7 +283,6 @@ courtier belge spécialisé pour indépendants tech.
 
 ## 9. Exigences de sécurité spécifiques au client
 
-Le client initial Tokyo Sushi Bar n'a pas émis d'exigences de
-sécurité spécifiques au-delà des exigences SCE 2.0 et GDPR
-standard. La configuration de sécurité décrite dans `SECURITE_BD_FR.md`
+Aucun client n'a fixé d'exigences de sécurité spécifiques au-delà
+des exigences SCE 2.0 et RGPD standard. La configuration de sécurité décrite dans `SECURITE_BD_FR.md`
 est appliquée par défaut.

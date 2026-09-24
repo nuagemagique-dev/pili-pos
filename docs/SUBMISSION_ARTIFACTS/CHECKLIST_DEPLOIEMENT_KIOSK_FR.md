@@ -39,7 +39,7 @@ machine de test au démarrage de la clé USB.
       - Utilisateurs de test correspondant à la liste INSZ dans
         `docs/20250916_UC_BasicSet_POS_FDM_1.7/UC_TestSetup_20240806.md`.
       - L'image de production (restaurant) utilise à la place
-        `src-tauri/seed.sql` (menu Tokyo Sushi Bar) ; le binaire
+        le catalogue propre à l'établissement ; le binaire
         `moyun-pos` est identique dans les deux images.
 - [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`.
 

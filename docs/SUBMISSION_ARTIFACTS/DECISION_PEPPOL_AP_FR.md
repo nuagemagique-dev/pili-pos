@@ -18,9 +18,9 @@ Source : Arrêté Royal de 2024, transposant la Directive UE 2010/45/UE.
 
 ## Périmètre à la date de soumission
 
-Tokyo Sushi Bar est massivement B2C (clients sur place + emporter).
-Les factures B2B sont exceptionnelles - typiquement quand un
-restaurant voisin ou un client entreprise commande un plateau à
+Les établissements HoReCa ciblés par moyun-pos sont massivement B2C
+(clients sur place + emporter). Les factures B2B sont exceptionnelles -
+typiquement quand un client entreprise commande un plateau à
 emporter.
 
 Le dossier de certification déclare donc Peppol comme :
@@ -41,7 +41,7 @@ Le dossier de certification déclare donc Peppol comme :
 
 **Recommandation :** **Storecove** pour le premier déploiement - API
 REST la plus simple, onboarding le plus rapide, prix par facture
-compatible avec le volume attendu de Tokyo Sushi Bar (< 5 factures B2B
+compatible avec le volume attendu d'un restaurant (< 5 factures B2B
 par mois).
 
 ## État de l'implémentation
@@ -78,9 +78,9 @@ Feature flag : `peppol` (default-on, inclus dans la build `cert`).
 
 ## Plan de déploiement (côté opérateur, post-cert)
 
-1. **Enregistrer le Peppol endpoint-ID de Tokyo Sushi Bar.** Le TVA
+1. **Enregistrer le Peppol endpoint-ID de l'établissement.** Le TVA
    belge utilise le schéma `0208` (numéro d'entreprise BCE, 10 chiffres
-   sans préfixe `BE`) ; l'endpoint-ID est `0208:0772499585`. L'enregistrement est effectué par l'AP choisi
+   sans préfixe `BE`) ; l'endpoint-ID a la forme `0208:0XXXXXXXXX`. L'enregistrement est effectué par l'AP choisi
    à l'onboarding - prend typiquement 1 à 2 jours ouvrables.
 2. **Ouvrir un compte Storecove**, demander une clé API sandbox,
    exécuter un test de bout en bout contre leur récepteur de
@@ -121,8 +121,8 @@ Feature flag : `peppol` (default-on, inclus dans la build `cert`).
   perdons PAS silencieusement le document ; la ligne `peppol_deliveries`
   reste en `status='failed'` avec `error_msg` rempli, et apparaît
   donc dans le rapport de fin de journée comme action à traiter.
-- **Coût par facture** - à moins de 5 factures B2B par mois, Tokyo
-  Sushi Bar est confortablement sous le seuil où le coût AP devient
+- **Coût par facture** - à moins de 5 factures B2B par mois, un
+  restaurant type est confortablement sous le seuil où le coût AP devient
   sensible.
 - **Verrouillage AP** - changer d'AP plus tard est un changement de
   config + un ajustement d'enveloppe UBL, sans migration DB nécessaire

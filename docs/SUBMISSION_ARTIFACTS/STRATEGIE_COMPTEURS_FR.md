@@ -36,7 +36,7 @@ la stratégie est rétro-compatible parce que la clé d'idempotence FDM
   tiroir par exemple) et une vente partagent la même séquence
   monotone, brouillant la piste d'audit.
 - **Wrap sûr.** Les compteurs par label se bouclent à 999 999 999
-  (max POS v2.2). Aux volumes Tokyo Sushi Bar (~150 tickets/jour),
+  (max POS v2.2). Au volume d'un restaurant type (~150 tickets/jour),
   le compteur N mettrait ~18 000 ans à boucler. Les autres labels
   sont bornés similairement.
 - **Récupération indépendante.** Un bug de gestion sur un label (par

@@ -107,12 +107,12 @@ maintenance initiale, le distributeur :
   "pos_id": "CFOD0061234567",
   "terminal_id": "POS1",
   "device_id": "DEV001",
-  "restaurant_name": "Tokyo Sushi Bar",
-  "restaurant_address": "Rue Test 1, 1000 Bruxelles",
+  "restaurant_name": "Restaurant Exemple",
+  "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
   "restaurant_est_no": "1234567890",
-  "fdm_url": "http://192.168.1.20:8080/graphql",
-  "printer_address": "192.168.1.10:9100",
+  "fdm_url": "http://192.168.1.20/graphql",
+  "printer_address": "192.168.1.30:9100",
   "training_mode": false,
   "language": "fr",
   "backup_dir": "/var/lib/moyun-pos/backups"
@@ -130,7 +130,7 @@ Champs :
 | `restaurant_address` | Adresse complète | Client |
 | `restaurant_vat` | Numéro de TVA belge format `BE0XXXXXXXXX` | Client |
 | `restaurant_est_no` | Numéro d'établissement (10 chiffres) | BCE / client |
-| `fdm_url` | URL GraphQL du FDM sur le LAN | Configuration FDM |
+| `fdm_url` | URL GraphQL du FDM sur le LAN (port selon le modèle de FDM ; à confirmer sur le Checkbox CBX01) | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante (ou chemin série/USB) | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) — toute autre valeur émet le ticket en FR. | Client |
@@ -151,8 +151,8 @@ l'interface souhaitée par le personnel :
 | Région de langue allemande | `de` |
 | Région bilingue de Bruxelles-Capitale | `fr` ou `nl` |
 
-Exemple : Tokyo Sushi Bar, Rue de la Cathédrale 59, 4000 Liège (région
-de langue française) → `"language": "fr"`. Voir
+Exemple : un établissement à 4000 Liège (région de langue française)
+→ `"language": "fr"`. Voir
 `GARANTIE_MAJ_LANGUES_FR.md` §3.2.
 
 ### 4.3 Configuration réseau LAN
@@ -173,15 +173,16 @@ Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :
    ▼          ▼            ▼
 ┌────┐    ┌─────┐     ┌────────┐
 │POS │    │ FDM │     │Printer │
-│ .50│    │ .20 │     │ .10    │
+│ .10│    │ .20 │     │ .30    │
 └────┘    └─────┘     └────────┘
 ```
 
 Adresses IP statiques recommandées (subnet `192.168.1.0/24`) :
+- POS : `192.168.1.10`
 - FDM : `192.168.1.20`
-- Imprimante : `192.168.1.10:9100`
-- POS : `192.168.1.50` (statique, configuré dans
-  `/etc/network/interfaces`)
+- Imprimante : `192.168.1.30:9100`
+
+(Réservations DHCP sur le routeur, cf. `SCHEMA_ASSEMBLAGE_FR.md` §4.)
 - Box : `192.168.1.1`
 
 ### 4.4 Configuration utilisateurs

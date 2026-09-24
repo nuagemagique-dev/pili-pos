@@ -1,7 +1,7 @@
      REMBOURSEMENT DU TICKET DE CAISSE TVA
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
                 Etab: 2123456789
 

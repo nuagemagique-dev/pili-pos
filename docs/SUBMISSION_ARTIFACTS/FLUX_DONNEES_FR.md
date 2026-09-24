@@ -1,7 +1,7 @@
 # Description des flux de données - moyun-pos SCE 2.0
 
-Ce document parcourt une journée de service complète chez Tokyo Sushi
-Bar à travers le système moyun-pos, en montrant quelles données circulent
+Ce document parcourt une journée de service complète dans un
+restaurant à travers le système moyun-pos, en montrant quelles données circulent
 et où à chaque étape. Il complète `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`
 (qui décrit l'architecture statique) en suivant les données le long
 d'un parcours utilisateur.

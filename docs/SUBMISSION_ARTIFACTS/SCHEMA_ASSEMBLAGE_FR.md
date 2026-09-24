@@ -4,8 +4,8 @@
 **Référence :** réponse au §I.C "Schéma d'assemblage" et §II.G du manuel de certification.
 
 Le présent document décrit l'assemblage physique du SCE (Système de
-Caisse Enregistreuse) `moyun-pos` chez le premier client Tokyo Sushi
-Bar, ainsi que la configuration livrée à l'Intake SPF Finances.
+Caisse Enregistreuse) `moyun-pos` dans sa configuration de référence (un établissement
+HoReCa), identique à la configuration livrée à l'Intake SPF Finances.
 
 ---
 
@@ -135,10 +135,10 @@ Bar, ainsi que la configuration livrée à l'Intake SPF Finances.
 
 | Appareil | Hostname | IP | MAC (à renseigner à l'install) | Service |
 |---|---|---|---|---|
-| Routeur | `gw-tsb` | `192.168.1.1` | - | DHCP, gateway, DNS |
-| POS | `pos-tsb-01` | `192.168.1.10` | (à renseigner) | moyun-pos (Tauri app, kiosk) |
-| FDM | `fdm-tsb` | `192.168.1.20` | (à renseigner) | Checkbox GraphQL endpoint |
-| Imprimante | `printer-tsb` | `192.168.1.30` | (à renseigner) | ESC/POS raw TCP 9100 |
+| Routeur | `gw` | `192.168.1.1` | - | DHCP, gateway, DNS |
+| POS | `pos-01` | `192.168.1.10` | (à renseigner) | moyun-pos (Tauri app, kiosk) |
+| FDM | `fdm` | `192.168.1.20` | (à renseigner) | Checkbox GraphQL endpoint |
+| Imprimante | `printer` | `192.168.1.30` | (à renseigner) | ESC/POS raw TCP 9100 |
 
 ### Réservations DHCP
 

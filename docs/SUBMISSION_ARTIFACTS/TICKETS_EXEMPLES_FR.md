@@ -60,7 +60,7 @@ colonne par type de ticket émis par moyun-pos.
 | Bandeau "TRAINING" début et fin | - | - | - | - | OK | - |
 | Lien fdmRef vers le ticket original | - | OK | - | OK | - | - |
 
-**Règles de langue :** les tickets sont imprimés en français pour le déploiement Tokyo Sushi Bar (langue de la clientèle locale). La spec belge demande FR/NL/DE selon le client ; pour TSB, FR uniquement. Le code source supporte le rendu multilingue (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples ci-dessous sont en français. Le code source supporte le rendu multilingue (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
 
 ---
 
@@ -73,8 +73,8 @@ payé en espèces.
 ```
               TICKET DE CAISSE TVA
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
                 Etab: 2123456789
 
@@ -117,8 +117,8 @@ d'invalidité en bas.
 ```
                    PRO FORMA
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
                 Etab: 2123456789
 
@@ -156,8 +156,8 @@ montants négatifs, en-tête REMBOURSEMENT DU TICKET DE CAISSE TVA).
 ```
      REMBOURSEMENT DU TICKET DE CAISSE TVA
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
                 Etab: 2123456789
 
@@ -201,8 +201,8 @@ shortSignature réimprimée, mention d'invalidité en bas.
 ```
                      COPIE
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
                 Etab: 2123456789
 
@@ -247,8 +247,8 @@ TRAINING (double largeur) en tête, mention d'invalidité en bas.
 ================================================
                     TRAINING
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
                 Etab: 2123456789
 
@@ -291,8 +291,8 @@ chiffre, 3 ouvertures de tiroir).
 ```
        RAPPORT X
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
 
 Date:                                 2026-07-03
@@ -341,8 +341,8 @@ Scénario : clôture journalière (Z n°1) sur les mêmes totaux.
 ```
       RAPPORT Z #1
 
-                Tokyo Sushi Bar
-           Rue Grétry 42, 4000 Liège
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
 
 Date:                                 2026-07-03

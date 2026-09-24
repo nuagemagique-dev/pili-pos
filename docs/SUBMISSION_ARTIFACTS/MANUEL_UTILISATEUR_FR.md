@@ -36,7 +36,7 @@ L'écran de connexion affiche un pavé numérique. Pour se connecter :
 
 ```
 ┌─────────────────────────────────────┐
-│  Tokyo Sushi Bar - Connexion        │
+│  <Établissement> - Connexion        │
 │                                     │
 │  INSZ : _ _ _ _ _ _ _ _ _ _ _       │
 │                                     │
@@ -83,7 +83,7 @@ Après la connexion, l'écran principal affiche le **plan de table**
 
 ```
 ┌─────────────────────────────────────────┐
-│  Tokyo Sushi Bar  durée Présent  utilisateur Marie   │
+│  <Établissement>  durée Présent  utilisateur Marie   │
 ├─────────────────────────────────────────┤
 │   ┌────┐  ┌────┐  ┌────┐  ┌────┐        │
 │   │ T1 │  │ T2 │  │ T3 │  │ T4 │        │

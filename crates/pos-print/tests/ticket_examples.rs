@@ -34,8 +34,8 @@ fn fdm_ref(label: EventLabel, event_counter: i64, total_counter: i64) -> FdmRefe
 
 fn base_ticket(label: EventLabel) -> FiscalTicket {
     FiscalTicket {
-        restaurant_name: "Tokyo Sushi Bar".to_string(),
-        restaurant_address: "Rue Grétry 42, 4000 Liège".to_string(),
+        restaurant_name: "Restaurant Exemple".to_string(),
+        restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
         restaurant_est_no: "2123456789".to_string(),
         pos_id: "CFOD0061234567".to_string(),
@@ -167,8 +167,8 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
     ReportPrintData {
         report_type: report_type.to_string(),
         report_no,
-        restaurant_name: "Tokyo Sushi Bar".to_string(),
-        restaurant_address: "Rue Grétry 42, 4000 Liège".to_string(),
+        restaurant_name: "Restaurant Exemple".to_string(),
+        restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
         pos_id: "CFOD0061234567".to_string(),
         terminal_id: "POS1".to_string(),

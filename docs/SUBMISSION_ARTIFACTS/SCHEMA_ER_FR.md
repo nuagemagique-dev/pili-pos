@@ -274,7 +274,7 @@ La contrainte `fiscal_events.sequence_number UNIQUE` empêche tout doublon de co
 | `orders` | (implicite via PK) | `id` | Lookup par ID |
 | `users` | (implicite via PK) | `insz` | Auth login |
 
-Des indexes additionnels peuvent être ajoutés en post-cert si des problèmes de performance apparaissent à plus grande échelle (multi-restaurant). Pour le périmètre TSB mono-terminal (~150 tickets/jour), aucun index supplémentaire n'est nécessaire.
+Des indexes additionnels peuvent être ajoutés en post-cert si des problèmes de performance apparaissent à plus grande échelle (multi-restaurant). Pour le périmètre mono-terminal (~150 tickets/jour pour un restaurant type), aucun index supplémentaire n'est nécessaire.
 
 ---
 

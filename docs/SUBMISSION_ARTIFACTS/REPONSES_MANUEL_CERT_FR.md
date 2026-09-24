@@ -3,7 +3,6 @@
 **Date :** 2026-05-14
 **Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
 **Produit :** moyun-pos v1.0.0
-**Premier client déclaré :** Tokyo Sushi Bar (Liège)
 
 Ce document parcourt linéairement le manuel
 `20250307_FR - Manuel de certification_POS_V11.pdf` et fournit, dans
@@ -202,7 +201,7 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | **Périphériques d'entrée** | | | |
 | Souris | ☐ | ☐ | Interface tactile uniquement |
 | Clavier | ☐ | ☐ | Idem (clavier virtuel à l'écran si nécessaire) |
-| Scanner de produits (client) | ☐ | ☐ | Pas d'usage chez TSB |
+| Scanner de produits (client) | ☐ | ☐ | Non supporté |
 | Lecteur de carte | ☐ | ☐ | Paiement carte via terminal TPE externe (non intégré) |
 | Clés Dallas | ☐ | ☐ | Auth via INSZ + PIN, pas de support clés Dallas |
 | Périphérique supplémentaire | ☐ | ☐ | Aucun |
@@ -393,7 +392,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Carte de débit | ☑ | - | OK |
 | Carte de crédit | ☑ | - | OK (même flux que débit) |
 | Crédit client | ☐ | - | Pas de système clients (B2C) |
-| Facturation à l'hôtel | ☐ | - | N/A (TSB n'est pas un hôtel) |
+| Facturation à l'hôtel | ☐ | - | Non supporté (POS destiné à la restauration) |
 | Chèque repas | ☐ | - | Non supporté en MVP |
 | Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
 | Vouchers à but multiple | ☐ | UC260/261 | Hors MVP |
@@ -401,7 +400,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Devise étrangère | ☐ | UC296 | Déclaré : EUR uniquement |
 | Arrondissement des paiements cash | ☑ | Roundings | Obligatoire pour le cash, implémenté (arrondi belge à 5 centimes) |
 | Arrondissement carte EFT | ☐ | Roundings | Optionnel - pas d'arrondi sur paiements EFT |
-| Gestion des livraisons | ☐ | - | TSB est restaurant sur place + emporter sans livraison fiscalisée |
+| Gestion des livraisons | ☐ | - | Non supporté (sur place + emporter uniquement) |
 | Réductions | ☐ | - | Non supporté en MVP (les modificateurs +/- sur prix oui, les réductions globales non) |
 | Produits composés | ☐ | UC280 | Fixtures parsent, UI non implémentée (Advanced Set) |
 | Modification de prix ligne | ☐ | UC220 | Hors MVP |
@@ -434,7 +433,7 @@ L'émission de factures B2B est désactivée en production tant que le câblage 
 
 | Item | Réponse |
 |---|---|
-| Le POS permet le changement de cost center vers ROOM (chambre) | ☐ Non (TSB n'est pas un hôtel) |
+| Le POS permet le changement de cost center vers ROOM (chambre) | ☐ Non (POS destiné à la restauration, pas d'hôtellerie) |
 | Le POS permet de recalculer le changement de prix en cas de changement de cost center | ☐ Non (changement de cost center pas implémenté en MVP) |
 | Les liens dans la base de données sont décrits | N/A (fonctionnalité non implémentée) |
 
@@ -510,9 +509,7 @@ Toutes les fonctionnalités déclarées ☑ sont couvertes par des tests automat
 
 ## §III - Lignes de produit prédéfinies
 
-**Statut :** le seed actuel `pos.db` contient le menu Tokyo Sushi Bar (~80 articles japonais répartis sur 7 catégories : Entrées, Sushi, Plats chauds, Menus, Desserts, Boissons, Alcools). *Voir : LIGNES_PRODUITS_FR.md*.
-
-**Pour la machine de test SPF**, un seed alternatif est en cours de préparation avec les produits exacts du manuel (Dry Martini productId 10006, Burger of the Chef 22001, Carpaccio Beef 20001, Catch of the day 22005, Dame Blanche 25003, Crème brûlée 25008, etc.). Activable via une variable d'environnement `MOYUN_POS_SEED=spf_test`.
+**Statut :** la machine de test est initialisée avec exactement les 25 produits du manuel (Dry Martini productId 10006, Burger of the Chef 22001, Carpaccio Beef 20001, Catch of the day 22005, Dame Blanche 25003, Crème brûlée 25008, etc.), leurs départements, prix et codes TVA, depuis `src-tauri/seed_spf_test.sql` appliqué à la construction de l'image d'admission. *Voir : LIGNES_PRODUITS_FR.md*.
 
 Ce seed sera chargé sur la machine de test à l'Intake. Les UC du Bloc IV (procédure GraphQL) référencent ces productId précis ; le seed SPF garantit que les UC peuvent être exécutés à l'identique.
 
@@ -636,7 +633,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 
 **Règle appliquée :** conformément au manuel (§VI, p. 99), la langue du ticket est la langue officielle de la région linguistique **où le ticket est émis**, c'est-à-dire celle de l'établissement exploitant le POS. Elle est fixée par installation lors de la mise en service (région de langue française → `fr`, néerlandaise → `nl`, allemande → `de`, Bruxelles-Capitale → `fr` ou `nl`). Détail : *GARANTIE_MAJ_LANGUES_FR.md* §3.2.
 
-**Premier client - Tokyo Sushi Bar (Rue de la Cathédrale 59, 4000 Liège) :** région de langue française → tickets émis en **français**. Le code source supporte aussi le rendu multilingue des libellés produits via la table `translations` (cf. *SCHEMA_BD_FR.md*).
+**Exemple :** un établissement à 4000 Liège (région de langue française) émet ses tickets en **français**. Le code source supporte aussi le rendu multilingue des libellés produits via la table `translations` (cf. *SCHEMA_BD_FR.md*).
 
 Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket dans la langue configurée au niveau du POS (clé `language` de la configuration, cf. `MANUEL_INSTALLATION_FR.md`), mappée sur une langue nationale via `ReceiptLanguage::from_code` (`crates/pos-fiscal/src/ticket.rs`) : `fr` → FR, `nl` → NL, `de` → DE ; toute langue d'affichage non officielle (zh, en) retombe sur le FR. Les trois jeux de mentions implémentés :
 
@@ -648,7 +645,7 @@ Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket
 | Copie | COPIE | KOPIE | KOPIE |
 | Facture | FACTURE | FACTUUR | RECHNUNG |
 
-Les libellés FR proviennent de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). Pour TSB (Liège, région de langue française), l'exploitation est configurée en `fr`.
+Les libellés FR proviennent de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). La langue est un paramètre d'installation (`pos.json::language`) : aucun changement de binaire d'un établissement à l'autre.
 
 **Cette politique de langue par client est documentée dans `MANUEL_INSTALLATION_FR.md` §"Langue du ticket".**
 
