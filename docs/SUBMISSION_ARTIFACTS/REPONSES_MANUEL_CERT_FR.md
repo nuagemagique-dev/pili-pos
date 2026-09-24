@@ -3,7 +3,7 @@
 **Date :** 2026-05-14
 **Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
 **Produit :** moyun-pos v1.0.0
-**Premier client déclaré :** Tokyo Sushi Bar (Bruxelles)
+**Premier client déclaré :** Tokyo Sushi Bar (Liège)
 
 Ce document parcourt linéairement le manuel
 `20250307_FR - Manuel de certification_POS_V11.pdf` et fournit, dans
@@ -634,9 +634,9 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 
 ## Règles de langue
 
-**Décision pour Tokyo Sushi Bar :**
+**Règle appliquée :** conformément au manuel (§VI, p. 99), la langue du ticket est la langue officielle de la région linguistique **où le ticket est émis**, c'est-à-dire celle de l'établissement exploitant le POS. Elle est fixée par installation lors de la mise en service (région de langue française → `fr`, néerlandaise → `nl`, allemande → `de`, Bruxelles-Capitale → `fr` ou `nl`). Détail : *GARANTIE_MAJ_LANGUES_FR.md* §3.2.
 
-Les tickets sont émis en **français** par défaut (clientèle francophone de Bruxelles). Le code source supporte le rendu multilingue via la table `translations` (cf. *SCHEMA_BD_FR.md*), mais le client TSB n'a pas demandé d'émission NL/DE/EN systématique.
+**Premier client - Tokyo Sushi Bar (Rue de la Cathédrale 59, 4000 Liège) :** région de langue française → tickets émis en **français**. Le code source supporte aussi le rendu multilingue des libellés produits via la table `translations` (cf. *SCHEMA_BD_FR.md*).
 
 Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket dans la langue configurée au niveau du POS (clé `language` de la configuration, cf. `MANUEL_INSTALLATION_FR.md`), mappée sur une langue nationale via `ReceiptLanguage::from_code` (`crates/pos-fiscal/src/ticket.rs`) : `fr` → FR, `nl` → NL, `de` → DE ; toute langue d'affichage non officielle (zh, en) retombe sur le FR. Les trois jeux de mentions implémentés :
 
@@ -648,7 +648,7 @@ Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket
 | Copie | COPIE | KOPIE | KOPIE |
 | Facture | FACTURE | FACTUUR | RECHNUNG |
 
-Les libellés FR proviennent de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). Pour TSB, l'exploitation est configurée en `fr` (serveurs francophones et sinophones).
+Les libellés FR proviennent de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). Pour TSB (Liège, région de langue française), l'exploitation est configurée en `fr`.
 
 **Cette politique de langue par client est documentée dans `MANUEL_INSTALLATION_FR.md` §"Langue du ticket".**
 

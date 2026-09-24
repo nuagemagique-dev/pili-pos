@@ -43,7 +43,7 @@ Veuillez trouver ci-joint la demande de certification pour le
 système de caisse "moyun-pos" v1.0.0.
 
 Distributeur : Bruno Moyse / nuagemagique.dev (Bruxelles).
-Premier client : Tokyo Sushi Bar (Bruxelles).
+Premier client : Tokyo Sushi Bar (Liège).
 
 Pièces jointes :
 - 20250115_FORMULAIRE_DEMANDE_CERTIF_POS-FDM_signe.pdf

@@ -140,21 +140,26 @@ Langues des mentions fiscales supportées par le code :
 
 Langues d'affichage de l'interface (indépendantes du ticket) : `fr`, `en`, `zh`.
 
-### 3.2 Politique de production pour Tokyo Sushi Bar
+### 3.2 Règle appliquée : langue de la région linguistique de l'établissement
 
-Pour le déploiement initial chez Tokyo Sushi Bar (Bruxelles), les **tickets sont imprimés en français exclusivement** :
+Le manuel (§VI, p. 99) dispose : *« En Belgique, le ticket doit être émis en français, en néerlandais ou en allemand, selon la langue officielle de la région linguistique où il est émis. Dans les lieux considérés comme des zones touristiques, le ticket peut également être émis en anglais. »*
 
-- Clientèle locale francophone (Bruxelles).
-- Équipe de service francophone/sinophone (qui parle aussi français aux clients).
-- Aucune demande NL/DE de la part du client.
+La langue des mentions fiscales est donc fixée **par installation**, lors de la mise en service, d'après l'adresse de l'établissement où le POS est exploité (et non d'après le siège du producteur ni la langue de la clientèle) :
 
-**Conformité avec la spec belge :**
+| Région linguistique de l'établissement | Valeur de `pos.json::language` |
+|---|---|
+| Région de langue française | `fr` |
+| Région de langue néerlandaise | `nl` |
+| Région de langue allemande | `de` |
+| Région bilingue de Bruxelles-Capitale | `fr` ou `nl` (les deux langues sont officielles) |
 
-La spec SCE 2.0 indique que le ticket doit être disponible dans la langue du client. Cette obligation s'applique en pratique selon la région linguistique du restaurant :
-- Bruxelles bilingue : FR et NL acceptables, le restaurateur choisit selon sa clientèle.
-- Tokyo Sushi Bar étant à Bruxelles et déclarant une clientèle francophone majoritaire, l'émission FR uniquement est conforme.
+L'anglais (zones touristiques) n'est pas proposé comme langue de ticket : toute valeur autre que `fr`/`nl`/`de` retombe sur le FR (cf. §3.1).
 
-**Pour basculer la langue des mentions fiscales (FR → NL ou DE)** : la procédure est une mise à jour de configuration (pas du code) :
+Le paramètre fait partie de la checklist de mise en service (`MANUEL_INSTALLATION_FR.md`) et figure sur chaque installation déclarée dans `LISTE_DISTRIBUTEURS_FR.md`.
+
+**Premier client - Tokyo Sushi Bar :** établissement situé Rue de la Cathédrale 59, 4000 Liège, en **région de langue française** → `language = "fr"`, tickets imprimés en français.
+
+**Pour basculer la langue des mentions fiscales (FR → NL ou DE)**, par exemple pour une installation dans une autre région linguistique, la procédure est une mise à jour de configuration (pas du code) :
 1. Compléter les traductions manquantes dans la table `translations` pour les articles.
 2. Éditer la clé `language` de `/etc/moyun-pos/pos.json` (`fr` / `nl` / `de`).
 3. Redémarrer le service `moyun-pos` (la configuration est lue au boot).
@@ -176,4 +181,4 @@ Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré av
 | Pas de modification post-cert | Système de fichiers racine en lecture seule + tag git signé | Vérification au boot, lecture du tag dans `/etc/moyun-pos/version` |
 | Nouvelle MAJ = nouveau cert | Procédure §II.E + Article 109 du manuel | Chaque tag `vX.Y.Z+1` ouvre une nouvelle demande SPF |
 | Pas d'accès distant permanent | Pas de SSH, aucun client distant installé | Vérification au scan réseau du POS (aucun port ouvert) |
-| Ticket dans la langue du client | `translations` (libellés produits) + `pos.json::language` (mentions fiscales FR/NL/DE) | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |
+| Ticket dans la langue de la région linguistique de l'établissement | `translations` (libellés produits) + `pos.json::language` (mentions fiscales FR/NL/DE) | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |

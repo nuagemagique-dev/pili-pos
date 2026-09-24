@@ -3,7 +3,7 @@
 **Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
 **Nom du produit :** moyun-pos
 **Version :** 1.0.0 (build de soumission cert)
-**Client cible :** Tokyo Sushi Bar (Bruxelles, BE)
+**Client cible :** Tokyo Sushi Bar (Liège, BE)
 **Date de soumission :** 2026-05-14
 **Specs implémentées :** POS v2.2 + FDM v1.4 + Addendum 1 + Basic Set v1.7 + Reports v1.3 + Advanced Set v1.5
 

@@ -43,7 +43,8 @@ Une install Debian 12 minimale avec :
 - Binaire `pos-fdm-mock` (pour le fallback de démo d'admission).
 - Compositeur Cage Wayland.
 - Unité systemd `moyun-pos.service` (autostart plein écran).
-- `pos.db` de seed avec menu Tokyo Sushi Bar + utilisateurs de test.
+- `pos.db` initialisée avec `seed_spf_test.sql` (produits prédéfinis du
+  manuel §III.N + utilisateurs de test SPF).
 - `chrony` configuré pour NTP.
 - Pas de serveur SSH.
 

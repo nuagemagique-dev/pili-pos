@@ -3,7 +3,7 @@
 ## Project Identity
 
 **Name:** moyun-pos  
-**Purpose:** Point-of-Sale terminal application for Belgian HoReCa restaurants, certified SCE 2.0 compliant. First deployment target: Tokyo Sushi Bar (Brussels).  
+**Purpose:** Point-of-Sale terminal application for Belgian HoReCa restaurants, certified SCE 2.0 compliant. First deployment target: Tokyo Sushi Bar (Liège — French-language region, tickets in FR).  
 **License:** Proprietary (nuagemagique.dev)  
 **Author:** Bruno — backend developer, Go/TypeScript/Rust stack, Brussels
 

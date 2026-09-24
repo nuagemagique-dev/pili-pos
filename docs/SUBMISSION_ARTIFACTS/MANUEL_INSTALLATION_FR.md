@@ -136,6 +136,25 @@ Champs :
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) — toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/moyun-pos/backups`) | Distributeur |
 
+#### Langue du ticket
+
+La clé `language` détermine la langue des mentions fiscales imprimées.
+Elle est fixée à l'installation d'après la **région linguistique de
+l'établissement** où le POS est exploité (manuel de certification §VI,
+p. 99) — ni d'après le siège du distributeur, ni d'après la langue de
+l'interface souhaitée par le personnel :
+
+| Région linguistique de l'établissement | `language` |
+|---|---|
+| Région de langue française | `fr` |
+| Région de langue néerlandaise | `nl` |
+| Région de langue allemande | `de` |
+| Région bilingue de Bruxelles-Capitale | `fr` ou `nl` |
+
+Exemple : Tokyo Sushi Bar, Rue de la Cathédrale 59, 4000 Liège (région
+de langue française) → `"language": "fr"`. Voir
+`GARANTIE_MAJ_LANGUES_FR.md` §3.2.
+
 ### 4.3 Configuration réseau LAN
 
 Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :

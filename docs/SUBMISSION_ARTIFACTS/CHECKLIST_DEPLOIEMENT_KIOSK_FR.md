@@ -30,12 +30,17 @@ machine de test au démarrage de la clé USB.
 - [ ] Binaire `pos-fdm-mock` dans `/opt/moyun-pos/bin/pos-fdm-mock`
       (utilisé pendant la démo d'admission si le FDM virtuel est
       injoignable).
-- [ ] Base de données de seed dans `/var/lib/moyun-pos/pos.db` avec :
-      - Configuration Tokyo Sushi Bar (nom, n° TVA, adresse).
-      - Menu complet (categories, menu_items, modifier_groups,
-        modifiers).
+- [ ] Base de données de seed dans `/var/lib/moyun-pos/pos.db`,
+      initialisée à la construction de l'image avec
+      `src-tauri/seed_spf_test.sql` (image d'admission) :
+      - Lignes de produits prédéfinies du manuel §III.N (Dry Martini,
+        Burger of the Chef, …) avec leurs productId et codes TVA,
+        requises pour rejouer les UC tels que définis.
       - Utilisateurs de test correspondant à la liste INSZ dans
         `docs/20250916_UC_BasicSet_POS_FDM_1.7/UC_TestSetup_20240806.md`.
+      - L'image de production (restaurant) utilise à la place
+        `src-tauri/seed.sql` (menu Tokyo Sushi Bar) ; le binaire
+        `moyun-pos` est identique dans les deux images.
 - [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`.
 
 ## Documentation dans la clé USB du dossier

@@ -79,8 +79,8 @@ Feature flag : `peppol` (default-on, inclus dans la build `cert`).
 ## Plan de déploiement (côté opérateur, post-cert)
 
 1. **Enregistrer le Peppol endpoint-ID de Tokyo Sushi Bar.** Le TVA
-   belge utilise le schéma `0208` ; l'endpoint-ID est
-   `0208:BE0499999960`. L'enregistrement est effectué par l'AP choisi
+   belge utilise le schéma `0208` (numéro d'entreprise BCE, 10 chiffres
+   sans préfixe `BE`) ; l'endpoint-ID est `0208:0772499585`. L'enregistrement est effectué par l'AP choisi
    à l'onboarding - prend typiquement 1 à 2 jours ouvrables.
 2. **Ouvrir un compte Storecove**, demander une clé API sandbox,
    exécuter un test de bout en bout contre leur récepteur de

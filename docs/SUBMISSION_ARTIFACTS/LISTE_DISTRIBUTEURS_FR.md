@@ -20,13 +20,14 @@ déploiement) doivent figurer dans le dossier.
 
 | Champ | Valeur |
 |---|---|
-| Nom légal | Tokyo Sushi Bar |
-| Adresse | Bruxelles, Belgique |
-| Numéro de TVA | BE0499999960 |
+| Nom légal | Tokyo Sushi Bar SRL |
+| Adresse | Rue de la Cathédrale 59, 4000 Liège, Belgique |
+| Numéro de TVA | BE0772.499.585 |
+| Région linguistique | Région de langue française (tickets émis en FR) |
 | Secteur | HoReCa - restaurant avec service en salle |
 | Cuisine | Japonaise (sushi + plats chauds) |
 | Périmètre de déploiement | 1 terminal POS + 1 FDM Checkbox CBX01 (émulateur Checkbox durant le développement) + 1 imprimante thermique + 1 tiroir-caisse |
-| Cible de mise en production | Post-certification, T3 2026 |
+| Cible de mise en production | Post-certification (date à fixer après la décision du SPF Finances) |
 
 ## Déploiements futurs
 
