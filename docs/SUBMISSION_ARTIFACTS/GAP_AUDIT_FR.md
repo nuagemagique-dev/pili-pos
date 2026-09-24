@@ -524,3 +524,66 @@ Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résul
 Écarts restants inchangés : répétition Checkbox (kit de
 développement en cours de commande), captures d'écran UI (bloc B2), image
 kiosk (bloc E3), signature qualifiée (E1).
+
+---
+
+# MISE À JOUR DU 2026-09-24
+
+Branche `feat/cert-dossier-kiosk-image`.
+
+## Écarts comblés
+
+- **Identité producteur (gap 14)** — déjà renseignée (Bruno Moyse,
+  indépendant, BCE 0783.544.917, régime de franchise TVA, Saint-Gilles).
+- **Dossier neutre vis-à-vis des clients.** Le formulaire ne demande
+  qu'« un aperçu des distributeurs potentiels » ; aucun client n'est
+  déclaré. `LISTE_DISTRIBUTEURS_FR.md` réécrit, exemples de tickets
+  régénérés avec « Restaurant Exemple ».
+- **Règle de langue (§VI p. 99)** — la langue du ticket suit la région
+  linguistique de l'établissement ; paramètre d'installation
+  `pos.json::language` (section « Langue du ticket » du manuel
+  d'installation). L'ancienne justification « langue du client /
+  Bruxelles bilingue » est supprimée.
+- **Lignes de produits (§III.N, gap 4)** — `LIGNES_PRODUITS_FR.md`
+  décrit les 25 produits du manuel chargés depuis `seed_spf_test.sql`.
+- **Accès distant (gap 8)** — un seul modèle partout : pas de SSH,
+  RustDesk portable (AppImage 1.4.9, SHA-256 épinglé) présent mais
+  jamais lancé au boot, session ouverte à la demande.
+- **Défauts de code/déploiement découverts et corrigés :**
+  - la build cert ne contenait pas l'UI (mode dev Tauri → écran vide) ;
+  - la base était écrite sous `/var/lib/moyun-pos/.local/share/…` et
+    non au chemin déclaré `/var/lib/moyun-pos/pos.db` ;
+  - le seed de `install.sh` échouait silencieusement (pas de schéma) ;
+  - unité systemd sans session logind pour Cage, `cage.ini` sans
+    effet, règle udev HID inopérante, chrony absent ;
+  - `build-release.sh` ne produisait pas la build cert.
+
+## Nouveaux écarts identifiés
+
+- **Preuves UC (§IV)** — `evidence/uc/*.json` rejoue un article
+  synthétique (« Test item », 10 €) au lieu des scénarios officiels
+  (ex. M110 = 2× Dry Martini + 1× Burger of the Chef, 52 €). À
+  recapturer contre le FDM Checkbox en rejouant les fixtures.
+- **Toolchain** — une build hors conteneur (cargo Homebrew) ignore
+  `rust-toolchain.toml` (1.98.1 au lieu de 1.96.0). Seule la build
+  `deploy/build-release.sh --docker` fait foi ; vérifier par deux
+  builds successives du tag cert que le SHA-1 est identique.
+- **Adresses IP / port FDM** — plan d'adressage aligné (POS .10, FDM
+  .20, imprimante .30) ; port GraphQL du Checkbox CBX01 à confirmer à
+  réception du kit.
+
+## Plan restant (sans kit Checkbox)
+
+1. Image kiosque avec mkosi (Debian 12, variantes admission / production,
+   même binaire), boot testé sous QEMU (UEFI, 1920×1080, tactile virtio).
+2. Spike RustDesk sous Cage dans l'image : capture via
+   `xdg-desktop-portal-wlr` + PipeWire, saisie clavier, déclenchement
+   de session depuis l'interface (rôle administrateur).
+3. Captures d'écran (gap 11, bloc B2) depuis l'image sous QEMU, avec
+   le seed SPF et `MOCK_FDM_ERROR` pour les messages §V.
+4. Racine en lecture seule + LUKS/TPM2 dans l'image.
+
+## Plan restant (avec kit Checkbox)
+
+Répétition (`JOURNAL_TESTS_PRE_SOUMISSION_FR.md`), recapture des
+preuves UC, port FDM, puis soumission (`ASSEMBLAGE_FINAL_FR.md`).
