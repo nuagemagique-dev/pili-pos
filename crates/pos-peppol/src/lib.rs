@@ -20,8 +20,8 @@
 //!   valid XML for simple line-item invoices with a single VAT category.
 //!   Multi-VAT and credit-note variants are stub'd.
 //! - **AccessPoint**: the trait is wired and there is a no-op
-//!   `LoggingAccessPoint` for tests. Live providers require a contract
-//!   + API key + sender `endpointID` registration on the Peppol network,
+//!   `LoggingAccessPoint` for tests. Live providers require a contract,
+//!   an API key and a sender `endpointID` registration on the Peppol network,
 //!   which is operator-side paperwork tracked in
 //!   `docs/SUBMISSION_ARTIFACTS/PEPPOL_AP_DECISION.md`.
 //!

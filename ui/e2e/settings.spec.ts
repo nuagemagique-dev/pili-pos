@@ -98,7 +98,9 @@ test.describe('Settings View', () => {
         customer_list_name: null,
       }),
     });
-    await page.goto('/#/settings');
+    // beforeEach already opened /#/settings, so a goto to the same hash
+    // would not reload the page and the new mock would never install.
+    await page.reload();
     await expect(page.locator('.status-ok')).toBeVisible();
   });
 });

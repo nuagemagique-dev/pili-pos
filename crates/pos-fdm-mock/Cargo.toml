@@ -9,6 +9,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 chrono = { workspace = true }
-base64 = "0.22"
-sha1 = "0.10"
+base64 = "0.23"
+sha1 = "0.11"
 hex = "0.4"
