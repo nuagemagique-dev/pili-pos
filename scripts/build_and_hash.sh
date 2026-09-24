@@ -18,11 +18,15 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-BINARY="$PROJECT_ROOT/target/release/moyun-pos"
+BINARY="${CARGO_TARGET_DIR:-$PROJECT_ROOT/target}/release/moyun-pos"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 REPORT="$PROJECT_ROOT/build_info_${STAMP}.txt"
 
 echo "── 1/5 Certification build ──────────────────────────────"
+# A plain `cargo build` does not run tauri.conf.json's beforeBuildCommand:
+# build the UI bundle first so it gets embedded (`custom-protocol`,
+# pulled in by the `cert` feature).
+(cd ui && npm ci && npm run build)
 (cd src-tauri && cargo build --release --no-default-features --features cert)
 [[ -f "$BINARY" ]] || { echo "✗ binary not found: $BINARY"; exit 1; }
 
@@ -37,6 +41,11 @@ if strings "$BINARY" | grep -q "api.hubrise.com"; then
     exit 1
 fi
 echo "✓ no third-party integration symbols"
+if strings "$BINARY" | grep -q "localhost:1420"; then
+    echo "✗ cert binary points at the Vite dev server (custom-protocol missing)"
+    exit 1
+fi
+echo "✓ UI bundle embedded (no dev-server URL)"
 
 echo "── 3/5 Fiscal-archive mutation scan ─────────────────────"
 # The fiscal archive is append-only by law. No source file may

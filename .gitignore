@@ -7,3 +7,4 @@ ui/dist/
 *.db-shm
 *.db-wal
 .DS_Store
+build_info_*.txt

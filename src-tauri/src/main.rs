@@ -3,7 +3,7 @@
 // Modules live in `lib.rs` so integration tests under `tests/` can
 // reach them via `use moyun_pos::commands;`. The binary just re-imports
 // them through the crate name — same code, same output.
-use moyun_pos::{commands, state};
+use moyun_pos::{cli, commands, paths, state};
 
 #[cfg(feature = "hubrise")]
 use std::sync::Arc;
@@ -13,18 +13,43 @@ use state::AppState;
 use tauri::Emitter;
 
 fn main() {
+    // Offline commands (image build, install scripts) run before any
+    // logging or UI setup and exit.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match cli::parse(&args) {
+        Ok(cli::Command::RunUi) => {}
+        Ok(cli::Command::Version) => {
+            println!("moyun-pos {}", env!("CARGO_PKG_VERSION"));
+            return;
+        }
+        Ok(cli::Command::InitDb { seed }) => {
+            let db_path = paths::db_path();
+            match cli::init_db(&db_path, seed.as_deref()) {
+                Ok(()) => {
+                    println!("database ready: {}", db_path.display());
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("moyun-pos --init-db: {e:#}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(2);
+        }
+    }
+
     // Load .env file (if present) BEFORE anything reads env vars.
     // In production there's no .env — env vars are set by systemd.
     dotenvy::dotenv().ok();
 
     // Structured logging — daily-rotated log file + stderr for dev.
     // Must be initialized BEFORE anything that calls tracing macros.
-    let data_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("moyun-pos")
-        .join("logs");
-    std::fs::create_dir_all(&data_dir).ok();
-    let file_appender = tracing_appender::rolling::daily(&data_dir, "pos.log");
+    let logs_dir = paths::logs_dir();
+    std::fs::create_dir_all(&logs_dir).ok();
+    let file_appender = tracing_appender::rolling::daily(&logs_dir, "pos.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     tracing_subscriber::fmt()
         .with_writer(non_blocking)

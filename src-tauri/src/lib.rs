@@ -10,5 +10,7 @@
 //! crate name (`use moyun_pos::commands;` / `use moyun_pos::state;`),
 //! producing the exact same binary as before.
 
+pub mod cli;
 pub mod commands;
+pub mod paths;
 pub mod state;

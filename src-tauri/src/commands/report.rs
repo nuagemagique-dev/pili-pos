@@ -364,10 +364,7 @@ fn backup_database_impl(
 ) -> Result<String, String> {
     let backup_dir = match &config.backup_dir {
         Some(dir) => std::path::PathBuf::from(dir),
-        None => dirs::data_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("moyun-pos")
-            .join("backups"),
+        None => crate::paths::backups_dir(),
     };
     std::fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
 

@@ -1,0 +1,99 @@
+//! Filesystem locations of the POS runtime data (database, logs,
+//! backups).
+//!
+//! The data directory is resolved, in priority order, from:
+//!
+//! 1. `MOYUN_POS_DATA_DIR` — explicit override (image build, tests).
+//! 2. `STATE_DIRECTORY` — exported by systemd for `StateDirectory=moyun-pos`
+//!    in `deploy/moyun-pos.service`, i.e. `/var/lib/moyun-pos`: the path
+//!    declared to SPF Finances for data acquisition
+//!    (`FEUILLE_ACQUISITION_DONNEES_FR.md`).
+//! 3. `dirs::data_dir()/moyun-pos` — development machines.
+
+use std::ffi::OsString;
+use std::path::PathBuf;
+
+/// Directory holding `pos.db`, `logs/` and `backups/`.
+pub fn data_dir() -> PathBuf {
+    resolve_data_dir(
+        std::env::var_os("MOYUN_POS_DATA_DIR"),
+        std::env::var_os("STATE_DIRECTORY"),
+        dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("moyun-pos"),
+    )
+}
+
+pub fn db_path() -> PathBuf {
+    data_dir().join("pos.db")
+}
+
+pub fn logs_dir() -> PathBuf {
+    data_dir().join("logs")
+}
+
+pub fn backups_dir() -> PathBuf {
+    data_dir().join("backups")
+}
+
+fn resolve_data_dir(
+    data_dir_override: Option<OsString>,
+    state_directory: Option<OsString>,
+    fallback: PathBuf,
+) -> PathBuf {
+    if let Some(dir) = data_dir_override.filter(|d| !d.is_empty()) {
+        return PathBuf::from(dir);
+    }
+    // systemd joins several StateDirectory= entries with ':'; the unit
+    // declares exactly one, so the first entry is ours.
+    if let Some(first) = state_directory
+        .as_ref()
+        .and_then(|d| d.to_str())
+        .and_then(|d| d.split(':').next())
+        .filter(|d| !d.is_empty())
+    {
+        return PathBuf::from(first);
+    }
+    fallback
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fallback() -> PathBuf {
+        PathBuf::from("/home/dev/.local/share/moyun-pos")
+    }
+
+    #[test]
+    fn override_wins_over_systemd() {
+        let dir = resolve_data_dir(
+            Some("/tmp/image-build".into()),
+            Some("/var/lib/moyun-pos".into()),
+            fallback(),
+        );
+        assert_eq!(dir, PathBuf::from("/tmp/image-build"));
+    }
+
+    #[test]
+    fn systemd_state_directory_is_used_in_production() {
+        let dir = resolve_data_dir(None, Some("/var/lib/moyun-pos".into()), fallback());
+        assert_eq!(dir, PathBuf::from("/var/lib/moyun-pos"));
+    }
+
+    #[test]
+    fn first_of_several_state_directories() {
+        let dir = resolve_data_dir(
+            None,
+            Some("/var/lib/moyun-pos:/var/lib/other".into()),
+            fallback(),
+        );
+        assert_eq!(dir, PathBuf::from("/var/lib/moyun-pos"));
+    }
+
+    #[test]
+    fn empty_values_fall_back_to_user_data_dir() {
+        let dir = resolve_data_dir(Some("".into()), Some("".into()), fallback());
+        assert_eq!(dir, fallback());
+    }
+}

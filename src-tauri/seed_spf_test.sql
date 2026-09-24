@@ -7,13 +7,12 @@
 -- Cette base de donnees contient EXACTEMENT les produits, productId,
 -- departments et prix attendus par les UC du Basic Set v1.7 et de
 -- l'Advanced Set v1.5, afin que les agents SPF Finances puissent
--- executer les scenarios sans avoir besoin de translation entre nos
--- menus reels (Tokyo Sushi Bar) et les fixtures du manuel.
+-- executer les scenarios sans translation entre le catalogue d'un
+-- etablissement et les fixtures du manuel.
 --
--- Pour activer ce seed sur la machine de test :
---   sqlite3 /var/lib/moyun-pos/pos.db < seed_spf_test.sql
--- Ou via la variable d'environnement :
---   MOYUN_POS_SEED=spf_test moyun-pos
+-- Applique a la construction de l'image d'admission, sur une base
+-- vierge (refuse si des evenements fiscaux existent deja) :
+--   moyun-pos --init-db --seed seed_spf_test.sql
 --
 -- VAT codes utilises (col vat_code) :
 --   A = 21% (alcools, boissons rafraichissantes)
@@ -211,5 +210,5 @@ INSERT INTO fiscal_counters (event_label, current_value) VALUES
 -- - M121 : commande sur table sans paiement (P event)
 -- - etc.
 --
--- Pour revenir au seed Tokyo Sushi Bar (production) :
---   sqlite3 /var/lib/moyun-pos/pos.db < seed.sql
+-- Une image de production est construite avec le catalogue de
+-- l'etablissement a la place de ce seed (meme binaire moyun-pos).

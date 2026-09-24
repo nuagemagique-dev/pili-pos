@@ -37,10 +37,8 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> anyhow::Result<Self> {
-        let db_path = dirs::data_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("moyun-pos")
-            .join("pos.db");
+        let db_path = crate::paths::db_path();
+        tracing::info!(path = %db_path.display(), "opening database");
 
         std::fs::create_dir_all(db_path.parent().unwrap())?;
 

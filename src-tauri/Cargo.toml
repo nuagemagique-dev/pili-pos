@@ -55,7 +55,12 @@ peppol = ["dep:pos-peppol"]
 # e-invoicing is mandatory for Belgian VAT-registered sellers from
 # 2026-01-01). Build command: `cargo build --release
 # --no-default-features --features cert`.
-cert = ["peppol"]
+cert = ["peppol", "custom-protocol"]
+# Serve the embedded `ui/dist` bundle instead of the Vite dev server
+# (`devUrl`). `cargo tauri build` turns it on by itself; a plain
+# `cargo build` — the certification build above — must enable it, or
+# the kiosk would try to load http://localhost:1420 and stay blank.
+custom-protocol = ["tauri/custom-protocol"]
 # Dev-only escape hatch: lets checkout succeed when the FDM is offline.
 # NEVER ship this in a production build — SCE 2.0 mandates that the POS
 # must block transactions when the FDM is unreachable.
