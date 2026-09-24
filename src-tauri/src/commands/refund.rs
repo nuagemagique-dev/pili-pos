@@ -191,7 +191,6 @@ pub async fn do_refund_checkout(
     };
 
     // 6. COMMIT counter + archive + close refund order atomically.
-    let ticket;
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
@@ -219,7 +218,7 @@ pub async fn do_refund_checkout(
     }
 
     // 7. Build fiscal ticket for display/print
-    ticket = sign_result.as_ref().map(|result| {
+    let ticket = sign_result.as_ref().map(|result| {
         let ticket_lines: Vec<TicketLine> = refund_lines
             .iter()
             .map(|l| TicketLine {
@@ -251,16 +250,16 @@ pub async fn do_refund_checkout(
     });
 
     // 8. Auto-print REFUND receipt + open drawer
-    if let Some(ref t) = ticket {
-        if let Some(ref addr) = config.printer_address {
-            let receipt_data = pos_print::receipt::format_receipt(t);
-            if let Err(e) = pos_print::transport::send_to_printer(addr, &receipt_data).await {
-                tracing::warn!(%e, "refund receipt print failed (non-fatal)");
-            }
-            // Open drawer for cash refund
-            let drawer_data = pos_print::drawer::kick_drawer_bytes();
-            let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
+    if let Some(ref t) = ticket
+        && let Some(ref addr) = config.printer_address
+    {
+        let receipt_data = pos_print::receipt::format_receipt(t);
+        if let Err(e) = pos_print::transport::send_to_printer(addr, &receipt_data).await {
+            tracing::warn!(%e, "refund receipt print failed (non-fatal)");
         }
+        // Open drawer for cash refund
+        let drawer_data = pos_print::drawer::kick_drawer_bytes();
+        let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
     }
 
     Ok(CheckoutResult {

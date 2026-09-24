@@ -171,7 +171,6 @@ pub async fn do_checkout(
     //   - `orders.status` flips to closed
     // If any of the three fails the whole tx rolls back, including
     // the counter advance — so no gap is ever observable.
-    let ticket;
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db
@@ -210,7 +209,7 @@ pub async fn do_checkout(
     }
 
     // 7. Build fiscal ticket for display/print
-    ticket = sign_result.as_ref().map(|result| {
+    let ticket = sign_result.as_ref().map(|result| {
         let ticket_lines: Vec<TicketLine> = lines
             .iter()
             .map(|l| TicketLine {

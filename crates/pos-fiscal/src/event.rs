@@ -110,6 +110,7 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 
 /// Build a SaleInput from an order + its lines + payment info.
 /// For refunds, pass `original_fdm_ref` referencing the original ticket.
+#[allow(clippy::too_many_arguments)]
 pub fn build_sale_input(
     config: &PosConfig,
     order: &Order,
