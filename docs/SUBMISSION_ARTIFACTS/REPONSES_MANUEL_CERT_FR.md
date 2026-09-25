@@ -580,7 +580,7 @@ durée de conservation, localisation).
 
 ### Remarques sur les fonctionnalités du POS
 
-Toutes les fonctionnalités déclarées ☑ sont couvertes par des tests automatisés (unit, intégration, e2e applicatif via Tauri commands). Voir *RAPPORT_TESTS_BASELINE_FR.md* pour le détail des 190 tests passants.
+Toutes les fonctionnalités déclarées ☑ sont couvertes par des tests automatisés (unit, intégration, e2e applicatif via Tauri commands). Voir *RAPPORT_TESTS_BASELINE_FR.md* pour le détail des tests par binaire, régénéré sur la révision soumise par `scripts/generate_test_report.py`.
 
 ## §III - Lignes de produit prédéfinies
 

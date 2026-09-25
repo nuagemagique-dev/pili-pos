@@ -14,6 +14,7 @@ cd moyun-pos   # racine du dépôt
 cargo test --workspace        # doit être tout vert
 cargo clippy --workspace -- -D warnings   # doit être propre
 cargo fmt --all --check       # doit être propre
+scripts/generate_test_report.py   # totaux de RAPPORT_TESTS_BASELINE_FR.md, sur cette révision
 
 # Build cert Linux x86_64 dans un conteneur Debian 12 (toolchain
 # épinglée par rust-toolchain.toml via rustup). Construit l'UI,

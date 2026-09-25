@@ -91,7 +91,7 @@ implémentés dans `crates/pos-peppol` ; IPC dans
 | Préoccupation | Preuve |
 |---|---|
 | Binaire cert sans intégrations tierces | `cargo build --release --no-default-features --features cert` ; `nm moyun-pos | grep -c pos_hubrise → 0` |
-| Tous les tests verts | `cargo test --workspace` → 190 tests passent |
+| Tous les tests verts | `cargo test --workspace` et la build cert : 0 échec (totaux dans RAPPORT_TESTS_BASELINE_FR.md) |
 | Lint propre | `cargo clippy --workspace -- -D warnings` (à exécuter avant soumission) |
 | Format cohérent | `cargo fmt --all` |
 | Build reproductible | `Cargo.lock` committé ; Rust 1.95.0 épinglé dans `rust-toolchain.toml` |

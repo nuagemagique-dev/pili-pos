@@ -293,5 +293,4 @@ cargo test --package pos-fiscal --lib idempotency_tests
 cargo test --package moyun-pos --test spf_e2e_no_gap
 ```
 
-Totaux workspace à la dernière révision : **190 tests passants,
-0 échec, 2 ignorés (rehearsal staging).**
+Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.

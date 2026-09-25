@@ -161,4 +161,4 @@ cargo test --package moyun-pos --test spf_e2e_basic m112b_
 cargo test --package moyun-pos --test spf_e2e_no_gap refund_fdm
 ```
 
-Totaux workspace : **190 passants, 0 échec, 2 ignorés.**
+Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.

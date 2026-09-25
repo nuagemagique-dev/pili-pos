@@ -1,8 +1,7 @@
 # Rapport de tests baseline (couverture de la build cert)
 
-**Date :** 2026-05-14
-**Branche :** main
-**Toolchain :** Rust stable (edition 2024), workspace Cargo, Tauri v2.
+**Date et révision :** voir l'en-tête du bloc « Totaux de tests » (généré).
+**Toolchain :** Rust 1.96.0 épinglée (`rust-toolchain.toml`), edition 2024, workspace Cargo, Tauri v2.
 **Objet :** Photographier la posture de tests à la date de soumission,
 afin que tout mouvement de tests ultérieur puisse être tracé et
 attribué à des modifications futures.
@@ -36,67 +35,114 @@ colonnes dans la build cert.
 
 ---
 
-## Totaux de tests (`cargo test --workspace --no-fail-fast`)
+## Totaux de tests
 
-Totaux actuels à la dernière révision du dossier :
+Les totaux ci-dessous ne sont jamais recopiés à la main : ils sont
+régénérés par `scripts/generate_test_report.py`, qui exécute les deux
+suites et réécrit le bloc. La colonne « Couche » reprend la première
+phrase du commentaire de module (`//!`) de chaque binaire de test. Le
+script est relancé sur la révision soumise (ASSEMBLAGE_FINAL_FR.md,
+étape 1) ; la CI exécute les mêmes suites à chaque push.
+
+<!-- TEST_TOTALS:BEGIN (scripts/generate_test_report.py) -->
+
+Généré le 2026-09-25 22:15 (Europe/Brussels) sur la révision `fe61605`.
+
+### Workspace, fonctionnalités par défaut (`cargo test --workspace`)
 
 | Binaire de test | Couche | Passants | Échecs | Ignorés |
 |---|---|---:|---:|---:|
-| `pos_core` (unit) | types domaine, TVA, config | 10 | 0 | 0 |
-| `pos_db` (unit) | schéma, requêtes, migrations, agrégats rapports | 34 | 0 | 0 |
-| `pos_fiscal` (unit) | types d'événements, signature, compteur, JSON canonique | 50 | 0 | 0 |
-| `pos_fiscal::full_service` (intégration) | workflow fiscal de bout en bout | 1 | 0 | 0 |
-| `pos_fiscal::spf_basic_set` (intégration) | 10 UC obligatoires contre wiremock FDM | 10 | 0 | 0 |
-| `pos_fiscal::uc_fixtures` (intégration) | parsing fixtures Basic Set v1.7 (dont Q110 multi-langue) | 6 | 0 | 0 |
-| `pos_fiscal::reports_fixtures` (intégration) | parsing fixtures Reports v1.3 | 8 | 0 | 0 |
-| `pos_fiscal::client_status` (intégration) | contrat Q100/Q110 du client FDM (langue, fallback d'orthographe, aliases multi-langues) | 3 | 0 | 0 |
-| `pos_fiscal::advanced_set_fixtures` (intégration) | fixtures Advanced Set v1.5 (141 UC) | 1 | 0 | 0 |
-| `pos_fiscal::e2e_staging` (intégration, opt-in) | contre FDM/émulateur Checkbox | 0 | 0 | 2 |
-| intégration webshop (unit) | tests unitaires crate webshop (exclue de la build cert) | 19 | 0 | 0 |
-| `pos_peppol` (unit) | sérialiseur UBL 2.1 BIS Billing 3.0 | 5 | 0 | 0 |
-| `pos_print` (unit) | ESC/POS (CP858), layout ticket + rapports | 44 | 0 | 0 |
-| `pos_print::ticket_examples` (intégration) | générateur des transcriptions §VI (7 exemples) | 7 | 0 | 0 |
-| `moyun-pos::spf_e2e_basic` (intégration) | 16 UC Basic Set end-to-end via commandes Tauri (dont M150, M161, M172) | 16 | 0 | 0 |
-| `moyun-pos::spf_e2e_no_gap` (intégration) | invariant compteur sans trou sur échec FDM | 2 | 0 | 0 |
-| `moyun-pos::spf_e2e_reports` (intégration) | M180, M182, M184 (Z combiné) + rotation période de réservation | 4 | 0 | 0 |
-| `pos_fdm_mock`, `moyun-pos` main | - | 0 | 0 | 0 |
-| **Total** | | **220** | **0** | **2** (staging, opt-in) |
+| `moyun_pos` (unit) | Library facade for the moyun-pos binary. | 43 | 0 | 0 |
+| `access_control` (intégration) | Who may do what (`PROFILS_UTILISATEURS_FR.md` §2–3), enforced by the backend whatever the UI shows | 13 | 0 | 0 |
+| `admission_mock` (intégration) | The admission image runs moyun-pos against `pos-fdm-mock` (the examiners' machine has no real FDM until the kit arrives). | 3 | 0 | 0 |
+| `config_check` (intégration) | A fiscal identity the FDM would refuse is reported by the settings the UI reads at start-up, so it is fixed before the first sale. | 2 | 0 | 0 |
+| `order_commands` (intégration) | The order commands the order screen calls on every tap: start an order, add / change / remove lines, reload it. | 22 | 0 | 0 |
+| `refund_guards` (intégration) | A refund pays money out: whatever stops it must leave nothing a cashier could complete later. | 5 | 0 | 0 |
+| `spf_e2e_basic` (intégration) | Application-level e2e tests for the SPF Finances Basic Set v1.7. | 16 | 0 | 0 |
+| `spf_e2e_concurrency` (intégration) | Two sign calls firing at once on the same order/label. | 3 | 0 | 0 |
+| `spf_e2e_crash_safety` (intégration) | Crash safety: what happens when something goes wrong strictly AFTER the FDM has successfully signed an event, but BEFORE the local commit finishes. | 2 | 0 | 0 |
+| `spf_e2e_digital` (intégration) | Ticket delivery end to end: paper, email, or both (cert manual §III.H), through the real checkout, refund and copy commands. | 30 | 0 | 0 |
+| `spf_e2e_fdm_failures` (intégration) | Exhaustive FDM-failure matrix for every fiscal command. | 26 | 0 | 0 |
+| `spf_e2e_fixtures` (intégration) | SPF Finances Basic Set v1.7, replayed from the official fixtures. | 16 | 0 | 0 |
+| `spf_e2e_journal` (intégration) | Order-journal semantics through the command layer. | 4 | 0 | 0 |
+| `spf_e2e_no_gap` (intégration) | Regression test: SCE 2.0 "strictly sequential, no gaps" counter. | 3 | 0 | 0 |
+| `spf_e2e_peripherals` (intégration) | Printer, cash drawer and back-office commands, end to end. | 18 | 0 | 0 |
+| `spf_e2e_report_fixtures` (intégration) | SPF Reports v1.3, replayed end to end through the real commands. | 5 | 0 | 0 |
+| `spf_e2e_reports` (intégration) | Application-level e2e tests for the SPF Finances Reports v1.3 set. | 4 | 0 | 0 |
+| `spf_e2e_service_day` (intégration) | A long, realistic service day driven entirely through the Tauri command layer: several tables, interleaved orders/corrections/… | 1 | 0 | 0 |
+| `spf_e2e_validation` (intégration) | Input validation and auth checks across the command layer: unknown or inactive menu items, non-positive quantities, empty/zero-total checkouts, unknown ids… | 16 | 0 | 0 |
+| `pos_core` (unit) | Business types of the POS: configuration, catalogue, orders, tables, users and VAT. | 57 | 0 | 0 |
+| `pos_db` (unit) | SQLite persistence: schema, migrations and typed queries, with the fiscal archive append-only. | 103 | 0 | 0 |
+| `pos_fdm_mock` (unit) | Mock FDM (Checkbox-compatible GraphQL) and mock Scaleway TEM, for development, the admission image and screenshots. | 15 | 0 | 0 |
+| `pos_fiscal` (unit) | SCE 2.0 protocol: event building, FDM client, counters, archive, tickets and reports. | 113 | 0 | 0 |
+| `advanced_set_fixtures` (intégration) | SCE 2.0 Advanced Set v1.5 fixture validation. | 1 | 0 | 0 |
+| `client_status` (intégration) | FdmClient status-query contract tests (Q100 / Q110). | 3 | 0 | 0 |
+| `e2e_staging` (intégration) | Pre-submission rehearsal against a real virtual FDM. | 0 | 0 | 2 |
+| `fdm_client_errors` (intégration) | fdm_client error-handling contract tests. | 12 | 0 | 0 |
+| `full_service` (intégration) | Full Service Integration Test | 1 | 0 | 0 |
+| `report_totals_fixtures` (intégration) | The SPF Reports v1.3 scenario, replayed through `report_totals`: the eight input tickets T1–T8 (their published requests and FDM responses) must add up to… | 6 | 0 | 0 |
+| `reports_fixtures` (intégration) | SCE 2.0 Reports v1.3 fixture validation. | 8 | 0 | 0 |
+| `spf_basic_set` (intégration) | SPF BasicSet Integration Tests | 10 | 0 | 0 |
+| `uc_fixtures` (intégration) | SCE 2.0 Basic Set v1.7 fixture validation. | 6 | 0 | 0 |
+| `pos_mail` (unit) | Digital ticket delivery: renders a signed [`pos_fiscal::ticket::FiscalTicket`] into an email, sends it via the Scaleway Transactional Email HTTP API, and… | 46 | 0 | 0 |
+| `outbox` (intégration) | End-to-end outbox tests: `send_now` / `run_once` driving real SQLite (`pos-db`) rows against a mocked TEM endpoint (`wiremock`). | 13 | 0 | 0 |
+| `tem_client` (intégration) | `TemClient` contract tests against a mocked Scaleway TEM endpoint. | 15 | 0 | 0 |
+| `pos_print` (unit) | ESC/POS printing: tickets, reports and cash drawer, in CP858. | 92 | 0 | 0 |
+| `receipt_matrix` (intégration) | Every ticket type (N sale, N refund, P, C, T) in every ticket language (FR/NL/DE), rendered through the real `format_receipt` pipeline: each must fit the 80… | 8 | 0 | 0 |
+| `ticket_examples` (intégration) | §VI ticket-example generator. | 7 | 0 | 0 |
+| Crates exclues de la build cert (unit) | intégrations hors v1.0.0 | 24 | 0 | 0 |
+| **Total** | | **772** | **0** | **2** |
 
-Doc-tests : 0 dans toutes les crates (pas d'exemples `///` rédigés).
+### Application, build cert (`cargo test -p moyun-pos --no-default-features --features cert`)
 
-Les 2 tests ignorés dans `pos_fiscal::e2e_staging` constituent le
-harness de répétition pré-soumission ; ils requièrent
-`MOYUN_STAGING_FDM_URL` pointant vers un vrai FDM (émulateur ou
-FDM de développement Checkbox), et sont exécutables via
+| Binaire de test | Couche | Passants | Échecs | Ignorés |
+|---|---|---:|---:|---:|
+| `moyun_pos` (unit) | Library facade for the moyun-pos binary. | 43 | 0 | 0 |
+| `access_control` (intégration) | Who may do what (`PROFILS_UTILISATEURS_FR.md` §2–3), enforced by the backend whatever the UI shows | 13 | 0 | 0 |
+| `admission_mock` (intégration) | The admission image runs moyun-pos against `pos-fdm-mock` (the examiners' machine has no real FDM until the kit arrives). | 3 | 0 | 0 |
+| `config_check` (intégration) | A fiscal identity the FDM would refuse is reported by the settings the UI reads at start-up, so it is fixed before the first sale. | 2 | 0 | 0 |
+| `order_commands` (intégration) | The order commands the order screen calls on every tap: start an order, add / change / remove lines, reload it. | 22 | 0 | 0 |
+| `refund_guards` (intégration) | A refund pays money out: whatever stops it must leave nothing a cashier could complete later. | 5 | 0 | 0 |
+| `spf_e2e_basic` (intégration) | Application-level e2e tests for the SPF Finances Basic Set v1.7. | 14 | 0 | 0 |
+| `spf_e2e_concurrency` (intégration) | Two sign calls firing at once on the same order/label. | 3 | 0 | 0 |
+| `spf_e2e_crash_safety` (intégration) | Crash safety: what happens when something goes wrong strictly AFTER the FDM has successfully signed an event, but BEFORE the local commit finishes. | 2 | 0 | 0 |
+| `spf_e2e_digital` (intégration) | Ticket delivery end to end: paper, email, or both (cert manual §III.H), through the real checkout, refund and copy commands. | 30 | 0 | 0 |
+| `spf_e2e_fdm_failures` (intégration) | Exhaustive FDM-failure matrix for every fiscal command. | 26 | 0 | 0 |
+| `spf_e2e_fixtures` (intégration) | SPF Finances Basic Set v1.7, replayed from the official fixtures. | 16 | 0 | 0 |
+| `spf_e2e_journal` (intégration) | Order-journal semantics through the command layer. | 4 | 0 | 0 |
+| `spf_e2e_no_gap` (intégration) | Regression test: SCE 2.0 "strictly sequential, no gaps" counter. | 3 | 0 | 0 |
+| `spf_e2e_peripherals` (intégration) | Printer, cash drawer and back-office commands, end to end. | 18 | 0 | 0 |
+| `spf_e2e_report_fixtures` (intégration) | SPF Reports v1.3, replayed end to end through the real commands. | 5 | 0 | 0 |
+| `spf_e2e_reports` (intégration) | Application-level e2e tests for the SPF Finances Reports v1.3 set. | 4 | 0 | 0 |
+| `spf_e2e_service_day` (intégration) | A long, realistic service day driven entirely through the Tauri command layer: several tables, interleaved orders/corrections/… | 1 | 0 | 0 |
+| `spf_e2e_validation` (intégration) | Input validation and auth checks across the command layer: unknown or inactive menu items, non-positive quantities, empty/zero-total checkouts, unknown ids… | 16 | 0 | 0 |
+| **Total** | | **230** | **0** | **0** |
+
+<!-- TEST_TOTALS:END -->
+
+Les tests ignorés de `e2e_staging` constituent le harness de
+répétition pré-soumission ; ils requièrent `MOYUN_STAGING_FDM_URL`
+pointant vers un vrai FDM (émulateur ou FDM de développement
+Checkbox), et sont exécutables via
 `cargo test --package pos-fiscal --test e2e_staging -- --ignored`.
 Ils ne font PAS partie de la barrière CI hors-ligne.
 
-### Pyramide de tests par finalité
+L'interface est couverte à part, par Playwright (`ui/e2e/`, IPC Tauri
+simulée) : `cd ui && npx playwright test`.
 
-| Finalité | Binaires de test | Nombre |
-|---|---|---:|
-| Couverture domaine & unit du noyau fiscal | `pos_core`, `pos_db`, `pos_fiscal`, `pos_print` (+ transcriptions §VI), `pos_peppol` | 150 |
-| *Parsing* des fixtures SPF Finances (formes requête + réponse) | `uc_fixtures`, `reports_fixtures`, `advanced_set_fixtures` | 15 |
-| Aller-retour FDM par mutation (wiremock au niveau `FdmClient`) | `spf_basic_set`, `full_service`, `client_status` | 14 |
-| **Orchestration au niveau applicatif** (commande Tauri → tx → archive) | `spf_e2e_basic`, `spf_e2e_no_gap`, `spf_e2e_reports` | 22 |
-| Intégrations webshop (exclues de la build cert) | tests crate webshop | 19 |
-| **Total** | | **220** |
+### Familles de tests
 
-### Carte de couverture e2e applicatif
-
-| Famille d'UC | Testé à travers | Nombre de tests |
-|---|---|---:|
-| Vente (M110) | `m110_sign_sale_archives_n_event_and_closes_order` | 1 |
-| Remboursement complet / partiel (M111, M112B) | `m111_...`, `m112b_...` | 2 |
-| Commande / Pré-ticket (M121, M123) | `m121_...`, `m123_...` | 2 |
-| Mouvements caisse (M130, M131) | `m130_...`, `m131_...` | 2 |
-| Social (M140, M141) | `m140_...`, `m141_...` | 2 |
-| Facture (M150) + invariant compteur I | `m150_sign_invoice_...`, `m150_invoice_fdm_failure_...` | 2 |
-| Copie (M160, M161) | `m160_...`, `m161_...` | 2 |
-| Formation (M170, M171, M172) | `m170_...`, `m171_...`, `m172_...` | 3 |
-| Rapports X / Z (M180, M182, M184) + période de réservation | quatre tests `spf_e2e_reports` | 4 |
-| Invariant compteur sans trou (régression FDM-fail) | `checkout_fdm_failure_...`, `refund_fdm_failure_...` | 2 |
-| **Total e2e applicatif** | | **22** |
+| Finalité | Binaires de test |
+|---|---|
+| Domaine et noyau fiscal (unit) | `pos_core`, `pos_db`, `pos_fiscal`, `pos_print`, `pos_mail`, `pos_fdm_mock` |
+| Formes des fixtures SPF Finances (requêtes et réponses officielles) | `uc_fixtures`, `reports_fixtures`, `advanced_set_fixtures` |
+| Client FDM : aller-retour par mutation, statut, erreurs | `spf_basic_set`, `full_service`, `client_status`, `fdm_client_errors` |
+| Rejeu des UC officiels à travers les commandes réelles (requête construite par moyun-pos comparée à la fixture) | `spf_e2e_fixtures`, `spf_e2e_report_fixtures`, `report_totals_fixtures` |
+| Orchestration applicative (commande → FDM → transaction → archive) | `spf_e2e_basic`, `spf_e2e_reports`, `spf_e2e_journal`, `spf_e2e_service_day`, `order_commands` |
+| Numérotation sans trou, pannes FDM, crash, concurrence | `spf_e2e_no_gap`, `spf_e2e_fdm_failures`, `spf_e2e_crash_safety`, `spf_e2e_concurrency` |
+| Profils utilisateurs, validation des entrées, remboursements, configuration | `access_control`, `spf_e2e_validation`, `refund_guards`, `config_check` |
+| Ticket numérique, impression, tiroir | `spf_e2e_digital`, `outbox`, `tem_client`, `spf_e2e_peripherals`, `receipt_matrix`, `ticket_examples` |
+| Image d'admission (POS contre `pos-fdm-mock`) | `admission_mock` |
 
 ---
 

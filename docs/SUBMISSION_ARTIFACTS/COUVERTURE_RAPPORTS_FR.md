@@ -197,5 +197,4 @@ cargo test --package pos-fiscal --test reports_fixtures -- --nocapture
 ```
 
 S'exécute également dans le cadre de la suite de tests workspace
-complète. Totaux actuels dans le workspace : **220 passants,
-0 échec.**
+complète ; totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.
