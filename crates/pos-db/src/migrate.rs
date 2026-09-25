@@ -32,7 +32,8 @@
 use rusqlite::Connection;
 
 use crate::schema::{
-    MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_BOOKING_PERIODS, SCHEMA_SQL,
+    MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_BOOKING_PERIODS,
+    MIGRATION_004_TICKET_DELIVERIES, SCHEMA_SQL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -58,6 +59,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 3,
         name: "booking-periods",
         sql: MIGRATION_003_BOOKING_PERIODS,
+    },
+    Migration {
+        version: 4,
+        name: "ticket-deliveries",
+        sql: MIGRATION_004_TICKET_DELIVERIES,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one.
@@ -151,12 +157,12 @@ mod tests {
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3]);
+        assert_eq!(applied, vec![1, 2, 3, 4]);
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1, 2, 3]);
+        assert_eq!(applied_again, vec![1, 2, 3, 4]);
     }
 
     #[test]
@@ -169,7 +175,7 @@ mod tests {
 
         // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3]);
+        assert_eq!(applied, vec![1, 2, 3, 4]);
 
         let stamp: String = conn
             .query_row(
@@ -200,6 +206,42 @@ mod tests {
         let lines = columns("order_lines");
         assert!(lines.contains(&"department_id".to_string()));
         assert!(lines.contains(&"department_name".to_string()));
+    }
+
+    #[test]
+    fn v4_creates_ticket_deliveries_with_correct_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let mut stmt = conn
+            .prepare("SELECT name FROM pragma_table_info('ticket_deliveries')")
+            .unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        for expected in [
+            "id",
+            "fiscal_event_id",
+            "medium",
+            "recipient",
+            "recipient_hint",
+            "ticket_text",
+            "verification_url",
+            "status",
+            "attempts",
+            "next_attempt_at",
+            "provider_message_id",
+            "last_error",
+            "fallback_printed",
+            "created_at",
+            "updated_at",
+        ] {
+            assert!(
+                columns.contains(&expected.to_string()),
+                "missing {expected}"
+            );
+        }
     }
 
     #[test]
