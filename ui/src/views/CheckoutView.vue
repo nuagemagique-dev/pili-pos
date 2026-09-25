@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
+import { useDeliveryStore } from "../stores/delivery";
 import type { CheckoutPaymentMethod, CheckoutResult } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { formatEuros } from "../utils/format";
+import TicketMediumPicker from "../components/TicketMediumPicker.vue";
+import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 
 const router = useRouter();
 const order = useOrderStore();
+const delivery = useDeliveryStore();
 const { t } = useI18n();
 
 const step = ref<"method" | "cash" | "card" | "processing" | "done">("method");
@@ -16,6 +20,10 @@ const result = ref<CheckoutResult | null>(null);
 const error = ref<string | null>(null);
 const cashReceived = ref(0);
 const cashInput = ref("");
+
+// The picker needs a fresh mail probe every time it's about to be
+// shown — cheap, the backend caches the probe for 60s.
+watch(step, (s) => { if (s === "method") delivery.refreshMailStatus(); }, { immediate: true });
 
 const totalEur = computed(() => order.totalCents / 100);
 
@@ -96,11 +104,14 @@ async function doCheckout(method: CheckoutPaymentMethod) {
   if (!order.currentOrder) return;
   error.value = null;
   try {
-    result.value = await ipc.checkout(order.currentOrder.id, method);
+    const req = delivery.request.medium === "paper" ? undefined : delivery.request;
+    result.value = await ipc.checkout(order.currentOrder.id, method, req);
     if (result.value.success) {
       // Clear the order from the store immediately so it can't be
       // re-submitted. The "done" screen reads from result.value.
       order.clearOrder();
+      // Next customer starts from Papier.
+      delivery.reset();
       step.value = "done";
     } else {
       error.value = result.value.error ?? "Erreur";
@@ -109,13 +120,6 @@ async function doCheckout(method: CheckoutPaymentMethod) {
   } catch (e) {
     error.value = String(e);
     step.value = "method";
-  }
-}
-
-async function reprint() {
-  if (result.value?.ticket) {
-    try { await ipc.printReceipt(result.value.ticket); }
-    catch (e) { error.value = `Impression: ${String(e)}`; }
   }
 }
 
@@ -138,6 +142,7 @@ function finish() {
         </span>
       </div>
       <p v-if="error" class="error-msg shake">{{ error }}</p>
+      <TicketMediumPicker />
       <div class="pay-methods">
         <button class="pay-btn cash-btn" @click="step = 'cash'; cashInput = ''">{{ t('cash') }}</button>
         <button class="pay-btn card-btn" @click="step = 'card'">{{ t('card') }}</button>
@@ -223,8 +228,12 @@ function finish() {
       <div v-if="!result?.fdm_connected" class="fdm-warn">
         {{ t('fdm_no_sig') }}
       </div>
+      <DeliveryOutcomePanel
+        :outcome="result?.delivery ?? null"
+        :ticket="result?.ticket ?? null"
+        :fiscal-event-id="result?.fiscal_event_id ?? null"
+      />
       <div class="done-actions">
-        <button class="act-btn secondary" @click="reprint">{{ t('reprint') }}</button>
         <button class="act-btn primary" @click="finish">{{ t('finish') }}</button>
       </div>
     </div>
