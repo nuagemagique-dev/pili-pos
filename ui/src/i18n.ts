@@ -20,6 +20,11 @@ const coreMessages: Messages = {
   "no_items": { fr: "Aucun article", en: "No items", zh: "暂无商品" },
   "total": { fr: "TOTAL", en: "TOTAL", zh: "合计" },
   "pay": { fr: "PAYER", en: "PAY", zh: "结账" },
+  "pre_bill": { fr: "Addition", en: "Bill", zh: "账单" },
+  "pre_bill_printed": { fr: "Addition provisoire imprimée", en: "Provisional bill printed", zh: "临时账单已打印" },
+  "pre_bill_failed": { fr: "Addition non enregistrée", en: "Bill not registered", zh: "账单未登记" },
+  "order_register_failed": { fr: "Commande non enregistrée par le FDM", en: "Order not registered by the FDM", zh: "订单未被FDM登记" },
+  "presence_failed": { fr: "Pointage non enregistré", en: "Clock-in/out not registered", zh: "打卡未登记" },
 
   // Checkout
   "cash": { fr: "CASH", en: "CASH", zh: "现金" },
@@ -131,6 +136,7 @@ const coreMessages: Messages = {
   "cash_amount_placeholder": { fr: "Montant (€)", en: "Amount (€)", zh: "金额 (€)" },
   "cash_reason_placeholder": { fr: "Motif", en: "Reason", zh: "原因" },
   "cash_success": { fr: "Mouvement enregistré", en: "Movement recorded", zh: "已记录" },
+  "cash_failed": { fr: "Mouvement non enregistré", en: "Movement not recorded", zh: "未记录" },
   "cash_drawer_opened": { fr: "Tiroir ouvert", en: "Drawer opened", zh: "钱箱已打开" },
   "cash_err_amount": { fr: "Montant invalide", en: "Invalid amount", zh: "金额无效" },
 

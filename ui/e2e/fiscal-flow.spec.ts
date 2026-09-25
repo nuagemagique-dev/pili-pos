@@ -1,0 +1,254 @@
+import { test, expect, type Page } from '@playwright/test';
+import {
+  mockTauriIPC,
+  overrideIPC,
+  loginAndGoto,
+  ipcCalls,
+  DEFAULT_USER,
+  DEFAULT_ORDER,
+  DEFAULT_ORDER_LINE,
+  DEFAULT_CATEGORY,
+  DEFAULT_MENU_ITEM,
+} from './fixtures/mock-ipc';
+
+// Fiscal side effects of the operator's navigation: an order left unpaid
+// is registered with the FDM (event P, POS spec §1.3), the "Addition"
+// button signs a pre-bill (§1.4), and every FDM refusal is shown.
+
+type Handlers = Parameters<typeof mockTauriIPC>[1];
+
+async function openTable(page: Page, overrides: Handlers = {}) {
+  await mockTauriIPC(page, {
+    login: () => DEFAULT_USER,
+    list_users: () => [DEFAULT_USER],
+    get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    get_categories: () => [DEFAULT_CATEGORY],
+    get_menu_items: () => [DEFAULT_MENU_ITEM],
+    ...overrides,
+  });
+  await page.goto('/');
+  await page.click('.user-btn');
+  await page.waitForURL(/tables/);
+  await page.locator('.table-card').first().click();
+  await page.waitForURL(/order/);
+  await page.locator('.item-btn').first().click();
+  await expect(page.locator('.cart-lines')).not.toContainText('Aucun article');
+}
+
+const navButton = (page: Page, name: string) =>
+  page.locator('.header-nav .nav-btn', { hasText: name });
+
+test.describe('Table order registration (P)', () => {
+  test('leaving the order for the tables registers it', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'Tables').click();
+    await page.waitForURL(/tables/);
+
+    const calls = await ipcCalls(page, 'sign_table_order');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].orderId).toBeGreaterThan(0);
+  });
+
+  test('leaving for the reports registers it', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'Rapports').click();
+    await page.waitForURL(/reports/);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+  });
+
+  test('leaving for the settings registers it', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'Config').click();
+    await page.waitForURL(/settings/);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+  });
+
+  test('going to the payment does not register it (the sale carries it)', async ({ page }) => {
+    await openTable(page);
+    await page.locator('.checkout-btn').click();
+    await page.waitForURL(/checkout/);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(0);
+  });
+
+  test('leaving the payment screen for another screen registers it', async ({ page }) => {
+    await openTable(page);
+    await page.locator('.checkout-btn').click();
+    await page.waitForURL(/checkout/);
+    await page.evaluate(() => { window.location.hash = '#/tables'; });
+    await page.waitForURL(/tables/);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+  });
+
+  test('switching to a takeaway registers the table first', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'À emporter').click();
+
+    // The mock's create_order is static, so check the calls themselves:
+    // the table is registered before the takeaway order is created.
+    await expect.poll(() => ipcCalls(page, 'create_order').then((c) => c.length)).toBe(2);
+    const order = await page.evaluate(() =>
+      ((window as any).__ipcCalls as Array<{ cmd: string; args: any }>)
+        .filter((c) => c.cmd === 'sign_table_order' || c.cmd === 'create_order')
+        .map((c) => c.cmd === 'create_order' ? `create:${c.args.input.order_type}` : 'sign'),
+    );
+    expect(order).toEqual(['create:dine_in', 'sign', 'create:takeaway']);
+  });
+
+  test('logging out registers it', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'Sortir').click();
+    await page.waitForURL(/#\/$/);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+  });
+
+  test('an FDM refusal keeps the operator on the order and says so', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'sign_table_order', '__THROW__');
+    await navButton(page, 'Tables').click();
+
+    await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
+    await expect(page).toHaveURL(/order/);
+  });
+
+  test('an FDM refusal does not start the takeaway', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'sign_table_order', '__THROW__');
+    await navButton(page, 'À emporter').click();
+
+    await expect(page.locator('.toast-error')).toContainText('Commande non enregistrée');
+    await expect(page.locator('.header-table')).toBeVisible();
+    await expect(page.locator('.header-takeaway')).toHaveCount(0);
+  });
+
+  test('an FDM refusal never blocks logging out', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'sign_table_order', '__THROW__');
+    await navButton(page, 'Sortir').click();
+    await page.waitForURL(/#\/$/);
+    await expect(page.locator('.user-btn').first()).toBeVisible();
+  });
+});
+
+test.describe('Pre-bill ("Addition")', () => {
+  test('signs a pre-bill for the table and confirms it', async ({ page }) => {
+    await openTable(page);
+    const button = page.getByRole('button', { name: 'Addition' });
+    await expect(button).toBeEnabled();
+    await button.click();
+
+    await expect(page.locator('.toast-success')).toContainText('Addition provisoire imprimée');
+    const calls = await ipcCalls(page, 'sign_pre_bill');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].orderId).toBeGreaterThan(0);
+    // The order stays open on screen: a pre-bill is not a payment.
+    await expect(page).toHaveURL(/order/);
+  });
+
+  test('an FDM refusal is shown', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'sign_pre_bill', '__THROW__');
+    await page.getByRole('button', { name: 'Addition' }).click();
+    await expect(page.locator('.toast-error')).toContainText('Addition non enregistrée');
+  });
+
+  test('is not offered for takeaways', async ({ page }) => {
+    const takeaway = { ...DEFAULT_ORDER, order_type: 'takeaway', table_number: null };
+    await openTable(page, { create_order: () => takeaway, get_order: () => takeaway });
+    await expect(page.locator('.header-takeaway')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'PAYER' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Addition' })).toHaveCount(0);
+  });
+
+  test('is disabled while the table has no lines', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      list_order_lines: () => [],
+    });
+    await page.goto('/');
+    await page.click('.user-btn');
+    await page.waitForURL(/tables/);
+    await page.locator('.table-card').first().click();
+    await page.waitForURL(/order/);
+    await expect(page.getByRole('button', { name: 'Addition' })).toBeDisabled();
+  });
+});
+
+test.describe('FDM refusals on presence and cash events', () => {
+  test('a refused clock-in is reported but does not block the login', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      work_in: () => ({ success: false, error: 'FDM error: offline' }),
+    });
+    await page.goto('/');
+    await page.click('.user-btn');
+    await page.waitForURL(/tables/);
+    await expect(page.locator('.toast-error')).toContainText('Pointage non enregistré');
+    await expect(page.locator('.toast-error')).toContainText('FDM error: offline');
+  });
+
+  test('a successful clock-in shows no error', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+    });
+    await page.goto('/');
+    await page.click('.user-btn');
+    await page.waitForURL(/tables/);
+    expect(await ipcCalls(page, 'work_in')).toHaveLength(1);
+    await expect(page.locator('.toast-error')).toHaveCount(0);
+  });
+});
+
+test.describe('Cash events (F)', () => {
+  const REFUSED = { success: false, error: 'FDM error: offline' };
+
+  async function openCash(page: Page, overrides: Handlers = {}) {
+    await mockTauriIPC(page, overrides);
+    await loginAndGoto(page, '/reports');
+    await page.locator('.cash-preset').first().click();
+  }
+
+  test('a recorded cash movement is confirmed and sent once', async ({ page }) => {
+    await openCash(page);
+    await page.locator('.cash-in').first().click();
+    await expect(page.locator('.toast-success')).toContainText('Mouvement enregistré');
+
+    const calls = await ipcCalls(page, 'money_in_out');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ amountCents: 1000, direction: 'in', reason: 'fond_de_caisse' });
+  });
+
+  test('a cash out is sent with its direction', async ({ page }) => {
+    await openCash(page);
+    await page.locator('.cash-out').nth(1).click();
+    const calls = await ipcCalls(page, 'money_in_out');
+    expect(calls[0]).toMatchObject({ direction: 'out', reason: 'retrait' });
+  });
+
+  test('a refused cash movement is shown as an error, never as recorded', async ({ page }) => {
+    await openCash(page, { money_in_out: () => REFUSED });
+    await page.locator('.cash-in').first().click();
+
+    await expect(page.locator('.toast-error')).toContainText('FDM error: offline');
+    await expect(page.locator('.toast-success')).toHaveCount(0);
+    // The amount stays selected so the operator can retry.
+    await expect(page.locator('.cash-preset.active')).toHaveCount(1);
+  });
+
+  test('a refused drawer opening is shown as an error', async ({ page }) => {
+    await openCash(page, { open_drawer_fiscal: () => REFUSED });
+    await page.locator('.drawer-btn').click();
+    await expect(page.locator('.toast-error')).toContainText('FDM error: offline');
+    await expect(page.locator('.toast-success')).toHaveCount(0);
+  });
+
+  test('cash buttons stay disabled until an amount is chosen', async ({ page }) => {
+    await mockTauriIPC(page);
+    await loginAndGoto(page, '/reports');
+    await expect(page.locator('.cash-in').first()).toBeDisabled();
+    await expect(page.locator('.cash-out').first()).toBeDisabled();
+  });
+});

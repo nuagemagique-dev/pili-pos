@@ -6,6 +6,9 @@ import TablesView from "../views/TablesView.vue";
 import ReportsView from "../views/ReportsView.vue";
 import SettingsView from "../views/SettingsView.vue";
 import { HUBRISE_ENABLED } from "../features";
+import { useOrderStore } from "../stores/order";
+import { useToastStore } from "../stores/toast";
+import { useI18n } from "../i18n";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", name: "login", component: LoginView },
@@ -30,6 +33,26 @@ if (HUBRISE_ENABLED) {
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+});
+
+// Screens where the current order is being built or paid. Leaving them
+// with the order unpaid interrupts the sale, so what was ordered is
+// registered with the FDM first (event P, POS spec §1.3).
+const ORDER_ROUTES = new Set(["order", "checkout"]);
+
+router.beforeEach(async (to, from) => {
+  if (!ORDER_ROUTES.has(String(from.name)) || ORDER_ROUTES.has(String(to.name))) return true;
+  try {
+    await useOrderStore().registerPending();
+    return true;
+  } catch (e) {
+    const { t } = useI18n();
+    useToastStore().show(`${t("order_register_failed")} — ${String(e)}`, "error", 6000);
+    // The operator stays on the order and retries once the FDM is back.
+    // Locking the screen (idle timer, logout) always goes through: the
+    // entries stay pending and are sent at the next registration.
+    return to.name === "login";
+  }
 });
 
 export default router;

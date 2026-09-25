@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
 import { useMenuStore } from "../stores/menu";
+import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import { formatPrice } from "../utils/format";
 import OrderLineItem from "./OrderLineItem.vue";
@@ -10,11 +12,31 @@ import VatSummary from "./VatSummary.vue";
 const router = useRouter();
 const order = useOrderStore();
 const menu = useMenuStore();
+const toast = useToastStore();
 const { t } = useI18n();
 
 function goToCheckout() {
   if (order.lines.length > 0) {
     router.push({ name: "checkout" });
+  }
+}
+
+// Provisional bill for a table (§1.4). Takeaway sales are paid at once.
+const canPreBill = computed(
+  () => order.currentOrder?.order_type === "dine_in" && order.lines.length > 0,
+);
+const preBilling = ref(false);
+
+async function printPreBill() {
+  if (!canPreBill.value || preBilling.value) return;
+  preBilling.value = true;
+  try {
+    await order.preBill();
+    toast.show(t("pre_bill_printed"), "success");
+  } catch (e) {
+    toast.show(`${t("pre_bill_failed")} — ${String(e)}`, "error", 6000);
+  } finally {
+    preBilling.value = false;
   }
 }
 </script>
@@ -52,14 +74,24 @@ function goToCheckout() {
         <span class="total-amount">{{ formatPrice(order.totalCents) }}</span>
       </div>
 
-      <!-- UX Guide §2.3: bouton principal TOUJOURS en bas à droite -->
-      <button
-        class="checkout-btn"
-        :disabled="order.lines.length === 0"
-        @click="goToCheckout"
-      >
-        {{ t('pay') }}
-      </button>
+      <div class="cart-actions">
+        <button
+          v-if="order.currentOrder?.order_type === 'dine_in'"
+          class="pre-bill-btn"
+          :disabled="!canPreBill || preBilling"
+          @click="printPreBill"
+        >
+          {{ t('pre_bill') }}
+        </button>
+        <!-- UX Guide §2.3: bouton principal TOUJOURS en bas à droite -->
+        <button
+          class="checkout-btn"
+          :disabled="order.lines.length === 0"
+          @click="goToCheckout"
+        >
+          {{ t('pay') }}
+        </button>
+      </div>
     </div>
   </aside>
 </template>
@@ -136,8 +168,31 @@ function goToCheckout() {
   font-variant-numeric: tabular-nums;
 }
 
+.cart-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Secondary action, left of the primary PAY button (UX Guide §2.3). */
+.pre-bill-btn {
+  flex: 0 0 35%;
+  height: 72px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transition: transform var(--tap-duration) ease;
+}
+.pre-bill-btn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.pre-bill-btn:active { transform: scale(var(--tap-scale)); }
+
 /* UX Guide §4.1: pleine largeur × 72px */
 .checkout-btn {
+  flex: 1;
   width: 100%;
   height: 72px;
   font-size: var(--font-size-lg);

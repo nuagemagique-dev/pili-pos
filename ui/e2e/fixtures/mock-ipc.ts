@@ -136,6 +136,12 @@ function defaultHandlers(): Record<string, Handler> {
     sign_table_order: () => undefined,
     sign_pre_bill: () => undefined,
 
+    // Social (S) and financial (F) events
+    work_in: () => ({ success: true, error: null }),
+    work_out: () => ({ success: true, error: null }),
+    money_in_out: () => ({ success: true, error: null }),
+    open_drawer_fiscal: () => ({ success: true, error: null }),
+
     // Checkout
     checkout: () => ({
       success: true,
@@ -205,8 +211,13 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
     // Track event listeners so tests can emit events if needed.
     const eventListeners: Record<string, Array<(payload: any) => void>> = {};
 
+    // Every app command, in call order — read with `ipcCalls()`.
+    const calls: Array<{ cmd: string; args: any }> = [];
+    (window as any).__ipcCalls = calls;
+
     (window as any).__TAURI_INTERNALS__ = {
       invoke: (cmd: string, args?: any) => {
+        if (!cmd.startsWith('plugin:')) calls.push({ cmd, args: args ?? {} });
         // Tauri's internal plugin commands for the event system.
         if (cmd === 'plugin:event|listen') {
           const event = args?.event ?? args?.target;
@@ -264,6 +275,16 @@ export async function overrideIPC(page: Page, cmd: string, value: any) {
       };
     },
     [cmd, value] as const,
+  );
+}
+
+/** Arguments of each call of `cmd` so far, oldest first. */
+export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
+  return page.evaluate(
+    (c) => ((window as any).__ipcCalls as Array<{ cmd: string; args: any }>)
+      .filter((call) => call.cmd === c)
+      .map((call) => call.args),
+    cmd,
   );
 }
 

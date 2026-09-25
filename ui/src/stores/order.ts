@@ -101,6 +101,27 @@ export const useOrderStore = defineStore("order", () => {
     return itemCategoryMap.value.get(menuItemId);
   }
 
+  /**
+   * Register with the FDM what was ordered since the last registration
+   * (event P, interrupted sale — POS spec §1.3). Called whenever the
+   * operator leaves an open order unpaid. The backend is a no-op when
+   * nothing changed; on failure the entries stay pending and are sent
+   * at the next registration, pre-bill or sale.
+   */
+  async function registerPending() {
+    const current = currentOrder.value;
+    // Not skipped when the cart is empty: lines added then removed are
+    // corrections the FDM must still receive.
+    if (!current || current.status !== "open") return;
+    await ipc.signTableOrder(current.id);
+  }
+
+  /** Provisional bill ("addition provisoire", §1.4), printed PRO FORMA. */
+  async function preBill() {
+    if (!currentOrder.value) throw new Error("No active order");
+    await ipc.signPreBill(currentOrder.value.id);
+  }
+
   function clearOrder() {
     currentOrder.value = null;
     lines.value = [];
@@ -118,6 +139,8 @@ export const useOrderStore = defineStore("order", () => {
     removeLine,
     updateQuantity,
     loadOpenOrders,
+    registerPending,
+    preBill,
     clearOrder,
     getCategoryId,
   };

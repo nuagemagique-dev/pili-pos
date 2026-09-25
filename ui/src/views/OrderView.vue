@@ -5,6 +5,7 @@ import { useMenuStore } from "../stores/menu";
 import { useOrderStore } from "../stores/order";
 import { useAuthStore } from "../stores/auth";
 import { usePosStore } from "../stores/pos";
+import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import * as ipc from "../api/ipc";
 import CategoryTabs from "../components/CategoryTabs.vue";
@@ -32,6 +33,7 @@ const menu = useMenuStore();
 const order = useOrderStore();
 const auth = useAuthStore();
 const pos = usePosStore();
+const toast = useToastStore();
 const { t } = useI18n();
 
 const clock = ref("");
@@ -116,10 +118,12 @@ async function handlePriceConfirmed(priceCents: number) {
   if (item) await order.addItem(item, 1, priceCents);
 }
 
-function handleLogout() {
+async function handleLogout() {
+  // Navigate first: the router guard registers the open order (P)
+  // before the order is cleared.
+  await router.push({ name: "login" });
   order.clearOrder();
   auth.logout();
-  router.push({ name: "login" });
 }
 
 /**
@@ -129,6 +133,12 @@ function handleLogout() {
  */
 async function handleTakeaway() {
   if (isTakeawayMode.value) return;
+  try {
+    await order.registerPending();
+  } catch (e) {
+    toast.show(`${t("order_register_failed")} — ${String(e)}`, "error", 6000);
+    return;
+  }
   await order.startOrder(null);
 }
 </script>

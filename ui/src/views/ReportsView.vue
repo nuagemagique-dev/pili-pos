@@ -125,9 +125,13 @@ async function handleCashInOut(direction: "in" | "out", reason: string) {
   if (!insz || cashAmountCents.value <= 0) return;
   cashLoading.value = true;
   try {
-    await ipc.moneyInOut(insz, cashAmountCents.value, direction, reason);
-    toast.show(t("cash_success"), "success");
-    cashAmountCents.value = 0;
+    const result = await ipc.moneyInOut(insz, cashAmountCents.value, direction, reason);
+    if (result.success) {
+      toast.show(t("cash_success"), "success");
+      cashAmountCents.value = 0;
+    } else {
+      toast.show(result.error ?? t("cash_failed"), "error", 5000);
+    }
   } catch (e) {
     toast.show(String(e), "error");
   } finally {
@@ -139,8 +143,12 @@ async function handleOpenDrawer() {
   const insz = auth.currentUser?.insz;
   if (!insz) return;
   try {
-    await ipc.openDrawerFiscal(insz);
-    toast.show(t("cash_drawer_opened"), "success");
+    const result = await ipc.openDrawerFiscal(insz);
+    if (result.success) {
+      toast.show(t("cash_drawer_opened"), "success");
+    } else {
+      toast.show(result.error ?? t("cash_failed"), "error", 5000);
+    }
   } catch (e) {
     toast.show(String(e), "error");
   }
