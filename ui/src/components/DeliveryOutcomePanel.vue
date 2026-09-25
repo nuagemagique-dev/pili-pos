@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from "../utils/fdmMessages";
 import { computed, ref } from "vue";
 import type { DeliveryOutcome, FiscalTicket } from "../types";
 import * as ipc from "../api/ipc";
@@ -47,7 +48,7 @@ async function printMissing() {
     await ipc.printMissingOriginal(props.fiscalEventId, props.ticket);
     printed.value = true;
   } catch (e) {
-    toast.show(String(e), "error", 5000);
+    toast.show(describeError(e), "error", 5000);
   } finally {
     printing.value = false;
   }

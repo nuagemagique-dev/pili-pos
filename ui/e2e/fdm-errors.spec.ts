@@ -1,0 +1,58 @@
+import { test, expect, type Page } from '@playwright/test';
+import {
+  mockTauriIPC,
+  DEFAULT_USER,
+  DEFAULT_ORDER,
+  DEFAULT_ORDER_LINE,
+  DEFAULT_CATEGORY,
+  DEFAULT_MENU_ITEM,
+} from './fixtures/mock-ipc';
+
+// An FDM refusal reaches the operator in plain French, as in the header
+// indicator (certification manual §V); other errors stay as they are.
+
+async function payByCard(page: Page, checkoutResult: object) {
+  await mockTauriIPC(page, {
+    login: () => DEFAULT_USER,
+    list_users: () => [DEFAULT_USER],
+    get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    get_categories: () => [DEFAULT_CATEGORY],
+    get_menu_items: () => [DEFAULT_MENU_ITEM],
+    checkout: () => checkoutResult,
+  });
+  await page.goto('/');
+  await page.click('.user-btn');
+  await page.waitForURL(/tables/);
+  await page.locator('.table-card').first().click();
+  await page.waitForURL(/order/);
+  await page.locator('.item-btn').first().click();
+  await page.locator('.checkout-btn').click();
+  await page.waitForURL(/checkout/);
+  await page.locator('.card-btn').click();
+  await page.locator('.card-confirm').click();
+}
+
+const refused = (error: string) => ({
+  success: false, ticket: null, error, fdm_connected: false, fiscal_event_id: null, delivery: null,
+});
+
+test('an unreachable FDM is explained, not shown as a raw message', async ({ page }) => {
+  await payByCard(page, refused('FDM not connected — cannot complete transaction'));
+  const msg = page.locator('.checkout .error-msg');
+  await expect(msg).toHaveText('Connexion perdue avec la boîte noire. Vérifiez le câble réseau.');
+  // Still on the payment step: nothing was sold.
+  await expect(page.locator('.card-btn')).toBeVisible();
+});
+
+test('an FDM error code gets its §V message', async ({ page }) => {
+  await payByCard(page, refused('FDM error: GraphQL error: FDM_LOCKED'));
+  await expect(page.locator('.checkout .error-msg')).toHaveText(
+    'La boîte noire est verrouillée. Contactez votre technicien.',
+  );
+});
+
+test('an error that is not the FDM’s is shown as it is', async ({ page }) => {
+  await payByCard(page, refused('Forbidden'));
+  await expect(page.locator('.checkout .error-msg')).toHaveText('Forbidden');
+});

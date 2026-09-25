@@ -9,6 +9,7 @@ import { HUBRISE_ENABLED } from "../features";
 import { useOrderStore } from "../stores/order";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
+import { describeError } from "../utils/fdmMessages";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", name: "login", component: LoginView },
@@ -47,7 +48,7 @@ router.beforeEach(async (to, from) => {
     return true;
   } catch (e) {
     const { t } = useI18n();
-    useToastStore().show(`${t("order_register_failed")} — ${String(e)}`, "error", 6000);
+    useToastStore().show(`${t("order_register_failed")} — ${describeError(e)}`, "error", 6000);
     // The operator stays on the order and retries once the FDM is back.
     // Locking the screen (idle timer, logout) always goes through: the
     // entries stay pending and are sent at the next registration.

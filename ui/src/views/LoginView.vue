@@ -160,7 +160,7 @@ async function submitInsz() {
         >
           <span class="user-initial">{{ u.name.charAt(0) }}</span>
           <span class="user-name">{{ u.name }}</span>
-          <span class="user-role">{{ u.role }}</span>
+          <span class="user-role">{{ t(`role_${u.role}`) }}</span>
         </button>
       </div>
 

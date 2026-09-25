@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from "../utils/fdmMessages";
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
@@ -36,7 +37,7 @@ async function printPreBill() {
     await order.preBill();
     toast.show(t("pre_bill_printed"), "success");
   } catch (e) {
-    toast.show(`${t("pre_bill_failed")} — ${String(e)}`, "error", 6000);
+    toast.show(`${t("pre_bill_failed")} — ${describeError(e)}`, "error", 6000);
   } finally {
     preBilling.value = false;
   }

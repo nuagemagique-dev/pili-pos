@@ -186,7 +186,7 @@ test.describe('FDM refusals on presence and cash events', () => {
     await page.click('.user-btn');
     await page.waitForURL(/tables/);
     await expect(page.locator('.toast-error')).toContainText('Pointage non enregistré');
-    await expect(page.locator('.toast-error')).toContainText('FDM error: offline');
+    await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
   });
 
   test('a successful clock-in shows no error', async ({ page }) => {
@@ -232,7 +232,7 @@ test.describe('Cash events (F)', () => {
     await openCash(page, { money_in_out: () => REFUSED });
     await page.locator('.cash-in').first().click();
 
-    await expect(page.locator('.toast-error')).toContainText('FDM error: offline');
+    await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
     await expect(page.locator('.toast-success')).toHaveCount(0);
     // The amount stays selected so the operator can retry.
     await expect(page.locator('.cash-preset.active')).toHaveCount(1);
@@ -241,7 +241,7 @@ test.describe('Cash events (F)', () => {
   test('a refused drawer opening is shown as an error', async ({ page }) => {
     await openCash(page, { open_drawer_fiscal: () => REFUSED });
     await page.locator('.drawer-btn').click();
-    await expect(page.locator('.toast-error')).toContainText('FDM error: offline');
+    await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
     await expect(page.locator('.toast-success')).toHaveCount(0);
   });
 

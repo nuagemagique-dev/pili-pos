@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from "../utils/fdmMessages";
 import { formatDate as formatDay, formatTime, formatTimestamp } from "../utils/datetime";
 import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -46,10 +47,10 @@ async function generateX() {
     if (result.success) {
       toast.show(`${t('report_generated')} (X)`, "success", 4000);
     } else {
-      toast.show(result.error ?? "Report failed", "error", 5000);
+      toast.show(describeError(result.error ?? "Report failed"), "error", 5000);
     }
   } catch (e) {
-    toast.show(String(e), "error", 5000);
+    toast.show(describeError(e), "error", 5000);
   } finally {
     loading.value = false;
   }
@@ -63,10 +64,10 @@ async function generateUserX() {
     if (result.success) {
       toast.show(`${t('report_generated')} (X util.)`, "success", 4000);
     } else {
-      toast.show(result.error ?? "Report failed", "error", 5000);
+      toast.show(describeError(result.error ?? "Report failed"), "error", 5000);
     }
   } catch (e) {
-    toast.show(String(e), "error", 5000);
+    toast.show(describeError(e), "error", 5000);
   } finally {
     loading.value = false;
   }
@@ -97,10 +98,10 @@ async function generateZ() {
       toast.show(label, "success", 4000);
       await loadHistory();
     } else {
-      toast.show(result.error ?? "Report failed", "error", 5000);
+      toast.show(describeError(result.error ?? "Report failed"), "error", 5000);
     }
   } catch (e) {
-    toast.show(String(e), "error", 5000);
+    toast.show(describeError(e), "error", 5000);
   } finally {
     loading.value = false;
   }
@@ -131,7 +132,7 @@ async function openTicketCopy() {
   try {
     copyTickets.value = await ipc.listCopyableTickets();
   } catch (e) {
-    toast.show(String(e), "error", 5000);
+    toast.show(describeError(e), "error", 5000);
     return;
   }
   copyStep.value = "pick";
@@ -167,11 +168,11 @@ async function confirmCopy() {
     if (result.success) {
       toast.show(t('report_reprint_ok'), "success");
     } else {
-      toast.show(result.error ?? "Copy failed", "error", 5000);
+      toast.show(describeError(result.error ?? "Copy failed"), "error", 5000);
     }
     copyStep.value = "result";
   } catch (e) {
-    toast.show(String(e), "error", 5000);
+    toast.show(describeError(e), "error", 5000);
     copyOpen.value = false;
   }
 }
@@ -201,10 +202,10 @@ async function handleCashInOut(direction: "in" | "out", reason: string) {
       toast.show(t("cash_success"), "success");
       cashAmountCents.value = 0;
     } else {
-      toast.show(result.error ?? t("cash_failed"), "error", 5000);
+      toast.show(describeError(result.error ?? t("cash_failed")), "error", 5000);
     }
   } catch (e) {
-    toast.show(String(e), "error");
+    toast.show(describeError(e), "error");
   } finally {
     cashLoading.value = false;
   }
@@ -218,10 +219,10 @@ async function handleOpenDrawer() {
     if (result.success) {
       toast.show(t("cash_drawer_opened"), "success");
     } else {
-      toast.show(result.error ?? t("cash_failed"), "error", 5000);
+      toast.show(describeError(result.error ?? t("cash_failed")), "error", 5000);
     }
   } catch (e) {
-    toast.show(String(e), "error");
+    toast.show(describeError(e), "error");
   }
 }
 
@@ -324,11 +325,11 @@ async function confirmRefund() {
     if (result.success) {
       toast.show(t("refund_success"), "success");
     } else {
-      toast.show(result.error ?? "Refund failed", "error");
+      toast.show(describeError(result.error ?? "Refund failed"), "error");
     }
     refundStep.value = "result";
   } catch (e) {
-    toast.show(String(e), "error");
+    toast.show(describeError(e), "error");
     refundStep.value = "items";
   }
 }
@@ -512,7 +513,7 @@ function formatRefundTime(iso: string): string {
               :ticket="refundResult?.ticket ?? null"
               :fiscal-event-id="refundResult?.fiscal_event_id ?? null"
             />
-            <p v-if="refundResult && !refundResult.success" class="refund-error">{{ refundResult.error }}</p>
+            <p v-if="refundResult && !refundResult.success" class="refund-error">{{ describeError(refundResult.error) }}</p>
             <button class="refund-cancel" @click="closeRefund">{{ t('finish') }}</button>
           </template>
         </div>
@@ -562,7 +563,7 @@ function formatRefundTime(iso: string): string {
               :ticket="copyResult?.ticket ?? null"
               :fiscal-event-id="copyResult?.fiscalEventId ?? null"
             />
-            <p v-if="copyResult && !copyResult.success" class="refund-error">{{ copyResult.error }}</p>
+            <p v-if="copyResult && !copyResult.success" class="refund-error">{{ describeError(copyResult.error) }}</p>
             <button class="refund-cancel" @click="closeCopy">{{ t('finish') }}</button>
           </template>
         </div>

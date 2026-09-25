@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from "../utils/fdmMessages";
 import { formatTime } from "../utils/datetime";
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -140,7 +141,7 @@ async function handleTakeaway() {
   try {
     await order.registerPending();
   } catch (e) {
-    toast.show(`${t("order_register_failed")} — ${String(e)}`, "error", 6000);
+    toast.show(`${t("order_register_failed")} — ${describeError(e)}`, "error", 6000);
     return;
   }
   await order.startOrder(null);

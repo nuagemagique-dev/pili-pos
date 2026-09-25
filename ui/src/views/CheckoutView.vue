@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { describeError } from "../utils/fdmMessages";
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
@@ -114,11 +115,11 @@ async function doCheckout(method: CheckoutPaymentMethod) {
       delivery.reset();
       step.value = "done";
     } else {
-      error.value = result.value.error ?? "Erreur";
+      error.value = describeError(result.value.error ?? "Erreur");
       step.value = "method";
     }
   } catch (e) {
-    error.value = String(e);
+    error.value = describeError(e);
     step.value = "method";
   }
 }

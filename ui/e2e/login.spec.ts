@@ -38,7 +38,7 @@ test.describe('Login View', () => {
   test('shows user tile with name and role', async ({ page }) => {
     await expect(page.locator('.user-btn')).toBeVisible();
     await expect(page.locator('.user-name')).toContainText('Bruno Moyse');
-    await expect(page.locator('.user-role')).toContainText('admin');
+    await expect(page.locator('.user-role')).toHaveText('Gérant');
   });
 
   test('quick login without PIN redirects to tables', async ({ page }) => {
