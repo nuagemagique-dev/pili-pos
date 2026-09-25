@@ -50,12 +50,14 @@ VARIANT="production"
 BINARY_PATH=""
 SEED_PATH=""
 RUSTDESK_PATH=""
+FDM_MOCK_PATH=""
 
 usage() {
     cat <<'USAGE'
 Usage:
   provision.sh --phase packages
-  provision.sh --phase image --variant admission|production --binary <path> [--seed <path>] [--rustdesk <path>]
+  provision.sh --phase image --variant admission|production --binary <path> \
+               [--seed <path>] [--rustdesk <path>] [--fdm-mock <path>]
   provision.sh --phase instance
 USAGE
 }
@@ -67,6 +69,7 @@ while [[ $# -gt 0 ]]; do
         --binary)   BINARY_PATH="$2"; shift 2 ;;
         --seed)     SEED_PATH="$2"; shift 2 ;;
         --rustdesk) RUSTDESK_PATH="$2"; shift 2 ;;
+        --fdm-mock) FDM_MOCK_PATH="$2"; shift 2 ;;
         -h|--help)  usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
     esac
@@ -175,16 +178,11 @@ install_admission_extras() {
     # first boot and displays it once (deploy/image design).
     passwd -l spf 2>/dev/null || true
 
-    local mock=""
-    if [[ -f "$SCRIPT_DIR/../dist/pos-fdm-mock" ]]; then
-        mock="$SCRIPT_DIR/../dist/pos-fdm-mock"
-    elif [[ -f "$SCRIPT_DIR/../../target/linux-amd64/release/pos-fdm-mock" ]]; then
-        mock="$SCRIPT_DIR/../../target/linux-amd64/release/pos-fdm-mock"
-    fi
-    if [[ -n "$mock" ]]; then
-        install -m 755 "$mock" "$POS_BIN_DIR/bin/pos-fdm-mock"
+    if [[ -n "$FDM_MOCK_PATH" && -f "$FDM_MOCK_PATH" ]]; then
+        install -m 755 "$FDM_MOCK_PATH" "$POS_BIN_DIR/bin/pos-fdm-mock"
     else
-        echo "  ⚠ pos-fdm-mock binary not found — deploy/image/build.sh should stage it first"
+        echo "  ⚠ --fdm-mock not given — deploy/image/build.sh should stage and pass it" >&2
+        exit 1
     fi
 
     # tty2 console login for the spf role (manual §II.E: SPF may want
@@ -250,13 +248,13 @@ phase_image() {
 
     echo "▸ [image:$VARIANT] Building the factory database…"
     INIT_ARGS=(--init-db)
-    SEED_TO_USE="$SEED_PATH"
-    if [[ "$VARIANT" == "admission" && -z "$SEED_TO_USE" ]]; then
-        # Default admission seed: the SPF test catalogue in the source tree.
-        CANDIDATE="$SCRIPT_DIR/../../src-tauri/seed_spf_test.sql"
-        [[ -f "$CANDIDATE" ]] && SEED_TO_USE="$CANDIDATE"
+    if [[ "$VARIANT" == "admission" && -z "$SEED_PATH" ]]; then
+        echo "ERROR: --variant admission needs --seed <path> (the build chroot has" >&2
+        echo "       no source tree — deploy/image/build.sh stages seed_spf_test.sql" >&2
+        echo "       via mkosi.profiles/admission/mkosi.extra and passes its path)" >&2
+        exit 1
     fi
-    [[ -n "$SEED_TO_USE" ]] && INIT_ARGS+=(--seed "$SEED_TO_USE")
+    [[ -n "$SEED_PATH" ]] && INIT_ARGS+=(--seed "$SEED_PATH")
     MOYUN_POS_DATA_DIR="$FACTORY_DIR" "$POS_BIN_DIR/moyun-pos" "${INIT_ARGS[@]}"
     echo "  ✓ $FACTORY_DIR/pos.db"
 

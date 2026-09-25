@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────
+# moyun-provision — first-boot LUKS2 + TPM2 setup for the "moyun-data"
+# partition (mounted on /var), run by moyun-provision.service.
+#
+# Design (Phase 4 plan):
+#   1. Partition already exists (systemd-repart.service, this boot,
+#      see usr/lib/repart.d/90-moyun-data.conf) but is raw/unformatted.
+#   2. LUKS2-format it with a random TEMPORARY key.
+#   3. Enroll a TPM2 token (auto-unlock, bound to PCR 7 — Secure Boot
+#      policy) AND a recovery key, using the temp key to authorize both.
+#   4. Wipe the temp key's slot — from here on the disk unlocks only
+#      via TPM2 (normal boots) or the recovery key (TPM replaced/reset).
+#   5. mkfs.ext4 the decrypted device, mount it on /var.
+#   6. Copy the factory pos.db + pos.json template
+#      (/usr/share/moyun-pos/factory/, built at image time by
+#      deploy/provision/provision.sh --phase image) into place, and
+#      patch pos.json's device_id from the terminal's NIC MAC.
+#   7. Generate a random root password (and, on the admission image, a
+#      spf password), briefly remounting / read-write to set them.
+#   8. Print the root/spf passwords and the recovery key ONCE, then
+#      wait for Enter — the distributor copies them into the
+#      installation notebook (MANUEL_INSTALLATION_FR.md §3.3/§4.1).
+#
+# Idempotent: moyun-provision.service only starts this script while
+# /var is not yet a mountpoint (ConditionPathIsMountPoint=!/var), so a
+# normal second boot never re-runs it. See recover_existing_luks()
+# below for the one partial-run recovery case this script does handle.
+# ─────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+FACTORY_DIR="/usr/share/moyun-pos/factory"
+POS_HOME="/var/lib/moyun-pos"
+ETC_DIR="/var/lib/moyun-etc"
+
+log() { echo "[moyun-provision] $*"; }
+
+# ── device_id: the terminal's NIC MAC (manual §VI row VII). Duplicated
+#    from deploy/provision/provision.sh's detect_device_id() — the two
+#    run in unrelated filesystem trees (this one inside the booted
+#    kiosk image), so keep both copies in sync by hand. ────────────────
+detect_device_id() {
+    local iface candidate name mac
+    iface="$(ip -o route show default 2>/dev/null \
+        | awk '{for (i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')"
+    if [[ -z "$iface" ]]; then
+        for candidate in /sys/class/net/*; do
+            name="$(basename "$candidate")"
+            [[ "$name" == "lo" ]] && continue
+            if [[ -s "$candidate/address" ]]; then
+                iface="$name"
+                break
+            fi
+        done
+    fi
+    if [[ -z "$iface" ]]; then
+        echo "ERROR: no network interface found to derive device_id from" >&2
+        return 1
+    fi
+    mac="$(tr '[:upper:]' '[:lower:]' < "/sys/class/net/$iface/address" 2>/dev/null || true)"
+    if [[ -z "$mac" || "$mac" == "00:00:00:00:00:00" ]]; then
+        echo "ERROR: interface $iface has no usable MAC address" >&2
+        return 1
+    fi
+    echo "$mac"
+}
+
+random_password() {
+    # 20 chars, unambiguous alphabet (no 0/O/1/l/I).
+    tr -dc 'A-HJ-NP-Za-km-z2-9' < /dev/urandom | head -c 20
+}
+
+set_password_rw() {
+    local user="$1" pass="$2" was_ro=0
+    if findmnt -no OPTIONS / | tr ',' '\n' | grep -qx ro; then
+        was_ro=1
+        mount -o remount,rw /
+    fi
+    echo "${user}:${pass}" | chpasswd
+    if [[ "$was_ro" -eq 1 ]]; then
+        mount -o remount,ro /
+    fi
+}
+
+# ── Recovery: LUKS header exists (from a previous, interrupted run)
+#    and a TPM2 token is already enrolled, but /var never got mounted.
+#    Best-effort: unlock and mount what is already there; do NOT
+#    reformat (that would destroy data + the already-shown recovery
+#    key) and do NOT regenerate/redisplay passwords (they may already
+#    have been shown once on an earlier boot — showing a second,
+#    different value would be actively misleading). Anything short of
+#    a clean unlock+mount here is left for manual recovery.
+recover_existing_luks() {
+    local raw="$1"
+    if ! cryptsetup luksDump "$raw" 2>/dev/null | grep -qi 'tpm2'; then
+        log "ERROR: $raw is already a LUKS2 device but has no TPM2 token"
+        log "       enrolled. This is an interrupted first-boot run this"
+        log "       script cannot safely resume automatically — recover"
+        log "       manually from the maintenance console (Ctrl+Alt+F2)."
+        exit 1
+    fi
+    log "LUKS2 + TPM2 already present, /var not mounted — unlocking…"
+    systemd-cryptsetup attach moyun-data "$raw" - tpm2-device=auto
+    mkdir -p /var
+    mount /dev/mapper/moyun-data /var
+    log "/var mounted from an existing moyun-data volume; nothing else to do."
+}
+
+main() {
+    if mountpoint -q /var; then
+        exit 0
+    fi
+
+    udevadm settle --timeout=30 || true
+
+    local raw
+    raw="$(readlink -f /dev/disk/by-partlabel/moyun-data 2>/dev/null || true)"
+    if [[ -z "$raw" || ! -b "$raw" ]]; then
+        log "ERROR: no 'moyun-data' partition found — did systemd-repart run?"
+        exit 1
+    fi
+
+    if cryptsetup isLuks "$raw" 2>/dev/null; then
+        recover_existing_luks "$raw"
+        exit 0
+    fi
+
+    log "Formatting $raw (LUKS2)…"
+    local tempkey
+    tempkey="$(mktemp)"
+    chmod 600 "$tempkey"
+    head -c 64 /dev/urandom | base64 > "$tempkey"
+
+    cryptsetup luksFormat --type luks2 --batch-mode --key-file "$tempkey" "$raw"
+    cryptsetup luksOpen --key-file "$tempkey" "$raw" moyun-data
+
+    log "Enrolling TPM2 (PCR 7) auto-unlock…"
+    systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 \
+        --unlock-key-file="$tempkey" "$raw"
+
+    log "Enrolling a recovery key…"
+    local recovery_key
+    recovery_key="$(systemd-cryptenroll --recovery-key --unlock-key-file="$tempkey" "$raw" \
+        | tail -n1 | tr -d '[:space:]')"
+
+    log "Removing the temporary key…"
+    printf '%s' "$recovery_key" | cryptsetup luksKillSlot --batch-mode --key-file=- "$raw" 0
+    shred -u "$tempkey" 2>/dev/null || rm -f "$tempkey"
+
+    log "Formatting the filesystem…"
+    mkfs.ext4 -F -L moyun-pos-var /dev/mapper/moyun-data >/dev/null
+    mkdir -p /var
+    mount /dev/mapper/moyun-data /var
+
+    log "Copying factory data…"
+    mkdir -p "$ETC_DIR/moyun-pos" "$ETC_DIR/system-connections" "$POS_HOME/logs" "$POS_HOME/backups"
+    install -m 640 "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
+    install -m 640 "$FACTORY_DIR/pos.json" "$ETC_DIR/moyun-pos/pos.json"
+
+    # scripts/qemu/run-kiosk.sh --pos-json <file> honoured HERE ONLY:
+    # this whole branch of main() only ever runs once, on the actual
+    # first boot (idempotency check at the top of main()) — so an
+    # -fw_cfg override present on a LATER boot of the same disk (no
+    # --clean) is correctly ignored, exactly like a real terminal where
+    # nobody can inject config after the fact.
+    modprobe qemu_fw_cfg 2>/dev/null || true
+    FW_CFG_POS_JSON="/sys/firmware/qemu_fw_cfg/by_name/opt/moyun/pos.json/raw"
+    if [[ -r "$FW_CFG_POS_JSON" ]]; then
+        log "Using the -fw_cfg opt/moyun/pos.json override (QEMU harness)…"
+        cp "$FW_CFG_POS_JSON" "$ETC_DIR/moyun-pos/pos.json"
+        chmod 640 "$ETC_DIR/moyun-pos/pos.json"
+    fi
+
+    if MAC="$(detect_device_id)"; then
+        sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" "$ETC_DIR/moyun-pos/pos.json"
+        log "device_id = $MAC"
+    else
+        log "WARNING: could not determine device_id from the NIC MAC — the"
+        log "         pos.json placeholder was left as is; fix it by hand"
+        log "         (MANUEL_INSTALLATION_FR.md §4.2) before going live."
+    fi
+
+    if id pos &>/dev/null; then
+        chown -R pos:pos "$POS_HOME"
+        chown root:pos "$ETC_DIR/moyun-pos/pos.json"
+    fi
+
+    log "Setting the root password…"
+    local root_pass spf_pass=""
+    root_pass="$(random_password)"
+    if id spf &>/dev/null; then
+        spf_pass="$(random_password)"
+        # One remount,rw/ro bracket for both accounts.
+        local was_ro=0
+        if findmnt -no OPTIONS / | tr ',' '\n' | grep -qx ro; then
+            was_ro=1
+            mount -o remount,rw /
+        fi
+        echo "root:${root_pass}" | chpasswd
+        echo "spf:${spf_pass}" | chpasswd
+        [[ "$was_ro" -eq 1 ]] && mount -o remount,ro /
+    else
+        set_password_rw root "$root_pass"
+    fi
+
+    clear || true
+    cat <<BANNER
+
+════════════════════════════════════════════════════════════════
+  moyun-pos — provisionnement premier démarrage terminé
+
+  Notez IMMÉDIATEMENT ces informations dans le carnet du
+  distributeur (MANUEL_INSTALLATION_FR.md §3.3) — elles ne seront
+  plus jamais réaffichées.
+
+  Mot de passe root .......... ${root_pass}
+BANNER
+    if [[ -n "$spf_pass" ]]; then
+        echo "  Mot de passe spf (tty2) ..... ${spf_pass}"
+    fi
+    cat <<BANNER
+  Clé de récupération LUKS ... ${recovery_key}
+
+════════════════════════════════════════════════════════════════
+
+BANNER
+    read -r -p "Appuyez sur Entrée une fois ces informations notées… " _ || true
+    clear || true
+    log "Provisioning complete."
+}
+
+main "$@"

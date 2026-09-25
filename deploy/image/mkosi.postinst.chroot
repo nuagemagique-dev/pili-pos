@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# mkosi.postinst.chroot — auto-discovered by mkosi (PostInstallationScripts=),
+# run chrooted into the image after packages and both the base and
+# active-profile mkosi.extra/ trees have been installed. $PROFILES is
+# set by mkosi to the comma-delimited list of active profiles.
+#
+# Everything here delegates to deploy/provision/provision.sh --phase
+# image, staged into the image by deploy/image/build.sh alongside its
+# other build inputs (see that script) at /opt/moyun-pos/.build-input/
+# and /opt/moyun-pos/deploy/provision/ — the same script that
+# deploy/install.sh runs on a plain, already-booted Debian 12 box.
+set -euo pipefail
+
+ARGS=(
+    --phase image
+    --binary /opt/moyun-pos/.build-input/moyun-pos
+    --rustdesk /opt/moyun-pos/.build-input/rustdesk.AppImage
+)
+
+if [[ ",${PROFILES:-}," == *,admission,* ]]; then
+    ARGS+=(
+        --variant admission
+        --seed /opt/moyun-pos/.build-input/seed_spf_test.sql
+        --fdm-mock /opt/moyun-pos/.build-input/pos-fdm-mock
+    )
+else
+    ARGS+=(--variant production)
+fi
+
+/opt/moyun-pos/deploy/provision/provision.sh "${ARGS[@]}"
+
+# Build-input files are transient staging, never part of the shipped
+# image (no fiscal or fixed-identity content belongs on read-only root
+# outside /usr/share/moyun-pos/factory).
+rm -rf /opt/moyun-pos/.build-input

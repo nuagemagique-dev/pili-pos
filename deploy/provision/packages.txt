@@ -32,6 +32,12 @@ sqlite3
 fonts-noto-cjk
 fonts-noto-color-emoji
 
+# Maintenance console text editor (MANUEL_INSTALLATION_FR.md §4.2 tells
+# the distributor to `vi /etc/moyun-pos/pos.json` at Ctrl+Alt+F2 —
+# Debian 12 minbase ships no editor at all otherwise). vim-tiny provides
+# `/usr/bin/vi` via update-alternatives, ~1 MB, no GUI/X11 deps.
+vim-tiny
+
 # Networking + time sync (fiscal timestamps must be accurate to the second)
 network-manager
 chrony

@@ -1,0 +1,31 @@
+[Unit]
+Description=moyun-pos first-boot provisioning (LUKS2 + TPM2, factory data)
+DefaultDependencies=no
+After=systemd-repart.service systemd-udevd.service getty@tty1.service
+Wants=systemd-repart.service
+Before=local-fs.target systemd-cryptsetup@moyun\x2ddata.service moyun-pos.service
+Conflicts=getty@tty1.service
+# Idempotent: does nothing once /var is a real mount (every boot after
+# the first, and any manual re-run). See usr/local/lib/moyun-pos/
+# moyun-provision for the full first-boot flow (LUKS2 format, TPM2 +
+# recovery key enrollment, mkfs, factory data copy, root/spf password
+# generation, one-time display).
+ConditionPathIsMountPoint=!/var
+# Never run when booted in USB installer/updater mode — see
+# moyun-installer.service and usr/lib/systemd/system/
+# systemd-repart.service.d/91-moyun-installer-mode.conf.
+ConditionKernelCommandLine=!moyun.installer
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYReset=yes
+TTYVHangup=yes
+ExecStart=/usr/local/lib/moyun-pos/moyun-provision
+
+[Install]
+WantedBy=multi-user.target

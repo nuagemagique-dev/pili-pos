@@ -1,0 +1,22 @@
+[Unit]
+Description=moyun-pos mock FDM (admission demo fallback, manual start only)
+# Deliberately not enabled anywhere (no [Install] pull-in target is
+# ever activated for it, and deploy/provision/provision.sh --phase
+# image never runs `systemctl enable` on this unit — see its
+# install_admission_extras()). Start it by hand during the admission
+# demo if the virtual/physical FDM is unreachable:
+#   systemctl start pos-fdm-mock
+# and point pos.json::fdm_url at http://127.0.0.1:8081/graphql while
+# it runs.
+
+[Service]
+Type=simple
+User=pos
+Group=pos
+ExecStart=/opt/moyun-pos/bin/pos-fdm-mock
+Environment=PORT=8081
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes

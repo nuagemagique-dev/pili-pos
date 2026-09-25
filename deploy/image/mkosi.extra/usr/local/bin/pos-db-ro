@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# pos-db-ro — read-only sqlite3 shell onto the fiscal database, for the
+# `spf` account on the admission image (group `pos`, see
+# docs/SUBMISSION_ARTIFACTS/FEUILLE_ACQUISITION_DONNEES_FR.md §2 and
+# SECURITE_BD_FR.md §3) and for on-site audits from the maintenance
+# console.
+#
+# `fiscal_events` is append-only by law (see
+# DECLARATION_FONCTIONS_INTERDITES_FR.md); this wrapper exists so
+# nobody ever needs to open pos.db read-write to look at it.
+#
+# Usage: pos-db-ro ["SELECT ..."]   (no argument -> interactive shell)
+set -euo pipefail
+
+DB=/var/lib/moyun-pos/pos.db
+
+if [[ ! -r "$DB" ]]; then
+    echo "pos-db-ro: cannot read $DB (wrong group? run as a member of 'pos')" >&2
+    exit 1
+fi
+
+if systemctl is-active --quiet moyun-pos.service; then
+    # The service may be writing (WAL); -readonly opens through SQLite's
+    # normal locking so reads stay consistent with any in-flight commit.
+    exec sqlite3 -readonly "$DB" "$@"
+else
+    # Nothing has pos.db open: the immutable=1 URI hint skips locking
+    # and WAL-recovery checks entirely, which is both faster and safe
+    # since nothing can be writing concurrently.
+    exec sqlite3 -uri "file:${DB}?immutable=1" "$@"
+fi
