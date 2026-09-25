@@ -88,6 +88,30 @@ const DEFAULT_TABLE = (n: number) => ({
 
 type Handler = (args?: any) => any;
 
+/**
+ * Marks a handler as "live": instead of being invoked ONCE with `{}`
+ * at setup time (like every other default handler — see
+ * `_serializeHandlers`), its SOURCE is reconstructed with `new
+ * Function(...)` inside the page and called for real on every
+ * invoke(), with the real args. That lets it echo something derived
+ * from what it was actually asked (e.g. `checkout`'s mock delivery
+ * outcome reflecting the `delivery` medium/email a test's UI
+ * interaction produced), still fully synchronous — no cross-process
+ * round trip, so it can't reintroduce the timing-sensitive race
+ * `loginAndGoto` relies on (OrderView's mount redirects to Tables
+ * asynchronously; a slow default handler would let a test observe the
+ * transient `/order` URL instead of the settled `/tables`).
+ *
+ * Because of the `new Function` reconstruction, a live handler must
+ * be fully self-contained: no closures over anything outside its own
+ * body (module-level constants, helpers, counters — none of that
+ * exists in the page). Keep helpers nested inside the handler itself.
+ */
+function live(fn: Handler): Handler {
+  (fn as { __live?: boolean }).__live = true;
+  return fn;
+}
+
 function defaultHandlers(): Record<string, Handler> {
   let nextOrderId = 1;
   let nextLineId = 1;
@@ -143,13 +167,62 @@ function defaultHandlers(): Record<string, Handler> {
     open_drawer_fiscal: () => ({ success: true, error: null }),
 
     // Checkout
-    checkout: () => ({
-      success: true,
-      ticket: null,
-      error: null,
-      fdm_connected: false,
+    checkout: live(({ delivery }: any = {}) => {
+      function maskEmailForMock(email: string): string {
+        const at = email.indexOf('@');
+        if (at <= 0) return email;
+        return `${email[0]}***@${email[at + 1] ?? ''}***`;
+      }
+      function mockDeliveryOutcome(d: any, fiscalEventId: number): any {
+        const medium = d?.medium ?? 'paper';
+        if (medium === 'paper' || !d) {
+          return { fiscalEventId, deliveryId: null, medium: 'PAPER', email: 'not_requested', recipientHint: null, paperPrinted: true, needsPaper: false };
+        }
+        const recipientHint = d.email ? maskEmailForMock(d.email) : null;
+        if (medium === 'digital') {
+          return { fiscalEventId, deliveryId: 900, medium: 'DIGITAL', email: 'sent', recipientHint, paperPrinted: false, needsPaper: false };
+        }
+        return { fiscalEventId, deliveryId: 900, medium: 'PAPER_DIGITAL', email: 'sent', recipientHint, paperPrinted: true, needsPaper: false };
+      }
+      return {
+        success: true,
+        ticket: null,
+        error: null,
+        fdm_connected: false,
+        fiscal_event_id: 1,
+        delivery: mockDeliveryOutcome(delivery, 1),
+      };
     }),
     check_fdm_status: () => ({ connected: false }),
+
+    // Refund (event N, negative lines)
+    list_refundable_events: () => [],
+    refund_checkout: live(({ delivery }: any = {}) => {
+      function maskEmailForMock(email: string): string {
+        const at = email.indexOf('@');
+        if (at <= 0) return email;
+        return `${email[0]}***@${email[at + 1] ?? ''}***`;
+      }
+      function mockDeliveryOutcome(d: any, fiscalEventId: number): any {
+        const medium = d?.medium ?? 'paper';
+        if (medium === 'paper' || !d) {
+          return { fiscalEventId, deliveryId: null, medium: 'PAPER', email: 'not_requested', recipientHint: null, paperPrinted: true, needsPaper: false };
+        }
+        const recipientHint = d.email ? maskEmailForMock(d.email) : null;
+        if (medium === 'digital') {
+          return { fiscalEventId, deliveryId: 900, medium: 'DIGITAL', email: 'sent', recipientHint, paperPrinted: false, needsPaper: false };
+        }
+        return { fiscalEventId, deliveryId: 900, medium: 'PAPER_DIGITAL', email: 'sent', recipientHint, paperPrinted: true, needsPaper: false };
+      }
+      return {
+        success: true,
+        ticket: null,
+        error: null,
+        fdm_connected: false,
+        fiscal_event_id: 2,
+        delivery: mockDeliveryOutcome(delivery, 2),
+      };
+    }),
 
     // Print
     print_receipt: () => undefined,
@@ -165,9 +238,38 @@ function defaultHandlers(): Record<string, Handler> {
     needs_z_report: () => false,
     backup_database: () => '/tmp/backup.db',
 
-    // Copy
-    copy_ticket: () => ({ success: true, error: null }),
+    // Copy (event C)
+    copy_ticket: live(({ delivery }: any = {}) => {
+      function maskEmailForMock(email: string): string {
+        const at = email.indexOf('@');
+        if (at <= 0) return email;
+        return `${email[0]}***@${email[at + 1] ?? ''}***`;
+      }
+      function mockDeliveryOutcome(d: any, fiscalEventId: number): any {
+        const medium = d?.medium ?? 'paper';
+        if (medium === 'paper' || !d) {
+          return { fiscalEventId, deliveryId: null, medium: 'PAPER', email: 'not_requested', recipientHint: null, paperPrinted: true, needsPaper: false };
+        }
+        const recipientHint = d.email ? maskEmailForMock(d.email) : null;
+        if (medium === 'digital') {
+          return { fiscalEventId, deliveryId: 900, medium: 'DIGITAL', email: 'sent', recipientHint, paperPrinted: false, needsPaper: false };
+        }
+        return { fiscalEventId, deliveryId: 900, medium: 'PAPER_DIGITAL', email: 'sent', recipientHint, paperPrinted: true, needsPaper: false };
+      }
+      return {
+        success: true,
+        error: null,
+        ticket: null,
+        fiscalEventId: 3,
+        delivery: mockDeliveryOutcome(delivery, 3),
+      };
+    }),
     list_fiscal_events: () => [],
+
+    // Ticket delivery (paper / email / both)
+    check_mail_status: () => ({ configured: false, reachable: false, allowDigitalOnly: false }),
+    list_ticket_deliveries: () => [],
+    print_missing_original: () => undefined,
 
     // Settings
     get_settings: () => ({
@@ -195,6 +297,34 @@ function defaultHandlers(): Record<string, Handler> {
 
 // ── Public API ──────────────────────────────────────────────────
 
+// Serialize handlers to page-safe values. A `live()`-marked handler
+// crosses over as its own SOURCE TEXT (reconstructed with `new
+// Function` in the page — see `mockTauriIPC`), so it still runs for
+// real, synchronously, on every call. Every other handler is called
+// ONCE with `{}` here to produce a static default return value — the
+// original, timing-safe behaviour every other mocked command keeps.
+// If a handler throws (e.g., it expects specific args), we fall back
+// to `null` — the test can override it later.
+function _serializeHandlers(h: Record<string, Handler>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(h)) {
+    if (typeof v === 'function') {
+      if ((v as { __live?: boolean }).__live) {
+        out[k] = { __live: v.toString() };
+        continue;
+      }
+      try {
+        out[k] = v({});
+      } catch {
+        out[k] = null;
+      }
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 /**
  * Install the Tauri IPC mock before the page loads. Call this in
  * `test.beforeEach`. The mock intercepts ALL invoke() calls so the
@@ -204,9 +334,25 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
   const handlers = { ...defaultHandlers(), ...overrides };
 
   await page.addInitScript((serializedHandlers) => {
-    // Reconstruct handlers from the serialized map. Each value is
-    // a JSON-safe return value; we wrap it in a function.
-    const map: Record<string, any> = serializedHandlers;
+    // Reconstruct handlers from the serialized map. Most values are
+    // JSON-safe return values, wrapped in a function below. A
+    // `{ __live }` entry is reconstructed from its source text into a
+    // real function, so it runs for real (with the real args) on
+    // every call instead of once at setup time.
+    const raw: Record<string, any> = serializedHandlers;
+    const map: Record<string, any> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v && typeof v === 'object' && '__live' in v) {
+        try {
+          // eslint-disable-next-line no-new-func
+          map[k] = new Function(`return (${(v as { __live: string }).__live})`)();
+        } catch {
+          map[k] = null;
+        }
+      } else {
+        map[k] = v;
+      }
+    }
 
     // Track event listeners so tests can emit events if needed.
     const eventListeners: Record<string, Array<(payload: any) => void>> = {};
@@ -234,7 +380,7 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
         if (cmd in map) {
           const val = map[cmd];
           if (val === '__THROW__') return Promise.reject(val);
-          return Promise.resolve(typeof val === 'function' ? val(args) : val);
+          return Promise.resolve(typeof val === 'function' ? val(args ?? {}) : val);
         }
         console.warn(`[mock-ipc] unmocked command: ${cmd}`, args);
         return Promise.resolve(null);
@@ -286,26 +432,6 @@ export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
       .map((call) => call.args),
     cmd,
   );
-}
-
-// Serialize handlers to JSON-safe values. Functions are called with
-// an empty object `{}` as arg to produce a static default return
-// value. If a handler throws (e.g., it expects specific args),
-// we fall back to `null` — the test can override it later.
-function _serializeHandlers(h: Record<string, Handler>): Record<string, any> {
-  const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(h)) {
-    if (typeof v === 'function') {
-      try {
-        out[k] = v({});
-      } catch {
-        out[k] = null;
-      }
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
 }
 
 /**
