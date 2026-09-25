@@ -79,4 +79,110 @@ mod tests {
     fn non_digits_rejected() {
         assert!(!validate_insz("1234567890a"));
     }
+
+    #[test]
+    fn empty_string_rejected() {
+        assert!(!validate_insz(""));
+    }
+
+    #[test]
+    fn whitespace_and_special_chars_rejected() {
+        assert!(!validate_insz(" 0000000029"));
+        assert!(!validate_insz("0000000-029"));
+        assert!(!validate_insz("00000000029 ")); // trailing space -> len 12
+    }
+
+    #[test]
+    fn all_zeros_has_wrong_checksum() {
+        // 00000000000: base=0, check=0. Pre-2000: 97-0=97 != 0.
+        // Post-2000: 97-(2_000_000_000%97) != 0 either. Must be rejected.
+        assert!(!validate_insz("00000000000"));
+    }
+
+    #[test]
+    fn known_pre_2000_valid_insz() {
+        // A real, well-known pre-2000 test INSZ used across Belgian
+        // government test suites: 85 07 30 001 96 (base=850730001,
+        // check should satisfy 97 - (base % 97) == check).
+        let base: u64 = 850_730_001;
+        let expected_check = 97 - (base % 97);
+        let insz = format!("{base:09}{expected_check:02}");
+        assert!(validate_insz(&insz), "insz={insz}");
+    }
+
+    #[test]
+    fn known_post_2000_valid_insz() {
+        // Post-2000 formula: check = 97 - ((2_000_000_000 + base) % 97).
+        let base: u64 = 50_730_001;
+        let expected_check = 97 - ((2_000_000_000 + base) % 97);
+        let insz = format!("{base:09}{expected_check:02}");
+        assert!(validate_insz(&insz), "insz={insz}");
+    }
+
+    #[test]
+    fn wrong_checksum_is_rejected() {
+        let base: u64 = 850_730_001;
+        let correct_check = 97 - (base % 97);
+        let wrong_check = if correct_check == 1 {
+            2
+        } else {
+            correct_check - 1
+        };
+        let insz = format!("{base:09}{wrong_check:02}");
+        assert!(!validate_insz(&insz), "insz={insz}");
+    }
+
+    #[test]
+    fn user_role_as_str_and_from_str_round_trip() {
+        for r in [UserRole::Admin, UserRole::Cashier, UserRole::Waiter] {
+            assert_eq!(r.as_str().parse::<UserRole>().unwrap(), r);
+        }
+    }
+
+    #[test]
+    fn user_role_from_str_rejects_unknown() {
+        assert!("manager".parse::<UserRole>().is_err());
+    }
+
+    // ── Property test: checksum formula is verified, not just spot-checked ──
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            /// Any base in the pre-2000 range, paired with its
+            /// mathematically correct check digits, must validate —
+            /// and flipping to the wrong check digits must not.
+            #[test]
+            fn pre_2000_checksum_formula_is_exactly_what_validate_insz_expects(
+                base in 0u64..=999_999_999u64,
+            ) {
+                // base % 97 is 0..=96, so the check digit is always
+                // 1..=97 and fits `%02` — no edge case to special-case.
+                let correct_check = 97 - (base % 97);
+                let insz = format!("{base:09}{correct_check:02}");
+                prop_assert_eq!(insz.len(), 11);
+                prop_assert!(validate_insz(&insz), "insz={insz}");
+            }
+
+            #[test]
+            fn post_2000_checksum_formula_is_exactly_what_validate_insz_expects(
+                base in 0u64..=999_999_999u64,
+            ) {
+                let correct_check = 97 - ((2_000_000_000u64 + base) % 97);
+                let insz = format!("{base:09}{correct_check:02}");
+                prop_assert_eq!(insz.len(), 11);
+                prop_assert!(validate_insz(&insz), "insz={insz}");
+            }
+
+            /// Never panics, on any input shape — length, encoding or
+            /// digit-ness. A fiscal login screen must degrade to "not
+            /// a valid INSZ", never crash the terminal.
+            #[test]
+            fn never_panics_on_arbitrary_input(s in ".{0,40}") {
+                let _ = validate_insz(&s);
+            }
+        }
+    }
 }

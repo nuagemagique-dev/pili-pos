@@ -757,4 +757,371 @@ mod tests {
         assert!((pre_bill.transaction.transaction_total - 25.0).abs() < 0.01);
         assert!(pre_bill.cost_center.is_some());
     }
+
+    // ── ticketMedium per event type (POS description v2.2 §1) ──────
+    //
+    // Sale/pre-bill are printed (Paper); Order and Work In/Out are
+    // never printed on their own (None).
+
+    #[test]
+    fn sale_has_paper_ticket_medium() {
+        let config = test_config();
+        let order = test_order();
+        let lines = test_lines();
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            "bp",
+            PaymentType::Cash,
+            2500,
+            None,
+        );
+        assert_eq!(sale.common.ticket_medium, TicketMedium::Paper);
+    }
+
+    #[test]
+    fn order_has_no_ticket_medium() {
+        let config = test_config();
+        let order = test_order();
+        let lines = test_lines();
+        let order_input = build_order_input(&config, &order, &lines, 1, "bp");
+        assert_eq!(order_input.common.ticket_medium, TicketMedium::None);
+    }
+
+    #[test]
+    fn pre_bill_has_paper_ticket_medium() {
+        let config = test_config();
+        let order = test_order();
+        let lines = test_lines();
+        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, "bp");
+        assert_eq!(pre_bill.common.ticket_medium, TicketMedium::Paper);
+    }
+
+    #[test]
+    fn work_in_out_has_no_ticket_medium() {
+        let config = test_config();
+        let w = build_work_in_out(&config, 1, "00000000029", "bp");
+        assert_eq!(w.common.ticket_medium, TicketMedium::None);
+        assert_eq!(w.common.employee_id, "00000000029");
+    }
+
+    // ── build_work_in_out (S event) ─────────────────────────────
+
+    #[test]
+    fn work_in_out_carries_identity_and_serializes() {
+        let config = test_config();
+        let bp_id = Uuid::new_v4().to_string();
+        let w = build_work_in_out(&config, 7, "94060242576", &bp_id);
+        assert_eq!(w.common.pos_id, "CFOD0061234567");
+        assert_eq!(w.common.pos_fiscal_ticket_no, 7);
+        assert_eq!(w.common.employee_id, "94060242576");
+        assert_eq!(w.common.booking_period_id, bp_id);
+
+        let json = serde_json::to_string(&w).unwrap();
+        assert!(json.contains("\"posFiscalTicketNo\":7"));
+        assert!(json.contains("\"employeeId\":\"94060242576\""));
+        // WorkInOutInput has no fields beyond CommonFields.
+        assert!(!json.contains("transaction"));
+    }
+
+    // ── build_invoice_input (I event) ───────────────────────────
+
+    #[test]
+    fn invoice_input_field_by_field() {
+        let config = test_config();
+        let bp_id = Uuid::new_v4().to_string();
+        let refs = vec![
+            FdmReference {
+                fdm_id: "CBX01000042".to_string(),
+                fdm_date_time: "2026-04-12T19:00:00+02:00".to_string(),
+                event_label: EventLabel::N,
+                event_counter: 1,
+                total_counter: 10,
+            },
+            FdmReference {
+                fdm_id: "CBX01000042".to_string(),
+                fdm_date_time: "2026-04-12T19:05:00+02:00".to_string(),
+                event_label: EventLabel::N,
+                event_counter: 2,
+                total_counter: 11,
+            },
+        ];
+
+        let invoice = build_invoice_input(
+            &config,
+            3,
+            "00000000029",
+            &bp_id,
+            "INV-2026-001",
+            "BE0123456789",
+            &refs,
+        );
+
+        assert_eq!(invoice.invoice_no, "INV-2026-001");
+        assert_eq!(invoice.customer_vat_no, "BE0123456789");
+        assert!(invoice.cost_center.is_none());
+        assert_eq!(invoice.fdm_refs.len(), 2);
+        assert_eq!(invoice.fdm_refs[0].event_counter, 1);
+        assert_eq!(invoice.fdm_refs[1].event_counter, 2);
+        assert_eq!(invoice.common.ticket_medium, TicketMedium::Paper);
+
+        let json = serde_json::to_string(&invoice).unwrap();
+        assert!(json.contains("\"invoiceNo\":\"INV-2026-001\""));
+        assert!(json.contains("\"customerVatNo\":\"BE0123456789\""));
+        assert!(json.contains("\"fdmRefs\""));
+    }
+
+    #[test]
+    fn invoice_input_with_no_underlying_sales_has_empty_refs() {
+        let config = test_config();
+        let invoice = build_invoice_input(&config, 1, "00000000029", "bp", "INV-1", "BE1", &[]);
+        assert!(invoice.fdm_refs.is_empty());
+    }
+
+    // ── Report builders (R event: X/Z turnover + user) ──────────
+
+    fn empty_turnover_data() -> TurnoverReportData {
+        TurnoverReportData {
+            pos_devices: vec![],
+            fdm_devices: vec![],
+            turnover: TurnoverInput {
+                transactions: vec![],
+                departments: vec![],
+                vats: vec![],
+                payments: vec![],
+                drawers_open_count: 0,
+                neg_quantities: vec![],
+                price_changes: vec![],
+                invoices: None,
+            },
+        }
+    }
+
+    #[test]
+    fn report_turnover_x_is_not_resetting_and_has_no_report_no() {
+        let config = test_config();
+        let x = build_report_turnover_x(&config, 100, "00000000029", "bp", empty_turnover_data());
+        assert_eq!(x.common.pos_fiscal_ticket_no, 100);
+        assert_eq!(x.common.ticket_medium, TicketMedium::Paper);
+        // ReportTurnoverXInput has no report_no field at all — X never
+        // resets counters (unlike Z).
+        let json = serde_json::to_string(&x).unwrap();
+        assert!(!json.contains("reportNo"));
+    }
+
+    #[test]
+    fn report_turnover_z_carries_report_no_and_booking_date() {
+        let config = test_config();
+        let z = build_report_turnover_z(
+            &config,
+            101,
+            "00000000029",
+            "bp",
+            42,
+            "2026-04-12",
+            empty_turnover_data(),
+        );
+        assert_eq!(z.report_no, 42);
+        assert_eq!(z.report_booking_date, "2026-04-12");
+        let json = serde_json::to_string(&z).unwrap();
+        assert!(json.contains("\"reportNo\":42"));
+        assert!(json.contains("\"reportBookingDate\":\"2026-04-12\""));
+    }
+
+    fn empty_user_data() -> UserReportData {
+        UserReportData {
+            pos_devices: vec![],
+            fdm_devices: vec![],
+            users: vec![],
+        }
+    }
+
+    #[test]
+    fn report_user_x_has_no_report_no() {
+        let config = test_config();
+        let x = build_report_user_x(&config, 102, "00000000029", "bp", empty_user_data());
+        let json = serde_json::to_string(&x).unwrap();
+        assert!(!json.contains("reportNo"));
+        assert_eq!(x.common.ticket_medium, TicketMedium::Paper);
+    }
+
+    #[test]
+    fn report_user_z_carries_report_no() {
+        let config = test_config();
+        let z = build_report_user_z(
+            &config,
+            103,
+            "00000000029",
+            "bp",
+            42,
+            "2026-04-12",
+            empty_user_data(),
+        );
+        assert_eq!(z.report_no, 42);
+        assert_eq!(z.report_booking_date, "2026-04-12");
+    }
+
+    #[test]
+    fn turnover_report_carries_department_and_vat_totals_through() {
+        let config = test_config();
+        let mut data = empty_turnover_data();
+        data.turnover.departments.push(DepartmentTotalInput {
+            department_id: "12".to_string(),
+            department_name: "Sushi".to_string(),
+            amount: 125.50,
+        });
+        data.turnover.vats.push(VatTotalInput {
+            label: VatLabel::B,
+            rate: 12.0,
+            taxable_amount: 112.05,
+            vat_amount: 13.45,
+            total_amount: 125.50,
+        });
+        data.turnover.drawers_open_count = 3;
+
+        let x = build_report_turnover_x(&config, 1, "00000000029", "bp", data);
+        assert_eq!(x.turnover.departments.len(), 1);
+        assert_eq!(x.turnover.departments[0].department_id, "12");
+        assert_eq!(x.turnover.vats[0].label, VatLabel::B);
+        assert_eq!(x.turnover.drawers_open_count, 3);
+    }
+
+    // ── build_transaction edge cases ────────────────────────────
+
+    #[test]
+    fn empty_order_has_zero_total_and_no_lines() {
+        let config = test_config();
+        let order = test_order();
+        let bp_id = Uuid::new_v4().to_string();
+
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &[], // no lines at all
+            1,
+            &bp_id,
+            PaymentType::Cash,
+            0,
+            None,
+        );
+        assert!(sale.transaction.transaction_lines.is_empty());
+        assert_eq!(sale.transaction.transaction_total, 0.0);
+    }
+
+    #[test]
+    fn department_id_and_name_are_carried_through_to_the_product() {
+        let config = test_config();
+        let order = test_order();
+        let lines = vec![OrderLine {
+            id: 1,
+            order_id: 1,
+            menu_item_id: 42,
+            quantity: 1,
+            unit_price_cents: 1000,
+            vat_code: VatCode::C,
+            name: "Takeaway roll".to_string(),
+            modifiers_json: None,
+            created_at: chrono::Utc::now(),
+            department_id: "12".to_string(),
+            department_name: "Sushi".to_string(),
+        }];
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            "bp",
+            PaymentType::Cash,
+            1000,
+            None,
+        );
+        let product = &sale.transaction.transaction_lines[0].main_product;
+        assert_eq!(product.department_id, "12");
+        assert_eq!(product.department_name, "Sushi");
+        assert_eq!(product.vats[0].label, VatLabel::C);
+    }
+
+    #[test]
+    fn gtin_is_absent_from_serialized_product() {
+        // GTIN is Option<String> and never populated by build_transaction
+        // (no barcode scanning in the MVP) — the JSON key must be
+        // entirely absent, not `null`, per skip_serializing_if.
+        let config = test_config();
+        let order = test_order();
+        let lines = test_lines();
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            "bp",
+            PaymentType::Cash,
+            2500,
+            None,
+        );
+        let json = serde_json::to_string(&sale).unwrap();
+        assert!(!json.contains("gtin"));
+    }
+
+    #[test]
+    fn many_lines_transaction_total_sums_exactly() {
+        let config = test_config();
+        let order = test_order();
+        let lines: Vec<OrderLine> = (0..12)
+            .map(|i| OrderLine {
+                id: i,
+                order_id: 1,
+                menu_item_id: i,
+                quantity: (i % 3) as i32 + 1,
+                unit_price_cents: 100 * (i + 1),
+                vat_code: VatCode::B,
+                name: format!("Item {i}"),
+                modifiers_json: None,
+                created_at: chrono::Utc::now(),
+                department_id: "1".to_string(),
+                department_name: "Food".to_string(),
+            })
+            .collect();
+        let expected_cents: i64 = lines
+            .iter()
+            .map(|l| l.unit_price_cents * l.quantity as i64)
+            .sum();
+
+        let sale = build_sale_input(
+            &config,
+            &order,
+            &lines,
+            1,
+            "bp",
+            PaymentType::Cash,
+            expected_cents,
+            None,
+        );
+        assert!((sale.transaction.transaction_total - expected_cents as f64 / 100.0).abs() < 1e-9);
+        assert_eq!(sale.transaction.transaction_lines.len(), 12);
+    }
+
+    #[test]
+    fn vat_code_to_label_maps_every_code() {
+        for (code, label) in [
+            (VatCode::A, VatLabel::A),
+            (VatCode::B, VatLabel::B),
+            (VatCode::C, VatLabel::C),
+            (VatCode::D, VatLabel::D),
+            (VatCode::X, VatLabel::X),
+        ] {
+            assert_eq!(vat_code_to_label(code), label);
+        }
+    }
+
+    #[test]
+    fn order_reference_is_stable_for_the_orders_lifetime() {
+        let order = test_order();
+        assert_eq!(order_reference(&order), format!("O{}", order.id));
+        // Calling twice must yield the identical reference — it ties
+        // together every P/pre-bill/N event of one order's lifetime.
+        assert_eq!(order_reference(&order), order_reference(&order));
+    }
 }

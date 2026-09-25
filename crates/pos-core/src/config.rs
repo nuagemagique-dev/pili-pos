@@ -160,4 +160,50 @@ mod tests {
         let err = PosConfig::load_from_file(Path::new("/nonexistent/pos.json")).unwrap_err();
         assert!(matches!(err, ConfigError::Io { .. }));
     }
+
+    #[test]
+    fn load_from_malformed_json_is_parse_error() {
+        let dir =
+            std::env::temp_dir().join(format!("moyun-pos-config-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("pos.json");
+        std::fs::write(&path, "{ not valid json").unwrap();
+
+        let err = PosConfig::load_from_file(&path).unwrap_err();
+        assert!(matches!(err, ConfigError::Parse { .. }));
+
+        std::fs::remove_file(&path).ok();
+        std::fs::remove_dir(&dir).ok();
+    }
+
+    #[test]
+    fn default_config_is_never_used_as_a_live_identity() {
+        // The Default impl exists for ergonomic test fixtures; assert
+        // it is obviously not a real POS identity (empty pos_id) so a
+        // future refactor can't accidentally make it "boot-ready".
+        let cfg = PosConfig::default();
+        assert!(cfg.pos_id.is_empty());
+        assert!(cfg.restaurant_vat.is_empty());
+        assert_eq!(cfg.language, "fr");
+    }
+
+    #[test]
+    fn unknown_language_code_still_parses_the_config() {
+        // Language restriction to fr/nl/de is enforced downstream
+        // (ReceiptLanguage::from_code in pos-fiscal), not by the
+        // config parser itself — any string is accepted here.
+        let json = r#"{
+            "pos_id": "CFOD0061234567",
+            "terminal_id": "POS1",
+            "device_id": "DEV001",
+            "restaurant_name": "Tokyo Sushi Bar",
+            "restaurant_address": "Rue Test 1, 1000 Bruxelles",
+            "restaurant_vat": "BE0499999960",
+            "restaurant_est_no": "1234567890",
+            "fdm_url": "http://192.168.1.20:8080/graphql",
+            "language": "zh"
+        }"#;
+        let cfg: PosConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.language, "zh");
+    }
 }

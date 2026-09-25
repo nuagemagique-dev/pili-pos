@@ -178,4 +178,105 @@ mod tests {
             assert_eq!(speculative, actual);
         }
     }
+
+    #[test]
+    fn counter_is_strictly_sequential_with_no_gaps() {
+        let conn = setup();
+        let mut seen = Vec::new();
+        for _ in 0..50 {
+            seen.push(FiscalCounter::next(&conn, EventLabel::N).unwrap());
+        }
+        let expected: Vec<i64> = (1..=50).collect();
+        assert_eq!(seen, expected);
+    }
+
+    #[test]
+    fn wraps_to_one_after_max_counter() {
+        // SCE 2.0 spec: 999_999_999 is the last value before wrapping
+        // back to 1. We seed the row directly instead of looping a
+        // billion times.
+        let conn = setup();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS fiscal_counters (
+                event_label TEXT PRIMARY KEY,
+                current_value INTEGER NOT NULL DEFAULT 0
+            )",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO fiscal_counters (event_label, current_value) VALUES ('N', 999999999)",
+            [],
+        )
+        .unwrap();
+
+        assert_eq!(FiscalCounter::peek_next(&conn, EventLabel::N).unwrap(), 1);
+        assert_eq!(FiscalCounter::next(&conn, EventLabel::N).unwrap(), 1);
+        assert_eq!(FiscalCounter::next(&conn, EventLabel::N).unwrap(), 2);
+    }
+
+    #[test]
+    fn every_event_label_has_its_own_independent_sequence() {
+        let conn = setup();
+        let labels = [
+            EventLabel::N,
+            EventLabel::P,
+            EventLabel::T,
+            EventLabel::C,
+            EventLabel::I,
+            EventLabel::F,
+            EventLabel::S,
+            EventLabel::R,
+        ];
+        for label in labels {
+            assert_eq!(FiscalCounter::next(&conn, label).unwrap(), 1, "{label:?}");
+        }
+        // Advancing N further must not affect any other label's value.
+        FiscalCounter::next(&conn, EventLabel::N).unwrap();
+        FiscalCounter::next(&conn, EventLabel::N).unwrap();
+        assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 3);
+        for label in labels.iter().filter(|l| **l != EventLabel::N) {
+            assert_eq!(
+                FiscalCounter::current(&conn, *label).unwrap(),
+                1,
+                "{label:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn counter_persists_across_connections_to_the_same_file() {
+        // Crash-safety requirement (CLAUDE.md: "Sequence number
+        // management — persist in SQLite, crash-safe"): the counter
+        // must survive a process restart, i.e. a fresh `Connection`
+        // opened against the same on-disk database file.
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "moyun-pos-counter-test-{}-{unique}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("pos.db");
+
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch("PRAGMA journal_mode=WAL;").unwrap();
+            assert_eq!(FiscalCounter::next(&conn, EventLabel::N).unwrap(), 1);
+            assert_eq!(FiscalCounter::next(&conn, EventLabel::N).unwrap(), 2);
+            // conn dropped here — simulates the process exiting.
+        }
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            assert_eq!(FiscalCounter::current(&conn, EventLabel::N).unwrap(), 2);
+            assert_eq!(FiscalCounter::next(&conn, EventLabel::N).unwrap(), 3);
+        }
+
+        // Cleanup — WAL mode may leave -wal/-shm sidecar files.
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", db_path.display()));
+        }
+        let _ = std::fs::remove_dir(&dir);
+    }
 }

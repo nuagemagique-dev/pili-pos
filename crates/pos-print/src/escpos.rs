@@ -108,11 +108,17 @@ impl EscPosBuilder {
 
     /// Write a line of text padded/truncated to fit the line width.
     /// Left-aligned text, right-aligned value on the same line.
+    ///
+    /// Both `left` and `right` are clamped to `chars_per_line()`: an
+    /// over-long `right` value (e.g. a runaway price string) must
+    /// never push the printed row past the physical paper width —
+    /// see `text_columns_never_exceeds_the_configured_width_*` tests.
     pub fn text_columns(&mut self, left: &str, right: &str) -> &mut Self {
         // Widths count printed characters (CP858 is single-byte, so
         // one char == one column), not UTF-8 bytes.
         let width = self.chars_per_line() as usize;
         let right_len = right.chars().count().min(width);
+        let right_truncated: String = right.chars().take(right_len).collect();
         let left_max = width.saturating_sub(right_len + 1);
         let left_truncated: String = left.chars().take(left_max).collect();
         let padding = width - left_truncated.chars().count() - right_len;
@@ -121,7 +127,7 @@ impl EscPosBuilder {
         for _ in 0..padding {
             self.buf.push(b' ');
         }
-        self.text(right);
+        self.text(&right_truncated);
         self.lf()
     }
 
@@ -430,5 +436,160 @@ mod tests {
         let bytes = b.build();
         // Should contain the URL bytes somewhere in the buffer
         assert!(bytes.windows(5).any(|w| w == b"https"));
+    }
+
+    // ── text_columns width invariant (receipt must never overflow
+    //    the 48-column paper) ─────────────────────────────────────
+
+    fn printed_line(bytes: &[u8]) -> &[u8] {
+        // Skip init (ESC @ + ESC t 19 = 5 bytes), drop trailing LF.
+        &bytes[5..bytes.len() - 1]
+    }
+
+    #[test]
+    fn text_columns_never_exceeds_the_configured_width_even_with_an_overlong_right_value() {
+        // Regression test: `right` used to be written in full even
+        // when longer than the line width, so a runaway price/label
+        // string could blow the printed row past 48 columns.
+        let mut b = EscPosBuilder::new();
+        let long_right = "X".repeat(80);
+        b.text_columns("Left", &long_right);
+        let bytes = b.build();
+        assert_eq!(printed_line(&bytes).len(), 48);
+    }
+
+    #[test]
+    fn text_columns_truncates_an_overlong_left_value_to_fit() {
+        let mut b = EscPosBuilder::new();
+        let long_left = "Y".repeat(80);
+        b.text_columns(&long_left, "9.99");
+        let bytes = b.build();
+        assert_eq!(printed_line(&bytes).len(), 48);
+        assert!(printed_line(&bytes).ends_with(b"9.99"));
+    }
+
+    #[test]
+    fn text_columns_with_right_exactly_at_width_leaves_no_room_for_left() {
+        let mut b = EscPosBuilder::new();
+        let right = "Z".repeat(48);
+        b.text_columns("Should be dropped", &right);
+        let bytes = b.build();
+        let line = printed_line(&bytes);
+        assert_eq!(line.len(), 48);
+        assert_eq!(line, right.as_bytes());
+    }
+
+    #[test]
+    fn text_columns_both_short_pads_exactly_to_width() {
+        let mut b = EscPosBuilder::new();
+        b.text_columns("Saumon", "12.50");
+        let bytes = b.build();
+        let line = printed_line(&bytes);
+        assert_eq!(line.len(), 48);
+        assert!(line.starts_with(b"Saumon"));
+        assert!(line.ends_with(b"12.50"));
+    }
+
+    // ── CP858 encoding round-trip ────────────────────────────────
+
+    #[test]
+    fn ascii_round_trips_through_cp858() {
+        for byte in 0u8..0x80 {
+            let ch = byte as char;
+            assert_eq!(encode_cp858(ch), byte, "ascii {byte:#x}");
+            assert_eq!(decode_cp858(byte), ch, "ascii {byte:#x}");
+        }
+    }
+
+    #[test]
+    fn every_high_cp858_char_round_trips_exactly() {
+        for &(ch, byte) in CP858_HIGH {
+            assert_eq!(encode_cp858(ch), byte, "encode {ch:?}");
+            assert_eq!(decode_cp858(byte), ch, "decode {byte:#x}");
+        }
+    }
+
+    #[test]
+    fn cjk_characters_are_not_representable_and_degrade_to_question_mark() {
+        // Real hardware/protocol constraint, not a bug: CP858 has no
+        // CJK glyphs, so unsupported characters must degrade safely
+        // to '?' instead of panicking or silently dropping the char.
+        for ch in ['寿', '司', '中', '文'] {
+            assert_eq!(encode_cp858(ch), b'?', "{ch:?} should encode to '?'");
+        }
+    }
+
+    #[test]
+    fn unmapped_high_byte_decodes_to_question_mark() {
+        // 0x86 is not assigned in our CP858_HIGH subset (not one of
+        // the accents/€ the receipts actually use).
+        assert_eq!(decode_cp858(0x86), '?');
+    }
+
+    // ── Misc builder surface ─────────────────────────────────────
+
+    #[test]
+    fn full_cut_command() {
+        let mut b = EscPosBuilder::new();
+        b.full_cut();
+        let bytes = b.build();
+        assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 65, 3]));
+    }
+
+    #[test]
+    fn is_empty_true_only_right_after_init() {
+        let b = EscPosBuilder::new();
+        assert!(b.is_empty());
+        let mut b2 = EscPosBuilder::new();
+        b2.textln("x");
+        assert!(!b2.is_empty());
+    }
+
+    #[test]
+    fn len_grows_as_bytes_are_appended() {
+        let mut b = EscPosBuilder::new();
+        let before = b.len();
+        b.textln("hello");
+        assert!(b.len() > before);
+        assert_eq!(b.len(), b.as_bytes().len());
+    }
+
+    #[test]
+    fn dots_and_chars_per_line_match_the_80mm_target() {
+        let b = EscPosBuilder::new();
+        assert_eq!(b.chars_per_line(), 48);
+        assert_eq!(b.dots_per_line(), 576);
+    }
+
+    #[test]
+    fn raster_image_header_encodes_dimensions_little_endian() {
+        let mut b = EscPosBuilder::new();
+        // 16 px wide (2 bytes/row), 1 px tall, all-zero data.
+        b.raster_image(16, 1, &[0u8, 0u8]);
+        let bytes = b.build();
+        assert!(
+            bytes
+                .windows(8)
+                .any(|w| w == [GS, b'v', b'0', 0, 2, 0, 1, 0])
+        );
+    }
+
+    #[test]
+    fn style_reset_clears_bold_underline_and_size() {
+        let mut b = EscPosBuilder::new();
+        b.style(TextStyle {
+            bold: true,
+            underline: true,
+            double_height: true,
+            double_width: true,
+            font_b: true,
+        });
+        b.style_reset();
+        let bytes = b.build();
+        // style_reset() must have appended the all-off command bytes.
+        assert!(bytes.windows(3).any(|w| w == [ESC, b'E', 0]));
+        assert!(bytes.windows(3).any(|w| w == [ESC, b'-', 0]));
+        assert!(bytes.windows(3).any(|w| w == [GS, b'!', 0]));
+        assert!(bytes.windows(3).any(|w| w == [ESC, b'M', 0]));
     }
 }

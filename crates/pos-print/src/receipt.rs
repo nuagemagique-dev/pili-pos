@@ -448,4 +448,134 @@ mod tests {
                 .any(|w| w == [0x1B, b'p', 0x00, 0x19, 0xFA])
         );
     }
+
+    // ── VAT breakdown (mandatory ticket row, spec §VI) ──────────
+
+    #[test]
+    fn receipt_prints_vat_breakdown_when_present() {
+        use pos_fiscal::response::VatCalcItem;
+        use pos_fiscal::types::VatLabel;
+
+        let mut ticket = sample_ticket();
+        ticket.vat_breakdown = vec![
+            VatCalcItem {
+                label: VatLabel::B,
+                rate: 12.0,
+                taxable_amount: 26.34,
+                vat_amount: 3.16,
+                total_amount: 29.50,
+                out_of_scope: false,
+            },
+            VatCalcItem {
+                label: VatLabel::A,
+                rate: 21.0,
+                taxable_amount: 4.13,
+                vat_amount: 0.87,
+                total_amount: 5.00,
+                out_of_scope: false,
+            },
+        ];
+        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        assert!(text.contains("Taux"), "VAT header row missing:\n{text}");
+        assert!(text.contains("B"), "VAT code B missing:\n{text}");
+        assert!(text.contains("12%"), "VAT rate 12% missing:\n{text}");
+        assert!(text.contains("21%"), "VAT rate 21% missing:\n{text}");
+    }
+
+    #[test]
+    fn receipt_skips_out_of_scope_vat_lines() {
+        use pos_fiscal::response::VatCalcItem;
+        use pos_fiscal::types::VatLabel;
+
+        let mut ticket = sample_ticket();
+        ticket.vat_breakdown = vec![VatCalcItem {
+            label: VatLabel::X,
+            rate: 0.0,
+            taxable_amount: 0.0,
+            vat_amount: 0.0,
+            total_amount: 0.0,
+            out_of_scope: true,
+        }];
+        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        // The header row still prints (breakdown is non-empty), but
+        // the out-of-scope X line itself must be skipped.
+        assert!(text.contains("Taux"));
+        assert!(!text.contains(" X    "));
+    }
+
+    // ── CJK / accented character handling ───────────────────────
+
+    #[test]
+    fn cjk_characters_in_a_line_description_degrade_to_question_marks_not_panic() {
+        // CP858 (the code page this thermal printer speaks) has no
+        // CJK glyphs — this is a real hardware/protocol constraint,
+        // not a bug. Pinning down the actual behavior (each unmapped
+        // character becomes '?', nothing vanishes, nothing panics)
+        // documents it instead of leaving it an untested assumption.
+        let mut ticket = sample_ticket();
+        ticket.lines.push(TicketLine {
+            quantity: 1.0,
+            description: "寿司".to_string(),
+            unit_price: 5.0,
+            total: 5.0,
+            vat_code: "B".to_string(),
+        });
+        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        assert!(
+            text.contains("??"),
+            "unsupported CJK chars must degrade to '?', not vanish or panic:\n{text}"
+        );
+    }
+
+    #[test]
+    fn accented_french_characters_round_trip_through_cp858() {
+        let mut ticket = sample_ticket();
+        ticket.lines.push(TicketLine {
+            quantity: 1.0,
+            description: "Creme brulee a l'erable".to_string(),
+            unit_price: 6.5,
+            total: 6.5,
+            vat_code: "B".to_string(),
+        });
+        // Accents actually present in CP858_HIGH (escpos.rs).
+        let accented = "Fondant au chocolat, crème brûlée, café";
+        ticket.lines.push(TicketLine {
+            quantity: 1.0,
+            description: accented.to_string(),
+            unit_price: 7.0,
+            total: 7.0,
+            vat_code: "B".to_string(),
+        });
+        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        assert!(
+            text.contains(accented),
+            "accented chars must round-trip through CP858:\n{text}"
+        );
+    }
+
+    // ── Width invariant on transactional rows ───────────────────
+
+    #[test]
+    fn line_item_rows_never_exceed_paper_width_even_with_a_very_long_product_name() {
+        // Menu item names are operator-authored and could in theory
+        // be very long; the text_columns() row they're printed
+        // through must always clamp to the 48-column paper width
+        // (see escpos::tests::text_columns_never_exceeds_the_*).
+        let mut ticket = sample_ticket();
+        ticket.lines.push(TicketLine {
+            quantity: 3.0,
+            description: "A".repeat(120),
+            unit_price: 999999.99,
+            total: 2999999.97,
+            vat_code: "B".to_string(),
+        });
+        let text = crate::render::render_plain_text(&format_receipt(&ticket));
+        for line in text.lines() {
+            assert!(
+                line.chars().count() <= 48,
+                "line exceeds 48 columns ({} chars): {line:?}",
+                line.chars().count()
+            );
+        }
+    }
 }

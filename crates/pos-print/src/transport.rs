@@ -192,4 +192,91 @@ mod tests {
         let p = TcpPrinter::new("192.168.1.200:9101");
         assert_eq!(p.address(), "192.168.1.200:9101");
     }
+
+    #[test]
+    fn printer_status_default_is_optimistic() {
+        let status = PrinterStatus::default();
+        assert!(status.paper_ok);
+        assert!(status.cover_closed);
+        assert!(status.warnings.is_empty());
+    }
+
+    /// Bind then immediately drop a listener: the OS refuses new
+    /// connections on that port, giving a genuinely unreachable
+    /// target without depending on external network access.
+    fn refused_port() -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+        addr.to_string()
+    }
+
+    #[tokio::test]
+    async fn send_to_an_unreachable_printer_returns_err_quickly() {
+        let printer = TcpPrinter::new(&refused_port());
+        let start = std::time::Instant::now();
+        let err = printer.send(b"\x1B@test").await.unwrap_err();
+        let elapsed = start.elapsed();
+
+        assert!(
+            matches!(err, TransportError::Connect(_)),
+            "expected Connect error, got {err:?}"
+        );
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "an unreachable printer must fail fast, took {elapsed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn ping_returns_false_quickly_for_an_unreachable_printer() {
+        let printer = TcpPrinter::new(&refused_port());
+        let start = std::time::Instant::now();
+        assert!(!printer.ping().await);
+        assert!(
+            start.elapsed() < Duration::from_secs(1),
+            "ping must fail fast against an unreachable printer"
+        );
+    }
+
+    #[tokio::test]
+    async fn send_to_printer_convenience_fn_also_fails_fast_when_unreachable() {
+        let addr = refused_port();
+        let start = std::time::Instant::now();
+        let err = send_to_printer(&addr, b"data").await.unwrap_err();
+        assert!(matches!(err, TransportError::Connect(_)));
+        assert!(start.elapsed() < Duration::from_secs(1));
+    }
+
+    #[tokio::test]
+    async fn send_delivers_the_exact_bytes_to_a_real_socket() {
+        // A minimal fake printer: accept one connection, read until
+        // the client closes its write half, and hand back everything
+        // it received. Never responds to the DLE EOT status query,
+        // exercising the "printer doesn't support status queries"
+        // optimistic-default path at the same time.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut buf = Vec::new();
+            let _ = stream.read_to_end(&mut buf).await;
+            buf
+        });
+
+        let printer = TcpPrinter::new(&addr.to_string());
+        let data = b"\x1B@Hello receipt".to_vec();
+        let status = printer.send(&data).await.unwrap();
+        // No status response was sent by our fake server, so the
+        // optimistic default must be preserved.
+        assert!(status.paper_ok);
+        assert!(status.cover_closed);
+
+        let received = server.await.unwrap();
+        assert!(
+            received.starts_with(&data),
+            "printer must receive the exact ESC/POS bytes, got {received:?}"
+        );
+    }
 }

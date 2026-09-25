@@ -171,4 +171,46 @@ mod tests {
         let text = render_plain_text(&p.build());
         assert!(text.contains('✂'));
     }
+
+    #[test]
+    fn renders_right_aligned_text() {
+        let mut p = EscPosBuilder::new();
+        p.align(Alignment::Right);
+        p.textln("END");
+        let text = render_plain_text(&p.build());
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0], format!("{}END", " ".repeat(45)));
+    }
+
+    #[test]
+    fn renders_raster_image_placeholder() {
+        let mut p = EscPosBuilder::new();
+        p.raster_image(16, 1, &[0u8, 0u8]);
+        let text = render_plain_text(&p.build());
+        assert!(text.contains("[IMAGE]"));
+    }
+
+    #[test]
+    fn feed_lines_produce_blank_lines() {
+        let mut p = EscPosBuilder::new();
+        p.textln("before");
+        p.feed(3);
+        p.textln("after");
+        let text = render_plain_text(&p.build());
+        let lines: Vec<&str> = text.lines().collect();
+        // "before", then 3 blank feed lines, then "after".
+        assert_eq!(lines[0], "before");
+        assert_eq!(lines[1], "");
+        assert_eq!(lines[2], "");
+        assert_eq!(lines[3], "");
+        assert_eq!(lines[4], "after");
+    }
+
+    #[test]
+    fn accented_characters_decode_correctly_in_rendered_text() {
+        let mut p = EscPosBuilder::new();
+        p.textln("Crème brûlée à la carte");
+        let text = render_plain_text(&p.build());
+        assert!(text.contains("Crème brûlée à la carte"));
+    }
 }

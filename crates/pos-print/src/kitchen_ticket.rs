@@ -176,4 +176,32 @@ mod tests {
         // GS V 66 3 — partial cut
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
+
+    #[test]
+    fn contains_order_level_notes() {
+        let bytes = format_kitchen_ticket(&sample());
+        assert!(bytes.windows(15).any(|w| w == b"Sonner a l'etag"));
+    }
+
+    #[test]
+    fn omits_ready_at_and_order_notes_blocks_when_absent() {
+        let mut ticket = sample();
+        ticket.ready_at = None;
+        ticket.order_notes = None;
+        let text = crate::render::render_plain_text(&format_kitchen_ticket(&ticket));
+        assert!(!text.contains("Pret a:"));
+    }
+
+    #[test]
+    fn cjk_product_names_and_options_degrade_to_question_marks_not_panic() {
+        let mut ticket = sample();
+        ticket.items.push(KitchenItem {
+            quantity: 1,
+            product_name: "寿司盛り合わせ".to_string(),
+            options: vec!["わさび抜き".to_string()],
+            notes: None,
+        });
+        let text = crate::render::render_plain_text(&format_kitchen_ticket(&ticket));
+        assert!(text.contains('?'), "CJK chars must degrade to '?':\n{text}");
+    }
 }

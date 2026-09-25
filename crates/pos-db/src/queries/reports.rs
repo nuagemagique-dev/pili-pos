@@ -57,6 +57,16 @@ pub fn get_event_totals(
 }
 
 /// Get VAT totals from closed orders for a given date.
+///
+/// Training-mode sales must never count in real fiscal totals (POS
+/// description v2.2 §1.5, CLAUDE.md "Training mode"). `orders` /
+/// `order_lines` carry no `is_training` flag of their own — checkout
+/// and refund always close the order the same way regardless of
+/// `config.training_mode` — so the only signal is the archived
+/// `fiscal_events` row for that order: its `event_type` is `'T'`
+/// whenever the closing sale was signed in training mode (see
+/// `EventLabel::in_mode`). We exclude any closed order that has such
+/// a row.
 pub fn get_vat_totals(
     conn: &Connection,
     booking_date: &str,
@@ -66,6 +76,10 @@ pub fn get_vat_totals(
          FROM order_lines ol
          JOIN orders o ON o.id = ol.order_id
          WHERE o.status = 'closed' AND DATE(o.closed_at) = ?1
+           AND NOT EXISTS (
+               SELECT 1 FROM fiscal_events fe
+               WHERE fe.order_id = o.id AND fe.event_type = 'T'
+           )
          GROUP BY ol.vat_code",
     )?;
 
@@ -80,8 +94,9 @@ pub fn get_vat_totals(
 }
 
 /// Get department totals from closed orders for a given date, with the
-/// same scope as `get_vat_totals`. Lines recorded before departments
-/// were captured are grouped under their product's category.
+/// same scope (and the same training exclusion, see `get_vat_totals`)
+/// as `get_vat_totals`. Lines recorded before departments were
+/// captured are grouped under their product's category.
 pub fn get_department_totals(
     conn: &Connection,
     booking_date: &str,
@@ -94,6 +109,10 @@ pub fn get_department_totals(
          JOIN orders o ON o.id = ol.order_id
          LEFT JOIN menu_items m ON m.id = ol.menu_item_id
          WHERE o.status = 'closed' AND DATE(o.closed_at) = ?1
+           AND NOT EXISTS (
+               SELECT 1 FROM fiscal_events fe
+               WHERE fe.order_id = o.id AND fe.event_type = 'T'
+           )
          GROUP BY dept_id, dept_name
          ORDER BY dept_id",
     )?;
@@ -634,5 +653,235 @@ mod tests {
         assert_eq!(range.last_total_counter, 57);
         assert_eq!(range.first_datetime, "2026-07-03T10:00:00Z");
         assert_eq!(range.last_datetime, "2026-07-03T18:00:00Z");
+    }
+
+    // ── Training exclusion from VAT / department totals ────────────
+    //
+    // Regression coverage for a real bug: `orders`/`order_lines` carry
+    // no `is_training` flag — checkout.rs and refund.rs (src-tauri)
+    // close a training-mode order exactly like a real one, and the
+    // *only* place training is recorded is the archived `fiscal_events`
+    // row (`event_type = 'T'`) for that order. `get_vat_totals` and
+    // `get_department_totals` used to read straight from
+    // `orders`/`order_lines` with no such exclusion, so a training
+    // sale would inflate the real X/Z report's VAT and department
+    // breakdowns — a direct violation of "training must never count
+    // in real totals" (CLAUDE.md, POS description v2.2 §1.5).
+
+    /// Arguments for [`seed_closed_sale`], grouped to keep clippy's
+    /// `too_many_arguments` happy — this is test-only scaffolding.
+    struct ClosedSale<'a> {
+        order_id: i64,
+        vat_code: &'a str,
+        department_id: &'a str,
+        department_name: &'a str,
+        amount_cents: i64,
+        event_type: &'a str,
+        seq: i64,
+    }
+
+    /// Seed one closed order with a single line and its closing
+    /// fiscal event, mirroring exactly what `checkout.rs`/`refund.rs`
+    /// write: an `orders` row, one `order_lines` row, and a
+    /// `fiscal_events` row with `order_id` set and `event_type` equal
+    /// to the label the sale was actually signed under (`N` or `T`).
+    fn seed_closed_sale(conn: &Connection, sale: ClosedSale<'_>) {
+        let ClosedSale {
+            order_id,
+            vat_code,
+            department_id,
+            department_name,
+            amount_cents,
+            event_type,
+            seq,
+        } = sale;
+        conn.execute_batch(
+            "INSERT OR IGNORE INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT OR IGNORE INTO menu_items (id, category_id, price_cents, vat_code)
+                 VALUES (1, 1, 100, 'B');",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO orders (id, order_type, status, user_insz, closed_at)
+             VALUES (?1, 'dine_in', 'closed', '00000000029', datetime('now'))",
+            params![order_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents,
+                                       vat_code, name, department_id, department_name)
+             VALUES (?1, 1, 1, ?2, ?3, 'Item', ?4, ?5)",
+            params![
+                order_id,
+                amount_cents,
+                vat_code,
+                department_id,
+                department_name
+            ],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO fiscal_events (
+                event_type, sequence_number, order_id, pos_id, terminal_id,
+                user_insz, event_data_json
+             ) VALUES (?1, ?2, ?3, 'CFOD0061234567', 'POS1', '00000000029', '{}')",
+            params![event_type, seq, order_id],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn training_sale_excluded_from_vat_totals() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 1,
+                vat_code: "B",
+                department_id: "1",
+                department_name: "Food",
+                amount_cents: 1000,
+                event_type: "N",
+                seq: 1,
+            },
+        );
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 2,
+                vat_code: "B",
+                department_id: "1",
+                department_name: "Food",
+                amount_cents: 5000,
+                event_type: "T",
+                seq: 2,
+            },
+        );
+
+        let totals = get_vat_totals(&conn, &today()).unwrap();
+        assert_eq!(totals.len(), 1, "training sale must not add a VAT row");
+        assert_eq!(totals[0].vat_code, "B");
+        assert_eq!(
+            totals[0].total_cents, 1000,
+            "training amount (5000) must not be added to the real VAT total"
+        );
+    }
+
+    #[test]
+    fn training_sale_excluded_from_department_totals() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 1,
+                vat_code: "B",
+                department_id: "12",
+                department_name: "Sushi",
+                amount_cents: 1200,
+                event_type: "N",
+                seq: 1,
+            },
+        );
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 2,
+                vat_code: "B",
+                department_id: "12",
+                department_name: "Sushi",
+                amount_cents: 9900,
+                event_type: "T",
+                seq: 2,
+            },
+        );
+
+        let totals = get_department_totals(&conn, &today()).unwrap();
+        assert_eq!(totals.len(), 1);
+        assert_eq!(totals[0].department_id, "12");
+        assert_eq!(
+            totals[0].total_cents, 1200,
+            "training amount (9900) must not be added to the real department total"
+        );
+    }
+
+    #[test]
+    fn mixed_real_refund_and_training_totals_stay_correct() {
+        // A real sale, a real refund (still event_type N — refunds are
+        // NegQuantityReason::Refund, not a different event label) and
+        // a training sale on the same day. Only the real sale + refund
+        // net out into the VAT total.
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 1,
+                vat_code: "A",
+                department_id: "3",
+                department_name: "Drinks",
+                amount_cents: 2000,
+                event_type: "N",
+                seq: 1,
+            },
+        );
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 2,
+                vat_code: "A",
+                department_id: "3",
+                department_name: "Drinks",
+                amount_cents: -500, // partial refund
+                event_type: "N",
+                seq: 2,
+            },
+        );
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 3,
+                vat_code: "A",
+                department_id: "3",
+                department_name: "Drinks",
+                amount_cents: 999_999, // training noise
+                event_type: "T",
+                seq: 3,
+            },
+        );
+
+        let totals = get_vat_totals(&conn, &today()).unwrap();
+        assert_eq!(totals.len(), 1);
+        assert_eq!(totals[0].total_cents, 1500);
+
+        let departments = get_department_totals(&conn, &today()).unwrap();
+        assert_eq!(departments.len(), 1);
+        assert_eq!(departments[0].total_cents, 1500);
+    }
+
+    #[test]
+    fn training_only_day_reports_empty_vat_and_department_totals() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        seed_closed_sale(
+            &conn,
+            ClosedSale {
+                order_id: 1,
+                vat_code: "B",
+                department_id: "1",
+                department_name: "Food",
+                amount_cents: 4200,
+                event_type: "T",
+                seq: 1,
+            },
+        );
+
+        assert!(get_vat_totals(&conn, &today()).unwrap().is_empty());
+        assert!(get_department_totals(&conn, &today()).unwrap().is_empty());
     }
 }

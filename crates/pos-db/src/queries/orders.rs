@@ -648,9 +648,10 @@ mod tests {
 
     #[test]
     fn cannot_add_line_to_closed_order() {
-        // Guard: adding items to a closed order should still work at DB level
-        // (the guard is in the Tauri command layer), but the order total
-        // reflects it. This test documents the DB behavior.
+        // `add_order_line` calls `ensure_open` under the same savepoint
+        // as the insert, so — unlike the stale comment this test used
+        // to carry — the DB layer itself rejects the write; it is not
+        // solely a Tauri-command-layer guard.
         let conn = setup();
         conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
             .unwrap();
@@ -666,9 +667,32 @@ mod tests {
         )
         .unwrap();
 
-        // Verify the order is actually closed
         let closed = get_order(&conn, order.id).unwrap();
         assert_eq!(closed.status, OrderStatus::Closed);
+
+        let result = add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 1,
+                quantity: 1,
+                unit_price_cents: 1000,
+                vat_code: VatCode::B,
+                name: "Item",
+                modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
+            },
+        );
+        assert!(result.is_err(), "adding a line to a closed order must fail");
+        // No half-written line or journal entry from the rejected attempt.
+        assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
+        assert!(
+            get_order_entries(&conn, order.id, false)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(get_order(&conn, order.id).unwrap().total_cents, 0);
     }
 
     #[test]

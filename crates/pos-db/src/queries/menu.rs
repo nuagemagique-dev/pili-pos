@@ -299,4 +299,79 @@ mod tests {
             Err(rusqlite::Error::QueryReturnedNoRows)
         ));
     }
+
+    #[test]
+    fn inactive_item_itself_cannot_be_resolved() {
+        let conn = setup();
+        seed_burger(&conn);
+        conn.execute("UPDATE menu_items SET active = 0 WHERE id = 22001", [])
+            .unwrap();
+        assert!(matches!(
+            resolve_catalogue_line(&conn, 22001, false, "fr"),
+            Err(rusqlite::Error::QueryReturnedNoRows)
+        ));
+    }
+
+    #[test]
+    fn unknown_product_id_cannot_be_resolved() {
+        let conn = setup();
+        seed_burger(&conn);
+        assert!(matches!(
+            resolve_catalogue_line(&conn, 999_999, false, "fr"),
+            Err(rusqlite::Error::QueryReturnedNoRows)
+        ));
+    }
+
+    #[test]
+    fn catalogue_line_falls_back_to_id_when_no_translation_exists_at_all() {
+        let conn = setup();
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (30, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order)
+                 VALUES (30001, 30, 500, 'B', 0);",
+        )
+        .unwrap();
+        // No translations at all (fr/en/requested) — falls back to the
+        // numeric id as text, never panics or errors.
+        let line = resolve_catalogue_line(&conn, 30001, false, "zh").unwrap();
+        assert_eq!(line.name, "30001");
+        assert_eq!(line.department_name, "30");
+    }
+
+    #[test]
+    fn open_price_flag_is_carried_through() {
+        let conn = setup();
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (40, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, open_price, sort_order)
+                 VALUES (40001, 40, 0, 'C', 1, 0);",
+        )
+        .unwrap();
+        let line = resolve_catalogue_line(&conn, 40001, true, "fr").unwrap();
+        assert!(line.open_price);
+        assert_eq!(line.price_cents, 0);
+
+        let items = get_menu_items(&conn, Some(40), "fr").unwrap();
+        assert_eq!(items.len(), 1);
+        assert!(items[0].open_price);
+    }
+
+    #[test]
+    fn get_menu_items_without_category_filter_returns_everything_active() {
+        let conn = setup();
+        seed_burger(&conn);
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (23, 1);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order)
+                 VALUES (23001, 23, 400, 'A', 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order, active)
+                 VALUES (23002, 23, 400, 'A', 1, 0);",
+        )
+        .unwrap();
+
+        let all = get_menu_items(&conn, None, "fr").unwrap();
+        // Burger (22001) + active item 23001, but NOT the inactive 23002.
+        assert_eq!(all.len(), 2);
+        assert!(all.iter().all(|i| i.active));
+    }
 }
