@@ -412,7 +412,8 @@ Sig: 7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c
 
 Scénario : la même vente M110 qu'à la section 1, envoyée par e-mail
 ("E-mail" ou "Les deux" choisi avant l'encaissement, cf.
-`TICKET_NUMERIQUE_FR.md` §5-6).
+`TICKET_NUMERIQUE_FR.md` §2-3 pour le parcours et §5 pour le contenu
+détaillé de l'e-mail).
 
 **Sujet :** `Votre ticket — Restaurant Exemple`
 
