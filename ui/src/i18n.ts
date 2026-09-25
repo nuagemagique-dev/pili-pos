@@ -41,7 +41,6 @@ const coreMessages: Messages = {
   "received": { fr: "Reçu", en: "Received", zh: "收到" },
   "change": { fr: "Rendu", en: "Change", zh: "找零" },
   "processing_fdm": { fr: "Communication FDM...", en: "FDM communication...", zh: "FDM通信中..." },
-  "reprint": { fr: "Réimprimer", en: "Reprint", zh: "重印" },
   "finish": { fr: "Terminer", en: "Done", zh: "完成" },
   "fdm_no_sig": { fr: "FDM non connecté — ticket sans signature", en: "FDM offline — ticket unsigned", zh: "FDM未连接 — 票据无签名" },
   "before_rounding": { fr: "avant arrondi", en: "before rounding", zh: "四舍五入前" },
@@ -142,6 +141,52 @@ const coreMessages: Messages = {
 
   // Training banner
   "training_banner": { fr: "MODE FORMATION — Les transactions ne sont PAS enregistrées", en: "TRAINING MODE — Transactions are NOT recorded", zh: "培训模式 — 交易不会被记录" },
+
+  // Ticket delivery — medium picker (checkout / refund / copy)
+  "delivery_paper": { fr: "Papier", en: "Paper", zh: "纸质" },
+  "delivery_email": { fr: "E-mail", en: "Email", zh: "电子邮件" },
+  "delivery_both": { fr: "Les deux", en: "Both", zh: "两者都要" },
+  "delivery_unreachable_note": {
+    fr: "Service e-mail indisponible : le ticket papier sera imprimé, l'e-mail sera envoyé dès que possible.",
+    en: "Email service unavailable: the paper ticket will print now, the email will send later.",
+    zh: "邮件服务暂不可用：将立即打印纸质票据，邮件稍后发送。",
+  },
+
+  // Ticket delivery — email keypad
+  "delivery_enter_email_title": { fr: "Adresse e-mail du client", en: "Customer's email address", zh: "客户电子邮箱" },
+  "delivery_email_placeholder": { fr: "Saisir l'adresse…", en: "Enter address…", zh: "输入邮箱地址…" },
+  "delivery_invalid_email": { fr: "Adresse invalide", en: "Invalid address", zh: "地址无效" },
+  "delivery_confirm_title": { fr: "Confirmer l'adresse", en: "Confirm the address", zh: "确认地址" },
+  "delivery_confirm_btn": { fr: "Confirmer l'adresse", en: "Confirm the address", zh: "确认地址" },
+  "delivery_edit": { fr: "Modifier", en: "Edit", zh: "修改" },
+  "delivery_cancel": { fr: "Annuler", en: "Cancel", zh: "取消" },
+
+  // Ticket delivery — outcome (done screen, copy/refund results)
+  "delivery_outcome_printed": { fr: "Ticket imprimé", en: "Ticket printed", zh: "票据已打印" },
+  "delivery_outcome_sent": { fr: "Ticket envoyé à {hint}", en: "Ticket sent to {hint}", zh: "票据已发送至{hint}" },
+  "delivery_outcome_queued": {
+    fr: "E-mail en attente — nouvel essai automatique",
+    en: "Email pending — automatic retry",
+    zh: "邮件待发送 — 将自动重试",
+  },
+  "delivery_print_missing": { fr: "Imprimer le ticket", en: "Print ticket", zh: "打印票据" },
+
+  // Ticket delivery — Settings "Tickets numériques" panel
+  "delivery_settings_title": { fr: "Tickets numériques", en: "Digital tickets", zh: "电子票据" },
+  "delivery_settings_refresh": { fr: "Actualiser", en: "Refresh", zh: "刷新" },
+  "delivery_settings_configured": { fr: "Configuré", en: "Configured", zh: "已配置" },
+  "delivery_settings_not_configured": { fr: "Non configuré", en: "Not configured", zh: "未配置" },
+  "delivery_settings_reachable": { fr: "Joignable", en: "Reachable", zh: "可连接" },
+  "delivery_settings_unreachable": { fr: "Injoignable", en: "Unreachable", zh: "无法连接" },
+  "delivery_settings_empty": { fr: "Aucun envoi récent", en: "No recent deliveries", zh: "暂无发送记录" },
+  "delivery_attempts": { fr: "Tentatives", en: "Attempts", zh: "尝试次数" },
+  "delivery_last_error": { fr: "Dernière erreur", en: "Last error", zh: "最后错误" },
+  "delivery_status_pending": { fr: "En attente", en: "Pending", zh: "待处理" },
+  "delivery_status_sending": { fr: "Envoi…", en: "Sending…", zh: "发送中…" },
+  "delivery_status_sent": { fr: "Envoyé", en: "Sent", zh: "已发送" },
+  "delivery_status_failed": { fr: "Échec", en: "Failed", zh: "失败" },
+  "delivery_status_fallback_printed": { fr: "Imprimé (secours)", en: "Printed (fallback)", zh: "已打印（备用）" },
+  "delivery_status_purged": { fr: "Purgé", en: "Purged", zh: "已清除" },
 };
 
 // Webshop strings are merged only when HubRise is built in, so the
@@ -153,10 +198,17 @@ const messages: Messages = HUBRISE_ENABLED
 export function useI18n() {
   const pos = usePosStore();
 
-  function t(key: string): string {
+  /** `vars` fills `{name}` placeholders in the resolved string, e.g.
+   * `t('delivery_outcome_sent', { hint: 'j***@e***.be' })`. */
+  function t(key: string, vars?: Record<string, string | number>): string {
     const entry = messages[key];
-    if (!entry) return key;
-    return entry[pos.language] ?? entry.fr ?? key;
+    let value = entry ? (entry[pos.language] ?? entry.fr ?? key) : key;
+    if (vars) {
+      for (const [name, v] of Object.entries(vars)) {
+        value = value.replaceAll(`{${name}}`, String(v));
+      }
+    }
+    return value;
   }
 
   return { t };
