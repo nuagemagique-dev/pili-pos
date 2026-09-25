@@ -13,6 +13,7 @@ pos-core = { path = "../crates/pos-core" }
 pos-fiscal = { path = "../crates/pos-fiscal" }
 pos-print = { path = "../crates/pos-print" }
 pos-db = { path = "../crates/pos-db" }
+pos-mail = { path = "../crates/pos-mail" }
 pos-hubrise = { path = "../crates/pos-hubrise", optional = true }
 pos-hubrise-types = { path = "../crates/pos-hubrise-types", optional = true }
 pos-peppol = { path = "../crates/pos-peppol", optional = true }

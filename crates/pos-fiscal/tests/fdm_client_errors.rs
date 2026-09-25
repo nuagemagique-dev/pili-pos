@@ -38,6 +38,7 @@ fn config(fdm_url: &str) -> PosConfig {
         training_mode: false,
         language: "fr".to_string(),
         backup_dir: None,
+        digital_ticket: None,
     }
 }
 

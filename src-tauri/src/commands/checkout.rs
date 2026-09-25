@@ -9,6 +9,7 @@ use pos_fiscal::response::SignResult;
 use pos_fiscal::ticket::{self, FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
+use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
 use crate::state::AppState;
@@ -20,12 +21,30 @@ pub enum CheckoutPaymentMethod {
     Card,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct CheckoutResult {
     pub success: bool,
     pub ticket: Option<FiscalTicket>,
     pub error: Option<String>,
     pub fdm_connected: bool,
+    /// Archive id of the signed event.
+    pub fiscal_event_id: Option<i64>,
+    /// How the ticket reached the customer (paper and/or email).
+    pub delivery: Option<DeliveryOutcome>,
+}
+
+impl CheckoutResult {
+    /// A checkout refused before anything was signed.
+    pub fn refused(error: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            ticket: None,
+            error: Some(error.into()),
+            fdm_connected: false,
+            fiscal_event_id: None,
+            delivery: None,
+        }
+    }
 }
 
 #[tauri::command]
@@ -33,8 +52,9 @@ pub async fn checkout(
     state: State<'_, AppState>,
     order_id: i64,
     payment_method: CheckoutPaymentMethod,
+    delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
-    do_checkout(state.inner(), order_id, payment_method).await
+    do_checkout_with(state.inner(), order_id, payment_method, delivery.as_ref()).await
 }
 
 /// Inner implementation of [`checkout`], decoupled from Tauri's
@@ -45,6 +65,18 @@ pub async fn do_checkout(
     state: &AppState,
     order_id: i64,
     payment_method: CheckoutPaymentMethod,
+) -> Result<CheckoutResult, String> {
+    do_checkout_with(state, order_id, payment_method, None).await
+}
+
+/// [`do_checkout`] with the operator's ticket choice (paper, email or
+/// both). The medium is part of the signed request, so it is settled
+/// before the FDM call.
+pub async fn do_checkout_with(
+    state: &AppState,
+    order_id: i64,
+    payment_method: CheckoutPaymentMethod,
+    delivery_request: Option<&TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
     // 1. Read order + lines from DB
     // `lines` is the consolidated order (printed); `entries` the journal
@@ -67,6 +99,8 @@ pub async fn do_checkout(
             ticket: None,
             error: Some("Order has no lines".into()),
             fdm_connected: false,
+            fiscal_event_id: None,
+            delivery: None,
         });
     }
 
@@ -79,6 +113,8 @@ pub async fn do_checkout(
             ticket: None,
             error: Some("Order total must be greater than zero".into()),
             fdm_connected: false,
+            fiscal_event_id: None,
+            delivery: None,
         });
     }
 
@@ -91,8 +127,16 @@ pub async fn do_checkout(
             ticket: None,
             error: Some("Order already closed".into()),
             fdm_connected: false,
+            fiscal_event_id: None,
+            delivery: None,
         });
     }
+
+    // Ticket medium: refused choices stop here, before any signing.
+    let resolved = match delivery::resolve(delivery_request, &config, &state.mail) {
+        Ok(r) => r,
+        Err(e) => return Ok(CheckoutResult::refused(e)),
+    };
 
     // 2. RESERVE (peek, don't commit) the next sequence number.
     //
@@ -130,7 +174,7 @@ pub async fn do_checkout(
         CheckoutPaymentMethod::Card => PaymentType::CardDebit,
     };
 
-    let sale_input = build_sale_input(
+    let mut sale_input = build_sale_input(
         &config,
         &order,
         &entries,
@@ -140,6 +184,7 @@ pub async fn do_checkout(
         payment_total_cents,
         None, // no fdm_ref for normal sales
     );
+    sale_input.common.ticket_medium = resolved.medium;
 
     // 4. Serialize request for archival
     let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
@@ -165,6 +210,8 @@ pub async fn do_checkout(
                     ticket: None,
                     error: Some("FDM not connected — cannot complete transaction".into()),
                     fdm_connected: false,
+                    fiscal_event_id: None,
+                    delivery: None,
                 });
             }
         }
@@ -174,9 +221,56 @@ pub async fn do_checkout(
                 ticket: None,
                 error: Some(format!("FDM error: {e}")),
                 fdm_connected: true,
+                fiscal_event_id: None,
+                delivery: None,
             });
         }
     };
+
+    // 6. Build the fiscal ticket (display, print, email) before the
+    // commit: its email is queued in the same transaction.
+    let operator = super::operator_name(state, &order.user_insz);
+    let ticket = sign_result.as_ref().map(|result| {
+        let ticket_lines: Vec<TicketLine> = lines
+            .iter()
+            .map(|l| TicketLine {
+                quantity: l.quantity as f64,
+                description: l.name.clone(),
+                unit_price: l.unit_price_cents as f64 / 100.0,
+                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                vat_code: l.vat_code.as_str().to_string(),
+            })
+            .collect();
+
+        let payments = vec![TicketPayment {
+            method: match payment_method {
+                CheckoutPaymentMethod::Cash => "Cash".to_string(),
+                CheckoutPaymentMethod::Card => "Card".to_string(),
+            },
+            amount: payment_total_cents as f64 / 100.0,
+        }];
+
+        let rounding_eur = if rounding_cents != 0 {
+            Some(rounding_cents as f64 / 100.0)
+        } else {
+            None
+        };
+
+        FiscalTicket::from_sign_result(TicketParams {
+            result,
+            restaurant_name: &config.restaurant_name,
+            restaurant_address: &config.restaurant_address,
+            restaurant_vat: &config.restaurant_vat,
+            restaurant_est_no: &config.restaurant_est_no,
+            lines: ticket_lines,
+            payments,
+            total: order.total_cents as f64 / 100.0,
+            is_training: config.training_mode,
+            rounding: rounding_eur,
+            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+            operator: &operator,
+        })
+    });
 
     // 6-8. COMMIT counter + archive fiscal event + close order
     // ATOMICALLY in a single SQLite transaction.
@@ -190,7 +284,7 @@ pub async fn do_checkout(
     //   - `orders.status` flips to closed
     // If any of the three fails the whole tx rolls back, including
     // the counter advance — so no gap is ever observable.
-    {
+    let (event_id, delivery_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
 
@@ -254,78 +348,27 @@ pub async fn do_checkout(
             .map_err(|e| e.to_string())?;
         }
 
+        let delivery_id = delivery::enqueue_in_tx(&tx, event_id, &resolved, ticket.as_ref())?;
+
         tx.commit().map_err(|e| e.to_string())?;
-    }
+        (event_id, delivery_id)
+    };
 
-    // 7. Build fiscal ticket for display/print
-    let operator = super::operator_name(state, &order.user_insz);
-    let ticket = sign_result.as_ref().map(|result| {
-        let ticket_lines: Vec<TicketLine> = lines
-            .iter()
-            .map(|l| TicketLine {
-                quantity: l.quantity as f64,
-                description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                vat_code: l.vat_code.as_str().to_string(),
-            })
-            .collect();
-
-        let payments = vec![TicketPayment {
-            method: match payment_method {
-                CheckoutPaymentMethod::Cash => "Cash".to_string(),
-                CheckoutPaymentMethod::Card => "Card".to_string(),
-            },
-            amount: payment_total_cents as f64 / 100.0,
-        }];
-
-        let rounding_eur = if rounding_cents != 0 {
-            Some(rounding_cents as f64 / 100.0)
-        } else {
-            None
-        };
-
-        FiscalTicket::from_sign_result(TicketParams {
-            result,
-            restaurant_name: &config.restaurant_name,
-            restaurant_address: &config.restaurant_address,
-            restaurant_vat: &config.restaurant_vat,
-            restaurant_est_no: &config.restaurant_est_no,
-            lines: ticket_lines,
-            payments,
-            total: order.total_cents as f64 / 100.0,
-            is_training: config.training_mode,
-            rounding: rounding_eur,
-            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-            operator: &operator,
-        })
-    });
-
-    // 9. Auto-print receipt + open drawer for cash
-    if let Some(ref t) = ticket {
-        let printer_address = config.printer_address.clone();
-        if let Some(ref addr) = printer_address {
-            let receipt_data = pos_print::receipt::format_receipt(t);
-            match pos_print::transport::send_to_printer(addr, &receipt_data).await {
-                Ok(status) => {
-                    if !status.paper_ok {
-                        tracing::warn!(?status.warnings, "printer: paper issue after receipt");
-                    }
-                    if !status.cover_closed {
-                        tracing::warn!("printer: cover open after receipt");
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(%e, "receipt print failed (non-fatal)");
-                }
-            }
-
-            // Open cash drawer for cash payments
-            if matches!(payment_method, CheckoutPaymentMethod::Cash) {
-                let drawer_data = pos_print::drawer::kick_drawer_bytes();
-                let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
-            }
-        }
+    // 9. Print and/or email the ticket, then open the drawer for cash.
+    let delivery_outcome = delivery::deliver(
+        state,
+        &config,
+        event_id,
+        &resolved,
+        delivery_id,
+        ticket.as_ref(),
+    )
+    .await;
+    if matches!(payment_method, CheckoutPaymentMethod::Cash)
+        && let Some(ref addr) = config.printer_address
+    {
+        let drawer_data = pos_print::drawer::kick_drawer_bytes();
+        let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
     }
 
     // 10. Enqueue the completed order for async push to HubRise.
@@ -356,6 +399,8 @@ pub async fn do_checkout(
         ticket,
         error: None,
         fdm_connected,
+        fiscal_event_id: Some(event_id),
+        delivery: Some(delivery_outcome),
     })
 }
 

@@ -92,6 +92,7 @@ impl TestApp {
             training_mode: false,
             language: "fr".to_string(),
             backup_dir: None,
+            digital_ticket: None,
         };
 
         let state = AppState {
@@ -104,6 +105,7 @@ impl TestApp {
             #[cfg(feature = "hubrise")]
             shared_http: reqwest::Client::new(),
             shutdown_token: CancellationToken::new(),
+            mail: moyun_pos::commands::delivery::MailState::disabled(),
         };
 
         Self { state, fdm }

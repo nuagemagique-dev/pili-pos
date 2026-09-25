@@ -52,7 +52,7 @@ fn client_for(server: &MockServer) -> TemClient {
         "project-1",
         "secret",
         "from@example.com",
-        "Tokyo Sushi Bar",
+        "Restaurant Exemple",
         Duration::from_secs(5),
     )
 }
@@ -79,8 +79,14 @@ async fn send_now_succeeds_and_nulls_the_recipient() {
     let id = enqueue(&db, fe);
     let client = client_for(&server);
 
-    let outcome =
-        outbox::send_now(&db, &client, "Tokyo Sushi Bar", id, Duration::from_secs(5)).await;
+    let outcome = outbox::send_now(
+        &db,
+        &client,
+        "Restaurant Exemple",
+        id,
+        Duration::from_secs(5),
+    )
+    .await;
     assert_eq!(
         outcome,
         SendNowOutcome::Sent {
@@ -108,8 +114,14 @@ async fn send_now_on_failure_leaves_the_row_queued_for_retry() {
     let id = enqueue(&db, fe);
     let client = client_for(&server);
 
-    let outcome =
-        outbox::send_now(&db, &client, "Tokyo Sushi Bar", id, Duration::from_secs(5)).await;
+    let outcome = outbox::send_now(
+        &db,
+        &client,
+        "Restaurant Exemple",
+        id,
+        Duration::from_secs(5),
+    )
+    .await;
     assert_eq!(outcome, SendNowOutcome::Queued);
 
     let conn = db.lock().unwrap();
@@ -134,7 +146,14 @@ async fn send_now_on_permanent_error_gives_up_immediately() {
     let id = enqueue(&db, fe);
     let client = client_for(&server);
 
-    outbox::send_now(&db, &client, "Tokyo Sushi Bar", id, Duration::from_secs(5)).await;
+    outbox::send_now(
+        &db,
+        &client,
+        "Restaurant Exemple",
+        id,
+        Duration::from_secs(5),
+    )
+    .await;
 
     let conn = db.lock().unwrap();
     let row = deliveries::get(&conn, id).unwrap().unwrap();
@@ -167,14 +186,14 @@ async fn send_now_past_its_timeout_requeues_the_row_promptly() {
         "project-1",
         "secret",
         "from@example.com",
-        "Tokyo Sushi Bar",
+        "Restaurant Exemple",
         Duration::from_secs(10),
     );
 
     let outcome = outbox::send_now(
         &db,
         &client,
-        "Tokyo Sushi Bar",
+        "Restaurant Exemple",
         id,
         Duration::from_millis(50),
     )
@@ -194,8 +213,14 @@ async fn send_now_on_an_unknown_row_is_queued_without_panicking() {
     let server = MockServer::start().await;
     let db = test_db();
     let client = client_for(&server);
-    let outcome =
-        outbox::send_now(&db, &client, "Tokyo Sushi Bar", 999, Duration::from_secs(1)).await;
+    let outcome = outbox::send_now(
+        &db,
+        &client,
+        "Restaurant Exemple",
+        999,
+        Duration::from_secs(1),
+    )
+    .await;
     assert_eq!(outcome, SendNowOutcome::Queued);
 }
 
@@ -214,7 +239,7 @@ async fn run_once_retries_with_the_first_backoff_step_after_a_failure() {
     let id = enqueue(&db, fe);
     let client = client_for(&server);
 
-    let report = outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    let report = outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
     assert_eq!(report.retried, 1);
@@ -255,7 +280,7 @@ async fn run_once_does_not_retry_a_row_whose_backoff_has_not_elapsed() {
     }
 
     let client = client_for(&server);
-    let report = outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    let report = outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
     assert_eq!(report.sent, 0);
@@ -292,7 +317,7 @@ async fn run_once_gives_up_after_the_backoff_table_is_exhausted() {
         "still retryable before the last attempt"
     );
 
-    let report = outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    let report = outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
     assert_eq!(report.given_up, 1);
@@ -326,7 +351,7 @@ async fn run_once_purges_recipients_older_than_72h_regardless_of_status() {
     }
 
     let client = client_for(&server);
-    let report = outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    let report = outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
     assert_eq!(report.purged_recipients, 1);
@@ -352,7 +377,7 @@ async fn recipient_is_already_gone_immediately_after_a_successful_send() {
     let id = enqueue(&db, fe);
     let client = client_for(&server);
 
-    outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
 
@@ -387,7 +412,7 @@ async fn fallback_can_only_be_recorded_once_even_if_the_send_also_later_fails() 
     }
     // ...independently, the digital attempt (already in flight, or
     // retried later) still runs and gives up permanently.
-    outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
 
@@ -423,8 +448,8 @@ async fn two_concurrent_run_once_calls_send_the_row_exactly_once() {
     // same process — the DB layer's atomic `claim` is what prevents
     // the double-send, not any ordering `.await` gives us here.
     let (a, b) = tokio::join!(
-        outbox::run_once(&db, &client, "Tokyo Sushi Bar"),
-        outbox::run_once(&db, &client, "Tokyo Sushi Bar"),
+        outbox::run_once(&db, &client, "Restaurant Exemple"),
+        outbox::run_once(&db, &client, "Restaurant Exemple"),
     );
     let (a, b) = (a.unwrap(), b.unwrap());
     assert_eq!(a.sent + b.sent, 1);
@@ -459,7 +484,7 @@ async fn run_once_recovers_a_stuck_sending_row_and_then_retries_it() {
     }
 
     let client = client_for(&server);
-    let report = outbox::run_once(&db, &client, "Tokyo Sushi Bar")
+    let report = outbox::run_once(&db, &client, "Restaurant Exemple")
         .await
         .unwrap();
     assert_eq!(report.recovered_stale, 1);

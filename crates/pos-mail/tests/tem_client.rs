@@ -19,7 +19,7 @@ const SECRET: &str = "sk-super-secret-value-12345";
 fn sample_email() -> Email {
     Email {
         to: "customer@example.be".to_string(),
-        subject: "Votre ticket — Tokyo Sushi Bar".to_string(),
+        subject: "Votre ticket — Restaurant Exemple".to_string(),
         text: "TICKET DE CAISSE TVA\n...\nhttps://www.gs2.be/abc".to_string(),
         html: "<html><body>...</body></html>".to_string(),
         attachments: vec![Attachment {
@@ -37,8 +37,8 @@ fn client_for(server: &MockServer, timeout: Duration) -> TemClient {
         "fr-par",
         "11111111-1111-1111-1111-111111111111",
         SECRET,
-        "no-reply@tokyosushibarliege.be",
-        "Tokyo Sushi Bar",
+        "no-reply@restaurant-exemple.be",
+        "Restaurant Exemple",
         timeout,
     )
 }
@@ -102,9 +102,9 @@ async fn send_sets_the_auth_header_and_request_body_fields() {
 
     let body: serde_json::Value = req.body_json().unwrap();
     assert_eq!(body["to"][0]["email"], "customer@example.be");
-    assert_eq!(body["subject"], "Votre ticket — Tokyo Sushi Bar");
-    assert_eq!(body["from"]["email"], "no-reply@tokyosushibarliege.be");
-    assert_eq!(body["from"]["name"], "Tokyo Sushi Bar");
+    assert_eq!(body["subject"], "Votre ticket — Restaurant Exemple");
+    assert_eq!(body["from"]["email"], "no-reply@restaurant-exemple.be");
+    assert_eq!(body["from"]["name"], "Restaurant Exemple");
     assert_eq!(body["project_id"], "11111111-1111-1111-1111-111111111111");
     assert_eq!(body["attachments"][0]["name"], "ticket-qr.png");
     assert_eq!(body["attachments"][0]["type"], "image/png");

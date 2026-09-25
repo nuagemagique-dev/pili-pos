@@ -428,6 +428,29 @@ BEGIN
 END;
 "#;
 
+/// v6 — Original ticket prints (POS spec v2.2 §8.1: an original ticket
+/// is printed once; any later print is a copy, event C).
+///
+/// One row per fiscal event whose original was printed. The checkout,
+/// refund and copy commands record the print after the printer accepted
+/// it, and refuse to print that original again.
+pub(crate) const MIGRATION_006_ORIGINAL_PRINTS: &str = r#"
+CREATE TABLE IF NOT EXISTS original_prints (
+    fiscal_event_id INTEGER PRIMARY KEY REFERENCES fiscal_events(id),
+    printed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE TRIGGER IF NOT EXISTS original_prints_no_delete
+BEFORE DELETE ON original_prints
+BEGIN
+    SELECT RAISE(ABORT, 'original prints are append-only, never delete');
+END;
+CREATE TRIGGER IF NOT EXISTS original_prints_no_update
+BEFORE UPDATE ON original_prints
+BEGIN
+    SELECT RAISE(ABORT, 'original prints are append-only, never update');
+END;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;

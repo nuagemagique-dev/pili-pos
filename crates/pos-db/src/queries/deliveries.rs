@@ -204,12 +204,14 @@ pub fn mark_failed(
 /// Record that the paper fallback was printed for this delivery.
 /// Can only ever happen once per row — a second call errors instead
 /// of silently no-op-ing, so a caller bug (double-printing a fallback
-/// ticket) is never masked.
+/// ticket) is never masked. The email is no longer retried, so the
+/// recipient is cleared at once (GDPR).
 pub fn mark_fallback_printed(conn: &Connection, id: i64) -> Result<(), rusqlite::Error> {
     let changed = conn.execute(
         "UPDATE ticket_deliveries
          SET fallback_printed = 1,
              status = 'fallback_printed',
+             recipient = NULL,
              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          WHERE id = ?1 AND fallback_printed = 0",
         params![id],
@@ -520,6 +522,22 @@ mod tests {
         assert!(mark_fallback_printed(&conn, id).is_err());
         // Still just printed once.
         assert!(get(&conn, id).unwrap().unwrap().fallback_printed);
+    }
+
+    #[test]
+    fn mark_fallback_printed_clears_the_recipient_and_stops_retries() {
+        let conn = db();
+        let fe = fiscal_event(&conn, 1);
+        let id = enqueue(&conn, new_delivery(fe)).unwrap();
+        mark_fallback_printed(&conn, id).unwrap();
+        let row = get(&conn, id).unwrap().unwrap();
+        assert!(row.recipient.is_none());
+        assert!(!row.recipient_hint.is_empty(), "the masked hint is kept");
+        assert!(
+            due(&conn, "9999-12-31T00:00:00.000Z", 10)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     // ── purge_recipients_older_than (GDPR) ─────────────────────

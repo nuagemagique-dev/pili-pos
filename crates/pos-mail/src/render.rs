@@ -42,16 +42,12 @@ pub struct Email {
 pub struct RenderedTicket {
     pub email: Email,
     pub ticket_text: String,
-    pub verification_url: String,
+    /// Only N events carry one (POS spec v2.2 §2.4).
+    pub verification_url: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
-    /// POS spec §6.5: the digital ticket must carry the FDM
-    /// verification URL. A ticket the FDM didn't sign (or one built
-    /// before the FDM responded) has none — never send it digitally.
-    #[error("fiscal ticket has no verification URL, cannot build a digital ticket")]
-    MissingVerificationUrl,
     #[error("QR code generation failed: {0}")]
     Qr(#[from] QrError),
 }
@@ -74,24 +70,41 @@ const EMAIL_QR_MODULE_SIZE: u32 = 8;
 /// freshly-signed ticket (via [`build_email_for_ticket`]) and by the
 /// outbox rebuilding the email to retry a queued delivery from its
 /// persisted `ticket_deliveries` row.
+///
+/// The FDM returns a verification URL for N events only (POS spec
+/// v2.2 §2.4). With one, the email carries it as a link and as a QR
+/// code (§6.5); without one (copies C, training T), the email is the
+/// ticket text alone, like the paper ticket.
 pub fn build_email(
     restaurant_name: &str,
     to: &str,
     ticket_text: &str,
-    verification_url: &str,
+    verification_url: Option<&str>,
 ) -> Result<Email, RenderError> {
     let subject = format!("Votre ticket — {restaurant_name}");
-    let text = format!("{ticket_text}\n\n{verification_url}\n");
+    let pre = format!(
+        "<pre style=\"font-family: monospace, monospace; white-space: pre-wrap\">{}</pre>",
+        html_escape(ticket_text)
+    );
+    let Some(url) = verification_url.filter(|u| !u.is_empty()) else {
+        return Ok(Email {
+            to: to.to_string(),
+            subject,
+            text: format!("{ticket_text}\n"),
+            html: format!("<html><body>{pre}</body></html>"),
+            attachments: vec![],
+        });
+    };
+    let text = format!("{ticket_text}\n\n{url}\n");
     // The ticket text and the link are escaped independently: the
     // former goes in a <pre> text node, the latter both as the href
     // attribute value and as the link's own text.
     let html = format!(
-        "<html><body><pre style=\"font-family: monospace, monospace; white-space: pre-wrap\">{}</pre><p><a href=\"{url}\">{url}</a></p></body></html>",
-        html_escape(ticket_text),
-        url = html_escape(verification_url),
+        "<html><body>{pre}<p><a href=\"{url}\">{url}</a></p></body></html>",
+        url = html_escape(url),
     );
 
-    let qr_png = qr::generate_qr_png(verification_url, EMAIL_QR_MODULE_SIZE)?;
+    let qr_png = qr::generate_qr_png(url, EMAIL_QR_MODULE_SIZE)?;
 
     Ok(Email {
         to: to.to_string(),
@@ -115,12 +128,14 @@ pub fn build_email_for_ticket(
     restaurant_name: &str,
     to: &str,
 ) -> Result<RenderedTicket, RenderError> {
-    let verification_url = ticket
-        .verification_url
-        .clone()
-        .ok_or(RenderError::MissingVerificationUrl)?;
+    let verification_url = ticket.verification_url.clone();
     let ticket_text = render_ticket_text(ticket);
-    let email = build_email(restaurant_name, to, &ticket_text, &verification_url)?;
+    let email = build_email(
+        restaurant_name,
+        to,
+        &ticket_text,
+        verification_url.as_deref(),
+    )?;
     Ok(RenderedTicket {
         email,
         ticket_text,
@@ -183,7 +198,7 @@ mod tests {
         let result = mock_sign_result(EventLabel::N, verification_url);
         FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Tokyo Sushi Bar",
+            restaurant_name: "Restaurant Exemple",
             restaurant_address: "Rue Test 1",
             restaurant_vat: "BE0499999960",
             restaurant_est_no: "",
@@ -216,26 +231,37 @@ mod tests {
     // ── build_email_for_ticket ─────────────────────────────────
 
     #[test]
-    fn missing_verification_url_is_rejected() {
+    fn a_ticket_without_url_is_the_text_alone() {
+        // Copies (C) and training tickets (T) carry no verification URL.
         let ticket = ticket_with(vec![], None);
-        let err =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap_err();
-        assert!(matches!(err, RenderError::MissingVerificationUrl));
+        let rendered =
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
+        assert!(rendered.verification_url.is_none());
+        assert!(rendered.email.attachments.is_empty(), "no QR code");
+        assert!(!rendered.email.html.contains("<a "), "no link");
+        assert_eq!(rendered.email.text, format!("{}\n", rendered.ticket_text));
+    }
+
+    #[test]
+    fn an_empty_url_counts_as_none() {
+        let email = build_email("R", "customer@example.be", "TICKET", Some("")).unwrap();
+        assert!(email.attachments.is_empty());
+        assert!(!email.html.contains("<a "));
     }
 
     #[test]
     fn builds_the_subject_from_restaurant_name() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
-        assert_eq!(rendered.email.subject, "Votre ticket — Tokyo Sushi Bar");
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
+        assert_eq!(rendered.email.subject, "Votre ticket — Restaurant Exemple");
     }
 
     #[test]
     fn sets_the_recipient() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         assert_eq!(rendered.email.to, "customer@example.be");
     }
 
@@ -243,16 +269,21 @@ mod tests {
     fn text_body_contains_the_receipt_and_the_link() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         assert!(rendered.email.text.contains("Saumon roll x8"));
-        assert!(rendered.email.text.contains(&rendered.verification_url));
+        assert!(
+            rendered
+                .email
+                .text
+                .contains(rendered.verification_url.as_deref().unwrap())
+        );
         // Link must appear on its own plain-text line (POS spec §6.5).
         assert!(
             rendered
                 .email
                 .text
                 .lines()
-                .any(|line| line.trim() == rendered.verification_url)
+                .any(|line| Some(line.trim()) == rendered.verification_url.as_deref())
         );
     }
 
@@ -260,11 +291,12 @@ mod tests {
     fn html_body_contains_the_receipt_and_a_real_anchor() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         assert!(rendered.email.html.contains("Saumon roll x8"));
         assert!(rendered.email.html.contains(&format!(
             "<a href=\"{}\">{}</a>",
-            rendered.verification_url, rendered.verification_url
+            rendered.verification_url.as_deref().unwrap(),
+            rendered.verification_url.as_deref().unwrap()
         )));
         assert!(rendered.email.html.contains("<pre"));
     }
@@ -282,7 +314,7 @@ mod tests {
             Some("https://www.gs2.be/1234567890abcdefghi012345678901234"),
         );
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         // The raw tag must never appear unescaped in the HTML body...
         assert!(!rendered.email.html.contains("<b>&"));
         // ...but the escaped form must be present.
@@ -299,7 +331,7 @@ mod tests {
         );
         let ticket = FiscalTicket::from_sign_result(TicketParams {
             result: &result,
-            restaurant_name: "Tokyo Sushi Bar",
+            restaurant_name: "Restaurant Exemple",
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
@@ -312,7 +344,7 @@ mod tests {
             operator: "Marie",
         });
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         assert!(rendered.email.text.contains("TRAINING"));
         assert!(rendered.email.html.contains("TRAINING"));
     }
@@ -321,7 +353,7 @@ mod tests {
     fn qr_attachment_is_a_valid_png_encoding_the_verification_url() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         assert_eq!(rendered.email.attachments.len(), 1);
         let attachment = &rendered.email.attachments[0];
         assert_eq!(attachment.name, "ticket-qr.png");
@@ -335,7 +367,7 @@ mod tests {
     fn no_pdf_attachment_is_ever_produced() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
         assert!(
             rendered
                 .email
@@ -351,15 +383,15 @@ mod tests {
     fn build_email_from_stored_primitives_matches_build_email_for_ticket() {
         let ticket = sample_ticket();
         let rendered =
-            build_email_for_ticket(&ticket, "Tokyo Sushi Bar", "customer@example.be").unwrap();
+            build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
 
         // Simulates the outbox retrying from a `ticket_deliveries` row:
         // only ticket_text + verification_url survive, no FiscalTicket.
         let rebuilt = build_email(
-            "Tokyo Sushi Bar",
+            "Restaurant Exemple",
             "customer@example.be",
             &rendered.ticket_text,
-            &rendered.verification_url,
+            rendered.verification_url.as_deref(),
         )
         .unwrap();
 

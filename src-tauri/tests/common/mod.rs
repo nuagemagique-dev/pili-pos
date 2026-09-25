@@ -18,9 +18,12 @@
 // different subset of it, so per-binary dead-code analysis misfires.
 #![allow(dead_code)]
 
+pub mod devices;
 pub mod fixtures;
 pub mod harness;
 
+#[allow(unused_imports)]
+pub use devices::*;
 #[allow(unused_imports)]
 pub use fixtures::*;
 #[allow(unused_imports)]

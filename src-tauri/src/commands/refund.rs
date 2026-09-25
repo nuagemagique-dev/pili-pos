@@ -11,6 +11,7 @@ use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::checkout::CheckoutResult;
+use crate::commands::delivery::{self, TicketDeliveryRequest};
 use crate::state::AppState;
 
 /// One item to refund (sent from the frontend). Price, VAT label,
@@ -54,12 +55,14 @@ pub async fn refund_checkout(
     original_fiscal_event_id: i64,
     items: Vec<RefundItem>,
     employee_insz: String,
+    delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
-    do_refund_checkout(
+    do_refund_checkout_with(
         state.inner(),
         original_fiscal_event_id,
         items,
         employee_insz,
+        delivery.as_ref(),
     )
     .await
 }
@@ -70,12 +73,25 @@ pub async fn do_refund_checkout(
     items: Vec<RefundItem>,
     employee_insz: String,
 ) -> Result<CheckoutResult, String> {
+    do_refund_checkout_with(state, original_fiscal_event_id, items, employee_insz, None).await
+}
+
+/// [`do_refund_checkout`] with the operator's ticket choice.
+pub async fn do_refund_checkout_with(
+    state: &AppState,
+    original_fiscal_event_id: i64,
+    items: Vec<RefundItem>,
+    employee_insz: String,
+    delivery_request: Option<&TicketDeliveryRequest>,
+) -> Result<CheckoutResult, String> {
     if items.is_empty() {
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
             error: Some("No items to refund".into()),
             fdm_connected: false,
+            fiscal_event_id: None,
+            delivery: None,
         });
     }
 
@@ -197,8 +213,14 @@ pub async fn do_refund_checkout(
         FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
+    // Ticket medium: refused choices stop here, before any signing.
+    let resolved = match delivery::resolve(delivery_request, &config, &state.mail) {
+        Ok(r) => r,
+        Err(e) => return Ok(CheckoutResult::refused(e)),
+    };
+
     // 4. Build SaleInput with negative lines + original fdm_ref
-    let sale_input = build_sale_input(
+    let mut sale_input = build_sale_input(
         &config,
         &refund_order,
         &refund_lines,
@@ -208,6 +230,7 @@ pub async fn do_refund_checkout(
         refund_order.total_cents, // negative
         Some(&original_ref),
     );
+    sale_input.common.ticket_medium = resolved.medium;
 
     let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
@@ -229,6 +252,8 @@ pub async fn do_refund_checkout(
                     ticket: None,
                     error: Some("FDM not connected — cannot process refund".into()),
                     fdm_connected: false,
+                    fiscal_event_id: None,
+                    delivery: None,
                 });
             }
         }
@@ -238,12 +263,50 @@ pub async fn do_refund_checkout(
                 ticket: None,
                 error: Some(format!("FDM error: {e}")),
                 fdm_connected: true,
+                fiscal_event_id: None,
+                delivery: None,
             });
         }
     };
 
+    // 5b. Build the fiscal ticket before the commit: its email is
+    // queued in the same transaction.
+    let operator = super::operator_name(state, &refund_order.user_insz);
+    let ticket = sign_result.as_ref().map(|result| {
+        let ticket_lines: Vec<TicketLine> = refund_lines
+            .iter()
+            .map(|l| TicketLine {
+                quantity: l.quantity as f64,
+                description: l.name.clone(),
+                unit_price: l.unit_price_cents as f64 / 100.0,
+                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                vat_code: l.vat_code.as_str().to_string(),
+            })
+            .collect();
+
+        let payments = vec![TicketPayment {
+            method: "Cash".to_string(),
+            amount: refund_order.total_cents as f64 / 100.0,
+        }];
+
+        FiscalTicket::from_sign_result(TicketParams {
+            result,
+            restaurant_name: &config.restaurant_name,
+            restaurant_address: &config.restaurant_address,
+            restaurant_vat: &config.restaurant_vat,
+            restaurant_est_no: &config.restaurant_est_no,
+            lines: ticket_lines,
+            payments,
+            total: refund_order.total_cents as f64 / 100.0,
+            is_training: config.training_mode,
+            rounding: None,
+            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+            operator: &operator,
+        })
+    });
+
     // 6. COMMIT counter + archive + close refund order atomically.
-    {
+    let (event_id, delivery_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
 
@@ -298,53 +361,25 @@ pub async fn do_refund_checkout(
             .map_err(|e| e.to_string())?;
         }
 
+        let delivery_id = delivery::enqueue_in_tx(&tx, event_id, &resolved, ticket.as_ref())?;
+
         tx.commit().map_err(|e| e.to_string())?;
-    }
+        (event_id, delivery_id)
+    };
 
-    // 7. Build fiscal ticket for display/print
-    let operator = super::operator_name(state, &refund_order.user_insz);
-    let ticket = sign_result.as_ref().map(|result| {
-        let ticket_lines: Vec<TicketLine> = refund_lines
-            .iter()
-            .map(|l| TicketLine {
-                quantity: l.quantity as f64,
-                description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                vat_code: l.vat_code.as_str().to_string(),
-            })
-            .collect();
-
-        let payments = vec![TicketPayment {
-            method: "Cash".to_string(),
-            amount: refund_order.total_cents as f64 / 100.0,
-        }];
-
-        FiscalTicket::from_sign_result(TicketParams {
-            result,
-            restaurant_name: &config.restaurant_name,
-            restaurant_address: &config.restaurant_address,
-            restaurant_vat: &config.restaurant_vat,
-            restaurant_est_no: &config.restaurant_est_no,
-            lines: ticket_lines,
-            payments,
-            total: refund_order.total_cents as f64 / 100.0,
-            is_training: config.training_mode,
-            rounding: None,
-            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-            operator: &operator,
-        })
-    });
-
-    // 8. Auto-print REFUND receipt + open drawer
-    if let Some(ref t) = ticket
+    // 8. Print and/or email the REFUND ticket, then open the drawer.
+    let delivery_outcome = delivery::deliver(
+        state,
+        &config,
+        event_id,
+        &resolved,
+        delivery_id,
+        ticket.as_ref(),
+    )
+    .await;
+    if ticket.is_some()
         && let Some(ref addr) = config.printer_address
     {
-        let receipt_data = pos_print::receipt::format_receipt(t);
-        if let Err(e) = pos_print::transport::send_to_printer(addr, &receipt_data).await {
-            tracing::warn!(%e, "refund receipt print failed (non-fatal)");
-        }
-        // Open drawer for cash refund
         let drawer_data = pos_print::drawer::kick_drawer_bytes();
         let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
     }
@@ -354,6 +389,8 @@ pub async fn do_refund_checkout(
         ticket,
         error: None,
         fdm_connected,
+        fiscal_event_id: Some(event_id),
+        delivery: Some(delivery_outcome),
     })
 }
 

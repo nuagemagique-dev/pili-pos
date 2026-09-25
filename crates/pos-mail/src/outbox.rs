@@ -228,7 +228,7 @@ async fn attempt_send(
         restaurant_name,
         &recipient,
         &row.ticket_text,
-        row.verification_url.as_deref().unwrap_or_default(),
+        row.verification_url.as_deref(),
     ) {
         Ok(email) => email,
         Err(e) => {
@@ -400,7 +400,7 @@ mod tests {
             let conn = db.lock().unwrap();
             deliveries::get(&conn, id).unwrap().unwrap()
         };
-        let outcome = attempt_send(&db, &unreachable_client(), "Tokyo Sushi Bar", &row).await;
+        let outcome = attempt_send(&db, &unreachable_client(), "Restaurant Exemple", &row).await;
         assert!(matches!(outcome, AttemptOutcome::GivenUp));
 
         let conn = db.lock().unwrap();

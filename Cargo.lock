@@ -2426,6 +2426,7 @@ dependencies = [
  "pos-fiscal",
  "pos-hubrise",
  "pos-hubrise-types",
+ "pos-mail",
  "pos-peppol",
  "pos-print",
  "reqwest 0.12.28",

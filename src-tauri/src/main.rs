@@ -75,7 +75,6 @@ fn main() {
     let poller_db = app_state.poller_db.clone();
     #[cfg(feature = "hubrise")]
     let shared_http = app_state.shared_http.clone();
-    #[cfg(feature = "hubrise")]
     let shutdown_for_setup = app_state.shutdown_token.clone();
     let shutdown_for_window = app_state.shutdown_token.clone();
 
@@ -83,6 +82,28 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(app_state)
         .setup(move |_app| {
+            // Digital ticket outbox: retries queued emails and clears
+            // addresses after 72 h. Runs in every build; it does
+            // nothing when no email client is configured.
+            {
+                use tauri::Manager;
+                let handle = _app.handle().clone();
+                let cancel = shutdown_for_setup.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut tick =
+                        tokio::time::interval(commands::delivery::OUTBOX_INTERVAL);
+                    loop {
+                        tokio::select! {
+                            _ = cancel.cancelled() => return,
+                            _ = tick.tick() => {
+                                let state = handle.state::<AppState>();
+                                commands::delivery::run_outbox_once(state.inner()).await;
+                            }
+                        }
+                    }
+                });
+            }
+
             // The HubRise poller, outbox, and healthcheck all live in
             // this block; the certification build (no `hubrise` feature)
             // ships a kiosk with no background HTTP workers at all.
@@ -206,6 +227,10 @@ fn main() {
         // Checkout
         commands::checkout::checkout,
         commands::checkout::check_fdm_status,
+        // Ticket delivery (paper / email)
+        commands::delivery::check_mail_status,
+        commands::delivery::list_ticket_deliveries,
+        commands::delivery::print_missing_original,
         // Print
         commands::print::print_receipt,
         commands::print::open_drawer,
@@ -273,6 +298,10 @@ fn main() {
         // Checkout
         commands::checkout::checkout,
         commands::checkout::check_fdm_status,
+        // Ticket delivery (paper / email)
+        commands::delivery::check_mail_status,
+        commands::delivery::list_ticket_deliveries,
+        commands::delivery::print_missing_original,
         // Print (no webshop_* commands in the cert build)
         commands::print::print_receipt,
         commands::print::open_drawer,

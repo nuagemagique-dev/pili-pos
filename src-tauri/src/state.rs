@@ -32,6 +32,8 @@ pub struct AppState {
     #[cfg(feature = "hubrise")]
     pub shared_http: reqwest::Client,
     pub shutdown_token: CancellationToken,
+    /// Digital ticket email client (disabled when not configured).
+    pub mail: crate::commands::delivery::MailState,
 }
 
 impl AppState {
@@ -70,6 +72,7 @@ impl AppState {
         let poller_conn = Connection::open(&db_path)?;
 
         let config = Self::load_config()?;
+        let mail = crate::commands::delivery::MailState::from_config(&config);
 
         #[cfg(feature = "hubrise")]
         let shared_http = reqwest::Client::builder()
@@ -84,6 +87,7 @@ impl AppState {
             #[cfg(feature = "hubrise")]
             shared_http,
             shutdown_token: CancellationToken::new(),
+            mail,
         })
     }
 

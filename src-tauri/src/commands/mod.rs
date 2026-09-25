@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod checkout;
 pub mod copy;
+pub mod delivery;
 pub mod financial;
 #[cfg(feature = "hubrise")]
 pub mod hubrise;
@@ -91,6 +92,17 @@ pub(crate) fn commit_signed_event(
     config: &pos_core::config::PosConfig,
     event: SignedEvent<'_>,
 ) -> Result<i64, String> {
+    commit_signed_event_then(state, config, event, |_, _| Ok(())).map(|(id, ())| id)
+}
+
+/// [`commit_signed_event`], running `then` (given the new event's id)
+/// inside the same transaction — e.g. to queue its email delivery.
+pub(crate) fn commit_signed_event_then<T>(
+    state: &AppState,
+    config: &pos_core::config::PosConfig,
+    event: SignedEvent<'_>,
+    then: impl FnOnce(&rusqlite::Connection, i64) -> Result<T, String>,
+) -> Result<(i64, T), String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
     let committed =
@@ -130,6 +142,7 @@ pub(crate) fn commit_signed_event(
         pos_db::queries::orders::mark_order_entries_sent(&tx, order_id, last_entry_id, id)
             .map_err(|e| e.to_string())?;
     }
+    let extra = then(&tx, id)?;
     tx.commit().map_err(|e| e.to_string())?;
-    Ok(id)
+    Ok((id, extra))
 }

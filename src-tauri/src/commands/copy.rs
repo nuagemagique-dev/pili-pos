@@ -7,6 +7,7 @@ use pos_fiscal::response::FdmReference;
 use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::EventLabel;
 
+use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -14,6 +15,24 @@ use crate::state::AppState;
 pub struct CopyResult {
     pub success: bool,
     pub error: Option<String>,
+    /// The copy ticket, when the original event had an order to show.
+    pub ticket: Option<FiscalTicket>,
+    /// Archive id of the signed C event.
+    pub fiscal_event_id: Option<i64>,
+    /// How the copy reached the customer (paper and/or email).
+    pub delivery: Option<DeliveryOutcome>,
+}
+
+impl CopyResult {
+    fn failed(error: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            error: Some(error.into()),
+            ticket: None,
+            fiscal_event_id: None,
+            delivery: None,
+        }
+    }
 }
 
 /// Create a copy (event C) of a previous fiscal event.
@@ -23,14 +42,31 @@ pub async fn copy_ticket(
     state: State<'_, AppState>,
     fiscal_event_id: i64,
     employee_insz: String,
+    delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CopyResult, String> {
-    do_copy_ticket(state.inner(), fiscal_event_id, employee_insz).await
+    do_copy_ticket_with(
+        state.inner(),
+        fiscal_event_id,
+        employee_insz,
+        delivery.as_ref(),
+    )
+    .await
 }
 
 pub async fn do_copy_ticket(
     state: &AppState,
     fiscal_event_id: i64,
     employee_insz: String,
+) -> Result<CopyResult, String> {
+    do_copy_ticket_with(state, fiscal_event_id, employee_insz, None).await
+}
+
+/// [`do_copy_ticket`] with the operator's ticket choice.
+pub async fn do_copy_ticket_with(
+    state: &AppState,
+    fiscal_event_id: i64,
+    employee_insz: String,
+    delivery_request: Option<&TicketDeliveryRequest>,
 ) -> Result<CopyResult, String> {
     // 1. Load the original event
     let (original_ref, config, bp_id) = {
@@ -80,108 +116,117 @@ pub async fn do_copy_ticket(
         (fdm_ref, config, bp)
     };
 
+    // Ticket medium: refused choices stop here, before any signing.
+    let resolved = match delivery::resolve(delivery_request, &config, &state.mail) {
+        Ok(r) => r,
+        Err(e) => return Ok(CopyResult::failed(e)),
+    };
+
+    // The original order, for the copy's lines. Events without an
+    // order (reports, cash movements) have no ticket body to show.
+    let original_order = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
+            .ok()
+            .flatten()
+            .and_then(|e| e.order_id)
+            .and_then(|oid| {
+                let order = pos_db::queries::orders::get_order(&db, oid).ok()?;
+                let lines = pos_db::queries::orders::get_order_lines(&db, oid).ok()?;
+                Some((order, lines))
+            })
+    };
+    let operator = super::operator_name(state, &employee_insz);
+
     // 2. RESERVE (peek, don't commit) the sequence number for the copy
     // event. Same sign-then-commit pattern as every other fiscal
-    // command (see `commands/mod.rs::commit_signed_event`): allocating
-    // via `FiscalCounter::next` here, before the FDM round-trip, used
-    // to advance the C counter even when `sign_copy` below failed —
-    // creating a permanent gap in the C sequence. Peeking defers the
-    // commit until after the FDM has signed.
+    // command (see `commands/mod.rs::commit_signed_event`): the C
+    // counter only advances once the FDM has signed, so a refused or
+    // unreachable FDM leaves no gap in the C sequence.
     let label = EventLabel::C.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, label)?;
 
     // 3. Build and send copy event
-    let copy_input = build_copy_input(
+    let mut copy_input = build_copy_input(
         &config,
         ticket_number,
         &employee_insz,
         &bp_id,
         &original_ref,
     );
+    copy_input.common.ticket_medium = resolved.medium;
     let request_json = serde_json::to_string(&copy_input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_copy(copy_input, config.training_mode).await;
+    let result = match fdm.sign_copy(copy_input, config.training_mode).await {
+        Ok(result) => result,
+        Err(e) => return Ok(CopyResult::failed(format!("FDM error: {e}"))),
+    };
 
-    match sign_result {
-        Ok(result) => {
-            // Commit the counter + archive atomically, then load print
-            // data under a single DB lock, then DROP the lock before
-            // any async I/O (the printer send) — required because
-            // MutexGuard is not Send.
-            let print_data = {
-                super::commit_signed_event(
-                    state,
-                    &config,
-                    super::SignedEvent {
-                        label,
-                        ticket_number,
-                        order_id: None,
-                        user_insz: &employee_insz,
-                        request_json: &request_json,
-                        sign_result: &result,
-                        sent_entries: None,
-                    },
-                )?;
-
-                let db = state.db.lock().map_err(|e| e.to_string())?;
-                // Load the original order for the copy receipt.
-                let evt = pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
-                    .ok()
-                    .flatten();
-                evt.and_then(|e| e.order_id).and_then(|oid| {
-                    let order = pos_db::queries::orders::get_order(&db, oid).ok()?;
-                    let lines = pos_db::queries::orders::get_order_lines(&db, oid).ok()?;
-                    Some((order, lines))
-                })
-            }; // db lock dropped here
-
-            // Best-effort print — no async I/O under the lock.
-            if let Some((order, lines)) = print_data {
-                let operator = super::operator_name(state, &employee_insz);
-                let ticket_lines: Vec<TicketLine> = lines
-                    .iter()
-                    .map(|l| TicketLine {
-                        quantity: l.quantity as f64,
-                        description: l.name.clone(),
-                        unit_price: l.unit_price_cents as f64 / 100.0,
-                        total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                        vat_code: l.vat_code.as_str().to_string(),
-                    })
-                    .collect();
-                let ticket = FiscalTicket::from_sign_result(TicketParams {
-                    result: &result,
-                    restaurant_name: &config.restaurant_name,
-                    restaurant_address: &config.restaurant_address,
-                    restaurant_vat: &config.restaurant_vat,
-                    restaurant_est_no: &config.restaurant_est_no,
-                    lines: ticket_lines,
-                    payments: vec![TicketPayment {
-                        method: "—".to_string(),
-                        amount: order.total_cents as f64 / 100.0,
-                    }],
-                    total: order.total_cents as f64 / 100.0,
-                    is_training: config.training_mode,
-                    rounding: None, // copies don't re-round
-                    lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-                    operator: &operator,
-                });
-                if let Some(ref addr) = config.printer_address {
-                    let data = pos_print::receipt::format_receipt(&ticket);
-                    let _ = pos_print::transport::send_to_printer(addr, &data).await;
-                }
-            }
-
-            Ok(CopyResult {
-                success: true,
-                error: None,
+    let ticket = original_order.map(|(order, lines)| {
+        let ticket_lines: Vec<TicketLine> = lines
+            .iter()
+            .map(|l| TicketLine {
+                quantity: l.quantity as f64,
+                description: l.name.clone(),
+                unit_price: l.unit_price_cents as f64 / 100.0,
+                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+                vat_code: l.vat_code.as_str().to_string(),
             })
-        }
-        Err(e) => Ok(CopyResult {
-            success: false,
-            error: Some(format!("FDM error: {e}")),
-        }),
-    }
+            .collect();
+        FiscalTicket::from_sign_result(TicketParams {
+            result: &result,
+            restaurant_name: &config.restaurant_name,
+            restaurant_address: &config.restaurant_address,
+            restaurant_vat: &config.restaurant_vat,
+            restaurant_est_no: &config.restaurant_est_no,
+            lines: ticket_lines,
+            payments: vec![TicketPayment {
+                method: "—".to_string(),
+                amount: order.total_cents as f64 / 100.0,
+            }],
+            total: order.total_cents as f64 / 100.0,
+            is_training: config.training_mode,
+            rounding: None, // copies don't re-round
+            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+            operator: &operator,
+        })
+    });
+
+    // Commit the counter + archive + the email row atomically, then
+    // print/send with no lock held.
+    let (event_id, delivery_id) = super::commit_signed_event_then(
+        state,
+        &config,
+        super::SignedEvent {
+            label,
+            ticket_number,
+            order_id: None,
+            user_insz: &employee_insz,
+            request_json: &request_json,
+            sign_result: &result,
+            sent_entries: None,
+        },
+        |tx, event_id| delivery::enqueue_in_tx(tx, event_id, &resolved, ticket.as_ref()),
+    )?;
+
+    let outcome = delivery::deliver(
+        state,
+        &config,
+        event_id,
+        &resolved,
+        delivery_id,
+        ticket.as_ref(),
+    )
+    .await;
+
+    Ok(CopyResult {
+        success: true,
+        error: None,
+        ticket,
+        fiscal_event_id: Some(event_id),
+        delivery: Some(outcome),
+    })
 }
 
 /// List recent fiscal events for copy selection.
