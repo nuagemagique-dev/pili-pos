@@ -30,7 +30,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe, en cours de finalisation - bloc C de l'audit). Couvre les 22 UC Basic Set + 5 UC Reports avec JSON request, JSON response et ticket pour chaque UC. |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe, en cours de finalisation - bloc C de l'audit). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
 
 ## §I.C Manuels du POS
 
@@ -134,7 +134,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | Item | Réponse |
 |---|---|
 | ☑ Les agents SPF peuvent accéder/copier les données pertinentes | Procédure documentée dans `FEUILLE_ACQUISITION_DONNEES_FR.md`. Le fichier SQLite `pos.db` est copiable directement (lecture seule pour l'auditeur). |
-| ☑ URL, nom d'utilisateur et mot de passe | Compte SPF pré-créé sur la machine de test au rendez-vous d'admission : login `spf`, mot de passe communiqué sur place (mot de passe simple acceptable selon Manuel d'intro §V). Accès à la DB via SSH ou console locale + `sqlite3 /var/lib/moyun-pos/pos.db`. |
+| ☑ URL, nom d'utilisateur et mot de passe | Compte SPF pré-créé sur la machine de test au rendez-vous d'admission : login `spf`, mot de passe communiqué sur place (mot de passe simple acceptable selon Manuel d'intro §V). Accès à la DB via la **console de maintenance locale** de l'appareil + `sqlite3 /var/lib/moyun-pos/pos.db`. Il n'y a **pas de serveur SSH** sur le POS (appliance scellée, cf. §II.E) ; aucun accès distant à la base n'est possible. |
 | ☐ Les données exportées doivent être converties | Non. SQLite est lisible directement par tout outil standard (DB Browser for SQLite, sqlite3 CLI, etc.). Aucune conversion nécessaire. |
 | ☐ Les scripts/programmes de conversion sont fournis | Non applicable (cf. ligne précédente). |
 
@@ -151,10 +151,11 @@ Le producteur est également importateur et distributeur (configuration mono-act
 
 L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build déployée chez chaque client est garantie par :
 
-1. **Build reproductible.** `Cargo.lock` est commité dans le dépôt. `rust-toolchain.toml` épingle la version exacte du compilateur (Rust 1.95.0). La commande de build est documentée et figée :
+1. **Build reproductible.** `Cargo.lock` est commité dans le dépôt. `rust-toolchain.toml` épingle la version exacte du compilateur (Rust 1.96.0). La commande de build est documentée et figée :
    ```
-   cargo build --release --no-default-features --features cert
+   deploy/build-release.sh --docker
    ```
+   (construit dans un conteneur Debian 12 linux/amd64, cf. `deploy/build-release.sh` ; équivalent natif : `cargo build --release --no-default-features --features cert` sur une machine Debian 12 x86_64.)
 2. **Empreinte SHA-1 du binaire.** Le script `scripts/build_and_hash.sh` produit le SHA-1 du binaire à chaque build et le consigne. Le SHA-1 déclaré au formulaire §I.D est vérifiable sur toute installation cliente via :
    ```
    sha1sum /opt/moyun-pos/moyun-pos
@@ -303,7 +304,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 
 | Item | Réponse |
 |---|---|
-| ☑ La déconnexion du FDM est expliquée | *Voir : STRATEGIE_COMPTEURS_FR.md* §4 "Blocage opérationnel sur déconnexion" et *DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §5. Résumé : (a) le POS détecte l'erreur **immédiatement** au prochain appel `FdmClient::status` ou `sign_*` (pas seulement quand une transaction échoue) ; (b) une modale UI bloquante s'affiche, le checkout est refusé tant que le FDM n'est pas opérationnel ; (c) si une transaction a été envoyée mais aucune réponse n'a été reçue, la transaction SQLite locale est rollback : aucun compteur n'avance, aucune ligne `fiscal_events` n'est écrite, l'opérateur peut retenter avec idempotence (cf. STRATEGIE_COMPTEURS_FR.md §3 et §5 fix B3). |
+| ☑ La déconnexion du FDM est expliquée | *Voir : STRATEGIE_COMPTEURS_FR.md* §4 "Blocage opérationnel sur déconnexion" et *DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §5. Résumé : (a) le POS détecte l'erreur **immédiatement** au prochain appel `FdmClient::status` ou `sign_*` (pas seulement quand une transaction échoue) ; (b) une modale UI bloquante s'affiche, le checkout est refusé tant que le FDM n'est pas opérationnel ; (c) si une transaction a été envoyée mais aucune réponse n'a été reçue, la transaction SQLite locale est rollback : aucun compteur n'avance, aucune ligne `fiscal_events` n'est écrite, l'opérateur peut retenter avec idempotence (cf. STRATEGIE_COMPTEURS_FR.md §3 et §5 fix B3). Mécanisme applicatif : `commands/mod.rs::commit_signed_event` est le **seul** point d'écriture dans `fiscal_events` - il avance le compteur et archive l'événement dans une seule transaction SQLite, et n'est appelé qu'après réception d'une signature FDM valide (`SignResult`). Un échec de signature (FDM injoignable, refusé, timeout) retourne une erreur à l'appelant sans jamais atteindre `commit_signed_event` : pas d'avance de compteur, pas d'archive non signée. |
 
 ## §III.A (suite) Events possibles
 
@@ -314,7 +315,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 | S - Social | Obligatoire (☑) | N/A | N/A | N/A |
 | P - Pro Forma | ☑ | ☑ | ☐ (pas en MVP) | ☑ (via M161 signCopy_Order) |
 | T - Mode Training | ☑ | ☑ (avec watermark TRAINING) | ☐ | ☑ (via M172 signCopy_Training) |
-| I - Invoice | ☑ (implémenté côté pos-fiscal pour l'usage B2B Peppol) | ☑ | ☑ (PDF généré pour envoi Peppol) | ☐ (pas en MVP) |
+| I - Invoice | ☐ non disponible en v1.0.0 (mise à jour certifiée prévue v1.1) | ☐ | ☐ | ☐ |
 | C - Copy | ☑ (M160/M161/M172) | ☑ | ☐ | Interdit (par la spec) |
 | F - Financial | ☑ (M130 money_in_out, M131 drawer_open) | ☐ (events F sont non-imprimés en standard) | ☐ | ☐ |
 
@@ -335,9 +336,42 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 
 **Enregistrement zéro :**
 
-Un enregistrement sans ligne de produit (transactionTotal = 0) n'est pas généré par le flux opérateur standard, parce que l'UI n'autorise pas le checkout d'un ordre vide. Toutefois, la couche `pos-fiscal` accepte techniquement un `SaleInput` avec `transactionLines: []` et `transactionTotal: 0` - aucune protection serveur-side ne l'empêche. Cette situation ne s'est jamais matérialisée en pratique pendant les tests.
+Un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, est **techniquement impossible** à produire avec `moyun-pos` v1.0.0 : la garde n'est pas seulement une omission de l'UI, elle est appliquée côté serveur (Rust), dans la couche `src-tauri/src/commands`, avant tout appel au FDM :
 
-**Déclaration formelle :** un enregistrement zéro **n'est jamais possible via l'UI** dans le flux opérateur normal. Le code FDM-side accepte techniquement un payload total=0 si le code applicatif l'émet, mais aucun chemin d'UI n'y mène.
+- `commands/checkout.rs` : rejette la commande si `lines.is_empty()` (aucune ligne de produit) et rejette explicitement tout total non strictement positif - message `"Order total must be greater than zero"`.
+- `commands/tables.rs` (signature d'un Pro Forma / d'une commande de table) : rejette de la même façon `lines.is_empty()`.
+- `commands/refund.rs` : rejette le remboursement si `items.is_empty()` (aucune ligne à rembourser).
+
+Ces trois gardes s'exécutent avant toute construction de payload FDM ; aucun `SaleInput`/`OrderInput` à zéro ligne ou à total nul/négatif n'est donc jamais soumis au FDM.
+
+**Déclaration formelle :** un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, **n'est jamais possible** avec `moyun-pos` v1.0.0, ni via l'UI opérateur, ni via la couche applicative (garde serveur-side dans `checkout.rs`, `tables.rs` et `refund.rs`, cf. ci-dessus).
+
+**Journal de commande (`order_entries`) :** chaque ajout, correction ou
+remboursement de ligne sur une commande ouverte est journalisé dans la
+table append-only `order_entries` (`crates/pos-db`, triggers SQL qui
+bloquent tout `DELETE`/`UPDATE` des champs journalisés), avec un
+`kind` parmi `entry` / `correction` / `refund` - conforme à
+l'exigence POS v2.2 §2 "toutes les données d'entrée, par ordre
+chronologique, y compris les corrections". `order_lines` reste la vue
+consolidée affichée/imprimée. Les entrées non encore transmises sont
+envoyées au FDM comme événement **P** (`sign_table_order`,
+"vente interrompue") lorsque l'opérateur quitte une table avec une
+commande non payée, ou dans son intégralité dans l'événement **N**
+final à l'encaissement ; `sent_event_id` marque l'entrée comme
+transmise, en excluant tout double-comptage. Les lignes à quantité
+négative portent `negQuantityReason` (`crates/pos-fiscal`) :
+`CORRECTION` dans les événements P (commande / pré-addition -
+réduction avant encaissement) et `CORRECTION` ou `REFUND` dans
+l'événement N final selon qu'une vente d'origine est référencée ou
+non (`event.rs::reason`).
+
+**Bouton "Addition" (pré-addition, événement P) :** `sign_pre_bill`
+imprime la facture consolidée au format PRO FORMA ("addition
+provisoire", POS v2.2 §1.4). Comme une pré-addition ne peut ni
+ajouter ni modifier de lignes, la commande enregistre d'abord les
+entrées de journal en attente via `sign_table_order` (même flux que
+ci-dessus), puis signe et imprime la pré-addition à partir des lignes
+consolidées.
 
 ## §III.E Enregistrement de la présence
 
@@ -381,8 +415,8 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Division de table | ☐ | - | Idem |
 | Division d'addition (parts égales) | ☐ | - | Idem |
 | Division d'addition (montants égaux) | ☐ | - | Idem |
-| Invoice (I) | ☑ (Peppol B2B) | UC150 | Implémenté côté pos-fiscal ; flux UI complet planifié post-cert avec câblage AP Peppol *Voir : DECISION_PEPPOL_AP_FR.md* |
-| Note de crédit | ☐ | - | Reporté avec Peppol (cf. *FLUX_REMBOURSEMENT_FR.md* §3) |
+| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol"]`, voir `src-tauri/Cargo.toml`). Mise à jour certifiée prévue v1.1 *Voir : DECISION_PEPPOL_AP_FR.md* |
+| Note de crédit | ☐ | - | Reporté avec Peppol / event I (cf. *FLUX_REMBOURSEMENT_FR.md* §3) |
 | Copy (C) | ☑ | M160 | OK |
 | Training (T) | ☑ | M171 | OK |
 | Gestion des cash flows | ☑ | M130 | OK |
@@ -412,22 +446,20 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Gestion des clients | ☐ | - | B2C, pas de base clients |
 | Réduction membre | ☐ | - | Idem |
 | Mensualités | ☐ | - | Idem |
-| Prix libre / "prix du jour" | ☐ | - | Hors MVP (le prix vient toujours du menu) |
+| Prix libre / "prix du jour" | ☑ | - | Implémenté : colonne `menu_items.open_price` ; le produit `22010` ("Plat du jour") du seed de certification est marqué `open_price = 1`, le prix est saisi par l'opérateur à l'ajout au lieu du prix catalogue. |
 | Prix au poids | ☐ | - | Pas de balance |
 | Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix |
 | Autres | ☐ | - | - |
 
 ### Remarque importante - facturation B2B Peppol
 
-À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Le POS `moyun-pos` se conforme à cette réglementation :
+À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Cette obligation est **hors périmètre de la build cert v1.0.0** de `moyun-pos` :
 
-- **Sérialiseur UBL** intégré (crate `pos-peppol` du workspace). Génère du UBL 2.1 BIS Billing 3.0 conforme.
-- **Trait `AccessPoint`** abstrait, avec deux implémentations : `LoggingAccessPoint` (no-op cert build, conserve UBL pour audit) et `StorecoveAccessPoint` (squelette de production).
-- **Au déploiement en production**, le distributeur câble l'AP Storecove (achat opérateur en cours - voir *DECISION_PEPPOL_AP_FR.md*) et bascule la factory.
-- **Table d'audit** `peppol_deliveries` dans le schéma (append-only, même règle de rétention que `fiscal_events`).
-- **Feature flag** `peppol` activé par défaut et inclus dans la build cert.
+- **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active ni `peppol` ni `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
+- **Table d'audit** `peppol_deliveries` existe dans le schéma pour une activation future, mais n'est alimentée par aucun flux en v1.0.0.
+- **Mise à jour certifiée prévue v1.1** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
 
-L'émission de factures B2B est désactivée en production tant que le câblage AP n'est pas finalisé (`LoggingAccessPoint` retourne `Ok(synthetic_receipt)` pour permettre les répétitions, mais aucun envoi réel à Peppol). Cette désactivation est levée par configuration une fois l'AP en place.
+**En attendant v1.1**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `moyun-pos`**, via l'outil de comptabilité/facturation du restaurant. `moyun-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
 
 ## §III.G CostCenterChange (Gestion de Table)
 
@@ -550,11 +582,16 @@ Récap mappings UC <-> commande Tauri <-> test :
 | M182 | signReportUserX | `report::generate_user_x_report` | `spf_e2e_reports::m182_*` |
 | M184 (Z combiné) | signReportTurnoverZ + signReportUserZ (un document) | `report::generate_z_report` | `spf_e2e_reports::m184_*` |
 
+La ligne M150 ci-dessus décrit la couverture de test (code + e2e réels,
+sous les features par défaut) ; elle n'implique pas que l'événement I
+soit disponible dans la build cert v1.0.0 soumise - voir §III.F et
+*DECISION_PEPPOL_AP_FR.md*.
+
 ---
 
 # §V - COMPORTEMENT DU POS AUX RÉPONSES DU FDM
 
-**Statut implémentation :** le composant Vue `ui/src/components/FdmStatus.vue` mappe 8 codes FDM vers des messages FR et les affiche dans une pilule du bandeau (rouge / jaune / vert). Le sondage du status FDM (`FdmClient::status`) tourne en arrière-plan toutes les 30 secondes.
+**Statut implémentation :** le composant Vue `ui/src/components/FdmStatus.vue` mappe **21 codes FDM** vers des messages FR (constante `ERROR_MESSAGES`) et les affiche dans une pilule du bandeau (rouge / jaune / vert), plus un repli générique pour les erreurs de connexion (mots-clés `connect`/`timeout`) et un repli générique final pour tout code non listé. Le sondage du status FDM (`FdmClient::status`) tourne en arrière-plan toutes les 30 secondes. Les textes ci-dessous sont recopiés **mot pour mot** depuis le code source (source de vérité) ; toute divergence future entre ce tableau et `FdmStatus.vue` doit être résolue en faveur du code.
 
 **Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.7). Les **captures d'écran** de l'UI restent à produire (bloc B2, `CAPTURES_ECRAN_RUNBOOK_FR.md`).
 
@@ -562,15 +599,15 @@ Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 
 | Code | Nature | Affichage requis | Affichage moyun-pos | Capture |
 |---|---|---|---|---|
-| CLIENT_CERT_NEAR_EXPIRATION | Warning | O | ☑ (mappé dans FdmStatus.vue, message "Le certificat du client expire dans moins de 4 mois") | À fournir |
-| CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé, message "Le certificat du client a expiré - contactez le SPF Finances") | JSON : `evidence/fdm_errors/CLIENT_CERT_EXPIRED_*.json` ; écran à fournir |
+| CLIENT_CERT_NEAR_EXPIRATION | Warning | O | ☑ (mappé « Le certificat de la boîte noire expire bientôt. ») | À fournir |
+| CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé « Le certificat de la boîte noire a expiré. Contactez votre technicien. ») | JSON : `evidence/fdm_errors/CLIENT_CERT_EXPIRED_*.json` ; écran à fournir |
 | RTC_SYNC_FAILED | Warning | O | ☑ (mappé « L'horloge de la boîte noire n'a pas pu se synchroniser. ») | JSON : `evidence/fdm_errors/RTC_SYNC_FAILED_*.json` |
 | UPDATE_URLS_FAILED | Warning | O | ☑ (mappé « Mise à jour des URLs de la boîte noire échouée. ») | - |
 | UPDATE_TRUST_CERT_FAILED | Warning | O | ☑ (mappé « Mise à jour des certificats de confiance échouée. ») | - |
 | UPDATE_TASK_LIST_FAILED | Warning | O | ☑ (mappé « Téléchargement des tâches FDM échoué. ») | - |
 | TASK_FEEDBACK_FAILED | Warning | O | ☑ (mappé « La boîte noire n'a pas pu signaler le résultat d'une tâche. ») | - |
 | NOP_FAILED | Warning | O | ☑ (mappé « Communication intermédiaire avec la boîte noire échouée. ») | - |
-| BUFFER_NEAR_FULL | Warning | M | ☑ (mappé "Le buffer FDM est presque plein. Programmez une connexion Internet stable.") | JSON : `evidence/fdm_errors/BUFFER_NEAR_FULL_*.json` ; écran à fournir |
+| BUFFER_NEAR_FULL | Warning | M | ☑ (mappé « La boîte noire est presque pleine. Programmez une intervention. ») | JSON : `evidence/fdm_errors/BUFFER_NEAR_FULL_*.json` ; écran à fournir |
 | SERVER_CERT_RESOLVE_FAILED | Warning | O | ☑ (mappé « Impossible de résoudre le certificat du serveur FDM. ») | - |
 | TRANSACTION_UPLOAD_FAILED | Warning | O | ☑ (mappé « La boîte noire échoue à transmettre les transactions au SPF Finances. ») | - |
 | INITIALIZATION_FAILED | Warning | O | ☑ (mappé « L'initialisation de la boîte noire a échoué. ») | - |
@@ -581,16 +618,18 @@ Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 | UPDATE_VAT_RATES_FAILED | Warning | N | - | - |
 | UPDATE_POS_ALLOWLIST_FAILED | Warning | N | - | - |
 | DUPLICATE_REQUEST | Warning | N | - | - |
-| BUFFER_FULL | Erreur | M | ☑ (mappé "La boîte noire est pleine. Contactez votre technicien.") + modale bloquante au checkout | JSON : `evidence/fdm_errors/BUFFER_FULL_*.json` ; écran à fournir |
-| FDM_LOCKED | Erreur | M | ☑ (mappé "Le FDM est verrouillé. Contactez votre technicien.") + modale bloquante | JSON : `evidence/fdm_errors/FDM_LOCKED_*.json` ; écran à fournir |
+| BUFFER_FULL | Erreur | M | ☑ (mappé « La boîte noire est pleine. Contactez votre technicien. ») + modale bloquante au checkout | JSON : `evidence/fdm_errors/BUFFER_FULL_*.json` ; écran à fournir |
+| FDM_LOCKED | Erreur | M | ☑ (mappé « La boîte noire est verrouillée. Contactez votre technicien. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_LOCKED_*.json` ; écran à fournir |
 | TOO_MANY_MEMORY_ERRORS | Erreur | N | - | - |
-| UNAUTHORIZED | Erreur | O | ☑ (mappé "Le POS n'est pas autorisé à parler à ce FDM. Vérifiez la configuration.") | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; écran à fournir |
-| INVALID_REQUEST | Erreur | O | ☑ (mappé via la pilule status FDM, message "Erreur de communication FDM. Contactez votre technicien.") | À fournir |
-| INTERNAL_ERROR | Erreur | O | ☑ (mappé idem) | À fournir |
-| UNDEFINED_ERROR | Erreur | O | ☑ (mappé idem) | À fournir |
-| UNDEFINED_OTHER | Erreur | O | ☑ (mappé via "Erreur FDM" générique) | À fournir |
-| FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé "La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes.") + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran à fournir |
-| UNKNOWN_POS | Erreur | M | ☑ (mappé "Ce POS n'est pas enregistré sur ce FDM. Vérifiez la configuration.") | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran à fournir |
+| UNAUTHORIZED | Erreur | O | ☑ (mappé « La caisse n'est pas autorisée à parler à la boîte noire. ») | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; écran à fournir |
+| INVALID_REQUEST | Erreur | O | ☑ (mappé « Erreur de communication avec la boîte noire. Contactez votre technicien. ») | À fournir |
+| INTERNAL_ERROR | Erreur | O | ☑ (mappé « Erreur technique de la boîte noire. Contactez votre technicien. ») | À fournir |
+| UNDEFINED_ERROR | Erreur | O | ☑ (mappé « Erreur indéfinie de la boîte noire. Contactez votre technicien. ») | À fournir |
+| UNDEFINED_OTHER | Erreur | O | ☑ (mappé « Erreur de la boîte noire. Contactez votre technicien. ») | À fournir |
+| FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran à fournir |
+| UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran à fournir |
+
+En complément des 21 codes ci-dessus, `FdmStatus.vue` affiche deux messages génériques non listés dans la spec §V : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » (si le message brut contient `connect`/`timeout`) et « Erreur boîte noire. Contactez votre technicien. » (repli final pour tout code FDM non reconnu par le mapping ci-dessus) - ceci garantit qu'aucune erreur FDM ne s'affiche jamais sans message FR compréhensible par l'opérateur.
 
 **☐ Le test a été effectué et le JSON ainsi que les captures d'écran ont été ajoutés** - JSON ajoutés (`evidence/fdm_errors/`, 8 codes × 4 fichiers) ; case à cocher après les captures d'écran du bloc B2.
 
@@ -600,7 +639,7 @@ Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 
 ## Contenu obligatoire du ticket TVA
 
-Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EXEMPLES_FR.md* (à reformater avec ce tableau coché - bloc A4 de `GAP_AUDIT_FR.md`).
+Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EXEMPLES_FR.md* pour les exemples de tickets et le tableau de conformité coché.
 
 | Élément | N | N Refund | P | C | T | Autres (cuisine) |
 |---|---|---|---|---|---|---|
@@ -651,9 +690,9 @@ Les libellés FR proviennent de la description détaillée POS v2.2 et du tablea
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté fiscal : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes — forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I (e2e `spf_e2e_basic::m150_*`). L'UI complète + le câblage AP Peppol sont planifiés post-cert. Au rendez-vous d'admission, la livraison Peppol est démontrable mais limitée au flux `LoggingAccessPoint` (no-op cert-friendly).
+*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes — forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
 
-Les 11 éléments obligatoires (a-k) sur la facture seront cochés une fois le flux UI complet (post-cert, version 0.2.0).
+Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de mise à jour v1.1, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
 
 ---
 
@@ -748,8 +787,8 @@ Liste des fichiers à inclure dans le ZIP de soumission :
 | 10 | FLUX_DONNEES_FR.pdf | §II.C + §III |
 | 11 | SCHEMA_BD_FR.pdf | §II.C |
 | 12 | SECURITE_BD_FR.pdf | §II.C |
-| 13 | SCHEMA_ER_FR.pdf | §II.C (à produire - bloc A3) |
-| 14 | SCHEMA_ASSEMBLAGE_FR.pdf | §I.C + §II.G (à produire - bloc A2) |
+| 13 | SCHEMA_ER_FR.pdf | §II.C |
+| 14 | SCHEMA_ASSEMBLAGE_FR.pdf | §I.C + §II.G |
 | 15 | LISTE_FONCTIONNALITES_FR.pdf | §III |
 | 16 | LIGNES_PRODUITS_FR.pdf | §III.N |
 | 17 | STRATEGIE_COMPTEURS_FR.pdf | §III.B + §III.F |

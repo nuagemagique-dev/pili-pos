@@ -1,9 +1,14 @@
 # E-facturation B2B Peppol - Décision d'Access Point et déploiement
 
 **État à la date de soumission (2026-05-14) :** Sérialiseur UBL +
-abstraction AccessPoint implémentés et couverts par tests unitaires.
-Aucun AP live n'est câblé dans l'image kiosk - l'étape d'achat côté
-opérateur est suivie ici.
+abstraction AccessPoint implémentés et couverts par tests unitaires,
+mais **non activés dans la build de certification v1.0.0**
+(`cargo build --release --no-default-features --features cert`
+n'active pas le feature flag `peppol` - voir `src-tauri/Cargo.toml`).
+L'événement fiscal **I (Invoice)** n'est donc pas disponible en
+v1.0.0. L'e-facturation B2B Peppol est planifiée comme **mise à jour
+certifiée v1.1**, suivant la procédure officielle de mise à jour
+(REPONSES_MANUEL_CERT_FR.md §II.E).
 
 ## Contexte réglementaire
 
@@ -23,13 +28,20 @@ Les établissements HoReCa ciblés par moyun-pos sont massivement B2C
 typiquement quand un client entreprise commande un plateau à
 emporter.
 
-Le dossier de certification déclare donc Peppol comme :
+Le dossier de certification déclare donc Peppol / l'événement I
+comme :
 
-> **Dans le périmètre, prêt au câblage.** La génération UBL 2.1
-> BIS Billing 3.0 est implémentée et testée contre un jeu d'échantillons
-> interne. Le transport AS4 est délégué à un Peppol Access Point ; le
-> choix de l'AP et l'enregistrement du Peppol endpoint-ID sont des
+> **Hors périmètre v1.0.0, mise à jour certifiée prévue v1.1.** La
+> génération UBL 2.1 BIS Billing 3.0 est implémentée et testée contre
+> un jeu d'échantillons interne, mais le feature flag `peppol` n'est
+> pas activé dans la build cert soumise. Le transport AS4 sera délégué
+> à un Peppol Access Point lors de la mise à jour v1.1 ; le choix de
+> l'AP et l'enregistrement du Peppol endpoint-ID resteront des
 > formalités côté opérateur indépendantes de la revue SCE-2.0.
+>
+> **En attendant v1.1**, les factures B2B de l'établissement sont
+> émises en dehors de `moyun-pos`, via son outil de
+> comptabilité/facturation.
 
 ## Candidats Access Point
 
@@ -39,8 +51,8 @@ Le dossier de certification déclare donc Peppol comme :
 | **Unifiedpost** | REST | Sur contrat | Oui | Acteur plus important, onboarding plus enterprise. |
 | **Doccle** | REST | Sur contrat | Oui | Belge, orienté B2C-friendly. |
 
-**Recommandation :** **Storecove** pour le premier déploiement - API
-REST la plus simple, onboarding le plus rapide, prix par facture
+**Recommandation :** **Storecove** pour le premier déploiement v1.1 -
+API REST la plus simple, onboarding le plus rapide, prix par facture
 compatible avec le volume attendu d'un restaurant (< 5 factures B2B
 par mois).
 
@@ -74,9 +86,12 @@ rétention que `fiscal_events`). Colonnes : `fiscal_event_id`,
 `ubl_xml`, `ap_response_json`, `status` (queued / accepted / failed),
 `error_msg`, `created_at`, `accepted_at`.
 
-Feature flag : `peppol` (default-on, inclus dans la build `cert`).
+Feature flag : `peppol` (existe dans le workspace, **non activé** dans
+la build `cert` v1.0.0 - `cert = ["custom-protocol"]` dans
+`src-tauri/Cargo.toml`. Sera activé pour la mise à jour certifiée
+v1.1).
 
-## Plan de déploiement (côté opérateur, post-cert)
+## Plan de déploiement (côté opérateur, pour la mise à jour v1.1)
 
 1. **Enregistrer le Peppol endpoint-ID de l'établissement.** Le TVA
    belge utilise le schéma `0208` (numéro d'entreprise BCE, 10 chiffres
@@ -100,19 +115,20 @@ Feature flag : `peppol` (default-on, inclus dans la build `cert`).
    Storecove, vérifier que la ligne `peppol_deliveries` transitionne
    queued → accepted.
 
-## Pourquoi cela est acceptable pour la soumission cert
+## Pourquoi ce report est acceptable pour la soumission cert
 
 - L'obligation Peppol est **séparée** de SCE-2.0 - la revue
-  certification SPF Finances porte sur le flux FDM/POS, pas sur le
-  transport AS4.
-- L'UBL est **entièrement généré** aujourd'hui ; seul le câblage HTTP
-  vers l'AP reste, gardé derrière un feature flag et des credentials
-  explicites.
-- La table d'audit `peppol_deliveries` est dans le schéma, prête à
-  recevoir des lignes le jour où l'AP est câblé.
+  certification SPF Finances porte sur le flux FDM/POS (events
+  N/P/T/C/F/S/R), pas sur le transport AS4 ni sur l'événement I.
+- L'UBL est **déjà généré et testé** au niveau du code ; seul le
+  câblage HTTP vers l'AP et l'activation du feature flag `peppol`
+  restent à faire pour la mise à jour v1.1.
+- La table d'audit `peppol_deliveries` est déjà dans le schéma, prête
+  à recevoir des lignes le jour où l'AP est câblé et le flag activé.
 - Le périmètre déclaré dans le formulaire de demande cert est
-  "E-facturation B2B Peppol : dans le périmètre, achat d'AP en
-  cours" - pleinement véridique.
+  "E-facturation B2B Peppol : NON, prévu v1.1" - pleinement véridique
+  et vérifiable (`nm moyun-pos | grep -c pos_peppol` → `0` sur le
+  binaire cert v1.0.0).
 
 ## Risques
 

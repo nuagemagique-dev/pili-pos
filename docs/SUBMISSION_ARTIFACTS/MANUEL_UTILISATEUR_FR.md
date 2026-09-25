@@ -13,7 +13,7 @@ connexion, prise de commande, encaissement, rapports, mode formation.
 5. Envoi en cuisine et pré-ticket
 6. Encaissement (vente normale)
 7. Copie de ticket
-8. Remboursement et correction
+8. Remboursement
 9. Rapports X et Z
 10. Mode formation
 11. Mouvements de caisse
@@ -235,7 +235,7 @@ litige...) :
 La copie s'imprime, marquée "**COPIE - pas un original**". Un
 nouvel événement C est signé par le FDM et lié au ticket original.
 
-## 8. Remboursement et correction
+## 8. Remboursement
 
 ### Remboursement complet (M111)
 
@@ -258,18 +258,6 @@ Pour rembourser **certains items** d'un ticket :
 
 Le remboursement est un **événement fiscal séparé** ; le ticket
 original reste intact.
-
-### Correction de paiement (M132)
-
-Pour corriger une erreur de mode de paiement (le client a payé carte
-mais on a tapé espèces) :
-
-1. **Menu → Historique tickets**.
-2. Sélectionner le ticket.
-3. "Corriger mode de paiement".
-
-À utiliser **avant** la clôture Z de la journée. Au-delà, un
-remboursement + nouvelle vente est nécessaire.
 
 ## 9. Rapports X et Z
 

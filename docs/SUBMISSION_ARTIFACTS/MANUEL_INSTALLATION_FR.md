@@ -196,7 +196,7 @@ installé sur l'image précisément pour cette étape) :
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
   "restaurant_est_no": "1234567890",
-  "fdm_url": "http://192.168.1.20/graphql",
+  "fdm_url": "http://192.168.1.20:8080/graphql",
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,
   "language": "fr",
@@ -264,7 +264,7 @@ Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :
 
 Adresses IP statiques recommandées (subnet `192.168.1.0/24`) :
 - POS : `192.168.1.10`
-- FDM : `192.168.1.20`
+- FDM : `192.168.1.20:8080` (port §4.2 ci-dessus)
 - Imprimante : `192.168.1.30:9100`
 
 (Réservations DHCP sur le routeur, cf. `SCHEMA_ASSEMBLAGE_FR.md` §4.)
