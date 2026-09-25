@@ -108,7 +108,11 @@ fn write_example(name: &str, ticket: &FiscalTicket) {
     let text = render_plain_text(&format_receipt(ticket));
     // Only N tickets carry the FDM's QR code and short signature (§2.4).
     let is_n = ticket.fdm_ref.as_ref().map(|r| r.event_label) == Some(EventLabel::N);
-    assert_eq!(text.contains("[QR"), is_n, "{name}: QR code only on N tickets");
+    assert_eq!(
+        text.contains("[QR"),
+        is_n,
+        "{name}: QR code only on N tickets"
+    );
     if let Some(sig) = &ticket.short_signature {
         assert_eq!(sig.len(), 40, "{name}: short signature is a SHA-1 in hex");
         assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
