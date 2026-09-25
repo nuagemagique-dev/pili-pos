@@ -106,12 +106,12 @@ maintenance initiale, le distributeur :
 {
   "pos_id": "CFOD0061234567",
   "terminal_id": "POS1",
-  "device_id": "DEV001",
+  "device_id": "AA:BB:CC:DD:EE:01",
   "restaurant_name": "Restaurant Exemple",
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
   "restaurant_est_no": "1234567890",
-  "fdm_url": "http://192.168.1.20/graphql",
+  "fdm_url": "http://192.168.1.20:8080/graphql",
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,
   "language": "fr",
@@ -125,7 +125,7 @@ Champs :
 |---|---|---|
 | `pos_id` | Identifiant POS 14 caractères (commence par `C`). Attribué par le SPF Finances à la certification. | SPF Finances |
 | `terminal_id` | ID du terminal physique. Libre, en général `POS1`, `POS2`... | Distributeur |
-| `device_id` | ID du device. Libre. | Distributeur |
+| `device_id` | Adresse MAC du terminal, format `AA:BB:CC:DD:EE:FF` (imprimée sur le ticket, manuel §VI ligne VII - cf. `crates/pos-fiscal/src/ticket.rs`). | Distributeur |
 | `restaurant_name` | Nom commercial du restaurant tel qu'apparaît sur le ticket | Client |
 | `restaurant_address` | Adresse complète | Client |
 | `restaurant_vat` | Numéro de TVA belge format `BE0XXXXXXXXX` | Client |
@@ -179,7 +179,7 @@ Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :
 
 Adresses IP statiques recommandées (subnet `192.168.1.0/24`) :
 - POS : `192.168.1.10`
-- FDM : `192.168.1.20`
+- FDM : `192.168.1.20:8080` (port §4.2 ci-dessus)
 - Imprimante : `192.168.1.30:9100`
 
 (Réservations DHCP sur le routeur, cf. `SCHEMA_ASSEMBLAGE_FR.md` §4.)
