@@ -380,7 +380,13 @@ pub async fn do_sign_invoice_fiscal(
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
         let committed = FiscalCounter::next(&tx, EventLabel::I).map_err(|e| e.to_string())?;
-        debug_assert_eq!(committed, ticket_number, "I counter drifted");
+        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        if committed != ticket_number {
+            return Err(format!(
+                "counter drifted between peek and commit for I (peeked {ticket_number}, \
+                 committed {committed}) — likely a concurrent invoice sign; retry"
+            ));
+        }
         let id = archive::archive_event(
             &tx,
             ArchiveParams {
