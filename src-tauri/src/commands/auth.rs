@@ -14,6 +14,13 @@ pub fn login(
     insz: String,
     pin: Option<String>,
 ) -> Result<User, String> {
+    do_login(state.inner(), insz, pin)
+}
+
+/// Inner implementation of [`login`], decoupled from Tauri's `State`
+/// wrapper so integration tests can drive it directly (same pattern as
+/// every other command module's `do_*` functions).
+pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<User, String> {
     if !pos_core::user::validate_insz(&insz) {
         return Err("INSZ invalide".to_string());
     }
@@ -52,6 +59,10 @@ pub struct CreateUserInput {
 
 #[tauri::command]
 pub fn create_user(state: State<'_, AppState>, input: CreateUserInput) -> Result<User, String> {
+    do_create_user(state.inner(), input)
+}
+
+pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, String> {
     if !pos_core::user::validate_insz(&input.insz) {
         return Err("INSZ invalide".to_string());
     }
@@ -66,6 +77,10 @@ pub fn create_user(state: State<'_, AppState>, input: CreateUserInput) -> Result
 /// before storage — the plaintext never hits the DB.
 #[tauri::command]
 pub fn set_pin(state: State<'_, AppState>, insz: String, new_pin: String) -> Result<(), String> {
+    do_set_pin(state.inner(), insz, new_pin)
+}
+
+pub fn do_set_pin(state: &AppState, insz: String, new_pin: String) -> Result<(), String> {
     if new_pin.len() != 4 || !new_pin.chars().all(|c| c.is_ascii_digit()) {
         return Err("PIN must be exactly 4 digits".to_string());
     }
