@@ -225,8 +225,6 @@ function defaultHandlers(): Record<string, Handler> {
     }),
 
     // Print
-    print_receipt: () => undefined,
-    open_drawer: () => undefined,
     check_printer: () => false,
     print_webshop_kitchen: () => undefined,
     print_webshop_customer: () => undefined,

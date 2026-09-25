@@ -82,14 +82,12 @@ export function createUser(input: {
 }
 
 // Print
-export function printReceipt(ticket: FiscalTicket): Promise<void> {
-  return invoke("print_receipt", { ticket });
-}
-
-export function openDrawer(): Promise<void> {
-  return invoke("open_drawer");
-}
-
+// print_receipt and open_drawer are no longer registered IPC commands:
+// removed as SCE 2.0 loopholes (print_receipt let a screen print a
+// second ORIGINAL, and open_drawer opened the drawer without a signed
+// F event). The only way to print an original is
+// print_missing_original; the drawer only opens via
+// open_drawer_fiscal, or backend-side on cash sales/refunds.
 export function checkPrinter(): Promise<boolean> {
   return invoke("check_printer");
 }
