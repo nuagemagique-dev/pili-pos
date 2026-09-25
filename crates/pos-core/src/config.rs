@@ -82,7 +82,7 @@ impl Default for PosConfig {
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),
-            restaurant_name: "Tokyo Sushi Bar".to_string(),
+            restaurant_name: "Restaurant Exemple".to_string(),
             restaurant_address: String::new(),
             restaurant_vat: String::new(),
             restaurant_est_no: String::new(),

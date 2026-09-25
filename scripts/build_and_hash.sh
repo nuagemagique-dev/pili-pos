@@ -4,7 +4,8 @@
 #
 # Implements the five steps declared in
 # docs/SUBMISSION_ARTIFACTS/GARANTIE_MAJ_LANGUES_FR.md §1.2:
-#   1. Compile the certification build (no hubrise, peppol on).
+#   1. Compile the certification build (no hubrise, no peppol; UI
+#      bundle built with VITE_FEATURE_HUBRISE=false).
 #   2. Verify the binary contains no third-party-integration symbols.
 #   3. Verify the source contains no DELETE/UPDATE on fiscal_events.
 #   4. Compute SHA-1, SHA-256 and MD5 of the binary.
@@ -25,8 +26,13 @@ REPORT="$PROJECT_ROOT/build_info_${STAMP}.txt"
 echo "── 1/5 Certification build ──────────────────────────────"
 # A plain `cargo build` does not run tauri.conf.json's beforeBuildCommand:
 # build the UI bundle first so it gets embedded (`custom-protocol`,
-# pulled in by the `cert` feature).
-(cd ui && npm ci && npm run build)
+# pulled in by the `cert` feature). VITE_FEATURE_HUBRISE=false drops the
+# webshop views, strings and assets from the bundle.
+(cd ui && npm ci && VITE_FEATURE_HUBRISE=false npm run build)
+if grep -rliE "hubrise|webshop" ui/dist; then
+    echo "✗ UI bundle still contains webshop code (files above)"
+    exit 1
+fi
 (cd src-tauri && cargo build --release --no-default-features --features cert)
 [[ -f "$BINARY" ]] || { echo "✗ binary not found: $BINARY"; exit 1; }
 
@@ -94,6 +100,7 @@ Checks
   pos_hubrise symbols ............ 0
   pos_peppol symbols ............. 0
   hubrise endpoint strings ....... none
+  webshop code in UI bundle ...... none
   fiscal_events DELETE/UPDATE .... none in source
 REPORT_EOF
 

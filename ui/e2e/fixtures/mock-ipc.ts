@@ -165,10 +165,7 @@ function defaultHandlers(): Record<string, Handler> {
     get_settings: () => ({
       posId: 'CFOD0061234567',
       terminalId: 'POS1',
-      deviceId: 'DEV001',
-      restaurantName: 'Tokyo Sushi Bar',
-      restaurantAddress: 'Rue Test 1, 1000 Bruxelles',
-      restaurantVat: 'BE0499999960',
+      restaurantName: 'Restaurant Exemple',
       fdmUrl: 'http://localhost:8081/graphql',
       printerAddress: null,
       trainingMode: false,

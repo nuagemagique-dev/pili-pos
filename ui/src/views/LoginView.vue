@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { usePosStore } from "../stores/pos";
 import { useToastStore } from "../stores/toast";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
@@ -9,6 +10,7 @@ import { useI18n } from "../i18n";
 
 const router = useRouter();
 const auth = useAuthStore();
+const pos = usePosStore();
 const toast = useToastStore();
 const { t } = useI18n();
 
@@ -123,7 +125,7 @@ async function submitInsz() {
 
 <template>
   <div class="login">
-    <h1 class="title">Tokyo Sushi Bar</h1>
+    <h1 class="title">{{ pos.settings?.restaurantName || "moyun-pos" }}</h1>
 
     <p v-if="error" class="error-msg shake">{{ error }}</p>
 

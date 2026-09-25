@@ -123,8 +123,8 @@ impl AppState {
             pos_id: "CFOD0061234567".to_string(),
             terminal_id: "POS1".to_string(),
             device_id: "DEV001".to_string(),
-            restaurant_name: "Tokyo Sushi Bar".to_string(),
-            restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
+            restaurant_name: "Restaurant Exemple".to_string(),
+            restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
             restaurant_vat: "BE0499999960".to_string(),
             fdm_url: "http://localhost:8081/graphql".to_string(),
             ..Default::default()

@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { defineAsyncComponent, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { usePosStore } from "../stores/pos";
 import { useMenuStore } from "../stores/menu";
 import type { AppLanguage } from "../stores/pos";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
-import type { HubriseConnectionInfo } from "../api/ipc";
 import { useI18n } from "../i18n";
+import { HUBRISE_ENABLED } from "../features";
+
+// Folded at build time so the cert build drops the HubRise panel (see
+// OrderView for why this is not a template v-if).
+const HubriseSettings = HUBRISE_ENABLED
+  ? defineAsyncComponent(() => import("../components/HubriseSettings.vue"))
+  : null;
 const { t } = useI18n();
 
 const router = useRouter();
@@ -52,66 +57,9 @@ async function switchLanguage(lang: AppLanguage) {
   await menu.reloadWithLanguage();
 }
 
-// ── HubRise connection ─────────────────────────────────────────────
-const hubriseStatus = ref<HubriseConnectionInfo | null>(null);
-const hubriseCode = ref("");
-const hubriseError = ref<string | null>(null);
-const hubriseLoading = ref(false);
-
-async function loadHubriseStatus() {
-  try {
-    hubriseStatus.value = await ipc.hubriseGetConnectionStatus();
-  } catch (e) {
-    hubriseError.value = String(e);
-  }
-}
-
-async function connectHubrise() {
-  hubriseError.value = null;
-  hubriseLoading.value = true;
-  try {
-    const url = await ipc.hubriseStartOauthFlow();
-    await openUrl(url);
-  } catch (e) {
-    hubriseError.value = String(e);
-  } finally {
-    hubriseLoading.value = false;
-  }
-}
-
-async function completeHubrise() {
-  if (!hubriseCode.value.trim()) {
-    hubriseError.value = t("hubrise_err_code_required");
-    return;
-  }
-  hubriseLoading.value = true;
-  hubriseError.value = null;
-  try {
-    hubriseStatus.value = await ipc.hubriseCompleteOauth(hubriseCode.value.trim());
-    hubriseCode.value = "";
-  } catch (e) {
-    hubriseError.value = String(e);
-  } finally {
-    hubriseLoading.value = false;
-  }
-}
-
-async function disconnectHubrise() {
-  hubriseLoading.value = true;
-  try {
-    await ipc.hubriseDisconnect();
-    await loadHubriseStatus();
-  } catch (e) {
-    hubriseError.value = String(e);
-  } finally {
-    hubriseLoading.value = false;
-  }
-}
-
 onMounted(() => {
   pos.loadSettings();
   loadWorkers();
-  loadHubriseStatus();
 });
 </script>
 
@@ -179,46 +127,7 @@ onMounted(() => {
         <div class="info-row"><span>{{ t('settings_printer_label') }}</span><span>{{ pos.settings.printerAddress ?? t('printer_none') }}</span></div>
       </div>
 
-      <!-- HubRise connection -->
-      <div class="hubrise-section">
-        <h3>HubRise</h3>
-        <p class="hubrise-help">{{ t('hubrise_section_help') }}</p>
-
-        <div class="info-row">
-          <span>{{ t('hubrise_status_label') }}</span>
-          <span :class="hubriseStatus?.connected ? 'status-ok' : 'status-off'">
-            {{ hubriseStatus?.connected ? t('hubrise_connected') : t('hubrise_disconnected') }}
-          </span>
-        </div>
-
-        <template v-if="hubriseStatus?.connected">
-          <div class="info-row"><span>{{ t('hubrise_account_label') }}</span><span>{{ hubriseStatus.account_name }}</span></div>
-          <div class="info-row"><span>{{ t('hubrise_location_label') }}</span><span>{{ hubriseStatus.location_name }}</span></div>
-          <div v-if="hubriseStatus.catalog_name" class="info-row">
-            <span>{{ t('hubrise_catalog_label') }}</span><span>{{ hubriseStatus.catalog_name }}</span>
-          </div>
-          <button class="add-btn" :disabled="hubriseLoading" @click="disconnectHubrise">
-            {{ t('hubrise_disconnect_action') }}
-          </button>
-        </template>
-
-        <template v-else>
-          <button class="add-btn" :disabled="hubriseLoading" @click="connectHubrise">
-            {{ t('hubrise_open_authorize_url') }}
-          </button>
-          <div class="add-worker">
-            <h4>{{ t('hubrise_paste_code_title') }}</h4>
-            <div class="add-fields">
-              <input v-model="hubriseCode" class="field" :placeholder="t('hubrise_code_placeholder')" />
-            </div>
-            <button class="add-btn" :disabled="hubriseLoading" @click="completeHubrise">
-              {{ t('hubrise_complete_connection') }}
-            </button>
-          </div>
-        </template>
-
-        <p v-if="hubriseError" class="add-error">{{ hubriseError }}</p>
-      </div>
+      <component :is="HubriseSettings" v-if="HubriseSettings" />
     </div>
   </div>
 </template>
@@ -229,11 +138,6 @@ onMounted(() => {
 .header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
 .nav-btn { padding: var(--space-xs) var(--space-md); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); min-height: 36px; transition: transform var(--tap-duration) ease; }
 .nav-btn:active { transform: scale(var(--tap-scale)); }
-.hubrise-section { padding: var(--space-md); border: 1px solid rgba(160,160,176,0.15); border-radius: var(--radius-md); }
-.hubrise-section h3 { margin-top: 0; }
-.hubrise-help { font-size: var(--font-size-xs); color: var(--text-secondary); margin-bottom: var(--space-sm); }
-.status-ok { color: var(--accent-success); font-weight: var(--font-weight-bold); }
-.status-off { color: var(--text-secondary); }
 
 .content { flex: 1; padding: var(--space-lg); max-width: 600px; margin: 0 auto; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 

@@ -5,12 +5,7 @@ import CheckoutView from "../views/CheckoutView.vue";
 import TablesView from "../views/TablesView.vue";
 import ReportsView from "../views/ReportsView.vue";
 import SettingsView from "../views/SettingsView.vue";
-
-// Build-time feature flag. Set `VITE_FEATURE_HUBRISE=false` for the
-// certification build so the HubRise (webshop) route and its view
-// chunk are tree-shaken out of the bundle. Any other value (including
-// unset) keeps HubRise available — dev default.
-const HUBRISE_ENABLED = import.meta.env.VITE_FEATURE_HUBRISE !== "false";
+import { HUBRISE_ENABLED } from "../features";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", name: "login", component: LoginView },

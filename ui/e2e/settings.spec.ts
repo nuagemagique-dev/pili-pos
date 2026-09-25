@@ -55,7 +55,7 @@ test.describe('Settings View', () => {
       hubrise_complete_oauth: () => ({
         connected: true,
         account_id: 'acc-1',
-        account_name: 'Tokyo Sushi Bar',
+        account_name: 'Restaurant Exemple',
         location_id: 'loc-1',
         location_name: 'Liège',
         catalog_id: 'cat-1',
@@ -89,7 +89,7 @@ test.describe('Settings View', () => {
       hubrise_get_connection_status: () => ({
         connected: true,
         account_id: 'acc-1',
-        account_name: 'Tokyo Sushi Bar',
+        account_name: 'Restaurant Exemple',
         location_id: 'loc-1',
         location_name: 'Liège',
         catalog_id: 'cat-1',

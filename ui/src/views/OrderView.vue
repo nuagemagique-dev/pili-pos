@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useMenuStore } from "../stores/menu";
 import { useOrderStore } from "../stores/order";
 import { useAuthStore } from "../stores/auth";
 import { usePosStore } from "../stores/pos";
-import { useWebshopOrdersStore } from "../stores/webshopOrders";
 import { useI18n } from "../i18n";
 import * as ipc from "../api/ipc";
 import CategoryTabs from "../components/CategoryTabs.vue";
@@ -13,32 +12,26 @@ import MenuGrid from "../components/MenuGrid.vue";
 import CartSidebar from "../components/CartSidebar.vue";
 import FdmStatus from "../components/FdmStatus.vue";
 import PrinterStatus from "../components/PrinterStatus.vue";
-import HubriseStatus from "../components/HubriseStatus.vue";
+import { HUBRISE_ENABLED } from "../features";
 import type { MenuItem } from "../types";
+
+// Webshop components are chosen here rather than with a template v-if:
+// the template compiler wraps imported bindings in unref(), which hides
+// the constant from Rollup. A folded ternary lets the cert build
+// (VITE_FEATURE_HUBRISE=false) drop the components and their stores.
+const HubriseStatus = HUBRISE_ENABLED
+  ? defineAsyncComponent(() => import("../components/HubriseStatus.vue"))
+  : null;
+const OnlineOrdersNavButton = HUBRISE_ENABLED
+  ? defineAsyncComponent(() => import("../components/OnlineOrdersNavButton.vue"))
+  : null;
 
 const router = useRouter();
 const menu = useMenuStore();
 const order = useOrderStore();
 const auth = useAuthStore();
 const pos = usePosStore();
-const webshop = useWebshopOrdersStore();
 const { t } = useI18n();
-
-// Brief pulse class toggled whenever pendingCount goes up — gives
-// the red badge a visual punch when a new online order arrives
-// without needing a continuous animation (UX Guide §4.2).
-const pendingPulse = ref(false);
-watch(
-  () => webshop.pendingCount,
-  (next, prev) => {
-    if (next > (prev ?? 0)) {
-      pendingPulse.value = true;
-      setTimeout(() => {
-        pendingPulse.value = false;
-      }, 180);
-    }
-  },
-);
 
 const clock = ref("");
 let clockInterval: ReturnType<typeof setInterval>;
@@ -64,12 +57,6 @@ onMounted(async () => {
   checkZReport();
   zCheckInterval = setInterval(checkZReport, 5 * 60 * 1000);
 
-  // Wire the webshop store so the pending-orders badge on the
-  // "En ligne" nav button stays live even when the operator is
-  // heads-down on the dine-in flow. Fire-and-forget — a slow
-  // webshop fetch must not block the menu grid from rendering.
-  webshop.attachListeners().catch((e) => console.error(e));
-  webshop.fetchOrders().catch((e) => console.error(e));
 
   // No active order → bounce to Tables so the operator consciously
   // picks a table OR taps "À emporter". Avoids silently creating a
@@ -142,7 +129,7 @@ async function handleTakeaway() {
     <header class="header">
       <FdmStatus />
       <PrinterStatus />
-      <HubriseStatus />
+      <component :is="HubriseStatus" v-if="HubriseStatus" />
       <span class="header-user">{{ auth.currentUser?.name }}</span>
       <span v-if="order.currentOrder?.table_number" class="header-table">
         {{ t('table') }} {{ order.currentOrder.table_number }}
@@ -162,18 +149,7 @@ async function handleTakeaway() {
           :class="{ 'nav-btn-active': isTakeawayMode }"
           @click="handleTakeaway"
         >{{ t('takeaway_new') }}</button>
-        <button
-          class="nav-btn"
-          :class="{ 'nav-btn-raised': webshop.pendingCount > 0 }"
-          @click="router.push({ name: 'webshop-orders' })"
-        >
-          {{ t('online_orders') }}
-          <span
-            v-if="webshop.pendingCount > 0"
-            class="nav-pending-badge"
-            :class="{ pulse: pendingPulse }"
-          >{{ webshop.pendingCount }}</span>
-        </button>
+        <component :is="OnlineOrdersNavButton" v-if="OnlineOrdersNavButton" />
         <button class="nav-btn" @click="router.push({ name: 'reports' })">{{ t('reports') }}</button>
         <button class="nav-btn" @click="router.push({ name: 'settings' })">{{ t('config') }}</button>
         <button class="nav-btn nav-logout" @click="handleLogout">{{ t('logout') }}</button>

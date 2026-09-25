@@ -25,19 +25,6 @@
   --cat-boissons: #9b59b6;
   --cat-desserts: #e67e22;
 
-  /* Delivery aggregator brand colors — mirrored from the public
-     logos served out of ui/public/logos/. Used by
-     WebshopOrdersView::channelColor() to paint the left stripe of
-     each order card. TSB's own webshop uses --accent-primary. */
-  --channel-deliveroo: #00ccbc;
-  --channel-uber-eats: #06c167;
-  --channel-takeaway:  #ff8000;
-
-  /* tsb-core brand pink (tsb-three in tsb-core/tailwind.config.ts) —
-     used by the "Tokyo" badge on WebshopOrdersView so the POS echoes
-     the customer webshop identity cue. */
-  --tsb-brand-pink: #F2A9BD;
-
   /* Spacing — UX Guide §5.2 */
   --space-xs: 4px;
   --space-sm: 8px;

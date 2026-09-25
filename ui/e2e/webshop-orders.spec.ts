@@ -52,7 +52,7 @@ test.describe('Webshop Orders View', () => {
   });
 
   test('shows total', async ({ page }) => {
-    await expect(page.locator('.total-value')).toContainText('28.50');
+    await expect(page.locator('.total-value')).toContainText('28,50');
   });
 
   test('filter tabs visible', async ({ page }) => {

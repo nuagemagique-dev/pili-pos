@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Tokyo Sushi Bar — POS",
+        "title": "moyun-pos",
         "width": 1920,
         "height": 1080,
         "fullscreen": false,

@@ -16,6 +16,11 @@ import FdmStatus from '../components/FdmStatus.vue'
 import PrinterStatus from '../components/PrinterStatus.vue'
 import HubriseStatus from '../components/HubriseStatus.vue'
 import type { WebshopOrderSummary } from '../api/ipc'
+// Bundled through this view only, so builds without HubRise ship none
+// of the aggregator logos or the webshop display font.
+import deliverooLogo from '../assets/webshop/logos/deliveroo.svg'
+import uberEatsLogo from '../assets/webshop/logos/uber-eats.svg'
+import takeawayLogo from '../assets/webshop/logos/takeaway.svg'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -181,13 +186,13 @@ function channelColor(order: WebshopOrderSummary): string {
  * Resolve a brand logo SVG for the order's channel. Returns null
  * when the channel has no logo file — the template then falls back
  * to a text label (UX Guide §2.1 "no hidden surprises"). Drop new
- * files in `ui/public/logos/` and extend this mapping to wire them.
+ * files in `ui/src/assets/webshop/logos/` and extend this mapping to wire them.
  */
 function channelLogo(order: WebshopOrderSummary): string | null {
   const src = order.source?.toLowerCase() ?? ''
-  if (src.includes('deliveroo')) return '/logos/deliveroo.svg'
-  if (src.includes('uber')) return '/logos/uber-eats.svg'
-  if (src.includes('takeaway') || src.includes('just')) return '/logos/takeaway.svg'
+  if (src.includes('deliveroo')) return deliverooLogo
+  if (src.includes('uber')) return uberEatsLogo
+  if (src.includes('takeaway') || src.includes('just')) return takeawayLogo
   return null
 }
 
@@ -565,6 +570,29 @@ function handleLogout() {
     </main>
   </div>
 </template>
+
+<style>
+:root {
+  /* Delivery aggregator brand colors, matching the logos in
+     ui/src/assets/webshop/logos/. Used by channelColor() to paint the
+     left stripe of each order card; the own webshop uses
+     --accent-primary. */
+  --channel-deliveroo: #00ccbc;
+  --channel-uber-eats: #06c167;
+  --channel-takeaway:  #ff8000;
+}
+
+/* Webshop display font — mirrored from the customer webshop so the
+   own-webshop badge renders in the same typeface. Not for body copy. */
+@font-face {
+  font-family: 'Channel';
+  src: url('../assets/webshop/fonts/channel.woff2') format('woff2'),
+       url('../assets/webshop/fonts/channel.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+</style>
 
 <style scoped>
 /* UX Guide §3, §5: dark theme, same shell as OrderView */

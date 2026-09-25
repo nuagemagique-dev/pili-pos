@@ -8,3 +8,7 @@ ui/dist/
 *.db-wal
 .DS_Store
 build_info_*.txt
+
+# Playwright outputs
+ui/test-results/
+ui/playwright-report/

@@ -10,7 +10,7 @@ test.describe('Reports View', () => {
   test('shows X and Z generate buttons', async ({ page }) => {
     await mockTauriIPC(page);
     await loginAndGoto(page, '/reports');
-    await expect(page.locator('.x-btn')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Générer X', exact: true })).toBeVisible();
     await expect(page.locator('.z-btn')).toBeVisible();
   });
 

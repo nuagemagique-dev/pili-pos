@@ -1,15 +1,3 @@
-/* TSB brand display font — mirrored from tsb-core so the WebshopOrdersView
-   "Tokyo" badge renders in the same typeface as the product category
-   headers on the customer webshop. Not intended for body copy. */
-@font-face {
-  font-family: 'Channel';
-  src: url('/fonts/channel.woff2') format('woff2'),
-       url('/fonts/channel.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 body {
   font-family: var(--font-family);
   font-size: var(--font-size-md);
