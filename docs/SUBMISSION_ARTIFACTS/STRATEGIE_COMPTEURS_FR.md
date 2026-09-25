@@ -162,9 +162,9 @@ la commande d'encaissement renvoie `success: false` avec un message
 d'erreur côté utilisateur et **ne valide pas la commande** (la
 transaction SQLite est avortée, aucun compteur n'avance - voir §5).
 
-La feature Cargo dev-only `allow-offline` peut contourner cela en
-développement local - elle **n'est pas** incluse dans la build de
-certification (`cargo build --release --no-default-features --features cert`).
+Il n'existe aucun mode hors-ligne, dans aucune build : le développement
+et les tests utilisent le FDM simulé (`pos-fdm-mock`), jamais un
+contournement du FDM.
 
 ### Reporté : sondage des statuts dégradés
 

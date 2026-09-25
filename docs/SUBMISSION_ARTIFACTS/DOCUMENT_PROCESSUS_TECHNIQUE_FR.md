@@ -133,19 +133,23 @@ ajoute à `fiscal_events`, de sorte que :
 
 ## 5. Comportement hors-ligne / déconnexion
 
-- **La build cert bloque** sur déconnexion du FDM au point d'entrée
-  du checkout. `commands/checkout::check_fdm_status` s'exécute avant
-  chaque transaction ; un échec lève `CheckoutError::FdmUnreachable`
-  et l'UI affiche une modale bloquante avec le dernier statut FDM
-  connu.
-- Une feature Cargo dev-only `allow-offline` (default-off) contourne
-  la vérification pour les tests locaux ; elle n'est **pas**
-  intégrée au binaire cert
-  (`cargo build --release --no-default-features --features cert`).
-- Les événements F-WAR d'ouverture tiroir sont quand même émis
-  rétroactivement si le tiroir est ouvert pendant une déconnexion ;
-  l'événement reste dans `fiscal_events` avec un `fdm_response_json`
-  null et un marqueur de statut en attente, rejoué à la reconnexion.
+- **Pas de FDM, pas d'événement.** Chaque commande fiscale (vente,
+  remboursement, commande, addition, copie, pointage, mouvement de
+  caisse, ouverture de tiroir, rapport) fait signer son événement par
+  le FDM *avant* d'écrire quoi que ce soit : si le FDM ne répond pas,
+  la commande renvoie une erreur (`success: false`, « FDM not
+  connected - cannot complete transaction » pour une vente), rien
+  n'est archivé, aucun compteur n'avance, la commande reste ouverte et
+  le tiroir reste fermé. L'opérateur réessaie une fois le FDM revenu.
+- **Aucun mode hors-ligne**, dans aucune build : le code ne contient
+  aucun chemin qui archive ou imprime une vente non signée.
+- L'en-tête affiche en permanence l'état du FDM (`FdmStatus.vue`,
+  interrogé toutes les 30 s), avec un message lisible pour chaque code
+  d'erreur du FDM.
+- Seule exception : les entrées de commande (P) non encore envoyées
+  restent en attente dans `order_entries` et partent à
+  l'enregistrement suivant (commande, addition ou vente) ; ce ne sont
+  pas des événements tant que le FDM ne les a pas signées.
 
 ## 6. Pipeline d'impression
 
@@ -199,8 +203,7 @@ ajoute à `fiscal_events`, de sorte que :
 | Build | Features Cargo | Produit |
 |---|---|---|
 | Dev | (par défaut) `peppol` + intégrations tierces | App complète avec toutes les intégrations |
-| Cert | `--no-default-features --features cert` | Binaire sans intégrations tierces ; `cert` implique `peppol` |
-| Dev-offline | `--features allow-offline` | Comme dev, plus bypass FDM-déconnexion pour tests E2E |
+| Cert | `--no-default-features --features cert` | Binaire sans intégrations tierces ni facturation Peppol (hors v1.0.0), interface embarquée |
 
 Vérification `nm` sur le binaire cert :
 ```

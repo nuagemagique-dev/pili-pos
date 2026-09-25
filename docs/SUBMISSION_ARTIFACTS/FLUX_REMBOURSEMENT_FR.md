@@ -45,9 +45,9 @@ Le flux reflète l'encaissement standard de
    (`Some(&original_ref)`). Le FDM utilise cette référence pour
    relier le remboursement à sa source - spec POS v2.2 §313 "fdmRef".
 5. **Envoi au FDM.** Même appel `FdmClient::sign_sale` qu'un
-   encaissement normal. Le blocage sur déconnexion (Phase 1, géré
-   par la feature dev-only `allow-offline`) s'applique ici à
-   l'identique.
+   encaissement normal. Le blocage sur déconnexion s'applique à
+   l'identique : sans FDM, le remboursement est refusé et la commande
+   de remboursement est annulée (`voided`).
 6. **Archive + clôture atomiques.** Même pattern transaction SQLite
    unique que checkout : `FiscalCounter::next` + `archive_event` +
    `UPDATE orders SET status='closed'` dans une tx, rollback si

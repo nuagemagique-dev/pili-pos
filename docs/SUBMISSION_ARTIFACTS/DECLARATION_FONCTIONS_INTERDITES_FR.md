@@ -93,13 +93,12 @@ FDM pour effectuer des ventes "hors-fiscalité".
   `FdmClient::sign_*` ; un échec FDM en build de certification
   remonte une erreur bloquante (`CheckoutResult { success: false }`,
   message "FDM not connected - cannot complete transaction").
-- La feature Cargo `allow-offline` qui permettrait un bypass de cette
-  règle est **strictement dev-only** : elle n'est pas activée dans
-  la build de certification.
-  ```bash
-  cargo build --no-default-features --features cert
-  # → ne compile PAS `#[cfg(feature = "allow-offline")]`
-  ```
+- Aucune option de compilation ni de configuration ne permet de
+  contourner cette règle : le code ne contient aucun chemin qui archive
+  ou imprime une vente non signée, dans aucune build. Le développement
+  et les tests utilisent le FDM simulé (`pos-fdm-mock`). Les tests
+  `spf_e2e_fdm_failures` vérifient, commande par commande, qu'un FDM
+  injoignable n'archive rien et n'avance aucun compteur.
 - L'URL du FDM est chargée depuis `PosConfig.fdm_url` à chaque appel
   via `FdmClient::new` ; il n'existe pas de variable "FDM disabled"
   dans `PosConfig`.

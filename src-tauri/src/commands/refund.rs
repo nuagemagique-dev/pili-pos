@@ -269,21 +269,16 @@ pub async fn do_refund_checkout_with(
         let (sign_result, fdm_connected) = match fdm_result {
             Ok(result) => (Some(result), true),
             Err(pos_fiscal::fdm_client::FdmError::NotConnected) => {
-                #[cfg(feature = "allow-offline")]
-                {
-                    (None, false)
-                }
-                #[cfg(not(feature = "allow-offline"))]
-                {
-                    return Ok(CheckoutResult {
-                        success: false,
-                        ticket: None,
-                        error: Some("FDM not connected — cannot process refund".into()),
-                        fdm_connected: false,
-                        fiscal_event_id: None,
-                        delivery: None,
-                    });
-                }
+                // No FDM, no sale: the POS blocks (SCE 2.0). There is no
+                // offline mode, in any build.
+                return Ok(CheckoutResult {
+                    success: false,
+                    ticket: None,
+                    error: Some("FDM not connected — cannot process refund".into()),
+                    fdm_connected: false,
+                    fiscal_event_id: None,
+                    delivery: None,
+                });
             }
             Err(e) => {
                 return Ok(CheckoutResult {
