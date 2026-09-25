@@ -9,7 +9,7 @@ envoyer l'email.
 ## Étape 1 - Vérification de sanité de la build cert
 
 ```bash
-cd /Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos
+cd moyun-pos   # racine du dépôt
 
 cargo test --workspace        # doit être tout vert
 cargo clippy --workspace -- -D warnings   # doit être propre
