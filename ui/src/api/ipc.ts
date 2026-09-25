@@ -10,6 +10,10 @@ import type {
   CheckoutPaymentMethod,
   CheckoutResult,
   FiscalTicket,
+  TicketDeliveryRequest,
+  DeliveryOutcome,
+  MailStatus,
+  DeliveryView,
 } from "../types";
 
 // Menu
@@ -93,13 +97,31 @@ export function checkPrinter(): Promise<boolean> {
 // Checkout
 export function checkout(
   orderId: number,
-  paymentMethod: CheckoutPaymentMethod
+  paymentMethod: CheckoutPaymentMethod,
+  delivery?: TicketDeliveryRequest
 ): Promise<CheckoutResult> {
-  return invoke("checkout", { orderId, paymentMethod });
+  return invoke("checkout", { orderId, paymentMethod, delivery });
 }
 
 export function checkFdmStatus(): Promise<unknown> {
   return invoke("check_fdm_status");
+}
+
+// ── Ticket delivery (paper / email / both) ──────────────────────────
+
+export function checkMailStatus(): Promise<MailStatus> {
+  return invoke("check_mail_status");
+}
+
+export function listTicketDeliveries(limit?: number): Promise<DeliveryView[]> {
+  return invoke("list_ticket_deliveries", { limit });
+}
+
+export function printMissingOriginal(
+  fiscalEventId: number,
+  ticket: FiscalTicket
+): Promise<void> {
+  return invoke("print_missing_original", { fiscalEventId, ticket });
 }
 
 // Settings
@@ -184,13 +206,20 @@ export function needsZReport(): Promise<boolean> {
 export interface CopyResult {
   success: boolean;
   error: string | null;
+  /** The copy ticket, when the original event had an order to show. */
+  ticket: FiscalTicket | null;
+  /** Archive id of the signed C event. */
+  fiscalEventId: number | null;
+  /** How the copy reached the customer (paper and/or email). */
+  delivery: DeliveryOutcome | null;
 }
 
 export function copyTicket(
   fiscalEventId: number,
-  employeeInsz: string
+  employeeInsz: string,
+  delivery?: TicketDeliveryRequest
 ): Promise<CopyResult> {
-  return invoke("copy_ticket", { fiscalEventId, employeeInsz });
+  return invoke("copy_ticket", { fiscalEventId, employeeInsz, delivery });
 }
 
 export function listFiscalEvents(
@@ -223,8 +252,9 @@ export function refundCheckout(
   originalFiscalEventId: number,
   items: RefundItem[],
   employeeInsz: string,
+  delivery?: TicketDeliveryRequest,
 ): Promise<CheckoutResult> {
-  return invoke("refund_checkout", { originalFiscalEventId, items, employeeInsz });
+  return invoke("refund_checkout", { originalFiscalEventId, items, employeeInsz, delivery });
 }
 
 // ── Social (Event S — ONSS clock in/out) ────────────────────────────

@@ -142,4 +142,58 @@ export interface CheckoutResult {
   ticket: FiscalTicket | null;
   error: string | null;
   fdm_connected: boolean;
+  /** Archive id of the signed event, when successful. */
+  fiscal_event_id: number | null;
+  /** How the ticket reached the customer (paper and/or email). */
+  delivery: DeliveryOutcome | null;
+}
+
+// ── Ticket delivery (paper / email / both) ─────────────────────────
+
+/** The medium the operator picked on screen. Sent to the backend. */
+export type TicketMediumRequest = "paper" | "digital" | "paper_digital";
+
+/** The operator's choice, sent with checkout, refund and copy. */
+export interface TicketDeliveryRequest {
+  medium: TicketMediumRequest;
+  /** Required unless `medium` is "paper". */
+  email?: string;
+}
+
+/** The medium actually signed, as returned by the backend. */
+export type TicketMedium = "NONE" | "PAPER" | "DIGITAL" | "PAPER_DIGITAL";
+
+/** Email outcome shown on the "done" screen. */
+export type EmailDeliveryStatus = "not_requested" | "sent" | "queued";
+
+/** What happened to a ticket after checkout, refund or copy. */
+export interface DeliveryOutcome {
+  fiscalEventId: number;
+  deliveryId: number | null;
+  medium: TicketMedium;
+  email: EmailDeliveryStatus;
+  recipientHint: string | null;
+  paperPrinted: boolean;
+  /** The customer should have a paper ticket but none printed yet. */
+  needsPaper: boolean;
+}
+
+/** Email availability for the ticket picker. */
+export interface MailStatus {
+  configured: boolean;
+  reachable: boolean;
+  allowDigitalOnly: boolean;
+}
+
+/** A delivery as listed in Settings. Never carries the address itself. */
+export interface DeliveryView {
+  id: number;
+  fiscalEventId: number;
+  medium: string;
+  recipientHint: string;
+  status: "pending" | "sending" | "sent" | "failed" | "fallback_printed" | "purged";
+  attempts: number;
+  lastError: string | null;
+  fallbackPrinted: boolean;
+  createdAt: string;
 }
