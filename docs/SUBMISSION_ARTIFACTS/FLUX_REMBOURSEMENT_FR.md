@@ -17,7 +17,8 @@ La commande Tauri `refund_checkout` prend :
 - `items: Vec<RefundItem>` - quoi rembourser (le ticket complet pour
   un remboursement total, un sous-ensemble pour un remboursement
   partiel).
-- `employee_insz` - INSZ de l'opérateur.
+- `employee_insz` - INSZ de l'opérateur, qui doit être le Gérant
+  connecté (`PROFILS_UTILISATEURS_FR.md` §3).
 
 Le flux reflète l'encaissement standard de
 `src-tauri/src/commands/checkout.rs` :
@@ -26,14 +27,19 @@ Le flux reflète l'encaissement standard de
    `fdmDateTime`, `eventLabel`, `eventCounter`, `totalCounter` depuis
    la ligne `fiscal_events` locale. Seuls les événements `N` sont
    remboursables ; tout autre label retourne
-   `"Cannot refund event type <X>"`.
-2. **Construction de la commande de remboursement.** Création d'une
-   nouvelle `Order` (takeaway), insertion de lignes avec quantités
-   négatives pour chaque `RefundItem`. Les quantités sont niées au
-   niveau de la couche DB.
+   `"Cannot refund event type <X>"`. Sont aussi refusés : un
+   remboursement (un remboursement ne se rembourse pas : on revend),
+   et tout remboursement en mode formation (un événement T ne peut
+   pas consommer la quantité encore remboursable d'une vente réelle).
+2. **Contrôles, puis construction de la commande de remboursement.**
+   Chaque article est d'abord contrôlé (présent sur le ticket
+   original, quantité positive, total remboursé sur l'ensemble des
+   remboursements de la vente au plus égal à la quantité vendue), et
+   le support du ticket choisi : un refus ne crée rien. Ensuite
+   seulement, création d'une nouvelle `Order` (takeaway) avec des
+   lignes de quantités négatives pour chaque `RefundItem`.
 3. **Réservation du prochain numéro de ticket** (peek-then-commit,
-   cf. `STRATEGIE_COMPTEURS_FR.md` §5). Label `N` (ou `T` si mode
-   formation actif).
+   cf. `STRATEGIE_COMPTEURS_FR.md` §5). Label `N`.
 4. **Construction du `SaleInput`** avec le builder 8-arguments, en
    passant la `FdmReference` originale comme 8e argument
    (`Some(&original_ref)`). Le FDM utilise cette référence pour
@@ -48,6 +54,12 @@ Le flux reflète l'encaissement standard de
    l'un échoue. Cf. fix B3 dans `STRATEGIE_COMPTEURS_FR.md` §5.
 7. **Impression ticket de remboursement + ouverture tiroir.**
    Best-effort - non-fatal si imprimante injoignable.
+
+Si le remboursement s'arrête après la création de sa commande (refus
+ou indisponibilité du FDM, échec de l'archivage), la commande est
+annulée (`status = 'voided'`) : elle ne reste jamais ouverte, et ne
+peut donc pas être complétée puis encaissée comme une vente. Ces
+règles sont couvertes par `src-tauri/tests/refund_guards.rs`.
 
 ### M112A vs M112B (remboursement partiel combiné à une nouvelle vente)
 
