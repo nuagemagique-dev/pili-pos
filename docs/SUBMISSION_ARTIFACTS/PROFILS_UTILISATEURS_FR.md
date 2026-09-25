@@ -44,10 +44,15 @@ Accès complet. Concrètement, peut :
 - Émettre une copie de ticket (Événement C).
 - Effectuer un remboursement complet (Événement N, M111) ou partiel
   (M112B - événement séparé, voir `REFUND_FLOW.md`).
-- Activer / désactiver le mode formation (Événements T).
-- Accéder à la vue Paramètres (`SettingsView.vue`) : configuration du
-  restaurant, période de réservation, etc.
-- Créer / désactiver des utilisateurs.
+- Activer / désactiver le mode formation (Événements T), uniquement
+  lorsqu'aucune commande avec des lignes n'est ouverte : une table
+  réelle ne peut ainsi jamais être encaissée en formation, ni une
+  commande de formation encaissée comme une vente réelle.
+- Accéder à la vue Paramètres (`SettingsView.vue`) et à la vue
+  Rapports.
+- Créer des utilisateurs (Gérant, Serveur ou Apprenti), en désactiver
+  (jamais soi-même ; jamais de suppression : l'INSZ reste sur les
+  événements signés) et réinitialiser leur PIN.
 
 ### 2.2 Serveur (`Cashier`)
 
@@ -57,12 +62,12 @@ Profil d'opérateur de caisse standard. Peut :
 - Se déconnecter (Événement S - `signWorkOut`).
 - Ouvrir / réutiliser une table en cours.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte.
-- Envoyer la commande en cuisine (Événement P - `signOrder`).
+- Enregistrer la commande (Événement P - `signOrder`).
 - Imprimer un pré-ticket (Événement P - `signPreBill`).
 - Encaisser : encaissement comptant ou carte (Événement N -
   `signSale`). Tiroir s'ouvre automatiquement pour les paiements
   comptant.
-- Consulter les commandes ouvertes et fermées de sa session.
+- Modifier son propre PIN.
 
 ### 2.3 Apprenti (`Waiter`)
 
@@ -70,10 +75,12 @@ Profil restreint. Peut :
 
 - Se connecter / se déconnecter.
 - Ouvrir / réutiliser une table.
-- Ajouter des lignes à une commande.
-- Envoyer la commande en cuisine.
-- **NE peut PAS** encaisser. Une tentative d'encaissement renvoie un
-  message demandant l'intervention d'un Serveur ou d'un Gérant.
+- Ajouter, retirer ou modifier les lignes d'une commande ouverte
+  (chaque correction est journalisée et transmise au FDM).
+- Enregistrer la commande (Événement P - `signOrder`).
+- **NE peut PAS** imprimer l'addition ni encaisser : les boutons
+  « Addition » et « Payer » ne lui sont pas présentés, et le backend
+  refuse la commande (`Forbidden`) ; un Serveur ou un Gérant encaisse.
 - **NE peut PAS** générer de rapport, copier un ticket, rembourser,
   ouvrir le tiroir, ni modifier les paramètres.
 
@@ -81,21 +88,37 @@ Profil restreint. Peut :
 
 L'enforcement vit à deux niveaux :
 
-1. **Niveau UI** (`ui/src/stores/auth.ts` et chaque vue Vue) - les
-   boutons et écrans réservés à un rôle supérieur sont cachés à
-   l'apprenti. Cette couche est purement ergonomique.
+1. **Niveau commande Tauri** (couche autoritative,
+   `src-tauri/src/commands/access.rs`). La connexion (`login`, INSZ +
+   PIN) ouvre une session côté backend ; la déconnexion (`logout`,
+   après le pointage de sortie) la ferme. Chaque commande qui signe un
+   événement fiscal, modifie un paramètre ou gère les utilisateurs
+   vérifie d'abord le rôle de l'opérateur connecté :
 
-2. **Niveau commande Tauri** (couche autoritative). Chaque
-   `#[tauri::command]` qui mute un événement fiscal vérifie le rôle
-   de l'opérateur via le champ `users.role` correspondant à l'INSZ
-   passé en paramètre. Une tentative non autorisée renvoie
-   `Err("Forbidden")` sans toucher au compteur ni à la base.
+   | Accès | Rôles | Commandes |
+   |---|---|---|
+   | Personnel | Gérant, Serveur, Apprenti | pointage (S), commandes et lignes, enregistrement de commande (P) |
+   | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant |
+   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs, sauvegarde |
 
-L'enforcement applicatif est doublé par la conception fiscale :
-- l'INSZ qui apparaît dans le champ `userInsz` de chaque
-  `*Input` est celui de l'opérateur connecté ;
-- toute discordance entre la session UI et l'INSZ envoyé au FDM est
-  refusée par la couche `auth` avant émission de la mutation.
+   Une commande refusée renvoie `Not logged in` (aucune session) ou
+   `Forbidden` (rôle insuffisant) avant tout appel au FDM : aucun
+   compteur ni aucune donnée n'est modifié.
+
+2. **Niveau UI** (`ui/src/stores/auth.ts`) : les boutons et écrans
+   qu'un rôle ne peut pas utiliser ne lui sont pas présentés (Payer et
+   Addition pour l'Apprenti ; Rapports et Config pour l'Apprenti et le
+   Serveur). Cette couche est purement ergonomique.
+
+L'INSZ de chaque événement est celui de l'opérateur connecté : une
+commande qui nomme un autre opérateur (pointage, remboursement,
+copie, mouvement de caisse, rapport) est refusée
+(`Forbidden: not the logged-in operator`). Une vente est signée au nom
+du Serveur ou du Gérant qui encaisse, même si la commande a été prise
+par un autre membre du personnel.
+
+Ces règles sont couvertes par `src-tauri/tests/access_control.rs`
+(chaque rôle, chaque commande, sessions, PIN, formation).
 
 ## 4. Journal des accès
 
@@ -125,12 +148,6 @@ présence du personnel.
 
 ## 6. Limitations connues
 
-- Le rôle Apprenti n'est pas encore exposé dans l'interface de
-  création d'utilisateur (`SettingsView.vue`). Pour le moment seuls
-  Admin et Cashier sont créables via l'UI ; un Apprenti doit être
-  inséré via la table `users` directement
-  (`PROGRAMMING_MANUAL_FR.md` §3). À corriger avant déploiement.
-- Pas de gestion multi-niveau pour Gérant vs Technicien : les deux
-  utilisent `UserRole::Admin`. Le manuel SCE 2.0 ne distingue pas
-  formellement les deux dans la matrice de capacités ; les deux
-  profils ont accès complet.
+- Pas de distinction entre Gérant et Technicien : les deux utilisent
+  le rôle `admin`. Le manuel SCE 2.0 ne les distingue pas dans la
+  matrice de capacités ; les deux profils ont accès complet.

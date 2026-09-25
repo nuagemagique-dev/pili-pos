@@ -262,20 +262,22 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 | Rôle | Nom d'utilisateur | Mot de passe | Commentaires |
 |---|---|---|---|
 | OS login (kiosk Linux) | `spf` (compte agent SPF) | Fourni à l'Intake (mot de passe simple) | Idéalement aucun login OS visible (Cage compositor lance directement moyun-pos en plein écran) |
-| POS login - Admin | INSZ : `99012345678` (test) | PIN : `1111` | Voir `PROFILS_UTILISATEURS_FR.md` - rôle "Admin" (= Gérant) |
-| POS login - Serveur | INSZ : `99012345679` (test) | PIN : `2222` | Rôle "Waiter" (= Serveur SPF) |
-| POS login - Technicien | INSZ : `00000000097` | PIN : `0097` | NISS technicien standard SPF |
-| POS login - Kiosk / App | INSZ : `00000000029` | N/A | NISS robot/automate standard SPF (utilisé pour les events système) |
-| POS login - Apprenti | INSZ : `99012345680` (test) | PIN : `3333` | Rôle "Cashier" (= Apprenti SPF) avec accès mode formation. Voir `PROFILS_UTILISATEURS_FR.md`. |
+| POS login - Gérant | INSZ : `94060242576` (test) | PIN : `1111` | Rôle `admin` (= Gérant) : accès complet, dont rapports, copies, remboursements, mouvements de caisse et mode formation. Voir `PROFILS_UTILISATEURS_FR.md`. |
+| POS login - Serveur | INSZ : `84022899837` (test) | PIN : `2222` | Rôle `cashier` (= Serveur) : commandes, addition et encaissement. |
+| POS login - Apprenti | INSZ : `99012345667` (test) | PIN : `3333` | Rôle `waiter` (= Apprenti) : commandes uniquement, sans encaissement. |
+| POS login - Technicien | INSZ : `00000000097` | PIN : `0097` | NISS technicien standard SPF, rôle `admin`. |
+| POS login - Kiosk / App | INSZ : `00000000029` | N/A (sans PIN) | NISS robot/automate standard SPF, rôle `admin`. |
+
+Ces cinq comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun d'eux et vérifie son rôle.
 
 ### Gestion des utilisateurs et rôles
 
 | Item | Réponse |
 |---|---|
-| ☑ Description de la gestion des utilisateurs et des rôles | *Voir : PROFILS_UTILISATEURS_FR.md* (mapping Admin/Cashier/Waiter <-> Gérant/Apprenti/Serveur SPF) + `MANUEL_PROGRAMMATION_FR.md` §Users (templates SQL d'insertion). |
+| ☑ Description de la gestion des utilisateurs et des rôles | *Voir : PROFILS_UTILISATEURS_FR.md* (mapping `admin`/`cashier`/`waiter` <-> Gérant/Serveur/Apprenti) + `MANUEL_PROGRAMMATION_FR.md` §Users (templates SQL d'insertion). |
 | ☑ Description des droits d'accès | *Voir : PROFILS_UTILISATEURS_FR.md* - matrice fonctionnalité × rôle. |
 
-Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`, `role`, `pin_hash`, `active`). Droits d'accès : lecture sur la liste des utilisateurs réservée à Admin ; ajout/modification réservés à Admin ; suppression interdite (active=0 à la place). Audit trail via timestamps + journal applicatif.
+Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`, `role`, `pin_hash`, `active`). Droits d'accès : la liste des utilisateurs actifs est lue par l'écran de connexion (choix de l'opérateur) ; la création d'utilisateurs est réservée au rôle `admin` ; un PIN est modifié par son titulaire ou par un `admin` ; suppression interdite (active=0 à la place). Les droits sont vérifiés par le backend pour la session ouverte par la connexion (`src-tauri/src/commands/access.rs`), pas seulement par l'interface. Audit trail via timestamps + journal applicatif.
 
 ## §III.D Connexion du POS au FDM
 
@@ -701,7 +703,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 | XV. Modifications prix non-lignes | ☐ (pas de réductions globales en MVP) | ☐ | ☐ | ☐ | ☐ | - |
 | XVI. Données FDM (footer, fdmId, dateTime, label, counters, shortSignature) | ☑ | ☑ | ☑ (sans shortSignature) | ☑ (sans shortSignature) | ☑ (sans shortSignature) | - |
 | XVII. Lignes paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - | - | ☑ (FICTIF) | - |
-| XVIII. QR Code URL FDM | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVIII. QR Code URL FDM | ☑ | ☑ | - (sans QR, le FDM ne renvoie pas de verificationUrl pour P) | ☑ | ☑ | - |
 
 **Mentions obligatoires spécifiques :**
 

@@ -57,7 +57,7 @@ Démarrer le mock sans erreur injectée, lancer `cargo tauri dev`, puis :
 - **Capture :** plein écran.
 
 ### `02_login_pin.png`
-- **Action :** taper INSZ Admin (`99012345678` ou équivalent du seed) puis saisir le PIN.
+- **Action :** taper l'INSZ du Gérant de test (`94060242576`) puis le PIN `1111`.
 - **Écran attendu :** overlay numérique de saisie PIN.
 - **Capture :** plein écran.
 

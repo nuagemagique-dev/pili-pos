@@ -47,7 +47,7 @@ colonne par type de ticket émis par moyun-pos.
 | XVI.VI. totalCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.VII. shortSignature (renvoyée par le FDM pour les events N uniquement) | ☑ | ☑ | - (non renvoyée pour P) | - (non réimprimée) | - (non renvoyée pour T) | - |
 | XVII. Lignes de paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - (pas encore payé) | ☑ (reprises de l'original) | ☑ | - |
-| XVIII. QR Code URL du FDM | ☑ (Model 2, 29×29) | ☑ | ☑ | ☑ | ☑ | - |
+| XVIII. QR Code URL du FDM | ☑ (Model 2, 29×29) | ☑ | - (non renvoyée pour P) | ☑ | ☑ | - |
 
 **Mentions spécifiques cochées :**
 
@@ -116,8 +116,10 @@ Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
 ## 2. Pré-ticket (M123 - Événement P)
 
 Scénario : même commande qu'au M110, juste avant l'encaissement.
-Mention PRO FORMA en tête, pas de shortSignature, mention
-d'invalidité en bas.
+Mention PRO FORMA en tête ; ni QR code ni shortSignature - le FDM ne
+les renvoie que pour une vente (N, voir `signPreBill_Response.json`
+de l'UC M123, qui n'a ni `verificationUrl` ni `shortSignature`) ;
+mention d'invalidité en bas.
 
 ```
                    PRO FORMA
@@ -144,9 +146,6 @@ TOTAL                                      52.00
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
                      P 4/61
-
-[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
-
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE

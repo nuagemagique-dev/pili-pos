@@ -181,9 +181,11 @@ Pour produire un pré-ticket à présenter au client avant
 l'encaissement ("l'addition"), taper "**Pré-ticket**" dans le
 menu d'action de la commande.
 
-Le pré-ticket s'imprime, marqué "**PRO FORMA - pas un ticket TVA
-valable**". Il porte le QR code et la signature du FDM, mais ne
-clôture pas la commande.
+Le pré-ticket s'imprime, marqué "**PRO FORMA**" et "**CECI N'EST PAS
+UN TICKET DE CAISSE TVA VALABLE**". Il porte les données de contrôle
+du FDM (identifiant, date, compteurs) mais ni QR code ni signature
+courte, que le FDM ne donne qu'aux ventes (N). Il ne clôture pas la
+commande.
 
 ## 6. Encaissement (vente normale, Événement N - signSale)
 
