@@ -106,6 +106,13 @@ const coreMessages: Messages = {
   "employees": { fr: "Employés", en: "Employees", zh: "员工" },
   "add": { fr: "Ajouter", en: "Add", zh: "添加" },
   "name": { fr: "Nom", en: "Name", zh: "姓名" },
+  "role": { fr: "Rôle", en: "Role", zh: "角色" },
+  "training_open_orders": { fr: "Encaissez ou videz les commandes ouvertes avant de changer de mode", en: "Pay or empty the open orders before switching mode", zh: "切换模式前请结清或清空未结订单" },
+  "deactivate": { fr: "Désactiver", en: "Deactivate", zh: "停用" },
+  "confirm_deactivate": { fr: "Confirmer ?", en: "Confirm?", zh: "确认？" },
+  "role_admin": { fr: "Gérant", en: "Manager", zh: "经理" },
+  "role_cashier": { fr: "Serveur", en: "Server", zh: "服务员" },
+  "role_waiter": { fr: "Apprenti", en: "Apprentice", zh: "学徒" },
   "info": { fr: "Informations", en: "Information", zh: "信息" },
   "printer_none": { fr: "Non configurée", en: "Not configured", zh: "未配置" },
 

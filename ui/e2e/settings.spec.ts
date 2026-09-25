@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, ipcCalls, overrideIPC } from './fixtures/mock-ipc';
 
 test.describe('Settings View', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,6 +25,40 @@ test.describe('Settings View', () => {
   test('shows add worker form with i18n placeholders', async ({ page }) => {
     const nameInput = page.locator('input').first();
     await expect(nameInput).toHaveAttribute('placeholder', 'Nom');
+  });
+
+  test('a new user gets the chosen role (Gérant / Serveur / Apprenti)', async ({ page }) => {
+    await expect(page.getByRole('radio', { name: 'Serveur' })).toHaveAttribute('aria-checked', 'true');
+    await page.getByPlaceholder('Nom').fill('Nouvel apprenti');
+    await page.locator('input[inputmode="numeric"]').fill('99012345667');
+    await page.getByRole('radio', { name: 'Apprenti' }).click();
+    await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+    await expect.poll(() => ipcCalls(page, 'create_user')).toEqual([
+      { input: { insz: '99012345667', name: 'Nouvel apprenti', role: 'waiter' } },
+    ]);
+  });
+
+  test('deactivating a user takes two taps', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER, { ...DEFAULT_USER, insz: '99012345667', name: 'Parti', role: 'waiter' }],
+      deactivate_user: () => undefined,
+    });
+    await page.goto('/#/settings');
+    const row = page.locator('.worker-row', { hasText: 'Parti' });
+    await row.getByRole('button', { name: 'Désactiver' }).click();
+    expect(await ipcCalls(page, 'deactivate_user')).toEqual([]);
+    await row.getByRole('button', { name: 'Confirmer ?' }).click();
+    await expect.poll(() => ipcCalls(page, 'deactivate_user')).toEqual([{ insz: '99012345667' }]);
+  });
+
+  test('training mode is refused while an order is open, and says so', async ({ page }) => {
+    await overrideIPC(page, 'set_training_mode', {
+      __reject: 'Pay or empty the open orders before switching training mode',
+    });
+    await page.locator('.toggle').click();
+    await expect(page.locator('.toast')).toContainText('Encaissez ou videz les commandes ouvertes');
+    await expect(page.locator('.toggle')).toContainText('INACTIF');
   });
 
   test('shows POS info section', async ({ page }) => {

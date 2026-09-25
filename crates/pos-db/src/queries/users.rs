@@ -63,10 +63,20 @@ pub fn create_user(
     name: &str,
     role: UserRole,
 ) -> Result<User, rusqlite::Error> {
-    conn.execute(
-        "INSERT INTO users (insz, name, role) VALUES (?1, ?2, ?3)",
+    // A deactivated user (never deleted: their INSZ is on archived
+    // events) comes back with the new name and role, and no PIN.
+    // An active one is a duplicate: the UNIQUE constraint refuses it.
+    let reactivated = conn.execute(
+        "UPDATE users SET name = ?2, role = ?3, pin_hash = NULL, active = 1
+         WHERE insz = ?1 AND active = 0",
         params![insz, name, role.as_str()],
     )?;
+    if reactivated == 0 {
+        conn.execute(
+            "INSERT INTO users (insz, name, role) VALUES (?1, ?2, ?3)",
+            params![insz, name, role.as_str()],
+        )?;
+    }
 
     Ok(User {
         insz: insz.to_string(),
@@ -86,18 +96,79 @@ pub fn get_pin_hash(conn: &Connection, insz: &str) -> Result<Option<String>, rus
     )
 }
 
-/// Store a bcrypt-hashed PIN for an INSZ.
+/// Store a bcrypt-hashed PIN for an active user
+/// (`QueryReturnedNoRows` when there is none).
 pub fn set_pin_hash(conn: &Connection, insz: &str, hash: &str) -> Result<(), rusqlite::Error> {
-    conn.execute(
-        "UPDATE users SET pin_hash = ?1 WHERE insz = ?2",
+    let updated = conn.execute(
+        "UPDATE users SET pin_hash = ?1 WHERE insz = ?2 AND active = 1",
         params![hash, insz],
     )?;
+    if updated == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
+    Ok(())
+}
+
+/// Deactivate a user: they can no longer log in, and leave the lists.
+/// Never a deletion — their INSZ stays on the events they signed.
+/// `QueryReturnedNoRows` when no active user has this INSZ.
+pub fn deactivate_user(conn: &Connection, insz: &str) -> Result<(), rusqlite::Error> {
+    let updated = conn.execute(
+        "UPDATE users SET active = 0 WHERE insz = ?1 AND active = 1",
+        params![insz],
+    )?;
+    if updated == 0 {
+        return Err(rusqlite::Error::QueryReturnedNoRows);
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::run_migrations(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn a_deactivated_user_cannot_log_in_and_comes_back_when_rehired() {
+        let conn = db();
+        create_user(&conn, "12345678958", "Anna", UserRole::Cashier).unwrap();
+        set_pin_hash(&conn, "12345678958", "hash").unwrap();
+        deactivate_user(&conn, "12345678958").unwrap();
+        assert!(get_user(&conn, "12345678958").unwrap().is_none());
+        assert!(list_users(&conn).unwrap().is_empty());
+        assert!(matches!(
+            deactivate_user(&conn, "12345678958"),
+            Err(rusqlite::Error::QueryReturnedNoRows)
+        ));
+        assert!(matches!(
+            set_pin_hash(&conn, "12345678958", "hash"),
+            Err(rusqlite::Error::QueryReturnedNoRows)
+        ));
+
+        let back = create_user(&conn, "12345678958", "Anna B.", UserRole::Waiter).unwrap();
+        assert_eq!(back.role, UserRole::Waiter);
+        let user = get_user(&conn, "12345678958").unwrap().unwrap();
+        assert_eq!(user.name, "Anna B.");
+        assert!(!user.has_pin, "the old PIN does not come back");
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 1, "never deleted, never duplicated");
+    }
+
+    #[test]
+    fn a_pin_cannot_be_set_for_an_unknown_user() {
+        let conn = db();
+        assert!(matches!(
+            set_pin_hash(&conn, "12345678958", "hash"),
+            Err(rusqlite::Error::QueryReturnedNoRows)
+        ));
+    }
     use crate::schema::run_migrations;
 
     #[test]

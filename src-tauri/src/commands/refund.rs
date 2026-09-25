@@ -10,6 +10,7 @@ use pos_fiscal::response::FdmReference;
 use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
+use crate::commands::access::{self, Access};
 use crate::commands::checkout::CheckoutResult;
 use crate::commands::delivery::{self, TicketDeliveryRequest};
 use crate::state::AppState;
@@ -84,6 +85,9 @@ pub async fn do_refund_checkout_with(
     employee_insz: String,
     delivery_request: Option<&TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
+    if let Err(e) = access::operator_named(state, &employee_insz, Access::Admin) {
+        return Ok(CheckoutResult::refused(e));
+    }
     if items.is_empty() {
         return Ok(CheckoutResult {
             success: false,

@@ -6,6 +6,7 @@ use pos_fiscal::event::{build_order_input, build_pre_bill_input};
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
 
+use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -82,7 +83,18 @@ pub async fn sign_table_order(state: State<'_, AppState>, order_id: i64) -> Resu
 }
 
 pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<(), String> {
-    let (order, entries, config, bp_id) = {
+    sign_table_order_as(state, order_id, Access::Staff).await
+}
+
+/// Register the order's unsent entries (event P) in the name of the
+/// logged-in operator, if their role allows `access`.
+async fn sign_table_order_as(
+    state: &AppState,
+    order_id: i64,
+    access: Access,
+) -> Result<(), String> {
+    let operator = access::operator(state, access)?;
+    let (mut order, entries, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, true)
@@ -95,6 +107,7 @@ pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<(), 
     let Some(last_entry) = entries.last() else {
         return Ok(());
     };
+    order.user_insz = operator.insz;
     if order.status != OrderStatus::Open {
         return Err("Order is not open".into());
     }
@@ -136,9 +149,10 @@ pub async fn sign_pre_bill(state: State<'_, AppState>, order_id: i64) -> Result<
 /// order, printed PRO FORMA. Entries not yet registered are sent as an
 /// order first, since a pre-bill may not add or change lines.
 pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), String> {
-    do_sign_table_order(state, order_id).await?;
+    let operator = access::operator(state, Access::Cashier)?;
+    sign_table_order_as(state, order_id, Access::Cashier).await?;
 
-    let (order, lines, config, bp_id) = {
+    let (mut order, lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let lines =
@@ -147,6 +161,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
         let bp = super::booking(&db)?;
         (order, lines, config, bp)
     };
+    order.user_insz = operator.insz;
     if lines.is_empty() {
         return Err("Order has no lines".into());
     }

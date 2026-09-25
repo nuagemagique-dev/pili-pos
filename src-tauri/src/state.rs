@@ -34,6 +34,9 @@ pub struct AppState {
     pub shutdown_token: CancellationToken,
     /// Digital ticket email client (disabled when not configured).
     pub mail: crate::commands::delivery::MailState,
+    /// The logged-in operator (`commands::access`): set by `login`,
+    /// cleared by `logout`, `None` at start-up.
+    pub session: Mutex<Option<pos_core::user::User>>,
 }
 
 impl AppState {
@@ -73,6 +76,7 @@ impl AppState {
             shared_http,
             shutdown_token: CancellationToken::new(),
             mail,
+            session: Mutex::new(None),
         })
     }
 

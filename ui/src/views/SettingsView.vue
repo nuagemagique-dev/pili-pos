@@ -2,6 +2,8 @@
 import { defineAsyncComponent, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { usePosStore } from "../stores/pos";
+import { useAuthStore } from "../stores/auth";
+import { useToastStore } from "../stores/toast";
 import { useMenuStore } from "../stores/menu";
 import type { AppLanguage } from "../stores/pos";
 import type { User } from "../types";
@@ -18,13 +20,44 @@ const { t } = useI18n();
 
 const router = useRouter();
 const pos = usePosStore();
+const auth = useAuthStore();
+const toast = useToastStore();
+
+/** The backend refuses the switch while an order is open. */
+async function toggleTraining() {
+  try {
+    await pos.toggleTrainingMode();
+  } catch (e) {
+    const msg = String(e).includes("open orders") ? t("training_open_orders") : String(e);
+    toast.show(msg, "error", 6000);
+  }
+}
 const menu = useMenuStore();
 
 const workers = ref<User[]>([]);
 const newName = ref("");
 const newInsz = ref("");
-const newRole = ref("cashier");
+const newRole = ref<"admin" | "cashier" | "waiter">("cashier");
+// PROFILS_UTILISATEURS_FR.md §1: Gérant, Serveur, Apprenti.
+const roles = ["admin", "cashier", "waiter"] as const;
 const addError = ref<string | null>(null);
+
+// Deactivation takes two taps: the first arms the row's button.
+const confirmDeactivate = ref<string | null>(null);
+
+async function deactivate(insz: string) {
+  if (confirmDeactivate.value !== insz) {
+    confirmDeactivate.value = insz;
+    return;
+  }
+  confirmDeactivate.value = null;
+  try {
+    await ipc.deactivateUser(insz);
+    await loadWorkers();
+  } catch (e) {
+    addError.value = String(e);
+  }
+}
 
 async function loadWorkers() {
   try { workers.value = await ipc.listUsers(); } catch { /* empty */ }
@@ -76,7 +109,7 @@ onMounted(() => {
           <h3>{{ t('training_mode') }}</h3>
           <p>{{ t('training_desc') }}</p>
         </div>
-        <button class="toggle" :class="{ on: pos.trainingMode }" @click="pos.toggleTrainingMode()">
+        <button class="toggle" :class="{ on: pos.trainingMode }" @click="toggleTraining">
           <span class="track"><span class="thumb"></span></span>
           {{ pos.trainingMode ? t('active') : t('inactive') }}
         </button>
@@ -104,7 +137,13 @@ onMounted(() => {
         <h3>{{ t('employees') }}</h3>
         <div v-for="w in workers" :key="w.insz" class="worker-row">
           <span class="worker-name">{{ w.name }}</span>
-          <span class="worker-meta">{{ w.insz }}</span>
+          <span class="worker-meta">{{ t(`role_${w.role}`) }} · {{ w.insz }}</span>
+          <button
+            v-if="w.insz !== auth.currentUser?.insz"
+            class="deactivate-btn"
+            :class="{ armed: confirmDeactivate === w.insz }"
+            @click="deactivate(w.insz)"
+          >{{ confirmDeactivate === w.insz ? t('confirm_deactivate') : t('deactivate') }}</button>
         </div>
 
         <div class="add-worker">
@@ -112,6 +151,17 @@ onMounted(() => {
           <div class="add-fields">
             <input v-model="newName" class="field" :placeholder="t('settings_name_placeholder')" />
             <input v-model="newInsz" class="field" :placeholder="t('settings_insz_placeholder')" maxlength="11" inputmode="numeric" />
+            <div class="role-btns" role="radiogroup" :aria-label="t('role')">
+              <button
+                v-for="r in roles"
+                :key="r"
+                class="role-btn"
+                role="radio"
+                :aria-checked="newRole === r"
+                :class="{ active: newRole === r }"
+                @click="newRole = r"
+              >{{ t(`role_${r}`) }}</button>
+            </div>
           </div>
           <p v-if="addError" class="add-error">{{ addError }}</p>
           <button class="add-btn" @click="addWorker">{{ t('add') }}</button>
@@ -167,10 +217,20 @@ onMounted(() => {
 }
 .lang-btn:active { transform: scale(var(--tap-scale)); }
 .lang-btn.active { background: var(--accent-primary); color: var(--text-on-accent); }
+.role-btns { display: flex; gap: var(--space-xs); }
+.role-btn {
+  padding: var(--space-sm) var(--space-md); min-width: 56px; height: 48px;
+  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary);
+  transition: transform var(--tap-duration) ease;
+}
+.role-btn.active { background: var(--accent-primary); color: var(--text-on-accent); }
 
 .workers-section { margin-top: var(--space-xl); }
 .workers-section h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); margin-bottom: var(--space-md); }
 .worker-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid rgba(160,160,176,0.1); }
+.deactivate-btn { margin-left: auto; min-height: 48px; padding: 0 var(--space-md); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary); font-weight: var(--font-weight-bold); }
+.deactivate-btn.armed { background: var(--accent-danger); color: var(--text-on-accent); }
 .worker-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); }
 .worker-meta { font-size: var(--font-size-xs); color: var(--text-secondary); }
 

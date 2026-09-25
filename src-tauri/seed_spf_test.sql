@@ -44,11 +44,17 @@ INSERT OR IGNORE INTO languages (code, name) VALUES
     ('de', 'Deutsch');
 
 -- ── Utilisateurs de test (NISS standards SPF) ────────────────────
-INSERT OR REPLACE INTO users (insz, name, role) VALUES
-    ('00000000029', 'Robot / Kiosk', 'admin'),
-    ('00000000097', 'Technicien SPF', 'admin'),
-    ('84022899837', 'Operateur Test', 'cashier'),
-    ('94060242576', 'Gerant Test', 'admin');
+-- Les identifiants remis aux agents (REPONSES_MANUEL_CERT_FR.md,
+-- "Informations supplementaires") : un profil par role de
+-- PROFILS_UTILISATEURS_FR.md. PIN hashes bcrypt (cout 12) :
+-- Technicien 0097, Gerant 1111, Serveur 2222, Apprenti 3333.
+-- Le robot (00000000029) n'a pas de PIN.
+INSERT OR REPLACE INTO users (insz, name, role, pin_hash) VALUES
+    ('00000000029', 'Robot / Kiosk', 'admin', NULL),
+    ('00000000097', 'Technicien SPF', 'admin', '$2y$12$biMjvYoNKdT/dWj40tTyTuO3u/zvao.kwyU01SdyFPwIoxGg6UZR2'),
+    ('94060242576', 'Gerant Test', 'admin', '$2y$12$XHH6GSKAOw3OBnHXvDlXjeBkBosOS2xDU4xu31O7yUUf6tfiO2ZRy'),
+    ('84022899837', 'Serveur Test', 'cashier', '$2y$12$7X94vlUi08Hlaid/ZV2vb.FM3QPpjKHW1vqEXxppYfANN7HCKuKD6'),
+    ('99012345667', 'Apprenti Test', 'waiter', '$2y$12$FxE17eeRfr94ie9p28GF1eD0cB8o5dwy1pNsvKGf3oOq2oE81XqPi');
 
 -- ── Categories (= departments du manuel) ────────────────────────
 INSERT INTO categories (id, sort_order, color, active) VALUES

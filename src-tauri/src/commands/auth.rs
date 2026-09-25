@@ -2,6 +2,7 @@ use pos_core::user::{User, UserRole};
 use serde::Deserialize;
 use tauri::State;
 
+use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
 /// Login with INSZ + optional PIN. If the user has a PIN set (pin_hash
@@ -40,8 +41,21 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
             return Err("pin_wrong".to_string());
         }
     }
+    drop(db);
 
+    access::open_session(state, &user)?;
     Ok(user)
+}
+
+/// End the operator's session (after their clock-out): every command
+/// needing an operator is refused until the next login.
+#[tauri::command]
+pub fn logout(state: State<'_, AppState>) -> Result<(), String> {
+    do_logout(state.inner())
+}
+
+pub fn do_logout(state: &AppState) -> Result<(), String> {
+    access::close_session(state)
 }
 
 #[tauri::command]
@@ -62,7 +76,12 @@ pub fn create_user(state: State<'_, AppState>, input: CreateUserInput) -> Result
     do_create_user(state.inner(), input)
 }
 
+/// Create a user. Managers only.
 pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, String> {
+    access::operator(state, Access::Admin)?;
+    if input.name.trim().is_empty() {
+        return Err("Name required".to_string());
+    }
     if !pos_core::user::validate_insz(&input.insz) {
         return Err("INSZ invalide".to_string());
     }
@@ -80,16 +99,47 @@ pub fn set_pin(state: State<'_, AppState>, insz: String, new_pin: String) -> Res
     do_set_pin(state.inner(), insz, new_pin)
 }
 
+/// Set a PIN: the operator's own, or anyone's for a manager.
 pub fn do_set_pin(state: &AppState, insz: String, new_pin: String) -> Result<(), String> {
+    let operator = access::operator(state, Access::Staff)?;
+    if operator.insz != insz && !Access::Admin.allows(operator.role) {
+        return Err(access::ERR_FORBIDDEN.to_string());
+    }
     if new_pin.len() != 4 || !new_pin.chars().all(|c| c.is_ascii_digit()) {
         return Err("PIN must be exactly 4 digits".to_string());
     }
     let hash = bcrypt::hash(&new_pin, bcrypt::DEFAULT_COST).map_err(|e| e.to_string())?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    pos_db::queries::users::set_pin_hash(&db, &insz, &hash).map_err(|e| e.to_string())
+    pos_db::queries::users::set_pin_hash(&db, &insz, &hash).map_err(user_error)
 }
 
+/// Deactivate a user (an employee who left). Managers only, never
+/// themselves: the terminal always keeps the manager who did it.
 #[tauri::command]
-pub fn get_current_user() -> Result<Option<User>, String> {
-    Ok(None)
+pub fn deactivate_user(state: State<'_, AppState>, insz: String) -> Result<(), String> {
+    do_deactivate_user(state.inner(), insz)
+}
+
+pub const ERR_DEACTIVATE_SELF: &str = "You cannot deactivate yourself";
+
+pub fn do_deactivate_user(state: &AppState, insz: String) -> Result<(), String> {
+    let operator = access::operator(state, Access::Admin)?;
+    if operator.insz == insz {
+        return Err(ERR_DEACTIVATE_SELF.to_string());
+    }
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    pos_db::queries::users::deactivate_user(&db, &insz).map_err(user_error)
+}
+
+fn user_error(e: rusqlite::Error) -> String {
+    match e {
+        rusqlite::Error::QueryReturnedNoRows => "Utilisateur inconnu".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// The logged-in operator, if any.
+#[tauri::command]
+pub fn get_current_user(state: State<'_, AppState>) -> Result<Option<User>, String> {
+    Ok(state.session.lock().map_err(|e| e.to_string())?.clone())
 }

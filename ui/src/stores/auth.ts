@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
 import { useToastStore } from "./toast";
@@ -36,12 +36,24 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  function logout() {
-    if (currentUser.value) {
-      void registerPresence(currentUser.value.insz, false);
-    }
+  /** Clock out, then end the backend session (in that order: the
+   * clock-out is signed in the operator's name). */
+  async function logout() {
+    const user = currentUser.value;
     currentUser.value = null;
+    if (user) await registerPresence(user.insz, false);
+    try {
+      await ipc.logout();
+    } catch {
+      /* the next login replaces the session anyway */
+    }
   }
 
-  return { currentUser, error, loginWithInsz, logout };
+  // What the role may do (PROFILS_UTILISATEURS_FR.md §2). The backend
+  // enforces it; the UI only hides what would be refused.
+  const role = computed(() => currentUser.value?.role);
+  const canTakePayment = computed(() => role.value === "admin" || role.value === "cashier");
+  const isManager = computed(() => role.value === "admin");
+
+  return { currentUser, error, loginWithInsz, logout, canTakePayment, isManager };
 });

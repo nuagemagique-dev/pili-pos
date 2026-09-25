@@ -51,6 +51,10 @@ pub struct FiscalEventRow {
     pub fdm_response_json: Option<String>,
 }
 
+/// The operator every TestApp is logged in as (an admin). Most suites
+/// sign their events in this name.
+pub const TEST_OPERATOR: &str = "12345678901";
+
 /// In-process test app: an `AppState` + a wiremock server pretending
 /// to be the FDM. Tests drop both at end-of-scope.
 pub struct TestApp {
@@ -106,9 +110,40 @@ impl TestApp {
             shared_http: reqwest::Client::new(),
             shutdown_token: CancellationToken::new(),
             mail: moyun_pos::commands::delivery::MailState::disabled(),
+            session: Mutex::new(None),
         };
 
-        Self { state, fdm }
+        let app = Self { state, fdm };
+        app.login_as(TEST_OPERATOR, pos_core::user::UserRole::Admin);
+        app
+    }
+
+    /// Register `insz` as an active user with `role` and make them the
+    /// logged-in operator, as `login` does. Every TestApp starts logged
+    /// in as the admin [`TEST_OPERATOR`].
+    pub fn login_as(&self, insz: &str, role: pos_core::user::UserRole) {
+        {
+            let conn = self.state.db.lock().unwrap();
+            conn.execute(
+                "INSERT INTO users (insz, name, role, active) VALUES (?1, ?2, ?3, 1)
+                 ON CONFLICT(insz) DO UPDATE SET role = excluded.role, active = 1",
+                rusqlite::params![insz, format!("Test {insz}"), role.as_str()],
+            )
+            .unwrap();
+        }
+        let user = pos_core::user::User {
+            insz: insz.to_string(),
+            name: format!("Test {insz}"),
+            role,
+            active: true,
+            has_pin: false,
+        };
+        *self.state.session.lock().unwrap() = Some(user);
+    }
+
+    /// End the session, as `logout` does.
+    pub fn logout(&self) {
+        *self.state.session.lock().unwrap() = None;
     }
 
     /// Snapshot the entire `fiscal_events` table, oldest first.

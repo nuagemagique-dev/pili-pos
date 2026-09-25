@@ -7,6 +7,7 @@ use pos_fiscal::response::FdmReference;
 use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::EventLabel;
 
+use crate::commands::access::{self, Access};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 use crate::state::AppState;
 
@@ -68,6 +69,9 @@ pub async fn do_copy_ticket_with(
     employee_insz: String,
     delivery_request: Option<&TicketDeliveryRequest>,
 ) -> Result<CopyResult, String> {
+    if let Err(e) = access::operator_named(state, &employee_insz, Access::Admin) {
+        return Ok(CopyResult::failed(e));
+    }
     // 1. Load the original event
     let (original_ref, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;

@@ -61,6 +61,17 @@ export function login(insz: string, pin?: string): Promise<User> {
   return invoke("login", { insz, pin: pin ?? null });
 }
 
+/** Deactivates a user (manager only, never oneself). */
+export function deactivateUser(insz: string): Promise<void> {
+  return invoke("deactivate_user", { insz });
+}
+
+/** Ends the backend session: operator commands are refused until the
+ * next login. */
+export function logout(): Promise<void> {
+  return invoke("logout");
+}
+
 export function setPin(insz: string, newPin: string): Promise<void> {
   return invoke("set_pin", { insz, newPin });
 }

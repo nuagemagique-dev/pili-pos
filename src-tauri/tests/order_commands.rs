@@ -56,6 +56,7 @@ fn seed(app: &TestApp) {
 async fn app() -> TestApp {
     let app = TestApp::new().await;
     seed(&app);
+    app.login_as(INSZ, pos_core::user::UserRole::Admin);
     app
 }
 

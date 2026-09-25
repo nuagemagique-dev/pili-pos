@@ -30,6 +30,7 @@ use pos_fiscal::types::TicketMedium;
 use pos_mail::outbox::{self, SendNowOutcome};
 use pos_mail::tem::TemClient;
 
+use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
 /// Longest the checkout waits for an email before printing instead.
@@ -558,6 +559,7 @@ pub async fn do_print_missing_original(
     fiscal_event_id: i64,
     ticket: &FiscalTicket,
 ) -> Result<(), String> {
+    access::operator(state, Access::Cashier)?;
     let (printer, digital_delivery) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
