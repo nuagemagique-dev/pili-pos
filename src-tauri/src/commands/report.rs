@@ -259,7 +259,14 @@ pub async fn do_generate_z_report(
         // between the two archives can never leave a half-recorded Z.
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
         let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        debug_assert_eq!(committed, turnover_ticket);
+        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        if committed != turnover_ticket {
+            return Err(format!(
+                "counter drifted between peek and commit for {label:?} (peeked \
+                 {turnover_ticket}, committed {committed}) — likely a concurrent \
+                 report generation; retry"
+            ));
+        }
         let fiscal_event_id = archive::archive_event(
             &tx,
             ArchiveParams {
@@ -275,7 +282,14 @@ pub async fn do_generate_z_report(
         )
         .map_err(|e| e.to_string())?;
         let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        debug_assert_eq!(committed, user_ticket);
+        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        if committed != user_ticket {
+            return Err(format!(
+                "counter drifted between peek and commit for {label:?} (peeked \
+                 {user_ticket}, committed {committed}) — likely a concurrent \
+                 report generation; retry"
+            ));
+        }
         archive::archive_event(
             &tx,
             ArchiveParams {

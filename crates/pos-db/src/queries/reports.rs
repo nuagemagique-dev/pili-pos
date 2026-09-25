@@ -56,32 +56,29 @@ pub fn get_event_totals(
     rows.collect()
 }
 
-/// Get VAT totals from closed orders for a given date.
-///
-/// Training-mode sales must never count in real fiscal totals (POS
-/// description v2.2 §1.5, CLAUDE.md "Training mode"). `orders` /
-/// `order_lines` carry no `is_training` flag of their own — checkout
-/// and refund always close the order the same way regardless of
-/// `config.training_mode` — so the only signal is the archived
-/// `fiscal_events` row for that order: its `event_type` is `'T'`
-/// whenever the closing sale was signed in training mode (see
-/// `EventLabel::in_mode`). We exclude any closed order that has such
-/// a row.
+/// Orders whose closing fiscal event was archived under label T: a
+/// training-mode sale (or its refund) still runs through the normal
+/// `orders`/`order_lines` tables — there is no training flag on those
+/// rows — so every real-money aggregate below must explicitly exclude
+/// them by checking the linked `fiscal_events` row instead. Without
+/// this, training turnover would silently inflate the real VAT/
+/// department/payment breakdown reported to the FDM.
+const EXCLUDE_TRAINING_ORDERS: &str =
+    "NOT EXISTS (SELECT 1 FROM fiscal_events fe WHERE fe.order_id = o.id AND fe.event_type = 'T')";
+
+/// Get VAT totals from closed, non-training orders for a given date.
 pub fn get_vat_totals(
     conn: &Connection,
     booking_date: &str,
 ) -> Result<Vec<VatTotal>, rusqlite::Error> {
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT ol.vat_code, SUM(ol.unit_price_cents * ol.quantity)
          FROM order_lines ol
          JOIN orders o ON o.id = ol.order_id
          WHERE o.status = 'closed' AND DATE(o.closed_at) = ?1
-           AND NOT EXISTS (
-               SELECT 1 FROM fiscal_events fe
-               WHERE fe.order_id = o.id AND fe.event_type = 'T'
-           )
-         GROUP BY ol.vat_code",
-    )?;
+           AND {EXCLUDE_TRAINING_ORDERS}
+         GROUP BY ol.vat_code"
+    ))?;
 
     let rows = stmt.query_map(params![booking_date], |row| {
         Ok(VatTotal {
@@ -93,15 +90,14 @@ pub fn get_vat_totals(
     rows.collect()
 }
 
-/// Get department totals from closed orders for a given date, with the
-/// same scope (and the same training exclusion, see `get_vat_totals`)
-/// as `get_vat_totals`. Lines recorded before departments were
-/// captured are grouped under their product's category.
+/// Get department totals from closed, non-training orders for a given
+/// date, with the same scope as `get_vat_totals`. Lines recorded before
+/// departments were captured are grouped under their product's category.
 pub fn get_department_totals(
     conn: &Connection,
     booking_date: &str,
 ) -> Result<Vec<DepartmentTotal>, rusqlite::Error> {
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT COALESCE(ol.department_id, CAST(m.category_id AS TEXT)) AS dept_id,
                 COALESCE(ol.department_name, CAST(m.category_id AS TEXT)) AS dept_name,
                 SUM(ol.unit_price_cents * ol.quantity)
@@ -109,13 +105,10 @@ pub fn get_department_totals(
          JOIN orders o ON o.id = ol.order_id
          LEFT JOIN menu_items m ON m.id = ol.menu_item_id
          WHERE o.status = 'closed' AND DATE(o.closed_at) = ?1
-           AND NOT EXISTS (
-               SELECT 1 FROM fiscal_events fe
-               WHERE fe.order_id = o.id AND fe.event_type = 'T'
-           )
+           AND {EXCLUDE_TRAINING_ORDERS}
          GROUP BY dept_id, dept_name
-         ORDER BY dept_id",
-    )?;
+         ORDER BY dept_id"
+    ))?;
 
     let rows = stmt.query_map(params![booking_date], |row| {
         Ok(DepartmentTotal {
