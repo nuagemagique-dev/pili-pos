@@ -451,9 +451,31 @@ BEGIN
 END;
 "#;
 
+/// v7 — German, the third national language (tickets are printed in
+/// FR, NL or DE): a German-region catalogue can carry German names.
+pub(crate) const MIGRATION_007_GERMAN_LANGUAGE: &str = r#"
+INSERT OR IGNORE INTO languages (code, name) VALUES ('de', 'Deutsch');
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_ticket_language_can_hold_translations() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for lang in ["fr", "nl", "de", "en", "zh"] {
+            let known: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM languages WHERE code = ?1 AND active = 1",
+                    [lang],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(known, 1, "{lang}");
+        }
+    }
 
     #[test]
     fn schema_creates_all_tables() {

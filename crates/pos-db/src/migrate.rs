@@ -34,7 +34,7 @@ use rusqlite::Connection;
 use crate::schema::{
     MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_BOOKING_PERIODS,
     MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY, MIGRATION_005_TICKET_DELIVERIES,
-    MIGRATION_006_ORIGINAL_PRINTS, SCHEMA_SQL,
+    MIGRATION_006_ORIGINAL_PRINTS, MIGRATION_007_GERMAN_LANGUAGE, SCHEMA_SQL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -75,6 +75,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 6,
         name: "original-prints",
         sql: MIGRATION_006_ORIGINAL_PRINTS,
+    },
+    Migration {
+        version: 7,
+        name: "german-language",
+        sql: MIGRATION_007_GERMAN_LANGUAGE,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one.
@@ -168,12 +173,12 @@ mod tests {
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6, 7]);
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(applied_again, vec![1, 2, 3, 4, 5, 6, 7]);
     }
 
     #[test]
@@ -186,7 +191,7 @@ mod tests {
 
         // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6, 7]);
 
         let stamp: String = conn
             .query_row(
@@ -244,7 +249,7 @@ mod tests {
         .unwrap();
 
         run_migrations(&conn).unwrap();
-        assert_eq!(applied_versions(&conn).unwrap(), vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(applied_versions(&conn).unwrap(), vec![1, 2, 3, 4, 5, 6, 7]);
 
         // The v4 triggers are actually present after this incremental path.
         conn.execute(

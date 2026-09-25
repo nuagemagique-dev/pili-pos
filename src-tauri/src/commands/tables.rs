@@ -43,6 +43,7 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
                  WHERE o.table_number = ?1 AND o.status = 'open'
                  GROUP BY o.id
                  HAVING COUNT(ol.id) > 0
+                 ORDER BY o.id
                  LIMIT 1",
                 rusqlite::params![t],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),

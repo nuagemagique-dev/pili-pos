@@ -24,7 +24,8 @@ export const useOrderStore = defineStore("order", () => {
       table_number: tableNumber,
       user_insz: auth.currentUser.insz,
     });
-    lines.value = [];
+    // A busy table returns its open order: show its lines.
+    lines.value = tableNumber ? await ipc.listOrderLines(currentOrder.value.id) : [];
   }
 
   /**

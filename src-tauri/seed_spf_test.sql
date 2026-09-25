@@ -36,10 +36,10 @@ DELETE FROM translations WHERE entity_type IN ('category', 'menu_item');
 DELETE FROM menu_items;
 DELETE FROM categories;
 
--- ── Langues supportees (DE complementaire pour SPF test) ─────────
--- Le schema initialise fr/nl/en/zh. Pour la machine de test SPF on
--- ajoute 'de' (utilise dans les traductions ci-dessous) afin de
--- pouvoir manipuler le POS dans une 4eme langue officielle belge.
+-- ── Langues supportees ───────────────────────────────────────────
+-- Le schema initialise fr/nl/de/en/zh ('de' depuis la migration v7).
+-- Repete ici pour qu'une base plus ancienne accepte les traductions
+-- allemandes ci-dessous.
 INSERT OR IGNORE INTO languages (code, name) VALUES
     ('de', 'Deutsch');
 
