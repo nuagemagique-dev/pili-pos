@@ -1,39 +1,31 @@
 {
   "bufferCapacityUsed": 0.25,
-  "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+  "deviceId": "80:1A:A6:75:66:FC",
   "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
   "eventOperation": "SALE",
   "fdmRef": {
-    "eventCounter": 15,
+    "eventCounter": 13,
     "eventLabel": "N",
-    "fdmDateTime": "2024-07-29T11:00:08Z",
+    "fdmDateTime": "2024-07-30T07:45:16.384173Z",
     "fdmId": "FOD01000001",
-    "totalCounter": 59
+    "totalCounter": 52
   },
   "fdmSwVersion": "1.2.0",
   "footer": [],
   "informations": [],
-  "posDateTime": "2024-07-29T13:00:00+02:00",
-  "posFiscalTicketNo": 1000,
-  "posId": "CPOS0031234567",
+  "posDateTime": "2024-07-30T09:45:12+02:00",
+  "posFiscalTicketNo": 203,
+  "posId": "CPOS0031234568",
   "shortSignature": "ca39a3ee5e6b4b0d3255bfef95601890afd80709",
-  "terminalId": "TER-2-DIN",
+  "terminalId": "POS-2-REC",
   "vatCalc": [
     {
       "label": "A",
       "outOfScope": false,
       "rate": 21.0,
-      "taxableAmount": 19.83,
-      "totalAmount": 24.0,
-      "vatAmount": 4.17
-    },
-    {
-      "label": "B",
-      "outOfScope": false,
-      "rate": 12.0,
-      "taxableAmount": 25.0,
-      "totalAmount": 28.0,
-      "vatAmount": 3.0
+      "taxableAmount": 2.51,
+      "totalAmount": 3.04,
+      "vatAmount": 0.53
     }
   ],
   "verificationUrl": "https://gs2.be/",

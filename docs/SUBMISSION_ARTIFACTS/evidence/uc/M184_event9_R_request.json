@@ -1,0 +1,129 @@
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "7e4068d4-7615-4cc0-bf17-2ffb896f2906",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FOD01000001",
+      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstTotalCounter": 49,
+      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastTotalCounter": 56
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.914751+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "posId": "CFOD0061234567",
+      "terminalId": "POS1"
+    }
+  ],
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "reportBookingDate": "2026-09-25",
+  "reportNo": 1,
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "turnover": {
+    "departments": [
+      {
+        "amount": 24.0,
+        "departmentId": "10",
+        "departmentName": "Aperitifs"
+      },
+      {
+        "amount": 3.04,
+        "departmentId": "12",
+        "departmentName": "Boissons rafraichissantes"
+      },
+      {
+        "amount": 35.0,
+        "departmentId": "15",
+        "departmentName": "Vins"
+      },
+      {
+        "amount": 40.0,
+        "departmentId": "22",
+        "departmentName": "Plats principaux"
+      }
+    ],
+    "drawersOpenCount": 0,
+    "invoices": [],
+    "negQuantities": [
+      {
+        "amount": -52.0,
+        "negQuantityCount": 2,
+        "negQuantityReason": "REFUND",
+        "ticketCount": 1
+      }
+    ],
+    "payments": [
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 99.0,
+            "positiveCorrections": 0.0,
+            "totalAmount": 99.0,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "1",
+        "name": "Cash",
+        "type": "CASH"
+      },
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 3.04,
+            "positiveCorrections": 0.0,
+            "totalAmount": 3.04,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "2",
+        "name": "Card",
+        "type": "CARD_DEBIT"
+      }
+    ],
+    "priceChanges": [],
+    "transactions": [
+      {
+        "amount": 102.04,
+        "eventLabel": "N",
+        "ticketCount": 4
+      },
+      {
+        "amount": 250.0,
+        "eventLabel": "P",
+        "ticketCount": 4
+      }
+    ],
+    "vats": [
+      {
+        "label": "A",
+        "rate": 21.0,
+        "taxableAmount": 51.27,
+        "totalAmount": 62.04,
+        "vatAmount": 10.77
+      },
+      {
+        "label": "B",
+        "rate": 12.0,
+        "taxableAmount": 35.71,
+        "totalAmount": 40.0,
+        "vatAmount": 4.29
+      }
+    ]
+  },
+  "vatNo": "BE0000000097"
+}

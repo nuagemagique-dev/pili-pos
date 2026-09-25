@@ -1,23 +1,26 @@
 # Resultats des tests UC - moyun-pos v1.0.0
 
-**Date :** 2026-05-14
+**Date :** 2026-09-25
 **Reference :** §IV du manuel de certification (Procedure de communication GraphQL).
 
 Ce document parcourt les UC obligatoires du Basic Set v1.7 (22 UC
-spec) + les 5 UC Reports v1.3, **à l'exception de M150_signInvoice**
-(event I, hors périmètre v1.0.0 - voir la section dédiée ci-dessous
-et *DECISION_PEPPOL_AP_FR.md*). Pour chaque UC restant, il fournit :
+spec) + les 5 UC Reports v1.3. Sont hors périmètre v1.0.0, chacun
+dans sa section : **M150_signInvoice** (event I, voir
+*DECISION_PEPPOL_AP_FR.md*), **M122** (changement de centre de coût)
+et **M132** (correction de paiement) ; **M112A** n'est pas un parcours
+proposé par moyun-pos (le remboursement partiel est toujours émis en
+ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 
 - Le scenario d'execution (extrait de la fixture officielle SPF Finances).
-- La capture du JSON request envoye au FDM (depuis le fichier Variables.json publie).
-- La capture du JSON response renvoye par le FDM (depuis le fichier *_Response.json publie).
-- Le tableau "Champs a verifier" coche OK avec valeurs observees.
-- La reference au ticket attendu (cf. *TICKETS_EXEMPLES_FR.md*).
+- La requete et la reponse de reference de la fixture (fichiers Variables.json et *_Response.json publies).
+- Le tableau "Champs a verifier" de la fixture.
 - La reference au test automatise qui valide la conformite.
+- Pour chaque UC rejoue : la requete **construite par moyun-pos** et sa comparaison avec la fixture (bloc « Preuve moyun-pos »).
+- Les tickets correspondants sont transcrits dans *TICKETS_EXEMPLES_FR.md*.
 
-**Note importante :** les fixtures SPF Finances etant la source de verite, les valeurs ci-dessous correspondent exactement a celles publiees par le SPF dans `docs/20250916_UC_BasicSet_POS_FDM_1.7/` et `docs/20250916_UC_Reports_1.3/`. Notre code (couche `pos-fiscal`) parse et produit ces JSON ; les tests `uc_fixtures.rs`, `reports_fixtures.rs` et `spf_e2e_basic.rs` valident automatiquement la conformite a chaque commit.
+**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20250916_UC_BasicSet_POS_FDM_1.7/` et `docs/20250916_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que moyun-pos lit chaque fixture ; les rejeux applicatifs `src-tauri/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que moyun-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
 
-**Preuves generees par l'implementation :** en complement des fixtures publiees, le repertoire `evidence/uc/` contient, pour chaque UC rejoue par la suite e2e (`spf_e2e_basic.rs`, `spf_e2e_reports.rs`), le JSON de requete **reellement construit par moyun-pos** (colonne `event_data_json` de l'archive fiscale) et la reponse FDM archivee. Regeneration : `scripts/capture_uc_evidence.sh`. Ces fichiers prouvent que la couche commande produit des payloads conformes, pas seulement qu'elle sait parser les fixtures.
+**Preuves generees par l'implementation :** chaque UC rejoue se termine par un bloc « Preuve moyun-pos (build `cert`) ». Le rejeu construit la commande a partir des produits, quantites et paiements de la fixture, la fait passer par les vraies commandes du binaire de certification (`--no-default-features --features cert`) et compare champ par champ la requete archivee a celle de la fixture : champs metier egaux, champs d'identification (posId, deviceId, numero de ticket, dates, periode de booking) controles sur leur format, ecarts assumes listes et motives. Le bloc reprend la requete **reellement construite par moyun-pos** (colonne `event_data_json` de l'archive fiscale) et le resultat de la comparaison ; les fichiers sont dans `evidence/uc/` (`<UC>_event<N>_<label>_request.json`, `_response.json`, `<UC>_check.json`). Regeneration : `scripts/capture_uc_evidence.sh`. Le FDM y est un mock qui rejoue la reponse de la fixture ; les memes tests sont rejoues contre le FDM Checkbox lors de la repetition (*JOURNAL_TESTS_PRE_SOUMISSION_FR.md*).
 
 ---
 
@@ -190,8 +193,96 @@ Payment by CASH (52 EUR)
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "415c4d8e-7df1-4500-86dd-b84024ca2ade",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 52.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.611190+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "productId": "22001",
+          "productName": "Burger du chef",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 28.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 52.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M110_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `costCenter.type` | — | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+
+<!-- moyun-pos-evidence:end -->
 
 ## M111_signSale_Refund
 
@@ -368,8 +459,98 @@ Products on original ticket N 1000/1200:
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "47436ff9-3029-43a3-8b6a-1debdad0bc94",
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 15,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-29T11:00:08Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 59
+  },
+  "financials": [
+    {
+      "amount": -52.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.700805+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": -24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "negQuantityReason": "REFUND",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": -2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": -24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": -28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "negQuantityReason": "REFUND",
+          "productId": "22001",
+          "productName": "Burger du chef",
+          "quantity": -1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": -28.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": -52.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M111_event1_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M111_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M112A_signSale_RefundPartial
 
@@ -762,9 +943,12 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 **Note de déclaration :** c'est CE pattern (remboursement partiel en
 événement séparé, chaîné à la vente d'origine via `fdmReference`) que le
 POS implémente et déclare. Couverture e2e applicative :
-`m112b_partial_refund_is_separate_event_chained_to_original` dans
-`src-tauri/tests/spf_e2e_basic.rs` ; preuves générées dans
-`evidence/uc/M112B_*.json`.
+`m112b_partial_refund_as_a_separate_ticket` dans
+`src-tauri/tests/spf_e2e_fixtures.rs` (rejeu de la fixture, build
+`cert`) et `m112b_partial_refund_is_separate_event_chained_to_original`
+dans `src-tauri/tests/spf_e2e_basic.rs` ; preuves générées dans
+`evidence/uc/M112B_*.json` (voir « Preuve moyun-pos » en fin de
+section).
 
 ### M112B_1_OriginalSale
 
@@ -923,7 +1107,7 @@ POS implémente et déclare. Couverture e2e applicative :
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 ### M112B_2_PartialRefund
 
@@ -1056,8 +1240,90 @@ POS implémente et déclare. Couverture e2e applicative :
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "a48a30f8-7c7e-4fd2-8e9f-322151e673e6",
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 81958,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-10-07T11:00:41Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 83876
+  },
+  "financials": [
+    {
+      "amount": -12.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.701031+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": -12.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "negQuantityReason": "REFUND",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": -1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": -12.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": -12.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M112B_event1_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M112B_1_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `costCenter.type` | — | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+
+**Comparaison avec la fixture** (`evidence/uc/M112B_2_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `fdmRef` | — | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | moyun-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
+
+<!-- moyun-pos-evidence:end -->
 
 ## M121_signOrder
 
@@ -1193,10 +1459,90 @@ on table 1.
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
 
-## M122_signCostCenterChange
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "a6ad4c41-3773-425d-b098-5eae9012c01e",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.610552+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 13.36,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "28",
+          "departmentName": "Tapas",
+          "productId": "28007",
+          "productName": "Tapas variees",
+          "quantity": 4.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 13.36
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 37.36
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M121_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `ticketMedium` | `PAPER` | `NONE` | les commandes ne sont pas imprimées en v1.0.0 (pas de ticket cuisine) : le support est NONE |
+
+<!-- moyun-pos-evidence:end -->
+
+## M122_signCostCenterChange - hors périmètre v1.0.0
+
+Le changement de centre de cout n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par moyun-pos.
 
 **Mutation invoquee :** `signCostCenterChange`
 
@@ -1390,7 +1736,7 @@ is moved to T5 (Dining Room)
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) — fonctionnalite non declaree en v1.0.0.
 
 
 ## M123_signPrebill
@@ -1527,8 +1873,84 @@ on table 1 (BAR)  is printed
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "6955a490-5364-467e-8134-039b7400dc68",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.698499+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 13.36,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "28",
+          "departmentName": "Tapas",
+          "productId": "28007",
+          "productName": "Tapas variees",
+          "quantity": 4.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 13.36
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 37.36
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M123_event1_P_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M123_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M130_signMoneyInOut
 
@@ -1627,8 +2049,44 @@ on table 1 (BAR)  is printed
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "01a9fb17-0cc1-4c48-97e7-037faca7940a",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 100.0,
+      "amountType": "MONEY_IN_OUT",
+      "id": "MOV1",
+      "inputMethod": "MANUAL",
+      "name": "Fond de caisse",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.611187+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M130_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M131_signDrawerOpen
 
@@ -1717,10 +2175,42 @@ Drawer 1 is opened without any action
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
 
-## M132_signPaymentCorrection
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "d5fd9edd-e1ce-4eda-8852-3dbeb75c4427",
+  "deviceId": "DEV001",
+  "drawer": {
+    "id": "DRAWER1",
+    "name": "Tiroir principal"
+  },
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.610555+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M131_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
+
+## M132_signPaymentCorrection - hors périmètre v1.0.0
+
+La correction de paiement n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par moyun-pos.
 
 **Mutation invoquee :** `signPaymentCorrection`
 
@@ -1834,7 +2324,7 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) — fonctionnalite non declaree en v1.0.0.
 
 
 ## M133_signMoneyInOut_DrawerDeclaration
@@ -1934,7 +2424,7 @@ Declaration of 1000 EUR cash in drawer 1
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) ; le flux applicatif est celui de M130 (`src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`).
 
 
 ## M140_signWorkIn
@@ -2020,8 +2510,34 @@ Registration of "Work In" of employee (employeeId 80113078968)
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "00ed6160-ee5f-40e5-8229-826ffc00e08d",
+  "deviceId": "DEV001",
+  "employeeId": "80113078968",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.618268+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M140_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M141_signWorkOut
 
@@ -2106,8 +2622,34 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "d439a56d-6cdd-492a-b8b8-af64c4c26912",
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.736003+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M141_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M150_signInvoice - hors périmètre v1.0.0
 
@@ -2121,12 +2663,9 @@ soumis. La fixture M150 continue d'être **parsée** par
 `crates/pos-fiscal/tests/uc_fixtures.rs` (validation du format JSON
 uniquement) et **exercée en e2e** par `src-tauri/tests/spf_e2e_basic.rs`
 avec les features par défaut (`hubrise` + `peppol`, utilisées pour le
-développement et les tests, pas pour la build cert) - le JSON produit
-par `do_sign_invoice_fiscal` et la réponse FDM archivée pendant cet
-e2e sont d'ailleurs disponibles sous `evidence/uc/M150_event2_I_*.json`
-à titre de preuve de code, mais ce couple n'est **pas** inclus dans
-les preuves soumises pour l'admission v1.0.0 puisque le binaire cert
-ne peut pas produire cet événement.
+développement et les tests, pas pour la build cert). Les preuves de
+`evidence/uc/` sont produites par la build cert, qui ne peut pas
+émettre cet événement : M150 n'y figure donc pas.
 
 Mise à jour certifiée prévue v1.1. *Voir : DECISION_PEPPOL_AP_FR.md*.
 
@@ -2220,8 +2759,43 @@ Print of a copy of ticket (sale) N 16/52
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "c6a73c63-c0f7-4094-bb48-f39c31cf3fda",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 16,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-29T11:48:04Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 52
+  },
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.744765+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M160_event1_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M160_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M161_signCopy_Order
 
@@ -2313,8 +2887,43 @@ Print of a copy of order P 22/53
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "054532e4-6501-4952-8c05-ea5eda40c657",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 22,
+    "eventLabel": "P",
+    "fdmDateTime": "2024-07-29T12:57:12Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 53
+  },
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.744580+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M161_event1_P_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M161_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M170_signWorkIn_Training
 
@@ -2400,8 +3009,34 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "71d8a783-ca63-42ad-a200-5cd1c49d79ac",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.740395+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M170_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- moyun-pos-evidence:end -->
 
 ## M171B_signSale_Training
 
@@ -2538,7 +3173,7 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) ; le flux applicatif est celui de M171 (`src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`).
 
 
 ## M171_signSale_Training
@@ -2688,8 +3323,96 @@ in training mode. Paymentmethod: CASH
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "a1c951b7-82a0-4f86-afef-c1199c818b55",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 33.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.741670+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 5.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "12",
+          "departmentName": "Boissons rafraichissantes",
+          "productId": "12007",
+          "productName": "Perrier",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 2.5,
+          "vats": [
+            {
+              "label": "A",
+              "price": 5.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "productId": "22001",
+          "productName": "Burger du chef",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 28.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 33.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M171_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `costCenter.type` | — | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+
+<!-- moyun-pos-evidence:end -->
 
 ## M172_signCopy_Training
 
@@ -2782,8 +3505,47 @@ In training mode: print of a copy of ticket (sale) N 35/73
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "51634a6a-4f05-424f-b8d4-8be81a38581c",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 35,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-03T16:40:39Z",
+    "fdmId": "FOD01000002",
+    "totalCounter": 73
+  },
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.745580+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}
+```
+
+Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N_request.json`. Réponses FDM archivées : fichiers `*_response.json` correspondants.
+
+**Comparaison avec la fixture** (`evidence/uc/M172_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `ticketMedium` | `NONE` | `PAPER` | les copies sont imprimées aussi en mode formation : le support est PAPER |
+
+<!-- moyun-pos-evidence:end -->
 
 ## Q100_Status
 
@@ -2815,7 +3577,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-fiscal/tests/client_status.rs` (requete de statut du client FDM).
 
 
 ## Q110_Status_multi_lang_messages
@@ -2864,7 +3626,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-fiscal/tests/client_status.rs` (requete de statut du client FDM).
 
 
 ---
@@ -3074,8 +3836,156 @@ In training mode: print of a copy of ticket (sale) N 35/73
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
+
+Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "c0886841-c28d-4b42-a4a2-1de81fa4c3a8",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FOD01000001",
+      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstTotalCounter": 49,
+      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastTotalCounter": 56
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.914653+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-25T17:48:22.804158+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911776+02:00",
+      "posId": "CFOD0061234567",
+      "terminalId": "POS1"
+    }
+  ],
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "turnover": {
+    "departments": [
+      {
+        "amount": 24.0,
+        "departmentId": "10",
+        "departmentName": "Aperitifs"
+      },
+      {
+        "amount": 3.04,
+        "departmentId": "12",
+        "departmentName": "Boissons rafraichissantes"
+      },
+      {
+        "amount": 35.0,
+        "departmentId": "15",
+        "departmentName": "Vins"
+      },
+      {
+        "amount": 40.0,
+        "departmentId": "22",
+        "departmentName": "Plats principaux"
+      }
+    ],
+    "drawersOpenCount": 0,
+    "invoices": [],
+    "negQuantities": [
+      {
+        "amount": -52.0,
+        "negQuantityCount": 2,
+        "negQuantityReason": "REFUND",
+        "ticketCount": 1
+      }
+    ],
+    "payments": [
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 99.0,
+            "positiveCorrections": 0.0,
+            "totalAmount": 99.0,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "1",
+        "name": "Cash",
+        "type": "CASH"
+      },
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 3.04,
+            "positiveCorrections": 0.0,
+            "totalAmount": 3.04,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "2",
+        "name": "Card",
+        "type": "CARD_DEBIT"
+      }
+    ],
+    "priceChanges": [],
+    "transactions": [
+      {
+        "amount": 102.04,
+        "eventLabel": "N",
+        "ticketCount": 4
+      },
+      {
+        "amount": 250.0,
+        "eventLabel": "P",
+        "ticketCount": 4
+      }
+    ],
+    "vats": [
+      {
+        "label": "A",
+        "rate": 21.0,
+        "taxableAmount": 51.27,
+        "totalAmount": 62.04,
+        "vatAmount": 10.77
+      },
+      {
+        "label": "B",
+        "rate": 12.0,
+        "taxableAmount": 35.71,
+        "totalAmount": 40.0,
+        "vatAmount": 4.29
+      }
+    ]
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Events de la journée, archivés de même : `evidence/uc/M180_event1_P_request.json`, `evidence/uc/M180_event2_N_request.json`, `evidence/uc/M180_event3_N_request.json`, `evidence/uc/M180_event4_N_request.json`, `evidence/uc/M180_event5_P_request.json`, `evidence/uc/M180_event6_P_request.json`, `evidence/uc/M180_event7_P_request.json`, `evidence/uc/M180_event8_N_request.json`.
+
+Comparés exactement : nombre d'events et montants par label, départements, TVA (taux, base, TVA, total), paiements, quantités négatives, ouvertures de tiroir, totaux, paiements et présences par utilisateur. Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 ; point signalé au SPF |
+| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
+| `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
+| `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
+| `posDevices` / `fdmDevices` | appareils du scénario | ce terminal et le FDM de test | propres à l'installation |
+
+<!-- moyun-pos-evidence:end -->
 
 ## M181_signReportTurnoverZ
 
@@ -3085,7 +3995,9 @@ seul : la clôture de journée émet toujours le **Z combiné M184**
 deux `posFiscalTicketNo` séquentiels) — voir la section M184 ci-dessous.
 La fixture M181 est validée en *parsing* et sa forme `signReportTurnoverZ`
 est exactement celle émise dans la première moitié du document M184.
-Couverture e2e applicative du Z : `m184_*` dans
+Couverture e2e applicative du Z : `m184_combined_z_of_the_scenario_day`
+dans `src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
+comparée à la fixture) et `m184_*` dans
 `src-tauri/tests/spf_e2e_reports.rs`.
 
 **Mutation invoquee :** `signReportTurnoverZ`
@@ -3297,17 +4209,23 @@ Couverture e2e applicative du Z : `m184_*` dans
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+<!-- moyun-pos-evidence:end -->
 
 ## M182_signReportUserX
 
 **Note de déclaration :** implémenté par la commande
 `generate_user_x_report` (`src-tauri/src/commands/report.rs`,
 `do_generate_user_x_report`). Couverture e2e applicative :
+`m182_user_x_of_the_scenario_day` dans
+`src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
+comparée à la fixture) et
 `m182_generate_user_x_report_archives_r_event_with_user_block` dans
 `src-tauri/tests/spf_e2e_reports.rs` ; preuves dans
-`evidence/uc/M182_*.json`.
+`evidence/uc/M182_*.json` (journée T1–T8 puis l'événement R).
 
 **Mutation invoquee :** `signReportUserX`
 
@@ -3484,8 +4402,126 @@ Couverture e2e applicative du Z : `m184_*` dans
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
+
+Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "00a27a41-5f51-4584-a826-3a6b3bab01b5",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FOD01000001",
+      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstTotalCounter": 49,
+      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastTotalCounter": 56
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.914885+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-25T17:48:22.804110+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911984+02:00",
+      "posId": "CFOD0061234567",
+      "terminalId": "POS1"
+    }
+  ],
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "users": [
+    {
+      "employeeId": "75061189702",
+      "firstPosDateTime": "2026-09-25T17:48:22.804110+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.899747+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 0.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 0.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        }
+      ],
+      "socialEvents": [],
+      "totalAmount": 0.0
+    },
+    {
+      "employeeId": "84022899837",
+      "firstPosDateTime": "2026-09-25T17:48:22.902540+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911984+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 99.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 99.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        },
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 3.04,
+              "positiveCorrections": 0.0,
+              "totalAmount": 3.04,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "2",
+          "name": "Card",
+          "type": "CARD_DEBIT"
+        }
+      ],
+      "socialEvents": [],
+      "totalAmount": 102.04
+    }
+  ],
+  "vatNo": "BE0000000097"
+}
+```
+
+Events de la journée, archivés de même : `evidence/uc/M182_event1_P_request.json`, `evidence/uc/M182_event2_N_request.json`, `evidence/uc/M182_event3_N_request.json`, `evidence/uc/M182_event4_N_request.json`, `evidence/uc/M182_event5_P_request.json`, `evidence/uc/M182_event6_P_request.json`, `evidence/uc/M182_event7_P_request.json`, `evidence/uc/M182_event8_N_request.json`.
+
+Comparés exactement : nombre d'events et montants par label, départements, TVA (taux, base, TVA, total), paiements, quantités négatives, ouvertures de tiroir, totaux, paiements et présences par utilisateur. Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 ; point signalé au SPF |
+| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
+| `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
+| `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
+| `posDevices` / `fdmDevices` | appareils du scénario | ce terminal et le FDM de test | propres à l'installation |
+
+<!-- moyun-pos-evidence:end -->
 
 ## M183_signReportUserZ
 
@@ -3671,8 +4707,11 @@ utilisateurs seul — il est toujours émis dans le document combiné M184
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+<!-- moyun-pos-evidence:end -->
 
 ## M184_signReportTurnoverZUserZ
 
@@ -3685,8 +4724,11 @@ implémente et déclare : `do_generate_z_report`
 une même transaction SQLite. Couverture e2e applicative :
 `m184_generate_z_report_signs_both_reports_in_one_operation` et
 `z_report_starts_new_booking_period` dans
-`src-tauri/tests/spf_e2e_reports.rs` ; preuves dans
-`evidence/uc/M184_*.json` (2 événements R).
+`src-tauri/tests/spf_e2e_reports.rs`, et
+`m184_combined_z_of_the_scenario_day` dans
+`src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
+comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
+(journée T1–T8 puis les 2 événements R).
 
 **Mutation invoquee :** `signReportTurnoverZ`
 
@@ -3911,24 +4953,277 @@ une même transaction SQLite. Couverture e2e applicative :
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
+<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve moyun-pos (build `cert`)** — la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
+
+Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "7e4068d4-7615-4cc0-bf17-2ffb896f2906",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FOD01000001",
+      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstTotalCounter": 49,
+      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastTotalCounter": 56
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.914751+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "posId": "CFOD0061234567",
+      "terminalId": "POS1"
+    }
+  ],
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "reportBookingDate": "2026-09-25",
+  "reportNo": 1,
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "turnover": {
+    "departments": [
+      {
+        "amount": 24.0,
+        "departmentId": "10",
+        "departmentName": "Aperitifs"
+      },
+      {
+        "amount": 3.04,
+        "departmentId": "12",
+        "departmentName": "Boissons rafraichissantes"
+      },
+      {
+        "amount": 35.0,
+        "departmentId": "15",
+        "departmentName": "Vins"
+      },
+      {
+        "amount": 40.0,
+        "departmentId": "22",
+        "departmentName": "Plats principaux"
+      }
+    ],
+    "drawersOpenCount": 0,
+    "invoices": [],
+    "negQuantities": [
+      {
+        "amount": -52.0,
+        "negQuantityCount": 2,
+        "negQuantityReason": "REFUND",
+        "ticketCount": 1
+      }
+    ],
+    "payments": [
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 99.0,
+            "positiveCorrections": 0.0,
+            "totalAmount": 99.0,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "1",
+        "name": "Cash",
+        "type": "CASH"
+      },
+      {
+        "amount": [
+          {
+            "correctionsCount": 0,
+            "negativeCorrections": 0.0,
+            "normalAmount": 3.04,
+            "positiveCorrections": 0.0,
+            "totalAmount": 3.04,
+            "type": "PAYMENT"
+          }
+        ],
+        "id": "2",
+        "name": "Card",
+        "type": "CARD_DEBIT"
+      }
+    ],
+    "priceChanges": [],
+    "transactions": [
+      {
+        "amount": 102.04,
+        "eventLabel": "N",
+        "ticketCount": 4
+      },
+      {
+        "amount": 250.0,
+        "eventLabel": "P",
+        "ticketCount": 4
+      }
+    ],
+    "vats": [
+      {
+        "label": "A",
+        "rate": 21.0,
+        "taxableAmount": 51.27,
+        "totalAmount": 62.04,
+        "vatAmount": 10.77
+      },
+      {
+        "label": "B",
+        "rate": 12.0,
+        "taxableAmount": 35.71,
+        "totalAmount": 40.0,
+        "vatAmount": 4.29
+      }
+    ]
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "7e4068d4-7615-4cc0-bf17-2ffb896f2906",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FOD01000001",
+      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstTotalCounter": 49,
+      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastTotalCounter": 56
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.914753+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "posId": "CFOD0061234567",
+      "terminalId": "POS1"
+    }
+  ],
+  "posFiscalTicketNo": 2,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "reportBookingDate": "2026-09-25",
+  "reportNo": 1,
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "users": [
+    {
+      "employeeId": "75061189702",
+      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.899649+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 0.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 0.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        }
+      ],
+      "socialEvents": [],
+      "totalAmount": 0.0
+    },
+    {
+      "employeeId": "84022899837",
+      "firstPosDateTime": "2026-09-25T17:48:22.902716+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 99.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 99.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        },
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 3.04,
+              "positiveCorrections": 0.0,
+              "totalAmount": 3.04,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "2",
+          "name": "Card",
+          "type": "CARD_DEBIT"
+        }
+      ],
+      "socialEvents": [],
+      "totalAmount": 102.04
+    }
+  ],
+  "vatNo": "BE0000000097"
+}
+```
+
+Events de la journée, archivés de même : `evidence/uc/M184_event1_P_request.json`, `evidence/uc/M184_event2_N_request.json`, `evidence/uc/M184_event3_N_request.json`, `evidence/uc/M184_event4_N_request.json`, `evidence/uc/M184_event5_P_request.json`, `evidence/uc/M184_event6_P_request.json`, `evidence/uc/M184_event7_P_request.json`, `evidence/uc/M184_event8_N_request.json`.
+
+Comparés exactement : nombre d'events et montants par label, départements, TVA (taux, base, TVA, total), paiements, quantités négatives, ouvertures de tiroir, totaux, paiements et présences par utilisateur. Écarts assumés :
+
+| Champ | Fixture | moyun-pos | Motif |
+|---|---|---|---|
+| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 ; point signalé au SPF |
+| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
+| `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
+| `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
+| `posDevices` / `fdmDevices` | appareils du scénario | ce terminal et le FDM de test | propres à l'installation |
+
+<!-- moyun-pos-evidence:end -->
 
 ---
 
 # Recapitulatif
 
-| Famille | UC (spec) | UC dans le perimetre v1.0.0 | Status fixture | Status e2e applicatif |
+| Famille | UC (spec) | UC dans le perimetre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.7 | 22 | 21 (M150/event I exclu, voir *DECISION_PEPPOL_AP_FR.md*) | OK (22/22 parsent, dont M150 en parsing seul) | OK (16 UC e2e couverts dans `spf_e2e_basic.rs` — dont M112B, M150 (features par défaut, hors build cert), M161, M172 ; M112A non déclaré, remplacé par M112B) |
-| Reports v1.3 | 5 | 5 | OK (5/5) | OK (4 e2e couverts dans `spf_e2e_reports.rs` : M180, M182, M184 combiné ×2 ; M181/M183 émis via M184) |
-| **Total** | **27** | **26** | **OK** | **OK** |
+| Basic Set v1.7 | 22 | 18 (hors M112A, M122, M132 et M150/event I) | OK (22/22) | OK : 14 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172) ; M133 et M171B suivent les flux de M130 et M171 ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
+| Reports v1.3 | 5 | 5 | OK (5/5) | OK : journee T1–T8 jouee puis M180, M182 et M184 compares a la fixture dans `spf_e2e_report_fixtures.rs` ; M181/M183 signes par le Z combine de M184 |
+| **Total** | **27** | **23** | **OK** | **OK** |
 
-Nombre d'UC couverts par les preuves d'annexe (JSON + ticket) :
-**17 UC dans le périmètre v1.0.0** (25 paires requête/réponse,
-`docs/SUBMISSION_ARTIFACTS/evidence/uc/`) - M150 y figure aussi
-(`M150_event2_I_*.json`) mais reste hors périmètre de soumission
-cert v1.0.0 puisque généré sous les features par défaut, pas sous la
-build `cert` (cf. section M150 ci-dessus).
+Preuves d'annexe : **48 paires requete/reponse** construites et
+archivees par la build `cert` (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`),
+plus un fichier `<UC>_check.json` par UC du Basic Set rejoue
+(comparaison champ par champ avec la fixture). M150 n'y figure pas :
+la build `cert` ne peut pas emettre d'event I.
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.

@@ -1,0 +1,18 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": null,
+      "moyunPos": {
+        "eventCounter": 81958,
+        "eventLabel": "N",
+        "fdmDateTime": "2024-10-07T11:00:41Z",
+        "fdmId": "FOD01000001",
+        "totalCounter": 83876
+      },
+      "path": "fdmRef",
+      "reason": "moyun-pos references the refunded ticket on every refund (FLUX_REMBOURSEMENT_FR.md); the fixture's partial refund carries no reference"
+    }
+  ],
+  "uc": "M112B_2"
+}

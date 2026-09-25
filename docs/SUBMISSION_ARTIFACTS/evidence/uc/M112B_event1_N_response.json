@@ -1,22 +1,22 @@
 {
-  "bufferCapacityUsed": 0.25,
+  "bufferCapacityUsed": 14.83,
   "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+  "digitalSignature": "tOKZG5v8RUeVPWu022lBIQf4gCVzAz9NlGr3JE3KyPj/e9K6fyHXRbZexqvgcSUfOlkrOScCpkmAesT9DQx4qA==",
   "eventOperation": "SALE",
   "fdmRef": {
-    "eventCounter": 15,
+    "eventCounter": 81958,
     "eventLabel": "N",
-    "fdmDateTime": "2024-07-29T11:00:08Z",
+    "fdmDateTime": "2024-10-07T11:00:41Z",
     "fdmId": "FOD01000001",
-    "totalCounter": 59
+    "totalCounter": 83876
   },
   "fdmSwVersion": "1.2.0",
   "footer": [],
-  "informations": [],
-  "posDateTime": "2024-07-29T13:00:00+02:00",
-  "posFiscalTicketNo": 1000,
+  "informations": null,
+  "posDateTime": "2024-10-07T13:00:00+02:00",
+  "posFiscalTicketNo": 6587,
   "posId": "CPOS0031234567",
-  "shortSignature": "ca39a3ee5e6b4b0d3255bfef95601890afd80709",
+  "shortSignature": "b6f7940dcc4694a14681471de6415defec44e02d",
   "terminalId": "TER-2-DIN",
   "vatCalc": [
     {
@@ -36,6 +36,6 @@
       "vatAmount": 3.0
     }
   ],
-  "verificationUrl": "https://gs2.be/",
+  "verificationUrl": "https://gs2.be/xJYcHkRNO5UJS3hnXbo",
   "warnings": []
 }

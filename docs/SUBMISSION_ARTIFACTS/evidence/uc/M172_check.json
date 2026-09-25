@@ -1,0 +1,12 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": "NONE",
+      "moyunPos": "PAPER",
+      "path": "ticketMedium",
+      "reason": "copies are printed in training mode too, so the medium is PAPER"
+    }
+  ],
+  "uc": "M172"
+}

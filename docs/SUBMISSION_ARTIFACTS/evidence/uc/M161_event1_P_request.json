@@ -1,44 +1,63 @@
 {
-  "bookingDate": "2026-07-03",
-  "bookingPeriodId": "03c36834-21c3-46c9-95ce-b8a424f1a4ed",
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "054532e4-6501-4952-8c05-ea5eda40c657",
   "costCenter": {
     "id": "T01",
-    "reference": "CC1",
+    "reference": "O1",
     "type": "TABLE"
   },
   "deviceId": "DEV001",
-  "employeeId": "12345678901",
+  "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-07-03T14:02:04.041317+02:00",
+  "posDateTime": "2026-09-25T17:48:22.743302+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
   "terminalId": "POS1",
-  "ticketMedium": "PAPER",
+  "ticketMedium": "NONE",
   "transaction": {
     "transactionLines": [
       {
-        "lineTotal": 10.0,
+        "lineTotal": 24.0,
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
-          "departmentId": "FOOD",
-          "departmentName": "Restaurant",
-          "productId": "1",
-          "productName": "Test item",
-          "quantity": 1.0,
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
           "quantityType": "PIECE",
-          "unitPrice": 10.0,
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 13.36,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "28",
+          "departmentName": "Tapas",
+          "productId": "28007",
+          "productName": "Tapas variees",
+          "quantity": 4.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
           "vats": [
             {
               "label": "B",
-              "price": 10.0
+              "price": 13.36
             }
           ]
         }
       }
     ],
-    "transactionTotal": 10.0
+    "transactionTotal": 37.36
   },
   "vatNo": "BE0000000097"
 }

@@ -1,25 +1,25 @@
 {
-  "bookingDate": "2026-07-03",
-  "bookingPeriodId": "36beee37-2821-4f5d-9617-ee630507002e",
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "01a9fb17-0cc1-4c48-97e7-037faca7940a",
   "deviceId": "DEV001",
-  "employeeId": "12345678901",
+  "employeeId": "75061189702",
   "estNo": "2000000042",
   "financials": [
     {
-      "amount": 50.0,
+      "amount": 100.0,
       "amountType": "MONEY_IN_OUT",
       "id": "MOV1",
       "inputMethod": "MANUAL",
-      "name": "Cash float opening",
+      "name": "Fond de caisse",
       "type": "CASH"
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-07-03T14:02:03.996279+02:00",
+  "posDateTime": "2026-09-25T17:48:22.611187+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
   "terminalId": "POS1",
-  "ticketMedium": "PAPER",
+  "ticketMedium": "NONE",
   "vatNo": "BE0000000097"
 }

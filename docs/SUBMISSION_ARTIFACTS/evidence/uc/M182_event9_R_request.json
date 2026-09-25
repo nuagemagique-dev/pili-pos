@@ -1,0 +1,97 @@
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "00a27a41-5f51-4584-a826-3a6b3bab01b5",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FOD01000001",
+      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstTotalCounter": 49,
+      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastTotalCounter": 56
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.914885+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-25T17:48:22.804110+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911984+02:00",
+      "posId": "CFOD0061234567",
+      "terminalId": "POS1"
+    }
+  ],
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "users": [
+    {
+      "employeeId": "75061189702",
+      "firstPosDateTime": "2026-09-25T17:48:22.804110+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.899747+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 0.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 0.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        }
+      ],
+      "socialEvents": [],
+      "totalAmount": 0.0
+    },
+    {
+      "employeeId": "84022899837",
+      "firstPosDateTime": "2026-09-25T17:48:22.902540+02:00",
+      "lastPosDateTime": "2026-09-25T17:48:22.911984+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 99.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 99.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        },
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 3.04,
+              "positiveCorrections": 0.0,
+              "totalAmount": 3.04,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "2",
+          "name": "Card",
+          "type": "CARD_DEBIT"
+        }
+      ],
+      "socialEvents": [],
+      "totalAmount": 102.04
+    }
+  ],
+  "vatNo": "BE0000000097"
+}

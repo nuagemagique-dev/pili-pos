@@ -1,0 +1,22 @@
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "51634a6a-4f05-424f-b8d4-8be81a38581c",
+  "deviceId": "DEV001",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmRef": {
+    "eventCounter": 35,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-07-03T16:40:39Z",
+    "fdmId": "FOD01000002",
+    "totalCounter": 73
+  },
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.745580+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "vatNo": "BE0000000097"
+}

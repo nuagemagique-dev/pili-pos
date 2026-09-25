@@ -1,23 +1,23 @@
 {
   "bufferCapacityUsed": 0.25,
-  "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+  "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
   "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
-  "eventOperation": "INVOICE",
+  "eventOperation": "PRE_BILL",
   "fdmRef": {
-    "eventCounter": 1,
-    "eventLabel": "I",
-    "fdmDateTime": "2024-07-29T14:22:41Z",
+    "eventCounter": 27,
+    "eventLabel": "P",
+    "fdmDateTime": "2024-07-30T10:50:14.390747Z",
     "fdmId": "FOD01000001",
-    "totalCounter": 62
+    "totalCounter": 55
   },
   "fdmSwVersion": "1.2.0",
   "footer": [],
   "informations": [],
-  "posDateTime": "2024-07-29T16:22:39+02:00",
-  "posFiscalTicketNo": 1012,
+  "posDateTime": "2024-07-30T12:50:12+02:00",
+  "posFiscalTicketNo": 206,
   "posId": "CPOS0031234567",
   "shortSignature": null,
-  "terminalId": "TER-1-BAR",
+  "terminalId": "TER-2-DIN",
   "vatCalc": null,
   "verificationUrl": null,
   "warnings": []
