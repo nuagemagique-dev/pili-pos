@@ -366,7 +366,7 @@ async fn m180_turnover_x_of_the_scenario_day() {
     // The FDM range covers T1 (first) to T8 (last) as the FDM signed them.
     assert_eq!(ours["fdmDevices"][0]["firstTotalCounter"], 49);
     assert_eq!(ours["fdmDevices"][0]["lastTotalCounter"], 56);
-    app.dump_evidence("M180_scenario");
+    app.dump_evidence("M180");
 }
 
 #[tokio::test]
@@ -384,7 +384,7 @@ async fn m182_user_x_of_the_scenario_day() {
     let fixture = read_json("M182_signReportUserX", "GQL-Variables.json");
     assert_users(&ours["users"], &fixture["data"]["users"]);
     assert_report_identity(&ours, "M182");
-    app.dump_evidence("M182_scenario");
+    app.dump_evidence("M182");
 }
 
 #[tokio::test]
@@ -424,7 +424,7 @@ async fn m184_combined_z_of_the_scenario_day() {
         None,
         "the Z closes the booking period"
     );
-    app.dump_evidence("M184_scenario");
+    app.dump_evidence("M184");
 }
 
 #[tokio::test]
