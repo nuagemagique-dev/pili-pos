@@ -1,8 +1,6 @@
 use serde::Serialize;
 use tauri::State;
 
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::build_copy_input;
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::response::FdmReference;
@@ -86,12 +84,15 @@ pub async fn do_copy_ticket(
         (fdm_ref, config, bp)
     };
 
-    // 2. Get sequence number for copy event
-    let ticket_number = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        FiscalCounter::next(&db, EventLabel::C.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?
-    };
+    // 2. RESERVE (peek, don't commit) the sequence number for the copy
+    // event. Same sign-then-commit pattern as every other fiscal
+    // command (see `commands/mod.rs::commit_signed_event`): allocating
+    // via `FiscalCounter::next` here, before the FDM round-trip, used
+    // to advance the C counter even when `sign_copy` below failed —
+    // creating a permanent gap in the C sequence. Peeking defers the
+    // commit until after the FDM has signed.
+    let label = EventLabel::C.in_mode(config.training_mode);
+    let ticket_number = super::peek_ticket_number(state, label)?;
 
     // 3. Build and send copy event
     let copy_input = build_copy_input(
@@ -108,26 +109,26 @@ pub async fn do_copy_ticket(
 
     match sign_result {
         Ok(result) => {
-            // Archive + load print data under a single DB lock,
-            // then DROP the lock before any async I/O (the printer
-            // send) — required because MutexGuard is not Send.
+            // Commit the counter + archive atomically, then load print
+            // data under a single DB lock, then DROP the lock before
+            // any async I/O (the printer send) — required because
+            // MutexGuard is not Send.
             let print_data = {
-                let db = state.db.lock().map_err(|e| e.to_string())?;
-                archive::archive_event(
-                    &db,
-                    ArchiveParams {
-                        event_type: EventLabel::C.in_mode(config.training_mode),
-                        sequence_number: ticket_number,
+                super::commit_signed_event(
+                    state,
+                    &config,
+                    super::SignedEvent {
+                        label,
+                        ticket_number,
                         order_id: None,
-                        pos_id: &config.pos_id,
-                        terminal_id: &config.terminal_id,
                         user_insz: &employee_insz,
                         request_json: &request_json,
-                        sign_result: Some(&result),
+                        sign_result: &result,
+                        sent_entries: None,
                     },
-                )
-                .map_err(|e| e.to_string())?;
+                )?;
 
+                let db = state.db.lock().map_err(|e| e.to_string())?;
                 // Load the original order for the copy receipt.
                 let evt = pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
                     .ok()
