@@ -1,313 +1,393 @@
 # Runbook de capture d'écrans pour le dossier de certification
 
-**Référence :** §V (Comportement aux réponses du FDM) et §VII.D
-(Rapports X/Z visibles/imprimables) du manuel de certification.
+**Référence :** §V (comportement aux réponses du FDM) et §VII.D
+(rapports X/Z visibles et imprimables) du manuel de certification.
 
 Ce document liste, dans l'ordre d'exécution, les captures d'écran à
 produire à partir de l'application en cours d'exécution. Les fichiers
-résultants sont sauvegardés dans
-`docs/SUBMISSION_ARTIFACTS/screenshots/` puis compilés dans
-`CAPTURES_ECRAN_FR.pdf`.
+vont dans `docs/SUBMISSION_ARTIFACTS/screenshots/`, puis sont réunis
+dans `CAPTURES_ECRAN_FR.pdf`. Les libellés cités sont ceux de l'écran
+(voir `MANUEL_UTILISATEUR_FR.md`).
 
 ---
 
 ## Pré-requis
 
-1. **Mock FDM disponible.** Le binaire `pos-fdm-mock` doit être
-   compilé. Si nécessaire :
+1. **FDM simulé.** Dans un terminal :
    ```bash
-   cargo build --package pos-fdm-mock
+   cargo run --package pos-fdm-mock        # écoute sur :8081
    ```
+   Le même binaire simule le service d'e-mail (TEM) sur la même
+   adresse. `MOCK_TEM_OUTBOX=<dossier>` y écrit les e-mails simulés ;
+   `MOCK_TEM_FAIL=1` fait échouer l'envoi (capture `09e`).
 
-1bis. **Mock TEM (ticket numérique, §III.H).** Pour les captures
-   `09a`-`09f`, le terminal doit avoir un bloc `digital_ticket`
-   configuré (`MANUEL_INSTALLATION_FR.md` §4.2) pointant vers le mock
-   TEM embarqué dans `pos-fdm-mock`
-   (`crates/pos-fdm-mock/src/tem.rs` - même binaire que le mock FDM,
-   pas de service séparé à lancer). `MOCK_TEM_OUTBOX` fixe le
-   répertoire où les e-mails simulés sont écrits ; `MOCK_TEM_FAIL=1`
-   fait échouer l'envoi/la sonde pour démontrer le repli papier
-   (`09e`).
+2. **Base de test et configuration**, dans un dossier jetable :
+   ```bash
+   export MOYUN_POS_DATA_DIR=/tmp/moyun-captures
+   export MOYUN_POS_CONFIG=/tmp/moyun-captures/pos.json
+   cargo run --package moyun-pos -- --init-db --seed src-tauri/seed_spf_test.sql
+   ```
+   `pos.json` : l'identité de test de l'installation
+   (`MANUEL_INSTALLATION_FR.md` §4.2) avec `"fdm_url":
+   "http://localhost:8081/graphql"`, et pour les captures `09a`-`09f`
+   un bloc `digital_ticket` dont `"api_base"` vaut
+   `"http://localhost:8081"`. Vérifier avec
+   `cargo run --package moyun-pos -- --check-config`.
 
-2. **App lancée en mode dev.** Dans un terminal séparé :
+3. **Application.** Dans un autre terminal, avec les mêmes variables :
    ```bash
    cargo tauri dev
    ```
+   Sur l'image d'admission (QEMU, `scripts/qemu/run-kiosk.sh`), les
+   mêmes écrans se capturent avec `scripts/qemu/screendump.sh <nom>`.
 
-3. **Format des captures.** Macros macOS :
-   - `Cmd + Shift + 4` puis sélection rectangulaire de la fenêtre POS
-   - Ou `Cmd + Shift + 4` puis `Espace` puis clic sur la fenêtre pour capturer toute la fenêtre
+4. **Comptes de test** (seed `seed_spf_test.sql`) : Gérant
+   `94060242576`, PIN `1111` ; Serveur `84022899837`, PIN `2222` ;
+   Apprenti `99012345667`, PIN `3333`.
 
-4. **Convention de nommage.** Tous les fichiers sauvegardés dans
-   `docs/SUBMISSION_ARTIFACTS/screenshots/` avec préfixe :
-   - `01_` à `19_` pour les écrans de flux fonctionnels
-   - `09a_` à `09f_` pour le ticket numérique par e-mail (§III.H,
-     intercalés après l'encaissement papier)
-   - `20_` à `40_` pour les messages FDM §V
+5. **Captures macOS.** `Cmd + Shift + 4`, puis `Espace` et clic sur la
+   fenêtre du POS.
+
+6. **Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09f_` :
+   ticket numérique ; `20_` à `41_` : messages du FDM (§V) ; `50_` à
+   `56_` : tickets imprimés.
 
 ---
 
-## Section 1 - Écrans de flux fonctionnels (§I.C manuels)
+## Section 1 - Écrans de flux fonctionnels
 
-Démarrer le mock sans erreur injectée, lancer `cargo tauri dev`, puis :
+FDM simulé démarré sans erreur.
 
 ### `01_login.png`
-- **Action :** ouverture initiale de l'app.
-- **Écran attendu :** liste des utilisateurs ou pavé numérique INSZ.
+- **Action :** ouvrir l'application.
+- **Écran attendu :** nom de l'établissement, une tuile par employé (initiale, nom, profil), lien "Autre (INSZ)".
 - **Capture :** plein écran.
 
 ### `02_login_pin.png`
-- **Action :** taper l'INSZ du Gérant de test (`94060242576`) puis le PIN `1111`.
-- **Écran attendu :** overlay numérique de saisie PIN.
-- **Capture :** plein écran.
+- **Action :** toucher la tuile du Gérant.
+- **Écran attendu :** pavé "Saisir le PIN" avec 4 points vides. Taper `1111` : la connexion part au 4e chiffre.
+- **Capture :** plein écran, avant le 4e chiffre.
 
 ### `03_tables.png`
-- **Action :** après login Admin, écran TablesView.
-- **Écran attendu :** grille des tables (numéros, statuts occupé / libre).
+- **Action :** après la connexion, écran des tables.
+- **Écran attendu :** grille des tables, "Libre" ou nombre d'articles et total.
 - **Capture :** plein écran.
 
 ### `04_order_empty.png`
-- **Action :** taper Table 4 (vide).
-- **Écran attendu :** OrderView avec menu à gauche, panier vide à droite.
+- **Action :** toucher la table 4.
+- **Écran attendu :** en-tête (pastilles "Caisse" et "Ticket", nom, "Table 4", heure, boutons), catégories et articles à gauche, panier vide ("Aucun article") à droite.
 - **Capture :** plein écran.
 
 ### `05_order_filled.png`
-- **Action :** ajouter 2x Saumon roll, 1x Coca, 1x Saké.
-- **Écran attendu :** OrderView avec panier rempli, totaux TVA visibles.
+- **Action :** ajouter quelques produits du seed, dont un en deux exemplaires.
+- **Écran attendu :** panier rempli, détail de la TVA par taux, total, boutons "Addition" et "PAYER".
 - **Capture :** plein écran.
 
-### `06_kitchen_sent.png`
-- **Action :** taper "Envoyer en cuisine".
-- **Écran attendu :** toast de confirmation + ticket cuisine imprimé (mock).
-- **Capture :** plein écran (focus sur le toast).
+### `06_order_registered.png`
+- **Action :** toucher "Tables" : la commande est enregistrée auprès du FDM (événement P, sans impression).
+- **Écran attendu :** la table 4 apparaît occupée avec son nombre d'articles et son total.
+- **Capture :** plein écran.
 
 ### `07_checkout_pay_method.png`
-- **Action :** taper "Payer".
-- **Écran attendu :** CheckoutView avec choix de mode de paiement (Cash / Carte).
+- **Action :** revenir sur la table 4, toucher "PAYER".
+- **Écran attendu :** total à payer, boutons "CASH" et "CARTE".
 - **Capture :** plein écran.
 
 ### `08_checkout_cash.png`
-- **Action :** Choisir Cash, saisir 50,00 € sur le pavé numérique.
-- **Écran attendu :** affichage du rendu de monnaie (arrondi belge).
+- **Action :** "CASH", taper `50` sur le pavé.
+- **Écran attendu :** "À payer", "Reçu", "Rendu", raccourcis "Exact" et billets ; total arrondi aux 5 cents avec le montant exact "avant arrondi" si différent.
 - **Capture :** plein écran.
 
 ### `09_checkout_done.png`
-- **Action :** Confirmer le paiement.
-- **Écran attendu :** écran de succès + ticket imprimé (signature courte affichée).
+- **Action :** "Valider".
+- **Écran attendu :** "OK", type de ticket, total, rendu, identifiant FDM, "Ticket imprimé", bouton "Terminer".
 - **Capture :** plein écran.
 
-### Ticket numérique par e-mail (§III.H) - à refaire pour une vente distincte, sur un terminal avec `digital_ticket` configuré (mock TEM, §4.2)
+### Ticket numérique par e-mail (§III.H), sur une nouvelle vente, avec `digital_ticket` configuré
 
 ### `09a_ticket_medium_picker.png`
-- **Action :** taper "Payer" sur une commande, avant le choix du mode de paiement.
-- **Écran attendu :** choix du support Papier / E-mail / Les deux (Papier pré-sélectionné).
+- **Action :** "PAYER" sur une nouvelle commande.
+- **Écran attendu :** boutons "Papier" (sélectionné), "E-mail" (si `allow_digital_only`) et "Les deux" au-dessus de "CASH" / "CARTE".
 - **Capture :** plein écran.
 
 ### `09b_ticket_medium_email_keyboard.png`
-- **Action :** sélectionner "E-mail", taper une adresse sur le clavier virtuel.
-- **Écran attendu :** clavier virtuel à l'écran avec l'adresse en cours de saisie.
+- **Action :** "E-mail", taper une adresse.
+- **Écran attendu :** clavier "Adresse e-mail du client" avec l'adresse en cours de saisie et les raccourcis `.be`, `.com`, `@gmail.com`.
 - **Capture :** plein écran.
 
 ### `09c_ticket_medium_email_confirm.png`
 - **Action :** valider la saisie.
-- **Écran attendu :** écran de confirmation affichant l'adresse saisie avant de continuer.
+- **Écran attendu :** "Confirmer l'adresse", l'adresse en grand, boutons "Confirmer l'adresse", "Modifier", "Annuler".
 - **Capture :** plein écran.
 
 ### `09d_checkout_done_email_sent.png`
-- **Action :** terminer le paiement avec "E-mail" seul, mock TEM démarré normalement (`cargo run --package pos-fdm-mock`).
-- **Écran attendu :** message "E-mail envoyé", pas de ticket papier.
+- **Action :** "Confirmer l'adresse", puis payer.
+- **Écran attendu :** "Ticket envoyé à" suivi de l'adresse masquée ; rien ne s'imprime.
 - **Capture :** plein écran.
 
 ### `09e_checkout_done_paper_fallback.png`
-- **Mock :** redémarrer le mock avec `MOCK_TEM_FAIL=1 cargo run --package pos-fdm-mock`, puis refaire une vente avec "E-mail" seul.
-- **Écran attendu :** repli papier automatique - le ticket papier sort, message indiquant l'e-mail en attente (réessai en tâche de fond).
-- **Capture :** plein écran, si possible avec le ticket papier sorti visible.
+- **Mock :** redémarrer avec `MOCK_TEM_FAIL=1 cargo run --package pos-fdm-mock`, puis refaire une vente en "E-mail" seul.
+- **Écran attendu :** le ticket papier sort à la place de l'e-mail ; l'écran le confirme.
+- **Capture :** plein écran, si possible avec le ticket sorti.
 
 ### `09f_admin_ticket_deliveries.png`
-- **Action :** menu Admin > Paramètres > "Tickets numériques".
-- **Écran attendu :** liste des derniers envois avec indice d'adresse masqué (ex. `j***@e***.be`), statut, tentatives - jamais l'adresse en clair.
+- **Action :** "Config", section "Tickets numériques".
+- **Écran attendu :** "Configuré", "Joignable" ou "Injoignable", et la liste des envois : support, adresse masquée (ex. `j***@e***.be`), statut, "Tentatives", "Dernière erreur". Jamais l'adresse en clair.
 - **Capture :** plein écran.
 
 ### `10_pre_bill.png`
-- **Action :** retourner sur une autre table, ajouter des items, taper "Pré-facture".
-- **Écran attendu :** OrderView avec mention "PRO FORMA" + ticket pré-facture imprimé.
+- **Action :** sur une autre table avec des articles, toucher "Addition".
+- **Écran attendu :** "Addition provisoire imprimée" ; l'addition sort marquée "PRO FORMA".
 - **Capture :** plein écran.
 
 ### `11_refund.png`
-- **Action :** depuis ReportsView, taper "Remboursement", choisir un ticket récent, sélectionner les items à rembourser.
-- **Écran attendu :** UI de remboursement avec items cochés, mention "REMBOURSEMENT TOTAL/PARTIEL".
+- **Action :** "Rapports", "Remboursement", choisir la vente de `09`, toucher un article et ajuster sa quantité.
+- **Écran attendu :** "Articles à rembourser", article sélectionné avec sa quantité "/ vendue", bouton "Rembourser" avec le montant.
 - **Capture :** plein écran.
 
 ### `12_copy.png`
-- **Action :** depuis ReportsView, sélectionner "Copie de ticket", choisir le ticket M110 récent.
-- **Écran attendu :** confirmation + ticket copie imprimé (mention "COPIE - pas un original").
-- **Capture :** plein écran.
+- **Action :** "Rapports", "Copie de ticket".
+- **Écran attendu :** "Ticket à copier" : numéro, type ("Vente", "Remboursement", "Addition", "Formation"), table, montant, heure. Toucher la vente de `09`, puis "Valider" : la copie sort marquée "COPIE".
+- **Capture :** plein écran, sur la liste.
 
 ### `13_training.png`
-- **Action :** bouton "Mode formation" (depuis Admin ou ReportsView).
-- **Écran attendu :** bandeau "TRAINING" rouge en haut, OrderView avec watermark.
-- **Capture :** plein écran.
+- **Action :** encaisser ou vider les tables ouvertes, puis "Config", "Mode Formation" (passe à "ACTIF"), puis revenir à la commande.
+- **Écran attendu :** bandeau violet "MODE FORMATION : les transactions ne sont PAS enregistrées" et filigrane "TRAINING".
+- **Capture :** plein écran. Désactiver ensuite le mode formation.
 
 ### `14_reports_x.png`
-- **Action :** ReportsView, taper "Rapport X intermédiaire".
-- **Écran attendu :** résumé X avec totaux par TVA, par moyen de paiement, par utilisateur.
+- **Action :** "Rapports", "Générer X".
+- **Écran attendu :** "Rapport généré" ; le rapport X sort.
 - **Capture :** plein écran.
 
-### `15_reports_z.png`
-- **Action :** ReportsView, taper "Clôture journalière (Z)".
-- **Écran attendu :** confirmation + impression du Z + UI marquant la journée close.
-- **Capture :** plein écran.
+### `15_reports_z_confirm.png`
+- **Action :** "Générer Z" une fois.
+- **Écran attendu :** le bouton passe à l'orange : "Confirmer la clôture ?".
+- **Capture :** plein écran. Toucher à nouveau : "Rapport généré (Z #n)", le Z sort et apparaît dans "Historique Z".
 
 ### `16_cash_in_out.png`
-- **Action :** ReportsView, ouvrir le panel "Mouvements caisse".
-- **Écran attendu :** boutons +/- avec preset montants (fonds de caisse, retraits).
-- **Capture :** plein écran.
+- **Action :** "Rapports", section "Gestion caisse" : choisir 20 €.
+- **Écran attendu :** montants 10 à 200 €, rangées "Fond de caisse / Retrait / Pourboire" en "+" et en "-", "Ouvrir tiroir", "Remboursement", "Copie de ticket".
+- **Capture :** plein écran. Toucher "Fond de caisse +" : "Mouvement enregistré".
 
 ### `17_drawer_open.png`
-- **Action :** taper "Ouvrir tiroir" (event F-WAR).
-- **Écran attendu :** toast de confirmation + ouverture physique du tiroir (visible sur l'imprimante connectée si disponible).
+- **Action :** "Ouvrir tiroir".
+- **Écran attendu :** "Tiroir ouvert" (et le tiroir s'ouvre si l'imprimante est reliée).
 - **Capture :** plein écran.
 
-### `18_work_out.png`
-- **Action :** menu utilisateur > "Pointer sortie".
-- **Écran attendu :** toast de confirmation + retour à l'écran de login.
+### `18_logout.png`
+- **Action :** "Sortir" : la commande en cours est enregistrée et le départ est pointé.
+- **Écran attendu :** retour à l'écran de connexion.
 - **Capture :** plein écran.
 
 ### `19_admin_users.png`
-- **Action :** menu Admin > Gestion des utilisateurs.
-- **Écran attendu :** liste des utilisateurs avec rôles, possibilité d'ajouter/modifier.
+- **Action :** "Config", section "Employés".
+- **Écran attendu :** chaque employé (nom, profil, INSZ) avec "PIN" et "Désactiver" ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti).
 - **Capture :** plein écran.
 
 ---
 
-## Section 2 - Messages FDM (§V manuel)
+## Section 2 - Messages du FDM (§V)
 
-Pour chaque capture, **arrêter le mock**, le **redémarrer avec la variable d'environnement appropriée**, **redémarrer/rafraîchir le POS pour qu'il refasse un appel Status**, et capturer.
+Pour chaque capture : arrêter le FDM simulé, le relancer avec la
+variable indiquée, puis attendre que la caisse revérifie l'état du FDM
+(toutes les 30 s) ou revenir à l'écran de commande. Le message
+s'affiche dans l'en-tête, à côté de la pastille "Caisse". Les textes
+ci-dessous sont repris de `ui/src/utils/fdmMessages.ts`, la source
+affichée.
 
-### Mandatoires (M dans le manuel)
+### Affichage obligatoire (M)
 
 #### `20_buffer_full.png`
 - **Mock :** `MOCK_FDM_ERROR=BUFFER_FULL cargo run --package pos-fdm-mock`
-- **Action côté POS :** rafraîchir le statut FDM ou tenter un checkout.
-- **Écran attendu :** modale bloquante "La boîte noire est pleine. Contactez votre technicien." + pilule FDM rouge dans le bandeau.
-- **Capture :** plein écran avec modale visible.
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" rouge, et à côté : « La boîte noire est pleine. Contactez votre technicien. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
+- **Capture :** plein écran.
 
 #### `21_fdm_locked.png`
 - **Mock :** `MOCK_FDM_ERROR=FDM_LOCKED cargo run --package pos-fdm-mock`
-- **Action :** idem.
-- **Écran attendu :** modale "Le FDM est verrouillé. Contactez votre technicien." + pilule rouge.
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" rouge, et à côté : « La boîte noire est verrouillée. Contactez votre technicien. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
 - **Capture :** plein écran.
 
 #### `22_fdm_not_operational.png`
 - **Mock :** `MOCK_FDM_ERROR=FDM_NOT_OPERATIONAL cargo run --package pos-fdm-mock`
-- **Action :** idem.
-- **Écran attendu :** modale "La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes." + pilule rouge.
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" rouge, et à côté : « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
 - **Capture :** plein écran.
 
 #### `23_unknown_pos.png`
 - **Mock :** `MOCK_FDM_ERROR=UNKNOWN_POS cargo run --package pos-fdm-mock`
-- **Action :** idem.
-- **Écran attendu :** modale "Ce POS n'est pas enregistré sur ce FDM. Vérifiez la configuration."
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" rouge, et à côté : « Cette caisse n'est pas reconnue par la boîte noire. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
 - **Capture :** plein écran.
 
 #### `24_buffer_near_full.png`
-- **Mock :** `MOCK_FDM_WARNING=BUFFER_NEAR_FULL MOCK_FDM_BUFFER_PCT=72.5 cargo run --package pos-fdm-mock`
-- **Action :** rafraîchir statut.
-- **Écran attendu :** **pilule FDM JAUNE** (warning, pas erreur) avec tooltip "L'utilisation du buffer du FDM dépasse 70%".
-- **Capture :** plein écran focus sur la pilule.
+- **Mock :** `MOCK_FDM_WARNING=BUFFER_NEAR_FULL cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « La boîte noire est presque pleine. Programmez une intervention. »
+- **Capture :** plein écran.
 
 #### `25_client_cert_expired.png`
 - **Mock :** `MOCK_FDM_WARNING=CLIENT_CERT_EXPIRED cargo run --package pos-fdm-mock`
-- **Action :** rafraîchir statut.
-- **Écran attendu :** pilule jaune avec tooltip "Le certificat du client a expiré".
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Le certificat de la boîte noire a expiré. Contactez votre technicien. »
 - **Capture :** plein écran.
 
-### Optionnels (O dans le manuel)
+### Affichage facultatif (O), affiché par moyun-pos
 
-#### `26_unauthorized.png`
-- **Mock :** `MOCK_FDM_ERROR=UNAUTHORIZED cargo run --package pos-fdm-mock`
-- **Action :** rafraîchir statut.
-- **Écran attendu :** modale "Le POS n'est pas autorisé à parler à ce FDM. Vérifiez la configuration."
-- **Capture :** plein écran.
-
-#### `27_invalid_request.png`
-- **Mock :** `MOCK_FDM_ERROR=INVALID_REQUEST cargo run --package pos-fdm-mock`
-- **Action :** tenter un checkout (l'erreur surgit à l'appel signSale).
-- **Écran attendu :** message d'erreur dans la modale de checkout.
-- **Capture :** plein écran.
-
-#### `28_internal_error.png`
-- **Mock :** `MOCK_FDM_ERROR=INTERNAL_ERROR cargo run --package pos-fdm-mock`
-- **Action :** idem.
-- **Écran attendu :** message "Le FDM a rencontré un problème technique".
-- **Capture :** plein écran.
-
-#### `29_undefined_error.png`
-- **Mock :** `MOCK_FDM_ERROR=UNDEFINED_ERROR cargo run --package pos-fdm-mock`
-- **Action :** idem.
-- **Capture :** plein écran.
-
-#### `30_client_cert_near_expiration.png`
+#### `26_client_cert_near_expiration.png`
 - **Mock :** `MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION cargo run --package pos-fdm-mock`
-- **Capture :** pilule jaune + tooltip.
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Le certificat de la boîte noire expire bientôt. »
+- **Capture :** plein écran.
+
+#### `27_unauthorized.png`
+- **Mock :** `MOCK_FDM_ERROR=UNAUTHORIZED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « La caisse n'est pas autorisée à parler à la boîte noire. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
+- **Capture :** plein écran.
+
+#### `28_invalid_request.png`
+- **Mock :** `MOCK_FDM_ERROR=INVALID_REQUEST cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Erreur de communication avec la boîte noire. Contactez votre technicien. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
+- **Capture :** plein écran.
+
+#### `29_internal_error.png`
+- **Mock :** `MOCK_FDM_ERROR=INTERNAL_ERROR cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Erreur technique de la boîte noire. Contactez votre technicien. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
+- **Capture :** plein écran.
+
+#### `30_undefined_error.png`
+- **Mock :** `MOCK_FDM_ERROR=UNDEFINED_ERROR cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Erreur indéfinie de la boîte noire. Contactez votre technicien. »
+- **En plus :** tenter un encaissement : il est refusé et le même message s'affiche au-dessus des modes de paiement (rien n'est enregistré).
+- **Capture :** plein écran.
+
+#### `31_undefined_other.png`
+- **Mock :** `MOCK_FDM_ERROR=UNDEFINED_OTHER cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Erreur de la boîte noire. Contactez votre technicien. »
+- **Capture :** plein écran.
+
+#### `32_rtc_sync_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=RTC_SYNC_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « L'horloge de la boîte noire n'a pas pu se synchroniser. »
+- **Capture :** plein écran.
+
+#### `33_update_urls_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=UPDATE_URLS_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Mise à jour des URLs de la boîte noire échouée. »
+- **Capture :** plein écran.
+
+#### `34_update_trust_cert_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=UPDATE_TRUST_CERT_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Mise à jour des certificats de confiance échouée. »
+- **Capture :** plein écran.
+
+#### `35_update_task_list_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=UPDATE_TASK_LIST_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Téléchargement des tâches FDM échoué. »
+- **Capture :** plein écran.
+
+#### `36_task_feedback_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=TASK_FEEDBACK_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « La boîte noire n'a pas pu signaler le résultat d'une tâche. »
+- **Capture :** plein écran.
+
+#### `37_nop_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=NOP_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Communication intermédiaire avec la boîte noire échouée. »
+- **Capture :** plein écran.
+
+#### `38_server_cert_resolve_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=SERVER_CERT_RESOLVE_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « Impossible de résoudre le certificat du serveur FDM. »
+- **Capture :** plein écran.
+
+#### `39_transaction_upload_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=TRANSACTION_UPLOAD_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « La boîte noire échoue à transmettre les transactions au SPF Finances. »
+- **Capture :** plein écran.
+
+#### `40_initialization_failed.png`
+- **Mock :** `MOCK_FDM_WARNING=INITIALIZATION_FAILED cargo run --package pos-fdm-mock`
+- **Action :** attendre la vérification de l'état du FDM (30 s au plus) ou revenir à l'écran de commande.
+- **Écran attendu :** pastille "Caisse" orange, et à côté : « L'initialisation de la boîte noire a échoué. »
+- **Capture :** plein écran.
+
+#### `41_fdm_unreachable.png`
+- **Mock :** arrêter le FDM simulé.
+- **Action :** attendre la vérification suivante, puis tenter un encaissement.
+- **Écran attendu :** pastille "Caisse" rouge, « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » dans l'en-tête et au-dessus des modes de paiement ; la vente est refusée.
+- **Capture :** plein écran.
 
 ---
 
 ## Section 3 - Tickets imprimés (annexe §VI)
 
-Pour les captures de tickets papier, capturer :
-- Soit le rendu d'aperçu sur l'écran (avant impression physique).
-- Soit le ticket physique sorti de l'imprimante connectée, photographié de face.
+Photographier de face le ticket sorti de l'imprimante reliée. Les
+transcriptions texte de ces tickets sont dans `TICKETS_EXEMPLES_FR.md`.
 
-Liste :
+### `50_ticket_n.jpg`
+- Ticket de vente (N), capture `09`.
 
-### `40_ticket_n.jpg`
-- Ticket de vente normale (event N) imprimé via M110.
+### `51_ticket_n_refund.jpg`
+- Ticket de remboursement (N), capture `11`.
 
-### `41_ticket_n_refund.jpg`
-- Ticket de remboursement (event N) imprimé via M111.
+### `52_ticket_p_prebill.jpg`
+- Addition (P, "PRO FORMA"), capture `10`.
 
-### `42_ticket_p_prebill.jpg`
-- Ticket pré-facture (event P) imprimé via M123.
+### `53_ticket_c_copy.jpg`
+- Copie (C), capture `12`.
 
-### `43_ticket_c_copy.jpg`
-- Ticket copie (event C) imprimé via M160.
+### `54_ticket_t_training.jpg`
+- Ticket de formation (T), vente faite pendant la capture `13`.
 
-### `44_ticket_t_training.jpg`
-- Ticket formation (event T) imprimé via M171.
+### `55_report_x.jpg`
+- Rapport X, capture `14`.
 
-### `45_report_x.jpg`
-- Ticket de rapport X imprimé via M180.
-
-### `46_report_z.jpg`
-- Ticket de rapport Z imprimé via M181.
-
-### `47_kitchen_ticket.jpg`
-- Ticket cuisine imprimé via "Envoyer en cuisine" (event P sans prix).
+### `56_report_z.jpg`
+- Rapport Z, capture `15`.
 
 ---
 
 ## Compilation finale
 
-Une fois toutes les captures dans `docs/SUBMISSION_ARTIFACTS/screenshots/`, regrouper dans un PDF :
+Une fois toutes les captures dans `docs/SUBMISSION_ARTIFACTS/screenshots/` :
 
 ```bash
 cd docs/SUBMISSION_ARTIFACTS
-# Conversion images vers PDF avec ImageMagick (à installer si nécessaire)
 magick screenshots/*.png screenshots/*.jpg CAPTURES_ECRAN_FR.pdf
-# Ou avec sips (macOS natif, image par image)
-# Ou via Aperçu (Cmd+P > PDF)
 ```
 
-Et ajouter `CAPTURES_ECRAN_FR.pdf` à la liste des annexes dans `REPONSES_MANUEL_CERT_FR.md` §V et §VII.D.
+Puis vérifier que `CAPTURES_ECRAN_FR.pdf` figure dans les annexes de
+`REPONSES_MANUEL_CERT_FR.md` §V et §VII.D.
 
 ---
 
 ## Estimation de temps
 
-- Section 1 (19 écrans flux) : ~30-45 minutes (dépend de la stabilité de l'app).
-- Ticket numérique (6 captures `09a`-`09f`) : ~15-20 minutes (inclut un redémarrage du mock avec `MOCK_TEM_FAIL=1`).
-- Section 2 (10 captures messages FDM) : ~30 minutes (1-2 min par capture, redémarrage mock entre chaque).
-- Section 3 (8 tickets physiques) : ~20-30 minutes (impression + photo).
+- Section 1 (25 écrans) : 45 minutes environ.
+- Section 2 (22 captures) : 45 minutes environ (1 à 2 minutes par capture, relance du FDM simulé entre chaque).
+- Section 3 (7 tickets) : 20 à 30 minutes (impression et photo).
 
-**Total : 1h45 à 2h15** pour une session complète de capture.
+**Total : 2 h à 2 h 15.**
