@@ -12,6 +12,10 @@ use state::AppState;
 #[cfg(feature = "hubrise")]
 use tauri::Emitter;
 
+// The dev handler list registers the invoice commands unconditionally.
+#[cfg(all(feature = "hubrise", not(feature = "peppol")))]
+compile_error!("the dev build (feature `hubrise`) also requires feature `peppol`");
+
 fn main() {
     // Offline commands (image build, install scripts) run before any
     // logging or UI setup and exit.
@@ -177,9 +181,9 @@ fn main() {
         });
 
     // The invoke_handler list differs between the dev build (with
-    // HubRise IPC commands) and the certification build (without).
-    // tauri::generate_handler! doesn't accept `#[cfg]` on individual
-    // commands, so we branch the whole call.
+    // HubRise and invoicing IPC commands) and the certification build
+    // (without). tauri::generate_handler! doesn't accept `#[cfg]` on
+    // individual commands, so we branch the whole call.
     #[cfg(feature = "hubrise")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         // Menu
@@ -243,8 +247,7 @@ fn main() {
         commands::hubrise::hubrise_list_webshop_orders,
         commands::hubrise::hubrise_patch_order_status,
         commands::hubrise::hubrise_set_confirmed_time,
-        // Peppol B2B (Phase 9)
-        #[cfg(feature = "peppol")]
+        // Peppol B2B invoicing (dev build only — not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,
     ]);
@@ -302,10 +305,8 @@ fn main() {
         // Financial (Event F — cash in/out, drawer)
         commands::financial::money_in_out,
         commands::financial::open_drawer_fiscal,
-        // Peppol B2B (Phase 9)
-        #[cfg(feature = "peppol")]
-        commands::invoice::sign_invoice_fiscal,
-        commands::invoice::issue_b2b_invoice,
+        // No invoice (I event) commands: invoicing is not part of the
+        // v1.0.0 certification scope.
     ]);
 
     builder

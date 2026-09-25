@@ -118,8 +118,17 @@ mod tests {
     fn spf_test_seed_loads_the_manual_product_lines() {
         let conn = migrated();
         apply_seed(&conn, include_str!("../seed_spf_test.sql")).unwrap();
-        // Manual §III lists 25 predefined products.
+        // Manual §III lists 25 predefined products; 10 of them need
+        // features declared unsupported in v1.0.0 and stay inactive.
         assert_eq!(count(&conn, "menu_items"), 25);
+        let active: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM menu_items WHERE active = 1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(active, 15);
         let price: i64 = conn
             .query_row(
                 "SELECT price_cents FROM menu_items WHERE id = 10006",

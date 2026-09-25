@@ -197,6 +197,17 @@ INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
     ('menu_item', 500001, 'name', 'fr', 'Cigarettes (20 pcs)'),
     ('menu_item', 500001, 'name', 'en', 'Cigarettes (20 pcs)');
 
+-- ── Produits presents dans la liste du manuel mais non disponibles ─
+-- Ils necessitent des fonctionnalites declarees non supportees en
+-- v1.0.0 (REPONSES_MANUEL_CERT_FR.md §III.F) : prix au poids (22005),
+-- prix libre (22010), produits composes (30001, 30010, 30020) et
+-- vouchers (40001-40004, 40020). Ils restent en base avec leur
+-- productId pour la tracabilite mais ne sont pas proposes a la vente.
+UPDATE menu_items SET active = 0
+WHERE id IN (22005, 22010, 30001, 30010, 30020, 40001, 40002, 40003, 40004, 40020);
+-- Departements sans aucun produit disponible : masques dans la grille.
+UPDATE categories SET active = 0 WHERE id IN (30, 400);
+
 -- ── Compteurs fiscaux remis a 0 pour la machine de test ──────────
 DELETE FROM fiscal_counters;
 INSERT INTO fiscal_counters (event_label, current_value) VALUES

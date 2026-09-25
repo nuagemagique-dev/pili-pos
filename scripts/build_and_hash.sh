@@ -36,6 +36,11 @@ if [[ "$HUBRISE_SYMS" != "0" ]]; then
     echo "✗ found $HUBRISE_SYMS pos_hubrise symbol(s) in cert binary"
     exit 1
 fi
+PEPPOL_SYMS=$(nm "$BINARY" 2>/dev/null | grep -c pos_peppol || true)
+if [[ "$PEPPOL_SYMS" != "0" ]]; then
+    echo "✗ found $PEPPOL_SYMS pos_peppol symbol(s): invoicing is not in the v1.0.0 cert scope"
+    exit 1
+fi
 if strings "$BINARY" | grep -q "api.hubrise.com"; then
     echo "✗ found HubRise API endpoint string in cert binary"
     exit 1
@@ -87,6 +92,7 @@ MD5           : ${MD5}
 
 Checks
   pos_hubrise symbols ............ 0
+  pos_peppol symbols ............. 0
   hubrise endpoint strings ....... none
   fiscal_events DELETE/UPDATE .... none in source
 REPORT_EOF

@@ -44,18 +44,15 @@ default = ["hubrise", "peppol"]
 # Enables the optional HubRise (webshop) integration: poller, outbox,
 # /health endpoint that reports outbox depth, and the IPC commands.
 hubrise = ["dep:pos-hubrise", "dep:pos-hubrise-types"]
-# Enables Peppol BIS Billing 3.0 B2B e-invoicing (mandatory from
-# 2026-01-01 for Belgian VAT-registered B2B sales). Includes the UBL
-# serializer, the AccessPoint trait, and the `issue_b2b_invoice`
-# command. The cert build keeps this feature ON because Peppol is in
-# the declared scope of the certification submission.
+# Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,
+# the AccessPoint trait, and the invoice (I event) commands. Not part of
+# moyun-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in
+# a later certified update, so the cert build leaves it out.
 peppol = ["dep:pos-peppol"]
-# Marker feature for the certification build. Pulls in `peppol` because
-# Peppol BIS Billing 3.0 is part of the declared cert scope (B2B
-# e-invoicing is mandatory for Belgian VAT-registered sellers from
-# 2026-01-01). Build command: `cargo build --release
-# --no-default-features --features cert`.
-cert = ["peppol", "custom-protocol"]
+# Marker feature for the certification build: no third-party
+# integrations (hubrise), no invoicing (peppol), UI bundle embedded.
+# Build command: `cargo build --release --no-default-features --features cert`.
+cert = ["custom-protocol"]
 # Serve the embedded `ui/dist` bundle instead of the Vite dev server
 # (`devUrl`). `cargo tauri build` turns it on by itself; a plain
 # `cargo build` — the certification build above — must enable it, or

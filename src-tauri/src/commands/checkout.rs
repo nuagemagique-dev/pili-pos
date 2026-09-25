@@ -70,6 +70,18 @@ pub async fn do_checkout(
         });
     }
 
+    // Guard: no zero-total sale. Together with the empty-order check
+    // above this makes a "zero registration" impossible, as declared
+    // in the certification dossier (manual §III.D).
+    if order.total_cents <= 0 {
+        return Ok(CheckoutResult {
+            success: false,
+            ticket: None,
+            error: Some("Order total must be greater than zero".into()),
+            fdm_connected: false,
+        });
+    }
+
     // Guard: reject if order is already closed (prevents double
     // fiscal events when the operator taps "Payer" twice before
     // the Vue loading guard kicks in).

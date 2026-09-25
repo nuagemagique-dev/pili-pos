@@ -163,3 +163,78 @@ async fn refund_fdm_failure_does_not_advance_counter() {
     );
     assert_eq!(app.fiscal_events().len(), 1, "no refund event archived");
 }
+
+/// Manual §III.D "enregistrement zéro": a sale without product lines,
+/// or whose total is zero, never reaches the FDM and never consumes a
+/// ticket number.
+#[tokio::test]
+async fn zero_total_sale_is_rejected_before_the_fdm() {
+    let app = TestApp::new().await;
+    let order_id = {
+        let conn = app.state.db.lock().unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO users (insz, name, role, active)
+             VALUES (?1, 'Test', 'cashier', 1)",
+            rusqlite::params![TEST_INSZ],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO categories (id, sort_order, active) VALUES (1, 0, 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO menu_items
+             (id, category_id, price_cents, vat_code, sort_order, active)
+             VALUES (2, 1, 0, 'B', 0, 1)",
+            [],
+        )
+        .unwrap();
+        let order =
+            pos_db::queries::orders::create_order(&conn, OrderType::DineIn, Some(1), TEST_INSZ)
+                .expect("create order");
+        pos_db::queries::orders::add_order_line(
+            &conn,
+            NewOrderLine {
+                order_id: order.id,
+                menu_item_id: 2,
+                quantity: 1,
+                unit_price_cents: 0,
+                vat_code: VatCode::B,
+                name: "Free item",
+                modifiers_json: None,
+            },
+        )
+        .expect("add line");
+        order.id
+    };
+
+    // Any FDM call would be a bug: fail loudly if one happens.
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(0)
+        .mount(&app.fdm)
+        .await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .expect("checkout returns a result");
+    assert!(!result.success);
+    assert!(
+        result
+            .error
+            .as_deref()
+            .is_some_and(|e| e.contains("greater than zero")),
+        "unexpected error: {:?}",
+        result.error
+    );
+    let events: i64 = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row("SELECT COUNT(*) FROM fiscal_events", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(events, 0);
+}
