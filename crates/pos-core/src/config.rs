@@ -78,6 +78,108 @@ impl PosConfig {
             source,
         })
     }
+
+    /// What the FDM would refuse in this identity (POS spec v2.2
+    /// §2.2.2), or the ticket could not show. Empty when the
+    /// configuration is usable. Checked at start-up and by
+    /// `moyun-pos --check-config`, so a typo in `pos.json` shows at
+    /// installation, not as refused sales on opening day.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let pos_id_ok = self.pos_id.len() == 14
+            && self
+                .pos_id
+                .chars()
+                .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit());
+        if !pos_id_ok {
+            out.push(format!(
+                "pos_id: 14 upper-case letters or digits expected, got {:?}",
+                self.pos_id
+            ));
+        }
+        if !valid_vat_no(&self.restaurant_vat) {
+            out.push(format!(
+                "restaurant_vat: BE followed by 10 digits starting with 0 or 1, valid modulo 97 \
+                 (e.g. BE0499999960), got {:?}",
+                self.restaurant_vat
+            ));
+        }
+        if !valid_est_no(&self.restaurant_est_no) {
+            out.push(format!(
+                "restaurant_est_no: 10 digits starting with 2 to 8, valid modulo 97 \
+                 (e.g. 8789456149), got {:?}",
+                self.restaurant_est_no
+            ));
+        }
+        for (key, value) in [
+            ("terminal_id", &self.terminal_id),
+            ("device_id", &self.device_id),
+        ] {
+            if value.trim().is_empty() || value.chars().count() > 600 {
+                out.push(format!("{key}: 1 to 600 characters expected"));
+            }
+        }
+        for (key, value) in [
+            ("restaurant_name", &self.restaurant_name),
+            ("restaurant_address", &self.restaurant_address),
+        ] {
+            if value.trim().is_empty() {
+                out.push(format!("{key}: printed on every ticket, must not be empty"));
+            }
+        }
+        if !(self.fdm_url.starts_with("http://") || self.fdm_url.starts_with("https://")) {
+            out.push(format!(
+                "fdm_url: http(s) URL expected, got {:?}",
+                self.fdm_url
+            ));
+        }
+        if !["fr", "nl", "de", "en", "zh"].contains(&self.language.as_str()) {
+            out.push(format!(
+                "language: one of fr, nl, de, en, zh expected, got {:?}",
+                self.language
+            ));
+        }
+        if let Some(d) = &self.digital_ticket {
+            if d.project_id.trim().is_empty() {
+                out.push("digital_ticket.project_id: must not be empty".to_string());
+            }
+            if !d.from_email.contains('@') {
+                out.push(format!(
+                    "digital_ticket.from_email: an e-mail address expected, got {:?}",
+                    d.from_email
+                ));
+            }
+        }
+        out
+    }
+}
+
+/// `true` when the last two digits are 97 minus the first eight
+/// modulo 97 (Belgian company and establishment numbers).
+fn mod97_ok(digits: &str) -> bool {
+    let (Ok(base), Ok(check)) = (digits[..8].parse::<u64>(), digits[8..].parse::<u64>()) else {
+        return false;
+    };
+    97 - base % 97 == check
+}
+
+/// `vatNo`: "BE" and 10 digits, the first 0 or 1, valid modulo 97.
+pub fn valid_vat_no(s: &str) -> bool {
+    let Some(digits) = s.strip_prefix("BE") else {
+        return false;
+    };
+    digits.len() == 10
+        && digits.chars().all(|c| c.is_ascii_digit())
+        && matches!(digits.as_bytes()[0], b'0' | b'1')
+        && mod97_ok(digits)
+}
+
+/// `estNo`: 10 digits, the first 2 to 8, valid modulo 97.
+pub fn valid_est_no(s: &str) -> bool {
+    s.len() == 10
+        && s.chars().all(|c| c.is_ascii_digit())
+        && (b'2'..=b'8').contains(&s.as_bytes()[0])
+        && mod97_ok(s)
 }
 
 impl Default for PosConfig {
@@ -140,6 +242,122 @@ pub struct DigitalTicketConfig {
 mod tests {
     use super::*;
 
+    fn valid() -> PosConfig {
+        PosConfig {
+            pos_id: "CFOD0061234567".into(),
+            terminal_id: "POS1".into(),
+            device_id: "00:1b:44:11:3a:b7".into(),
+            restaurant_name: "Restaurant Exemple".into(),
+            restaurant_address: "Rue de l'Exemple 1, 4000 Liège".into(),
+            restaurant_vat: "BE0499999960".into(),
+            restaurant_est_no: "8789456149".into(),
+            fdm_url: "http://192.168.1.20:8081/graphql".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_complete_identity_has_no_problem() {
+        assert_eq!(valid().problems(), Vec::<String>::new());
+        // The SPF test setup's identity is valid too.
+        let spf = PosConfig {
+            restaurant_vat: "BE0000000097".into(),
+            restaurant_est_no: "2000000042".into(),
+            ..valid()
+        };
+        assert!(spf.problems().is_empty(), "{:?}", spf.problems());
+    }
+
+    /// The key a problem must name, and the typo that causes it.
+    type Typo = (&'static str, Box<dyn Fn(&mut PosConfig)>);
+
+    #[test]
+    fn every_typo_an_installer_can_make_is_reported() {
+        let cases: Vec<Typo> = vec![
+            ("pos_id", Box::new(|c| c.pos_id = "cfod0061234567".into())),
+            ("pos_id", Box::new(|c| c.pos_id = "CFOD006123456".into())),
+            (
+                "restaurant_vat",
+                Box::new(|c| c.restaurant_vat = "BE 0499.999.960".into()),
+            ),
+            (
+                "restaurant_vat",
+                Box::new(|c| c.restaurant_vat = "BE0499999961".into()),
+            ),
+            (
+                "restaurant_vat",
+                Box::new(|c| c.restaurant_vat = "0499999960".into()),
+            ),
+            (
+                "restaurant_vat",
+                Box::new(|c| c.restaurant_vat = "BE2499999960".into()),
+            ),
+            (
+                "restaurant_est_no",
+                Box::new(|c| c.restaurant_est_no = "878945614".into()),
+            ),
+            (
+                "restaurant_est_no",
+                Box::new(|c| c.restaurant_est_no = "8789456148".into()),
+            ),
+            (
+                "restaurant_est_no",
+                Box::new(|c| c.restaurant_est_no = "1234567890".into()),
+            ),
+            ("terminal_id", Box::new(|c| c.terminal_id = " ".into())),
+            ("device_id", Box::new(|c| c.device_id = "x".repeat(601))),
+            (
+                "restaurant_name",
+                Box::new(|c| c.restaurant_name = String::new()),
+            ),
+            (
+                "restaurant_address",
+                Box::new(|c| c.restaurant_address = "  ".into()),
+            ),
+            (
+                "fdm_url",
+                Box::new(|c| c.fdm_url = "192.168.1.20:8081".into()),
+            ),
+            ("language", Box::new(|c| c.language = "FR".into())),
+        ];
+        for (key, broken) in cases {
+            let mut c = valid();
+            broken(&mut c);
+            let problems = c.problems();
+            assert_eq!(problems.len(), 1, "{key}: {problems:?}");
+            assert!(problems[0].starts_with(key), "{key}: {problems:?}");
+        }
+    }
+
+    #[test]
+    fn a_broken_email_setup_is_reported() {
+        let mut c = valid();
+        c.digital_ticket = Some(DigitalTicketConfig {
+            region: "fr-par".into(),
+            project_id: " ".into(),
+            from_email: "tickets.example.com".into(),
+            from_name: "Restaurant".into(),
+            api_base: None,
+            api_key_file: "/etc/moyun-pos/secrets/tem.key".into(),
+            allow_digital_only: false,
+        });
+        let problems = c.problems();
+        assert_eq!(problems.len(), 2, "{problems:?}");
+    }
+
+    #[test]
+    fn modulo_97_numbers() {
+        assert!(valid_vat_no("BE0499999960"));
+        assert!(valid_vat_no("BE0000000097"));
+        assert!(!valid_vat_no("BE049999996"));
+        assert!(!valid_vat_no("BEO499999960"));
+        assert!(valid_est_no("8789456149"));
+        assert!(valid_est_no("2000000042"));
+        assert!(valid_est_no("2123456791"));
+        assert!(!valid_est_no("2123456789"));
+        assert!(!valid_est_no("9789456149"), "starts with 2 to 8");
+    }
+
     /// The example from MANUEL_INSTALLATION_FR.md §4.2 must parse.
     #[test]
     fn parses_installation_manual_example() {
@@ -150,7 +368,7 @@ mod tests {
             "restaurant_name": "Tokyo Sushi Bar",
             "restaurant_address": "Rue Test 1, 1000 Bruxelles",
             "restaurant_vat": "BE0499999960",
-            "restaurant_est_no": "1234567890",
+            "restaurant_est_no": "2123456791",
             "fdm_url": "http://192.168.1.20:8080/graphql",
             "printer_address": "192.168.1.10:9100",
             "training_mode": false,
@@ -172,7 +390,7 @@ mod tests {
             "restaurant_name": "Tokyo Sushi Bar",
             "restaurant_address": "Rue Test 1, 1000 Bruxelles",
             "restaurant_vat": "BE0499999960",
-            "restaurant_est_no": "1234567890",
+            "restaurant_est_no": "2123456791",
             "fdm_url": "http://192.168.1.20:8080/graphql"
         }"#;
         let cfg: PosConfig = serde_json::from_str(json).unwrap();
@@ -190,7 +408,7 @@ mod tests {
             "restaurant_name": "Tokyo Sushi Bar",
             "restaurant_address": "Rue Test 1, 1000 Bruxelles",
             "restaurant_vat": "BE0499999960",
-            "restaurant_est_no": "1234567890",
+            "restaurant_est_no": "2123456791",
             "fdm_url": "http://192.168.1.20:8080/graphql"
         }"#;
         assert!(serde_json::from_str::<PosConfig>(json).is_err());
@@ -240,7 +458,7 @@ mod tests {
             "restaurant_name": "Tokyo Sushi Bar",
             "restaurant_address": "Rue Test 1, 1000 Bruxelles",
             "restaurant_vat": "BE0499999960",
-            "restaurant_est_no": "1234567890",
+            "restaurant_est_no": "2123456791",
             "fdm_url": "http://192.168.1.20:8080/graphql",
             "language": "zh"
         }"#;

@@ -550,7 +550,7 @@ mod tests {
             restaurant_name: "Restaurant Exemple".to_string(),
             restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
             restaurant_vat: "BE0499999960".to_string(),
-            restaurant_est_no: "2123456749".to_string(),
+            restaurant_est_no: "2123456791".to_string(),
             ..Default::default()
         }
     }
@@ -605,7 +605,7 @@ mod tests {
 
         assert_eq!(sale.common.pos_id, "CFOD0061234567");
         assert_eq!(sale.common.employee_id, "00000000029");
-        assert_eq!(sale.common.est_no, "2123456749");
+        assert_eq!(sale.common.est_no, "2123456791");
         assert_eq!(sale.transaction.transaction_lines.len(), 1);
 
         let line = &sale.transaction.transaction_lines[0];

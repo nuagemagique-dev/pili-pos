@@ -622,7 +622,7 @@ mod idempotency_tests {
         CommonFields {
             language: Language::Fr,
             vat_no: "BE0499999960".to_string(),
-            est_no: "2123456749".to_string(),
+            est_no: "2123456791".to_string(),
             pos_id: pos_id.to_string(),
             pos_fiscal_ticket_no: ticket_no,
             pos_date_time: dt.to_string(),

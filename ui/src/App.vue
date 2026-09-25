@@ -8,6 +8,7 @@ import { useOrderChime } from "./composables/useOrderChime";
 import { HUBRISE_ENABLED } from "./features";
 import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
+import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
 
 const pos = usePosStore();
 const auth = useAuthStore();
@@ -36,4 +37,5 @@ onMounted(() => {
   <TrainingBanner />
   <RouterView />
   <ToastStack />
+  <ConfigProblemsBanner />
 </template>

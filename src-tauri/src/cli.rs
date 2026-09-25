@@ -7,6 +7,8 @@
 //! - `moyun-pos --version`
 //! - `moyun-pos --init-db [--seed <file.sql>]` — create or migrate the
 //!   database at `paths::db_path()` and optionally load a catalogue seed.
+//! - `moyun-pos --check-config` — read `pos.json` as the kiosk would and
+//!   list what the FDM would refuse; exits 1 when anything is wrong.
 
 use std::path::{Path, PathBuf};
 
@@ -19,6 +21,7 @@ pub enum Command {
     RunUi,
     Version,
     InitDb { seed: Option<PathBuf> },
+    CheckConfig,
 }
 
 pub fn parse(args: &[String]) -> anyhow::Result<Command> {
@@ -26,13 +29,14 @@ pub fn parse(args: &[String]) -> anyhow::Result<Command> {
         [] => Ok(Command::RunUi),
         [flag] if flag == "--version" => Ok(Command::Version),
         [flag] if flag == "--init-db" => Ok(Command::InitDb { seed: None }),
+        [flag] if flag == "--check-config" => Ok(Command::CheckConfig),
         [flag, seed_flag, seed] if flag == "--init-db" && seed_flag == "--seed" => {
             Ok(Command::InitDb {
                 seed: Some(PathBuf::from(seed)),
             })
         }
         _ => bail!(
-            "usage: moyun-pos [--version | --init-db [--seed <file.sql>]] (got: {})",
+            "usage: moyun-pos [--version | --check-config | --init-db [--seed <file.sql>]] (got: {})",
             args.join(" ")
         ),
     }
@@ -58,6 +62,23 @@ pub fn init_db(db_path: &Path, seed: Option<&Path>) -> anyhow::Result<()> {
         apply_seed(&conn, &sql).with_context(|| format!("applying seed {}", seed.display()))?;
     }
     Ok(())
+}
+
+/// What is wrong with the configuration the kiosk would load: the file
+/// named by `env_path` (`MOYUN_POS_CONFIG`), else `production_path`.
+/// Unlike the kiosk, a missing file is a problem here: the development
+/// identity is never acceptable on an installed terminal.
+pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<String> {
+    if env_path.is_none() && !production_path.exists() {
+        return vec![format!(
+            "no configuration: {} is missing and MOYUN_POS_CONFIG is not set",
+            production_path.display()
+        )];
+    }
+    match crate::state::load_config_from(env_path, production_path) {
+        Ok(config) => config.problems(),
+        Err(e) => vec![format!("{e:#}")],
+    }
 }
 
 pub fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
@@ -86,6 +107,10 @@ mod tests {
         assert_eq!(parse(&[]).unwrap(), Command::RunUi);
         assert_eq!(parse(&args(&["--version"])).unwrap(), Command::Version);
         assert_eq!(
+            parse(&args(&["--check-config"])).unwrap(),
+            Command::CheckConfig
+        );
+        assert_eq!(
             parse(&args(&["--init-db"])).unwrap(),
             Command::InitDb { seed: None }
         );
@@ -101,6 +126,38 @@ mod tests {
     fn rejects_unknown_arguments() {
         assert!(parse(&args(&["--seed", "seed.sql"])).is_err());
         assert!(parse(&args(&["--init-db", "seed.sql"])).is_err());
+        assert!(parse(&args(&["--check-config", "pos.json"])).is_err());
+    }
+
+    #[test]
+    fn check_config_reports_a_missing_broken_or_wrong_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let prod = dir.path().join("pos.json");
+
+        let missing = check_config(None, &prod);
+        assert_eq!(missing.len(), 1);
+        assert!(missing[0].contains("no configuration"), "{missing:?}");
+
+        std::fs::write(&prod, "{ not json").unwrap();
+        assert_eq!(check_config(None, &prod).len(), 1);
+
+        let good = r#"{
+            "pos_id": "CFOD0061234567", "terminal_id": "POS1", "device_id": "aa:bb:cc:dd:ee:ff",
+            "restaurant_name": "R", "restaurant_address": "A", "restaurant_vat": "BE0499999960",
+            "restaurant_est_no": "2123456791", "fdm_url": "http://192.168.1.20/graphql"
+        }"#;
+        std::fs::write(&prod, good).unwrap();
+        assert_eq!(check_config(None, &prod), Vec::<String>::new());
+
+        // A typo in the VAT number: one problem, naming the key.
+        std::fs::write(&prod, good.replace("BE0499999960", "BE0499999961")).unwrap();
+        let typo = check_config(None, &prod);
+        assert_eq!(typo.len(), 1);
+        assert!(typo[0].starts_with("restaurant_vat"), "{typo:?}");
+
+        // MOYUN_POS_CONFIG wins, and a missing file there is reported.
+        let env = dir.path().join("elsewhere.json");
+        assert_eq!(check_config(Some(env.to_str().unwrap()), &prod).len(), 1);
     }
 
     fn migrated() -> Connection {

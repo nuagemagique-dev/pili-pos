@@ -77,7 +77,7 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
         restaurant_name: "Restaurant Exemple".to_string(),
         restaurant_address: "Rue de l’Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
-        restaurant_est_no: "2123456789".to_string(),
+        restaurant_est_no: "2123456791".to_string(),
         pos_id: "CFOD0061234567".to_string(),
         pos_sw_version: "moyun-pos/1.0.0".to_string(),
         terminal_id: "POS1".to_string(),

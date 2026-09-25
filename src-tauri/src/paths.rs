@@ -14,6 +14,9 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 /// Directory holding `pos.db`, `logs/` and `backups/`.
+/// The configuration of an installed terminal (installation manual).
+pub const PRODUCTION_CONFIG: &str = "/etc/moyun-pos/pos.json";
+
 pub fn data_dir() -> PathBuf {
     resolve_data_dir(
         std::env::var_os("MOYUN_POS_DATA_DIR"),

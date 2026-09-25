@@ -195,7 +195,7 @@ installé sur l'image précisément pour cette étape) :
   "restaurant_name": "Restaurant Exemple",
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
-  "restaurant_est_no": "1234567890",
+  "restaurant_est_no": "2123456791",
   "fdm_url": "http://192.168.1.20:8080/graphql",
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,
@@ -208,18 +208,34 @@ Champs :
 
 | Champ | Description | Source |
 |---|---|---|
-| `pos_id` | Identifiant POS 14 caractères (commence par `C`). Attribué par le SPF Finances à la certification. | SPF Finances |
+| `pos_id` | Identifiant POS : 14 caractères, lettres majuscules ou chiffres (commence par `C`). Attribué par le SPF Finances à la certification. | SPF Finances |
 | `terminal_id` | ID du terminal physique. Libre, en général `POS1`, `POS2`... | Distributeur |
 | `device_id` | Adresse MAC de la carte réseau du terminal (minuscules, séparée par `:`), imprimée sur chaque ticket (manuel §VI, ligne "Appareil: <deviceId>"). Renseignée **automatiquement** par `moyun-provision` au premier démarrage (interface de la route par défaut, sinon la première interface Ethernet non-`lo` — voir `deploy/provision/provision.sh::detect_device_id`) ; ne pas modifier à la main sauf changement matériel de la carte réseau. | Automatique (terminal) |
 | `restaurant_name` | Nom commercial du restaurant tel qu'apparaît sur le ticket | Client |
 | `restaurant_address` | Adresse complète | Client |
-| `restaurant_vat` | Numéro de TVA belge format `BE0XXXXXXXXX` | Client |
-| `restaurant_est_no` | Numéro d'établissement (10 chiffres) | BCE / client |
+| `restaurant_vat` | Numéro de TVA belge : `BE` suivi de 10 chiffres commençant par 0 ou 1, valide modulo 97 (ex. `BE0499999960`) | Client |
+| `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |
 | `fdm_url` | URL GraphQL du FDM sur le LAN (port selon le modèle de FDM ; à confirmer sur le Checkbox CBX01) | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante (ou chemin série/USB) | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) — toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/moyun-pos/backups`) | Distributeur |
+
+#### Vérification
+
+Le FDM refuse tout événement dont l'identification est mal formée
+(description détaillée POS v2.2 §2.2.2). Après l'édition, vérifier :
+
+```bash
+/opt/moyun-pos/moyun-pos --check-config
+```
+
+La commande lit `pos.json` comme le POS et affiche `configuration OK`,
+ou la liste des champs à corriger (code de sortie 1) : format du
+`pos_id`, numéros de TVA et d'établissement (longueur, premier chiffre,
+modulo 97), champs vides, URL du FDM, langue, bloc `digital_ticket`.
+Tant qu'un champ est refusé, le POS le signale aussi dans un bandeau
+rouge au bas de l'écran et dans le journal (`journalctl -u moyun-pos`).
 
 #### Langue du ticket
 

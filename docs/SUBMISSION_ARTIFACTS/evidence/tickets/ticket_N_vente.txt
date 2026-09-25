@@ -3,7 +3,7 @@
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-                Etab: 2123456789
+                Etab: 2123456791
 
 Date:                           2026-07-03 12:34
 Ticket:                                      #15

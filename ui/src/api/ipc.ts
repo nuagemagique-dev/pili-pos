@@ -122,6 +122,8 @@ export interface PosSettings {
   terminalId: string;
   restaurantName: string;
   language: string;
+  /** What the FDM would refuse in pos.json; empty when usable. */
+  configProblems: string[];
 }
 
 export function getSettings(): Promise<PosSettings> {

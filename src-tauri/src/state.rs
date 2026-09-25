@@ -60,6 +60,9 @@ impl AppState {
         let poller_conn = Connection::open(&db_path)?;
 
         let config = Self::load_config()?;
+        for problem in config.problems() {
+            tracing::error!(%problem, "pos.json: the FDM will refuse this identity");
+        }
         let mail = crate::commands::delivery::MailState::from_config(&config);
 
         #[cfg(feature = "hubrise")]
@@ -93,7 +96,7 @@ impl AppState {
     fn load_config() -> anyhow::Result<PosConfig> {
         load_config_from(
             std::env::var("MOYUN_POS_CONFIG").ok().as_deref(),
-            std::path::Path::new("/etc/moyun-pos/pos.json"),
+            std::path::Path::new(crate::paths::PRODUCTION_CONFIG),
         )
     }
 }
@@ -141,10 +144,11 @@ pub fn load_config_from(
     Ok(PosConfig {
         pos_id: "CFOD0061234567".to_string(),
         terminal_id: "POS1".to_string(),
-        device_id: "DEV001".to_string(),
+        device_id: "00:1b:44:11:3a:b7".to_string(),
         restaurant_name: "Restaurant Exemple".to_string(),
         restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
+        restaurant_est_no: "2123456791".to_string(),
         fdm_url: "http://localhost:8081/graphql".to_string(),
         ..Default::default()
     })
@@ -240,7 +244,7 @@ mod tests {
     const VALID: &str = r#"{
         "pos_id": "CFOD0061234567", "terminal_id": "POS1", "device_id": "aa:bb:cc:dd:ee:ff",
         "restaurant_name": "R", "restaurant_address": "A", "restaurant_vat": "BE0499999960",
-        "restaurant_est_no": "2123456789", "fdm_url": "http://192.168.1.20/graphql"
+        "restaurant_est_no": "2123456791", "fdm_url": "http://192.168.1.20/graphql"
     }"#;
 
     #[test]
@@ -264,7 +268,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let prod = write(dir.path(), "pos.json", VALID);
         let c = load_config_from(None, &prod).unwrap();
-        assert_eq!(c.restaurant_est_no, "2123456789");
+        assert_eq!(c.restaurant_est_no, "2123456791");
     }
 
     #[test]
@@ -281,5 +285,18 @@ mod tests {
         assert_eq!(c.pos_id, "CFOD0061234567");
         assert!(c.digital_ticket.is_none());
         assert!(c.printer_address.is_none());
+        assert_eq!(
+            c.problems(),
+            Vec::<String>::new(),
+            "the dev identity is one the FDM accepts"
+        );
+    }
+
+    #[test]
+    fn the_documented_example_is_a_usable_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let prod = write(dir.path(), "pos.json", VALID);
+        let c = load_config_from(None, &prod).unwrap();
+        assert_eq!(c.problems(), Vec::<String>::new());
     }
 }

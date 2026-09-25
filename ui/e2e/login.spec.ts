@@ -9,6 +9,32 @@ test.describe('Login View', () => {
     await page.goto('/');
   });
 
+  test('no configuration banner when pos.json is usable', async ({ page }) => {
+    await expect(page.locator('.user-btn')).toBeVisible();
+    await expect(page.locator('.config-problems')).toHaveCount(0);
+  });
+
+  test('a configuration the FDM would refuse shows a banner', async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [DEFAULT_USER],
+      get_settings: () => ({
+        posId: 'CFOD0061234567',
+        terminalId: 'POS1',
+        restaurantName: 'Restaurant Exemple',
+        fdmUrl: 'http://localhost:8081/graphql',
+        printerAddress: null,
+        trainingMode: false,
+        language: 'fr',
+        configProblems: ['restaurant_vat: BE followed by 10 digits, got "BE123"'],
+      }),
+    });
+    await page.goto('/');
+    const banner = page.locator('.config-problems');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('Configuration invalide');
+    await expect(banner.locator('li')).toHaveText(['restaurant_vat: BE followed by 10 digits, got "BE123"']);
+  });
+
   test('shows user tile with name and role', async ({ page }) => {
     await expect(page.locator('.user-btn')).toBeVisible();
     await expect(page.locator('.user-name')).toContainText('Bruno Moyse');

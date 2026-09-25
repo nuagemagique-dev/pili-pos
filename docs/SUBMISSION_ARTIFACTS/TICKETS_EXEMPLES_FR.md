@@ -77,7 +77,7 @@ Scénario (produits du manuel, M110) : 2 × Dry Martini (12,00 €, TVA A)
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-                Etab: 2123456789
+                Etab: 2123456791
 
 Date:                           2026-07-03 12:34
 Ticket:                                      #15
@@ -125,7 +125,7 @@ d'invalidité en bas.
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-                Etab: 2123456789
+                Etab: 2123456791
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #4
@@ -165,7 +165,7 @@ montants négatifs, en-tête REMBOURSEMENT DU TICKET DE CAISSE TVA).
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-                Etab: 2123456789
+                Etab: 2123456791
 
 Date:                           2026-07-03 12:34
 Ticket:                                      #16
@@ -214,7 +214,7 @@ shortSignature réimprimée, mention d'invalidité en bas.
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-                Etab: 2123456789
+                Etab: 2123456791
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #2
@@ -261,7 +261,7 @@ TRAINING (double largeur) en tête, mention d'invalidité en bas.
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-                Etab: 2123456789
+                Etab: 2123456791
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #7
@@ -311,7 +311,7 @@ Date:                                 2026-07-03
 Debut:                          2026-07-03 11:02
 Fin:                            2026-07-03 22:41
 Terminal:                                   POS1
-Employe:                             12345678901
+Employe:                             85073003328
 Ticket:                                       #3
 ================================================
 TRANSACTIONS
@@ -360,7 +360,7 @@ Date:                                 2026-07-03
 Debut:                          2026-07-03 11:02
 Fin:                            2026-07-03 22:41
 Terminal:                                   POS1
-Employe:                             12345678901
+Employe:                             85073003328
 Ticket:                                       #3
 ================================================
 TRANSACTIONS

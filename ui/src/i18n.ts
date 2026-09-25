@@ -107,6 +107,7 @@ const coreMessages: Messages = {
   "add": { fr: "Ajouter", en: "Add", zh: "添加" },
   "name": { fr: "Nom", en: "Name", zh: "姓名" },
   "role": { fr: "Rôle", en: "Role", zh: "角色" },
+  "config_problems": { fr: "Configuration invalide : le FDM refusera les tickets. Appelez l'installateur.", en: "Invalid configuration: the FDM will refuse tickets. Call the installer.", zh: "配置无效：FDM 将拒绝票据。请联系安装人员。" },
   "training_open_orders": { fr: "Encaissez ou videz les commandes ouvertes avant de changer de mode", en: "Pay or empty the open orders before switching mode", zh: "切换模式前请结清或清空未结订单" },
   "deactivate": { fr: "Désactiver", en: "Deactivate", zh: "停用" },
   "confirm_deactivate": { fr: "Confirmer ?", en: "Confirm?", zh: "确认？" },

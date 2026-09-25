@@ -26,6 +26,20 @@ fn main() {
             println!("moyun-pos {}", env!("CARGO_PKG_VERSION"));
             return;
         }
+        Ok(cli::Command::CheckConfig) => {
+            let problems = cli::check_config(
+                std::env::var("MOYUN_POS_CONFIG").ok().as_deref(),
+                std::path::Path::new(paths::PRODUCTION_CONFIG),
+            );
+            if problems.is_empty() {
+                println!("configuration OK");
+                return;
+            }
+            for problem in &problems {
+                eprintln!("{problem}");
+            }
+            std::process::exit(1);
+        }
         Ok(cli::Command::InitDb { seed }) => {
             let db_path = paths::db_path();
             match cli::init_db(&db_path, seed.as_deref()) {

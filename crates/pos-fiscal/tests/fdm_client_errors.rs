@@ -32,7 +32,7 @@ fn config(fdm_url: &str) -> PosConfig {
         restaurant_name: "Tokyo Sushi Bar".to_string(),
         restaurant_address: "Rue de Flandre 1, 1000 Bruxelles".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
-        restaurant_est_no: "2123456749".to_string(),
+        restaurant_est_no: "2123456791".to_string(),
         fdm_url: fdm_url.to_string(),
         printer_address: None,
         training_mode: false,

@@ -179,6 +179,7 @@ function defaultHandlers(): Record<string, Handler> {
       printerAddress: null,
       trainingMode: false,
       language: 'fr',
+      configProblems: [],
     }),
     set_training_mode: () => undefined,
     new_booking_period: () => undefined,

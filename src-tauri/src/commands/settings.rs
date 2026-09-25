@@ -14,6 +14,11 @@ pub struct PosSettings {
     pub terminal_id: String,
     pub restaurant_name: String,
     pub language: String,
+    /// What the FDM would refuse in `pos.json` ([`PosConfig::problems`]):
+    /// shown as a banner so a bad identity is fixed before opening.
+    ///
+    /// [`PosConfig::problems`]: pos_core::config::PosConfig::problems
+    pub config_problems: Vec<String>,
 }
 
 #[tauri::command]
@@ -31,6 +36,7 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         terminal_id: config.terminal_id.clone(),
         restaurant_name: config.restaurant_name.clone(),
         language: config.language.clone(),
+        config_problems: config.problems(),
     })
 }
 

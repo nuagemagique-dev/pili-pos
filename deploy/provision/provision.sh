@@ -369,6 +369,13 @@ phase_instance() {
         echo "  ⚠ /etc/moyun-pos/pos.json not found — run --phase image first"
     fi
 
+    echo "▸ [instance] Fiscal identity (what the FDM would refuse)…"
+    if "$POS_BIN_DIR/moyun-pos" --check-config; then
+        echo "  ✓ pos.json is a usable identity"
+    else
+        echo "  ⚠ fix /etc/moyun-pos/pos.json, then rerun: $POS_BIN_DIR/moyun-pos --check-config"
+    fi
+
     echo "▸ [instance] Time sync + hardening…"
     systemctl enable --now chrony
     timedatectl set-timezone Europe/Brussels 2>/dev/null || true

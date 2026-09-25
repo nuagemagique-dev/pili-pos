@@ -187,7 +187,7 @@ VALUES
 
 ```sql
 INSERT INTO users (insz, name, role, active)
-VALUES ('12345678901', 'Marie Dupont', 'cashier', 1);
+VALUES ('85073003328', 'Marie Dupont', 'cashier', 1);
 ```
 
 Rôles autorisés : `admin`, `cashier`, `waiter`. Voir
@@ -209,7 +209,7 @@ Puis :
 ```sql
 UPDATE users
 SET pin_hash = '$2y$12$abcdef...'
-WHERE insz = '12345678901';
+WHERE insz = '85073003328';
 ```
 
 L'utilisateur peut maintenant se connecter avec son INSZ + PIN
@@ -218,7 +218,7 @@ L'utilisateur peut maintenant se connecter avec son INSZ + PIN
 ### 6.3 Désactiver un utilisateur
 
 ```sql
-UPDATE users SET active = 0 WHERE insz = '12345678901';
+UPDATE users SET active = 0 WHERE insz = '85073003328';
 ```
 
 L'utilisateur ne peut plus se connecter. Les événements fiscaux
@@ -233,7 +233,7 @@ empêcherait la suppression, et même si elle réussissait par cascade
 ### 6.4 Réinitialiser un PIN oublié
 
 ```sql
-UPDATE users SET pin_hash = NULL WHERE insz = '12345678901';
+UPDATE users SET pin_hash = NULL WHERE insz = '85073003328';
 ```
 
 L'utilisateur peut alors se connecter sans PIN (seulement avec son

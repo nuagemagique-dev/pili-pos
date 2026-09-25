@@ -37,7 +37,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         restaurant_name: "Restaurant Exemple".to_string(),
         restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
-        restaurant_est_no: "2123456789".to_string(),
+        restaurant_est_no: "2123456791".to_string(),
         pos_id: "CFOD0061234567".to_string(),
         pos_sw_version: "moyun-pos/1.0.0".to_string(),
         terminal_id: "POS1".to_string(),
@@ -195,7 +195,7 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
         report_date: "2026-07-03".to_string(),
         first_datetime: "2026-07-03T11:02:14+02:00".to_string(),
         last_datetime: "2026-07-03T22:41:09+02:00".to_string(),
-        employee_insz: "12345678901".to_string(),
+        employee_insz: "85073003328".to_string(),
         is_training: false,
         event_totals: vec![
             ReportEventTotal {
