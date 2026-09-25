@@ -46,7 +46,7 @@ script est relancé sur la révision soumise (ASSEMBLAGE_FINAL_FR.md,
 
 <!-- TEST_TOTALS:BEGIN (scripts/generate_test_report.py) -->
 
-Généré le 2026-09-25 22:15 (Europe/Brussels) sur la révision `fe61605`.
+Généré le 2026-09-25 23:11 (Europe/Brussels) sur la révision `2c4e308`.
 
 ### Workspace, fonctionnalités par défaut (`cargo test --workspace`)
 
@@ -71,8 +71,9 @@ Généré le 2026-09-25 22:15 (Europe/Brussels) sur la révision `fe61605`.
 | `spf_e2e_reports` (intégration) | Application-level e2e tests for the SPF Finances Reports v1.3 set. | 4 | 0 | 0 |
 | `spf_e2e_service_day` (intégration) | A long, realistic service day driven entirely through the Tauri command layer: several tables, interleaved orders/corrections/… | 1 | 0 | 0 |
 | `spf_e2e_validation` (intégration) | Input validation and auth checks across the command layer: unknown or inactive menu items, non-positive quantities, empty/zero-total checkouts, unknown ids… | 16 | 0 | 0 |
+| `ticket_copies` (intégration) | The copy picker lists what a customer can ask a copy of (manual §III, event C): sales, refunds, pre-bills and training tickets the FDM signed. | 4 | 0 | 0 |
 | `pos_core` (unit) | Business types of the POS: configuration, catalogue, orders, tables, users and VAT. | 57 | 0 | 0 |
-| `pos_db` (unit) | SQLite persistence: schema, migrations and typed queries, with the fiscal archive append-only. | 103 | 0 | 0 |
+| `pos_db` (unit) | SQLite persistence: schema, migrations and typed queries, with the fiscal archive append-only. | 104 | 0 | 0 |
 | `pos_fdm_mock` (unit) | Mock FDM (Checkbox-compatible GraphQL) and mock Scaleway TEM, for development, the admission image and screenshots. | 15 | 0 | 0 |
 | `pos_fiscal` (unit) | SCE 2.0 protocol: event building, FDM client, counters, archive, tickets and reports. | 113 | 0 | 0 |
 | `advanced_set_fixtures` (intégration) | SCE 2.0 Advanced Set v1.5 fixture validation. | 1 | 0 | 0 |
@@ -91,7 +92,7 @@ Généré le 2026-09-25 22:15 (Europe/Brussels) sur la révision `fe61605`.
 | `receipt_matrix` (intégration) | Every ticket type (N sale, N refund, P, C, T) in every ticket language (FR/NL/DE), rendered through the real `format_receipt` pipeline: each must fit the 80… | 8 | 0 | 0 |
 | `ticket_examples` (intégration) | §VI ticket-example generator. | 7 | 0 | 0 |
 | Crates exclues de la build cert (unit) | intégrations hors v1.0.0 | 24 | 0 | 0 |
-| **Total** | | **772** | **0** | **2** |
+| **Total** | | **777** | **0** | **2** |
 
 ### Application, build cert (`cargo test -p moyun-pos --no-default-features --features cert`)
 
@@ -116,7 +117,8 @@ Généré le 2026-09-25 22:15 (Europe/Brussels) sur la révision `fe61605`.
 | `spf_e2e_reports` (intégration) | Application-level e2e tests for the SPF Finances Reports v1.3 set. | 4 | 0 | 0 |
 | `spf_e2e_service_day` (intégration) | A long, realistic service day driven entirely through the Tauri command layer: several tables, interleaved orders/corrections/… | 1 | 0 | 0 |
 | `spf_e2e_validation` (intégration) | Input validation and auth checks across the command layer: unknown or inactive menu items, non-positive quantities, empty/zero-total checkouts, unknown ids… | 16 | 0 | 0 |
-| **Total** | | **230** | **0** | **0** |
+| `ticket_copies` (intégration) | The copy picker lists what a customer can ask a copy of (manual §III, event C): sales, refunds, pre-bills and training tickets the FDM signed. | 4 | 0 | 0 |
+| **Total** | | **234** | **0** | **0** |
 
 <!-- TEST_TOTALS:END -->
 
