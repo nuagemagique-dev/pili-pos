@@ -132,6 +132,16 @@ pub async fn do_refund_checkout(
         )
         .map_err(|e| e.to_string())?;
 
+        // Every refund of this sale — this one included — carries the
+        // SAME `fdmRef` (the original ticket, never a chain through
+        // prior refunds; see FLUX_REMBOURSEMENT_FR.md and the M112B
+        // test). That makes `fdmRef` the stable key for "how much of
+        // this sale has already been refunded", across any number of
+        // prior partial refunds, so a second or third partial refund
+        // can't push the aggregate past what was actually sold.
+        let already_refunded =
+            already_refunded_quantities(&db, &original_ref).map_err(|e| e.to_string())?;
+
         let mut requested: std::collections::HashMap<i64, i32> = std::collections::HashMap::new();
         for item in &items {
             if item.quantity <= 0 {
@@ -143,10 +153,15 @@ pub async fn do_refund_checkout(
             *requested.entry(item.menu_item_id).or_default() += item.quantity;
         }
         for item in &items {
+            let prior = already_refunded
+                .get(&item.menu_item_id)
+                .copied()
+                .unwrap_or(0);
             let original = refunded_line(
                 &original_lines,
                 item.menu_item_id,
                 requested[&item.menu_item_id],
+                prior,
             )?;
             pos_db::queries::orders::add_order_line(
                 &db,
@@ -242,7 +257,14 @@ pub async fn do_refund_checkout(
             EventLabel::N
         };
         let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        debug_assert_eq!(committed_no, ticket_number);
+        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        if committed_no != ticket_number {
+            return Err(format!(
+                "counter drifted between peek and commit for {label:?} (peeked \
+                 {ticket_number}, committed {committed_no}) — likely a concurrent \
+                 refund of the same sale; retry"
+            ));
+        }
         let event_id = archive::archive_event(
             &tx,
             ArchiveParams {
@@ -265,6 +287,20 @@ pub async fn do_refund_checkout(
             rusqlite::params![refund_order.id],
         )
         .map_err(|e| e.to_string())?;
+
+        // Record the (negative) cash payment so it nets against the
+        // day's takings in the X/Z reports — see the identical fix in
+        // `checkout.rs`. Refunds are always cash (§7 above) and never
+        // happen in training mode's fake-money sense, but a training
+        // refund still records no row, for the same reason a training
+        // sale doesn't.
+        if label != EventLabel::T {
+            tx.execute(
+                "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'cash', ?2)",
+                rusqlite::params![refund_order.id, refund_order.total_cents],
+            )
+            .map_err(|e| e.to_string())?;
+        }
 
         tx.commit().map_err(|e| e.to_string())?;
     }
@@ -326,12 +362,14 @@ pub async fn do_refund_checkout(
 }
 
 /// The original sale line a refunded product comes from. The quantity
-/// refunded for a product (summed over the request) may not exceed the
+/// refunded for a product — summed over THIS request AND every prior
+/// refund of the same sale (`already_refunded`) — may not exceed the
 /// quantity sold for it on the original ticket.
 fn refunded_line(
     original_lines: &[pos_core::order::OrderLine],
     menu_item_id: i64,
     requested: i32,
+    already_refunded: i32,
 ) -> Result<&pos_core::order::OrderLine, String> {
     let line = original_lines
         .iter()
@@ -342,10 +380,76 @@ fn refunded_line(
         .filter(|l| l.menu_item_id == menu_item_id)
         .map(|l| l.quantity)
         .sum();
-    if requested > sold {
+    let total_refunded = requested + already_refunded;
+    if total_refunded > sold {
         return Err(format!(
-            "Cannot refund {requested} of product {menu_item_id}: {sold} sold on the original ticket"
+            "Cannot refund {requested} of product {menu_item_id}: {sold} sold on the \
+             original ticket and {already_refunded} already refunded ({total_refunded} \
+             would exceed what was sold)"
         ));
     }
     Ok(line)
+}
+
+/// Sum, per `menu_item_id`, the quantity already refunded against the
+/// sale identified by `original`. Every refund of a sale carries the
+/// SAME `fdmRef` (the original ticket's FDM identity — see the comment
+/// at the call site), so a prior refund is any archived N/T event whose
+/// request JSON's `fdmRef` matches all four of the original's FDM
+/// reference fields. Reading `event_data_json` (what the POS actually
+/// sent) rather than re-deriving quantities from any local order table
+/// is deliberate: it is the one record that can never be edited after
+/// the fact.
+fn already_refunded_quantities(
+    conn: &rusqlite::Connection,
+    original: &pos_fiscal::response::FdmReference,
+) -> Result<std::collections::HashMap<i64, i32>, rusqlite::Error> {
+    let event_label = serde_json::to_string(&original.event_label)
+        .unwrap_or_default()
+        .trim_matches('"')
+        .to_string();
+    let mut stmt = conn.prepare(
+        "SELECT event_data_json FROM fiscal_events
+         WHERE json_extract(event_data_json, '$.fdmRef.fdmId') = ?1
+           AND json_extract(event_data_json, '$.fdmRef.fdmDateTime') = ?2
+           AND json_extract(event_data_json, '$.fdmRef.eventLabel') = ?3
+           AND json_extract(event_data_json, '$.fdmRef.eventCounter') = ?4
+           AND json_extract(event_data_json, '$.fdmRef.totalCounter') = ?5",
+    )?;
+    let rows = stmt.query_map(
+        rusqlite::params![
+            original.fdm_id,
+            original.fdm_date_time,
+            event_label,
+            original.event_counter,
+            original.total_counter,
+        ],
+        |row| row.get::<_, String>(0),
+    )?;
+
+    let mut totals: std::collections::HashMap<i64, i32> = std::collections::HashMap::new();
+    for row in rows {
+        let json = row?;
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
+            continue;
+        };
+        let Some(lines) = value["transaction"]["transactionLines"].as_array() else {
+            continue;
+        };
+        for line in lines {
+            let product = &line["mainProduct"];
+            let quantity = product["quantity"].as_f64().unwrap_or(0.0);
+            if quantity >= 0.0 {
+                continue; // only negative (refund) lines count
+            }
+            let Some(product_id) = product["productId"]
+                .as_str()
+                .and_then(|s| s.parse::<i64>().ok())
+            else {
+                continue;
+            };
+            *totals.entry(product_id).or_insert(0) += (-quantity).round() as i32;
+        }
+    }
+    Ok(totals)
 }
