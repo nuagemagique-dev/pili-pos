@@ -1,18 +1,21 @@
 //! HTTP client for the Scaleway Transactional Email (TEM) API.
 //!
-//! ⚠️ **Unverified against Scaleway's live docs.** The request/response
-//! shape below (endpoint path, `X-Auth-Token` header, JSON field names,
-//! `emails[].message_id` envelope) is built from the plan handed down
-//! for this task and Scaleway's general API conventions (region-scoped
-//! REST paths, `project_id` on every write, secret-key auth via
-//! `X-Auth-Token`, matching the pattern of Scaleway's other product
-//! APIs e.g. Object Storage/Registry). It has **not** been checked
-//! against https://www.scaleway.com/en/developers/api/transactional-email/
-//! — do that before wiring this against a real Scaleway project, and
-//! adjust the request/response structs + `SEND_PATH`/`PROBE_PATH`
-//! below if the real shape differs. All tests here mock the HTTP layer
-//! (`wiremock`) against this assumed shape, so a green test suite only
-//! proves internal consistency, not that Scaleway agrees.
+//! The request and response shapes were checked on 2026-09-25 against
+//! Scaleway's API reference
+//! (https://www.scaleway.com/en/developers/api/transactional-email/)
+//! and the types of its official Go SDK (`scaleway-sdk-go`,
+//! `api/tem/v1alpha1`):
+//!
+//! - send: `POST {api}/transactional-email/v1alpha1/regions/{region}/emails`,
+//!   secret key in `X-Auth-Token`; body `from{email,name}`,
+//!   `to[{email}]`, `subject`, `text`, `html`, `project_id`,
+//!   `attachments[{name,type,content}]` with `content` base64;
+//!   response `{"emails":[{"id","message_id","status",...}]}`;
+//! - probe: `GET` on the same path with `project_id` and `page_size`
+//!   (ListEmails), which needs the same key and project.
+//!
+//! The tests mock the HTTP layer (`wiremock`) with this shape; the first
+//! send against a real project is part of the pre-submission rehearsal.
 
 use std::time::Duration;
 

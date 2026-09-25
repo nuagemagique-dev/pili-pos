@@ -110,6 +110,27 @@ async fn send_sets_the_auth_header_and_request_body_fields() {
     assert_eq!(body["attachments"][0]["type"], "image/png");
     // Attachment content is base64, not the raw magic bytes.
     assert_ne!(body["attachments"][0]["content"], serde_json::json!([]));
+
+    // Only fields of Scaleway's CreateEmailRequest (scaleway-sdk-go,
+    // api/tem/v1alpha1), so the API never sees an unknown key.
+    let mut keys: Vec<_> = body.as_object().unwrap().keys().cloned().collect();
+    keys.sort();
+    assert_eq!(
+        keys,
+        [
+            "attachments",
+            "from",
+            "html",
+            "project_id",
+            "subject",
+            "text",
+            "to"
+        ]
+    );
+    let content = body["attachments"][0]["content"].as_str().unwrap();
+    let png = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, content)
+        .expect("attachment content is standard base64");
+    assert_eq!(&png[..4], b"\x89PNG");
 }
 
 #[tokio::test]
