@@ -1,0 +1,26 @@
+[package]
+name = "pos-mail"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-db = { path = "../pos-db" }
+pos-fiscal = { path = "../pos-fiscal" }
+pos-print = { path = "../pos-print" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
+tokio = { workspace = true }
+base64 = "0.22"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+wiremock = "0.6"
+image = { version = "0.25", default-features = false, features = ["png"] }

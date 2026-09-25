@@ -367,6 +367,67 @@ BEGIN
 END;
 "#;
 
+/// v5 — Digital ticket deliveries (cert manual §III.H, "ticket
+/// digital" option; POS spec v2.2 §6.5 verification URL requirement).
+///
+/// The digital ticket is sent by email via the Scaleway Transactional
+/// Email HTTP API, with a paper fallback if it can't be delivered.
+/// This table is the send outbox *and* the GDPR audit trail:
+///
+/// - `medium`: `DIGITAL` (email only, paper only as a failure
+///   fallback) or `PAPER_DIGITAL` (paper always printed, email sent
+///   as a bonus).
+/// - `recipient` holds the plaintext email only as long as it's
+///   needed to (re)send: nulled by `mark_sent` on success, and by the
+///   72 h GDPR sweep (`purge_recipients_older_than`) regardless of
+///   outcome. `recipient_hint` (masked, e.g. `j***@e***.be`) is kept
+///   forever for support/dossier readability.
+/// - `ticket_text` / `medium` / `fiscal_event_id` are immutable once
+///   written (enforced by trigger) — they're the fiscal record of
+///   *what* was sent, never deleted (like `fiscal_events` itself).
+/// - `status` lifecycle: `pending` → `sending` (claimed by a worker,
+///   see `sending` in the CHECK — this is what makes concurrent
+///   `run_once` calls claim-atomic instead of double-sending) →
+///   `sent` | `failed` (retries exhausted) | `fallback_printed`
+///   (paper printed instead). A `failed` row's recipient is nulled by
+///   the 72 h sweep and its status flips to `purged`.
+/// - `attempts` / `next_attempt_at` / `last_error` drive the
+///   exponential-backoff retry loop in `pos-mail::outbox`.
+pub(crate) const MIGRATION_005_TICKET_DELIVERIES: &str = r#"
+CREATE TABLE IF NOT EXISTS ticket_deliveries (
+    id INTEGER PRIMARY KEY,
+    fiscal_event_id INTEGER NOT NULL REFERENCES fiscal_events(id),
+    medium TEXT NOT NULL CHECK(medium IN ('DIGITAL','PAPER_DIGITAL')),
+    recipient TEXT,
+    recipient_hint TEXT NOT NULL,
+    ticket_text TEXT NOT NULL,
+    verification_url TEXT,
+    status TEXT NOT NULL
+        CHECK(status IN ('pending','sending','sent','failed','fallback_printed','purged'))
+        DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT,
+    provider_message_id TEXT,
+    last_error TEXT,
+    fallback_printed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_deliveries_due
+    ON ticket_deliveries(status, next_attempt_at);
+CREATE TRIGGER IF NOT EXISTS ticket_deliveries_no_delete
+BEFORE DELETE ON ticket_deliveries
+BEGIN
+    SELECT RAISE(ABORT, 'ticket deliveries are append-only, never delete');
+END;
+CREATE TRIGGER IF NOT EXISTS ticket_deliveries_no_rewrite
+BEFORE UPDATE OF fiscal_event_id, ticket_text, medium
+ON ticket_deliveries
+BEGIN
+    SELECT RAISE(ABORT, 'ticket deliveries: fiscal_event_id/ticket_text/medium are immutable');
+END;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -392,6 +453,7 @@ mod tests {
         assert!(tables.contains(&"users".to_string()));
         assert!(tables.contains(&"hubrise_connection".to_string()));
         assert!(tables.contains(&"hubrise_events".to_string()));
+        assert!(tables.contains(&"ticket_deliveries".to_string()));
     }
 
     #[test]

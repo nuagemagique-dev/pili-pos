@@ -33,7 +33,7 @@ use rusqlite::Connection;
 
 use crate::schema::{
     MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_BOOKING_PERIODS,
-    MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY, SCHEMA_SQL,
+    MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY, MIGRATION_005_TICKET_DELIVERIES, SCHEMA_SQL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -64,6 +64,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 4,
         name: "fiscal-archive-append-only",
         sql: MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY,
+    },
+    Migration {
+        version: 5,
+        name: "ticket-deliveries",
+        sql: MIGRATION_005_TICKET_DELIVERIES,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one.
@@ -157,12 +162,12 @@ mod tests {
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3, 4]);
+        assert_eq!(applied, vec![1, 2, 3, 4, 5]);
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1, 2, 3, 4]);
+        assert_eq!(applied_again, vec![1, 2, 3, 4, 5]);
     }
 
     #[test]
@@ -175,7 +180,7 @@ mod tests {
 
         // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3, 4]);
+        assert_eq!(applied, vec![1, 2, 3, 4, 5]);
 
         let stamp: String = conn
             .query_row(
@@ -211,7 +216,7 @@ mod tests {
     #[test]
     fn migrating_an_already_v2_db_adds_the_later_migrations() {
         // A DB that already has v1+v2 applied (e.g. upgraded before v3
-        // shipped) must pick up v3 and v4 on the next run without re-running
+        // shipped) must pick up v3 onwards on the next run without re-running
         // v1/v2 — and without needing a full fresh DB.
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(SCHEMA_SQL).unwrap();
@@ -233,7 +238,7 @@ mod tests {
         .unwrap();
 
         run_migrations(&conn).unwrap();
-        assert_eq!(applied_versions(&conn).unwrap(), vec![1, 2, 3, 4]);
+        assert_eq!(applied_versions(&conn).unwrap(), vec![1, 2, 3, 4, 5]);
 
         // The v4 triggers are actually present after this incremental path.
         conn.execute(
@@ -243,6 +248,42 @@ mod tests {
         )
         .unwrap();
         assert!(conn.execute("DELETE FROM fiscal_events", []).is_err());
+    }
+
+    #[test]
+    fn v5_creates_ticket_deliveries_with_correct_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let mut stmt = conn
+            .prepare("SELECT name FROM pragma_table_info('ticket_deliveries')")
+            .unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        for expected in [
+            "id",
+            "fiscal_event_id",
+            "medium",
+            "recipient",
+            "recipient_hint",
+            "ticket_text",
+            "verification_url",
+            "status",
+            "attempts",
+            "next_attempt_at",
+            "provider_message_id",
+            "last_error",
+            "fallback_printed",
+            "created_at",
+            "updated_at",
+        ] {
+            assert!(
+                columns.contains(&expected.to_string()),
+                "missing {expected}"
+            );
+        }
     }
 
     #[test]
