@@ -233,7 +233,27 @@ pub async fn do_copy_ticket_with(
     })
 }
 
-/// List recent fiscal events for copy selection.
+/// Recent tickets a customer received, for the copy picker: managers
+/// only, like the copy itself.
+#[tauri::command]
+pub fn list_copyable_tickets(
+    state: State<'_, AppState>,
+    limit: Option<i64>,
+) -> Result<Vec<pos_db::queries::fiscal::CopyableTicket>, String> {
+    do_list_copyable_tickets(state.inner(), limit)
+}
+
+pub fn do_list_copyable_tickets(
+    state: &AppState,
+    limit: Option<i64>,
+) -> Result<Vec<pos_db::queries::fiscal::CopyableTicket>, String> {
+    access::operator(state, Access::Admin)?;
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    pos_db::queries::fiscal::list_copyable_tickets(&db, limit.unwrap_or(30))
+        .map_err(|e| e.to_string())
+}
+
+/// List recent fiscal events.
 #[tauri::command]
 pub fn list_fiscal_events(
     state: State<'_, AppState>,

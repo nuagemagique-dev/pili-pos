@@ -19,9 +19,9 @@ import {
 type Handlers = Parameters<typeof mockTauriIPC>[1];
 
 const SAMPLE_TICKET = {
-  restaurant_name: 'Tokyo Sushi Bar',
+  restaurant_name: 'Restaurant Exemple',
   restaurant_address: 'Liège',
-  restaurant_vat: 'BE0123456789',
+  restaurant_vat: 'BE0499999960',
   pos_id: 'CFOD0061234567',
   terminal_id: 'POS1',
   pos_datetime: new Date().toISOString(),
@@ -481,6 +481,81 @@ test.describe('Copy flow — ticket delivery', () => {
     await page.locator('.reprint-btn').click();
     await page.getByRole('button', { name: 'Valider' }).click();
     await expect(page.locator('.delivery-msg')).toContainText('a***@b***.be');
+  });
+});
+
+test.describe('Ticket copy (event C) — pick the ticket first', () => {
+  const TICKETS = [
+    { fiscalEventId: 41, eventLabel: 'T', ticketNumber: 9, tableNumber: null, totalCents: 300, createdAt: '2026-09-25 12:30:00' },
+    { fiscalEventId: 40, eventLabel: 'N', ticketNumber: 8, tableNumber: null, totalCents: -1200, createdAt: '2026-09-25 12:20:00' },
+    { fiscalEventId: 39, eventLabel: 'P', ticketNumber: 7, tableNumber: 4, totalCents: 2800, createdAt: '2026-09-25 12:10:00' },
+    { fiscalEventId: 38, eventLabel: 'N', ticketNumber: 6, tableNumber: 4, totalCents: 5200, createdAt: '2026-09-25 12:00:00' },
+  ];
+
+  async function openCopyList(page: Page, overrides: Handlers = {}) {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      list_copyable_tickets: () => TICKETS,
+      ...overrides,
+    });
+    await loginAndGoto(page, '/reports');
+    await page.getByRole('button', { name: 'Copie de ticket' }).click();
+  }
+
+  test('lists each ticket with its kind, table and own total', async ({ page }) => {
+    await openCopyList(page);
+    const cards = page.locator('.copy-ticket-btn');
+    await expect(cards).toHaveCount(4);
+    await expect(cards.locator('.rt-kind')).toHaveText(['Formation', 'Remboursement', 'Addition', 'Vente']);
+    await expect(cards.nth(2)).toContainText('#7');
+    await expect(cards.nth(2)).toContainText('T4');
+    await expect(cards.nth(1).locator('.rt-total')).toContainText('-12,00');
+    // SQLite UTC 12:00 is 14:00 in Brussels (summer time).
+    await expect(cards.nth(3).locator('.rt-time')).toHaveText('14:00');
+  });
+
+  test('copies the chosen ticket, on paper by default', async ({ page }) => {
+    await openCopyList(page);
+    await page.locator('.copy-ticket-btn').nth(3).click();
+    await page.getByRole('button', { name: 'Valider' }).click();
+    const calls = await ipcCalls(page, 'copy_ticket');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].fiscalEventId).toBe(38);
+    expect(calls[0].employeeInsz).toBe(DEFAULT_USER.insz);
+    expect(calls[0].delivery).toBeUndefined();
+  });
+
+  test('back from the list signs nothing', async ({ page }) => {
+    await openCopyList(page);
+    await page.locator('.refund-modal').getByRole('button', { name: 'Retour' }).click();
+    await expect(page.locator('.refund-modal')).toHaveCount(0);
+    expect(await ipcCalls(page, 'copy_ticket')).toHaveLength(0);
+  });
+
+  test('an empty list says so', async ({ page }) => {
+    await openCopyList(page, { list_copyable_tickets: () => [] });
+    await expect(page.locator('.refund-modal')).toContainText('Aucun ticket récent');
+  });
+
+  test('a refused listing is shown, and no list opens', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+    await loginAndGoto(page, '/reports');
+    await overrideIPC(page, 'list_copyable_tickets', { __reject: 'Forbidden' });
+    await page.getByRole('button', { name: 'Copie de ticket' }).click();
+    await expect(page.locator('.toast', { hasText: 'Forbidden' })).toBeVisible();
+    await expect(page.locator('.refund-modal')).toHaveCount(0);
+  });
+
+  test('the Z history copy keeps its own title', async ({ page }) => {
+    await openCopyList(page, {
+      list_z_reports: () => [
+        { id: 1, reportDate: '2026-09-24', sequenceNumber: 1, createdAt: '2026-09-24T22:15:00Z', fiscalEventId: 77 },
+      ],
+    });
+    await page.locator('.refund-modal').getByRole('button', { name: 'Retour' }).click();
+    await page.locator('.reprint-btn').click();
+    await expect(page.locator('.refund-modal h3')).toHaveText('Réimprimer');
   });
 });
 

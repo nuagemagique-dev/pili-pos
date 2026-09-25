@@ -268,6 +268,7 @@ fn main() {
         // Copy
         commands::copy::copy_ticket,
         commands::copy::list_fiscal_events,
+        commands::copy::list_copyable_tickets,
         // Refund
         commands::refund::list_refundable_events,
         commands::refund::refund_checkout,
@@ -337,6 +338,7 @@ fn main() {
         // Copy
         commands::copy::copy_ticket,
         commands::copy::list_fiscal_events,
+        commands::copy::list_copyable_tickets,
         // Refund
         commands::refund::list_refundable_events,
         commands::refund::refund_checkout,

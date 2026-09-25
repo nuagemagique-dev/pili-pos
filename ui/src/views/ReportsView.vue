@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate as formatDay, formatTime, formatTimestamp } from "../utils/datetime";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
@@ -94,11 +95,13 @@ async function generateZ() {
 
 // ── Copy flow (event C) — picker shown before signing ──────────────
 const copyOpen = ref(false);
-const copyStep = ref<"picker" | "processing" | "result">("picker");
-const copyTarget = ref<ipc.ZReportSummary | null>(null);
+const copyStep = ref<"pick" | "picker" | "processing" | "result">("picker");
+const copyTarget = ref<{ fiscalEventId: number | null } | null>(null);
 const copyResult = ref<CopyResult | null>(null);
+const copyTickets = ref<ipc.CopyableTicket[]>([]);
 
-function openCopy(report: ipc.ZReportSummary) {
+/** Copy of a Z report, from the history. */
+function openCopy(report: { fiscalEventId: number | null }) {
   if (!report.fiscalEventId) return;
   copyTarget.value = report;
   copyResult.value = null;
@@ -108,9 +111,34 @@ function openCopy(report: ipc.ZReportSummary) {
   copyOpen.value = true;
 }
 
+/** Copy of a ticket a customer received: pick it first. */
+async function openTicketCopy() {
+  copyResult.value = null;
+  copyTarget.value = null;
+  try {
+    copyTickets.value = await ipc.listCopyableTickets();
+  } catch (e) {
+    toast.show(String(e), "error", 5000);
+    return;
+  }
+  copyStep.value = "pick";
+  copyOpen.value = true;
+}
+
+function selectCopyTicket(ticket: ipc.CopyableTicket) {
+  openCopy({ fiscalEventId: ticket.fiscalEventId });
+}
+
+function copyKind(ticket: ipc.CopyableTicket): string {
+  if (ticket.eventLabel === "T") return t("copy_kind_training");
+  if (ticket.eventLabel === "P") return t("copy_kind_pre_bill");
+  return ticket.totalCents < 0 ? t("copy_kind_refund") : t("copy_kind_sale");
+}
+
 function closeCopy() {
   copyOpen.value = false;
   copyResult.value = null;
+  copyTickets.value = [];
   delivery.reset();
 }
 
@@ -136,14 +164,7 @@ async function confirmCopy() {
 }
 
 function formatDate(iso: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso.replace(" ", "T") + "Z");
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("fr-BE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return iso ? formatTimestamp(iso, formatDay) : "—";
 }
 
 // ── Cash management (Event F) — preset buttons, no keyboard ──────
@@ -300,9 +321,7 @@ async function confirmRefund() {
 }
 
 function formatRefundTime(iso: string): string {
-  const d = new Date(iso.replace(" ", "T") + (iso.includes("Z") || iso.includes("+") ? "" : "Z"));
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
+  return formatTimestamp(iso, formatTime);
 }
 </script>
 
@@ -397,6 +416,9 @@ function formatRefundTime(iso: string): string {
         <button class="refund-btn" @click="openRefund">
           {{ t('refund') }}
         </button>
+        <button class="copy-btn" @click="openTicketCopy">
+          {{ t('copy_ticket') }}
+        </button>
       </div>
     </div>
 
@@ -488,8 +510,27 @@ function formatRefundTime(iso: string): string {
     <Teleport to="body">
       <div v-if="copyOpen" class="refund-overlay" @click.self="closeCopy">
         <div class="refund-modal">
-          <template v-if="copyStep === 'picker'">
-            <h3>{{ t('report_reprint') }}</h3>
+          <template v-if="copyStep === 'pick'">
+            <h3>{{ t('copy_select_ticket') }}</h3>
+            <div v-if="copyTickets.length === 0" class="refund-empty">{{ t('copy_none') }}</div>
+            <div class="refund-ticket-grid">
+              <button
+                v-for="tk in copyTickets"
+                :key="tk.fiscalEventId"
+                class="refund-ticket-btn copy-ticket-btn"
+                @click="selectCopyTicket(tk)"
+              >
+                <span class="rt-num">#{{ tk.ticketNumber }}</span>
+                <span class="rt-kind">{{ copyKind(tk) }}</span>
+                <span v-if="tk.tableNumber" class="rt-table">T{{ tk.tableNumber }}</span>
+                <span class="rt-total">{{ formatPrice(tk.totalCents) }}</span>
+                <span class="rt-time">{{ formatRefundTime(tk.createdAt) }}</span>
+              </button>
+            </div>
+            <button class="refund-cancel" @click="closeCopy">{{ t('back') }}</button>
+          </template>
+          <template v-else-if="copyStep === 'picker'">
+            <h3>{{ copyTickets.length ? t('copy_ticket') : t('report_reprint') }}</h3>
             <TicketMediumPicker />
             <button class="refund-confirm-btn" @click="confirmCopy">{{ t('validate') }}</button>
             <button class="refund-cancel" @click="closeCopy">{{ t('back') }}</button>
@@ -643,6 +684,15 @@ function formatRefundTime(iso: string): string {
 }
 .refund-ticket-btn:active { transform: scale(var(--tap-scale)); }
 .rt-num { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
+.copy-btn {
+  width: 100%; height: 52px;
+  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface); color: var(--text-primary);
+  transition: transform var(--tap-duration) ease;
+}
+.copy-btn:active { transform: scale(var(--tap-scale)); }
+.rt-kind { font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); color: var(--text-secondary); }
 .rt-table { font-size: var(--font-size-xs); color: var(--accent-primary); }
 .rt-total { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--accent-primary); font-variant-numeric: tabular-nums; }
 .rt-time { font-size: var(--font-size-xs); color: var(--text-secondary); }

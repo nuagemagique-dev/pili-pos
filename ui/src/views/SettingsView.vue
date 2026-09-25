@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDayTime, formatTimestamp } from "../utils/datetime";
 import { defineAsyncComponent, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { usePosStore } from "../stores/pos";
@@ -108,9 +109,7 @@ async function loadDeliveries() {
 }
 
 function formatDeliveryDate(iso: string): string {
-  const d = new Date(iso.replace(" ", "T") + (iso.includes("Z") || iso.includes("+") ? "" : "Z"));
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("fr-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return formatTimestamp(iso, formatDayTime);
 }
 
 onMounted(() => {

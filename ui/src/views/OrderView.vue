@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatTime } from "../utils/datetime";
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useMenuStore } from "../stores/menu";
@@ -40,8 +41,7 @@ const clock = ref("");
 let clockInterval: ReturnType<typeof setInterval>;
 
 function updateClock() {
-  const now = new Date();
-  clock.value = now.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
+  clock.value = formatTime(new Date());
 }
 
 onMounted(async () => {

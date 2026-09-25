@@ -140,6 +140,59 @@ pub fn list_refundable_events(
     rows.collect()
 }
 
+/// A ticket the customer received, for the copy picker.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyableTicket {
+    pub fiscal_event_id: i64,
+    /// N (sale or refund), P (pre-bill) or T (training).
+    pub event_label: String,
+    /// `posFiscalTicketNo`, as printed on the ticket.
+    pub ticket_number: i64,
+    pub table_number: Option<i32>,
+    /// The ticket's own total (`transactionTotal`), negative for a
+    /// refund: never the order's current total, which a pre-bill's
+    /// table may have changed since.
+    pub total_cents: i64,
+    pub created_at: String,
+}
+
+/// Recent tickets that may be copied (event C): signed N, P and T
+/// events a customer received (`ticketMedium` other than NONE). Order
+/// registrations (P, NONE), social, cash and report events are left
+/// out; newest first.
+pub fn list_copyable_tickets(
+    conn: &Connection,
+    limit: i64,
+) -> Result<Vec<CopyableTicket>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT fe.id, fe.event_label,
+                json_extract(fe.event_data_json, '$.posFiscalTicketNo'),
+                o.table_number,
+                CAST(ROUND(COALESCE(json_extract(fe.event_data_json,
+                    '$.transaction.transactionTotal'), 0) * 100) AS INTEGER),
+                fe.created_at
+         FROM fiscal_events fe
+         LEFT JOIN orders o ON o.id = fe.order_id
+         WHERE fe.event_type IN ('N', 'P', 'T')
+           AND fe.fdm_id IS NOT NULL
+           AND COALESCE(json_extract(fe.event_data_json, '$.ticketMedium'), 'NONE') <> 'NONE'
+         ORDER BY fe.id DESC
+         LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(params![limit], |row| {
+        Ok(CopyableTicket {
+            fiscal_event_id: row.get(0)?,
+            event_label: row.get(1)?,
+            ticket_number: row.get(2)?,
+            table_number: row.get(3)?,
+            total_cents: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    })?;
+    rows.collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,5 +337,52 @@ mod tests {
         }
         assert_eq!(list_refundable_events(&conn, 3).unwrap().len(), 3);
         assert_eq!(list_refundable_events(&conn, 100).unwrap().len(), 5);
+    }
+
+    fn insert_ticket(
+        conn: &Connection,
+        seq: i64,
+        label: &str,
+        medium: &str,
+        total: f64,
+        signed: bool,
+    ) -> i64 {
+        let data = format!(
+            r#"{{"posFiscalTicketNo":{seq},"ticketMedium":"{medium}","transaction":{{"transactionTotal":{total}}}}}"#
+        );
+        conn.execute(
+            "INSERT INTO fiscal_events (
+                event_type, sequence_number, pos_id, terminal_id, user_insz,
+                event_data_json, fdm_id, event_label
+             ) VALUES (?1, ?2, 'CFOD0061234567', 'POS1', '00000000029', ?3, ?4, ?1)",
+            params![label, seq, data, signed.then_some("CFOD0000000001")],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn only_tickets_a_customer_received_can_be_copied() {
+        let conn = setup();
+        let sale = insert_ticket(&conn, 1, "N", "PAPER", 12.3, true);
+        insert_ticket(&conn, 2, "P", "NONE", 5.0, true); // order registration
+        let pre_bill = insert_ticket(&conn, 3, "P", "PAPER", 5.0, true);
+        let refund = insert_ticket(&conn, 4, "N", "DIGITAL", -1.1, true);
+        let training = insert_ticket(&conn, 5, "T", "PAPER_DIGITAL", 3.0, true);
+        insert_ticket(&conn, 6, "N", "PAPER", 9.0, false); // never signed
+        insert_ticket(&conn, 7, "S", "NONE", 0.0, true);
+        insert_ticket(&conn, 8, "F", "PAPER", 20.0, true);
+        insert_ticket(&conn, 9, "R", "PAPER", 0.0, true);
+
+        let listed = list_copyable_tickets(&conn, 50).unwrap();
+        let ids: Vec<_> = listed.iter().map(|t| t.fiscal_event_id).collect();
+        assert_eq!(ids, [training, refund, pre_bill, sale], "newest first");
+
+        let by_id = |id| listed.iter().find(|t| t.fiscal_event_id == id).unwrap();
+        assert_eq!(by_id(sale).total_cents, 1230);
+        assert_eq!(by_id(sale).ticket_number, 1);
+        assert_eq!(by_id(refund).total_cents, -110, "a refund keeps its sign");
+        assert_eq!(by_id(training).event_label, "T");
+        assert_eq!(list_copyable_tickets(&conn, 2).unwrap().len(), 2);
     }
 }

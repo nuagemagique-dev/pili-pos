@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatTime, formatTimestamp, parseTimestamp } from '../utils/datetime'
 // WebshopOrdersView — dark-theme POS screen for HubRise-origin orders
 // (webshop, Deliveroo, Uber Eats, Takeaway.com, …). Matches the
 // layout & tokens of OrderView so the staff keeps the same muscle
@@ -58,11 +59,7 @@ watch(
 const clock = ref('')
 let clockInterval: ReturnType<typeof setInterval>
 function updateClock() {
-  const now = new Date()
-  clock.value = now.toLocaleTimeString('fr-BE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  clock.value = formatTime(new Date())
 }
 
 // ── Filters ──────────────────────────────────────────────────────
@@ -124,10 +121,7 @@ function formatEuros(cents: number): string {
 }
 
 function formatCreatedAt(iso: string): string {
-  // SQLite datetime('now') returns "YYYY-MM-DD HH:MM:SS" (UTC).
-  const d = new Date(iso.replace(' ', 'T') + 'Z')
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+  return formatTimestamp(iso, formatTime)
 }
 
 function statusLabel(order: WebshopOrderSummary): string {
@@ -303,12 +297,8 @@ function isActive(order: WebshopOrderSummary): boolean {
 
 function formatReadyAt(iso: string | null): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('fr-BE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const d = parseTimestamp(iso)
+  return d ? formatTime(d) : ''
 }
 
 // Three chips is enough — +60 is a double tap on +30 when needed,

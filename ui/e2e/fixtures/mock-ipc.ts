@@ -198,6 +198,7 @@ function defaultHandlers(): Record<string, Handler> {
 
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
+    list_copyable_tickets: () => [],
     refund_checkout: live(({ delivery }: any = {}) => {
       function maskEmailForMock(email: string): string {
         const at = email.indexOf('@');

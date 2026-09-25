@@ -128,6 +128,13 @@ const coreMessages: Messages = {
   "settings_printer_label": { fr: "Imprimante", en: "Printer", zh: "打印机" },
 
   // Refund
+  "copy_ticket": { fr: "Copie de ticket", en: "Ticket copy", zh: "票据副本" },
+  "copy_select_ticket": { fr: "Ticket à copier", en: "Ticket to copy", zh: "选择要复制的票据" },
+  "copy_none": { fr: "Aucun ticket récent", en: "No recent ticket", zh: "没有最近的票据" },
+  "copy_kind_sale": { fr: "Vente", en: "Sale", zh: "销售" },
+  "copy_kind_refund": { fr: "Remboursement", en: "Refund", zh: "退款" },
+  "copy_kind_pre_bill": { fr: "Addition", en: "Bill", zh: "账单" },
+  "copy_kind_training": { fr: "Formation", en: "Training", zh: "培训" },
   "refund": { fr: "Remboursement", en: "Refund", zh: "退款" },
   "refund_select_ticket": { fr: "Sélectionner le ticket", en: "Select ticket", zh: "选择票据" },
   "refund_select_items": { fr: "Articles à rembourser", en: "Items to refund", zh: "退款商品" },

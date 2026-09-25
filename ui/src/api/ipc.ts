@@ -233,6 +233,22 @@ export function copyTicket(
   return invoke("copy_ticket", { fiscalEventId, employeeInsz, delivery });
 }
 
+/** A ticket a customer received, offered for a copy (event C). */
+export interface CopyableTicket {
+  fiscalEventId: number;
+  /** N (sale or refund), P (pre-bill) or T (training). */
+  eventLabel: "N" | "P" | "T";
+  ticketNumber: number;
+  tableNumber: number | null;
+  /** The ticket's own total; negative for a refund. */
+  totalCents: number;
+  createdAt: string;
+}
+
+export function listCopyableTickets(limit?: number): Promise<CopyableTicket[]> {
+  return invoke("list_copyable_tickets", { limit });
+}
+
 export function listFiscalEvents(
   limit?: number
 ): Promise<Record<string, unknown>[]> {
