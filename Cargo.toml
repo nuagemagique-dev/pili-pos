@@ -11,6 +11,7 @@ members = [
     "crates/pos-hubrise-mock",
     "crates/pos-hubrise",
     "crates/pos-peppol",
+    "crates/pos-mail",
 ]
 
 [workspace.package]
