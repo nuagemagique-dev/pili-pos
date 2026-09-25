@@ -60,7 +60,7 @@ pub fn init_db(db_path: &Path, seed: Option<&Path>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
+pub fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
     let fiscal_events: i64 =
         conn.query_row("SELECT COUNT(*) FROM fiscal_events", [], |r| r.get(0))?;
     ensure!(
