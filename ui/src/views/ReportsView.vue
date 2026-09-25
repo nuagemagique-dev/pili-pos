@@ -3,15 +3,19 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
+import { useDeliveryStore } from "../stores/delivery";
 import { formatPrice } from "../utils/format";
-import type { OrderLine } from "../types";
-import type { RefundableEvent, RefundItem } from "../api/ipc";
+import type { CheckoutResult, OrderLine } from "../types";
+import type { CopyResult, RefundableEvent, RefundItem } from "../api/ipc";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
+import TicketMediumPicker from "../components/TicketMediumPicker.vue";
+import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToastStore();
+const delivery = useDeliveryStore();
 const { t } = useI18n();
 
 const loading = ref(false);
@@ -88,13 +92,46 @@ async function generateZ() {
   }
 }
 
-async function handleReprint(report: ipc.ZReportSummary) {
-  if (!auth.currentUser || !report.fiscalEventId) return;
+// ── Copy flow (event C) — picker shown before signing ──────────────
+const copyOpen = ref(false);
+const copyStep = ref<"picker" | "processing" | "result">("picker");
+const copyTarget = ref<ipc.ZReportSummary | null>(null);
+const copyResult = ref<CopyResult | null>(null);
+
+function openCopy(report: ipc.ZReportSummary) {
+  if (!report.fiscalEventId) return;
+  copyTarget.value = report;
+  copyResult.value = null;
+  delivery.reset();
+  delivery.refreshMailStatus();
+  copyStep.value = "picker";
+  copyOpen.value = true;
+}
+
+function closeCopy() {
+  copyOpen.value = false;
+  copyResult.value = null;
+  delivery.reset();
+}
+
+async function confirmCopy() {
+  const insz = auth.currentUser?.insz;
+  const target = copyTarget.value;
+  if (!insz || !target?.fiscalEventId) return;
+  copyStep.value = "processing";
   try {
-    await ipc.copyTicket(report.fiscalEventId, auth.currentUser.insz);
-    toast.show(t('report_reprint_ok'), "success");
+    const req = delivery.request.medium === "paper" ? undefined : delivery.request;
+    const result = await ipc.copyTicket(target.fiscalEventId, insz, req);
+    copyResult.value = result;
+    if (result.success) {
+      toast.show(t('report_reprint_ok'), "success");
+    } else {
+      toast.show(result.error ?? "Copy failed", "error", 5000);
+    }
+    copyStep.value = "result";
   } catch (e) {
     toast.show(String(e), "error", 5000);
+    copyOpen.value = false;
   }
 }
 
@@ -156,22 +193,30 @@ async function handleOpenDrawer() {
 
 // ── Refund flow ──────────────────────────────────────────────────
 const refundOpen = ref(false);
-const refundStep = ref<"pick" | "items" | "processing">("pick");
+const refundStep = ref<"pick" | "items" | "delivery" | "processing" | "result">("pick");
 const refundEvents = ref<RefundableEvent[]>([]);
 const refundSelected = ref<RefundableEvent | null>(null);
 const refundLines = ref<OrderLine[]>([]);
 const refundChecked = ref<Map<number, number>>(new Map());
+const refundResult = ref<CheckoutResult | null>(null);
 
 async function openRefund() {
   refundOpen.value = true;
   refundStep.value = "pick";
   refundSelected.value = null;
   refundChecked.value = new Map();
+  refundResult.value = null;
   try {
     refundEvents.value = await ipc.listRefundableEvents(20);
   } catch {
     refundEvents.value = [];
   }
+}
+
+function closeRefund() {
+  refundOpen.value = false;
+  refundResult.value = null;
+  delivery.reset();
 }
 
 async function selectRefundTicket(ev: RefundableEvent) {
@@ -214,6 +259,13 @@ function refundTotalCents(): number {
   return total;
 }
 
+function goToRefundDelivery() {
+  if (refundChecked.value.size === 0) return;
+  delivery.reset();
+  delivery.refreshMailStatus();
+  refundStep.value = "delivery";
+}
+
 async function confirmRefund() {
   const insz = auth.currentUser?.insz;
   const ev = refundSelected.value;
@@ -232,14 +284,15 @@ async function confirmRefund() {
 
   refundStep.value = "processing";
   try {
-    const result = await ipc.refundCheckout(ev.fiscalEventId, items, insz);
+    const req = delivery.request.medium === "paper" ? undefined : delivery.request;
+    const result = await ipc.refundCheckout(ev.fiscalEventId, items, insz, req);
+    refundResult.value = result;
     if (result.success) {
       toast.show(t("refund_success"), "success");
-      refundOpen.value = false;
     } else {
       toast.show(result.error ?? "Refund failed", "error");
-      refundStep.value = "items";
     }
+    refundStep.value = "result";
   } catch (e) {
     toast.show(String(e), "error");
     refundStep.value = "items";
@@ -295,7 +348,7 @@ function formatRefundTime(iso: string): string {
             <button
               v-if="z.fiscalEventId"
               class="reprint-btn"
-              @click="handleReprint(z)"
+              @click="openCopy(z)"
             >
               {{ t('report_reprint') }}
             </button>
@@ -396,16 +449,67 @@ function formatRefundTime(iso: string): string {
             <button
               class="refund-confirm-btn"
               :disabled="refundChecked.size === 0"
-              @click="confirmRefund"
+              @click="goToRefundDelivery"
             >{{ t('refund_confirm') }} {{ formatPrice(refundTotalCents()) }}</button>
             <button class="refund-cancel" @click="refundStep = 'pick'">{{ t('back') }}</button>
           </template>
 
-          <template v-else>
+          <template v-else-if="refundStep === 'delivery'">
+            <h3>{{ t('refund_confirm') }}</h3>
+            <TicketMediumPicker />
+            <button
+              class="refund-confirm-btn"
+              @click="confirmRefund"
+            >{{ t('refund_confirm') }} {{ formatPrice(refundTotalCents()) }}</button>
+            <button class="refund-cancel" @click="refundStep = 'items'">{{ t('back') }}</button>
+          </template>
+
+          <template v-else-if="refundStep === 'processing'">
             <div class="refund-processing">
               <div class="spinner"></div>
               <p>{{ t('processing_fdm') }}</p>
             </div>
+          </template>
+
+          <template v-else>
+            <DeliveryOutcomePanel
+              :outcome="refundResult?.delivery ?? null"
+              :ticket="refundResult?.ticket ?? null"
+              :fiscal-event-id="refundResult?.fiscal_event_id ?? null"
+            />
+            <p v-if="refundResult && !refundResult.success" class="refund-error">{{ refundResult.error }}</p>
+            <button class="refund-cancel" @click="closeRefund">{{ t('finish') }}</button>
+          </template>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Copy modal (event C) — picker shown before signing (§8.2) -->
+    <Teleport to="body">
+      <div v-if="copyOpen" class="refund-overlay" @click.self="closeCopy">
+        <div class="refund-modal">
+          <template v-if="copyStep === 'picker'">
+            <h3>{{ t('report_reprint') }}</h3>
+            <TicketMediumPicker />
+            <button class="refund-confirm-btn" @click="confirmCopy">{{ t('validate') }}</button>
+            <button class="refund-cancel" @click="closeCopy">{{ t('back') }}</button>
+          </template>
+
+          <template v-else-if="copyStep === 'processing'">
+            <div class="refund-processing">
+              <div class="spinner"></div>
+              <p>{{ t('processing_fdm') }}</p>
+            </div>
+          </template>
+
+          <template v-else>
+            <DeliveryOutcomePanel
+              :outcome="copyResult?.delivery ?? null"
+              :ticket="copyResult?.ticket ?? null"
+              :fiscal-event-id="copyResult?.fiscalEventId ?? null"
+            />
+            <p v-if="copyResult && !copyResult.success" class="refund-error">{{ copyResult.error }}</p>
+            <button class="refund-cancel" @click="closeCopy">{{ t('finish') }}</button>
           </template>
         </div>
       </div>
@@ -528,6 +632,7 @@ function formatRefundTime(iso: string): string {
 }
 .refund-modal h3 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); text-align: center; }
 .refund-empty { text-align: center; color: var(--text-secondary); font-size: var(--font-size-md); padding: var(--space-xl) 0; }
+.refund-error { color: var(--accent-danger); font-size: var(--font-size-sm); text-align: center; }
 
 .refund-ticket-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm); overflow-y: auto; }
 .refund-ticket-btn {

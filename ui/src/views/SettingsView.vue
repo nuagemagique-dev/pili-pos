@@ -5,8 +5,9 @@ import { usePosStore } from "../stores/pos";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useMenuStore } from "../stores/menu";
+import { useDeliveryStore } from "../stores/delivery";
 import type { AppLanguage } from "../stores/pos";
-import type { User } from "../types";
+import type { DeliveryView, User } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { HUBRISE_ENABLED } from "../features";
@@ -33,6 +34,7 @@ async function toggleTraining() {
   }
 }
 const menu = useMenuStore();
+const delivery = useDeliveryStore();
 
 const workers = ref<User[]>([]);
 const newName = ref("");
@@ -90,9 +92,32 @@ async function switchLanguage(lang: AppLanguage) {
   await menu.reloadWithLanguage();
 }
 
+// ── Digital tickets (admin) ──────────────────────────────────────
+const deliveries = ref<DeliveryView[]>([]);
+const deliveriesLoading = ref(false);
+
+async function loadDeliveries() {
+  deliveriesLoading.value = true;
+  try {
+    deliveries.value = await ipc.listTicketDeliveries(50);
+  } catch {
+    deliveries.value = [];
+  } finally {
+    deliveriesLoading.value = false;
+  }
+}
+
+function formatDeliveryDate(iso: string): string {
+  const d = new Date(iso.replace(" ", "T") + (iso.includes("Z") || iso.includes("+") ? "" : "Z"));
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("fr-BE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
 onMounted(() => {
   pos.loadSettings();
   loadWorkers();
+  delivery.refreshMailStatus();
+  loadDeliveries();
 });
 </script>
 
@@ -177,6 +202,44 @@ onMounted(() => {
         <div class="info-row"><span>{{ t('settings_printer_label') }}</span><span>{{ pos.settings.printerAddress ?? t('printer_none') }}</span></div>
       </div>
 
+      <!-- Digital tickets (admin) — never shows the address itself -->
+      <div class="deliveries-section">
+        <div class="deliveries-header">
+          <h3>{{ t('delivery_settings_title') }}</h3>
+          <button class="refresh-btn" :disabled="deliveriesLoading" @click="loadDeliveries">
+            {{ t('delivery_settings_refresh') }}
+          </button>
+        </div>
+        <div class="mail-status-row">
+          <span
+            class="mail-status-pill"
+            :class="delivery.mailStatus?.configured ? 'mail-status-ok' : 'mail-status-off'"
+          >{{ delivery.mailStatus?.configured ? t('delivery_settings_configured') : t('delivery_settings_not_configured') }}</span>
+          <span
+            v-if="delivery.mailStatus?.configured"
+            class="mail-status-pill"
+            :class="delivery.mailStatus?.reachable ? 'mail-status-ok' : 'mail-status-warn'"
+          >{{ delivery.mailStatus?.reachable ? t('delivery_settings_reachable') : t('delivery_settings_unreachable') }}</span>
+        </div>
+
+        <p v-if="deliveries.length === 0" class="empty">{{ t('delivery_settings_empty') }}</p>
+        <ul v-else class="delivery-list">
+          <li v-for="d in deliveries" :key="d.id" class="delivery-row">
+            <div class="delivery-row-main">
+              <span class="delivery-hint">{{ d.recipientHint }}</span>
+              <span class="delivery-status-badge" :class="`delivery-status-${d.status}`">
+                {{ t(`delivery_status_${d.status}`) }}
+              </span>
+            </div>
+            <div class="delivery-row-meta">
+              <span>{{ formatDeliveryDate(d.createdAt) }}</span>
+              <span>{{ t('delivery_attempts') }}: {{ d.attempts }}</span>
+            </div>
+            <p v-if="d.lastError" class="delivery-error">{{ t('delivery_last_error') }}: {{ d.lastError }}</p>
+          </li>
+        </ul>
+      </div>
+
       <component :is="HubriseSettings" v-if="HubriseSettings" />
     </div>
   </div>
@@ -246,5 +309,40 @@ onMounted(() => {
 .info-section h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); margin-bottom: var(--space-md); }
 .info-row { display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid rgba(160,160,176,0.1); font-size: var(--font-size-sm); }
 .info-row span:first-child { color: var(--text-secondary); }
+
+/* ── Digital tickets (admin) ─────────────────────────────────── */
+.deliveries-section { margin-top: var(--space-xl); }
+.deliveries-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-md); }
+.deliveries-header h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); }
+.refresh-btn {
+  min-height: 44px; padding: 0 var(--space-md);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary);
+  transition: transform var(--tap-duration) ease;
+}
+.refresh-btn:active { transform: scale(var(--tap-scale)); }
+.refresh-btn:disabled { opacity: 0.5; }
+
+.mail-status-row { display: flex; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.mail-status-pill {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);
+}
+.mail-status-ok { background: rgba(46,204,113,0.15); color: var(--accent-success); }
+.mail-status-off { background: rgba(160,160,176,0.15); color: var(--text-secondary); }
+.mail-status-warn { background: rgba(243,156,18,0.15); color: var(--accent-warning); }
+
+.delivery-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
+.delivery-row { padding: var(--space-sm) var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-md); }
+.delivery-row-main { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.delivery-hint { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); }
+.delivery-status-badge { font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); padding: 2px var(--space-sm); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); }
+.delivery-status-sent, .delivery-status-fallback_printed { color: var(--accent-success); }
+.delivery-status-failed { color: var(--accent-danger); }
+.delivery-status-sending, .delivery-status-pending { color: var(--accent-warning); }
+.delivery-row-meta { display: flex; gap: var(--space-md); font-size: var(--font-size-xs); color: var(--text-secondary); margin-top: var(--space-xs); }
+.delivery-error { font-size: var(--font-size-xs); color: var(--accent-danger); margin-top: var(--space-xs); }
 
 </style>
