@@ -232,8 +232,6 @@ fn main() {
         commands::delivery::list_ticket_deliveries,
         commands::delivery::print_missing_original,
         // Print
-        commands::print::print_receipt,
-        commands::print::open_drawer,
         commands::print::check_printer,
         commands::print::print_webshop_kitchen,
         commands::print::print_webshop_customer,
@@ -303,8 +301,6 @@ fn main() {
         commands::delivery::list_ticket_deliveries,
         commands::delivery::print_missing_original,
         // Print (no webshop_* commands in the cert build)
-        commands::print::print_receipt,
-        commands::print::open_drawer,
         commands::print::check_printer,
         // Settings
         commands::settings::get_settings,

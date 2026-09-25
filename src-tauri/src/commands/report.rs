@@ -336,7 +336,9 @@ pub async fn do_generate_z_report(
     Ok(ReportResult {
         success: true,
         report_type: "Z".to_string(),
-        report_no: Some(report_no),
+        // A training Z takes no Z number: the next real Z carries the
+        // same `reportNo` (art. 27 continuity is that of real Zs).
+        report_no: (!config.training_mode).then_some(report_no),
         error: None,
     })
 }
