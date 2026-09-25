@@ -4,6 +4,7 @@ import type { DeliveryOutcome, FiscalTicket } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { useToastStore } from "../stores/toast";
+import { useAuthStore } from "../stores/auth";
 
 // Shown after checkout, refund or copy: what happened to the ticket,
 // and — when the customer still needs a paper original — the one
@@ -18,6 +19,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const toast = useToastStore();
+const auth = useAuthStore();
 
 const printing = ref(false);
 const printed = ref(false);
@@ -31,7 +33,12 @@ const message = computed(() => {
   return null;
 });
 
-const showNeedsPaper = computed(() => !!props.outcome?.needsPaper && !printed.value);
+// print_missing_original is cashier/admin only on the backend (same
+// gate as canTakePayment); hide the button for a waiter rather than
+// let them hit a "Forbidden" toast.
+const showNeedsPaper = computed(
+  () => !!props.outcome?.needsPaper && !printed.value && auth.canTakePayment
+);
 
 async function printMissing() {
   if (!props.fiscalEventId || !props.ticket || printing.value) return;
