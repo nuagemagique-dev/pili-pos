@@ -1,0 +1,54 @@
+# moyun-pos — shared package list (Debian 12 / bookworm)
+#
+# Single source of truth, read by:
+#   - deploy/provision/provision.sh --phase packages (apt-get install, on an
+#     already-booted Debian 12 machine — the deploy/install.sh path)
+#   - deploy/image/mkosi.conf ([Content] Packages=, kept in sync by hand for
+#     the mkosi image build — mkosi has no "include packages from a text
+#     file" directive, so the two lists are the same packages, maintained
+#     side by side)
+#
+# Image-only packages (systemd-boot-efi, cryptsetup, tpm2-tools,
+# systemd-repart, sqlite3-utils for pos-db-ro, etc.) are NOT here: they are
+# meaningless on a plain Debian 12 box and are declared directly in
+# deploy/image/mkosi.conf instead.
+#
+# libfuse2 was dropped: RustDesk now runs via `--appimage-extract`
+# (deploy/provision/provision.sh), which never needs FUSE, so it works
+# under the kiosk unit's NoNewPrivileges=yes and inside the mkosi build
+# chroot.
+
+# Kiosk compositor + Tauri/WebKitGTK runtime deps
+cage
+libwebkit2gtk-4.1-0
+libgtk-3-0
+libayatana-appindicator3-1
+librsvg2-common
+gstreamer1.0-plugins-base
+gstreamer1.0-plugins-good
+
+# Fiscal database + fonts (Chinese-speaking staff UI)
+sqlite3
+fonts-noto-cjk
+fonts-noto-color-emoji
+
+# Maintenance console text editor (MANUEL_INSTALLATION_FR.md §4.2 tells
+# the distributor to `vi /etc/moyun-pos/pos.json` at Ctrl+Alt+F2 —
+# Debian 12 minbase ships no editor at all otherwise). vim-tiny provides
+# `/usr/bin/vi` via update-alternatives, ~1 MB, no GUI/X11 deps.
+vim-tiny
+
+# Networking + time sync (fiscal timestamps must be accurate to the second)
+network-manager
+chrony
+
+# Remote-support session (deploy/REMOTE-OPS.md): screen capture portal for
+# RustDesk under Cage/wlroots
+dbus-user-session
+xdg-desktop-portal-wlr
+pipewire
+wireplumber
+
+# Fetching/verifying the RustDesk AppImage and other downloads
+curl
+ca-certificates

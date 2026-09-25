@@ -37,10 +37,25 @@ ExecStart=/usr/bin/cage -s -- /opt/moyun-pos/moyun-pos
 StateDirectory=moyun-pos
 StateDirectoryMode=0750
 
+# /run/moyun-pos: reserved for the on-demand RustDesk support session
+# (deploy/REMOTE-OPS.md, HOME=/run/moyun-pos/support) so it never needs
+# to write under the read-only root or under /var/lib/moyun-pos.
+RuntimeDirectory=moyun-pos
+RuntimeDirectoryMode=0750
+
+# Files the service creates (pos.db-wal/-shm, logs, backups) get group
+# read access instead of world-readable — pairs with the `spf` account
+# on the admission image (group `pos`) and the pos-db-ro wrapper.
+UMask=0027
+
 Environment=WLR_RENDERER=pixman
 Environment=GDK_BACKEND=wayland
 Environment=WEBKIT_DISABLE_COMPOSITING_MODE=1
 Environment=RUST_LOG=info
+# Cage identifies as a wlroots compositor; some WebKitGTK/portal codepaths
+# (xdg-desktop-portal-wlr, used by the RustDesk screen-capture session)
+# branch on this to pick the wlr-specific screencast backend.
+Environment=XDG_CURRENT_DESKTOP=wlroots
 
 # Fiscal compliance: the POS must be operational — restart whenever it
 # exits, crash or not.

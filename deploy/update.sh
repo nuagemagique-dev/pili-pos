@@ -48,6 +48,25 @@ if [[ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]]; then
 fi
 echo "✓ SHA-1 matches the declared value ($ACTUAL_SHA1)"
 
+# The kiosk image (deploy/image/) mounts root read-only; /opt/moyun-pos
+# lives on that root partition, so the binary swap below needs a
+# temporary rw remount. Tolerant of a root that is already read-write
+# (plain deploy/install.sh targets, dev boxes): findmnt then reports no
+# "ro" option and this block is a no-op.
+ROOT_WAS_RO=0
+if findmnt -no OPTIONS / | tr ',' '\n' | grep -qx ro; then
+    ROOT_WAS_RO=1
+    echo "▸ Remounting / read-write..."
+    mount -o remount,rw /
+fi
+restore_root_ro() {
+    if [[ "$ROOT_WAS_RO" -eq 1 ]]; then
+        echo "▸ Remounting / read-only..."
+        mount -o remount,ro / || echo "  ⚠ could not remount / read-only — do it manually"
+    fi
+}
+trap restore_root_ro EXIT
+
 echo "▸ Stopping POS service..."
 systemctl stop "$SERVICE" 2>/dev/null || true
 sleep 1

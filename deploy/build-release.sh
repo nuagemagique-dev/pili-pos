@@ -19,6 +19,21 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/deploy/dist"
 LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 
+# Pinned by digest, not tag: `rust:1-bookworm` is a moving tag (rebuilt
+# whenever Debian ships security updates), which would make the
+# certification build non-reproducible byte-for-byte even with the same
+# rust-toolchain.toml. .github/workflows/image.yml's `repro` job relies
+# on this being deterministic (same image, run twice, same binary
+# SHA-1).
+# TODO(image-repro): this digest could not be resolved from this
+# environment (no outbound registry access at the time this was
+# written — see the final report). Before relying on the `repro` CI
+# job, resolve the current `rust:1-bookworm` digest (e.g.
+# `docker pull rust:1-bookworm && docker inspect --format='{{index .RepoDigests 0}}' rust:1-bookworm`
+# on a machine with registry access) and replace the tag below with
+# `rust@sha256:<digest>`.
+RUST_BUILD_IMAGE="rust:1-bookworm"
+
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
@@ -31,13 +46,19 @@ if [[ "${1:-}" == "--docker" ]]; then
     #   rust-toolchain.toml on first use.
     # - ui/node_modules gets its own anonymous volume so the Linux
     #   `npm ci` never overwrites the host's macOS node_modules.
+    # - RUSTFLAGS remaps the bind-mount path and cargo's install
+    #   location to fixed, neutral placeholders: without this, the
+    #   embedded debug info would encode this exact host's absolute
+    #   path, so two builds run from different clones/checkouts (or
+    #   even the same one, unmounted and remounted) would differ.
     docker run --rm \
         --platform linux/amd64 \
         -v "$PROJECT_ROOT":/workspace \
         -v /workspace/ui/node_modules \
         -w /workspace \
         -e CARGO_TARGET_DIR=/workspace/target/linux-amd64 \
-        rust:1-bookworm \
+        -e RUSTFLAGS="--remap-path-prefix=/workspace=/moyun-pos --remap-path-prefix=/usr/local/cargo=/cargo-home" \
+        "$RUST_BUILD_IMAGE" \
         bash -c "
             set -euo pipefail
             apt-get update -qq
@@ -52,8 +73,15 @@ if [[ "${1:-}" == "--docker" ]]; then
                 npm
             git config --global --add safe.directory /workspace
             scripts/build_and_hash.sh
+            # pos-fdm-mock: the admission kiosk image's fallback FDM
+            # (deploy/image/mkosi.profiles/admission/). Same container,
+            # same toolchain, same CARGO_TARGET_DIR as the cert binary
+            # above, so it is a real linux/amd64 binary too — never
+            # cross-compiled from the macOS host.
+            cargo build --release --package pos-fdm-mock
         "
     BINARY="$LINUX_TARGET_DIR/release/moyun-pos"
+    POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
 else
     echo "══════════════════════════════════════════════════"
     echo "  Native build (run on a Debian 12 x86_64 machine)"
@@ -73,7 +101,9 @@ else
     echo ""
 
     CARGO_TARGET_DIR="$LINUX_TARGET_DIR" "$PROJECT_ROOT/scripts/build_and_hash.sh"
+    CARGO_TARGET_DIR="$LINUX_TARGET_DIR" cargo build --release --package pos-fdm-mock
     BINARY="$LINUX_TARGET_DIR/release/moyun-pos"
+    POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
 fi
 
 if [[ ! -f "$BINARY" ]]; then
@@ -89,8 +119,17 @@ cp "$PROJECT_ROOT/deploy/moyun-pos.service" "$OUTPUT_DIR/"
 mkdir -p "$OUTPUT_DIR/kiosk"
 cp "$PROJECT_ROOT/deploy/kiosk/pam.d-moyun-pos" "$OUTPUT_DIR/kiosk/"
 cp "$PROJECT_ROOT/src-tauri/seed_spf_test.sql" "$OUTPUT_DIR/"
-cp "$(ls -t "$PROJECT_ROOT"/build_info_*.txt | head -1)" "$OUTPUT_DIR/"
+LATEST_BUILD_INFO="$(find "$PROJECT_ROOT" -maxdepth 1 -name 'build_info_*.txt' -print0 \
+    | xargs -0 ls -t | head -1)"
+cp "$LATEST_BUILD_INFO" "$OUTPUT_DIR/"
 chmod +x "$OUTPUT_DIR/install.sh" "$OUTPUT_DIR/update.sh"
+
+# pos-fdm-mock: only meaningful for the admission kiosk image
+# (deploy/image/build.sh stages it into mkosi.profiles/admission/), not
+# part of a plain terminal deploy — copied best-effort.
+if [[ -n "${POS_FDM_MOCK:-}" && -f "$POS_FDM_MOCK" ]]; then
+    cp "$POS_FDM_MOCK" "$OUTPUT_DIR/pos-fdm-mock"
+fi
 
 echo ""
 echo "═══════════════════════════════════════════════════"

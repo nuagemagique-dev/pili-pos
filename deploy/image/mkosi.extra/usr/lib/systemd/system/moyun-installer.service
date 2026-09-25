@@ -1,0 +1,29 @@
+[Unit]
+Description=moyun-pos USB installer/updater
+DefaultDependencies=no
+# OR'd together (the leading "|" is systemd's condition-OR syntax): this
+# unit only ever does anything when the USB stick's boot menu entry
+# ("Install moyun-pos kiosk" / "Update moyun-pos kiosk", deploy/image/
+# build.sh) put moyun.installer=install|update on the kernel command
+# line. On a normal kiosk boot both conditions fail and systemd skips
+# the unit entirely — this is always "enabled" (see
+# deploy/provision/provision.sh --phase image), gated purely by these.
+ConditionKernelCommandLine=|moyun.installer=install
+ConditionKernelCommandLine=|moyun.installer=update
+After=systemd-udevd.service getty@tty1.service
+Before=multi-user.target
+Conflicts=getty@tty1.service moyun-pos.service moyun-provision.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYReset=yes
+TTYVHangup=yes
+ExecStart=/usr/local/lib/moyun-pos/moyun-installer
+
+[Install]
+WantedBy=multi-user.target

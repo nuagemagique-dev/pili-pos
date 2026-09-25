@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────
+# moyun-installer — USB installer/updater, run by moyun-installer.service
+# only when the kernel command line carries moyun.installer=install or
+# moyun.installer=update (i.e. only when booted FROM the USB stick with
+# that menu entry picked — a normal boot never reaches this script; see
+# the unit's ConditionKernelCommandLine=).
+#
+# install: wipes the internal disk and replicates this USB stick's
+#          partition table (ESP + root) and content onto it. The rest
+#          of the disk is left free for systemd-repart to claim as the
+#          "moyun-data" partition on the first real boot.
+# update:  copies ONLY the CONTENTS of partitions 1 (ESP) and 2 (root)
+#          into the internal disk's EXISTING partitions 1 and 2,
+#          without touching its partition table at all — so its
+#          existing "moyun-data" partition (partition 3, the fiscal
+#          database) is never disturbed. This is why update copies
+#          partition-to-partition rather than disk-to-disk.
+#
+# Both modes finish with `sgdisk -e` ("fix backup GPT"): a disk-image
+# dd only ever writes a correct PRIMARY GPT (at the start); the
+# SECONDARY/backup GPT belongs at the true end of the target disk,
+# which differs from the source USB stick's size, so it must be
+# recomputed in place.
+# ─────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+log() { echo "[moyun-installer] $*"; }
+
+CMDLINE=" $(cat /proc/cmdline) "
+MODE=""
+if [[ "$CMDLINE" == *" moyun.installer=install "* ]]; then
+    MODE=install
+elif [[ "$CMDLINE" == *" moyun.installer=update "* ]]; then
+    MODE=update
+else
+    log "no moyun.installer= argument on the kernel command line — nothing to do"
+    exit 0
+fi
+
+part() { # part <disk> <n> -> /dev/sda1 or /dev/nvme0n1p1
+    local disk="$1" n="$2"
+    if [[ "$disk" =~ [0-9]$ ]]; then
+        echo "${disk}p${n}"
+    else
+        echo "${disk}${n}"
+    fi
+}
+
+SRC_NAME="$(lsblk -dno PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null || true)"
+if [[ -z "$SRC_NAME" ]]; then
+    log "ERROR: could not determine the USB source disk (booted how?)"
+    exit 1
+fi
+SRC_DISK="/dev/$SRC_NAME"
+
+mapfile -t CANDIDATES < <(lsblk -dno NAME,RM,TYPE \
+    | awk -v src="$SRC_NAME" '$3 == "disk" && $2 == "0" && $1 != src {print $1}')
+if [[ "${#CANDIDATES[@]}" -eq 0 ]]; then
+    log "ERROR: no internal non-removable disk found"
+    exit 1
+elif [[ "${#CANDIDATES[@]}" -gt 1 ]]; then
+    log "ERROR: several candidate internal disks found (${CANDIDATES[*]}) — refusing to guess"
+    exit 1
+fi
+TARGET_DISK="/dev/${CANDIDATES[0]}"
+
+MODE_UPPER="$(echo "$MODE" | tr '[:lower:]' '[:upper:]')"
+if [[ "$MODE" == "install" ]]; then
+    WARN_LINE="Le disque ${TARGET_DISK} sera ENTIÈREMENT EFFACÉ."
+else
+    WARN_LINE="Le système sera remplacé ; les données (/var, base fiscale) sont CONSERVÉES."
+fi
+
+clear || true
+cat <<BANNER
+════════════════════════════════════════════════════════════════
+  moyun-pos — ${MODE_UPPER} sur ${TARGET_DISK}
+  Source : ${SRC_DISK} (cette clé USB)
+
+  ${WARN_LINE}
+════════════════════════════════════════════════════════════════
+BANNER
+read -r -p "Tapez OUI en majuscules pour confirmer : " CONFIRM
+if [[ "$CONFIRM" != "OUI" ]]; then
+    log "Annulé (confirmation refusée)."
+    exit 1
+fi
+
+if [[ "$MODE" == "install" ]]; then
+    log "Partitioning ${TARGET_DISK} (replicating ${SRC_DISK}'s table)…"
+    sgdisk --zap-all "$TARGET_DISK"
+    sgdisk --replicate="$TARGET_DISK" "$SRC_DISK"
+    sgdisk -G "$TARGET_DISK"
+    partprobe "$TARGET_DISK" || true
+    udevadm settle --timeout=30 || true
+fi
+
+for n in 1 2; do
+    SRC_PART="$(part "$SRC_DISK" "$n")"
+    DST_PART="$(part "$TARGET_DISK" "$n")"
+    log "Copying partition $n: $SRC_PART -> $DST_PART…"
+    dd if="$SRC_PART" of="$DST_PART" bs=4M conv=fsync status=progress
+done
+
+log "Fixing the backup GPT on ${TARGET_DISK}…"
+sgdisk -e "$TARGET_DISK"
+partprobe "$TARGET_DISK" || true
+
+log "${MODE} complete."
+read -r -p "Retirez la clé USB puis appuyez sur Entrée pour redémarrer… " _ || true
+systemctl reboot

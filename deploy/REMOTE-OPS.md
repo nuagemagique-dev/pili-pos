@@ -9,8 +9,15 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
 ## Session RustDesk à la demande
 
 - Client : RustDesk portable (AppImage), version épinglée dans
-  `deploy/install.sh` (`RUSTDESK_VERSION` + SHA-256), installé dans
-  `/opt/moyun-pos/bin/rustdesk`. Aucun service, jamais lancé au boot.
+  `deploy/provision/provision.sh` (`RUSTDESK_VERSION` + SHA-256 —
+  `deploy/image/build.sh` garde une copie synchronisée à la main pour
+  télécharger/vérifier l'AppImage une seule fois puis la réutiliser
+  pour les deux profils d'image). Vérifiée (SHA-256) puis extraite
+  avec `--appimage-extract` (jamais montée en FUSE — fonctionne sous
+  `NoNewPrivileges=yes` et dans le chroot de build) dans
+  `/opt/moyun-pos/rustdesk/`, lancée via
+  `/opt/moyun-pos/rustdesk/AppRun`. Aucun service, jamais lancé au
+  boot.
 - Ouverture : un responsable présent sur place démarre la session à la
   demande du distributeur ; l'identifiant et le mot de passe à usage
   unique affichés sont communiqués par téléphone. La session se
@@ -60,6 +67,20 @@ grep -i "error\|warn\|failed" /var/lib/moyun-pos/logs/pos.log.* | tail -20
 | `no config file found` | `/etc/moyun-pos/pos.json` absent : le POS tourne avec une identité de TEST |
 
 ## État de la base de données (lecture seule)
+
+Sur l'image d'admission, le compte `spf` (tty2, mot de passe affiché
+une seule fois au premier démarrage — `MANUEL_INSTALLATION_FR.md`
+§3.4) dispose du wrapper `pos-db-ro`, qui ouvre `pos.db` en lecture
+seule sans jamais nécessiter d'accès écriture au fichier (voir
+`SECURITE_BD_FR.md` §3.2 et `FEUILLE_ACQUISITION_DONNEES_FR.md` §2.2) :
+
+```bash
+pos-db-ro          # shell interactif
+pos-db-ro "SELECT id, event_type, sequence_number FROM fiscal_events ORDER BY id DESC LIMIT 10;"
+```
+
+Depuis la console de maintenance root (`Ctrl+Alt+F2`), `sqlite3` brut
+reste disponible :
 
 ```bash
 sqlite3 -readonly /var/lib/moyun-pos/pos.db

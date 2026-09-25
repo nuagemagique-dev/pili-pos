@@ -1,0 +1,17 @@
+# /etc/fstab — moyun-pos kiosk image.
+#
+# ESP and root are found and mounted automatically by systemd (they
+# carry Discoverable Partitions Spec GUIDs — see mkosi.repart/), so
+# they are deliberately NOT listed here. /var is the one mount this
+# image cannot discover automatically: it only exists once
+# moyun-provision.service has LUKS-formatted and mkfs'd the "moyun-data"
+# partition on first boot (see mkosi.extra/etc/crypttab), so it is
+# named through its decrypted mapper device.
+#
+# `nofail` matches crypttab: if /var never appears (TPM failure, first
+# boot not yet run), the rest of the boot proceeds; moyun-pos.service
+# cannot start without it (StateDirectory=moyun-pos), which is the
+# correct fail-safe for a fiscal appliance.
+#
+# <device>                 <mount>  <type>  <options>       <dump> <pass>
+/dev/mapper/moyun-data     /var     ext4    defaults,nofail 0      2

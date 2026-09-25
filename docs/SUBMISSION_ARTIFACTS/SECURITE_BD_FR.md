@@ -122,72 +122,179 @@ exclusivement, jamais ne diminue). Voir
 
 | Fichier | Propriétaire | Mode | Justification |
 |---|---|---|---|
-| `/var/lib/moyun-pos/pos.db` | `moyun-pos:moyun-pos` | `0640` | Lecture/écriture par le service uniquement |
-| `/var/lib/moyun-pos/pos.db-wal` | `moyun-pos:moyun-pos` | `0640` | Idem |
-| `/var/lib/moyun-pos/pos.db-shm` | `moyun-pos:moyun-pos` | `0640` | Idem |
-| `/var/lib/moyun-pos/backups/` | `moyun-pos:moyun-pos` | `0750` | Répertoire des sauvegardes |
-| `/var/lib/moyun-pos/backups/pos-*.db` | `moyun-pos:moyun-pos` | `0640` | Sauvegardes journalières |
-| `/var/lib/moyun-pos/logs/pos.log.*` | `moyun-pos:moyun-pos` | `0640` | Journaux applicatifs |
-| `/etc/moyun-pos/pos.json` | `root:moyun-pos` | `0640` | Configuration, lecture par le service uniquement |
+| `/var/lib/moyun-pos/pos.db` | `pos:pos` | `0640` | Lecture/écriture par le service uniquement (le groupe `pos` donne un accès lecture au compte `spf`, voir §3.2) |
+| `/var/lib/moyun-pos/pos.db-wal` | `pos:pos` | `0640` | Idem |
+| `/var/lib/moyun-pos/pos.db-shm` | `pos:pos` | `0640` | Idem |
+| `/var/lib/moyun-pos/backups/` | `pos:pos` | `0750` | Répertoire des sauvegardes |
+| `/var/lib/moyun-pos/backups/pos-*.db` | `pos:pos` | `0640` | Sauvegardes journalières |
+| `/var/lib/moyun-pos/logs/pos.log.*` | `pos:pos` | `0640` | Journaux applicatifs |
+| `/etc/moyun-pos/pos.json` | `root:pos` | `0640` | Configuration, lecture par le service et le groupe `pos` uniquement |
 | `/opt/moyun-pos/moyun-pos` | `root:root` | `0755` | Binaire, exécution publique |
+
+`/var/lib/moyun-pos/` est le `StateDirectory=` de `moyun-pos.service` ;
+systemd le crée avec `StateDirectoryMode=0750`. Le service tourne avec
+`UMask=0027`, donc tout fichier qu'il crée hérite directement des
+modes `0640`/`0750` ci-dessus sans étape de `chmod` séparée.
 
 ### 3.2 Utilisateur de service dédié
 
 Le service `moyun-pos.service` (systemd) tourne sous l'utilisateur
-non-root `moyun-pos`, créé à l'installation de l'image kiosque. Il n'a
-PAS de shell de connexion (`/usr/sbin/nologin`) ni de mot de passe.
+non-root `pos`, créé lors de la construction de l'image
+(`deploy/provision/provision.sh --phase image`, appelé aussi bien pour
+l'image kiosque mkosi que pour une installation sur un Debian 12 déjà
+démarré). Il n'a PAS de shell de connexion (`/usr/sbin/nologin`) ni de
+mot de passe.
+
+Extrait réel de `deploy/moyun-pos.service` :
 
 ```ini
 [Service]
-User=moyun-pos
-Group=moyun-pos
-ExecStart=/opt/moyun-pos/moyun-pos
-NoNewPrivileges=yes
+Type=simple
+User=pos
+Group=pos
+PAMName=moyun-pos
+TTYPath=/dev/tty1
+ExecStart=/usr/bin/cage -s -- /opt/moyun-pos/moyun-pos
+StateDirectory=moyun-pos
+StateDirectoryMode=0750
+RuntimeDirectory=moyun-pos
+RuntimeDirectoryMode=0750
+UMask=0027
 ProtectSystem=strict
-ReadWritePaths=/var/lib/moyun-pos
-PrivateTmp=yes
 ProtectHome=yes
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectControlGroups=yes
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-SystemCallFilter=@system-service
+PrivateTmp=yes
+NoNewPrivileges=yes
+SupplementaryGroups=input video render
 ```
 
 L'opérateur n'a aucun moyen de s'élever en `root` (cf. §3.4
 ci-dessous), donc aucun moyen de manipuler les permissions ou
 d'écrire ailleurs que dans `/var/lib/moyun-pos/`.
 
+**Limite documentée honnêtement** : un sandboxing syscall/noyau plus
+strict (`ProtectKernelTunables=`, `ProtectKernelModules=`,
+`ProtectControlGroups=`, `RestrictAddressFamilies=`,
+`SystemCallFilter=@system-service`) est une amélioration prévue mais
+**pas encore appliquée** à l'unité réelle : elle n'a jamais été testée
+contre le runtime WebKitGTK/Cage embarqué (risque réel de casser le
+rendu JIT de WebKitGTK sans un test d'exécution), et aucun boot réel
+n'a encore permis de le valider (cf. le rapport final Phase 4). Ne pas
+la déclarer comme active tant qu'elle n'a pas été testée.
+
+Sur l'image d'admission uniquement (`--variant admission`), un second
+compte, `spf`, est créé dans le groupe `pos` — lecture seule de
+`pos.db` via `pos-db-ro` (§3.6), console `tty2`, mot de passe aléatoire
+généré et affiché une seule fois au premier démarrage
+(`MANUEL_INSTALLATION_FR.md` §3.4). Absent de l'image de production.
+
 ### 3.3 Image scellée
 
-L'image kiosque livrée est **scellée** :
+L'image kiosque livrée est **scellée**, avec les précisions suivantes
+(à ne pas sur-vendre) :
 
-- Pas de serveur SSH.
-- Pas de console TTY active (`agetty` désactivé sur tous les VT).
-- Pas d'outils administrateur : `sqlite3`, `vim`, `nano`, `less`,
-  `cat`, `cp`, `mv` sont **absents** de l'image (utilisation de
-  busybox minimal pour le système).
+- Pas de serveur SSH, pas de Bluetooth, CUPS, Avahi, ModemManager :
+  masqués (`systemctl mask`, symlinks vers `/dev/null`) à la
+  construction de l'image.
+- `tty1` est exclusivement occupé par `moyun-pos.service`
+  (`Conflicts=getty@tty1.service`) : **aucun** prompt de connexion n'y
+  apparaît jamais derrière le kiosque.
+- `tty2` et suivants gardent leur `getty`/`autovt` standard Debian —
+  c'est le canal de maintenance (`Ctrl+Alt+F2`, login `root`,
+  `MANUEL_INSTALLATION_FR.md` §4.1). Sur l'image d'admission
+  uniquement, `getty@tty2.service` est explicitement activé pour le
+  compte `spf` (voir §3.2). Ce n'est donc **pas** une image sans aucune
+  console active : c'est une image où seul `tty1` (celui visible à
+  l'écran) est verrouillé sur le kiosque.
+- L'image est un Debian 12 "bookworm" minimal construit par mkosi
+  (paquets listés dans `deploy/provision/packages.txt` +
+  `deploy/image/mkosi.conf`), pas du busybox : les utilitaires standard
+  (`cat`, `cp`, `mv`, coreutils GNU) sont présents. `sqlite3` **est**
+  présent (requis par `moyun-pos` lui-même et par le wrapper
+  `pos-db-ro`, §3.6). Un éditeur minimal (`vim-tiny`, fournissant
+  `/usr/bin/vi`) est installé pour la maintenance de `pos.json`
+  (§4.2 du manuel d'installation) ; `nano`/`less` restent absents.
 - Cage Wayland compositor démarre directement sur moyun-pos en
   plein écran, sans gestionnaire de fenêtres ni écran de connexion.
 
 Cf. `MANUEL_INSTALLATION_FR.md` pour les détails de construction
-d'image.
+d'image et `deploy/image/` (mkosi) pour la configuration source.
 
 ### 3.4 Pas d'élévation de privilèges
 
 - Pas de `sudo` configuré sur l'image kiosque.
-- L'utilisateur `moyun-pos` n'est dans aucun groupe sensible
-  (`wheel`, `sudo`, `adm`...).
-- L'opérateur ne dispose même pas d'un compte shell ; l'écran tactile
-  démarre moyun-pos en kiosk-mode.
+- L'utilisateur `pos` (et `spf` sur l'image d'admission) n'est dans
+  aucun groupe sensible (`wheel`, `sudo`, `adm`...) ; `spf` est membre
+  du groupe `pos` uniquement, pour la lecture seule de `pos.db`.
+- L'opérateur (utilisateur du tactile) ne dispose même pas d'un compte
+  shell ; l'écran tactile démarre moyun-pos en kiosk-mode. Seuls le
+  distributeur (`root`, `tty2`) et, sur l'image d'admission, le
+  contrôleur SPF (`spf`, `tty2`) ont un shell.
 
-### 3.5 Boot sécurisé
+### 3.5 Boot sécurisé (BIOS / procédural)
 
-- BIOS verrouillé par mot de passe (à configurer à l'installation
-  cf. `KIOSK_DEPLOYMENT_CHECKLIST.md`).
-- Boot uniquement depuis le disque interne (USB / réseau désactivés).
-- Cela empêche un opérateur de booter sur une clé USB live pour
-  monter et modifier la base.
+- BIOS verrouillé par mot de passe (à configurer à l'installation,
+  cf. `MANUEL_INSTALLATION_FR.md` §3.1 et
+  `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`).
+- Boot depuis le disque interne en usage normal ; **Secure Boot reste
+  désactivé** (aucune chaîne de signature de l'UKI n'existe à ce
+  jour — voir la limite documentée en §3.6).
+- Cette couche est **procédurale** (dépend du technicien qui configure
+  correctement le BIOS) : elle ne suffit plus, à elle seule, à
+  protéger `pos.db` en cas de vol physique du terminal ou de disque —
+  voir §3.6 pour le mécanisme qui prend réellement le relais.
+
+### 3.6 Chiffrement LUKS2 de `/var` avec déverrouillage TPM2
+
+Nouveau depuis l'image mkosi (`deploy/image/`) : la partition portant
+`/var` (donc `/var/lib/moyun-pos/pos.db`) n'est **pas** en clair sur le
+disque. Au tout premier démarrage du terminal (jamais rejoué ensuite,
+`ConditionPathIsMountPoint=!/var`), `moyun-provision.service`
+(`deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision`) :
+
+1. Formate la partition `moyun-data` en LUKS2 avec une clé temporaire
+   aléatoire.
+2. Enrôle un jeton **TPM2** (`systemd-cryptenroll --tpm2-device=auto
+   --tpm2-pcrs=7`, scellé au PCR 7 — état Secure Boot) pour un
+   déverrouillage automatique et silencieux à chaque démarrage
+   normal.
+3. Enrôle une **clé de récupération** (`systemd-cryptenroll
+   --recovery-key`), affichée **une seule fois** à l'écran à la fin du
+   premier démarrage, avec le mot de passe `root` (et `spf` sur
+   l'image d'admission) générés dans la foulée — à noter immédiatement
+   dans le carnet du distributeur (`MANUEL_INSTALLATION_FR.md` §3.4).
+   Ni ces mots de passe ni la clé de récupération ne sont conservés
+   nulle part sur le disque après cet affichage unique.
+4. Supprime la clé temporaire (`cryptsetup luksKillSlot`) : dès lors,
+   seuls le TPM2 de **ce terminal précis** ou la clé de récupération
+   permettent de déverrouiller `/var`.
+
+Conséquence pratique : un vol du disque seul (ou du terminal entier,
+tant que l'attaquant ne peut pas aussi obtenir la clé de récupération
+consignée par le distributeur) ne donne accès ni à `pos.db`, ni aux
+sauvegardes, ni à `pos.json` — la partition racine (`/`, en lecture
+seule, contenant le binaire et le système) reste en clair mais ne
+contient aucune donnée fiscale.
+
+**Limite documentée honnêtement** : le scellement au PCR 7 mesure
+l'état de la politique Secure Boot, mais Secure Boot lui-même reste
+**désactivé** sur ces images (aucune infrastructure de signature de
+l'UKI n'a été mise en place — voir `deploy/kiosk/README.md` §"Still to
+do"). Le scellement TPM2 protège donc contre l'extraction à froid du
+disque (vol du SSD seul) et détecte toute modification ultérieure des
+variables UEFI liées à Secure Boot, mais **pas** contre un attaquant
+qui altère le firmware/bootloader du terminal lui-même pendant que
+Secure Boot est désactivé — dans ce cas, la clé de récupération
+gardée par le distributeur reste la seule garantie de reprise en main,
+pas une protection contre l'accès. Aucun démarrage réel sur matériel
+physique avec TPM2 n'a validé ce flux de bout en bout au moment de la
+rédaction de ce document ; seul un test QEMU+swtpm partiel a été tenté
+(voir le rapport final Phase 4 et `scripts/qemu/run-kiosk.sh`).
+
+Accès en lecture seule à `pos.db` une fois `/var` déverrouillé, sans
+jamais l'ouvrir en écriture : wrapper `pos-db-ro`
+(`/usr/local/bin/pos-db-ro`), disponible au compte `spf` (groupe
+`pos`) sur l'image d'admission — voir §3.2 et
+`FEUILLE_ACQUISITION_DONNEES_FR.md` §2.2.
 
 ## 4. Mécanismes au niveau cryptographique
 
