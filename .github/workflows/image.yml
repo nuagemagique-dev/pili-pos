@@ -1,0 +1,285 @@
+name: Kiosk image
+
+# Builds the SPF-certification kiosk image (deploy/image/, mkosi) and
+# smoke-boots it under QEMU+KVM.
+#
+# Three jobs, chained:
+#   repro       - builds deploy/build-release.sh --docker TWICE and
+#                 checks the embedded moyun-pos binary is byte-for-byte
+#                 the same both times (the SHA-1 declared to SPF
+#                 Finances must not depend on incidental build-host
+#                 state).
+#   image       - needs: repro. Installs the pinned mkosi
+#                 (deploy/image/.mkosi-pin) and builds both profiles
+#                 (production, admission); verifies with
+#                 `systemd-dissect --copy-from` that /opt/moyun-pos/
+#                 moyun-pos INSIDE each finished image is the exact
+#                 binary repro just certified; uploads the .img.xz.
+#   boot-smoke  - needs: image. Boots the admission image headless
+#                 under QEMU (KVM + swtpm/TPM2), waits for it to reach
+#                 a rendered UI frame, and fails if the frame is
+#                 blank/uniform (Cage/moyun-pos never actually came
+#                 up). Does NOT exercise the first-boot LUKS2/TPM2
+#                 provisioning to completion within the job's 5-minute
+#                 boot budget — see scripts/qemu/run-kiosk.sh and the
+#                 job's own comments for exactly what this does and
+#                 does not prove.
+#
+# runs-on: ubuntu-24.04 everywhere (needs KVM, and matches the
+# platform deploy/image/build.sh and the manual assume).
+on:
+  push:
+    branches: [main, feat/*]
+    paths:
+      - 'deploy/**'
+      - 'scripts/qemu/**'
+      - 'src-tauri/**'
+      - 'crates/**'
+      - 'ui/**'
+      - '.github/workflows/image.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/**'
+      - 'scripts/qemu/**'
+      - 'src-tauri/**'
+      - 'crates/**'
+      - 'ui/**'
+      - '.github/workflows/image.yml'
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Reproducible build: same inputs, same binary, twice ──────────
+  repro:
+    name: Reproducible build (SHA-1 match)
+    runs-on: ubuntu-24.04
+    outputs:
+      sha1: ${{ steps.compare.outputs.sha1 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build #1
+        run: ./deploy/build-release.sh --docker
+
+      - name: Save build #1 output
+        run: |
+          mkdir -p /tmp/repro/run1
+          cp deploy/dist/moyun-pos /tmp/repro/run1/moyun-pos
+          cp deploy/dist/build_info_*.txt /tmp/repro/run1/
+
+      - name: Wipe release output between runs
+        # A clean rebuild, not an incrementally-cached one: the point
+        # of this job is to prove the two builds are independently
+        # reproducible, not that cargo's incremental cache returned
+        # its own previous output unchanged.
+        run: |
+          rm -rf deploy/dist
+          rm -rf "$GITHUB_WORKSPACE/target/linux-amd64"
+          rm -f "$GITHUB_WORKSPACE"/build_info_*.txt
+
+      - name: Build #2 (same CARGO_TARGET_DIR, clean tree)
+        run: ./deploy/build-release.sh --docker
+
+      - name: Save build #2 output
+        run: |
+          mkdir -p /tmp/repro/run2
+          cp deploy/dist/moyun-pos /tmp/repro/run2/moyun-pos
+          cp deploy/dist/build_info_*.txt /tmp/repro/run2/
+
+      - name: Compare SHA-1 (from the build_info reports)
+        id: compare
+        run: |
+          set -euo pipefail
+          SHA1_1="$(grep '^SHA-1' /tmp/repro/run1/build_info_*.txt | awk '{print $3}')"
+          SHA1_2="$(grep '^SHA-1' /tmp/repro/run2/build_info_*.txt | awk '{print $3}')"
+          echo "Run 1 SHA-1: $SHA1_1"
+          echo "Run 2 SHA-1: $SHA1_2"
+          if [[ -z "$SHA1_1" || -z "$SHA1_2" ]]; then
+            echo "::error::could not read a SHA-1 out of one of the build_info reports"
+            exit 1
+          fi
+          if [[ "$SHA1_1" != "$SHA1_2" ]]; then
+            echo "::error::build is not reproducible: $SHA1_1 != $SHA1_2"
+            exit 1
+          fi
+          # Belt-and-braces: also hash the binaries directly, not just
+          # trust the reports' own claim.
+          BIN_SHA1_1="$(sha1sum /tmp/repro/run1/moyun-pos | awk '{print $1}')"
+          BIN_SHA1_2="$(sha1sum /tmp/repro/run2/moyun-pos | awk '{print $1}')"
+          if [[ "$BIN_SHA1_1" != "$SHA1_1" || "$BIN_SHA1_2" != "$SHA1_2" || "$BIN_SHA1_1" != "$BIN_SHA1_2" ]]; then
+            echo "::error::binary SHA-1 does not match the build_info report, or the two binaries differ"
+            exit 1
+          fi
+          echo "✓ Reproducible: $SHA1_1"
+          echo "sha1=$SHA1_1" >> "$GITHUB_OUTPUT"
+
+      - name: Upload deploy/dist (build #2 — feeds the `image` job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-dist
+          path: deploy/dist/
+          retention-days: 14
+
+      - name: Upload both build_info reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-build-info
+          path: /tmp/repro/**/build_info_*.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ── mkosi image build, both profiles ──────────────────────────────
+  image:
+    name: Kiosk image (mkosi)
+    needs: repro
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [production, admission]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download deploy/dist from the repro job
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-dist
+          path: deploy/dist
+
+      - name: Restore executable bits
+        # actions/upload-artifact does not preserve the executable
+        # bit; deploy/build-release.sh's own chmod is lost across the
+        # artifact round-trip.
+        run: chmod +x deploy/dist/moyun-pos deploy/dist/install.sh deploy/dist/update.sh deploy/dist/pos-fdm-mock
+
+      - name: Host packages (mkosi's own prerequisites)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            python3 python3-venv python3-pip \
+            binutils xz-utils gdisk parted util-linux e2fsprogs \
+            systemd-container
+
+      # deploy/image/build.sh installs mkosi itself (pinned to
+      # deploy/image/.mkosi-pin) into its own venv on first use — see
+      # deploy/image/build.sh's own comments for why this is not
+      # duplicated here as a separate "install mkosi" step.
+      - name: Build the ${{ matrix.profile }} image
+        run: sudo deploy/image/build.sh ${{ matrix.profile }}
+
+      - name: Verify the embedded binary's SHA-1 (systemd-dissect --copy-from)
+        run: |
+          set -euo pipefail
+          OUT_DIR="deploy/image/mkosi.output/${{ matrix.profile }}"
+          RAW="$(find "$OUT_DIR" -maxdepth 1 -name '*.raw' | head -n1)"
+          if [[ -z "$RAW" ]]; then
+            echo "::error::no .raw image found in $OUT_DIR"
+            exit 1
+          fi
+          EXPECTED_SHA1="$(cat "$OUT_DIR/moyun-pos-embedded-binary.sha1")"
+          COPY_DIR="$(mktemp -d)"
+          sudo systemd-dissect --copy-from "$RAW" /opt/moyun-pos/moyun-pos "$COPY_DIR/moyun-pos"
+          sudo chown "$USER" "$COPY_DIR/moyun-pos"
+          ACTUAL_SHA1="$(sha1sum "$COPY_DIR/moyun-pos" | awk '{print $1}')"
+          echo "Expected (build_info / repro job): $EXPECTED_SHA1"
+          echo "Actual   (inside the ${{ matrix.profile }} image): $ACTUAL_SHA1"
+          if [[ "$EXPECTED_SHA1" != "$ACTUAL_SHA1" ]]; then
+            echo "::error::/opt/moyun-pos/moyun-pos inside the ${{ matrix.profile }} image does not match the certified binary"
+            exit 1
+          fi
+          echo "✓ Embedded binary matches the certified SHA-1"
+
+      - name: Upload .img.xz
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiosk-image-${{ matrix.profile }}
+          path: |
+            deploy/image/mkosi.output/${{ matrix.profile }}/*.img.xz
+            deploy/image/mkosi.output/${{ matrix.profile }}/moyun-pos-embedded-binary.sha1
+          retention-days: 14
+
+  # ── Boot smoke test: does the admission image actually come up? ──
+  boot-smoke:
+    name: Boot smoke test (admission image)
+    needs: image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable /dev/kvm for this runner
+        # GitHub-hosted Linux runners expose /dev/kvm but not
+        # necessarily group-writable by the job user; this is the
+        # standard workaround (see actions/runner-images issues on
+        # KVM access).
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Install QEMU, swtpm, OVMF
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            qemu-system-x86 qemu-utils ovmf swtpm \
+            netcat-openbsd python3 python3-pil
+
+      - name: Download the admission image
+        uses: actions/download-artifact@v4
+        with:
+          name: kiosk-image-admission
+          path: deploy/image/mkosi.output/admission
+
+      - name: Boot headless, with a 5-minute timeout
+        id: boot
+        run: |
+          set -euo pipefail
+          IMG="$(find deploy/image/mkosi.output/admission -maxdepth 1 -name '*.img.xz' | head -n1)"
+          if [[ -z "$IMG" ]]; then
+            echo "::error::no .img.xz artifact found for the admission profile"
+            exit 1
+          fi
+          timeout 300 scripts/qemu/run-kiosk.sh "$IMG" --name boot-smoke --clean &
+          echo "qemu_pid=$!" >> "$GITHUB_OUTPUT"
+          # Give the guest time to reach a rendered UI frame: OVMF ->
+          # systemd-boot -> UKI -> systemd-repart (moyun-data) ->
+          # moyun-provision.service (LUKS2 format + TPM2 enrollment,
+          # the slowest step) -> Cage -> moyun-pos. This budget is
+          # generous but the job's own 5-minute `timeout` above is the
+          # hard ceiling.
+          for i in $(seq 1 24); do
+            [[ -S "scripts/qemu/.run/boot-smoke/qmp.sock" ]] && break
+            sleep 5
+          done
+          if [[ ! -S "scripts/qemu/.run/boot-smoke/qmp.sock" ]]; then
+            echo "::error::QMP socket never appeared — QEMU failed to start"
+            exit 1
+          fi
+          sleep 150
+
+      - name: Screendump
+        run: scripts/qemu/screendump.sh boot-smoke ci-boot-smoke
+
+      - name: Fail if the frame is blank/uniform
+        run: scripts/qemu/check-not-blank.py docs/SUBMISSION_ARTIFACTS/screenshots/ci-boot-smoke.png
+
+      - name: Stop QEMU
+        if: always()
+        run: |
+          kill "${{ steps.boot.outputs.qemu_pid }}" 2>/dev/null || true
+          sleep 2
+          pkill -f 'qemu-system-x86_64.*boot-smoke' 2>/dev/null || true
+
+      - name: Upload the screenshot (always, including on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-smoke-screenshot
+          path: docs/SUBMISSION_ARTIFACTS/screenshots/ci-boot-smoke.png
+          retention-days: 30
+          if-no-files-found: ignore
