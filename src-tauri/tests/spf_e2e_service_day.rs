@@ -183,7 +183,10 @@ fn item(id: i64) -> (i64, VatCode, &'static str, &'static str) {
     }
 }
 
+/// `operator` logs in (as a manager: the scenario's waiters also run
+/// refunds, copies, cash events and reports) and opens a table.
 fn order_with_table(app: &TestApp, table: i32, operator: &str) -> i64 {
+    app.login_as(operator, pos_core::user::UserRole::Admin);
     let conn = app.state.db.lock().unwrap();
     create_order(&conn, OrderType::DineIn, Some(table), operator)
         .unwrap()
@@ -312,6 +315,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
 
     // Staff presence.
     do_work_in(&app.state, WAITER_1.to_string()).await.unwrap();
+    app.login_as(WAITER_2, pos_core::user::UserRole::Admin);
     do_work_in(&app.state, WAITER_2.to_string()).await.unwrap();
     do_work_out(&app.state, WAITER_2.to_string()).await.unwrap();
 

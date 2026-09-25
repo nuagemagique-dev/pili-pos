@@ -48,12 +48,10 @@ async fn spf_app(operator_insz: &str) -> TestApp {
     {
         let conn = app.state.db.lock().unwrap();
         moyun_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
-        conn.execute(
-            "INSERT OR IGNORE INTO users (insz, name, role) VALUES (?1, 'Operateur UC', 'cashier')",
-            rusqlite::params![operator_insz],
-        )
-        .unwrap();
     }
+    // The fixture's operator is logged in, as a manager: the UCs cover
+    // manager-only events (refund, copy, cash, reports).
+    app.login_as(operator_insz, pos_core::user::UserRole::Admin);
     app
 }
 

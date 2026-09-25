@@ -5,9 +5,10 @@ use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::*;
 use pos_fiscal::types::*;
 
+use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FinancialResult {
     pub success: bool,
@@ -48,6 +49,7 @@ pub async fn do_money_in_out(
     direction: MoneyDirection,
     reason: String,
 ) -> Result<FinancialResult, String> {
+    access::operator_named(state, &employee_insz, Access::Admin)?;
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let bp_id = super::current_booking(state)?;
     let label = EventLabel::F.in_mode(config.training_mode);
@@ -132,6 +134,7 @@ pub async fn do_open_drawer_fiscal(
     state: &AppState,
     employee_insz: String,
 ) -> Result<FinancialResult, String> {
+    access::operator_named(state, &employee_insz, Access::Admin)?;
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let bp_id = super::current_booking(state)?;
     let label = EventLabel::F.in_mode(config.training_mode);

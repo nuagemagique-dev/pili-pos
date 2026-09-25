@@ -32,24 +32,13 @@ use pos_core::order::OrderType;
 
 const INSZ: &str = "12345678958";
 
-/// Serve the real mock on a free local port; returns its GraphQL URL.
-async fn serve_mock() -> String {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, pos_fdm_mock::app()).await.unwrap();
-    });
-    format!("http://{addr}/graphql")
-}
-
 async fn app_on_mock() -> TestApp {
     let app = TestApp::new().await;
-    app.state.config.lock().unwrap().fdm_url = serve_mock().await;
+    app.use_admission_mock().await;
     {
         let conn = app.state.db.lock().unwrap();
-        conn.execute_batch(&format!(
-            "INSERT INTO users (insz, name, role, active) VALUES ('{INSZ}', 'Marie', 'admin', 1);
-             INSERT INTO categories (id, sort_order, active) VALUES (1, 0, 1), (2, 1, 1);
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order, active) VALUES (1, 0, 1), (2, 1, 1);
              INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order, active) VALUES
                 (1, 1, 1200, 'A', 0, 1),
                 (2, 2, 2800, 'B', 1, 1);
@@ -58,9 +47,10 @@ async fn app_on_mock() -> TestApp {
                 ('category', 2, 'name', 'fr', 'Cuisine'),
                 ('menu_item', 1, 'name', 'fr', 'Dry Martini'),
                 ('menu_item', 2, 'name', 'fr', 'Burger du chef');"
-        ))
+        )
         .unwrap();
     }
+    app.login_as(INSZ, pos_core::user::UserRole::Admin);
     app
 }
 

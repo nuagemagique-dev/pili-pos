@@ -9,6 +9,7 @@ use pos_fiscal::response::SignResult;
 use pos_fiscal::ticket::{self, FiscalTicket, TicketLine, TicketParams, TicketPayment};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
+use crate::commands::access::{self, Access};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
@@ -78,6 +79,11 @@ pub async fn do_checkout_with(
     payment_method: CheckoutPaymentMethod,
     delivery_request: Option<&TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
+    // A sale is signed in the name of the cashier taking the payment.
+    let cashier = match access::operator(state, Access::Cashier) {
+        Ok(user) => user,
+        Err(e) => return Ok(CheckoutResult::refused(e)),
+    };
     // 1. Read order + lines from DB
     // `lines` is the consolidated order (printed); `entries` the journal
     // of every addition and correction, sent to the FDM (§2).
@@ -92,6 +98,8 @@ pub async fn do_checkout_with(
         let bp = super::booking(&db)?;
         (order, lines, entries, config, bp)
     };
+    let mut order = order;
+    order.user_insz = cashier.insz;
 
     if lines.is_empty() {
         return Ok(CheckoutResult {

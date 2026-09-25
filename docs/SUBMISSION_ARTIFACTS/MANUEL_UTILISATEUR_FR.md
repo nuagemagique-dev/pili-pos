@@ -180,9 +180,11 @@ Pour produire un pré-ticket à présenter au client avant
 l'encaissement ("l'addition"), taper "**Pré-ticket**" dans le
 menu d'action de la commande.
 
-Le pré-ticket s'imprime, marqué "**PRO FORMA - pas un ticket TVA
-valable**". Il porte le QR code et la signature du FDM, mais ne
-clôture pas la commande.
+Le pré-ticket s'imprime, marqué "**PRO FORMA**" et "**CECI N'EST PAS
+UN TICKET DE CAISSE TVA VALABLE**". Il porte les données de contrôle
+du FDM (identifiant, date, compteurs) mais ni QR code ni signature
+courte, que le FDM ne donne qu'aux ventes (N). Il ne clôture pas la
+commande.
 
 ## 6. Encaissement (vente normale, Événement N - signSale)
 
@@ -287,14 +289,17 @@ de quitter le service.
 
 Pour former un nouvel employé sans contaminer les ventes réelles :
 
-1. **Menu → Paramètres** (réservé Gérant).
-2. Activer "Mode formation".
-3. Un filigrane rouge plein écran s'affiche.
+1. Encaisser ou vider les commandes ouvertes : le POS refuse de changer
+   de mode tant qu'une commande avec des articles est ouverte (une
+   table réelle ne peut pas être encaissée en formation, ni l'inverse).
+2. **Menu → Config** (réservé au Gérant), puis activer "Mode formation".
+3. Un filigrane plein écran s'affiche.
 4. Tous les événements générés en mode formation sont des **T** :
    - Comptés sur un compteur séparé.
-   - Tickets marqués "**TRAINING - NE TIENT PAS LIEU DE TICKET TVA
-     VALABLE**".
-   - Sans impact sur le rapport Z.
+   - Tickets marqués "**TRAINING**" et "**CECI N'EST PAS UN TICKET DE
+     CAISSE TVA VALABLE**".
+   - Sans impact sur les totaux des rapports : ils n'apparaissent que
+     dans le nombre d'événements T du rapport Z.
 
 Pour quitter : "Désactiver mode formation" dans le même menu.
 

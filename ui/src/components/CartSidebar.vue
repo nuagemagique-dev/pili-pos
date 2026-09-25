@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
+import { useAuthStore } from "../stores/auth";
 import { useMenuStore } from "../stores/menu";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
@@ -11,6 +12,7 @@ import VatSummary from "./VatSummary.vue";
 
 const router = useRouter();
 const order = useOrderStore();
+const auth = useAuthStore();
 const menu = useMenuStore();
 const toast = useToastStore();
 const { t } = useI18n();
@@ -76,7 +78,7 @@ async function printPreBill() {
 
       <div class="cart-actions">
         <button
-          v-if="order.currentOrder?.order_type === 'dine_in'"
+          v-if="auth.canTakePayment && order.currentOrder?.order_type === 'dine_in'"
           class="pre-bill-btn"
           :disabled="!canPreBill || preBilling"
           @click="printPreBill"
@@ -85,6 +87,7 @@ async function printPreBill() {
         </button>
         <!-- UX Guide §2.3: bouton principal TOUJOURS en bas à droite -->
         <button
+          v-if="auth.canTakePayment"
           class="checkout-btn"
           :disabled="order.lines.length === 0"
           @click="goToCheckout"

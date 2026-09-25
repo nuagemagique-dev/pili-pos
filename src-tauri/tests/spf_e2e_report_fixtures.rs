@@ -77,7 +77,10 @@ async fn scenario_app() -> TestApp {
     app
 }
 
+/// `user` logs in (a manager: the scenario's users also refund and
+/// run the reports) and opens an order.
 fn open_order(app: &TestApp, user: &str, order_type: OrderType, table: Option<i32>) -> i64 {
+    app.login_as(user, pos_core::user::UserRole::Admin);
     let conn = app.state.db.lock().unwrap();
     pos_db::queries::orders::create_order(&conn, order_type, table, user)
         .unwrap()
@@ -180,6 +183,8 @@ async fn play_service_day(app: &TestApp) {
         .map(|e| e.event_type.clone())
         .collect();
     assert_eq!(labels, ["P", "N", "N", "N", "P", "P", "P", "N"]);
+    // The reports are run by U1.
+    app.login_as(U1, pos_core::user::UserRole::Admin);
 }
 
 fn archived_request(app: &TestApp, index_from_end: usize) -> Value {
@@ -443,6 +448,7 @@ async fn reports_after_a_z_only_cover_the_new_period() {
         .await
         .unwrap();
     fdm_signs_report(&app, "M180_signReportTurnoverX").await;
+    app.login_as(U1, pos_core::user::UserRole::Admin);
     do_generate_x_report(&app.state, U1.to_string())
         .await
         .unwrap();

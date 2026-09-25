@@ -3,6 +3,7 @@ use rusqlite::OptionalExtension;
 use serde::Deserialize;
 use tauri::State;
 
+use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -25,6 +26,7 @@ pub fn do_create_order(state: &AppState, input: CreateOrderInput) -> Result<Orde
     if !pos_core::user::validate_insz(&input.user_insz) {
         return Err("Invalid operator INSZ".into());
     }
+    access::operator_named(state, &input.user_insz, Access::Staff)?;
     match (input.order_type, input.table_number) {
         (OrderType::DineIn, Some(t)) if t > 0 => {}
         (OrderType::DineIn, _) => return Err("A dine-in order needs a table".into()),
@@ -83,6 +85,7 @@ pub fn add_order_line(
 }
 
 pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<OrderLine, String> {
+    access::operator(state, Access::Staff)?;
     if input.quantity <= 0 {
         return Err("Quantity must be greater than zero".into());
     }
@@ -143,6 +146,7 @@ pub fn remove_order_line(state: State<'_, AppState>, line_id: i64) -> Result<(),
 
 /// Remove a line from an open order (journalled as a correction).
 pub fn do_remove_order_line(state: &AppState, line_id: i64) -> Result<(), String> {
+    access::operator(state, Access::Staff)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::remove_order_line(&db, line_id).map_err(line_error)
 }
@@ -164,6 +168,7 @@ pub fn do_update_order_line_quantity(
     line_id: i64,
     quantity: i32,
 ) -> Result<(), String> {
+    access::operator(state, Access::Staff)?;
     if quantity <= 0 {
         return Err("Quantity must be greater than zero".into());
     }

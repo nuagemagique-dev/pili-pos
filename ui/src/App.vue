@@ -21,8 +21,9 @@ if (HUBRISE_ENABLED) useOrderChime();
 // away from the terminal. Only fires if someone is actually logged in.
 useIdleTimer(5 * 60 * 1000, () => {
   if (auth.currentUser) {
-    auth.logout();
-    router.push({ name: "login" });
+    // Navigate first: the router guard registers the open order (P)
+    // while the operator's session is still open.
+    void router.push({ name: "login" }).then(() => auth.logout());
   }
 });
 

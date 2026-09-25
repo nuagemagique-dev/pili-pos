@@ -123,7 +123,7 @@ async function handleLogout() {
   // before the order is cleared.
   await router.push({ name: "login" });
   order.clearOrder();
-  auth.logout();
+  void auth.logout();
 }
 
 /**
@@ -174,8 +174,8 @@ async function handleTakeaway() {
           @click="handleTakeaway"
         >{{ t('takeaway_new') }}</button>
         <component :is="OnlineOrdersNavButton" v-if="OnlineOrdersNavButton" />
-        <button class="nav-btn" @click="router.push({ name: 'reports' })">{{ t('reports') }}</button>
-        <button class="nav-btn" @click="router.push({ name: 'settings' })">{{ t('config') }}</button>
+        <button v-if="auth.isManager" class="nav-btn" @click="router.push({ name: 'reports' })">{{ t('reports') }}</button>
+        <button v-if="auth.isManager" class="nav-btn" @click="router.push({ name: 'settings' })">{{ t('config') }}</button>
         <button class="nav-btn nav-logout" @click="handleLogout">{{ t('logout') }}</button>
       </nav>
     </header>

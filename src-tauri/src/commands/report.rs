@@ -19,6 +19,7 @@ use pos_fiscal::inputs::*;
 use pos_fiscal::report_totals::{self, ReportEvent};
 use pos_fiscal::types::*;
 
+use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -43,6 +44,7 @@ pub async fn do_generate_x_report(
     state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
+    access::operator_named(state, &employee_insz, Access::Admin)?;
     let (config, period, turnover_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
@@ -166,6 +168,7 @@ pub async fn do_generate_z_report(
     state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
+    access::operator_named(state, &employee_insz, Access::Admin)?;
     let (
         config,
         period,
@@ -357,6 +360,7 @@ pub async fn do_generate_user_x_report(
     state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
+    access::operator_named(state, &employee_insz, Access::Admin)?;
     let (config, period, user_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
@@ -431,6 +435,7 @@ pub fn backup_database(state: State<'_, AppState>) -> Result<String, String> {
 }
 
 pub fn do_backup_database(state: &AppState) -> Result<String, String> {
+    access::operator(state, Access::Admin)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let config = state.config.lock().map_err(|e| e.to_string())?;
     backup_database_impl(&db, &config)

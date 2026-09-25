@@ -293,7 +293,7 @@ async fn refund_of_an_unknown_fiscal_event_errors() {
             menu_item_id: 1,
             quantity: 1,
         }],
-        VALID_INSZ_1.to_string(),
+        TEST_OPERATOR.to_string(),
     )
     .await;
     assert!(result.is_err());
@@ -303,7 +303,7 @@ async fn refund_of_an_unknown_fiscal_event_errors() {
 async fn refund_with_no_items_is_refused_without_calling_the_fdm() {
     let app = TestApp::new().await;
     // Any fiscal_event_id works here: the empty-items guard runs first.
-    let result = do_refund_checkout(&app.state, 1, vec![], VALID_INSZ_1.to_string())
+    let result = do_refund_checkout(&app.state, 1, vec![], TEST_OPERATOR.to_string())
         .await
         .unwrap();
     assert!(!result.success);
@@ -312,7 +312,7 @@ async fn refund_with_no_items_is_refused_without_calling_the_fdm() {
 #[tokio::test]
 async fn copy_of_an_unknown_fiscal_event_errors() {
     let app = TestApp::new().await;
-    let result = do_copy_ticket(&app.state, 999_999, VALID_INSZ_1.to_string()).await;
+    let result = do_copy_ticket(&app.state, 999_999, TEST_OPERATOR.to_string()).await;
     assert!(result.is_err());
 }
 

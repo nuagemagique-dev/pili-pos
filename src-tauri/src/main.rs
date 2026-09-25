@@ -224,6 +224,8 @@ fn main() {
         commands::auth::create_user,
         commands::auth::set_pin,
         commands::auth::get_current_user,
+        commands::auth::logout,
+        commands::auth::deactivate_user,
         // Checkout
         commands::checkout::checkout,
         commands::checkout::check_fdm_status,
@@ -293,6 +295,8 @@ fn main() {
         commands::auth::create_user,
         commands::auth::set_pin,
         commands::auth::get_current_user,
+        commands::auth::logout,
+        commands::auth::deactivate_user,
         // Checkout
         commands::checkout::checkout,
         commands::checkout::check_fdm_status,

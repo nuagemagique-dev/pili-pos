@@ -353,7 +353,7 @@ onMounted(async () => {
 onUnmounted(() => clearInterval(clockInterval))
 
 function handleLogout() {
-  auth.logout()
+  void auth.logout()
   router.push({ name: 'login' })
 }
 </script>

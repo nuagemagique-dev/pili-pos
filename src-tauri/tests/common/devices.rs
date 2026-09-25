@@ -192,3 +192,17 @@ impl TestApp {
         pos_db::queries::prints::original_printed(&conn, fiscal_event_id).unwrap()
     }
 }
+
+/// Serve the admission image's mock FDM (`pos-fdm-mock`) on a free
+/// local port and point the app at it: every event is signed like the
+/// real mock signs it, with no canned responses to mount.
+impl TestApp {
+    pub async fn use_admission_mock(&self) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, pos_fdm_mock::app()).await.unwrap();
+        });
+        self.state.config.lock().unwrap().fdm_url = format!("http://{addr}/graphql");
+    }
+}

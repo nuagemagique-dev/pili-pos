@@ -123,6 +123,7 @@ function defaultHandlers(): Record<string, Handler> {
     create_user: ({ input }: any) => ({ ...input, active: true, has_pin: false }),
     set_pin: () => undefined,
     get_current_user: () => null,
+    logout: () => undefined,
 
     // Menu
     get_categories: () => [DEFAULT_CATEGORY],
@@ -404,6 +405,7 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
  * testing error paths:
  *
  *   await overrideIPC(page, 'login', '__THROW__');
+ *   await overrideIPC(page, 'login', { __reject: 'pin_wrong' });
  */
 export async function overrideIPC(page: Page, cmd: string, value: any) {
   await page.evaluate(
@@ -413,6 +415,8 @@ export async function overrideIPC(page: Page, cmd: string, value: any) {
       tauri.invoke = (cmd: string, args?: any) => {
         if (cmd === c) {
           if (v === '__THROW__') return Promise.reject(v);
+          // { __reject: 'message' }: the backend's error string.
+          if (v && typeof v === 'object' && '__reject' in v) return Promise.reject(v.__reject);
           return Promise.resolve(v);
         }
         return prev(cmd, args);
