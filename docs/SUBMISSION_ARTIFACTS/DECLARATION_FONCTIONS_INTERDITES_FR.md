@@ -134,6 +134,18 @@ sans marquage "COPIE".
   (`crates/pos-print/src/receipt.rs::format_copy_receipt`) ajoute la
   mention "**COPIE - pas un original**" en en-tête et le bloc
   control-data porte `eventLabel: C`.
+- Depuis l'ajout du ticket numérique (§III.H), cette garantie est
+  également imposée au niveau base de données : la table
+  `original_prints` (migration `006`) enregistre chaque impression
+  d'un original, et `delivery::print_original_once` refuse
+  d'imprimer un original déjà présent dans cette table
+  (`PrintOutcome::AlreadyPrinted`). La commande de rattrapage
+  `print_missing_original` refuse explicitement de réimprimer un
+  original déjà sorti (`ERR_ALREADY_PRINTED`) ou déjà envoyé par
+  e-mail (`ERR_EMAIL_SENT`), et renvoie vers l'écran "Copie de
+  ticket" (événement C) dans les deux cas. L'ancienne possibilité
+  d'une réimpression "libre" de l'original a été supprimée par cette
+  fonctionnalité, pas seulement contournée par convention d'écran.
 
 ## 8. Tickets fiscaux exempts de signature ou de QR code
 

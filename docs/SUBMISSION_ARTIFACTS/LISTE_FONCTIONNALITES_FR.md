@@ -75,6 +75,29 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Mention "TRAINING - NE TIENT PAS LIEU DE TICKET TVA VALABLE" en
   filigrane si `isTraining=true`.
 
+### 1.6 Ticket numérique par e-mail (§III.H)
+
+- Support choisi par l'opérateur avant signature : Papier (défaut) /
+  E-mail / Les deux (`commands::delivery::{resolve, resolve_with}`),
+  encodé dans le corps signé (`ticketMedium`).
+- Mise en file dans la même transaction que l'archive fiscale
+  (`delivery::enqueue_in_tx`, table `ticket_deliveries`, migration
+  `005`) ; envoi immédiat borné à 8 s, repli papier automatique de
+  l'original sinon (`delivery::deliver`).
+- Réessais en tâche de fond avec recul exponentiel (1/5/15/60 min,
+  jusqu'à 5 tentatives) via `pos-mail::outbox`, toutes les 30 s
+  (`commands::delivery::run_outbox_once`).
+- Original imprimé une seule fois (POS spec v2.2 §8.1) - table
+  `original_prints` (migration `006`), `delivery::print_original_once`
+  refuse toute seconde impression de l'original ; toute reproduction
+  passe par l'événement C.
+- Adresse en clair effacée dès l'envoi/repli réussi et purgée après
+  72 h maximum (RGPD) ; seul un indice masqué est conservé.
+- Disponible pour la vente/remboursement (N), la formation (T, même
+  commande) et la copie (C). Non câblé pour les événements P, F, I, R,
+  qui restent papier uniquement en v1.0.0.
+- Détail complet : `TICKET_NUMERIQUE_FR.md`.
+
 ## 2. Fonctionnalités métier
 
 ### 2.1 Prise de commande
@@ -95,7 +118,9 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   (`crates/pos-fiscal/src/ticket.rs::round_to_5_cents`).
 - Ouverture automatique du tiroir-caisse via commande ESC/POS
   `0x1B 0x70 0x00 0x19 0xFA`.
-- Impression automatique du ticket fiscal après acceptation FDM.
+- Impression du ticket fiscal après acceptation FDM (automatique pour
+  Papier/Les deux ; en secours seulement, si l'e-mail n'aboutit pas
+  dans le budget de 8 s, pour un ticket "E-mail" seul - §1.6).
 
 ### 2.3 Rapports
 

@@ -19,6 +19,16 @@ résultants sont sauvegardés dans
    cargo build --package pos-fdm-mock
    ```
 
+1bis. **Mock TEM (ticket numérique, §III.H).** Pour les captures
+   `09a`-`09f`, le terminal doit avoir un bloc `digital_ticket`
+   configuré (`MANUEL_INSTALLATION_FR.md` §4.2) pointant vers le mock
+   TEM embarqué dans `pos-fdm-mock`
+   (`crates/pos-fdm-mock/src/tem.rs` - même binaire que le mock FDM,
+   pas de service séparé à lancer). `MOCK_TEM_OUTBOX` fixe le
+   répertoire où les e-mails simulés sont écrits ; `MOCK_TEM_FAIL=1`
+   fait échouer l'envoi/la sonde pour démontrer le repli papier
+   (`09e`).
+
 2. **App lancée en mode dev.** Dans un terminal séparé :
    ```bash
    cargo tauri dev
@@ -31,6 +41,8 @@ résultants sont sauvegardés dans
 4. **Convention de nommage.** Tous les fichiers sauvegardés dans
    `docs/SUBMISSION_ARTIFACTS/screenshots/` avec préfixe :
    - `01_` à `19_` pour les écrans de flux fonctionnels
+   - `09a_` à `09f_` pour le ticket numérique par e-mail (§III.H,
+     intercalés après l'encaissement papier)
    - `20_` à `40_` pour les messages FDM §V
 
 ---
@@ -82,6 +94,38 @@ Démarrer le mock sans erreur injectée, lancer `cargo tauri dev`, puis :
 ### `09_checkout_done.png`
 - **Action :** Confirmer le paiement.
 - **Écran attendu :** écran de succès + ticket imprimé (signature courte affichée).
+- **Capture :** plein écran.
+
+### Ticket numérique par e-mail (§III.H) - à refaire pour une vente distincte, sur un terminal avec `digital_ticket` configuré (mock TEM, §4.2)
+
+### `09a_ticket_medium_picker.png`
+- **Action :** taper "Payer" sur une commande, avant le choix du mode de paiement.
+- **Écran attendu :** choix du support Papier / E-mail / Les deux (Papier pré-sélectionné).
+- **Capture :** plein écran.
+
+### `09b_ticket_medium_email_keyboard.png`
+- **Action :** sélectionner "E-mail", taper une adresse sur le clavier virtuel.
+- **Écran attendu :** clavier virtuel à l'écran avec l'adresse en cours de saisie.
+- **Capture :** plein écran.
+
+### `09c_ticket_medium_email_confirm.png`
+- **Action :** valider la saisie.
+- **Écran attendu :** écran de confirmation affichant l'adresse saisie avant de continuer.
+- **Capture :** plein écran.
+
+### `09d_checkout_done_email_sent.png`
+- **Action :** terminer le paiement avec "E-mail" seul, mock TEM démarré normalement (`cargo run --package pos-fdm-mock`).
+- **Écran attendu :** message "E-mail envoyé", pas de ticket papier.
+- **Capture :** plein écran.
+
+### `09e_checkout_done_paper_fallback.png`
+- **Mock :** redémarrer le mock avec `MOCK_TEM_FAIL=1 cargo run --package pos-fdm-mock`, puis refaire une vente avec "E-mail" seul.
+- **Écran attendu :** repli papier automatique - le ticket papier sort, message indiquant l'e-mail en attente (réessai en tâche de fond).
+- **Capture :** plein écran, si possible avec le ticket papier sorti visible.
+
+### `09f_admin_ticket_deliveries.png`
+- **Action :** menu Admin > Paramètres > "Tickets numériques".
+- **Écran attendu :** liste des derniers envois avec indice d'adresse masqué (ex. `j***@e***.be`), statut, tentatives - jamais l'adresse en clair.
 - **Capture :** plein écran.
 
 ### `10_pre_bill.png`
@@ -262,7 +306,8 @@ Et ajouter `CAPTURES_ECRAN_FR.pdf` à la liste des annexes dans `REPONSES_MANUEL
 ## Estimation de temps
 
 - Section 1 (19 écrans flux) : ~30-45 minutes (dépend de la stabilité de l'app).
+- Ticket numérique (6 captures `09a`-`09f`) : ~15-20 minutes (inclut un redémarrage du mock avec `MOCK_TEM_FAIL=1`).
 - Section 2 (10 captures messages FDM) : ~30 minutes (1-2 min par capture, redémarrage mock entre chaque).
 - Section 3 (8 tickets physiques) : ~20-30 minutes (impression + photo).
 
-**Total : 1h30 à 2h** pour une session complète de capture.
+**Total : 1h45 à 2h15** pour une session complète de capture.
