@@ -238,10 +238,8 @@ pub async fn do_checkout(
         )
         .map_err(|e| e.to_string())?;
 
-        // Record the payment so X/Z reports (`get_payment_totals`,
-        // `get_user_payment_totals`) have real data to sum — without
-        // this row the FDM-facing `payments` block of every turnover
-        // report would always be empty, no matter how much was sold.
+        // Record the payment in the order's payment history. (The X/Z
+        // reports total the financials of the signed events instead.)
         // Training-mode "sales" move no real money, so they are not
         // recorded here (mirrors the FDM's T-vs-N counter split).
         if label != EventLabel::T {

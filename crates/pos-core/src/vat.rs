@@ -272,9 +272,7 @@ mod tests {
             /// on the summed inclusive price, or line by line and add
             /// the results (integer cents — always exact addition,
             /// never floats), both stay within [0, total] and both
-            /// satisfy excl+vat==their own total exactly. This is the
-            /// invariant the reports aggregation (`get_vat_totals`,
-            /// summing many `order_lines` rows per VAT code) relies on.
+            /// satisfy excl+vat==their own total exactly.
             #[test]
             fn per_rate_totals_stay_consistent_across_many_lines(
                 code in any_code(),
