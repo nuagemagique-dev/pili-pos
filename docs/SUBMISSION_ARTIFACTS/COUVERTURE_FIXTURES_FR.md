@@ -72,7 +72,12 @@ Les lignes "variante" restantes (M133, M171B) sont couvertes
 transitivement par l'e2e de l'UC parent ; M112A n'est pas un pattern
 offert par le POS (le remboursement partiel est toujours émis en
 événement séparé = pattern M112B, déclaré au dossier) ; M122 et M132
-sont reportés et non déclarés.
+sont reportés et non déclarés. M150 (événement I, e-facturation
+Peppol) est bien implémenté et couvert par le parse fixture et l'e2e
+(feature `peppol` activée par défaut pour les tests), mais ce feature
+flag n'est **pas** activé dans la build de certification v1.0.0
+(`cert = ["custom-protocol"]`) - événement I reporté en mise à jour
+certifiée v1.1, voir *DECISION_PEPPOL_AP_FR.md*.
 
 ### Enveloppe Q100/Q110 — divergence résolue
 
@@ -85,8 +90,9 @@ de `crates/pos-fiscal/tests/client_status.rs` (argument de langue,
 fallback d'orthographe, parsing de l'enveloppe multi-langue Q110).
 
 **Labels d'événements exercés :** les 8 sur 8 — N, P, F, S, I, C, T
-dans `spf_e2e_basic.rs`, et R dans `spf_e2e_reports.rs` (M180, M182,
-M184) en complément du parsing `tests/reports_fixtures.rs`.
+dans `spf_e2e_basic.rs` (I testé mais hors périmètre de la build
+cert v1.0.0, cf. ci-dessus), et R dans `spf_e2e_reports.rs` (M180,
+M182, M184) en complément du parsing `tests/reports_fixtures.rs`.
 
 ---
 

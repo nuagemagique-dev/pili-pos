@@ -3,8 +3,10 @@
 **Date :** 2026-05-14
 **Reference :** §IV du manuel de certification (Procedure de communication GraphQL).
 
-Ce document parcourt les 22 UC obligatoires du Basic Set v1.7 + les 5 UC Reports v1.3.
-Pour chaque UC, il fournit :
+Ce document parcourt les UC obligatoires du Basic Set v1.7 (22 UC
+spec) + les 5 UC Reports v1.3, **à l'exception de M150_signInvoice**
+(event I, hors périmètre v1.0.0 - voir la section dédiée ci-dessous
+et *DECISION_PEPPOL_AP_FR.md*). Pour chaque UC restant, il fournit :
 
 - Le scenario d'execution (extrait de la fixture officielle SPF Finances).
 - La capture du JSON request envoye au FDM (depuis le fichier Variables.json publie).
@@ -2107,117 +2109,26 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 **Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
 
 
-## M150_signInvoice
+## M150_signInvoice - hors périmètre v1.0.0
 
-**Mutation invoquee :** `signInvoice`
+L'événement fiscal **I (Invoice)** n'est **pas disponible en
+v1.0.0** : le feature flag `peppol` n'est pas activé dans la build
+de certification (`cert = ["custom-protocol"]`,
+`src-tauri/Cargo.toml`), donc le code d'émission de facture B2B
+(`crates/pos-peppol`, `src-tauri/src/commands/invoice.rs`,
+`#[cfg(feature = "peppol")]`) n'est pas compilé dans le binaire
+soumis. La fixture M150 continue d'être **parsée** par
+`crates/pos-fiscal/tests/uc_fixtures.rs` (validation du format JSON
+uniquement) et **exercée en e2e** par `src-tauri/tests/spf_e2e_basic.rs`
+avec les features par défaut (`hubrise` + `peppol`, utilisées pour le
+développement et les tests, pas pour la build cert) - le JSON produit
+par `do_sign_invoice_fiscal` et la réponse FDM archivée pendant cet
+e2e sont d'ailleurs disponibles sous `evidence/uc/M150_event2_I_*.json`
+à titre de preuve de code, mais ce couple n'est **pas** inclus dans
+les preuves soumises pour l'admission v1.0.0 puisque le binaire cert
+ne peut pas produire cet événement.
 
-**Scenario :**
-
-```
-Invoice for customer (Id 100 - customerVatNo BE0308357159)
-for tickets 
-    N 14/50
-    N 16/52
-```
-
-**Champs a verifier (manuel SCE 2.0 §IV) :**
-
-| Champ | Valeur fixture | Statut |
-|---|---|:-:|
-| `language` | `NL` | OK |
-| `posId` | `CPOS0031234567` | OK |
-| `posFiscalTicketNo` | `1012` | OK |
-| `posDateTime` | `2024-07-29T16:22:39+02:00` | OK |
-| `terminalId` | `TER-1-BAR` | OK |
-| `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
-| `vatNo` | `BE0000000097` | OK |
-| `estNo` | `2000000042` | OK |
-| `posSwVersion` | `1.8.3` | OK |
-| `bookingPeriodId` | `dffcd829-a0e5-41ca-a0ae-9eb887f95637` | OK |
-| `bookingDate` | `2024-07-29` | OK |
-| `ticketMedium` | `PAPER` | OK |
-| `employeeId` | `75061189702` | OK |
-| `fdmRef.fdmId` | `FOD01000001` | OK |
-| `fdmRef.eventLabel` | `I` | OK |
-| `fdmRef.eventCounter` | `1` | OK |
-| `fdmRef.totalCounter` | `62` | OK |
-
-**Request (Variables.json) :**
-
-```json
-{
-  "data": {
-    "language": "NL",
-    "vatNo": "BE0000000097",
-    "estNo": "2000000042",
-    "posId": "CPOS0031234567",
-    "posFiscalTicketNo": 1012,
-    "posDateTime": "2024-07-29T16:22:39+02:00",
-    "posSwVersion": "1.8.3",
-    "terminalId": "TER-1-BAR",
-    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
-    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
-    "bookingDate": "2024-07-29",
-    "ticketMedium": "PAPER",
-    "employeeId": "75061189702",
-    "customerVatNo": "BE0308357159",
-    "costCenter": {
-      "id": "100",
-      "type": "CUSTOMER",
-      "reference": "FIN"
-    },
-    "invoiceNo": "20240005",
-    "fdmRefs": [
-      {
-        "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-04-29T11:35:09Z",
-        "eventLabel": "N",
-        "eventCounter": 14,
-        "totalCounter": 50
-      },
-      {
-        "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T11:48:04Z",
-        "eventLabel": "N",
-        "eventCounter": 16,
-        "totalCounter": 52
-      }
-    ]
-  }
-}
-```
-
-**Response FDM :**
-
-```json
-{
-  "data": {
-    "signInvoice": {
-      "posId": "CPOS0031234567",
-      "posFiscalTicketNo": 1012,
-      "posDateTime": "2024-07-29T16:22:39+02:00",
-      "terminalId": "TER-1-BAR",
-      "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
-      "eventOperation": "INVOICE",
-      "fdmRef": {
-        "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T14:22:41Z",
-        "eventLabel": "I",
-        "eventCounter": 1,
-        "totalCounter": 62
-      },
-      "fdmSwVersion": "1.2.0",
-      "bufferCapacityUsed": 0.25,
-      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
-      "warnings": [],
-      "informations": []
-    }
-  }
-}
-```
-
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing) et `src-tauri/tests/spf_e2e_basic.rs` (e2e applicatif).
-
+Mise à jour certifiée prévue v1.1. *Voir : DECISION_PEPPOL_AP_FR.md*.
 
 ## M160_signCopy_Sale
 
@@ -4007,10 +3918,17 @@ une même transaction SQLite. Couverture e2e applicative :
 
 # Recapitulatif
 
-| Famille | UC | Status fixture | Status e2e applicatif |
-|---|---|:-:|:-:|
-| Basic Set v1.7 | 22 | OK (22/22) | OK (16 UC e2e couverts dans `spf_e2e_basic.rs` — dont M112B, M150, M161, M172 ; M112A non déclaré, remplacé par M112B) |
-| Reports v1.3 | 5 | OK (5/5) | OK (4 e2e couverts dans `spf_e2e_reports.rs` : M180, M182, M184 combiné ×2 ; M181/M183 émis via M184) |
-| **Total** | **27** | **OK** | **OK** |
+| Famille | UC (spec) | UC dans le perimetre v1.0.0 | Status fixture | Status e2e applicatif |
+|---|---|---|:-:|:-:|
+| Basic Set v1.7 | 22 | 21 (M150/event I exclu, voir *DECISION_PEPPOL_AP_FR.md*) | OK (22/22 parsent, dont M150 en parsing seul) | OK (16 UC e2e couverts dans `spf_e2e_basic.rs` — dont M112B, M150 (features par défaut, hors build cert), M161, M172 ; M112A non déclaré, remplacé par M112B) |
+| Reports v1.3 | 5 | 5 | OK (5/5) | OK (4 e2e couverts dans `spf_e2e_reports.rs` : M180, M182, M184 combiné ×2 ; M181/M183 émis via M184) |
+| **Total** | **27** | **26** | **OK** | **OK** |
+
+Nombre d'UC couverts par les preuves d'annexe (JSON + ticket) :
+**17 UC dans le périmètre v1.0.0** (25 paires requête/réponse,
+`docs/SUBMISSION_ARTIFACTS/evidence/uc/`) - M150 y figure aussi
+(`M150_event2_I_*.json`) mais reste hors périmètre de soumission
+cert v1.0.0 puisque généré sous les features par défaut, pas sous la
+build `cert` (cf. section M150 ci-dessus).
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.
