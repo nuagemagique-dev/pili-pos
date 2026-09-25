@@ -29,7 +29,6 @@ pub struct AppState {
     pub poller_db: Arc<Mutex<Connection>>,
     pub config: Mutex<PosConfig>,
     /// Current booking period ID (UUID, set on first sale of the day / shift).
-    pub booking_period_id: Mutex<String>,
     #[cfg(feature = "hubrise")]
     pub shared_http: reqwest::Client,
     pub shutdown_token: CancellationToken,
@@ -72,8 +71,6 @@ impl AppState {
 
         let config = Self::load_config()?;
 
-        let booking_period_id = uuid::Uuid::new_v4().to_string();
-
         #[cfg(feature = "hubrise")]
         let shared_http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
@@ -84,7 +81,6 @@ impl AppState {
             #[cfg(feature = "hubrise")]
             poller_db: Arc::new(Mutex::new(poller_conn)),
             config: Mutex::new(config),
-            booking_period_id: Mutex::new(booking_period_id),
             #[cfg(feature = "hubrise")]
             shared_http,
             shutdown_token: CancellationToken::new(),

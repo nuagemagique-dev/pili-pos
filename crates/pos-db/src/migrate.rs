@@ -31,7 +31,9 @@
 
 use rusqlite::Connection;
 
-use crate::schema::{MIGRATION_002_CATALOGUE_FISCAL_FIELDS, SCHEMA_SQL};
+use crate::schema::{
+    MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_BOOKING_PERIODS, SCHEMA_SQL,
+};
 
 #[derive(Debug, Clone, Copy)]
 struct Migration {
@@ -51,6 +53,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "catalogue-fiscal-fields",
         sql: MIGRATION_002_CATALOGUE_FISCAL_FIELDS,
+    },
+    Migration {
+        version: 3,
+        name: "booking-periods",
+        sql: MIGRATION_003_BOOKING_PERIODS,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one.
@@ -144,12 +151,12 @@ mod tests {
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2]);
+        assert_eq!(applied, vec![1, 2, 3]);
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1, 2]);
+        assert_eq!(applied_again, vec![1, 2, 3]);
     }
 
     #[test]
@@ -162,7 +169,7 @@ mod tests {
 
         // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2]);
+        assert_eq!(applied, vec![1, 2, 3]);
 
         let stamp: String = conn
             .query_row(

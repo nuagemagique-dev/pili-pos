@@ -7,6 +7,7 @@ use pos_print::report::{
 use serde::Serialize;
 use tauri::State;
 
+use pos_db::queries::booking::BookingPeriod;
 use pos_fiscal::archive::{self, ArchiveParams};
 use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::{
@@ -15,6 +16,7 @@ use pos_fiscal::event::{
 };
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::*;
+use pos_fiscal::report_totals::{self, ReportEvent};
 use pos_fiscal::types::*;
 
 use crate::state::AppState;
@@ -41,28 +43,32 @@ pub async fn do_generate_x_report(
     state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-
-    let (config, bp_id, turnover_data, ticket_number, print_data) = {
+    let (config, period, turnover_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
-        let data = build_turnover_data(&db, &config, &today)?;
+        let period = super::booking_period(&db)?;
+        let events = period_events(&db, &period.id)?;
+        let data = turnover_data(&config, &events);
         let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
             .map_err(|e| e.to_string())?;
-        let pd = build_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
-        (config, bp, data, tn, pd)
+        let pd = build_print_data(
+            &config,
+            &period,
+            &events,
+            &data,
+            "X",
+            None,
+            tn,
+            &employee_insz,
+        );
+        (config, period, data, tn, pd)
     };
 
     let report = build_report_turnover_x(
         &config,
         ticket_number,
         &employee_insz,
-        &bp_id,
+        &period.id,
         turnover_data,
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
@@ -152,11 +158,9 @@ pub async fn do_generate_z_report(
     state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-
     let (
         config,
-        bp_id,
+        period,
         turnover_data,
         user_data,
         turnover_ticket,
@@ -167,13 +171,10 @@ pub async fn do_generate_z_report(
     ) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
-        let data = build_turnover_data(&db, &config, &today)?;
-        let users = build_user_report_data(&db, &config, &today)?;
+        let period = super::booking_period(&db)?;
+        let events = period_events(&db, &period.id)?;
+        let data = turnover_data(&config, &events);
+        let users = user_data(&config, &events);
         // Two sequential ticket numbers — the M184 fixture shows the
         // user Z carrying posFiscalTicketNo = turnover Z + 1.
         // Peeked, not consumed: both numbers are committed with the
@@ -182,27 +183,45 @@ pub async fn do_generate_z_report(
             .map_err(|e| e.to_string())?;
         let un = tn + 1;
         let rn = report_queries::next_z_report_number(&db).map_err(|e| e.to_string())?;
-        let pd = build_print_data(&db, &config, &today, "Z", Some(rn), tn, &employee_insz)?;
-        let upd = build_user_print_data(&db, &config, &today, "Z", Some(rn), un, &employee_insz)?;
-        (config, bp, data, users, tn, un, rn, pd, upd)
+        let pd = build_print_data(
+            &config,
+            &period,
+            &events,
+            &data,
+            "Z",
+            Some(rn),
+            tn,
+            &employee_insz,
+        );
+        let upd = build_user_print_data(
+            &config,
+            &period,
+            &events,
+            &users,
+            "Z",
+            Some(rn),
+            un,
+            &employee_insz,
+        );
+        (config, period, data, users, tn, un, rn, pd, upd)
     };
 
     let turnover_report = build_report_turnover_z(
         &config,
         turnover_ticket,
         &employee_insz,
-        &bp_id,
+        &period.id,
         report_no,
-        &today,
+        &period.booking_date,
         turnover_data,
     );
     let user_report = build_report_user_z(
         &config,
         user_ticket,
         &employee_insz,
-        &bp_id,
+        &period.id,
         report_no,
-        &today,
+        &period.booking_date,
         user_data,
     );
     let turnover_json = serde_json::to_string(&turnover_report).map_err(|e| e.to_string())?;
@@ -263,14 +282,20 @@ pub async fn do_generate_z_report(
             },
         )
         .map_err(|e| e.to_string())?;
-        report_queries::save_z_report(
-            &tx,
-            &today,
-            report_no,
-            &turnover_json,
-            Some(fiscal_event_id),
-        )
-        .map_err(|e| e.to_string())?;
+        // A training Z is an exercise: it neither takes a Z number nor
+        // closes the real booking period.
+        if !config.training_mode {
+            report_queries::save_z_report(
+                &tx,
+                &period.booking_date,
+                report_no,
+                &turnover_json,
+                Some(fiscal_event_id),
+            )
+            .map_err(|e| e.to_string())?;
+            pos_db::queries::booking::close_period(&tx, &period.id, fiscal_event_id)
+                .map_err(|e| e.to_string())?;
+        }
         tx.commit().map_err(|e| e.to_string())?;
 
         // Auto-backup after Z-report — best-effort, failure never blocks
@@ -279,12 +304,6 @@ pub async fn do_generate_z_report(
         if let Err(e) = backup_database_impl(&db, &config) {
             tracing::warn!(%e, "post-Z backup failed (non-fatal)");
         }
-    }
-
-    // Start new booking period after Z-report
-    {
-        let mut bp = state.booking_period_id.lock().map_err(|e| e.to_string())?;
-        *bp = uuid::Uuid::new_v4().to_string();
     }
 
     // Auto-print: financial Z first, then the user Z as a second
@@ -314,24 +333,34 @@ pub async fn do_generate_user_x_report(
     state: &AppState,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-
-    let (config, bp_id, user_data, ticket_number, print_data) = {
+    let (config, period, user_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
-        let users = build_user_report_data(&db, &config, &today)?;
+        let period = super::booking_period(&db)?;
+        let events = period_events(&db, &period.id)?;
+        let users = user_data(&config, &events);
         let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
             .map_err(|e| e.to_string())?;
-        let pd = build_user_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
-        (config, bp, users, tn, pd)
+        let pd = build_user_print_data(
+            &config,
+            &period,
+            &events,
+            &users,
+            "X",
+            None,
+            tn,
+            &employee_insz,
+        );
+        (config, period, users, tn, pd)
     };
 
-    let report = build_report_user_x(&config, ticket_number, &employee_insz, &bp_id, user_data);
+    let report = build_report_user_x(
+        &config,
+        ticket_number,
+        &employee_insz,
+        &period.id,
+        user_data,
+    );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
@@ -408,53 +437,23 @@ fn backup_database_impl(
     Ok(path_str)
 }
 
-/// Build the data struct needed by the thermal report printer.
+/// Build the printed turnover report from the totals sent to the FDM,
+/// so the paper always shows what was signed.
+#[allow(clippy::too_many_arguments)]
 fn build_print_data(
-    db: &rusqlite::Connection,
     config: &pos_core::config::PosConfig,
-    today: &str,
+    period: &BookingPeriod,
+    events: &[ReportEvent],
+    data: &TurnoverReportData,
     report_type: &str,
     report_no: Option<i64>,
     ticket_number: i64,
     employee_insz: &str,
-) -> Result<ReportPrintData, String> {
-    let event_totals = report_queries::get_event_totals(db, today).map_err(|e| e.to_string())?;
-    let vat_totals = report_queries::get_vat_totals(db, today).map_err(|e| e.to_string())?;
-    let payment_totals =
-        report_queries::get_payment_totals(db, today).map_err(|e| e.to_string())?;
-    let (first_dt, last_dt) =
-        report_queries::get_datetime_range(db, today).map_err(|e| e.to_string())?;
-    let drawer_opens = report_queries::count_drawer_opens(db, today).map_err(|e| e.to_string())?;
-
-    let grand_total_cents: i64 = payment_totals.iter().map(|p| p.amount_cents).sum();
-
-    let vat_rows: Vec<ReportVatTotal> = vat_totals
-        .iter()
-        .map(|vt| {
-            let (rate, code) = match vt.vat_code.as_str() {
-                "A" => (21.0, "A"),
-                "B" => (12.0, "B"),
-                "C" => (6.0, "C"),
-                "D" => (0.0, "D"),
-                _ => (0.0, "X"),
-            };
-            let total_incl = vt.total_cents;
-            let vat_cents = if rate > 0.0 {
-                total_incl
-                    - ((total_incl as f64 * 10000.0 / (10000.0 + rate * 100.0)).round() as i64)
-            } else {
-                0
-            };
-            ReportVatTotal {
-                code: code.to_string(),
-                rate,
-                total_incl_cents: total_incl,
-                vat_cents,
-            }
-        })
-        .collect();
-
-    Ok(ReportPrintData {
+) -> ReportPrintData {
+    let turnover = &data.turnover;
+    let payment_totals = print_payments(&turnover.payments, events.iter());
+    let (first_datetime, last_datetime) = period_range(&data.pos_devices);
+    ReportPrintData {
         report_type: report_type.to_string(),
         report_no,
         restaurant_name: config.restaurant_name.clone(),
@@ -462,35 +461,89 @@ fn build_print_data(
         restaurant_vat: config.restaurant_vat.clone(),
         pos_id: config.pos_id.clone(),
         terminal_id: config.terminal_id.clone(),
-        report_date: today.to_string(),
-        first_datetime: first_dt,
-        last_datetime: last_dt,
+        report_date: period.booking_date.clone(),
+        first_datetime,
+        last_datetime,
         employee_insz: employee_insz.to_string(),
         is_training: config.training_mode,
-        event_totals: event_totals
+        event_totals: turnover
+            .transactions
             .iter()
-            .map(|et| ReportEventTotal {
-                label: et.event_label.clone(),
-                count: et.ticket_count,
-                amount_cents: et.amount_cents,
+            .map(|t| ReportEventTotal {
+                label: enum_name(&t.event_label),
+                count: t.ticket_count,
+                amount_cents: cents(t.amount),
             })
             .collect(),
-        vat_totals: vat_rows,
-        payment_totals: payment_totals
+        vat_totals: turnover
+            .vats
             .iter()
-            .map(|pt| ReportPaymentTotal {
-                method: pt.method.clone(),
-                count: pt.count,
-                amount_cents: pt.amount_cents,
+            .map(|v| ReportVatTotal {
+                code: enum_name(&v.label),
+                rate: v.rate,
+                total_incl_cents: cents(v.total_amount),
+                vat_cents: cents(v.vat_amount),
             })
             .collect(),
-        grand_total_cents,
-        drawer_opens,
+        grand_total_cents: payment_totals.iter().map(|p| p.amount_cents).sum(),
+        payment_totals,
+        drawer_opens: turnover.drawers_open_count,
         fdm_id: None,
         fdm_datetime: None,
         short_signature: None,
         ticket_number,
-    })
+    }
+}
+
+/// Printed payment lines: the signed totals, with the number of
+/// payments made with each method.
+fn print_payments<'a>(
+    payments: &[PaymentTotalInput],
+    events: impl Iterator<Item = &'a ReportEvent> + Clone,
+) -> Vec<ReportPaymentTotal> {
+    payments
+        .iter()
+        .map(|p| ReportPaymentTotal {
+            method: p.name.clone(),
+            count: events
+                .clone()
+                .filter(|e| e.label == EventLabel::N)
+                .filter_map(|e| e.request["financials"].as_array())
+                .flatten()
+                .filter(|f| f["id"].as_str() == Some(&p.id) && f["name"].as_str() == Some(&p.name))
+                .count() as i64,
+            amount_cents: p.amount.iter().map(|a| cents(a.total_amount)).sum(),
+        })
+        .collect()
+}
+
+/// First and last POS time of the report's events.
+fn period_range(devices: &[PosDeviceInput]) -> (String, String) {
+    let parse = |s: &str| chrono::DateTime::parse_from_rfc3339(s).ok();
+    let first = devices
+        .iter()
+        .map(|d| &d.first_pos_date_time)
+        .min_by_key(|s| parse(s));
+    let last = devices
+        .iter()
+        .map(|d| &d.last_pos_date_time)
+        .max_by_key(|s| parse(s));
+    (
+        first.cloned().unwrap_or_default(),
+        last.cloned().unwrap_or_default(),
+    )
+}
+
+fn cents(amount: f64) -> i64 {
+    (amount * 100.0).round() as i64
+}
+
+/// The wire name of a fiscal enum (`EventLabel::N` → "N").
+fn enum_name<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_string))
+        .unwrap_or_default()
 }
 
 /// Send the formatted report to the thermal printer (best-effort).
@@ -521,286 +574,114 @@ async fn print_report(
     }
 }
 
-/// Build TurnoverReportData from current DB state.
-fn build_turnover_data(
+/// The events of the booking period, as signed by the FDM: the input of
+/// every report (see `pos_fiscal::report_totals`).
+fn period_events(
     db: &rusqlite::Connection,
-    config: &pos_core::config::PosConfig,
-    booking_date: &str,
-) -> Result<TurnoverReportData, String> {
-    let event_totals =
-        pos_db::queries::reports::get_event_totals(db, booking_date).map_err(|e| e.to_string())?;
-    let vat_totals =
-        pos_db::queries::reports::get_vat_totals(db, booking_date).map_err(|e| e.to_string())?;
-    let department_totals = pos_db::queries::reports::get_department_totals(db, booking_date)
-        .map_err(|e| e.to_string())?;
-    let payment_totals = pos_db::queries::reports::get_payment_totals(db, booking_date)
-        .map_err(|e| e.to_string())?;
-    let (first_dt, last_dt) = pos_db::queries::reports::get_datetime_range(db, booking_date)
-        .map_err(|e| e.to_string())?;
-    let drawers_count = pos_db::queries::reports::count_drawer_opens(db, booking_date)
-        .map_err(|e| e.to_string())?;
-
-    let transactions: Vec<EventTotalInput> = event_totals
+    booking_period_id: &str,
+) -> Result<Vec<ReportEvent>, String> {
+    archive::events_in_booking_period(db, booking_period_id)
+        .map_err(|e| e.to_string())?
         .iter()
-        .map(|et| {
-            let label = match et.event_label.as_str() {
-                "N" => EventLabel::N,
-                "P" => EventLabel::P,
-                "F" => EventLabel::F,
-                "S" => EventLabel::S,
-                "I" => EventLabel::I,
-                "R" => EventLabel::R,
-                "C" => EventLabel::C,
-                "T" => EventLabel::T,
-                _ => EventLabel::N,
-            };
-            EventTotalInput {
-                event_label: label,
-                ticket_count: et.ticket_count,
-                amount: et.amount_cents as f64 / 100.0,
-            }
+        .map(|e| {
+            ReportEvent::from_archive(e)
+                .ok_or_else(|| format!("archived fiscal event {} is unreadable", e.id))
         })
-        .collect();
+        .collect()
+}
 
-    let vats: Vec<VatTotalInput> = vat_totals
-        .iter()
-        .map(|vt| {
-            let (label, rate) = match vt.vat_code.as_str() {
-                "A" => (VatLabel::A, 21.0),
-                "B" => (VatLabel::B, 12.0),
-                "C" => (VatLabel::C, 6.0),
-                "D" => (VatLabel::D, 0.0),
-                _ => (VatLabel::X, 0.0),
-            };
-            let total = vt.total_cents as f64 / 100.0;
-            let taxable = if rate > 0.0 {
-                total / (1.0 + rate / 100.0)
-            } else {
-                total
-            };
-            let vat_amount = total - taxable;
-            VatTotalInput {
-                label,
-                rate,
-                taxable_amount: taxable,
-                vat_amount,
-                total_amount: total,
-            }
-        })
-        .collect();
-
-    let payments: Vec<PaymentTotalInput> = payment_totals
-        .iter()
-        .map(|pt| {
-            let ptype = match pt.method.as_str() {
-                "cash" => PaymentType::Cash,
-                "card" => PaymentType::CardDebit,
-                _ => PaymentType::Other,
-            };
-            PaymentTotalInput {
-                id: pt.method.clone(),
-                name: pt.method.clone(),
-                payment_type: ptype,
-                amount: vec![PaymentTotalAmountInput {
-                    amount_type: PaymentLineType::Payment,
-                    normal_amount: pt.amount_cents as f64 / 100.0,
-                    negative_corrections: 0.0,
-                    positive_corrections: 0.0,
-                    corrections_count: 0,
-                    total_amount: pt.amount_cents as f64 / 100.0,
-                    normal_foreign: None,
-                    corrections_foreign: None,
-                }],
-            }
-        })
-        .collect();
-
-    let pos_devices = vec![PosDeviceInput {
+/// This terminal, for a report whose period has no event yet.
+fn this_terminal(config: &pos_core::config::PosConfig) -> Vec<PosDeviceInput> {
+    let now = chrono::Utc::now()
+        .with_timezone(&chrono_tz::Europe::Brussels)
+        .to_rfc3339();
+    vec![PosDeviceInput {
         pos_id: config.pos_id.clone(),
         terminal_id: Some(config.terminal_id.clone()),
-        first_pos_date_time: first_dt.clone(),
-        last_pos_date_time: last_dt.clone(),
-    }];
-
-    let fdm_devices = build_fdm_devices(db, booking_date, &first_dt, &last_dt)?;
-
-    Ok(TurnoverReportData {
-        pos_devices,
-        fdm_devices,
-        turnover: TurnoverInput {
-            transactions,
-            departments: department_totals
-                .iter()
-                .map(|d| DepartmentTotalInput {
-                    department_id: d.department_id.clone(),
-                    department_name: d.department_name.clone(),
-                    amount: d.total_cents as f64 / 100.0,
-                })
-                .collect(),
-            vats,
-            payments,
-            drawers_open_count: drawers_count,
-            neg_quantities: vec![],
-            price_changes: vec![],
-            invoices: None,
-        },
-    })
+        first_pos_date_time: now.clone(),
+        last_pos_date_time: now,
+    }]
 }
 
-/// The `fdmDevices` block of every X/Z report, read from the FDM
-/// references archived that day (the FDM owns those numbers; the POS
-/// replays them). Empty-identity fallback only when the day has no
-/// signed event yet.
-fn build_fdm_devices(
-    db: &rusqlite::Connection,
-    booking_date: &str,
-    fallback_first_dt: &str,
-    fallback_last_dt: &str,
-) -> Result<Vec<FdmDeviceInput>, String> {
-    let range = report_queries::get_fdm_ref_range(db, booking_date).map_err(|e| e.to_string())?;
-    Ok(match range {
-        Some(r) => vec![FdmDeviceInput {
-            fdm_id: r.fdm_id,
-            first_fdm_date_time: r.first_datetime,
-            first_total_counter: r.first_total_counter,
-            last_fdm_date_time: r.last_datetime,
-            last_total_counter: r.last_total_counter,
-        }],
-        None => vec![FdmDeviceInput {
-            fdm_id: String::new(),
-            first_fdm_date_time: fallback_first_dt.to_string(),
-            first_total_counter: 0,
-            last_fdm_date_time: fallback_last_dt.to_string(),
-            last_total_counter: 0,
-        }],
-    })
-}
-
-/// Map a local payment method string onto the fiscal PaymentType.
-fn payment_type_of(method: &str) -> PaymentType {
-    match method {
-        "cash" => PaymentType::Cash,
-        "card" => PaymentType::CardDebit,
-        _ => PaymentType::Other,
+fn pos_devices(
+    config: &pos_core::config::PosConfig,
+    events: &[ReportEvent],
+) -> Vec<PosDeviceInput> {
+    let devices = report_totals::pos_devices(events);
+    if devices.is_empty() {
+        this_terminal(config)
+    } else {
+        devices
     }
 }
 
-/// Build the `users` block of the user reports (M182/M183/M184) from
-/// the day's archived events, orders and payments.
-fn build_user_report_data(
-    db: &rusqlite::Connection,
+fn turnover_data(
     config: &pos_core::config::PosConfig,
-    booking_date: &str,
-) -> Result<UserReportData, String> {
-    let activity =
-        report_queries::get_user_activity(db, booking_date).map_err(|e| e.to_string())?;
-    let payment_totals =
-        report_queries::get_user_payment_totals(db, booking_date).map_err(|e| e.to_string())?;
-    let social =
-        report_queries::get_user_social_events(db, booking_date).map_err(|e| e.to_string())?;
-    let (first_dt, last_dt) =
-        report_queries::get_datetime_range(db, booking_date).map_err(|e| e.to_string())?;
-
-    let users: Vec<UserItemInput> = activity
-        .iter()
-        .map(|ua| UserItemInput {
-            employee_id: ua.user_insz.clone(),
-            total_amount: ua.total_cents as f64 / 100.0,
-            first_pos_date_time: ua.first_datetime.clone(),
-            last_pos_date_time: ua.last_datetime.clone(),
-            social_events: social
-                .iter()
-                .filter(|s| s.user_insz == ua.user_insz)
-                .map(|s| InOutItemInput {
-                    pos_date_time: s.pos_datetime.clone(),
-                    in_out: if s.operation == "WORK_IN" {
-                        InOut::In
-                    } else {
-                        InOut::Out
-                    },
-                })
-                .collect(),
-            payments: payment_totals
-                .iter()
-                .filter(|p| p.user_insz == ua.user_insz)
-                .map(|p| PaymentTotalInput {
-                    id: p.method.clone(),
-                    name: p.method.clone(),
-                    payment_type: payment_type_of(&p.method),
-                    amount: vec![PaymentTotalAmountInput {
-                        amount_type: PaymentLineType::Payment,
-                        normal_amount: p.amount_cents as f64 / 100.0,
-                        negative_corrections: 0.0,
-                        positive_corrections: 0.0,
-                        corrections_count: 0,
-                        total_amount: p.amount_cents as f64 / 100.0,
-                        normal_foreign: None,
-                        corrections_foreign: None,
-                    }],
-                })
-                .collect(),
-        })
-        .collect();
-
-    Ok(UserReportData {
-        pos_devices: vec![PosDeviceInput {
-            pos_id: config.pos_id.clone(),
-            terminal_id: Some(config.terminal_id.clone()),
-            first_pos_date_time: first_dt.clone(),
-            last_pos_date_time: last_dt.clone(),
-        }],
-        fdm_devices: build_fdm_devices(db, booking_date, &first_dt, &last_dt)?,
-        users,
-    })
+    events: &[ReportEvent],
+) -> TurnoverReportData {
+    TurnoverReportData {
+        pos_devices: pos_devices(config, events),
+        fdm_devices: report_totals::fdm_devices(events),
+        turnover: report_totals::turnover(events),
+    }
 }
 
-/// Build the data struct for the printed user report.
+fn user_data(config: &pos_core::config::PosConfig, events: &[ReportEvent]) -> UserReportData {
+    UserReportData {
+        pos_devices: pos_devices(config, events),
+        fdm_devices: report_totals::fdm_devices(events),
+        users: report_totals::users(events),
+    }
+}
+
+/// Build the printed user report from the totals sent to the FDM.
+#[allow(clippy::too_many_arguments)]
 fn build_user_print_data(
-    db: &rusqlite::Connection,
     config: &pos_core::config::PosConfig,
-    today: &str,
+    period: &BookingPeriod,
+    events: &[ReportEvent],
+    data: &UserReportData,
     report_type: &str,
     report_no: Option<i64>,
     ticket_number: i64,
     employee_insz: &str,
-) -> Result<UserReportPrintData, String> {
-    let activity = report_queries::get_user_activity(db, today).map_err(|e| e.to_string())?;
-    let payment_totals =
-        report_queries::get_user_payment_totals(db, today).map_err(|e| e.to_string())?;
-    let social = report_queries::get_user_social_events(db, today).map_err(|e| e.to_string())?;
-
-    let users: Vec<UserReportUser> = activity
+) -> UserReportPrintData {
+    let users = data
+        .users
         .iter()
-        .map(|ua| UserReportUser {
-            insz: ua.user_insz.clone(),
-            first_datetime: ua.first_datetime.clone(),
-            last_datetime: ua.last_datetime.clone(),
-            total_cents: ua.total_cents,
-            payments: payment_totals
+        .map(|u| UserReportUser {
+            insz: u.employee_id.clone(),
+            first_datetime: u.first_pos_date_time.clone(),
+            last_datetime: u.last_pos_date_time.clone(),
+            total_cents: cents(u.total_amount),
+            payments: print_payments(
+                &u.payments,
+                events
+                    .iter()
+                    .filter(|e| e.request["employeeId"].as_str() == Some(&u.employee_id)),
+            ),
+            social_events: u
+                .social_events
                 .iter()
-                .filter(|p| p.user_insz == ua.user_insz)
-                .map(|p| ReportPaymentTotal {
-                    method: p.method.clone(),
-                    count: p.count,
-                    amount_cents: p.amount_cents,
+                .map(|s| {
+                    let operation = match s.in_out {
+                        InOut::In => "WORK_IN",
+                        InOut::Out => "WORK_OUT",
+                    };
+                    (operation.to_string(), s.pos_date_time.clone())
                 })
-                .collect(),
-            social_events: social
-                .iter()
-                .filter(|s| s.user_insz == ua.user_insz)
-                .map(|s| (s.operation.clone(), s.pos_datetime.clone()))
                 .collect(),
         })
         .collect();
 
-    Ok(UserReportPrintData {
+    UserReportPrintData {
         report_type: report_type.to_string(),
         report_no,
         restaurant_name: config.restaurant_name.clone(),
         restaurant_address: config.restaurant_address.clone(),
         restaurant_vat: config.restaurant_vat.clone(),
         terminal_id: config.terminal_id.clone(),
-        report_date: today.to_string(),
+        report_date: period.booking_date.clone(),
         employee_insz: employee_insz.to_string(),
         is_training: config.training_mode,
         users,
@@ -808,7 +689,7 @@ fn build_user_print_data(
         fdm_datetime: None,
         short_signature: None,
         ticket_number,
-    })
+    }
 }
 
 /// Send the formatted user report to the thermal printer (best-effort).

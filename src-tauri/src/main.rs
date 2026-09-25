@@ -215,7 +215,6 @@ fn main() {
         // Settings
         commands::settings::get_settings,
         commands::settings::set_training_mode,
-        commands::settings::new_booking_period,
         // Tables
         commands::tables::list_tables,
         commands::tables::sign_table_order,
@@ -281,7 +280,6 @@ fn main() {
         // Settings
         commands::settings::get_settings,
         commands::settings::set_training_mode,
-        commands::settings::new_booking_period,
         // Tables
         commands::tables::list_tables,
         commands::tables::sign_table_order,

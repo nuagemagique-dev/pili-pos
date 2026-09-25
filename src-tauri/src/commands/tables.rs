@@ -87,11 +87,7 @@ pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<(), 
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, true)
             .map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
+        let bp = super::booking_period(&db)?.id;
         (order, entries, config, bp)
     };
 
@@ -147,11 +143,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
+        let bp = super::booking_period(&db)?.id;
         (order, lines, config, bp)
     };
     if lines.is_empty() {

@@ -299,6 +299,37 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     crate::migrate::run_migrations(conn)
 }
 
+/// v3 — Booking periods (POS spec v2.2 §2.2.2 `bookingPeriodId`).
+///
+/// A booking period runs from the first event after a Z report to the
+/// next Z report, and carries the booking date of its opening. It is
+/// persisted so that restarting the POS never splits a day, and at most
+/// one period is open at a time.
+pub(crate) const MIGRATION_003_BOOKING_PERIODS: &str = r#"
+CREATE TABLE IF NOT EXISTS booking_periods (
+    id TEXT PRIMARY KEY,
+    booking_date TEXT NOT NULL,
+    opened_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    closed_at TEXT,
+    closing_event_id INTEGER REFERENCES fiscal_events(id),
+    CHECK ((closed_at IS NULL) = (closing_event_id IS NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_booking_periods_one_open
+    ON booking_periods ((closed_at IS NULL)) WHERE closed_at IS NULL;
+-- A closed period stays closed.
+CREATE TRIGGER IF NOT EXISTS booking_periods_no_reopen
+BEFORE UPDATE ON booking_periods
+WHEN OLD.closed_at IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'booking period is closed');
+END;
+CREATE TRIGGER IF NOT EXISTS booking_periods_no_delete
+BEFORE DELETE ON booking_periods
+BEGIN
+    SELECT RAISE(ABORT, 'booking periods cannot be deleted');
+END;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;

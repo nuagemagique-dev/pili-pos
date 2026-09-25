@@ -48,11 +48,7 @@ async fn do_work_event(
     is_in: bool,
 ) -> Result<SocialResult, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let bp_id = state
-        .booking_period_id
-        .lock()
-        .map_err(|e| e.to_string())?
-        .clone();
+    let bp_id = super::booking_period_id(state)?;
     let label = EventLabel::S.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, label)?;
 

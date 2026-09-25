@@ -35,10 +35,3 @@ pub fn set_training_mode(state: State<'_, AppState>, enabled: bool) -> Result<bo
     config.training_mode = enabled;
     Ok(enabled)
 }
-
-#[tauri::command]
-pub fn new_booking_period(state: State<'_, AppState>) -> Result<String, String> {
-    let mut bp = state.booking_period_id.lock().map_err(|e| e.to_string())?;
-    *bp = uuid::Uuid::new_v4().to_string();
-    Ok(bp.clone())
-}

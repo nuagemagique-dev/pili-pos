@@ -85,6 +85,47 @@ pub fn archive_event(
     Ok(conn.last_insert_rowid())
 }
 
+/// Every event archived in the booking period `booking_period_id`
+/// (the `bookingPeriodId` of its request), in archive order. The input
+/// of the turnover and user reports.
+pub fn events_in_booking_period(
+    conn: &rusqlite::Connection,
+    booking_period_id: &str,
+) -> Result<Vec<ArchivedEvent>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT id, event_type, sequence_number, order_id, pos_id, terminal_id,
+                user_insz, event_data_json, fdm_response_json, fdm_id,
+                fdm_datetime, event_label, short_signature, qr_data
+         FROM fiscal_events
+         WHERE json_extract(event_data_json, '$.bookingPeriodId') = ?1
+         ORDER BY id",
+    )?;
+    let rows = stmt.query_map(rusqlite::params![booking_period_id], |row| {
+        let label_str: String = row.get(1)?;
+        let event_type =
+            serde_json::from_str::<EventLabel>(&format!("\"{label_str}\"")).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, e.into())
+            })?;
+        Ok(ArchivedEvent {
+            id: row.get(0)?,
+            event_type,
+            sequence_number: row.get(2)?,
+            order_id: row.get(3)?,
+            pos_id: row.get(4)?,
+            terminal_id: row.get(5)?,
+            user_insz: row.get(6)?,
+            event_data_json: row.get(7)?,
+            fdm_response_json: row.get(8)?,
+            fdm_id: row.get(9)?,
+            fdm_datetime: row.get(10)?,
+            event_label: row.get(11)?,
+            short_signature: row.get(12)?,
+            qr_data: row.get(13)?,
+        })
+    })?;
+    rows.collect()
+}
+
 /// Retrieve an archived event by its sequence number and event type.
 pub fn get_archived_event(
     conn: &rusqlite::Connection,

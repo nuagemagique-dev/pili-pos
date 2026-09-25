@@ -32,6 +32,27 @@ pub(crate) fn operator_name(state: &AppState, insz: &str) -> String {
         .unwrap_or_else(|| insz.to_string())
 }
 
+/// The open booking period (POS spec v2.2 §2.2.2), opened by the first
+/// event after a Z report. Its booking date is the date in Belgium when
+/// it opened, whatever the system time zone.
+pub(crate) fn booking_period(
+    db: &rusqlite::Connection,
+) -> Result<pos_db::queries::booking::BookingPeriod, String> {
+    let today = chrono::Utc::now()
+        .with_timezone(&chrono_tz::Europe::Brussels)
+        .date_naive()
+        .to_string();
+    pos_db::queries::booking::current_period(db, &uuid::Uuid::new_v4().to_string(), &today)
+        .map_err(|e| e.to_string())
+}
+
+/// Id of the open booking period, for commands that don't hold the
+/// database lock.
+pub(crate) fn booking_period_id(state: &AppState) -> Result<String, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    Ok(booking_period(&db)?.id)
+}
+
 /// Ticket number the next event of `label` will use, without consuming
 /// it. The counter only advances in `commit_signed_event`, once the FDM
 /// has signed the event, so a refused or unreachable FDM leaves no gap

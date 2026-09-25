@@ -5,6 +5,7 @@ pub mod event;
 pub mod fdm_client;
 pub mod inputs;
 pub mod qr;
+pub mod report_totals;
 pub mod response;
 pub mod signature;
 pub mod ticket;

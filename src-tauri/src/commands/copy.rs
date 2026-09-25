@@ -78,11 +78,7 @@ pub async fn do_copy_ticket(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
+        let bp = super::booking_period(&db)?.id;
         (fdm_ref, config, bp)
     };
 

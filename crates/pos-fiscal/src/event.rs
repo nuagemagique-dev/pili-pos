@@ -160,13 +160,16 @@ pub fn build_sale_input(
         .map(|t| build_table_cost_center(t, &order_reference(order)));
 
     let payment_amount = payment_amount_cents as f64 / 100.0;
+    // The id identifies the payment method (spec §2.2.2 `financials.id`):
+    // the reports total the payments per id.
+    let (payment_id, payment_name) = match payment_type {
+        PaymentType::Cash => ("1", "Cash"),
+        PaymentType::CardDebit => ("2", "Card"),
+        _ => ("9", "Payment"),
+    };
     let financials = vec![PaymentLineInput {
-        id: "PAY1".to_string(),
-        name: match payment_type {
-            PaymentType::Cash => "Cash".to_string(),
-            PaymentType::CardDebit => "Card".to_string(),
-            _ => "Payment".to_string(),
-        },
+        id: payment_id.to_string(),
+        name: payment_name.to_string(),
         payment_type,
         provider: None,
         input_method: InputMethod::Manual,

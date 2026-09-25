@@ -121,10 +121,6 @@ export function setTrainingMode(enabled: boolean): Promise<boolean> {
   return invoke("set_training_mode", { enabled });
 }
 
-export function newBookingPeriod(): Promise<string> {
-  return invoke("new_booking_period");
-}
-
 // Tables
 export interface TableInfo {
   tableNumber: number;

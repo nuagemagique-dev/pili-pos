@@ -101,7 +101,6 @@ impl TestApp {
                 Connection::open_in_memory().expect("poller sqlite"),
             )),
             config: Mutex::new(config),
-            booking_period_id: Mutex::new(uuid::Uuid::new_v4().to_string()),
             #[cfg(feature = "hubrise")]
             shared_http: reqwest::Client::new(),
             shutdown_token: CancellationToken::new(),

@@ -294,11 +294,7 @@ pub async fn do_sign_invoice_fiscal(
     let (config, bp_id, fdm_refs, invoice_no, ticket_number) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
+        let bp = super::booking_period(&db)?.id;
 
         // Rebuild the FDM reference of every underlying sale from its
         // archived response.

@@ -49,11 +49,7 @@ pub async fn do_money_in_out(
     reason: String,
 ) -> Result<FinancialResult, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let bp_id = state
-        .booking_period_id
-        .lock()
-        .map_err(|e| e.to_string())?
-        .clone();
+    let bp_id = super::booking_period_id(state)?;
     let label = EventLabel::F.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, label)?;
 
@@ -137,11 +133,7 @@ pub async fn do_open_drawer_fiscal(
     employee_insz: String,
 ) -> Result<FinancialResult, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let bp_id = state
-        .booking_period_id
-        .lock()
-        .map_err(|e| e.to_string())?
-        .clone();
+    let bp_id = super::booking_period_id(state)?;
     let label = EventLabel::F.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, label)?;
 

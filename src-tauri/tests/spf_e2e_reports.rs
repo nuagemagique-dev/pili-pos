@@ -31,23 +31,26 @@ use pos_fiscal::types::EventLabel;
 
 const TEST_INSZ: &str = "12345678901";
 
-/// Seed one operator's service day: a work-in (S), a closed cash sale
-/// (N) and its payment. Gives the report builders real per-user
-/// aggregates and an archived FDM reference range to read.
+/// Seed one operator's service day in the open booking period: a
+/// work-in (S) and a cash sale (N), as archived after signing. Gives the
+/// report builders real per-user aggregates and an archived FDM
+/// reference range to read.
 fn seed_service_day(app: &TestApp) {
     let conn = app.state.db.lock().unwrap();
+    pos_db::queries::booking::current_period(
+        &conn,
+        "0b0e7c1e-0000-4000-8000-000000000001",
+        "2026-07-03",
+    )
+    .unwrap();
     conn.execute_batch(
         r#"
-        INSERT INTO orders (id, order_type, status, user_insz, closed_at)
-        VALUES (1, 'dine_in', 'closed', '12345678901', datetime('now'));
-        INSERT INTO payments (order_id, method, amount_cents)
-        VALUES (1, 'cash', 1200);
         INSERT INTO fiscal_events (
             event_type, sequence_number, pos_id, terminal_id, user_insz,
             event_data_json, fdm_response_json
         ) VALUES (
             'S', 900, 'CFOD0061234567', 'POS1', '12345678901',
-            '{"posDateTime":"2026-07-03T09:00:00+02:00"}',
+            '{"posId":"CFOD0061234567","terminalId":"POS1","employeeId":"12345678901","bookingPeriodId":"0b0e7c1e-0000-4000-8000-000000000001","posDateTime":"2026-07-03T09:00:00+02:00"}',
             '{"eventOperation":"WORK_IN","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T09:00:01+02:00","eventLabel":"S","eventCounter":1,"totalCounter":41}}'
         );
         INSERT INTO fiscal_events (
@@ -55,8 +58,8 @@ fn seed_service_day(app: &TestApp) {
             event_data_json, fdm_response_json
         ) VALUES (
             'N', 901, 'CFOD0061234567', 'POS1', '12345678901',
-            '{"posDateTime":"2026-07-03T12:00:00+02:00","transaction":{"transactionTotal":12.0}}',
-            '{"eventOperation":"SALE","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T12:00:01+02:00","eventLabel":"N","eventCounter":2,"totalCounter":42}}'
+            '{"posId":"CFOD0061234567","terminalId":"POS1","employeeId":"12345678901","bookingPeriodId":"0b0e7c1e-0000-4000-8000-000000000001","posDateTime":"2026-07-03T12:00:00+02:00","transaction":{"transactionLines":[{"lineType":"SINGLE_PRODUCT","mainProduct":{"productId":"1","productName":"Menu","departmentId":"1","departmentName":"Plats","quantity":1,"vats":[{"label":"B","price":12.0}]},"lineTotal":12.0}],"transactionTotal":12.0},"financials":[{"id":"1","name":"Cash","type":"CASH","inputMethod":"MANUAL","amount":12.0,"amountType":"PAYMENT"}]}',
+            '{"eventOperation":"SALE","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T12:00:01+02:00","eventLabel":"N","eventCounter":2,"totalCounter":42},"vatCalc":[{"label":"B","rate":12,"taxableAmount":10.71,"vatAmount":1.29,"totalAmount":12.0,"outOfScope":false}]}'
         );
         "#,
     )
@@ -205,19 +208,29 @@ async fn m184_generate_z_report_signs_both_reports_in_one_operation() {
 async fn z_report_starts_new_booking_period() {
     // Per cert manual §IV.4, every Z-report MUST start a new
     // booking period so subsequent sales are aggregated under a
-    // fresh window. The booking-period UUID lives on AppState and
-    // is rotated inside `do_generate_z_report`.
+    // fresh window. The Z closes the open period; the next event
+    // opens the next one.
     let app = TestApp::new().await;
     mock_from_fixture(&app, &load_uc(&reports_root(), "M184")).await;
 
-    let bp_before = app.state.booking_period_id.lock().unwrap().clone();
+    let open = |app: &TestApp| {
+        pos_db::queries::booking::open_period(&app.state.db.lock().unwrap()).unwrap()
+    };
     do_generate_z_report(&app.state, TEST_INSZ.to_string())
         .await
         .unwrap();
-    let bp_after = app.state.booking_period_id.lock().unwrap().clone();
+    assert_eq!(open(&app), None, "the Z closes the booking period");
 
+    let z_request: serde_json::Value =
+        serde_json::from_str(app.fiscal_events()[0].event_data_json.as_deref().unwrap()).unwrap();
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
+    moyun_pos::commands::social::do_work_in(&app.state, TEST_INSZ.to_string())
+        .await
+        .unwrap();
+    let next = open(&app).expect("the next event opens a period");
     assert_ne!(
-        bp_before, bp_after,
-        "booking_period_id must rotate on Z-report"
+        Some(next.id.as_str()),
+        z_request["bookingPeriodId"].as_str(),
+        "events after the Z belong to a new booking period"
     );
 }

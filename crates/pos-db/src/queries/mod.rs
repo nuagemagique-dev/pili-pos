@@ -1,3 +1,4 @@
+pub mod booking;
 pub mod fiscal;
 pub mod menu;
 pub mod orders;
