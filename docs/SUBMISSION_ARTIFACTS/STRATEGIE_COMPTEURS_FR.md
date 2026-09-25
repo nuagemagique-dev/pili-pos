@@ -220,14 +220,21 @@ séquence locale, en violation de l'exigence "pas de trou".
      réussie (N=1), un remboursement avec FDM 500 ne touche pas le
      compteur N (reste à 1) et n'archive aucune ligne supplémentaire.
 
-Les commandes touchées par le refactor : `do_checkout`,
-`do_refund_checkout`. Les autres commandes (`do_sign_table_order`,
-`do_sign_pre_bill`, `do_money_in_out`, `do_open_drawer_fiscal`,
-`do_work_in/out`, `do_copy_ticket`, `do_generate_x_report`,
-`do_generate_z_report`) utilisent un pattern différent - `.ok()` sur
-l'erreur FDM avec archive systématique avec `sign_result=None` - qui
-**n'a pas le bug** parce que compteur et archive sont déjà alloués
-ensemble. Voir aussi `DECLARATION_FONCTIONS_INTERDITES_FR.md` §4.
+**Généralisé à toutes les commandes fiscales.** Le pattern ci-dessus
+(peek → appel FDM → commit uniquement sur succès) est aujourd'hui le
+**seul** chemin d'écriture fiscale : `commands/mod.rs::commit_signed_event`
+avance le compteur et archive l'événement dans une seule transaction
+SQLite, et prend en paramètre un `SignResult` **non optionnel** - il
+ne peut être appelé qu'avec une signature FDM réellement reçue.
+Chaque commande (`do_checkout`, `do_refund_checkout`,
+`do_sign_table_order`, `do_sign_pre_bill`, `do_money_in_out`,
+`do_open_drawer_fiscal`, `do_work_in`/`do_work_out`,
+`do_copy_ticket`, `do_generate_x_report`, `do_generate_z_report`)
+propage l'erreur FDM (`?` ou `match Err(e) => return Ok(Result{success:
+false, ...})`) avant tout appel à `commit_signed_event` : il n'existe
+aucun chemin de code qui archive un événement avec `sign_result=None`
+ou sans réponse FDM. Voir aussi `DECLARATION_FONCTIONS_INTERDITES_FR.md`
+§4.
 
 ---
 
