@@ -61,13 +61,20 @@ OK. L'opérateur confirme.
 
 **Circulation des données.**
 
+0. **Choix du support du ticket** (si `pos.json::digital_ticket` est
+   configuré) : l'opérateur sélectionne Papier / E-mail / Les deux
+   avant de taper "Payer" ; pour E-mail, une adresse est saisie et
+   validée à l'écran (`delivery::resolve`). Un choix refusé (adresse
+   invalide, terminal non configuré) s'arrête ici, avant tout appel
+   FDM.
 1. UI (`CheckoutView.vue`) → `commands::checkout::checkout` avec
-   `{order_id, payment_method: "card", amount_cents}`.
+   `{order_id, payment_method: "card", amount_cents, delivery}`.
 2. **Vérification du statut FDM.** `FdmClient::status` s'exécute en
    premier. Si non-opérationnel, la commande retourne `FdmUnreachable`
    et l'UI affiche une modale bloquante. Aucun compteur n'est
    consommé, aucune ligne DB n'est écrite.
-3. Construit `SaleInput` à partir des lignes de commande. Ajoute la
+3. Construit `SaleInput` à partir des lignes de commande, avec le
+   support résolu à l'étape 0 dans `common.ticketMedium`. Ajoute la
    référence FDM vers l'événement P antérieur de la table 12 pour
    que le FDM les relie.
 4. Sérialisation JSON canonique et appel `FdmClient::sign_sale`.
@@ -77,6 +84,10 @@ OK. L'opérateur confirme.
    - Ajout de l'événement fiscal à `fiscal_events`.
    - Marquage de la ligne `orders` `status='closed'`.
    - Écriture de la ligne `payments`.
+   - Si un support numérique a été demandé : ajout d'une ligne
+     `ticket_deliveries` (`delivery::enqueue_in_tx`) - texte du
+     ticket + URL de vérification déjà figés, adresse masquée
+     conservée en clair pour l'envoi à venir.
 6. `pos-print::receipt::sale` construit le ticket client :
    - En-tête (nom du restaurant, adresse, TVA).
    - Détail ligne par ligne.
@@ -84,8 +95,15 @@ OK. L'opérateur confirme.
    - Bloc de données de contrôle issu de la réponse FDM.
    - QR Code Model 2, ECC M (version 3, 29×29 modules) à partir de
      l'URL 38 caractères fournie par le FDM.
-7. Trame ESC/POS envoyée par TCP au TM-m30III. Le tiroir-caisse n'est
-   PAS ouvert (paiement carte).
+7. Trame ESC/POS envoyée par TCP au TM-m30III - sauf pour un ticket
+   "E-mail seul" dont l'envoi réussit dans le budget de 8 secondes
+   (`delivery::deliver`), auquel cas aucun papier ne sort. Le
+   tiroir-caisse n'est PAS ouvert (paiement carte).
+8. Si un e-mail a été demandé : `delivery::deliver` tente l'envoi tout
+   de suite via `pos_mail::outbox::send_now` (budget 8 s). Sur succès,
+   la ligne `ticket_deliveries` passe à `sent` et l'adresse en clair
+   est aussitôt effacée. Sinon, elle reste `pending` et le papier de
+   secours part (§10 ci-dessous, remise en file en tâche de fond).
 
 ## 4. Rapport X en cours de service
 
@@ -184,7 +202,40 @@ commandes.
    `pos_fiscal_ticket_no` - le FDM le traite comme un retry idempotent,
    renvoyant la même signature qu'il aurait renvoyée avant.
 
-## 9. Récapitulatif de persistance
+## 9. Tâche de fond - Envoi différé du ticket numérique
+
+**Déclencheur.** `run_outbox_once` (`src-tauri/src/commands/delivery.rs`)
+tourne toutes les 30 secondes (`OUTBOX_INTERVAL`, câblé dans
+`src-tauri/src/main.rs`), tant qu'un `digital_ticket` est configuré.
+
+**Circulation des données.**
+
+1. Récupération des lignes `ticket_deliveries` restées bloquées à
+   `sending` depuis plus de 90 s (plantage applicatif pendant un
+   envoi) → remises à `pending`.
+2. Purge RGPD : toute ligne dont l'adresse en clair a plus de 72 h se
+   fait effacer son `recipient` (`purge_recipients_older_than`) ; une
+   ligne `failed` purgée passe à `purged`.
+3. Sélection des lignes `pending` dont `next_attempt_at` est passé
+   (ou jamais fixé), par lots de 20.
+4. Pour chacune, réclamation atomique (`pending` → `sending`) puis
+   reconstruction de l'e-mail à partir de `ticket_text` +
+   `verification_url` déjà stockés (même fonction de rendu qu'à
+   l'encaissement, `pos_mail::render::build_email`), et appel à
+   l'API Scaleway TEM.
+5. Sur succès : `ticket_deliveries.status = 'sent'`, adresse en clair
+   effacée immédiatement.
+6. Sur échec retryable (réseau, 5xx, 429) : `attempts` incrémenté,
+   nouvelle échéance programmée (1 min, 5 min, 15 min, 60 min selon le
+   nombre d'essais), jusqu'à 5 tentatives au total. Au-delà, ou pour
+   une erreur permanente (4xx hors 429), la ligne passe à `failed`
+   sans être réessayée davantage.
+
+Aucune de ces étapes ne touche à `fiscal_events` : le ticket fiscal a
+déjà été signé et archivé à l'encaissement (§3) ; cette tâche de fond
+ne fait que rattraper la remise numérique promise.
+
+## 10. Récapitulatif de persistance
 
 | Action | Tables touchées |
 |---|---|
@@ -197,8 +248,11 @@ commandes.
 | Rapport Z | `fiscal_events` (append R-Z-TURNOVER + R-Z-USER), `z_reports` (insert), fichier de backup DB |
 | Facture B2B | `fiscal_events` (append I), `peppol_deliveries` (insert) |
 | Remboursement | `fiscal_events` (append N M111/M112 référençant l'original) |
-| Ouverture tiroir (F-WAR) | `fiscal_events` (append F) |
+| Ouverture tiroir (F-WAR) | `fiscal_events` (append F), `original_prints` (si l'original manquant est rattrapé) |
 | Mouvement caisse | `fiscal_events` (append F), `payments` (écriture) |
+| Ticket signé avec support numérique | `ticket_deliveries` (append, même tx que `fiscal_events`) |
+| Impression d'un original (vente, remboursement, ou rattrapage) | `original_prints` (une ligne, jamais deux, par événement) |
+| Envoi/réessai/purge du ticket numérique (tâche de fond) | `ticket_deliveries` (écriture des colonnes de statut, jamais `fiscal_events`) |
 
 Toute écriture fiscale est encadrée par une seule transaction
 `BEGIN IMMEDIATE` qui englobe l'allocation du compteur, l'archivage

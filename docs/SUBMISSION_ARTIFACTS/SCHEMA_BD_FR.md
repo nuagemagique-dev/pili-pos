@@ -249,7 +249,56 @@ réouverture et la suppression d'une période close. Voir §III.J et
 | `closed_at` | TEXT (nullable) | Horodatage de clôture (NULL = période ouverte) |
 | `closing_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | Événement R qui a clôturé la période (NULL tant qu'ouverte) |
 
-### 3.6 `users`
+### 3.6 `ticket_deliveries` Attention : APPEND-ONLY (partiel)
+
+File d'envoi et journal d'audit du ticket numérique par e-mail
+(migration `005`, cf. §III.H de `REPONSES_MANUEL_CERT_FR.md` et le
+détail complet dans `TICKET_NUMERIQUE_FR.md`). Une ligne par ticket
+dont le support choisi inclut l'e-mail (`DIGITAL` ou
+`PAPER_DIGITAL`), ajoutée dans la **même transaction** que
+l'événement fiscal qu'elle accompagne.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | Événement dont ce ticket est la copie numérique. **Immuable** (trigger). |
+| `medium` | TEXT | `DIGITAL` (e-mail seul, papier en secours) ou `PAPER_DIGITAL` (papier toujours + e-mail en bonus). Contraint. **Immuable**. |
+| `recipient` | TEXT (nullable) | Adresse e-mail en clair. `NULL` dès l'envoi réussi ou le repli papier, et au plus tard 72 h après création (purge RGPD). |
+| `recipient_hint` | TEXT | Adresse masquée (ex. `j***@e***.be`), conservée indéfiniment pour la lisibilité du support/dossier. |
+| `ticket_text` | TEXT | Texte du ticket, identique à ce qui s'imprime. **Immuable**. |
+| `verification_url` | TEXT (nullable) | URL de vérification FDM ; NULL pour les copies (C) et tickets de formation (T), qui n'en reçoivent pas. |
+| `status` | TEXT | `pending`, `sending`, `sent`, `failed`, `fallback_printed`, ou `purged`. Contraint. |
+| `attempts` | INTEGER | Nombre de tentatives d'envoi effectuées |
+| `next_attempt_at` | TEXT (nullable) | Prochaine échéance de réessai (recul exponentiel) |
+| `provider_message_id` | TEXT (nullable) | Identifiant renvoyé par Scaleway TEM sur succès |
+| `last_error` | TEXT (nullable) | Dernière erreur d'envoi |
+| `fallback_printed` | INTEGER | 1 = le papier de secours a été imprimé pour ce ticket |
+| `created_at` / `updated_at` | TEXT | Horodatages |
+
+Triggers : suppression interdite, et modification interdite de
+`fiscal_event_id` / `ticket_text` / `medium` (les autres colonnes,
+notamment `status`, restent modifiables - c'est le cycle de vie de la
+file). Index : `idx_ticket_deliveries_due(status, next_attempt_at)`
+pour le worker de réessai.
+
+### 3.7 `original_prints` Attention : APPEND-ONLY
+
+Une ligne par événement fiscal dont l'**original** a été imprimé
+(migration `006`, POS spec v2.2 §8.1 : un original n'est imprimé
+qu'une seule fois). Sert de garde avant toute impression papier
+d'origine (checkout, remboursement, ou rattrapage d'un envoi
+numérique manqué) ; toute reproduction ultérieure passe par
+l'événement C (copie).
+
+| Champ | Type | Description |
+|---|---|---|
+| `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | Clé primaire - au plus une ligne par événement |
+| `printed_at` | TEXT | Horodatage de l'impression |
+
+Triggers : suppression et modification interdites (table strictement
+append-only, sans exception).
+
+### 3.8 `users`
 
 Utilisateurs du POS. INSZ comme clé primaire. Voir
 `PROFILS_UTILISATEURS_FR.md`.
@@ -298,7 +347,7 @@ inversement, sans migration de schéma.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **trois
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **six
 migrations** existent, appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -307,6 +356,9 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 1 | `initial-schema` | Crée l'ensemble des tables listées au §§1-5 ci-dessus. |
 | 2 | `catalogue-fiscal-fields` | Ajoute `vat_code_takeaway` et `open_price` sur `menu_items`, et `department_id`/`department_name` sur `order_lines`. |
 | 3 | `booking-periods` | Ajoute les tables `order_entries` et `booking_periods` (§§3.4-3.5). |
+| 4 | `fiscal-archive-append-only` | Ajoute les triggers interdisant `DELETE`/`UPDATE` sur `fiscal_events` et `z_reports` (§3.1, §3.3). |
+| 5 | `ticket-deliveries` | Ajoute la table `ticket_deliveries` (§3.6, ticket numérique par e-mail). |
+| 6 | `original-prints` | Ajoute la table `original_prints` (§3.7, impression unique de l'original). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette
