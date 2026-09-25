@@ -211,4 +211,53 @@ mod tests {
         assert_eq!(format_eur(2400), "24.00");
         assert_eq!(format_eur(2705), "27.05");
     }
+
+    #[test]
+    fn format_eur_negative_cents() {
+        // A refund/adjustment slip could carry a negative total.
+        assert_eq!(format_eur(-500), "-5.00");
+    }
+
+    #[test]
+    fn slip_omits_the_customer_block_when_no_customer_data_is_present() {
+        let mut slip = sample();
+        slip.customer = CustomerInfo::default();
+        let text = crate::render::render_plain_text(&format_customer_slip(&slip));
+        assert!(!text.contains("Alice Martin"));
+    }
+
+    #[test]
+    fn slip_rows_never_exceed_paper_width_with_a_very_long_product_name() {
+        let mut slip = sample();
+        slip.lines.push(CustomerLine {
+            quantity: 99,
+            product_name: "X".repeat(120),
+            line_total_cents: 999999999,
+        });
+        let text = crate::render::render_plain_text(&format_customer_slip(&slip));
+        for line in text.lines() {
+            assert!(
+                line.chars().count() <= 48,
+                "line exceeds 48 columns ({} chars): {line:?}",
+                line.chars().count()
+            );
+        }
+    }
+
+    #[test]
+    fn cjk_product_names_degrade_to_question_marks_not_panic() {
+        // Non-fiscal document, same CP858 constraint as the fiscal
+        // receipt (see escpos::encode_cp858) — documented, not a bug.
+        let mut slip = sample();
+        slip.lines.push(CustomerLine {
+            quantity: 1,
+            product_name: "寿司".to_string(),
+            line_total_cents: 500,
+        });
+        let text = crate::render::render_plain_text(&format_customer_slip(&slip));
+        assert!(
+            text.contains("??"),
+            "CJK chars must degrade to '?':\n{text}"
+        );
+    }
 }

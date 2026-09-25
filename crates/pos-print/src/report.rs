@@ -603,4 +603,68 @@ mod tests {
         assert!(bytes.windows(16).any(|w| w == b"FDM: CBX01000042"));
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
+
+    // ── Width invariant on transactional rows ───────────────────
+
+    #[test]
+    fn report_rows_never_exceed_paper_width_even_with_long_payment_names() {
+        let mut data = sample_report_data("X");
+        data.payment_totals.push(ReportPaymentTotal {
+            method: "Some Very Long Custom Payment Provider Name".to_string(),
+            count: 999999,
+            amount_cents: i64::MAX / 2,
+        });
+        let text = crate::render::render_plain_text(&format_report(&data));
+        for line in text.lines() {
+            assert!(
+                line.chars().count() <= 48,
+                "line exceeds 48 columns ({} chars): {line:?}",
+                line.chars().count()
+            );
+        }
+    }
+
+    #[test]
+    fn user_report_rows_never_exceed_paper_width_even_with_long_insz_context() {
+        let mut data = sample_user_report("Z");
+        data.users[0].payments.push(ReportPaymentTotal {
+            method: "Another Extremely Long Payment Method Label".to_string(),
+            count: 1,
+            amount_cents: 999999999,
+        });
+        let text = crate::render::render_plain_text(&format_user_report(&data));
+        for line in text.lines() {
+            assert!(
+                line.chars().count() <= 48,
+                "line exceeds 48 columns ({} chars): {line:?}",
+                line.chars().count()
+            );
+        }
+    }
+
+    #[test]
+    fn training_user_report_has_banner() {
+        let mut data = sample_user_report("X");
+        data.is_training = true;
+        let bytes = format_user_report(&data);
+        assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
+    }
+
+    #[test]
+    fn x_report_has_no_report_no_but_z_does() {
+        let x = format_report(&sample_report_data("X"));
+        let x_text = crate::render::render_plain_text(&x);
+        assert!(x_text.contains("RAPPORT X"));
+        assert!(!x_text.contains("RAPPORT X #"));
+
+        let z = format_report(&sample_report_data("Z"));
+        let z_text = crate::render::render_plain_text(&z);
+        assert!(z_text.contains("RAPPORT Z #1"));
+    }
+
+    #[test]
+    fn x_report_has_no_end_of_day_footer() {
+        let bytes = format_report(&sample_report_data("X"));
+        assert!(!bytes.windows(14).any(|w| w == b"FIN DE JOURNEE"));
+    }
 }
