@@ -66,7 +66,21 @@ Ceci permet à un contrôleur de **rejouer la vérification de signature**
 sur n'importe quel événement passé, sans dépendre du FDM
 (`pos-fiscal::signature::verify_signature`).
 
-### 1.5 Données de configuration
+### 1.5 Ticket numérique par e-mail (§III.H)
+
+Deux tables de `pos.db`, lisibles comme le reste de la base
+(§2 ci-dessous) :
+
+| Table | Contenu | Ce qu'un contrôleur peut y lire |
+|---|---|---|
+| `ticket_deliveries` | Une ligne par ticket dont le support demandé incluait l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) : support, texte du ticket envoyé, URL de vérification, statut d'envoi, nombre de tentatives, dernière erreur. | L'adresse en clair (`recipient`) n'y figure que pendant les envois/réessais en cours, et au plus 72 h (purge RGPD, cf. §6 ci-dessous). L'indice masqué (`recipient_hint`, ex. `j***@e***.be`) reste consultable indéfiniment. |
+| `original_prints` | Une ligne par événement fiscal dont l'original a été imprimé, avec l'horodatage de l'impression. | Sert à vérifier qu'aucun original n'a été imprimé deux fois (POS spec v2.2 §8.1) — toute reproduction ultérieure porte un événement C séparé dans `fiscal_events`. |
+
+Voir `TICKET_NUMERIQUE_FR.md` pour le détail du cycle de vie de
+`ticket_deliveries` et `SCHEMA_BD_FR.md` §3.6-3.7 pour le schéma
+complet.
+
+### 1.6 Données de configuration
 
 | Élément | Valeur |
 |---|---|
@@ -231,6 +245,16 @@ soumise au SPF Finances.
 - Pas de transmission INSZ hors du périmètre POS+FDM. Voir
   `PROFIL_ENTREPRISE_FR.md` §GDPR pour le détail des bases légales
   (article 6.1.c GDPR - obligation légale).
+- Adresse e-mail du ticket numérique (§1.5) : donnée personnelle
+  fournie volontairement par le client, à la demande de celui-ci
+  (base légale : demande du client, cf. `PROFIL_ENTREPRISE_FR.md` §6).
+  Conservée en clair au maximum 72 h (`ticket_deliveries.recipient`),
+  effacée immédiatement dès l'envoi réussi ou le repli papier ; seul
+  un indice masqué survit indéfiniment. Jamais journalisée en clair,
+  jamais affichée dans l'écran "Tickets numériques" des Paramètres
+  (`list_ticket_deliveries` n'expose que l'indice masqué). Sous-traité
+  à Scaleway (Transactional Email, UE, région `fr-par`) pour l'envoi
+  uniquement — aucun usage marketing.
 
 ## 7. Procédure d'export à fournir au contrôleur
 
