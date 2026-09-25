@@ -5,17 +5,25 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use sha1::Digest;
 
+mod tem;
+
 static EVENT_COUNTER: AtomicI64 = AtomicI64::new(0);
 static TOTAL_COUNTER: AtomicI64 = AtomicI64::new(0);
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/graphql", post(handle_graphql));
+    let app = Router::new()
+        .route("/graphql", post(handle_graphql))
+        .merge(tem::router());
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8081".to_string());
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     println!("Mock FDM listening on http://localhost:{port}/graphql");
+    println!(
+        "Mock email (Scaleway TEM) on http://localhost:{port}{}",
+        tem::ROUTE
+    );
     println!("Press Ctrl+C to stop");
     axum::serve(listener, app).await.unwrap();
 }

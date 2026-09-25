@@ -113,6 +113,36 @@ Si défini à `false`, retourne `initialized: false` dans la réponse
 critiques sont injectées via `MOCK_FDM_ERROR`, `initialized` passe
 automatiquement à `false`.
 
+## Email API (Scaleway TEM)
+
+The same process also serves the Scaleway Transactional Email API used
+by the digital ticket, so email works with no internet (admission
+image, screenshots, demos). Point `pos.json` at it:
+
+```json
+"digital_ticket": {
+  "project_id": "admission",
+  "from_email": "tickets@admission.invalid",
+  "from_name": "Restaurant",
+  "api_base": "http://127.0.0.1:8081",
+  "api_key_file": "/etc/moyun-pos/secrets/tem.key",
+  "allow_digital_only": true
+}
+```
+
+- `POST /transactional-email/v1alpha1/regions/{region}/emails` writes
+  `<id>.json` (the request) and `<id>.txt` (the ticket text) into
+  `MOCK_TEM_OUTBOX` (default `./mock-tem-outbox`).
+- `GET` on the same path is the POS's reachability probe.
+- `MOCK_TEM_FAIL=1` answers 503: the POS prints the paper fallback.
+- A request without an `X-Auth-Token` header gets 401 (any non-empty
+  key is accepted).
+
+```bash
+MOCK_TEM_OUTBOX=/tmp/tem ./pos-fdm-mock        # emails land in /tmp/tem
+MOCK_TEM_FAIL=1 ./pos-fdm-mock                 # → capture: paper fallback
+```
+
 ## Recipes pour les captures cert §V
 
 Pour produire un screenshot par code :
