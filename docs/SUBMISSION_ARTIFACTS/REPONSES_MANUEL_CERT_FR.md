@@ -304,7 +304,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 
 | Item | Réponse |
 |---|---|
-| ☑ La déconnexion du FDM est expliquée | *Voir : STRATEGIE_COMPTEURS_FR.md* §4 "Blocage opérationnel sur déconnexion" et *DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §5. Résumé : (a) le POS détecte l'erreur **immédiatement** au prochain appel `FdmClient::status` ou `sign_*` (pas seulement quand une transaction échoue) ; (b) une modale UI bloquante s'affiche, le checkout est refusé tant que le FDM n'est pas opérationnel ; (c) si une transaction a été envoyée mais aucune réponse n'a été reçue, la transaction SQLite locale est rollback : aucun compteur n'avance, aucune ligne `fiscal_events` n'est écrite, l'opérateur peut retenter avec idempotence (cf. STRATEGIE_COMPTEURS_FR.md §3 et §5 fix B3). |
+| ☑ La déconnexion du FDM est expliquée | *Voir : STRATEGIE_COMPTEURS_FR.md* §4 "Blocage opérationnel sur déconnexion" et *DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §5. Résumé : (a) le POS détecte l'erreur **immédiatement** au prochain appel `FdmClient::status` ou `sign_*` (pas seulement quand une transaction échoue) ; (b) une modale UI bloquante s'affiche, le checkout est refusé tant que le FDM n'est pas opérationnel ; (c) si une transaction a été envoyée mais aucune réponse n'a été reçue, la transaction SQLite locale est rollback : aucun compteur n'avance, aucune ligne `fiscal_events` n'est écrite, l'opérateur peut retenter avec idempotence (cf. STRATEGIE_COMPTEURS_FR.md §3 et §5 fix B3). Mécanisme applicatif : `commands/mod.rs::commit_signed_event` est le **seul** point d'écriture dans `fiscal_events` - il avance le compteur et archive l'événement dans une seule transaction SQLite, et n'est appelé qu'après réception d'une signature FDM valide (`SignResult`). Un échec de signature (FDM injoignable, refusé, timeout) retourne une erreur à l'appelant sans jamais atteindre `commit_signed_event` : pas d'avance de compteur, pas d'archive non signée. |
 
 ## §III.A (suite) Events possibles
 
@@ -345,6 +345,33 @@ Un enregistrement sans ligne de produit, ou avec un total de vente nul ou négat
 Ces trois gardes s'exécutent avant toute construction de payload FDM ; aucun `SaleInput`/`OrderInput` à zéro ligne ou à total nul/négatif n'est donc jamais soumis au FDM.
 
 **Déclaration formelle :** un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, **n'est jamais possible** avec `moyun-pos` v1.0.0, ni via l'UI opérateur, ni via la couche applicative (garde serveur-side dans `checkout.rs`, `tables.rs` et `refund.rs`, cf. ci-dessus).
+
+**Journal de commande (`order_entries`) :** chaque ajout, correction ou
+remboursement de ligne sur une commande ouverte est journalisé dans la
+table append-only `order_entries` (`crates/pos-db`, triggers SQL qui
+bloquent tout `DELETE`/`UPDATE` des champs journalisés), avec un
+`kind` parmi `entry` / `correction` / `refund` - conforme à
+l'exigence POS v2.2 §2 "toutes les données d'entrée, par ordre
+chronologique, y compris les corrections". `order_lines` reste la vue
+consolidée affichée/imprimée. Les entrées non encore transmises sont
+envoyées au FDM comme événement **P** (`sign_table_order`,
+"vente interrompue") lorsque l'opérateur quitte une table avec une
+commande non payée, ou dans son intégralité dans l'événement **N**
+final à l'encaissement ; `sent_event_id` marque l'entrée comme
+transmise, en excluant tout double-comptage. Les lignes à quantité
+négative portent `negQuantityReason` (`crates/pos-fiscal`) :
+`CORRECTION` dans les événements P (commande / pré-addition -
+réduction avant encaissement) et `CORRECTION` ou `REFUND` dans
+l'événement N final selon qu'une vente d'origine est référencée ou
+non (`event.rs::reason`).
+
+**Bouton "Addition" (pré-addition, événement P) :** `sign_pre_bill`
+imprime la facture consolidée au format PRO FORMA ("addition
+provisoire", POS v2.2 §1.4). Comme une pré-addition ne peut ni
+ajouter ni modifier de lignes, la commande enregistre d'abord les
+entrées de journal en attente via `sign_table_order` (même flux que
+ci-dessus), puis signe et imprime la pré-addition à partir des lignes
+consolidées.
 
 ## §III.E Enregistrement de la présence
 
