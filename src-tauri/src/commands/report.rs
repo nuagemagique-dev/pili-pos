@@ -124,12 +124,20 @@ pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
 
 pub fn do_needs_z_report(state: &AppState) -> Result<bool, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    let has_z = pos_db::queries::reports::has_z_report_today(&db).map_err(|e| e.to_string())?;
-    if has_z {
-        return Ok(false);
-    }
-    let hour = chrono::Local::now().hour();
-    Ok(hour >= 22)
+    let open = pos_db::queries::booking::open_period(&db).map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().with_timezone(&chrono_tz::Europe::Brussels);
+    Ok(z_reminder_due(open.as_ref(), now))
+}
+
+/// The Z reminder shows while a booking period is open (something was
+/// recorded since the last Z) and it is either past 22:00 in Belgium or
+/// the period started on an earlier day.
+fn z_reminder_due(open: Option<&BookingPeriod>, now: chrono::DateTime<chrono_tz::Tz>) -> bool {
+    let Some(period) = open else {
+        return false;
+    };
+    let today = now.date_naive().to_string();
+    now.hour() >= 22 || period.booking_date < today
 }
 
 /// List past Z-reports for the history view (newest first).
@@ -716,5 +724,58 @@ async fn print_user_report(
                 tracing::warn!(%e, "user report print failed (non-fatal)");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+    use chrono_tz::Europe::Brussels;
+
+    fn period(date: &str) -> BookingPeriod {
+        BookingPeriod {
+            id: "bp".into(),
+            booking_date: date.into(),
+        }
+    }
+
+    fn at(y: i32, m: u32, d: u32, h: u32, min: u32) -> chrono::DateTime<chrono_tz::Tz> {
+        Brussels.with_ymd_and_hms(y, m, d, h, min, 0).unwrap()
+    }
+
+    #[test]
+    fn no_reminder_without_an_open_period() {
+        assert!(!z_reminder_due(None, at(2026, 7, 3, 23, 30)));
+    }
+
+    #[test]
+    fn reminder_from_22h_on_the_day_of_the_period() {
+        let p = period("2026-07-03");
+        assert!(!z_reminder_due(Some(&p), at(2026, 7, 3, 21, 59)));
+        assert!(z_reminder_due(Some(&p), at(2026, 7, 3, 22, 0)));
+    }
+
+    #[test]
+    fn reminder_all_day_when_the_period_started_earlier() {
+        // Forgotten Z: the reminder stays up the next morning.
+        let p = period("2026-07-03");
+        assert!(z_reminder_due(Some(&p), at(2026, 7, 4, 1, 30)));
+        assert!(z_reminder_due(Some(&p), at(2026, 7, 4, 11, 0)));
+    }
+
+    #[test]
+    fn reminder_uses_belgian_time_across_daylight_saving() {
+        // 21:30 UTC is 23:30 in summer (CEST) and 22:30 in winter (CET).
+        let summer = chrono::Utc.with_ymd_and_hms(2026, 7, 3, 21, 30, 0).unwrap();
+        let winter = chrono::Utc.with_ymd_and_hms(2026, 1, 9, 20, 30, 0).unwrap();
+        assert!(z_reminder_due(
+            Some(&period("2026-07-03")),
+            summer.with_timezone(&Brussels)
+        ));
+        assert!(!z_reminder_due(
+            Some(&period("2026-01-09")),
+            winter.with_timezone(&Brussels)
+        ));
     }
 }
