@@ -31,10 +31,19 @@ struct GqlRequest<V: Serialize> {
 
 impl FdmClient {
     pub fn new(fdm_url: &str) -> Self {
+        Self::with_timeouts(fdm_url, Duration::from_secs(5), Duration::from_secs(10))
+    }
+
+    /// Same as [`FdmClient::new`] but with explicit connect/total
+    /// timeouts. Production code always goes through `new` (the SCE
+    /// 2.0-appropriate 5s/10s defaults); this exists so tests can
+    /// exercise a real timeout in milliseconds instead of waiting out
+    /// the full 10s production budget.
+    pub fn with_timeouts(fdm_url: &str, connect_timeout: Duration, timeout: Duration) -> Self {
         Self {
             http: reqwest::Client::builder()
-                .connect_timeout(Duration::from_secs(5))
-                .timeout(Duration::from_secs(10))
+                .connect_timeout(connect_timeout)
+                .timeout(timeout)
                 .build()
                 .expect("reqwest client builder"),
             url: fdm_url.to_string(),
