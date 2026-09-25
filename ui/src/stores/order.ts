@@ -57,9 +57,6 @@ export const useOrderStore = defineStore("order", () => {
       order_id: currentOrder.value.id,
       menu_item_id: item.id,
       quantity,
-      unit_price_cents: item.price_cents,
-      vat_code: item.vat_code,
-      name: item.name,
       modifiers_json: null,
     });
     lines.value.push(line);

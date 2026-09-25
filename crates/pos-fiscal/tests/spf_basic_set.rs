@@ -84,6 +84,8 @@ fn food_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
         name: name.to_string(),
         modifiers_json: None,
         created_at: chrono::Utc::now(),
+        department_id: "1".to_string(),
+        department_name: "Test".to_string(),
     }
 }
 
@@ -98,6 +100,8 @@ fn drink_line(id: i64, name: &str, price_cents: i64, qty: i32) -> OrderLine {
         name: name.to_string(),
         modifiers_json: None,
         created_at: chrono::Utc::now(),
+        department_id: "1".to_string(),
+        department_name: "Test".to_string(),
     }
 }
 
@@ -342,6 +346,8 @@ async fn test_complete_refund() {
         name: "Saumon roll x8".to_string(),
         modifiers_json: None,
         created_at: chrono::Utc::now(),
+        department_id: "1".to_string(),
+        department_name: "Test".to_string(),
     }];
 
     let mut sale = build_sale_input(

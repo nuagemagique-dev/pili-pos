@@ -13,15 +13,14 @@ use pos_fiscal::types::{EventLabel, PaymentType};
 use crate::commands::checkout::CheckoutResult;
 use crate::state::AppState;
 
-/// One item to refund (sent from the frontend).
+/// One item to refund (sent from the frontend). Price, VAT label,
+/// name and department are taken from the original sale's line, never
+/// from the frontend.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundItem {
     pub menu_item_id: i64,
     pub quantity: i32, // positive — backend negates it
-    pub unit_price_cents: i64,
-    pub name: String,
-    pub vat_code: String,
 }
 
 /// List recent closed N-events that can be refunded.
@@ -81,11 +80,14 @@ pub async fn do_refund_checkout(
     }
 
     // 1. Load original fiscal event → extract FdmReference
-    let (original_ref, config, bp_id) = {
+    let (original_ref, original_lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = fiscal::get_fiscal_event(&db, original_fiscal_event_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Original fiscal event not found".to_string())?;
+        let original_order_id = event.order_id.ok_or("Original event has no order")?;
+        let original_lines = pos_db::queries::orders::get_order_lines(&db, original_order_id)
+            .map_err(|e| e.to_string())?;
 
         let fdm_id = event.fdm_id.ok_or("Original event has no FDM ID")?;
         let fdm_datetime = event
@@ -116,7 +118,7 @@ pub async fn do_refund_checkout(
             .lock()
             .map_err(|e| e.to_string())?
             .clone();
-        (fdm_ref, config, bp)
+        (fdm_ref, original_lines, config, bp)
     };
 
     // 2. Create a refund order with negative-quantity lines
@@ -130,18 +132,34 @@ pub async fn do_refund_checkout(
         )
         .map_err(|e| e.to_string())?;
 
+        let mut requested: std::collections::HashMap<i64, i32> = std::collections::HashMap::new();
         for item in &items {
-            let vat_code: pos_core::vat::VatCode = item.vat_code.parse().map_err(|e: String| e)?;
+            if item.quantity <= 0 {
+                return Err(format!(
+                    "Refund quantity for product {} must be positive",
+                    item.menu_item_id
+                ));
+            }
+            *requested.entry(item.menu_item_id).or_default() += item.quantity;
+        }
+        for item in &items {
+            let original = refunded_line(
+                &original_lines,
+                item.menu_item_id,
+                requested[&item.menu_item_id],
+            )?;
             pos_db::queries::orders::add_order_line(
                 &db,
                 pos_db::queries::orders::NewOrderLine {
                     order_id: order.id,
                     menu_item_id: item.menu_item_id,
                     quantity: -(item.quantity), // NEGATE for refund
-                    unit_price_cents: item.unit_price_cents,
-                    vat_code,
-                    name: &item.name,
+                    unit_price_cents: original.unit_price_cents,
+                    vat_code: original.vat_code,
+                    name: &original.name,
                     modifiers_json: None,
+                    department_id: &original.department_id,
+                    department_name: &original.department_name,
                 },
             )
             .map_err(|e| e.to_string())?;
@@ -303,4 +321,29 @@ pub async fn do_refund_checkout(
         error: None,
         fdm_connected,
     })
+}
+
+/// The original sale line a refunded product comes from. The quantity
+/// refunded for a product (summed over the request) may not exceed the
+/// quantity sold for it on the original ticket.
+fn refunded_line(
+    original_lines: &[pos_core::order::OrderLine],
+    menu_item_id: i64,
+    requested: i32,
+) -> Result<&pos_core::order::OrderLine, String> {
+    let line = original_lines
+        .iter()
+        .find(|l| l.menu_item_id == menu_item_id)
+        .ok_or_else(|| format!("Product {menu_item_id} is not on the original ticket"))?;
+    let sold: i32 = original_lines
+        .iter()
+        .filter(|l| l.menu_item_id == menu_item_id)
+        .map(|l| l.quantity)
+        .sum();
+    if requested > sold {
+        return Err(format!(
+            "Cannot refund {requested} of product {menu_item_id}: {sold} sold on the original ticket"
+        ));
+    }
+    Ok(line)
 }

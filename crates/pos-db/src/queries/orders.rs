@@ -11,6 +11,8 @@ pub struct NewOrderLine<'a> {
     pub vat_code: VatCode,
     pub name: &'a str,
     pub modifiers_json: Option<&'a str>,
+    pub department_id: &'a str,
+    pub department_name: &'a str,
 }
 
 pub fn create_order(
@@ -77,8 +79,8 @@ pub fn add_order_line(
     let now_str = now.format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
     conn.execute(
-        "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at, department_id, department_name)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             input.order_id,
             input.menu_item_id,
@@ -88,6 +90,8 @@ pub fn add_order_line(
             input.name,
             input.modifiers_json,
             now_str,
+            input.department_id,
+            input.department_name,
         ],
     )?;
 
@@ -105,6 +109,8 @@ pub fn add_order_line(
         name: input.name.to_string(),
         modifiers_json: input.modifiers_json.map(|s| s.to_string()),
         created_at: now,
+        department_id: input.department_id.to_string(),
+        department_name: input.department_name.to_string(),
     })
 }
 
@@ -154,7 +160,8 @@ pub fn get_order_lines(
     order_id: i64,
 ) -> Result<Vec<OrderLine>, rusqlite::Error> {
     let mut stmt = conn.prepare(
-        "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at
+        "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name, modifiers_json, created_at,
+                COALESCE(department_id, ''), COALESCE(department_name, '')
          FROM order_lines WHERE order_id = ?1 ORDER BY id",
     )?;
 
@@ -226,6 +233,8 @@ fn map_order_line(row: &rusqlite::Row<'_>) -> Result<OrderLine, rusqlite::Error>
         name: row.get(6)?,
         modifiers_json: row.get(7)?,
         created_at: parse_datetime(&created_str),
+        department_id: row.get(9)?,
+        department_name: row.get(10)?,
     })
 }
 
@@ -297,6 +306,8 @@ mod tests {
                 vat_code: VatCode::B,
                 name: "Item",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();
@@ -338,6 +349,8 @@ mod tests {
                 vat_code: VatCode::B,
                 name: "Gyoza",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();
@@ -373,6 +386,8 @@ mod tests {
                 vat_code: VatCode::B,
                 name: "Saumon roll x8",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();
@@ -386,6 +401,8 @@ mod tests {
                 vat_code: VatCode::A,
                 name: "Biere Asahi",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();
@@ -415,6 +432,8 @@ mod tests {
                 vat_code: VatCode::B,
                 name: "Edamame",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();
@@ -467,6 +486,8 @@ mod tests {
                 vat_code: VatCode::B,
                 name: "Item",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();
@@ -531,6 +552,8 @@ mod tests {
                 vat_code: VatCode::B,
                 name: "Saumon roll",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .unwrap();

@@ -58,12 +58,19 @@ pub async fn do_money_in_out(
             .lock()
             .map_err(|e| e.to_string())?
             .clone();
-        let tn = FiscalCounter::next(&db, EventLabel::F).map_err(|e| e.to_string())?;
+        let tn = FiscalCounter::next(&db, EventLabel::F.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
         (config, bp, tn)
     };
 
-    let common =
-        pos_fiscal::event::build_common_fields(&config, ticket_number, &employee_insz, &bp_id);
+    let common = pos_fiscal::event::build_common_fields(
+        &config,
+        ticket_number,
+        &employee_insz,
+        &bp_id,
+        // Drawer events are not printed.
+        pos_fiscal::types::TicketMedium::None,
+    );
 
     // Direction conveyed by sign: positive = money in, negative = money out
     let amount = match direction {
@@ -101,7 +108,7 @@ pub async fn do_money_in_out(
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::F,
+                event_type: EventLabel::F.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: None,
                 pos_id: &config.pos_id,
@@ -142,12 +149,19 @@ pub async fn do_open_drawer_fiscal(
             .lock()
             .map_err(|e| e.to_string())?
             .clone();
-        let tn = FiscalCounter::next(&db, EventLabel::F).map_err(|e| e.to_string())?;
+        let tn = FiscalCounter::next(&db, EventLabel::F.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
         (config, bp, tn)
     };
 
-    let common =
-        pos_fiscal::event::build_common_fields(&config, ticket_number, &employee_insz, &bp_id);
+    let common = pos_fiscal::event::build_common_fields(
+        &config,
+        ticket_number,
+        &employee_insz,
+        &bp_id,
+        // Drawer events are not printed.
+        pos_fiscal::types::TicketMedium::None,
+    );
 
     let input = DrawerOpenInput {
         common,
@@ -167,7 +181,7 @@ pub async fn do_open_drawer_fiscal(
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::F,
+                event_type: EventLabel::F.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: None,
                 pos_id: &config.pos_id,

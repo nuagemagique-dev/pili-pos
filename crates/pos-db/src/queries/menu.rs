@@ -35,7 +35,7 @@ pub fn get_menu_items(
     let sql = if category_id.is_some() {
         "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
-                COALESCE(t.value, 'unnamed') as name
+                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -45,7 +45,7 @@ pub fn get_menu_items(
     } else {
         "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
-                COALESCE(t.value, 'unnamed') as name
+                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -80,7 +80,95 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         sort_order: row.get(5)?,
         active: row.get::<_, i32>(6)? != 0,
         name: row.get(7)?,
+        vat_code_takeaway: parse_optional_vat(row, 8)?,
     })
+}
+
+fn parse_optional_vat(
+    row: &rusqlite::Row<'_>,
+    idx: usize,
+) -> Result<Option<VatCode>, rusqlite::Error> {
+    let raw: Option<String> = row.get(idx)?;
+    raw.map(|v| {
+        v.parse().map_err(|e: String| {
+            rusqlite::Error::FromSqlConversionFailure(
+                idx,
+                rusqlite::types::Type::Text,
+                Box::from(e),
+            )
+        })
+    })
+    .transpose()
+}
+
+/// Fiscal data of a product as it must appear on an order line: price
+/// and VAT label from the catalogue (never from the UI), the product
+/// and department names in the fiscal language of the establishment.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CatalogueLine {
+    pub price_cents: i64,
+    pub vat_code: VatCode,
+    pub name: String,
+    pub department_id: String,
+    pub department_name: String,
+}
+
+/// Resolve an active product for an order line. `takeaway` selects the
+/// "À emporter" VAT label when the product has one. Names fall back to
+/// French, then English, when the fiscal language has no translation.
+///
+/// Returns `QueryReturnedNoRows` if the product or its category is
+/// inactive or unknown: such products cannot be sold.
+pub fn resolve_catalogue_line(
+    conn: &Connection,
+    menu_item_id: i64,
+    takeaway: bool,
+    lang: &str,
+) -> Result<CatalogueLine, rusqlite::Error> {
+    conn.query_row(
+        "SELECT m.price_cents, m.vat_code, m.vat_code_takeaway, m.category_id,
+                COALESCE(
+                    (SELECT value FROM translations WHERE entity_type = 'menu_item'
+                        AND entity_id = m.id AND field = 'name' AND lang = ?2),
+                    (SELECT value FROM translations WHERE entity_type = 'menu_item'
+                        AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
+                    (SELECT value FROM translations WHERE entity_type = 'menu_item'
+                        AND entity_id = m.id AND field = 'name' AND lang = 'en'),
+                    CAST(m.id AS TEXT)),
+                COALESCE(
+                    (SELECT value FROM translations WHERE entity_type = 'category'
+                        AND entity_id = c.id AND field = 'name' AND lang = ?2),
+                    (SELECT value FROM translations WHERE entity_type = 'category'
+                        AND entity_id = c.id AND field = 'name' AND lang = 'fr'),
+                    (SELECT value FROM translations WHERE entity_type = 'category'
+                        AND entity_id = c.id AND field = 'name' AND lang = 'en'),
+                    CAST(c.id AS TEXT))
+         FROM menu_items m
+         JOIN categories c ON c.id = m.category_id
+         WHERE m.id = ?1 AND m.active = 1 AND c.active = 1",
+        params![menu_item_id, lang],
+        |row| {
+            let dine_in: String = row.get(1)?;
+            let vat_str = match (takeaway, row.get::<_, Option<String>>(2)?) {
+                (true, Some(takeaway_code)) => takeaway_code,
+                _ => dine_in,
+            };
+            let vat_code = vat_str.parse().map_err(|e: String| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::from(e),
+                )
+            })?;
+            Ok(CatalogueLine {
+                price_cents: row.get(0)?,
+                vat_code,
+                department_id: row.get::<_, i64>(3)?.to_string(),
+                name: row.get(4)?,
+                department_name: row.get(5)?,
+            })
+        },
+    )
 }
 
 #[cfg(test)]
@@ -141,5 +229,69 @@ mod tests {
         assert_eq!(items[0].name, "Saumon roll x8");
         assert_eq!(items[0].price_cents, 1250);
         assert_eq!(items[0].vat_code, VatCode::B);
+    }
+
+    fn seed_burger(conn: &Connection) {
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (22, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, vat_code_takeaway, sort_order)
+                 VALUES (22001, 22, 2800, 'B', 'C', 0);
+             INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
+                 ('menu_item', 22001, 'name', 'fr', 'Burger du chef'),
+                 ('menu_item', 22001, 'name', 'en', 'Burger of the Chef'),
+                 ('category', 22, 'name', 'fr', 'Plats'),
+                 ('category', 22, 'name', 'en', 'Main Dishes');",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn catalogue_line_uses_the_dine_in_or_takeaway_vat_label() {
+        let conn = setup();
+        seed_burger(&conn);
+        let dine_in = resolve_catalogue_line(&conn, 22001, false, "fr").unwrap();
+        assert_eq!(
+            dine_in,
+            CatalogueLine {
+                price_cents: 2800,
+                vat_code: VatCode::B,
+                name: "Burger du chef".into(),
+                department_id: "22".into(),
+                department_name: "Plats".into(),
+            }
+        );
+        let takeaway = resolve_catalogue_line(&conn, 22001, true, "fr").unwrap();
+        assert_eq!(takeaway.vat_code, VatCode::C);
+    }
+
+    #[test]
+    fn catalogue_line_falls_back_to_french_names() {
+        let conn = setup();
+        seed_burger(&conn);
+        let nl = resolve_catalogue_line(&conn, 22001, false, "nl").unwrap();
+        assert_eq!(nl.name, "Burger du chef");
+        assert_eq!(nl.department_name, "Plats");
+    }
+
+    #[test]
+    fn takeaway_without_a_takeaway_label_keeps_the_dine_in_one() {
+        let conn = setup();
+        seed_burger(&conn);
+        conn.execute("UPDATE menu_items SET vat_code_takeaway = NULL", [])
+            .unwrap();
+        let takeaway = resolve_catalogue_line(&conn, 22001, true, "fr").unwrap();
+        assert_eq!(takeaway.vat_code, VatCode::B);
+    }
+
+    #[test]
+    fn inactive_products_cannot_be_resolved() {
+        let conn = setup();
+        seed_burger(&conn);
+        conn.execute("UPDATE categories SET active = 0 WHERE id = 22", [])
+            .unwrap();
+        assert!(matches!(
+            resolve_catalogue_line(&conn, 22001, false, "fr"),
+            Err(rusqlite::Error::QueryReturnedNoRows)
+        ));
     }
 }

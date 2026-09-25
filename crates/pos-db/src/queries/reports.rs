@@ -15,6 +15,14 @@ pub struct VatTotal {
     pub total_cents: i64,
 }
 
+/// Department (product category) totals for report generation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DepartmentTotal {
+    pub department_id: String,
+    pub department_name: String,
+    pub total_cents: i64,
+}
+
 /// Payment totals for report generation.
 #[derive(Debug, Clone)]
 pub struct PaymentTotal {
@@ -65,6 +73,36 @@ pub fn get_vat_totals(
         Ok(VatTotal {
             vat_code: row.get(0)?,
             total_cents: row.get(1)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+/// Get department totals from closed orders for a given date, with the
+/// same scope as `get_vat_totals`. Lines recorded before departments
+/// were captured are grouped under their product's category.
+pub fn get_department_totals(
+    conn: &Connection,
+    booking_date: &str,
+) -> Result<Vec<DepartmentTotal>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT COALESCE(ol.department_id, CAST(m.category_id AS TEXT)) AS dept_id,
+                COALESCE(ol.department_name, CAST(m.category_id AS TEXT)) AS dept_name,
+                SUM(ol.unit_price_cents * ol.quantity)
+         FROM order_lines ol
+         JOIN orders o ON o.id = ol.order_id
+         LEFT JOIN menu_items m ON m.id = ol.menu_item_id
+         WHERE o.status = 'closed' AND DATE(o.closed_at) = ?1
+         GROUP BY dept_id, dept_name
+         ORDER BY dept_id",
+    )?;
+
+    let rows = stmt.query_map(params![booking_date], |row| {
+        Ok(DepartmentTotal {
+            department_id: row.get(0)?,
+            department_name: row.get(1)?,
+            total_cents: row.get(2)?,
         })
     })?;
 

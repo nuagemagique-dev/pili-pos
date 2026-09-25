@@ -237,6 +237,20 @@ CREATE INDEX IF NOT EXISTS idx_peppol_deliveries_invoice
     ON peppol_deliveries(invoice_no);
 "#;
 
+/// Migration 2 — fiscal catalogue fields (manual §III product lines).
+///
+/// - `menu_items.vat_code_takeaway`: VAT label for takeaway sales
+///   ("À emporter" column); NULL means the dine-in label applies.
+/// - `order_lines.department_id` / `department_name`: the product's
+///   category at the time the line was added, sent to the FDM as
+///   `departmentId` / `departmentName` and totalled in X/Z reports.
+pub(crate) const MIGRATION_002_CATALOGUE_FISCAL_FIELDS: &str = r#"
+ALTER TABLE menu_items ADD COLUMN vat_code_takeaway TEXT
+    CHECK(vat_code_takeaway IS NULL OR vat_code_takeaway IN ('A','B','C','D','X'));
+ALTER TABLE order_lines ADD COLUMN department_id TEXT;
+ALTER TABLE order_lines ADD COLUMN department_name TEXT;
+"#;
+
 /// Apply all schema migrations. Delegates to the versioned runner in
 /// `crate::migrate` so every entry point goes through the same
 /// `_migrations_applied` tracking. Kept as a re-export for the many

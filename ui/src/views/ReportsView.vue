@@ -218,9 +218,6 @@ async function confirmRefund() {
       items.push({
         menuItemId: line.menu_item_id,
         quantity: qty,
-        unitPriceCents: line.unit_price_cents,
-        name: line.name,
-        vatCode: line.vat_code,
       });
     }
   }

@@ -278,6 +278,8 @@ async fn test_full_service_day_e2e() {
             vat_code: VatCode::B,
             name: "Plateau sushi mix",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .unwrap();
@@ -293,6 +295,8 @@ async fn test_full_service_day_e2e() {
             vat_code: VatCode::B,
             name: "Soupe miso",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .unwrap();
@@ -307,6 +311,8 @@ async fn test_full_service_day_e2e() {
             vat_code: VatCode::A, // Beverages = 21%
             name: "Bière Asahi",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .unwrap();
@@ -373,6 +379,8 @@ async fn test_full_service_day_e2e() {
             vat_code: VatCode::B,
             name: "Maki saumon x6",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .unwrap();
@@ -800,6 +808,8 @@ async fn test_full_service_day_e2e() {
             vat_code: VatCode::B,
             name: "M1",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .unwrap();

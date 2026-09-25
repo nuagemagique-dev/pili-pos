@@ -295,6 +295,8 @@ fn rehearsal_lines(sign: i32) -> Vec<OrderLine> {
             name: "Saumon roll x8".to_string(),
             modifiers_json: None,
             created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "Test".to_string(),
         },
         OrderLine {
             id: 2,
@@ -306,6 +308,8 @@ fn rehearsal_lines(sign: i32) -> Vec<OrderLine> {
             name: "Coca 33cl".to_string(),
             modifiers_json: None,
             created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "Test".to_string(),
         },
     ]
 }
@@ -443,7 +447,13 @@ async fn staging_basic_set_smoke() {
     // 7. F — drawer open without transaction (M131).
     let n = next_ticket();
     let input = DrawerOpenInput {
-        common: pos_fiscal::event::build_common_fields(&config, n, &insz, &booking_period_id),
+        common: pos_fiscal::event::build_common_fields(
+            &config,
+            n,
+            &insz,
+            &booking_period_id,
+            pos_fiscal::types::TicketMedium::None,
+        ),
         drawer: None,
     };
     let result = client
@@ -461,7 +471,13 @@ async fn staging_basic_set_smoke() {
     // 8. F — money in: €50 float added to the drawer (M130).
     let n = next_ticket();
     let input = MoneyInOutInput {
-        common: pos_fiscal::event::build_common_fields(&config, n, &insz, &booking_period_id),
+        common: pos_fiscal::event::build_common_fields(
+            &config,
+            n,
+            &insz,
+            &booking_period_id,
+            pos_fiscal::types::TicketMedium::None,
+        ),
         drawer: None,
         financials: vec![MoneyInOutLineInput {
             id: "MIO1".to_string(),

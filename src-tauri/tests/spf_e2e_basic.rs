@@ -85,6 +85,8 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
             vat_code: VatCode::B,
             name: "Test item",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .expect("add line");
@@ -141,9 +143,6 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
     let items = vec![RefundItem {
         menu_item_id: 1,
         quantity: 1,
-        unit_price_cents: 1000,
-        name: "Test item".to_string(),
-        vat_code: "B".to_string(),
     }];
 
     let result = do_refund_checkout(&app.state, original_event_id, items, TEST_INSZ.to_string())
@@ -199,9 +198,6 @@ async fn m112b_partial_refund_is_separate_event_chained_to_original() {
     let items = vec![RefundItem {
         menu_item_id: 1,
         quantity: 1,
-        unit_price_cents: 1000,
-        name: "Test item".to_string(),
-        vat_code: "B".to_string(),
     }];
     let result = do_refund_checkout(&app.state, original_event_id, items, TEST_INSZ.to_string())
         .await
@@ -386,10 +382,10 @@ async fn m160_copy_of_sale_archives_c_event_with_ref_to_original() {
     app.dump_evidence("M160");
 }
 
-// ── M170 — Work-in in training mode (event T-S equivalent) ─────────
+// ── M170 — Work-in in training mode (event T) ──────────────────────
 //
-// Training mode is a flag on each input — the FDM rebrands the label
-// to T. From the POS side the orchestration is identical to M140.
+// Every event recorded in training mode is a training event with label
+// T (POS detailed description v2.2 §1.5): counted and archived as T.
 
 #[tokio::test]
 async fn m170_work_in_training_does_not_advance_normal_s_counter() {
@@ -401,11 +397,9 @@ async fn m170_work_in_training_does_not_advance_normal_s_counter() {
 
     let events = app.fiscal_events();
     assert_eq!(events.len(), 1);
-    // The S counter still advances because the POS allocates from
-    // `EventLabel::S` regardless of training-mode (cf. social.rs); the
-    // FDM is the one that brands the event T. The archive will carry
-    // the FDM's T label, which is what cert reviewers verify.
-    assert_eq!(events[0].event_type, "S");
+    assert_eq!(events[0].event_type, "T");
+    assert_eq!(app.counter_for(EventLabel::S), 0);
+    assert_eq!(app.counter_for(EventLabel::T), 1);
     app.dump_evidence("M170");
 }
 

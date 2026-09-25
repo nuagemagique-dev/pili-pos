@@ -70,6 +70,8 @@ const DEFAULT_ORDER_LINE = {
   name: 'Maki saumon x8',
   modifiers_json: null,
   created_at: new Date().toISOString(),
+  department_id: '1',
+  department_name: 'Sushi',
 };
 
 const DEFAULT_TABLE = (n: number) => ({
@@ -112,9 +114,7 @@ function defaultHandlers(): Record<string, Handler> {
       id: ++nextLineId,
       order_id: input?.order_id ?? 1,
       menu_item_id: input?.menu_item_id ?? 1,
-      name: input?.name ?? 'Item',
-      unit_price_cents: input?.unit_price_cents ?? 0,
-      vat_code: input?.vat_code ?? 'C',
+      // Like the backend: price, VAT and name come from the catalogue.
       quantity: input?.quantity ?? 1,
     }),
     remove_order_line: () => undefined,

@@ -107,7 +107,8 @@ pub async fn do_sign_table_order(
 
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        FiscalCounter::next(&db, EventLabel::P).map_err(|e| e.to_string())?
+        FiscalCounter::next(&db, EventLabel::P.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?
     };
 
     let order_input = build_order_input(
@@ -128,7 +129,7 @@ pub async fn do_sign_table_order(
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::P,
+                event_type: EventLabel::P.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: Some(order_id),
                 pos_id: &config.pos_id,
@@ -167,7 +168,8 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
 
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        FiscalCounter::next(&db, EventLabel::P).map_err(|e| e.to_string())?
+        FiscalCounter::next(&db, EventLabel::P.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?
     };
 
     let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_number, &bp_id);
@@ -181,7 +183,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::P,
+                event_type: EventLabel::P.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: Some(order_id),
                 pos_id: &config.pos_id,

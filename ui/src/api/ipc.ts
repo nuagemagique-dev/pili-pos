@@ -222,9 +222,6 @@ export function listRefundableEvents(limit?: number): Promise<RefundableEvent[]>
 export interface RefundItem {
   menuItemId: number;
   quantity: number;
-  unitPriceCents: number;
-  name: string;
-  vatCode: string;
 }
 
 export function refundCheckout(

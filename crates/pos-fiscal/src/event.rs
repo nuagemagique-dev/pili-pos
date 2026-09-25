@@ -13,17 +13,20 @@ pub const POS_SW_VERSION: &str = concat!("moyun-pos/", env!("CARGO_PKG_VERSION")
 
 // ── Common Fields ──────────────────────────────────────────────
 
-/// Build common fields shared by all FDM mutations.
+/// Build common fields shared by all FDM mutations. `ticket_medium`
+/// states what the POS does with the event: `None` when nothing is
+/// printed (drawer, money in/out, staff presence).
 pub fn build_common_fields(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
     booking_period_id: &str,
+    ticket_medium: TicketMedium,
 ) -> CommonFields {
     let now = Local::now();
 
     CommonFields {
-        language: Language::Fr,
+        language: fiscal_language(&config.language),
         vat_no: config.restaurant_vat.clone(),
         est_no: config.restaurant_est_no.clone(),
         pos_id: config.pos_id.clone(),
@@ -34,8 +37,18 @@ pub fn build_common_fields(
         device_id: config.device_id.clone(),
         booking_period_id: booking_period_id.to_string(),
         booking_date: Utc::now().format("%Y-%m-%d").to_string(),
-        ticket_medium: TicketMedium::Paper,
+        ticket_medium,
         employee_id: employee_insz.to_string(),
+    }
+}
+
+/// FDM `language`: the national language of the establishment's
+/// linguistic region (`pos.json::language`, restricted to FR/NL/DE).
+fn fiscal_language(code: &str) -> Language {
+    match crate::ticket::ReceiptLanguage::from_code(code) {
+        crate::ticket::ReceiptLanguage::Fr => Language::Fr,
+        crate::ticket::ReceiptLanguage::Nl => Language::Nl,
+        crate::ticket::ReceiptLanguage::De => Language::De,
     }
 }
 
@@ -65,8 +78,8 @@ fn build_transaction(lines: &[OrderLine]) -> TransactionInput {
                     gtin: None,
                     product_id: line.menu_item_id.to_string(),
                     product_name: line.name.clone(),
-                    department_id: "FOOD".to_string(),
-                    department_name: "Restaurant".to_string(),
+                    department_id: line.department_id.clone(),
+                    department_name: line.department_name.clone(),
                     quantity: line.quantity as f64,
                     quantity_type: QuantityType::Piece,
                     neg_quantity_reason: if line.quantity < 0 {
@@ -123,7 +136,13 @@ pub fn build_sale_input(
     payment_amount_cents: i64,
     original_fdm_ref: Option<&FdmReference>,
 ) -> SaleInput {
-    let common = build_common_fields(config, ticket_number, &order.user_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        &order.user_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
     let transaction = build_transaction(lines);
 
     let cost_center = order
@@ -175,7 +194,13 @@ pub fn build_order_input(
     booking_period_id: &str,
     cost_center_ref: &str,
 ) -> OrderInput {
-    let common = build_common_fields(config, ticket_number, &order.user_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        &order.user_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
     let transaction = build_transaction(lines);
     let table = order.table_number.unwrap_or(0);
     let cost_center = build_table_cost_center(table, cost_center_ref);
@@ -195,7 +220,13 @@ pub fn build_pre_bill_input(
     ticket_number: i64,
     booking_period_id: &str,
 ) -> PreBillInput {
-    let common = build_common_fields(config, ticket_number, &order.user_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        &order.user_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
     let transaction = build_transaction(lines);
     let cost_center = order
         .table_number
@@ -219,7 +250,13 @@ pub fn build_copy_input(
     booking_period_id: &str,
     original_ref: &FdmReference,
 ) -> CopyInput {
-    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        employee_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
 
     CopyInput {
         common,
@@ -247,7 +284,13 @@ pub fn build_invoice_input(
     customer_vat_no: &str,
     fdm_refs: &[FdmReference],
 ) -> InvoiceInput {
-    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        employee_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
 
     InvoiceInput {
         common,
@@ -277,7 +320,13 @@ pub fn build_work_in_out(
     booking_period_id: &str,
 ) -> WorkInOutInput {
     WorkInOutInput {
-        common: build_common_fields(config, ticket_number, employee_insz, booking_period_id),
+        common: build_common_fields(
+            config,
+            ticket_number,
+            employee_insz,
+            booking_period_id,
+            TicketMedium::None,
+        ),
     }
 }
 
@@ -298,7 +347,13 @@ pub fn build_report_turnover_x(
     booking_period_id: &str,
     data: TurnoverReportData,
 ) -> ReportTurnoverXInput {
-    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        employee_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
 
     ReportTurnoverXInput {
         common,
@@ -318,7 +373,13 @@ pub fn build_report_turnover_z(
     report_booking_date: &str,
     data: TurnoverReportData,
 ) -> ReportTurnoverZInput {
-    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        employee_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
 
     ReportTurnoverZInput {
         common,
@@ -345,7 +406,13 @@ pub fn build_report_user_x(
     booking_period_id: &str,
     data: UserReportData,
 ) -> ReportUserXInput {
-    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        employee_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
 
     ReportUserXInput {
         common,
@@ -365,7 +432,13 @@ pub fn build_report_user_z(
     report_booking_date: &str,
     data: UserReportData,
 ) -> ReportUserZInput {
-    let common = build_common_fields(config, ticket_number, employee_insz, booking_period_id);
+    let common = build_common_fields(
+        config,
+        ticket_number,
+        employee_insz,
+        booking_period_id,
+        TicketMedium::Paper,
+    );
 
     ReportUserZInput {
         common,
@@ -420,6 +493,8 @@ mod tests {
             name: "Saumon roll x8".to_string(),
             modifiers_json: None,
             created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "Test".to_string(),
         }]
     }
 
@@ -530,6 +605,8 @@ mod tests {
             name: "Saumon roll x8".to_string(),
             modifiers_json: None,
             created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "Test".to_string(),
         }];
         let bp_id = Uuid::new_v4().to_string();
 
@@ -584,6 +661,8 @@ mod tests {
             name: "Saumon roll x8".to_string(),
             modifiers_json: None,
             created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "Test".to_string(),
         }];
         let bp_id = Uuid::new_v4().to_string();
         let original_ref = FdmReference {

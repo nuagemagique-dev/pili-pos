@@ -57,7 +57,8 @@ async fn do_work_event(
             .lock()
             .map_err(|e| e.to_string())?
             .clone();
-        let tn = FiscalCounter::next(&db, EventLabel::S).map_err(|e| e.to_string())?;
+        let tn = FiscalCounter::next(&db, EventLabel::S.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
         (config, bp, tn)
     };
 
@@ -76,7 +77,7 @@ async fn do_work_event(
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::S,
+                event_type: EventLabel::S.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: None,
                 pos_id: &config.pos_id,

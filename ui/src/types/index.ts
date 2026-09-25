@@ -49,6 +49,8 @@ export interface OrderLine {
   name: string;
   modifiers_json: string | null;
   created_at: string;
+  department_id: string;
+  department_name: string;
 }
 
 export interface User {
@@ -65,13 +67,12 @@ export interface CreateOrderInput {
   user_insz: string;
 }
 
+/** Price, VAT label, name and department are resolved by the backend
+ * from the catalogue — the UI only picks the product. */
 export interface AddOrderLineInput {
   order_id: number;
   menu_item_id: number;
   quantity: number;
-  unit_price_cents: number;
-  vat_code: VatCode;
-  name: string;
   modifiers_json: string | null;
 }
 

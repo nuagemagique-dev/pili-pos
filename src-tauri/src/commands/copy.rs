@@ -89,7 +89,8 @@ pub async fn do_copy_ticket(
     // 2. Get sequence number for copy event
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        FiscalCounter::next(&db, EventLabel::C).map_err(|e| e.to_string())?
+        FiscalCounter::next(&db, EventLabel::C.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?
     };
 
     // 3. Build and send copy event
@@ -115,7 +116,7 @@ pub async fn do_copy_ticket(
                 archive::archive_event(
                     &db,
                     ArchiveParams {
-                        event_type: EventLabel::C,
+                        event_type: EventLabel::C.in_mode(config.training_mode),
                         sequence_number: ticket_number,
                         order_id: None,
                         pos_id: &config.pos_id,

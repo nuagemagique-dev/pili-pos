@@ -31,7 +31,7 @@
 
 use rusqlite::Connection;
 
-use crate::schema::SCHEMA_SQL;
+use crate::schema::{MIGRATION_002_CATALOGUE_FISCAL_FIELDS, SCHEMA_SQL};
 
 #[derive(Debug, Clone, Copy)]
 struct Migration {
@@ -47,9 +47,13 @@ const MIGRATIONS: &[Migration] = &[
         name: "initial-schema",
         sql: SCHEMA_SQL,
     },
-    // Future schema diffs go here. The cert build ships with v1 only;
-    // changes between cert builds (e.g. adding columns for Advanced
-    // Set Wave-B tables) get a new entry rather than editing v1.
+    Migration {
+        version: 2,
+        name: "catalogue-fiscal-fields",
+        sql: MIGRATION_002_CATALOGUE_FISCAL_FIELDS,
+    },
+    // Future schema diffs go here, as a new entry rather than an edit
+    // of an existing one.
 ];
 
 /// Run all pending migrations. Idempotent — a second call is a no-op.
@@ -140,12 +144,12 @@ mod tests {
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1]);
+        assert_eq!(applied, vec![1, 2]);
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1]);
+        assert_eq!(applied_again, vec![1, 2]);
     }
 
     #[test]
@@ -156,8 +160,9 @@ mod tests {
         conn.execute_batch(SCHEMA_SQL).unwrap();
         run_migrations(&conn).unwrap();
 
+        // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1]);
+        assert_eq!(applied, vec![1, 2]);
 
         let stamp: String = conn
             .query_row(
@@ -167,6 +172,25 @@ mod tests {
             )
             .unwrap();
         assert!(stamp.contains("backfilled"));
+    }
+
+    #[test]
+    fn v2_adds_the_catalogue_fiscal_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let columns = |table: &str| -> Vec<String> {
+            let mut stmt = conn
+                .prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))
+                .unwrap();
+            stmt.query_map([], |r| r.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap()
+        };
+        assert!(columns("menu_items").contains(&"vat_code_takeaway".to_string()));
+        let lines = columns("order_lines");
+        assert!(lines.contains(&"department_id".to_string()));
+        assert!(lines.contains(&"department_name".to_string()));
     }
 
     #[test]

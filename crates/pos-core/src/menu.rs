@@ -18,6 +18,10 @@ pub struct MenuItem {
     pub name: String,
     pub price_cents: i64,
     pub vat_code: VatCode,
+    /// VAT label for takeaway sales (manual §III product lines, column
+    /// "À emporter"). `None` means the dine-in label applies.
+    #[serde(default)]
+    pub vat_code_takeaway: Option<VatCode>,
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,

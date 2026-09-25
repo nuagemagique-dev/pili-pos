@@ -58,6 +58,8 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
             vat_code: VatCode::B,
             name: "Test item",
             modifiers_json: None,
+            department_id: "1",
+            department_name: "Test",
         },
     )
     .expect("add line");
@@ -145,9 +147,6 @@ async fn refund_fdm_failure_does_not_advance_counter() {
         vec![RefundItem {
             menu_item_id: 1,
             quantity: 1,
-            unit_price_cents: 1000,
-            name: "Test item".to_string(),
-            vat_code: "B".to_string(),
         }],
         TEST_INSZ.to_string(),
     )
@@ -203,6 +202,8 @@ async fn zero_total_sale_is_rejected_before_the_fdm() {
                 vat_code: VatCode::B,
                 name: "Free item",
                 modifiers_json: None,
+                department_id: "1",
+                department_name: "Test",
             },
         )
         .expect("add line");

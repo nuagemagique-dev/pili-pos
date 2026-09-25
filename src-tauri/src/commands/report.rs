@@ -52,7 +52,8 @@ pub async fn do_generate_x_report(
             .map_err(|e| e.to_string())?
             .clone();
         let data = build_turnover_data(&db, &config, &today)?;
-        let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
+        let tn = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
         let pd = build_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
         (config, bp, data, tn, pd)
     };
@@ -77,7 +78,7 @@ pub async fn do_generate_x_report(
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::R,
+                event_type: EventLabel::R.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: None,
                 pos_id: &config.pos_id,
@@ -169,8 +170,10 @@ pub async fn do_generate_z_report(
         let users = build_user_report_data(&db, &config, &today)?;
         // Two sequential ticket numbers — the M184 fixture shows the
         // user Z carrying posFiscalTicketNo = turnover Z + 1.
-        let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
-        let un = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
+        let tn = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
+        let un = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
         let rn = report_queries::next_z_report_number(&db).map_err(|e| e.to_string())?;
         let pd = build_print_data(&db, &config, &today, "Z", Some(rn), tn, &employee_insz)?;
         let upd = build_user_print_data(&db, &config, &today, "Z", Some(rn), un, &employee_insz)?;
@@ -217,7 +220,7 @@ pub async fn do_generate_z_report(
         let fiscal_event_id = archive::archive_event(
             &tx,
             ArchiveParams {
-                event_type: EventLabel::R,
+                event_type: EventLabel::R.in_mode(config.training_mode),
                 sequence_number: turnover_ticket,
                 order_id: None,
                 pos_id: &config.pos_id,
@@ -231,7 +234,7 @@ pub async fn do_generate_z_report(
         archive::archive_event(
             &tx,
             ArchiveParams {
-                event_type: EventLabel::R,
+                event_type: EventLabel::R.in_mode(config.training_mode),
                 sequence_number: user_ticket,
                 order_id: None,
                 pos_id: &config.pos_id,
@@ -304,7 +307,8 @@ pub async fn do_generate_user_x_report(
             .map_err(|e| e.to_string())?
             .clone();
         let users = build_user_report_data(&db, &config, &today)?;
-        let tn = FiscalCounter::next(&db, EventLabel::R).map_err(|e| e.to_string())?;
+        let tn = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+            .map_err(|e| e.to_string())?;
         let pd = build_user_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
         (config, bp, users, tn, pd)
     };
@@ -323,7 +327,7 @@ pub async fn do_generate_user_x_report(
         archive::archive_event(
             &db,
             ArchiveParams {
-                event_type: EventLabel::R,
+                event_type: EventLabel::R.in_mode(config.training_mode),
                 sequence_number: ticket_number,
                 order_id: None,
                 pos_id: &config.pos_id,
@@ -506,6 +510,8 @@ fn build_turnover_data(
         pos_db::queries::reports::get_event_totals(db, booking_date).map_err(|e| e.to_string())?;
     let vat_totals =
         pos_db::queries::reports::get_vat_totals(db, booking_date).map_err(|e| e.to_string())?;
+    let department_totals = pos_db::queries::reports::get_department_totals(db, booking_date)
+        .map_err(|e| e.to_string())?;
     let payment_totals = pos_db::queries::reports::get_payment_totals(db, booking_date)
         .map_err(|e| e.to_string())?;
     let (first_dt, last_dt) = pos_db::queries::reports::get_datetime_range(db, booking_date)
@@ -602,14 +608,14 @@ fn build_turnover_data(
         fdm_devices,
         turnover: TurnoverInput {
             transactions,
-            departments: vec![DepartmentTotalInput {
-                department_id: "FOOD".to_string(),
-                department_name: "Restaurant".to_string(),
-                amount: vat_totals
-                    .iter()
-                    .map(|v| v.total_cents as f64 / 100.0)
-                    .sum(),
-            }],
+            departments: department_totals
+                .iter()
+                .map(|d| DepartmentTotalInput {
+                    department_id: d.department_id.clone(),
+                    department_name: d.department_name.clone(),
+                    amount: d.total_cents as f64 / 100.0,
+                })
+                .collect(),
             vats,
             payments,
             drawers_open_count: drawers_count,

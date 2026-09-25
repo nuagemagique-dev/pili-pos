@@ -22,10 +22,9 @@
 --   X = N/A (vouchers et consignes - hors champ TVA)
 --
 -- Pour les UC du manuel, le scenario indique "DINING ROOM" ou "TAKEAWAY".
--- Notre schema ne stocke qu'un seul vat_code par menu_item ; pour les
--- UC dining-room (M110, etc.) on initialise avec le code dining-room
--- (A/B). La logique applicative ajustera dynamiquement vers C en cas
--- de takeaway (via order_lines.vat_code).
+-- menu_items.vat_code porte le label "Sur place" (A/B) ; le POS applique
+-- le label "A emporter" (colonne menu_items.vat_code_takeaway, voir fin
+-- de fichier) aux commandes a emporter.
 
 PRAGMA foreign_keys = ON;
 
@@ -207,6 +206,11 @@ UPDATE menu_items SET active = 0
 WHERE id IN (22005, 22010, 30001, 30010, 30020, 40001, 40002, 40003, 40004, 40020);
 -- Departements sans aucun produit disponible : masques dans la grille.
 UPDATE categories SET active = 0 WHERE id IN (30, 400);
+
+-- Label TVA "A emporter" (manuel, lignes de produit) quand il differe
+-- du label "Sur place". NULL = meme label qu'en salle (A->A, X->X).
+UPDATE menu_items SET vat_code_takeaway = 'C'
+WHERE id IN (12007, 12009, 20001, 22001, 22005, 22010, 25003, 25008, 28007, 30001);
 
 -- ── Compteurs fiscaux remis a 0 pour la machine de test ──────────
 DELETE FROM fiscal_counters;

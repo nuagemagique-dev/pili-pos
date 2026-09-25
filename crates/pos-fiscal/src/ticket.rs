@@ -30,6 +30,15 @@ impl ReceiptLanguage {
             _ => Self::Fr,
         }
     }
+
+    /// Language code used for catalogue translations (`translations.lang`).
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Fr => "fr",
+            Self::Nl => "nl",
+            Self::De => "de",
+        }
+    }
 }
 
 /// All data needed to print a fiscal ticket / VAT receipt.

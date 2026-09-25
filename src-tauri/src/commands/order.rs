@@ -1,5 +1,4 @@
-use pos_core::order::{Order, OrderLine, OrderType};
-use pos_core::vat::VatCode;
+use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use serde::Deserialize;
 use tauri::State;
 
@@ -24,14 +23,15 @@ pub fn create_order(state: State<'_, AppState>, input: CreateOrderInput) -> Resu
     .map_err(|e| e.to_string())
 }
 
+/// A product added to an order. Only the product and quantity come
+/// from the frontend: price, VAT label, name and department are read
+/// from the catalogue (`resolve_catalogue_line`), so the fiscal record
+/// never depends on what the UI displayed.
 #[derive(Deserialize)]
 pub struct AddOrderLineInput {
     pub order_id: i64,
     pub menu_item_id: i64,
     pub quantity: i32,
-    pub unit_price_cents: i64,
-    pub vat_code: VatCode,
-    pub name: String,
     pub modifiers_json: Option<String>,
 }
 
@@ -40,17 +40,50 @@ pub fn add_order_line(
     state: State<'_, AppState>,
     input: AddOrderLineInput,
 ) -> Result<OrderLine, String> {
+    do_add_order_line(state.inner(), input)
+}
+
+pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<OrderLine, String> {
+    if input.quantity <= 0 {
+        return Err("Quantity must be greater than zero".into());
+    }
+    // Product and department names are fiscal data: always in the
+    // establishment's national language, whatever the operator's UI
+    // language is.
+    let lang = pos_fiscal::ticket::ReceiptLanguage::from_code(
+        &state.config.lock().map_err(|e| e.to_string())?.language,
+    )
+    .code();
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    let order =
+        pos_db::queries::orders::get_order(&db, input.order_id).map_err(|e| e.to_string())?;
+    if order.status != OrderStatus::Open {
+        return Err("Order is not open".into());
+    }
+    let product = pos_db::queries::menu::resolve_catalogue_line(
+        &db,
+        input.menu_item_id,
+        order.order_type == OrderType::Takeaway,
+        lang,
+    )
+    .map_err(|e| match e {
+        rusqlite::Error::QueryReturnedNoRows => {
+            format!("Product {} is not available", input.menu_item_id)
+        }
+        other => other.to_string(),
+    })?;
     pos_db::queries::orders::add_order_line(
         &db,
         pos_db::queries::orders::NewOrderLine {
             order_id: input.order_id,
             menu_item_id: input.menu_item_id,
             quantity: input.quantity,
-            unit_price_cents: input.unit_price_cents,
-            vat_code: input.vat_code,
-            name: &input.name,
+            unit_price_cents: product.price_cents,
+            vat_code: product.vat_code,
+            name: &product.name,
             modifiers_json: input.modifiers_json.as_deref(),
+            department_id: &product.department_id,
+            department_name: &product.department_name,
         },
     )
     .map_err(|e| e.to_string())

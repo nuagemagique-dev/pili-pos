@@ -86,6 +86,12 @@ pub struct OrderLine {
     pub name: String,
     pub modifiers_json: Option<String>,
     pub created_at: DateTime<Utc>,
+    /// Department sent to the FDM (`departmentId` / `departmentName`):
+    /// the product's category, captured when the line is added.
+    #[serde(default)]
+    pub department_id: String,
+    #[serde(default)]
+    pub department_name: String,
 }
 
 impl OrderLine {

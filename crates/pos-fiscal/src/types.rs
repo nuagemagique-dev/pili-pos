@@ -50,6 +50,15 @@ pub enum EventLabel {
     T,
 }
 
+impl EventLabel {
+    /// Label under which an event is signed, archived and counted.
+    /// Every event recorded in training mode is a training event and
+    /// always carries label T (POS detailed description v2.2 §1.5).
+    pub fn in_mode(self, training: bool) -> Self {
+        if training { Self::T } else { self }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum QuantityType {
@@ -219,4 +228,24 @@ pub enum Display {
     Mandatory,
     Optional,
     Never,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn training_events_are_always_labelled_t() {
+        for label in [
+            EventLabel::N,
+            EventLabel::P,
+            EventLabel::F,
+            EventLabel::S,
+            EventLabel::C,
+            EventLabel::R,
+        ] {
+            assert_eq!(label.in_mode(true), EventLabel::T);
+            assert_eq!(label.in_mode(false), label);
+        }
+    }
 }
