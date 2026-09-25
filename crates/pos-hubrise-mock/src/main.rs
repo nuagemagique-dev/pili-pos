@@ -2,7 +2,7 @@
 //!
 //! Minimal in-memory implementation of the HubRise REST API used by
 //! `tsb-service` (webshop client) and `moyun-pos` (POS client) during
-//! development — no real HubRise account required.
+//! development - no real HubRise account required.
 //!
 //! Docs revision baseline: see `HUBRISE_DOCS_REVISION`. Update this
 //! constant every time the extracted docs under `docs/hubrise/` are
@@ -187,7 +187,7 @@ struct AuthorizeQuery {
     state: Option<String>,
 }
 
-/// `GET /oauth2/v1/authorize` — returns a JSON response with an
+/// `GET /oauth2/v1/authorize` - returns a JSON response with an
 /// authorization code instead of a real 302 redirect. The dev client
 /// reads the code and POSTs it to `/oauth2/v1/token`.
 async fn oauth_authorize(

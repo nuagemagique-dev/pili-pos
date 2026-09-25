@@ -9,9 +9,9 @@ own webshop, …).
 | File | Source | Notes |
 |------|--------|-------|
 | `deliveroo.svg` | Wikimedia Commons (`Deliveroo_logo.svg`) | Brand teal `#00CCBC`, reads directly on `--bg-primary`. |
-| `uber-eats.svg` | Wikimedia Commons (`Uber_Eats_2020_logo.svg`) | The "Uber" glyph was near-black (`#142328`) and invisible on the dark theme — recolored to `#ffffff` so it reads on `--bg-primary`. The "Eats" green `#06c167` is unchanged. |
+| `uber-eats.svg` | Wikimedia Commons (`Uber_Eats_2020_logo.svg`) | The "Uber" glyph was near-black (`#142328`) and invisible on the dark theme - recolored to `#ffffff` so it reads on `--bg-primary`. The "Eats" green `#06c167` is unchanged. |
 | `takeaway.svg` | Wikimedia Commons (`Takeaway_logo.svg`) | Brand orange `#ff8000`, reads directly on `--bg-primary`. |
-| _(no file)_ | — | TSB's own webshop has no brand SVG — `WebshopOrdersView` renders a "Tokyo" wordmark in the Channel display font (`../fonts/channel.woff2`, declared in the view's `@font-face`) so the staff sees the same typography as the tsb-core product category headers. |
+| _(no file)_ | - | TSB's own webshop has no brand SVG - `WebshopOrdersView` renders a "Tokyo" wordmark in the Channel display font (`../fonts/channel.woff2`, declared in the view's `@font-face`) so the staff sees the same typography as the tsb-core product category headers. |
 
 ## Production checklist
 
@@ -20,20 +20,20 @@ Before shipping a production build, replace them with the versions
 from each brand's official press kit and verify the brand usage
 guidelines are respected:
 
-- **Deliveroo** — press kit at `corporate.deliveroo.com/en/media-centre`
-- **Uber Eats** — press kit at `newsroom.uber.com/brand-center`
-- **Just Eat / Takeaway.com** — press kit at `careers.justeattakeaway.com`
+- **Deliveroo** - press kit at `corporate.deliveroo.com/en/media-centre`
+- **Uber Eats** - press kit at `newsroom.uber.com/brand-center`
+- **Just Eat / Takeaway.com** - press kit at `careers.justeattakeaway.com`
 
 Key rules common to all three:
 - do not distort, rotate, or recolor the wordmarks
 - respect the clear-space rules (padding around the mark)
 - use the logos only for factual identification of orders coming
-  from that platform — not for marketing or implied endorsement
+  from that platform - not for marketing or implied endorsement
 
 ## Rendering rules (UX Guide)
 
 These logos are treated as **functional identifiers**, not
-decoration (UX Guide §6: "no product images in the menu grid" —
+decoration (UX Guide §6: "no product images in the menu grid" -
 does not apply to brand identifiers). The Vue view renders them
 alongside a 6 px channel-colored stripe so the card remains
 identifiable even for channels without a logo file.
@@ -44,7 +44,7 @@ wordmark kerning degrades.
 ## Adding a new channel
 
 1. Drop an SVG here named after the HubRise `channel` field
-   (lowercase, kebab-case) — e.g. `wolt.svg` for a "Wolt" channel.
+   (lowercase, kebab-case) - e.g. `wolt.svg` for a "Wolt" channel.
 2. The view looks up the file via the `channelLogo()` helper in
    `WebshopOrdersView.vue`. If the file is missing the card falls
    back to text only, so there is no hard failure.

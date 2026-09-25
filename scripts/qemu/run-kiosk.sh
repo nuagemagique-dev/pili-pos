@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — boot a kiosk image (deploy/image/build.sh output) in QEMU
+# moyun-pos - boot a kiosk image (deploy/image/build.sh output) in QEMU
 #
 # q35 + UEFI (OVMF) + swtpm (TPM2, needed by moyun-provision.service's
 # systemd-cryptenroll --tpm2-device=auto), virtio-vga at 1920x1080, a
@@ -12,7 +12,7 @@
 #     the host and dumps whatever the guest sends to a log file (point
 #     pos.json::printer_address at 10.0.2.2:9100)
 #
-# Runs under KVM on Linux (if /dev/kvm exists) or TCG on macOS —
+# Runs under KVM on Linux (if /dev/kvm exists) or TCG on macOS -
 # noticeably slower there, but the only option on Apple Silicon /
 # without nested virtualization.
 #
@@ -24,7 +24,7 @@
 #   run-kiosk.sh <image.raw|image.img.xz> [--name NAME] [--pos-json FILE]
 #                [--ram MB] [--clean]
 #
-# --pos-json FILE: injected via -fw_cfg name=opt/moyun/pos.json — read
+# --pos-json FILE: injected via -fw_cfg name=opt/moyun/pos.json - read
 #   by moyun-provision.service on FIRST boot only (i.e. only while no
 #   pos.json exists yet at /var/lib/moyun-etc/moyun-pos/pos.json); a
 #   later run against the same working copy sees the fw_cfg entry
@@ -122,7 +122,7 @@ if [[ "$(uname -s)" == "Linux" && -e /dev/kvm ]]; then
 else
     ACCEL="tcg"
     CPU="max"
-    echo "▸ No KVM — using TCG software emulation (slower)."
+    echo "▸ No KVM - using TCG software emulation (slower)."
 fi
 
 # ── TPM2 (swtpm) ─────────────────────────────────────────────────
@@ -155,7 +155,7 @@ if command -v nc >/dev/null 2>&1; then
     PRINTER_PID=$!
     echo "▸ Printer sink: nc -l 9100 -> $PRINTER_LOG (pid $PRINTER_PID)"
 else
-    echo "▸ 'nc' not found — no printer sink; ESC/POS output will be refused by the guest."
+    echo "▸ 'nc' not found - no printer sink; ESC/POS output will be refused by the guest."
 fi
 
 QMP_SOCK="$WORK_DIR/qmp.sock"

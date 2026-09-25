@@ -4,7 +4,7 @@
 //! check what reaches the paper and when the drawer opens:
 //!
 //! - the drawer opens for cash sales, cash refunds and the signed F
-//!   event only — never for a card sale, never when the FDM refused;
+//!   event only - never for a card sale, never when the FDM refused;
 //! - the pre-bill prints a PRO FORMA ticket, a table order prints
 //!   nothing, training tickets carry their TRAINING marks;
 //! - X, user X and Z reports print;

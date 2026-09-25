@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""check-not-blank.py — fail if a screendump is a uniform/blank frame.
+"""check-not-blank.py - fail if a screendump is a uniform/blank frame.
 
 Used by .github/workflows/image.yml's `boot-smoke` job right after
 scripts/qemu/screendump.sh: a screenshot of a black, unrendered, or
-single-color frame (the kiosk never actually reached a rendered UI —
+single-color frame (the kiosk never actually reached a rendered UI -
 KMS/Cage crash, moyun-pos never started, VGA still at the firmware
 splash) has zero, or near-zero, brightness spread; a real rendered UI
 frame does not.

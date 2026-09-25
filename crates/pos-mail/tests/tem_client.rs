@@ -1,7 +1,7 @@
 //! `TemClient` contract tests against a mocked Scaleway TEM endpoint.
 //!
 //! ⚠️ These mocks encode this crate's *assumed* shape for the TEM API
-//! (see the module doc in `src/tem.rs`) — a green suite proves
+//! (see the module doc in `src/tem.rs`) - a green suite proves
 //! `TemClient` behaves correctly against that assumed shape, not that
 //! the assumption matches Scaleway's real API. Verify against
 //! https://www.scaleway.com/en/developers/api/transactional-email/
@@ -19,7 +19,7 @@ const SECRET: &str = "sk-super-secret-value-12345";
 fn sample_email() -> Email {
     Email {
         to: "customer@example.be".to_string(),
-        subject: "Votre ticket — Restaurant Exemple".to_string(),
+        subject: "Votre ticket - Restaurant Exemple".to_string(),
         text: "TICKET DE CAISSE TVA\n...\nhttps://www.gs2.be/abc".to_string(),
         html: "<html><body>...</body></html>".to_string(),
         attachments: vec![Attachment {
@@ -102,7 +102,7 @@ async fn send_sets_the_auth_header_and_request_body_fields() {
 
     let body: serde_json::Value = req.body_json().unwrap();
     assert_eq!(body["to"][0]["email"], "customer@example.be");
-    assert_eq!(body["subject"], "Votre ticket — Restaurant Exemple");
+    assert_eq!(body["subject"], "Votre ticket - Restaurant Exemple");
     assert_eq!(body["from"]["email"], "no-reply@restaurant-exemple.be");
     assert_eq!(body["from"]["name"], "Restaurant Exemple");
     assert_eq!(body["project_id"], "11111111-1111-1111-1111-111111111111");

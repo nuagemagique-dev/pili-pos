@@ -42,7 +42,7 @@ const coreMessages: Messages = {
   "change": { fr: "Rendu", en: "Change", zh: "找零" },
   "processing_fdm": { fr: "Communication FDM...", en: "FDM communication...", zh: "FDM通信中..." },
   "finish": { fr: "Terminer", en: "Done", zh: "完成" },
-  "fdm_no_sig": { fr: "FDM non connecté — ticket sans signature", en: "FDM offline — ticket unsigned", zh: "FDM未连接 — 票据无签名" },
+  "fdm_no_sig": { fr: "FDM non connecté : ticket sans signature", en: "FDM offline: ticket unsigned", zh: "FDM未连接：票据无签名" },
   "before_rounding": { fr: "avant arrondi", en: "before rounding", zh: "四舍五入前" },
 
   // Login / PIN
@@ -50,9 +50,9 @@ const coreMessages: Messages = {
   "pin_required": { fr: "PIN requis", en: "PIN required", zh: "需要PIN" },
   "pin_wrong": { fr: "PIN incorrect", en: "Wrong PIN", zh: "PIN错误" },
   "pin_not_set_warning": {
-    fr: "PIN non configuré — touchez votre nom en haut de l'écran",
-    en: "PIN not set — tap your name at the top of the screen",
-    zh: "未设置PIN — 请点击屏幕顶部的您的名字",
+    fr: "PIN non configuré : touchez votre nom en haut de l'écran",
+    en: "PIN not set: tap your name at the top of the screen",
+    zh: "未设置PIN：请点击屏幕顶部的您的名字",
   },
   "pin_enter": { fr: "Saisir le PIN", en: "Enter PIN", zh: "输入PIN" },
   "pin_change": { fr: "Changer le PIN", en: "Change PIN", zh: "修改PIN" },
@@ -91,7 +91,7 @@ const coreMessages: Messages = {
   "printer_cover_open": { fr: "Capot ouvert", en: "Cover open", zh: "盖板打开" },
   "printer_check": { fr: "Vérifiez l'imprimante", en: "Check printer", zh: "检查打印机" },
 
-  // Header status indicators (§8.1) — functional labels, not technical
+  // Header status indicators (§8.1) - functional labels, not technical
   "status_register": { fr: "Caisse", en: "Register", zh: "收银" },
   "status_printer": { fr: "Ticket", en: "Printer", zh: "打印" },
 
@@ -117,7 +117,7 @@ const coreMessages: Messages = {
   "info": { fr: "Informations", en: "Information", zh: "信息" },
   "printer_none": { fr: "Non configurée", en: "Not configured", zh: "未配置" },
 
-  // SettingsView — worker management + info rows
+  // SettingsView - worker management + info rows
   "settings_name_placeholder": { fr: "Nom", en: "Name", zh: "姓名" },
   "settings_insz_placeholder": { fr: "INSZ (11 chiffres)", en: "INSZ (11 digits)", zh: "INSZ (11位)" },
   "settings_err_name_insz_required": { fr: "Nom et INSZ requis", en: "Name and INSZ required", zh: "姓名和INSZ必填" },
@@ -156,9 +156,9 @@ const coreMessages: Messages = {
   "cash_err_amount": { fr: "Montant invalide", en: "Invalid amount", zh: "金额无效" },
 
   // Training banner
-  "training_banner": { fr: "MODE FORMATION — Les transactions ne sont PAS enregistrées", en: "TRAINING MODE — Transactions are NOT recorded", zh: "培训模式 — 交易不会被记录" },
+  "training_banner": { fr: "MODE FORMATION : les transactions ne sont PAS enregistrées", en: "TRAINING MODE: transactions are NOT recorded", zh: "培训模式：交易不会被记录" },
 
-  // Ticket delivery — medium picker (checkout / refund / copy)
+  // Ticket delivery - medium picker (checkout / refund / copy)
   "delivery_paper": { fr: "Papier", en: "Paper", zh: "纸质" },
   "delivery_email": { fr: "E-mail", en: "Email", zh: "电子邮件" },
   "delivery_both": { fr: "Les deux", en: "Both", zh: "两者都要" },
@@ -168,7 +168,7 @@ const coreMessages: Messages = {
     zh: "邮件服务暂不可用：将立即打印纸质票据，邮件稍后发送。",
   },
 
-  // Ticket delivery — email keypad
+  // Ticket delivery - email keypad
   "delivery_enter_email_title": { fr: "Adresse e-mail du client", en: "Customer's email address", zh: "客户电子邮箱" },
   "delivery_email_placeholder": { fr: "Saisir l'adresse…", en: "Enter address…", zh: "输入邮箱地址…" },
   "delivery_invalid_email": { fr: "Adresse invalide", en: "Invalid address", zh: "地址无效" },
@@ -177,17 +177,17 @@ const coreMessages: Messages = {
   "delivery_edit": { fr: "Modifier", en: "Edit", zh: "修改" },
   "delivery_cancel": { fr: "Annuler", en: "Cancel", zh: "取消" },
 
-  // Ticket delivery — outcome (done screen, copy/refund results)
+  // Ticket delivery - outcome (done screen, copy/refund results)
   "delivery_outcome_printed": { fr: "Ticket imprimé", en: "Ticket printed", zh: "票据已打印" },
   "delivery_outcome_sent": { fr: "Ticket envoyé à {hint}", en: "Ticket sent to {hint}", zh: "票据已发送至{hint}" },
   "delivery_outcome_queued": {
-    fr: "E-mail en attente — nouvel essai automatique",
-    en: "Email pending — automatic retry",
-    zh: "邮件待发送 — 将自动重试",
+    fr: "E-mail en attente, nouvel essai automatique",
+    en: "Email pending, automatic retry",
+    zh: "邮件待发送，将自动重试",
   },
   "delivery_print_missing": { fr: "Imprimer le ticket", en: "Print ticket", zh: "打印票据" },
 
-  // Ticket delivery — Settings "Tickets numériques" panel
+  // Ticket delivery - Settings "Tickets numériques" panel
   "delivery_settings_title": { fr: "Tickets numériques", en: "Digital tickets", zh: "电子票据" },
   "delivery_settings_refresh": { fr: "Actualiser", en: "Refresh", zh: "刷新" },
   "delivery_settings_configured": { fr: "Configuré", en: "Configured", zh: "已配置" },

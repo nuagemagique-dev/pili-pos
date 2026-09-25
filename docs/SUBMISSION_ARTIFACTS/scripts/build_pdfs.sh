@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# build_pdfs.sh — convertit tous les .md FR du dossier en PDF
+# build_pdfs.sh - convertit tous les .md FR du dossier en PDF
 #
 # Pré-requis :
 #   - pandoc (`brew install pandoc`)

@@ -46,7 +46,7 @@ sha1sum /opt/moyun-pos/moyun-pos
 
 ### 1.3 Environnement kiosk scellé
 
-Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite avec `deploy/install.sh` ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB ou par transfert de fichiers pendant une session RustDesk à la demande — jamais par `scp`, aucun serveur SSH n'étant installé.
+Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite avec `deploy/install.sh` ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB ou par transfert de fichiers pendant une session RustDesk à la demande - jamais par `scp`, aucun serveur SSH n'étant installé.
 
 L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 

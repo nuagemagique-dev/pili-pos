@@ -5,9 +5,9 @@
 //! by `deploy/install.sh`:
 //!
 //! - `moyun-pos --version`
-//! - `moyun-pos --init-db [--seed <file.sql>]` — create or migrate the
+//! - `moyun-pos --init-db [--seed <file.sql>]` - create or migrate the
 //!   database at `paths::db_path()` and optionally load a catalogue seed.
-//! - `moyun-pos --check-config` — read `pos.json` as the kiosk would and
+//! - `moyun-pos --check-config` - read `pos.json` as the kiosk would and
 //!   list what the FDM would refuse; exits 1 when anything is wrong.
 
 use std::path::{Path, PathBuf};

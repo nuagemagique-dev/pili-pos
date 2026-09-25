@@ -8,7 +8,7 @@
 //! paper always available as a fallback (POS owner requirement: no
 //! ticket is ever silently lost).
 //!
-//! Library only — no Tauri commands, no UI. `src-tauri` wires
+//! Library only - no Tauri commands, no UI. `src-tauri` wires
 //! [`config::DigitalTicketConfig`], [`tem::TemClient`] and
 //! [`outbox::send_now`]/[`outbox::run_once`] into the checkout flow
 //! and a background scheduler.

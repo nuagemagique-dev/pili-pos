@@ -99,7 +99,7 @@ fn set_training_mode(app: &TestApp, on: bool) {
     config.training_mode = on;
 }
 
-// ── M110 — Normal sale (event N) ───────────────────────────────────
+// ── M110 - Normal sale (event N) ───────────────────────────────────
 
 #[tokio::test]
 async fn m110_sign_sale_archives_n_event_and_closes_order() {
@@ -122,7 +122,7 @@ async fn m110_sign_sale_archives_n_event_and_closes_order() {
     app.dump_evidence("M110");
 }
 
-// ── M111 — Full refund of a prior sale ─────────────────────────────
+// ── M111 - Full refund of a prior sale ─────────────────────────────
 
 #[tokio::test]
 async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
@@ -130,7 +130,7 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
     let order_id = seed_minimal_open_order(&app);
 
     // First mount the M110 mock for the original sale, then M111
-    // for the refund — wiremock dispatches them in registration
+    // for the refund - wiremock dispatches them in registration
     // order due to `up_to_n_times(1)`.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M111")).await;
@@ -155,12 +155,12 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
     assert_eq!(events.len(), 2, "original N + refund N expected");
     assert_eq!(events[1].event_type, "N");
     // Both N events share the same counter LABEL but allocate
-    // independent counter values — and the refund must carry the
+    // independent counter values - and the refund must carry the
     // original's fdmRef inside its request payload.
     let refund_request: serde_json::Value =
         serde_json::from_str(events[1].event_data_json.as_ref().unwrap()).unwrap();
     // SaleInput uses singular `fdmRef` (Option<FdmReferenceInput>) at
-    // the top level — see `crates/pos-fiscal/src/inputs.rs::SaleInput`.
+    // the top level - see `crates/pos-fiscal/src/inputs.rs::SaleInput`.
     let fdm_ref = refund_request
         .get("fdmRef")
         .unwrap_or_else(|| panic!("refund must carry fdmRef; got: {refund_request}"));
@@ -168,13 +168,13 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
     app.dump_evidence("M111");
 }
 
-// ── M112A — Partial refund chain (multi-step) ──────────────────────
+// ── M112A - Partial refund chain (multi-step) ──────────────────────
 
 #[tokio::test]
 async fn m112b_partial_refund_is_separate_event_chained_to_original() {
     // The dossier declares the M112B pattern (FLUX_REMBOURSEMENT_FR.md):
     // a partial refund is ALWAYS its own fiscal event referencing the
-    // original sale — never mixed with new-sale lines on one ticket
+    // original sale - never mixed with new-sale lines on one ticket
     // (that mixed pattern is M112A, which this POS does not offer).
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
@@ -229,7 +229,7 @@ async fn m112b_partial_refund_is_separate_event_chained_to_original() {
     app.dump_evidence("M112B");
 }
 
-// ── M121 — Order (event P, pro forma) ──────────────────────────────
+// ── M121 - Order (event P, pro forma) ──────────────────────────────
 
 #[tokio::test]
 async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
@@ -245,7 +245,7 @@ async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, "P");
     assert_eq!(events[0].order_id, Some(order_id));
-    // P events do NOT close the order — the customer hasn't paid yet.
+    // P events do NOT close the order - the customer hasn't paid yet.
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
     assert_eq!(app.counter_for(EventLabel::P), 1);
     assert_eq!(
@@ -256,7 +256,7 @@ async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
     app.dump_evidence("M121");
 }
 
-// ── M123 — Pre-bill (event P) ──────────────────────────────────────
+// ── M123 - Pre-bill (event P) ──────────────────────────────────────
 
 #[tokio::test]
 async fn m123_sign_pre_bill_archives_p_event_and_keeps_order_open() {
@@ -277,7 +277,7 @@ async fn m123_sign_pre_bill_archives_p_event_and_keeps_order_open() {
     app.dump_evidence("M123");
 }
 
-// ── M130 — Money in/out (event F) ──────────────────────────────────
+// ── M130 - Money in/out (event F) ──────────────────────────────────
 
 #[tokio::test]
 async fn m130_money_in_out_archives_f_event() {
@@ -301,7 +301,7 @@ async fn m130_money_in_out_archives_f_event() {
     app.dump_evidence("M130");
 }
 
-// ── M131 — Drawer open (event F) ───────────────────────────────────
+// ── M131 - Drawer open (event F) ───────────────────────────────────
 
 #[tokio::test]
 async fn m131_drawer_open_archives_f_event() {
@@ -318,7 +318,7 @@ async fn m131_drawer_open_archives_f_event() {
     app.dump_evidence("M131");
 }
 
-// ── M140 — Work-in (event S) ───────────────────────────────────────
+// ── M140 - Work-in (event S) ───────────────────────────────────────
 
 #[tokio::test]
 async fn m140_work_in_archives_s_event() {
@@ -335,7 +335,7 @@ async fn m140_work_in_archives_s_event() {
     app.dump_evidence("M140");
 }
 
-// ── M141 — Work-out (event S) ──────────────────────────────────────
+// ── M141 - Work-out (event S) ──────────────────────────────────────
 
 #[tokio::test]
 async fn m141_work_out_archives_s_event() {
@@ -352,7 +352,7 @@ async fn m141_work_out_archives_s_event() {
     app.dump_evidence("M141");
 }
 
-// ── M160 — Copy of a previous sale (event C) ───────────────────────
+// ── M160 - Copy of a previous sale (event C) ───────────────────────
 
 #[tokio::test]
 async fn m160_copy_of_sale_archives_c_event_with_ref_to_original() {
@@ -387,7 +387,7 @@ async fn m160_copy_of_sale_archives_c_event_with_ref_to_original() {
     app.dump_evidence("M160");
 }
 
-// ── M170 — Work-in in training mode (event T) ──────────────────────
+// ── M170 - Work-in in training mode (event T) ──────────────────────
 //
 // Every event recorded in training mode is a training event with label
 // T (POS detailed description v2.2 §1.5): counted and archived as T.
@@ -408,7 +408,7 @@ async fn m170_work_in_training_does_not_advance_normal_s_counter() {
     app.dump_evidence("M170");
 }
 
-// ── M171 — Sale in training mode → POS allocates T counter ─────────
+// ── M171 - Sale in training mode → POS allocates T counter ─────────
 
 #[tokio::test]
 async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
@@ -438,7 +438,7 @@ async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
     app.dump_evidence("M171");
 }
 
-// ── M150 — Invoice (event I) referencing prior sales ───────────────
+// ── M150 - Invoice (event I) referencing prior sales ───────────────
 
 // Invoices ship with the `peppol` feature, outside the v1.0.0 cert build.
 #[cfg(feature = "peppol")]
@@ -494,7 +494,7 @@ async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
 async fn m150_invoice_fdm_failure_does_not_advance_i_counter() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
-    // Only the sale is mocked — the signInvoice call hits an
+    // Only the sale is mocked - the signInvoice call hits an
     // unmatched route and fails, like an unreachable FDM.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
 
@@ -520,7 +520,7 @@ async fn m150_invoice_fdm_failure_does_not_advance_i_counter() {
     assert_eq!(app.fiscal_events().len(), 1, "no I event archived");
 }
 
-// ── M161 — Copy of an order (event C referencing a P event) ────────
+// ── M161 - Copy of an order (event C referencing a P event) ────────
 
 #[tokio::test]
 async fn m161_copy_of_order_archives_c_event_with_ref_to_p_event() {
@@ -553,7 +553,7 @@ async fn m161_copy_of_order_archives_c_event_with_ref_to_p_event() {
     app.dump_evidence("M161");
 }
 
-// ── M172 — Copy in training mode ────────────────────────────────────
+// ── M172 - Copy in training mode ────────────────────────────────────
 
 #[tokio::test]
 async fn m172_copy_in_training_mode_archives_c_event() {
@@ -580,7 +580,7 @@ async fn m172_copy_in_training_mode_archives_c_event() {
 
     let events = app.fiscal_events();
     assert_eq!(events.len(), 2);
-    // The archive carries the FDM's label — T in training mode (the
+    // The archive carries the FDM's label - T in training mode (the
     // published M172 response brands the copy T).
     let copy_request: serde_json::Value =
         serde_json::from_str(events[1].event_data_json.as_ref().unwrap()).unwrap();

@@ -25,7 +25,7 @@ pub fn create_order(
     // instead of spawning a new row. Prevents zombie rows piling up
     // when the operator taps a table, walks away without adding any
     // item, and taps the same table again later. Takeaway orders
-    // always spawn a fresh row — they have no picker to resume from.
+    // always spawn a fresh row - they have no picker to resume from.
     if let Some(t) = table_number {
         let existing: Option<i64> = conn
             .query_row(
@@ -649,8 +649,8 @@ mod tests {
     #[test]
     fn cannot_add_line_to_closed_order() {
         // `add_order_line` calls `ensure_open` under the same savepoint
-        // as the insert, so — unlike the stale comment this test used
-        // to carry — the DB layer itself rejects the write; it is not
+        // as the insert, so - unlike the stale comment this test used
+        // to carry - the DB layer itself rejects the write; it is not
         // solely a Tauri-command-layer guard.
         let conn = setup();
         conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])

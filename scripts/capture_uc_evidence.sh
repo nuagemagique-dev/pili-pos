@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# §IV evidence capture — per-UC JSON produced by moyun-pos itself.
+# §IV evidence capture - per-UC JSON produced by moyun-pos itself.
 #
 # Replays the official fixtures through the real commands of the
 # certification build (--no-default-features --features cert) with

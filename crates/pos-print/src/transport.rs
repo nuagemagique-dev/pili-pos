@@ -90,7 +90,7 @@ impl TcpPrinter {
             .map_err(|_| TransportError::Timeout)?
             .map_err(|e| TransportError::Write(e.to_string()))?;
 
-        // DLE EOT status query — best-effort. If the printer doesn't
+        // DLE EOT status query - best-effort. If the printer doesn't
         // respond (older models, unidirectional TCP) we return a
         // default "everything OK" status so the checkout isn't blocked.
         let status = query_printer_status(&mut stream).await;
@@ -131,7 +131,7 @@ async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
     for &(cmd_n, label) in &[(1u8, "paper"), (3u8, "error")] {
         let cmd = [0x10u8, 0x04, cmd_n]; // DLE EOT n
         if stream.write_all(&cmd).await.is_err() {
-            return status; // Unidirectional — give up.
+            return status; // Unidirectional - give up.
         }
         let _ = stream.flush().await;
 
@@ -167,7 +167,7 @@ async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
                 }
             }
             _ => {
-                // Timeout or read error — printer may not support
+                // Timeout or read error - printer may not support
                 // DLE EOT. Return what we have so far.
                 return status;
             }

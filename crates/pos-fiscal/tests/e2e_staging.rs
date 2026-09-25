@@ -1,6 +1,6 @@
 //! Pre-submission rehearsal against a real virtual FDM.
 //!
-//! This file is `#[ignore]`d by default — `cargo test --workspace`
+//! This file is `#[ignore]`d by default - `cargo test --workspace`
 //! does NOT run it. Activate explicitly:
 //!
 //! ```bash
@@ -13,12 +13,12 @@
 //!
 //! | Variable | Default | Purpose |
 //! |---|---|---|
-//! | `MOYUN_STAGING_FDM_URL`      | —                | FDM GraphQL endpoint (required) |
+//! | `MOYUN_STAGING_FDM_URL`      | -                | FDM GraphQL endpoint (required) |
 //! | `MOYUN_STAGING_POS_ID`       | `CFOD0061234567` | posId registered with the FDM |
 //! | `MOYUN_STAGING_VAT`          | `BE0000000097`   | vatNo (SPF test identity) |
 //! | `MOYUN_STAGING_EST_NO`       | `2000000042`     | estNo (SPF test identity) |
 //! | `MOYUN_STAGING_INSZ`         | `12345678901`    | employee INSZ for S events |
-//! | `MOYUN_STAGING_TICKET_START` | `1`              | first posFiscalTicketNo — bump on re-runs so numbering stays strictly increasing across rehearsals |
+//! | `MOYUN_STAGING_TICKET_START` | `1`              | first posFiscalTicketNo - bump on re-runs so numbering stays strictly increasing across rehearsals |
 //! | `MOYUN_STAGING_DUMP`         | unset            | `1` → write every request/response pair to `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md` |
 //!
 //! `staging_status_returns_operational` is the intake preflight;
@@ -30,8 +30,8 @@
 //!
 //! For every `SignResult` it asserts: echoed identification fields,
 //! expected event label, strictly increasing `totalCounter`, per-label
-//! monotonic `eventCounter`, non-empty `digitalSignature`, and — when
-//! `shortSignature` is present — that it equals SHA-1(digitalSignature)
+//! monotonic `eventCounter`, non-empty `digitalSignature`, and - when
+//! `shortSignature` is present - that it equals SHA-1(digitalSignature)
 //! per the spec's short-signature derivation.
 //!
 //! The Z report is deliberately NOT part of the smoke: it resets FDM
@@ -97,7 +97,7 @@ fn staging_config(url: &str) -> PosConfig {
     }
 }
 
-/// Sanity check — talk to the real virtual FDM, get a Status response,
+/// Sanity check - talk to the real virtual FDM, get a Status response,
 /// confirm it claims to be operational.
 #[tokio::test]
 #[ignore]
@@ -106,7 +106,7 @@ async fn staging_status_returns_operational() {
         Some(u) => u,
         None => {
             eprintln!(
-                "MOYUN_STAGING_FDM_URL not set — skipping. \
+                "MOYUN_STAGING_FDM_URL not set - skipping. \
                  Provision a virtual FDM and re-run with the URL in env."
             );
             return;
@@ -134,13 +134,13 @@ async fn staging_status_returns_operational() {
     );
     if status.device.buffer_capacity_used >= 70.0 {
         eprintln!(
-            "⚠ buffer at {:.2}% — FDM will raise BUFFER_NEAR_FULL; \
+            "⚠ buffer at {:.2}% - FDM will raise BUFFER_NEAR_FULL; \
              sync with SPF cloud before the intake appointment",
             status.device.buffer_capacity_used
         );
     }
     if let Some(errs) = status.errors.as_ref() {
-        // `show_pos` is the cert-meaningful flag — only
+        // `show_pos` is the cert-meaningful flag - only
         // `Mandatory`-display errors are intake-blocking.
         let blocking: Vec<_> = errs
             .iter()
@@ -173,7 +173,7 @@ impl Rehearsal {
         Self {
             pos_id: pos_id.to_string(),
             log: format!(
-                "# Journal de répétition — staging_basic_set_smoke\n\n\
+                "# Journal de répétition - staging_basic_set_smoke\n\n\
                  - Date : {}\n- FDM : `{}`\n- posId : `{}`\n",
                 chrono::Local::now().to_rfc3339(),
                 fdm_url,
@@ -254,7 +254,7 @@ impl Rehearsal {
             result.fdm_ref.event_label,
             result.fdm_ref.event_counter,
             result.fdm_ref.total_counter,
-            result.short_signature.as_deref().unwrap_or("—"),
+            result.short_signature.as_deref().unwrap_or("-"),
         );
         self.results.push(result);
     }
@@ -330,7 +330,7 @@ async fn staging_basic_set_smoke() {
     let url = match staging_url() {
         Some(u) => u,
         None => {
-            eprintln!("MOYUN_STAGING_FDM_URL not set — skipping.");
+            eprintln!("MOYUN_STAGING_FDM_URL not set - skipping.");
             return;
         }
     };
@@ -351,7 +351,7 @@ async fn staging_basic_set_smoke() {
         n
     };
 
-    // 1. S — work-in (M140). The service day starts with staff
+    // 1. S - work-in (M140). The service day starts with staff
     //    presence registration; the FDM refuses sales before it.
     let n = next_ticket();
     let input = build_work_in_out(&config, n, &insz, &bk(&booking_period_id));
@@ -359,9 +359,9 @@ async fn staging_basic_set_smoke() {
         .sign_work_in(input.clone(), false)
         .await
         .expect("signWorkIn");
-    r.check("1. signWorkIn (S) — M140", EventLabel::S, n, &input, result);
+    r.check("1. signWorkIn (S) - M140", EventLabel::S, n, &input, result);
 
-    // 2. P — order (M121): table 4 opens.
+    // 2. P - order (M121): table 4 opens.
     let order = rehearsal_order(4, &insz);
     let lines = rehearsal_lines(1);
     let n = next_ticket();
@@ -370,9 +370,9 @@ async fn staging_basic_set_smoke() {
         .sign_order(input.clone(), false)
         .await
         .expect("signOrder");
-    r.check("2. signOrder (P) — M121", EventLabel::P, n, &input, result);
+    r.check("2. signOrder (P) - M121", EventLabel::P, n, &input, result);
 
-    // 3. P — pre-bill (M123): provisional bill for the same table.
+    // 3. P - pre-bill (M123): provisional bill for the same table.
     let n = next_ticket();
     let input = build_pre_bill_input(&config, &order, &lines, n, &bk(&booking_period_id));
     let result = client
@@ -380,14 +380,14 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signPreBill");
     r.check(
-        "3. signPreBill (P) — M123",
+        "3. signPreBill (P) - M123",
         EventLabel::P,
         n,
         &input,
         result,
     );
 
-    // 4. N — sale (M110): the table pays cash.
+    // 4. N - sale (M110): the table pays cash.
     let n = next_ticket();
     let input = build_sale_input(
         &config,
@@ -408,9 +408,9 @@ async fn staging_basic_set_smoke() {
         "N sale must carry a shortSignature (printed on the ticket)"
     );
     let sale_ref = result.fdm_ref.clone();
-    r.check("4. signSale (N) — M110", EventLabel::N, n, &input, result);
+    r.check("4. signSale (N) - M110", EventLabel::N, n, &input, result);
 
-    // 5. N — full refund (M111), referencing the original sale.
+    // 5. N - full refund (M111), referencing the original sale.
     let refund_lines = rehearsal_lines(-1);
     let n = next_ticket();
     let input = build_sale_input(
@@ -428,23 +428,23 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signSale (refund)");
     r.check(
-        "5. signSale refund (N) — M111",
+        "5. signSale refund (N) - M111",
         EventLabel::N,
         n,
         &input,
         result,
     );
 
-    // 6. C — copy of the original sale (M160).
+    // 6. C - copy of the original sale (M160).
     let n = next_ticket();
     let input = build_copy_input(&config, n, &insz, &bk(&booking_period_id), &sale_ref);
     let result = client
         .sign_copy(input.clone(), false)
         .await
         .expect("signCopy");
-    r.check("6. signCopy (C) — M160", EventLabel::C, n, &input, result);
+    r.check("6. signCopy (C) - M160", EventLabel::C, n, &input, result);
 
-    // 7. F — drawer open without transaction (M131).
+    // 7. F - drawer open without transaction (M131).
     let n = next_ticket();
     let input = DrawerOpenInput {
         common: pos_fiscal::event::build_common_fields(
@@ -461,14 +461,14 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signDrawerOpen");
     r.check(
-        "7. signDrawerOpen (F) — M131",
+        "7. signDrawerOpen (F) - M131",
         EventLabel::F,
         n,
         &input,
         result,
     );
 
-    // 8. F — money in: €50 float added to the drawer (M130).
+    // 8. F - money in: €50 float added to the drawer (M130).
     let n = next_ticket();
     let input = MoneyInOutInput {
         common: pos_fiscal::event::build_common_fields(
@@ -497,14 +497,14 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signMoneyInOut");
     r.check(
-        "8. signMoneyInOut (F) — M130",
+        "8. signMoneyInOut (F) - M130",
         EventLabel::F,
         n,
         &input,
         result,
     );
 
-    // 9. R — turnover X report (M180). Totals reflect exactly what
+    // 9. R - turnover X report (M180). Totals reflect exactly what
     //    this rehearsal signed: one sale + its full refund (net 0),
     //    with the drawer opened once.
     let first = r.results.first().expect("at least one result");
@@ -579,14 +579,14 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signReportTurnoverX");
     r.check(
-        "9. signReportTurnoverX (R) — M180",
+        "9. signReportTurnoverX (R) - M180",
         EventLabel::R,
         n,
         &input,
         result,
     );
 
-    // 10. R — user X report (M182): per-operator turnover +
+    // 10. R - user X report (M182): per-operator turnover +
     //     presence, referencing the same device blocks.
     let first = r.results.first().expect("results");
     let last = r.results.last().expect("results");
@@ -623,14 +623,14 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signReportUserX");
     r.check(
-        "10. signReportUserX (R) — M182",
+        "10. signReportUserX (R) - M182",
         EventLabel::R,
         n,
         &input,
         result,
     );
 
-    // 11. S — work-out (M141): the service day closes.
+    // 11. S - work-out (M141): the service day closes.
     let n = next_ticket();
     let input = build_work_in_out(&config, n, &insz, &bk(&booking_period_id));
     let result = client
@@ -638,7 +638,7 @@ async fn staging_basic_set_smoke() {
         .await
         .expect("signWorkOut");
     r.check(
-        "11. signWorkOut (S) — M141",
+        "11. signWorkOut (S) - M141",
         EventLabel::S,
         n,
         &input,

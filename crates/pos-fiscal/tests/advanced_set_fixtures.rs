@@ -3,7 +3,7 @@
 //! Walks `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` and validates that
 //! every published response deserializes into `SignResult`. The Advanced
 //! Set covers composite products, price changes, table split/merge, MPV/SPV
-//! vouchers, foreign currency, customer accounts, etc. — the "optional but
+//! vouchers, foreign currency, customer accounts, etc. - the "optional but
 //! restaurant-realistic" flows in the cert manual.
 //!
 //! Approach mirrors `uc_fixtures.rs` (Basic Set):
@@ -184,7 +184,7 @@ fn advanced_set_v1_5_fixtures_deserialize() {
             }
         }
         // Avoid unused-variable warning for is_dual_envelope across the
-        // discovery side — keep the field for documentation purposes.
+        // discovery side - keep the field for documentation purposes.
         let _ = fx.is_dual_envelope;
     }
 

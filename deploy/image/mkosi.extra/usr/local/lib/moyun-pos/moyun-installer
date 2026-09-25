@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-installer — USB installer/updater, run by moyun-installer.service
+# moyun-installer - USB installer/updater, run by moyun-installer.service
 # only when the kernel command line carries moyun.installer=install or
 # moyun.installer=update (i.e. only when booted FROM the USB stick with
-# that menu entry picked — a normal boot never reaches this script; see
+# that menu entry picked - a normal boot never reaches this script; see
 # the unit's ConditionKernelCommandLine=).
 #
 # install: wipes the internal disk and replicates this USB stick's
@@ -12,7 +12,7 @@
 #          "moyun-data" partition on the first real boot.
 # update:  copies ONLY the CONTENTS of partitions 1 (ESP) and 2 (root)
 #          into the internal disk's EXISTING partitions 1 and 2,
-#          without touching its partition table at all — so its
+#          without touching its partition table at all - so its
 #          existing "moyun-data" partition (partition 3, the fiscal
 #          database) is never disturbed. This is why update copies
 #          partition-to-partition rather than disk-to-disk.
@@ -34,7 +34,7 @@ if [[ "$CMDLINE" == *" moyun.installer=install "* ]]; then
 elif [[ "$CMDLINE" == *" moyun.installer=update "* ]]; then
     MODE=update
 else
-    log "no moyun.installer= argument on the kernel command line — nothing to do"
+    log "no moyun.installer= argument on the kernel command line - nothing to do"
     exit 0
 fi
 
@@ -60,7 +60,7 @@ if [[ "${#CANDIDATES[@]}" -eq 0 ]]; then
     log "ERROR: no internal non-removable disk found"
     exit 1
 elif [[ "${#CANDIDATES[@]}" -gt 1 ]]; then
-    log "ERROR: several candidate internal disks found (${CANDIDATES[*]}) — refusing to guess"
+    log "ERROR: several candidate internal disks found (${CANDIDATES[*]}) - refusing to guess"
     exit 1
 fi
 TARGET_DISK="/dev/${CANDIDATES[0]}"
@@ -75,7 +75,7 @@ fi
 clear || true
 cat <<BANNER
 ════════════════════════════════════════════════════════════════
-  moyun-pos — ${MODE_UPPER} sur ${TARGET_DISK}
+  moyun-pos - ${MODE_UPPER} sur ${TARGET_DISK}
   Source : ${SRC_DISK} (cette clé USB)
 
   ${WARN_LINE}

@@ -6,7 +6,7 @@ use serde::de::DeserializeOwned;
 
 use crate::errors::{HubriseError, Result};
 
-/// HubRise HTTP client. Cheap to clone — `reqwest::Client` is internally `Arc`.
+/// HubRise HTTP client. Cheap to clone - `reqwest::Client` is internally `Arc`.
 #[derive(Clone)]
 pub struct Client {
     http: reqwest::Client,

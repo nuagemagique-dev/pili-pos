@@ -44,7 +44,7 @@ RuntimeDirectory=moyun-pos
 RuntimeDirectoryMode=0750
 
 # Files the service creates (pos.db-wal/-shm, logs, backups) get group
-# read access instead of world-readable — pairs with the `spf` account
+# read access instead of world-readable - pairs with the `spf` account
 # on the admission image (group `pos`) and the pos-db-ro wrapper.
 UMask=0027
 
@@ -57,7 +57,7 @@ Environment=RUST_LOG=info
 # branch on this to pick the wlr-specific screencast backend.
 Environment=XDG_CURRENT_DESKTOP=wlroots
 
-# Fiscal compliance: the POS must be operational — restart whenever it
+# Fiscal compliance: the POS must be operational - restart whenever it
 # exits, crash or not.
 Restart=always
 RestartSec=3
@@ -73,7 +73,7 @@ NoNewPrivileges=yes
 # Touchscreen and GPU access
 SupplementaryGroups=input video render
 
-# NOTE: no WatchdogSec — the app does not send sd_notify WATCHDOG=1
+# NOTE: no WatchdogSec - the app does not send sd_notify WATCHDOG=1
 # pings, so enabling it would make systemd kill a healthy app every
 # interval. Crash recovery is covered by Restart=always above.
 

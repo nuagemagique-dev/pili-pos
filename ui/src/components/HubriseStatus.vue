@@ -7,7 +7,7 @@ const { t } = useI18n()
 
 // Shows the HubRise connection state in the header bar.
 // Green  = connected (token stored + poller active)
-// Yellow = not connected (no token — needs OAuth setup)
+// Yellow = not connected (no token - needs OAuth setup)
 // Grey   = unknown (IPC error)
 
 const status = ref<'ok' | 'warn' | 'none'>('none')

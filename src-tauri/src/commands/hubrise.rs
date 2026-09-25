@@ -45,7 +45,7 @@ impl HubriseConnectionInfo {
 }
 
 /// Configuration defaults for the HubRise OAuth flow on the POS.
-/// In production these come from an env file or a Settings screen —
+/// In production these come from an env file or a Settings screen -
 /// for now we ship the dev mock defaults so the flow can be exercised
 /// out of the box.
 fn default_oauth_config() -> OAuthConfig {
@@ -153,7 +153,7 @@ pub struct WebshopOrderItem {
     pub unit_price_cents: i64,
     pub line_total_cents: i64,
     /// Human-readable list of applied options ("Sauce soja", "Extra
-    /// wasabi", …) — empty when the item has no modifiers.
+    /// wasabi", …) - empty when the item has no modifiers.
     pub options: Vec<String>,
     pub customer_notes: Option<String>,
 }
@@ -180,7 +180,7 @@ pub struct WebshopOrderSummary {
     /// "+15/+30/+45/+60 min" delay chips so the staff sees the
     /// agreed-upon ready-at time on the card.
     pub confirmed_time: Option<String>,
-    /// Delivery address fields — used by the "Tokyo webshop"
+    /// Delivery address fields - used by the "Tokyo webshop"
     /// delivery cards (where TSB's own driver decides whether to
     /// accept or refuse based on distance). Aggregator channels
     /// (Deliveroo/Uber Eats/Takeaway) handle delivery themselves,
@@ -199,7 +199,7 @@ fn money_to_cents(raw: &str) -> i64 {
     (parsed * 100.0).round() as i64
 }
 
-/// Address fields teased out of a HubRise `customer` object — only
+/// Address fields teased out of a HubRise `customer` object - only
 /// populated for `delivery` service_type orders where the Vue card
 /// needs to render a per-order delivery block.
 #[derive(Debug, Default, Clone)]

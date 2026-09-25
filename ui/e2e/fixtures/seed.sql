@@ -2,7 +2,7 @@
 -- Applied to a fresh SQLite DB before starting the real Tauri binary.
 -- The schema is created by run_migrations() at POS boot.
 
--- Test operator (no PIN for CI speed — PIN tests are covered in Layer 2).
+-- Test operator (no PIN for CI speed - PIN tests are covered in Layer 2).
 INSERT OR IGNORE INTO users (insz, name, role, active)
 VALUES ('00000000029', 'CI Robot', 'admin', 1);
 

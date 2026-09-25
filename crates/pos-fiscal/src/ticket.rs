@@ -21,7 +21,7 @@ pub enum ReceiptLanguage {
 
 impl ReceiptLanguage {
     /// Map a POS display-language code to a ticket language.
-    /// Non-official languages (zh, en, ja…) fall back to FR — the
+    /// Non-official languages (zh, en, ja…) fall back to FR - the
     /// fiscal ticket must be in a Belgian national language.
     pub fn from_code(code: &str) -> Self {
         match code {
@@ -59,7 +59,7 @@ pub struct FiscalTicket {
     pub pos_sw_version: String,
     pub terminal_id: String,
     /// Input device identification echoed by the FDM (`deviceId`,
-    /// the terminal's MAC address — manual §VI row VII).
+    /// the terminal's MAC address - manual §VI row VII).
     #[serde(default)]
     pub device_id: String,
     /// User identification printed on the ticket (manual §VI row

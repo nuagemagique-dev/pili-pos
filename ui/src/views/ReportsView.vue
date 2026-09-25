@@ -27,7 +27,7 @@ async function loadHistory() {
   try {
     zHistory.value = await ipc.listZReports();
   } catch {
-    /* silently degrade — history is non-critical */
+    /* silently degrade - history is non-critical */
   }
 }
 
@@ -107,7 +107,7 @@ async function generateZ() {
   }
 }
 
-// ── Copy flow (event C) — picker shown before signing ──────────────
+// ── Copy flow (event C) - picker shown before signing ──────────────
 const copyOpen = ref(false);
 const copyStep = ref<"pick" | "picker" | "processing" | "result">("picker");
 const copyTarget = ref<{ fiscalEventId: number | null } | null>(null);
@@ -178,10 +178,10 @@ async function confirmCopy() {
 }
 
 function formatDate(iso: string): string {
-  return iso ? formatTimestamp(iso, formatDay) : "—";
+  return iso ? formatTimestamp(iso, formatDay) : "-";
 }
 
-// ── Cash management (Event F) — preset buttons, no keyboard ──────
+// ── Cash management (Event F) - preset buttons, no keyboard ──────
 const cashAmountCents = ref(0);
 const cashLoading = ref(false);
 const cashPresets = [1000, 2000, 5000, 10000, 20000]; // 10€, 20€, 50€, 100€, 200€
@@ -376,7 +376,7 @@ function formatRefundTime(iso: string): string {
         <ul v-else class="history-list">
           <li v-for="z in zHistory" :key="z.id" class="history-row">
             <span class="history-label">
-              Z #{{ z.sequenceNumber }} — {{ formatDate(z.createdAt) }}
+              Z #{{ z.sequenceNumber }} · {{ formatDate(z.createdAt) }}
             </span>
             <button
               v-if="z.fiscalEventId"
@@ -389,7 +389,7 @@ function formatRefundTime(iso: string): string {
         </ul>
       </div>
 
-      <!-- Cash management (Event F) — §7.3: preset buttons, no keyboard -->
+      <!-- Cash management (Event F) - §7.3: preset buttons, no keyboard -->
       <div class="cash-section">
         <h3>{{ t('cash_section') }}</h3>
 
@@ -520,7 +520,7 @@ function formatRefundTime(iso: string): string {
       </div>
     </Teleport>
 
-    <!-- Copy modal (event C) — picker shown before signing (§8.2) -->
+    <!-- Copy modal (event C) - picker shown before signing (§8.2) -->
     <Teleport to="body">
       <div v-if="copyOpen" class="refund-overlay" @click.self="closeCopy">
         <div class="refund-modal">
@@ -629,7 +629,7 @@ function formatRefundTime(iso: string): string {
 .cash-section { width: 100%; max-width: 600px; padding: var(--space-md); border: 1px solid rgba(160,160,176,0.15); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--space-md); }
 .cash-section h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); }
 
-/* §7.3: preset amount buttons — no keyboard */
+/* §7.3: preset amount buttons - no keyboard */
 .cash-presets { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 .cash-preset {
   flex: 1; min-width: 80px; height: 56px;

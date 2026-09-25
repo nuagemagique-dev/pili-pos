@@ -80,7 +80,7 @@ async function typeAndConfirmEmail(page: Page, local: string, domain: string) {
 
 // ── Picker visibility ────────────────────────────────────────────
 
-test.describe('Ticket medium picker — visibility', () => {
+test.describe('Ticket medium picker - visibility', () => {
   test('hidden when the terminal has no mail setup; checkout sends no delivery', async ({ page }) => {
     await goToCheckoutMethodStep(page);
     await expect(page.locator('.medium-picker')).toHaveCount(0);
@@ -254,7 +254,7 @@ test.describe('Checkout request', () => {
     await payExact(page);
     await page.locator('.done-actions .primary').click();
     // finish() routes to "order", but OrderView immediately bounces to
-    // "tables" (no active order left — it was cleared on success), so
+    // "tables" (no active order left - it was cleared on success), so
     // "tables" is the only settled URL worth waiting for here.
     await page.waitForURL(/tables/);
 
@@ -267,7 +267,7 @@ test.describe('Checkout request', () => {
 
 // ── Done screen outcome ───────────────────────────────────────────
 
-test.describe('Done screen — delivery outcome', () => {
+test.describe('Done screen - delivery outcome', () => {
   test('shows "Ticket imprimé" for a paper outcome', async ({ page }) => {
     await goToCheckoutMethodStep(page, {
       checkout: () => ({
@@ -314,7 +314,7 @@ test.describe('Done screen — delivery outcome', () => {
 
 // ── needsPaper: the one print action left on the done screen ────
 
-test.describe('needsPaper — print the missing original', () => {
+test.describe('needsPaper - print the missing original', () => {
   function checkoutNeedingPaper() {
     return () => ({
       success: true, ticket: SAMPLE_TICKET, error: null, fdm_connected: true,
@@ -347,7 +347,7 @@ test.describe('needsPaper — print the missing original', () => {
     });
     await payExact(page);
     // A handler that always throws is expressed as the '__THROW__'
-    // sentinel via overrideIPC — a plain throwing function would only
+    // sentinel via overrideIPC - a plain throwing function would only
     // throw once, at mock setup time (see mock-ipc.ts's `live()` doc).
     await overrideIPC(page, 'print_missing_original', '__THROW__');
 
@@ -372,7 +372,7 @@ test.describe('needsPaper — print the missing original', () => {
 
 // ── Refund flow ────────────────────────────────────────────────────
 
-test.describe('Refund flow — ticket delivery', () => {
+test.describe('Refund flow - ticket delivery', () => {
   const SAMPLE_REFUNDABLE = [
     { fiscalEventId: 10, ticketNumber: 42, orderId: 5, tableNumber: 3, totalCents: 1200, createdAt: new Date().toISOString() },
   ];
@@ -430,7 +430,7 @@ test.describe('Refund flow — ticket delivery', () => {
 
 // ── Copy flow ──────────────────────────────────────────────────────
 
-test.describe('Copy flow — ticket delivery', () => {
+test.describe('Copy flow - ticket delivery', () => {
   const SAMPLE_Z = [
     { id: 1, reportDate: '2026-04-11', sequenceNumber: 1, createdAt: '2026-04-11T22:15:00Z', fiscalEventId: 77 },
   ];
@@ -484,7 +484,7 @@ test.describe('Copy flow — ticket delivery', () => {
   });
 });
 
-test.describe('Ticket copy (event C) — pick the ticket first', () => {
+test.describe('Ticket copy (event C) - pick the ticket first', () => {
   const TICKETS = [
     { fiscalEventId: 41, eventLabel: 'T', ticketNumber: 9, tableNumber: null, totalCents: 300, createdAt: '2026-09-25 12:30:00' },
     { fiscalEventId: 40, eventLabel: 'N', ticketNumber: 8, tableNumber: null, totalCents: -1200, createdAt: '2026-09-25 12:20:00' },
@@ -559,9 +559,9 @@ test.describe('Ticket copy (event C) — pick the ticket first', () => {
   });
 });
 
-// ── Settings — digital tickets panel ─────────────────────────────
+// ── Settings - digital tickets panel ─────────────────────────────
 
-test.describe('Settings — digital tickets panel', () => {
+test.describe('Settings - digital tickets panel', () => {
   const SAMPLE_DELIVERIES = [
     { id: 1, fiscalEventId: 10, medium: 'DIGITAL', recipientHint: 'j***@e***.be', status: 'sent', attempts: 1, lastError: null, fallbackPrinted: false, createdAt: '2026-04-11T22:15:00Z' },
     { id: 2, fiscalEventId: 11, medium: 'PAPER_DIGITAL', recipientHint: 'a***@b***.com', status: 'failed', attempts: 3, lastError: 'timeout', fallbackPrinted: true, createdAt: '2026-04-11T20:00:00Z' },

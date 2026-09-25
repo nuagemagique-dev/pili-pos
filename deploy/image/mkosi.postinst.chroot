@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mkosi.postinst.chroot — auto-discovered by mkosi (PostInstallationScripts=),
+# mkosi.postinst.chroot - auto-discovered by mkosi (PostInstallationScripts=),
 # run chrooted into the image after packages and both the base and
 # active-profile mkosi.extra/ trees have been installed. $PROFILES is
 # set by mkosi to the comma-delimited list of active profiles.
@@ -7,7 +7,7 @@
 # Everything here delegates to deploy/provision/provision.sh --phase
 # image, staged into the image by deploy/image/build.sh alongside its
 # other build inputs (see that script) at /opt/moyun-pos/.build-input/
-# and /opt/moyun-pos/deploy/provision/ — the same script that
+# and /opt/moyun-pos/deploy/provision/ - the same script that
 # deploy/install.sh runs on a plain, already-booted Debian 12 box.
 set -euo pipefail
 

@@ -71,7 +71,7 @@ export interface CreateOrderInput {
 }
 
 /** Price, VAT label, name and department are resolved by the backend
- * from the catalogue — the UI only picks the product. */
+ * from the catalogue - the UI only picks the product. */
 export interface AddOrderLineInput {
   order_id: number;
   menu_item_id: number;

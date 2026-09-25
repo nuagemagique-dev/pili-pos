@@ -22,7 +22,7 @@ use crate::state::AppState;
 #[serde(rename_all = "camelCase")]
 pub struct RefundItem {
     pub menu_item_id: i64,
-    pub quantity: i32, // positive — backend negates it
+    pub quantity: i32, // positive - backend negates it
 }
 
 /// List recent closed N-events that can be refunded.
@@ -158,12 +158,12 @@ pub async fn do_refund_checkout_with(
         Err(e) => return Ok(CheckoutResult::refused(e)),
     };
 
-    // 2. Create a refund order with negative-quantity lines — once
+    // 2. Create a refund order with negative-quantity lines - once
     // every item is checked, so a refused refund leaves nothing behind.
     let (refund_order, refund_lines) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
 
-        // Every refund of this sale — this one included — carries the
+        // Every refund of this sale - this one included - carries the
         // SAME `fdmRef` (the original ticket, never a chain through
         // prior refunds; see FLUX_REMBOURSEMENT_FR.md and the M112B
         // test). That makes `fdmRef` the stable key for "how much of
@@ -234,7 +234,7 @@ pub async fn do_refund_checkout_with(
     // an open order that could be completed and paid as a sale.
     let outcome: Result<CheckoutResult, String> = async {
         // 3. RESERVE the next ticket number (peek, no commit). See the
-        // identical pattern in `checkout.rs` — the counter is committed
+        // identical pattern in `checkout.rs` - the counter is committed
         // inside the archive transaction below, after the FDM accepts
         // the refund.
         let ticket_number = {
@@ -274,7 +274,7 @@ pub async fn do_refund_checkout_with(
                 return Ok(CheckoutResult {
                     success: false,
                     ticket: None,
-                    error: Some("FDM not connected — cannot process refund".into()),
+                    error: Some("FDM not connected - cannot process refund".into()),
                     fdm_connected: false,
                     fiscal_event_id: None,
                     delivery: None,
@@ -339,11 +339,11 @@ pub async fn do_refund_checkout_with(
                 EventLabel::N
             };
             let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-            // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+            // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
             if committed_no != ticket_number {
                 return Err(format!(
                     "counter drifted between peek and commit for {label:?} (peeked \
-                     {ticket_number}, committed {committed_no}) — likely a concurrent \
+                     {ticket_number}, committed {committed_no}) - likely a concurrent \
                      refund of the same sale; retry"
                 ));
             }
@@ -376,7 +376,7 @@ pub async fn do_refund_checkout_with(
             .map_err(|e| e.to_string())?;
 
             // Record the (negative) cash payment so it nets against the
-            // day's takings in the X/Z reports — see the identical fix in
+            // day's takings in the X/Z reports - see the identical fix in
             // `checkout.rs`. Refunds are always cash (§7 above) and never
             // happen in training mode's fake-money sense, but a training
             // refund still records no row, for the same reason a training
@@ -442,8 +442,8 @@ pub const ERR_REFUND_IN_TRAINING: &str = "A real sale cannot be refunded in trai
 pub const ERR_REFUND_OF_REFUND: &str = "A refund cannot be refunded";
 
 /// The original sale line a refunded product comes from. The quantity
-/// refunded for a product — summed over THIS request AND every prior
-/// refund of the same sale (`already_refunded`) — may not exceed the
+/// refunded for a product - summed over THIS request AND every prior
+/// refund of the same sale (`already_refunded`) - may not exceed the
 /// quantity sold for it on the original ticket.
 fn refunded_line(
     original_lines: &[pos_core::order::OrderLine],
@@ -473,7 +473,7 @@ fn refunded_line(
 
 /// Sum, per `menu_item_id`, the quantity already refunded against the
 /// sale identified by `original`. Every refund of a sale carries the
-/// SAME `fdmRef` (the original ticket's FDM identity — see the comment
+/// SAME `fdmRef` (the original ticket's FDM identity - see the comment
 /// at the call site), so a prior refund is any archived N/T event whose
 /// request JSON's `fdmRef` matches all four of the original's FDM
 /// reference fields. Reading `event_data_json` (what the POS actually

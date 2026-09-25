@@ -6,14 +6,14 @@
 // Covers every "showPos != NEVER" code listed in the SCE 2.0
 // certification manual §V (mandatory and optional displays).
 export const ERROR_MESSAGES: Record<string, string> = {
-  // Mandatory (M) — must be displayed on the POS
+  // Mandatory (M) - must be displayed on the POS
   BUFFER_FULL: "La boîte noire est pleine. Contactez votre technicien.",
   FDM_LOCKED: "La boîte noire est verrouillée. Contactez votre technicien.",
   FDM_NOT_OPERATIONAL: "La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes.",
   UNKNOWN_POS: "Cette caisse n'est pas reconnue par la boîte noire.",
   BUFFER_NEAR_FULL: "La boîte noire est presque pleine. Programmez une intervention.",
   CLIENT_CERT_EXPIRED: "Le certificat de la boîte noire a expiré. Contactez votre technicien.",
-  // Optional (O) — recommended display
+  // Optional (O) - recommended display
   CLIENT_CERT_NEAR_EXPIRATION: "Le certificat de la boîte noire expire bientôt.",
   UNAUTHORIZED: "La caisse n'est pas autorisée à parler à la boîte noire.",
   INVALID_REQUEST: "Erreur de communication avec la boîte noire. Contactez votre technicien.",
@@ -39,7 +39,7 @@ export function translateFdmError(raw: string | null): string | null {
   if (raw.includes("connect") || raw.includes("timeout")) {
     return "Connexion perdue avec la boîte noire. Vérifiez le câble réseau.";
   }
-  // UX Guide §8.3: no raw technical jargon — generic fallback
+  // UX Guide §8.3: no raw technical jargon - generic fallback
   return "Erreur boîte noire. Contactez votre technicien.";
 }
 

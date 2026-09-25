@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use crate::common::{Money, ServiceType};
 
-/// HubRise order status (see `docs/hubrise/03-orders.md` — Status Enum).
+/// HubRise order status (see `docs/hubrise/03-orders.md` - Status Enum).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OrderStatus {
@@ -21,7 +21,7 @@ pub enum OrderStatus {
     Rejected,
     Cancelled,
     DeliveryFailed,
-    /// Deprecated alias for `AwaitingCollection` — kept for compatibility.
+    /// Deprecated alias for `AwaitingCollection` - kept for compatibility.
     AwaitingShipment,
 }
 

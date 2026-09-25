@@ -27,7 +27,7 @@ interface FdmStatusEnvelope {
   };
 }
 
-// Severity tier — what the UI does about a code.
+// Severity tier - what the UI does about a code.
 // "blocking": red pill + checkout-blocking modal.
 // "warning":  yellow pill + tooltip, no modal.
 // "info":     informational, no UI change.
@@ -94,7 +94,7 @@ export const useFdmStore = defineStore("fdm", () => {
         severity.value = "blocking";
         return;
       }
-      // 2) Status query succeeded — inspect warnings/errors arrays.
+      // 2) Status query succeeded - inspect warnings/errors arrays.
       const { severity: sev, code } = pickPrimaryMessage(status);
       severity.value = sev;
       lastError.value = code;

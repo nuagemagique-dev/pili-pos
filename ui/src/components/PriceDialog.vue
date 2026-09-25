@@ -17,7 +17,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Up to 9 999,99 € — far above any menu price, and keeps the display short.
+// Up to 9 999,99 € - far above any menu price, and keeps the display short.
 const MAX_DIGITS = 6;
 const digits = ref("");
 const cents = computed(() => Number(digits.value || "0"));

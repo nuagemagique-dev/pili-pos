@@ -1,4 +1,4 @@
-//! HubRise callback (webhook) events — polling mode.
+//! HubRise callback (webhook) events - polling mode.
 //!
 //! Reference: `docs/hubrise/06-callbacks.md`.
 
@@ -31,7 +31,7 @@ impl EventResource {
     }
 }
 
-/// Generic callback event envelope — HubRise uses the same shape for
+/// Generic callback event envelope - HubRise uses the same shape for
 /// all resource types, with the state fields carried as JSON.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CallbackEvent {

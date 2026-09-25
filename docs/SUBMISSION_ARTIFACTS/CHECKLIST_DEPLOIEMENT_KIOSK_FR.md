@@ -10,12 +10,12 @@ monolithique.
 
 - [ ] Penetek A3216 M82 ou Advantech USC-360J (ou terminal x86_64
       fanless équivalent avec écran tactile PCAP 15.6" 1920×1080).
-- [ ] **TPM 2.0 activé en BIOS** (fTPM/Intel PTT ou puce discrète) —
+- [ ] **TPM 2.0 activé en BIOS** (fTPM/Intel PTT ou puce discrète) -
       requis pour le chiffrement LUKS2 de `/var` au premier démarrage
       (`SECURITE_BD_FR.md` §3.6). Sans cela, `moyun-provision.service`
       échoue et le terminal ne dépasse jamais l'écran de mots de passe.
 - [ ] Secure Boot **désactivé** (aucune infrastructure de signature de
-      l'UKI n'existe encore — l'activer empêche le boot).
+      l'UKI n'existe encore - l'activer empêche le boot).
 - [ ] Imprimante thermique Epson TM-m30III (USB ou TCP).
 - [ ] Tiroir-caisse RJ11 raccordé à l'imprimante.
 - [ ] URL du FDM Checkbox (boîtier physique sur le LAN, ou émulateur)
@@ -25,7 +25,7 @@ monolithique.
 
 - [ ] Debian 12 "bookworm" minimal, construit par mkosi
       (`deploy/image/mkosi.conf`, profils `production`/`admission`
-      sous `mkosi.profiles/`) — sans environnement de bureau.
+      sous `mkosi.profiles/`) - sans environnement de bureau.
 - [ ] Disque GPT : ESP (512 M) + racine ext4 **lecture seule** (4 G,
       systemd-boot + UKI) + partition `moyun-data` (tout l'espace
       restant, créée par `systemd-repart` au premier démarrage).
@@ -35,7 +35,7 @@ monolithique.
       uniquement (`SECURITE_BD_FR.md` §3.6).
 - [ ] Mot de passe `root` aléatoire (et `spf` sur l'image d'admission)
       généré et affiché **une seule fois** à la fin du premier
-      démarrage, avec la clé de récupération LUKS — à vérifier que le
+      démarrage, avec la clé de récupération LUKS - à vérifier que le
       relecteur/distributeur les a bien notés
       (`MANUEL_INSTALLATION_FR.md` §3.4).
 - [ ] Compositeur Cage Wayland - lance automatiquement `moyun-pos` en
@@ -47,14 +47,14 @@ monolithique.
       corrects sont une exigence cert).
 - [ ] RustDesk pinné (SHA-256 vérifié), extrait avec
       `--appimage-extract` dans `/opt/moyun-pos/rustdesk/`
-      (`AppRun`) — aucun service, jamais lancé au boot
+      (`AppRun`) - aucun service, jamais lancé au boot
       (`deploy/REMOTE-OPS.md`).
 - [ ] Pas de serveur SSH (appliance scellée), Bluetooth/CUPS/Avahi/
       ModemManager masqués. Accès console maintenance uniquement sur
       `tty2` (`Ctrl+Alt+F2`), terminal physique, login `root`.
 - [ ] USB installer/updater : le même artefact `.img.xz` propose au
       boot les entrées systemd-boot **"Install"** et **"Update"**
-      (`moyun.installer=install|update`) — "Install" réplique la table
+      (`moyun.installer=install|update`) - "Install" réplique la table
       de partitions (`sgdisk --replicate`) et écrase le disque interne
       ; "Update" ne recopie que ESP+racine (`dd` partition à
       partition) et **préserve** `moyun-data` (donc `pos.db`).
@@ -63,14 +63,14 @@ monolithique.
 
 - [ ] Build cert de `moyun-pos` installée dans `/opt/moyun-pos/`. Produite
       par `deploy/build-release.sh --docker` (build Linux x86_64,
-      `--no-default-features --features cert`, UI embarquée) — le
+      `--no-default-features --features cert`, UI embarquée) - le
       SHA-1 déclaré est vérifié par `.github/workflows/image.yml`
       (job `repro`, build reproductible x2, puis job `image`, hash de
       `/opt/moyun-pos/moyun-pos` **à l'intérieur** de l'image finie via
       `systemd-dissect --copy-from`).
 - [ ] Binaire `pos-fdm-mock` dans `/opt/moyun-pos/bin/pos-fdm-mock`
       (utilisé pendant la démo d'admission si le FDM virtuel est
-      injoignable) — image d'admission uniquement.
+      injoignable) - image d'admission uniquement.
 - [ ] Base de données de seed dans `/var/lib/moyun-pos/pos.db`,
       initialisée à la construction de l'image (dans
       `/usr/share/moyun-pos/factory/` puis copiée sur `/var` déchiffré
@@ -86,7 +86,7 @@ monolithique.
         `moyun-pos` est identique dans les deux images.
 - [ ] `pos.json::device_id` renseigné automatiquement par
       `moyun-provision` (adresse MAC du terminal, pas
-      `CHANGE_ME_MAC`) — voir `MANUEL_INSTALLATION_FR.md` §4.2.
+      `CHANGE_ME_MAC`) - voir `MANUEL_INSTALLATION_FR.md` §4.2.
 - [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`.
 - [ ] Sur l'image d'admission : compte `spf` (groupe `pos`, `tty2`,
       mot de passe affiché une seule fois au premier démarrage) peut
@@ -149,7 +149,7 @@ MOYUN_STAGING_FDM_URL=https://... \
   cargo test --package pos-fiscal --test e2e_staging -- --ignored
 # → tous les UC passent avec signatures vérifiées
 
-# 6) Construire l'image kiosque (les deux profils) — root Linux x86_64
+# 6) Construire l'image kiosque (les deux profils) - root Linux x86_64
 #    réel, ou conteneur linux/amd64 privilégié depuis macOS.
 sudo deploy/image/build.sh production admission
 # → deploy/image/mkosi.output/<profil>/moyun-pos-kiosk-<profil>.img.xz
@@ -176,7 +176,7 @@ capture d'écran QMP, échoue si l'écran est vide/uniforme).
 
 0. **Avant le rendez-vous** : vérifier que le premier démarrage a déjà
    été fait sur CE terminal (LUKS2/TPM2 provisionné, mots de passe
-   notés — §3.4 du manuel d'installation) ; le rendez-vous d'admission
+   notés - §3.4 du manuel d'installation) ; le rendez-vous d'admission
    ne doit pas être le moment où l'assistant découvre l'écran de mots
    de passe à usage unique.
 1. Boot du kiosk ; montrer Cage qui lance moyun-pos en plein écran.

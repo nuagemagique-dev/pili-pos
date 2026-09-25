@@ -110,7 +110,7 @@ pub fn set_pin_hash(conn: &Connection, insz: &str, hash: &str) -> Result<(), rus
 }
 
 /// Deactivate a user: they can no longer log in, and leave the lists.
-/// Never a deletion — their INSZ stays on the events they signed.
+/// Never a deletion - their INSZ stays on the events they signed.
 /// `QueryReturnedNoRows` when no active user has this INSZ.
 pub fn deactivate_user(conn: &Connection, insz: &str) -> Result<(), rusqlite::Error> {
     let updated = conn.execute(
@@ -225,7 +225,7 @@ mod tests {
 
         create_user(&conn, "11111111111", "Alice", UserRole::Waiter).unwrap();
         let dup = create_user(&conn, "11111111111", "Alice Bis", UserRole::Cashier);
-        assert!(dup.is_err(), "insz is the primary key — no duplicates");
+        assert!(dup.is_err(), "insz is the primary key - no duplicates");
     }
 
     #[test]

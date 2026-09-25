@@ -196,7 +196,7 @@ Payment by CASH (52 EUR)
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
 
 ```json
 {
@@ -280,7 +280,7 @@ Payment by CASH (52 EUR)
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `costCenter.type` | — | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+| `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
 
 <!-- moyun-pos-evidence:end -->
 
@@ -462,7 +462,7 @@ Products on original ticket N 1000/1200:
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
 
 ```json
 {
@@ -572,7 +572,7 @@ ASSUMPTION: the cash register supports a partial refund in combination with a ne
 **Note de déclaration :** le POS moyun-pos ne propose pas le pattern M112A
 (remboursement partiel combiné à une nouvelle vente sur un même ticket).
 Le dossier déclare le pattern **M112B** (remboursement en événement séparé,
-chaîné à la vente d'origine via `fdmReference`) — voir la section
+chaîné à la vente d'origine via `fdmReference`) - voir la section
 M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 
 ### M112A_1_OriginalSale
@@ -732,7 +732,7 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing uniquement — pattern non déclaré, voir M112B).
+**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing uniquement - pattern non déclaré, voir M112B).
 
 ### M112A_2_PartialRefund
 
@@ -923,7 +923,7 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 }
 ```
 
-**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing uniquement — pattern non déclaré, voir M112B).
+**Validation automatisee :** test passant dans `crates/pos-fiscal/tests/uc_fixtures.rs` (parsing uniquement - pattern non déclaré, voir M112B).
 
 
 ## M112B_signSale_RefundPartial
@@ -1243,7 +1243,7 @@ section).
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
 
 ```json
 {
@@ -1313,7 +1313,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M112B_event1_
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `costCenter.type` | — | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+| `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
 
 **Comparaison avec la fixture** (`evidence/uc/M112B_2_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
 
@@ -1321,7 +1321,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M112B_event1_
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `fdmRef` | — | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | moyun-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
+| `fdmRef` | - | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | moyun-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
 
 <!-- moyun-pos-evidence:end -->
 
@@ -1462,7 +1462,7 @@ on table 1.
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
 
 ```json
 {
@@ -1736,7 +1736,7 @@ is moved to T5 (Dining Room)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) — fonctionnalite non declaree en v1.0.0.
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) - fonctionnalite non declaree en v1.0.0.
 
 
 ## M123_signPrebill
@@ -1876,7 +1876,7 @@ on table 1 (BAR)  is printed
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
 
 ```json
 {
@@ -2052,7 +2052,7 @@ Aucun écart.
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
 
 ```json
 {
@@ -2178,7 +2178,7 @@ Drawer 1 is opened without any action
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
 
 ```json
 {
@@ -2324,7 +2324,7 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) — fonctionnalite non declaree en v1.0.0.
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) - fonctionnalite non declaree en v1.0.0.
 
 
 ## M133_signMoneyInOut_DrawerDeclaration
@@ -2513,7 +2513,7 @@ Registration of "Work In" of employee (employeeId 80113078968)
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
 
 ```json
 {
@@ -2625,7 +2625,7 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
 
 ```json
 {
@@ -2762,7 +2762,7 @@ Print of a copy of ticket (sale) N 16/52
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
 
 ```json
 {
@@ -2890,7 +2890,7 @@ Print of a copy of order P 22/53
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
 
 ```json
 {
@@ -3012,7 +3012,7 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
 
 ```json
 {
@@ -3326,7 +3326,7 @@ in training mode. Paymentmethod: CASH
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
 
 ```json
 {
@@ -3410,7 +3410,7 @@ in training mode. Paymentmethod: CASH
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `costCenter.type` | — | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+| `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
 
 <!-- moyun-pos-evidence:end -->
 
@@ -3508,7 +3508,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
 **Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
+**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
 
 ```json
 {
@@ -3839,7 +3839,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
 **Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
+**Preuve moyun-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
 
@@ -3992,7 +3992,7 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 **Note de déclaration :** le POS moyun-pos n'émet jamais le Z financier
 seul : la clôture de journée émet toujours le **Z combiné M184**
 (`signReportTurnoverZ` + `signReportUserZ` dans un même document GraphQL,
-deux `posFiscalTicketNo` séquentiels) — voir la section M184 ci-dessous.
+deux `posFiscalTicketNo` séquentiels) - voir la section M184 ci-dessous.
 La fixture M181 est validée en *parsing* et sa forme `signReportTurnoverZ`
 est exactement celle émise dans la première moitié du document M184.
 Couverture e2e applicative du Z : `m184_combined_z_of_the_scenario_day`
@@ -4212,7 +4212,7 @@ comparée à la fixture) et `m184_*` dans
 **Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+**Preuve moyun-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
 <!-- moyun-pos-evidence:end -->
 
 ## M182_signReportUserX
@@ -4405,7 +4405,7 @@ comparée à la fixture) et
 **Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
+**Preuve moyun-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
 
@@ -4526,7 +4526,7 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 ## M183_signReportUserZ
 
 **Note de déclaration :** comme pour M181, le POS n'émet jamais le Z
-utilisateurs seul — il est toujours émis dans le document combiné M184
+utilisateurs seul - il est toujours émis dans le document combiné M184
 (seconde moitié). La fixture M183 est validée en *parsing* et sa forme
 `signReportUserZ` est exactement celle émise dans le document M184.
 
@@ -4710,7 +4710,7 @@ utilisateurs seul — il est toujours émis dans le document combiné M184
 **Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+**Preuve moyun-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
 <!-- moyun-pos-evidence:end -->
 
 ## M184_signReportTurnoverZUserZ
@@ -4956,7 +4956,7 @@ comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
 **Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
 
 <!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** — la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
+**Preuve moyun-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
 

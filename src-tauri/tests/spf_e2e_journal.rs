@@ -7,7 +7,7 @@
 //!
 //! - every entry is sent exactly once, whether it travels in a P
 //!   (table order), a pre-bill, or the final N sale;
-//! - nothing is lost after a failed sign — an entry stays unsent and
+//! - nothing is lost after a failed sign - an entry stays unsent and
 //!   is re-sent on the next successful attempt;
 //! - a closed order can never change (add/remove/re-quantity all
 //!   refused);
@@ -93,7 +93,7 @@ async fn every_entry_is_sent_exactly_once_across_order_prebill_and_sale() {
     // Everything sent so far must now be marked sent.
     assert!(unsent_entries(&app, order_id).is_empty());
 
-    add(&app, order_id, 1); // round 2 — unsent until the pre-bill flushes it
+    add(&app, order_id, 1); // round 2 - unsent until the pre-bill flushes it
     assert_eq!(unsent_entries(&app, order_id).len(), 1);
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await; // the flush inside pre-bill
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M123")).await; // the pre-bill itself
@@ -101,7 +101,7 @@ async fn every_entry_is_sent_exactly_once_across_order_prebill_and_sale() {
     assert!(unsent_entries(&app, order_id).is_empty());
 
     // The two P requests, taken together, must equal the whole journal
-    // exactly once each — no entry duplicated, none skipped.
+    // exactly once each - no entry duplicated, none skipped.
     let p_events: Vec<_> = app
         .fiscal_events()
         .into_iter()
@@ -112,7 +112,7 @@ async fn every_entry_is_sent_exactly_once_across_order_prebill_and_sale() {
     assert_eq!(journal.len(), 2, "two journalled additions");
 
     // The final sale must carry ALL entries, chronologically, in one
-    // request — never just the "current" consolidated lines.
+    // request - never just the "current" consolidated lines.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
     let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
         .await
@@ -157,7 +157,7 @@ async fn unsent_entries_survive_a_failed_checkout_and_are_resent_on_retry() {
         .await
         .unwrap();
     assert!(!failed.success);
-    // The entry must still be there, unsent — nothing was consumed or
+    // The entry must still be there, unsent - nothing was consumed or
     // marked sent by the failed attempt.
     assert_eq!(
         unsent_entries(&app, order_id).len(),
@@ -218,7 +218,7 @@ async fn closed_orders_cannot_change_through_the_command_layer() {
 
     // `remove_order_line` / `update_order_line_quantity` (commands) are
     // thin `State`-taking wrappers around these exact pos-db calls with
-    // no added logic — calling the query directly exercises the same
+    // no added logic - calling the query directly exercises the same
     // guard (`ensure_open`, enforced under a SAVEPOINT) the real
     // command relies on.
     {
@@ -274,7 +274,7 @@ async fn refund_quantity_cannot_exceed_the_original_aggregated_across_partial_re
     assert_eq!(app.counter_for(EventLabel::N), 2);
 
     // Second partial refund of 2 MORE units: only 1 unit remains
-    // (3 sold − 2 already refunded), so this must be refused — even
+    // (3 sold − 2 already refunded), so this must be refused - even
     // though 2 alone is within what was originally sold. Before the
     // fix, `refunded_line` only checked the current request against
     // the original sale and ignored prior refunds, so this would have

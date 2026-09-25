@@ -2,8 +2,8 @@
 //! objects `turnover`, `users`, `posDevice`, `fdmDevice`), computed from
 //! the events the FDM signed: the archived request and response of each
 //! event. The archive is the fiscal truth, so the reports add up exactly
-//! what the FDM received — including training labels, corrections and
-//! refunds — and never read the mutable order tables.
+//! what the FDM received - including training labels, corrections and
+//! refunds - and never read the mutable order tables.
 //!
 //! Amounts are summed in eurocents; the JSON amounts (multiples of 0.01)
 //! are converted once, with rounding.

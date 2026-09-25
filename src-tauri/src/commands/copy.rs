@@ -186,7 +186,7 @@ pub async fn do_copy_ticket_with(
             restaurant_est_no: &config.restaurant_est_no,
             lines: ticket_lines,
             payments: vec![TicketPayment {
-                method: "—".to_string(),
+                method: "-".to_string(),
                 amount: order.total_cents as f64 / 100.0,
             }],
             total: order.total_cents as f64 / 100.0,

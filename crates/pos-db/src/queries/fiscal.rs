@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn get_fiscal_event_with_malformed_response_json_has_no_counters() {
         // A corrupt/partial fdm_response_json must not fail the whole
-        // lookup — it just yields no counters.
+        // lookup - it just yields no counters.
         let conn = setup();
         let id = insert_event(&conn, 1, "N", None, Some("not json"));
         let event = get_fiscal_event(&conn, id).unwrap().unwrap();

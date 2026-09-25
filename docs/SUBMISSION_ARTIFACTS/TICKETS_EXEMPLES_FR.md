@@ -406,7 +406,7 @@ Scénario : la même vente M110 qu'à la section 1, envoyée par e-mail
 `TICKET_NUMERIQUE_FR.md` §2-3 pour le parcours et §5 pour le contenu
 détaillé de l'e-mail).
 
-**Sujet :** `Votre ticket — Restaurant Exemple`
+**Sujet :** `Votre ticket - Restaurant Exemple`
 
 **Corps texte :** la transcription de la section 1 ci-dessus,
 **identique ligne pour ligne** (`pos_mail::render::render_ticket_text`
@@ -475,7 +475,7 @@ du ticket seule (cf. sections 4 et 5 ci-dessus pour le texte imprimé
 ## 9. Note sur la reproduction
 
 Les rendus ci-dessus sont générés par le pipeline d'impression réel
-(`crates/pos-print/src/receipt.rs` et `report.rs`) — ils ne peuvent
+(`crates/pos-print/src/receipt.rs` et `report.rs`) - ils ne peuvent
 pas diverger de la sortie papier, contrairement à des transcriptions
 manuelles. Toute modification du layout d'impression invalide et
 régénère ces exemples via `scripts/generate_ticket_examples.sh`.

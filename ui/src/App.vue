@@ -17,7 +17,7 @@ const router = useRouter();
 // Two-tone chime when a new webshop order arrives (C5 → E5).
 if (HUBRISE_ENABLED) useOrderChime();
 
-// Auto-lock after 5 minutes of inactivity — redirects to login
+// Auto-lock after 5 minutes of inactivity - redirects to login
 // silently. Prevents unauthorized POS use when the operator walks
 // away from the terminal. Only fires if someone is actually logged in.
 useIdleTimer(5 * 60 * 1000, () => {

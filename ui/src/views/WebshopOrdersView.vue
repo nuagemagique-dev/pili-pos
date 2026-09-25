@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatTime, formatTimestamp, parseTimestamp } from '../utils/datetime'
-// WebshopOrdersView — dark-theme POS screen for HubRise-origin orders
+// WebshopOrdersView - dark-theme POS screen for HubRise-origin orders
 // (webshop, Deliveroo, Uber Eats, Takeaway.com, …). Matches the
 // layout & tokens of OrderView so the staff keeps the same muscle
 // memory (UX Guide §2.3) when switching tabs.
@@ -65,7 +65,7 @@ function updateClock() {
 // ── Filters ──────────────────────────────────────────────────────
 // Active statuses get their own tab so the staff can isolate every
 // working stage. Terminal statuses (completed / rejected / cancelled)
-// collapse into a single "Terminées" bucket — from the rush-hour
+// collapse into a single "Terminées" bucket - from the rush-hour
 // perspective they all mean "nothing to do, card is dead". The
 // distinction is only useful for after-the-fact reporting, not
 // live triage.
@@ -164,7 +164,7 @@ function serviceTypeLabel(order: WebshopOrderSummary): string {
 }
 
 /**
- * Color stripe per channel — makes it trivial to spot a Deliveroo
+ * Color stripe per channel - makes it trivial to spot a Deliveroo
  * vs Uber Eats card across the grid at a glance (UX Guide §6).
  */
 function channelColor(order: WebshopOrderSummary): string {
@@ -178,7 +178,7 @@ function channelColor(order: WebshopOrderSummary): string {
 
 /**
  * Resolve a brand logo SVG for the order's channel. Returns null
- * when the channel has no logo file — the template then falls back
+ * when the channel has no logo file - the template then falls back
  * to a text label (UX Guide §2.1 "no hidden surprises"). Drop new
  * files in `ui/src/assets/webshop/logos/` and extend this mapping to wire them.
  */
@@ -191,7 +191,7 @@ function channelLogo(order: WebshopOrderSummary): string | null {
 }
 
 /**
- * TSB's own webshop (tsb-core) has no brand SVG — we render a
+ * TSB's own webshop (tsb-core) has no brand SVG - we render a
  * "Tokyo" wordmark in the same Channel display font the customer
  * site uses for product category headers, so the staff sees the
  * same visual identity across both surfaces.
@@ -204,7 +204,7 @@ function isTsbWebshop(order: WebshopOrderSummary): boolean {
 /**
  * Show the full delivery address only on TSB webshop orders that
  * are of service_type `delivery`. TSB's own driver decides whether
- * the distance is acceptable — if not, the order is refused before
+ * the distance is acceptable - if not, the order is refused before
  * acceptance, so the full address must be visible at a glance.
  *
  * Aggregator channels (Deliveroo/Uber Eats/Takeaway) handle their
@@ -301,7 +301,7 @@ function formatReadyAt(iso: string | null): string {
   return d ? formatTime(d) : ''
 }
 
-// Three chips is enough — +60 is a double tap on +30 when needed,
+// Three chips is enough - +60 is a double tap on +30 when needed,
 // and dropping it leaves the row less crowded (UX Guide §2.1).
 const delayChoices = [15, 30, 45]
 
@@ -451,7 +451,7 @@ function handleLogout() {
               <span class="label">{{ t('webshop_label_customer') }}</span>
               <span class="value">{{ order.customer_name }}</span>
             </div>
-            <!-- Full delivery address — TSB webshop + delivery only.
+            <!-- Full delivery address - TSB webshop + delivery only.
                  Aggregators are muted here because their drivers
                  handle navigation; TSB drivers need this to decide
                  accept/refuse based on distance. -->
@@ -475,7 +475,7 @@ function handleLogout() {
             <div class="row">
               <span class="label">{{ t('webshop_label_ref') }}</span>
               <span class="value ref">
-                {{ order.hubrise_order_id?.slice(0, 8) ?? '—' }}
+                {{ order.hubrise_order_id?.slice(0, 8) ?? '-' }}
               </span>
             </div>
           </div>
@@ -507,7 +507,7 @@ function handleLogout() {
             <span class="total-value">{{ formatEuros(order.total_cents) }}</span>
           </div>
           <footer class="card-actions">
-            <!-- Delay chips — visible only while the kitchen is
+            <!-- Delay chips - visible only while the kitchen is
                  working on the order, per UX Guide §2.1 (reduce
                  noise when irrelevant). -->
             <div v-if="canDelay(order)" class="delay-row">
@@ -539,7 +539,7 @@ function handleLogout() {
               </button>
             </div>
 
-            <!-- Print row — available on every non-terminal state. -->
+            <!-- Print row - available on every non-terminal state. -->
             <div v-if="isActive(order)" class="print-row">
               <button
                 class="btn btn-ghost"
@@ -572,7 +572,7 @@ function handleLogout() {
   --channel-takeaway:  #ff8000;
 }
 
-/* Webshop display font — mirrored from the customer webshop so the
+/* Webshop display font - mirrored from the customer webshop so the
    own-webshop badge renders in the same typeface. Not for body copy. */
 @font-face {
   font-family: 'Channel';
@@ -772,7 +772,7 @@ function handleLogout() {
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
-/* TSB webshop identity — Channel display font, white text for the
+/* TSB webshop identity - Channel display font, white text for the
    dark POS theme, kept compact so it doesn't inflate the card head. */
 .tsb-badge {
   font-family: 'Channel', var(--font-family);
@@ -965,7 +965,7 @@ function handleLogout() {
   background: var(--bg-pressed);
 }
 
-/* Delay chips — 4 equal-width chips above the primary action. */
+/* Delay chips - 4 equal-width chips above the primary action. */
 .chip-delay {
   flex: 1;
   min-height: 52px;
@@ -986,14 +986,14 @@ function handleLogout() {
   color: var(--bg-primary);
 }
 
-/* "Prêt à HH:MM" is the currently targeted ready time — shown
+/* "Prêt à HH:MM" is the currently targeted ready time - shown
    in amber so it stands out from the neutral metadata rows. */
 .value.ready-at {
   color: var(--accent-warning);
   font-variant-numeric: tabular-nums;
 }
 
-/* Full delivery address block — only rendered on TSB webshop
+/* Full delivery address block - only rendered on TSB webshop
    delivery cards. Two lines max (street + postal+city) so the
    driver can decide accept/refuse based on distance at a glance. */
 .delivery-address {

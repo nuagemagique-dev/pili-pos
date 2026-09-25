@@ -182,7 +182,7 @@ n'a encore permis de le valider (cf. le rapport final Phase 4). Ne pas
 la déclarer comme active tant qu'elle n'a pas été testée.
 
 Sur l'image d'admission uniquement (`--variant admission`), un second
-compte, `spf`, est créé dans le groupe `pos` — lecture seule de
+compte, `spf`, est créé dans le groupe `pos` - lecture seule de
 `pos.db` via `pos-db-ro` (§3.6), console `tty2`, mot de passe aléatoire
 généré et affiché une seule fois au premier démarrage
 (`MANUEL_INSTALLATION_FR.md` §3.4). Absent de l'image de production.
@@ -198,7 +198,7 @@ L'image kiosque livrée est **scellée**, avec les précisions suivantes
 - `tty1` est exclusivement occupé par `moyun-pos.service`
   (`Conflicts=getty@tty1.service`) : **aucun** prompt de connexion n'y
   apparaît jamais derrière le kiosque.
-- `tty2` et suivants gardent leur `getty`/`autovt` standard Debian —
+- `tty2` et suivants gardent leur `getty`/`autovt` standard Debian -
   c'est le canal de maintenance (`Ctrl+Alt+F2`, login `root`,
   `MANUEL_INSTALLATION_FR.md` §4.1). Sur l'image d'admission
   uniquement, `getty@tty2.service` est explicitement activé pour le
@@ -237,10 +237,10 @@ d'image et `deploy/image/` (mkosi) pour la configuration source.
   `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`).
 - Boot depuis le disque interne en usage normal ; **Secure Boot reste
   désactivé** (aucune chaîne de signature de l'UKI n'existe à ce
-  jour — voir la limite documentée en §3.6).
+  jour - voir la limite documentée en §3.6).
 - Cette couche est **procédurale** (dépend du technicien qui configure
   correctement le BIOS) : elle ne suffit plus, à elle seule, à
-  protéger `pos.db` en cas de vol physique du terminal ou de disque —
+  protéger `pos.db` en cas de vol physique du terminal ou de disque -
   voir §3.6 pour le mécanisme qui prend réellement le relais.
 
 ### 3.6 Chiffrement LUKS2 de `/var` avec déverrouillage TPM2
@@ -254,13 +254,13 @@ disque. Au tout premier démarrage du terminal (jamais rejoué ensuite,
 1. Formate la partition `moyun-data` en LUKS2 avec une clé temporaire
    aléatoire.
 2. Enrôle un jeton **TPM2** (`systemd-cryptenroll --tpm2-device=auto
-   --tpm2-pcrs=7`, scellé au PCR 7 — état Secure Boot) pour un
+   --tpm2-pcrs=7`, scellé au PCR 7 - état Secure Boot) pour un
    déverrouillage automatique et silencieux à chaque démarrage
    normal.
 3. Enrôle une **clé de récupération** (`systemd-cryptenroll
    --recovery-key`), affichée **une seule fois** à l'écran à la fin du
    premier démarrage, avec le mot de passe `root` (et `spf` sur
-   l'image d'admission) générés dans la foulée — à noter immédiatement
+   l'image d'admission) générés dans la foulée - à noter immédiatement
    dans le carnet du distributeur (`MANUEL_INSTALLATION_FR.md` §3.4).
    Ni ces mots de passe ni la clé de récupération ne sont conservés
    nulle part sur le disque après cet affichage unique.
@@ -271,19 +271,19 @@ disque. Au tout premier démarrage du terminal (jamais rejoué ensuite,
 Conséquence pratique : un vol du disque seul (ou du terminal entier,
 tant que l'attaquant ne peut pas aussi obtenir la clé de récupération
 consignée par le distributeur) ne donne accès ni à `pos.db`, ni aux
-sauvegardes, ni à `pos.json` — la partition racine (`/`, en lecture
+sauvegardes, ni à `pos.json` - la partition racine (`/`, en lecture
 seule, contenant le binaire et le système) reste en clair mais ne
 contient aucune donnée fiscale.
 
 **Limite documentée honnêtement** : le scellement au PCR 7 mesure
 l'état de la politique Secure Boot, mais Secure Boot lui-même reste
 **désactivé** sur ces images (aucune infrastructure de signature de
-l'UKI n'a été mise en place — voir `deploy/kiosk/README.md` §"Still to
+l'UKI n'a été mise en place - voir `deploy/kiosk/README.md` §"Still to
 do"). Le scellement TPM2 protège donc contre l'extraction à froid du
 disque (vol du SSD seul) et détecte toute modification ultérieure des
 variables UEFI liées à Secure Boot, mais **pas** contre un attaquant
 qui altère le firmware/bootloader du terminal lui-même pendant que
-Secure Boot est désactivé — dans ce cas, la clé de récupération
+Secure Boot est désactivé - dans ce cas, la clé de récupération
 gardée par le distributeur reste la seule garantie de reprise en main,
 pas une protection contre l'accès. Aucun démarrage réel sur matériel
 physique avec TPM2 n'a validé ce flux de bout en bout au moment de la
@@ -293,7 +293,7 @@ rédaction de ce document ; seul un test QEMU+swtpm partiel a été tenté
 Accès en lecture seule à `pos.db` une fois `/var` déverrouillé, sans
 jamais l'ouvrir en écriture : wrapper `pos-db-ro`
 (`/usr/local/bin/pos-db-ro`), disponible au compte `spf` (groupe
-`pos`) sur l'image d'admission — voir §3.2 et
+`pos`) sur l'image d'admission - voir §3.2 et
 `FEUILLE_ACQUISITION_DONNEES_FR.md` §2.2.
 
 ## 4. Mécanismes au niveau cryptographique

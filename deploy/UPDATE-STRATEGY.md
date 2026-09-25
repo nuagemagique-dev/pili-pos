@@ -1,4 +1,4 @@
-# Update Strategy — moyun-pos
+# Update Strategy - moyun-pos
 
 ## Constraints
 
@@ -36,8 +36,8 @@ offline (`moyun-pos --init-db`), and restarts the kiosk.
 
 The binary reaches the terminal either:
 
-- **on site** — USB stick, maintenance console (`Ctrl+Alt+F2`); or
-- **remotely** — RustDesk file transfer during an on-demand session
+- **on site** - USB stick, maintenance console (`Ctrl+Alt+F2`); or
+- **remotely** - RustDesk file transfer during an on-demand session
   opened by the manager on site.
 
 Schedule updates outside service hours, after the day's Z report.

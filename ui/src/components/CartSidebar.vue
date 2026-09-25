@@ -37,7 +37,7 @@ async function printPreBill() {
     await order.preBill();
     toast.show(t("pre_bill_printed"), "success");
   } catch (e) {
-    toast.show(`${t("pre_bill_failed")} — ${describeError(e)}`, "error", 6000);
+    toast.show(`${t("pre_bill_failed")} : ${describeError(e)}`, "error", 6000);
   } finally {
     preBilling.value = false;
   }

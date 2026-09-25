@@ -2,8 +2,8 @@
 //!
 //! The SCE 2.0 FDM derives its digital signature from the **canonical** form
 //! of the JSON it signs (FDM spec v1.4 §2.4.1 "JSON canonique pour le hachage
-//! reproductible"). Although our POS does not sign anything itself — the FDM
-//! does — sending canonical JSON on the wire gives us three concrete
+//! reproductible"). Although our POS does not sign anything itself - the FDM
+//! does - sending canonical JSON on the wire gives us three concrete
 //! benefits:
 //!
 //! 1. **Deterministic request bytes.** Two checkouts with identical inputs
@@ -30,7 +30,7 @@
 //! Internally we round-trip through `serde_json::Value`. `serde_json::Map`
 //! is a `BTreeMap<String, Value>` (unless the `preserve_order` feature is
 //! enabled, which the workspace does NOT enable), so re-serializing the
-//! `Value` yields keys in lexicographic-byte order — which for ASCII keys
+//! `Value` yields keys in lexicographic-byte order - which for ASCII keys
 //! is identical to Unicode codepoint order. The SCE 2.0 spec only uses
 //! ASCII field names, so this is equivalent.
 
@@ -40,7 +40,7 @@ use serde::Serialize;
 /// whitespace.
 ///
 /// Equivalent to `serde_json::to_string` *except* that nested objects are
-/// alphabetised. This is deterministic — calling it twice on the same
+/// alphabetised. This is deterministic - calling it twice on the same
 /// value yields byte-identical output (verified by
 /// `tests::canonical_is_deterministic`).
 pub fn to_canonical<T>(value: &T) -> Result<String, serde_json::Error>
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn canonical_preserves_array_order() {
-        // Arrays are SEQUENCES — their element order is semantic, so it
+        // Arrays are SEQUENCES - their element order is semantic, so it
         // must be preserved. Only object keys get sorted.
         let v = serde_json::json!({"items": ["zulu", "alpha", "mike"]});
         let s = to_canonical(&v).unwrap();

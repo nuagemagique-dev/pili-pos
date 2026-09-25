@@ -3,12 +3,12 @@
 //!
 //! The data directory is resolved, in priority order, from:
 //!
-//! 1. `MOYUN_POS_DATA_DIR` — explicit override (image build, tests).
-//! 2. `STATE_DIRECTORY` — exported by systemd for `StateDirectory=moyun-pos`
+//! 1. `MOYUN_POS_DATA_DIR` - explicit override (image build, tests).
+//! 2. `STATE_DIRECTORY` - exported by systemd for `StateDirectory=moyun-pos`
 //!    in `deploy/moyun-pos.service`, i.e. `/var/lib/moyun-pos`: the path
 //!    declared to SPF Finances for data acquisition
 //!    (`FEUILLE_ACQUISITION_DONNEES_FR.md`).
-//! 3. `dirs::data_dir()/moyun-pos` — development machines.
+//! 3. `dirs::data_dir()/moyun-pos` - development machines.
 
 use std::ffi::OsString;
 use std::path::PathBuf;

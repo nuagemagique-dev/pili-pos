@@ -8,7 +8,7 @@ import { useToastStore } from "../stores/toast";
 import { useAuthStore } from "../stores/auth";
 
 // Shown after checkout, refund or copy: what happened to the ticket,
-// and — when the customer still needs a paper original — the one
+// and - when the customer still needs a paper original - the one
 // print action the "done" screen offers (never a second ORIGINAL: see
 // the cert note on print_missing_original in delivery.rs).
 

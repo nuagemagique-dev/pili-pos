@@ -1,7 +1,7 @@
 //! Input validation and auth checks across the command layer: unknown
 //! or inactive menu items, non-positive quantities, empty/zero-total
-//! checkouts, unknown ids (order / fiscal event), and — for the one
-//! command that actually authenticates anyone — wrong user / PIN.
+//! checkouts, unknown ids (order / fiscal event), and - for the one
+//! command that actually authenticates anyone - wrong user / PIN.
 //!
 //! `login`/`create_user`/`set_pin` previously had no `do_*` inner
 //! function (unlike every other command module), so they couldn't be

@@ -41,8 +41,8 @@ impl EscPosBuilder {
         builder
     }
 
-    /// ESC @ — Initialize printer (reset to defaults), then ESC t 19
-    /// — select code page CP858 (Latin-1 + €) so French accents on
+    /// ESC @: initialize the printer (reset to defaults), then ESC t 19:
+    /// select code page CP858 (Latin-1 + €) so French accents on
     /// product names/addresses print correctly.
     pub fn init(&mut self) -> &mut Self {
         self.buf.extend_from_slice(&[ESC, b'@']);
@@ -52,7 +52,7 @@ impl EscPosBuilder {
 
     // ── Text Formatting ────────────────────────────────────────
 
-    /// ESC a n — Set alignment (0=left, 1=center, 2=right).
+    /// ESC a n - Set alignment (0=left, 1=center, 2=right).
     pub fn align(&mut self, alignment: Alignment) -> &mut Self {
         let n = match alignment {
             Alignment::Left => 0,
@@ -66,19 +66,19 @@ impl EscPosBuilder {
     /// Apply a text style. Combines ESC E (bold), ESC - (underline),
     /// GS ! (character size), ESC M (font).
     pub fn style(&mut self, s: TextStyle) -> &mut Self {
-        // ESC E n — Bold on/off
+        // ESC E n - Bold on/off
         self.buf.extend_from_slice(&[ESC, b'E', u8::from(s.bold)]);
 
-        // ESC - n — Underline (0=off, 1=1-dot, 2=2-dot)
+        // ESC - n - Underline (0=off, 1=1-dot, 2=2-dot)
         self.buf
             .extend_from_slice(&[ESC, b'-', u8::from(s.underline)]);
 
-        // GS ! n — Character size selection
+        // GS ! n - Character size selection
         // Bits 0-3: width magnification, bits 4-7: height magnification
         let size = (u8::from(s.double_width) << 4) | u8::from(s.double_height);
         self.buf.extend_from_slice(&[GS, b'!', size]);
 
-        // ESC M n — Font selection (0=Font A 12x24, 1=Font B 9x17)
+        // ESC M n - Font selection (0=Font A 12x24, 1=Font B 9x17)
         self.buf.extend_from_slice(&[ESC, b'M', u8::from(s.font_b)]);
 
         self
@@ -122,7 +122,7 @@ impl EscPosBuilder {
     ///
     /// Both `left` and `right` are clamped to `chars_per_line()`: an
     /// over-long `right` value (e.g. a runaway price string) must
-    /// never push the printed row past the physical paper width —
+    /// never push the printed row past the physical paper width -
     /// see `text_columns_never_exceeds_the_configured_width_*` tests.
     pub fn text_columns(&mut self, left: &str, right: &str) -> &mut Self {
         // Widths count printed characters (CP858 is single-byte, so
@@ -151,7 +151,7 @@ impl EscPosBuilder {
 
     /// Feed n lines.
     pub fn feed(&mut self, lines: u8) -> &mut Self {
-        // ESC d n — Print and feed n lines
+        // ESC d n - Print and feed n lines
         self.buf.extend_from_slice(&[ESC, b'd', lines]);
         self
     }
@@ -169,7 +169,7 @@ impl EscPosBuilder {
 
     // ── Barcode / QR Code ──────────────────────────────────────
 
-    /// Print QR code using GS ( k — QR Code commands (Function 180+).
+    /// Print QR code using GS ( k - QR Code commands (Function 180+).
     /// This uses the Epson QR code function which is cleaner than raster.
     pub fn qr_code(&mut self, data: &str, module_size: u8) -> &mut Self {
         // Function 165: Select the model (Model 2)
@@ -230,13 +230,13 @@ impl EscPosBuilder {
 
     // ── Cut ────────────────────────────────────────────────────
 
-    /// GS V m — Partial cut (leave small bridge).
+    /// GS V m - Partial cut (leave small bridge).
     pub fn cut(&mut self) -> &mut Self {
         self.buf.extend_from_slice(&[GS, b'V', 66, 3]); // Partial cut, feed 3 lines
         self
     }
 
-    /// GS V m — Full cut.
+    /// GS V m - Full cut.
     pub fn full_cut(&mut self) -> &mut Self {
         self.buf.extend_from_slice(&[GS, b'V', 65, 3]);
         self
@@ -244,7 +244,7 @@ impl EscPosBuilder {
 
     // ── Cash Drawer ────────────────────────────────────────────
 
-    /// ESC p m t1 t2 — Open cash drawer.
+    /// ESC p m t1 t2 - Open cash drawer.
     /// Pin 2 (m=0), pulse on-time t1, off-time t2 (in 2ms units).
     /// Default: 0x19 (50ms on), 0xFA (500ms off).
     pub fn open_drawer(&mut self) -> &mut Self {

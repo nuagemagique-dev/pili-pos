@@ -3,7 +3,7 @@ import { useWebshopOrdersStore } from '../stores/webshopOrders'
 
 /**
  * Plays a two-tone chime when the pending webshop order count
- * increases — draws the operator's attention even if they're
+ * increases - draws the operator's attention even if they're
  * heads-down on a dine-in flow. Uses the Web Audio API, no file
  * assets needed. UX Guide §4.2 allows informative audio.
  *
@@ -49,7 +49,7 @@ export function useOrderChime() {
   }
 
   // Skip the first emission (initial fetchOrders loads existing
-  // orders from DB — that's not a "new" order arriving). Only
+  // orders from DB - that's not a "new" order arriving). Only
   // chime on subsequent increments.
   let initialized = false
   watch(

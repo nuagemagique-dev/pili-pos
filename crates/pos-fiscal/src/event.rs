@@ -148,7 +148,7 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
     }
 }
 
-// ── Event N — Sale ─────────────────────────────────────────────
+// ── Event N - Sale ─────────────────────────────────────────────
 
 /// Build a SaleInput from an order + its entries + payment info.
 /// `lines` is the order's journal (additions and corrections in
@@ -221,7 +221,7 @@ pub fn build_sale_input(
     }
 }
 
-// ── Event P — Order (pro forma) ────────────────────────────────
+// ── Event P - Order (pro forma) ────────────────────────────────
 
 /// Build an OrderInput (event P) for an open table / interrupted sale.
 /// `lines` are the order's entries not yet transmitted, corrections
@@ -278,7 +278,7 @@ pub fn build_pre_bill_input(
     }
 }
 
-// ── Event C — Copy ─────────────────────────────────────────────
+// ── Event C - Copy ─────────────────────────────────────────────
 
 /// Build a CopyInput for reprinting a previous event.
 /// `fdm_ref` references the original event (fdmId + eventLabel + counters).
@@ -309,7 +309,7 @@ pub fn build_copy_input(
     }
 }
 
-// ── Event I — Invoice ──────────────────────────────────────────
+// ── Event I - Invoice ──────────────────────────────────────────
 
 /// Build an InvoiceInput (event I) for a B2B invoice covering one or
 /// more prior sales. `fdm_refs` reference the underlying N events
@@ -349,7 +349,7 @@ pub fn build_invoice_input(
     }
 }
 
-// ── Event S — Social (Work In/Out) ─────────────────────────────
+// ── Event S - Social (Work In/Out) ─────────────────────────────
 
 /// Build a WorkInOutInput for employee clock in/out.
 pub fn build_work_in_out(
@@ -369,7 +369,7 @@ pub fn build_work_in_out(
     }
 }
 
-// ── Event R — Reports ──────────────────────────────────────────
+// ── Event R - Reports ──────────────────────────────────────────
 
 /// Data needed to build turnover report inputs.
 pub struct TurnoverReportData {
@@ -985,7 +985,7 @@ mod tests {
         );
         assert_eq!(x.common.pos_fiscal_ticket_no, 100);
         assert_eq!(x.common.ticket_medium, TicketMedium::Paper);
-        // ReportTurnoverXInput has no report_no field at all — X never
+        // ReportTurnoverXInput has no report_no field at all - X never
         // resets counters (unlike Z).
         let json = serde_json::to_string(&x).unwrap();
         assert!(!json.contains("reportNo"));
@@ -1126,7 +1126,7 @@ mod tests {
     #[test]
     fn gtin_is_absent_from_serialized_product() {
         // GTIN is Option<String> and never populated by build_transaction
-        // (no barcode scanning in the MVP) — the JSON key must be
+        // (no barcode scanning in the MVP) - the JSON key must be
         // entirely absent, not `null`, per skip_serializing_if.
         let config = test_config();
         let order = test_order();
@@ -1320,7 +1320,7 @@ mod tests {
     fn order_reference_is_stable_for_the_orders_lifetime() {
         let order = test_order();
         assert_eq!(order_reference(&order), format!("O{}", order.id));
-        // Calling twice must yield the identical reference — it ties
+        // Calling twice must yield the identical reference - it ties
         // together every P/pre-bill/N event of one order's lifetime.
         assert_eq!(order_reference(&order), order_reference(&order));
     }

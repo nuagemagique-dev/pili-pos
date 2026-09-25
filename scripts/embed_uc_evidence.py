@@ -133,7 +133,7 @@ def events_of(uc: str) -> list[Path]:
 
 def fmt(v) -> str:
     if v is None:
-        return "—"
+        return "-"
     if isinstance(v, (dict, list)):
         return "`" + json.dumps(v, ensure_ascii=False, separators=(", ", ": ")) + "`"
     return f"`{v}`"
@@ -156,7 +156,7 @@ def basic_block(uc: str) -> str | None:
     main = events[-1]
     out = [
         START,
-        f"**Preuve moyun-pos (build `cert`)** — rejeu de la fixture par "
+        f"**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par "
         f"`src-tauri/tests/{test}`. Requête **construite et archivée par "
         f"moyun-pos** pour l'event de l'UC (`evidence/uc/{main.name}`) :",
         "",
@@ -210,7 +210,7 @@ def report_block(uc: str) -> str | None:
         return "\n".join(
             [
                 START,
-                f"**Preuve moyun-pos (build `cert`)** — cet UC est signé par "
+                f"**Preuve moyun-pos (build `cert`)** - cet UC est signé par "
                 f"le Z combiné de M184 (mutation `{VIA_M184[uc]}`), rejoué par "
                 f"`src-tauri/tests/{REPORTS['M184']}` : voir {file_list(events)} "
                 f"et la section M184.",
@@ -224,7 +224,7 @@ def report_block(uc: str) -> str | None:
     day = [p for p in events if p not in reports]
     out = [
         START,
-        f"**Preuve moyun-pos (build `cert`)** — la journée du scénario "
+        f"**Preuve moyun-pos (build `cert`)** - la journée du scénario "
         f"(InputReport T1–T8) est jouée par les vraies commandes, puis le "
         f"rapport est construit par moyun-pos à partir de son archive "
         f"fiscale et comparé à la fixture par `src-tauri/tests/{REPORTS[uc]}`.",

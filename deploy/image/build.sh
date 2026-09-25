@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — kiosk image build (mkosi, Debian 12 "bookworm")
+# moyun-pos - kiosk image build (mkosi, Debian 12 "bookworm")
 #
 # Builds both profiles (production, admission) into
 # deploy/image/mkosi.output/<profile>/moyun-pos-kiosk-<profile>.img.xz.
 #
 # Prerequisites:
 #   - deploy/dist/moyun-pos (and, for the admission profile,
-#     deploy/dist/pos-fdm-mock) — run `deploy/build-release.sh --docker`
+#     deploy/dist/pos-fdm-mock) - run `deploy/build-release.sh --docker`
 #     first. This is what makes the image embed the exact binary whose
 #     SHA-1 is in that run's build_info_*.txt (the value declared to
-#     SPF Finances) — see .github/workflows/image.yml's `image` job,
+#     SPF Finances) - see .github/workflows/image.yml's `image` job,
 #     which checks this with `systemd-dissect --copy-from`.
 #   - root, and a Linux x86_64 host (real or a --platform linux/amd64
-#     container — the "privileged container" path from a macOS
+#     container - the "privileged container" path from a macOS
 #     development machine: `mkosi build` uses loopback devices only
 #     for the UKI-splicing step below, not for the base disk image
 #     (RepartOffline=yes, mkosi.conf), but that step still needs
@@ -21,7 +21,7 @@
 #   - Everything else (mkosi itself, at the version pinned in
 #     .mkosi-pin, plus binutils/systemd-ukify/xz-utils/gdisk) is
 #     installed by this script if missing (apt-get, Debian/Ubuntu
-#     hosts only — matches ubuntu-24.04 CI and the Mac's Debian
+#     hosts only - matches ubuntu-24.04 CI and the Mac's Debian
 #     container).
 #
 # Usage: sudo ./build.sh [production] [admission]
@@ -35,7 +35,7 @@ DIST_DIR="$PROJECT_ROOT/deploy/dist"
 MKOSI_PIN="$(tr -d '[:space:]' < "$IMAGE_DIR/.mkosi-pin")"
 MKOSI_VENV="$IMAGE_DIR/.mkosi-venv"
 
-# Kept in sync by hand with deploy/provision/provision.sh — the
+# Kept in sync by hand with deploy/provision/provision.sh - the
 # canonical copy of this pin lives there; this script only needs it to
 # fetch and verify the same AppImage once, before staging a copy for
 # each profile's offline, network-less chroot install.
@@ -52,17 +52,17 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [[ "$(uname -s)" != "Linux" || "$(uname -m)" != "x86_64" ]]; then
-    echo "ERROR: build.sh needs Linux x86_64 — on macOS, run it inside a" >&2
+    echo "ERROR: build.sh needs Linux x86_64 - on macOS, run it inside a" >&2
     echo "       privileged linux/amd64 container (Docker Desktop)." >&2
     exit 1
 fi
 
 # ── Host tools ─────────────────────────────────────────────────
-# NOTE: `ukify` is NOT installed from here — Debian 12 "bookworm" has
+# NOTE: `ukify` is NOT installed from here - Debian 12 "bookworm" has
 # no systemd-ukify package (ukify only became a separate Debian
 # package starting with trixie/systemd 255). It is instead taken from
 # mkosi's own tools tree (ToolsTree=default in mkosi.conf, built from
-# Debian testing by mkosi itself on a Debian/Ubuntu host — see
+# Debian testing by mkosi itself on a Debian/Ubuntu host - see
 # find_tool() below), which is also what makes the two extra
 # Install/Update UKIs reproducible across the developer Mac and CI.
 NEEDED_BINS=(python3 xz sgdisk losetup mount umount)
@@ -82,7 +82,7 @@ fi
 
 # Prefer mkosi's own tools tree (present after the first `mkosi build`
 # in this directory) over the host binary, and the host binary over
-# nothing — in that order.
+# nothing - in that order.
 find_tool() {
     local name="$1"
     if [[ -x "$IMAGE_DIR/mkosi.tools/usr/bin/$name" ]]; then
@@ -110,7 +110,7 @@ MKOSI="$MKOSI_VENV/bin/mkosi"
 "$MKOSI" --version
 
 if [[ ! -f "$DIST_DIR/moyun-pos" ]]; then
-    echo "ERROR: $DIST_DIR/moyun-pos not found — run" >&2
+    echo "ERROR: $DIST_DIR/moyun-pos not found - run" >&2
     echo "       'deploy/build-release.sh --docker' first." >&2
     exit 1
 fi
@@ -161,7 +161,7 @@ stage_admission_inputs() {
     install -m 644 "$PROJECT_ROOT/src-tauri/seed_spf_test.sql" \
         "$BUILD_INPUT_ADMISSION/seed_spf_test.sql"
     if [[ ! -f "$DIST_DIR/pos-fdm-mock" ]]; then
-        echo "ERROR: $DIST_DIR/pos-fdm-mock not found — run" >&2
+        echo "ERROR: $DIST_DIR/pos-fdm-mock not found - run" >&2
         echo "       'deploy/build-release.sh --docker' first (it now" >&2
         echo "       also builds pos-fdm-mock for linux/amd64)." >&2
         exit 1
@@ -171,12 +171,12 @@ stage_admission_inputs() {
 
 # Two extra UKIs, reusing the .linux/.initrd/.osrel sections of the one
 # mkosi already built, with a different embedded cmdline
-# (moyun.installer=install|update) — the "Install"/"Update" boot menu
+# (moyun.installer=install|update) - the "Install"/"Update" boot menu
 # entries on the USB stick (MANUEL_INSTALLATION_FR.md §3.2). Done here,
 # as a plain step after `mkosi build`, rather than as an mkosi
 # postoutput script: mkosi's postoutput hook timing/working directory
 # for a disk image was not something this change could pin down with
-# confidence (see the final report) — a separate, later step operating
+# confidence (see the final report) - a separate, later step operating
 # on the finished .raw file, fully under this script's control and
 # easy to reason about, was the safer choice.
 add_installer_uki_variants() {
@@ -185,7 +185,7 @@ add_installer_uki_variants() {
     objcopy_bin="$(find_tool objcopy)"
     ukify_bin="$(find_tool ukify)"
     if [[ -z "$objcopy_bin" || -z "$ukify_bin" ]]; then
-        echo "  ⚠ objcopy/ukify not found (host or mkosi.tools) — skipping" >&2
+        echo "  ⚠ objcopy/ukify not found (host or mkosi.tools) - skipping" >&2
         echo "    the Install/Update USB boot entries for this image." >&2
         return 0
     fi
@@ -201,7 +201,7 @@ add_installer_uki_variants() {
     mount "${esp_loop}p1" "$esp_mnt"
     uki_src="$(find "$esp_mnt/EFI/Linux" -maxdepth 1 -name '*.efi' | head -n1)"
     if [[ -z "$uki_src" ]]; then
-        echo "  ⚠ no UKI found in the ESP — skipping Install/Update boot entries" >&2
+        echo "  ⚠ no UKI found in the ESP - skipping Install/Update boot entries" >&2
         return 0
     fi
     stem="$workdir/uki"
@@ -245,8 +245,8 @@ build_profile() {
     log "Compressing $raw_file -> $img_xz…"
     xz -T0 -6 -c "$raw_file" > "$img_xz"
     # NOT a hash of the .raw image itself: this is the SHA-1 of the
-    # moyun-pos BINARY this image embeds — the value declared to SPF
-    # Finances (build_info_*.txt from build-release.sh --docker) — kept
+    # moyun-pos BINARY this image embeds - the value declared to SPF
+    # Finances (build_info_*.txt from build-release.sh --docker) - kept
     # alongside the image so .github/workflows/image.yml's `image` job
     # can compare it against `systemd-dissect --copy-from` without
     # re-extracting deploy/dist/moyun-pos.

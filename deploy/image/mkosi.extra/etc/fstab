@@ -1,7 +1,7 @@
-# /etc/fstab — moyun-pos kiosk image.
+# /etc/fstab - moyun-pos kiosk image.
 #
 # ESP and root are found and mounted automatically by systemd (they
-# carry Discoverable Partitions Spec GUIDs — see mkosi.repart/), so
+# carry Discoverable Partitions Spec GUIDs - see mkosi.repart/), so
 # they are deliberately NOT listed here. /var is the one mount this
 # image cannot discover automatically: it only exists once
 # moyun-provision.service has LUKS-formatted and mkfs'd the "moyun-data"

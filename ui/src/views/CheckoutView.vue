@@ -23,7 +23,7 @@ const cashReceived = ref(0);
 const cashInput = ref("");
 
 // The picker needs a fresh mail probe every time it's about to be
-// shown — cheap, the backend caches the probe for 60s.
+// shown - cheap, the backend caches the probe for 60s.
 watch(step, (s) => { if (s === "method") delivery.refreshMailStatus(); }, { immediate: true });
 
 const totalEur = computed(() => order.totalCents / 100);
@@ -151,7 +151,7 @@ function finish() {
       <button class="back-link" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
     </div>
 
-    <!-- Step 2: Cash — numpad + shortcuts -->
+    <!-- Step 2: Cash - numpad + shortcuts -->
     <div v-if="step === 'cash'" class="cash-layout">
       <div class="cash-left">
         <div class="cash-total">
@@ -196,7 +196,7 @@ function finish() {
       </div>
     </div>
 
-    <!-- Step 2b: Card — wait for terminal, then confirm or cancel -->
+    <!-- Step 2b: Card - wait for terminal, then confirm or cancel -->
     <div v-if="step === 'card'" class="checkout-center">
       <div class="total-block">
         <span class="total-label">{{ t('card') }}</span>

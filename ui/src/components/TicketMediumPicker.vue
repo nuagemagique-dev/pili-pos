@@ -6,7 +6,7 @@ import EmailKeypad from "./EmailKeypad.vue";
 import type { TicketMediumRequest } from "../types";
 
 // Three touch options for how the customer gets their ticket. Hidden
-// entirely when the terminal has no working email setup — paper stays
+// entirely when the terminal has no working email setup - paper stays
 // the silent default (see the checkout guard in the caller).
 
 const delivery = useDeliveryStore();
@@ -16,7 +16,7 @@ const showKeypad = ref(false);
 const pendingMedium = ref<Exclude<TicketMediumRequest, "paper">>("paper_digital");
 
 // DIGITAL (email only, no paper) is only ever offered when the
-// terminal allows it AND the mail service answered a probe recently —
+// terminal allows it AND the mail service answered a probe recently -
 // otherwise the backend would downgrade it to PAPER_DIGITAL anyway.
 const showDigitalOnly = computed(
   () => !!delivery.mailStatus?.allowDigitalOnly && !!delivery.mailStatus?.reachable

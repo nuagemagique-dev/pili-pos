@@ -90,13 +90,13 @@ type Handler = (args?: any) => any;
 
 /**
  * Marks a handler as "live": instead of being invoked ONCE with `{}`
- * at setup time (like every other default handler — see
+ * at setup time (like every other default handler - see
  * `_serializeHandlers`), its SOURCE is reconstructed with `new
  * Function(...)` inside the page and called for real on every
  * invoke(), with the real args. That lets it echo something derived
  * from what it was actually asked (e.g. `checkout`'s mock delivery
  * outcome reflecting the `delivery` medium/email a test's UI
- * interaction produced), still fully synchronous — no cross-process
+ * interaction produced), still fully synchronous - no cross-process
  * round trip, so it can't reintroduce the timing-sensitive race
  * `loginAndGoto` relies on (OrderView's mount redirects to Tables
  * asynchronously; a slow default handler would let a test observe the
@@ -104,7 +104,7 @@ type Handler = (args?: any) => any;
  *
  * Because of the `new Function` reconstruction, a live handler must
  * be fully self-contained: no closures over anything outside its own
- * body (module-level constants, helpers, counters — none of that
+ * body (module-level constants, helpers, counters - none of that
  * exists in the page). Keep helpers nested inside the handler itself.
  */
 function live(fn: Handler): Handler {
@@ -300,12 +300,12 @@ function defaultHandlers(): Record<string, Handler> {
 
 // Serialize handlers to page-safe values. A `live()`-marked handler
 // crosses over as its own SOURCE TEXT (reconstructed with `new
-// Function` in the page — see `mockTauriIPC`), so it still runs for
+// Function` in the page - see `mockTauriIPC`), so it still runs for
 // real, synchronously, on every call. Every other handler is called
-// ONCE with `{}` here to produce a static default return value — the
+// ONCE with `{}` here to produce a static default return value - the
 // original, timing-safe behaviour every other mocked command keeps.
 // If a handler throws (e.g., it expects specific args), we fall back
-// to `null` — the test can override it later.
+// to `null` - the test can override it later.
 function _serializeHandlers(h: Record<string, Handler>): Record<string, any> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(h)) {
@@ -358,7 +358,7 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
     // Track event listeners so tests can emit events if needed.
     const eventListeners: Record<string, Array<(payload: any) => void>> = {};
 
-    // Every app command, in call order — read with `ipcCalls()`.
+    // Every app command, in call order - read with `ipcCalls()`.
     const calls: Array<{ cmd: string; args: any }> = [];
     (window as any).__ipcCalls = calls;
 
@@ -441,7 +441,7 @@ export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
 /**
  * Login via the tile flow then SPA-navigate to a target route.
  * Uses `window.location.hash` for client-side navigation so the
- * Pinia auth state (set during login) survives — a full
+ * Pinia auth state (set during login) survives - a full
  * `page.goto()` would reload the page and wipe the store.
  */
 export async function loginAndGoto(page: Page, hashRoute: string) {

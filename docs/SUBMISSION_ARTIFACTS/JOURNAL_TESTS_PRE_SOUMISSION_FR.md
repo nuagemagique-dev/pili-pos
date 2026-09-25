@@ -18,7 +18,7 @@ monotone par label, `digitalSignature` présent, et
 `shortSignature == SHA-1(digitalSignature)` quand présent.
 
 Le harness a été validé à blanc contre le mock FDM local
-(`pos-fdm-mock`) — les 10 événements passent. Seul le kit de
+(`pos-fdm-mock`) - les 10 événements passent. Seul le kit de
 développement Checkbox manque pour la répétition réelle.
 
 ## Checklist pré-répétition
@@ -47,11 +47,11 @@ MOYUN_STAGING_DUMP=1 \
 
 Avec `MOYUN_STAGING_DUMP=1`, chaque paire requête/réponse est écrite
 dans `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md`
-(horodaté, URL FDM incluse) — à committer après la répétition réelle
+(horodaté, URL FDM incluse) - à committer après la répétition réelle
 et à référencer depuis ce journal.
 
 Restent **manuels** (hors périmètre du smoke automatisé) : le rapport Z
-(réinitialise les compteurs FDM — section 7), le test de
+(réinitialise les compteurs FDM - section 7), le test de
 déconnexion/reconnexion (section 9, nécessite l'app complète), et
 l'inspection visuelle du ticket imprimé (scan QR).
 

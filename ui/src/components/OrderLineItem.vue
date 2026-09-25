@@ -112,7 +112,7 @@ defineExpose({
   padding: 2px;
 }
 
-/* UX Guide §4.1: qty buttons ≥ 48×48 — bumped from 48×40 so
+/* UX Guide §4.1: qty buttons ≥ 48×48 - bumped from 48×40 so
    fingers can hit them reliably under rush-hour stress. */
 .qty-btn {
   width: 48px;

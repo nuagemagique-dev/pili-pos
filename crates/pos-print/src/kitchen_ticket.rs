@@ -1,6 +1,6 @@
 //! Kitchen ticket formatter for HubRise webshop orders.
 //!
-//! Layout is **non-fiscal** — no VAT breakdown, no FDM signature,
+//! Layout is **non-fiscal** - no VAT breakdown, no FDM signature,
 //! no QR code. The cook only needs items, options, and notes.
 //! Built on top of the same `EscPosBuilder` used by `receipt.rs` so
 //! the binary command pipeline stays uniform.
@@ -27,7 +27,7 @@ pub struct KitchenTicket {
     pub source: String,
     /// Pre-formatted service-type label ("Livraison", "À emporter", …).
     pub service_type: String,
-    /// Short id displayed on the slip — typically the first 8 chars
+    /// Short id displayed on the slip - typically the first 8 chars
     /// of the HubRise order id.
     pub short_ref: String,
     /// Optional ready-at clock string ("12:45") to print at the top.
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn ends_with_cut() {
         let bytes = format_kitchen_ticket(&sample());
-        // GS V 66 3 — partial cut
+        // GS V 66 3 - partial cut
         assert!(bytes.windows(4).any(|w| w == [0x1D, b'V', 66, 3]));
     }
 

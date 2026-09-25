@@ -58,7 +58,7 @@ onMounted(async () => {
   if (menu.selectedCategoryId) {
     await menu.loadItems(menu.selectedCategoryId);
   }
-  // Z-report reminder — check on mount + every 5 min.
+  // Z-report reminder - check on mount + every 5 min.
   checkZReport();
   zCheckInterval = setInterval(checkZReport, 5 * 60 * 1000);
 
@@ -81,7 +81,7 @@ const selectedCategoryColor = computed(() => {
   return cat?.color ?? null;
 });
 
-// Z-report daily reminder — polls every 5 min, only shows after 22:00.
+// Z-report daily reminder - polls every 5 min, only shows after 22:00.
 const showZWarning = ref(false);
 let zCheckInterval: ReturnType<typeof setInterval>;
 
@@ -89,11 +89,11 @@ async function checkZReport() {
   try {
     showZWarning.value = await ipc.needsZReport();
   } catch {
-    // Non-critical — degrade silently.
+    // Non-critical - degrade silently.
   }
 }
 
-/** Active-nav helpers — each workspace button is highlighted when
+/** Active-nav helpers - each workspace button is highlighted when
  * the current order belongs to that mode, so the nav mirrors the
  * "you are here" state at all times (UX Guide §2.3). */
 const isDineInMode = computed(
@@ -141,7 +141,7 @@ async function handleTakeaway() {
   try {
     await order.registerPending();
   } catch (e) {
-    toast.show(`${t("order_register_failed")} — ${describeError(e)}`, "error", 6000);
+    toast.show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);
     return;
   }
   await order.startOrder(null);
@@ -185,7 +185,7 @@ async function handleTakeaway() {
       </nav>
     </header>
 
-    <!-- Z-report daily reminder — §8.2 non-blocking warning banner -->
+    <!-- Z-report daily reminder - §8.2 non-blocking warning banner -->
     <div v-if="showZWarning" class="z-warning">
       {{ t('z_report_warning') }}
     </div>
@@ -260,7 +260,7 @@ async function handleTakeaway() {
   color: var(--accent-primary);
 }
 
-/* Takeaway badge — same visual weight as the table badge but in
+/* Takeaway badge - same visual weight as the table badge but in
    the warning color so staff can tell at a glance they're on a
    non-seated order. */
 .header-takeaway {
@@ -305,7 +305,7 @@ async function handleTakeaway() {
 }
 .nav-logout { color: var(--accent-danger); }
 
-/* §8.2 non-blocking warning — amber, full-width, auto-dismiss
+/* §8.2 non-blocking warning - amber, full-width, auto-dismiss
    when the Z is done. Fires only after 22:00. */
 .z-warning {
   padding: var(--space-sm) var(--space-md);

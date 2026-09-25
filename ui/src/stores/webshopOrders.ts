@@ -41,7 +41,7 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
 
   getters: {
     // Orders still waiting for an operator decision (accept/reject).
-    // Local `status === 'open'` is not a useful signal here — every
+    // Local `status === 'open'` is not a useful signal here - every
     // ingested webshop row starts as 'open', so including it would
     // count accepted/in-prep orders too.
     pendingCount(state): number {
@@ -93,10 +93,10 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
     },
 
     async acceptOrder(hubriseOrderId: string) {
-      // Step 1 — status transition as before.
+      // Step 1 - status transition as before.
       await this.patchStatus(hubriseOrderId, 'accepted')
 
-      // Step 2 — seed confirmed_time with the restaurant default so
+      // Step 2 - seed confirmed_time with the restaurant default so
       // aggregator drivers and the customer get a target ETA the
       // moment we accept. Respect any value already set upstream
       // (e.g. HubRise pre-populated it) and never overwrite it.

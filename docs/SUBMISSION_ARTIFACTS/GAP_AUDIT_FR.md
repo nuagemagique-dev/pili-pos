@@ -493,7 +493,7 @@ Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résul
 
 Écarts comblés depuis le scan initial :
 
-- **Gap 9 (langues NL/DE des tickets) — RÉSOLU côté code.** Les mentions
+- **Gap 9 (langues NL/DE des tickets) - RÉSOLU côté code.** Les mentions
   fiscales imprimées existent désormais en FR/NL/DE
   (`ReceiptLanguage` dans `crates/pos-fiscal/src/ticket.rs`, libellés
   fixes dans `crates/pos-print/src/receipt.rs`), pilotées par la clé
@@ -504,7 +504,7 @@ Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résul
   "REMBOURSEMENT DU TICKET DE CAISSE TVA", "CECI N'EST PAS UN TICKET
   DE CAISSE TVA VALABLE", "COPIE", …). Le libellé DE est une traduction
   de style officiel à confirmer sur la version DE de la spec.
-- **Gap 8 (accès distant) — DÉCIDÉ.** RustDesk portable (open source,
+- **Gap 8 (accès distant) - DÉCIDÉ.** RustDesk portable (open source,
   binaire autonome, démarré ponctuellement à la demande), déclaré dans
   `REPONSES_MANUEL_CERT_FR.md` §II.E et `GARANTIE_MAJ_LANGUES_FR.md`.
 - **Nouveau gap découvert et RÉSOLU : chargement du fichier de
@@ -533,20 +533,20 @@ Branche `feat/cert-dossier-kiosk-image`.
 
 ## Écarts comblés
 
-- **Identité producteur (gap 14)** — déjà renseignée (Bruno Moyse,
+- **Identité producteur (gap 14)** - déjà renseignée (Bruno Moyse,
   indépendant, BCE 0783.544.917, régime de franchise TVA, Saint-Gilles).
 - **Dossier neutre vis-à-vis des clients.** Le formulaire ne demande
   qu'« un aperçu des distributeurs potentiels » ; aucun client n'est
   déclaré. `LISTE_DISTRIBUTEURS_FR.md` réécrit, exemples de tickets
   régénérés avec « Restaurant Exemple ».
-- **Règle de langue (§VI p. 99)** — la langue du ticket suit la région
+- **Règle de langue (§VI p. 99)** - la langue du ticket suit la région
   linguistique de l'établissement ; paramètre d'installation
   `pos.json::language` (section « Langue du ticket » du manuel
   d'installation). L'ancienne justification « langue du client /
   Bruxelles bilingue » est supprimée.
-- **Lignes de produits (§III.N, gap 4)** — `LIGNES_PRODUITS_FR.md`
+- **Lignes de produits (§III.N, gap 4)** - `LIGNES_PRODUITS_FR.md`
   décrit les 25 produits du manuel chargés depuis `seed_spf_test.sql`.
-- **Accès distant (gap 8)** — un seul modèle partout : pas de SSH,
+- **Accès distant (gap 8)** - un seul modèle partout : pas de SSH,
   RustDesk portable (AppImage 1.4.9, SHA-256 épinglé) présent mais
   jamais lancé au boot, session ouverte à la demande.
 - **Défauts de code/déploiement découverts et corrigés :**
@@ -560,15 +560,15 @@ Branche `feat/cert-dossier-kiosk-image`.
 
 ## Nouveaux écarts identifiés
 
-- **Preuves UC (§IV)** — `evidence/uc/*.json` rejoue un article
+- **Preuves UC (§IV)** - `evidence/uc/*.json` rejoue un article
   synthétique (« Test item », 10 €) au lieu des scénarios officiels
   (ex. M110 = 2× Dry Martini + 1× Burger of the Chef, 52 €). À
   recapturer contre le FDM Checkbox en rejouant les fixtures.
-- **Toolchain** — une build hors conteneur (cargo Homebrew) ignore
+- **Toolchain** - une build hors conteneur (cargo Homebrew) ignore
   `rust-toolchain.toml` (1.98.1 au lieu de 1.96.0). Seule la build
   `deploy/build-release.sh --docker` fait foi ; vérifier par deux
   builds successives du tag cert que le SHA-1 est identique.
-- **Adresses IP / port FDM** — plan d'adressage aligné (POS .10, FDM
+- **Adresses IP / port FDM** - plan d'adressage aligné (POS .10, FDM
   .20, imprimante .30) ; port GraphQL du Checkbox CBX01 à confirmer à
   réception du kit.
 

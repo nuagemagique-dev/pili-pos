@@ -28,7 +28,7 @@ pub struct CustomerInfo {
 pub struct CustomerSlip {
     pub restaurant_name: String,
     pub restaurant_address: String,
-    /// "2026-04-11 12:30" — already formatted by the caller.
+    /// "2026-04-11 12:30" - already formatted by the caller.
     pub printed_at: String,
     pub source: String,
     pub service_type: String,
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn cjk_product_names_degrade_to_question_marks_not_panic() {
         // Non-fiscal document, same CP858 constraint as the fiscal
-        // receipt (see escpos::encode_cp858) — documented, not a bug.
+        // receipt (see escpos::encode_cp858) - documented, not a bug.
         let mut slip = sample();
         slip.lines.push(CustomerLine {
             quantity: 1,

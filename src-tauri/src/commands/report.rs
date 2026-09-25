@@ -117,7 +117,7 @@ pub async fn do_generate_x_report(
 }
 
 /// Returns true if no Z-report exists for today AND the local time
-/// is past 22:00 — used by the Vue header to show a warning banner
+/// is past 22:00 - used by the Vue header to show a warning banner
 /// reminding the manager to run the end-of-day Z before leaving.
 #[tauri::command]
 pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
@@ -186,7 +186,7 @@ pub async fn do_generate_z_report(
         let events = period_events(&db, &period.id)?;
         let data = turnover_data(&config, &events);
         let users = user_data(&config, &events);
-        // Two sequential ticket numbers — the M184 fixture shows the
+        // Two sequential ticket numbers - the M184 fixture shows the
         // user Z carrying posFiscalTicketNo = turnover Z + 1.
         // Peeked, not consumed: both numbers are committed with the
         // archive once the FDM has signed (see commit_signed_event).
@@ -238,7 +238,7 @@ pub async fn do_generate_z_report(
     let turnover_json = serde_json::to_string(&turnover_report).map_err(|e| e.to_string())?;
     let user_json = serde_json::to_string(&user_report).map_err(|e| e.to_string())?;
 
-    // M184 — one GraphQL operation signs both reports.
+    // M184 - one GraphQL operation signs both reports.
     let fdm = FdmClient::new(&config.fdm_url);
     let (turnover_result, user_result) = match fdm
         .sign_report_turnover_z_user_z(turnover_report, user_report, config.training_mode)
@@ -262,11 +262,11 @@ pub async fn do_generate_z_report(
         // between the two archives can never leave a half-recorded Z.
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
         let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
         if committed != turnover_ticket {
             return Err(format!(
                 "counter drifted between peek and commit for {label:?} (peeked \
-                 {turnover_ticket}, committed {committed}) — likely a concurrent \
+                 {turnover_ticket}, committed {committed}) - likely a concurrent \
                  report generation; retry"
             ));
         }
@@ -285,11 +285,11 @@ pub async fn do_generate_z_report(
         )
         .map_err(|e| e.to_string())?;
         let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
         if committed != user_ticket {
             return Err(format!(
                 "counter drifted between peek and commit for {label:?} (peeked \
-                 {user_ticket}, committed {committed}) — likely a concurrent \
+                 {user_ticket}, committed {committed}) - likely a concurrent \
                  report generation; retry"
             ));
         }
@@ -323,7 +323,7 @@ pub async fn do_generate_z_report(
         }
         tx.commit().map_err(|e| e.to_string())?;
 
-        // Auto-backup after Z-report — best-effort, failure never blocks
+        // Auto-backup after Z-report - best-effort, failure never blocks
         // the Z itself. Uses SQLite's built-in backup API which is safe
         // for WAL-mode databases.
         if let Err(e) = backup_database_impl(&db, &config) {

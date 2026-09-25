@@ -79,7 +79,7 @@ flag n'est **pas** activé dans la build de certification v1.0.0
 (`cert = ["custom-protocol"]`) - événement I reporté en mise à jour
 certifiée v1.1, voir *DECISION_PEPPOL_AP_FR.md*.
 
-### Enveloppe Q100/Q110 — divergence résolue
+### Enveloppe Q100/Q110 - divergence résolue
 
 Les fixtures SPF Q100/Q110 enveloppent le payload sous `data.status`
 (minuscule), alors que le schéma POS v2.2 documente `Status`
@@ -89,7 +89,7 @@ la forme minuscule. Ce contrat est verrouillé par les 3 tests wiremock
 de `crates/pos-fiscal/tests/client_status.rs` (argument de langue,
 fallback d'orthographe, parsing de l'enveloppe multi-langue Q110).
 
-**Labels d'événements exercés :** les 8 sur 8 — N, P, F, S, I, C, T
+**Labels d'événements exercés :** les 8 sur 8 - N, P, F, S, I, C, T
 dans `spf_e2e_basic.rs` (I testé mais hors périmètre de la build
 cert v1.0.0, cf. ci-dessus), et R dans `spf_e2e_reports.rs` (M180,
 M182, M184) en complément du parsing `tests/reports_fixtures.rs`.

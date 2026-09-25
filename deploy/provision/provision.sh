@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — Provisioning (packages / image / instance)
+# moyun-pos - Provisioning (packages / image / instance)
 #
 # Split out of the old monolithic deploy/install.sh so the exact same
 # logic provisions both:
 #
 #   - the mkosi kiosk image (deploy/image/mkosi.postinst.chroot calls
 #     `--phase image` inside the build chroot: OFFLINE, no network, no
-#     `systemctl --now`, no `nmcli` — only file installation and
+#     `systemctl --now`, no `nmcli` - only file installation and
 #     `systemctl enable`/`mask`, which are symlink operations that work
 #     without a running init or network, chroot-safe by design)
 #
@@ -31,8 +31,8 @@ FACTORY_DIR="/usr/share/moyun-pos/factory"
 SERVICE_FILE="/etc/systemd/system/moyun-pos.service"
 
 # Remote-support client (deploy/REMOTE-OPS.md): portable RustDesk, pinned.
-# Extracted (never mounted/run as a live AppImage) so it works with no FUSE
-# — see install_rustdesk() below.
+# Extracted (never mounted/run as a live AppImage) so it works with no FUSE:
+# see install_rustdesk() below.
 RUSTDESK_VERSION="1.4.9"
 RUSTDESK_URL="https://github.com/rustdesk/rustdesk/releases/download/${RUSTDESK_VERSION}/rustdesk-${RUSTDESK_VERSION}-x86_64.AppImage"
 RUSTDESK_SHA256="7902cd60a4f29817eebe2668a15c9a1952ac690e8f7b07bfe7620fedd4e28217"
@@ -41,7 +41,7 @@ RUSTDESK_SHA256="7902cd60a4f29817eebe2668a15c9a1952ac690e8f7b07bfe7620fedd4e2821
 # read: never true at mkosi image-build time (the build chroot has no
 # access to the target terminal's hardware), always true at --phase
 # instance (a live machine) and at first boot (moyun-provision.service,
-# deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision — kept
+# deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision - kept
 # in sync with detect_device_id() below by hand, see the comment there).
 DEVICE_ID_PLACEHOLDER="CHANGE_ME_MAC"
 
@@ -90,9 +90,9 @@ esac
 #
 # Prints "aa:bb:cc:dd:ee:ff" (lowercase) on stdout, or exits non-zero with
 # a message on stderr. Never called from phase_image(): a build chroot has
-# no relevant hardware NIC. Called from phase_instance() below, and — a
+# no relevant hardware NIC. Called from phase_instance() below, and - a
 # second, intentionally duplicated copy, since the two run in unrelated
-# filesystem trees (build chroot vs. the booted kiosk image) — from
+# filesystem trees (build chroot vs. the booted kiosk image) - from
 # moyun-provision (deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision).
 # Keep both copies in sync.
 detect_device_id() {
@@ -166,7 +166,7 @@ install_rustdesk() {
     mv "$POS_BIN_DIR/.rustdesk-extract/squashfs-root" "$POS_BIN_DIR/rustdesk"
     rmdir "$POS_BIN_DIR/.rustdesk-extract"
     rm -f "$tmp_appimage"
-    echo "  ✓ $POS_BIN_DIR/rustdesk/AppRun — no service, not started at boot"
+    echo "  ✓ $POS_BIN_DIR/rustdesk/AppRun - no service, not started at boot"
 }
 
 install_admission_extras() {
@@ -181,7 +181,7 @@ install_admission_extras() {
     if [[ -n "$FDM_MOCK_PATH" && -f "$FDM_MOCK_PATH" ]]; then
         install -m 755 "$FDM_MOCK_PATH" "$POS_BIN_DIR/bin/pos-fdm-mock"
     else
-        echo "  ⚠ --fdm-mock not given — deploy/image/build.sh should stage and pass it" >&2
+        echo "  ⚠ --fdm-mock not given - deploy/image/build.sh should stage and pass it" >&2
         exit 1
     fi
 
@@ -191,7 +191,7 @@ install_admission_extras() {
     systemctl enable getty@tty2.service 2>/dev/null || true
 
     # Installed by mkosi.extra; only enable it here (chroot-safe). Never
-    # started — it is a manual fallback if the virtual FDM is unreachable
+    # started - it is a manual fallback if the virtual FDM is unreachable
     # during the admission demo.
     if [[ -f /usr/lib/systemd/system/pos-fdm-mock.service || -f /etc/systemd/system/pos-fdm-mock.service ]]; then
         echo "  ✓ pos-fdm-mock.service installed, left disabled (manual start only)"
@@ -201,7 +201,7 @@ install_admission_extras() {
 materialize_or_symlink_etc() {
     echo "▸ [image:$VARIANT] /etc/moyun-pos…"
     if [[ -L /etc/moyun-pos ]]; then
-        echo "  ✓ symlink already in place (kiosk image layout — resolved by"
+        echo "  ✓ symlink already in place (kiosk image layout - resolved by"
         echo "    moyun-provision.service at first boot, see deploy/image/)"
         return
     fi
@@ -212,7 +212,7 @@ materialize_or_symlink_etc() {
     if [[ ! -f /etc/moyun-pos/pos.json ]]; then
         install -m 640 "$FACTORY_DIR/pos.json" /etc/moyun-pos/pos.json
         chown root:"$POS_USER" /etc/moyun-pos/pos.json
-        echo "  ⚠ template written to /etc/moyun-pos/pos.json — edit before starting the service"
+        echo "  ⚠ template written to /etc/moyun-pos/pos.json - edit before starting the service"
     fi
     if [[ -d "$FACTORY_DIR/secrets" && ! -d /etc/moyun-pos/secrets ]]; then
         install -d -m 750 -o root -g "$POS_USER" /etc/moyun-pos/secrets
@@ -256,7 +256,7 @@ phase_image() {
     INIT_ARGS=(--init-db)
     if [[ "$VARIANT" == "admission" && -z "$SEED_PATH" ]]; then
         echo "ERROR: --variant admission needs --seed <path> (the build chroot has" >&2
-        echo "       no source tree — deploy/image/build.sh stages seed_spf_test.sql" >&2
+        echo "       no source tree - deploy/image/build.sh stages seed_spf_test.sql" >&2
         echo "       via mkosi.profiles/admission/mkosi.extra and passes its path)" >&2
         exit 1
     fi
@@ -320,7 +320,7 @@ POSCONF
     echo "▸ [image:$VARIANT] Masking services never wanted on a kiosk…"
     systemctl mask bluetooth cups avahi-daemon ModemManager ssh \
         unattended-upgrades apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
-    echo "  ✓ masked (symlinks to /dev/null — chroot-safe, no daemon needed)"
+    echo "  ✓ masked (symlinks to /dev/null - chroot-safe, no daemon needed)"
 
     if [[ "$VARIANT" == "admission" ]]; then
         install_admission_extras
@@ -331,7 +331,7 @@ POSCONF
     echo "▸ [image:$VARIANT] First-boot provisioning + installer units…"
     # The unit files themselves ship via deploy/image/mkosi.extra; this
     # phase only enables what is already present in the tree (symlinks
-    # only — `systemctl enable` works offline in a chroot, per mkosi's
+    # only - `systemctl enable` works offline in a chroot, per mkosi's
     # documented behaviour for postinst.chroot scripts).
     for unit in moyun-provision.service moyun-installer.service systemd-repart.service; do
         if [[ -f "/usr/lib/systemd/system/$unit" || -f "/etc/systemd/system/$unit" ]]; then
@@ -341,7 +341,7 @@ POSCONF
     echo "  ✓ enabled where present (nothing started)"
 }
 
-# ── phase: instance (a live, booted machine — needs dbus + network) ────
+# ── phase: instance (a live, booted machine - needs dbus + network) ────
 phase_instance() {
     STATIC_IP="${STATIC_IP:-}"; GATEWAY="${GATEWAY:-}"; DNS="${DNS:-1.1.1.1}"; IFACE="${IFACE:-eth0}"
 
@@ -360,13 +360,13 @@ phase_instance() {
     echo "▸ [instance] Device ID (NIC MAC, manual §VI row VII)…"
     if [[ -f /etc/moyun-pos/pos.json ]]; then
         if ! MAC="$(detect_device_id)"; then
-            echo "ERROR: could not determine device_id — fix the network interface and rerun" >&2
+            echo "ERROR: could not determine device_id - fix the network interface and rerun" >&2
             exit 1
         fi
         sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" /etc/moyun-pos/pos.json
         echo "  ✓ device_id = $MAC"
     else
-        echo "  ⚠ /etc/moyun-pos/pos.json not found — run --phase image first"
+        echo "  ⚠ /etc/moyun-pos/pos.json not found - run --phase image first"
     fi
 
     echo "▸ [instance] Fiscal identity (what the FDM would refuse)…"
@@ -383,7 +383,7 @@ phase_instance() {
         systemctl stop "$svc" 2>/dev/null || true
     done
     systemctl daemon-reload
-    echo "  ✓ instance ready — start with: systemctl start moyun-pos"
+    echo "  ✓ instance ready - start with: systemctl start moyun-pos"
 }
 
 case "$PHASE" in

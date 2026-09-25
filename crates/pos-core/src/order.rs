@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn line_total_large_values_do_not_overflow() {
-        // 100,000.00 EUR unit price x 1000 units — still far under i64::MAX.
+        // 100,000.00 EUR unit price x 1000 units - still far under i64::MAX.
         let unit_price_cents = 10_000_000; // 100,000.00 EUR
         let expected_total_cents = 10_000_000_000; // 100,000,000.00 EUR
         assert_eq!(

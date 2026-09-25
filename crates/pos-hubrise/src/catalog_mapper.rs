@@ -1,7 +1,7 @@
 //! Decoders that reverse the translation encoding we use on the
 //! tsb-service side when pushing catalogs.
 //!
-//! See `plans/witty-sleeping-nygaard.md` — "Translation encoding strategy".
+//! See `plans/witty-sleeping-nygaard.md` - "Translation encoding strategy".
 
 use pos_hubrise_types::{
     CategoryDescriptionPayload, CategoryTranslations as CategoryTrPayload, ProductTranslation,

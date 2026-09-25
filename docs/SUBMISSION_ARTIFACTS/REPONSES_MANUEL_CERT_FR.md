@@ -214,7 +214,7 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Distributeur de nourriture | ☐ | ☐ | |
 | Robot | ☐ | ☐ | |
 | **Commande à distance** | ☐ | ☐ | |
-| Boutique en ligne | ☐ | ☐ | Webshop existe mais hors périmètre fiscal (build cert — intégrations tierces désactivées) |
+| Boutique en ligne | ☐ | ☐ | Webshop existe mais hors périmètre fiscal (build cert - intégrations tierces désactivées) |
 | Commande en ligne | ☐ | ☐ | Idem |
 | Scanner de code QR | ☐ | ☐ | |
 | **Facturation/paiement** | | | |
@@ -733,7 +733,7 @@ Les libellés FR proviennent de la description détaillée POS v2.2 et du tablea
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes — forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
+*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
 
 Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de mise à jour v1.1, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
 

@@ -103,21 +103,21 @@ mod tests {
     /// FDM detailed description v1.4 §Chapitre 3 gives the worked
     /// example verification URL: fixed lowercase prefix
     /// `https://www.gs2.be/` (19 chars) + a 19-char mixed-case Base-62
-    /// encoded value (§3.1 "LONGUEUR FIXE": always 19 base-62 chars) —
+    /// encoded value (§3.1 "LONGUEUR FIXE": always 19 base-62 chars) -
     /// 38 characters total, matching POS description v2.2 §6.5's "38
     /// caractères alphanumériques".
     ///
-    /// NOTE — a real verification URL like this one is NOT encodable
+    /// NOTE - a real verification URL like this one is NOT encodable
     /// in QR "Alphanumeric" mode (ISO/IEC 18004): that mode's charset
     /// is uppercase-only (0-9, A-Z, space, $%*+-./:), but the fixed
     /// prefix is lowercase and the Base-62 alphabet's values 36-61 are
     /// also lowercase (see the spec's own table). So this always falls
     /// back to QR "Byte" mode, whose capacity at Version 2 (the
     /// 25x25-module symbol POS description v2.2 §6.5 names, "type 2 QR"
-    /// = ISO Model 2) tops out at 34 bytes even at the lowest EC level
-    /// — below the 38 bytes needed. This test therefore does NOT assert
+    /// = ISO Model 2) tops out at 34 bytes even at the lowest EC level,
+    /// below the 38 bytes needed. This test therefore does NOT assert
     /// a specific module count (that would just be asserting today's
-    /// `qrcode`-crate behaviour, not the spec) — it pins down that the
+    /// `qrcode`-crate behaviour, not the spec) - it pins down that the
     /// spec's own worked example encodes without panicking or erroring
     /// and stays a valid square symbol. See the test-run report for the
     /// concrete module count this currently produces and why it is
@@ -155,7 +155,7 @@ mod tests {
     /// charset (uppercase + digits only, no lowercase) does encode to
     /// the spec's 25x25-module symbol. This isolates "is the module
     /// count purely a function of character-set/mode, as documented
-    /// above" from "is generate_qr_matrix itself somehow broken" —
+    /// above" from "is generate_qr_matrix itself somehow broken" -
     /// it demonstrates the latter is fine.
     #[test]
     fn all_uppercase_38_chars_does_fit_25x25() {
@@ -195,7 +195,7 @@ mod tests {
         // A degenerate all-dark or all-light "QR code" would be a sign
         // the encoder silently failed. Any real QR code (even for a
         // trivial input) has both finder patterns (dark) and quiet
-        // areas (light) once rendered — but at the *matrix* level
+        // areas (light) once rendered - but at the *matrix* level
         // (module data only, no PNG quiet zone), it must at minimum
         // have positioning-pattern contrast.
         let url = "https://www.gs2.be/1234567890abcdefghi";

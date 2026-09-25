@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-provision — first-boot LUKS2 + TPM2 setup for the "moyun-data"
+# moyun-provision - first-boot LUKS2 + TPM2 setup for the "moyun-data"
 # partition (mounted on /var), run by moyun-provision.service.
 #
 # Design (Phase 4 plan):
 #   1. Partition already exists (systemd-repart.service, this boot,
 #      see usr/lib/repart.d/90-moyun-data.conf) but is raw/unformatted.
 #   2. LUKS2-format it with a random TEMPORARY key.
-#   3. Enroll a TPM2 token (auto-unlock, bound to PCR 7 — Secure Boot
+#   3. Enroll a TPM2 token (auto-unlock, bound to PCR 7 - Secure Boot
 #      policy) AND a recovery key, using the temp key to authorize both.
-#   4. Wipe the temp key's slot — from here on the disk unlocks only
+#   4. Wipe the temp key's slot - from here on the disk unlocks only
 #      via TPM2 (normal boots) or the recovery key (TPM replaced/reset).
 #   5. mkfs.ext4 the decrypted device, mount it on /var.
 #   6. Copy the factory pos.db + pos.json template
@@ -19,7 +19,7 @@
 #   7. Generate a random root password (and, on the admission image, a
 #      spf password), briefly remounting / read-write to set them.
 #   8. Print the root/spf passwords and the recovery key ONCE, then
-#      wait for Enter — the distributor copies them into the
+#      wait for Enter - the distributor copies them into the
 #      installation notebook (MANUEL_INSTALLATION_FR.md §3.3/§4.1).
 #
 # Idempotent: moyun-provision.service only starts this script while
@@ -36,7 +36,7 @@ ETC_DIR="/var/lib/moyun-etc"
 log() { echo "[moyun-provision] $*"; }
 
 # ── device_id: the terminal's NIC MAC (manual §VI row VII). Duplicated
-#    from deploy/provision/provision.sh's detect_device_id() — the two
+#    from deploy/provision/provision.sh's detect_device_id() - the two
 #    run in unrelated filesystem trees (this one inside the booted
 #    kiosk image), so keep both copies in sync by hand. ────────────────
 detect_device_id() {
@@ -87,7 +87,7 @@ set_password_rw() {
 #    Best-effort: unlock and mount what is already there; do NOT
 #    reformat (that would destroy data + the already-shown recovery
 #    key) and do NOT regenerate/redisplay passwords (they may already
-#    have been shown once on an earlier boot — showing a second,
+#    have been shown once on an earlier boot - showing a second,
 #    different value would be actively misleading). Anything short of
 #    a clean unlock+mount here is left for manual recovery.
 recover_existing_luks() {
@@ -95,11 +95,11 @@ recover_existing_luks() {
     if ! cryptsetup luksDump "$raw" 2>/dev/null | grep -qi 'tpm2'; then
         log "ERROR: $raw is already a LUKS2 device but has no TPM2 token"
         log "       enrolled. This is an interrupted first-boot run this"
-        log "       script cannot safely resume automatically — recover"
+        log "       script cannot safely resume automatically - recover"
         log "       manually from the maintenance console (Ctrl+Alt+F2)."
         exit 1
     fi
-    log "LUKS2 + TPM2 already present, /var not mounted — unlocking…"
+    log "LUKS2 + TPM2 already present, /var not mounted - unlocking…"
     systemd-cryptsetup attach moyun-data "$raw" - tpm2-device=auto
     mkdir -p /var
     mount /dev/mapper/moyun-data /var
@@ -116,7 +116,7 @@ main() {
     local raw
     raw="$(readlink -f /dev/disk/by-partlabel/moyun-data 2>/dev/null || true)"
     if [[ -z "$raw" || ! -b "$raw" ]]; then
-        log "ERROR: no 'moyun-data' partition found — did systemd-repart run?"
+        log "ERROR: no 'moyun-data' partition found - did systemd-repart run?"
         exit 1
     fi
 
@@ -167,7 +167,7 @@ main() {
 
     # scripts/qemu/run-kiosk.sh --pos-json <file> honoured HERE ONLY:
     # this whole branch of main() only ever runs once, on the actual
-    # first boot (idempotency check at the top of main()) — so an
+    # first boot (idempotency check at the top of main()) - so an
     # -fw_cfg override present on a LATER boot of the same disk (no
     # --clean) is correctly ignored, exactly like a real terminal where
     # nobody can inject config after the fact.
@@ -183,7 +183,7 @@ main() {
         sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" "$ETC_DIR/moyun-pos/pos.json"
         log "device_id = $MAC"
     else
-        log "WARNING: could not determine device_id from the NIC MAC — the"
+        log "WARNING: could not determine device_id from the NIC MAC - the"
         log "         pos.json placeholder was left as is; fix it by hand"
         log "         (MANUEL_INSTALLATION_FR.md §4.2) before going live."
     fi
@@ -216,10 +216,10 @@ main() {
     cat <<BANNER
 
 ════════════════════════════════════════════════════════════════
-  moyun-pos — provisionnement premier démarrage terminé
+  moyun-pos - provisionnement premier démarrage terminé
 
   Notez IMMÉDIATEMENT ces informations dans le carnet du
-  distributeur (MANUEL_INSTALLATION_FR.md §3.3) — elles ne seront
+  distributeur (MANUEL_INSTALLATION_FR.md §3.3) - elles ne seront
   plus jamais réaffichées.
 
   Mot de passe root .......... ${root_pass}

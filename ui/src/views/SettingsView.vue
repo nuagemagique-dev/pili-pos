@@ -130,7 +130,7 @@ onMounted(() => {
       <button class="nav-btn" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
     </header>
     <div class="content">
-      <!-- UX Guide §9: training mode toggle — violet accent -->
+      <!-- UX Guide §9: training mode toggle - violet accent -->
       <div class="setting-row" :class="{ active: pos.trainingMode }">
         <div>
           <h3>{{ t('training_mode') }}</h3>
@@ -205,7 +205,7 @@ onMounted(() => {
         <div class="info-row"><span>{{ t('settings_printer_label') }}</span><span>{{ pos.settings.printerAddress ?? t('printer_none') }}</span></div>
       </div>
 
-      <!-- Digital tickets (admin) — never shows the address itself -->
+      <!-- Digital tickets (admin) - never shows the address itself -->
       <div class="deliveries-section">
         <div class="deliveries-header">
           <h3>{{ t('delivery_settings_title') }}</h3>

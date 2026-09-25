@@ -18,7 +18,7 @@ async function registerPresence(insz: string, isIn: boolean) {
   }
   if (error) {
     const { t } = useI18n();
-    useToastStore().show(`${t("presence_failed")} — ${describeError(error)}`, "error", 6000);
+    useToastStore().show(`${t("presence_failed")} : ${describeError(error)}`, "error", 6000);
   }
 }
 

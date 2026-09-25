@@ -331,7 +331,7 @@ mod tests {
                  VALUES (30001, 30, 500, 'B', 0);",
         )
         .unwrap();
-        // No translations at all (fr/en/requested) — falls back to the
+        // No translations at all (fr/en/requested) - falls back to the
         // numeric id as text, never panics or errors.
         let line = resolve_catalogue_line(&conn, 30001, false, "zh").unwrap();
         assert_eq!(line.name, "30001");

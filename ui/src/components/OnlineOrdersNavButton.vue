@@ -11,7 +11,7 @@ const router = useRouter();
 const webshop = useWebshopOrdersStore();
 const { t } = useI18n();
 
-// Brief pulse class toggled whenever pendingCount goes up — gives
+// Brief pulse class toggled whenever pendingCount goes up - gives
 // the red badge a visual punch when a new online order arrives
 // without needing a continuous animation (UX Guide §4.2).
 const pendingPulse = ref(false);
@@ -29,7 +29,7 @@ watch(
 
 onMounted(() => {
   // Keep the badge live even when the operator is heads-down on the
-  // dine-in flow. Fire-and-forget — a slow webshop fetch must not
+  // dine-in flow. Fire-and-forget - a slow webshop fetch must not
   // block the menu grid from rendering.
   webshop.attachListeners().catch((e) => console.error(e));
   webshop.fetchOrders().catch((e) => console.error(e));

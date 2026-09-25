@@ -1,10 +1,10 @@
 //! Two sign calls firing at once on the same order/label.
 //!
 //! moyun-pos is a single-terminal POS (CLAUDE.md: "Multi-terminal
-//! sync — single terminal for MVP"), so this is a narrow scenario in
-//! practice — a UI double-tap slipping past its loading guard, a
+//! sync - single terminal for MVP"), so this is a narrow scenario in
+//! practice - a UI double-tap slipping past its loading guard, a
 //! stuck request the operator retries while the first is still
-//! in-flight — but the task asks for it explicitly, and getting it
+//! in-flight - but the task asks for it explicitly, and getting it
 //! wrong would be bad in a very specific way: `commit_signed_event`
 //! (and the equivalent inline blocks in `checkout.rs`/`refund.rs`/
 //! `report.rs`/`invoice.rs`) commit the counter and the archive in one
@@ -13,7 +13,7 @@
 //!
 //! What we found and fixed: those five sites used to assert the
 //! invariant with `debug_assert_eq!`. Under this exact race the loser
-//! would panic *while still holding the `state.db` MutexGuard* —
+//! would panic *while still holding the `state.db` MutexGuard* -
 //! poisoning that mutex for the rest of the process's life, meaning
 //! every subsequent command (not just the racing one) would start
 //! failing. That's a `fix(...)` commit alongside this test, converting
@@ -21,8 +21,8 @@
 //! regression test for it: it proves (1) neither call panics, (2)
 //! exactly one wins, (3) nothing is double-archived, (4) the counter
 //! never sits ahead of what's archived (a "phantom" advance would be a
-//! silent permanent gap), and (5) — the part `debug_assert_eq!` could
-//! never guarantee — the app is still alive afterwards.
+//! silent permanent gap), and (5) - the part `debug_assert_eq!` could
+//! never guarantee - the app is still alive afterwards.
 
 mod common;
 
@@ -101,7 +101,7 @@ async fn concurrent_checkouts_of_the_same_order_do_not_double_archive_or_create_
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
 
     // `tokio::join!` runs both futures on the current task, interleaved
-    // at their `.await` points — no `tokio::spawn`/`Send` needed, and
+    // at their `.await` points - no `tokio::spawn`/`Send` needed, and
     // (unlike `spawn`) a panic in either branch would abort this test
     // function normally rather than being silently swallowed, so this
     // also would have caught the pre-fix `debug_assert_eq!` panic.
@@ -138,7 +138,7 @@ async fn concurrent_checkouts_of_the_same_order_do_not_double_archive_or_create_
     assert_eq!(
         app.counter_for(EventLabel::N),
         1,
-        "the counter must exactly match what's archived — a counter sitting \
+        "the counter must exactly match what's archived - a counter sitting \
          ahead of the archive is a silent permanent gap"
     );
     assert_eq!(app.order_status(order_id).as_deref(), Some("closed"));
@@ -191,7 +191,7 @@ async fn concurrent_table_order_signs_do_not_double_archive_or_create_a_gap() {
     );
     assert_eq!(app.counter_for(EventLabel::P), 1);
 
-    // The one journalled entry must be marked sent exactly once — not
+    // The one journalled entry must be marked sent exactly once - not
     // left dangling, not double-consumed.
     let unsent = {
         let conn = app.state.db.lock().unwrap();
@@ -222,7 +222,7 @@ async fn concurrent_work_in_for_the_same_employee_does_not_double_archive_or_cre
     );
     // The counter-drift check returns its `Err(String)` straight from
     // `do_work_in` (via `?` inside `do_work_event`), the same as
-    // `do_sign_table_order` above — unlike `do_checkout`, which wraps
+    // `do_sign_table_order` above - unlike `do_checkout`, which wraps
     // most failures in `Ok(CheckoutResult{success:false,..})`.
     let successes = [&r1, &r2]
         .iter()

@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "../i18n";
 
-// On-screen keyboard for typing a customer's email address — the
+// On-screen keyboard for typing a customer's email address - the
 // kiosk has no physical keyboard. Two steps: type (with live
 // validation) then confirm (large type, per cert requirement that the
 // address is confirmed on screen before it is used).
@@ -43,7 +43,7 @@ function clear() {
 }
 
 // Basic local@domain.tld shape, no whitespace. The backend re-validates
-// authoritatively before signing — this is just to save the operator a
+// authoritatively before signing - this is just to save the operator a
 // round trip on an obvious typo.
 const isValid = computed(() => {
   const v = buffer.value;

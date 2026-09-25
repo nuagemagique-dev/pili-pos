@@ -5,8 +5,8 @@
 //!   1. Login (create user in SQLite, validate INSZ)
 //!   2. Work-in (Event S → signWorkIn)
 //!   3. Open table 7 (create order in SQLite)
-//!   4. Take order — round 1 (add lines to DB, Event P → signOrder)
-//!   5. Add items — round 2 (more lines, second Event P → signOrder)
+//!   4. Take order - round 1 (add lines to DB, Event P → signOrder)
+//!   5. Add items - round 2 (more lines, second Event P → signOrder)
 //!   6. Modify order (change quantity, remove item)
 //!   7. Pre-bill (Event P → signPreBill, verify printout)
 //!   8. Cash payment + close (Event N → signSale)
@@ -180,7 +180,7 @@ fn setup_db() -> rusqlite::Connection {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  FULL SERVICE DAY — Single monolithic test
+//  FULL SERVICE DAY - Single monolithic test
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -206,7 +206,7 @@ async fn test_full_service_day_e2e() {
     .unwrap();
 
     // ────────────────────────────────────────────────────────────
-    // STEP 1: Login — Create user in SQLite, validate INSZ
+    // STEP 1: Login - Create user in SQLite, validate INSZ
     // ────────────────────────────────────────────────────────────
 
     let user = users::create_user(&db, "93051800189", "Bruno", UserRole::Admin).unwrap();
@@ -274,7 +274,7 @@ async fn test_full_service_day_e2e() {
     assert_eq!(open[0].id, order.id);
 
     // ────────────────────────────────────────────────────────────
-    // STEP 4: Take Order — Round 1 (add lines + Event P signOrder)
+    // STEP 4: Take Order - Round 1 (add lines + Event P signOrder)
     // ────────────────────────────────────────────────────────────
 
     let line1 = orders::add_order_line(
@@ -374,7 +374,7 @@ async fn test_full_service_day_e2e() {
     .unwrap();
 
     // ────────────────────────────────────────────────────────────
-    // STEP 5: Add Items — Round 2 (more lines + second signOrder)
+    // STEP 5: Add Items - Round 2 (more lines + second signOrder)
     // ────────────────────────────────────────────────────────────
 
     let _line4 = orders::add_order_line(
@@ -802,7 +802,7 @@ async fn test_full_service_day_e2e() {
     assert!(!qr_matrix.is_empty(), "QR matrix should be non-empty");
 
     // ────────────────────────────────────────────────────────────
-    // STEP 10: Second Table — Quick sale on table 3
+    // STEP 10: Second Table - Quick sale on table 3
     // ────────────────────────────────────────────────────────────
 
     let order2 = orders::create_order(&db, OrderType::DineIn, Some(3), &user.insz).unwrap();
@@ -1089,7 +1089,7 @@ async fn test_full_service_day_e2e() {
     .unwrap();
 
     // ════════════════════════════════════════════════════════════
-    // FINAL VERIFICATION — complete state audit
+    // FINAL VERIFICATION - complete state audit
     // ════════════════════════════════════════════════════════════
 
     // Counter state

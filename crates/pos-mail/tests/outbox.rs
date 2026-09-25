@@ -129,7 +129,7 @@ async fn send_now_on_failure_leaves_the_row_queued_for_retry() {
     assert_eq!(row.status, "pending");
     assert_eq!(row.attempts, 1);
     assert!(row.next_attempt_at.is_some());
-    // Still has its recipient — nothing was purged or lost.
+    // Still has its recipient - nothing was purged or lost.
     assert!(row.recipient.is_some());
 }
 
@@ -303,8 +303,8 @@ async fn run_once_gives_up_after_the_backoff_table_is_exhausted() {
 
     // Drive the row to just short of MAX_ATTEMPTS by failing it
     // directly (cheaper than actually waiting out the backoff between
-    // real `run_once` calls) and confirm the final `run_once` call —
-    // the one that pushes attempts to MAX_ATTEMPTS — gives up.
+    // real `run_once` calls) and confirm the final `run_once` call -
+    // the one that pushes attempts to MAX_ATTEMPTS - gives up.
     {
         let conn = db.lock().unwrap();
         for _ in 0..(DeliveryPolicy::MAX_ATTEMPTS - 1) {
@@ -445,7 +445,7 @@ async fn two_concurrent_run_once_calls_send_the_row_exactly_once() {
 
     // A single `Mutex<Connection>` behind two logical workers, exactly
     // like two independently-scheduled `run_once` ticks racing in the
-    // same process — the DB layer's atomic `claim` is what prevents
+    // same process - the DB layer's atomic `claim` is what prevents
     // the double-send, not any ordering `.await` gives us here.
     let (a, b) = tokio::join!(
         outbox::run_once(&db, &client, "Restaurant Exemple"),

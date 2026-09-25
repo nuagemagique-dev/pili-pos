@@ -8,7 +8,7 @@
 //! 1. Build the UBL 2.1 invoice from the line items + buyer details
 //!    collected at checkout.
 //! 2. Submit it to the configured Access Point (no live AP wired up
-//!    yet — see `pos-peppol::access_point::LoggingAccessPoint` for
+//!    yet - see `pos-peppol::access_point::LoggingAccessPoint` for
 //!    the dev no-op, `StorecoveAccessPoint` for the production stub).
 //! 3. Persist the UBL + AP response in `peppol_deliveries` for the
 //!    audit trail. Same retention rule as `fiscal_events`: append-only.
@@ -19,7 +19,7 @@
 //!   B2B case: a colleague-restaurant ordering takeaway for a staff
 //!   meal). Multi-VAT and credit-note variants are stub'd in
 //!   `pos-peppol` but not surfaced through IPC yet.
-//! - No live AP — the cert dossier declares Peppol as "ready, AP
+//! - No live AP - the cert dossier declares Peppol as "ready, AP
 //!   procurement in progress" since AP onboarding has its own
 //!   contractual timeline independent of SPF Finances certification.
 //!
@@ -61,7 +61,7 @@ pub struct B2bLine {
 }
 
 /// Buyer details collected at checkout. Operator enters them once per
-/// B2B invoice — there's no customer-account system at this scale.
+/// B2B invoice - there's no customer-account system at this scale.
 #[derive(Debug, Clone, Deserialize)]
 pub struct BuyerInput {
     pub vat_number: String,
@@ -254,13 +254,13 @@ fn build_ubl(
 #[serde(rename_all = "camelCase")]
 pub struct InvoiceSignResult {
     pub success: bool,
-    /// Row id of the archived I event — pass to `issue_b2b_invoice`.
+    /// Row id of the archived I event - pass to `issue_b2b_invoice`.
     pub fiscal_event_id: Option<i64>,
     pub invoice_no: Option<String>,
     pub error: Option<String>,
 }
 
-/// M150 — sign the SCE 2.0 invoice fiscal event (I). Consolidates one
+/// M150 - sign the SCE 2.0 invoice fiscal event (I). Consolidates one
 /// or more prior sales (their archived FDM references become the
 /// `fdmRefs` of the invoice, as in the published M150 fixture), sends
 /// `signInvoice` to the FDM and archives the I event. The Peppol/UBL
@@ -342,7 +342,7 @@ pub async fn do_sign_invoice_fiscal(
             .map_err(|e| e.to_string())?;
         let invoice_no = format!("{}{:04}", chrono::Utc::now().format("%Y"), issued + 1);
 
-        // Peek — the counter only commits together with the archive,
+        // Peek - the counter only commits together with the archive,
         // so an FDM failure never creates a sequence gap.
         let tn = FiscalCounter::peek_next(&db, EventLabel::I).map_err(|e| e.to_string())?;
         (config, bp, refs, invoice_no, tn)
@@ -376,11 +376,11 @@ pub async fn do_sign_invoice_fiscal(
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
         let committed = FiscalCounter::next(&tx, EventLabel::I).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic — see `commands/mod.rs::commit_signed_event`.
+        // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
         if committed != ticket_number {
             return Err(format!(
                 "counter drifted between peek and commit for I (peeked {ticket_number}, \
-                 committed {committed}) — likely a concurrent invoice sign; retry"
+                 committed {committed}) - likely a concurrent invoice sign; retry"
             ));
         }
         let id = archive::archive_event(
@@ -411,7 +411,7 @@ pub async fn do_sign_invoice_fiscal(
 
 /// Issue a B2B invoice via Peppol. The caller is expected to have
 /// already produced and signed the SCE-2.0 invoice fiscal event via
-/// `sign_invoice_fiscal` above — this command does NOT re-emit the
+/// `sign_invoice_fiscal` above - this command does NOT re-emit the
 /// fiscal event. It only takes the resulting `fiscal_event_id`
 /// and the buyer's details, builds the UBL, and ships it.
 #[tauri::command]

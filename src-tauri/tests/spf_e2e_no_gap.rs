@@ -2,7 +2,7 @@
 //!
 //! The cert spec requires that fiscal counters never have gaps. The
 //! production checkout flow used to call `FiscalCounter::next` BEFORE
-//! the FDM call — meaning a transient FDM failure left the counter
+//! the FDM call - meaning a transient FDM failure left the counter
 //! advanced but the archive empty, causing the next attempt to use a
 //! higher number and a permanent gap.
 //!
@@ -66,7 +66,7 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
     order.id
 }
 
-/// When the FDM returns an error, the N counter MUST NOT advance —
+/// When the FDM returns an error, the N counter MUST NOT advance -
 /// otherwise the retry attempts at a higher counter value, creating
 /// a gap in the sequence and a SCE 2.0 spec violation.
 #[tokio::test]
@@ -74,7 +74,7 @@ async fn checkout_fdm_failure_does_not_advance_counter() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
 
-    // Make the mock FDM return a 500 — `FdmClient::sign_sale` will
+    // Make the mock FDM return a 500 - `FdmClient::sign_sale` will
     // surface this as `FdmError::Http(...)`, which the checkout
     // command turns into a failed `CheckoutResult` without archiving.
     Mock::given(method("POST"))
@@ -101,7 +101,7 @@ async fn checkout_fdm_failure_does_not_advance_counter() {
         "N counter must NOT advance when FDM call fails"
     );
 
-    // And the archive must be empty — no orphan event row.
+    // And the archive must be empty - no orphan event row.
     assert_eq!(
         app.fiscal_events().len(),
         0,
@@ -124,7 +124,7 @@ async fn refund_fdm_failure_does_not_advance_counter() {
 
     // First: M110 success for the original sale.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
-    // Second: any subsequent call returns 500 — used by the refund.
+    // Second: any subsequent call returns 500 - used by the refund.
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .respond_with(ResponseTemplate::new(500))

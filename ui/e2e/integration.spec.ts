@@ -3,7 +3,7 @@
  *
  * These run in CI only (see .github/workflows/test.yml). The POS
  * binary is started with WEBKIT_INSPECTOR_SERVER so Playwright can
- * connect via CDP and interact with the live webview — no IPC mock.
+ * connect via CDP and interact with the live webview - no IPC mock.
  *
  * Prerequisites:
  *   - The POS binary is running (cargo tauri build + xvfb-run)
@@ -13,7 +13,7 @@
  */
 import { test, expect } from '@playwright/test';
 
-test.describe('Integration — real binary', () => {
+test.describe('Integration - real binary', () => {
   test.skip(!process.env.INTEGRATION_CDP_URL, 'Requires real POS binary (CI only)');
 
   test('healthcheck returns ok', async ({ request }) => {

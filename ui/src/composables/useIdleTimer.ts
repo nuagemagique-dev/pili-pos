@@ -1,7 +1,7 @@
 import { onMounted, onUnmounted } from 'vue'
 
 /**
- * Global idle timer — auto-fires `onIdle` after `timeoutMs` of no
+ * Global idle timer - auto-fires `onIdle` after `timeoutMs` of no
  * user interaction (touch, mouse, keyboard). Used by App.vue to
  * auto-lock the POS session after 5 minutes of inactivity so an
  * unattended terminal can't be operated under the previous

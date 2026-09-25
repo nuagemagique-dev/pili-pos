@@ -1,7 +1,7 @@
 //! Every ticket type (N sale, N refund, P, C, T) in every ticket
 //! language (FR/NL/DE), rendered through the real `format_receipt`
 //! pipeline: each must fit the 80 mm paper, carry the labels of its
-//! language, and print the §VI mentions of its type — no more, no less.
+//! language, and print the §VI mentions of its type - no more, no less.
 
 use pos_fiscal::response::{FdmReference, VatCalcItem};
 use pos_fiscal::ticket::{

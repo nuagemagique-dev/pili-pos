@@ -150,14 +150,14 @@ pub async fn do_checkout_with(
     //
     // We deliberately do NOT call `FiscalCounter::next` here yet.
     // Allocating before the FDM round-trip would create a gap in
-    // the sequence whenever the FDM call fails — a direct violation
+    // the sequence whenever the FDM call fails - a direct violation
     // of the SCE 2.0 "strictly sequential, no gaps" requirement.
     //
     // Instead we peek (read-only) to obtain the value we'll send to
     // the FDM, then commit the increment inside the same SQLite
     // transaction that writes the archive (step 6-8 below). If the
     // FDM fails, the counter stays untouched and the next attempt
-    // sees the same value — combined with the FDM's idempotency on
+    // sees the same value - combined with the FDM's idempotency on
     // `posFiscalTicketNo`, this is safe to retry indefinitely.
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -209,7 +209,7 @@ pub async fn do_checkout_with(
             return Ok(CheckoutResult {
                 success: false,
                 ticket: None,
-                error: Some("FDM not connected — cannot complete transaction".into()),
+                error: Some("FDM not connected - cannot complete transaction".into()),
                 fdm_connected: false,
                 fiscal_event_id: None,
                 delivery: None,
@@ -283,7 +283,7 @@ pub async fn do_checkout_with(
     //   - `fiscal_events` gets the new row
     //   - `orders.status` flips to closed
     // If any of the three fails the whole tx rolls back, including
-    // the counter advance — so no gap is ever observable.
+    // the counter advance - so no gap is ever observable.
     let (event_id, delivery_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
@@ -295,7 +295,7 @@ pub async fn do_checkout_with(
         };
         let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
         // Graceful error, not a panic: see the identical comment in
-        // `commands/mod.rs::commit_signed_event` — a panic here would
+        // `commands/mod.rs::commit_signed_event` - a panic here would
         // unwind while the `state.db` MutexGuard is still held and
         // poison it for the whole process. Concurrent checkouts of the
         // same order are exactly the scenario this guards against; the
@@ -304,7 +304,7 @@ pub async fn do_checkout_with(
         if committed_no != ticket_number {
             return Err(format!(
                 "counter drifted between peek and commit for {label:?} (peeked \
-                 {ticket_number}, committed {committed_no}) — likely a concurrent \
+                 {ticket_number}, committed {committed_no}) - likely a concurrent \
                  checkout of the same order; retry"
             ));
         }
@@ -372,7 +372,7 @@ pub async fn do_checkout_with(
     }
 
     // 10. Enqueue the completed order for async push to HubRise.
-    // This is a pure SQLite write — zero network, zero latency, never
+    // This is a pure SQLite write - zero network, zero latency, never
     // blocked by a HubRise or internet outage. The background outbox
     // worker (started in main.rs alongside the poller) drains the
     // queue when connectivity is available, with exponential backoff
@@ -388,7 +388,7 @@ pub async fn do_checkout_with(
         let body_json = serde_json::to_string(&body).unwrap_or_default();
         let db = state.db.lock().map_err(|e| e.to_string())?;
         if let Err(e) = pos_hubrise::outbox::enqueue(&db, order_id, &body_json) {
-            // Enqueue failure is non-fatal — the order is already
+            // Enqueue failure is non-fatal - the order is already
             // committed locally, just won't appear in tsb-dashboard.
             tracing::warn!(%e, "outbox enqueue failed (non-fatal)");
         }
@@ -416,7 +416,7 @@ pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, 
 
     // FDM messages come back localized to the operator's UI language
     // (Q100/Q110). The FDM only speaks FR/NL/DE/EN, so unsupported UI
-    // languages (zh) fall back to FR — the fiscal reference language.
+    // languages (zh) fall back to FR - the fiscal reference language.
     let lang = match config.language.as_str() {
         "nl" => pos_fiscal::types::Language::Nl,
         "de" => pos_fiscal::types::Language::De,

@@ -1,4 +1,4 @@
--- Tokyo Sushi Bar — POS Seed Data
+-- Tokyo Sushi Bar - POS Seed Data
 -- Extracted from production PostgreSQL database
 -- Run with: sqlite3 pos.db < seed.sql
 
@@ -100,7 +100,7 @@ INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_
     (21, 2, 1580, 'B', 1), (22, 2, 1780, 'B', 2),
     (23, 2, 1880, 'B', 3), (24, 2, 1880, 'B', 4);
 
--- Cat 3: Sushi — pièce (B)
+-- Cat 3: Sushi - pièce (B)
 INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_order) VALUES
     (25, 3, 180, 'B', 1), (26, 3, 180, 'B', 2), (27, 3, 180, 'B', 3),
     (28, 3, 190, 'B', 4), (29, 3, 200, 'B', 5), (30, 3, 200, 'B', 6),
@@ -119,7 +119,7 @@ INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_
     (57, 4, 550, 'B', 13), (58, 4, 550, 'B', 14), (59, 4, 560, 'B', 15),
     (60, 4, 600, 'B', 16), (61, 4, 600, 'B', 17), (62, 4, 750, 'B', 18);
 
--- Cat 5: Gunkan — pièce (B)
+-- Cat 5: Gunkan - pièce (B)
 INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_order) VALUES
     (63, 5, 200, 'B', 1), (64, 5, 230, 'B', 2), (65, 5, 230, 'B', 3),
     (66, 5, 240, 'B', 4), (67, 5, 240, 'B', 5), (68, 5, 260, 'B', 6),
@@ -140,7 +140,7 @@ INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_
     (92, 7, 780, 'B', 13), (93, 7, 780, 'B', 14), (94, 7, 780, 'B', 15),
     (95, 7, 980, 'B', 16);
 
--- Cat 8: Temaki — pièce (B)
+-- Cat 8: Temaki - pièce (B)
 INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_order) VALUES
     (96, 8, 450, 'B', 1), (97, 8, 480, 'B', 2),
     (98, 8, 490, 'B', 3), (99, 8, 600, 'B', 4);
@@ -186,7 +186,7 @@ INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_
     (148, 15, 350, 'B', 3), (149, 15, 400, 'B', 4),
     (150, 15, 400, 'B', 5), (151, 15, 400, 'B', 6);
 
--- Cat 16: Boisson (A — 21% TVA alcool+soft)
+-- Cat 16: Boisson (A - 21% TVA alcool+soft)
 INSERT OR REPLACE INTO menu_items (id, category_id, price_cents, vat_code, sort_order) VALUES
     (152, 16, 250, 'A', 1), (153, 16, 250, 'A', 2),
     (154, 16, 380, 'A', 3), (155, 16, 380, 'A', 4),

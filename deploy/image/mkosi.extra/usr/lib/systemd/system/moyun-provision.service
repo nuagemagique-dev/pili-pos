@@ -11,7 +11,7 @@ Conflicts=getty@tty1.service
 # recovery key enrollment, mkfs, factory data copy, root/spf password
 # generation, one-time display).
 ConditionPathIsMountPoint=!/var
-# Never run when booted in USB installer/updater mode — see
+# Never run when booted in USB installer/updater mode - see
 # moyun-installer.service and usr/lib/systemd/system/
 # systemd-repart.service.d/91-moyun-installer-mode.conf.
 ConditionKernelCommandLine=!moyun.installer

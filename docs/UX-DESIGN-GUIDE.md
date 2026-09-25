@@ -1,4 +1,4 @@
-# UX Design Guide — Restaurant POS Touch Interface
+# UX Design Guide - Restaurant POS Touch Interface
 
 > Guide de design pour l'interface POS tactile moyun-pos.
 > Synthèse des meilleures pratiques issues de l'industrie POS restaurant.
@@ -23,7 +23,7 @@ Le staff de Tokyo Sushi Bar n'est pas un utilisateur tech. C'est un serveur ou u
 
 ## 2. Principes fondamentaux
 
-### 2.1 — Réduire la charge cognitive au maximum
+### 2.1 - Réduire la charge cognitive au maximum
 
 Le staff est déjà surchargé sensoriellement (bruit, clients, cuisine). Chaque élément visuel superflu, chaque popup inattendu, chaque étape inutile consomme de l'attention qu'il n'a pas.
 
@@ -33,7 +33,7 @@ Le staff est déjà surchargé sensoriellement (bruit, clients, cuisine). Chaque
 - Pas de texte long. Labels courts (1-3 mots max sur les boutons).
 - Si un utilisateur doit réfléchir à quoi faire → le design a échoué.
 
-### 2.2 — Chaque micro-friction se multiplie par milliers
+### 2.2 - Chaque micro-friction se multiplie par milliers
 
 Un bouton qui demande 0.5 seconde de trop pour être trouvé, c'est 500 secondes perdues sur 1000 transactions. Penser chaque interaction comme si elle allait être répétée 10 000 fois.
 
@@ -42,7 +42,7 @@ Un bouton qui demande 0.5 seconde de trop pour être trouvé, c'est 500 secondes
 - Les actions rares (remboursement, rapport Z, settings) peuvent être à 2-3 taps de profondeur.
 - Zéro navigation inutile entre les écrans pour le flow principal : menu → cart → paiement → ticket.
 
-### 2.3 — La consistance crée l'automatisme
+### 2.3 - La consistance crée l'automatisme
 
 Après 2-3 semaines d'utilisation intensive, le staff développe des automatismes musculaires (muscle memory). Les boutons doivent toujours être au même endroit. Changer le layout casse ces automatismes et génère des erreurs.
 
@@ -55,7 +55,7 @@ Après 2-3 semaines d'utilisation intensive, le staff développe des automatisme
 
 ---
 
-## 3. Layout principal — OrderView (écran le plus utilisé)
+## 3. Layout principal - OrderView (écran le plus utilisé)
 
 C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 
@@ -90,9 +90,9 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 
 ---
 
-## 4. Composants tactiles — Spécifications
+## 4. Composants tactiles - Spécifications
 
-### 4.1 — Taille des boutons
+### 4.1 - Taille des boutons
 
 | Élément | Taille minimum | Recommandé | Espacement |
 |---------|---------------|------------|------------|
@@ -105,7 +105,7 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 
 **Pourquoi ces tailles :** le standard mobile est 48×48px minimum (Apple HIG / Material Design), mais en POS restaurant avec les mains mouillées/grasses et l'écran à 30-50cm de distance, il faut aller plus grand. Les tests utilisateurs montrent que 60-70px est le sweet spot pour éviter les misclicks sous stress.
 
-### 4.2 — Feedback tactile visuel
+### 4.2 - Feedback tactile visuel
 
 Chaque tap doit donner un feedback immédiat (<100ms). Pas d'animation longue, juste un changement d'état visuel :
 
@@ -115,7 +115,7 @@ Chaque tap doit donner un feedback immédiat (<100ms). Pas d'animation longue, j
 - **Erreur :** shake horizontal (3 oscillations, 300ms) + border rouge.
 - **PAS de :** bounce, slide-in lent, fade-in/out > 200ms, confettis, transitions de page lentes.
 
-### 4.3 — Zones de tap et espacement
+### 4.3 - Zones de tap et espacement
 
 Pas de hover states (pas de souris). Pas de tooltips. Pas de right-click.
 
@@ -125,11 +125,11 @@ L'espacement entre les boutons doit être suffisant pour qu'un doigt ne tape pas
 
 ## 5. Couleurs et contraste
 
-### 5.1 — Mode sombre par défaut
+### 5.1 - Mode sombre par défaut
 
 L'environnement restaurant est souvent tamisé le soir. Un écran blanc éclatant fatigue les yeux et est visible par les clients (distraction). Mode sombre comme base.
 
-### 5.2 — Palette de tokens CSS
+### 5.2 - Palette de tokens CSS
 
 ```css
 :root {
@@ -184,7 +184,7 @@ L'environnement restaurant est souvent tamisé le soir. Un écran blanc éclatan
 }
 ```
 
-### 5.3 — Contraste
+### 5.3 - Contraste
 
 Ratio minimum WCAG AA : 4.5:1 pour le texte, 3:1 pour les éléments graphiques. Sur fond sombre (#1a1a2e), le texte blanc (#e8e8e8) donne un ratio de ~14:1. Les prix et totaux doivent être en bold pour être lisibles à 50cm.
 
@@ -194,9 +194,9 @@ Ratio minimum WCAG AA : 4.5:1 pour le texte, 3:1 pour les éléments graphiques.
 
 Chaque bouton d'item dans la grille doit montrer exactement 3 informations, dans cet ordre de priorité visuelle :
 
-1. **Nom du produit** — le plus grand, centré, 16-18px bold. En ZH (chinois simplifié) par défaut pour le staff, avec le nom FR en dessous en plus petit (pour la conformité fiscale et les clients).
-2. **Prix** — en bas du bouton, 14-16px, couleur accent ou texte secondaire.
-3. **Couleur de catégorie** — bordure gauche ou top de 4px dans la couleur de la catégorie.
+1. **Nom du produit** - le plus grand, centré, 16-18px bold. En ZH (chinois simplifié) par défaut pour le staff, avec le nom FR en dessous en plus petit (pour la conformité fiscale et les clients).
+2. **Prix** - en bas du bouton, 14-16px, couleur accent ou texte secondaire.
+3. **Couleur de catégorie** - bordure gauche ou top de 4px dans la couleur de la catégorie.
 
 **Pas d'images de produits.** Dans un restaurant asiatique avec 80-120 items, les images :
 - prennent trop de place sur l'écran
@@ -208,9 +208,9 @@ Les noms textuels avec code couleur de catégorie sont plus rapides à scanner v
 
 ---
 
-## 7. Paiement — CheckoutView
+## 7. Paiement - CheckoutView
 
-### 7.1 — Flow en minimum d'étapes
+### 7.1 - Flow en minimum d'étapes
 
 ```
 [PAYER] → Choix méthode (Cash/Carte) → Montant reçu (si cash) → Appel FDM → Ticket imprimé
@@ -218,7 +218,7 @@ Les noms textuels avec code couleur de catégorie sont plus rapides à scanner v
 
 Maximum 3 taps pour un paiement simple (cash, montant exact) : Payer → Cash → Exact.
 
-### 7.2 — Boutons de paiement
+### 7.2 - Boutons de paiement
 
 Présenter les méthodes de paiement comme des gros boutons côte-à-côte, pas une liste déroulante :
 
@@ -229,7 +229,7 @@ Présenter les méthodes de paiement comme des gros boutons côte-à-côte, pas 
 └──────────────┘  └──────────────┘
 ```
 
-### 7.3 — Paiement cash : montants rapides
+### 7.3 - Paiement cash : montants rapides
 
 Ne pas forcer la saisie manuelle du montant reçu. Proposer des boutons prédéfinis :
 
@@ -241,11 +241,11 @@ Total: €22.00
 Rendu monnaie: €3.00
 ```
 
-### 7.4 — Split payment
+### 7.4 - Split payment
 
 Le système fait les calculs, le staff saisit seulement le nombre de parts. Afficher le solde restant après chaque paiement partiel.
 
-### 7.5 — Arrondi cash
+### 7.5 - Arrondi cash
 
 L'arrondi belge (5 centimes) doit être automatique et visible. Afficher clairement le montant arrondi à côté du montant exact.
 
@@ -253,7 +253,7 @@ L'arrondi belge (5 centimes) doit être automatique et visible. Afficher clairem
 
 ## 8. Gestion des erreurs et statut FDM
 
-### 8.1 — Indicateur FDM permanent
+### 8.1 - Indicateur FDM permanent
 
 Le statut de connexion FDM doit être visible en permanence dans le header, pas dans un menu caché :
 
@@ -261,12 +261,12 @@ Le statut de connexion FDM doit être visible en permanence dans le header, pas 
 - 🟡 Jaune = warning (buffer > 70%, certificat expire bientôt)
 - 🔴 Rouge = erreur (déconnecté, buffer full, locked) → **bloque les transactions**
 
-### 8.2 — Erreurs non-bloquantes vs bloquantes
+### 8.2 - Erreurs non-bloquantes vs bloquantes
 
 - **Non-bloquantes** (warnings) : bandeau jaune en haut de l'écran, auto-dismiss après 10 secondes, ne bloque pas le flow.
 - **Bloquantes** (FDM déconnecté, buffer full) : overlay fullscreen, fond semi-transparent, message clair, pas de moyen de contourner. Le POS est inutilisable tant que le problème n'est pas résolu.
 
-### 8.3 — Messages d'erreur
+### 8.3 - Messages d'erreur
 
 Pas de jargon technique. Le staff ne sait pas ce qu'est un "buffer" ou un "certificat mTLS".
 
@@ -285,7 +285,7 @@ Pas de jargon technique. Le staff ne sait pas ce qu'est un "buffer" ou un "certi
 Le mode training doit être **visuellement impossible à confondre** avec le mode normal. Exigence légale SCE 2.0.
 
 - Background color change : remplacer `--bg-primary` par `--accent-training` (violet)
-- Bannière permanente en haut : **"⚠️ MODE FORMATION — Les transactions ne sont PAS enregistrées"**
+- Bannière permanente en haut : **"⚠️ MODE FORMATION - Les transactions ne sont PAS enregistrées"**
 - Watermark diagonal semi-transparent "TRAINING" sur tout l'écran
 - Tous les tickets imprimés portent "TRAINING" en haut et "THIS IS NOT A VALID VAT RECEIPT" en bas
 
@@ -302,7 +302,7 @@ Tokyo Sushi Bar a besoin d'afficher des noms en chinois simplifié (三文鱼卷
 Les noms d'items affichent le chinois en principal (pour le staff) et le français en secondaire (pour la conformité et les clients) :
 ```
 ┌─────────────┐
-│ 三文鱼卷 ×8  │  ← nom principal (ZH), 16px bold — le staff lit ça
+│ 三文鱼卷 ×8  │  ← nom principal (ZH), 16px bold - le staff lit ça
 │ Salmon Roll  │  ← nom secondaire (FR), 12px, text-secondary
 │        12.00 │  ← prix
 └─────────────┘
@@ -313,14 +313,14 @@ Les noms d'items affichent le chinois en principal (pour le staff) et le frança
 ## 11. Accessibilité tactile
 
 - **Pas de double-tap requis** pour aucune action courante
-- **Pas de swipe obligatoire** — toujours fournir un bouton alternatif pour les actions swipe
+- **Pas de swipe obligatoire** - toujours fournir un bouton alternatif pour les actions swipe
 - **Pas de long-press** comme seul moyen d'accéder à une fonction
 - **Scroll** : inertie naturelle, scrollbar visible fine (4px), zone de scroll clairement délimitée
 - **Zone morte** de 16px en bordure d'écran (les touch panels sont moins précis sur les bords)
 
 ---
 
-## 12. Responsive — un seul form factor
+## 12. Responsive - un seul form factor
 
 Ce POS est conçu pour un seul écran : **15.6" 1920×1080 touch**. Pas de responsive multi-device. Pas de version mobile. Pas de version tablette.
 
@@ -328,7 +328,7 @@ Cela simplifie énormément le CSS : pas de media queries, pas de breakpoints, l
 
 ---
 
-## 13. Anti-patterns — ce qu'il ne faut PAS faire
+## 13. Anti-patterns - ce qu'il ne faut PAS faire
 
 - ❌ Hamburger menu / menu caché
 - ❌ Carousel / slider pour les catégories (utiliser des tabs scrollables)
@@ -350,14 +350,14 @@ Cela simplifie énormément le CSS : pas de media queries, pas de breakpoints, l
 
 Ce guide est une synthèse des analyses UX suivantes :
 
-- **Creative Navy** — "The Design Principles Of The POS System" (uxjournal/Medium). Agence UX spécialisée produits professionnels. Points clés : design pour des heures d'utilisation, muscle memory des caissiers, chaque micro-friction ×1000, les design patterns web ne s'appliquent pas au POS, les images de produits sont un faux ami.
+- **Creative Navy** - "The Design Principles Of The POS System" (uxjournal/Medium). Agence UX spécialisée produits professionnels. Points clés : design pour des heures d'utilisation, muscle memory des caissiers, chaque micro-friction ×1000, les design patterns web ne s'appliquent pas au POS, les images de produits sont un faux ami.
 
-- **Bright Inventions** — "Payment in POS Design: UI/UX Best Practices". Points clés : animations uniquement informatives, icônes avec labels, hiérarchie de boutons (principal plus grand), formulaires empilés verticalement, "Don't Make Me Think" appliqué aux pourboires et split payments.
+- **Bright Inventions** - "Payment in POS Design: UI/UX Best Practices". Points clés : animations uniquement informatives, icônes avec labels, hiérarchie de boutons (principal plus grand), formulaires empilés verticalement, "Don't Make Me Think" appliqué aux pourboires et split payments.
 
-- **DevPro** — "Designing a POS System: 10 UX Tactics". Points clés : cas Subway (POS tellement intuitif que les formations ont été annulées), designer pour un nouveau serveur pas pour un power user, rush hours = 2-3x plus de transactions, les 10% de gauchers, surcharge sensorielle en environnement restaurant.
+- **DevPro** - "Designing a POS System: 10 UX Tactics". Points clés : cas Subway (POS tellement intuitif que les formations ont été annulées), designer pour un nouveau serveur pas pour un power user, rush hours = 2-3x plus de transactions, les 10% de gauchers, surcharge sensorielle en environnement restaurant.
 
-- **Agente Studio** — "POS System Design: Principles, Examples". Points clés : KISS principle, réduire la charge cognitive, findability = clé de l'efficacité.
+- **Agente Studio** - "POS System Design: Principles, Examples". Points clés : KISS principle, réduire la charge cognitive, findability = clé de l'efficacité.
 
-- **UXmatters** — "Designing Intuitive POS Touch Interfaces". Points clés : learnability et discoverability en quelques secondes, indiquer visuellement les éléments interactifs, tester sur des utilisateurs naïfs.
+- **UXmatters** - "Designing Intuitive POS Touch Interfaces". Points clés : learnability et discoverability en quelques secondes, indiquer visuellement les éléments interactifs, tester sur des utilisateurs naïfs.
 
-- **Figma Community** — Restaurant POS UI kits (pour inspiration visuelle).
+- **Figma Community** - Restaurant POS UI kits (pour inspiration visuelle).

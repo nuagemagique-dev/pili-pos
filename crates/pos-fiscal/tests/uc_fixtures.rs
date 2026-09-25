@@ -5,7 +5,7 @@
 //!
 //! 1. The published `*_Response.json` deserializes cleanly into `SignResult`
 //!    (or `FdmStatus` for the Q* status queries). This is the most important
-//!    check — it proves we can correctly parse responses from a real FDM.
+//!    check - it proves we can correctly parse responses from a real FDM.
 //! 2. The published `*_GQL-Variables.json` carries the field set we expect
 //!    for each event type (top-level shape check, no struct round-trip
 //!    because our `*Input` types are `Serialize`-only).
@@ -37,7 +37,7 @@ fn basic_set_root() -> PathBuf {
 
 /// One discovered fixture set within a single UC folder.
 struct UcFixture {
-    /// e.g. "M110_signSale" — the folder name, used as test ID.
+    /// e.g. "M110_signSale" - the folder name, used as test ID.
     uc_id: String,
     /// Absolute path to the `*_GQL-Variables.json` file. None for status
     /// queries (Q*), which carry a `*_Request.json` instead.
@@ -75,7 +75,7 @@ fn discover_fixtures() -> Vec<UcFixture> {
             continue;
         }
 
-        // Case 1: single-step UC — fixture files live directly in this
+        // Case 1: single-step UC - fixture files live directly in this
         // folder (M110, M121, …, Q100).
         if let Some((response_path, response_kind)) = find_response_file(&path) {
             let variables_path = find_variables_file(&path);
@@ -88,7 +88,7 @@ fn discover_fixtures() -> Vec<UcFixture> {
             continue;
         }
 
-        // Case 2: multi-step UC — fixture triples live in sub-folders
+        // Case 2: multi-step UC - fixture triples live in sub-folders
         // like `M112A_1_OriginalSale/`, `M112A_2_PartialRefund/`. Each
         // sub-step is registered as its own fixture so the test matrix
         // covers the whole flow (the cert manual tests them step-by-step).
@@ -154,8 +154,8 @@ fn find_variables_file(dir: &Path) -> Option<PathBuf> {
 // ── Per-UC validators ──────────────────────────────────────────────
 
 /// Deserialize the response under `data.<key>`. For mutations the
-/// envelope has exactly one inner key. For some queries — Q110 in
-/// particular — the envelope can contain extra sibling keys (e.g.
+/// envelope has exactly one inner key. For some queries - Q110 in
+/// particular - the envelope can contain extra sibling keys (e.g.
 /// `messagesFR/NL/DE`) alongside the primary `status` payload; we
 /// fall back to whichever named candidate is present.
 fn extract_data_payload<'a>(
@@ -168,7 +168,7 @@ fn extract_data_payload<'a>(
     let obj = data
         .as_object()
         .unwrap_or_else(|| panic!("data is not an object: {json}"));
-    // Mutation envelopes have a single inner key — accept that path first.
+    // Mutation envelopes have a single inner key - accept that path first.
     if obj.len() == 1 {
         return obj.values().next().expect("len==1");
     }
@@ -190,7 +190,7 @@ fn parse_sign_result(path: &Path) -> SignResult {
         fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     let envelope: serde_json::Value = serde_json::from_str(&raw)
         .unwrap_or_else(|e| panic!("invalid JSON in {}: {e}", path.display()));
-    // Sign mutations always have exactly one inner key — no fallback needed.
+    // Sign mutations always have exactly one inner key - no fallback needed.
     let payload = extract_data_payload(&envelope, &[]);
     serde_json::from_value(payload.clone()).unwrap_or_else(|e| {
         panic!(
@@ -319,7 +319,7 @@ fn basic_set_v1_7_fixtures_deserialize_and_match_schema() {
                     }
 
                     // Training sales (M171/M171B/M172) explicitly omit
-                    // vatCalc in v1.7 — the FDM does not produce a VAT
+                    // vatCalc in v1.7 - the FDM does not produce a VAT
                     // breakdown for non-fiscal events (changelog
                     // entry "M171: correction in response FDM (no vatCalc)").
                     if label == EventLabel::T
@@ -406,7 +406,7 @@ fn basic_set_v1_7_fixtures_deserialize_and_match_schema() {
 
 // ── Targeted hand-written checks for the tricky UCs ────────────────
 
-/// M110: standard direct sale (N). Most important fixture — anchors the
+/// M110: standard direct sale (N). Most important fixture - anchors the
 /// "happy path" and the v1.7 footer field shape.
 #[test]
 fn m110_sign_sale_response_shape() {
@@ -425,7 +425,7 @@ fn m110_sign_sale_response_shape() {
 
 /// M121: signOrder (P event). Spec POS v2.2: no shortSignature, no
 /// verificationUrl, no vatCalc. v1.7 also omits the `footer` field
-/// entirely — proves our `#[serde(default)]` on footer is needed.
+/// entirely - proves our `#[serde(default)]` on footer is needed.
 #[test]
 fn m121_sign_order_response_omits_n_only_fields() {
     let p = basic_set_root()
@@ -442,7 +442,7 @@ fn m121_sign_order_response_omits_n_only_fields() {
 
 /// M171: training sale (T event). v1.7 changelog: "M171: correction in
 /// response FDM (no vatCalc)". This is the spec test for our training
-/// flow — the FDM signs the event so we get a digitalSignature, but
+/// flow - the FDM signs the event so we get a digitalSignature, but
 /// since training is non-fiscal there is no VAT breakdown.
 #[test]
 fn m171_training_sale_has_no_vat_calc() {
@@ -467,7 +467,7 @@ fn m171_training_sale_has_no_vat_calc() {
     );
 }
 
-/// Q100: status query. Single check — confirms our `FdmStatus` shape
+/// Q100: status query. Single check - confirms our `FdmStatus` shape
 /// matches what the FDM emits for the introspection query the POS uses
 /// to gate transactions when buffer/errors trip thresholds.
 #[test]
@@ -481,7 +481,7 @@ fn q100_status_response_shape() {
 }
 
 /// Q110: multi-language status. The published envelope carries the
-/// primary `status` payload plus `messagesFR/NL/DE` aliases — exactly
+/// primary `status` payload plus `messagesFR/NL/DE` aliases - exactly
 /// the shape `FdmClient::status_multi_lang` deserializes. Proves the
 /// full Q110 response round-trips into `MultiLangStatus`.
 #[test]

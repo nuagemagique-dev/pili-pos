@@ -22,8 +22,8 @@ const routes: RouteRecordRaw[] = [
 
 if (HUBRISE_ENABLED) {
   // Lazy import keeps WebshopOrdersView out of the main chunk and
-  // — combined with the static `if (HUBRISE_ENABLED)` constant —
-  // lets Vite eliminate the file from the cert build entirely.
+  // (with the static `if (HUBRISE_ENABLED)` constant) lets Vite
+  // eliminate the file from the cert build entirely.
   routes.push({
     path: "/webshop-orders",
     name: "webshop-orders",
@@ -48,7 +48,7 @@ router.beforeEach(async (to, from) => {
     return true;
   } catch (e) {
     const { t } = useI18n();
-    useToastStore().show(`${t("order_register_failed")} — ${describeError(e)}`, "error", 6000);
+    useToastStore().show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);
     // The operator stays on the order and retries once the FDM is back.
     // Locking the screen (idle timer, logout) always goes through: the
     // entries stay pending and are sent at the next registration.

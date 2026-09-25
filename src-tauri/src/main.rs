@@ -2,7 +2,7 @@
 
 // Modules live in `lib.rs` so integration tests under `tests/` can
 // reach them via `use moyun_pos::commands;`. The binary just re-imports
-// them through the crate name — same code, same output.
+// them through the crate name - same code, same output.
 use moyun_pos::{cli, commands, paths, state};
 
 #[cfg(feature = "hubrise")]
@@ -60,10 +60,10 @@ fn main() {
     }
 
     // Load .env file (if present) BEFORE anything reads env vars.
-    // In production there's no .env — env vars are set by systemd.
+    // In production there's no .env - env vars are set by systemd.
     dotenvy::dotenv().ok();
 
-    // Structured logging — daily-rotated log file + stderr for dev.
+    // Structured logging - daily-rotated log file + stderr for dev.
     // Must be initialized BEFORE anything that calls tracing macros.
     let logs_dir = paths::logs_dir();
     std::fs::create_dir_all(&logs_dir).ok();
@@ -272,10 +272,10 @@ fn main() {
         // Refund
         commands::refund::list_refundable_events,
         commands::refund::refund_checkout,
-        // Social (Event S — ONSS clock in/out)
+        // Social (Event S - ONSS clock in/out)
         commands::social::work_in,
         commands::social::work_out,
-        // Financial (Event F — cash in/out, drawer)
+        // Financial (Event F - cash in/out, drawer)
         commands::financial::money_in_out,
         commands::financial::open_drawer_fiscal,
         // HubRise
@@ -286,7 +286,7 @@ fn main() {
         commands::hubrise::hubrise_list_webshop_orders,
         commands::hubrise::hubrise_patch_order_status,
         commands::hubrise::hubrise_set_confirmed_time,
-        // Peppol B2B invoicing (dev build only — not in the v1.0.0 cert scope)
+        // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,
     ]);
@@ -342,10 +342,10 @@ fn main() {
         // Refund
         commands::refund::list_refundable_events,
         commands::refund::refund_checkout,
-        // Social (Event S — ONSS clock in/out)
+        // Social (Event S - ONSS clock in/out)
         commands::social::work_in,
         commands::social::work_out,
-        // Financial (Event F — cash in/out, drawer)
+        // Financial (Event F - cash in/out, drawer)
         commands::financial::money_in_out,
         commands::financial::open_drawer_fiscal,
         // No invoice (I event) commands: invoicing is not part of the

@@ -373,7 +373,7 @@ Index : `idx_peppol_deliveries_invoice(invoice_no)`.
 ## 5. Tables d'intégration webshop (inutilisées dans le build cert)
 
 Les tables `hubrise_connection`, `hubrise_events`, `hubrise_outbox`
-existent dans le schéma mais sont **inutilisées en build cert** —
+existent dans le schéma mais sont **inutilisées en build cert** -
 aucun code du binaire cert ne lit ni écrit ces tables (les intégrations
 tierces sont exclues à la compilation via feature Cargo, cf.
 `BASELINE_TEST_REPORT.md`). Elles sont préservées pour permettre

@@ -1,4 +1,4 @@
-# Opérations à distance — moyun-pos
+# Opérations à distance - moyun-pos
 
 Guide de dépannage et de mise à jour d'un terminal moyun-pos sans être
 sur place. Le terminal est une appliance scellée : **pas de serveur
@@ -9,11 +9,11 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
 ## Session RustDesk à la demande
 
 - Client : RustDesk portable (AppImage), version épinglée dans
-  `deploy/provision/provision.sh` (`RUSTDESK_VERSION` + SHA-256 —
+  `deploy/provision/provision.sh` (`RUSTDESK_VERSION` + SHA-256 -
   `deploy/image/build.sh` garde une copie synchronisée à la main pour
   télécharger/vérifier l'AppImage une seule fois puis la réutiliser
   pour les deux profils d'image). Vérifiée (SHA-256) puis extraite
-  avec `--appimage-extract` (jamais montée en FUSE — fonctionne sous
+  avec `--appimage-extract` (jamais montée en FUSE - fonctionne sous
   `NoNewPrivileges=yes` et dans le chroot de build) dans
   `/opt/moyun-pos/rustdesk/`, lancée via
   `/opt/moyun-pos/rustdesk/AppRun`. Aucun service, jamais lancé au
@@ -69,7 +69,7 @@ grep -i "error\|warn\|failed" /var/lib/moyun-pos/logs/pos.log.* | tail -20
 ## État de la base de données (lecture seule)
 
 Sur l'image d'admission, le compte `spf` (tty2, mot de passe affiché
-une seule fois au premier démarrage — `MANUEL_INSTALLATION_FR.md`
+une seule fois au premier démarrage - `MANUEL_INSTALLATION_FR.md`
 §3.4) dispose du wrapper `pos-db-ro`, qui ouvre `pos.db` en lecture
 seule sans jamais nécessiter d'accès écriture au fichier (voir
 `SECURITE_BD_FR.md` §3.2 et `FEUILLE_ACQUISITION_DONNEES_FR.md` §2.2) :

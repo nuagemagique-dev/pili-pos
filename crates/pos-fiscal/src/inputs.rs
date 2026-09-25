@@ -176,7 +176,7 @@ pub struct CommonFields {
 /// request (FDM spec v1.4 §3 idempotency rules). If the POS retries with
 /// the exact same `IdempotencyKey`, the FDM returns the cached response
 /// and does NOT advance its internal counters. Two requests sharing this
-/// key but differing in *payload* are refused — the FDM treats that as a
+/// key but differing in *payload* are refused - the FDM treats that as a
 /// conflict.
 ///
 /// The key is constructed from `CommonFields` plus the event label
@@ -197,7 +197,7 @@ pub struct IdempotencyKey<'a> {
 impl<'a> IdempotencyKey<'a> {
     /// Build an idempotency key from `CommonFields` and the event label.
     /// The label is taken from the spec-defined static mapping (e.g.
-    /// `SaleInput` → `N`, `OrderInput` → `P`, …) — see the helpers on
+    /// `SaleInput` → `N`, `OrderInput` → `P`, …) - see the helpers on
     /// [`SaleInput::idempotency_key`] etc. for the per-event-type
     /// convenience constructors.
     pub fn new(common: &'a CommonFields, event_label: EventLabel) -> Self {
@@ -726,7 +726,7 @@ mod idempotency_tests {
         assert_eq!(drawer_open.idempotency_key().event_label, EventLabel::F);
     }
 
-    /// `render()` is grep-friendly — log parsers can recover every
+    /// `render()` is grep-friendly - log parsers can recover every
     /// field from a single line.
     #[test]
     fn rendered_key_is_log_grep_friendly() {

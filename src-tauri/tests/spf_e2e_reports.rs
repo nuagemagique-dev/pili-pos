@@ -9,7 +9,7 @@
 //! | M184 | Combined Z: Turnover-Z + User-Z in ONE GraphQL op, both archived atomically | `report::do_generate_z_report` |
 //!
 //! M181/M183 (the standalone Z mutations) are exercised through the
-//! M184 flow — the POS always emits the end-of-day Z as the combined
+//! M184 flow - the POS always emits the end-of-day Z as the combined
 //! operation, which carries both `signReportTurnoverZ` and
 //! `signReportUserZ` mutations from those UCs.
 //!
@@ -81,7 +81,7 @@ async fn m180_generate_x_report_archives_r_event_without_resetting_counter() {
     let events = app.fiscal_events();
     let r_events: Vec<_> = events.iter().filter(|e| e.event_type == "R").collect();
     assert_eq!(r_events.len(), 1);
-    // X-reports do NOT carry a report number — only Z does.
+    // X-reports do NOT carry a report number - only Z does.
     assert!(
         result.report_no.is_none(),
         "X-report must not assign a Z report number"
@@ -150,7 +150,7 @@ async fn m184_generate_z_report_signs_both_reports_in_one_operation() {
         "first Z of the day must carry report_no = 1"
     );
 
-    // Exactly ONE HTTP round-trip to the FDM — both mutations travel
+    // Exactly ONE HTTP round-trip to the FDM - both mutations travel
     // in the same GraphQL document.
     let requests = app.fdm.received_requests().await.unwrap();
     assert_eq!(
@@ -199,7 +199,7 @@ async fn m184_generate_z_report_signs_both_reports_in_one_operation() {
         fiscal_event_id, r_events[0].id,
         "z_reports must link back to the turnover R fiscal event"
     );
-    // Release the DB guard — dump_evidence re-locks state.db.
+    // Release the DB guard - dump_evidence re-locks state.db.
     drop(conn);
     app.dump_evidence("M184");
 }

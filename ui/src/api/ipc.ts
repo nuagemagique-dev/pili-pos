@@ -284,7 +284,7 @@ export function refundCheckout(
   return invoke("refund_checkout", { originalFiscalEventId, items, employeeInsz, delivery });
 }
 
-// ── Social (Event S — ONSS clock in/out) ────────────────────────────
+// ── Social (Event S - ONSS clock in/out) ────────────────────────────
 
 export interface SocialResult {
   success: boolean;
@@ -299,7 +299,7 @@ export function workOut(employeeInsz: string): Promise<SocialResult> {
   return invoke("work_out", { employeeInsz });
 }
 
-// ── Financial (Event F — cash in/out, drawer) ───────────────────────
+// ── Financial (Event F - cash in/out, drawer) ───────────────────────
 
 export interface FinancialResult {
   success: boolean;

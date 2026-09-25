@@ -67,7 +67,7 @@ test.describe('Settings View', () => {
   });
 
   test('shows HubRise section', async ({ page }) => {
-    // HubRise heading may be below the fold — scroll to it.
+    // HubRise heading may be below the fold - scroll to it.
     const heading = page.getByRole('heading', { name: 'HubRise' });
     await heading.scrollIntoViewIfNeeded();
     await expect(heading).toBeVisible();
@@ -79,7 +79,7 @@ test.describe('Settings View', () => {
     await expect(statusSpan).toBeVisible();
   });
 
-  test('HubRise OAuth flow — authorize + paste code + connected', async ({ page }) => {
+  test('HubRise OAuth flow - authorize + paste code + connected', async ({ page }) => {
     // 1. Start disconnected
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
@@ -104,7 +104,7 @@ test.describe('Settings View', () => {
     const authorizeBtn = page.getByText("Ouvrir l'URL d'autorisation HubRise");
     await authorizeBtn.scrollIntoViewIfNeeded();
     await expect(authorizeBtn).toBeVisible();
-    // Note: clicking opens a browser tab via Tauri shell — mocked, so no real navigation
+    // Note: clicking opens a browser tab via Tauri shell - mocked, so no real navigation
 
     // 3. Paste a code and complete
     const codeInput = page.locator('input[placeholder]').last();

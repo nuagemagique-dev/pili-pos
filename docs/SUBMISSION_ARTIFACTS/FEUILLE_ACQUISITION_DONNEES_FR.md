@@ -74,7 +74,7 @@ Deux tables de `pos.db`, lisibles comme le reste de la base
 | Table | Contenu | Ce qu'un contrôleur peut y lire |
 |---|---|---|
 | `ticket_deliveries` | Une ligne par ticket dont le support demandé incluait l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) : support, texte du ticket envoyé, URL de vérification, statut d'envoi, nombre de tentatives, dernière erreur. | L'adresse en clair (`recipient`) n'y figure que pendant les envois/réessais en cours, et au plus 72 h (purge RGPD, cf. §6 ci-dessous). L'indice masqué (`recipient_hint`, ex. `j***@e***.be`) reste consultable indéfiniment. |
-| `original_prints` | Une ligne par événement fiscal dont l'original a été imprimé, avec l'horodatage de l'impression. | Sert à vérifier qu'aucun original n'a été imprimé deux fois (POS spec v2.2 §8.1) — toute reproduction ultérieure porte un événement C séparé dans `fiscal_events`. |
+| `original_prints` | Une ligne par événement fiscal dont l'original a été imprimé, avec l'horodatage de l'impression. | Sert à vérifier qu'aucun original n'a été imprimé deux fois (POS spec v2.2 §8.1) - toute reproduction ultérieure porte un événement C séparé dans `fiscal_events`. |
 
 Voir `TICKET_NUMERIQUE_FR.md` pour le détail du cycle de vie de
 `ticket_deliveries` et `SCHEMA_BD_FR.md` §3.6-3.7 pour le schéma
@@ -103,7 +103,7 @@ complet.
   propriétaire `pos`).
 - **Exception, image d'admission uniquement** : un compte `spf`
   (groupe `pos`, console `tty2`, mot de passe aléatoire affiché une
-  seule fois au premier démarrage — `MANUEL_INSTALLATION_FR.md` §3.4)
+  seule fois au premier démarrage - `MANUEL_INSTALLATION_FR.md` §3.4)
   dispose du wrapper `pos-db-ro` pour interroger `pos.db` en lecture
   seule sans jamais pouvoir y écrire. Absent de l'image de production.
   Voir `SECURITE_BD_FR.md` §3.2 et §3.6.
@@ -127,7 +127,7 @@ pos-db-ro "SELECT * FROM fiscal_events ORDER BY id DESC LIMIT 20;"
 `pos-db-ro` (`/usr/local/bin/pos-db-ro`) ouvre `pos.db` en lecture
 seule (`sqlite3 -readonly`, ou `?immutable=1` si le service est
 arrêté) : le compte `spf` n'a physiquement pas la permission d'écrire
-dans le fichier (groupe `pos`, mode `0640` — `SECURITE_BD_FR.md`
+dans le fichier (groupe `pos`, mode `0640` - `SECURITE_BD_FR.md`
 §3.1-3.2). Cette méthode n'existe que sur l'image d'admission ; sur un
 terminal en production, utiliser la méthode B ou contacter le
 distributeur.
@@ -254,7 +254,7 @@ soumise au SPF Finances.
   jamais affichée dans l'écran "Tickets numériques" des Paramètres
   (`list_ticket_deliveries` n'expose que l'indice masqué). Sous-traité
   à Scaleway (Transactional Email, UE, région `fr-par`) pour l'envoi
-  uniquement — aucun usage marketing.
+  uniquement - aucun usage marketing.
 
 ## 7. Procédure d'export à fournir au contrôleur
 

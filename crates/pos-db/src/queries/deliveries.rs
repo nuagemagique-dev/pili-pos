@@ -96,7 +96,7 @@ pub fn get(conn: &Connection, id: i64) -> Result<Option<TicketDelivery>, rusqlit
     .optional()
 }
 
-/// Most recent deliveries (any status), newest first — for the
+/// Most recent deliveries (any status), newest first - for the
 /// settings/support screen.
 pub fn list_recent(conn: &Connection, limit: i64) -> Result<Vec<TicketDelivery>, rusqlite::Error> {
     let mut stmt = conn.prepare(&format!(
@@ -124,7 +124,7 @@ pub fn due(
 }
 
 /// Atomically claim a pending row for sending: `pending` → `sending`.
-/// Returns `false` (no error) if the row wasn't `pending` anymore —
+/// Returns `false` (no error) if the row wasn't `pending` anymore -
 /// e.g. a concurrent `run_once`/`send_now` already claimed it. This
 /// is what makes concurrent workers claim-safe instead of
 /// double-sending: only one `UPDATE ... WHERE status = 'pending'` can
@@ -155,7 +155,7 @@ pub fn recover_stale_sending(
 }
 
 /// Record a successful send: `sent`, and the recipient is nulled
-/// immediately — the email has done its job, GDPR retention starts at
+/// immediately - the email has done its job, GDPR retention starts at
 /// zero for a successful delivery.
 pub fn mark_sent(conn: &Connection, id: i64, message_id: &str) -> Result<(), rusqlite::Error> {
     let changed = conn.execute(
@@ -202,7 +202,7 @@ pub fn mark_failed(
 }
 
 /// Record that the paper fallback was printed for this delivery.
-/// Can only ever happen once per row — a second call errors instead
+/// Can only ever happen once per row - a second call errors instead
 /// of silently no-op-ing, so a caller bug (double-printing a fallback
 /// ticket) is never masked. The email is no longer retried, so the
 /// recipient is cleared at once (GDPR).
@@ -225,7 +225,7 @@ pub fn mark_fallback_printed(conn: &Connection, id: i64) -> Result<(), rusqlite:
 
 /// GDPR sweep: null the plaintext recipient on every row older than
 /// `cutoff` that still has one (72 h max retention, POS owner
-/// requirement — in practice the retry policy always reaches a
+/// requirement - in practice the retry policy always reaches a
 /// terminal state within ~1.5 h, so this mostly targets `sent`/
 /// `failed`/`fallback_printed` rows well past their deadline). A
 /// `failed` row that gets purged this way also flips to `purged`,
@@ -557,7 +557,7 @@ mod tests {
         assert_eq!(purged, 1);
         let row = get(&conn, id).unwrap().unwrap();
         assert_eq!(row.recipient, None);
-        // Hint survives — only the plaintext address is GDPR-sensitive.
+        // Hint survives - only the plaintext address is GDPR-sensitive.
         assert_eq!(row.recipient_hint, "c***@e***.be");
     }
 

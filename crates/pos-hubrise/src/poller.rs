@@ -78,7 +78,7 @@ async fn poll_once(ctx: &PollerCtx) -> Result<()> {
     let events: Vec<CallbackEvent> = match client.get_json("/callback/events?count=100").await {
         Ok(v) => v,
         Err(HubriseError::Unauthorized) => {
-            tracing::warn!("hubrise poll: unauthorized — token may be expired");
+            tracing::warn!("hubrise poll: unauthorized - token may be expired");
             return Ok(());
         }
         Err(e) => return Err(e),
@@ -139,7 +139,7 @@ async fn process_event(
             return Ok(DispatchOutcome::Ignored);
         };
 
-        // Async HTTP fetch — no lock held.
+        // Async HTTP fetch - no lock held.
         let path = format!("/catalogs/{}", catalog_id);
         let catalog: Catalog = client.get_json(&path).await?;
 
@@ -167,7 +167,7 @@ async fn process_event(
             .unwrap_or("")
             .to_string();
 
-        // Async HTTP fetch — no lock held.
+        // Async HTTP fetch - no lock held.
         let path = format!("/locations/{}/orders/{}", location_id, order_id);
         let order: Order = client.get_json(&path).await?;
 
@@ -212,7 +212,7 @@ fn ingest_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
         .clone()
         .unwrap_or_else(|| "webshop".to_string());
     let hubrise_status = order.status.as_wire();
-    // Placeholder INSZ for system-inserted orders — the schema
+    // Placeholder INSZ for system-inserted orders - the schema
     // requires a non-null user_insz and webshop orders have no
     // operator yet.
     let system_insz = "00000000029";

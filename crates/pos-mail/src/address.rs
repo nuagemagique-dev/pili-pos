@@ -1,6 +1,6 @@
 //! Email address validation and PII masking.
 //!
-//! `validate` is a pragmatic, RFC 5321-ish check — not a full parser.
+//! `validate` is a pragmatic, RFC 5321-ish check - not a full parser.
 //! The point isn't standards purity, it's catching the mistakes an
 //! operator typing an address on a touchscreen actually makes (missing
 //! `@`, stray space, fat-fingered double `@`) before we ever hand the
@@ -49,7 +49,7 @@ const MAX_LOCAL_LEN: usize = 64;
 const MAX_LABEL_LEN: usize = 63;
 
 /// Validate `email` well enough to accept it as a delivery target.
-/// Does not attempt DNS/MX resolution — that's the outbox's job when
+/// Does not attempt DNS/MX resolution - that's the outbox's job when
 /// it actually tries to send.
 pub fn validate(email: &str) -> Result<(), AddressError> {
     if email.chars().any(|c| c.is_control()) {

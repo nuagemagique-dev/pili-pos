@@ -13,7 +13,7 @@
 //! Only the commands the builder emits are interpreted; anything
 //! unknown is skipped defensively.
 
-/// Paper width in characters (Font A on 80 mm — keep in sync with
+/// Paper width in characters (Font A on 80 mm - keep in sync with
 /// `escpos::CHARS_PER_LINE`).
 const WIDTH: usize = 48;
 
@@ -102,7 +102,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                         let len = pl | (ph << 8);
                         let func = bytes.get(i + 6).copied().unwrap_or(0);
                         if func == 80 {
-                            // Function 180: store QR data — payload after cn/fn/m
+                            // Function 180: store QR data - payload after cn/fn/m
                             let start = i + 8;
                             let end = (i + 5 + len).min(bytes.len());
                             let data = String::from_utf8_lossy(&bytes[start..end]);
@@ -111,7 +111,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                         i += 5 + len;
                     }
                     Some(b'v') => {
-                        // raster image — skip header + data
+                        // raster image - skip header + data
                         let bpr = bytes.get(i + 4).copied().unwrap_or(0) as usize
                             | ((bytes.get(i + 5).copied().unwrap_or(0) as usize) << 8);
                         let h = bytes.get(i + 6).copied().unwrap_or(0) as usize

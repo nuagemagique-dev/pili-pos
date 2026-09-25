@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — Release Build (certification build)
+# moyun-pos - Release Build (certification build)
 # Builds the cert binary for x86_64 Linux (Debian 12 / Intel J6412)
 # through scripts/build_and_hash.sh, then assembles the deploy package.
 #
@@ -27,7 +27,7 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 # SHA-1).
 # TODO(image-repro): this digest could not be resolved from this
 # environment (no outbound registry access at the time this was
-# written — see the final report). Before relying on the `repro` CI
+# written - see the final report). Before relying on the `repro` CI
 # job, resolve the current `rust:1-bookworm` digest (e.g.
 # `docker pull rust:1-bookworm && docker inspect --format='{{index .RepoDigests 0}}' rust:1-bookworm`
 # on a machine with registry access) and replace the tag below with
@@ -76,7 +76,7 @@ if [[ "${1:-}" == "--docker" ]]; then
             # pos-fdm-mock: the admission kiosk image's fallback FDM
             # (deploy/image/mkosi.profiles/admission/). Same container,
             # same toolchain, same CARGO_TARGET_DIR as the cert binary
-            # above, so it is a real linux/amd64 binary too — never
+            # above, so it is a real linux/amd64 binary too - never
             # cross-compiled from the macOS host.
             cargo build --release --package pos-fdm-mock
         "
@@ -87,7 +87,7 @@ else
     echo "  Native build (run on a Debian 12 x86_64 machine)"
     echo "══════════════════════════════════════════════════"
     if [[ "$(uname -s)" != "Linux" || "$(uname -m)" != "x86_64" ]]; then
-        echo "✗ Native mode needs Linux x86_64 — use --docker on this host."
+        echo "✗ Native mode needs Linux x86_64 - use --docker on this host."
         exit 1
     fi
     echo ""
@@ -126,7 +126,7 @@ chmod +x "$OUTPUT_DIR/install.sh" "$OUTPUT_DIR/update.sh"
 
 # pos-fdm-mock: only meaningful for the admission kiosk image
 # (deploy/image/build.sh stages it into mkosi.profiles/admission/), not
-# part of a plain terminal deploy — copied best-effort.
+# part of a plain terminal deploy - copied best-effort.
 if [[ -n "${POS_FDM_MOCK:-}" && -f "$POS_FDM_MOCK" ]]; then
     cp "$POS_FDM_MOCK" "$OUTPUT_DIR/pos-fdm-mock"
 fi

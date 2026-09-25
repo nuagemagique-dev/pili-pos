@@ -4,7 +4,7 @@ import type { Messages } from "./i18n";
 
 export const webshopMessages: Messages = {
   "online_orders": { fr: "En ligne", en: "Online", zh: "在线" },
-  // WebshopOrdersView — filter tabs. One tab per working status;
+  // WebshopOrdersView - filter tabs. One tab per working status;
   // the terminal statuses (completed / rejected / cancelled) share
   // a single "Terminées" bucket since they all mean "card is dead"
   // from the staff's live-triage perspective.
@@ -16,7 +16,7 @@ export const webshopMessages: Messages = {
   "webshop_filter_in_delivery": { fr: "En livraison", en: "In delivery", zh: "配送中" },
   "webshop_filter_done": { fr: "Terminées", en: "Done", zh: "已完成" },
 
-  // WebshopOrdersView — status chips
+  // WebshopOrdersView - status chips
   "webshop_status_new": { fr: "Nouvelle", en: "New", zh: "新" },
   "webshop_status_received": { fr: "Reçue", en: "Received", zh: "已收到" },
   "webshop_status_accepted": { fr: "Acceptée", en: "Accepted", zh: "已接受" },
@@ -27,13 +27,13 @@ export const webshopMessages: Messages = {
   "webshop_status_rejected": { fr: "Refusée", en: "Rejected", zh: "已拒绝" },
   "webshop_status_cancelled": { fr: "Annulée", en: "Cancelled", zh: "已取消" },
 
-  // WebshopOrdersView — service type rendering
+  // WebshopOrdersView - service type rendering
   "webshop_service_delivery": { fr: "Livraison", en: "Delivery", zh: "外卖" },
   "webshop_service_collection": { fr: "À emporter", en: "Pickup", zh: "自取" },
   "webshop_service_eat_in": { fr: "Sur place", en: "Eat in", zh: "堂食" },
-  "webshop_service_unknown": { fr: "—", en: "—", zh: "—" },
+  "webshop_service_unknown": { fr: "-", en: "-", zh: "-" },
 
-  // WebshopOrdersView — primary + reject actions
+  // WebshopOrdersView - primary + reject actions
   "webshop_action_accept": { fr: "Accepter", en: "Accept", zh: "接受" },
   "webshop_action_prepare": { fr: "Préparer", en: "Prepare", zh: "开始准备" },
   "webshop_action_ready": { fr: "Prête", en: "Ready", zh: "完成" },
@@ -45,14 +45,14 @@ export const webshopMessages: Messages = {
   "webshop_action_complete": { fr: "Terminer", en: "Complete", zh: "结束" },
   "webshop_action_reject": { fr: "Refuser", en: "Reject", zh: "拒绝" },
 
-  // WebshopOrdersView — row labels
+  // WebshopOrdersView - row labels
   "webshop_label_type": { fr: "Type", en: "Type", zh: "类型" },
   "webshop_label_time": { fr: "Heure", en: "Time", zh: "时间" },
   "webshop_label_customer": { fr: "Client", en: "Customer", zh: "顾客" },
   "webshop_label_ref": { fr: "Réf.", en: "Ref.", zh: "编号" },
   "webshop_label_total": { fr: "Total", en: "Total", zh: "合计" },
 
-  // WebshopOrdersView — state messages
+  // WebshopOrdersView - state messages
   "webshop_loading": { fr: "Chargement…", en: "Loading…", zh: "加载中…" },
   "webshop_empty": {
     fr: "Aucune commande à afficher.",
@@ -60,7 +60,7 @@ export const webshopMessages: Messages = {
     zh: "暂无订单",
   },
 
-  // WebshopOrdersView — delay chips + print buttons + toasts
+  // WebshopOrdersView - delay chips + print buttons + toasts
   "webshop_label_ready_at": { fr: "Prêt à", en: "Ready at", zh: "预计" },
   "webshop_label_delivery_address": {
     fr: "Livraison",
@@ -85,7 +85,7 @@ export const webshopMessages: Messages = {
     zh: "未配置打印机",
   },
   "status_orders": { fr: "Commandes", en: "Orders", zh: "订单" },
-  // SettingsView — HubRise section
+  // SettingsView - HubRise section
   "hubrise_section_help": {
     fr: "Toutes les commandes (sur place, à emporter, en ligne) transitent par HubRise pour les rapports centralisés.",
     en: "All orders (dine-in, takeaway, online) go through HubRise for centralized reporting.",

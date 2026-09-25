@@ -522,7 +522,7 @@ async fn training_mode_never_switches_under_an_open_order() {
     // Asking for the current mode is not a switch.
     assert!(!do_set_training_mode(&app.state, false).unwrap());
 
-    // Once paid, the switch is allowed — and back again only when the
+    // Once paid, the switch is allowed - and back again only when the
     // training order is paid too.
     let r = do_checkout(&app.state, open, CheckoutPaymentMethod::Cash)
         .await

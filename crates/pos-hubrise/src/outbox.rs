@@ -4,7 +4,7 @@
 //! network), and this module provides a background worker that drains
 //! the queue whenever HubRise is reachable. If HubRise or the
 //! internet is down, orders accumulate safely until connectivity
-//! returns — the register is never blocked.
+//! returns - the register is never blocked.
 //!
 //! Retry policy: exponential backoff capped at ~30 min. After 10
 //! consecutive failures the row stays in the table but is skipped
@@ -32,7 +32,7 @@ const TICK_INTERVAL: Duration = Duration::from_secs(30);
 const BATCH_SIZE: i64 = 20;
 
 /// Enqueue a completed POS order for async push to HubRise.
-/// Called from the checkout path — pure SQLite write, no network.
+/// Called from the checkout path - pure SQLite write, no network.
 pub fn enqueue(conn: &Connection, order_id: i64, body_json: &str) -> Result<()> {
     conn.execute(
         "INSERT INTO hubrise_outbox (order_id, body_json)
@@ -69,7 +69,7 @@ pub async fn run_loop(ctx: OutboxCtx, cancel: CancellationToken) {
 
 /// One pass: fetch pending rows, push each, mark sent or bump retry.
 async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
-    // 0. Expire rows older than 7 days — prevents a reconnection
+    // 0. Expire rows older than 7 days - prevents a reconnection
     //    spike if HubRise was down for weeks.
     {
         let db = ctx.db.lock().expect("outbox db poisoned");
@@ -92,7 +92,7 @@ async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
         token_store::load(&db)?
     };
     let Some(stored) = stored else {
-        return Ok(()); // Not connected — nothing to push.
+        return Ok(()); // Not connected - nothing to push.
     };
 
     let client = Client::new(
@@ -170,11 +170,11 @@ async fn process_pending(ctx: &OutboxCtx) -> Result<()> {
             }
         }
 
-        // 3. Async HTTP push — no lock held.
+        // 3. Async HTTP push - no lock held.
         let body: serde_json::Value = match serde_json::from_str(&body_json) {
             Ok(v) => v,
             Err(e) => {
-                // Malformed JSON — park the row permanently.
+                // Malformed JSON - park the row permanently.
                 let db = ctx.db.lock().expect("outbox db poisoned");
                 db.execute(
                     "UPDATE hubrise_outbox SET attempts = ?1, error_msg = ?2 WHERE id = ?3",

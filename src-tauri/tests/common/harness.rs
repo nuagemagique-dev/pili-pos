@@ -12,7 +12,7 @@
 //! inner function (`commands::checkout::do_checkout`, etc.), and assert
 //! against `app.fiscal_events()` and `app.counter_for(EventLabel::N)`.
 //!
-//! The harness is deliberately thin — it doesn't try to model the full
+//! The harness is deliberately thin - it doesn't try to model the full
 //! Tauri runtime (windows, plugins, IPC), only what the command bodies
 //! need: an `AppState` value and a reachable FDM URL.
 
@@ -216,10 +216,10 @@ impl TestApp {
     /// §IV evidence export. When `UC_EVIDENCE_DIR` is set, dump every
     /// archived fiscal event of this test as pretty-printed JSON:
     ///
-    /// - `<UC>_event<N>_<label>_request.json` — the event payload our
+    /// - `<UC>_event<N>_<label>_request.json` - the event payload our
     ///   command layer actually built and sent to the FDM
     ///   (`fiscal_events.event_data_json`).
-    /// - `<UC>_event<N>_<label>_response.json` — the (fixture) FDM
+    /// - `<UC>_event<N>_<label>_response.json` - the (fixture) FDM
     ///   response that was archived alongside it.
     ///
     /// No-op when the env var is unset, so normal `cargo test` runs
@@ -267,7 +267,7 @@ impl TestApp {
 }
 
 /// Register a single wiremock mock that responds to ANY GraphQL POST
-/// with the supplied envelope. Matches by HTTP method + path only — the
+/// with the supplied envelope. Matches by HTTP method + path only - the
 /// test relies on each command issuing exactly the mutation we're
 /// servicing. For multi-step UCs, register multiple mocks; wiremock
 /// dispatches in registration order via `up_to_n_times(1)`.
@@ -290,7 +290,7 @@ pub async fn mock_from_fixture(app: &TestApp, fixture: &UcFixture) {
 
 /// For UC sets where the on-disk response file is the GraphQL inner
 /// payload only (no `{"data": …}` wrapper), wrap it. Most SPF
-/// fixtures already include the wrapper — this is a fallback.
+/// fixtures already include the wrapper - this is a fallback.
 #[allow(dead_code)]
 pub async fn mock_inner_payload(app: &TestApp, mutation_name: &str, inner: Value) {
     let body = serde_json::json!({ "data": { mutation_name: inner } });

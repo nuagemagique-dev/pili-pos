@@ -69,7 +69,7 @@ async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> 
         return Json(status_response(&req.query));
     }
 
-    // M184 — the end-of-day Z carries BOTH Z mutations in one GraphQL
+    // M184 - the end-of-day Z carries BOTH Z mutations in one GraphQL
     // document (`$turnover` + `$user` variables). Each gets its own
     // counters, like a real FDM signing two events back to back.
     if req.query.contains("signReportTurnoverZ") && req.query.contains("signReportUserZ") {
@@ -301,7 +301,7 @@ fn status_occurrences(query: &str) -> Vec<(String, String)> {
     for field in ["Status(", "status("] {
         for (pos, _) in query.match_indices(field) {
             // "fdmStatus: Status(" also contains "tatus(" inside the
-            // alias — only accept occurrences where the char before
+            // alias - only accept occurrences where the char before
             // the match is not alphanumeric (i.e. a real field name).
             if pos > 0
                 && query[..pos]
@@ -425,7 +425,7 @@ fn codes_to_messages(codes: Vec<String>, lang: &str) -> serde_json::Value {
 }
 
 /// `extensions.category` per the POS spec v2.2 is the message ORIGIN
-/// (`SPF_FOD` | `FDM` | `OTHER`), not its severity — severity is
+/// (`SPF_FOD` | `FDM` | `OTHER`), not its severity - severity is
 /// implied by which array (warnings/errors/informations) carries the
 /// message. All tb_messages codes are SPF_FOD-defined.
 fn code_category(code: &str) -> &'static str {
@@ -463,7 +463,7 @@ fn code_category(code: &str) -> &'static str {
     }
 }
 
-/// `showPos` — display obligation per the §V table of the
+/// `showPos` - display obligation per the §V table of the
 /// certification manual (affichage M/O/N).
 fn code_show_pos(code: &str) -> &'static str {
     match code {

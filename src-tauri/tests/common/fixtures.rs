@@ -3,11 +3,11 @@
 //! Each UC folder under `docs/20250916_UC_BasicSet_POS_FDM_1.7/` (or the
 //! Reports / Advanced equivalents) carries the same triple:
 //!
-//! - `<UC>_GQL-Variables.json` — the GraphQL `variables` payload, i.e.
+//! - `<UC>_GQL-Variables.json` - the GraphQL `variables` payload, i.e.
 //!   the SCE-2.0 input struct serialised to JSON.
-//! - `<UC>_GQL-Query.graphql`   — the mutation/query string (not used
+//! - `<UC>_GQL-Query.graphql`   - the mutation/query string (not used
 //!   by the e2e harness; the FdmClient generates its own).
-//! - `<UC>_Response.json` (or `signSale_Response.json`, etc.) — the
+//! - `<UC>_Response.json` (or `signSale_Response.json`, etc.) - the
 //!   canonical FDM response we replay through wiremock.
 //!
 //! Multi-step UCs (M112A, M112B, advanced UCs) live in sub-folders
@@ -37,10 +37,10 @@ pub struct UcFixture {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ResponseKind {
-    /// `signSale` / `signOrder` / `signReport*` / … — wrapped in
+    /// `signSale` / `signOrder` / `signReport*` / … - wrapped in
     /// `data.<mutationName>` and shaped like `SignResult`.
     SignResult,
-    /// `Status` query — shaped like `FdmStatus`.
+    /// `Status` query - shaped like `FdmStatus`.
     Status,
 }
 
@@ -178,7 +178,7 @@ fn find_variables_file(dir: &Path) -> Option<PathBuf> {
 }
 
 /// Read the raw response JSON file. The harness extracts the inner
-/// `data.<key>` payload before handing it to wiremock — the AP needs
+/// `data.<key>` payload before handing it to wiremock - the AP needs
 /// the FULL envelope as published, since `FdmClient` expects that
 /// shape.
 pub fn read_response_envelope(fixture: &UcFixture) -> serde_json::Value {

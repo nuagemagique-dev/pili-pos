@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — certification build + integrity report
+# moyun-pos - certification build + integrity report
 #
 # Implements the five steps declared in
 # docs/SUBMISSION_ARTIFACTS/GARANTIE_MAJ_LANGUES_FR.md §1.2:
@@ -108,6 +108,6 @@ cat "$REPORT"
 echo ""
 echo "✓ report written to $REPORT"
 if [[ "$GIT_DIRTY" == "DIRTY" ]]; then
-    echo "⚠ working tree is dirty — do NOT declare this hash to the SPF;"
+    echo "⚠ working tree is dirty - do NOT declare this hash to the SPF;"
     echo "  commit, tag (vX.Y.Z, GPG-signed) and rebuild first."
 fi

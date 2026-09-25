@@ -4,7 +4,7 @@
 //! then an X and a Z report.
 //!
 //! Unlike the other e2e suites this one does not replay a single
-//! official fixture — no one fixture covers "a whole day" — so the
+//! official fixture - no one fixture covers "a whole day" - so the
 //! mock FDM here is a small dynamic responder (`DynamicFdm`) that
 //! actually reads each request and echoes back a coherent
 //! `SignResult`: the ticket number the POS sent, the training-adjusted
@@ -14,7 +14,7 @@
 //! - strictly sequential numbering per event label, no gaps;
 //! - every archived `event_label` equals what the (fake) FDM signed;
 //! - report totals (VAT, department, payment) equal the sum of the
-//!   day's real sales minus refunds — training excluded.
+//!   day's real sales minus refunds - training excluded.
 
 mod common;
 
@@ -89,7 +89,7 @@ impl DynamicFdm {
     }
 }
 
-/// (mutation name, eventOperation, base event label — overridden to
+/// (mutation name, eventOperation, base event label - overridden to
 /// "T" whenever the request carries `isTraining: true`).
 const MUTATIONS: &[(&str, &str, &str)] = &[
     ("signSale", "SALE", "N"),
@@ -112,7 +112,7 @@ impl Respond for DynamicFdm {
         let is_training = vars["isTraining"].as_bool().unwrap_or(false);
 
         // The M184-style combined Z-report carries two mutations in
-        // one document — handle it before the generic single-mutation
+        // one document - handle it before the generic single-mutation
         // lookup below.
         if query.contains("signReportTurnoverZ") && query.contains("signReportUserZ") {
             let label = if is_training { "T" } else { "R" };
@@ -157,7 +157,7 @@ async fn dynamic_fdm(app: &TestApp) {
 // ── Catalogue ────────────────────────────────────────────────────────
 
 /// Two departments, three products, two operators. Prices are chosen
-/// so every total is a whole multiple of 5 cents — no cash-rounding
+/// so every total is a whole multiple of 5 cents - no cash-rounding
 /// noise to account for in the report-total assertions.
 fn seed_catalogue(app: &TestApp) {
     let conn = app.state.db.lock().unwrap();
@@ -237,7 +237,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
     add(&app, table1, 101, 2);
     add(&app, table1, 102, 1);
     do_sign_table_order(&app.state, table1).await.unwrap();
-    // A second round arrives: 103x1 (8.00) — unsent until the pre-bill,
+    // A second round arrives: 103x1 (8.00) - unsent until the pre-bill,
     // which flushes it as its own order first (§1.4), then the bill.
     add(&app, table1, 103, 1);
     do_sign_pre_bill(&app.state, table1).await.unwrap();
@@ -273,7 +273,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
     .unwrap();
     assert!(refund.success, "{:?}", refund.error);
 
-    // Table 3 (waiter 1): order, then the kitchen ran out — the
+    // Table 3 (waiter 1): order, then the kitchen ran out - the
     // operator corrects the quantity down before signing again.
     let table3 = order_with_table(&app, 3, WAITER_1);
     let table3_line = add(&app, table3, 101, 3);
@@ -323,7 +323,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
     // real N counter or into any of the real report totals below.
     set_training_mode(&app, true);
     let training_order = order_with_table(&app, 9, WAITER_1);
-    add(&app, training_order, 101, 5); // 60.00 — would visibly skew
+    add(&app, training_order, 101, 5); // 60.00 - would visibly skew
     // VAT B / department "1" totals below if it weren't excluded.
     let training_checkout = do_checkout(&app.state, training_order, CheckoutPaymentMethod::Cash)
         .await

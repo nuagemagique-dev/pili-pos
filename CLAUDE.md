@@ -1,11 +1,11 @@
-# CLAUDE.md — POS SCE 2.0 MVP (Tauri + Rust)
+# CLAUDE.md - POS SCE 2.0 MVP (Tauri + Rust)
 
 ## Project Identity
 
 **Name:** moyun-pos  
-**Purpose:** Point-of-Sale terminal application for Belgian HoReCa restaurants, certified SCE 2.0 compliant. First deployment target: Tokyo Sushi Bar (Liège — French-language region, tickets in FR).  
+**Purpose:** Point-of-Sale terminal application for Belgian HoReCa restaurants, certified SCE 2.0 compliant. First deployment target: Tokyo Sushi Bar (Liège - French-language region, tickets in FR).  
 **License:** Proprietary (nuagemagique.dev)  
-**Author:** Bruno — backend developer, Go/TypeScript/Rust stack, Brussels
+**Author:** Bruno - backend developer, Go/TypeScript/Rust stack, Brussels
 
 ---
 
@@ -44,53 +44,53 @@ This is a **Tauri v2 desktop application** running on Linux (Debian minimal + Ca
 ## Technology Stack
 
 ### Backend (Rust)
-- **Tauri v2** — app framework, IPC, window management
-- **SQLite** via `rusqlite` — local database (NOT PostgreSQL — too heavy for embedded)
-- **GraphQL client** — `graphql_client` + `reqwest` for FDM communication
-- **ESC/POS** — raw binary thermal printer commands via serial/USB/TCP
-- **QR code** — `qrcode` crate for fiscal ticket QR codes
-- **JSON serialization** — `serde` + `serde_json` for fiscal event archival
-- **Crypto** — `p256` crate for ECDSA secp256r1 signature verification (FDM responses)
-- **Chrono** — `chrono` for timestamp handling
+- **Tauri v2** - app framework, IPC, window management
+- **SQLite** via `rusqlite` - local database (NOT PostgreSQL - too heavy for embedded)
+- **GraphQL client** - `graphql_client` + `reqwest` for FDM communication
+- **ESC/POS** - raw binary thermal printer commands via serial/USB/TCP
+- **QR code** - `qrcode` crate for fiscal ticket QR codes
+- **JSON serialization** - `serde` + `serde_json` for fiscal event archival
+- **Crypto** - `p256` crate for ECDSA secp256r1 signature verification (FDM responses)
+- **Chrono** - `chrono` for timestamp handling
 
 ### Frontend (Vue 3 + TypeScript)
-- **Vue 3** — Composition API, `<script setup lang="ts">` exclusively
-- **Vue Router** — hash mode (no server needed, single-page kiosk)
-- **Pinia** — state management (orders, current user, FDM status)
-- **Tauri IPC** via `@tauri-apps/api` — all business logic stays in Rust, Vue only handles UI
-- **CSS** — scoped styles in SFCs + CSS custom properties in `tokens.css` for theming. No Tailwind, no UI framework.
-- **Vite** — bundler (Tauri v2 default with Vue template)
+- **Vue 3** - Composition API, `<script setup lang="ts">` exclusively
+- **Vue Router** - hash mode (no server needed, single-page kiosk)
+- **Pinia** - state management (orders, current user, FDM status)
+- **Tauri IPC** via `@tauri-apps/api` - all business logic stays in Rust, Vue only handles UI
+- **CSS** - scoped styles in SFCs + CSS custom properties in `tokens.css` for theming. No Tailwind, no UI framework.
+- **Vite** - bundler (Tauri v2 default with Vue template)
 - Touch-first: large buttons (min 48x48px), no hover states, high contrast
-- **CSS Grid/Flexbox** — responsive touch layout for 15.6" 1920x1080
+- **CSS Grid/Flexbox** - responsive touch layout for 15.6" 1920x1080
 
 ### Target OS
 - Debian 12 minimal (no desktop environment)
-- Cage compositor (Wayland kiosk mode) — auto-starts Tauri app fullscreen
+- Cage compositor (Wayland kiosk mode) - auto-starts Tauri app fullscreen
 - x86_64 architecture (Intel J6412)
 
 ---
 
-## SCE 2.0 Fiscal Compliance — CRITICAL REQUIREMENTS
+## SCE 2.0 Fiscal Compliance - CRITICAL REQUIREMENTS
 
-Reference documents (in the `docs/` directory) — these are the **official SPF Finances specifications and certification test scenarios**. Read the relevant ones before implementing `pos-fiscal`.
+Reference documents (in the `docs/` directory) - these are the **official SPF Finances specifications and certification test scenarios**. Read the relevant ones before implementing `pos-fiscal`.
 
 Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corresponding PDF. **Open the `.md` for fast text search and grep; open the matching PDF under `docs/original_pdfs/` for diagrams, screenshots, and exact visual layout.** Every `.md` links to its source PDF at the top.
 
 **Core specifications:**
-- `docs/20260417_DESCRIPTIONDETAILLEES_POS_FR_2.2.md` — **POS detailed description v2.2** (FR). Complete POS technical spec: GraphQL schema, mutations, types, enums, input objects, event types, VAT codes, ticket requirements, communication rules, digital signature.
-- `docs/20260417_DESCRIPTION DETAILLEE FDM_am_29_04_2024_FR_1.4.md` — **FDM detailed description v1.4** (FR). FDM spec: hardware requirements, QR code encoding algorithm, enriched JSON structure, behaviour on POS↔FDM link.
-- `docs/20260209_ADDENDUM_1_DESCRIPTIONS DETAILLEES POS_FDM FR_2.1 ES.md` — **Addendum 1** to the POS/FDM detailed descriptions (ES = events/signatures). Always cross-check this when reading the two specs above.
-- `docs/FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.09_20251017_FINAL.md` — **FPS Finance ↔ FDM cloud API protocol v1.09**. Describes the mTLS communication between the FDM and the SPF Finances cloud. The POS does NOT speak this protocol directly, but understand the lifecycle (provisioning, daily sync, status reporting) before designing FDM error handling.
+- `docs/20260417_DESCRIPTIONDETAILLEES_POS_FR_2.2.md` - **POS detailed description v2.2** (FR). Complete POS technical spec: GraphQL schema, mutations, types, enums, input objects, event types, VAT codes, ticket requirements, communication rules, digital signature.
+- `docs/20260417_DESCRIPTION DETAILLEE FDM_am_29_04_2024_FR_1.4.md` - **FDM detailed description v1.4** (FR). FDM spec: hardware requirements, QR code encoding algorithm, enriched JSON structure, behaviour on POS↔FDM link.
+- `docs/20260209_ADDENDUM_1_DESCRIPTIONS DETAILLEES POS_FDM FR_2.1 ES.md` - **Addendum 1** to the POS/FDM detailed descriptions (ES = events/signatures). Always cross-check this when reading the two specs above.
+- `docs/FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.09_20251017_FINAL.md` - **FPS Finance ↔ FDM cloud API protocol v1.09**. Describes the mTLS communication between the FDM and the SPF Finances cloud. The POS does NOT speak this protocol directly, but understand the lifecycle (provisioning, daily sync, status reporting) before designing FDM error handling.
 
 **Certification manual & application form** (in `docs/20250307_POS_CERTIFICATION_MANUEAL_FRV1.1/`):
-- `20250307_FR - Manuel de certification_POS_V11.md` — main manual (110 p).
-- `20250115_Manual_Intro_ToRead_FR.md` — read this first (intro / how to use the manual).
-- `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM.md` — certification request form.
-- `20250115_AnnexePourVosExemples.docx` — annex template for submitting examples (Word doc, no `.md` extraction).
-- Embedded copies of earlier UC sets: `20241223_UC_BasicSet_POS_FDM_1.4 (1)/`, `20041223_UC_AdvancedSet_POS_FDM_1.2/` — superseded by the newer UC folders below; kept for reference.
+- `20250307_FR - Manuel de certification_POS_V11.md` - main manual (110 p).
+- `20250115_Manual_Intro_ToRead_FR.md` - read this first (intro / how to use the manual).
+- `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM.md` - certification request form.
+- `20250115_AnnexePourVosExemples.docx` - annex template for submitting examples (Word doc, no `.md` extraction).
+- Embedded copies of earlier UC sets: `20241223_UC_BasicSet_POS_FDM_1.4 (1)/`, `20041223_UC_AdvancedSet_POS_FDM_1.2/` - superseded by the newer UC folders below; kept for reference.
 
 **Test scenarios (use cases the implementation must pass to obtain certification):**
-- `docs/20250916_UC_BasicSet_POS_FDM_1.7/` — **Basic Set v1.7** — minimum mandatory flows.
+- `docs/20250916_UC_BasicSet_POS_FDM_1.7/` - **Basic Set v1.7** - minimum mandatory flows.
   - Sales: `M110_signSale`, `M111_signSale_Refund`, `M112A/B_signSale_RefundPartial`
   - Orders / pro forma: `M121_signOrder`, `M122_signCostCenterChange`, `M123_signPrebill`
   - Cash drawer: `M130_signMoneyInOut`, `M131_signDrawerOpen`, `M132_signPaymentCorrection`, `M133_signMoneyInOut_DrawerDeclaration`
@@ -99,13 +99,13 @@ Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corres
   - Training mode: `M170_signWorkIn_Training`, `M171/171B_signSale_Training`, `M172_signCopy_Training`
   - FDM queries: `Q100_Status`, `Q110_Status_multi_lang_messages`
   - Test setup: `UC_TestSetup_20240806.md`, changelog: `CHANGELOG-UC_BasicSet1.7.md`
-- `docs/20250916_UC_Reports_1.3/` — **Reports v1.3** — X/Z report scenarios.
+- `docs/20250916_UC_Reports_1.3/` - **Reports v1.3** - X/Z report scenarios.
   - `M180_signReportTurnoverX`, `M181_signReportTurnoverZ`, `M182_signReportUserX`, `M183_signReportUserZ`, `M184_signReportTurnoverZUserZ`
-  - `InputReport/` — input fixtures, `Scenario Reports.md` — full scenario doc (⚠️ source PDF is diagram-only — open the PDF for the flow charts), changelog: `CHANGELOG-UC_ReportsBasicSet1.3.md`
-- `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` — **Advanced Set v1.5** — optional/advanced flows (out of MVP scope, but the data model must not preclude them). Covers: composite products, price changes, rounding, table split/merge, MPV/SPV vouchers, foreign currency & tips, customer accounts, cost-center changes, advance payments / deposits, weighted products, GTIN, supplements, credit notes, etc. `UC200…UC4123`. Changelog: `CHANGELOG-UC_AdvancedSet_1.5.md`. Bundle: `20250916_AdvancedSet_1.5.zip`.
+  - `InputReport/` - input fixtures, `Scenario Reports.md` - full scenario doc (⚠️ source PDF is diagram-only - open the PDF for the flow charts), changelog: `CHANGELOG-UC_ReportsBasicSet1.3.md`
+- `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` - **Advanced Set v1.5** - optional/advanced flows (out of MVP scope, but the data model must not preclude them). Covers: composite products, price changes, rounding, table split/merge, MPV/SPV vouchers, foreign currency & tips, customer accounts, cost-center changes, advance payments / deposits, weighted products, GTIN, supplements, credit notes, etc. `UC200…UC4123`. Changelog: `CHANGELOG-UC_AdvancedSet_1.5.md`. Bundle: `20250916_AdvancedSet_1.5.zip`.
 
 **Design guide:**
-- `docs/UX-DESIGN-GUIDE.md` — **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design.
+- `docs/UX-DESIGN-GUIDE.md` - **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design.
 
 **Original PDFs:** all SPF Finances PDFs are preserved under `docs/original_pdfs/` (mirroring the subfolder structure above). Every `.md` links back to its source PDF in its header.
 
@@ -138,8 +138,8 @@ The POS must support 8 event types sent to the FDM:
 ### POS ↔ FDM Communication
 - Protocol: **GraphQL** (mutations sent by POS to FDM)
 - Transport: HTTP over LAN (WiFi or RJ45 to FDM device)
-- FDM: Checkbox CBX01 (TAIGER BV, ~€195 excl. VAT one-time via Eutronix ref. TAFIP0002.00) — single POS connection
-- The POS **NEVER** communicates directly with SPF Finances — that's the FDM's job
+- FDM: Checkbox CBX01 (TAIGER BV, ~€195 excl. VAT one-time via Eutronix ref. TAFIP0002.00) - single POS connection
+- The POS **NEVER** communicates directly with SPF Finances - that's the FDM's job
 - FDM returns: ECDSA secp256r1 signature + control data (fdmId, fdmDateTime, eventLabel, counters, shortSignature)
 
 ### POS Identification
@@ -164,11 +164,11 @@ Every dine-in ticket must include:
 - QR code: Model 2, ECC M, from the 38-character URL provided by FDM. The spec names 25x25, but that can't hold the mixed-case URL; the encoder uses version 3 (29x29), to confirm with the SPF
 
 ### Critical Behavioral Rules
-1. **POS MUST block** if FDM is disconnected — no transactions without FDM
-2. **Sequential numbering** — ticket numbers must be strictly sequential, no gaps
-3. **JSON archival** — every fiscal event must be archived as raw JSON locally in SQLite
-4. **No deletion** — fiscal records can NEVER be deleted or modified
-5. **Training mode** — must be visually distinct (different colors, "TRAINING" watermark)
+1. **POS MUST block** if FDM is disconnected - no transactions without FDM
+2. **Sequential numbering** - ticket numbers must be strictly sequential, no gaps
+3. **JSON archival** - every fiscal event must be archived as raw JSON locally in SQLite
+4. **No deletion** - fiscal records can NEVER be deleted or modified
+5. **Training mode** - must be visually distinct (different colors, "TRAINING" watermark)
 
 ---
 
@@ -431,33 +431,33 @@ CREATE TABLE z_reports (
 
 ---
 
-## MVP Scope — What to Build First
+## MVP Scope - What to Build First
 
 The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with fiscal compliance.
 
 ### Phase 1: Foundation (build this first)
 1. **Cargo workspace** with 4 crates + Tauri app
-2. **SQLite schema** — create tables, migration runner
-3. **pos-core** — `MenuItem`, `Order`, `OrderLine`, `VatCode` types
-4. **pos-db** — CRUD for menu items and orders
-5. **Tauri commands** — wire up IPC for menu queries and order management
-6. **UI: Login screen** — INSZ input (numeric keypad, touch-friendly)
-7. **UI: Menu grid** — category tabs + item grid + order cart sidebar
-8. **UI: Order builder** — add items, adjust quantities, show running total with VAT
+2. **SQLite schema** - create tables, migration runner
+3. **pos-core** - `MenuItem`, `Order`, `OrderLine`, `VatCode` types
+4. **pos-db** - CRUD for menu items and orders
+5. **Tauri commands** - wire up IPC for menu queries and order management
+6. **UI: Login screen** - INSZ input (numeric keypad, touch-friendly)
+7. **UI: Menu grid** - category tabs + item grid + order cart sidebar
+8. **UI: Order builder** - add items, adjust quantities, show running total with VAT
 
 ### Phase 2: Fiscal Core
-1. **pos-fiscal** — `FiscalEvent` types, sequential counter, JSON archival
-2. **pos-fiscal** — GraphQL client stub (mock FDM for dev — use zwartedoos.be virtual FDM later)
-3. **pos-fiscal** — ticket data structure with all required fields
-4. **pos-fiscal** — QR code generation
-5. **UI: Checkout flow** — payment method selection → FDM call → receipt preview
-6. **Sequence number management** — persist in SQLite, crash-safe
+1. **pos-fiscal** - `FiscalEvent` types, sequential counter, JSON archival
+2. **pos-fiscal** - GraphQL client stub (mock FDM for dev - use zwartedoos.be virtual FDM later)
+3. **pos-fiscal** - ticket data structure with all required fields
+4. **pos-fiscal** - QR code generation
+5. **UI: Checkout flow** - payment method selection → FDM call → receipt preview
+6. **Sequence number management** - persist in SQLite, crash-safe
 
 ### Phase 3: Printing
-1. **pos-print** — ESC/POS command builder (text formatting, cut, QR code raster)
-2. **pos-print** — Receipt layout matching fiscal requirements
-3. **pos-print** — Cash drawer kick command
-4. **pos-print** — TCP transport (for Epson TM-m30III network printer)
+1. **pos-print** - ESC/POS command builder (text formatting, cut, QR code raster)
+2. **pos-print** - Receipt layout matching fiscal requirements
+3. **pos-print** - Cash drawer kick command
+4. **pos-print** - TCP transport (for Epson TM-m30III network printer)
 5. Wire printing into checkout flow
 
 ### Phase 4: Reports & Polish
@@ -474,18 +474,18 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 ### Rust
 - Follow the Google Go Style Guide philosophy adapted for Rust: clarity over cleverness
 - Use `thiserror` for error types, `anyhow` only in the Tauri command layer
-- All monetary values in **eurocents as i64** — NEVER use floats for money
+- All monetary values in **eurocents as i64** - NEVER use floats for money
 - All timestamps as `chrono::DateTime<Utc>` in Rust, stored as ISO 8601 strings in SQLite
 - Use `#[cfg(test)]` modules with unit tests for every crate
-- Fiscal-related code MUST have comprehensive tests — this is legally mandated behavior
+- Fiscal-related code MUST have comprehensive tests - this is legally mandated behavior
 
 ### Vue 3 / TypeScript
 - Strict mode, no `any`
-- **Composition API only** — `<script setup lang="ts">` in every SFC, never Options API
-- **Pinia** for all shared state — components never hold business state locally
-- All Tauri IPC calls go through typed wrappers in `api/ipc.ts` — components call stores, stores call ipc
+- **Composition API only** - `<script setup lang="ts">` in every SFC, never Options API
+- **Pinia** for all shared state - components never hold business state locally
+- All Tauri IPC calls go through typed wrappers in `api/ipc.ts` - components call stores, stores call ipc
 - Scoped styles in SFCs (`<style scoped>`) + CSS custom properties from `tokens.css`
-- No UI framework (no Vuetify, no PrimeVue, no Nuxt UI) — custom components only, optimized for touch POS
+- No UI framework (no Vuetify, no PrimeVue, no Nuxt UI) - custom components only, optimized for touch POS
 - Props: use `defineProps<{}>()` with TS interfaces, not runtime validation
 - Emits: use `defineEmits<{}>()` typed
 - Composables (`use*.ts`) for reusable logic shared across views
@@ -508,7 +508,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - USB ports, RJ45 LAN, COM ports, RJ11 cash drawer
 
 ### FDM (Fiscal Data Module)
-- **Checkbox CBX01** (TAIGER BV, ~€195 excl. VAT one-time) — distributed by Eutronix (ref. TAFIP0002.00)
+- **Checkbox CBX01** (TAIGER BV, ~€195 excl. VAT one-time) - distributed by Eutronix (ref. TAFIP0002.00)
 - LAN (RJ45) + WiFi + USB, power supply included
 - Connects to POS via LAN (GraphQL over HTTP)
 - Connects to SPF Finances cloud via mTLS (handled by FDM itself)
@@ -516,7 +516,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - Alternative (protocol-compatible, untested on hardware): BMC FDM Light (€12.95/month, zwartedoos.be)
 
 ### Printer
-- **Epson TM-m30III** — 80mm thermal, USB + LAN + WiFi + Bluetooth
+- **Epson TM-m30III** - 80mm thermal, USB + LAN + WiFi + Bluetooth
 - ESC/POS protocol
 - RJ11 port for cash drawer
 
@@ -528,14 +528,14 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ## What This POS Does NOT Do (Out of Scope for MVP)
 
-- **Online ordering / webshop** — separate project (tsb-customer, Nuxt 3 SSR)
-- **Delivery platform integration** — no HubRise in MVP, to be added later
-- **Payment terminal integration** — cash + manual card entry for MVP
-- **Multi-terminal sync** — single terminal for MVP
-- **Inventory management** — not in MVP
-- **Customer loyalty** — not in MVP
-- **Kitchen Display System (KDS)** — kitchen printer only for MVP
-- **Webshop orders passing through FDM** — delivery/takeaway orders from webshop do NOT go through FDM (only dine-in is fiscally registered)
+- **Online ordering / webshop** - separate project (tsb-customer, Nuxt 3 SSR)
+- **Delivery platform integration** - no HubRise in MVP, to be added later
+- **Payment terminal integration** - cash + manual card entry for MVP
+- **Multi-terminal sync** - single terminal for MVP
+- **Inventory management** - not in MVP
+- **Customer loyalty** - not in MVP
+- **Kitchen Display System (KDS)** - kitchen printer only for MVP
+- **Webshop orders passing through FDM** - delivery/takeaway orders from webshop do NOT go through FDM (only dine-in is fiscally registered)
 
 ---
 

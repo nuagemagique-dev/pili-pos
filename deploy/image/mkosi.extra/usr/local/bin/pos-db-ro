@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pos-db-ro — read-only sqlite3 shell onto the fiscal database, for the
+# pos-db-ro - read-only sqlite3 shell onto the fiscal database, for the
 # `spf` account on the admission image (group `pos`, see
 # docs/SUBMISSION_ARTIFACTS/FEUILLE_ACQUISITION_DONNEES_FR.md §2 and
 # SECURITE_BD_FR.md §3) and for on-site audits from the maintenance

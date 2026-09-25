@@ -3,7 +3,7 @@
 //! `commands/mod.rs::commit_signed_event` (and the inline equivalents
 //! in `checkout.rs`/`refund.rs`) implement "sign-then-commit": the
 //! ticket number is only *peeked*, the FDM is called, and the counter
-//! is only *committed* — atomically with the archive — once the FDM
+//! is only *committed* - atomically with the archive - once the FDM
 //! has actually signed. This file proves that contract holds for
 //! EVERY fiscal command (checkout N, refund, copy C, table order P,
 //! pre-bill P, money in/out F, drawer open F, work in/out S, X/Z/user
@@ -17,7 +17,7 @@
 //! In every case: nothing is archived, the counter for that event's
 //! label does not advance, and any order involved stays open/unchanged
 //! so the operator can retry. A second attempt against a healthy FDM
-//! must then succeed and reuse the SAME ticket number — no gap.
+//! must then succeed and reuse the SAME ticket number - no gap.
 //!
 //! "Unreachable" is exercised as an immediate connection refusal
 //! (`http://127.0.0.1:1/graphql`, nothing listens there) rather than a
@@ -246,7 +246,7 @@ async fn checkout_retries_after_fdm_failure_with_the_same_ticket_number() {
     assert_eq!(events.len(), 1);
     assert_eq!(
         events[0].sequence_number, 1,
-        "retry must reuse ticket number 1 — no gap"
+        "retry must reuse ticket number 1 - no gap"
     );
 }
 
@@ -325,7 +325,7 @@ async fn refund_retries_after_fdm_failure_with_the_same_ticket_number() {
     assert_eq!(events.len(), 2);
     assert_eq!(
         events[1].sequence_number, 2,
-        "refund retry must reuse ticket number 2 — no gap"
+        "refund retry must reuse ticket number 2 - no gap"
     );
 }
 
@@ -346,7 +346,7 @@ async fn copy_fdm_failure_modes_leave_no_archive_and_counter_at_zero() {
         assert_eq!(
             app.counter_for(EventLabel::C),
             0,
-            "{}: C counter must stay at 0 — this is the exact bug fixed in \
+            "{}: C counter must stay at 0 - this is the exact bug fixed in \
              commands/copy.rs (it used to call FiscalCounter::next before \
              the FDM call)",
             failure.label()
@@ -382,7 +382,7 @@ async fn copy_retries_after_fdm_failure_with_the_same_ticket_number() {
     assert_eq!(events[1].event_type, "C");
     assert_eq!(
         events[1].sequence_number, 1,
-        "copy retry must reuse ticket number 1 — no gap"
+        "copy retry must reuse ticket number 1 - no gap"
     );
 }
 
@@ -419,7 +419,7 @@ async fn table_order_retries_after_fdm_failure_and_resends_the_same_unsent_entri
         .await
         .expect_err("first attempt fails");
     assert_eq!(app.counter_for(EventLabel::P), 0);
-    // The entry must still be unsent — nothing was lost.
+    // The entry must still be unsent - nothing was lost.
     let unsent = {
         let conn = app.state.db.lock().unwrap();
         pos_db::queries::orders::get_order_entries(&conn, order_id, true).unwrap()
@@ -462,7 +462,7 @@ async fn pre_bill_fdm_failure_modes_leave_no_archive_and_counter_at_zero() {
 /// The pre-bill flow is two FDM calls (flush unsent entries as an
 /// order, then the pre-bill itself). This pins the failure boundary
 /// between them: the order-flush succeeds and archives normally, but
-/// the pre-bill call fails — only ONE P event must exist, the pre-bill's
+/// the pre-bill call fails - only ONE P event must exist, the pre-bill's
 /// own ticket must not be burned, and a retry must not re-send the
 /// already-flushed entries (no double order-flush) while still using
 /// the next sequential ticket number for the pre-bill.
@@ -487,7 +487,7 @@ async fn pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_res
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
 
     // Retry: the entries are already marked sent, so `do_sign_table_order`
-    // must be a no-op this time — only the pre-bill call goes out.
+    // must be a no-op this time - only the pre-bill call goes out.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M123")).await;
     do_sign_pre_bill(&app.state, order_id)
         .await
@@ -497,7 +497,7 @@ async fn pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_res
     assert_eq!(events.len(), 2, "the retry adds exactly one more P event");
     assert_eq!(
         events[1].sequence_number, 2,
-        "pre-bill retry must use ticket 2 — no gap after the order flush"
+        "pre-bill retry must use ticket 2 - no gap after the order flush"
     );
     assert_eq!(app.counter_for(EventLabel::P), 2);
 }
@@ -754,7 +754,7 @@ async fn z_report_fdm_failure_modes_archive_neither_r_event() {
         assert_eq!(
             app.counter_for(EventLabel::R),
             0,
-            "{}: R counter must stay at 0 — the Z report signs turnover+user \
+            "{}: R counter must stay at 0 - the Z report signs turnover+user \
              atomically, so a failure must leave BOTH uncommitted",
             failure.label()
         );
@@ -795,11 +795,11 @@ async fn z_report_retries_after_fdm_failure_with_the_same_ticket_numbers() {
     assert_eq!(r_events.len(), 2, "both R events archived on the retry");
     assert_eq!(
         r_events[0].sequence_number, 1,
-        "turnover Z reuses ticket 1 — no gap"
+        "turnover Z reuses ticket 1 - no gap"
     );
     assert_eq!(
         r_events[1].sequence_number, 2,
-        "user Z reuses ticket 2 — no gap"
+        "user Z reuses ticket 2 - no gap"
     );
 }
 

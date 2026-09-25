@@ -8,7 +8,7 @@ const PAPER: TicketDeliveryRequest = { medium: "paper" };
 /**
  * The operator's ticket-delivery choice (paper / email / both), shared
  * across checkout, refund and copy so the picker and keypad never hold
- * business state themselves — only the transient typing buffer does.
+ * business state themselves - only the transient typing buffer does.
  */
 export const useDeliveryStore = defineStore("delivery", () => {
   const mailStatus = ref<MailStatus | null>(null);
@@ -32,7 +32,7 @@ export const useDeliveryStore = defineStore("delivery", () => {
     request.value = { medium, email };
   }
 
-  /** Back to Papier — call after every checkout/refund/copy so the
+  /** Back to Papier - call after every checkout/refund/copy so the
    * next customer starts from the default. */
   function reset() {
     request.value = { ...PAPER };

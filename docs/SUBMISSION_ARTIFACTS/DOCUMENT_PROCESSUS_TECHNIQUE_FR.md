@@ -161,7 +161,7 @@ ajoute à `fiscal_events`, de sorte que :
   selon la spec POS v2.2 §III.3 - en-tête (nom restaurant, adresse,
   TVA), corps (lignes avec label TVA), table de répartition TVA,
   bloc de données de contrôle issu de la réponse FDM, QR Code
-  (Model 2, ECC M, URL 38 caractères ; version 3, 29×29 modules — voir
+  (Model 2, ECC M, URL 38 caractères ; version 3, 29×29 modules - voir
   `TICKET_NUMERIQUE_FR.md` §11).
 - Tickets cuisine : layout séparé (`pos-print::receipt::kitchen`).
 - Ouverture tiroir : séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA`

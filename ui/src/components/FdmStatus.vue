@@ -72,7 +72,7 @@ onUnmounted(() => clearInterval(interval));
 .err .dot { background: var(--accent-danger); }
 
 /* One-shot scale pulse fired on transition into warn/err. §4.2
-   allows informative animations ≤ 200 ms — no `infinite`. */
+   allows informative animations ≤ 200 ms - no `infinite`. */
 .dot.pulse { animation: fdm-pulse 150ms ease-out; }
 
 .msg {

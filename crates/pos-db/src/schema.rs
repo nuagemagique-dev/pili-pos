@@ -217,7 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_hubrise_outbox_pending
 -- VAT-registered B2B invoices must be delivered via the Peppol network
 -- (Royal Decree, BIS Billing 3.0 profile). Every UBL document we hand
 -- to our Access Point produces one row here, kept indefinitely for the
--- cert/legal audit trail. Never delete — same retention rule as
+-- cert/legal audit trail. Never delete - same retention rule as
 -- fiscal_events.
 CREATE TABLE IF NOT EXISTS peppol_deliveries (
     id INTEGER PRIMARY KEY,
@@ -237,7 +237,7 @@ CREATE INDEX IF NOT EXISTS idx_peppol_deliveries_invoice
     ON peppol_deliveries(invoice_no);
 "#;
 
-/// Migration 2 — fiscal catalogue fields (manual §III product lines).
+/// Migration 2 - fiscal catalogue fields (manual §III product lines).
 ///
 /// - `menu_items.vat_code_takeaway`: VAT label for takeaway sales
 ///   ("À emporter" column); NULL means the dine-in label applies.
@@ -290,14 +290,14 @@ BEGIN
 END;
 "#;
 
-/// Migration 3 — append-only enforcement for the fiscal archive.
+/// Migration 3 - append-only enforcement for the fiscal archive.
 ///
 /// CLAUDE.md's "Critical Behavioral Rules" state plainly: "No
-/// deletion — fiscal records can NEVER be deleted or modified." The
+/// deletion - fiscal records can NEVER be deleted or modified." The
 /// `order_entries` journal already got this guarantee at the DB
 /// level in migration 2 (`order_entries_no_delete` /
-/// `order_entries_no_rewrite`), but `fiscal_events` — the actual
-/// signed FDM archive, i.e. the table the rule is really about — and
+/// `order_entries_no_rewrite`), but `fiscal_events` - the actual
+/// signed FDM archive, i.e. the table the rule is really about - and
 /// `z_reports` had no such protection: any bug (or a stray manual
 /// `UPDATE`/`DELETE`) could silently rewrite or erase a signed
 /// fiscal record. No code path legitimately updates or deletes rows
@@ -336,7 +336,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     crate::migrate::run_migrations(conn)
 }
 
-/// v3 — Booking periods (POS spec v2.2 §2.2.2 `bookingPeriodId`).
+/// v3 - Booking periods (POS spec v2.2 §2.2.2 `bookingPeriodId`).
 ///
 /// A booking period runs from the first event after a Z report to the
 /// next Z report, and carries the booking date of its opening. It is
@@ -367,7 +367,7 @@ BEGIN
 END;
 "#;
 
-/// v5 — Digital ticket deliveries (cert manual §III.H, "ticket
+/// v5 - Digital ticket deliveries (cert manual §III.H, "ticket
 /// digital" option; POS spec v2.2 §6.5 verification URL requirement).
 ///
 /// The digital ticket is sent by email via the Scaleway Transactional
@@ -383,10 +383,10 @@ END;
 ///   outcome. `recipient_hint` (masked, e.g. `j***@e***.be`) is kept
 ///   forever for support/dossier readability.
 /// - `ticket_text` / `medium` / `fiscal_event_id` are immutable once
-///   written (enforced by trigger) — they're the fiscal record of
+///   written (enforced by trigger) - they're the fiscal record of
 ///   *what* was sent, never deleted (like `fiscal_events` itself).
 /// - `status` lifecycle: `pending` → `sending` (claimed by a worker,
-///   see `sending` in the CHECK — this is what makes concurrent
+///   see `sending` in the CHECK - this is what makes concurrent
 ///   `run_once` calls claim-atomic instead of double-sending) →
 ///   `sent` | `failed` (retries exhausted) | `fallback_printed`
 ///   (paper printed instead). A `failed` row's recipient is nulled by
@@ -428,7 +428,7 @@ BEGIN
 END;
 "#;
 
-/// v6 — Original ticket prints (POS spec v2.2 §8.1: an original ticket
+/// v6 - Original ticket prints (POS spec v2.2 §8.1: an original ticket
 /// is printed once; any later print is a copy, event C).
 ///
 /// One row per fiscal event whose original was printed. The checkout,
@@ -451,7 +451,7 @@ BEGIN
 END;
 "#;
 
-/// v7 — German, the third national language (tickets are printed in
+/// v7 - German, the third national language (tickets are printed in
 /// FR, NL or DE): a German-region catalogue can carry German names.
 pub(crate) const MIGRATION_007_GERMAN_LANGUAGE: &str = r#"
 INSERT OR IGNORE INTO languages (code, name) VALUES ('de', 'Deutsch');

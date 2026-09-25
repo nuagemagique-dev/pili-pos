@@ -37,7 +37,7 @@ pub struct User {
     pub name: String,
     pub role: UserRole,
     pub active: bool,
-    /// True when a PIN hash is stored in the DB — the frontend uses
+    /// True when a PIN hash is stored in the DB - the frontend uses
     /// this to decide whether to show the PIN numpad at login.
     pub has_pin: bool,
 }
@@ -152,14 +152,14 @@ mod tests {
 
         proptest! {
             /// Any base in the pre-2000 range, paired with its
-            /// mathematically correct check digits, must validate —
+            /// mathematically correct check digits, must validate -
             /// and flipping to the wrong check digits must not.
             #[test]
             fn pre_2000_checksum_formula_is_exactly_what_validate_insz_expects(
                 base in 0u64..=999_999_999u64,
             ) {
                 // base % 97 is 0..=96, so the check digit is always
-                // 1..=97 and fits `%02` — no edge case to special-case.
+                // 1..=97 and fits `%02` - no edge case to special-case.
                 let correct_check = 97 - (base % 97);
                 let insz = format!("{base:09}{correct_check:02}");
                 prop_assert_eq!(insz.len(), 11);
@@ -176,7 +176,7 @@ mod tests {
                 prop_assert!(validate_insz(&insz), "insz={insz}");
             }
 
-            /// Never panics, on any input shape — length, encoding or
+            /// Never panics, on any input shape - length, encoding or
             /// digit-ness. A fiscal login screen must degrade to "not
             /// a valid INSZ", never crash the terminal.
             #[test]

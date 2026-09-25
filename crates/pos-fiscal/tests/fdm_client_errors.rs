@@ -1,7 +1,7 @@
 //! fdm_client error-handling contract tests.
 //!
 //! FDM communication is the fiscal-compliance-critical path: per
-//! CLAUDE.md rule 1, "POS MUST block if FDM is disconnected — no
+//! CLAUDE.md rule 1, "POS MUST block if FDM is disconnected - no
 //! transactions without FDM." That means every failure mode on this
 //! wire must surface as a clean `Err`, never a panic and never a
 //! fake `Ok` built from a partial/malformed response. This file
@@ -153,7 +153,7 @@ async fn http_500_with_non_json_body_yields_err_not_panic() {
 #[tokio::test]
 async fn http_500_with_valid_graphql_error_body_still_surfaces_the_graphql_error() {
     // The client does not gate on HTTP status before parsing the
-    // body (see fdm_client.rs::execute_raw) — if the FDM (or a proxy
+    // body (see fdm_client.rs::execute_raw) - if the FDM (or a proxy
     // in front of it) returns 500 with a well-formed GraphQL error
     // envelope, that envelope's error must still be the one reported.
     let server = MockServer::start().await;
@@ -196,7 +196,7 @@ async fn malformed_json_response_yields_err_not_panic() {
 #[tokio::test]
 async fn status_query_malformed_json_yields_err_not_panic() {
     // Same failure mode, but on the query path (status()) rather
-    // than a sign mutation — the two share `execute_raw` but this
+    // than a sign mutation - the two share `execute_raw` but this
     // pins the query path down explicitly.
     let server = MockServer::start().await;
     Mock::given(method("POST"))
@@ -233,7 +233,7 @@ async fn response_with_neither_data_nor_errors_yields_err() {
 
 #[tokio::test]
 async fn response_missing_the_mutation_field_yields_err() {
-    // `data` is present but doesn't contain the `signWorkIn` key —
+    // `data` is present but doesn't contain the `signWorkIn` key -
     // e.g. a server that answered a different operation.
     let server = MockServer::start().await;
     Mock::given(method("POST"))
@@ -277,7 +277,7 @@ async fn response_with_malformed_sign_result_shape_yields_err() {
 
 #[tokio::test]
 async fn status_response_missing_device_block_yields_err() {
-    // FdmStatus.device is a required (non-Option) field — a response
+    // FdmStatus.device is a required (non-Option) field - a response
     // that omits it must fail deserialization cleanly, not panic.
     let server = MockServer::start().await;
     Mock::given(method("POST"))
@@ -333,7 +333,7 @@ async fn refused_connection_yields_not_connected_quickly() {
 
 #[tokio::test]
 async fn hung_connection_times_out_quickly_and_yields_err() {
-    // Accept the TCP connection but never write a response — this
+    // Accept the TCP connection but never write a response - this
     // forces the client to hit its own *total* request timeout
     // rather than a fast connection-refused error.
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

@@ -1,4 +1,4 @@
-# Preuves §V — comportement du POS aux réponses du FDM
+# Preuves §V - comportement du POS aux réponses du FDM
 
 Générées par `scripts/capture_fdm_error_evidence.sh` contre le mock
 FDM (`crates/pos-fdm-mock`) avec injection `MOCK_FDM_ERROR` /
@@ -7,12 +7,12 @@ M110 (Basic Set v1.7).
 
 Par code, 4 fichiers :
 
-- `<CODE>_signSale_request.json` — la requête GraphQL envoyée par le
+- `<CODE>_signSale_request.json` - la requête GraphQL envoyée par le
   POS au moment du checkout.
-- `<CODE>_signSale_response.json` — la réponse du FDM (enveloppe
+- `<CODE>_signSale_response.json` - la réponse du FDM (enveloppe
   d'erreur GraphQL pour les erreurs critiques ; réponse signée
   normale pour les simples avertissements).
-- `<CODE>_status_request.json` / `<CODE>_status_response.json` — le
+- `<CODE>_status_request.json` / `<CODE>_status_response.json` - le
   sondage de statut que `FdmStatus.vue` effectue toutes les 30 s et
   la réponse contenant le message (catégorie + `showPos` conformes au
   tableau §V du manuel).

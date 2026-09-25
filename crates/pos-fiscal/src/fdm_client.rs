@@ -73,7 +73,7 @@ impl FdmClient {
         }
     }
 
-    /// Status with FR messages — the default for the POS runtime.
+    /// Status with FR messages - the default for the POS runtime.
     pub async fn status(&self) -> Result<FdmStatus, FdmError> {
         self.status_with_language(crate::types::Language::Fr).await
     }
@@ -112,13 +112,13 @@ impl FdmClient {
             self.execute_raw(&lower, serde_json::Value::Null).await?;
         match resp.data {
             Some(d) => Ok(d.status),
-            // Report the original error — it is the one that matches
+            // Report the original error - it is the one that matches
             // the spec-mandated spelling.
             None => Err(FdmError::GraphQl(first_err)),
         }
     }
 
-    /// Q110 — status with messages in all official languages, fetched
+    /// Q110 - status with messages in all official languages, fetched
     /// in a single request via GraphQL aliases (mirrors the published
     /// `Q110_Status_multi_lang_messages` query: primary status in EN,
     /// plus `messagesFR/NL/DE` aliases).
@@ -295,7 +295,7 @@ impl FdmClient {
             .await
     }
 
-    /// M184 — end-of-day Z: the financial Z and the user Z are signed
+    /// M184 - end-of-day Z: the financial Z and the user Z are signed
     /// in ONE GraphQL operation, exactly like the published
     /// `M184_signReportTurnoverZUserZ` query (two mutation fields in a
     /// single document). Returns `(turnover_result, user_result)`.
@@ -359,7 +359,7 @@ impl FdmClient {
     // ── Internal ───────────────────────────────────────────────
 
     /// Selection set shared by every sign mutation (single or M184
-    /// combined) — the full `SignResult` shape.
+    /// combined) - the full `SignResult` shape.
     const SIGN_RESULT_SELECTION: &'static str = "{ posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer }";
 
     async fn sign_mutation<D: Serialize>(
@@ -421,7 +421,7 @@ impl FdmClient {
         };
 
         // Send the request as canonical JSON (sorted keys, no whitespace).
-        // Same wire-correct payload, but with deterministic bytes — which
+        // Same wire-correct payload, but with deterministic bytes - which
         // matters for: (1) request log diffs in the cert rehearsal capture,
         // (2) reproducing exact requests when chasing FDM-reported errors,
         // (3) future request-hash dedup in the local retry table. The FDM

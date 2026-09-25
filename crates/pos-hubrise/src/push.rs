@@ -1,4 +1,4 @@
-//! Outbound updates to HubRise — used when staff acts on a webshop
+//! Outbound updates to HubRise - used when staff acts on a webshop
 //! order from the POS (accept / in_preparation / completed / delay).
 
 use pos_hubrise_types::Order;

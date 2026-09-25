@@ -16,7 +16,7 @@
 //! `checkout.rs`/`report.rs`) do the counter advance, the archive
 //! insert, and any order/report bookkeeping inside ONE SQLite
 //! transaction specifically so that a failure at ANY point rolls back
-//! ALL of it — this file proves that holds even when the failure comes
+//! ALL of it - this file proves that holds even when the failure comes
 //! from the database itself, not from the FDM.
 
 mod common;
@@ -74,7 +74,7 @@ fn seed_minimal_open_order(app: &TestApp) -> i64 {
 
 /// Pre-seed a row that collides with `(event_type, sequence_number)`
 /// on the very ticket number the command under test is about to
-/// archive — forcing its `INSERT` to fail with the same
+/// archive - forcing its `INSERT` to fail with the same
 /// `SQLITE_CONSTRAINT` a genuinely corrupted index would produce.
 fn poison_sequence_number(app: &TestApp, event_type: &str, sequence_number: i64) {
     let conn = app.state.db.lock().unwrap();
@@ -91,7 +91,7 @@ fn poison_sequence_number(app: &TestApp, event_type: &str, sequence_number: i64)
 async fn checkout_local_commit_failure_after_a_successful_sign_leaves_no_partial_state() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
-    // The counter starts at 0, so `peek_next` will hand out ticket 1 —
+    // The counter starts at 0, so `peek_next` will hand out ticket 1 -
     // pre-occupy exactly that slot.
     poison_sequence_number(&app, "N", 1);
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
@@ -102,12 +102,12 @@ async fn checkout_local_commit_failure_after_a_successful_sign_leaves_no_partial
         "a local commit failure after a successful sign must surface as an error"
     );
 
-    // The FDM really did sign it — the failure is strictly local,
+    // The FDM really did sign it - the failure is strictly local,
     // after the point of no return on the FDM's side.
     assert_fdm_was_called(&app).await;
 
     // Nothing from this attempt persisted: the counter increment
-    // rolled back (still 0 — `peek_next` would hand out 1 again on
+    // rolled back (still 0 - `peek_next` would hand out 1 again on
     // retry, colliding with nothing once the test's own poison row is
     // ignored), only the pre-seeded row exists, and the order is still
     // open.
@@ -119,12 +119,12 @@ async fn checkout_local_commit_failure_after_a_successful_sign_leaves_no_partial
     assert_eq!(
         app.fiscal_events().len(),
         1,
-        "only the pre-seeded poison row — nothing from the failed attempt"
+        "only the pre-seeded poison row - nothing from the failed attempt"
     );
     assert_eq!(
         app.order_status(order_id).as_deref(),
         Some("open"),
-        "the order-close UPDATE must roll back too — same transaction"
+        "the order-close UPDATE must roll back too - same transaction"
     );
 }
 
@@ -156,7 +156,7 @@ async fn z_report_local_commit_failure_on_the_second_archive_rolls_back_the_firs
     assert_eq!(
         app.fiscal_events().len(),
         1,
-        "only the pre-seeded poison row — the turnover Z event must not survive \
+        "only the pre-seeded poison row - the turnover Z event must not survive \
          a rollback of the transaction it was written in"
     );
     let z_reports: i64 = {
@@ -170,7 +170,7 @@ async fn z_report_local_commit_failure_on_the_second_archive_rolls_back_the_firs
     );
 
     // And a retry against a healthy DB (drop the poison) must succeed
-    // cleanly, from ticket 1 — no gap was ever observable outside this
+    // cleanly, from ticket 1 - no gap was ever observable outside this
     // process.
     {
         let conn = app.state.db.lock().unwrap();
@@ -190,6 +190,6 @@ async fn z_report_local_commit_failure_on_the_second_archive_rolls_back_the_firs
     let events = app.fiscal_events();
     let r_events: Vec<_> = events.iter().filter(|e| e.event_type == "R").collect();
     assert_eq!(r_events.len(), 2);
-    assert_eq!(r_events[0].sequence_number, 1, "no gap — retry starts at 1");
+    assert_eq!(r_events[0].sequence_number, 1, "no gap - retry starts at 1");
     assert_eq!(r_events[1].sequence_number, 2);
 }

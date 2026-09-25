@@ -7,7 +7,7 @@
 use pos_core::order::{Order, OrderLine, OrderType};
 use serde_json::{Value, json};
 
-/// Format an integer cents amount as `"12.50 EUR"` — the wire format
+/// Format an integer cents amount as `"12.50 EUR"` - the wire format
 /// HubRise expects for monetary values.
 fn cents_to_hubrise(cents: i64) -> String {
     let euros = cents / 100;

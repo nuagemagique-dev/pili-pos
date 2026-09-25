@@ -24,7 +24,7 @@ pub struct SignResult {
     pub informations: Option<Vec<MessageItem>>,
     /// Footer lines printed at the bottom of a fiscal ticket. The
     /// FDM returns `[]` on N events and either an absent field or an
-    /// empty array on others — `#[serde(default)]` accepts both shapes
+    /// empty array on others - `#[serde(default)]` accepts both shapes
     /// and yields `vec![]` when the field is missing (the v1.7 fixtures
     /// for M121 signOrder and M171 training sale omit it entirely).
     #[serde(default)]
@@ -104,7 +104,7 @@ pub struct FdmDevice {
     pub buffer_capacity_used: f64,
 }
 
-/// Messages-only view of a status field — the shape of the
+/// Messages-only view of a status field - the shape of the
 /// per-language `messagesFR/NL/DE` aliases in the Q110 query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

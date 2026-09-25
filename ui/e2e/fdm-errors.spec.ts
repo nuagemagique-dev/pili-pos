@@ -38,7 +38,7 @@ const refused = (error: string) => ({
 });
 
 test('an unreachable FDM is explained, not shown as a raw message', async ({ page }) => {
-  await payByCard(page, refused('FDM not connected — cannot complete transaction'));
+  await payByCard(page, refused('FDM not connected - cannot complete transaction'));
   const msg = page.locator('.checkout .error-msg');
   await expect(msg).toHaveText('Connexion perdue avec la boîte noire. Vérifiez le câble réseau.');
   // Still on the payment step: nothing was sold.

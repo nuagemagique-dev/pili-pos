@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# build_and_hash.sh — construction reproductible + calcul SHA-1
+# build_and_hash.sh - construction reproductible + calcul SHA-1
 #
 # Génère le binaire de certification et calcule son empreinte SHA-1
 # à consigner dans le formulaire de demande de certification SPF
@@ -36,7 +36,7 @@ echo "Branche : $(git rev-parse --abbrev-ref HEAD)" | tee -a "$OUT"
 echo "Commit  : $(git rev-parse HEAD)" | tee -a "$OUT"
 echo "Tag     : $(git describe --tags --always)" | tee -a "$OUT"
 if [ -n "$(git status --porcelain)" ]; then
-    echo "⚠️  ATTENTION : working tree non propre — build NON reproductible" | tee -a "$OUT"
+    echo "⚠️  ATTENTION : working tree non propre - build NON reproductible" | tee -a "$OUT"
     echo "Fichiers modifiés :" | tee -a "$OUT"
     git status --short | tee -a "$OUT"
 else
@@ -58,14 +58,14 @@ echo "--- Vérifications anti-régression ---" | tee -a "$OUT"
 HUBRISE_COUNT="$(nm "$BINARY" 2>/dev/null | grep -ic hubrise || true)"
 echo "Symboles hubrise dans le binaire : $HUBRISE_COUNT (attendu : 0)" | tee -a "$OUT"
 if [ "$HUBRISE_COUNT" -ne 0 ]; then
-    echo "❌ HubRise présent dans la build cert — refaire la build" | tee -a "$OUT"
+    echo "❌ HubRise présent dans la build cert - refaire la build" | tee -a "$OUT"
     exit 1
 fi
 
 GREP_DELETE="$(grep -r 'DELETE FROM fiscal_events\|UPDATE fiscal_events' src-tauri/ crates/ 2>/dev/null | wc -l || true)"
 echo "DELETE/UPDATE sur fiscal_events : $GREP_DELETE (attendu : 0)" | tee -a "$OUT"
 if [ "$GREP_DELETE" -ne 0 ]; then
-    echo "❌ Mutation interdite trouvée — voir DECLARATION_FONCTIONS_INTERDITES_FR.md" | tee -a "$OUT"
+    echo "❌ Mutation interdite trouvée - voir DECLARATION_FONCTIONS_INTERDITES_FR.md" | tee -a "$OUT"
     exit 1
 fi
 echo "" | tee -a "$OUT"

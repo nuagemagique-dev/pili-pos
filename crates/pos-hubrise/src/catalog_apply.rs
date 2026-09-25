@@ -28,13 +28,13 @@ fn default_vat_code(category: &str) -> &'static str {
 pub fn apply(conn: &mut Connection, catalog: &Catalog) -> Result<()> {
     let tx = conn.transaction()?;
 
-    // 1. Soft-delete everything — rows are resurrected by the UPSERT
+    // 1. Soft-delete everything - rows are resurrected by the UPSERT
     //    loop below for items still present in the snapshot.
     tx.execute("UPDATE categories SET active = 0", [])?;
     tx.execute("UPDATE menu_items SET active = 0", [])?;
 
     let Some(data) = catalog.data.as_ref() else {
-        // Catalog without data — treat as a no-op apart from the
+        // Catalog without data - treat as a no-op apart from the
         // soft-delete sweep and cursor bump below.
         tx.execute(
             "UPDATE hubrise_connection SET last_catalog_sync_at = datetime('now') WHERE id = 1",
@@ -179,7 +179,7 @@ fn upsert_product(tx: &Transaction<'_>, product: &pos_hubrise_types::Product) ->
 }
 
 fn upsert_option_list(_tx: &Transaction<'_>, _list: &pos_hubrise_types::OptionList) -> Result<()> {
-    // Minimal skeleton — option list sync will be fleshed out when the
+    // Minimal skeleton - option list sync will be fleshed out when the
     // POS UI grows a modifier selection screen. For now we accept
     // catalogs with option lists but don't persist them locally,
     // preventing accidental constraint violations on parent menu_items.

@@ -3,7 +3,7 @@
 //! Walks `docs/20250916_UC_Reports_1.3/` and validates:
 //!
 //! 1. **M180–M184**: every report response deserializes cleanly into
-//!    `SignResult`. M184 is the spec-mandated "combined Z" emission —
+//!    `SignResult`. M184 is the spec-mandated "combined Z" emission -
 //!    a single GraphQL mutation that aliases both `signReportTurnoverZ`
 //!    and `signReportUserZ`; the test pulls both `SignResult`s out of
 //!    one envelope and checks counters increment monotonically across
@@ -19,7 +19,7 @@
 //!
 //!    The matching `inputs::ReportTurnoverXInput` / `ReportUserXInput`
 //!    structs have no `report_booking_date` field, and the Z variants
-//!    have it as required — this test asserts that the fixtures agree.
+//!    have it as required - this test asserts that the fixtures agree.
 //!
 //! When this passes, the v1.3 contract is met for reports.
 
@@ -39,7 +39,7 @@ fn reports_root() -> PathBuf {
 
 /// Re-used envelope unwrapper from the Basic Set test. Mutation
 /// envelopes have exactly one inner key, except for M184 which has
-/// two (`signReportTurnoverZ` + `signReportUserZ`) — that one is
+/// two (`signReportTurnoverZ` + `signReportUserZ`) - that one is
 /// handled separately below.
 fn extract_single_payload(json: &serde_json::Value) -> &serde_json::Value {
     let data = json
@@ -130,7 +130,7 @@ fn m180_turnover_x_response_parses() {
     let r = parse_sign_result(&path);
     assert_eq!(r.event_operation, EventOperation::ReportTurnoverX);
     assert_eq!(r.fdm_ref.event_label, EventLabel::R);
-    // Reports are non-N events — no shortSignature/verificationUrl.
+    // Reports are non-N events - no shortSignature/verificationUrl.
     assert!(r.short_signature.is_none());
     assert!(r.verification_url.is_none());
 }
@@ -216,7 +216,7 @@ fn x_reports_omit_report_booking_date() {
     }
 }
 
-/// Z-reports MUST carry `reportBookingDate` — it identifies which
+/// Z-reports MUST carry `reportBookingDate` - it identifies which
 /// calendar day the Z is closing. Our `inputs::ReportTurnoverZInput`
 /// / `ReportUserZInput` have it as required.
 #[test]
@@ -315,7 +315,7 @@ fn input_report_staging_fixtures_parse() {
         "expected 8 InputReport staging fixtures, found {found}"
     );
     // The published staging set exercises both N (sales/refunds) and
-    // P (orders/pre-bills) — the two event flavours a Z aggregates.
+    // P (orders/pre-bills) - the two event flavours a Z aggregates.
     assert!(labels.contains(&EventLabel::N), "staging missing N events");
     assert!(labels.contains(&EventLabel::P), "staging missing P events");
 }

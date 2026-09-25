@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — Installation Script (thin wrapper)
+# moyun-pos - Installation Script (thin wrapper)
 # Target: an ALREADY INSTALLED, booted Debian 12 minimal, x86_64
 # (Intel J6412).
 #
@@ -8,7 +8,7 @@
 # deployment path: a distributor writes it to the terminal's disk from a
 # USB stick (docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md §3).
 # This script remains for installing moyun-pos directly onto a plain
-# Debian 12 box — dev/test machines, or before the image flow is used —
+# Debian 12 box - dev/test machines, or before the image flow is used -
 # and now just runs all three deploy/provision/provision.sh phases in
 # order; see that script for what each phase actually does.
 #
@@ -60,7 +60,7 @@ if [[ -n "$SEED_PATH" && ! -f "$SEED_PATH" ]]; then
 fi
 
 echo "══════════════════════════════════════════════════"
-echo "  moyun-pos — Installation"
+echo "  moyun-pos - Installation"
 echo "  Debian $(cat /etc/debian_version) / $ARCH"
 echo "══════════════════════════════════════════════════"
 

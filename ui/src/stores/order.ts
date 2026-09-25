@@ -31,7 +31,7 @@ export const useOrderStore = defineStore("order", () => {
   /**
    * Rehydrate an existing order + its lines from SQLite. Used when
    * the operator re-opens a table (or any previously-started order)
-   * after having switched away — without this, `currentOrder` would
+   * after having switched away - without this, `currentOrder` would
    * point at the right row but `lines` would stay empty and the
    * cart would appear blank.
    */
@@ -50,7 +50,7 @@ export const useOrderStore = defineStore("order", () => {
     if (!currentOrder.value) throw new Error("No active order");
 
     // If item already in cart, increment quantity instead of adding a
-    // duplicate line — except free-price products, whose lines can
+    // duplicate line - except free-price products, whose lines can
     // carry different prices.
     const existing = item.open_price
       ? undefined
@@ -104,7 +104,7 @@ export const useOrderStore = defineStore("order", () => {
 
   /**
    * Register with the FDM what was ordered since the last registration
-   * (event P, interrupted sale — POS spec §1.3). Called whenever the
+   * (event P, interrupted sale - POS spec §1.3). Called whenever the
    * operator leaves an open order unpaid. The backend is a no-op when
    * nothing changed; on failure the entries stay pending and are sent
    * at the next registration, pre-bill or sale.

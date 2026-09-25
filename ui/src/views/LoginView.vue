@@ -65,7 +65,7 @@ function handlePinKey(value: string) {
     pin.value = pin.value.slice(0, -1);
   } else if (pin.value.length < 4) {
     pin.value += value;
-    // Auto-submit on 4th digit — no confirm button needed
+    // Auto-submit on 4th digit - no confirm button needed
     if (pin.value.length === 4) {
       submitPin();
     }
@@ -112,7 +112,7 @@ async function submitInsz() {
   }
   error.value = null;
   try {
-    // Manual INSZ login — no PIN (the backend will reject if PIN is
+    // Manual INSZ login - no PIN (the backend will reject if PIN is
     // required, so the user must use the tile path for PIN-protected
     // accounts).
     await auth.loginWithInsz(insz.value);
@@ -129,7 +129,7 @@ async function submitInsz() {
 
     <p v-if="error" class="error-msg shake">{{ error }}</p>
 
-    <!-- PIN overlay — shown when tapping a user tile that has a PIN -->
+    <!-- PIN overlay - shown when tapping a user tile that has a PIN -->
     <div v-if="pinMode && pinUser" class="pin-overlay">
       <h2 class="pin-title">{{ t('pin_enter') }}</h2>
       <p class="pin-user">{{ pinUser.name }}</p>

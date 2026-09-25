@@ -65,7 +65,7 @@ impl PosConfig {
     /// installation manual (`/etc/moyun-pos/pos.json` in production).
     ///
     /// Identity fields (pos_id, restaurant_vat, fdm_url, …) are
-    /// required — a fiscal terminal must not boot with a partial
+    /// required - a fiscal terminal must not boot with a partial
     /// identity. Only printer_address, training_mode, language and
     /// backup_dir may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
@@ -226,13 +226,13 @@ pub struct DigitalTicketConfig {
     pub api_base: Option<String>,
     /// Path to a file containing the Scaleway secret key, and nothing
     /// else (trailing whitespace is trimmed). Never put the key
-    /// directly in the config file — this keeps it out of the POS
+    /// directly in the config file - this keeps it out of the POS
     /// config backups shipped in support bundles.
     pub api_key_file: String,
     /// When true, an operator may send a digital-only ticket (no
     /// paper printed at all) if the send succeeds. When false
     /// (default), every dine-in ticket is printed on paper regardless
-    /// — email is always a bonus, never a replacement — which is the
+    /// (email is always a bonus, never a replacement), which is the
     /// safer default for a fiscal terminal.
     #[serde(default)]
     pub allow_digital_only: bool,
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn missing_identity_field_is_an_error() {
-        // No pos_id — a fiscal terminal must not boot without one.
+        // No pos_id - a fiscal terminal must not boot without one.
         let json = r#"{
             "terminal_id": "POS1",
             "device_id": "DEV001",
@@ -450,7 +450,7 @@ mod tests {
     fn unknown_language_code_still_parses_the_config() {
         // Language restriction to fr/nl/de is enforced downstream
         // (ReceiptLanguage::from_code in pos-fiscal), not by the
-        // config parser itself — any string is accepted here.
+        // config parser itself - any string is accepted here.
         let json = r#"{
             "pos_id": "CFOD0061234567",
             "terminal_id": "POS1",

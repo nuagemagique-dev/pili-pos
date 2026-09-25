@@ -1,10 +1,10 @@
-# moyun-pos — shared package list (Debian 12 / bookworm)
+# moyun-pos - shared package list (Debian 12 / bookworm)
 #
 # Single source of truth, read by:
 #   - deploy/provision/provision.sh --phase packages (apt-get install, on an
-#     already-booted Debian 12 machine — the deploy/install.sh path)
+#     already-booted Debian 12 machine - the deploy/install.sh path)
 #   - deploy/image/mkosi.conf ([Content] Packages=, kept in sync by hand for
-#     the mkosi image build — mkosi has no "include packages from a text
+#     the mkosi image build - mkosi has no "include packages from a text
 #     file" directive, so the two lists are the same packages, maintained
 #     side by side)
 #
@@ -33,7 +33,7 @@ fonts-noto-cjk
 fonts-noto-color-emoji
 
 # Maintenance console text editor (MANUEL_INSTALLATION_FR.md §4.2 tells
-# the distributor to `vi /etc/moyun-pos/pos.json` at Ctrl+Alt+F2 —
+# the distributor to `vi /etc/moyun-pos/pos.json` at Ctrl+Alt+F2 -
 # Debian 12 minbase ships no editor at all otherwise). vim-tiny provides
 # `/usr/bin/vi` via update-alternatives, ~1 MB, no GUI/X11 deps.
 vim-tiny

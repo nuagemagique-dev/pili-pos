@@ -1,20 +1,20 @@
 //! Build the digital ticket email from a signed [`FiscalTicket`].
 //!
-//! The email body is derived from exactly two persisted primitives —
-//! `ticket_text` and `verification_url` — plus a `restaurant_name`
+//! The email body is derived from exactly two persisted primitives -
+//! `ticket_text` and `verification_url` - plus a `restaurant_name`
 //! supplied by the caller at render time. That's deliberate: those are
 //! the only two ticket-specific fields the outbox stores in
 //! `ticket_deliveries` (see pos-db migration v5), so the *same*
 //! [`build_email`] function both renders the email the first time
 //! (checkout path) and rebuilds it identically when the outbox retries
-//! a queued delivery from its row — there is no separate "resend"
+//! a queued delivery from its row - there is no separate "resend"
 //! logic to keep in sync.
 
 use pos_fiscal::qr::{self, QrError};
 use pos_fiscal::ticket::FiscalTicket;
 
 /// A file attached to the email. TEM's request shape wants base64
-/// content — encoding happens at the HTTP layer (`tem.rs`), not here.
+/// content - encoding happens at the HTTP layer (`tem.rs`), not here.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attachment {
     pub name: String,
@@ -52,17 +52,17 @@ pub enum RenderError {
     Qr(#[from] QrError),
 }
 
-/// The digital ticket's plain-text body — byte-for-byte the same
+/// The digital ticket's plain-text body - byte-for-byte the same
 /// content that prints on paper (POS spec §6.5 requires the digital
 /// ticket carry the same mandated content, and training tickets must
-/// keep their TRAINING markings either way — both come straight from
+/// keep their TRAINING markings either way - both come straight from
 /// `format_receipt`).
 pub fn render_ticket_text(ticket: &FiscalTicket) -> String {
     pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(ticket))
 }
 
 /// QR PNG module size used for the email attachment (a full-size
-/// image, larger than the printer's raster module — legibility on a
+/// image, larger than the printer's raster module - legibility on a
 /// phone screen at whatever zoom the customer views the email at).
 const EMAIL_QR_MODULE_SIZE: u32 = 8;
 
@@ -81,7 +81,7 @@ pub fn build_email(
     ticket_text: &str,
     verification_url: Option<&str>,
 ) -> Result<Email, RenderError> {
-    let subject = format!("Votre ticket — {restaurant_name}");
+    let subject = format!("Votre ticket - {restaurant_name}");
     let pre = format!(
         "<pre style=\"font-family: monospace, monospace; white-space: pre-wrap\">{}</pre>",
         html_escape(ticket_text)
@@ -119,7 +119,7 @@ pub fn build_email(
     })
 }
 
-/// Build the email straight from a signed [`FiscalTicket`] — the
+/// Build the email straight from a signed [`FiscalTicket`] - the
 /// checkout-time entry point. Returns the email alongside the two
 /// fields that must be persisted into `ticket_deliveries` for later
 /// retries.
@@ -254,7 +254,7 @@ mod tests {
         let ticket = sample_ticket();
         let rendered =
             build_email_for_ticket(&ticket, "Restaurant Exemple", "customer@example.be").unwrap();
-        assert_eq!(rendered.email.subject, "Votre ticket — Restaurant Exemple");
+        assert_eq!(rendered.email.subject, "Votre ticket - Restaurant Exemple");
     }
 
     #[test]

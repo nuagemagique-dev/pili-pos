@@ -3,15 +3,15 @@ use serde::{Deserialize, Serialize};
 /// Belgian SCE 2.0 VAT codes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VatCode {
-    /// 21% — Beverages (alcohol, soft drinks)
+    /// 21% - Beverages (alcohol, soft drinks)
     A,
-    /// 12% — Restaurant services (dine-in food)
+    /// 12% - Restaurant services (dine-in food)
     B,
-    /// 6% — Takeaway food
+    /// 6% - Takeaway food
     C,
-    /// 0% — Exempt
+    /// 0% - Exempt
     D,
-    /// N/A — Out of scope
+    /// N/A - Out of scope
     X,
 }
 
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn negative_price_refund_mirrors_positive_price() {
         // A refund line carries a negative price; the formula must be
-        // exactly antisymmetric — no separate sign-handling branch to
+        // exactly antisymmetric - no separate sign-handling branch to
         // drift out of sync with the sale-side formula.
         for code in ALL_CODES {
             for price in [1, 100, 1210, 999_999] {
@@ -270,7 +270,7 @@ mod tests {
 
             /// Many lines, same VAT code: whether you compute VAT once
             /// on the summed inclusive price, or line by line and add
-            /// the results (integer cents — always exact addition,
+            /// the results (integer cents - always exact addition,
             /// never floats), both stay within [0, total] and both
             /// satisfy excl+vat==their own total exactly.
             #[test]

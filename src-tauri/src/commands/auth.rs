@@ -7,7 +7,7 @@ use crate::state::AppState;
 
 /// Login with INSZ + optional PIN. If the user has a PIN set (pin_hash
 /// is not NULL), the caller MUST provide the correct PIN or login is
-/// rejected. If no PIN is set, login succeeds without one — but the
+/// rejected. If no PIN is set, login succeeds without one - but the
 /// frontend should warn the operator to configure a PIN via Settings.
 #[tauri::command]
 pub fn login(
@@ -93,7 +93,7 @@ pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, 
 }
 
 /// Set or change a user's 4-digit PIN. The PIN is bcrypt-hashed
-/// before storage — the plaintext never hits the DB.
+/// before storage - the plaintext never hits the DB.
 #[tauri::command]
 pub fn set_pin(state: State<'_, AppState>, insz: String, new_pin: String) -> Result<(), String> {
     do_set_pin(state.inner(), insz, new_pin)

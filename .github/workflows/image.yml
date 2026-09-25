@@ -21,7 +21,7 @@ name: Kiosk image
 #                 blank/uniform (Cage/moyun-pos never actually came
 #                 up). Does NOT exercise the first-boot LUKS2/TPM2
 #                 provisioning to completion within the job's 5-minute
-#                 boot budget — see scripts/qemu/run-kiosk.sh and the
+#                 boot budget - see scripts/qemu/run-kiosk.sh and the
 #                 job's own comments for exactly what this does and
 #                 does not prove.
 #
@@ -116,7 +116,7 @@ jobs:
           echo "✓ Reproducible: $SHA1_1"
           echo "sha1=$SHA1_1" >> "$GITHUB_OUTPUT"
 
-      - name: Upload deploy/dist (build #2 — feeds the `image` job)
+      - name: Upload deploy/dist (build #2 - feeds the `image` job)
         uses: actions/upload-artifact@v4
         with:
           name: deploy-dist
@@ -165,7 +165,7 @@ jobs:
             systemd-container
 
       # deploy/image/build.sh installs mkosi itself (pinned to
-      # deploy/image/.mkosi-pin) into its own venv on first use — see
+      # deploy/image/.mkosi-pin) into its own venv on first use - see
       # deploy/image/build.sh's own comments for why this is not
       # duplicated here as a separate "install mkosi" step.
       - name: Build the ${{ matrix.profile }} image
@@ -257,7 +257,7 @@ jobs:
             sleep 5
           done
           if [[ ! -S "scripts/qemu/.run/boot-smoke/qmp.sock" ]]; then
-            echo "::error::QMP socket never appeared — QEMU failed to start"
+            echo "::error::QMP socket never appeared - QEMU failed to start"
             exit 1
           fi
           sleep 150

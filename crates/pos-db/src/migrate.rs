@@ -3,7 +3,7 @@
 //! The MVP shipped with a single one-shot `schema::run_migrations`
 //! that ran the entire `SCHEMA_SQL` blob via `CREATE TABLE IF NOT
 //! EXISTS`. That was fine while we owned every database, but once a
-//! kiosk is in production we can no longer assume the DB is empty —
+//! kiosk is in production we can no longer assume the DB is empty -
 //! we need to know **which** schema migrations have already been
 //! applied so we can append new ones safely.
 //!
@@ -11,7 +11,7 @@
 //!
 //! - `_migrations_applied` table tracks `(version, name, applied_at)`.
 //! - The `MIGRATIONS` array lists every migration in ascending
-//!   `version` order. Order is the source of truth — versions must be
+//!   `version` order. Order is the source of truth - versions must be
 //!   strictly increasing.
 //! - Each migration runs in its own `IMMEDIATE` transaction; if the
 //!   SQL fails the transaction rolls back and the runner returns the
@@ -24,7 +24,7 @@
 //! Adding a new migration:
 //! 1. Append a `Migration { version: N, name: …, sql: … }` to
 //!    `MIGRATIONS` below.
-//! 2. Versions must be strictly monotonic — no gaps required, no
+//! 2. Versions must be strictly monotonic - no gaps required, no
 //!    re-ordering ever.
 //! 3. Tests live in this file; add coverage when introducing a
 //!    schema-changing migration.
@@ -85,7 +85,7 @@ const MIGRATIONS: &[Migration] = &[
     // of an existing one.
 ];
 
-/// Run all pending migrations. Idempotent — a second call is a no-op.
+/// Run all pending migrations. Idempotent - a second call is a no-op.
 pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     // PRAGMAs must run outside of transactions and must run before the
     // migration tracker query (WAL changes journal mode).
@@ -228,7 +228,7 @@ mod tests {
     fn migrating_an_already_v2_db_adds_the_later_migrations() {
         // A DB that already has v1+v2 applied (e.g. upgraded before v3
         // shipped) must pick up v3 onwards on the next run without re-running
-        // v1/v2 — and without needing a full fresh DB.
+        // v1/v2 - and without needing a full fresh DB.
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(SCHEMA_SQL).unwrap();
         conn.execute_batch(MIGRATION_002_CATALOGUE_FISCAL_FIELDS)

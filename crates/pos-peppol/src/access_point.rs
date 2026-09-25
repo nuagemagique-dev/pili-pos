@@ -3,7 +3,7 @@
 //! An Access Point (AP) is a Peppol-registered service that takes a
 //! signed UBL invoice and delivers it over AS4 transport to the
 //! recipient's AP, which in turn passes it to the recipient's
-//! accounting system. The POS does NOT speak AS4 directly — that's
+//! accounting system. The POS does NOT speak AS4 directly - that's
 //! the AP's job. From our side it's an HTTP POST to the AP's REST
 //! API.
 //!
@@ -34,7 +34,7 @@ pub struct DeliveryReceipt {
 #[async_trait]
 pub trait AccessPoint: Send + Sync {
     /// Submit a UBL XML document to the AP. Returns once the AP has
-    /// **accepted** the document for delivery — not when the recipient
+    /// **accepted** the document for delivery - not when the recipient
     /// has received it. Final delivery is asynchronous and surfaced
     /// via a separate status query (out of scope for cert MVP).
     async fn submit(&self, ubl_xml: &str) -> Result<DeliveryReceipt, PeppolError>;
@@ -44,7 +44,7 @@ pub trait AccessPoint: Send + Sync {
 }
 
 /// No-op AP that just logs the submission. Used in tests and as the
-/// default when no AP credentials are configured — operators can issue
+/// default when no AP credentials are configured - operators can issue
 /// B2B invoices in dev mode and inspect the UBL output without
 /// triggering live Peppol traffic. Production builds (cert) ship
 /// without this implementation registered.
@@ -73,7 +73,7 @@ impl AccessPoint for LoggingAccessPoint {
 /// the operator: an API key obtained from Storecove's dashboard, a
 /// sender `endpointID` registered on Peppol (Tokyo Sushi Bar:
 /// `0208:BE0499999960`), and a contract for the chosen
-/// commercial plan. **Currently unimplemented** — the `submit` call
+/// commercial plan. **Currently unimplemented** - the `submit` call
 /// returns an error pointing operators to the procurement doc.
 pub struct StorecoveAccessPoint {
     pub api_key: String,

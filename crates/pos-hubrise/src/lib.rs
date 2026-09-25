@@ -4,7 +4,7 @@
 //! Rust/Tauri POS: OAuth connection, 30-second event polling,
 //! dispatcher for order/catalog events, and PATCH status updates.
 //!
-//! Strictly isolated from `pos-fiscal` — dine-in orders never reach
+//! Strictly isolated from `pos-fiscal` - dine-in orders never reach
 //! this crate. See `plans/witty-sleeping-nygaard.md` for rationale.
 
 pub mod catalog_apply;

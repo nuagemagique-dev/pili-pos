@@ -6,7 +6,7 @@ DefaultDependencies=no
 # ("Install moyun-pos kiosk" / "Update moyun-pos kiosk", deploy/image/
 # build.sh) put moyun.installer=install|update on the kernel command
 # line. On a normal kiosk boot both conditions fail and systemd skips
-# the unit entirely — this is always "enabled" (see
+# the unit entirely - this is always "enabled" (see
 # deploy/provision/provision.sh --phase image), gated purely by these.
 ConditionKernelCommandLine=|moyun.installer=install
 ConditionKernelCommandLine=|moyun.installer=update

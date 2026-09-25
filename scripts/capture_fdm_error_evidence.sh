@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# §V evidence capture — POS behaviour on FDM warnings/errors.
+# §V evidence capture - POS behaviour on FDM warnings/errors.
 #
 # For each FDM message code required by §V of the certification
 # manual (5 mandatory + selected optional), this script:
@@ -73,7 +73,7 @@ EOF
 
 # Exactly the query FdmClient::status() sends (spec SDL spelling with
 # alias; message is a localized scalar, origin/code/display live under
-# extensions — POS spec v2.2 MessageItem shape).
+# extensions - POS spec v2.2 MessageItem shape).
 STATUS_REQUEST='{"query":"query { fdmStatus: Status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } }"}'
 
 capture() { # $1 = env spec, $2 = code label for filenames
@@ -102,7 +102,7 @@ capture "ERROR=UNKNOWN_POS"          "UNKNOWN_POS"
 # §V mandatory warnings (affichage M)
 capture "WARNING=CLIENT_CERT_EXPIRED" "CLIENT_CERT_EXPIRED"
 capture "WARNING=BUFFER_NEAR_FULL"    "BUFFER_NEAR_FULL"
-# §V optional (at least one required — we capture two)
+# §V optional (at least one required - we capture two)
 capture "ERROR=UNAUTHORIZED"          "UNAUTHORIZED"
 capture "WARNING=RTC_SYNC_FAILED"     "RTC_SYNC_FAILED"
 

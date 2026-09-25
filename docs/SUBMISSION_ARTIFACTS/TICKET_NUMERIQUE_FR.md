@@ -29,7 +29,7 @@ Le support choisi (`ticketMedium` : `PAPER` / `DIGITAL` / `PAPER_DIGITAL`)
 fait partie de la requête **signée** par le FDM (POS spec v2.2 §1) : il
 est arrêté **avant** l'appel de signature, jamais après (voir §3). Sans
 bloc `digital_ticket` dans `pos.json`, l'option "E-mail" n'est pas
-proposée et le POS se comporte comme en v0.x (papier uniquement) — voir
+proposée et le POS se comporte comme en v0.x (papier uniquement) - voir
 `MANUEL_INSTALLATION_FR.md` §4.2 "Ticket numérique par e-mail
 (optionnel)" pour la configuration.
 
@@ -54,7 +54,7 @@ l'e-mail, client Scaleway TEM, file d'attente avec réessais),
    signature.
 4. Le POS signe la transaction avec le support retenu, imprime et/ou
    envoie le ticket (§3-§4), puis affiche l'issue : e-mail envoyé,
-   e-mail en attente (réessai en tâche de fond), ou repli papier — avec
+   e-mail en attente (réessai en tâche de fond), ou repli papier - avec
    un bouton "**Imprimer le ticket**" si aucun papier n'a pu sortir
    (§6).
 
@@ -72,15 +72,15 @@ l'ordre :
 |---|---|
 | Pas de choix envoyé, ou "Papier" | `PAPER`, pas d'e-mail. L'adresse éventuellement fournie est ignorée. |
 | "E-mail" ou "Les deux" mais le terminal n'a pas de configuration `digital_ticket` utilisable (absente, ou clé API illisible au démarrage) | **Refusé** avant signature (`ERR_DIGITAL_UNAVAILABLE`, "Digital ticket is not configured on this terminal"). |
-| Adresse manquante, vide ou invalide (`pos_mail::address::validate`) | **Refusé** avant signature (`ERR_INVALID_EMAIL`). L'adresse est acceptée telle quelle après un simple `trim()` ; la validation est pragmatique (un seul `@`, partie locale et domaine non vides, domaine avec un point, labels valides, ≤ 254 caractères) — elle couvre les fautes de frappe réelles au clavier tactile sans exiger une conformité RFC stricte, et accepte les adresses Unicode/IDN. |
-| "E-mail" seul, `allow_digital_only=true` **et** une sonde récente (< 120 s) a confirmé le service joignable | `DIGITAL` : e-mail seul, pas de papier — sauf repli (§4). |
+| Adresse manquante, vide ou invalide (`pos_mail::address::validate`) | **Refusé** avant signature (`ERR_INVALID_EMAIL`). L'adresse est acceptée telle quelle après un simple `trim()` ; la validation est pragmatique (un seul `@`, partie locale et domaine non vides, domaine avec un point, labels valides, ≤ 254 caractères) - elle couvre les fautes de frappe réelles au clavier tactile sans exiger une conformité RFC stricte, et accepte les adresses Unicode/IDN. |
+| "E-mail" seul, `allow_digital_only=true` **et** une sonde récente (< 120 s) a confirmé le service joignable | `DIGITAL` : e-mail seul, pas de papier - sauf repli (§4). |
 | "E-mail" seul dans tout autre cas (config par défaut `allow_digital_only=false`, ou service non confirmé joignable récemment) | `PAPER_DIGITAL` : le client reçoit le papier tout de suite, l'e-mail suit dès que possible. |
-| "Les deux" | `PAPER_DIGITAL`, y compris hors ligne — le papier sort toujours, l'e-mail est mis en file. |
+| "Les deux" | `PAPER_DIGITAL`, y compris hors ligne - le papier sort toujours, l'e-mail est mis en file. |
 
 `allow_digital_only=false` est la valeur par défaut de
 `pos.json::digital_ticket.allow_digital_only` : sur un terminal fraîchement
 configuré, "E-mail" seul n'est jamais proposé tant que le distributeur
-ne l'active pas explicitement — un ticket dine-in continue d'imprimer
+ne l'active pas explicitement - un ticket dine-in continue d'imprimer
 un papier par défaut, ce qui est le choix le plus prudent pour un
 terminal fiscal.
 
@@ -99,14 +99,14 @@ décision prise après coup.
    (`delivery::enqueue_in_tx`, appelé depuis `checkout.rs`,
    `refund.rs` et `copy.rs`, dans le même `BEGIN IMMEDIATE`). Un
    ticket signé avec un support numérique a donc **toujours** une ligne
-   de suivi, même en cas de plantage juste après le commit — il ne peut
+   de suivi, même en cas de plantage juste après le commit - il ne peut
    pas se perdre silencieusement.
 2. **Tentative immédiate, budget de 8 secondes.** Juste après le
    commit, `delivery::deliver` tente l'envoi tout de suite
    (`INLINE_SEND_TIMEOUT = 8 s`) :
    - `DIGITAL` : si l'envoi réussit dans ce budget, c'est terminé (pas
      de papier). Sinon, le POS **imprime immédiatement l'original en
-     secours** (même mécanisme que pour un ticket "Papier", §5) — le
+     secours** (même mécanisme que pour un ticket "Papier", §5) - le
      client repart toujours avec un ticket. La ligne de suivi est
      marquée `fallback_printed` (l'adresse en clair est effacée aussitôt,
      §6).
@@ -128,7 +128,7 @@ décision prise après coup.
    reconstruit **pas** l'e-mail depuis le ticket d'origine : il relit
    `ticket_text` et `verification_url`, déjà figés dans la ligne
    `ticket_deliveries` au moment de la mise en file, et appelle
-   `pos_mail::render::build_email` — la **même** fonction que celle
+   `pos_mail::render::build_email` - la **même** fonction que celle
    utilisée à l'encaissement. Il n'existe pas de logique de "renvoi"
    séparée à maintenir à jour.
 5. **Contre les envois en double.** Chaque tentative commence par une
@@ -139,15 +139,15 @@ décision prise après coup.
 
 ## 5. Contenu de l'e-mail
 
-- **Sujet :** `Votre ticket — <nom du restaurant>`.
+- **Sujet :** `Votre ticket - <nom du restaurant>`.
 - **Corps texte :** le ticket **au caractère près identique** à ce qui
-  s'imprime sur papier — `pos_mail::render::render_ticket_text`
+  s'imprime sur papier - `pos_mail::render::render_ticket_text`
   appelle `format_receipt` (le même formateur ESC/POS que le papier)
   puis le retranscrit en texte, exactement comme pour les
   transcriptions de `TICKETS_EXEMPLES_FR.md`. Un ticket **T**
   (formation) émis par e-mail conserve donc ses mentions "TRAINING".
 - **URL de vérification :** uniquement pour les événements **N**
-  (vente, remboursement) — le FDM ne renvoie `verificationUrl` que
+  (vente, remboursement) - le FDM ne renvoie `verificationUrl` que
   pour ces événements-là (POS spec v2.2 §2.4). Quand elle existe, elle
   est ajoutée comme ligne de texte séparée après le corps du ticket, et
   reprise comme lien cliquable dans la version HTML.
@@ -155,12 +155,12 @@ décision prise après coup.
   le lien de vérification s'il existe.
 - **QR Code en pièce jointe :** uniquement quand une URL de
   vérification existe (donc jamais pour une copie C ou un ticket de
-  formation T) — un PNG (`ticket-qr.png`, module 8 px, plus grand que
+  formation T) - un PNG (`ticket-qr.png`, module 8 px, plus grand que
   le raster imprimé pour rester lisible sur un écran de téléphone),
   généré par `pos_fiscal::qr::generate_qr_png`. **Aucune pièce jointe
   PDF n'est jamais produite** (vérifié par test).
 - Les copies (C) et les tickets de formation (T) sont donc envoyés
-  comme le texte du ticket seul, sans lien ni QR — cohérent avec le
+  comme le texte du ticket seul, sans lien ni QR - cohérent avec le
   papier, qui ne réimprime pas non plus la `shortSignature` pour ces
   types (cf. `TICKETS_EXEMPLES_FR.md`).
 
@@ -183,7 +183,7 @@ seule fois** ; toute impression ultérieure doit être une **copie**
   original silencieusement. C'est ce même mécanisme que le checkout,
   le remboursement et la copie appellent pour sortir le premier papier.
 - La commande `print_missing_original` (menu "Imprimer le ticket",
-  affichée quand `needs_paper=true` dans l'issue du checkout — c'est-à-
+  affichée quand `needs_paper=true` dans l'issue du checkout - c'est-à-
   dire quand un papier était dû mais que l'impression a échoué, ex.
   imprimante sans papier) sert **exclusivement** à rattraper une
   impression manquée, jamais à réimprimer un original déjà sorti :
@@ -192,7 +192,7 @@ seule fois** ; toute impression ultérieure doit être une **copie**
     printed; print a copy (C) instead"*).
   - Refusée pour un ticket `DIGITAL` dont l'e-mail a déjà été envoyé
     (`ERR_EMAIL_SENT` : *"The ticket was sent by email; print a copy
-    (C) instead"*) — l'e-mail **est** l'original numérique ; en
+    (C) instead"*) - l'e-mail **est** l'original numérique ; en
     demander une version papier après coup en ferait un second
     original.
   - Sur succès, la ligne `ticket_deliveries` correspondante (s'il y en
@@ -216,14 +216,14 @@ jamais une seconde impression "libre" de l'original.
 - L'adresse est effacée **immédiatement**, avant même les 72 h, dès
   qu'elle n'a plus d'usage : envoi réussi (`mark_sent`), ou repli
   papier définitif (`mark_fallback_printed`).
-- Un indice masqué (`recipient_hint`, ex. `j***@e***.be` —
+- Un indice masqué (`recipient_hint`, ex. `j***@e***.be` -
   `pos_mail::address::mask`) est conservé indéfiniment pour la
   lisibilité du support/du dossier ; il ne permet pas de reconstituer
   l'adresse d'origine.
 - **Aucune adresse en clair dans les journaux applicatifs** ni dans
   l'écran "Tickets numériques" des Paramètres (`list_ticket_deliveries` /
   `DeliveryView`) : cet écran n'expose que l'indice masqué, le statut,
-  le nombre de tentatives et la dernière erreur — jamais le champ
+  le nombre de tentatives et la dernière erreur - jamais le champ
   `recipient`. Voir `PROFIL_ENTREPRISE_FR.md` §6 pour la base légale
   (demande du client) et `FEUILLE_ACQUISITION_DONNEES_FR.md` pour ce
   qu'un contrôleur peut lire dans `ticket_deliveries`.
@@ -237,20 +237,20 @@ Transactional Email : `project_id`, `from_email`, `from_name`,
 n'affiche pas le choix du support et n'ouvre aucune connexion sortante
 au-delà du FDM. Une configuration présente mais inutilisable (fichier
 de clé absent ou illisible au démarrage) désactive silencieusement
-l'e-mail — le POS journalise l'anomalie et repasse en papier seul,
+l'e-mail - le POS journalise l'anomalie et repasse en papier seul,
 sans bloquer le démarrage d'un terminal fiscal pour une dépendance
 non-fiscale (`MailState::from_config`).
 
 ## 9. Comportement hors-ligne et réseau
 
 - Le seul trafic sortant ajouté par cette fonctionnalité est du HTTPS
-  (443) vers `api.scaleway.com` — voir `REPONSES_MANUEL_CERT_FR.md`
+  (443) vers `api.scaleway.com` - voir `REPONSES_MANUEL_CERT_FR.md`
   §III.B.
 - Une sonde de joignabilité (`check_mail_status`, réutilisée si elle a
   moins de 60 s) alimente l'écran de choix : "E-mail" seul n'est
   affiché comme option que si le service a répondu positivement il y
   a moins de 120 s **et** que `allow_digital_only=true`. Dans le cas
-  contraire, un choix "E-mail" se résout en `PAPER_DIGITAL` (§3) — le
+  contraire, un choix "E-mail" se résout en `PAPER_DIGITAL` (§3) - le
   client a toujours son papier.
 - Une panne du service Scaleway pendant le service n'immobilise jamais
   la caisse : le pire cas est un `PAPER_DIGITAL` où l'e-mail reste en
@@ -265,7 +265,7 @@ le service réel (`{"emails":[{...}]}`), écrit chaque e-mail simulé sur
 disque (`MOCK_TEM_OUTBOX`, un `.json` + un `.txt` par envoi) et refuse
 les requêtes sans `X-Auth-Token` (401), comme l'API réelle. La variable
 `MOCK_TEM_FAIL=1` fait répondre 503 à tout (envoi et sonde), pour
-démontrer le repli papier sans dépendre d'une vraie panne — voir
+démontrer le repli papier sans dépendre d'une vraie panne - voir
 `CAPTURES_ECRAN_RUNBOOK_FR.md` pour la capture correspondante.
 
 ## 11. QR Code (rappel)
@@ -278,7 +278,7 @@ pas contenir l'URL (préfixe en minuscules, valeur en base 62, donc mode
 octet ISO/IEC 18004, limité à 34 octets en version 2 même avec la
 correction la plus faible). `moyun-pos` utilise donc la version 3
 (29×29 modules), la plus petite qui contienne les 38 caractères avec
-la correction M — point signalé au SPF pour confirmation
+la correction M - point signalé au SPF pour confirmation
 (`crates/pos-fiscal/src/qr.rs`).
 
 ## 12. Table exigence → code → test
@@ -321,7 +321,7 @@ chaque ticket papier. La remise est garantie par :
 - des réessais en tâche de fond avec recul exponentiel pendant
   ~1h30, journalisés (statut, tentatives, dernière erreur) ;
 - l'impossibilité, au niveau base de données, d'imprimer deux fois un
-  original (POS spec v2.2 §8.1) — toute reproduction ultérieure est
+  original (POS spec v2.2 §8.1) - toute reproduction ultérieure est
   une copie C, explicitement marquée comme telle.
 
 Cette implémentation satisfait les deux obligations du §III.H :

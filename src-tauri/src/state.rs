@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 /// poller so the two paths never contend on the same mutex.
 ///
 /// `shared_http` is the single `reqwest::Client` used for all HubRise
-/// traffic — cloning it is cheap (internal Arc) and enables HTTP
+/// traffic - cloning it is cheap (internal Arc) and enables HTTP
 /// keep-alive across calls.
 ///
 /// `shutdown_token` is cancelled when the Tauri window closes; the
@@ -85,13 +85,13 @@ impl AppState {
 
     /// Resolve the POS configuration, in priority order:
     ///
-    /// 1. `MOYUN_POS_CONFIG` env var — explicit path; any load error
+    /// 1. `MOYUN_POS_CONFIG` env var - explicit path; any load error
     ///    is fatal.
-    /// 2. `/etc/moyun-pos/pos.json` — the production path documented
+    /// 2. `/etc/moyun-pos/pos.json` - the production path documented
     ///    in the installation manual. If the file exists, a parse
     ///    error is fatal: a fiscal terminal must never boot with a
     ///    partial or wrong identity.
-    /// 3. Development fallback — hardcoded test identity, warned
+    /// 3. Development fallback - hardcoded test identity, warned
     ///    loudly so it can't be mistaken for a production setup.
     fn load_config() -> anyhow::Result<PosConfig> {
         load_config_from(
@@ -138,7 +138,7 @@ pub fn load_config_from(
     }
 
     tracing::warn!(
-        "no config file found (MOYUN_POS_CONFIG unset, /etc/moyun-pos/pos.json absent) — \
+        "no config file found (MOYUN_POS_CONFIG unset, /etc/moyun-pos/pos.json absent) - \
          using development defaults with a TEST identity"
     );
     Ok(PosConfig {

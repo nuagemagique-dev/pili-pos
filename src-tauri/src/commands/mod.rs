@@ -97,7 +97,7 @@ pub(crate) fn commit_signed_event(
 }
 
 /// [`commit_signed_event`], running `then` (given the new event's id)
-/// inside the same transaction — e.g. to queue its email delivery.
+/// inside the same transaction - e.g. to queue its email delivery.
 pub(crate) fn commit_signed_event_then<T>(
     state: &AppState,
     config: &pos_core::config::PosConfig,
@@ -114,13 +114,13 @@ pub(crate) fn commit_signed_event_then<T>(
     // commits. This must be a graceful error, not `debug_assert_eq!`:
     // a panic here would unwind while `db` (the MutexGuard) is still
     // held, poisoning `state.db` and bricking every subsequent
-    // command for the rest of the process's life — far worse than one
+    // command for the rest of the process's life - far worse than one
     // rejected request. The transaction rolls back on `Err` (dropped
     // without `commit()`), so the counter reverts and no gap results;
     // the loser can safely retry and will peek the next free number.
     if committed != event.ticket_number {
         return Err(format!(
-            "counter drifted between peek and commit for {:?} (peeked {}, committed {}) — \
+            "counter drifted between peek and commit for {:?} (peeked {}, committed {}) - \
              likely a concurrent sign of the same event; retry",
             event.label, event.ticket_number, committed
         ));

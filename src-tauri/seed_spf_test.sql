@@ -1,4 +1,4 @@
--- ── moyun-pos — Seed pour la machine de test SPF Finances ───────────
+-- ── moyun-pos - Seed pour la machine de test SPF Finances ───────────
 --
 -- Reference : §III "Lignes de produit predefinies" du manuel de
 -- certification (page 29-30 de

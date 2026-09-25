@@ -248,7 +248,7 @@ async fn a_whole_service_day_against_the_admission_mock() {
         assert_eq!(e.fdm_id.as_deref(), Some("CBX0MOCK0001"));
     }
     // Per-label counting: three N events are N 1..3 on a fresh FDM
-    // only if nothing else ran first — the mock is process-wide, so
+    // only if nothing else ran first - the mock is process-wide, so
     // check the spacing instead: the N counter moved by exactly 3.
     let n: Vec<i64> = events
         .iter()

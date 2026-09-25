@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — capture a screenshot from a running scripts/qemu/run-kiosk.sh
+# moyun-pos - capture a screenshot from a running scripts/qemu/run-kiosk.sh
 # instance via its QMP socket, for
 # docs/SUBMISSION_ARTIFACTS/CAPTURES_ECRAN_RUNBOOK_FR.md.
 #
@@ -32,7 +32,7 @@ fi
 
 QMP_SOCK="$SCRIPT_DIR/.run/$NAME/qmp.sock"
 if [[ ! -S "$QMP_SOCK" ]]; then
-    echo "ERROR: no QMP socket at $QMP_SOCK — is 'run-kiosk.sh --name $NAME' running?" >&2
+    echo "ERROR: no QMP socket at $QMP_SOCK - is 'run-kiosk.sh --name $NAME' running?" >&2
     exit 1
 fi
 
@@ -95,7 +95,7 @@ if [[ "$RESULT" == "OK" && -s "$OUT_PNG" ]]; then
     echo "✓ $OUT_PNG (native PNG screendump)"
     exit 0
 fi
-echo "▸ PNG screendump unavailable (${RESULT:-no response}) — falling back to PPM…"
+echo "▸ PNG screendump unavailable (${RESULT:-no response}) - falling back to PPM…"
 
 PPM_TMP="$(mktemp -t moyun-screendump-XXXXXX).ppm"
 RESULT="$(qmp_dump "$QMP_SOCK" "$PPM_TMP" ppm || true)"

@@ -2,7 +2,7 @@ use pos_fiscal::ticket::{FiscalTicket, ReceiptLanguage};
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
 
-/// Fixed receipt labels per ticket language (FR/NL/DE — §VI of the
+/// Fixed receipt labels per ticket language (FR/NL/DE - §VI of the
 /// certification manual requires the ticket in a national language).
 /// ASCII only, so the labels print the same whatever code page a
 /// replacement printer starts in.
@@ -228,7 +228,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     if let Some(ref url) = ticket.verification_url {
         p.blank_line();
         p.align(Alignment::Center);
-        // Use printer's built-in QR command — module size 6 for clear scan
+        // Use printer's built-in QR command - module size 6 for clear scan
         p.qr_code(url, 6);
         p.blank_line();
     }
@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn cjk_characters_in_a_line_description_degrade_to_question_marks_not_panic() {
         // CP858 (the code page this thermal printer speaks) has no
-        // CJK glyphs — this is a real hardware/protocol constraint,
+        // CJK glyphs - this is a real hardware/protocol constraint,
         // not a bug. Pinning down the actual behavior (each unmapped
         // character becomes '?', nothing vanishes, nothing panics)
         // documents it instead of leaving it an untested assumption.

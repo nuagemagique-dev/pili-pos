@@ -60,6 +60,6 @@ peppol = ["dep:pos-peppol"]
 cert = ["custom-protocol"]
 # Serve the embedded `ui/dist` bundle instead of the Vite dev server
 # (`devUrl`). `cargo tauri build` turns it on by itself; a plain
-# `cargo build` — the certification build above — must enable it, or
+# `cargo build` - the certification build above - must enable it, or
 # the kiosk would try to load http://localhost:1420 and stay blank.
 custom-protocol = ["tauri/custom-protocol"]

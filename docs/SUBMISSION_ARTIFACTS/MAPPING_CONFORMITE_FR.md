@@ -75,7 +75,7 @@ Les 141 fixtures se chargent et se désérialisent proprement. Voir
 ## Remboursements & corrections
 
 Voir `FLUX_REMBOURSEMENT_FR.md`. M111 (remboursement complet),
-M112B (remboursement partiel comme événement séparé — le pattern
+M112B (remboursement partiel comme événement séparé - le pattern
 déclaré, cf. e2e `spf_e2e_basic::m112b_*`), UC4122 (note de crédit)
 couverts dans `src-tauri/src/commands/refund.rs`. M132 (correction
 de paiement) : reporté, non déclaré.

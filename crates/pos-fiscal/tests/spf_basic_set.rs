@@ -215,7 +215,7 @@ fn setup_db() -> rusqlite::Connection {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 1: Direct Sale (Event N)
-// SCE 2.0 §1.1 — Simple dine-in sale with food + drink
+// SCE 2.0 §1.1 - Simple dine-in sale with food + drink
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -324,7 +324,7 @@ async fn test_direct_sale() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 2: Complete Refund (Event N with fdmRef)
-// SCE 2.0 §1.2 — Refund references original sale
+// SCE 2.0 §1.2 - Refund references original sale
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -392,7 +392,7 @@ async fn test_complete_refund() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 3: Interrupted Sale with Table (Event P → N)
-// SCE 2.0 §1.3 — Items added to open table, then finalized
+// SCE 2.0 §1.3 - Items added to open table, then finalized
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -450,7 +450,7 @@ async fn test_interrupted_sale_table_flow() {
     // Step 2: Customer adds more items
     // (In real flow, another signOrder would be sent)
 
-    // Step 3: Customer pays — final sale (Event N)
+    // Step 3: Customer pays - final sale (Event N)
     let all_lines = vec![
         food_line(50, "Maki saumon x6", 470, 1),
         drink_line(155, "Bière Tsingtao", 380, 2),
@@ -491,7 +491,7 @@ async fn test_interrupted_sale_table_flow() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 4: Provisional Bill / Pre-Bill (Event P)
-// SCE 2.0 §1.4 — Account overview before payment
+// SCE 2.0 §1.4 - Account overview before payment
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -542,7 +542,7 @@ async fn test_pre_bill() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 5: Training Mode (Event T)
-// SCE 2.0 §1.5 — All events carry label T, not counted fiscally
+// SCE 2.0 §1.5 - All events carry label T, not counted fiscally
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -614,7 +614,7 @@ async fn test_training_mode() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 6: Copy Ticket (Event C)
-// SCE 2.0 §1.8 — Reprint references original via fdmRef
+// SCE 2.0 §1.8 - Reprint references original via fdmRef
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -669,7 +669,7 @@ async fn test_copy_ticket() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 7: Z-Report (Event R)
-// SCE 2.0 §Reports — End-of-day with reportNo + turnover
+// SCE 2.0 §Reports - End-of-day with reportNo + turnover
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -803,7 +803,7 @@ async fn test_z_report() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 8: Employee Presence (Event S)
-// SCE 2.0 §1.9 — Work in / work out
+// SCE 2.0 §1.9 - Work in / work out
 // ═══════════════════════════════════════════════════════════════
 
 #[tokio::test]
@@ -857,7 +857,7 @@ async fn test_employee_work_in_out() {
 
 // ═══════════════════════════════════════════════════════════════
 // Test 9: Sequential Numbering Across All Event Types
-// SCE 2.0 §2 — Each event type has independent counter
+// SCE 2.0 §2 - Each event type has independent counter
 // ═══════════════════════════════════════════════════════════════
 
 #[test]

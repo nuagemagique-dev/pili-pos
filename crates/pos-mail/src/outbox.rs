@@ -4,8 +4,8 @@
 //!
 //! The SQLite connection is always taken as `&Mutex<Connection>` (the
 //! same shape as `src-tauri`'s `AppState.db`/`poller_db`) and the lock
-//! is only ever held across a synchronous block — never across an
-//! `.await` — so a slow/hanging TEM request can't stall every other
+//! is only ever held across a synchronous block - never across an
+//! `.await` - so a slow/hanging TEM request can't stall every other
 //! DB user in the app.
 //!
 //! There is deliberately no background scheduling loop in this crate:
@@ -29,7 +29,7 @@ use crate::tem::TemClient;
 /// have any bug" requirement means bounded, predictable behaviour
 /// matters more than squeezing out delivery odds: a handful of
 /// retries over about ninety minutes, then give up and let the
-/// integrator fall back to paper — never retry forever, and never
+/// integrator fall back to paper - never retry forever, and never
 /// silently drop a ticket without a `failed` row to show for it.
 pub struct DeliveryPolicy;
 
@@ -57,7 +57,7 @@ impl DeliveryPolicy {
 
     /// Delay before retry number `attempt_number` (1-based: the count
     /// *after* the failure just recorded), or `None` once the attempt
-    /// budget ([`Self::MAX_ATTEMPTS`]) is exhausted — the caller
+    /// budget ([`Self::MAX_ATTEMPTS`]) is exhausted - the caller
     /// should give the delivery up as `failed` at that point.
     pub fn backoff_after(attempt_number: i64) -> Option<Duration> {
         if attempt_number >= Self::MAX_ATTEMPTS {
@@ -87,7 +87,7 @@ pub enum SendNowOutcome {
     /// Not sent within the inline budget: either the attempt failed,
     /// timed out, or the row had already been claimed elsewhere. In
     /// every case the row is left for the background worker (via
-    /// `run_once`) to pick up later — check
+    /// `run_once`) to pick up later - check
     /// `pos_db::queries::deliveries::get` for the exact status/error
     /// if the caller needs to explain it to the operator.
     Queued,
@@ -95,8 +95,8 @@ pub enum SendNowOutcome {
 
 /// The inline, bounded ("try now, fall back to paper later") send
 /// attempt made right after checkout signs the ticket. Claims the row,
-/// tries to send within `timeout`, and on any failure — including
-/// the timeout itself — leaves the delivery queued for the background
+/// tries to send within `timeout`, and on any failure - including
+/// the timeout itself - leaves the delivery queued for the background
 /// worker rather than blocking checkout any longer.
 pub async fn send_now(
     db: &Mutex<Connection>,
@@ -137,7 +137,7 @@ pub async fn send_now(
         Err(_elapsed) => {
             // The inline budget ran out. `attempt_send`'s future was
             // dropped mid-`.await` inside `client.send`, so the row
-            // is still `sending` — no lock was held across that await,
+            // is still `sending` - no lock was held across that await,
             // so this is safe to do right away rather than waiting for
             // `run_once`'s stale-`sending` recovery.
             finalize_failure(db, delivery_id, "inline send timed out", Some(&now_iso()));
@@ -215,7 +215,7 @@ async fn attempt_send(
 ) -> AttemptOutcome {
     let Some(recipient) = row.recipient.clone() else {
         // A claimed (`sending`) row always came from `due()`, which
-        // only returns `pending` rows — and a `pending` row should
+        // only returns `pending` rows - and a `pending` row should
         // always still have its recipient (the GDPR sweep only nulls
         // it once retries are exhausted, well past when `due()` would
         // stop returning it). Treat it defensively as unsendable
@@ -248,7 +248,7 @@ async fn attempt_send(
         Err(tem_err) => {
             let attempt_number = row.attempts + 1;
             // Never retries a permanent (non-retryable) error, even
-            // if attempts remain — no point burning ~90 minutes of
+            // if attempts remain - no point burning ~90 minutes of
             // backoff on a request that will never succeed.
             let next_attempt_at = if tem_err.is_retryable() {
                 DeliveryPolicy::backoff_after(attempt_number).map(iso_after)
@@ -276,7 +276,7 @@ fn finalize_failure(db: &Mutex<Connection>, id: i64, error: &str, next_attempt_a
 const ISO_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3fZ";
 
 /// Current time formatted to match the `strftime('%Y-%m-%dT%H:%M:%fZ',
-/// 'now')` timestamps SQLite writes — both sort lexicographically, so
+/// 'now')` timestamps SQLite writes - both sort lexicographically, so
 /// they compare correctly as plain TEXT.
 fn now_iso() -> String {
     chrono::Utc::now().format(ISO_FORMAT).to_string()
@@ -298,7 +298,7 @@ fn iso_before(d: Duration) -> String {
 mod tests {
     use super::*;
 
-    // ── DeliveryPolicy::backoff_after — pure, no I/O ───────────
+    // ── DeliveryPolicy::backoff_after - pure, no I/O ───────────
 
     #[test]
     fn backoff_follows_the_documented_schedule() {
@@ -335,7 +335,7 @@ mod tests {
     }
 
     // ── attempt_send defensive guard: missing recipient ────────
-    // No network involved — the guard fires before any TEM call, so a
+    // No network involved - the guard fires before any TEM call, so a
     // client pointed at an address that would refuse the connection
     // proves the call was never made.
 

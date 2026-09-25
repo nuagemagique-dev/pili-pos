@@ -10,7 +10,7 @@ async function typePin(page: Page, pin: string) {
   for (const d of pin) await dialog.getByRole('button', { name: d, exact: true }).click();
 }
 
-test.describe('Own PIN — tap your name on the order screen', () => {
+test.describe('Own PIN - tap your name on the order screen', () => {
   test.beforeEach(async ({ page }) => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
     await page.goto('/');
@@ -66,7 +66,7 @@ test.describe('Own PIN — tap your name on the order screen', () => {
   });
 });
 
-test.describe('Employee PIN — set by a manager in Settings', () => {
+test.describe('Employee PIN - set by a manager in Settings', () => {
   const WAITER = { ...DEFAULT_USER, insz: '99012345667', name: 'Apprenti', role: 'waiter' };
 
   test('the PIN button of a row sets that employee’s PIN', async ({ page }) => {

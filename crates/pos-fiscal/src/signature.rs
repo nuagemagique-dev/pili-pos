@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn empty_input_is_a_base64_error_not_a_panic() {
         // Empty string decodes to an empty byte vector under most base64
-        // implementations, which is a *valid* (if unusual) decode — this
+        // implementations, which is a *valid* (if unusual) decode - this
         // pins down the actual behavior so a future base64 crate bump
         // that changes it is caught.
         let result = compute_short_signature("");

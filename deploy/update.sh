@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos — Update Script
+# moyun-pos - Update Script
 # Usage: sudo ./update.sh /path/to/moyun-pos --sha1 <declared SHA-1>
 #
 # Every modification of the POS requires an update certification
@@ -8,7 +8,7 @@
 # SHA-1 matches the value declared for that update: the --sha1 check
 # below refuses anything else.
 #
-# Run on the terminal's maintenance console (Ctrl+Alt+F2) — on site
+# Run on the terminal's maintenance console (Ctrl+Alt+F2) - on site
 # from a USB stick, or remotely during an on-demand RustDesk session
 # (deploy/REMOTE-OPS.md).
 # ─────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ fi
 
 ACTUAL_SHA1=$(sha1sum "$BINARY_PATH" | awk '{print $1}')
 if [[ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]]; then
-    echo "ERROR: SHA-1 mismatch — refusing to install."
+    echo "ERROR: SHA-1 mismatch - refusing to install."
     echo "  expected: $EXPECTED_SHA1"
     echo "  actual:   $ACTUAL_SHA1"
     exit 1
@@ -62,7 +62,7 @@ fi
 restore_root_ro() {
     if [[ "$ROOT_WAS_RO" -eq 1 ]]; then
         echo "▸ Remounting / read-only..."
-        mount -o remount,ro / || echo "  ⚠ could not remount / read-only — do it manually"
+        mount -o remount,ro / || echo "  ⚠ could not remount / read-only - do it manually"
     fi
 }
 trap restore_root_ro EXIT
@@ -100,4 +100,4 @@ systemctl start "$SERVICE"
 echo "▸ Checking status..."
 sleep 2
 systemctl is-active "$SERVICE" && echo "✓ $("$POS_BIN_DIR/moyun-pos" --version) is running" \
-    || echo "✗ POS failed to start — check: journalctl -u $SERVICE"
+    || echo "✗ POS failed to start - check: journalctl -u $SERVICE"

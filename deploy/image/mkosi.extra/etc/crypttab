@@ -1,14 +1,14 @@
-# /etc/crypttab — moyun-pos kiosk image.
+# /etc/crypttab - moyun-pos kiosk image.
 #
 # The "moyun-data" partition (created at first boot, see
 # usr/lib/repart.d/90-moyun-data.conf) holds /var: the fiscal database,
 # logs, backups and /etc/moyun-pos (symlinked into it). It is unlocked
 # via the TPM2 token that moyun-provision.service enrolls on first boot
-# (systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7) — no key file
+# (systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7) - no key file
 # here. `nofail` so a TPM/unlock problem does not block the rest of
 # boot; moyun-pos.service simply cannot start without /var mounted
 # (StateDirectory=moyun-pos), which is the correct fail-safe for a
-# fiscal appliance (manual §III.D — the POS must not operate in an
+# fiscal appliance (manual §III.D - the POS must not operate in an
 # indeterminate state) rather than a hung boot.
 #
 # <name>      <device>              <key file>  <options>

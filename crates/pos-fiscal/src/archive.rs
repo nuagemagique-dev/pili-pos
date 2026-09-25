@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn duplicate_sequence_number_for_same_label_is_rejected() {
-        // `fiscal_events` has UNIQUE(event_type, sequence_number) —
+        // `fiscal_events` has UNIQUE(event_type, sequence_number) -
         // the DB itself is the last line of defense against a gap or
         // a duplicate ticket number ever being archived twice.
         let conn = setup();
@@ -374,7 +374,7 @@ mod tests {
 
     // ── Append-only enforcement (migration 3) ───────────────────
     //
-    // CLAUDE.md: "No deletion — fiscal records can NEVER be deleted
+    // CLAUDE.md: "No deletion - fiscal records can NEVER be deleted
     // or modified." Once archived, a fiscal_events row must be
     // impossible to touch again, at the DB level, not just by
     // convention.
@@ -401,7 +401,7 @@ mod tests {
             .execute("DELETE FROM fiscal_events WHERE sequence_number = 1", [])
             .unwrap_err();
         assert!(format!("{err}").contains("append-only"));
-        // The row is still there — the trigger really blocked it.
+        // The row is still there - the trigger really blocked it.
         assert!(
             get_archived_event(&conn, EventLabel::N, 1)
                 .unwrap()

@@ -88,7 +88,7 @@ impl MockState {
 
     /// Broadcast an event to all clients except the one that triggered it.
     ///
-    /// HubRise does not echo events back to the creator — a client should
+    /// HubRise does not echo events back to the creator - a client should
     /// never see an `order.create` event for an order it POSTed itself.
     pub fn broadcast_event(&self, source_token: &str, event: CallbackEvent) {
         let mut inner = self.inner.lock().expect("poisoned mock lock");

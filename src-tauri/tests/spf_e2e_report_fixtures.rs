@@ -107,7 +107,7 @@ fn last_event_id(app: &TestApp) -> i64 {
 
 /// T1–T8, played through the commands the UI calls.
 async fn play_service_day(app: &TestApp) {
-    // T1 — table 1: 2 Dry Martini + 1 Burger, registered when the
+    // T1 - table 1: 2 Dry Martini + 1 Burger, registered when the
     // waiter leaves the table (P).
     let table_1 = open_order(app, U1, OrderType::DineIn, Some(1));
     add(app, table_1, 10006, 2, None);
@@ -115,7 +115,7 @@ async fn play_service_day(app: &TestApp) {
     fdm_signs(app, "T1").await;
     do_sign_table_order(&app.state, table_1).await.unwrap();
 
-    // T2 — table 1 pays cash (N).
+    // T2 - table 1 pays cash (N).
     fdm_signs(app, "T2").await;
     let sale = do_checkout(&app.state, table_1, CheckoutPaymentMethod::Cash)
         .await
@@ -123,7 +123,7 @@ async fn play_service_day(app: &TestApp) {
     assert!(sale.success, "T2: {:?}", sale.error);
     let t2 = last_event_id(app);
 
-    // T3 — the whole T2 sale is refunded (N, REFUND).
+    // T3 - the whole T2 sale is refunded (N, REFUND).
     fdm_signs(app, "T3").await;
     let refund = do_refund_checkout(
         &app.state,
@@ -144,7 +144,7 @@ async fn play_service_day(app: &TestApp) {
     .unwrap();
     assert!(refund.success, "T3: {:?}", refund.error);
 
-    // T4 — a Coca Cola to take away, paid by card (N).
+    // T4 - a Coca Cola to take away, paid by card (N).
     let takeaway = open_order(app, U2, OrderType::Takeaway, None);
     add(app, takeaway, 12009, 1, None);
     fdm_signs(app, "T4").await;
@@ -153,24 +153,24 @@ async fn play_service_day(app: &TestApp) {
         .unwrap();
     assert!(sale.success, "T4: {:?}", sale.error);
 
-    // T5 — table 10, first round: 2 Dry Martini (P).
+    // T5 - table 10, first round: 2 Dry Martini (P).
     let table_10 = open_order(app, U2, OrderType::DineIn, Some(10));
     add(app, table_10, 10006, 2, None);
     fdm_signs(app, "T5").await;
     do_sign_table_order(&app.state, table_10).await.unwrap();
 
-    // T6 — second round: 2 dishes of the day at 20 € (free price) and a
+    // T6 - second round: 2 dishes of the day at 20 € (free price) and a
     // Bourgogne (P). Only the new entries are sent.
     add(app, table_10, 22010, 2, Some(2000));
     add(app, table_10, 15001, 1, None);
     fdm_signs(app, "T6").await;
     do_sign_table_order(&app.state, table_10).await.unwrap();
 
-    // T7 — the pre-bill (P): nothing left to register first.
+    // T7 - the pre-bill (P): nothing left to register first.
     fdm_signs(app, "T7").await;
     do_sign_pre_bill(&app.state, table_10).await.unwrap();
 
-    // T8 — table 10 pays cash (N).
+    // T8 - table 10 pays cash (N).
     fdm_signs(app, "T8").await;
     let sale = do_checkout(&app.state, table_10, CheckoutPaymentMethod::Cash)
         .await

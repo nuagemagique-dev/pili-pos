@@ -1,4 +1,4 @@
-//! UBL 2.1 Invoice serializer — minimum viable BIS Billing 3.0 subset.
+//! UBL 2.1 Invoice serializer - minimum viable BIS Billing 3.0 subset.
 //!
 //! BIS Billing 3.0 is the Peppol billing profile mandated by the Belgian
 //! government for B2B e-invoicing. The full UBL 2.1 schema has hundreds
@@ -23,10 +23,10 @@
 //!
 //! What's intentionally stubbed (will not block Tokyo Sushi Bar's B2C flow):
 //! - PaymentMeans block (we don't model bank details yet)
-//! - AllowanceCharge (discounts) — UBL distinguishes line-level vs
+//! - AllowanceCharge (discounts) - UBL distinguishes line-level vs
 //!   document-level allowances; spec is rich and Phase 5/6 already
 //!   captures price changes as separate fiscal events.
-//! - Multi-currency support — Tokyo Sushi Bar is EUR-only.
+//! - Multi-currency support - Tokyo Sushi Bar is EUR-only.
 
 use chrono::{DateTime, Duration, NaiveDate};
 use serde::Serialize;
@@ -270,11 +270,11 @@ pub fn vat_label_to_bis(label: &str) -> Result<(&'static str, &'static str), Pep
 /// Render an `InvoiceUbl` to a canonical UBL 2.1 XML string with the
 /// required `Invoice` root namespaces. `quick_xml` emits the body;
 /// we prepend the `<?xml … ?>` prologue and the namespace-declared root
-/// open tag, then close it manually. This is a thin wrapper — for
+/// open tag, then close it manually. This is a thin wrapper - for
 /// production use, swap to a fully namespace-aware emitter.
 pub fn to_ubl_xml(invoice: &InvoiceUbl) -> Result<String, PeppolError> {
     let body = quick_xml::se::to_string(invoice).map_err(|e| PeppolError::Xml(e.to_string()))?;
-    // quick_xml::se::to_string emits `<Invoice>…</Invoice>` — we need the
+    // quick_xml::se::to_string emits `<Invoice>…</Invoice>` - we need the
     // BIS Billing 3.0 namespace declarations on the root. Strip the
     // outer pair we got, re-wrap with proper xmlns attributes.
     let body_inner = body

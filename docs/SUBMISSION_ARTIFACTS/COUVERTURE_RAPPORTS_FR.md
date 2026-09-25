@@ -84,7 +84,7 @@ rapports X.
 Les deux écarts identifiés lors de l'audit fixture sont **résolus**
 dans la build de soumission :
 
-1. **Co-émission M184 — implémentée.**
+1. **Co-émission M184 - implémentée.**
    `src-tauri/src/commands/report.rs::do_generate_z_report` émet
    désormais le Z canonique : `signReportTurnoverZ` + `signReportUserZ`
    dans **une seule opération GraphQL**
@@ -94,7 +94,7 @@ dans la build de soumission :
    utilisateur X (M182) dispose de sa propre commande
    `do_generate_user_x_report`, déclenchée depuis le menu Rapports.
    E2E : `spf_e2e_reports.rs::{m184_*, m182_*}`.
-2. **Info device FDM dans les payloads X/Z — réelle.** Le bloc
+2. **Info device FDM dans les payloads X/Z - réelle.** Le bloc
    `fdmDevices` est peuplé depuis les `fdmRef` (fdmId, `totalCounter`,
    `fdmDateTime`) des événements archivés du rapport, premier et
    dernier par compteur (`report_totals::fdm_devices`), plus de

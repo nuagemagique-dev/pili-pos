@@ -57,7 +57,7 @@ pub enum TemError {
 impl TemError {
     /// Whether retrying the same request later has a chance of
     /// succeeding. Permanent errors (bad request, unauthorized,
-    /// malformed response, config problems) should not be retried —
+    /// malformed response, config problems) should not be retried -
     /// retrying them would just burn the attempt budget for nothing.
     pub fn is_retryable(&self) -> bool {
         matches!(
@@ -158,7 +158,7 @@ pub struct TemClient {
 
 impl std::fmt::Debug for TemClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Never derive Debug for this struct — it would print the
+        // Never derive Debug for this struct - it would print the
         // secret key.
         f.debug_struct("TemClient")
             .field("api_base", &self.api_base)
@@ -188,7 +188,7 @@ impl Clone for TemClient {
 }
 
 impl TemClient {
-    /// Build a client directly from its parts (mainly for tests — see
+    /// Build a client directly from its parts (mainly for tests - see
     /// [`TemClient::from_config`] for the normal construction path).
     #[allow(clippy::too_many_arguments)]
     pub fn new(

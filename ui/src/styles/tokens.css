@@ -1,23 +1,23 @@
 :root {
-  /* Backgrounds — UX Guide §5.2 */
+  /* Backgrounds - UX Guide §5.2 */
   --bg-primary: #1a1a2e;
   --bg-secondary: #16213e;
   --bg-surface: #0f3460;
   --bg-pressed: #533483;
 
-  /* Text — UX Guide §5.3 (ratio ≥14:1 sur bg-primary) */
+  /* Text - UX Guide §5.3 (ratio ≥14:1 sur bg-primary) */
   --text-primary: #e8e8e8;
   --text-secondary: #a0a0b0;
   --text-on-accent: #ffffff;
 
-  /* Accent — UX Guide §5.2 */
+  /* Accent - UX Guide §5.2 */
   --accent-primary: #e94560;
   --accent-success: #2ecc71;
   --accent-warning: #f39c12;
   --accent-danger: #e74c3c;
   --accent-training: #9b59b6;
 
-  /* Category tab colors — UX Guide §5.2 */
+  /* Category tab colors - UX Guide §5.2 */
   --cat-sushi: #e94560;
   --cat-maki: #f39c12;
   --cat-sashimi: #3498db;
@@ -25,19 +25,19 @@
   --cat-boissons: #9b59b6;
   --cat-desserts: #e67e22;
 
-  /* Spacing — UX Guide §5.2 */
+  /* Spacing - UX Guide §5.2 */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
 
-  /* Border radius — UX Guide §5.2 */
+  /* Border radius - UX Guide §5.2 */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
 
-  /* Typography — UX Guide §5.2, §10 */
+  /* Typography - UX Guide §5.2, §10 */
   --font-family: 'Noto Sans', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
@@ -48,7 +48,7 @@
   --font-weight-normal: 400;
   --font-weight-bold: 700;
 
-  /* Tap feedback — UX Guide §4.2 */
+  /* Tap feedback - UX Guide §4.2 */
   --tap-scale: 0.95;
   --tap-duration: 100ms;
   --flash-duration: 200ms;

@@ -14,7 +14,7 @@ body {
   flex-direction: column;
 }
 
-/* Scrollbar — UX Guide §11: visible fine 4px */
+/* Scrollbar - UX Guide §11: visible fine 4px */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(160, 160, 176, 0.3); border-radius: 2px; }
@@ -55,7 +55,7 @@ body {
 
 /* ── Pending-orders badge on the "En ligne" nav button ─────────
    Persistent amber counter shown whenever there is at least one
-   webshop order still in `new`/`received` — staff must react to
+   webshop order still in `new`/`received` - staff must react to
    these quickly but the state is non-blocking, so UX Guide §8.1
    amber (`--accent-warning`) is the correct tier rather than red
    (which §8.1 reserves for blocking FDM errors). §4.2: 150 ms

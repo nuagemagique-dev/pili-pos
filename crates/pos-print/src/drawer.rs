@@ -38,7 +38,7 @@ mod tests {
     fn kick_drawer_bytes_is_exactly_init_plus_kick_no_extra_content() {
         // Byte-exact check: the drawer kick must be nothing but the
         // printer init sequence followed by the CLAUDE.md-documented
-        // ESC/POS kick command (0x1B 0x70 0x00 0x19 0xFA) — no stray
+        // ESC/POS kick command (0x1B 0x70 0x00 0x19 0xFA) - no stray
         // text or extra commands sneaking in.
         let bytes = kick_drawer_bytes();
         assert_eq!(

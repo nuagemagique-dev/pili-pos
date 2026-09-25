@@ -11,7 +11,7 @@ test.describe('Checkout View', () => {
 
   test('renders checkout view', async ({ page }) => {
     await loginAndGoto(page, '/checkout');
-    // CheckoutView uses various class names — check for payment buttons
+    // CheckoutView uses various class names - check for payment buttons
     // as proof the view rendered.
     await expect(page.getByText('CASH')).toBeVisible();
   });

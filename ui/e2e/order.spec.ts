@@ -27,7 +27,7 @@ test.describe('Order View', () => {
   test('shows header with table or takeaway badge', async ({ page }) => {
     // After startOrder, the header shows either "Table N" or "À emporter".
     // The mock's create_order returns table_number from input, but the
-    // serialized default may be null — check for either badge.
+    // serialized default may be null - check for either badge.
     const header = page.locator('.header-table, .header-takeaway');
     await expect(header).toBeVisible();
   });
@@ -65,12 +65,12 @@ test.describe('Order View', () => {
   });
 
   test('cart sidebar is visible', async ({ page }) => {
-    // A newly-created order has no lines yet — the cart shows "Aucun article".
+    // A newly-created order has no lines yet - the cart shows "Aucun article".
     await expect(page.getByText('Aucun article')).toBeVisible();
   });
 });
 
-test.describe('Order View — busy table', () => {
+test.describe('Order View - busy table', () => {
   test('a table that already has an order shows its lines', async ({ page }) => {
     // The backend returns the table's open order instead of a new
     // one; the cart must show what was already ordered.
