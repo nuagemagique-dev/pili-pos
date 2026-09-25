@@ -209,7 +209,47 @@ Index des rapports Z générés. Référence le `fiscal_events` correspondant.
 | `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | Lien vers l'événement R signé |
 | `created_at` | TEXT | Date / heure de génération |
 
-### 3.4 `users`
+### 3.4 `order_entries`
+
+Journal append-only de chaque ajout, correction ou remboursement de
+ligne sur une commande ouverte (conforme POS v2.2 §2 "toutes les
+données d'entrée, par ordre chronologique, y compris les
+corrections"). Des triggers SQL interdisent tout `DELETE`/`UPDATE`
+des champs journalisés. `order_lines` reste la vue consolidée
+affichée/imprimée.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire, ordre chronologique |
+| `order_id` | INTEGER (FK → `orders.id`) | Commande parente |
+| `line_id` | INTEGER | Ligne d'origine référencée |
+| `menu_item_id` | INTEGER | Article |
+| `quantity` | INTEGER (≠ 0) | Quantité de l'entrée (négative pour correction/remboursement) |
+| `unit_price_cents` | INTEGER | Prix unitaire au moment de l'entrée |
+| `vat_code` | TEXT | Code TVA (contraint A/B/C/D/X) |
+| `name`, `department_id`, `department_name` | TEXT | Désignation et département au moment de l'entrée |
+| `kind` | TEXT | `entry`, `correction` ou `refund` (contraint) |
+| `sent_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | Rempli quand l'entrée a été transmise dans un événement P ou dans le N final |
+| `created_at` | TEXT | Date / heure d'ajout |
+
+### 3.5 `booking_periods`
+
+Persistance de la période d'ouverture (`bookingPeriodId`, POS v2.2
+§2.2.2). Une période court du premier événement suivant un Z jusqu'au
+Z suivant ; au plus une période est ouverte à la fois (index unique
+partiel sur `closed_at IS NULL`). Des triggers interdisent la
+réouverture et la suppression d'une période close. Voir §III.J et
+§III.L de `REPONSES_MANUEL_CERT_FR.md`.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | TEXT | Clé primaire (UUID v4) |
+| `booking_date` | TEXT | Date d'ouverture, fuseau Europe/Brussels |
+| `opened_at` | TEXT | Horodatage d'ouverture |
+| `closed_at` | TEXT (nullable) | Horodatage de clôture (NULL = période ouverte) |
+| `closing_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | Événement R qui a clôturé la période (NULL tant qu'ouverte) |
+
+### 3.6 `users`
 
 Utilisateurs du POS. INSZ comme clé primaire. Voir
 `PROFILS_UTILISATEURS_FR.md`.
@@ -258,10 +298,19 @@ inversement, sans migration de schéma.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **une seule
-migration** existe (`001 - initial-schema`) qui crée toutes les
-tables ci-dessus. Les migrations sont consignées dans la table
-`_migrations_applied` (`version`, `name`, `applied_at`).
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **trois
+migrations** existent, appliquées dans l'ordre et consignées dans la
+table `_migrations_applied` (`version`, `name`, `applied_at`) :
+
+| Version | Nom | Contenu |
+|---|---|---|
+| 1 | `initial-schema` | Crée l'ensemble des tables listées au §§1-5 ci-dessus. |
+| 2 | `catalogue-fiscal-fields` | Ajoute `vat_code_takeaway` et `open_price` sur `menu_items`, et `department_id`/`department_name` sur `order_lines`. |
+| 3 | `booking-periods` | Ajoute les tables `order_entries` et `booking_periods` (§§3.4-3.5). |
+
+Chaque migration s'exécute dans sa propre transaction `BEGIN
+IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette
+migration sans toucher les précédentes déjà consignées.
 
 Les bases "legacy" créées avant la versification sont automatiquement
 annotées comme `v1 (backfilled)`.
