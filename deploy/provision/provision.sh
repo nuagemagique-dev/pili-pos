@@ -214,6 +214,12 @@ materialize_or_symlink_etc() {
         chown root:"$POS_USER" /etc/moyun-pos/pos.json
         echo "  ⚠ template written to /etc/moyun-pos/pos.json — edit before starting the service"
     fi
+    if [[ -d "$FACTORY_DIR/secrets" && ! -d /etc/moyun-pos/secrets ]]; then
+        install -d -m 750 -o root -g "$POS_USER" /etc/moyun-pos/secrets
+        for f in "$FACTORY_DIR"/secrets/*; do
+            [[ -f "$f" ]] && install -m 640 -o root -g "$POS_USER" "$f" /etc/moyun-pos/secrets/
+        done
+    fi
     if [[ ! -f "$POS_HOME/pos.db" ]]; then
         install -m 640 -o "$POS_USER" -g "$POS_USER" "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
     fi
@@ -262,9 +268,26 @@ phase_image() {
     if [[ "$VARIANT" == "admission" ]]; then
         POS_ID_TEMPLATE="CFOD0061234567"
         RESTAURANT_NAME_TEMPLATE="SPF Admission Test"
+        # Digital ticket through the local mock (pos-fdm-mock serves
+        # the Scaleway TEM API too), so email works without internet.
+        DIGITAL_TICKET_TEMPLATE='
+  "digital_ticket": {
+    "project_id": "admission",
+    "from_email": "tickets@admission.invalid",
+    "from_name": "SPF Admission Test",
+    "api_base": "http://127.0.0.1:8081",
+    "api_key_file": "/etc/moyun-pos/secrets/tem.key",
+    "allow_digital_only": true
+  },'
+        install -d -m 750 "$FACTORY_DIR/secrets"
+        printf 'admission-mock-key\n' > "$FACTORY_DIR/secrets/tem.key"
+        chmod 640 "$FACTORY_DIR/secrets/tem.key"
     else
         POS_ID_TEMPLATE="CHANGE_ME_14CH"
         RESTAURANT_NAME_TEMPLATE="CHANGE ME"
+        # Production: the digital ticket is configured at installation
+        # (MANUEL_INSTALLATION_FR.md §4.2, « Ticket numérique par e-mail »); without it the POS is paper only.
+        DIGITAL_TICKET_TEMPLATE=""
     fi
     cat > "$FACTORY_DIR/pos.json" <<POSCONF
 {
@@ -278,7 +301,7 @@ phase_image() {
   "fdm_url": "http://192.168.1.20/graphql",
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,
-  "language": "fr",
+  "language": "fr",$DIGITAL_TICKET_TEMPLATE
   "backup_dir": "/var/lib/moyun-pos/backups"
 }
 POSCONF

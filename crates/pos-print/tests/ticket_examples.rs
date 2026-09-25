@@ -90,8 +90,13 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         }],
         rounding: None,
         fdm_ref: Some(fdm_ref(label, 15, 59)),
-        short_signature: Some("a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789".to_string()),
-        verification_url: Some("https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug".to_string()),
+        // The FDM returns the short signature and the verification URL
+        // for N events only (POS spec v2.2 §2.4): other tickets carry
+        // neither, so they print no QR code.
+        short_signature: (label == EventLabel::N)
+            .then(|| "a3f9c2b1e8d4750616fb92c3a4e5d6f701234567".to_string()),
+        verification_url: (label == EventLabel::N)
+            .then(|| "https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug".to_string()),
         footer: vec!["www.systemedecaisseenregistreuse.be".to_string()],
         ticket_type_label: ticket_type_label(label, false, ReceiptLanguage::Fr).to_string(),
         is_refund: false,
@@ -100,9 +105,20 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
 }
 
 fn write_example(name: &str, ticket: &FiscalTicket) {
+    let text = render_plain_text(&format_receipt(ticket));
+    // Only N tickets carry the FDM's QR code and short signature (§2.4).
+    let is_n = ticket.fdm_ref.as_ref().map(|r| r.event_label) == Some(EventLabel::N);
+    assert_eq!(
+        text.contains("[QR"),
+        is_n,
+        "{name}: QR code only on N tickets"
+    );
+    if let Some(sig) = &ticket.short_signature {
+        assert_eq!(sig.len(), 40, "{name}: short signature is a SHA-1 in hex");
+        assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
+    }
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
-    let text = render_plain_text(&format_receipt(ticket));
     std::fs::write(dir.join(format!("{name}.txt")), text).expect("write example");
 }
 
@@ -223,7 +239,8 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
         drawer_opens: 3,
         fdm_id: Some("CBX01000042".to_string()),
         fdm_datetime: Some("2026-07-03T22:42:00+02:00".to_string()),
-        short_signature: Some("7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c".to_string()),
+        // R events get no short signature from the FDM (§2.4).
+        short_signature: None,
         ticket_number: 3,
     }
 }

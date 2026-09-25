@@ -156,6 +156,14 @@ main() {
     mkdir -p "$ETC_DIR/moyun-pos" "$ETC_DIR/system-connections" "$POS_HOME/logs" "$POS_HOME/backups"
     install -m 640 "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
     install -m 640 "$FACTORY_DIR/pos.json" "$ETC_DIR/moyun-pos/pos.json"
+    # Email API key of the digital ticket (admission image: the local
+    # mock's dummy key). Production keys are installed by hand.
+    if [[ -d "$FACTORY_DIR/secrets" ]]; then
+        install -d -m 750 "$ETC_DIR/moyun-pos/secrets"
+        for f in "$FACTORY_DIR"/secrets/*; do
+            [[ -f "$f" ]] && install -m 640 "$f" "$ETC_DIR/moyun-pos/secrets/"
+        done
+    fi
 
     # scripts/qemu/run-kiosk.sh --pos-json <file> honoured HERE ONLY:
     # this whole branch of main() only ever runs once, on the actual
@@ -183,6 +191,7 @@ main() {
     if id pos &>/dev/null; then
         chown -R pos:pos "$POS_HOME"
         chown root:pos "$ETC_DIR/moyun-pos/pos.json"
+        [[ -d "$ETC_DIR/moyun-pos/secrets" ]] && chown -R root:pos "$ETC_DIR/moyun-pos/secrets"
     fi
 
     log "Setting the root password…"

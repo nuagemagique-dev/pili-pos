@@ -35,7 +35,6 @@ TOTAL                                    1523.50
 ================================================
                 FDM: CBX01000042
            2026-07-03T22:42:00+02:00
-Sig: 7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c
 
                  FIN DE JOURNEE
              Compteurs remis a zero

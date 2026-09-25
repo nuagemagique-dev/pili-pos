@@ -7,7 +7,10 @@ Description=moyun-pos mock FDM (admission demo fallback, manual start only)
 # demo if the virtual/physical FDM is unreachable:
 #   systemctl start pos-fdm-mock
 # and point pos.json::fdm_url at http://127.0.0.1:8081/graphql while
-# it runs.
+# it runs. The same process serves the email API used by the digital
+# ticket (pos.json::digital_ticket.api_base = http://127.0.0.1:8081);
+# received emails are written to /var/lib/pos-fdm-mock/tem-outbox.
+# Set MOCK_TEM_FAIL=1 (systemctl edit) to show the paper fallback.
 
 [Service]
 Type=simple
@@ -15,6 +18,8 @@ User=pos
 Group=pos
 ExecStart=/opt/moyun-pos/bin/pos-fdm-mock
 Environment=PORT=8081
+Environment=MOCK_TEM_OUTBOX=/var/lib/pos-fdm-mock/tem-outbox
+StateDirectory=pos-fdm-mock
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=yes

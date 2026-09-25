@@ -7,7 +7,8 @@ test.describe('Order View', () => {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
       get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
-      list_order_lines: () => [DEFAULT_ORDER_LINE],
+      // Like the backend: a new order has no lines.
+      list_order_lines: () => [],
       get_categories: () => [DEFAULT_CATEGORY],
       get_menu_items: () => [DEFAULT_MENU_ITEM, {
         ...DEFAULT_MENU_ITEM, id: 2, name: 'Tuna Roll x8', price_cents: 1300,
@@ -66,5 +67,28 @@ test.describe('Order View', () => {
   test('cart sidebar is visible', async ({ page }) => {
     // A newly-created order has no lines yet — the cart shows "Aucun article".
     await expect(page.getByText('Aucun article')).toBeVisible();
+  });
+});
+
+test.describe('Order View — busy table', () => {
+  test('a table that already has an order shows its lines', async ({ page }) => {
+    // The backend returns the table's open order instead of a new
+    // one; the cart must show what was already ordered.
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_order: () => ({ ...DEFAULT_ORDER, total_cents: 2400 }),
+      list_order_lines: () => [{ ...DEFAULT_ORDER_LINE, quantity: 2 }],
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [DEFAULT_MENU_ITEM],
+    });
+    await page.goto('/');
+    await page.click('.user-btn');
+    await page.waitForURL(/tables/);
+    await page.locator('.table-card').first().click();
+    await page.waitForURL(/order/);
+    const cart = page.locator('.cart-lines');
+    await expect(cart).toContainText(DEFAULT_ORDER_LINE.name);
+    await expect(page.locator('.cart-empty')).toHaveCount(0);
   });
 });

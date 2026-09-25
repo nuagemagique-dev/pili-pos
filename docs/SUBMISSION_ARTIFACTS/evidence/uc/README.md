@@ -1,8 +1,13 @@
 # Preuves §IV — JSON générés par moyun-pos par UC
 
-Générées par `scripts/capture_uc_evidence.sh`, qui rejoue les suites
-e2e (`src-tauri/tests/spf_e2e_basic.rs`, `spf_e2e_reports.rs`) avec
-`UC_EVIDENCE_DIR` positionné.
+Générées par `scripts/capture_uc_evidence.sh`, qui rejoue les fixtures
+officielles avec la build de certification
+(`--no-default-features --features cert`) et `UC_EVIDENCE_DIR`
+positionné : `src-tauri/tests/spf_e2e_fixtures.rs` (Basic Set v1.7,
+commandes construites à partir des produits de la fixture) et
+`spf_e2e_report_fixtures.rs` (journée T1–T8 des Reports v1.3, puis
+M180, M182 et M184). Le script les intègre ensuite à
+`RESULTATS_TESTS_UC_FR.md` (`scripts/embed_uc_evidence.py`).
 
 Par UC et par event fiscal archivé pendant le scénario :
 
@@ -12,6 +17,9 @@ Par UC et par event fiscal archivé pendant le scénario :
   exactement ce qui part vers le FDM).
 - `<UC>_event<N>_<label>_response.json` — la réponse FDM archivée
   (fixture officielle SPF rejouée par wiremock).
+- `<UC>_check.json` — le résultat de la comparaison champ par champ
+  avec la fixture : champs métier égaux, champs d'identification
+  contrôlés sur leur format, écarts assumés et leur motif.
 
 Exemple : M111 (remboursement total) archive 2 events — `event1_N`
 (la vente originale) puis `event2_N` (le remboursement avec `fdmRef`

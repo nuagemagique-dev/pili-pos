@@ -1,0 +1,44 @@
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "00a27a41-5f51-4584-a826-3a6b3bab01b5",
+  "costCenter": {
+    "id": "T10",
+    "reference": "O4",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.905320+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 24.0
+  },
+  "vatNo": "BE0000000097"
+}

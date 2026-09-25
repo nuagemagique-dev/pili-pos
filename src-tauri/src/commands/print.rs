@@ -1,57 +1,22 @@
 use tauri::State;
 
-use pos_fiscal::ticket::FiscalTicket;
 #[cfg(feature = "hubrise")]
 use pos_hubrise_types::{Order, ServiceType};
 #[cfg(feature = "hubrise")]
 use pos_print::customer_slip::{CustomerInfo, CustomerLine, CustomerSlip, format_customer_slip};
-use pos_print::drawer;
 #[cfg(feature = "hubrise")]
 use pos_print::kitchen_ticket::{KitchenItem, KitchenTicket, format_kitchen_ticket};
-use pos_print::receipt;
 use pos_print::transport;
 #[cfg(feature = "hubrise")]
 use rusqlite::params;
 
 use crate::state::AppState;
 
-/// Print a fiscal receipt to the configured thermal printer.
-#[tauri::command]
-pub async fn print_receipt(state: State<'_, AppState>, ticket: FiscalTicket) -> Result<(), String> {
-    let printer_address = state
-        .config
-        .lock()
-        .map_err(|e| e.to_string())?
-        .printer_address
-        .clone();
-
-    let address = printer_address.ok_or_else(|| "Printer not configured".to_string())?;
-
-    let data = receipt::format_receipt(&ticket);
-    transport::send_to_printer(&address, &data)
-        .await
-        .map(|_| ())
-        .map_err(|e| e.to_string())
-}
-
-/// Open the cash drawer connected to the printer.
-#[tauri::command]
-pub async fn open_drawer(state: State<'_, AppState>) -> Result<(), String> {
-    let printer_address = state
-        .config
-        .lock()
-        .map_err(|e| e.to_string())?
-        .printer_address
-        .clone();
-
-    let address = printer_address.ok_or_else(|| "Printer not configured".to_string())?;
-
-    let data = drawer::kick_drawer_bytes();
-    transport::send_to_printer(&address, &data)
-        .await
-        .map(|_| ())
-        .map_err(|e| e.to_string())
-}
+// There is deliberately no command to print a receipt or open the
+// drawer on demand: an original ticket is printed once, by the command
+// that signed it (a second print is a copy, event C, POS spec v2.2
+// §8.1), and the drawer only opens through a signed event (a cash
+// sale or refund, or the F event of `financial::open_drawer_fiscal`).
 
 /// Check if the printer is reachable.
 #[tauri::command]

@@ -240,6 +240,47 @@ Exemple : un établissement à 4000 Liège (région de langue française)
 → `"language": "fr"`. Voir
 `GARANTIE_MAJ_LANGUES_FR.md` §3.2.
 
+#### Ticket numérique par e-mail (optionnel)
+
+Sans bloc `digital_ticket`, le POS n'émet que des tickets papier et
+n'affiche pas le choix du support. Pour proposer le ticket par e-mail
+(manuel de certification §III.H), ajouter à `pos.json` :
+
+```json
+"digital_ticket": {
+  "project_id": "<identifiant du projet Scaleway>",
+  "from_email": "tickets@<domaine vérifié>",
+  "from_name": "<nom du restaurant>",
+  "api_key_file": "/etc/moyun-pos/secrets/tem.key",
+  "allow_digital_only": false
+}
+```
+
+| Champ | Description |
+|---|---|
+| `project_id` | Projet Scaleway du service Transactional Email. |
+| `from_email` | Adresse d'expédition, sur un domaine vérifié dans Scaleway. |
+| `from_name` | Nom affiché comme expéditeur (en général le nom du restaurant). |
+| `api_key_file` | Fichier contenant la seule clé secrète de l'API, jamais la clé elle-même dans `pos.json`. |
+| `allow_digital_only` | `true` : l'opérateur peut choisir « E-mail » seul, sans papier. `false` (défaut) : seuls « Papier » et « Les deux » sont proposés. |
+| `region` | Facultatif, `fr-par` par défaut. |
+
+Installer la clé, lisible par le seul service POS :
+
+```bash
+install -d -m 750 -o root -g pos /etc/moyun-pos/secrets
+(umask 027; cat > /etc/moyun-pos/secrets/tem.key)   # coller la clé, Entrée, puis Ctrl+D
+chown root:pos /etc/moyun-pos/secrets/tem.key
+systemctl restart moyun-pos
+```
+
+Le seul trafic sortant ajouté est HTTPS (443) vers `api.scaleway.com`.
+Si la clé est absente ou illisible, le POS le consigne dans son journal
+et reste en papier seul. Si le service ne répond pas, le choix
+« E-mail » seul devient « Les deux » : le client reçoit le ticket papier
+tout de suite et l'e-mail dès le retour du service
+(`TICKET_NUMERIQUE_FR.md`).
+
 ### 4.3 Configuration réseau LAN
 
 Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :

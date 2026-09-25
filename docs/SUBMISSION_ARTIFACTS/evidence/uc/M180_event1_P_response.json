@@ -1,0 +1,24 @@
+{
+  "bufferCapacityUsed": 0.25,
+  "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+  "eventOperation": "ORDER",
+  "fdmRef": {
+    "eventCounter": 24,
+    "eventLabel": "P",
+    "fdmDateTime": "2024-07-30T06:30:19Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 49
+  },
+  "fdmSwVersion": "1.2.0",
+  "footer": [],
+  "informations": [],
+  "posDateTime": "2024-07-30T08:30:12+02:00",
+  "posFiscalTicketNo": 200,
+  "posId": "CPOS0031234567",
+  "shortSignature": null,
+  "terminalId": "TER-1-BAR",
+  "vatCalc": null,
+  "verificationUrl": null,
+  "warnings": []
+}

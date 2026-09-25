@@ -1,0 +1,49 @@
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "00a27a41-5f51-4584-a826-3a6b3bab01b5",
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 3.04,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.902540+02:00",
+  "posFiscalTicketNo": 3,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 3.04,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "12",
+          "departmentName": "Boissons rafraichissantes",
+          "productId": "12009",
+          "productName": "Coca Cola",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.04,
+          "vats": [
+            {
+              "label": "C",
+              "price": 3.04
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 3.04
+  },
+  "vatNo": "BE0000000097"
+}

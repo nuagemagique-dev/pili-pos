@@ -1,4 +1,5 @@
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
+use rusqlite::OptionalExtension;
 use serde::Deserialize;
 use tauri::State;
 
@@ -13,7 +14,41 @@ pub struct CreateOrderInput {
 
 #[tauri::command]
 pub fn create_order(state: State<'_, AppState>, input: CreateOrderInput) -> Result<Order, String> {
+    do_create_order(state.inner(), input)
+}
+
+/// Start an order. A dine-in order needs a table and a table has at
+/// most one open order: asking again for a busy table returns its
+/// order (with its lines), so an unpaid order can never hide behind a
+/// second one on the tables screen.
+pub fn do_create_order(state: &AppState, input: CreateOrderInput) -> Result<Order, String> {
+    if !pos_core::user::validate_insz(&input.user_insz) {
+        return Err("Invalid operator INSZ".into());
+    }
+    match (input.order_type, input.table_number) {
+        (OrderType::DineIn, Some(t)) if t > 0 => {}
+        (OrderType::DineIn, _) => return Err("A dine-in order needs a table".into()),
+        (OrderType::Takeaway, None) => {}
+        (OrderType::Takeaway, Some(_)) => {
+            return Err("A takeaway order has no table".into());
+        }
+    }
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    if let Some(table) = input.table_number {
+        let open: Option<i64> = db
+            .query_row(
+                "SELECT id FROM orders
+                 WHERE table_number = ?1 AND status = 'open' AND order_type = 'dine_in'
+                 ORDER BY id LIMIT 1",
+                rusqlite::params![table],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        if let Some(id) = open {
+            return pos_db::queries::orders::get_order(&db, id).map_err(|e| e.to_string());
+        }
+    }
     pos_db::queries::orders::create_order(
         &db,
         input.order_type,
@@ -103,8 +138,13 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
 
 #[tauri::command]
 pub fn remove_order_line(state: State<'_, AppState>, line_id: i64) -> Result<(), String> {
+    do_remove_order_line(state.inner(), line_id)
+}
+
+/// Remove a line from an open order (journalled as a correction).
+pub fn do_remove_order_line(state: &AppState, line_id: i64) -> Result<(), String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    pos_db::queries::orders::remove_order_line(&db, line_id).map_err(|e| e.to_string())
+    pos_db::queries::orders::remove_order_line(&db, line_id).map_err(line_error)
 }
 
 #[tauri::command]
@@ -113,13 +153,37 @@ pub fn update_order_line_quantity(
     line_id: i64,
     quantity: i32,
 ) -> Result<(), String> {
+    do_update_order_line_quantity(state.inner(), line_id, quantity)
+}
+
+/// Set a line's quantity on an open order. Zero or less is refused:
+/// removing a line is [`do_remove_order_line`], and a sale line is
+/// never negative (refunds are their own ticket).
+pub fn do_update_order_line_quantity(
+    state: &AppState,
+    line_id: i64,
+    quantity: i32,
+) -> Result<(), String> {
+    if quantity <= 0 {
+        return Err("Quantity must be greater than zero".into());
+    }
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    pos_db::queries::orders::update_order_line_quantity(&db, line_id, quantity)
-        .map_err(|e| e.to_string())
+    pos_db::queries::orders::update_order_line_quantity(&db, line_id, quantity).map_err(line_error)
+}
+
+fn line_error(e: rusqlite::Error) -> String {
+    match e {
+        rusqlite::Error::QueryReturnedNoRows => "Order line not found".into(),
+        other => other.to_string(),
+    }
 }
 
 #[tauri::command]
 pub fn get_order(state: State<'_, AppState>, order_id: i64) -> Result<Order, String> {
+    do_get_order(state.inner(), order_id)
+}
+
+pub fn do_get_order(state: &AppState, order_id: i64) -> Result<Order, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())
 }
@@ -133,12 +197,20 @@ pub fn list_order_lines(
     state: State<'_, AppState>,
     order_id: i64,
 ) -> Result<Vec<OrderLine>, String> {
+    do_list_order_lines(state.inner(), order_id)
+}
+
+pub fn do_list_order_lines(state: &AppState, order_id: i64) -> Result<Vec<OrderLine>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn list_open_orders(state: State<'_, AppState>) -> Result<Vec<Order>, String> {
+    do_list_open_orders(state.inner())
+}
+
+pub fn do_list_open_orders(state: &AppState) -> Result<Vec<Order>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::list_open_orders(&db).map_err(|e| e.to_string())
 }

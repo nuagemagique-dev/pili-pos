@@ -1,26 +1,26 @@
 {
-  "bookingDate": "2026-07-03",
-  "bookingPeriodId": "7efa2ffa-dcc4-43ee-b1b5-f19bdd5d314c",
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "47436ff9-3029-43a3-8b6a-1debdad0bc94",
   "costCenter": {
     "id": "T01",
-    "reference": "37457403-f139-4563-8d90-fde390762831",
+    "reference": "O1",
     "type": "TABLE"
   },
   "deviceId": "DEV001",
-  "employeeId": "12345678901",
+  "employeeId": "84022899837",
   "estNo": "2000000042",
   "financials": [
     {
-      "amount": 10.0,
+      "amount": 52.0,
       "amountType": "PAYMENT",
-      "id": "PAY1",
+      "id": "1",
       "inputMethod": "MANUAL",
       "name": "Cash",
       "type": "CASH"
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-07-03T14:02:03.999708+02:00",
+  "posDateTime": "2026-09-25T17:48:22.611550+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -29,26 +29,45 @@
   "transaction": {
     "transactionLines": [
       {
-        "lineTotal": 10.0,
+        "lineTotal": 24.0,
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
-          "departmentId": "FOOD",
-          "departmentName": "Restaurant",
-          "productId": "1",
-          "productName": "Test item",
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "productId": "22001",
+          "productName": "Burger du chef",
           "quantity": 1.0,
           "quantityType": "PIECE",
-          "unitPrice": 10.0,
+          "unitPrice": 28.0,
           "vats": [
             {
               "label": "B",
-              "price": 10.0
+              "price": 28.0
             }
           ]
         }
       }
     ],
-    "transactionTotal": 10.0
+    "transactionTotal": 52.0
   },
   "vatNo": "BE0000000097"
 }

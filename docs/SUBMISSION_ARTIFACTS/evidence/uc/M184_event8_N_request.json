@@ -1,0 +1,92 @@
+{
+  "bookingDate": "2026-09-25",
+  "bookingPeriodId": "7e4068d4-7615-4cc0-bf17-2ffb896f2906",
+  "costCenter": {
+    "id": "T10",
+    "reference": "O4",
+    "type": "TABLE"
+  },
+  "deviceId": "DEV001",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 99.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-25T17:48:22.911691+02:00",
+  "posFiscalTicketNo": 4,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 24.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 24.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 40.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "productId": "22010",
+          "productName": "Plat du jour",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 20.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 40.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 35.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "15",
+          "departmentName": "Vins",
+          "productId": "15001",
+          "productName": "Bourgogne rouge",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 35.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 35.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 99.0
+  },
+  "vatNo": "BE0000000097"
+}

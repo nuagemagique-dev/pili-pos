@@ -71,6 +71,17 @@ impl PrinterSink {
             .collect()
     }
 
+    /// Jobs that opened the cash drawer (ESC p 0 25 250).
+    pub fn drawer_kicks(&self) -> usize {
+        const KICK: [u8; 5] = [0x1B, 0x70, 0x00, 0x19, 0xFA];
+        self.jobs
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|j| j.windows(5).any(|w| w == KICK))
+            .count()
+    }
+
     /// Wait until `n` receipts arrived (jobs are recorded when the
     /// connection closes), then a little longer to catch extra ones.
     pub async fn settle(&self, n: usize) -> Vec<String> {

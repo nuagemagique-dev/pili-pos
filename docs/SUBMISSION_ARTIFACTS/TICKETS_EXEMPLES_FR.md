@@ -47,7 +47,7 @@ colonne par type de ticket émis par moyun-pos.
 | XVI.VI. totalCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.VII. shortSignature (renvoyée par le FDM pour les events N uniquement) | ☑ | ☑ | - (non renvoyée pour P) | - (non réimprimée) | - (non renvoyée pour T) | - |
 | XVII. Lignes de paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - (pas encore payé) | ☑ (reprises de l'original) | ☑ | - |
-| XVIII. QR Code URL du FDM | ☑ (Model 2, 29×29) | ☑ | ☑ | ☑ | ☑ | - |
+| XVIII. QR Code URL du FDM (renvoyée par le FDM pour les events N uniquement) | ☑ (Model 2, 29×29) | ☑ | - (non renvoyée pour P) | - (non renvoyée pour C) | - (non renvoyée pour T) | - |
 
 **Mentions spécifiques cochées :**
 
@@ -101,7 +101,7 @@ TVA    Taux    Base HT    TVA
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
                     N 15/59
-Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
+ Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f701234567
 
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
@@ -144,9 +144,6 @@ TOTAL                                      52.00
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
                      P 4/61
-
-[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
-
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
@@ -192,7 +189,7 @@ TVA    Taux    Base HT    TVA
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
                     N 16/60
-Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
+ Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f701234567
 
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
@@ -241,9 +238,6 @@ TVA    Taux    Base HT    TVA
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
                      C 2/62
-
-[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
-
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
@@ -291,9 +285,6 @@ TVA    Taux    Base HT    TVA
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
                      T 7/63
-
-[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
-
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
@@ -347,7 +338,6 @@ TOTAL                                    1523.50
 ================================================
                 FDM: CBX01000042
            2026-07-03T22:42:00+02:00
-Sig: 7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c
 
 
 
@@ -397,7 +387,6 @@ TOTAL                                    1523.50
 ================================================
                 FDM: CBX01000042
            2026-07-03T22:42:00+02:00
-Sig: 7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c
 
                  FIN DE JOURNEE
              Compteurs remis a zero

@@ -12,7 +12,8 @@
 #     followed by the M180, M182 and M184 reports.
 # For every fiscal event a test archived, the request moyun-pos built
 # and the FDM response it archived are written to
-# docs/SUBMISSION_ARTIFACTS/evidence/uc/.
+# docs/SUBMISSION_ARTIFACTS/evidence/uc/, then embedded into
+# RESULTATS_TESTS_UC_FR.md by scripts/embed_uc_evidence.py.
 #
 # The FDM is a mock that replays the fixture's response; the same
 # tests run against the Checkbox during the rehearsal.
@@ -31,6 +32,8 @@ rm -f "$OUT"/*.json   # stale evidence from renamed/renumbered UCs
 UC_EVIDENCE_DIR="$OUT" cargo test -p moyun-pos \
     --no-default-features --features cert \
     --test spf_e2e_fixtures --test spf_e2e_report_fixtures
+
+python3 "$PROJECT_ROOT/scripts/embed_uc_evidence.py"
 
 echo ""
 echo "✓ evidence written to $OUT"
