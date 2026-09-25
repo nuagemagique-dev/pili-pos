@@ -76,6 +76,12 @@ pub fn vat_code_to_label(code: VatCode) -> VatLabel {
     }
 }
 
+/// Cents to euros, exactly: the nearest `f64` to a two-decimal amount,
+/// which serialises with at most two decimals.
+fn eur(cents: i64) -> f64 {
+    cents as f64 / 100.0
+}
+
 /// Build transaction lines (shared by Sale, Order, PreBill). Negative
 /// lines carry `neg_reason`: REFUND on refunds, CORRECTION when an
 /// entry is corrected before the sale is closed.
@@ -83,8 +89,11 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
     let transaction_lines: Vec<TransactionLineInput> = lines
         .iter()
         .map(|line| {
-            let unit_price = line.unit_price_cents as f64 / 100.0;
-            let line_total = unit_price * line.quantity as f64;
+            // Amounts are computed in cents and converted once: a
+            // product of floats (1.10 x 3 = 3.3000000000000003) is not
+            // the multiple of 0.01 the FDM requires (POS spec v2.2).
+            let unit_price = eur(line.unit_price_cents);
+            let line_total = eur(line.unit_price_cents * i64::from(line.quantity));
             let vat_label = vat_code_to_label(line.vat_code);
 
             TransactionLineInput {
@@ -112,7 +121,10 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
         })
         .collect();
 
-    let transaction_total = transaction_lines.iter().map(|l| l.line_total).sum::<f64>();
+    let transaction_total = eur(lines
+        .iter()
+        .map(|l| l.unit_price_cents * i64::from(l.quantity))
+        .sum());
 
     TransactionInput {
         transaction_lines,
@@ -173,7 +185,7 @@ pub fn build_sale_input(
         .table_number
         .map(|t| build_table_cost_center(t, &order_reference(order)));
 
-    let payment_amount = payment_amount_cents as f64 / 100.0;
+    let payment_amount = eur(payment_amount_cents);
     // The id identifies the payment method (spec §2.2.2 `financials.id`):
     // the reports total the payments per id.
     let (payment_id, payment_name) = match payment_type {
@@ -535,7 +547,7 @@ mod tests {
             pos_id: "CFOD0061234567".to_string(),
             terminal_id: "POS1".to_string(),
             device_id: "DEV001".to_string(),
-            restaurant_name: "Tokyo Sushi Bar".to_string(),
+            restaurant_name: "Restaurant Exemple".to_string(),
             restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
             restaurant_vat: "BE0499999960".to_string(),
             restaurant_est_no: "2123456749".to_string(),
@@ -1167,8 +1179,128 @@ mod tests {
             expected_cents,
             None,
         );
-        assert!((sale.transaction.transaction_total - expected_cents as f64 / 100.0).abs() < 1e-9);
+        assert_eq!(sale.transaction.transaction_total, eur(expected_cents));
         assert_eq!(sale.transaction.transaction_lines.len(), 12);
+    }
+
+    /// Every amount a message carries, as serialised: never more than
+    /// two decimals (POS spec v2.2: a multiple of 0.01), whatever the
+    /// prices and quantities.
+    #[test]
+    fn amounts_are_serialised_as_exact_cents() {
+        fn check(v: &serde_json::Value, path: &str, bad: &mut Vec<String>) {
+            match v {
+                serde_json::Value::Object(m) => {
+                    for (k, v) in m {
+                        check(v, &format!("{path}.{k}"), bad);
+                    }
+                }
+                serde_json::Value::Array(a) => {
+                    for (i, v) in a.iter().enumerate() {
+                        check(v, &format!("{path}[{i}]"), bad);
+                    }
+                }
+                serde_json::Value::Number(n) => {
+                    let s = n.to_string();
+                    if s.split_once('.').is_some_and(|(_, d)| d.len() > 2) || s.contains('e') {
+                        bad.push(format!("{path} = {s}"));
+                    }
+                }
+                _ => {}
+            }
+        }
+        let config = test_config();
+        let order = test_order();
+        let mut bad = Vec::new();
+        // Prices with every cent ending, quantities up to 25, refunds.
+        for price in (1..=2_000)
+            .step_by(7)
+            .chain([110, 115, 330, 995, 1_999, 123_456])
+        {
+            let lines: Vec<OrderLine> = (1..=25)
+                .step_by(4)
+                .flat_map(|q| [q, -q])
+                .enumerate()
+                .map(|(i, quantity)| OrderLine {
+                    id: i as i64,
+                    order_id: 1,
+                    menu_item_id: i as i64,
+                    quantity,
+                    unit_price_cents: price + i as i64,
+                    vat_code: VatCode::B,
+                    name: "Item".to_string(),
+                    modifiers_json: None,
+                    created_at: chrono::Utc::now(),
+                    department_id: "1".to_string(),
+                    department_name: "Food".to_string(),
+                })
+                .collect();
+            let total: i64 = lines
+                .iter()
+                .map(|l| l.unit_price_cents * i64::from(l.quantity))
+                .sum();
+            let sale = build_sale_input(
+                &config,
+                &order,
+                &lines,
+                1,
+                &bk("bp"),
+                PaymentType::Cash,
+                total,
+                None,
+            );
+            assert_eq!(sale.transaction.transaction_total, eur(total));
+            for l in &sale.transaction.transaction_lines {
+                assert_eq!(
+                    l.line_total, l.main_product.vats[0].price,
+                    "the line's VAT price is its total"
+                );
+            }
+            check(&serde_json::to_value(&sale).unwrap(), "sale", &mut bad);
+            let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bk("bp"));
+            check(
+                &serde_json::to_value(&pre_bill).unwrap(),
+                "preBill",
+                &mut bad,
+            );
+        }
+        assert!(
+            bad.is_empty(),
+            "{} amounts with float noise, e.g. {:?}",
+            bad.len(),
+            &bad[..bad.len().min(5)]
+        );
+    }
+
+    #[test]
+    fn a_price_times_a_quantity_is_exact() {
+        let config = test_config();
+        let lines = vec![OrderLine {
+            id: 1,
+            order_id: 1,
+            menu_item_id: 1,
+            quantity: 3,
+            unit_price_cents: 110,
+            vat_code: VatCode::A,
+            name: "Eau".to_string(),
+            modifiers_json: None,
+            created_at: chrono::Utc::now(),
+            department_id: "1".to_string(),
+            department_name: "Boissons".to_string(),
+        }];
+        let sale = build_sale_input(
+            &config,
+            &test_order(),
+            &lines,
+            1,
+            &bk("bp"),
+            PaymentType::Cash,
+            330,
+            None,
+        );
+        let json = serde_json::to_string(&sale).unwrap();
+        assert!(json.contains("\"lineTotal\":3.3"), "{json}");
+        assert!(!json.contains("3.3000000000000003"), "{json}");
     }
 
     #[test]

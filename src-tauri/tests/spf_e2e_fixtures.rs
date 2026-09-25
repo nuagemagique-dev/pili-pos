@@ -266,7 +266,15 @@ fn check_identification(uc: &str, d: &Value) {
         "{uc}: posDateTime"
     );
     assert!(!s("posSwVersion").is_empty(), "{uc}: posSwVersion");
-    assert!(!s("deviceId").is_empty(), "{uc}: deviceId");
+    let device = s("deviceId");
+    let mac = device.split(':').collect::<Vec<_>>();
+    assert!(
+        mac.len() == 6
+            && mac
+                .iter()
+                .all(|b| b.len() == 2 && b.chars().all(|c| c.is_ascii_hexdigit())),
+        "{uc}: deviceId is the terminal's MAC address, got {device:?}"
+    );
     assert!(!s("terminalId").is_empty(), "{uc}: terminalId");
     assert!(
         uuid::Uuid::parse_str(s("bookingPeriodId")).is_ok(),

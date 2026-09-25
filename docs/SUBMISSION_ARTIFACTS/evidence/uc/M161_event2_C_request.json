@@ -1,7 +1,7 @@
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "054532e4-6501-4952-8c05-ea5eda40c657",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "dcea71b5-db11-4758-8c46-fb542df0cfb8",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
@@ -12,7 +12,7 @@
     "totalCounter": 53
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.744580+02:00",
+  "posDateTime": "2026-09-25T19:05:15.895936+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",

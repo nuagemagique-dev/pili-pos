@@ -1,7 +1,7 @@
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "c0886841-c28d-4b42-a4a2-1de81fa4c3a8",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "026357d1-2462-4b6b-b804-e2477d845697",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
@@ -14,11 +14,11 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.914653+02:00",
+  "posDateTime": "2026-09-25T19:05:16.054257+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T17:48:22.804158+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911776+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.942737+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.051985+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }

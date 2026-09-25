@@ -201,13 +201,13 @@ Payment by CASH (52 EUR)
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "415c4d8e-7df1-4500-86dd-b84024ca2ade",
+  "bookingPeriodId": "6c706ddb-35ff-4e8d-8d3a-c4843fbed0b3",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
     "type": "TABLE"
   },
-  "deviceId": "DEV001",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "financials": [
@@ -221,7 +221,7 @@ Payment by CASH (52 EUR)
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.611190+02:00",
+  "posDateTime": "2026-09-25T19:05:15.738761+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -467,8 +467,8 @@ Products on original ticket N 1000/1200:
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "47436ff9-3029-43a3-8b6a-1debdad0bc94",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "755e2ee6-77c2-42b1-8662-184975109e07",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "fdmRef": {
@@ -489,7 +489,7 @@ Products on original ticket N 1000/1200:
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.700805+02:00",
+  "posDateTime": "2026-09-25T19:05:15.829507+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -1248,8 +1248,8 @@ section).
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "a48a30f8-7c7e-4fd2-8e9f-322151e673e6",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "945d6686-e3a3-455b-b0ec-b92189d411b6",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "fdmRef": {
@@ -1270,7 +1270,7 @@ section).
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.701031+02:00",
+  "posDateTime": "2026-09-25T19:05:15.830462+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -1467,17 +1467,17 @@ on table 1.
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "a6ad4c41-3773-425d-b098-5eae9012c01e",
+  "bookingPeriodId": "71b87c68-ac2e-452c-9892-53b9debabf01",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
     "type": "TABLE"
   },
-  "deviceId": "DEV001",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.610552+02:00",
+  "posDateTime": "2026-09-25T19:05:15.740140+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -1881,17 +1881,17 @@ on table 1 (BAR)  is printed
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "6955a490-5364-467e-8134-039b7400dc68",
+  "bookingPeriodId": "d5a834af-7277-4b39-b85f-54ddafa853c0",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
     "type": "TABLE"
   },
-  "deviceId": "DEV001",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.698499+02:00",
+  "posDateTime": "2026-09-25T19:05:15.828681+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -2057,8 +2057,8 @@ Aucun écart.
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "01a9fb17-0cc1-4c48-97e7-037faca7940a",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "a9d4e473-3e42-4135-9330-fd4d4d1bbeec",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "financials": [
@@ -2072,7 +2072,7 @@ Aucun écart.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.611187+02:00",
+  "posDateTime": "2026-09-25T19:05:15.734851+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -2183,8 +2183,8 @@ Drawer 1 is opened without any action
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "d5fd9edd-e1ce-4eda-8852-3dbeb75c4427",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "c089bb40-8b1f-4db3-bdc9-4df871023244",
+  "deviceId": "00:1b:44:11:3a:b7",
   "drawer": {
     "id": "DRAWER1",
     "name": "Tiroir principal"
@@ -2192,7 +2192,7 @@ Drawer 1 is opened without any action
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.610555+02:00",
+  "posDateTime": "2026-09-25T19:05:15.730835+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -2518,12 +2518,12 @@ Registration of "Work In" of employee (employeeId 80113078968)
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "00ed6160-ee5f-40e5-8229-826ffc00e08d",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "c2c9f150-8e64-40c3-b3c5-b04da3f9f8e9",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "80113078968",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.618268+02:00",
+  "posDateTime": "2026-09-25T19:05:15.744386+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -2630,12 +2630,12 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "d439a56d-6cdd-492a-b8b8-af64c4c26912",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "92c6f343-dfdb-42a2-872a-ba168e37d4da",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.736003+02:00",
+  "posDateTime": "2026-09-25T19:05:15.887585+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -2767,8 +2767,8 @@ Print of a copy of ticket (sale) N 16/52
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "c6a73c63-c0f7-4094-bb48-f39c31cf3fda",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "5e7c8ecd-94ca-4a29-a435-abdb6a4ed423",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
@@ -2779,7 +2779,7 @@ Print of a copy of ticket (sale) N 16/52
     "totalCounter": 52
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.744765+02:00",
+  "posDateTime": "2026-09-25T19:05:15.895102+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -2895,8 +2895,8 @@ Print of a copy of order P 22/53
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "054532e4-6501-4952-8c05-ea5eda40c657",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "dcea71b5-db11-4758-8c46-fb542df0cfb8",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
@@ -2907,7 +2907,7 @@ Print of a copy of order P 22/53
     "totalCounter": 53
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.744580+02:00",
+  "posDateTime": "2026-09-25T19:05:15.895936+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -3017,12 +3017,12 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "71d8a783-ca63-42ad-a200-5cd1c49d79ac",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "410fcca7-c7e2-4768-84e8-3d52950c2dc0",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.740395+02:00",
+  "posDateTime": "2026-09-25T19:05:15.888047+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -3331,13 +3331,13 @@ in training mode. Paymentmethod: CASH
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "a1c951b7-82a0-4f86-afef-c1199c818b55",
+  "bookingPeriodId": "1d3eb1dd-e018-4ff9-a60f-1d72b92eff51",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
     "type": "TABLE"
   },
-  "deviceId": "DEV001",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "financials": [
@@ -3351,7 +3351,7 @@ in training mode. Paymentmethod: CASH
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.741670+02:00",
+  "posDateTime": "2026-09-25T19:05:15.892951+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -3513,8 +3513,8 @@ In training mode: print of a copy of ticket (sale) N 35/73
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "51634a6a-4f05-424f-b8d4-8be81a38581c",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "5507525f-1e96-4c49-abb6-e93a168cd0be",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
@@ -3525,7 +3525,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
     "totalCounter": 73
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.745580+02:00",
+  "posDateTime": "2026-09-25T19:05:15.895743+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "moyun-pos/1.0.0",
@@ -3846,8 +3846,8 @@ Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "c0886841-c28d-4b42-a4a2-1de81fa4c3a8",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "026357d1-2462-4b6b-b804-e2477d845697",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
@@ -3860,11 +3860,11 @@ Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.914653+02:00",
+  "posDateTime": "2026-09-25T19:05:16.054257+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T17:48:22.804158+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911776+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.942737+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.051985+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -4412,8 +4412,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "00a27a41-5f51-4584-a826-3a6b3bab01b5",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "0779c6d5-9894-4eef-b801-ee4676bb5422",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
@@ -4426,11 +4426,11 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.914885+02:00",
+  "posDateTime": "2026-09-25T19:05:16.055363+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T17:48:22.804110+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911984+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.943119+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.052108+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -4443,8 +4443,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-09-25T17:48:22.804110+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.899747+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.943119+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.040045+02:00",
       "payments": [
         {
           "amount": [
@@ -4467,8 +4467,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-09-25T17:48:22.902540+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911984+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:16.043350+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.052108+02:00",
       "payments": [
         {
           "amount": [
@@ -4963,8 +4963,8 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "7e4068d4-7615-4cc0-bf17-2ffb896f2906",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "07d43677-cc91-4344-8532-cdeca6224cbc",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
@@ -4977,11 +4977,11 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.914751+02:00",
+  "posDateTime": "2026-09-25T19:05:16.054219+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -5097,8 +5097,8 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
 ```json
 {
   "bookingDate": "2026-09-25",
-  "bookingPeriodId": "7e4068d4-7615-4cc0-bf17-2ffb896f2906",
-  "deviceId": "DEV001",
+  "bookingPeriodId": "07d43677-cc91-4344-8532-cdeca6224cbc",
+  "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
@@ -5111,11 +5111,11 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T17:48:22.914753+02:00",
+  "posDateTime": "2026-09-25T19:05:16.054221+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -5130,8 +5130,8 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-09-25T17:48:22.804107+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.899649+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.040117+02:00",
       "payments": [
         {
           "amount": [
@@ -5154,8 +5154,8 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-09-25T17:48:22.902716+02:00",
-      "lastPosDateTime": "2026-09-25T17:48:22.911691+02:00",
+      "firstPosDateTime": "2026-09-25T19:05:16.043197+02:00",
+      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
       "payments": [
         {
           "amount": [

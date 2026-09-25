@@ -82,7 +82,8 @@ impl TestApp {
         let config = PosConfig {
             pos_id: "CFOD0061234567".to_string(),
             terminal_id: "POS1".to_string(),
-            device_id: "DEV001".to_string(),
+            // The terminal's MAC address, as install fills it (§VI row VII).
+            device_id: "00:1b:44:11:3a:b7".to_string(),
             // Identity from the official SPF test setup
             // (UC_TestSetup_20240806: "THE FPS FINANCES EXPERIENCE",
             // VAT BE0000000097, establishment 2000000042) so exported
