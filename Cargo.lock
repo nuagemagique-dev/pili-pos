@@ -2416,6 +2416,7 @@ name = "moyun-pos"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "axum 0.8.8",
  "bcrypt",
  "chrono",
  "chrono-tz",
@@ -2423,6 +2424,7 @@ dependencies = [
  "dotenvy",
  "pos-core",
  "pos-db",
+ "pos-fdm-mock",
  "pos-fiscal",
  "pos-hubrise",
  "pos-hubrise-types",
