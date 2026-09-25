@@ -29,12 +29,13 @@ Sur le kiosque :
 
 ## 2. Gestion des langues
 
-La base est livrée avec 4 langues actives :
+La base est livrée avec 5 langues actives :
 
 | Code | Nom |
 |---|---|
 | `fr` | Français |
 | `nl` | Nederlands |
+| `de` | Deutsch |
 | `en` | English |
 | `zh` | 中文 |
 

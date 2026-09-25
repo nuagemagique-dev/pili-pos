@@ -158,7 +158,7 @@ Sur le routeur : politique par défaut bloquante en LAN <-> LAN. Règles autoris
 - POS (.10) → FDM (.20) port TCP 8080 (GraphQL)
 - POS (.10) → Imprimante (.30) port TCP 9100 (ESC/POS)
 - FDM (.20) → Internet (WAN) sur les domaines/IP SPF Finances (gérés par le FDM lui-même via mTLS)
-- POS (.10) → Internet (WAN) en HTTPS sortant uniquement : sessions RustDesk d'assistance à distance démarrées ponctuellement par le producteur sur demande (jamais permanent), et - phase ultérieure, non active en v1.0.0 - le service d'envoi du ticket numérique par email (cf. TICKET_NUMERIQUE_FR.md §v0.3.0).
+- POS (.10) → Internet (WAN) en HTTPS sortant uniquement : sessions RustDesk d'assistance à distance démarrées ponctuellement par le producteur sur demande (jamais permanent), et - uniquement si `pos.json::digital_ticket` est configuré (§III.H) - l'envoi du ticket numérique par e-mail vers `api.scaleway.com` (port 443, cf. `TICKET_NUMERIQUE_FR.md` §9). Sans cette configuration, aucun trafic sortant n'est initié par le POS en dehors du FDM et de RustDesk.
 
 Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port d'administration distante permanent (SSH, RDP, VNC) n'est ouvert sur le POS - pas de serveur SSH installé (cf. `deploy/install.sh`).
 

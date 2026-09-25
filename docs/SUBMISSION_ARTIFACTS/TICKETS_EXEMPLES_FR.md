@@ -116,8 +116,10 @@ TVA    Taux    Base HT    TVA
 ## 2. Pré-ticket (M123 - Événement P)
 
 Scénario : même commande qu'au M110, juste avant l'encaissement.
-Mention PRO FORMA en tête, pas de shortSignature, mention
-d'invalidité en bas.
+Mention PRO FORMA en tête ; ni QR code ni shortSignature - le FDM ne
+les renvoie que pour une vente (N, voir `signPreBill_Response.json`
+de l'UC M123, qui n'a ni `verificationUrl` ni `shortSignature`) ;
+mention d'invalidité en bas.
 
 ```
                    PRO FORMA
@@ -397,7 +399,80 @@ TOTAL                                    1523.50
 ✂-----------------------------------------------
 ```
 
-## 8. Note sur la reproduction
+## 8. Ticket numérique par e-mail (exemple)
+
+Scénario : la même vente M110 qu'à la section 1, envoyée par e-mail
+("E-mail" ou "Les deux" choisi avant l'encaissement, cf.
+`TICKET_NUMERIQUE_FR.md` §2-3 pour le parcours et §5 pour le contenu
+détaillé de l'e-mail).
+
+**Sujet :** `Votre ticket — Restaurant Exemple`
+
+**Corps texte :** la transcription de la section 1 ci-dessus,
+**identique ligne pour ligne** (`pos_mail::render::render_ticket_text`
+appelle le même `format_receipt` que le papier), suivie d'une ligne
+vide puis de l'URL de vérification seule :
+
+```
+              TICKET DE CAISSE TVA
+
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
+               TVA: BE0499999960
+                Etab: 2123456789
+
+Date:                           2026-07-03 12:34
+Ticket:                                      #15
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
+Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
+------------------------------------------------
+2x Dry Martini                           24.00 A
+Burger du chef                           28.00 B
+------------------------------------------------
+TOTAL                                      52.00
+------------------------------------------------
+Espèces                                    52.00
+
+TVA    Taux    Base HT    TVA
+ A      21%     19.83      4.17
+ B      12%     25.00      3.00
+================================================
+                FDM: CBX01000042
+           2026-07-03T12:34:57+02:00
+                    N 15/59
+Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
+
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+      www.systemedecaisseenregistreuse.be
+
+
+
+
+✂-----------------------------------------------
+
+https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug
+```
+
+**Version HTML :** le même texte dans un bloc `<pre>` (échappé), plus
+le lien de vérification repris comme ancre cliquable
+(`<a href="https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug">...</a>`).
+
+**Pièce jointe :** `ticket-qr.png` (PNG, QR Code Model 2, ECC M,
+module 8 px, encodant la même URL de vérification). Aucune pièce
+jointe PDF.
+
+Une **copie (C)** ou un **ticket de formation (T)** envoyé par e-mail
+suit le même gabarit, sans la ligne d'URL ni la pièce jointe QR : le
+FDM ne renvoie une URL de vérification que pour les événements N
+(POS spec v2.2 §2.4) - le corps de l'e-mail est alors la transcription
+du ticket seule (cf. sections 4 et 5 ci-dessus pour le texte imprimé
+équivalent).
+
+## 9. Note sur la reproduction
 
 Les rendus ci-dessus sont générés par le pipeline d'impression réel
 (`crates/pos-print/src/receipt.rs` et `report.rs`) — ils ne peuvent

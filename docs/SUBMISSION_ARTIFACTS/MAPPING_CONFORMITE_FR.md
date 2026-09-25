@@ -34,6 +34,19 @@ Format :
 | 17 | S pointage entrée/sortie pour Dimona ONSS | POS v2.2 §II.4.8 | `src-tauri/src/commands/social.rs::{work_in,work_out}` | e2e `spf_e2e_basic::{m140_*, m141_*}` + fixtures UC_BasicSet M140/M141 |
 | 18 | Rapport Z atomique (Turnover + User) | Reports v1.3 §II.3 | `src-tauri/src/commands/report.rs::do_generate_z_report` (mutation M184 combinée + tx unique) | e2e `spf_e2e_reports::m184_*` + `reports_fixtures.rs` |
 
+## Manuel de certification §III.H - Ticket numérique par e-mail
+
+| # | Exigence | Spec | Code | Test |
+|---|---|---|---|---|
+| 18b | Support du ticket choisi et refusé avant signature, encodé dans la requête signée | Manuel §III.H | `src-tauri/src/commands/delivery.rs::{resolve, resolve_with}` | `delivery.rs::tests::*` (13 tests) + e2e `spf_e2e_digital::{email_without_setup_is_refused_before_signing, a_bad_address_is_refused_before_signing}` |
+| 18c | Mise en file d'attente dans la même transaction que l'archive fiscale | Manuel §III.H (garantie de remise) | `delivery::enqueue_in_tx` dans le `BEGIN IMMEDIATE` de `checkout.rs`/`refund.rs`/`copy.rs` | e2e `spf_e2e_digital::a_failed_outbox_write_rolls_the_whole_sale_back` |
+| 18d | Envoi immédiat borné, repli papier automatique de l'original | Manuel §III.H | `delivery::deliver`, `INLINE_SEND_TIMEOUT = 8s` | e2e `spf_e2e_digital::{digital_only_emails_without_printing, a_failed_digital_email_prints_the_original_once}` |
+| 18e | Réessais avec recul exponentiel en tâche de fond | Manuel §III.H | `pos_mail::outbox::{DeliveryPolicy, run_once}`, câblé toutes les 30s (`commands::delivery::run_outbox_once`) | `outbox.rs::tests::backoff_follows_the_documented_schedule` |
+| 18f | Original imprimé une seule fois (POS v2.2 §8.1) | POS v2.2 §8.1 | `crates/pos-db/src/queries/prints.rs`, `delivery::print_original_once` | `prints.rs::tests::a_print_is_recorded_once` + e2e `spf_e2e_digital::a_printed_original_can_not_be_printed_again` |
+| 18g | Adresse purgée sous 72h, jamais exposée en clair dans l'UI | Manuel §III.M (données) + RGPD | `pos_db::queries::deliveries::{mark_sent, purge_recipients_older_than}` ; `DeliveryView` sans champ `recipient` | `deliveries.rs::tests::purge_nulls_old_recipients` |
+
+Détail complet (30 tests e2e) : *voir TICKET_NUMERIQUE_FR.md* §12.
+
 ## Spec FDM v1.4 + Addendum 1
 
 | # | Exigence | Spec | Code | Test |

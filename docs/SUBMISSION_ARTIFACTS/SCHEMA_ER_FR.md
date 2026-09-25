@@ -49,6 +49,15 @@ La base est organisée en 6 domaines logiques :
 |  PEPPOL (livraisons   |
 |   B2B append-only)    |
 +-----------------------+
+
+
++-----------------------------+
+|  TICKET NUMÉRIQUE (§III.H)  |
+|  ticket_deliveries (file    |
+|  d'envoi e-mail, partiel)   |
+|  original_prints            |
+|  (append-only strict)       |
++-----------------------------+
 ```
 
 ---
@@ -225,6 +234,45 @@ La base est organisée en 6 domaines logiques :
 | created_at      TEXT     |
 | accepted_at     TEXT     |
 +--------------------------+
+
+
++--------------------------+
+|   ticket_deliveries      |
+|--------------------------|
+| id              INT PK   |
+| fiscal_event_id INT FK   |---+
+| medium          TEXT     |   |
+| recipient       TEXT     |   | 0..N (au plus 1 en pratique :
+|     (nullable)           |   | une seule demande d'e-mail
+| recipient_hint  TEXT     |   |  par ticket signé)
+| ticket_text     TEXT     |   v
+| verification_   TEXT     |  fiscal_events
+|     url (null.)          |
+| status          TEXT     |
+| attempts        INT      |
+| next_attempt_at TEXT     |
+|     (nullable)           |
+| provider_       TEXT     |
+|     message_id           |
+| last_error      TEXT     |
+| fallback_       INT      |
+|     printed              |
+| created_at      TEXT     |
+| updated_at      TEXT     |
++--------------------------+
+(fiscal_event_id / ticket_text / medium immuables par trigger ;
+ les autres colonnes suivent le cycle de vie pending → sending →
+ sent | failed | fallback_printed | purged)
+
+
++--------------------------+
+|   original_prints        |
+|--------------------------|
+| fiscal_event_id INT PK,FK|---+
+| printed_at      TEXT     |   | 0..1
++--------------------------+   v
+                              fiscal_events
+(append-only strict : ni DELETE ni UPDATE, même sur printed_at)
 ```
 
 ---
@@ -245,6 +293,8 @@ La base est organisée en 6 domaines logiques :
 | `users` → `fiscal_events` | 1 → N | Un opérateur émet N events (via `user_insz`) |
 | `z_reports` → `fiscal_events` | 1 → 1 | Chaque Z archive un event R correspondant |
 | `peppol_deliveries` → `fiscal_events` | 1 → 1 | Chaque livraison Peppol est liée à un event I |
+| `ticket_deliveries` → `fiscal_events` | 0..N → 1 | Une ligne par ticket dont le support demandé inclut l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) ; ajoutée dans la même transaction que l'event N/T/C correspondant |
+| `original_prints` → `fiscal_events` | 0..1 → 1 | Au plus une ligne par événement dont l'original a été imprimé (contrainte de clé primaire = garde applicative contre une seconde impression) |
 | `translations` → (polymorphe) | N → 1 | Traduction d'un champ d'une entité (category / menu_item / modifier_group / modifier) dans une langue (FR / NL / EN / ZH) |
 | `translations` → `languages` | N → 1 | Référence le code langue |
 | `fiscal_counters` (autonome) | - | Pas de FK ; clé `event_label` ∈ {N, P, T, C, I, F, S, R} |
@@ -253,11 +303,13 @@ La base est organisée en 6 domaines logiques :
 
 ## 4. Append-only et intégrité
 
-Trois tables sont **append-only** au niveau applicatif (jamais de DELETE ni UPDATE) :
+Ces tables sont **append-only** au niveau applicatif (jamais de DELETE, et pas d'UPDATE hors exceptions ciblées) :
 
 - `fiscal_events` - archive des events fiscaux signés par le FDM
 - `z_reports` - archive des rapports de clôture
 - `peppol_deliveries` - archive des livraisons B2B Peppol
+- `original_prints` - un original n'est jamais réimprimé silencieusement (§8.1) ; ni DELETE ni UPDATE, aucune exception
+- `ticket_deliveries` - append-only **partiel** : `fiscal_event_id`, `ticket_text` et `medium` sont immuables par trigger, mais les autres colonnes (`status`, `attempts`, `recipient`...) évoluent volontairement pour suivre le cycle de vie de l'envoi (file d'attente, pas une archive figée)
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs) les opérations UPDATE/DELETE sont autorisées via la couche commandes (avec audit trail dans les logs systemd-journald). Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées.
 
@@ -273,6 +325,7 @@ La contrainte `fiscal_events.sequence_number UNIQUE` empêche tout doublon de co
 | `fiscal_events` | (implicite via PK + UNIQUE) | `id`, `sequence_number` | Lookup par ID et garantie d'unicité du compteur |
 | `orders` | (implicite via PK) | `id` | Lookup par ID |
 | `users` | (implicite via PK) | `insz` | Auth login |
+| `ticket_deliveries` | `idx_ticket_deliveries_due` | `status, next_attempt_at` | Sélection rapide des envois dus par le worker de réessai (§III.H) |
 
 Des indexes additionnels peuvent être ajoutés en post-cert si des problèmes de performance apparaissent à plus grande échelle (multi-restaurant). Pour le périmètre mono-terminal (~150 tickets/jour pour un restaurant type), aucun index supplémentaire n'est nécessaire.
 
@@ -292,4 +345,8 @@ Ces tables apparaissent dans le SQL de seed mais ne reçoivent aucune écriture 
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : `v1` (initial cert build).
+Version actuelle du schéma : `v7` (`initial-schema`,
+`catalogue-fiscal-fields`, `booking-periods`,
+`fiscal-archive-append-only`, `ticket-deliveries`,
+`original-prints`, `german-language`) - liste exacte dans
+`SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs::MIGRATIONS`.

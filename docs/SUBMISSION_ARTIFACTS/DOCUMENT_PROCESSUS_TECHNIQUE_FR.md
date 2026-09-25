@@ -158,10 +158,25 @@ ajoute à `fiscal_events`, de sorte que :
   TVA), corps (lignes avec label TVA), table de répartition TVA,
   bloc de données de contrôle issu de la réponse FDM, QR Code
   (Model 2, ECC M, URL 38 caractères ; version 3, 29×29 modules — voir
-  `TICKET_NUMERIQUE_FR.md` §QR).
+  `TICKET_NUMERIQUE_FR.md` §11).
 - Tickets cuisine : layout séparé (`pos-print::receipt::kitchen`).
 - Ouverture tiroir : séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA`
   émise dès qu'un paiement `cash` clôture une vente.
+
+## 6bis. Pipeline d'envoi du ticket numérique (e-mail)
+
+- Crate : `crates/pos-mail`, plus les tables `ticket_deliveries` et
+  `original_prints` de `crates/pos-db` (migrations `005`/`006`).
+- Rendu (`pos-mail::render`) : corps texte = `pos_print::render`
+  appliqué au **même** `format_receipt` que le papier ; corps HTML +
+  QR PNG en pièce jointe uniquement quand le FDM a renvoyé une URL de
+  vérification (événements N).
+- Transport (`pos-mail::tem`) : client HTTP vers l'API Scaleway
+  Transactional Email (`X-Auth-Token`, région `fr-par` par défaut).
+- File d'attente (`pos-mail::outbox`) : tentative immédiate bornée à
+  8 s à l'encaissement, puis réessais en tâche de fond avec recul
+  exponentiel (`commands::delivery::run_outbox_once`, toutes les
+  30 s). Détail complet : `TICKET_NUMERIQUE_FR.md`.
 
 ## 7. Persistance
 
@@ -217,6 +232,12 @@ $ nm target/release/moyun-pos | grep -c pos_hubrise
 | Sérialiseur UBL Peppol | `crates/pos-peppol/src/ubl.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
 | IPC Peppol | `src-tauri/src/commands/invoice.rs` |
+| Résolution du support + IPC ticket numérique | `src-tauri/src/commands/delivery.rs` |
+| Rendu e-mail (texte/HTML/QR) | `crates/pos-mail/src/render.rs` |
+| Client Scaleway TEM | `crates/pos-mail/src/tem.rs` |
+| File d'attente + réessais | `crates/pos-mail/src/outbox.rs` |
+| Validation/masquage d'adresse | `crates/pos-mail/src/address.rs` |
+| Requêtes `ticket_deliveries` / `original_prints` | `crates/pos-db/src/queries/{deliveries,prints}.rs` |
 | Impression ESC/POS | `crates/pos-print/src/escpos.rs` |
 | Layout ticket | `crates/pos-print/src/receipt.rs` |
 | Transport imprimante | `crates/pos-print/src/transport.rs` |

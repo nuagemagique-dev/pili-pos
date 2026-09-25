@@ -251,9 +251,9 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 
 | Item | Réponse |
 |---|---|
-| Le POS nécessite une connexion Internet | ☐ Non (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. |
+| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), le POS ouvre en plus une connexion sortante HTTPS (443) vers `api.scaleway.com` pour l'envoi des e-mails ; sans cette configuration, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
 | La connexion Internet peut se faire par | ☑ Ethernet (recommandé pour fiabilité) - ☐ Wifi (techniquement possible, déconseillé en production) |
-| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM. |
+| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, si le ticket numérique est configuré, une connexion sortante HTTPS (443) vers `api.scaleway.com`. RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement à la demande d'un responsable sur place - jamais au démarrage du terminal. |
 
 ## §III.C Utilisateurs & Mots de Passe
 
@@ -312,14 +312,18 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 
 | Event | Disponible ? | Imprimable papier ? | Imprimable digitalement ? | Copie possible (event C) ? |
 |---|---|---|---|---|
-| N - Sales | Obligatoire (☑) | Obligatoire (☑) | Obligatoire (☐ pas en MVP - voir §III.H) | ☑ (via M160 signCopy) |
-| R - Report | Obligatoire (☑) | ☑ | ☐ (pas en MVP) | ☐ (ne s'applique pas aux R) |
+| N - Sales | Obligatoire (☑) | Obligatoire (☑) | ☑ (e-mail, `checkout::checkout` - voir §III.H) | ☑ (via M160 signCopy) |
+| R - Report | Obligatoire (☑) | ☑ | ☐ (pas câblé - pas de ticket client à envoyer) | ☐ (ne s'applique pas aux R) |
 | S - Social | Obligatoire (☑) | N/A | N/A | N/A |
-| P - Pro Forma | ☑ | ☑ | ☐ (pas en MVP) | ☑ (via M161 signCopy_Order) |
-| T - Mode Training | ☑ | ☑ (avec watermark TRAINING) | ☐ | ☑ (via M172 signCopy_Training) |
+| P - Pro Forma | ☑ | ☑ | ☐ (pas câblé sur `sign_table_order`/`sign_pre_bill` en v1.0.0) | ☑ (via M161 signCopy_Order) |
+| T - Mode Training | ☑ | ☑ (avec watermark TRAINING) | ☑ (même commande `checkout::checkout`, mentions TRAINING conservées) | ☑ (via M172 signCopy_Training) |
 | I - Invoice | ☐ non disponible en v1.0.0 (mise à jour certifiée prévue v1.1) | ☐ | ☐ | ☐ |
-| C - Copy | ☑ (M160/M161/M172) | ☑ | ☐ | Interdit (par la spec) |
+| C - Copy | ☑ (M160/M161/M172) | ☑ | ☑ (e-mail, `copy::copy_ticket` - sans lien/QR, le FDM ne renvoie pas de `verificationUrl` pour C) | Interdit (par la spec) |
 | F - Financial | ☑ (M130 money_in_out, M131 drawer_open) | ☐ (events F sont non-imprimés en standard) | ☐ | ☐ |
+
+Le remboursement (M111/M112B) est lui aussi un événement **N** et suit
+la même colonne "Imprimable digitalement" que la vente (même choix de
+support, `refund::refund_checkout`).
 
 ## §III.B Numérotation d'events
 
@@ -473,26 +477,53 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 
 ## §III.H Emission des tickets numériques
 
-L'émission de tickets sous forme numérique est implémentée via le
-**QR Code Type 2 imprimé sur chaque ticket papier**, contenant
-l'URL de vérification publique fournie par le FDM SPF Finances.
+L'émission de tickets sous forme numérique est implémentée par
+**e-mail** (Scaleway Transactional Email), en complément du **QR Code
+Type 2 imprimé sur chaque ticket papier** qui pointe vers l'URL de
+vérification publique du FDM SPF Finances.
 
-- **Émission numérique :** le QR Code encode l'URL `verificationUrl`
-  (38 caractères) renvoyée par le FDM dans la réponse de signSale.
-  Le client scanne ce QR avec n'importe quel smartphone et accède
-  immédiatement à la page de vérification SPF Finances avec le
-  détail complet du ticket.
-- **Garantie de remise :** le QR Code est imprimé sur chaque ticket
-  fiscal (N, P, C, T, I) - imposé par le code de `pos-print`,
-  vérifié par tests unitaires. La remise physique du ticket papier
-  au client emporte la livraison numérique.
-- **Conservation :** l'URL reste valide pendant les 10 ans de
-  conservation légale (Article 60 §4 Code TVA). Le client peut
-  scanner à tout moment.
+- **Choix opérateur avant signature.** Avant l'encaissement, la copie
+  ou le remboursement, l'opérateur choisit Papier / E-mail / Les deux.
+  Le support retenu fait partie du corps **signé** par le FDM
+  (`ticketMedium`, POS spec v2.2 §1) : il n'est jamais changé après
+  coup. Une adresse invalide, vide, ou une demande d'e-mail sur un
+  terminal non configuré est refusée **avant** tout appel au FDM.
+- **Émission numérique :** l'e-mail contient le texte du ticket,
+  identique au caractère près à ce qui s'imprime sur papier, et - pour
+  les ventes/remboursements (événements N) uniquement, le FDM ne
+  renvoyant l'URL de vérification que pour ceux-là - le lien de
+  vérification SPF Finances ainsi qu'un QR Code en pièce jointe. Le
+  QR Code imprimé (25×25 impossible à faire tenir l'URL, donc version
+  3, 29×29 modules) reste présent sur **tout** ticket fiscal, quel que
+  soit le support choisi.
+- **Garantie de remise :** la mise en file d'attente de l'e-mail se
+  fait dans la **même transaction SQLite** que l'archivage de
+  l'événement fiscal signé - un ticket numérique promis ne peut pas se
+  perdre silencieusement. L'envoi est tenté immédiatement (budget 8 s) ;
+  s'il n'aboutit pas dans ce délai pour un ticket "E-mail seul", le POS
+  imprime automatiquement l'original en secours - le client repart
+  toujours avec un ticket. Pour "Les deux", le papier est de toute
+  façon toujours imprimé, l'e-mail suit en meilleur effort avec des
+  réessais en tâche de fond (recul exponentiel, jusqu'à 5 tentatives
+  sur ~1h30).
+- **Impression unique de l'original (§8.1) :** un ticket original n'est
+  imprimé qu'une seule fois, contrôlé au niveau base de données
+  (`original_prints`) ; toute reproduction ultérieure passe par
+  l'événement C (copie), jamais par une seconde impression silencieuse
+  de l'original - y compris pour rattraper une impression papier
+  manquée.
+- **RGPD :** l'adresse e-mail en clair n'est jamais conservée plus de
+  72 h, et est effacée immédiatement dès l'envoi réussi ou le repli
+  papier. Seul un indice masqué (ex. `j***@e***.be`) subsiste pour la
+  lisibilité du support ; l'adresse n'apparaît jamais dans les
+  journaux ni dans l'écran "Tickets numériques" des Paramètres.
+- **Conservation du QR :** l'URL de vérification reste valide pendant
+  les 10 ans de conservation légale (Article 60 §4 Code TVA).
 
-*Voir : TICKET_NUMERIQUE_FR.md* pour le détail de l'implémentation
-et la feuille de route post-cert (aperçu QR à l'écran, email opt-in,
-intégration Apple/Google Wallet).
+*Voir : TICKET_NUMERIQUE_FR.md* pour le détail complet de
+l'implémentation, la table exigence → code → test, et
+`MANUEL_INSTALLATION_FR.md` §4.2 pour la configuration
+(`pos.json::digital_ticket`).
 
 ## §III.I Terminaux et appareils
 
@@ -539,6 +570,13 @@ intégration Apple/Google Wallet).
 | TakeAway.com | ☐ Non |
 | Uber Eats | ☐ Non |
 | Autres partenaires | ☐ Non (aucune intégration tierce active dans le build cert) |
+
+**Remarque :** Scaleway (Transactional Email, §III.H) n'est pas une
+intégration de plateforme de commande - c'est un sous-traitant
+technique utilisé uniquement pour l'envoi du ticket numérique par
+e-mail, à la demande du client, jamais pour recevoir des commandes.
+*Voir : PROFIL_ENTREPRISE_FR.md* §6 pour le détail RGPD (base légale,
+durée de conservation, localisation).
 
 ### Remarques sur les fonctionnalités du POS
 
@@ -665,7 +703,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 | XV. Modifications prix non-lignes | ☐ (pas de réductions globales en MVP) | ☐ | ☐ | ☐ | ☐ | - |
 | XVI. Données FDM (footer, fdmId, dateTime, label, counters, shortSignature) | ☑ | ☑ | ☑ (sans shortSignature) | ☑ (sans shortSignature) | ☑ (sans shortSignature) | - |
 | XVII. Lignes paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - | - | ☑ (FICTIF) | - |
-| XVIII. QR Code URL FDM | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVIII. QR Code URL FDM | ☑ | ☑ | - (sans QR, le FDM ne renvoie pas de verificationUrl pour P) | ☑ | ☑ | - |
 
 **Mentions obligatoires spécifiques :**
 

@@ -258,9 +258,9 @@ Items à cocher dans le tableau :
 - Deliveroo / TakeAway / Uber Eats / Autres - ☐ Non (aucune intégration tierce active dans le build cert)
 
 ### §III.N Lignes de produit prédéfinies
-**GAP MAJEUR** : le manuel attend que le POS soit pré-chargé avec une liste exacte de produits de test (Dry Martini, Burger of the Chef, Carpaccio Beef, Catch of the day, Dame Blanche, etc. avec productId 10006, 12007, etc.). Notre seed `pos.db` contient le menu Tokyo Sushi Bar.
+**GAP initial (résolu)** : le manuel attend que le POS soit pré-chargé avec une liste exacte de produits de test (Dry Martini, Burger of the Chef, Carpaccio Beef, Catch of the day, Dame Blanche, etc. avec productId 10006, 12007, etc.). Le seed `pos.db` de développement contenait au départ le menu d'un client pilote, différent de cette liste.
 
-**Action requise** : créer un mode de seed alternative "machine de test SPF" avec exactement la liste produits du manuel + leurs IDs/TVA. Sinon impossible de jouer les UC tels que définis (les UC référencent ces productId précis).
+**Résolu** : un seed dédié "machine de test SPF" (`src-tauri/seed_spf_test.sql`) charge exactement la liste produits du manuel + leurs IDs/TVA sur la machine d'admission - voir `REPONSES_MANUEL_CERT_FR.md` §III "Lignes de produits prédéfinies" et `LIGNES_PRODUITS_FR.md`.
 
 ---
 

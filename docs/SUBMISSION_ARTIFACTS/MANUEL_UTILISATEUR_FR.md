@@ -17,7 +17,8 @@ connexion, prise de commande, encaissement, rapports, mode formation.
 9. Rapports X et Z
 10. Mode formation
 11. Mouvements de caisse
-12. Que faire en cas de problème
+12. Réglages - Tickets numériques (Admin)
+13. Que faire en cas de problème
 
 ---
 
@@ -188,7 +189,32 @@ commande.
 
 ## 6. Encaissement (vente normale, Événement N - signSale)
 
-Bouton "**Encaisser**" dans le panier. Trois étapes :
+Bouton "**Encaisser**" dans le panier.
+
+### 6.1 Choix du support du ticket (si activé sur ce terminal)
+
+Si le distributeur a configuré le ticket numérique
+(`MANUEL_INSTALLATION_FR.md` §4.2), un premier écran propose le choix
+du support :
+
+- **Papier** (choix par défaut - pré-sélectionné).
+- **E-mail** - n'apparaît que si le terminal est configuré et que le
+  service d'envoi a répondu récemment ; sinon un e-mail demandé seul
+  sort quand même avec un papier en secours (voir plus bas).
+- **Les deux** - le papier sort toujours, l'e-mail est envoyé en plus.
+
+En choisissant "E-mail" ou "Les deux", un **clavier virtuel** s'affiche
+pour saisir l'adresse du client. Un écran de **confirmation** affiche
+ensuite l'adresse saisie avant de continuer - à faire valider par le
+client si possible, une faute de frappe n'étant détectée qu'à l'envoi.
+Une adresse invalide (mal formée, vide) est refusée immédiatement avec
+un message clair ; corriger la saisie ou repasser sur "Papier".
+
+Sans configuration du ticket numérique sur ce terminal, cet écran
+n'apparaît pas et le flux continue directement à l'étape 6.2 comme en
+v1.0.0 sans cette fonctionnalité.
+
+### 6.2 Paiement
 
 1. **Choix du mode de paiement** :
    - Espèces
@@ -197,10 +223,31 @@ Bouton "**Encaisser**" dans le panier. Trois étapes :
 2. **Saisie du montant reçu** (pour les espèces).
    - Le système calcule la monnaie à rendre.
    - **Arrondi 5 cents** appliqué automatiquement (loi belge).
-3. **Validation** → événement N envoyé au FDM.
+3. **Validation** → événement N envoyé au FDM, avec le support choisi
+   à l'étape 6.1.
 
-Dès acceptation par le FDM :
-- Le ticket fiscal s'imprime (avec QR code et signature courte).
+### 6.3 Issue du ticket
+
+Dès acceptation par le FDM, un message indique ce qui s'est
+effectivement passé :
+
+- **"Papier"** ou **"Les deux"** : le ticket fiscal s'imprime (avec
+  QR code et signature courte).
+- **"E-mail" envoyé** : confirmation à l'écran, rien ne s'imprime.
+- **"E-mail en attente"** : l'envoi n'a pas abouti dans l'instant ; le
+  POS réessaiera automatiquement en tâche de fond pendant environ
+  1h30. Pour un e-mail seul non reçu à temps, le POS **imprime
+  automatiquement** le ticket papier à la place - le client repart
+  toujours avec quelque chose.
+- **"Imprimer le ticket"** : ce bouton apparaît quand un papier était
+  attendu mais que l'impression a échoué (ex. imprimante sans papier).
+  Il déclenche une nouvelle tentative d'impression du **même**
+  original - **une seule fois** : si l'original a déjà été imprimé
+  avec succès, ou si un ticket "e-mail seul" a déjà été envoyé, le
+  bouton n'imprime rien et un message renvoie vers l'écran "Copie de
+  ticket" (§7) pour obtenir une reproduction (marquée COPIE).
+
+Dans tous les cas :
 - **Le tiroir-caisse s'ouvre** pour les paiements espèces.
 - La commande passe à `closed` et la table redevient libre.
 
@@ -227,15 +274,21 @@ si le problème persiste.
 
 ## 7. Copie de ticket (Événement C - signCopy)
 
-Pour réimprimer un ticket déjà encaissé (client a perdu le sien,
-litige...) :
+Pour reproduire un ticket déjà encaissé (client a perdu le sien ou
+son e-mail, litige, ou original déjà imprimé/envoyé - §6.3) :
 
 1. Aller dans **Menu → Historique tickets**.
 2. Sélectionner le ticket à copier.
-3. Taper "Copier".
+3. Taper "Copier". Le choix du support (Papier / E-mail / Les deux)
+   est proposé comme à l'encaissement (§6.1) si le terminal est
+   configuré.
 
-La copie s'imprime, marquée "**COPIE - pas un original**". Un
-nouvel événement C est signé par le FDM et lié au ticket original.
+La copie s'imprime et/ou s'envoie, marquée "**COPIE - pas un
+original**" (sans lien ni QR dans l'e-mail : le FDM ne renvoie pas de
+lien de vérification pour une copie). Un nouvel événement C est signé
+par le FDM et lié au ticket original. C'est la **seule** façon
+d'obtenir une reproduction d'un original déjà sorti (papier ou
+e-mail) - le POS ne réimprime jamais un original une seconde fois.
 
 ## 8. Remboursement
 
@@ -243,11 +296,14 @@ nouvel événement C est signé par le FDM et lié au ticket original.
 
 1. **Menu → Remboursements**.
 2. Sélectionner le ticket de vente à rembourser.
-3. Confirmer "Rembourser intégralement".
+3. Confirmer "Rembourser intégralement". Le choix du support du
+   ticket de remboursement (Papier / E-mail / Les deux, §6.1) est
+   proposé de la même façon si le terminal est configuré.
 4. Le FDM signe un nouvel événement N avec quantités négatives et
    référence au ticket original.
-5. Un ticket de remboursement s'imprime ; le tiroir s'ouvre pour
-   rendre les espèces au client.
+5. Le ticket de remboursement s'imprime et/ou s'envoie selon le
+   support choisi ; le tiroir s'ouvre pour rendre les espèces au
+   client.
 
 ### Remboursement partiel (M112B)
 
@@ -324,13 +380,27 @@ Pour ouvrir le tiroir-caisse en dehors d'une vente :
 Attention : Réservé aux Gérants - chaque ouverture est tracée et apparaît dans
 le rapport Z.
 
-## 12. Que faire en cas de problème
+## 12. Réglages - Tickets numériques (Admin)
+
+Réservé au Gérant. **Menu → Paramètres → Tickets numériques** liste
+les derniers tickets envoyés par e-mail (les plus récents en premier) :
+support utilisé, indice masqué du destinataire (ex. `j***@e***.be`),
+statut (envoyé / en attente / échec / repli papier), nombre de
+tentatives et dernière erreur le cas échéant.
+
+Cet écran **n'affiche jamais l'adresse e-mail en clair** - seul
+l'indice masqué est visible, y compris pour un envoi encore en
+attente. L'adresse complète n'est jamais consultable après coup,
+conformément à la politique de rétention de 72 h maximum
+(`TICKET_NUMERIQUE_FR.md` §7).
+
+## 13. Que faire en cas de problème
 
 | Problème | Action |
 |---|---|
 | FDM bloqué | Vérifier câble Ethernet, prise FDM. Appeler le distributeur. **Ne pas continuer à vendre.** |
-| Imprimante manque de papier | Charger un rouleau de papier 80 mm thermique. La caisse réimprimera automatiquement le dernier ticket si interrompu. |
-| Imprimante hors-ligne | Le ticket est quand même archivé fiscalement. Le client peut demander une "Copie" plus tard. |
+| Imprimante manque de papier | Charger un rouleau de papier 80 mm thermique, puis taper "Imprimer le ticket" sur l'écran d'issue du checkout (§6.3) pour rattraper l'impression manquée. Ce n'est **pas** automatique. |
+| Imprimante hors-ligne | Le ticket est quand même archivé fiscalement. Taper "Imprimer le ticket" une fois l'imprimante revenue (§6.3), ou demander une "Copie" plus tard (§7) si l'original a fini par sortir entre-temps. |
 | Tiroir-caisse ne s'ouvre pas | Vérifier le câble RJ11 entre imprimante et tiroir. Vérifier serrure manuelle (parfois en position verrouillée). |
 | Écran ne réagit pas | Redémarrer le terminal (bouton power 5 sec). Au redémarrage, moyun-pos relance automatiquement. Toute commande non encaissée reste ouverte. |
 | Erreur "Compteur saturé" | Compteur arrivé à 999 999 999 - impossible dans la vie d'un restaurant. Appeler le distributeur. |

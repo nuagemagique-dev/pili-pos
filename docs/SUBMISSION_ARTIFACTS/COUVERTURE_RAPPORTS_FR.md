@@ -90,17 +90,102 @@ dans la build de soumission :
    dans **une seule opération GraphQL**
    (`FdmClient::sign_report_turnover_z_user_z`), avec deux numéros de
    ticket séquentiels et un archivage **atomique** des deux événements
-   R (transaction SQLite : les deux archivés ou aucun). Les agrégats
-   par utilisateur viennent de
-   `pos-db::queries::reports::{get_user_activity, get_user_payment_totals,
-   get_user_social_events}`. Le rapport utilisateur X (M182) dispose de
-   sa propre commande `do_generate_user_x_report`, déclenchée depuis le
-   menu Rapports. E2E : `spf_e2e_reports.rs::{m184_*, m182_*}`.
+   R (transaction SQLite : les deux archivés ou aucun). Le rapport
+   utilisateur X (M182) dispose de sa propre commande
+   `do_generate_user_x_report`, déclenchée depuis le menu Rapports.
+   E2E : `spf_e2e_reports.rs::{m184_*, m182_*}`.
 2. **Info device FDM dans les payloads X/Z — réelle.** Le bloc
-   `fdmDevices` est peuplé depuis les références FDM archivées de la
-   journée (`get_fdm_ref_range` : fdmId + premier/dernier
-   `totalCounter`), plus de placeholder. Vérifié par l'assertion
-   `fdmDevices[0].fdmId == <identité archivée>` dans le test M180.
+   `fdmDevices` est peuplé depuis les `fdmRef` (fdmId, `totalCounter`,
+   `fdmDateTime`) des événements archivés du rapport, premier et
+   dernier par compteur (`report_totals::fdm_devices`), plus de
+   placeholder. Vérifié par l'assertion `fdmDevices[0].fdmId ==
+   <identité archivée>` dans le test M180.
+
+> **Mise à jour (calcul des totaux depuis l'archive signée) :** une
+> révision antérieure de ce document attribuait les agrégats par
+> utilisateur aux fonctions `pos_db::queries::reports::{get_user_activity,
+> get_user_payment_totals, get_user_social_events, get_fdm_ref_range}`.
+> Ces fonctions ont été **supprimées** (commit `184f36c`) ;
+> `crates/pos-db/src/queries/reports.rs` ne contient plus que
+> `next_z_report_number`, `ZReportSummary`, `list_z_reports` et
+> `save_z_report` (numérotation et index des Z, pas de calcul de
+> totaux). Le calcul réel est purement fonctionnel, dans
+> `crates/pos-fiscal/src/report_totals.rs`, à partir des
+> `fiscal_events` archivés et signés de la période d'ouverture en
+> cours - voir la section suivante.
+
+---
+
+## Calcul des totaux : `report_totals.rs`, à partir de l'archive signée
+
+`crates/pos-fiscal/src/report_totals.rs` reconstruit chaque objet du
+rapport (POS v2.2 §2.2.2) en relisant les `fiscal_events` archivés de
+la période d'ouverture courante (table `booking_periods`, migration
+`003` - voir *SCHEMA_BD_FR.md* §3.5 et *STRATEGIE_COMPTEURS_FR.md*
+§6), jamais les tables mutables `orders`/`order_lines`/`payments` :
+
+| Objet du rapport | Calcul |
+|---|---|
+| `transactions` | Nombre d'événements et Σ montant par label, pour tout événement portant une `transaction` |
+| `departments` | Σ montant des lignes des événements N, par `departmentId`/`departmentName` |
+| `vats` | Σ du `vatCalc` renvoyé par le FDM sur chaque N (repli sur les taux standard A/B/C/D si absent) |
+| `payments` | Les `financials` des événements N, par méthode (`id`/`name`/`type`) |
+| `negQuantities` | Les lignes à quantité négative des événements N, par `negQuantityReason` (`CORRECTION`/`REFUND`) |
+| `drawersOpenCount` | Événements F dont `eventOperation == DRAWER_OPEN` |
+| `users[].totalAmount` | Σ `transaction.transactionTotal` des événements N de l'employé |
+| Plage d'activité utilisateur | Tous les événements de l'employé **sauf** les rapports R eux-mêmes |
+| `posDevices` / `fdmDevices` | Bornes premier/dernier par `posId`/`terminalId`, et par `fdmId`/`totalCounter` |
+
+Tous les montants JSON (multiples de 0,01) sont convertis une seule
+fois en centimes avec arrondi, puis sommés en entier - jamais en
+flottant cumulé, pour éviter la dérive à la sommation (0,01 € perdu
+sur des sommes comme 3,04 €, voir
+`report_totals.rs::amounts_are_summed_in_cents_without_float_drift`).
+
+Les identifiants de paiement sont ceux de moyun-pos
+(`crates/pos-fiscal/src/event.rs`) : `"1"`/`"Cash"` pour les espèces,
+`"2"`/`"Card"` pour la carte - toujours `CARD_DEBIT`, l'opérateur ne
+distinguant pas débit et crédit à l'encaissement.
+
+### Rejeu du scénario complet InputReport (T1-T8)
+
+En complément des fixtures M180-M184 ci-dessus (chacune un scénario
+isolé de désérialisation de réponse, `reports_fixtures.rs`), le
+service complet du scénario officiel `InputReport` (T1-T8,
+`docs/20250916_UC_Reports_1.3/InputReport/`) est rejoué deux fois pour
+valider le calcul des totaux lui-même :
+
+- **Calcul pur** - `crates/pos-fiscal/tests/report_totals_fixtures.rs`
+  construit les 8 `ReportEvent` des fixtures T1-T8 et compare la
+  sortie de `report_totals` aux rapports M180/M182/M184 publiés.
+- **Bout en bout** - `src-tauri/tests/spf_e2e_report_fixtures.rs`
+  rejoue les 8 tickets via les vraies commandes (`do_add_order_line`,
+  `do_sign_table_order`, `do_sign_pre_bill`, `do_checkout`,
+  `do_refund_checkout`, `do_generate_x_report`,
+  `do_generate_user_x_report`, `do_generate_z_report`) contre un FDM
+  simulé qui rejoue les réponses du scénario, puis compare les
+  rapports que moyun-pos construit depuis sa propre archive aux mêmes
+  fixtures publiées.
+
+Les deux tests documentent un écart assumé entre le rapport publié et
+le rapport recalculé, avec la même conclusion : le rapport publié
+compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario
+enregistre 4 événements P (T1, T5, T6, T7 - commandes et pré-addition)
+pour 250 € ; la spec §2.2.2 définit `ticketCount` comme le nombre
+d'événements de ce label dans la période, donc moyun-pos rapporte 4 et
+250 € - conforme au texte de la spec, différent du chiffre publié
+dans la fixture. Écarts additionnels documentés et volontaires :
+l'`id`/`name` de paiement sont ceux de moyun-pos (ci-dessus), les
+paiements carte sont `CARD_DEBIT` (fixture : `CARD_CREDIT`), les noms
+de département sont ceux du catalogue en français, et
+`posDevices`/`fdmDevices` reflètent le terminal unique et le FDM
+simulé du test.
+
+Le scénario T1-T8 se déroule dans une unique période d'ouverture
+persistée (`booking_periods`) : aucun Z n'intervient avant la fin du
+scénario, donc les rapports X (M180) et X utilisateur (M182) générés
+en cours de service lisent la même période encore ouverte que le Z
+final (M184).
 
 ---
 

@@ -184,9 +184,12 @@ d'attaque réseau côté client au temps d'une intervention.
 | Code PIN (haché bcrypt) | Employé | Art. 6.1.f - Intérêt légitime (sécurité opérationnelle) | `users.pin_hash` |
 | TVA client B2B | Client professionnel | Art. 6.1.c - Obligation légale facturation | `peppol_deliveries.customer_endpoint_id`, payload UBL |
 | Nom et adresse client B2B | Client professionnel | Idem | Payload UBL stocké dans `peppol_deliveries.ubl_xml` |
+| Adresse e-mail (ticket numérique, §III.H) | Client B2C | Art. 6.1.a - Consentement/demande explicite du client à la caisse (le support "E-mail" n'est jamais activé par défaut ; l'opérateur ne le choisit qu'à la demande du client) | `ticket_deliveries.recipient` (en clair, 72 h max) puis `recipient_hint` (masqué, indéfiniment) |
 
-**Aucune donnée client B2C** n'est collectée (pas de programme de
-fidélité, pas de tracking, pas de WiFi guest).
+La seule **donnée client B2C** collectée est l'adresse e-mail du
+ticket numérique, sur demande explicite et ponctuelle du client à la
+caisse - pas de programme de fidélité, pas de tracking, pas de WiFi
+guest, pas de base clients.
 
 ### 6.2 Bases légales détaillées
 
@@ -199,6 +202,12 @@ fidélité, pas de tracking, pas de WiFi guest).
   l'usurpation d'identité par d'autres employés.
 - **VAT client B2B** : obligation de facturation conforme (article
   10 de l'arrêté royal n°1 du 29 décembre 1992).
+- **Adresse e-mail (ticket numérique)** : consentement du client,
+  donné à l'écran de caisse au moment de choisir "E-mail" ou "Les
+  deux" (article 6.1.a RGPD). Aucune collecte n'a lieu pour un ticket
+  "Papier" (le choix par défaut) ; l'adresse n'est jamais réutilisée
+  au-delà de l'envoi de ce ticket précis (pas de fichier client, pas
+  de ré-emploi marketing).
 
 ### 6.3 Durée de conservation
 
@@ -210,6 +219,13 @@ fidélité, pas de tracking, pas de WiFi guest).
 - **PIN haché** : durée du contrat de travail. À la fin du contrat,
   l'utilisateur est marqué `active = 0` mais NON supprimé (pour ne
   pas casser la FK depuis `fiscal_events`).
+- **Adresse e-mail (ticket numérique)** : 72 heures maximum en clair,
+  effacée immédiatement dès l'envoi réussi ou le repli papier
+  (`ticket_deliveries.recipient`, purge automatique -
+  `TICKET_NUMERIQUE_FR.md` §7). Un indice masqué (ex.
+  `j***@e***.be`, `recipient_hint`) subsiste indéfiniment, sans
+  permettre de reconstituer l'adresse d'origine, pour la lisibilité
+  du support technique et du dossier de certification.
 
 ### 6.4 Droits des personnes concernées
 
@@ -229,7 +245,28 @@ fidélité, pas de tracking, pas de WiFi guest).
   données concernées (cf. `FEUILLE_ACQUISITION_DONNEES_FR.md`).
 - **Droit d'opposition** : INAPPLICABLE pour les obligations légales.
 
-### 6.5 Sécurité (article 32 RGPD)
+### 6.5 Sous-traitant (envoi du ticket numérique)
+
+**Scaleway** (SAS de droit français, hébergement/traitement dans la
+région `fr-par`, Union européenne) est le seul sous-traitant de
+données personnelles utilisé par `moyun-pos`, via son API
+Transactional Email :
+
+| Élément | Valeur |
+|---|---|
+| Finalité | Envoi du ticket numérique par e-mail, à la demande explicite du client à la caisse |
+| Donnée transmise | Adresse e-mail du destinataire + contenu du ticket (texte, lien et QR de vérification FDM) |
+| Localisation | Union européenne (région Scaleway `fr-par`, Paris) |
+| Base légale du transfert | Pas de transfert hors UE ; sous-traitant soumis au RGPD |
+| Durée de rétention côté producteur | 72 h maximum (§6.3) |
+| Usage marketing | Aucun - API transactionnelle uniquement, pas de liste de diffusion |
+
+Aucun autre service tiers ne reçoit de donnée personnelle issue de
+`moyun-pos` (le FDM reçoit l'INSZ de l'opérateur, obligation légale,
+mais n'est pas un sous-traitant du producteur - c'est l'organe de
+contrôle SPF Finances).
+
+### 6.6 Sécurité (article 32 RGPD)
 
 Voir `SECURITE_BD_FR.md` pour le détail.
 
@@ -245,7 +282,7 @@ Synthèse :
   horodatées et signées.
 - Sauvegarde : journalière, conservée localement.
 
-### 6.6 Notification de violation
+### 6.7 Notification de violation
 
 En cas de violation impliquant des données personnelles :
 
@@ -256,7 +293,7 @@ En cas de violation impliquant des données personnelles :
 3. Communication aux personnes concernées si risque élevé (article
    34 RGPD).
 
-### 6.7 Représentant DPO
+### 6.8 Représentant DPO
 
 Pour un effectif < 250 personnes sans traitement à grande échelle
 de données sensibles, la désignation d'un DPO n'est pas obligatoire
