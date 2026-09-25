@@ -10,10 +10,22 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ── Layer 1: Rust unit tests ──────────────────────────────────
-  rust-tests:
-    name: Rust unit tests
+  # ── Layer 1: Rust — format, lint and every test ──────────────
+  # Both feature sets: the default development build and the
+  # certification build (no HubRise, no Peppol). Unit tests, the SPF
+  # fixture replays (Basic Set, Reports scenario) and the integration
+  # suites all run here; any failure or warning blocks.
+  rust:
+    name: Rust (${{ matrix.features.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - name: default
+            flags: ""
+          - name: cert
+            flags: "--no-default-features --features cert"
     steps:
       - uses: actions/checkout@v4
 
@@ -27,15 +39,34 @@ jobs:
             libssl-dev \
             patchelf
 
+      # rust-toolchain.toml pins the compiler; rustup installs it here.
+      - name: Toolchain
+        run: rustup show active-toolchain
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.features.name }}
 
-      - name: Run unit tests
-        run: cargo test --workspace --lib
+      - name: Format
+        if: matrix.features.name == 'default'
+        run: cargo fmt --all --check
 
-      - name: Run clippy
-        run: cargo clippy --workspace -- -D warnings
-        continue-on-error: true  # warn but don't block
+      - name: Clippy (workspace, all targets)
+        if: matrix.features.name == 'default'
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Clippy (app, cert features)
+        if: matrix.features.name == 'cert'
+        run: cargo clippy -p moyun-pos --all-targets ${{ matrix.features.flags }} -- -D warnings
+
+      - name: Tests (workspace)
+        if: matrix.features.name == 'default'
+        run: cargo test --workspace --no-fail-fast
+
+      - name: Tests (app, cert features)
+        if: matrix.features.name == 'cert'
+        run: cargo test -p moyun-pos ${{ matrix.features.flags }} --no-fail-fast
 
   # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
   playwright-e2e:
@@ -56,6 +87,11 @@ jobs:
 
       - name: Install deps
         run: npm ci
+
+      - name: Type-check and build (dev and cert bundles)
+        run: |
+          npm run build
+          VITE_FEATURE_HUBRISE=false npm run build
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps webkit
@@ -78,7 +114,7 @@ jobs:
     name: Integration (real binary)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    needs: [rust-tests, playwright-e2e]
+    needs: [rust, playwright-e2e]
     steps:
       - uses: actions/checkout@v4
 
