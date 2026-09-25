@@ -119,4 +119,89 @@ mod tests {
         let user = get_user(&conn, "99999999999").unwrap();
         assert!(user.is_none());
     }
+
+    #[test]
+    fn new_user_has_no_pin() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        create_user(&conn, "11111111111", "Alice", UserRole::Waiter).unwrap();
+        let user = get_user(&conn, "11111111111").unwrap().unwrap();
+        assert!(!user.has_pin);
+        assert!(get_pin_hash(&conn, "11111111111").unwrap().is_none());
+    }
+
+    #[test]
+    fn set_pin_hash_is_reflected_in_has_pin() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        create_user(&conn, "11111111111", "Alice", UserRole::Waiter).unwrap();
+        set_pin_hash(&conn, "11111111111", "$2b$12$fakehash").unwrap();
+
+        let user = get_user(&conn, "11111111111").unwrap().unwrap();
+        assert!(user.has_pin);
+        assert_eq!(
+            get_pin_hash(&conn, "11111111111").unwrap().as_deref(),
+            Some("$2b$12$fakehash")
+        );
+    }
+
+    #[test]
+    fn duplicate_insz_is_rejected() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        create_user(&conn, "11111111111", "Alice", UserRole::Waiter).unwrap();
+        let dup = create_user(&conn, "11111111111", "Alice Bis", UserRole::Cashier);
+        assert!(dup.is_err(), "insz is the primary key — no duplicates");
+    }
+
+    #[test]
+    fn list_users_excludes_inactive_and_sorts_by_name() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        create_user(&conn, "33333333333", "Zoe", UserRole::Waiter).unwrap();
+        create_user(&conn, "11111111111", "Alice", UserRole::Cashier).unwrap();
+        create_user(&conn, "22222222222", "Bob", UserRole::Admin).unwrap();
+        conn.execute("UPDATE users SET active = 0 WHERE insz = '22222222222'", [])
+            .unwrap();
+
+        let users = list_users(&conn).unwrap();
+        let names: Vec<&str> = users.iter().map(|u| u.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["Alice", "Zoe"],
+            "Bob is inactive, list is sorted by name"
+        );
+    }
+
+    #[test]
+    fn get_user_ignores_inactive_users() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        create_user(&conn, "11111111111", "Alice", UserRole::Waiter).unwrap();
+        conn.execute("UPDATE users SET active = 0 WHERE insz = '11111111111'", [])
+            .unwrap();
+
+        assert!(get_user(&conn, "11111111111").unwrap().is_none());
+    }
+
+    #[test]
+    fn every_role_round_trips_through_the_db() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        for (insz, role) in [
+            ("10000000001", UserRole::Admin),
+            ("10000000002", UserRole::Cashier),
+            ("10000000003", UserRole::Waiter),
+        ] {
+            create_user(&conn, insz, "Test", role).unwrap();
+            let user = get_user(&conn, insz).unwrap().unwrap();
+            assert_eq!(user.role, role);
+        }
+    }
 }

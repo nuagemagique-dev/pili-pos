@@ -139,3 +139,150 @@ pub fn list_refundable_events(
 
     rows.collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::schema::run_migrations;
+
+    fn setup() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn
+    }
+
+    fn insert_event(
+        conn: &Connection,
+        seq: i64,
+        event_type: &str,
+        order_id: Option<i64>,
+        response_json: Option<&str>,
+    ) -> i64 {
+        conn.execute(
+            "INSERT INTO fiscal_events (
+                event_type, sequence_number, order_id, pos_id, terminal_id,
+                user_insz, event_data_json, fdm_response_json
+             ) VALUES (?1, ?2, ?3, 'CFOD0061234567', 'POS1', '00000000029', '{}', ?4)",
+            params![event_type, seq, order_id, response_json],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn get_fiscal_event_missing_returns_none() {
+        let conn = setup();
+        assert!(get_fiscal_event(&conn, 999).unwrap().is_none());
+    }
+
+    #[test]
+    fn get_fiscal_event_extracts_counters_from_response() {
+        let conn = setup();
+        let id = insert_event(
+            &conn,
+            1,
+            "N",
+            None,
+            Some(r#"{"fdmRef":{"eventCounter":7,"totalCounter":123}}"#),
+        );
+        let event = get_fiscal_event(&conn, id).unwrap().unwrap();
+        assert_eq!(event.event_counter, Some(7));
+        assert_eq!(event.total_counter, Some(123));
+    }
+
+    #[test]
+    fn get_fiscal_event_without_response_has_no_counters() {
+        let conn = setup();
+        let id = insert_event(&conn, 1, "N", None, None);
+        let event = get_fiscal_event(&conn, id).unwrap().unwrap();
+        assert_eq!(event.event_counter, None);
+        assert_eq!(event.total_counter, None);
+    }
+
+    #[test]
+    fn get_fiscal_event_with_malformed_response_json_has_no_counters() {
+        // A corrupt/partial fdm_response_json must not fail the whole
+        // lookup — it just yields no counters.
+        let conn = setup();
+        let id = insert_event(&conn, 1, "N", None, Some("not json"));
+        let event = get_fiscal_event(&conn, id).unwrap().unwrap();
+        assert_eq!(event.event_counter, None);
+        assert_eq!(event.total_counter, None);
+    }
+
+    #[test]
+    fn list_recent_events_orders_newest_first_and_respects_limit() {
+        let conn = setup();
+        insert_event(&conn, 1, "N", None, None);
+        insert_event(&conn, 2, "N", None, None);
+        insert_event(&conn, 3, "P", None, None);
+
+        let all = list_recent_events(&conn, 10).unwrap();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].sequence_number, 3, "newest first");
+        assert_eq!(all[2].sequence_number, 1);
+
+        let limited = list_recent_events(&conn, 2).unwrap();
+        assert_eq!(limited.len(), 2);
+        assert_eq!(limited[0].sequence_number, 3);
+        assert_eq!(limited[1].sequence_number, 2);
+    }
+
+    fn seed_order(conn: &Connection, id: i64, table: Option<i32>, total_cents: i64) {
+        conn.execute(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, total_cents)
+             VALUES (?1, ?2, 'dine_in', 'closed', '00000000029', ?3)",
+            params![id, table, total_cents],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn refundable_events_only_include_closed_n_events() {
+        let conn = setup();
+        seed_order(&conn, 1, Some(5), 2500);
+        insert_event(&conn, 1, "N", Some(1), None);
+
+        seed_order(&conn, 2, Some(6), 4200);
+        // Training sale on order 2: NOT a refundable N event.
+        insert_event(&conn, 2, "T", Some(2), None);
+
+        seed_order(&conn, 3, Some(7), 1000);
+        // Pro forma (P) is not refundable either.
+        insert_event(&conn, 3, "P", Some(3), None);
+
+        let refundable = list_refundable_events(&conn, 20).unwrap();
+        assert_eq!(refundable.len(), 1);
+        assert_eq!(refundable[0].order_id, 1);
+        assert_eq!(refundable[0].total_cents, 2500);
+        assert_eq!(refundable[0].table_number, Some(5));
+    }
+
+    #[test]
+    fn refundable_events_exclude_open_orders() {
+        // An N event can theoretically exist while the order is still
+        // open in weird replay scenarios; the refund picker must only
+        // offer genuinely closed sales.
+        let conn = setup();
+        conn.execute(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, total_cents)
+             VALUES (1, 5, 'dine_in', 'open', '00000000029', 2500)",
+            [],
+        )
+        .unwrap();
+        insert_event(&conn, 1, "N", Some(1), None);
+
+        assert!(list_refundable_events(&conn, 20).unwrap().is_empty());
+    }
+
+    #[test]
+    fn refundable_events_respects_limit() {
+        let conn = setup();
+        for i in 1..=5 {
+            seed_order(&conn, i, Some(i as i32), 1000 * i);
+            insert_event(&conn, i, "N", Some(i), None);
+        }
+        assert_eq!(list_refundable_events(&conn, 3).unwrap().len(), 3);
+        assert_eq!(list_refundable_events(&conn, 100).unwrap().len(), 5);
+    }
+}
