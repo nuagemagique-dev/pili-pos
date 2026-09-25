@@ -1,5 +1,4 @@
 use chrono::{Local, Utc};
-use uuid::Uuid;
 
 use crate::inputs::*;
 use crate::response::FdmReference;
@@ -63,8 +62,10 @@ pub fn vat_code_to_label(code: VatCode) -> VatLabel {
     }
 }
 
-/// Build transaction lines from order lines (shared by Sale, Order, PreBill).
-fn build_transaction(lines: &[OrderLine]) -> TransactionInput {
+/// Build transaction lines (shared by Sale, Order, PreBill). Negative
+/// lines carry `neg_reason`: REFUND on refunds, CORRECTION when an
+/// entry is corrected before the sale is closed.
+fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> TransactionInput {
     let transaction_lines: Vec<TransactionLineInput> = lines
         .iter()
         .map(|line| {
@@ -82,11 +83,7 @@ fn build_transaction(lines: &[OrderLine]) -> TransactionInput {
                     department_name: line.department_name.clone(),
                     quantity: line.quantity as f64,
                     quantity_type: QuantityType::Piece,
-                    neg_quantity_reason: if line.quantity < 0 {
-                        Some(NegQuantityReason::Refund)
-                    } else {
-                        None
-                    },
+                    neg_quantity_reason: (line.quantity < 0).then_some(neg_reason),
                     unit_price,
                     vats: vec![VatInput {
                         label: vat_label,
@@ -109,6 +106,12 @@ fn build_transaction(lines: &[OrderLine]) -> TransactionInput {
     }
 }
 
+/// The `reference` that ties together every event of one order (its P
+/// orders, pre-bills and the final N): stable for the order's lifetime.
+pub fn order_reference(order: &Order) -> String {
+    format!("O{}", order.id)
+}
+
 /// Build a CostCenterInput for a table.
 fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInput {
     CostCenterInput {
@@ -121,8 +124,10 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 
 // ── Event N — Sale ─────────────────────────────────────────────
 
-/// Build a SaleInput from an order + its lines + payment info.
-/// For refunds, pass `original_fdm_ref` referencing the original ticket.
+/// Build a SaleInput from an order + its entries + payment info.
+/// `lines` is the order's journal (additions and corrections in
+/// chronological order, POS description v2.2 §2). For refunds, pass
+/// `original_fdm_ref` referencing the original ticket.
 // The argument list mirrors the spec-mandated SaleInput composition;
 // grouping them into an ad-hoc struct would just move the same fields.
 #[allow(clippy::too_many_arguments)]
@@ -143,11 +148,16 @@ pub fn build_sale_input(
         booking_period_id,
         TicketMedium::Paper,
     );
-    let transaction = build_transaction(lines);
+    let neg_reason = if original_fdm_ref.is_some() {
+        NegQuantityReason::Refund
+    } else {
+        NegQuantityReason::Correction
+    };
+    let transaction = build_transaction(lines, neg_reason);
 
     let cost_center = order
         .table_number
-        .map(|t| build_table_cost_center(t, &Uuid::new_v4().to_string()));
+        .map(|t| build_table_cost_center(t, &order_reference(order)));
 
     let payment_amount = payment_amount_cents as f64 / 100.0;
     let financials = vec![PaymentLineInput {
@@ -185,25 +195,25 @@ pub fn build_sale_input(
 // ── Event P — Order (pro forma) ────────────────────────────────
 
 /// Build an OrderInput (event P) for an open table / interrupted sale.
-/// `cost_center_ref` is the session GUID grouping connected transactions.
+/// `lines` are the order's entries not yet transmitted, corrections
+/// included. Orders are not printed in v1.0.0 (no kitchen ticket).
 pub fn build_order_input(
     config: &PosConfig,
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
     booking_period_id: &str,
-    cost_center_ref: &str,
 ) -> OrderInput {
     let common = build_common_fields(
         config,
         ticket_number,
         &order.user_insz,
         booking_period_id,
-        TicketMedium::Paper,
+        TicketMedium::None,
     );
-    let transaction = build_transaction(lines);
+    let transaction = build_transaction(lines, NegQuantityReason::Correction);
     let table = order.table_number.unwrap_or(0);
-    let cost_center = build_table_cost_center(table, cost_center_ref);
+    let cost_center = build_table_cost_center(table, &order_reference(order));
 
     OrderInput {
         common,
@@ -227,10 +237,10 @@ pub fn build_pre_bill_input(
         booking_period_id,
         TicketMedium::Paper,
     );
-    let transaction = build_transaction(lines);
+    let transaction = build_transaction(lines, NegQuantityReason::Correction);
     let cost_center = order
         .table_number
-        .map(|t| build_table_cost_center(t, &Uuid::new_v4().to_string()));
+        .map(|t| build_table_cost_center(t, &order_reference(order)));
 
     PreBillInput {
         common,
@@ -454,6 +464,7 @@ pub fn build_report_user_z(
 mod tests {
     use super::*;
     use pos_core::order::{OrderStatus, OrderType};
+    use uuid::Uuid;
 
     fn test_config() -> PosConfig {
         PosConfig {
@@ -559,16 +570,15 @@ mod tests {
         let order = test_order();
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
-        let cc_ref = Uuid::new_v4().to_string();
 
-        let order_input = build_order_input(&config, &order, &lines, 1, &bp_id, &cc_ref);
+        let order_input = build_order_input(&config, &order, &lines, 1, &bp_id);
 
         assert_eq!(order_input.cost_center.id, "T05");
         assert_eq!(
             order_input.cost_center.cost_center_type,
             CostCenterType::Table
         );
-        assert_eq!(order_input.cost_center.reference, cc_ref);
+        assert_eq!(order_input.cost_center.reference, order_reference(&order));
         assert_eq!(order_input.transaction.transaction_lines.len(), 1);
     }
 
@@ -592,7 +602,7 @@ mod tests {
     }
 
     #[test]
-    fn negative_quantity_sets_refund_reason() {
+    fn negative_quantity_reason_depends_on_the_sale() {
         let config = test_config();
         let order = test_order();
         let lines = vec![OrderLine {
@@ -609,20 +619,33 @@ mod tests {
             department_name: "Test".to_string(),
         }];
         let bp_id = Uuid::new_v4().to_string();
+        let original = FdmReference {
+            fdm_id: "CBX01000042".into(),
+            fdm_date_time: "2026-07-03T12:34:57+02:00".into(),
+            event_label: EventLabel::N,
+            event_counter: 15,
+            total_counter: 59,
+        };
+        let reason = |fdm_ref: Option<&FdmReference>| {
+            build_sale_input(
+                &config,
+                &order,
+                &lines,
+                1,
+                &bp_id,
+                PaymentType::Cash,
+                -2500,
+                fdm_ref,
+            )
+            .transaction
+            .transaction_lines[0]
+                .main_product
+                .neg_quantity_reason
+        };
 
-        let sale = build_sale_input(
-            &config,
-            &order,
-            &lines,
-            1,
-            &bp_id,
-            PaymentType::Cash,
-            -2500,
-            None,
-        );
-
-        let product = &sale.transaction.transaction_lines[0].main_product;
-        assert_eq!(product.neg_quantity_reason, Some(NegQuantityReason::Refund));
+        // Refund of a signed ticket vs correction before the sale closes.
+        assert_eq!(reason(Some(&original)), Some(NegQuantityReason::Refund));
+        assert_eq!(reason(None), Some(NegQuantityReason::Correction));
     }
 
     #[test]

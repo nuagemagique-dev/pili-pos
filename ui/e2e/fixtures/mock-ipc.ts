@@ -46,6 +46,8 @@ const DEFAULT_MENU_ITEM = {
   kitchen_printer: 1,
   sort_order: 0,
   active: true,
+  vat_code_takeaway: null,
+  open_price: false,
 };
 
 const DEFAULT_ORDER = {

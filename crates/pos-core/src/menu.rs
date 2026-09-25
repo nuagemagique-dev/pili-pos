@@ -22,6 +22,9 @@ pub struct MenuItem {
     /// "À emporter"). `None` means the dine-in label applies.
     #[serde(default)]
     pub vat_code_takeaway: Option<VatCode>,
+    /// Free-price product: the operator enters the unit price.
+    #[serde(default)]
+    pub open_price: bool,
     pub kitchen_printer: bool,
     pub sort_order: i32,
     pub active: bool,

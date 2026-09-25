@@ -43,11 +43,17 @@ export const useOrderStore = defineStore("order", () => {
     lines.value = orderLines;
   }
 
-  async function addItem(item: MenuItem, quantity = 1) {
+  /** `unitPriceCents` is the operator-entered price of a free-price
+   * product; fixed-price products take the catalogue price. */
+  async function addItem(item: MenuItem, quantity = 1, unitPriceCents?: number) {
     if (!currentOrder.value) throw new Error("No active order");
 
-    // If item already in cart, increment quantity instead of adding duplicate line
-    const existing = lines.value.find((l) => l.menu_item_id === item.id);
+    // If item already in cart, increment quantity instead of adding a
+    // duplicate line — except free-price products, whose lines can
+    // carry different prices.
+    const existing = item.open_price
+      ? undefined
+      : lines.value.find((l) => l.menu_item_id === item.id);
     if (existing) {
       await updateQuantity(existing.id, existing.quantity + quantity);
       return;
@@ -58,6 +64,7 @@ export const useOrderStore = defineStore("order", () => {
       menu_item_id: item.id,
       quantity,
       modifiers_json: null,
+      ...(item.open_price ? { unit_price_cents: unitPriceCents } : {}),
     });
     lines.value.push(line);
     itemCategoryMap.value.set(item.id, item.category_id);

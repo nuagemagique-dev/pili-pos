@@ -241,14 +241,53 @@ CREATE INDEX IF NOT EXISTS idx_peppol_deliveries_invoice
 ///
 /// - `menu_items.vat_code_takeaway`: VAT label for takeaway sales
 ///   ("À emporter" column); NULL means the dine-in label applies.
+/// - `menu_items.open_price`: free-price product ("Prix libre"), the
+///   operator enters the unit price when adding it.
 /// - `order_lines.department_id` / `department_name`: the product's
 ///   category at the time the line was added, sent to the FDM as
 ///   `departmentId` / `departmentName` and totalled in X/Z reports.
+/// - `order_entries`: append-only journal of every change to an order
+///   (additions, corrections, refund lines) in chronological order.
+///   `order_lines` is the consolidated view shown and printed; the FDM
+///   messages carry the journal (POS description v2.2 §2, "toutes les
+///   données d'entrée, par ordre chronologique, y compris les
+///   corrections"). `sent_event_id` is set once an entry has been
+///   transmitted in a P (order) or the final N event.
 pub(crate) const MIGRATION_002_CATALOGUE_FISCAL_FIELDS: &str = r#"
 ALTER TABLE menu_items ADD COLUMN vat_code_takeaway TEXT
     CHECK(vat_code_takeaway IS NULL OR vat_code_takeaway IN ('A','B','C','D','X'));
+ALTER TABLE menu_items ADD COLUMN open_price INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE order_lines ADD COLUMN department_id TEXT;
 ALTER TABLE order_lines ADD COLUMN department_name TEXT;
+
+CREATE TABLE IF NOT EXISTS order_entries (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    line_id INTEGER NOT NULL,
+    menu_item_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK(quantity <> 0),
+    unit_price_cents INTEGER NOT NULL,
+    vat_code TEXT NOT NULL CHECK(vat_code IN ('A','B','C','D','X')),
+    name TEXT NOT NULL,
+    department_id TEXT NOT NULL,
+    department_name TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('entry','correction','refund')),
+    sent_event_id INTEGER REFERENCES fiscal_events(id),
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_order_entries_order ON order_entries(order_id, id);
+CREATE TRIGGER IF NOT EXISTS order_entries_no_delete
+BEFORE DELETE ON order_entries
+BEGIN
+    SELECT RAISE(ABORT, 'order entries are append-only');
+END;
+CREATE TRIGGER IF NOT EXISTS order_entries_no_rewrite
+BEFORE UPDATE OF order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                 vat_code, name, department_id, department_name, kind, created_at
+ON order_entries
+BEGIN
+    SELECT RAISE(ABORT, 'order entries are append-only');
+END;
 "#;
 
 /// Apply all schema migrations. Delegates to the versioned runner in

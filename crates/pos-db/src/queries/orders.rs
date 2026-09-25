@@ -71,7 +71,18 @@ pub fn create_order(
     })
 }
 
+/// Add a line to an open order and journal it (`order_entries`).
 pub fn add_order_line(
+    conn: &Connection,
+    input: NewOrderLine<'_>,
+) -> Result<OrderLine, rusqlite::Error> {
+    with_savepoint(conn, || {
+        ensure_open(conn, input.order_id)?;
+        add_order_line_inner(conn, input)
+    })
+}
+
+fn add_order_line_inner(
     conn: &Connection,
     input: NewOrderLine<'_>,
 ) -> Result<OrderLine, rusqlite::Error> {
@@ -97,6 +108,13 @@ pub fn add_order_line(
 
     let id = conn.last_insert_rowid();
 
+    // Refund orders are the only ones built from negative lines.
+    let kind = if input.quantity < 0 {
+        "refund"
+    } else {
+        "entry"
+    };
+    insert_entry(conn, id, input.quantity, kind)?;
     recalculate_order_totals(conn, input.order_id)?;
 
     Ok(OrderLine {
@@ -114,36 +132,158 @@ pub fn add_order_line(
     })
 }
 
+/// Remove a line from an open order. The removal is journalled as a
+/// correction (negative entry) so the FDM message keeps the history.
 pub fn remove_order_line(conn: &Connection, line_id: i64) -> Result<(), rusqlite::Error> {
-    let order_id: i64 = conn.query_row(
-        "SELECT order_id FROM order_lines WHERE id = ?1",
-        params![line_id],
-        |row| row.get(0),
-    )?;
-
-    conn.execute("DELETE FROM order_lines WHERE id = ?1", params![line_id])?;
-    recalculate_order_totals(conn, order_id)?;
-    Ok(())
+    with_savepoint(conn, || {
+        let (order_id, quantity): (i64, i32) = conn.query_row(
+            "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
+            params![line_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        ensure_open(conn, order_id)?;
+        if quantity != 0 {
+            insert_entry(conn, line_id, -quantity, "correction")?;
+        }
+        conn.execute("DELETE FROM order_lines WHERE id = ?1", params![line_id])?;
+        recalculate_order_totals(conn, order_id)
+    })
 }
 
+/// Change a line's quantity on an open order, journalling the
+/// difference (an addition, or a correction when it decreases).
 pub fn update_order_line_quantity(
     conn: &Connection,
     line_id: i64,
     quantity: i32,
 ) -> Result<(), rusqlite::Error> {
-    let order_id: i64 = conn.query_row(
-        "SELECT order_id FROM order_lines WHERE id = ?1",
-        params![line_id],
+    with_savepoint(conn, || {
+        let (order_id, previous): (i64, i32) = conn.query_row(
+            "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
+            params![line_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        ensure_open(conn, order_id)?;
+        let delta = quantity - previous;
+        if delta != 0 {
+            let kind = if delta > 0 { "entry" } else { "correction" };
+            insert_entry(conn, line_id, delta, kind)?;
+        }
+        conn.execute(
+            "UPDATE order_lines SET quantity = ?1 WHERE id = ?2",
+            params![quantity, line_id],
+        )?;
+        recalculate_order_totals(conn, order_id)
+    })
+}
+
+/// The order's journal, oldest first, as lines ready for an FDM
+/// message: additions are positive, corrections and refunds negative.
+/// `unsent_only` keeps the entries not yet transmitted in an event.
+/// Orders recorded before the journal existed fall back to their lines.
+pub fn get_order_entries(
+    conn: &Connection,
+    order_id: i64,
+    unsent_only: bool,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
+    let sql = if unsent_only {
+        "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
+                NULL, created_at, department_id, department_name
+         FROM order_entries WHERE order_id = ?1 AND sent_event_id IS NULL ORDER BY id"
+    } else {
+        "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
+                NULL, created_at, department_id, department_name
+         FROM order_entries WHERE order_id = ?1 ORDER BY id"
+    };
+    let mut stmt = conn.prepare(sql)?;
+    let entries: Vec<OrderLine> = stmt
+        .query_map(params![order_id], map_order_line)?
+        .collect::<Result<_, _>>()?;
+    if entries.is_empty() && !unsent_only {
+        let journalled: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM order_entries WHERE order_id = ?1",
+            params![order_id],
+            |row| row.get(0),
+        )?;
+        if journalled == 0 {
+            return get_order_lines(conn, order_id);
+        }
+    }
+    Ok(entries)
+}
+
+/// Record that the order's entries up to `last_entry_id` were
+/// transmitted in fiscal event `event_id`.
+pub fn mark_order_entries_sent(
+    conn: &Connection,
+    order_id: i64,
+    last_entry_id: i64,
+    event_id: i64,
+) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE order_entries SET sent_event_id = ?1
+         WHERE order_id = ?2 AND id <= ?3 AND sent_event_id IS NULL",
+        params![event_id, order_id, last_entry_id],
+    )?;
+    Ok(())
+}
+
+fn insert_entry(
+    conn: &Connection,
+    line_id: i64,
+    quantity: i32,
+    kind: &str,
+) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "INSERT INTO order_entries (order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                                    vat_code, name, department_id, department_name, kind, created_at)
+         SELECT order_id, id, menu_item_id, ?2, unit_price_cents, vat_code, name,
+                COALESCE(department_id, ''), COALESCE(department_name, ''), ?3, ?4
+         FROM order_lines WHERE id = ?1",
+        params![
+            line_id,
+            quantity,
+            kind,
+            Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+        ],
+    )?;
+    Ok(())
+}
+
+/// Lines of closed or voided orders are part of a signed record and
+/// can no longer change.
+fn ensure_open(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> {
+    let status: String = conn.query_row(
+        "SELECT status FROM orders WHERE id = ?1",
+        params![order_id],
         |row| row.get(0),
     )?;
-
-    conn.execute(
-        "UPDATE order_lines SET quantity = ?1 WHERE id = ?2",
-        params![quantity, line_id],
-    )?;
-
-    recalculate_order_totals(conn, order_id)?;
+    if status != "open" {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+            Some(format!("order {order_id} is {status}")),
+        ));
+    }
     Ok(())
+}
+
+/// Run `f` inside a SAVEPOINT so a line change and its journal entry
+/// are written together, whether or not the caller holds a transaction.
+fn with_savepoint<T>(
+    conn: &Connection,
+    f: impl FnOnce() -> Result<T, rusqlite::Error>,
+) -> Result<T, rusqlite::Error> {
+    conn.execute_batch("SAVEPOINT order_change")?;
+    match f() {
+        Ok(v) => {
+            conn.execute_batch("RELEASE order_change")?;
+            Ok(v)
+        }
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK TO order_change; RELEASE order_change");
+            Err(e)
+        }
+    }
 }
 
 pub fn get_order(conn: &Connection, order_id: i64) -> Result<Order, rusqlite::Error> {
@@ -564,5 +704,96 @@ mod tests {
         remove_order_line(&conn, line.id).unwrap();
         let updated = get_order(&conn, order.id).unwrap();
         assert_eq!(updated.total_cents, 0);
+    }
+
+    fn cola(conn: &Connection, order_id: i64, quantity: i32) -> OrderLine {
+        conn.execute_batch(
+            "INSERT OR IGNORE INTO categories (id, sort_order) VALUES (12, 0);
+             INSERT OR IGNORE INTO menu_items (id, category_id, price_cents, vat_code, sort_order)
+                 VALUES (12009, 12, 304, 'A', 0);",
+        )
+        .unwrap();
+        add_order_line(
+            conn,
+            NewOrderLine {
+                order_id,
+                menu_item_id: 12009,
+                quantity,
+                unit_price_cents: 304,
+                vat_code: VatCode::A,
+                name: "Coca Cola",
+                modifiers_json: None,
+                department_id: "12",
+                department_name: "Soft Drinks",
+            },
+        )
+        .unwrap()
+    }
+
+    fn quantities(entries: &[OrderLine]) -> Vec<i32> {
+        entries.iter().map(|e| e.quantity).collect()
+    }
+
+    #[test]
+    fn every_change_is_journalled_in_order() {
+        let conn = setup();
+        let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        let line = cola(&conn, order.id, 1);
+        update_order_line_quantity(&conn, line.id, 3).unwrap();
+        update_order_line_quantity(&conn, line.id, 2).unwrap();
+        remove_order_line(&conn, line.id).unwrap();
+
+        let entries = get_order_entries(&conn, order.id, false).unwrap();
+        assert_eq!(quantities(&entries), [1, 2, -1, -2]);
+        assert!(entries.iter().all(|e| e.department_id == "12"));
+        assert!(get_order_lines(&conn, order.id).unwrap().is_empty());
+        assert_eq!(get_order(&conn, order.id).unwrap().total_cents, 0);
+    }
+
+    #[test]
+    fn sent_entries_are_not_sent_again() {
+        let conn = setup();
+        let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        let line = cola(&conn, order.id, 2);
+        let first = get_order_entries(&conn, order.id, true).unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        mark_order_entries_sent(&conn, order.id, first.last().unwrap().id, 1).unwrap();
+        update_order_line_quantity(&conn, line.id, 3).unwrap();
+
+        assert_eq!(
+            quantities(&get_order_entries(&conn, order.id, true).unwrap()),
+            [1]
+        );
+        assert_eq!(
+            quantities(&get_order_entries(&conn, order.id, false).unwrap()),
+            [2, 1]
+        );
+    }
+
+    #[test]
+    fn closed_orders_cannot_change() {
+        let conn = setup();
+        let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        let line = cola(&conn, order.id, 1);
+        conn.execute(
+            "UPDATE orders SET status = 'closed' WHERE id = ?1",
+            params![order.id],
+        )
+        .unwrap();
+        assert!(update_order_line_quantity(&conn, line.id, 2).is_err());
+        assert!(remove_order_line(&conn, line.id).is_err());
+        assert_eq!(get_order_entries(&conn, order.id, false).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn journal_entries_are_append_only() {
+        let conn = setup();
+        let order = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        cola(&conn, order.id, 1);
+        assert!(conn.execute("DELETE FROM order_entries", []).is_err());
+        assert!(
+            conn.execute("UPDATE order_entries SET quantity = 5", [])
+                .is_err()
+        );
     }
 }

@@ -1,8 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
+use pos_core::order::OrderStatus;
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
@@ -71,77 +70,62 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
     Ok(tables)
 }
 
-/// Send a signOrder (pro forma P event) for an open table.
-/// Called when items are added to an open table to register with FDM.
+/// Register what was ordered at a table since the last registration
+/// (event P, "vente interrompue", POS description v2.2 §1.3): the
+/// order's journal entries not yet transmitted, corrections included,
+/// in chronological order. A no-op when nothing changed. The UI calls
+/// it when the operator leaves a table.
 #[tauri::command]
-pub async fn sign_table_order(
-    state: State<'_, AppState>,
-    order_id: i64,
-    cost_center_ref: String,
-) -> Result<(), String> {
-    do_sign_table_order(state.inner(), order_id, cost_center_ref).await
+pub async fn sign_table_order(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
+    do_sign_table_order(state.inner(), order_id).await
 }
 
-pub async fn do_sign_table_order(
-    state: &AppState,
-    order_id: i64,
-    cost_center_ref: String,
-) -> Result<(), String> {
-    let (order, lines, config, bp_id) = {
+pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<(), String> {
+    let (order, entries, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
-        let lines =
-            pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
+        let entries = pos_db::queries::orders::get_order_entries(&db, order_id, true)
+            .map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = state
             .booking_period_id
             .lock()
             .map_err(|e| e.to_string())?
             .clone();
-        (order, lines, config, bp)
+        (order, entries, config, bp)
     };
 
-    if lines.is_empty() {
+    let Some(last_entry) = entries.last() else {
         return Ok(());
+    };
+    if order.status != OrderStatus::Open {
+        return Err("Order is not open".into());
     }
 
-    let ticket_number = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        FiscalCounter::next(&db, EventLabel::P.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?
-    };
-
-    let order_input = build_order_input(
-        &config,
-        &order,
-        &lines,
-        ticket_number,
-        &bp_id,
-        &cost_center_ref,
-    );
+    let label = EventLabel::P.in_mode(config.training_mode);
+    let ticket_number = super::peek_ticket_number(state, label)?;
+    let order_input = build_order_input(&config, &order, &entries, ticket_number, &bp_id);
     let request_json = serde_json::to_string(&order_input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_order(order_input, config.training_mode).await.ok();
+    let sign_result = fdm
+        .sign_order(order_input, config.training_mode)
+        .await
+        .map_err(|e| format!("FDM error: {e}"))?;
 
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::P.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: Some(order_id),
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &order.user_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
-
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label,
+            ticket_number,
+            order_id: Some(order_id),
+            user_insz: &order.user_insz,
+            request_json: &request_json,
+            sign_result: &sign_result,
+            sent_entries: Some((order_id, last_entry.id)),
+        },
+    )?;
     Ok(())
 }
 
@@ -151,7 +135,12 @@ pub async fn sign_pre_bill(state: State<'_, AppState>, order_id: i64) -> Result<
     do_sign_pre_bill(state.inner(), order_id).await
 }
 
+/// Provisional bill ("addition provisoire", §1.4): the consolidated
+/// order, printed PRO FORMA. Entries not yet registered are sent as an
+/// order first, since a pre-bill may not add or change lines.
 pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), String> {
+    do_sign_table_order(state, order_id).await?;
+
     let (order, lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
@@ -165,43 +154,41 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
             .clone();
         (order, lines, config, bp)
     };
+    if lines.is_empty() {
+        return Err("Order has no lines".into());
+    }
 
-    let ticket_number = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        FiscalCounter::next(&db, EventLabel::P.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?
-    };
-
+    let label = EventLabel::P.in_mode(config.training_mode);
+    let ticket_number = super::peek_ticket_number(state, label)?;
     let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_number, &bp_id);
     let request_json = serde_json::to_string(&pre_bill).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_pre_bill(pre_bill, config.training_mode).await.ok();
+    let result = fdm
+        .sign_pre_bill(pre_bill, config.training_mode)
+        .await
+        .map_err(|e| format!("FDM error: {e}"))?;
 
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::P.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: Some(order_id),
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &order.user_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label,
+            ticket_number,
+            order_id: Some(order_id),
+            user_insz: &order.user_insz,
+            request_json: &request_json,
+            sign_result: &result,
+            sent_entries: None,
+        },
+    )?;
 
     // Print pro forma receipt
-    if let (Some(addr), Some(result)) = (config.printer_address.as_ref(), sign_result.as_ref()) {
+    if let Some(addr) = config.printer_address.as_ref() {
         let operator = super::operator_name(state, &order.user_insz);
         let ticket =
             pos_fiscal::ticket::FiscalTicket::from_sign_result(pos_fiscal::ticket::TicketParams {
-                result,
+                result: &result,
                 restaurant_name: &config.restaurant_name,
                 restaurant_address: &config.restaurant_address,
                 restaurant_vat: &config.restaurant_vat,

@@ -333,7 +333,6 @@ async fn staging_basic_set_smoke() {
         .parse()
         .expect("MOYUN_STAGING_TICKET_START must be an integer");
     let booking_period_id = Uuid::new_v4().to_string();
-    let cost_center_ref = Uuid::new_v4().to_string();
 
     let client = FdmClient::new(&url);
     let mut r = Rehearsal::new(&config.pos_id, &url);
@@ -358,14 +357,7 @@ async fn staging_basic_set_smoke() {
     let order = rehearsal_order(4, &insz);
     let lines = rehearsal_lines(1);
     let n = next_ticket();
-    let input = build_order_input(
-        &config,
-        &order,
-        &lines,
-        n,
-        &booking_period_id,
-        &cost_center_ref,
-    );
+    let input = build_order_input(&config, &order, &lines, n, &booking_period_id);
     let result = client
         .sign_order(input.clone(), false)
         .await

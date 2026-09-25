@@ -323,7 +323,6 @@ async fn test_full_service_day_e2e() {
     assert_eq!(order_r1.total_cents, 4060);
 
     // Send signOrder (P event) to FDM
-    let cc_ref = Uuid::new_v4().to_string();
     let _p1_result = mock_mutation(
         &server,
         "signOrder",
@@ -340,7 +339,7 @@ async fn test_full_service_day_e2e() {
     let lines_r1 = orders::get_order_lines(&db, order.id).unwrap();
     assert_eq!(lines_r1.len(), 3);
 
-    let order_input = build_order_input(&cfg, &order_r1, &lines_r1, p1_ticket, &bp_id, &cc_ref);
+    let order_input = build_order_input(&cfg, &order_r1, &lines_r1, p1_ticket, &bp_id);
     assert_eq!(order_input.cost_center.id, "T07");
     assert_eq!(
         order_input.cost_center.cost_center_type,
@@ -405,7 +404,7 @@ async fn test_full_service_day_e2e() {
     let lines_r2 = orders::get_order_lines(&db, order.id).unwrap();
     assert_eq!(lines_r2.len(), 4);
 
-    let order_input2 = build_order_input(&cfg, &order_r2, &lines_r2, p2_ticket, &bp_id, &cc_ref);
+    let order_input2 = build_order_input(&cfg, &order_r2, &lines_r2, p2_ticket, &bp_id);
     let p2_fdm = fdm.sign_order(order_input2, false).await.unwrap();
 
     archive::archive_event(

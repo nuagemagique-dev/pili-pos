@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::*;
 use pos_fiscal::types::*;
@@ -50,18 +48,14 @@ pub async fn do_money_in_out(
     direction: MoneyDirection,
     reason: String,
 ) -> Result<FinancialResult, String> {
-    let (config, bp_id, ticket_number) = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
-        let tn = FiscalCounter::next(&db, EventLabel::F.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
-        (config, bp, tn)
-    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let bp_id = state
+        .booking_period_id
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+    let label = EventLabel::F.in_mode(config.training_mode);
+    let ticket_number = super::peek_ticket_number(state, label)?;
 
     let common = pos_fiscal::event::build_common_fields(
         &config,
@@ -98,28 +92,29 @@ pub async fn do_money_in_out(
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm
-        .sign_money_in_out(input, config.training_mode)
-        .await
-        .ok();
+    let sign_result = match fdm.sign_money_in_out(input, config.training_mode).await {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(FinancialResult {
+                success: false,
+                error: Some(format!("FDM error: {e}")),
+            });
+        }
+    };
 
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::F.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label,
+            ticket_number,
+            order_id: None,
+            user_insz: &employee_insz,
+            request_json: &request_json,
+            sign_result: &sign_result,
+            sent_entries: None,
+        },
+    )?;
 
     Ok(FinancialResult {
         success: true,
@@ -141,18 +136,14 @@ pub async fn do_open_drawer_fiscal(
     state: &AppState,
     employee_insz: String,
 ) -> Result<FinancialResult, String> {
-    let (config, bp_id, ticket_number) = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
-        let tn = FiscalCounter::next(&db, EventLabel::F.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
-        (config, bp, tn)
-    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let bp_id = state
+        .booking_period_id
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+    let label = EventLabel::F.in_mode(config.training_mode);
+    let ticket_number = super::peek_ticket_number(state, label)?;
 
     let common = pos_fiscal::event::build_common_fields(
         &config,
@@ -174,25 +165,29 @@ pub async fn do_open_drawer_fiscal(
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm.sign_drawer_open(input, config.training_mode).await.ok();
+    let sign_result = match fdm.sign_drawer_open(input, config.training_mode).await {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(FinancialResult {
+                success: false,
+                error: Some(format!("FDM error: {e}")),
+            });
+        }
+    };
 
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::F.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label,
+            ticket_number,
+            order_id: None,
+            user_insz: &employee_insz,
+            request_json: &request_json,
+            sign_result: &sign_result,
+            sent_entries: None,
+        },
+    )?;
 
     // Kick the physical drawer open
     if let Some(ref addr) = config.printer_address {

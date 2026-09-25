@@ -10,6 +10,7 @@ import * as ipc from "../api/ipc";
 import CategoryTabs from "../components/CategoryTabs.vue";
 import MenuGrid from "../components/MenuGrid.vue";
 import CartSidebar from "../components/CartSidebar.vue";
+import PriceDialog from "../components/PriceDialog.vue";
 import FdmStatus from "../components/FdmStatus.vue";
 import PrinterStatus from "../components/PrinterStatus.vue";
 import { HUBRISE_ENABLED } from "../features";
@@ -98,8 +99,21 @@ const isTakeawayMode = computed(
   () => order.currentOrder?.order_type === 'takeaway',
 );
 
+// Free-price product waiting for its price (PriceDialog open).
+const pricing = ref<MenuItem | null>(null);
+
 async function handleAddItem(item: MenuItem) {
+  if (item.open_price) {
+    pricing.value = item;
+    return;
+  }
   await order.addItem(item);
+}
+
+async function handlePriceConfirmed(priceCents: number) {
+  const item = pricing.value;
+  pricing.value = null;
+  if (item) await order.addItem(item, 1, priceCents);
 }
 
 function handleLogout() {
@@ -172,6 +186,13 @@ async function handleTakeaway() {
       </div>
       <CartSidebar />
     </div>
+
+    <PriceDialog
+      v-if="pricing"
+      :item-name="pricing.name"
+      @confirm="handlePriceConfirmed"
+      @cancel="pricing = null"
+    />
   </div>
 </template>
 

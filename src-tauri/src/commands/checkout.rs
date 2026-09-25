@@ -47,18 +47,22 @@ pub async fn do_checkout(
     payment_method: CheckoutPaymentMethod,
 ) -> Result<CheckoutResult, String> {
     // 1. Read order + lines from DB
-    let (order, lines, config, booking_period_id) = {
+    // `lines` is the consolidated order (printed); `entries` the journal
+    // of every addition and correction, sent to the FDM (§2).
+    let (order, lines, entries, config, booking_period_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
+        let entries = pos_db::queries::orders::get_order_entries(&db, order_id, false)
+            .map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = state
             .booking_period_id
             .lock()
             .map_err(|e| e.to_string())?
             .clone();
-        (order, lines, config, bp)
+        (order, lines, entries, config, bp)
     };
 
     if lines.is_empty() {
@@ -133,7 +137,7 @@ pub async fn do_checkout(
     let sale_input = build_sale_input(
         &config,
         &order,
-        &lines,
+        &entries,
         ticket_number,
         &booking_period_id,
         payment_type,
@@ -205,7 +209,7 @@ pub async fn do_checkout(
             "counter drifted between peek and commit — single-terminal invariant violated"
         );
 
-        archive::archive_event(
+        let event_id = archive::archive_event(
             &tx,
             ArchiveParams {
                 event_type: label,
@@ -219,6 +223,8 @@ pub async fn do_checkout(
             },
         )
         .map_err(|e| e.to_string())?;
+        pos_db::queries::orders::mark_order_entries_sent(&tx, order_id, i64::MAX, event_id)
+            .map_err(|e| e.to_string())?;
 
         tx.execute(
             "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",

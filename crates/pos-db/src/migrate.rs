@@ -187,7 +187,9 @@ mod tests {
                 .collect::<Result<_, _>>()
                 .unwrap()
         };
-        assert!(columns("menu_items").contains(&"vat_code_takeaway".to_string()));
+        let items = columns("menu_items");
+        assert!(items.contains(&"vat_code_takeaway".to_string()));
+        assert!(items.contains(&"open_price".to_string()));
         let lines = columns("order_lines");
         assert!(lines.contains(&"department_id".to_string()));
         assert!(lines.contains(&"department_name".to_string()));

@@ -22,6 +22,9 @@ export interface MenuItem {
   name: string;
   price_cents: number;
   vat_code: VatCode;
+  vat_code_takeaway: VatCode | null;
+  /** Free-price product: the operator enters the price when adding it. */
+  open_price: boolean;
   kitchen_printer: boolean;
   sort_order: number;
   active: boolean;
@@ -74,6 +77,8 @@ export interface AddOrderLineInput {
   menu_item_id: number;
   quantity: number;
   modifiers_json: string | null;
+  /** Only for free-price products. */
+  unit_price_cents?: number;
 }
 
 export interface FiscalTicket {

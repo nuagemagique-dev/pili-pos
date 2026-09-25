@@ -199,13 +199,16 @@ INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
 -- ── Produits presents dans la liste du manuel mais non disponibles ─
 -- Ils necessitent des fonctionnalites declarees non supportees en
 -- v1.0.0 (REPONSES_MANUEL_CERT_FR.md §III.F) : prix au poids (22005),
--- prix libre (22010), produits composes (30001, 30010, 30020) et
+-- produits composes (30001, 30010, 30020) et
 -- vouchers (40001-40004, 40020). Ils restent en base avec leur
 -- productId pour la tracabilite mais ne sont pas proposes a la vente.
 UPDATE menu_items SET active = 0
-WHERE id IN (22005, 22010, 30001, 30010, 30020, 40001, 40002, 40003, 40004, 40020);
+WHERE id IN (22005, 30001, 30010, 30020, 40001, 40002, 40003, 40004, 40020);
 -- Departements sans aucun produit disponible : masques dans la grille.
 UPDATE categories SET active = 0 WHERE id IN (30, 400);
+
+-- Plat du jour (22010) : prix libre, saisi par l'operateur a l'ajout.
+UPDATE menu_items SET open_price = 1 WHERE id = 22010;
 
 -- Label TVA "A emporter" (manuel, lignes de produit) quand il differe
 -- du label "Sur place". NULL = meme label qu'en salle (A->A, X->X).

@@ -11,6 +11,8 @@ test.describe('Order View', () => {
       get_categories: () => [DEFAULT_CATEGORY],
       get_menu_items: () => [DEFAULT_MENU_ITEM, {
         ...DEFAULT_MENU_ITEM, id: 2, name: 'Tuna Roll x8', price_cents: 1300,
+      }, {
+        ...DEFAULT_MENU_ITEM, id: 3, name: 'Plat du jour', price_cents: 0, open_price: true,
       }],
     });
     // Login → tables → pick table 1
@@ -34,7 +36,23 @@ test.describe('Order View', () => {
   });
 
   test('shows menu items in the grid', async ({ page }) => {
-    await expect(page.locator('.item-btn')).toHaveCount(2);
+    await expect(page.locator('.item-btn')).toHaveCount(3);
+  });
+
+  test('free-price product asks for its price', async ({ page }) => {
+    const item = page.locator('.item-btn', { hasText: 'Plat du jour' });
+    await expect(item).toContainText('Prix libre');
+    await item.click();
+
+    const dialog = page.getByRole('dialog', { name: 'Prix libre' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Valider' })).toBeDisabled();
+    for (const d of ['2', '0', '0', '0']) {
+      await dialog.locator('.key', { hasText: new RegExp(`^${d}$`) }).click();
+    }
+    await expect(dialog.getByTestId('open-price-amount')).toHaveText('20,00 €');
+    await dialog.getByRole('button', { name: 'Valider' }).click();
+    await expect(dialog).toBeHidden();
   });
 
   test('nav has 6 buttons (Tables, À emporter, En ligne, Rapports, Config, Sortir)', async ({ page }) => {

@@ -1,8 +1,6 @@
 use serde::Serialize;
 use tauri::State;
 
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::build_work_in_out;
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
@@ -49,46 +47,47 @@ async fn do_work_event(
     employee_insz: String,
     is_in: bool,
 ) -> Result<SocialResult, String> {
-    let (config, bp_id, ticket_number) = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = state
-            .booking_period_id
-            .lock()
-            .map_err(|e| e.to_string())?
-            .clone();
-        let tn = FiscalCounter::next(&db, EventLabel::S.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
-        (config, bp, tn)
-    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let bp_id = state
+        .booking_period_id
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+    let label = EventLabel::S.in_mode(config.training_mode);
+    let ticket_number = super::peek_ticket_number(state, label)?;
 
     let input = build_work_in_out(&config, ticket_number, &employee_insz, &bp_id);
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = if is_in {
-        fdm.sign_work_in(input, config.training_mode).await.ok()
+    let signed = if is_in {
+        fdm.sign_work_in(input, config.training_mode).await
     } else {
-        fdm.sign_work_out(input, config.training_mode).await.ok()
+        fdm.sign_work_out(input, config.training_mode).await
+    };
+    let sign_result = match signed {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(SocialResult {
+                success: false,
+                error: Some(format!("FDM error: {e}")),
+            });
+        }
     };
 
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::S.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label,
+            ticket_number,
+            order_id: None,
+            user_insz: &employee_insz,
+            request_json: &request_json,
+            sign_result: &sign_result,
+            sent_entries: None,
+        },
+    )?;
 
     Ok(SocialResult {
         success: true,

@@ -138,11 +138,10 @@ export function listTables(tableCount: number): Promise<TableInfo[]> {
   return invoke("list_tables", { tableCount });
 }
 
-export function signTableOrder(
-  orderId: number,
-  costCenterRef: string
-): Promise<void> {
-  return invoke("sign_table_order", { orderId, costCenterRef });
+/** Register (event P) what was ordered at a table since the last
+ * registration. No-op when nothing changed. */
+export function signTableOrder(orderId: number): Promise<void> {
+  return invoke("sign_table_order", { orderId });
 }
 
 export function signPreBill(orderId: number): Promise<void> {

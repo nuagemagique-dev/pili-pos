@@ -85,13 +85,29 @@ fn order_from(app: &TestApp, vars: &Value, order_type: OrderType, table: Option<
         if quantity <= 0 {
             continue;
         }
+        let menu_item_id: i64 = product["productId"].as_str().unwrap().parse().unwrap();
+        // Free-price products take the price the operator types in.
+        let open_price: bool = app
+            .state
+            .db
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT open_price FROM menu_items WHERE id = ?1",
+                [menu_item_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let unit_price_cents =
+            open_price.then(|| (product["unitPrice"].as_f64().unwrap() * 100.0).round() as i64);
         do_add_order_line(
             &app.state,
             AddOrderLineInput {
                 order_id: order.id,
-                menu_item_id: product["productId"].as_str().unwrap().parse().unwrap(),
+                menu_item_id,
                 quantity,
                 modifiers_json: None,
+                unit_price_cents,
             },
         )
         .expect("add order line");
@@ -450,11 +466,17 @@ async fn m121_table_order() {
     let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
     mock_uc(&app, "M121", None).await;
 
-    do_sign_table_order(&app.state, order_id, "O158".to_string())
-        .await
-        .unwrap();
+    do_sign_table_order(&app.state, order_id).await.unwrap();
 
-    assert_matches_fixture("M121", &requests(&app)[0], &vars, &[]);
+    assert_matches_fixture(
+        "M121",
+        &requests(&app)[0],
+        &vars,
+        &[Deviation {
+            path: "ticketMedium",
+            reason: "orders are not printed in v1.0.0 (no kitchen ticket), so the medium is NONE",
+        }],
+    );
     app.dump_evidence("M121");
 }
 
@@ -463,11 +485,15 @@ async fn m123_pre_bill() {
     let vars = variables("M123");
     let app = spf_app(&operator(&vars)).await;
     let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
+    // Unregistered lines are sent as an order before the pre-bill.
+    mock_uc(&app, "M121", None).await;
     mock_uc(&app, "M123", None).await;
 
     do_sign_pre_bill(&app.state, order_id).await.unwrap();
 
-    assert_matches_fixture("M123", &requests(&app)[0], &vars, &[]);
+    let requests = requests(&app);
+    assert_eq!(requests.len(), 2, "order, then pre-bill");
+    assert_matches_fixture("M123", &requests[1], &vars, &[]);
     app.dump_evidence("M123");
 }
 
@@ -567,9 +593,7 @@ async fn m161_copy_of_an_order() {
     mock_uc(&app, "M121", Some(&copy["fdmRef"])).await;
     mock_uc(&app, "M161", None).await;
 
-    do_sign_table_order(&app.state, order_id, "O158".to_string())
-        .await
-        .unwrap();
+    do_sign_table_order(&app.state, order_id).await.unwrap();
     let original = app.fiscal_events()[0].id;
     let result = do_copy_ticket(&app.state, original, operator(&copy))
         .await
@@ -644,4 +668,58 @@ async fn m172_copy_in_training() {
         }],
     );
     app.dump_evidence("M172");
+}
+
+// ── Catalogue guards ───────────────────────────────────────────────
+
+fn add(app: &TestApp, order_id: i64, menu_item_id: i64, price: Option<i64>) -> Result<(), String> {
+    do_add_order_line(
+        &app.state,
+        AddOrderLineInput {
+            order_id,
+            menu_item_id,
+            quantity: 1,
+            modifiers_json: None,
+            unit_price_cents: price,
+        },
+    )
+    .map(|_| ())
+}
+
+#[tokio::test]
+async fn catalogue_prices_cannot_be_overridden() {
+    let app = spf_app("84022899837").await;
+    let order_id = {
+        let conn = app.state.db.lock().unwrap();
+        pos_db::queries::orders::create_order(&conn, OrderType::DineIn, Some(1), "84022899837")
+            .unwrap()
+            .id
+    };
+    // Dry Martini has a fixed price; the Dish of the day is free-price.
+    assert!(add(&app, order_id, 10006, Some(100)).is_err());
+    assert!(add(&app, order_id, 22010, None).is_err());
+    assert!(add(&app, order_id, 22010, Some(0)).is_err());
+    assert!(add(&app, order_id, 22010, Some(2000)).is_ok());
+    // Products of unsupported features are inactive and cannot be sold.
+    assert!(add(&app, order_id, 22005, None).is_err());
+}
+
+#[tokio::test]
+async fn takeaway_orders_use_the_takeaway_vat_label() {
+    let app = spf_app("84022899837").await;
+    let order_id = {
+        let conn = app.state.db.lock().unwrap();
+        pos_db::queries::orders::create_order(&conn, OrderType::Takeaway, None, "84022899837")
+            .unwrap()
+            .id
+    };
+    add(&app, order_id, 22001, None).unwrap(); // Burger: B on site, C takeaway
+    add(&app, order_id, 10006, None).unwrap(); // Dry Martini: A both
+    let lines = {
+        let conn = app.state.db.lock().unwrap();
+        pos_db::queries::orders::get_order_lines(&conn, order_id).unwrap()
+    };
+    let vat: Vec<_> = lines.iter().map(|l| l.vat_code.as_str()).collect();
+    assert_eq!(vat, ["C", "A"]);
+    assert_eq!(lines[0].department_id, "22");
 }

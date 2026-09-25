@@ -37,6 +37,7 @@ use common::*;
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::copy::do_copy_ticket;
 use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+#[cfg(feature = "peppol")]
 use moyun_pos::commands::invoice::do_sign_invoice_fiscal;
 use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
 use moyun_pos::commands::social::{do_work_in, do_work_out};
@@ -236,7 +237,7 @@ async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
     let order_id = seed_minimal_open_order(&app);
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
 
-    do_sign_table_order(&app.state, order_id, "CC1".to_string())
+    do_sign_table_order(&app.state, order_id)
         .await
         .expect("sign_table_order returned Ok");
 
@@ -261,13 +262,17 @@ async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
 async fn m123_sign_pre_bill_archives_p_event_and_keeps_order_open() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
+    // The lines not yet registered go out as an order first (§1.4: a
+    // pre-bill may not add lines), then the pre-bill itself.
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M123")).await;
 
     do_sign_pre_bill(&app.state, order_id).await.unwrap();
 
     let events = app.fiscal_events();
-    assert_eq!(events.len(), 1);
-    assert_eq!(events[0].event_type, "P");
+    assert_eq!(events.len(), 2);
+    assert!(events.iter().all(|e| e.event_type == "P"));
+    assert_eq!(app.counter_for(EventLabel::P), 2);
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
     app.dump_evidence("M123");
 }
@@ -435,6 +440,8 @@ async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
 
 // ── M150 — Invoice (event I) referencing prior sales ───────────────
 
+// Invoices ship with the `peppol` feature, outside the v1.0.0 cert build.
+#[cfg(feature = "peppol")]
 #[tokio::test]
 async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
     let app = TestApp::new().await;
@@ -481,6 +488,8 @@ async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
     app.dump_evidence("M150");
 }
 
+// Invoices ship with the `peppol` feature, outside the v1.0.0 cert build.
+#[cfg(feature = "peppol")]
 #[tokio::test]
 async fn m150_invoice_fdm_failure_does_not_advance_i_counter() {
     let app = TestApp::new().await;
@@ -521,9 +530,7 @@ async fn m161_copy_of_order_archives_c_event_with_ref_to_p_event() {
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M161")).await;
 
-    do_sign_table_order(&app.state, order_id, "CC1".to_string())
-        .await
-        .unwrap();
+    do_sign_table_order(&app.state, order_id).await.unwrap();
     let p_event_id = app.fiscal_events()[0].id;
 
     let result = do_copy_ticket(&app.state, p_event_id, TEST_INSZ.to_string())

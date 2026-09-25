@@ -52,7 +52,7 @@ pub async fn do_generate_x_report(
             .map_err(|e| e.to_string())?
             .clone();
         let data = build_turnover_data(&db, &config, &today)?;
-        let tn = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+        let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
             .map_err(|e| e.to_string())?;
         let pd = build_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
         (config, bp, data, tn, pd)
@@ -68,31 +68,37 @@ pub async fn do_generate_x_report(
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm
+    let sign_result = match fdm
         .sign_report_turnover_x(report, config.training_mode)
         .await
-        .ok();
-
     {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::R.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(ReportResult {
+                success: false,
+                report_type: "X".to_string(),
+                report_no: None,
+                error: Some(format!("FDM error: {e}")),
+            });
+        }
+    };
+
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label: EventLabel::R.in_mode(config.training_mode),
+            ticket_number,
+            order_id: None,
+            user_insz: &employee_insz,
+            request_json: &request_json,
+            sign_result: &sign_result,
+            sent_entries: None,
+        },
+    )?;
 
     // Auto-print report on thermal printer
-    print_report(&config, print_data, sign_result.as_ref()).await;
+    print_report(&config, print_data, Some(&sign_result)).await;
 
     Ok(ReportResult {
         success: true,
@@ -170,10 +176,11 @@ pub async fn do_generate_z_report(
         let users = build_user_report_data(&db, &config, &today)?;
         // Two sequential ticket numbers — the M184 fixture shows the
         // user Z carrying posFiscalTicketNo = turnover Z + 1.
-        let tn = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+        // Peeked, not consumed: both numbers are committed with the
+        // archive once the FDM has signed (see commit_signed_event).
+        let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
             .map_err(|e| e.to_string())?;
-        let un = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
+        let un = tn + 1;
         let rn = report_queries::next_z_report_number(&db).map_err(|e| e.to_string())?;
         let pd = build_print_data(&db, &config, &today, "Z", Some(rn), tn, &employee_insz)?;
         let upd = build_user_print_data(&db, &config, &today, "Z", Some(rn), un, &employee_insz)?;
@@ -203,45 +210,56 @@ pub async fn do_generate_z_report(
 
     // M184 — one GraphQL operation signs both reports.
     let fdm = FdmClient::new(&config.fdm_url);
-    let signed = fdm
+    let (turnover_result, user_result) = match fdm
         .sign_report_turnover_z_user_z(turnover_report, user_report, config.training_mode)
         .await
-        .ok();
-    let (turnover_result, user_result) = match signed {
-        Some((t, u)) => (Some(t), Some(u)),
-        None => (None, None),
+    {
+        Ok(signed) => signed,
+        Err(e) => {
+            return Ok(ReportResult {
+                success: false,
+                report_type: "Z".to_string(),
+                report_no: Some(report_no),
+                error: Some(format!("FDM error: {e}")),
+            });
+        }
     };
+    let label = EventLabel::R.in_mode(config.training_mode);
 
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         // Both R events + the z_reports row commit atomically: a crash
         // between the two archives can never leave a half-recorded Z.
         let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
+        let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
+        debug_assert_eq!(committed, turnover_ticket);
         let fiscal_event_id = archive::archive_event(
             &tx,
             ArchiveParams {
-                event_type: EventLabel::R.in_mode(config.training_mode),
+                event_type: label,
                 sequence_number: turnover_ticket,
                 order_id: None,
                 pos_id: &config.pos_id,
                 terminal_id: &config.terminal_id,
                 user_insz: &employee_insz,
                 request_json: &turnover_json,
-                sign_result: turnover_result.as_ref(),
+                sign_result: Some(&turnover_result),
             },
         )
         .map_err(|e| e.to_string())?;
+        let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
+        debug_assert_eq!(committed, user_ticket);
         archive::archive_event(
             &tx,
             ArchiveParams {
-                event_type: EventLabel::R.in_mode(config.training_mode),
+                event_type: label,
                 sequence_number: user_ticket,
                 order_id: None,
                 pos_id: &config.pos_id,
                 terminal_id: &config.terminal_id,
                 user_insz: &employee_insz,
                 request_json: &user_json,
-                sign_result: user_result.as_ref(),
+                sign_result: Some(&user_result),
             },
         )
         .map_err(|e| e.to_string())?;
@@ -271,8 +289,8 @@ pub async fn do_generate_z_report(
 
     // Auto-print: financial Z first, then the user Z as a second
     // sequential ticket.
-    print_report(&config, print_data, turnover_result.as_ref()).await;
-    print_user_report(&config, user_print_data, user_result.as_ref()).await;
+    print_report(&config, print_data, Some(&turnover_result)).await;
+    print_user_report(&config, user_print_data, Some(&user_result)).await;
 
     Ok(ReportResult {
         success: true,
@@ -307,7 +325,7 @@ pub async fn do_generate_user_x_report(
             .map_err(|e| e.to_string())?
             .clone();
         let users = build_user_report_data(&db, &config, &today)?;
-        let tn = FiscalCounter::next(&db, EventLabel::R.in_mode(config.training_mode))
+        let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
             .map_err(|e| e.to_string())?;
         let pd = build_user_print_data(&db, &config, &today, "X", None, tn, &employee_insz)?;
         (config, bp, users, tn, pd)
@@ -317,30 +335,33 @@ pub async fn do_generate_user_x_report(
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
     let fdm = FdmClient::new(&config.fdm_url);
-    let sign_result = fdm
-        .sign_report_user_x(report, config.training_mode)
-        .await
-        .ok();
+    let sign_result = match fdm.sign_report_user_x(report, config.training_mode).await {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(ReportResult {
+                success: false,
+                report_type: "X-USER".to_string(),
+                report_no: None,
+                error: Some(format!("FDM error: {e}")),
+            });
+        }
+    };
 
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        archive::archive_event(
-            &db,
-            ArchiveParams {
-                event_type: EventLabel::R.in_mode(config.training_mode),
-                sequence_number: ticket_number,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-    }
+    super::commit_signed_event(
+        state,
+        &config,
+        super::SignedEvent {
+            label: EventLabel::R.in_mode(config.training_mode),
+            ticket_number,
+            order_id: None,
+            user_insz: &employee_insz,
+            request_json: &request_json,
+            sign_result: &sign_result,
+            sent_entries: None,
+        },
+    )?;
 
-    print_user_report(&config, print_data, sign_result.as_ref()).await;
+    print_user_report(&config, print_data, Some(&sign_result)).await;
 
     Ok(ReportResult {
         success: true,

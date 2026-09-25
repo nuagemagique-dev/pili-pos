@@ -392,7 +392,6 @@ async fn test_interrupted_sale_table_flow() {
     let config = test_config(&format!("{}/graphql", server.uri()));
     let conn = setup_db();
     let bp_id = Uuid::new_v4().to_string();
-    let cc_ref = Uuid::new_v4().to_string();
 
     // Step 1: Customer sits at table 7, orders first round
     let order = test_order(Some(7));
@@ -409,11 +408,14 @@ async fn test_interrupted_sale_table_flow() {
     .await;
 
     let p_ticket = FiscalCounter::next(&conn, EventLabel::P).unwrap();
-    let order_input = build_order_input(&config, &order, &initial_lines, p_ticket, &bp_id, &cc_ref);
+    let order_input = build_order_input(&config, &order, &initial_lines, p_ticket, &bp_id);
 
     // Verify cost center is mandatory for signOrder
     assert_eq!(order_input.cost_center.id, "T07");
-    assert_eq!(order_input.cost_center.reference, cc_ref);
+    assert_eq!(
+        order_input.cost_center.reference,
+        pos_fiscal::event::order_reference(&order)
+    );
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
     let p_result = fdm.sign_order(order_input, false).await.unwrap();
@@ -907,8 +909,7 @@ async fn test_full_service_day() {
     let p1 = FiscalCounter::next(&conn, EventLabel::P).unwrap();
     let order1 = test_order(Some(1));
     let lines1 = vec![food_line(3, "M1", 1790, 1)];
-    let cc_ref = Uuid::new_v4().to_string();
-    let oi = build_order_input(&config, &order1, &lines1, p1, &bp_id, &cc_ref);
+    let oi = build_order_input(&config, &order1, &lines1, p1, &bp_id);
     fdm.sign_order(oi, false).await.unwrap();
 
     // 3. Table 1 pays (N event)

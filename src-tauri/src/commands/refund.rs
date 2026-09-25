@@ -243,7 +243,7 @@ pub async fn do_refund_checkout(
         };
         let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
         debug_assert_eq!(committed_no, ticket_number);
-        archive::archive_event(
+        let event_id = archive::archive_event(
             &tx,
             ArchiveParams {
                 event_type: label,
@@ -257,6 +257,8 @@ pub async fn do_refund_checkout(
             },
         )
         .map_err(|e| e.to_string())?;
+        pos_db::queries::orders::mark_order_entries_sent(&tx, refund_order.id, i64::MAX, event_id)
+            .map_err(|e| e.to_string())?;
 
         tx.execute(
             "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",

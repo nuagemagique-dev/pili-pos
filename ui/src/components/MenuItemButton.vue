@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import type { MenuItem } from "../types";
 import { formatPrice } from "../utils/format";
+import { useI18n } from "../i18n";
 
 const props = defineProps<{
   item: MenuItem;
@@ -12,6 +13,7 @@ const emit = defineEmits<{
   add: [item: MenuItem];
 }>();
 
+const { t } = useI18n();
 const btnRef = ref<HTMLElement | null>(null);
 
 function handleTap() {
@@ -40,7 +42,7 @@ function handleTap() {
     @click="handleTap"
   >
     <span class="item-name">{{ item.name }}</span>
-    <span class="item-price">{{ formatPrice(item.price_cents) }}</span>
+    <span class="item-price">{{ item.open_price ? t('open_price_badge') : formatPrice(item.price_cents) }}</span>
   </button>
 </template>
 

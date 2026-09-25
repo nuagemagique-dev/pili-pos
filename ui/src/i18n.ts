@@ -30,6 +30,8 @@ const coreMessages: Messages = {
   "validate": { fr: "Valider", en: "Confirm", zh: "确认" },
   "card_wait": { fr: "Encaisser sur le terminal", en: "Process on terminal", zh: "请在终端上刷卡" },
   "back": { fr: "Retour", en: "Back", zh: "返回" },
+  "open_price_title": { fr: "Prix libre", en: "Open price", zh: "自定价格" },
+  "open_price_badge": { fr: "Prix libre", en: "Open price", zh: "自定价" },
   "to_pay": { fr: "À payer", en: "To pay", zh: "应付" },
   "received": { fr: "Reçu", en: "Received", zh: "收到" },
   "change": { fr: "Rendu", en: "Change", zh: "找零" },

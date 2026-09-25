@@ -35,7 +35,7 @@ pub fn get_menu_items(
     let sql = if category_id.is_some() {
         "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
-                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway
+                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -45,7 +45,7 @@ pub fn get_menu_items(
     } else {
         "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
-                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway
+                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -81,6 +81,7 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         active: row.get::<_, i32>(6)? != 0,
         name: row.get(7)?,
         vat_code_takeaway: parse_optional_vat(row, 8)?,
+        open_price: row.get::<_, i32>(9)? != 0,
     })
 }
 
@@ -106,7 +107,9 @@ fn parse_optional_vat(
 /// and department names in the fiscal language of the establishment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CatalogueLine {
+    /// Catalogue price; meaningless when `open_price` is set.
     pub price_cents: i64,
+    pub open_price: bool,
     pub vat_code: VatCode,
     pub name: String,
     pub department_id: String,
@@ -126,7 +129,7 @@ pub fn resolve_catalogue_line(
     lang: &str,
 ) -> Result<CatalogueLine, rusqlite::Error> {
     conn.query_row(
-        "SELECT m.price_cents, m.vat_code, m.vat_code_takeaway, m.category_id,
+        "SELECT m.price_cents, m.vat_code, m.vat_code_takeaway, m.category_id, m.open_price,
                 COALESCE(
                     (SELECT value FROM translations WHERE entity_type = 'menu_item'
                         AND entity_id = m.id AND field = 'name' AND lang = ?2),
@@ -162,10 +165,11 @@ pub fn resolve_catalogue_line(
             })?;
             Ok(CatalogueLine {
                 price_cents: row.get(0)?,
+                open_price: row.get::<_, i32>(4)? != 0,
                 vat_code,
                 department_id: row.get::<_, i64>(3)?.to_string(),
-                name: row.get(4)?,
-                department_name: row.get(5)?,
+                name: row.get(5)?,
+                department_name: row.get(6)?,
             })
         },
     )
@@ -254,6 +258,7 @@ mod tests {
             dine_in,
             CatalogueLine {
                 price_cents: 2800,
+                open_price: false,
                 vat_code: VatCode::B,
                 name: "Burger du chef".into(),
                 department_id: "22".into(),

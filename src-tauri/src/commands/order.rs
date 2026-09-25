@@ -26,13 +26,17 @@ pub fn create_order(state: State<'_, AppState>, input: CreateOrderInput) -> Resu
 /// A product added to an order. Only the product and quantity come
 /// from the frontend: price, VAT label, name and department are read
 /// from the catalogue (`resolve_catalogue_line`), so the fiscal record
-/// never depends on what the UI displayed.
+/// never depends on what the UI displayed. The one exception is the
+/// unit price of a free-price product, entered by the operator.
 #[derive(Deserialize)]
 pub struct AddOrderLineInput {
     pub order_id: i64,
     pub menu_item_id: i64,
     pub quantity: i32,
     pub modifiers_json: Option<String>,
+    /// Required for free-price products, refused for the others.
+    #[serde(default)]
+    pub unit_price_cents: Option<i64>,
 }
 
 #[tauri::command]
@@ -72,13 +76,21 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
         }
         other => other.to_string(),
     })?;
+    let unit_price_cents = match (product.open_price, input.unit_price_cents) {
+        (true, Some(price)) if price > 0 => price,
+        (true, _) => return Err("Enter a price greater than zero".into()),
+        (false, None) => product.price_cents,
+        (false, Some(_)) => {
+            return Err(format!("Product {} has a fixed price", input.menu_item_id));
+        }
+    };
     pos_db::queries::orders::add_order_line(
         &db,
         pos_db::queries::orders::NewOrderLine {
             order_id: input.order_id,
             menu_item_id: input.menu_item_id,
             quantity: input.quantity,
-            unit_price_cents: product.price_cents,
+            unit_price_cents,
             vat_code: product.vat_code,
             name: &product.name,
             modifiers_json: input.modifiers_json.as_deref(),
