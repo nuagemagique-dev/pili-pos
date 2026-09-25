@@ -13,7 +13,7 @@ build `--no-default-features --features cert`).
 | N | Vente normale | `signSale` | `src-tauri/src/commands/checkout.rs::do_checkout` |
 | N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `src-tauri/src/commands/refund.rs::do_refund_checkout` |
 | P | Commande en cuisine (pro-forma) | `signOrder` | `src-tauri/src/commands/tables.rs::do_sign_table_order` |
-| P | Pré-ticket | `signPreBill` | `src-tauri/src/commands/tables.rs::do_sign_pre_bill` |
+| P | Addition (pré-ticket) | `signPreBill` | `src-tauri/src/commands/tables.rs::do_sign_pre_bill` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `do_work_in` avec `training_mode=true` |
 | C | Copie de ticket | `signCopy` | `src-tauri/src/commands/copy.rs::do_copy_ticket` |

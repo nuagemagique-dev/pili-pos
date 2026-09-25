@@ -113,7 +113,7 @@ TVA    Taux    Base HT    TVA
 ✂-----------------------------------------------
 ```
 
-## 2. Pré-ticket (M123 - Événement P)
+## 2. Addition, pré-ticket (M123 - Événement P)
 
 Scénario : même commande qu'au M110, juste avant l'encaissement.
 Mention PRO FORMA en tête ; ni QR code ni shortSignature - le FDM ne

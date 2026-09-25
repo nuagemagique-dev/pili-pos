@@ -1,410 +1,463 @@
 # Manuel utilisateur - moyun-pos v1.0.0
 
-Ce manuel s'adresse aux opérateurs de caisse (Gérant, Serveur,
-Apprenti) du système `moyun-pos`. Il couvre l'utilisation quotidienne :
-connexion, prise de commande, encaissement, rapports, mode formation.
+Ce manuel s'adresse au personnel de salle et de caisse qui utilise
+`moyun-pos` au quotidien : connexion, prise de commande, addition,
+encaissement, copies, remboursements, rapports, mouvements de caisse et
+mode formation. Les libellés cités entre guillemets sont ceux de
+l'écran, en français (l'interface existe aussi en anglais et en
+chinois, §12.2).
 
 ## Sommaire
 
-1. Démarrage et écran de connexion
-2. Pointage entrée / sortie
-3. Plan de table et prise de commande
-4. Modificateurs (sauces, cuisson...)
-5. Envoi en cuisine et pré-ticket
-6. Encaissement (vente normale)
-7. Copie de ticket
-8. Remboursement
-9. Rapports X et Z
-10. Mode formation
-11. Mouvements de caisse
-12. Réglages - Tickets numériques (Admin)
-13. Que faire en cas de problème
+1. Profils : qui peut faire quoi
+2. Démarrage, connexion et PIN
+3. Pointage d'arrivée et de départ (événement S)
+4. L'écran de commande
+5. Tables, à emporter et prise de commande
+6. Commande enregistrée et addition (événements P)
+7. Encaissement (vente, événement N)
+8. Copie de ticket (événement C)
+9. Remboursement
+10. Rapports X et Z (événements R)
+11. Mouvements de caisse et tiroir (événements F)
+12. Configuration (Gérant)
+13. Mode formation (événements T)
+14. Que faire en cas de problème
 
 ---
 
-## 1. Démarrage et écran de connexion
+## 1. Profils : qui peut faire quoi
 
-Le terminal de caisse démarre automatiquement sur moyun-pos en plein
-écran. **Aucune intervention n'est requise au démarrage.**
+Chaque employé a un profil, choisi par le Gérant à la création de son
+compte (§12.3). Le POS n'affiche que les boutons autorisés, et la caisse
+refuse de toute façon une action interdite au profil
+(`PROFILS_UTILISATEURS_FR.md` §3).
 
-L'écran de connexion affiche un pavé numérique. Pour se connecter :
+| Action | Apprenti | Serveur | Gérant |
+|---|:-:|:-:|:-:|
+| Se connecter, pointer, prendre des commandes | ☑ | ☑ | ☑ |
+| Changer son propre PIN | ☑ | ☑ | ☑ |
+| Imprimer l'addition, encaisser | - | ☑ | ☑ |
+| Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir | - | - | ☑ |
+| Mode formation, employés, PIN des autres, configuration | - | - | ☑ |
 
-1. Composer le **numéro INSZ à 11 chiffres** de l'opérateur sur le
-   pavé numérique.
-2. Si l'utilisateur a un PIN, le pavé bascule sur la saisie du PIN.
-   Composer le PIN.
-3. Valider avec le bouton vert.
+## 2. Démarrage, connexion et PIN
 
-```
-┌─────────────────────────────────────┐
-│  <Établissement> - Connexion        │
-│                                     │
-│  INSZ : _ _ _ _ _ _ _ _ _ _ _       │
-│                                     │
-│   ┌───┐ ┌───┐ ┌───┐                 │
-│   │ 1 │ │ 2 │ │ 3 │                 │
-│   ├───┤ ├───┤ ├───┤                 │
-│   │ 4 │ │ 5 │ │ 6 │                 │
-│   ├───┤ ├───┤ ├───┤                 │
-│   │ 7 │ │ 8 │ │ 9 │                 │
-│   ├───┤ ├───┤ ├───┤                 │
-│   │ Effacer │ │ 0 │ │ ✓ │                 │
-│   └───┘ └───┘ └───┘                 │
-└─────────────────────────────────────┘
-```
+Le terminal démarre seul sur moyun-pos, en plein écran. Aucune
+intervention n'est nécessaire.
 
-En cas d'INSZ invalide (mauvais format ou inconnu), un message rouge
-s'affiche : "Numéro INSZ invalide ou utilisateur inconnu". Vérifier
-la saisie et réessayer.
+### 2.1 Se connecter
 
-## 2. Pointage entrée / sortie (Événement S)
-
-### Pointage à l'arrivée (work-in)
-
-La première connexion de la journée déclenche automatiquement un
-**Événement S - signWorkIn** envoyé au FDM. Cette opération est
-**obligatoire** : c'est ce qui consigne légalement la présence de
-l'employé.
-
-Confirmation : une icône verte "durée Présent" s'affiche dans l'en-tête.
-
-### Pointage au départ (work-out)
-
-Pour terminer la session, taper sur l'icône utilisateur en haut à
-droite, puis "Pointer sortie". Un **Événement S - signWorkOut**
-est envoyé.
-
-L'opération est elle aussi **obligatoire**. Ne pas se contenter de
-fermer l'écran sans pointer.
-
-## 3. Plan de table et prise de commande
-
-Après la connexion, l'écran principal affiche le **plan de table**
-(`TablesView.vue`).
+L'écran de connexion affiche le nom de l'établissement et une tuile par
+employé (initiale, nom, profil).
 
 ```
-┌─────────────────────────────────────────┐
-│  <Établissement>  durée Présent  utilisateur Marie   │
-├─────────────────────────────────────────┤
-│   ┌────┐  ┌────┐  ┌────┐  ┌────┐        │
-│   │ T1 │  │ T2 │  │ T3 │  │ T4 │        │
-│   │ *  │  │    │  │ *  │  │    │        │
-│   └────┘  └────┘  └────┘  └────┘        │
-│   occupée libre   occupée libre         │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│            Restaurant Exemple            │
+│                                          │
+│   ┌────────┐  ┌────────┐  ┌────────┐     │
+│   │   G    │  │   S    │  │   A    │     │
+│   │ Gérant │  │Serveur │  │Apprenti│     │
+│   │ Gérant │  │Serveur │  │Apprenti│     │
+│   └────────┘  └────────┘  └────────┘     │
+│                                          │
+│              Autre (INSZ)                │
+└──────────────────────────────────────────┘
 ```
 
-- **Cercle plein rouge** = table occupée (commande en cours).
-- **Vide** = table libre.
+1. Toucher sa tuile.
+2. Si l'employé a un PIN, un pavé s'affiche ("Saisir le PIN") : taper
+   les 4 chiffres. La connexion part d'elle-même au 4e chiffre.
+3. Un PIN erroné affiche "PIN incorrect" et vide le pavé ; "Retour"
+   revient aux tuiles.
 
-### Ouvrir une commande
+"Autre (INSZ)" permet de se connecter en tapant son numéro INSZ
+(11 chiffres) puis "Connexion". Ce chemin ne demande pas de PIN : un
+compte qui a un PIN doit passer par sa tuile, sinon la caisse refuse.
 
-Taper sur la case d'une table libre. L'écran bascule sur la grille
-de menu (`OrderView.vue`).
+### 2.2 Le PIN
 
-### Reprendre une commande existante
+Sans PIN, n'importe qui peut ouvrir la session d'un employé en touchant
+sa tuile. Tant qu'un employé n'a pas de PIN, un avertissement s'affiche
+à sa connexion : "PIN non configuré : touchez votre nom en haut de
+l'écran".
 
-Taper sur la case d'une table occupée. La grille de menu s'ouvre
-sur la commande en cours, avec les lignes déjà ajoutées dans le
-panier (à droite).
+- **Son propre PIN** : sur l'écran de commande, toucher son nom dans
+  l'en-tête. Taper le nouveau PIN ("Saisir le PIN"), puis une seconde
+  fois ("Confirmer le PIN"). S'ils diffèrent, "Les PIN ne correspondent
+  pas" s'affiche et rien n'est enregistré. Sinon, "PIN modifié".
+- **Le PIN d'un autre employé** (Gérant) : "Config", puis le bouton
+  "PIN" sur la ligne de l'employé (§12.3), même saisie en deux fois.
 
-### Grille de menu
+Le PIN est enregistré sous forme de hachage (bcrypt), jamais en clair.
 
-```
-┌──────────────┬──────────────────────┐
-│ Catégories   │   Items              │
-│              │                      │
-│ Sushi 寿司   │ ┌──────┐ ┌──────┐    │
-│ Plats chauds │ │Saumon│ │Calif.│    │
-│ Boissons     │ │ x8   │ │ x8   │    │
-│ Alcools      │ │8,50€ │ │9,00€ │    │
-│              │ └──────┘ └──────┘    │
-│              │ ┌──────┐ ┌──────┐    │
-│              │ │Tuna  │ │Sashi.│    │
-│              │ │ x6   │ │ mix  │    │
-│              │ └──────┘ └──────┘    │
-├──────────────┴──────────────────────┤
-│ Panier - Table 1                    │
-│ 1× Saumon x8     8,50 €             │
-│ 1× Coca 33cl     3,50 €             │
-│                                     │
-│ Total : 12,00 €                     │
-│ [Envoyer cuisine] [Encaisser]       │
-└─────────────────────────────────────┘
-```
+### 2.3 Quitter et verrouillage automatique
 
-Taper sur un item l'ajoute au panier. Taper plusieurs fois augmente
-la quantité.
+- "Sortir" (en haut à droite) ferme la session.
+- Après **5 minutes sans toucher l'écran**, la caisse revient d'elle-même
+  à l'écran de connexion.
 
-### Retirer ou modifier une ligne
+Dans les deux cas, la commande en cours est d'abord enregistrée auprès
+du FDM (§6.1) et le départ de l'employé est pointé (§3).
 
-Taper sur une ligne du panier pour ouvrir le menu d'action :
-- "-" : diminuer la quantité (jusqu'à 0 = suppression).
-- "+" : augmenter la quantité.
-- "supprimer" : supprimer la ligne.
+## 3. Pointage d'arrivée et de départ (événement S)
 
-## 4. Modificateurs (sauces, cuisson...)
+Le pointage est automatique, il n'y a pas de bouton :
 
-Quand un article a des modificateurs (ex. choix de sauce pour les
-sushi), une modale s'ouvre dès l'ajout :
+- **À la connexion**, la caisse enregistre l'arrivée de l'employé
+  (événement S, `signWorkIn`).
+- **À la sortie** ("Sortir" ou verrouillage automatique), elle
+  enregistre son départ (événement S, `signWorkOut`).
+
+Si le FDM ne répond pas, la connexion ou la sortie se fait quand même,
+mais un message rouge l'indique : "Pointage non enregistré", suivi de
+la raison. Prévenir le Gérant pour qu'il régularise.
+
+## 4. L'écran de commande
 
 ```
-┌─────────────────────────────────┐
-│  Saumon roll x8 - Sauces        │
-│                                 │
-│  [✓] Soja                       │
-│  [ ] Wasabi                     │
-│  [ ] Gingembre                  │
-│                                 │
-│  Maximum : 2 sauces             │
-│  [Annuler]      [Valider]       │
-└─────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│ ● Caisse  ● Ticket   Marie   Table 4   14:05                      │
+│             [Tables] [À emporter] [Rapports] [Config] [Sortir]    │
+├───────────────────────────────────────────┬───────────────────────┤
+│ [Sushi] [Plats chauds] [Boissons] ...     │ Commande          T4  │
+│                                           │ Saumon roll x8  8,50  │
+│ ┌────────┐ ┌────────┐ ┌────────┐ ┌──────┐ │   [-] 1 [+]      [x]  │
+│ │Saumon  │ │Califor.│ │Sashimi │ │Coca  │ │ Coca 33cl       3,50  │
+│ │roll x8 │ │roll x8 │ │mix     │ │33cl  │ │   [-] 1 [+]      [x]  │
+│ │ 8,50 € │ │ 9,00 € │ │14,00 € │ │3,50 €│ │                       │
+│ └────────┘ └────────┘ └────────┘ └──────┘ │ TVA A 21 %   ...      │
+│                                           │ TOTAL        12,00 €  │
+│                                           │ [Addition]  [PAYER]   │
+└───────────────────────────────────────────┴───────────────────────┘
 ```
 
-Cocher les options puis valider. Les modificateurs s'inscrivent
-dans le panier sous la ligne principale.
+L'en-tête montre en permanence :
 
-## 5. Envoi en cuisine et pré-ticket
+- **Caisse** : l'état du FDM (la "boîte noire"). Pastille verte : tout
+  va bien. Orange ou rouge : un message explique le problème en clair
+  (ex. "Connexion perdue avec la boîte noire. Vérifiez le câble
+  réseau."). L'état est vérifié toutes les 30 secondes.
+- **Ticket** : l'état de l'imprimante ("Papier épuisé", "Capot
+  ouvert", "Vérifiez l'imprimante").
+- le nom de l'employé connecté (le toucher pour changer son PIN, §2.2),
+  la table ou "À emporter", l'heure.
+- les boutons "Tables", "À emporter", "Rapports" et "Config" (ces deux
+  derniers pour le Gérant seulement) et "Sortir".
 
-### Envoi en cuisine (Événement P - signOrder)
+**Rappel du rapport Z** : un bandeau "Rapport Z non effectué
+aujourd'hui" s'affiche quand la journée n'est pas clôturée après 22 h,
+ou quand une journée précédente est restée ouverte (§10.2).
 
-Bouton "**Envoyer cuisine**" dans le panier. Effet :
+## 5. Tables, à emporter et prise de commande
 
-1. Un **Événement P** est signé par le FDM.
-2. Le ticket cuisine s'imprime sur l'imprimante de cuisine (si
-   configurée).
-3. La commande reste **ouverte** (les clients n'ont pas encore payé).
+### 5.1 Choisir une table
 
-### Pré-ticket (Événement P - signPreBill)
+"Tables" affiche le plan des tables. Une table **libre** porte la
+mention "Libre" ; une table **occupée** affiche son nombre d'articles et
+son total.
 
-Pour produire un pré-ticket à présenter au client avant
-l'encaissement ("l'addition"), taper "**Pré-ticket**" dans le
-menu d'action de la commande.
+- Toucher une table libre ouvre une nouvelle commande pour cette table.
+- Toucher une table occupée reprend sa commande en cours, avec tous ses
+  articles dans le panier. Une table n'a jamais qu'une seule commande
+  ouverte.
 
-Le pré-ticket s'imprime, marqué "**PRO FORMA**" et "**CECI N'EST PAS
-UN TICKET DE CAISSE TVA VALABLE**". Il porte les données de contrôle
-du FDM (identifiant, date, compteurs) mais ni QR code ni signature
-courte, que le FDM ne donne qu'aux ventes (N). Il ne clôture pas la
-commande.
+### 5.2 Vente à emporter
 
-## 6. Encaissement (vente normale, Événement N - signSale)
+"À emporter" ouvre une commande sans table. L'addition (§6.2) n'existe
+pas pour une commande à emporter : on encaisse directement.
 
-Bouton "**Encaisser**" dans le panier.
+### 5.3 Ajouter, modifier, retirer
 
-### 6.1 Choix du support du ticket (si activé sur ce terminal)
+- Choisir une catégorie dans la barre du haut, puis toucher un article :
+  il s'ajoute au panier (à droite).
+- Dans le panier, "+" et "-" changent la quantité ; "-" sur une
+  quantité de 1, ou la croix, retire la ligne.
+- **Prix libre** : certains articles n'ont pas de prix fixe (ex. "Plat
+  du jour"). En les touchant, la fenêtre "Prix libre" demande le
+  prix : taper les chiffres comme sur un terminal de paiement
+  (2 0 0 0 = 20,00 €), puis "Valider".
 
-Si le distributeur a configuré le ticket numérique
-(`MANUEL_INSTALLATION_FR.md` §4.2), un premier écran propose le choix
-du support :
+Le panier affiche en permanence le détail de la TVA par taux et le
+total.
 
-- **Papier** (choix par défaut - pré-sélectionné).
-- **E-mail** - n'apparaît que si le terminal est configuré et que le
-  service d'envoi a répondu récemment ; sinon un e-mail demandé seul
-  sort quand même avec un papier en secours (voir plus bas).
-- **Les deux** - le papier sort toujours, l'e-mail est envoyé en plus.
+## 6. Commande enregistrée et addition (événements P)
 
-En choisissant "E-mail" ou "Les deux", un **clavier virtuel** s'affiche
-pour saisir l'adresse du client. Un écran de **confirmation** affiche
-ensuite l'adresse saisie avant de continuer - à faire valider par le
-client si possible, une faute de frappe n'étant détectée qu'à l'envoi.
-Une adresse invalide (mal formée, vide) est refusée immédiatement avec
-un message clair ; corriger la saisie ou repasser sur "Papier".
+### 6.1 Enregistrement automatique de la commande
 
-Sans configuration du ticket numérique sur ce terminal, cet écran
-n'apparaît pas et le flux continue directement à l'étape 6.2 comme en
-v1.0.0 sans cette fonctionnalité.
+Tant que la table n'est pas payée, ce qui a été commandé est enregistré
+auprès du FDM (événement P, `signOrder`) **dès que l'on quitte la
+commande** : "Tables", "À emporter", "Rapports", "Config", "Sortir" ou
+verrouillage automatique. Rien n'est imprimé. Les articles retirés
+entre-temps sont enregistrés aussi, comme corrections.
 
-### 6.2 Paiement
+Si le FDM ne répond pas, le message "Commande non enregistrée par le
+FDM" s'affiche et l'on reste sur la commande ; réessayer une fois le
+FDM revenu. Rien n'est perdu : ce qui n'a pas pu être envoyé part au
+prochain enregistrement, à l'addition ou à l'encaissement.
 
-1. **Choix du mode de paiement** :
-   - Espèces
-   - Carte (saisie manuelle du montant)
-   - (Mixte espèces + carte : non disponible en v1.0.0)
-2. **Saisie du montant reçu** (pour les espèces).
-   - Le système calcule la monnaie à rendre.
-   - **Arrondi 5 cents** appliqué automatiquement (loi belge).
-3. **Validation** → événement N envoyé au FDM, avec le support choisi
-   à l'étape 6.1.
+v1.0.0 n'imprime pas de ticket cuisine.
 
-### 6.3 Issue du ticket
+### 6.2 Addition
 
-Dès acceptation par le FDM, un message indique ce qui s'est
-effectivement passé :
+"Addition" (Serveur et Gérant, commandes en salle avec au moins un
+article) imprime l'addition provisoire à présenter au client
+(événement P, `signPreBill`). "Addition provisoire imprimée" confirme.
 
-- **"Papier"** ou **"Les deux"** : le ticket fiscal s'imprime (avec
-  QR code et signature courte).
-- **"E-mail" envoyé** : confirmation à l'écran, rien ne s'imprime.
-- **"E-mail en attente"** : l'envoi n'a pas abouti dans l'instant ; le
-  POS réessaiera automatiquement en tâche de fond pendant environ
-  1h30. Pour un e-mail seul non reçu à temps, le POS **imprime
-  automatiquement** le ticket papier à la place - le client repart
-  toujours avec quelque chose.
-- **"Imprimer le ticket"** : ce bouton apparaît quand un papier était
-  attendu mais que l'impression a échoué (ex. imprimante sans papier).
-  Il déclenche une nouvelle tentative d'impression du **même**
-  original - **une seule fois** : si l'original a déjà été imprimé
-  avec succès, ou si un ticket "e-mail seul" a déjà été envoyé, le
-  bouton n'imprime rien et un message renvoie vers l'écran "Copie de
-  ticket" (§7) pour obtenir une reproduction (marquée COPIE).
+L'addition est marquée "**PRO FORMA**" et "**CECI N'EST PAS UN TICKET
+DE CAISSE TVA VALABLE**". Elle porte les données de contrôle du FDM
+(identifiant, date, compteurs), mais ni QR code ni signature courte :
+le FDM ne les donne qu'aux ventes (N). Elle ne clôture pas la table.
 
-Dans tous les cas :
-- **Le tiroir-caisse s'ouvre** pour les paiements espèces.
-- La commande passe à `closed` et la table redevient libre.
+## 7. Encaissement (vente, événement N)
 
-### Si le FDM est injoignable
+"PAYER" (Serveur et Gérant) ouvre l'écran de paiement, qui affiche le
+total à payer.
 
-Un message rouge bloquant s'affiche :
+### 7.1 Choix du support du ticket (si activé sur ce terminal)
 
-```
-┌─────────────────────────────────┐
-│  Attention : FDM non joignable            │
-│                                 │
-│  Impossible d'effectuer la      │
-│  vente. Vérifier la connexion   │
-│  Ethernet entre la caisse et    │
-│  le boîtier FDM, puis réessayer.│
-│                                 │
-│  [Réessayer]    [Annuler]       │
-└─────────────────────────────────┘
-```
+Quand le ticket numérique est configuré (`MANUEL_INSTALLATION_FR.md`
+§4.2), trois boutons apparaissent au-dessus des modes de paiement :
 
-**Action obligatoire** : ne pas continuer la vente. Vérifier le
-câble Ethernet, la prise courant du FDM, et appeler le distributeur
-si le problème persiste.
+- **Papier** (choix par défaut).
+- **E-mail** : le ticket part par e-mail seulement. Ce bouton n'apparaît
+  que si l'installateur l'a autorisé et que le service d'envoi répond.
+- **Les deux** : le papier sort, et l'e-mail part en plus.
 
-## 7. Copie de ticket (Événement C - signCopy)
+"E-mail" ou "Les deux" ouvre un clavier ("Adresse e-mail du client")
+avec des raccourcis (`.be`, `.com`, `@gmail.com`). Une adresse mal
+formée est signalée ("Adresse invalide"). Un écran "Confirmer
+l'adresse" l'affiche ensuite en grand : la faire relire au client si
+possible, puis "Confirmer l'adresse" ("Modifier" pour corriger,
+"Annuler" pour revenir au papier).
 
-Pour reproduire un ticket déjà encaissé (client a perdu le sien ou
-son e-mail, litige, ou original déjà imprimé/envoyé - §6.3) :
+Si le service d'envoi ne répond pas, la caisse le dit ("Service e-mail
+indisponible : le ticket papier sera imprimé, l'e-mail sera envoyé dès
+que possible").
 
-1. Aller dans **Menu → Historique tickets**.
-2. Sélectionner le ticket à copier.
-3. Taper "Copier". Le choix du support (Papier / E-mail / Les deux)
-   est proposé comme à l'encaissement (§6.1) si le terminal est
-   configuré.
+Sans ticket numérique configuré, ces boutons n'apparaissent pas : le
+ticket est imprimé.
 
-La copie s'imprime et/ou s'envoie, marquée "**COPIE - pas un
-original**" (sans lien ni QR dans l'e-mail : le FDM ne renvoie pas de
-lien de vérification pour une copie). Un nouvel événement C est signé
-par le FDM et lié au ticket original. C'est la **seule** façon
-d'obtenir une reproduction d'un original déjà sorti (papier ou
-e-mail) - le POS ne réimprime jamais un original une seconde fois.
+### 7.2 Paiement
 
-## 8. Remboursement
+- **CASH** : taper le montant reçu sur le pavé, ou toucher "Exact" ou
+  un raccourci de billet. La caisse affiche le montant à rendre
+  ("Rendu"). Le total en espèces est **arrondi aux 5 cents** (règle
+  belge) ; le montant exact avant arrondi reste affiché. "Valider".
+- **CARTE** : encaisser le montant affiché sur le terminal de paiement
+  (qui n'est pas relié à la caisse), puis "Valider" une fois le
+  paiement accepté. Pas d'arrondi pour une carte.
 
-### Remboursement complet (M111)
+"Communication FDM..." s'affiche pendant la signature. La vente n'est
+enregistrée qu'une fois signée par le FDM.
 
-1. **Menu → Remboursements**.
-2. Sélectionner le ticket de vente à rembourser.
-3. Confirmer "Rembourser intégralement". Le choix du support du
-   ticket de remboursement (Papier / E-mail / Les deux, §6.1) est
-   proposé de la même façon si le terminal est configuré.
-4. Le FDM signe un nouvel événement N avec quantités négatives et
-   référence au ticket original.
-5. Le ticket de remboursement s'imprime et/ou s'envoie selon le
-   support choisi ; le tiroir s'ouvre pour rendre les espèces au
-   client.
+### 7.3 Fin de la vente
 
-### Remboursement partiel (M112B)
+L'écran "OK" rappelle le type de ticket, le total, le rendu éventuel et
+l'identifiant du FDM, puis ce qui est arrivé au ticket :
 
-Pour rembourser **certains items** d'un ticket :
+- "Ticket imprimé" ;
+- "Ticket envoyé à j\*\*\*@e\*\*\*.be" (adresse masquée) ;
+- "E-mail en attente, nouvel essai automatique" : l'envoi n'a pas abouti
+  tout de suite, la caisse réessaie seule. Si le client avait choisi
+  "E-mail" seul et que l'envoi échoue, la caisse imprime le ticket
+  papier à la place : le client repart toujours avec son ticket.
+- **"Imprimer le ticket"** : ce bouton apparaît quand un ticket papier
+  était prévu mais n'a pas pu sortir (ex. papier épuisé). Il imprime
+  l'original, **une seule fois**. Pour toute autre reproduction, faire
+  une copie (§8).
 
-1. **Menu → Remboursements**.
-2. Sélectionner le ticket.
-3. Cocher les lignes à rembourser.
-4. Valider.
+Le tiroir-caisse s'ouvre pour un paiement en espèces. La table
+redevient libre. "Terminer" revient à la prise de commande.
 
-Le remboursement est un **événement fiscal séparé** ; le ticket
-original reste intact.
+### 7.4 Si le FDM ne répond pas
 
-## 9. Rapports X et Z
+Sans FDM, **aucune vente n'est possible** : la caisse refuse
+l'encaissement, affiche la raison au-dessus des modes de paiement (ex.
+"Connexion perdue avec la boîte noire. Vérifiez le câble réseau.") et
+reste sur l'écran de paiement. Rien n'est enregistré, la commande reste
+ouverte, le tiroir reste fermé.
 
-### Rapport X (consultation, ne ferme pas la journée)
+Vérifier le câble réseau et l'alimentation du FDM, puis réessayer.
+Appeler le distributeur si le problème persiste. Ne jamais encaisser en
+dehors de la caisse.
 
-1. **Menu → Rapports → Rapport X**.
-2. Le système agrège les ventes / TVA / paiements de la journée.
-3. Un événement R est signé par le FDM.
-4. Le ticket de rapport s'imprime.
+## 8. Copie de ticket (événement C)
 
-Aucun compteur n'est remis à zéro. Le rapport X peut être généré
-plusieurs fois par jour, à toute heure.
+Réservé au Gérant. Pour un client qui a perdu son ticket ou son e-mail,
+ou qui demande un double :
 
-### Rapport Z (clôture journalière)
+1. "Rapports", puis "Copie de ticket".
+2. La liste "Ticket à copier" montre les derniers tickets remis à un
+   client : ventes, remboursements, additions et tickets de formation,
+   avec leur numéro, leur type, la table, le montant et l'heure.
+3. Toucher le ticket, choisir le support (Papier / E-mail / Les deux,
+   §7.1) puis "Valider".
 
-1. **Menu → Rapports → Rapport Z**.
-2. Confirmer la clôture.
-3. Le système agrège la journée, signe un événement R, imprime le
-   ticket Z.
-4. Une **nouvelle période de réservation** démarre.
+La copie est signée par le FDM (événement C) et marquée "**COPIE**" et
+"**CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE**". Un e-mail de copie
+ne contient ni lien ni QR code : le FDM n'en donne pas pour une copie.
+C'est la **seule** façon de reproduire un ticket déjà remis : la caisse
+n'imprime jamais un original deux fois.
 
-**Bannière d'alerte** : à partir de **22 h** sans Z du jour, une
-bannière rouge en haut de l'écran rappelle de générer le Z avant
-de quitter le service.
+Un rapport Z se recopie depuis l'historique des Z (§10.3).
 
-## 10. Mode formation
+## 9. Remboursement
 
-Pour former un nouvel employé sans contaminer les ventes réelles :
+Réservé au Gérant.
 
-1. Encaisser ou vider les commandes ouvertes : le POS refuse de changer
-   de mode tant qu'une commande avec des articles est ouverte (une
-   table réelle ne peut pas être encaissée en formation, ni l'inverse).
-2. **Menu → Config** (réservé au Gérant), puis activer "Mode formation".
-3. Un filigrane plein écran s'affiche.
-4. Tous les événements générés en mode formation sont des **T** :
-   - Comptés sur un compteur séparé.
-   - Tickets marqués "**TRAINING**" et "**CECI N'EST PAS UN TICKET DE
-     CAISSE TVA VALABLE**".
-   - Sans impact sur les totaux des rapports : ils n'apparaissent que
-     dans le nombre d'événements T du rapport Z.
+1. "Rapports", puis "Remboursement".
+2. "Sélectionner le ticket" : toucher la vente à rembourser (numéro,
+   table, montant, heure).
+3. "Articles à rembourser" : toucher chaque article concerné, et ajuster
+   la quantité avec "-" / "+" (jamais plus que la quantité vendue).
+   Tout cocher rembourse le ticket entier ; une partie seulement fait un
+   remboursement partiel.
+4. "Rembourser" (avec le montant), choisir le support du ticket (§7.1),
+   puis "Rembourser" à nouveau.
 
-Pour quitter : "Désactiver mode formation" dans le même menu.
+Le FDM signe un nouveau ticket (événement N, quantités négatives,
+référence au ticket d'origine), marqué "REMBOURSEMENT DU TICKET DE
+CAISSE TVA". Le ticket d'origine n'est jamais modifié. Le tiroir
+s'ouvre pour rendre les espèces.
 
-## 11. Mouvements de caisse (Événement F - signMoneyInOut)
+La caisse refuse de rembourser un remboursement, de rembourser plus que
+ce qui a été vendu, et de rembourser une vente réelle en mode
+formation. Si le FDM refuse, rien n'est enregistré et la vente reste
+remboursable.
 
-Pour enregistrer un mouvement d'espèces hors-vente :
+## 10. Rapports X et Z (événements R)
 
-1. **Menu → Caisse → Mouvement**.
-2. Choisir "Entrée" (fonds de caisse, retour client externe...) ou
-   "Sortie" (retrait, dépense).
-3. Saisir le montant et un libellé court.
-4. Valider - événement F signé par le FDM.
+Réservé au Gérant : "Rapports".
 
-### Ouverture tiroir hors-vente (F-WAR - signDrawerOpen)
+### 10.1 Rapports X
 
-Pour ouvrir le tiroir-caisse en dehors d'une vente :
+- "Générer X" : chiffre d'affaires, TVA et paiements depuis le dernier Z.
+- "Générer X util." : les mêmes chiffres par employé, avec les
+  pointages.
 
-1. **Menu → Caisse → Ouvrir tiroir**.
-2. Un événement F-WAR est signé par le FDM.
-3. Le tiroir s'ouvre.
+Un rapport X ne clôture rien : il peut être tiré à tout moment, autant
+de fois que nécessaire. Il est signé par le FDM et imprimé.
 
-Attention : Réservé aux Gérants - chaque ouverture est tracée et apparaît dans
-le rapport Z.
+### 10.2 Rapport Z (clôture de la journée)
 
-## 12. Réglages - Tickets numériques (Admin)
+1. "Générer Z". Le bouton passe à l'orange : "Confirmer la clôture ?".
+2. Toucher à nouveau dans les 5 secondes pour clôturer. Sans second
+   appui, le bouton revient à son état normal et rien ne se passe.
 
-Réservé au Gérant. **Menu → Paramètres → Tickets numériques** liste
-les derniers tickets envoyés par e-mail (les plus récents en premier) :
-support utilisé, indice masqué du destinataire (ex. `j***@e***.be`),
-statut (envoyé / en attente / échec / repli papier), nombre de
-tentatives et dernière erreur le cas échéant.
+Le Z est signé par le FDM, imprimé, et "Rapport généré (Z #n)"
+confirme. La journée est close ; la suivante commence au prochain
+enregistrement. Terminer **chaque** journée par un Z.
 
-Cet écran **n'affiche jamais l'adresse e-mail en clair** - seul
-l'indice masqué est visible, y compris pour un envoi encore en
-attente. L'adresse complète n'est jamais consultable après coup,
-conformément à la politique de rétention de 72 h maximum
-(`TICKET_NUMERIQUE_FR.md` §7).
+### 10.3 Historique des Z
 
-## 13. Que faire en cas de problème
+"Historique Z" liste les Z passés (numéro, date). "Réimprimer" en
+produit une copie (événement C, §8).
 
-| Problème | Action |
+## 11. Mouvements de caisse et tiroir (événements F)
+
+Réservé au Gérant : "Rapports", section "Gestion caisse".
+
+### 11.1 Entrée ou sortie d'espèces
+
+1. Choisir le montant : 10, 20, 50, 100 ou 200 €.
+2. Toucher le motif, dans la rangée "+" (entrée) ou "-" (sortie) :
+   "Fond de caisse", "Retrait" ou "Pourboire".
+
+Le mouvement est signé par le FDM (événement F) ; "Mouvement
+enregistré" confirme.
+
+### 11.2 Ouvrir le tiroir hors vente
+
+"Ouvrir tiroir" ouvre le tiroir en dehors d'une vente. Chaque ouverture
+est signée par le FDM (événement F) et figure dans les rapports. En
+dehors de ce bouton, le tiroir ne s'ouvre que pour un encaissement ou
+un remboursement en espèces.
+
+## 12. Configuration (Gérant)
+
+"Config" ouvre les paramètres.
+
+### 12.1 Mode formation
+
+Voir §13.
+
+### 12.2 Langue
+
+Français, English ou 中文 : la langue de l'interface et des noms de
+produits à l'écran. Les mentions imprimées sur les tickets suivent la
+langue de l'établissement fixée à l'installation, pas ce choix.
+
+### 12.3 Employés
+
+La liste montre chaque employé (nom, profil, INSZ) avec deux boutons :
+
+- **"PIN"** : fixer ou changer son PIN (§2.2).
+- **"Désactiver"** : pour un employé qui quitte l'établissement. Toucher
+  deux fois ("Confirmer ?"). Son historique reste dans l'archive ; il
+  ne peut plus se connecter. On ne peut pas se désactiver soi-même.
+
+"Ajouter" : taper le nom et l'INSZ (11 chiffres), choisir le profil
+(Gérant, Serveur ou Apprenti), puis "Ajouter". Demander ensuite à
+l'employé de fixer son PIN.
+
+### 12.4 Informations
+
+Identifiant du POS, terminal, établissement, adresse du FDM et de
+l'imprimante, tels que configurés à l'installation (lecture seule).
+
+Si cette configuration contient une erreur que le FDM refuserait (ex.
+un numéro de TVA mal formé), un **bandeau rouge** s'affiche en bas de
+l'écran : "Configuration invalide : le FDM refusera les tickets.
+Appelez l'installateur." Il reste affiché tant que l'erreur n'est pas
+corrigée.
+
+### 12.5 Tickets numériques
+
+Visible quand le ticket numérique est configuré. Indique si le service
+d'envoi est "Configuré" et "Joignable", et liste les derniers envois :
+support, adresse **masquée** (ex. `j***@e***.be`), statut ("En
+attente", "Envoyé", "Échec", "Imprimé (secours)", "Purgé"), nombre de
+tentatives et dernière erreur. "Actualiser" recharge la liste.
+
+L'adresse complète n'est jamais affichée ; elle est effacée dès l'envoi
+réussi, et au plus tard après 72 h (`TICKET_NUMERIQUE_FR.md`).
+
+## 13. Mode formation (événements T)
+
+Pour former un employé sans toucher aux ventes réelles.
+
+1. Encaisser ou vider les commandes ouvertes : sinon la caisse refuse
+   ("Encaissez ou videz les commandes ouvertes avant de changer de
+   mode"), pour qu'une vraie table ne soit jamais encaissée en
+   formation, ni l'inverse.
+2. "Config", puis le bouton "Mode Formation" : il passe de "INACTIF" à
+   "ACTIF".
+3. Un bandeau violet "MODE FORMATION : les transactions ne sont PAS
+   enregistrées" et un filigrane "TRAINING" restent affichés.
+
+En formation, tout ce qui est signé est un événement **T** : compteur à
+part, tickets marqués "**TRAINING**" et "**CECI N'EST PAS UN TICKET DE
+CAISSE TVA VALABLE**", sans effet sur le chiffre d'affaires des
+rapports. Un remboursement de vente réelle est refusé en formation.
+
+Pour revenir au mode normal : même bouton, qui repasse à "INACTIF"
+(mêmes conditions).
+
+## 14. Que faire en cas de problème
+
+| Problème | Que faire |
 |---|---|
-| FDM bloqué | Vérifier câble Ethernet, prise FDM. Appeler le distributeur. **Ne pas continuer à vendre.** |
-| Imprimante manque de papier | Charger un rouleau de papier 80 mm thermique, puis taper "Imprimer le ticket" sur l'écran d'issue du checkout (§6.3) pour rattraper l'impression manquée. Ce n'est **pas** automatique. |
-| Imprimante hors-ligne | Le ticket est quand même archivé fiscalement. Taper "Imprimer le ticket" une fois l'imprimante revenue (§6.3), ou demander une "Copie" plus tard (§7) si l'original a fini par sortir entre-temps. |
-| Tiroir-caisse ne s'ouvre pas | Vérifier le câble RJ11 entre imprimante et tiroir. Vérifier serrure manuelle (parfois en position verrouillée). |
-| Écran ne réagit pas | Redémarrer le terminal (bouton power 5 sec). Au redémarrage, moyun-pos relance automatiquement. Toute commande non encaissée reste ouverte. |
-| Erreur "Compteur saturé" | Compteur arrivé à 999 999 999 - impossible dans la vie d'un restaurant. Appeler le distributeur. |
-| Numéro INSZ refusé | Vérifier la saisie. Si correct : appeler le Gérant, l'utilisateur doit être créé dans Paramètres. |
+| Pastille "Caisse" orange ou rouge, vente refusée | Lire le message affiché. Vérifier le câble réseau et l'alimentation du FDM, puis réessayer. Si le problème persiste, appeler le distributeur. **Ne jamais vendre en dehors de la caisse.** |
+| Plus de papier | Charger un rouleau thermique de 80 mm, puis toucher "Imprimer le ticket" sur l'écran de fin de vente (§7.3). Rien n'est réimprimé automatiquement. |
+| Imprimante hors ligne | La vente est quand même enregistrée. Toucher "Imprimer le ticket" une fois l'imprimante revenue (§7.3), ou faire plus tard une copie (§8). |
+| "Pointage non enregistré" | Le FDM n'a pas répondu à la connexion ou à la sortie. Prévenir le Gérant. |
+| "Commande non enregistrée par le FDM" | Rester sur la commande et réessayer quand le FDM répond (§6.1). |
+| Le tiroir ne s'ouvre pas | Vérifier le câble RJ11 entre l'imprimante et le tiroir, et la serrure du tiroir. |
+| L'écran ne réagit plus | Maintenir le bouton marche 5 secondes pour redémarrer. moyun-pos redémarre seul ; les commandes non encaissées restent ouvertes. |
+| "PIN incorrect" répété | Le Gérant peut fixer un nouveau PIN (§12.3). |
+| INSZ refusé | Vérifier la saisie. L'employé doit exister et être actif (§12.3). |
+| Bandeau rouge "Configuration invalide" | Appeler l'installateur (§12.4). |
 
-En cas de doute, **ne jamais effectuer de vente hors-FDM** et
-toujours **terminer la journée par un rapport Z**.
+En cas de doute : **ne jamais vendre sans le FDM**, et **terminer chaque
+journée par un rapport Z**.

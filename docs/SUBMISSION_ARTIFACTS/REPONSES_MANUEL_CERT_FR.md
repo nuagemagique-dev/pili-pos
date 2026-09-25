@@ -397,7 +397,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 
 | Item | Réponse |
 |---|---|
-| ☑ Description de l'utilisation | *Voir : MANUEL_UTILISATEUR_FR.md* §"Pointage entrée / sortie" |
+| ☑ Description de l'utilisation | *Voir : MANUEL_UTILISATEUR_FR.md* §3 "Pointage d'arrivée et de départ" |
 | ☑ L'enregistrement du temps de présence est lié aux boutons "Work In / Work Out" | Oui |
 
 ## §III.F Fonctionnalités avancées
@@ -789,7 +789,7 @@ L'opérateur (rôle Admin ou Cashier) accède au menu "Rapports" depuis la barre
 3. Sur succès : impression automatique du ticket de rapport sur l'imprimante thermique.
 4. Affichage UI d'un récapitulatif lisible (montants par TVA, par moyen de paiement, par utilisateur).
 
-*Voir : MANUEL_UTILISATEUR_FR.md §"Rapports" et TICKETS_EXEMPLES_FR.md §6 (rapport X) et §7 (rapport Z) pour le rendu papier.*
+*Voir : MANUEL_UTILISATEUR_FR.md §10 "Rapports X et Z" et TICKETS_EXEMPLES_FR.md §6 (rapport X) et §7 (rapport Z) pour le rendu papier.*
 
 **Captures d'écran à fournir** : oui (cf. bloc B2 de `GAP_AUDIT_FR.md`).
 
