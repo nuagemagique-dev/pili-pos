@@ -238,7 +238,52 @@ ou sans réponse FDM. Voir aussi `DECLARATION_FONCTIONS_INTERDITES_FR.md`
 
 ---
 
-## 6. Reproductibilité
+## 6. Rapports et périodes d'ouverture
+
+Le POS v2.2 §2.2.2 introduit `bookingPeriodId` : un identifiant qui
+regroupe les événements d'une période de service pour les rapports.
+Deux points touchent directement la stratégie de compteurs décrite
+ci-dessus.
+
+### Les rapports lisent l'archive fiscale, jamais les compteurs
+
+`crates/pos-fiscal/src/report_totals.rs` calcule intégralement les
+totaux X/Z/utilisateur (departments, payments, negQuantities, vats,
+`users[].totalAmount`) à partir des `fiscal_events` déjà archivés et
+signés de la période d'ouverture en cours (table `booking_periods`,
+migration `003` - voir *SCHEMA_BD_FR.md* §3.5), jamais des tables
+mutables `orders`/`order_lines`/`payments`. Le compteur
+`fiscal_counters` (§1 ci-dessus) sert uniquement à numéroter le
+prochain événement à envoyer au FDM ; il n'est jamais relu pour
+calculer un total.
+
+Une période d'ouverture court du premier événement suivant un Z
+jusqu'au Z suivant, et porte la date d'ouverture (fuseau
+Europe/Brussels). Elle est persistée pour qu'un redémarrage du POS ne
+coupe jamais la journée en deux périodes : au démarrage,
+`commands::booking_period` reprend la période ouverte si elle existe,
+sinon en ouvre une nouvelle (`pos_db::queries::booking::current_period`,
+identifiant en UUID v4). Au plus une période est ouverte à la fois
+(index unique partiel) et une période close ne peut plus être
+modifiée ni supprimée (triggers SQL).
+
+### Le mode formation avance le compteur T, jamais R
+
+Chaque rapport (X, Z, X utilisateur, Z utilisateur) est archivé et
+compté sous `EventLabel::R.in_mode(training_mode)`
+(`crates/pos-fiscal/src/types.rs`), qui bascule sur `T` en formation -
+exactement le même mécanisme "distinct par type d'événement" que pour
+les ventes (§1). Un Z de formation avance donc le compteur `T`, jamais
+`R` : il ne consomme aucun numéro de Z. Pour la même raison,
+`commands::report::do_generate_z_report` saute explicitement
+l'enregistrement dans `z_reports` et la clôture de la période
+d'ouverture quand `config.training_mode` est vrai - un Z de formation
+est un exercice qui ne clôture ni la comptabilité, ni le service en
+cours.
+
+---
+
+## 7. Reproductibilité
 
 ```bash
 cd moyun-pos

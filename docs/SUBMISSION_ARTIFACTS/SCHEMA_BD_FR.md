@@ -66,8 +66,10 @@ catégorie et porte UN code TVA SCE 2.0 (A/B/C/D/X).
 | `external_id` | TEXT (unique) | Référence externe (NULL en build cert) |
 | `category_id` | INTEGER (FK → `categories.id`) | Catégorie parente |
 | `price_cents` | INTEGER | Prix unitaire TVA incluse en centimes d'euro |
-| `vat_code` | TEXT | Code TVA SCE : `A`, `B`, `C`, `D`, `X` |
+| `vat_code` | TEXT | Code TVA SCE en salle : `A`, `B`, `C`, `D`, `X` |
 | `vat_category` | TEXT | Catégorie fiscale webshop : `food`, `beverage`, `zero_rated`, `out_of_scope` |
+| `vat_code_takeaway` | TEXT (nullable, migration `002`) | Code TVA SCE à emporter, quand il diffère du code en salle (ex. `B`→`C`) ; NULL = le code en salle s'applique aussi à l'emporté |
+| `open_price` | INTEGER (migration `002`) | 1 = "prix libre" - l'opérateur saisit le prix unitaire à l'ajout (ex. produit 22010), 0 = prix fixe de `price_cents` |
 | `kitchen_printer` | INTEGER | 1 = à envoyer en cuisine, 0 = imprimante caisse seulement |
 | `sort_order` | INTEGER | Ordre d'affichage dans la grille |
 | `active` | INTEGER | 1 = article disponible, 0 = retiré du menu |
@@ -137,8 +139,14 @@ historique).
 | `unit_price_cents` | INTEGER | Prix unitaire au moment de l'ajout (figé) |
 | `vat_code` | TEXT | Code TVA appliqué (figé) |
 | `name` | TEXT | Désignation imprimée (figée) |
+| `department_id` | TEXT (nullable, migration `002`) | Département SCE au moment de l'ajout, envoyé au FDM comme `departmentId` et totalisé dans les rapports X/Z |
+| `department_name` | TEXT (nullable, migration `002`) | Nom du département au moment de l'ajout, envoyé comme `departmentName` |
 | `modifiers_json` | TEXT (nullable) | Modificateurs sélectionnés en JSON |
 | `created_at` | TEXT | Date / heure d'ajout |
+
+`order_lines` reste la vue consolidée affichée/imprimée ; le journal
+chronologique des ajouts/corrections/remboursements est `order_entries`
+(§3.4).
 
 ### 2.3 `payments`
 
@@ -209,14 +217,14 @@ Index des rapports Z générés. Référence le `fiscal_events` correspondant.
 | `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | Lien vers l'événement R signé |
 | `created_at` | TEXT | Date / heure de génération |
 
-### 3.4 `order_entries`
+### 3.4 `order_entries` (migration `002`)
 
 Journal append-only de chaque ajout, correction ou remboursement de
 ligne sur une commande ouverte (conforme POS v2.2 §2 "toutes les
 données d'entrée, par ordre chronologique, y compris les
-corrections"). Des triggers SQL interdisent tout `DELETE`/`UPDATE`
-des champs journalisés. `order_lines` reste la vue consolidée
-affichée/imprimée.
+corrections"). `order_lines` reste la vue consolidée
+affichée/imprimée ; `order_entries` porte la trace chronologique
+transmise au FDM.
 
 | Champ | Type | Description |
 |---|---|---|
@@ -232,22 +240,47 @@ affichée/imprimée.
 | `sent_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | Rempli quand l'entrée a été transmise dans un événement P ou dans le N final |
 | `created_at` | TEXT | Date / heure d'ajout |
 
-### 3.5 `booking_periods`
+Deux triggers SQL font respecter l'append-only :
+
+- `order_entries_no_delete` - `BEFORE DELETE`, avorte systématiquement
+  (`RAISE(ABORT, ...)`).
+- `order_entries_no_rewrite` - `BEFORE UPDATE` sur toutes les colonnes
+  journalisées (`order_id`, `line_id`, `menu_item_id`, `quantity`,
+  `unit_price_cents`, `vat_code`, `name`, `department_id`,
+  `department_name`, `kind`, `created_at`), avorte systématiquement.
+  Seule `sent_event_id` reste modifiable - elle passe de `NULL` à
+  l'`id` de l'événement fiscal une fois l'entrée effectivement
+  transmise au FDM, sans quoi elle ne serait jamais renseignable.
+
+Index : `idx_order_entries_order(order_id, id)`.
+
+### 3.5 `booking_periods` (migration `003`)
 
 Persistance de la période d'ouverture (`bookingPeriodId`, POS v2.2
 §2.2.2). Une période court du premier événement suivant un Z jusqu'au
-Z suivant ; au plus une période est ouverte à la fois (index unique
-partiel sur `closed_at IS NULL`). Des triggers interdisent la
-réouverture et la suppression d'une période close. Voir §III.J et
-§III.L de `REPONSES_MANUEL_CERT_FR.md`.
+Z suivant, et porte la date d'ouverture (fuseau Europe/Brussels). Voir
+§III.J et §III.L de `REPONSES_MANUEL_CERT_FR.md`.
 
 | Champ | Type | Description |
 |---|---|---|
-| `id` | TEXT | Clé primaire (UUID v4) |
+| `id` | TEXT | Clé primaire (UUID v4, générée par `commands::booking_period`) |
 | `booking_date` | TEXT | Date d'ouverture, fuseau Europe/Brussels |
 | `opened_at` | TEXT | Horodatage d'ouverture |
 | `closed_at` | TEXT (nullable) | Horodatage de clôture (NULL = période ouverte) |
 | `closing_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | Événement R qui a clôturé la période (NULL tant qu'ouverte) |
+
+Contrainte `CHECK ((closed_at IS NULL) = (closing_event_id IS NULL))` -
+les deux colonnes sont renseignées ou nulles ensemble. Au plus une
+période est ouverte à la fois, via l'index unique partiel
+`idx_booking_periods_one_open` sur l'expression `(closed_at IS NULL)`
+filtrée `WHERE closed_at IS NULL` (deux lignes ouvertes
+collisionneraient sur la même valeur d'expression). Deux triggers :
+
+- `booking_periods_no_reopen` - `BEFORE UPDATE ... WHEN OLD.closed_at
+  IS NOT NULL`, avorte toute modification d'une période déjà close
+  (pas seulement sa réouverture).
+- `booking_periods_no_delete` - `BEFORE DELETE`, avorte
+  systématiquement.
 
 ### 3.6 `ticket_deliveries` Attention : APPEND-ONLY (partiel)
 
@@ -354,8 +387,8 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | Version | Nom | Contenu |
 |---|---|---|
 | 1 | `initial-schema` | Crée l'ensemble des tables listées au §§1-5 ci-dessus. |
-| 2 | `catalogue-fiscal-fields` | Ajoute `vat_code_takeaway` et `open_price` sur `menu_items`, et `department_id`/`department_name` sur `order_lines`. |
-| 3 | `booking-periods` | Ajoute les tables `order_entries` et `booking_periods` (§§3.4-3.5). |
+| 2 | `catalogue-fiscal-fields` | Ajoute `vat_code_takeaway` et `open_price` sur `menu_items`, `department_id`/`department_name` sur `order_lines`, et la table `order_entries` avec ses triggers (§3.4). |
+| 3 | `booking-periods` | Ajoute la table `booking_periods` avec ses triggers et son index (§3.5). |
 | 4 | `fiscal-archive-append-only` | Ajoute les triggers interdisant `DELETE`/`UPDATE` sur `fiscal_events` et `z_reports` (§3.1, §3.3). |
 | 5 | `ticket-deliveries` | Ajoute la table `ticket_deliveries` (§3.6, ticket numérique par e-mail). |
 | 6 | `original-prints` | Ajoute la table `original_prints` (§3.7, impression unique de l'original). |
