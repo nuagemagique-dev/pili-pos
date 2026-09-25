@@ -39,50 +39,54 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         restaurant_vat: "BE0499999960".to_string(),
         restaurant_est_no: "2123456789".to_string(),
         pos_id: "CFOD0061234567".to_string(),
+        pos_sw_version: "moyun-pos/1.0.0".to_string(),
         terminal_id: "POS1".to_string(),
+        device_id: "00:1b:44:11:3a:b7".to_string(),
+        operator: "Marie Dupont".to_string(),
         pos_datetime: "2026-07-03T12:34:56+02:00".to_string(),
         ticket_number: 15,
         event_label: label,
         is_training: false,
+        // Manual M110 basket: 2x Dry Martini (A) + 1x Burger du chef (B).
         lines: vec![
             TicketLine {
-                quantity: 1.0,
-                description: "Saumon roll x8".to_string(),
-                unit_price: 8.50,
-                total: 8.50,
-                vat_code: "B".to_string(),
+                quantity: 2.0,
+                description: "Dry Martini".to_string(),
+                unit_price: 12.00,
+                total: 24.00,
+                vat_code: "A".to_string(),
             },
             TicketLine {
                 quantity: 1.0,
-                description: "Coca 33cl".to_string(),
-                unit_price: 3.50,
-                total: 3.50,
-                vat_code: "A".to_string(),
+                description: "Burger du chef".to_string(),
+                unit_price: 28.00,
+                total: 28.00,
+                vat_code: "B".to_string(),
             },
         ],
-        subtotal: 12.00,
-        total: 12.00,
+        subtotal: 52.00,
+        total: 52.00,
         vat_breakdown: vec![
             VatCalcItem {
                 label: VatLabel::A,
                 rate: 21.0,
-                taxable_amount: 2.89,
-                vat_amount: 0.61,
-                total_amount: 3.50,
+                taxable_amount: 19.83,
+                vat_amount: 4.17,
+                total_amount: 24.00,
                 out_of_scope: false,
             },
             VatCalcItem {
                 label: VatLabel::B,
                 rate: 12.0,
-                taxable_amount: 7.59,
-                vat_amount: 0.91,
-                total_amount: 8.50,
+                taxable_amount: 25.00,
+                vat_amount: 3.00,
+                total_amount: 28.00,
                 out_of_scope: false,
             },
         ],
         payments: vec![TicketPayment {
             method: "Espèces".to_string(),
-            amount: 12.00,
+            amount: 52.00,
         }],
         rounding: None,
         fdm_ref: Some(fdm_ref(label, 15, 59)),
@@ -117,9 +121,9 @@ fn example_n_refund() {
         l.quantity = -l.quantity;
         l.total = -l.total;
     }
-    ticket.subtotal = -12.00;
-    ticket.total = -12.00;
-    ticket.payments[0].amount = -12.00;
+    ticket.subtotal = -52.00;
+    ticket.total = -52.00;
+    ticket.payments[0].amount = -52.00;
     ticket.ticket_number = 16;
     ticket.fdm_ref = Some(fdm_ref(EventLabel::N, 16, 60));
     write_example("ticket_N_remboursement", &ticket);

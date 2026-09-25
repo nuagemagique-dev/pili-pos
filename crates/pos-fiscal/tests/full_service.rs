@@ -512,6 +512,7 @@ async fn test_full_service_day_e2e() {
         is_training: false,
         rounding: None,
         lang: pos_fiscal::ticket::ReceiptLanguage::default(),
+        operator: "Test",
     });
 
     assert_eq!(pb_ticket_data.ticket_type_label, "PRO FORMA");
@@ -724,6 +725,7 @@ async fn test_full_service_day_e2e() {
         is_training: false,
         rounding: None,
         lang: pos_fiscal::ticket::ReceiptLanguage::default(),
+        operator: "Test",
     });
 
     assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");

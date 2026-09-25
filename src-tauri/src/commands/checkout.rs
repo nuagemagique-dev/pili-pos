@@ -230,6 +230,7 @@ pub async fn do_checkout(
     }
 
     // 7. Build fiscal ticket for display/print
+    let operator = super::operator_name(state, &order.user_insz);
     let ticket = sign_result.as_ref().map(|result| {
         let ticket_lines: Vec<TicketLine> = lines
             .iter()
@@ -268,6 +269,7 @@ pub async fn do_checkout(
             is_training: config.training_mode,
             rounding: rounding_eur,
             lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+            operator: &operator,
         })
     });
 

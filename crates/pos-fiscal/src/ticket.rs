@@ -44,7 +44,19 @@ pub struct FiscalTicket {
 
     // ── Transaction data ──
     pub pos_id: String,
+    /// POS software version (`posSwVersion`), printed with `pos_id`
+    /// (manual §VI row V).
+    #[serde(default)]
+    pub pos_sw_version: String,
     pub terminal_id: String,
+    /// Input device identification echoed by the FDM (`deviceId`,
+    /// the terminal's MAC address — manual §VI row VII).
+    #[serde(default)]
+    pub device_id: String,
+    /// User identification printed on the ticket (manual §VI row
+    /// VIII): the operator's name, never the INSZ.
+    #[serde(default)]
+    pub operator: String,
     pub pos_datetime: String,
     pub ticket_number: i64,
     pub event_label: EventLabel,
@@ -109,6 +121,8 @@ pub struct TicketParams<'a> {
     pub rounding: Option<f64>,
     /// Language of the printed mentions.
     pub lang: ReceiptLanguage,
+    /// Name of the user who registered the event (row VIII).
+    pub operator: &'a str,
 }
 
 impl FiscalTicket {
@@ -127,7 +141,10 @@ impl FiscalTicket {
             restaurant_vat: params.restaurant_vat.to_string(),
             restaurant_est_no: params.restaurant_est_no.to_string(),
             pos_id: result.pos_id.clone(),
+            pos_sw_version: crate::event::POS_SW_VERSION.to_string(),
             terminal_id: result.terminal_id.clone().unwrap_or_default(),
+            device_id: result.device_id.clone(),
+            operator: params.operator.to_string(),
             pos_datetime: result.pos_date_time.clone(),
             ticket_number: result.pos_fiscal_ticket_no,
             event_label: result.fdm_ref.event_label,
@@ -290,6 +307,7 @@ mod tests {
             is_training: false,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
         assert!(!ticket.is_refund);
@@ -317,6 +335,7 @@ mod tests {
             is_training: false,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert!(ticket.is_refund);
         assert_eq!(
@@ -340,6 +359,7 @@ mod tests {
             is_training: true,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert_eq!(ticket.ticket_type_label, "TRAINING");
         assert!(ticket.needs_invalid_disclaimer());
@@ -360,6 +380,7 @@ mod tests {
             is_training: false,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert_eq!(ticket.ticket_type_label, "PRO FORMA");
         assert!(ticket.needs_invalid_disclaimer());
@@ -380,6 +401,7 @@ mod tests {
             is_training: false,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert_eq!(ticket.ticket_type_label, "COPIE");
         assert!(ticket.needs_invalid_disclaimer());
@@ -400,6 +422,7 @@ mod tests {
             is_training: false,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert!(ticket.fdm_ref.is_some());
         assert_eq!(ticket.fdm_ref.unwrap().fdm_id, "FDM001");
@@ -434,6 +457,7 @@ mod tests {
             is_training: false,
             rounding: Some(0.02),
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert_eq!(ticket.subtotal, 12.53);
         assert!((ticket.total - 12.55).abs() < 0.001);
@@ -455,6 +479,7 @@ mod tests {
             is_training: false,
             rounding: None,
             lang: ReceiptLanguage::default(),
+            operator: "Test",
         });
         assert_eq!(ticket.subtotal, 12.53);
         assert_eq!(ticket.total, 12.53);

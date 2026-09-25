@@ -196,6 +196,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
 
     // Print pro forma receipt
     if let (Some(addr), Some(result)) = (config.printer_address.as_ref(), sign_result.as_ref()) {
+        let operator = super::operator_name(state, &order.user_insz);
         let ticket =
             pos_fiscal::ticket::FiscalTicket::from_sign_result(pos_fiscal::ticket::TicketParams {
                 result,
@@ -218,6 +219,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
                 is_training: config.training_mode,
                 rounding: None,
                 lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+                operator: &operator,
             });
         let data = pos_print::receipt::format_receipt(&ticket);
         let _ = pos_print::transport::send_to_printer(addr, &data).await;

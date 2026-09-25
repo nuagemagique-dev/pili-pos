@@ -7,12 +7,16 @@
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #4
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
 Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
 ------------------------------------------------
-Saumon roll x8                            8.50 B
-Coca 33cl                                 3.50 A
+2x Dry Martini                           24.00 A
+Burger du chef                           28.00 B
 ------------------------------------------------
-TOTAL                                      12.00
+TOTAL                                      52.00
 ------------------------------------------------
 ================================================
                 FDM: CBX01000042

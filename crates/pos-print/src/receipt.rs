@@ -12,6 +12,10 @@ struct Labels {
     date: &'static str,
     ticket: &'static str,
     terminal: &'static str,
+    pos: &'static str,
+    software: &'static str,
+    device: &'static str,
+    user: &'static str,
     subtotal: &'static str,
     rounding: &'static str,
     total: &'static str,
@@ -27,6 +31,10 @@ fn labels(lang: ReceiptLanguage) -> &'static Labels {
             date: "Date:",
             ticket: "Ticket:",
             terminal: "Terminal:",
+            pos: "POS:",
+            software: "Logiciel:",
+            device: "Appareil:",
+            user: "Utilisateur:",
             subtotal: "Sous-total",
             rounding: "Arrondi",
             total: "TOTAL",
@@ -39,6 +47,10 @@ fn labels(lang: ReceiptLanguage) -> &'static Labels {
             date: "Datum:",
             ticket: "Ticket:",
             terminal: "Terminal:",
+            pos: "POS:",
+            software: "Software:",
+            device: "Toestel:",
+            user: "Gebruiker:",
             subtotal: "Subtotaal",
             rounding: "Afronding",
             total: "TOTAAL",
@@ -51,6 +63,10 @@ fn labels(lang: ReceiptLanguage) -> &'static Labels {
             date: "Datum:",
             ticket: "Bon:",
             terminal: "Terminal:",
+            pos: "POS:",
+            software: "Software:",
+            device: "Geraet:",
+            user: "Benutzer:",
             subtotal: "Zwischensumme",
             rounding: "Rundung",
             total: "GESAMT",
@@ -113,7 +129,21 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     p.align(Alignment::Left);
     p.text_columns(l.date, &format_datetime(&ticket.pos_datetime));
     p.text_columns(l.ticket, &format!("#{}", ticket.ticket_number));
+    // Identification rows of the manual §VI ticket table: POS number
+    // and software version (V), terminal (VI), input device (VII) and
+    // user (VIII). Tickets archived before these fields existed have
+    // them empty and print without them.
+    p.text_columns(l.pos, &ticket.pos_id);
+    if !ticket.pos_sw_version.is_empty() {
+        p.text_columns(l.software, &ticket.pos_sw_version);
+    }
     p.text_columns(l.terminal, &ticket.terminal_id);
+    if !ticket.device_id.is_empty() {
+        p.text_columns(l.device, &ticket.device_id);
+    }
+    if !ticket.operator.is_empty() {
+        p.text_columns(l.user, &ticket.operator);
+    }
     p.separator('-');
 
     // ── Line items ─────────────────────────────────────────────
@@ -293,7 +323,10 @@ mod tests {
             restaurant_vat: "BE0499999960".to_string(),
             restaurant_est_no: String::new(),
             pos_id: "CFOD0061234567".to_string(),
+            pos_sw_version: "moyun-pos/1.0.0".to_string(),
             terminal_id: "POS1".to_string(),
+            device_id: "aa:bb:cc:dd:ee:ff".to_string(),
+            operator: "Marie Dupont".to_string(),
             pos_datetime: "2026-04-09T19:30:00+02:00".to_string(),
             ticket_number: 42,
             event_label: EventLabel::N,
@@ -337,6 +370,26 @@ mod tests {
         let ticket = sample_ticket();
         let bytes = format_receipt(&ticket);
         assert!(bytes.windows(15).any(|w| w == b"Tokyo Sushi Bar"));
+    }
+
+    #[test]
+    fn receipt_prints_the_identification_rows() {
+        // Manual §VI rows V-VIII: POS number + software version,
+        // terminal, input device, user.
+        let text = crate::render::render_plain_text(&format_receipt(&sample_ticket()));
+        for expected in [
+            "CFOD0061234567",
+            "moyun-pos/1.0.0",
+            "POS1",
+            "aa:bb:cc:dd:ee:ff",
+            "Marie Dupont",
+        ] {
+            assert!(text.contains(expected), "missing {expected:?} in:\n{text}");
+        }
+        assert!(
+            !text.contains("12345678901"),
+            "the INSZ must never be printed on a customer ticket"
+        );
     }
 
     #[test]

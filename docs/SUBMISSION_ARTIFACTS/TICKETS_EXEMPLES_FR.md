@@ -22,43 +22,44 @@ colonne par type de ticket émis par moyun-pos.
 
 | Élément | N | N Refund | P (Pro Forma) | C (Copy) | T (Training) | Autres (cuisine) |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| I. Dénomination complète du prestataire | OK | OK | OK | OK | OK | - |
-| II. Identification (nom, adresse, n° TVA) | OK | OK | OK | OK | OK | - |
-| III. Dénomination commerciale | OK | OK | OK | OK | OK | - |
-| IV. N° unité d'établissement (EST) | OK | OK | OK | OK | OK | - |
-| V. N° fabrication POS (CPOS) + n° version logiciel | OK | OK | OK | OK | OK | - |
-| VI. Identification terminal (terminalId) | OK | OK | OK | OK | OK | - |
-| VII. Identification dispositif d'entrée (MAC / SN) | OK | OK | OK | OK | OK | - |
-| VIII. Identification utilisateur (INSZ / employeeId) | OK | OK | OK | OK | OK | - |
-| IX. Date et heure de délivrance | OK | OK | OK | OK | OK | OK |
-| X. N° de ticket continu (série ininterrompue) | OK | OK | OK | OK | OK | - |
-| XI.1. Lignes produits : qté, désignation, prix, code TVA | OK | OK (négatif) | OK | OK | OK | OK (désignation seule, pas de prix) |
+| I. Dénomination complète du prestataire | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| II. Identification (nom, adresse, n° TVA) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| III. Dénomination commerciale | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| IV. N° unité d'établissement (EST) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| V. N° fabrication POS (posId) + n° version logiciel | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| VI. Identification terminal (terminalId) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| VII. Identification dispositif d'entrée (adresse MAC, `deviceId`) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| VIII. Identification utilisateur (nom de l'opérateur ; l'INSZ n'est pas imprimé) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| IX. Date et heure de délivrance | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
+| X. N° de ticket continu (série ininterrompue) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XI.1. Lignes produits : qté, désignation, prix, code TVA | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | ☑ (désignation seule, pas de prix) |
 | XI.2. Modifications de prix sur la ligne | N/A (MVP) | N/A | N/A | N/A | N/A | - |
 | XI.3. GTIN (optionnel) | N/A | N/A | N/A | N/A | N/A | - |
-| XII. Total à payer TVA comprise | OK | OK (négatif) | À PAYER (estimation) | OK | OK | - |
-| XIII. Base imposable par taux de TVA (calculée par le FDM) | OK | OK | - (pas avant paiement) | OK | OK | - |
-| XIV. Montant TVA par taux (calculé par le FDM) | OK | OK | - | OK | OK | - |
+| XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | À PAYER (estimation) | ☑ | ☑ | - |
+| XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (pas avant paiement) | ☑ | ☑ | - |
+| XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
 | XV. Modifications de prix hors lignes produits | N/A (MVP) | N/A | N/A | N/A | N/A | - |
-| XVI.I. Pied de page configuré par SPF Finances | OK | OK | OK | OK | OK | - |
-| XVI.II. fdmId | OK | OK | OK | OK | OK | - |
-| XVI.III. fdmDateTime | OK | OK | OK | OK | OK | - |
-| XVI.IV. eventLabel | OK (N) | OK (N) | OK (P) | OK (C) | OK (T) | - |
-| XVI.V. eventCounter | OK | OK | OK | OK | OK | - |
-| XVI.VI. totalCounter | OK | OK | OK | OK | OK | - |
-| XVI.VII. shortSignature (interdit sur C et T) | OK | OK | OK (pour P : pas de short en v1.7) | INTERDIT (non imprimé) | INTERDIT (non imprimé) | - |
-| XVII. Lignes de paiement (arrondi, tips, remboursements) | OK | OK (négatif) | - (pas encore payé) | - (copie sans paiement) | OK (mention FICTIF) | - |
-| XVIII. QR Code URL du FDM | OK (25×25 Type 2) | OK | OK | OK | OK | - |
+| XVI.I. Pied de page configuré par SPF Finances | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVI.II. fdmId | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVI.III. fdmDateTime | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVI.IV. eventLabel | ☑ (N) | ☑ (N) | ☑ (P) | ☑ (C) | ☑ (T) | - |
+| XVI.V. eventCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVI.VI. totalCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
+| XVI.VII. shortSignature (renvoyée par le FDM pour les events N uniquement) | ☑ | ☑ | - (non renvoyée pour P) | - (non réimprimée) | - (non renvoyée pour T) | - |
+| XVII. Lignes de paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - (pas encore payé) | ☑ (reprises de l'original) | ☑ | - |
+| XVIII. QR Code URL du FDM | ☑ (25×25 Type 2) | ☑ | ☑ | ☑ | ☑ | - |
 
 **Mentions spécifiques cochées :**
 
 | Mention | N | N Refund | P | C | T | Autres |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| Mention "PRO FORMA - ne tient pas lieu de ticket TVA valable" | - | - | OK | - | - | - |
-| Mention "REMBOURSEMENT" | - | OK | - | - | - | - |
-| Mention "COPIE - pas un original" | - | - | - | OK | - | - |
-| Mention "CECI N'EST PAS UN TICKET DE CAISSE DE TVA VALABLE" | - | - | OK (équivalent) | OK | OK | OK |
-| Bandeau "TRAINING" début et fin | - | - | - | - | OK | - |
-| Lien fdmRef vers le ticket original | - | OK | - | OK | - | - |
+| Mention "PRO FORMA - ne tient pas lieu de ticket TVA valable" | - | - | ☑ | - | - | - |
+| Mention "REMBOURSEMENT" | - | ☑ | - | - | - | - |
+| Mention "COPIE - pas un original" | - | - | - | ☑ | - | - |
+| Mention "CECI N'EST PAS UN TICKET DE CAISSE DE TVA VALABLE" | - | - | ☑ (équivalent) | ☑ | ☑ | ☑ |
+| Bandeau "TRAINING" début et fin | - | - | - | - | ☑ | - |
+
+Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) ; cette référence n'est pas imprimée. La copie réimprime le QR code de l'événement N original (spec POS v2.2 §6.5).
 
 **Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples ci-dessous sont en français. Le code source supporte le rendu multilingue (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
 
@@ -67,8 +68,8 @@ colonne par type de ticket émis par moyun-pos.
 
 ## 1. Vente normale (M110 - Événement N)
 
-Scénario : Saumon roll x8 (8,50 €, TVA B) + Coca 33cl (3,50 €, TVA A),
-payé en espèces.
+Scénario (produits du manuel, M110) : 2 × Dry Martini (12,00 €, TVA A)
++ 1 × Burger du chef (28,00 €, TVA B), payé en espèces.
 
 ```
               TICKET DE CAISSE TVA
@@ -80,18 +81,22 @@ payé en espèces.
 
 Date:                           2026-07-03 12:34
 Ticket:                                      #15
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
 Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
 ------------------------------------------------
-Saumon roll x8                            8.50 B
-Coca 33cl                                 3.50 A
+2x Dry Martini                           24.00 A
+Burger du chef                           28.00 B
 ------------------------------------------------
-TOTAL                                      12.00
+TOTAL                                      52.00
 ------------------------------------------------
-Espèces                                    12.00
+Espèces                                    52.00
 
 TVA    Taux    Base HT    TVA
- A      21%      2.89      0.61
- B      12%      7.59      0.91
+ A      21%     19.83      4.17
+ B      12%     25.00      3.00
 ================================================
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
@@ -124,12 +129,16 @@ d'invalidité en bas.
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #4
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
 Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
 ------------------------------------------------
-Saumon roll x8                            8.50 B
-Coca 33cl                                 3.50 A
+2x Dry Martini                           24.00 A
+Burger du chef                           28.00 B
 ------------------------------------------------
-TOTAL                                      12.00
+TOTAL                                      52.00
 ------------------------------------------------
 ================================================
                 FDM: CBX01000042
@@ -163,18 +172,22 @@ montants négatifs, en-tête REMBOURSEMENT DU TICKET DE CAISSE TVA).
 
 Date:                           2026-07-03 12:34
 Ticket:                                      #16
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
 Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
 ------------------------------------------------
--1x Saumon roll x8                       -8.50 B
--1x Coca 33cl                            -3.50 A
+-2x Dry Martini                         -24.00 A
+-1x Burger du chef                      -28.00 B
 ------------------------------------------------
-TOTAL                                     -12.00
+TOTAL                                     -52.00
 ------------------------------------------------
-Espèces                                   -12.00
+Espèces                                   -52.00
 
 TVA    Taux    Base HT    TVA
- A      21%      2.89      0.61
- B      12%      7.59      0.91
+ A      21%     19.83      4.17
+ B      12%     25.00      3.00
 ================================================
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
@@ -208,18 +221,22 @@ shortSignature réimprimée, mention d'invalidité en bas.
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #2
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
 Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
 ------------------------------------------------
-Saumon roll x8                            8.50 B
-Coca 33cl                                 3.50 A
+2x Dry Martini                           24.00 A
+Burger du chef                           28.00 B
 ------------------------------------------------
-TOTAL                                      12.00
+TOTAL                                      52.00
 ------------------------------------------------
-Espèces                                    12.00
+Espèces                                    52.00
 
 TVA    Taux    Base HT    TVA
- A      21%      2.89      0.61
- B      12%      7.59      0.91
+ A      21%     19.83      4.17
+ B      12%     25.00      3.00
 ================================================
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00
@@ -254,18 +271,22 @@ TRAINING (double largeur) en tête, mention d'invalidité en bas.
 
 Date:                           2026-07-03 12:34
 Ticket:                                       #7
+POS:                              CFOD0061234567
+Logiciel:                        moyun-pos/1.0.0
 Terminal:                                   POS1
+Appareil:                      00:1b:44:11:3a:b7
+Utilisateur:                        Marie Dupont
 ------------------------------------------------
-Saumon roll x8                            8.50 B
-Coca 33cl                                 3.50 A
+2x Dry Martini                           24.00 A
+Burger du chef                           28.00 B
 ------------------------------------------------
-TOTAL                                      12.00
+TOTAL                                      52.00
 ------------------------------------------------
-Espèces                                    12.00
+Espèces                                    52.00
 
 TVA    Taux    Base HT    TVA
- A      21%      2.89      0.61
- B      12%      7.59      0.91
+ A      21%     19.83      4.17
+ B      12%     25.00      3.00
 ================================================
                 FDM: CBX01000042
            2026-07-03T12:34:57+02:00

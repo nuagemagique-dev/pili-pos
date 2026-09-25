@@ -140,6 +140,7 @@ pub async fn do_copy_ticket(
 
             // Best-effort print — no async I/O under the lock.
             if let Some((order, lines)) = print_data {
+                let operator = super::operator_name(state, &employee_insz);
                 let ticket_lines: Vec<TicketLine> = lines
                     .iter()
                     .map(|l| TicketLine {
@@ -165,6 +166,7 @@ pub async fn do_copy_ticket(
                     is_training: config.training_mode,
                     rounding: None, // copies don't re-round
                     lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+                    operator: &operator,
                 });
                 if let Some(ref addr) = config.printer_address {
                     let data = pos_print::receipt::format_receipt(&ticket);
