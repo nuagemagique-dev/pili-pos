@@ -1,11 +1,11 @@
 use pos_fiscal::ticket::{FiscalTicket, ReceiptLanguage};
 
-use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
 
 /// Fixed receipt labels per ticket language (FR/NL/DE — §VI of the
 /// certification manual requires the ticket in a national language).
-/// ASCII only: the ESC/POS transport sends raw bytes without a
-/// code-page handshake, so accented characters are avoided.
+/// ASCII only, so the labels print the same whatever code page a
+/// replacement printer starts in.
 struct Labels {
     vat_no: &'static str,
     est_no: &'static str,
@@ -116,9 +116,9 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         bold: true,
         ..Default::default()
     });
-    p.textln(&ticket.restaurant_name);
+    p.textln_wrapped(&ticket.restaurant_name);
     p.style_reset();
-    p.textln(&ticket.restaurant_address);
+    p.textln_wrapped(&ticket.restaurant_address);
     p.textln(&format!("{}: {}", l.vat_no, ticket.restaurant_vat));
     if !ticket.restaurant_est_no.is_empty() {
         p.textln(&format!("{}: {}", l.est_no, ticket.restaurant_est_no));
@@ -153,8 +153,8 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         } else {
             format!("{}x {}", format_qty(line.quantity), line.description)
         };
-        let price = format_price(line.total);
-        p.text_columns(&qty_desc, &format!("{price} {}", line.vat_code));
+        let price = format!("{} {}", format_price(line.total), line.vat_code);
+        item_line(&mut p, &qty_desc, &price);
     }
 
     p.separator('-');
@@ -241,7 +241,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
             ..Default::default()
         });
         for line in &ticket.footer {
-            p.textln(line);
+            p.textln_wrapped(line);
         }
         p.style_reset();
     }
@@ -254,7 +254,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
             bold: true,
             ..Default::default()
         });
-        p.textln(ticket.invalid_disclaimer());
+        p.textln_wrapped(ticket.invalid_disclaimer());
         p.style_reset();
     }
 
@@ -276,6 +276,26 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     p.cut();
 
     p.build()
+}
+
+/// One article: description left, amount and VAT code right. A
+/// description too long for one line wraps between words, with the
+/// amount on its last line: the full product name is printed, never
+/// cut.
+fn item_line(p: &mut EscPosBuilder, desc: &str, price: &str) {
+    let width = p.chars_per_line() as usize;
+    let room = width.saturating_sub(price.chars().count() + 1);
+    let mut lines = wrap(desc, width);
+    let last = lines.pop().unwrap_or_default();
+    for line in &lines {
+        p.textln(line);
+    }
+    if last.chars().count() <= room {
+        p.text_columns(&last, price);
+    } else {
+        p.textln(&last);
+        p.text_columns("", price);
+    }
 }
 
 /// Format a receipt that just opens the cash drawer (no print content).

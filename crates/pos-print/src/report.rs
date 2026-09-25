@@ -97,9 +97,9 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         bold: true,
         ..Default::default()
     });
-    p.textln(&data.restaurant_name);
+    p.textln_wrapped(&data.restaurant_name);
     p.style_reset();
-    p.textln(&data.restaurant_address);
+    p.textln_wrapped(&data.restaurant_address);
     p.textln(&format!("TVA: {}", data.restaurant_vat));
     p.blank_line();
 
@@ -318,9 +318,9 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
         bold: true,
         ..Default::default()
     });
-    p.textln(&data.restaurant_name);
+    p.textln_wrapped(&data.restaurant_name);
     p.style_reset();
-    p.textln(&data.restaurant_address);
+    p.textln_wrapped(&data.restaurant_address);
     p.textln(&format!("TVA: {}", data.restaurant_vat));
     p.blank_line();
 

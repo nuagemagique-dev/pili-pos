@@ -239,7 +239,8 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
         drawer_opens: 3,
         fdm_id: Some("CBX01000042".to_string()),
         fdm_datetime: Some("2026-07-03T22:42:00+02:00".to_string()),
-        short_signature: Some("7c2e91d4a5b3f60718c9e2d3a4b5c6d7e8f90a1b2c".to_string()),
+        // R events get no short signature from the FDM (§2.4).
+        short_signature: None,
         ticket_number: 3,
     }
 }

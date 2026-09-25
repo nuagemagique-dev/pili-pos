@@ -91,10 +91,11 @@ impl EscPosBuilder {
 
     // ── Text Output ────────────────────────────────────────────
 
-    /// Write text encoded as CP858 (selected in `init`). Characters
-    /// outside CP858 print as `?`. No automatic line feed.
+    /// Write text encoded as CP858 (selected in `init`), after
+    /// [`printable`] replaced what CP858 lacks. Characters with no
+    /// stand-in print as `?`. No automatic line feed.
     pub fn text(&mut self, s: &str) -> &mut Self {
-        for ch in s.chars() {
+        for ch in printable(s).chars() {
             self.buf.push(encode_cp858(ch));
         }
         self
@@ -104,6 +105,16 @@ impl EscPosBuilder {
     pub fn textln(&mut self, s: &str) -> &mut Self {
         self.text(s);
         self.lf()
+    }
+
+    /// Write text as whole lines of at most [`CHARS_PER_LINE`]
+    /// columns, breaking between words (see [`wrap`]), so a long name
+    /// or address is never cut by the printer mid-word.
+    pub fn textln_wrapped(&mut self, s: &str) -> &mut Self {
+        for line in wrap(s, self.chars_per_line() as usize) {
+            self.textln(&line);
+        }
+        self
     }
 
     /// Write a line of text padded/truncated to fit the line width.
@@ -117,6 +128,7 @@ impl EscPosBuilder {
         // Widths count printed characters (CP858 is single-byte, so
         // one char == one column), not UTF-8 bytes.
         let width = self.chars_per_line() as usize;
+        let (left, right) = (printable(left), printable(right));
         let right_len = right.chars().count().min(width);
         let right_truncated: String = right.chars().take(right_len).collect();
         let left_max = width.saturating_sub(right_len + 1);
@@ -279,10 +291,10 @@ impl Default for EscPosBuilder {
     }
 }
 
-/// Characters of CP858 above 0x7F that the receipts actually need
-/// (French/Dutch/German accents + € + box/pseudo-graphics we use).
-/// Kept as one table so encoding (printer) and decoding (renderer)
-/// can never disagree.
+/// The characters of CP858 above 0x7F, box-drawing aside: every
+/// Latin-1 letter (French, Dutch, German and other European menus),
+/// € and the usual symbols. Kept as one table so encoding (printer)
+/// and decoding (renderer) can never disagree.
 const CP858_HIGH: &[(char, u8)] = &[
     ('Ç', 0x80),
     ('ü', 0x81),
@@ -323,7 +335,126 @@ const CP858_HIGH: &[(char, u8)] = &[
     ('°', 0xF8),
     ('²', 0xFD),
     ('·', 0xFA),
+    ('å', 0x86),
+    ('Å', 0x8F),
+    ('æ', 0x91),
+    ('Æ', 0x92),
+    ('ø', 0x9B),
+    ('£', 0x9C),
+    ('Ø', 0x9D),
+    ('×', 0x9E),
+    ('ƒ', 0x9F),
+    ('á', 0xA0),
+    ('í', 0xA1),
+    ('ó', 0xA2),
+    ('ú', 0xA3),
+    ('ñ', 0xA4),
+    ('Ñ', 0xA5),
+    ('ª', 0xA6),
+    ('º', 0xA7),
+    ('¿', 0xA8),
+    ('®', 0xA9),
+    ('¬', 0xAA),
+    ('½', 0xAB),
+    ('¼', 0xAC),
+    ('¡', 0xAD),
+    ('«', 0xAE),
+    ('»', 0xAF),
+    ('Á', 0xB5),
+    ('©', 0xB8),
+    ('¢', 0xBD),
+    ('¥', 0xBE),
+    ('ã', 0xC6),
+    ('Ã', 0xC7),
+    ('¤', 0xCF),
+    ('ð', 0xD0),
+    ('Ð', 0xD1),
+    ('Í', 0xD6),
+    ('¦', 0xDD),
+    ('Ì', 0xDE),
+    ('Ó', 0xE0),
+    ('Ò', 0xE3),
+    ('õ', 0xE4),
+    ('Õ', 0xE5),
+    ('µ', 0xE6),
+    ('þ', 0xE7),
+    ('Þ', 0xE8),
+    ('Ú', 0xE9),
+    ('ý', 0xEC),
+    ('Ý', 0xED),
+    ('¯', 0xEE),
+    ('±', 0xF1),
+    ('¾', 0xF3),
+    ('¶', 0xF4),
+    ('§', 0xF5),
+    ('÷', 0xF6),
+    ('¸', 0xF7),
+    ('¨', 0xF9),
+    ('¹', 0xFB),
+    ('³', 0xFC),
 ];
+
+/// Split `s` (after [`printable`]) into lines of at most `width`
+/// columns, breaking at spaces; a word longer than a line is split.
+/// Always returns at least one line.
+pub fn wrap(s: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for word in printable(s).split_whitespace() {
+        let mut word: Vec<char> = word.chars().collect();
+        loop {
+            let used = line.chars().count();
+            let sep = usize::from(used > 0);
+            if used + sep + word.len() <= width {
+                if sep == 1 {
+                    line.push(' ');
+                }
+                line.extend(word.iter());
+                break;
+            }
+            if used > 0 {
+                lines.push(std::mem::take(&mut line));
+                continue;
+            }
+            // A word wider than the paper: cut it.
+            let rest = word.split_off(width);
+            lines.push(word.iter().collect());
+            word = rest;
+        }
+    }
+    if !line.is_empty() || lines.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
+/// Replace what CP858 cannot print with its usual stand-in, so a
+/// product typed on a phone or a Mac never prints `?`: `œ` → `oe`
+/// (bœuf), typographic quotes and apostrophes → `'` and `"`, dashes →
+/// `-`, `…` → `...`, special spaces → a space. Combining accents
+/// (decomposed text) are dropped, keeping the base letter. Anything
+/// else is left for [`encode_cp858`] (which prints `?`).
+pub fn printable(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            'œ' => out.push_str("oe"),
+            'Œ' => out.push_str("OE"),
+            '\u{2018}' | '\u{2019}' | '\u{201A}' | '\u{2032}' | '\u{02BC}' => out.push('\''),
+            '\u{201C}' | '\u{201D}' | '\u{201E}' | '\u{2033}' => out.push('"'),
+            '\u{2010}'..='\u{2015}' | '\u{2212}' => out.push('-'),
+            '\u{2026}' => out.push_str("..."),
+            '\u{2022}' => out.push('·'),
+            '\u{2122}' => out.push_str("TM"),
+            '\u{00A0}' | '\u{2000}'..='\u{200A}' | '\u{202F}' | '\u{205F}' => out.push(' '),
+            '\u{200B}'..='\u{200D}' | '\u{FEFF}' | '\u{00AD}' => {}
+            '\u{0300}'..='\u{036F}' => {}
+            _ => out.push(ch),
+        }
+    }
+    out
+}
 
 /// Encode one char to CP858; unknown characters become `?`.
 pub fn encode_cp858(ch: char) -> u8 {
@@ -521,9 +652,103 @@ mod tests {
 
     #[test]
     fn unmapped_high_byte_decodes_to_question_mark() {
-        // 0x86 is not assigned in our CP858_HIGH subset (not one of
-        // the accents/€ the receipts actually use).
-        assert_eq!(decode_cp858(0x86), '?');
+        // 0xB0 is a box-drawing glyph, never printed by the receipts.
+        assert_eq!(decode_cp858(0xB0), '?');
+    }
+
+    #[test]
+    fn the_high_table_has_no_duplicate_char_or_byte() {
+        let mut chars: Vec<char> = CP858_HIGH.iter().map(|(c, _)| *c).collect();
+        let mut bytes: Vec<u8> = CP858_HIGH.iter().map(|(_, b)| *b).collect();
+        chars.sort_unstable();
+        bytes.sort_unstable();
+        let (nc, nb) = (chars.len(), bytes.len());
+        chars.dedup();
+        bytes.dedup();
+        assert_eq!(chars.len(), nc, "duplicate char");
+        assert_eq!(bytes.len(), nb, "duplicate byte");
+        assert!(bytes.iter().all(|b| *b >= 0x80));
+    }
+
+    #[test]
+    fn every_latin1_letter_is_printable() {
+        // Every letter of U+00C0–U+00FF (Latin-1) except × and ÷.
+        for code in 0xC0u32..=0xFF {
+            let ch = char::from_u32(code).unwrap();
+            if !ch.is_alphabetic() {
+                continue;
+            }
+            assert_ne!(encode_cp858(ch), b'?', "{ch:?} must print");
+        }
+    }
+
+    #[test]
+    fn menu_words_print_without_question_marks() {
+        for word in [
+            "Bœuf bourguignon",
+            "Œuf cocotte",
+            "Crème brûlée",
+            "Plat du jour d\u{2019}été",
+            "\u{201C}Maison\u{201D} \u{2013} 2 pers.",
+            "Café\u{00A0}crème…",
+            "Paëlla, jalapeño, smørrebrød",
+            "Grüße, Käse, Ölfondue, Weißwurst",
+            "Crêpe Façon Mère",
+        ] {
+            let mut b = EscPosBuilder::new();
+            b.text(word);
+            let printed = &b.build()[5..];
+            assert!(!printed.contains(&b'?'), "{word:?} printed {printed:?}");
+        }
+    }
+
+    #[test]
+    fn stand_ins_are_the_usual_ones() {
+        assert_eq!(printable("Bœuf"), "Boeuf");
+        assert_eq!(printable("ŒUF"), "OEUF");
+        assert_eq!(printable("l\u{2019}été"), "l'été");
+        assert_eq!(printable("\u{201E}x\u{201C}"), "\"x\"");
+        assert_eq!(printable("a\u{2013}b\u{2014}c"), "a-b-c");
+        assert_eq!(printable("Suite\u{2026}"), "Suite...");
+        assert_eq!(printable("10\u{202F}%"), "10 %");
+        assert_eq!(
+            printable("e\u{0301}"),
+            "e",
+            "decomposed accent keeps the letter"
+        );
+        assert_eq!(printable("a\u{200B}b"), "ab");
+        assert_eq!(printable("寿司"), "寿司", "left for encode_cp858");
+    }
+
+    #[test]
+    fn wrap_breaks_between_words() {
+        assert_eq!(wrap("aa bb cc", 5), vec!["aa bb", "cc"]);
+        assert_eq!(wrap("aa  bb", 10), vec!["aa bb"]);
+        assert_eq!(wrap("", 10), vec![""]);
+        assert_eq!(wrap("abcdefghij", 4), vec!["abcd", "efgh", "ij"]);
+        assert_eq!(wrap("x abcdefgh", 4), vec!["x", "abcd", "efgh"]);
+        assert_eq!(wrap("Bœuf œuf", 4), vec!["Boeu", "f", "oeuf"]);
+        for (s, w) in [
+            ("Rue de l'Exemple 123, 4000 Liège, Belgique", 12),
+            ("a b c d e f", 1),
+        ] {
+            let lines = wrap(s, w);
+            assert!(lines.iter().all(|l| l.chars().count() <= w), "{lines:?}");
+            let joined: String = lines.concat().split_whitespace().collect();
+            let original: String = printable(s).split_whitespace().collect();
+            assert_eq!(joined, original, "nothing lost");
+        }
+    }
+
+    #[test]
+    fn columns_count_the_stand_ins() {
+        // "Bœuf" prints as "Boeuf": 5 columns, not 4.
+        let mut b = EscPosBuilder::new();
+        b.text_columns("Bœuf", "12.00");
+        let line = &b.build()[5..];
+        assert_eq!(line.len(), 49, "48 columns + LF");
+        assert!(line.starts_with(b"Boeuf "));
+        assert!(line.ends_with(b"12.00\n"));
     }
 
     // ── Misc builder surface ─────────────────────────────────────
