@@ -14,8 +14,15 @@ moyun-pos chez un client HoReCa.
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
 | Câble Ethernet | RJ45 Cat-5e ou supérieur | 2 (POS + FDM) |
 | Switch / box internet | 4 ports minimum | 1 |
-| Clé USB d'installation | 8 Go minimum, formatée FAT32 | 1 |
+| Clé USB d'installation/mise à jour | 8 Go minimum — l'image kiosque complète (`moyun-pos-kiosk-<profil>.img.xz`) y est écrite telle quelle (§2), pas un simple installeur FAT32 | 1 |
 | Onduleur (recommandé) | 600 VA minimum | 1 |
+
+**Puce TPM 2.0 obligatoire** (fTPM Intel PTT intégré au J6412, ou
+puce dTPM discrète selon la carte mère) : le premier démarrage chiffre
+`/var` (base fiscale) en LUKS2 avec déverrouillage automatique lié à
+ce TPM (§3.4, `SECURITE_BD_FR.md` §3.6). Sans TPM2 activé en BIOS,
+le premier démarrage échoue à l'étape d'enrôlement TPM2 — vérifier
+et activer avant de commencer (§3.1).
 
 ## 2. Préparation de la clé USB d'installation
 
@@ -53,38 +60,107 @@ Sur Windows : utiliser **Rufus** ou **Balena Etcher** avec l'image.
 
 1. Entrer dans le BIOS (touche `Del` ou `F2` selon le modèle).
 2. Activer **Boot from USB**.
-3. Désactiver **Secure Boot** si activé.
-4. **Définir un mot de passe BIOS** (à conserver précieusement -
-   le client n'en a pas besoin).
-5. Sauvegarder et redémarrer.
+3. **Activer le TPM 2.0** (souvent affiché "Intel PTT" ou "fTPM" sur
+   le J6412) — obligatoire pour le chiffrement automatique de `/var`
+   au premier démarrage (§3.4, §1). Sans cela, `moyun-provision`
+   échoue à l'enrôlement TPM2 et le terminal reste bloqué avant
+   d'atteindre l'écran de connexion.
+4. **Laisser Secure Boot désactivé** (le paramètre par défaut sur la
+   plupart de ces cartes mères) : l'image ne signe pas encore son UKI
+   (Unified Kernel Image) contre une clé Secure Boot — l'activer
+   empêcherait le terminal de démarrer. Voir `SECURITE_BD_FR.md` §3.6
+   pour ce que cela implique pour le scellement TPM2.
+5. **Définir un mot de passe BIOS** (à conserver précieusement -
+   le client n'en a pas besoin) et verrouiller l'ordre de boot sur le
+   disque interne pour l'usage normal (USB seulement au besoin, via
+   le mot de passe BIOS).
+6. Sauvegarder et redémarrer.
 
 ### 3.2 Boot sur la clé USB
 
-1. Brancher la clé USB préparée.
-2. Démarrer le terminal - il doit booter sur la clé.
-3. Choisir "Install moyun-pos kiosk" dans le menu de la clé.
+1. Brancher la clé USB préparée (image kiosque écrite telle quelle,
+   §2 — elle contient déjà les deux entrées de menu suivantes, ajoutées
+   par `deploy/image/build.sh` en dupliquant l'UKI construit par mkosi
+   avec une ligne de commande différente).
+2. Démarrer le terminal - il doit booter sur la clé (menu
+   `systemd-boot`).
+3. Choisir l'entrée **"Install"** pour une installation neuve, ou
+   **"Update"** pour mettre à jour un terminal déjà en service sans
+   perdre `/var` (base fiscale + sauvegardes) — voir §6.
 
 ### 3.3 Procédure d'installation
 
-L'installeur est entièrement automatique :
-1. Détection du disque interne.
-2. Effacement complet du disque interne.
-3. Copie de l'image (Debian 12 minimal + moyun-pos + Cage + outils).
-4. Génération automatique d'un mot de passe `root` aléatoire,
-   affiché à l'écran à la fin.
-5. **Inscrire ce mot de passe** dans le carnet du distributeur
-   (jamais communiqué au client).
+Le service `moyun-installer.service`, actif uniquement quand le noyau
+a démarré avec `moyun.installer=install` (l'entrée "Install" du menu),
+fait le travail :
 
-Durée approximative : 8 à 12 minutes.
+1. Détection du disque interne (le premier disque autre que la clé
+   USB elle-même).
+2. **Install** : réplication complète de la table de partitions de la
+   clé (`sgdisk --replicate` + `-G` pour de nouveaux UUID) puis copie
+   partition par partition (ESP + racine ; la partition `moyun-data`
+   copiée est vide/non formatée à ce stade) vers le disque interne.
+   **Update** : seules les partitions ESP et racine sont recopiées
+   (`dd` partition à partition) ; la partition `moyun-data` déjà
+   présente sur le disque interne (avec son contenu chiffré) n'est
+   **jamais touchée** — c'est ce qui préserve `pos.db` d'une mise à
+   jour à l'autre.
+3. Le disque interne contient maintenant Debian 12 minimal + moyun-pos
+   + Cage + RustDesk (extrait) + les outils de provisioning, en lecture
+   seule pour la racine — mais rien n'est encore déchiffré ni
+   configuré : cette étape ne fait que poser les partitions ESP/racine
+   sur le disque interne.
 
-### 3.4 Premier démarrage
+Durée approximative : 3 à 6 minutes (copie de partitions brutes,
+beaucoup plus rapide que l'ancienne installation "à chaud" sur un
+Debian nu).
+
+### 3.4 Premier démarrage — chiffrement, mots de passe, clé de récupération
 
 Retirer la clé USB et redémarrer. Le terminal doit :
-1. Démarrer sur le disque interne.
-2. Lancer automatiquement Cage Wayland en plein écran.
-3. Démarrer moyun-pos en mode kiosque.
-4. Afficher l'écran de connexion (avec un message rouge "POS NON
-   CONFIGURÉ" tant que `pos.json` n'est pas paramétré).
+
+1. Démarrer sur le disque interne (systemd-boot → UKI).
+2. `systemd-repart` finalise la partition `moyun-data` (taille = tout
+   l'espace libre restant sur le disque).
+3. `moyun-provision.service` s'exécute automatiquement, **une seule
+   fois** (il ne se relance jamais aux démarrages suivants) :
+   - Formate `moyun-data` en LUKS2 avec une clé temporaire.
+   - Enrôle le TPM2 (déverrouillage automatique, silencieux, à chaque
+     démarrage normal) et une **clé de récupération**.
+   - Supprime la clé temporaire.
+   - Formate le volume déchiffré en ext4, le monte sur `/var`.
+   - Copie la base et le `pos.json` d'usine, y inscrit le `device_id`
+     (adresse MAC de la carte réseau du terminal, en minuscules —
+     voir §4.2 ; jamais `DEV001` ni une valeur libre).
+   - Génère un mot de passe `root` aléatoire (et, sur l'image
+     d'admission, un mot de passe `spf`), les affiche **une seule
+     fois** à l'écran avec la clé de récupération LUKS, puis attend
+     une pression sur Entrée.
+4. **Inscrire immédiatement** le mot de passe `root` (et `spf` le cas
+   échéant) ainsi que la clé de récupération LUKS dans le carnet du
+   distributeur (jamais communiqués au client) — ces valeurs ne sont
+   **plus jamais réaffichées** et ne sont conservées nulle part sur le
+   disque après cet écran.
+5. Une fois Entrée pressée, le terminal poursuit son démarrage : Cage
+   Wayland en plein écran, puis moyun-pos en mode kiosque.
+6. Écran de connexion affiché (avec un message rouge "POS NON
+   CONFIGURÉ" tant que les champs propres à l'établissement de
+   `pos.json` — §4.2 — n'ont pas été renseignés).
+
+Durée approximative de cette étape : 1 à 3 minutes (l'enrôlement TPM2
+est l'opération la plus lente).
+
+**Reprise après coupure de courant pendant cette étape** : si le
+terminal est mis hors tension entre l'enrôlement TPM2 et le montage de
+`/var`, `moyun-provision` détecte au redémarrage suivant un volume
+LUKS2 déjà enrôlé TPM2 mais non monté, et se contente de le
+déverrouiller/monter (aucune re-génération de mots de passe — ils
+n'auraient de toute façon plus la même valeur que ceux déjà notés).
+Si le volume est LUKS2 mais **sans** jeton TPM2 (coupure encore plus
+tôt), le script s'arrête et affiche qu'une intervention manuelle est
+nécessaire depuis la console de maintenance (§4.1) — ce cas n'a pas
+été exercé sur matériel réel au moment de la rédaction de ce document
+(voir le rapport final Phase 4).
 
 ## 4. Configuration initiale
 
@@ -100,13 +176,22 @@ maintenance initiale, le distributeur :
 
 ### 4.2 Fichier de configuration `/etc/moyun-pos/pos.json`
 
-Éditer avec `vi /etc/moyun-pos/pos.json` :
+Ce fichier **existe déjà** à ce stade : `moyun-provision.service` l'a
+copié depuis le gabarit d'usine au premier démarrage (§3.4) et y a
+déjà inscrit le `device_id` réel du terminal. `/etc/moyun-pos` est un
+lien symbolique vers `/var/lib/moyun-etc/moyun-pos` (partition
+chiffrée LUKS2, §3.4) — il ne redevient lisible qu'après
+déverrouillage, donc uniquement une fois le terminal démarré. Reste à
+compléter les champs propres à l'établissement.
+
+Éditer avec `vi /etc/moyun-pos/pos.json` (l'éditeur `vim-tiny` est
+installé sur l'image précisément pour cette étape) :
 
 ```json
 {
   "pos_id": "CFOD0061234567",
   "terminal_id": "POS1",
-  "device_id": "DEV001",
+  "device_id": "00:1b:44:11:3a:b7",
   "restaurant_name": "Restaurant Exemple",
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
@@ -125,7 +210,7 @@ Champs :
 |---|---|---|
 | `pos_id` | Identifiant POS 14 caractères (commence par `C`). Attribué par le SPF Finances à la certification. | SPF Finances |
 | `terminal_id` | ID du terminal physique. Libre, en général `POS1`, `POS2`... | Distributeur |
-| `device_id` | ID du device. Libre. | Distributeur |
+| `device_id` | Adresse MAC de la carte réseau du terminal (minuscules, séparée par `:`), imprimée sur chaque ticket (manuel §VI, ligne "Appareil: <deviceId>"). Renseignée **automatiquement** par `moyun-provision` au premier démarrage (interface de la route par défaut, sinon la première interface Ethernet non-`lo` — voir `deploy/provision/provision.sh::detect_device_id`) ; ne pas modifier à la main sauf changement matériel de la carte réseau. | Automatique (terminal) |
 | `restaurant_name` | Nom commercial du restaurant tel qu'apparaît sur le ticket | Client |
 | `restaurant_address` | Adresse complète | Client |
 | `restaurant_vat` | Numéro de TVA belge format `BE0XXXXXXXXX` | Client |

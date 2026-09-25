@@ -81,26 +81,63 @@ sur n'importe quel événement passé, sans dépendre du FDM
 ### 2.1 Sur la machine du commerçant
 
 - Pas de console SSH active sur le kiosque (cf.
-  `KIOSK_DEPLOYMENT_CHECKLIST.md`).
+  `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`).
 - L'opérateur ne dispose d'aucune commande shell : l'image démarre
   directement sur l'interface moyun-pos en plein écran sous Cage
   Wayland.
 - Le fichier de base de données est protégé en lecture (mode 0640,
-  propriétaire `moyun-pos`).
+  propriétaire `pos`).
+- **Exception, image d'admission uniquement** : un compte `spf`
+  (groupe `pos`, console `tty2`, mot de passe aléatoire affiché une
+  seule fois au premier démarrage — `MANUEL_INSTALLATION_FR.md` §3.4)
+  dispose du wrapper `pos-db-ro` pour interroger `pos.db` en lecture
+  seule sans jamais pouvoir y écrire. Absent de l'image de production.
+  Voir `SECURITE_BD_FR.md` §3.2 et §3.6.
 
 ### 2.2 Accès pour audit / contrôle SPF Finances
 
-Trois méthodes sont fournies :
+Quatre méthodes sont fournies :
 
-#### Méthode A - Sortie shell maintenancier (recommandée)
+#### Méthode A - `pos-db-ro` sur le compte `spf` (recommandée, image d'admission)
 
-Avec une clé USB de maintenance bootable (à fournir par le
-distributeur ou à demander à `secr.gksce@minfin.fed.be`), il est
-possible de :
-1. Démonter le kiosque et accéder au système de fichiers en
-   lecture-écriture.
-2. Copier `pos.db` et le répertoire `backups/` sur la clé USB.
-3. Importer dans un SQLite Browser ou la CLI `sqlite3` pour requêter.
+Sans démonter quoi que ce soit ni sortir le disque : sur la console
+`tty2` (`Ctrl+Alt+F2`), se connecter au compte `spf` (mot de passe
+noté par le distributeur au premier démarrage,
+`MANUEL_INSTALLATION_FR.md` §3.4) et lancer :
+
+```bash
+pos-db-ro                                    # shell SQL interactif
+pos-db-ro "SELECT * FROM fiscal_events ORDER BY id DESC LIMIT 20;"
+```
+
+`pos-db-ro` (`/usr/local/bin/pos-db-ro`) ouvre `pos.db` en lecture
+seule (`sqlite3 -readonly`, ou `?immutable=1` si le service est
+arrêté) : le compte `spf` n'a physiquement pas la permission d'écrire
+dans le fichier (groupe `pos`, mode `0640` — `SECURITE_BD_FR.md`
+§3.1-3.2). Cette méthode n'existe que sur l'image d'admission ; sur un
+terminal en production, utiliser la méthode B ou contacter le
+distributeur.
+
+#### Méthode A bis - Extraction physique du disque (accès de dernier recours)
+
+Depuis l'image mkosi, `/var` (donc `pos.db`) est chiffré **LUKS2**
+avec déverrouillage lié au TPM2 de ce terminal précis
+(`SECURITE_BD_FR.md` §3.6). Démonter le disque et le brancher ailleurs
+ne donne **pas** accès aux données : il faut soit le TPM2 d'origine
+(donc rebooter ce terminal précis), soit la **clé de récupération**
+notée par le distributeur au premier démarrage
+(`MANUEL_INSTALLATION_FR.md` §3.4) :
+
+```bash
+# Sur une machine de maintenance, disque du kiosque branché en externe
+cryptsetup luksOpen /dev/sdX2 moyun-data-recovery   # demande la clé de récupération
+mount /dev/mapper/moyun-data-recovery /mnt
+sqlite3 -readonly /mnt/lib/moyun-pos/pos.db
+```
+
+La clé de récupération est communiquée sur demande par le
+distributeur (`nuagemagique.dev`) ou, pour la machine de test SPF,
+disponible dans le dossier remis à l'admission.
 
 #### Méthode B - Export via commande dédiée
 
