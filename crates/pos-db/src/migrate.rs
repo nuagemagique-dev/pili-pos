@@ -31,7 +31,9 @@
 
 use rusqlite::Connection;
 
-use crate::schema::{MIGRATION_002_CATALOGUE_FISCAL_FIELDS, SCHEMA_SQL};
+use crate::schema::{
+    MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_FISCAL_ARCHIVE_APPEND_ONLY, SCHEMA_SQL,
+};
 
 #[derive(Debug, Clone, Copy)]
 struct Migration {
@@ -51,6 +53,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "catalogue-fiscal-fields",
         sql: MIGRATION_002_CATALOGUE_FISCAL_FIELDS,
+    },
+    Migration {
+        version: 3,
+        name: "fiscal-archive-append-only",
+        sql: MIGRATION_003_FISCAL_ARCHIVE_APPEND_ONLY,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one.
@@ -144,12 +151,12 @@ mod tests {
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2]);
+        assert_eq!(applied, vec![1, 2, 3]);
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1, 2]);
+        assert_eq!(applied_again, vec![1, 2, 3]);
     }
 
     #[test]
@@ -162,7 +169,7 @@ mod tests {
 
         // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2]);
+        assert_eq!(applied, vec![1, 2, 3]);
 
         let stamp: String = conn
             .query_row(
@@ -193,6 +200,43 @@ mod tests {
         let lines = columns("order_lines");
         assert!(lines.contains(&"department_id".to_string()));
         assert!(lines.contains(&"department_name".to_string()));
+    }
+
+    #[test]
+    fn migrating_an_already_v2_db_only_adds_v3() {
+        // A DB that already has v1+v2 applied (e.g. upgraded before v3
+        // shipped) must pick up v3 on the next run without re-running
+        // v1/v2 — and without needing a full fresh DB.
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        conn.execute_batch(MIGRATION_002_CATALOGUE_FISCAL_FIELDS)
+            .unwrap();
+        conn.execute(
+            "CREATE TABLE _migrations_applied (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+             )",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch(
+            "INSERT INTO _migrations_applied (version, name) VALUES
+                (1, 'initial-schema'), (2, 'catalogue-fiscal-fields');",
+        )
+        .unwrap();
+
+        run_migrations(&conn).unwrap();
+        assert_eq!(applied_versions(&conn).unwrap(), vec![1, 2, 3]);
+
+        // The v3 triggers are actually present after this incremental path.
+        conn.execute(
+            "INSERT INTO fiscal_events (event_type, sequence_number, pos_id, terminal_id, user_insz, event_data_json)
+             VALUES ('N', 1, 'P', 'T1', '00000000029', '{}')",
+            [],
+        )
+        .unwrap();
+        assert!(conn.execute("DELETE FROM fiscal_events", []).is_err());
     }
 
     #[test]

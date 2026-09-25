@@ -290,6 +290,43 @@ BEGIN
 END;
 "#;
 
+/// Migration 3 — append-only enforcement for the fiscal archive.
+///
+/// CLAUDE.md's "Critical Behavioral Rules" state plainly: "No
+/// deletion — fiscal records can NEVER be deleted or modified." The
+/// `order_entries` journal already got this guarantee at the DB
+/// level in migration 2 (`order_entries_no_delete` /
+/// `order_entries_no_rewrite`), but `fiscal_events` — the actual
+/// signed FDM archive, i.e. the table the rule is really about — and
+/// `z_reports` had no such protection: any bug (or a stray manual
+/// `UPDATE`/`DELETE`) could silently rewrite or erase a signed
+/// fiscal record. No code path legitimately updates or deletes rows
+/// in either table (archival is INSERT-only; nothing ever revises a
+/// `fiscal_events` or `z_reports` row afterwards), so blocking every
+/// column, unlike `order_entries`' `sent_event_id` exception, is safe.
+pub(crate) const MIGRATION_003_FISCAL_ARCHIVE_APPEND_ONLY: &str = r#"
+CREATE TRIGGER IF NOT EXISTS fiscal_events_no_delete
+BEFORE DELETE ON fiscal_events
+BEGIN
+    SELECT RAISE(ABORT, 'fiscal events are append-only');
+END;
+CREATE TRIGGER IF NOT EXISTS fiscal_events_no_rewrite
+BEFORE UPDATE ON fiscal_events
+BEGIN
+    SELECT RAISE(ABORT, 'fiscal events are append-only');
+END;
+CREATE TRIGGER IF NOT EXISTS z_reports_no_delete
+BEFORE DELETE ON z_reports
+BEGIN
+    SELECT RAISE(ABORT, 'z-reports are append-only');
+END;
+CREATE TRIGGER IF NOT EXISTS z_reports_no_rewrite
+BEFORE UPDATE ON z_reports
+BEGIN
+    SELECT RAISE(ABORT, 'z-reports are append-only');
+END;
+"#;
+
 /// Apply all schema migrations. Delegates to the versioned runner in
 /// `crate::migrate` so every entry point goes through the same
 /// `_migrations_applied` tracking. Kept as a re-export for the many
