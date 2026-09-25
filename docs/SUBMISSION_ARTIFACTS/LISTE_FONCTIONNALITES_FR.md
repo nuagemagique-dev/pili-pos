@@ -145,7 +145,7 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   (`crates/pos-db/src/schema.rs`).
 - Langues supportées : 中文 (zh, principale pour le personnel),
   Français (fr, principale pour les clients et obligation légale),
-  Nederlands (nl), English (en).
+  Nederlands (nl), Deutsch (de, migration `007`), English (en).
 - Sélection de la langue d'affichage par utilisateur.
 
 ## 3. Fonctionnalités exclues (hors scope cert)

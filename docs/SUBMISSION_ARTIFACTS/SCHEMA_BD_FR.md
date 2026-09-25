@@ -19,12 +19,15 @@ Langues prises en charge par les traductions multi-langues.
 
 | Champ | Type | Longueur | Description |
 |---|---|---|---|
-| `code` | TEXT | 2 | Clé primaire. Code ISO 639-1 : `fr`, `nl`, `en`, `zh` |
-| `name` | TEXT | - | Nom de la langue dans cette langue ("Français", "中文"...) |
+| `code` | TEXT | 2 | Clé primaire. Code ISO 639-1 : `fr`, `nl`, `de`, `en`, `zh` |
+| `name` | TEXT | - | Nom de la langue dans cette langue ("Français", "Deutsch", "中文"...) |
 | `active` | INTEGER | 1 (booléen) | 1 = langue activée pour ce déploiement, 0 = désactivée |
 
-Données initiales (insérées par la migration `001` - voir
-`crates/pos-db/src/migrate.rs`) : `fr`, `nl`, `en`, `zh`.
+Données initiales : `fr`, `nl`, `en`, `zh` insérées par la migration
+`001` ; `de` ajouté par la migration `007` (§6) pour qu'un catalogue
+en région de langue allemande puisse porter des désignations en
+allemand (la FK `translations.lang → languages.code` les refusait
+sinon) - voir `crates/pos-db/src/migrate.rs`.
 
 ### 1.2 `translations`
 
@@ -380,7 +383,7 @@ inversement, sans migration de schéma.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **six
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **sept
 migrations** existent, appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -392,6 +395,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 4 | `fiscal-archive-append-only` | Ajoute les triggers interdisant `DELETE`/`UPDATE` sur `fiscal_events` et `z_reports` (§3.1, §3.3). |
 | 5 | `ticket-deliveries` | Ajoute la table `ticket_deliveries` (§3.6, ticket numérique par e-mail). |
 | 6 | `original-prints` | Ajoute la table `original_prints` (§3.7, impression unique de l'original). |
+| 7 | `german-language` | Insère `de` (Deutsch) dans `languages`, pour qu'un catalogue en région de langue allemande puisse porter des désignations en allemand (§1.1). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

@@ -345,8 +345,8 @@ Ces tables apparaissent dans le SQL de seed mais ne reçoivent aucune écriture 
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : `v6` (`initial-schema`,
+Version actuelle du schéma : `v7` (`initial-schema`,
 `catalogue-fiscal-fields`, `booking-periods`,
 `fiscal-archive-append-only`, `ticket-deliveries`,
-`original-prints`) - liste exacte dans `SCHEMA_BD_FR.md` §6 et
-`crates/pos-db/src/migrate.rs::MIGRATIONS`.
+`original-prints`, `german-language`) - liste exacte dans
+`SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs::MIGRATIONS`.
