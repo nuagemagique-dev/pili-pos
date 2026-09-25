@@ -13,6 +13,7 @@ import CategoryTabs from "../components/CategoryTabs.vue";
 import MenuGrid from "../components/MenuGrid.vue";
 import CartSidebar from "../components/CartSidebar.vue";
 import PriceDialog from "../components/PriceDialog.vue";
+import PinDialog from "../components/PinDialog.vue";
 import FdmStatus from "../components/FdmStatus.vue";
 import PrinterStatus from "../components/PrinterStatus.vue";
 import { HUBRISE_ENABLED } from "../features";
@@ -101,6 +102,9 @@ const isTakeawayMode = computed(
   () => order.currentOrder?.order_type === 'takeaway',
 );
 
+// The operator changing their own PIN (tap on their name).
+const pinOpen = ref(false);
+
 // Free-price product waiting for its price (PriceDialog open).
 const pricing = ref<MenuItem | null>(null);
 
@@ -154,7 +158,7 @@ async function handleTakeaway() {
       <FdmStatus />
       <PrinterStatus />
       <component :is="HubriseStatus" v-if="HubriseStatus" />
-      <span class="header-user">{{ auth.currentUser?.name }}</span>
+      <button class="header-user" :aria-label="t('pin_change')" @click="pinOpen = true">{{ auth.currentUser?.name }}</button>
       <span v-if="order.currentOrder?.table_number" class="header-table">
         {{ t('table') }} {{ order.currentOrder.table_number }}
       </span>
@@ -197,6 +201,14 @@ async function handleTakeaway() {
       <CartSidebar />
     </div>
 
+    <PinDialog
+      v-if="pinOpen && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      @done="pinOpen = false"
+      @cancel="pinOpen = false"
+    />
+
     <PriceDialog
       v-if="pricing"
       :item-name="pricing.name"
@@ -232,6 +244,10 @@ async function handleTakeaway() {
 }
 
 .header-user {
+  min-height: 48px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: transparent;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   color: var(--text-secondary);

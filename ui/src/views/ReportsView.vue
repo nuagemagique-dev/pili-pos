@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDate as formatDay, formatTime, formatTimestamp } from "../utils/datetime";
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
@@ -72,8 +72,21 @@ async function generateUserX() {
   }
 }
 
+// A Z closes the day for good: the first tap only arms the button,
+// the second (within 5 s) generates it.
+const zArmed = ref(false);
+let zDisarm: ReturnType<typeof setTimeout> | undefined;
+onUnmounted(() => clearTimeout(zDisarm));
+
 async function generateZ() {
   if (!auth.currentUser || loading.value) return;
+  if (!zArmed.value) {
+    zArmed.value = true;
+    zDisarm = setTimeout(() => { zArmed.value = false; }, 5000);
+    return;
+  }
+  clearTimeout(zDisarm);
+  zArmed.value = false;
   loading.value = true;
   try {
     const result = await ipc.generateZReport(auth.currentUser.insz);
@@ -349,9 +362,9 @@ function formatRefundTime(iso: string): string {
       </div>
       <div class="report-row">
         <div><h2>{{ t('report_z') }}</h2><p>{{ t('report_z_desc') }}</p></div>
-        <button class="report-btn z-btn" :disabled="loading" @click="generateZ">
+        <button class="report-btn z-btn" :class="{ armed: zArmed }" :disabled="loading" @click="generateZ">
           <span v-if="loading" class="spinner" aria-hidden="true"></span>
-          <span v-else>{{ t('generate') }} Z</span>
+          <span v-else>{{ zArmed ? t('confirm_z') : `${t('generate')} Z` }}</span>
         </button>
       </div>
 
@@ -590,6 +603,7 @@ function formatRefundTime(iso: string): string {
 .report-btn:disabled { opacity: 0.6; }
 .x-btn { background: var(--bg-surface); color: var(--text-primary); }
 .z-btn { background: var(--accent-danger); color: var(--text-on-accent); }
+.z-btn.armed { background: var(--accent-warning); }
 
 .spinner {
   width: 28px; height: 28px;

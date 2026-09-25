@@ -10,6 +10,7 @@ import { useDeliveryStore } from "../stores/delivery";
 import type { AppLanguage } from "../stores/pos";
 import type { DeliveryView, User } from "../types";
 import * as ipc from "../api/ipc";
+import PinDialog from "../components/PinDialog.vue";
 import { useI18n } from "../i18n";
 import { HUBRISE_ENABLED } from "../features";
 
@@ -38,6 +39,8 @@ const menu = useMenuStore();
 const delivery = useDeliveryStore();
 
 const workers = ref<User[]>([]);
+// The employee whose PIN the manager is setting (PinDialog open).
+const pinFor = ref<User | null>(null);
 const newName = ref("");
 const newInsz = ref("");
 const newRole = ref<"admin" | "cashier" | "waiter">("cashier");
@@ -162,6 +165,7 @@ onMounted(() => {
         <div v-for="w in workers" :key="w.insz" class="worker-row">
           <span class="worker-name">{{ w.name }}</span>
           <span class="worker-meta">{{ t(`role_${w.role}`) }} · {{ w.insz }}</span>
+          <button class="pin-btn" @click="pinFor = w">PIN</button>
           <button
             v-if="w.insz !== auth.currentUser?.insz"
             class="deactivate-btn"
@@ -241,6 +245,14 @@ onMounted(() => {
 
       <component :is="HubriseSettings" v-if="HubriseSettings" />
     </div>
+
+    <PinDialog
+      v-if="pinFor"
+      :insz="pinFor.insz"
+      :user-name="pinFor.name"
+      @done="pinFor = null; loadWorkers()"
+      @cancel="pinFor = null"
+    />
   </div>
 </template>
 
@@ -291,6 +303,8 @@ onMounted(() => {
 .workers-section { margin-top: var(--space-xl); }
 .workers-section h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); margin-bottom: var(--space-md); }
 .worker-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid rgba(160,160,176,0.1); }
+.pin-btn { margin-left: auto; min-height: 48px; padding: 0 var(--space-md); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); font-weight: var(--font-weight-bold); }
+.pin-btn + .deactivate-btn { margin-left: var(--space-sm); }
 .deactivate-btn { margin-left: auto; min-height: 48px; padding: 0 var(--space-md); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary); font-weight: var(--font-weight-bold); }
 .deactivate-btn.armed { background: var(--accent-danger); color: var(--text-on-accent); }
 .worker-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); }

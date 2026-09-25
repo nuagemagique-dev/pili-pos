@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, loginAndGoto } from './fixtures/mock-ipc';
+import { mockTauriIPC, loginAndGoto, ipcCalls } from './fixtures/mock-ipc';
 
 const SAMPLE_Z_REPORTS = [
   { id: 2, reportDate: '2026-04-12', sequenceNumber: 2, createdAt: '2026-04-12T22:30:00Z', fiscalEventId: 10 },
@@ -37,5 +37,31 @@ test.describe('Reports View', () => {
     await mockTauriIPC(page);
     await loginAndGoto(page, '/reports');
     await expect(page.locator('.z-btn')).toBeEnabled();
+  });
+
+  test('a Z needs a second tap: the first one only asks to confirm', async ({ page }) => {
+    await mockTauriIPC(page);
+    await loginAndGoto(page, '/reports');
+    const z = page.locator('.z-btn');
+    await z.click();
+    await expect(z).toHaveText('Confirmer la clôture ?');
+    await expect(z).toHaveClass(/armed/);
+    expect(await ipcCalls(page, 'generate_z_report')).toHaveLength(0);
+
+    await z.click();
+    await expect.poll(() => ipcCalls(page, 'generate_z_report')).toHaveLength(1);
+    await expect(z).toHaveText('Générer Z');
+  });
+
+  test('an unconfirmed Z disarms by itself', async ({ page }) => {
+    await page.clock.install();
+    await mockTauriIPC(page);
+    await loginAndGoto(page, '/reports');
+    const z = page.locator('.z-btn');
+    await z.click();
+    await expect(z).toHaveText('Confirmer la clôture ?');
+    await page.clock.runFor(5_000);
+    await expect(z).toHaveText('Générer Z');
+    expect(await ipcCalls(page, 'generate_z_report')).toHaveLength(0);
   });
 });
