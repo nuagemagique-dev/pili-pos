@@ -82,8 +82,8 @@ OK. L'opérateur confirme.
    - Détail ligne par ligne.
    - Récapitulatif TVA (A=21%, B=12%, C=6%).
    - Bloc de données de contrôle issu de la réponse FDM.
-   - QR Code 25×25 (Type 2) à partir de l'URL 38 caractères fournie
-     par le FDM.
+   - QR Code Model 2, ECC M (version 3, 29×29 modules) à partir de
+     l'URL 38 caractères fournie par le FDM.
 7. Trame ESC/POS envoyée par TCP au TM-m30III. Le tiroir-caisse n'est
    PAS ouvert (paiement carte).
 

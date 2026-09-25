@@ -26,9 +26,18 @@ pour obtenir :
 - Une preuve de transaction archivable dans l'historique des
   paiements du téléphone (capture d'écran, partage par email, etc.).
 
-Le QR Code est de type QR Code Type 2, 25×25 modules, contenant
-l'URL de 38 caractères fournie par le FDM dans la réponse de signature
-(champ `verificationUrl` du `SignResult`).
+Le QR Code est un QR Code Model 2 (« type 2 »), correction d'erreur M,
+contenant l'URL de 38 caractères fournie par le FDM dans la réponse de
+signature (champ `verificationUrl` du `SignResult`).
+
+Taille : la description POS v2.2 §6.5 cite 25×25 modules (version 2).
+Cette version ne peut pas contenir l'URL : son préfixe est en minuscules
+et la valeur encodée est en base 62 (minuscules, majuscules, chiffres),
+ce qui impose le mode octet (ISO/IEC 18004), limité à 34 octets en
+version 2 même avec la correction d'erreur la plus faible. moyun-pos
+utilise donc la plus petite version qui contient les 38 caractères avec
+la correction M, soit la version 3 (29×29 modules). Ce point est
+signalé au SPF pour confirmation.
 
 ## 2. Pourquoi cette approche
 
@@ -62,8 +71,9 @@ de dépendance à un service tiers du producteur.
 
 - `crates/pos-fiscal/src/qr.rs` génère le QR Code à partir de
   l'URL fournie par le FDM dans la réponse signSale (et tous les
-  autres sign*). 8 tests unitaires couvrent : longueur 38 caractères,
-  encoding Type 2, taille 25×25 modules.
+  autres sign*). des tests unitaires couvrent : l'exemple d'URL de la
+  spécification FDM (38 caractères), un symbole carré valide, la
+  correction M et la version 3 (29×29 modules).
 - `crates/pos-print/src/receipt.rs` rend le QR Code dans le ticket
   ESC/POS en mode trame raster (commande `GS ( k`).
 - Le QR est positionné en bas du ticket, juste sous le bloc des

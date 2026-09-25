@@ -161,7 +161,7 @@ Every dine-in ticket must include:
   - Counter values
   - `shortSignature`
   - Footer text
-- QR code: 25x25 modules, Type 2, generated from 38-character URL provided by FDM
+- QR code: Model 2, ECC M, from the 38-character URL provided by FDM. The spec names 25x25, but that can't hold the mixed-case URL; the encoder uses version 3 (29x29), to confirm with the SPF
 
 ### Critical Behavioral Rules
 1. **POS MUST block** if FDM is disconnected — no transactions without FDM

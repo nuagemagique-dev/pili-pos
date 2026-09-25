@@ -47,7 +47,7 @@ colonne par type de ticket émis par moyun-pos.
 | XVI.VI. totalCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.VII. shortSignature (renvoyée par le FDM pour les events N uniquement) | ☑ | ☑ | - (non renvoyée pour P) | - (non réimprimée) | - (non renvoyée pour T) | - |
 | XVII. Lignes de paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - (pas encore payé) | ☑ (reprises de l'original) | ☑ | - |
-| XVIII. QR Code URL du FDM | ☑ (25×25 Type 2) | ☑ | ☑ | ☑ | ☑ | - |
+| XVIII. QR Code URL du FDM | ☑ (Model 2, 29×29) | ☑ | ☑ | ☑ | ☑ | - |
 
 **Mentions spécifiques cochées :**
 
@@ -103,7 +103,7 @@ TVA    Taux    Base HT    TVA
                     N 15/59
 Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
 
-[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
       www.systemedecaisseenregistreuse.be
 
@@ -145,7 +145,7 @@ TOTAL                                      52.00
            2026-07-03T12:34:57+02:00
                      P 4/61
 
-[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
       www.systemedecaisseenregistreuse.be
 
@@ -194,7 +194,7 @@ TVA    Taux    Base HT    TVA
                     N 16/60
 Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
 
-[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
       www.systemedecaisseenregistreuse.be
 
@@ -242,7 +242,7 @@ TVA    Taux    Base HT    TVA
            2026-07-03T12:34:57+02:00
                      C 2/62
 
-[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
       www.systemedecaisseenregistreuse.be
 
@@ -292,7 +292,7 @@ TVA    Taux    Base HT    TVA
            2026-07-03T12:34:57+02:00
                      T 7/63
 
-[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
       www.systemedecaisseenregistreuse.be
 

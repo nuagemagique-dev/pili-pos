@@ -30,7 +30,7 @@ TVA    Taux    Base HT    TVA
            2026-07-03T12:34:57+02:00
                      T 7/63
 
-[QR 25x25: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
       www.systemedecaisseenregistreuse.be
 

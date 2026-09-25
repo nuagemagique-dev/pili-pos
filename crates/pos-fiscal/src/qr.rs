@@ -11,10 +11,12 @@ pub enum QrError {
 
 /// Generate a QR code PNG image (bytes) from the FDM verification URL.
 ///
-/// The SCE 2.0 spec requires:
-/// - 25x25 modules (Type 2)
-/// - Medium ECC
-/// - 38 alphanumeric characters
+/// POS description v2.2 §6.5 asks for a Model 2 ("type 2") code with
+/// medium ECC holding the FDM's 38-character URL. It also names a 25x25
+/// symbol (version 2), which cannot hold that URL: the mixed-case
+/// Base-62 value forces byte mode, and version 2 tops out at 34 bytes.
+/// The encoder therefore picks the smallest version that fits, which is
+/// version 3 (29x29) for every real verification URL.
 ///
 /// Returns PNG image bytes suitable for printing or display.
 pub fn generate_qr_png(verification_url: &str, module_size: u32) -> Result<Vec<u8>, QrError> {
@@ -131,6 +133,21 @@ mod tests {
 
         let png = generate_qr_png(&url, 4).unwrap();
         assert_eq!(&png[..4], &[0x89, 0x50, 0x4E, 0x47]);
+    }
+
+    /// Every real verification URL has the same shape (19-char lowercase
+    /// prefix + 19 Base-62 chars), so it always lands on version 3.
+    #[test]
+    fn spec_example_url_needs_version_3_with_ecc_m() {
+        let url = format!("https://www.gs2.be/{}", "viXnmc1vvqGaMAS8MJV");
+        let code = QrCode::with_error_correction_level(&url, qrcode::EcLevel::M).unwrap();
+        assert_eq!(code.version(), qrcode::Version::Normal(3));
+        assert_eq!(code.error_correction_level(), qrcode::EcLevel::M);
+        assert_eq!(generate_qr_matrix(&url).unwrap().len(), 29);
+        assert!(
+            QrCode::with_version(&url, qrcode::Version::Normal(2), qrcode::EcLevel::L).is_err(),
+            "version 2 (25x25) cannot hold the URL even at the lowest ECC"
+        );
     }
 
     /// Sanity check for the theory documented on the test above: a

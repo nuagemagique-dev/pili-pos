@@ -19,7 +19,7 @@ Format :
 | 2 | 8 types d'événements supportés : N/P/T/C/I/F/S/R | POS v2.2 §II.4 | `crates/pos-fiscal/src/event.rs::EventLabel` | `crates/pos-fiscal/src/event.rs::tests` |
 | 3 | Codes TVA A/B/C/D/X avec taux corrects | POS v2.2 §II.5 | `crates/pos-core/src/vat.rs::VatCode` | `crates/pos-core/src/vat.rs::tests` |
 | 4 | Ticket avec en-tête (nom, adresse, TVA) + TVA par ligne + données de contrôle + QR | POS v2.2 §III.3 | `crates/pos-print/src/receipt.rs` | `crates/pos-print/tests/receipt_layout.rs` |
-| 5 | QR Code 25×25 modules Type 2, URL 38 caractères | POS v2.2 §III.4 | `crates/pos-fiscal/src/qr.rs` | `crates/pos-fiscal/src/qr.rs::tests::qr_payload_is_38_chars` |
+| 5 | QR Code Model 2, ECC M, URL 38 caractères (version 3, 29×29 : le 25×25 ne peut pas contenir l'URL, à confirmer avec le SPF) | POS v2.2 §6.5 | `crates/pos-fiscal/src/qr.rs` | `crates/pos-fiscal/src/qr.rs::tests::spec_example_url_needs_version_3_with_ecc_m` |
 | 6 | Compteurs fiscaux strictement séquentiels, sans trou | POS v2.2 §II.6 | `crates/pos-fiscal/src/counter.rs::FiscalCounter::next` | `crates/pos-fiscal/src/counter.rs::tests::counter_is_sequential` |
 | 7 | Allocation de compteur rollback sur échec FDM | POS v2.2 §II.6 | `src-tauri/src/commands/checkout.rs` (tx unique) | `src-tauri/tests/spf_e2e_no_gap.rs::checkout_fdm_failure_does_not_advance_counter` |
 | 8 | Tous les événements fiscaux ajoutés à l'archive locale, jamais supprimés | POS v2.2 §II.7 | `crates/pos-db/src/schema.rs::SCHEMA_SQL` (table fiscal_events, pas de DELETE/UPDATE dans le code applicatif) | `crates/pos-db/src/queries/fiscal.rs::tests::archive_is_append_only` |

@@ -106,7 +106,7 @@ pub fn render_plain_text(bytes: &[u8]) -> String {
                             let start = i + 8;
                             let end = (i + 5 + len).min(bytes.len());
                             let data = String::from_utf8_lossy(&bytes[start..end]);
-                            out.push_str(&format!("{:^WIDTH$}\n", format!("[QR 25x25: {data}]")));
+                            out.push_str(&format!("{:^WIDTH$}\n", format!("[QR: {data}]")));
                         }
                         i += 5 + len;
                     }
@@ -160,7 +160,7 @@ mod tests {
         let mut p = EscPosBuilder::new();
         p.qr_code("https://www.gs2.be/abc", 6);
         let text = render_plain_text(&p.build());
-        assert!(text.contains("[QR 25x25: https://www.gs2.be/abc]"));
+        assert!(text.contains("[QR: https://www.gs2.be/abc]"));
     }
 
     #[test]

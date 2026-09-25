@@ -70,8 +70,8 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Tableau récapitulatif TVA par taux.
 - Bloc "Control data" du FDM : `fdmId`, `fdmDateTime`,
   `eventLabel`, `eventCounter`, `totalCounter`, `shortSignature`.
-- QR Code Type 2, 25×25 modules, contenu = URL 38 caractères fournie
-  par le FDM (`crates/pos-fiscal/src/qr.rs`).
+- QR Code Model 2, ECC M, version 3 (29×29 modules), contenu = URL
+  38 caractères fournie par le FDM (`crates/pos-fiscal/src/qr.rs`).
 - Mention "TRAINING - NE TIENT PAS LIEU DE TICKET TVA VALABLE" en
   filigrane si `isTraining=true`.
 
