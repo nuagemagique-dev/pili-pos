@@ -30,6 +30,14 @@ use uuid::Uuid;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+/// A booking period for tests.
+fn bk(period_id: &str) -> pos_fiscal::event::Booking {
+    pos_fiscal::event::Booking {
+        period_id: period_id.to_string(),
+        date: "2026-07-03".to_string(),
+    }
+}
+
 // ── Shared test helpers ────────────────────────────────────────
 
 static TOTAL_COUNTER: AtomicI64 = AtomicI64::new(0);
@@ -247,7 +255,7 @@ async fn test_direct_sale() {
         &order,
         &lines,
         ticket_no,
-        &bp_id,
+        &bk(&bp_id),
         PaymentType::Cash,
         total,
         None,
@@ -355,7 +363,7 @@ async fn test_complete_refund() {
         &order,
         &lines,
         2,
-        &bp_id,
+        &bk(&bp_id),
         PaymentType::Cash,
         -2500,
         None,
@@ -408,7 +416,7 @@ async fn test_interrupted_sale_table_flow() {
     .await;
 
     let p_ticket = FiscalCounter::next(&conn, EventLabel::P).unwrap();
-    let order_input = build_order_input(&config, &order, &initial_lines, p_ticket, &bp_id);
+    let order_input = build_order_input(&config, &order, &initial_lines, p_ticket, &bk(&bp_id));
 
     // Verify cost center is mandatory for signOrder
     assert_eq!(order_input.cost_center.id, "T07");
@@ -465,7 +473,7 @@ async fn test_interrupted_sale_table_flow() {
         &order,
         &all_lines,
         n_ticket,
-        &bp_id,
+        &bk(&bp_id),
         PaymentType::CardDebit,
         total,
         None,
@@ -510,7 +518,7 @@ async fn test_pre_bill() {
     .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::P).unwrap();
-    let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_no, &bp_id);
+    let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_no, &bk(&bp_id));
 
     // PreBill has transaction but no financials (no payment yet)
     assert_eq!(pre_bill.transaction.transaction_lines.len(), 3);
@@ -567,7 +575,7 @@ async fn test_training_mode() {
         &order,
         &lines,
         ticket_no,
-        &bp_id,
+        &bk(&bp_id),
         PaymentType::Cash,
         total,
         None,
@@ -635,7 +643,13 @@ async fn test_copy_ticket() {
     .await;
 
     let ticket_no = FiscalCounter::next(&conn, EventLabel::C).unwrap();
-    let copy = build_copy_input(&config, ticket_no, "85073000148", &bp_id, &original_ref);
+    let copy = build_copy_input(
+        &config,
+        ticket_no,
+        "85073000148",
+        &bk(&bp_id),
+        &original_ref,
+    );
 
     // Verify the fdmRef points to original
     assert_eq!(copy.fdm_ref.fdm_id, "FDM00TEST01");
@@ -753,7 +767,7 @@ async fn test_z_report() {
         &config,
         ticket_no,
         "85073000148",
-        &bp_id,
+        &bk(&bp_id),
         report_no,
         &today,
         turnover_data,
@@ -810,7 +824,7 @@ async fn test_employee_work_in_out() {
     .await;
 
     let s_ticket = FiscalCounter::next(&conn, EventLabel::S).unwrap();
-    let work_in = build_work_in_out(&config, s_ticket, "85073000148", &bp_id);
+    let work_in = build_work_in_out(&config, s_ticket, "85073000148", &bk(&bp_id));
     assert_eq!(work_in.common.employee_id, "85073000148");
 
     let fdm = FdmClient::new(config.fdm_url.as_str());
@@ -831,7 +845,7 @@ async fn test_employee_work_in_out() {
 
     let s_ticket2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
     assert_eq!(s_ticket2, 2);
-    let work_out = build_work_in_out(&config, s_ticket2, "85073000148", &bp_id);
+    let work_out = build_work_in_out(&config, s_ticket2, "85073000148", &bk(&bp_id));
 
     let result2 = fdm.sign_work_out(work_out, false).await.unwrap();
     assert_eq!(result2.event_operation, EventOperation::WorkOut);
@@ -893,7 +907,7 @@ async fn test_full_service_day() {
     .await;
     let fdm = FdmClient::new(config.fdm_url.as_str());
     let s1 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
-    let wi = build_work_in_out(&config, s1, "85073000148", &bp_id);
+    let wi = build_work_in_out(&config, s1, "85073000148", &bk(&bp_id));
     fdm.sign_work_in(wi, false).await.unwrap();
 
     // 2. Table 1 orders (P event)
@@ -909,7 +923,7 @@ async fn test_full_service_day() {
     let p1 = FiscalCounter::next(&conn, EventLabel::P).unwrap();
     let order1 = test_order(Some(1));
     let lines1 = vec![food_line(3, "M1", 1790, 1)];
-    let oi = build_order_input(&config, &order1, &lines1, p1, &bp_id);
+    let oi = build_order_input(&config, &order1, &lines1, p1, &bk(&bp_id));
     fdm.sign_order(oi, false).await.unwrap();
 
     // 3. Table 1 pays (N event)
@@ -928,7 +942,7 @@ async fn test_full_service_day() {
         &order1,
         &lines1,
         n1,
-        &bp_id,
+        &bk(&bp_id),
         PaymentType::Cash,
         1790,
         None,
@@ -946,7 +960,13 @@ async fn test_full_service_day() {
     )
     .await;
     let c1 = FiscalCounter::next(&conn, EventLabel::C).unwrap();
-    let copy = build_copy_input(&config, c1, "85073000148", &bp_id, &sale1_result.fdm_ref);
+    let copy = build_copy_input(
+        &config,
+        c1,
+        "85073000148",
+        &bk(&bp_id),
+        &sale1_result.fdm_ref,
+    );
     fdm.sign_copy(copy, false).await.unwrap();
 
     // 5. Z-report
@@ -1014,7 +1034,15 @@ async fn test_full_service_day() {
         },
     };
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let z = build_report_turnover_z(&config, r1, "85073000148", &bp_id, 1, &today, report_data);
+    let z = build_report_turnover_z(
+        &config,
+        r1,
+        "85073000148",
+        &bk(&bp_id),
+        1,
+        &today,
+        report_data,
+    );
     fdm.sign_report_turnover_z(z, false).await.unwrap();
 
     // 6. Employee clocks out
@@ -1028,7 +1056,7 @@ async fn test_full_service_day() {
     )
     .await;
     let s2 = FiscalCounter::next(&conn, EventLabel::S).unwrap();
-    let wo = build_work_in_out(&config, s2, "85073000148", &bp_id);
+    let wo = build_work_in_out(&config, s2, "85073000148", &bk(&bp_id));
     fdm.sign_work_out(wo, false).await.unwrap();
 
     // Verify all counters

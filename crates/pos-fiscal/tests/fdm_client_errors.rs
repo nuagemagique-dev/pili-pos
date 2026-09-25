@@ -16,6 +16,14 @@ use pos_fiscal::fdm_client::{FdmClient, FdmError};
 use wiremock::matchers::{body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+/// A booking period for tests.
+fn bk(period_id: &str) -> pos_fiscal::event::Booking {
+    pos_fiscal::event::Booking {
+        period_id: period_id.to_string(),
+        date: "2026-07-03".to_string(),
+    }
+}
+
 fn config(fdm_url: &str) -> PosConfig {
     PosConfig {
         pos_id: "CFOD0061234567".to_string(),
@@ -66,7 +74,7 @@ async fn sign_work_in_call(
     client: &FdmClient,
     cfg: &PosConfig,
 ) -> Result<pos_fiscal::response::SignResult, FdmError> {
-    let input = build_work_in_out(cfg, 1, "93051800189", "bp-1");
+    let input = build_work_in_out(cfg, 1, "93051800189", &bk("bp-1"));
     client.sign_work_in(input, false).await
 }
 

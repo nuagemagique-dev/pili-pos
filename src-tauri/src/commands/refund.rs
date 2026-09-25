@@ -113,7 +113,7 @@ pub async fn do_refund_checkout(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking_period(&db)?.id;
+        let bp = super::booking(&db)?;
         (fdm_ref, original_lines, config, bp)
     };
 

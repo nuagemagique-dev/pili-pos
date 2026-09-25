@@ -1,4 +1,4 @@
-use chrono::{Local, Utc};
+use chrono::Utc;
 
 use crate::inputs::*;
 use crate::response::FdmReference;
@@ -12,6 +12,20 @@ pub const POS_SW_VERSION: &str = concat!("moyun-pos/", env!("CARGO_PKG_VERSION")
 
 // ── Common Fields ──────────────────────────────────────────────
 
+/// The booking period an event belongs to (POS spec v2.2 §2.2.2): its
+/// id, and the booking date the period opened on (`YYYY-MM-DD`). Every
+/// event of a period carries the same date, even after midnight.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Booking {
+    pub period_id: String,
+    pub date: String,
+}
+
+/// Belgian local time, whatever the system time zone.
+pub fn now_in_belgium() -> chrono::DateTime<chrono_tz::Tz> {
+    Utc::now().with_timezone(&chrono_tz::Europe::Brussels)
+}
+
 /// Build common fields shared by all FDM mutations. `ticket_medium`
 /// states what the POS does with the event: `None` when nothing is
 /// printed (drawer, money in/out, staff presence).
@@ -19,10 +33,10 @@ pub fn build_common_fields(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     ticket_medium: TicketMedium,
 ) -> CommonFields {
-    let now = Local::now();
+    let now = now_in_belgium();
 
     CommonFields {
         language: fiscal_language(&config.language),
@@ -34,8 +48,8 @@ pub fn build_common_fields(
         pos_sw_version: POS_SW_VERSION.to_string(),
         terminal_id: Some(config.terminal_id.clone()),
         device_id: config.device_id.clone(),
-        booking_period_id: booking_period_id.to_string(),
-        booking_date: Utc::now().format("%Y-%m-%d").to_string(),
+        booking_period_id: booking.period_id.clone(),
+        booking_date: booking.date.clone(),
         ticket_medium,
         employee_id: employee_insz.to_string(),
     }
@@ -136,7 +150,7 @@ pub fn build_sale_input(
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
-    booking_period_id: &str,
+    booking: &Booking,
     payment_type: PaymentType,
     payment_amount_cents: i64,
     original_fdm_ref: Option<&FdmReference>,
@@ -145,7 +159,7 @@ pub fn build_sale_input(
         config,
         ticket_number,
         &order.user_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
     let neg_reason = if original_fdm_ref.is_some() {
@@ -205,13 +219,13 @@ pub fn build_order_input(
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
-    booking_period_id: &str,
+    booking: &Booking,
 ) -> OrderInput {
     let common = build_common_fields(
         config,
         ticket_number,
         &order.user_insz,
-        booking_period_id,
+        booking,
         TicketMedium::None,
     );
     let transaction = build_transaction(lines, NegQuantityReason::Correction);
@@ -231,13 +245,13 @@ pub fn build_pre_bill_input(
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
-    booking_period_id: &str,
+    booking: &Booking,
 ) -> PreBillInput {
     let common = build_common_fields(
         config,
         ticket_number,
         &order.user_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
     let transaction = build_transaction(lines, NegQuantityReason::Correction);
@@ -260,14 +274,14 @@ pub fn build_copy_input(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     original_ref: &FdmReference,
 ) -> CopyInput {
     let common = build_common_fields(
         config,
         ticket_number,
         employee_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
 
@@ -292,7 +306,7 @@ pub fn build_invoice_input(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     invoice_no: &str,
     customer_vat_no: &str,
     fdm_refs: &[FdmReference],
@@ -301,7 +315,7 @@ pub fn build_invoice_input(
         config,
         ticket_number,
         employee_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
 
@@ -330,14 +344,14 @@ pub fn build_work_in_out(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
 ) -> WorkInOutInput {
     WorkInOutInput {
         common: build_common_fields(
             config,
             ticket_number,
             employee_insz,
-            booking_period_id,
+            booking,
             TicketMedium::None,
         ),
     }
@@ -357,14 +371,14 @@ pub fn build_report_turnover_x(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     data: TurnoverReportData,
 ) -> ReportTurnoverXInput {
     let common = build_common_fields(
         config,
         ticket_number,
         employee_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
 
@@ -381,7 +395,7 @@ pub fn build_report_turnover_z(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     report_no: i64,
     report_booking_date: &str,
     data: TurnoverReportData,
@@ -390,7 +404,7 @@ pub fn build_report_turnover_z(
         config,
         ticket_number,
         employee_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
 
@@ -416,14 +430,14 @@ pub fn build_report_user_x(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     data: UserReportData,
 ) -> ReportUserXInput {
     let common = build_common_fields(
         config,
         ticket_number,
         employee_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
 
@@ -440,7 +454,7 @@ pub fn build_report_user_z(
     config: &PosConfig,
     ticket_number: i64,
     employee_insz: &str,
-    booking_period_id: &str,
+    booking: &Booking,
     report_no: i64,
     report_booking_date: &str,
     data: UserReportData,
@@ -449,7 +463,7 @@ pub fn build_report_user_z(
         config,
         ticket_number,
         employee_insz,
-        booking_period_id,
+        booking,
         TicketMedium::Paper,
     );
 
@@ -465,6 +479,53 @@ pub fn build_report_user_z(
 
 #[cfg(test)]
 mod tests {
+
+    /// A booking period for tests.
+    fn bk(period_id: &str) -> Booking {
+        Booking {
+            period_id: period_id.to_string(),
+            date: "2026-07-03".to_string(),
+        }
+    }
+
+    #[test]
+    fn events_carry_the_booking_date_of_their_period() {
+        // A period opened on the 3rd keeps that date after midnight.
+        let booking = Booking {
+            period_id: "1b4e28ba-2fa1-11d2-883f-0016d3cca427".into(),
+            date: "2026-07-03".into(),
+        };
+        let common = build_common_fields(
+            &test_config(),
+            1,
+            "00000000029",
+            &booking,
+            TicketMedium::None,
+        );
+        assert_eq!(common.booking_date, "2026-07-03");
+        assert_eq!(common.booking_period_id, booking.period_id);
+    }
+
+    #[test]
+    fn pos_date_time_is_belgian_time_whatever_the_system_zone() {
+        let common = build_common_fields(
+            &test_config(),
+            1,
+            "00000000029",
+            &bk("bp"),
+            TicketMedium::None,
+        );
+        let at = chrono::DateTime::parse_from_rfc3339(&common.pos_date_time).unwrap();
+        let offset = at.offset().local_minus_utc();
+        assert!(
+            offset == 3600 || offset == 7200,
+            "Europe/Brussels is UTC+1 or UTC+2, got {}",
+            common.pos_date_time
+        );
+        // Same instant and same offset as Brussels at that instant.
+        let belgian = at.with_timezone(&chrono_tz::Europe::Brussels);
+        assert_eq!(belgian.to_rfc3339(), common.pos_date_time);
+    }
     use super::*;
     use pos_core::order::{OrderStatus, OrderType};
     use uuid::Uuid;
@@ -524,7 +585,7 @@ mod tests {
             &order,
             &lines,
             1,
-            &bp_id,
+            &bk(&bp_id),
             PaymentType::Cash,
             2500,
             None,
@@ -553,7 +614,7 @@ mod tests {
             &order,
             &lines,
             1,
-            &bp_id,
+            &bk(&bp_id),
             PaymentType::Cash,
             2500,
             None,
@@ -574,7 +635,7 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let order_input = build_order_input(&config, &order, &lines, 1, &bp_id);
+        let order_input = build_order_input(&config, &order, &lines, 1, &bk(&bp_id));
 
         assert_eq!(order_input.cost_center.id, "T05");
         assert_eq!(
@@ -597,7 +658,7 @@ mod tests {
             total_counter: 100,
         };
 
-        let copy = build_copy_input(&config, 2, "00000000029", &bp_id, &original);
+        let copy = build_copy_input(&config, 2, "00000000029", &bk(&bp_id), &original);
 
         assert_eq!(copy.fdm_ref.fdm_id, "FDM001");
         assert_eq!(copy.fdm_ref.event_counter, 42);
@@ -635,7 +696,7 @@ mod tests {
                 &order,
                 &lines,
                 1,
-                &bp_id,
+                &bk(&bp_id),
                 PaymentType::Cash,
                 -2500,
                 fdm_ref,
@@ -663,7 +724,7 @@ mod tests {
             &order,
             &lines,
             1,
-            &bp_id,
+            &bk(&bp_id),
             PaymentType::Cash,
             2500,
             None,
@@ -704,7 +765,7 @@ mod tests {
             &order,
             &lines,
             2,
-            &bp_id,
+            &bk(&bp_id),
             PaymentType::Cash,
             -1250,
             Some(&original_ref),
@@ -734,7 +795,7 @@ mod tests {
             &order,
             &lines,
             1,
-            &bp_id,
+            &bk(&bp_id),
             PaymentType::Cash,
             2500,
             None,
@@ -753,7 +814,7 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bp_id);
+        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bk(&bp_id));
         assert!((pre_bill.transaction.transaction_total - 25.0).abs() < 0.01);
         assert!(pre_bill.cost_center.is_some());
     }
@@ -773,7 +834,7 @@ mod tests {
             &order,
             &lines,
             1,
-            "bp",
+            &bk("bp"),
             PaymentType::Cash,
             2500,
             None,
@@ -786,7 +847,7 @@ mod tests {
         let config = test_config();
         let order = test_order();
         let lines = test_lines();
-        let order_input = build_order_input(&config, &order, &lines, 1, "bp");
+        let order_input = build_order_input(&config, &order, &lines, 1, &bk("bp"));
         assert_eq!(order_input.common.ticket_medium, TicketMedium::None);
     }
 
@@ -795,14 +856,14 @@ mod tests {
         let config = test_config();
         let order = test_order();
         let lines = test_lines();
-        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, "bp");
+        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bk("bp"));
         assert_eq!(pre_bill.common.ticket_medium, TicketMedium::Paper);
     }
 
     #[test]
     fn work_in_out_has_no_ticket_medium() {
         let config = test_config();
-        let w = build_work_in_out(&config, 1, "00000000029", "bp");
+        let w = build_work_in_out(&config, 1, "00000000029", &bk("bp"));
         assert_eq!(w.common.ticket_medium, TicketMedium::None);
         assert_eq!(w.common.employee_id, "00000000029");
     }
@@ -813,7 +874,7 @@ mod tests {
     fn work_in_out_carries_identity_and_serializes() {
         let config = test_config();
         let bp_id = Uuid::new_v4().to_string();
-        let w = build_work_in_out(&config, 7, "94060242576", &bp_id);
+        let w = build_work_in_out(&config, 7, "94060242576", &bk(&bp_id));
         assert_eq!(w.common.pos_id, "CFOD0061234567");
         assert_eq!(w.common.pos_fiscal_ticket_no, 7);
         assert_eq!(w.common.employee_id, "94060242576");
@@ -853,7 +914,7 @@ mod tests {
             &config,
             3,
             "00000000029",
-            &bp_id,
+            &bk(&bp_id),
             "INV-2026-001",
             "BE0123456789",
             &refs,
@@ -876,7 +937,8 @@ mod tests {
     #[test]
     fn invoice_input_with_no_underlying_sales_has_empty_refs() {
         let config = test_config();
-        let invoice = build_invoice_input(&config, 1, "00000000029", "bp", "INV-1", "BE1", &[]);
+        let invoice =
+            build_invoice_input(&config, 1, "00000000029", &bk("bp"), "INV-1", "BE1", &[]);
         assert!(invoice.fdm_refs.is_empty());
     }
 
@@ -902,7 +964,13 @@ mod tests {
     #[test]
     fn report_turnover_x_is_not_resetting_and_has_no_report_no() {
         let config = test_config();
-        let x = build_report_turnover_x(&config, 100, "00000000029", "bp", empty_turnover_data());
+        let x = build_report_turnover_x(
+            &config,
+            100,
+            "00000000029",
+            &bk("bp"),
+            empty_turnover_data(),
+        );
         assert_eq!(x.common.pos_fiscal_ticket_no, 100);
         assert_eq!(x.common.ticket_medium, TicketMedium::Paper);
         // ReportTurnoverXInput has no report_no field at all — X never
@@ -918,7 +986,7 @@ mod tests {
             &config,
             101,
             "00000000029",
-            "bp",
+            &bk("bp"),
             42,
             "2026-04-12",
             empty_turnover_data(),
@@ -941,7 +1009,7 @@ mod tests {
     #[test]
     fn report_user_x_has_no_report_no() {
         let config = test_config();
-        let x = build_report_user_x(&config, 102, "00000000029", "bp", empty_user_data());
+        let x = build_report_user_x(&config, 102, "00000000029", &bk("bp"), empty_user_data());
         let json = serde_json::to_string(&x).unwrap();
         assert!(!json.contains("reportNo"));
         assert_eq!(x.common.ticket_medium, TicketMedium::Paper);
@@ -954,7 +1022,7 @@ mod tests {
             &config,
             103,
             "00000000029",
-            "bp",
+            &bk("bp"),
             42,
             "2026-04-12",
             empty_user_data(),
@@ -981,7 +1049,7 @@ mod tests {
         });
         data.turnover.drawers_open_count = 3;
 
-        let x = build_report_turnover_x(&config, 1, "00000000029", "bp", data);
+        let x = build_report_turnover_x(&config, 1, "00000000029", &bk("bp"), data);
         assert_eq!(x.turnover.departments.len(), 1);
         assert_eq!(x.turnover.departments[0].department_id, "12");
         assert_eq!(x.turnover.vats[0].label, VatLabel::B);
@@ -1001,7 +1069,7 @@ mod tests {
             &order,
             &[], // no lines at all
             1,
-            &bp_id,
+            &bk(&bp_id),
             PaymentType::Cash,
             0,
             None,
@@ -1032,7 +1100,7 @@ mod tests {
             &order,
             &lines,
             1,
-            "bp",
+            &bk("bp"),
             PaymentType::Cash,
             1000,
             None,
@@ -1056,7 +1124,7 @@ mod tests {
             &order,
             &lines,
             1,
-            "bp",
+            &bk("bp"),
             PaymentType::Cash,
             2500,
             None,
@@ -1094,7 +1162,7 @@ mod tests {
             &order,
             &lines,
             1,
-            "bp",
+            &bk("bp"),
             PaymentType::Cash,
             expected_cents,
             None,

@@ -38,19 +38,24 @@ pub(crate) fn operator_name(state: &AppState, insz: &str) -> String {
 pub(crate) fn booking_period(
     db: &rusqlite::Connection,
 ) -> Result<pos_db::queries::booking::BookingPeriod, String> {
-    let today = chrono::Utc::now()
-        .with_timezone(&chrono_tz::Europe::Brussels)
-        .date_naive()
-        .to_string();
+    let today = pos_fiscal::event::now_in_belgium().date_naive().to_string();
     pos_db::queries::booking::current_period(db, &uuid::Uuid::new_v4().to_string(), &today)
         .map_err(|e| e.to_string())
 }
 
-/// Id of the open booking period, for commands that don't hold the
-/// database lock.
-pub(crate) fn booking_period_id(state: &AppState) -> Result<String, String> {
+/// The open booking period, as carried by every fiscal event.
+pub(crate) fn booking(db: &rusqlite::Connection) -> Result<pos_fiscal::event::Booking, String> {
+    let period = booking_period(db)?;
+    Ok(pos_fiscal::event::Booking {
+        period_id: period.id,
+        date: period.booking_date,
+    })
+}
+
+/// `booking`, for commands that don't hold the database lock.
+pub(crate) fn current_booking(state: &AppState) -> Result<pos_fiscal::event::Booking, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    Ok(booking_period(&db)?.id)
+    booking(&db)
 }
 
 /// Ticket number the next event of `label` will use, without consuming

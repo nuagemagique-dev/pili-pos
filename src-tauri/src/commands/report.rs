@@ -68,7 +68,7 @@ pub async fn do_generate_x_report(
         &config,
         ticket_number,
         &employee_insz,
-        &period.id,
+        &as_booking(&period),
         turnover_data,
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
@@ -125,7 +125,7 @@ pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
 pub fn do_needs_z_report(state: &AppState) -> Result<bool, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let open = pos_db::queries::booking::open_period(&db).map_err(|e| e.to_string())?;
-    let now = chrono::Utc::now().with_timezone(&chrono_tz::Europe::Brussels);
+    let now = pos_fiscal::event::now_in_belgium();
     Ok(z_reminder_due(open.as_ref(), now))
 }
 
@@ -218,7 +218,7 @@ pub async fn do_generate_z_report(
         &config,
         turnover_ticket,
         &employee_insz,
-        &period.id,
+        &as_booking(&period),
         report_no,
         &period.booking_date,
         turnover_data,
@@ -227,7 +227,7 @@ pub async fn do_generate_z_report(
         &config,
         user_ticket,
         &employee_insz,
-        &period.id,
+        &as_booking(&period),
         report_no,
         &period.booking_date,
         user_data,
@@ -380,7 +380,7 @@ pub async fn do_generate_user_x_report(
         &config,
         ticket_number,
         &employee_insz,
-        &period.id,
+        &as_booking(&period),
         user_data,
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
@@ -612,11 +612,16 @@ fn period_events(
         .collect()
 }
 
+fn as_booking(period: &BookingPeriod) -> pos_fiscal::event::Booking {
+    pos_fiscal::event::Booking {
+        period_id: period.id.clone(),
+        date: period.booking_date.clone(),
+    }
+}
+
 /// This terminal, for a report whose period has no event yet.
 fn this_terminal(config: &pos_core::config::PosConfig) -> Vec<PosDeviceInput> {
-    let now = chrono::Utc::now()
-        .with_timezone(&chrono_tz::Europe::Brussels)
-        .to_rfc3339();
+    let now = pos_fiscal::event::now_in_belgium().to_rfc3339();
     vec![PosDeviceInput {
         pos_id: config.pos_id.clone(),
         terminal_id: Some(config.terminal_id.clone()),

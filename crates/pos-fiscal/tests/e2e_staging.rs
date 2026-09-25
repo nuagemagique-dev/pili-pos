@@ -65,6 +65,14 @@ use pos_fiscal::types::{
 };
 use uuid::Uuid;
 
+/// A booking period for tests.
+fn bk(period_id: &str) -> pos_fiscal::event::Booking {
+    pos_fiscal::event::Booking {
+        period_id: period_id.to_string(),
+        date: "2026-07-03".to_string(),
+    }
+}
+
 fn staging_url() -> Option<String> {
     env::var("MOYUN_STAGING_FDM_URL").ok()
 }
@@ -346,7 +354,7 @@ async fn staging_basic_set_smoke() {
     // 1. S — work-in (M140). The service day starts with staff
     //    presence registration; the FDM refuses sales before it.
     let n = next_ticket();
-    let input = build_work_in_out(&config, n, &insz, &booking_period_id);
+    let input = build_work_in_out(&config, n, &insz, &bk(&booking_period_id));
     let result = client
         .sign_work_in(input.clone(), false)
         .await
@@ -357,7 +365,7 @@ async fn staging_basic_set_smoke() {
     let order = rehearsal_order(4, &insz);
     let lines = rehearsal_lines(1);
     let n = next_ticket();
-    let input = build_order_input(&config, &order, &lines, n, &booking_period_id);
+    let input = build_order_input(&config, &order, &lines, n, &bk(&booking_period_id));
     let result = client
         .sign_order(input.clone(), false)
         .await
@@ -366,7 +374,7 @@ async fn staging_basic_set_smoke() {
 
     // 3. P — pre-bill (M123): provisional bill for the same table.
     let n = next_ticket();
-    let input = build_pre_bill_input(&config, &order, &lines, n, &booking_period_id);
+    let input = build_pre_bill_input(&config, &order, &lines, n, &bk(&booking_period_id));
     let result = client
         .sign_pre_bill(input.clone(), false)
         .await
@@ -386,7 +394,7 @@ async fn staging_basic_set_smoke() {
         &order,
         &lines,
         n,
-        &booking_period_id,
+        &bk(&booking_period_id),
         PaymentType::Cash,
         1200,
         None,
@@ -410,7 +418,7 @@ async fn staging_basic_set_smoke() {
         &order,
         &refund_lines,
         n,
-        &booking_period_id,
+        &bk(&booking_period_id),
         PaymentType::Cash,
         -1200,
         Some(&sale_ref),
@@ -429,7 +437,7 @@ async fn staging_basic_set_smoke() {
 
     // 6. C — copy of the original sale (M160).
     let n = next_ticket();
-    let input = build_copy_input(&config, n, &insz, &booking_period_id, &sale_ref);
+    let input = build_copy_input(&config, n, &insz, &bk(&booking_period_id), &sale_ref);
     let result = client
         .sign_copy(input.clone(), false)
         .await
@@ -443,7 +451,7 @@ async fn staging_basic_set_smoke() {
             &config,
             n,
             &insz,
-            &booking_period_id,
+            &bk(&booking_period_id),
             pos_fiscal::types::TicketMedium::None,
         ),
         drawer: None,
@@ -467,7 +475,7 @@ async fn staging_basic_set_smoke() {
             &config,
             n,
             &insz,
-            &booking_period_id,
+            &bk(&booking_period_id),
             pos_fiscal::types::TicketMedium::None,
         ),
         drawer: None,
@@ -565,7 +573,7 @@ async fn staging_basic_set_smoke() {
         },
     };
     let n = next_ticket();
-    let input = build_report_turnover_x(&config, n, &insz, &booking_period_id, report_data);
+    let input = build_report_turnover_x(&config, n, &insz, &bk(&booking_period_id), report_data);
     let result = client
         .sign_report_turnover_x(input.clone(), false)
         .await
@@ -609,7 +617,7 @@ async fn staging_basic_set_smoke() {
         }],
     };
     let n = next_ticket();
-    let input = build_report_user_x(&config, n, &insz, &booking_period_id, user_data);
+    let input = build_report_user_x(&config, n, &insz, &bk(&booking_period_id), user_data);
     let result = client
         .sign_report_user_x(input.clone(), false)
         .await
@@ -624,7 +632,7 @@ async fn staging_basic_set_smoke() {
 
     // 11. S — work-out (M141): the service day closes.
     let n = next_ticket();
-    let input = build_work_in_out(&config, n, &insz, &booking_period_id);
+    let input = build_work_in_out(&config, n, &insz, &bk(&booking_period_id));
     let result = client
         .sign_work_out(input.clone(), false)
         .await

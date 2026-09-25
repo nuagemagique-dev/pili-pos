@@ -409,16 +409,15 @@ async fn m184_combined_z_of_the_scenario_day() {
         assert_eq!(r["reportNo"], 1, "{label}");
         assert_eq!(r["reportBookingDate"], r["bookingDate"], "{label}");
     }
-    // Both Z reports and every event of the day share the period the Z closes.
+    // Both Z reports and every event of the day share the period the Z
+    // closes, and its booking date.
     let period = turnover_z["bookingPeriodId"].clone();
-    assert!(
-        app.fiscal_events().iter().all(|e| {
-            serde_json::from_str::<Value>(e.event_data_json.as_deref().unwrap()).unwrap()
-                ["bookingPeriodId"]
-                == period
-        }),
-        "all events of the day are in the booking period"
-    );
+    let date = turnover_z["bookingDate"].clone();
+    for e in app.fiscal_events() {
+        let request: Value = serde_json::from_str(e.event_data_json.as_deref().unwrap()).unwrap();
+        assert_eq!(request["bookingPeriodId"], period, "event {}", e.id);
+        assert_eq!(request["bookingDate"], date, "event {}", e.id);
+    }
     assert_eq!(
         pos_db::queries::booking::open_period(&app.state.db.lock().unwrap()).unwrap(),
         None,
