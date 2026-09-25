@@ -204,10 +204,20 @@ pub async fn do_checkout(
             EventLabel::N
         };
         let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        debug_assert_eq!(
-            committed_no, ticket_number,
-            "counter drifted between peek and commit — single-terminal invariant violated"
-        );
+        // Graceful error, not a panic: see the identical comment in
+        // `commands/mod.rs::commit_signed_event` — a panic here would
+        // unwind while the `state.db` MutexGuard is still held and
+        // poison it for the whole process. Concurrent checkouts of the
+        // same order are exactly the scenario this guards against; the
+        // transaction rolls back, so the loser sees a clean error and
+        // can retry.
+        if committed_no != ticket_number {
+            return Err(format!(
+                "counter drifted between peek and commit for {label:?} (peeked \
+                 {ticket_number}, committed {committed_no}) — likely a concurrent \
+                 checkout of the same order; retry"
+            ));
+        }
 
         let event_id = archive::archive_event(
             &tx,
@@ -231,6 +241,24 @@ pub async fn do_checkout(
             rusqlite::params![order_id],
         )
         .map_err(|e| e.to_string())?;
+
+        // Record the payment so X/Z reports (`get_payment_totals`,
+        // `get_user_payment_totals`) have real data to sum — without
+        // this row the FDM-facing `payments` block of every turnover
+        // report would always be empty, no matter how much was sold.
+        // Training-mode "sales" move no real money, so they are not
+        // recorded here (mirrors the FDM's T-vs-N counter split).
+        if label != EventLabel::T {
+            let method = match payment_method {
+                CheckoutPaymentMethod::Cash => "cash",
+                CheckoutPaymentMethod::Card => "card",
+            };
+            tx.execute(
+                "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
+                rusqlite::params![order_id, method, payment_total_cents],
+            )
+            .map_err(|e| e.to_string())?;
+        }
 
         tx.commit().map_err(|e| e.to_string())?;
     }
