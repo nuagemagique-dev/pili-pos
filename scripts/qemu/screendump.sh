@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────
 # moyun-pos - capture a screenshot from a running scripts/qemu/run-kiosk.sh
 # instance via its QMP socket, for
-# docs/SUBMISSION_ARTIFACTS/CAPTURES_ECRAN_RUNBOOK_FR.md.
+# docs/internal/CAPTURES_ECRAN_RUNBOOK_FR.md.
 #
 # Speaks QMP directly (qmp_capabilities handshake, then the `screendump`
 # command) over the unix socket run-kiosk.sh creates at

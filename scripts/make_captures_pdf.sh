@@ -6,7 +6,7 @@
 # in filename order (01_..., 09a_..., 20_..., 50_...), into
 # docs/SUBMISSION_ARTIFACTS/CAPTURES_ECRAN_FR.pdf with ImageMagick 7.
 #
-# See docs/SUBMISSION_ARTIFACTS/CAPTURES_ECRAN_RUNBOOK_FR.md for how
+# See docs/internal/CAPTURES_ECRAN_RUNBOOK_FR.md for how
 # the screenshots are produced (mostly `cd ui && npm run captures`).
 # Usage: scripts/make_captures_pdf.sh
 # ─────────────────────────────────────────────────────────────────

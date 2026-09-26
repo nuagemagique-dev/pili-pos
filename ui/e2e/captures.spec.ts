@@ -271,6 +271,8 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await page.locator('.act-btn.primary', { hasText: 'Valider' }).click();
     await expect(page.locator('.success-icon')).toBeVisible();
     await expect(page.locator('.receipt-fdm')).toContainText('FDM-TEST-0001');
+    // 50 € for 40 €: 10 € back (checkout-change.spec.ts).
+    await expect(page.locator('.receipt-change')).toContainText('10,00');
     await expect(page.locator('.delivery-msg')).toContainText('Ticket imprimé');
     await capture(page, '09_checkout_done');
   });
@@ -434,15 +436,10 @@ test('13_training - bandeau et filigrane TRAINING', async ({ page }) => {
   await loginAndGoto(page, '/settings');
   await page.locator('.toggle').click();
   await expect(page.locator('.toggle')).toContainText('ACTIF');
-  // Bug found while writing this capture: TrainingBanner.vue's
-  // `.training-banner` is `position: absolute; top: 0; left: 0;
-  // right: 0` with `pointer-events: auto` and `z-index: 10000` - it
-  // overlaps the 48px header on every screen and intercepts clicks on
-  // whatever sits underneath it (here, Settings' own "Retour" button).
-  // Not fixed here (app code is out of scope for this capture task) -
-  // routed around with a hash navigation instead of a click, same as
-  // `loginAndGoto` uses for a non-"tables" target.
-  await page.evaluate(() => { window.location.hash = '#/tables'; });
+  // "Retour" sits right under the banner: a real tap, which the banner
+  // used to swallow (training-banner.spec.ts). No order is open, so
+  // the order screen hands over to the tables.
+  await page.locator('.settings .nav-btn', { hasText: 'Retour' }).click();
   await page.waitForURL(/tables/);
   await expect(page.locator('.training-banner')).toHaveText('MODE FORMATION : les transactions ne sont PAS enregistrées');
   await expect(page.locator('.training-watermark')).toBeVisible();

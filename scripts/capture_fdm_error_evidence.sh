@@ -12,7 +12,7 @@
 #
 # The JSON half of the §V checkbox ("le JSON ainsi que les captures
 # d'écran ont été ajoutés") comes from here; the screenshot half is
-# taken by the operator following CAPTURES_ECRAN_RUNBOOK_FR.md.
+# taken by the operator following docs/internal/CAPTURES_ECRAN_RUNBOOK_FR.md.
 #
 # Usage: scripts/capture_fdm_error_evidence.sh
 # ─────────────────────────────────────────────────────────────────
