@@ -159,6 +159,12 @@ stage_shared_inputs() {
         "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/provision/packages.txt"
     install -m 755 "$PROJECT_ROOT/deploy/update.sh" \
         "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/update.sh"
+    # The kiosk session files provision.sh installs from ../ (next to
+    # deploy/provision/): the systemd unit and the PAM service.
+    install -m 644 "$PROJECT_ROOT/deploy/moyun-pos.service" \
+        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/moyun-pos.service"
+    install -D -m 644 "$PROJECT_ROOT/deploy/kiosk/pam.d-moyun-pos" \
+        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/kiosk/pam.d-moyun-pos"
 }
 
 stage_admission_inputs() {

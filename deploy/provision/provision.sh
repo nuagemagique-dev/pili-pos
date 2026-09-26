@@ -249,7 +249,12 @@ phase_image() {
     echo "▸ [image:$VARIANT] Installing binary and directories…"
     mkdir -p "$POS_BIN_DIR/bin" "$POS_BIN_DIR/deploy" "$FACTORY_DIR"
     install -m 755 "$BINARY_PATH" "$POS_BIN_DIR/moyun-pos"
-    install -D -m 755 "$SCRIPT_DIR/../update.sh" "$POS_BIN_DIR/deploy/update.sh"
+    # In the kiosk image build this script already runs from
+    # $POS_BIN_DIR/deploy/provision/, so update.sh is in place.
+    if [[ ! "$SCRIPT_DIR/../update.sh" -ef "$POS_BIN_DIR/deploy/update.sh" ]]; then
+        install -D -m 755 "$SCRIPT_DIR/../update.sh" "$POS_BIN_DIR/deploy/update.sh"
+    fi
+    chmod 755 "$POS_BIN_DIR/deploy/update.sh"
     echo "  ✓ $POS_BIN_DIR/moyun-pos"
 
     echo "▸ [image:$VARIANT] Building the factory database…"
