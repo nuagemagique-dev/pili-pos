@@ -779,9 +779,11 @@ async fn test_full_service_day_e2e() {
         escpos.windows(12).any(|w| w == b"BMC0TEST0001"),
         "Must contain FDM ID"
     );
+    // The raw FDM financials.name ("Cash") is localized to the
+    // ticket's language ("Especes" in FR - see pos_print::labels).
     assert!(
-        escpos.windows(4).any(|w| w == b"Cash"),
-        "Must contain payment method"
+        escpos.windows(7).any(|w| w == b"Especes"),
+        "Must contain the localized payment method"
     );
 
     // Verify QR code command is present (GS ( k)

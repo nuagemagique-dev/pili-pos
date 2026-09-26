@@ -115,8 +115,12 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
         payments: if kind == Kind::ProForma {
             vec![]
         } else {
+            // The raw FDM financials.name ("Cash", see
+            // pos_fiscal::event::build_sale_input): the printed label
+            // is localized from this at print time (see
+            // `payment_label` in pos_print::labels).
             vec![TicketPayment {
-                method: "Espèces".to_string(),
+                method: "Cash".to_string(),
                 amount: 52.00 * sign,
             }]
         },
@@ -323,11 +327,21 @@ fn the_long_product_name_is_printed_whole() {
     }
 }
 
+/// The printed cash-payment label per language (see
+/// `pos_print::labels::payment_label`).
+fn cash_label(lang: ReceiptLanguage) -> &'static str {
+    match lang {
+        ReceiptLanguage::Fr => "Especes",
+        ReceiptLanguage::Nl => "Contant",
+        ReceiptLanguage::De => "Bar",
+    }
+}
+
 #[test]
 fn a_pro_forma_shows_no_payment_or_vat_table() {
     for lang in LANGS {
         let text = render(Kind::ProForma, lang);
-        assert!(!text.contains("Espèces"), "{lang:?}");
+        assert!(!text.contains(cash_label(lang)), "{lang:?}");
         let vat_header = match lang {
             ReceiptLanguage::Fr => "Base HT",
             ReceiptLanguage::Nl => "Basis",
@@ -335,6 +349,25 @@ fn a_pro_forma_shows_no_payment_or_vat_table() {
         };
         assert!(!text.contains(vat_header), "{lang:?}");
         assert!(render(Kind::Sale, lang).contains(vat_header), "{lang:?}");
+    }
+}
+
+#[test]
+fn the_payment_name_follows_the_ticket_language() {
+    for lang in LANGS {
+        let text = render(Kind::Sale, lang);
+        assert!(
+            text.contains(cash_label(lang)),
+            "{lang:?}: missing {:?}\n{text}",
+            cash_label(lang)
+        );
+        for other in LANGS.iter().filter(|l| **l != lang) {
+            assert!(
+                !text.contains(cash_label(*other)),
+                "{lang:?}: leaked {:?} from {other:?}\n{text}",
+                cash_label(*other)
+            );
+        }
     }
 }
 

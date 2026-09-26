@@ -22,6 +22,11 @@ SECTIONS = {
     "## 5. ": "ticket_T_training.txt",
     "## 6. ": "rapport_X.txt",
     "## 7. ": "rapport_Z.txt",
+    # Same Z-report scenario as section 7, in the other two ticket
+    # languages (report.rs / labels.rs follow pos.json::language, like
+    # receipts already do - see GARANTIE_MAJ_LANGUES_FR.md §3).
+    "### Rapport Z en néerlandais (NL)": "rapport_Z_nl.txt",
+    "### Rapport Z en allemand (DE)": "rapport_Z_de.txt",
 }
 
 

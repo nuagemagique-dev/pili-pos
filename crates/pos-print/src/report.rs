@@ -1,4 +1,8 @@
+use pos_fiscal::ticket::{ReceiptLanguage, ticket_type_label};
+use pos_fiscal::types::EventLabel;
+
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
+use crate::labels::{event_label_name, labels, payment_label, report_labels};
 
 /// Data needed to print an X or Z report on the thermal printer.
 pub struct ReportPrintData {
@@ -36,6 +40,8 @@ pub struct ReportPrintData {
     pub fdm_datetime: Option<String>,
     pub short_signature: Option<String>,
     pub ticket_number: i64,
+    /// Language of the printed mentions (§VI, like receipts).
+    pub lang: ReceiptLanguage,
 }
 
 pub struct ReportEventTotal {
@@ -60,6 +66,8 @@ pub struct ReportPaymentTotal {
 /// Format an X or Z report for the thermal printer.
 pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     let mut p = EscPosBuilder::new();
+    let l = labels(data.lang);
+    let rl = report_labels(data.lang);
 
     // ── Training mode banner ───────────────────────────────────
     if data.is_training {
@@ -83,9 +91,10 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         double_width: true,
         ..Default::default()
     });
+    let report_word = ticket_type_label(EventLabel::R, false, data.lang);
     let title = match data.report_no {
-        Some(no) => format!("RAPPORT {} #{}", data.report_type, no),
-        None => format!("RAPPORT {}", data.report_type),
+        Some(no) => format!("{report_word} {} #{}", data.report_type, no),
+        None => format!("{report_word} {}", data.report_type),
     };
     p.textln(&title);
     p.style_reset();
@@ -100,17 +109,17 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     p.textln_wrapped(&data.restaurant_name);
     p.style_reset();
     p.textln_wrapped(&data.restaurant_address);
-    p.textln(&format!("TVA: {}", data.restaurant_vat));
+    p.textln(&format!("{}: {}", l.vat_no, data.restaurant_vat));
     p.blank_line();
 
     // ── Report metadata ────────────────────────────────────────
     p.align(Alignment::Left);
-    p.text_columns("Date:", &data.report_date);
-    p.text_columns("Debut:", &fmt_datetime(&data.first_datetime));
-    p.text_columns("Fin:", &fmt_datetime(&data.last_datetime));
-    p.text_columns("Terminal:", &data.terminal_id);
-    p.text_columns("Employe:", &data.employee_insz);
-    p.text_columns("Ticket:", &format!("#{}", data.ticket_number));
+    p.text_columns(l.date, &data.report_date);
+    p.text_columns(rl.start, &fmt_datetime(&data.first_datetime));
+    p.text_columns(rl.end, &fmt_datetime(&data.last_datetime));
+    p.text_columns(l.terminal, &data.terminal_id);
+    p.text_columns(rl.employee, &data.employee_insz);
+    p.text_columns(l.ticket, &format!("#{}", data.ticket_number));
     p.separator('=');
 
     // ── Transaction summary ────────────────────────────────────
@@ -119,13 +128,13 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             bold: true,
             ..Default::default()
         });
-        p.textln("TRANSACTIONS");
+        p.textln(rl.transactions);
         p.style_reset();
         p.separator('-');
 
         let mut total_count: i64 = 0;
         for et in &data.event_totals {
-            let label = event_label_name(&et.label);
+            let label = event_label_name(&et.label, data.lang);
             p.text_columns(
                 &format!("{} ({})", label, et.count),
                 &fmt_price(et.amount_cents),
@@ -138,7 +147,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             ..Default::default()
         });
         p.text_columns(
-            &format!("Total ({})", total_count),
+            &format!("{} ({})", rl.total_word, total_count),
             &fmt_price(data.grand_total_cents),
         );
         p.style_reset();
@@ -151,7 +160,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             bold: true,
             ..Default::default()
         });
-        p.textln("TVA");
+        p.textln(l.vat_no);
         p.style_reset();
         p.separator('-');
 
@@ -159,7 +168,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             font_b: true,
             ..Default::default()
         });
-        p.textln("Code   Taux     Base HT      TVA");
+        p.textln(rl.vat_table_header);
         for vt in &data.vat_totals {
             let base_cents = vt.total_incl_cents - vt.vat_cents;
             let line = format!(
@@ -181,12 +190,12 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             bold: true,
             ..Default::default()
         });
-        p.textln("PAIEMENTS");
+        p.textln(rl.payments_title);
         p.style_reset();
         p.separator('-');
 
         for pt in &data.payment_totals {
-            let method = payment_method_name(&pt.method);
+            let method = payment_label(&pt.method, data.lang);
             p.text_columns(
                 &format!("{} ({}x)", method, pt.count),
                 &fmt_price(pt.amount_cents),
@@ -196,7 +205,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     }
 
     // ── Drawer opens ───────────────────────────────────────────
-    p.text_columns("Ouvertures caisse:", &data.drawer_opens.to_string());
+    p.text_columns(rl.drawer_opens, &data.drawer_opens.to_string());
     p.separator('=');
 
     // ── Grand total ────────────────────────────────────────────
@@ -205,7 +214,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         double_height: true,
         ..Default::default()
     });
-    p.text_columns("TOTAL", &fmt_price(data.grand_total_cents));
+    p.text_columns(l.total, &fmt_price(data.grand_total_cents));
     p.style_reset();
     p.separator('=');
 
@@ -234,8 +243,8 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
             bold: true,
             ..Default::default()
         });
-        p.textln("FIN DE JOURNEE");
-        p.textln("Compteurs remis a zero");
+        p.textln(rl.z_footer_line1);
+        p.textln(rl.z_footer_line2);
         p.style_reset();
     }
 
@@ -266,6 +275,8 @@ pub struct UserReportPrintData {
     pub fdm_datetime: Option<String>,
     pub short_signature: Option<String>,
     pub ticket_number: i64,
+    /// Language of the printed mentions (§VI, like receipts).
+    pub lang: ReceiptLanguage,
 }
 
 /// Per-operator block of the user report.
@@ -284,6 +295,8 @@ pub struct UserReportUser {
 /// financial Z (M184) or on demand for the user X (M182).
 pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
     let mut p = EscPosBuilder::new();
+    let l = labels(data.lang);
+    let rl = report_labels(data.lang);
 
     if data.is_training {
         p.align(Alignment::Center);
@@ -306,8 +319,8 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
         ..Default::default()
     });
     let title = match data.report_no {
-        Some(no) => format!("RAPPORT UTIL. {} #{}", data.report_type, no),
-        None => format!("RAPPORT UTIL. {}", data.report_type),
+        Some(no) => format!("{} {} #{}", rl.user_report_prefix, data.report_type, no),
+        None => format!("{} {}", rl.user_report_prefix, data.report_type),
     };
     p.textln(&title);
     p.style_reset();
@@ -321,14 +334,14 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
     p.textln_wrapped(&data.restaurant_name);
     p.style_reset();
     p.textln_wrapped(&data.restaurant_address);
-    p.textln(&format!("TVA: {}", data.restaurant_vat));
+    p.textln(&format!("{}: {}", l.vat_no, data.restaurant_vat));
     p.blank_line();
 
     p.align(Alignment::Left);
-    p.text_columns("Date:", &data.report_date);
-    p.text_columns("Terminal:", &data.terminal_id);
-    p.text_columns("Employe:", &data.employee_insz);
-    p.text_columns("Ticket:", &format!("#{}", data.ticket_number));
+    p.text_columns(l.date, &data.report_date);
+    p.text_columns(l.terminal, &data.terminal_id);
+    p.text_columns(rl.employee, &data.employee_insz);
+    p.text_columns(l.ticket, &format!("#{}", data.ticket_number));
     p.separator('=');
 
     for user in &data.users {
@@ -338,18 +351,24 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
         });
         p.text_columns(&format!("INSZ {}", user.insz), &fmt_price(user.total_cents));
         p.style_reset();
-        p.text_columns("  Premier event:", &fmt_datetime(&user.first_datetime));
-        p.text_columns("  Dernier event:", &fmt_datetime(&user.last_datetime));
+        p.text_columns(
+            &format!("  {}", rl.first_event),
+            &fmt_datetime(&user.first_datetime),
+        );
+        p.text_columns(
+            &format!("  {}", rl.last_event),
+            &fmt_datetime(&user.last_datetime),
+        );
         for (op, dt) in &user.social_events {
             let label = match op.as_str() {
-                "WORK_IN" => "  Pointage IN:",
-                "WORK_OUT" => "  Pointage OUT:",
-                other => other,
+                "WORK_IN" => format!("  {}", rl.punch_in),
+                "WORK_OUT" => format!("  {}", rl.punch_out),
+                other => other.to_string(),
             };
-            p.text_columns(label, &fmt_datetime(dt));
+            p.text_columns(&label, &fmt_datetime(dt));
         }
         for pt in &user.payments {
-            let method = payment_method_name(&pt.method);
+            let method = payment_label(&pt.method, data.lang);
             p.text_columns(
                 &format!("  {} ({}x)", method, pt.count),
                 &fmt_price(pt.amount_cents),
@@ -364,7 +383,7 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
         double_height: true,
         ..Default::default()
     });
-    p.text_columns("TOTAL", &fmt_price(grand_total));
+    p.text_columns(l.total, &fmt_price(grand_total));
     p.style_reset();
     p.separator('=');
 
@@ -404,29 +423,6 @@ fn fmt_datetime(s: &str) -> String {
         format!("{date} {time}")
     } else {
         s.to_string()
-    }
-}
-
-fn event_label_name(label: &str) -> &str {
-    match label {
-        "N" => "Ventes",
-        "P" => "Pro forma",
-        "T" => "Formation",
-        "C" => "Copies",
-        "I" => "Factures",
-        "F" => "Financier",
-        "S" => "Social",
-        "R" => "Rapports",
-        _ => label,
-    }
-}
-
-fn payment_method_name(method: &str) -> &str {
-    match method {
-        "cash" => "Especes",
-        "card" => "Carte",
-        "other" => "Autre",
-        _ => method,
     }
 }
 
@@ -492,6 +488,7 @@ mod tests {
             fdm_datetime: None,
             short_signature: None,
             ticket_number: 45,
+            lang: ReceiptLanguage::Fr,
         }
     }
 
@@ -586,6 +583,7 @@ mod tests {
             fdm_datetime: Some("2026-04-12T22:16:00+02:00".to_string()),
             short_signature: None,
             ticket_number: 46,
+            lang: ReceiptLanguage::Fr,
         }
     }
 

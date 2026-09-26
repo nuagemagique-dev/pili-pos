@@ -1,0 +1,352 @@
+//! Localized text for printed tickets, reports and payment names.
+//!
+//! Centralizes every fixed string that must follow the ticket
+//! language (FR/NL/DE - certification manual §VI). Kept in one file
+//! so `receipt.rs` and `report.rs` can never disagree on wording, and
+//! so a missing translation is a single compile error (exhaustive
+//! `match` on `ReceiptLanguage`).
+//!
+//! ASCII only, like `pos_fiscal::ticket`'s spec-mandated labels: these
+//! print the same whatever code page a replacement printer starts in,
+//! even though the general text path (`escpos::encode_cp858`) does
+//! support accented characters for user-authored content (menu items,
+//! addresses, ...).
+
+use pos_fiscal::ticket::ReceiptLanguage;
+
+/// Fixed receipt labels per ticket language.
+pub(crate) struct Labels {
+    pub(crate) vat_no: &'static str,
+    pub(crate) est_no: &'static str,
+    pub(crate) date: &'static str,
+    pub(crate) ticket: &'static str,
+    pub(crate) terminal: &'static str,
+    pub(crate) pos: &'static str,
+    pub(crate) software: &'static str,
+    pub(crate) device: &'static str,
+    pub(crate) user: &'static str,
+    pub(crate) subtotal: &'static str,
+    pub(crate) rounding: &'static str,
+    pub(crate) total: &'static str,
+    pub(crate) vat_header: &'static str,
+    pub(crate) refund: &'static str,
+}
+
+pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
+    match lang {
+        ReceiptLanguage::Fr => &Labels {
+            vat_no: "TVA",
+            est_no: "Etab",
+            date: "Date:",
+            ticket: "Ticket:",
+            terminal: "Terminal:",
+            pos: "POS:",
+            software: "Logiciel:",
+            device: "Appareil:",
+            user: "Utilisateur:",
+            subtotal: "Sous-total",
+            rounding: "Arrondi",
+            total: "TOTAL",
+            vat_header: "TVA    Taux    Base HT    TVA",
+            refund: "REMBOURSEMENT",
+        },
+        ReceiptLanguage::Nl => &Labels {
+            vat_no: "BTW",
+            est_no: "Vest",
+            date: "Datum:",
+            ticket: "Ticket:",
+            terminal: "Terminal:",
+            pos: "POS:",
+            software: "Software:",
+            device: "Toestel:",
+            user: "Gebruiker:",
+            subtotal: "Subtotaal",
+            rounding: "Afronding",
+            total: "TOTAAL",
+            vat_header: "BTW    Tarief  Basis      BTW",
+            refund: "TERUGBETALING",
+        },
+        ReceiptLanguage::De => &Labels {
+            vat_no: "MwSt",
+            est_no: "Niederl",
+            date: "Datum:",
+            ticket: "Bon:",
+            terminal: "Terminal:",
+            pos: "POS:",
+            software: "Software:",
+            device: "Geraet:",
+            user: "Benutzer:",
+            subtotal: "Zwischensumme",
+            rounding: "Rundung",
+            total: "GESAMT",
+            vat_header: "MwSt   Satz    Netto      MwSt",
+            refund: "RUECKERSTATTUNG",
+        },
+    }
+}
+
+/// Fixed X/Z (and user X/Z) report labels per ticket language.
+/// Distinct from [`Labels`]: report metadata uses different words
+/// than the customer-facing receipt (e.g. "Employe:" for the operator
+/// who ran the report, vs. "Utilisateur:" for the operator who rang
+/// up a sale). Words shared with the receipt (VAT number, date,
+/// terminal, ticket number, total) are reused from [`labels`] instead
+/// of duplicated here.
+pub(crate) struct ReportLabels {
+    /// Start of the reporting period ("Debut:").
+    pub(crate) start: &'static str,
+    /// End of the reporting period ("Fin:").
+    pub(crate) end: &'static str,
+    /// The employee who generated the report (distinct from the
+    /// receipt's "user", the operator who rang up a sale).
+    pub(crate) employee: &'static str,
+    pub(crate) transactions: &'static str,
+    /// The word "Total", used inline with a count ("Total (54)").
+    pub(crate) total_word: &'static str,
+    pub(crate) vat_table_header: &'static str,
+    pub(crate) payments_title: &'static str,
+    pub(crate) drawer_opens: &'static str,
+    /// First line of the Z-report end-of-day footer.
+    pub(crate) z_footer_line1: &'static str,
+    /// Second line of the Z-report end-of-day footer.
+    pub(crate) z_footer_line2: &'static str,
+    /// Prefix of the user-report title, before the X/Z letter
+    /// ("RAPPORT UTIL." + " Z #1").
+    pub(crate) user_report_prefix: &'static str,
+    pub(crate) first_event: &'static str,
+    pub(crate) last_event: &'static str,
+    pub(crate) punch_in: &'static str,
+    pub(crate) punch_out: &'static str,
+}
+
+pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
+    match lang {
+        ReceiptLanguage::Fr => &ReportLabels {
+            start: "Debut:",
+            end: "Fin:",
+            employee: "Employe:",
+            transactions: "TRANSACTIONS",
+            total_word: "Total",
+            vat_table_header: "Code   Taux     Base HT      TVA",
+            payments_title: "PAIEMENTS",
+            drawer_opens: "Ouvertures caisse:",
+            z_footer_line1: "FIN DE JOURNEE",
+            z_footer_line2: "Compteurs remis a zero",
+            user_report_prefix: "RAPPORT UTIL.",
+            first_event: "Premier event:",
+            last_event: "Dernier event:",
+            punch_in: "Pointage IN:",
+            punch_out: "Pointage OUT:",
+        },
+        ReceiptLanguage::Nl => &ReportLabels {
+            start: "Begin:",
+            end: "Einde:",
+            employee: "Werknemer:",
+            transactions: "TRANSACTIES",
+            total_word: "Totaal",
+            vat_table_header: "Code   Tarief   Basis      BTW",
+            payments_title: "BETALINGEN",
+            drawer_opens: "Kassa-openingen:",
+            z_footer_line1: "EINDE VAN DE DAG",
+            z_footer_line2: "Tellers op nul gezet",
+            user_report_prefix: "RAPPORT GEBR.",
+            first_event: "Eerste event:",
+            last_event: "Laatste event:",
+            punch_in: "Klok IN:",
+            punch_out: "Klok OUT:",
+        },
+        ReceiptLanguage::De => &ReportLabels {
+            start: "Beginn:",
+            end: "Ende:",
+            employee: "Mitarbeiter:",
+            transactions: "TRANSAKTIONEN",
+            total_word: "Gesamt",
+            vat_table_header: "Code   Satz     Netto      MwSt",
+            payments_title: "ZAHLUNGEN",
+            drawer_opens: "Kassenoeffnungen:",
+            z_footer_line1: "TAGESABSCHLUSS",
+            z_footer_line2: "Zaehler auf Null gesetzt",
+            user_report_prefix: "BERICHT BENUTZER",
+            first_event: "Erstes Event:",
+            last_event: "Letztes Event:",
+            punch_in: "Zeit IN:",
+            punch_out: "Zeit OUT:",
+        },
+    }
+}
+
+/// Localized name of an FDM event-label letter (N/P/T/C/I/F/S/R), for
+/// the report's per-type transaction breakdown. Unknown letters print
+/// unchanged: defensive, the report must never fail to print over an
+/// unrecognized label.
+pub(crate) fn event_label_name(label: &str, lang: ReceiptLanguage) -> &str {
+    use ReceiptLanguage::{De, Fr, Nl};
+    match (label, lang) {
+        ("N", Fr) => "Ventes",
+        ("N", Nl) => "Verkoop",
+        ("N", De) => "Umsaetze",
+        // "Pro forma" is the literal mention used by the spec in all
+        // three language versions (see `ticket::ticket_type_label`).
+        ("P", _) => "Pro forma",
+        ("T", Fr) => "Formation",
+        ("T", Nl) => "Opleiding",
+        ("T", De) => "Schulung",
+        ("C", Fr) => "Copies",
+        ("C", Nl) => "Kopieen",
+        ("C", De) => "Kopien",
+        ("I", Fr) => "Factures",
+        ("I", Nl) => "Facturen",
+        ("I", De) => "Rechnungen",
+        ("F", Fr) => "Financier",
+        ("F", Nl) => "Financieel",
+        ("F", De) => "Finanzbewegungen",
+        ("S", Fr) => "Social",
+        ("S", Nl) => "Sociaal",
+        ("S", De) => "Sozial",
+        ("R", Fr) => "Rapports",
+        ("R", Nl) => "Rapporten",
+        ("R", De) => "Berichte",
+        _ => label,
+    }
+}
+
+/// A payment method kind the POS actually uses today, recognized from
+/// a printed name string so a receipt or report row can be given a
+/// localized label. Distinct from `pos_fiscal::types::PaymentType`
+/// (the full FDM wire enum): this stays a private implementation
+/// detail of [`payment_label`].
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PaymentKind {
+    Cash,
+    Card,
+    Other,
+}
+
+/// Recognize a payment kind from a raw method/name string: the FDM
+/// `financials.name` sent on the wire ("Cash"/"Card"/"Payment"), or
+/// its `type` enum wire value ("CASH"/"CARD_DEBIT"/...) if that ever
+/// ends up in the string instead. Matching is case-insensitive and by
+/// substring, so any casing or card sub-type variant is recognized.
+fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
+    let lower = name.to_ascii_lowercase();
+    if lower.contains("cash") {
+        Some(PaymentKind::Cash)
+    } else if lower.contains("card") {
+        Some(PaymentKind::Card)
+    } else if lower == "other" || lower == "payment" {
+        Some(PaymentKind::Other)
+    } else {
+        None
+    }
+}
+
+fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str {
+    use PaymentKind::{Card, Cash, Other};
+    use ReceiptLanguage::{De, Fr, Nl};
+    match (kind, lang) {
+        (Cash, Fr) => "Especes",
+        (Cash, Nl) => "Contant",
+        (Cash, De) => "Bar",
+        (Card, Fr) => "Carte",
+        (Card, Nl) => "Kaart",
+        (Card, De) => "Karte",
+        (Other, Fr) => "Autre",
+        (Other, Nl) => "Overige",
+        (Other, De) => "Sonstige",
+    }
+}
+
+/// Localized name of a payment method, for printing on a receipt or
+/// report. `name` is the raw method string already carried by the
+/// row - the FDM `financials.name` sent on the wire ("Cash"/"Card"/
+/// "Payment", see `pos_fiscal::event::build_sale_input`), or, for a
+/// report built from archived JSON, whatever name was archived at the
+/// time. Unrecognized values print unchanged.
+///
+/// This never changes what is sent to the FDM: `financials.name`
+/// stays exactly as built today. It only chooses what gets printed.
+pub(crate) fn payment_label(name: &str, lang: ReceiptLanguage) -> String {
+    match payment_kind_from_name(name) {
+        Some(kind) => payment_kind_label(kind, lang).to_string(),
+        None => name.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── payment_label ────────────────────────────────────────────
+
+    #[test]
+    fn recognizes_the_fdm_wire_names_case_insensitively() {
+        assert_eq!(payment_label("Cash", ReceiptLanguage::Fr), "Especes");
+        assert_eq!(payment_label("CASH", ReceiptLanguage::Nl), "Contant");
+        assert_eq!(payment_label("cash", ReceiptLanguage::De), "Bar");
+        assert_eq!(payment_label("Card", ReceiptLanguage::Fr), "Carte");
+        assert_eq!(payment_label("CARD", ReceiptLanguage::Nl), "Kaart");
+        assert_eq!(payment_label("card", ReceiptLanguage::De), "Karte");
+    }
+
+    #[test]
+    fn recognizes_a_card_sub_type_wire_value() {
+        // The PaymentType wire enum has sub-types (CARD_DEBIT, ...):
+        // any string containing "card" is still recognized.
+        assert_eq!(payment_label("CARD_DEBIT", ReceiptLanguage::Fr), "Carte");
+        assert_eq!(payment_label("CardCredit", ReceiptLanguage::Nl), "Kaart");
+    }
+
+    #[test]
+    fn recognizes_the_generic_other_fallback() {
+        assert_eq!(payment_label("Payment", ReceiptLanguage::Fr), "Autre");
+        assert_eq!(payment_label("other", ReceiptLanguage::Nl), "Overige");
+        assert_eq!(payment_label("OTHER", ReceiptLanguage::De), "Sonstige");
+    }
+
+    #[test]
+    fn falls_back_to_the_raw_name_when_unrecognized() {
+        assert_eq!(
+            payment_label("MealVoucher", ReceiptLanguage::Nl),
+            "MealVoucher"
+        );
+        assert_eq!(payment_label("-", ReceiptLanguage::De), "-");
+        assert_eq!(payment_label("Espèces", ReceiptLanguage::Fr), "Espèces");
+    }
+
+    #[test]
+    fn every_language_has_a_distinct_cash_and_card_label() {
+        for lang in [
+            ReceiptLanguage::Fr,
+            ReceiptLanguage::Nl,
+            ReceiptLanguage::De,
+        ] {
+            let cash = payment_label("Cash", lang);
+            let card = payment_label("Card", lang);
+            assert_ne!(cash, card, "{lang:?}");
+            assert!(cash.is_ascii(), "{lang:?}: {cash:?}");
+            assert!(card.is_ascii(), "{lang:?}: {card:?}");
+        }
+    }
+
+    // ── event_label_name ─────────────────────────────────────────
+
+    #[test]
+    fn every_event_label_is_translated_in_every_language() {
+        for label in ["N", "P", "T", "C", "I", "F", "S", "R"] {
+            for lang in [
+                ReceiptLanguage::Fr,
+                ReceiptLanguage::Nl,
+                ReceiptLanguage::De,
+            ] {
+                let name = event_label_name(label, lang);
+                assert!(name.is_ascii(), "{label}/{lang:?}: {name:?}");
+                assert_ne!(name, label, "{label}/{lang:?} did not translate");
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_event_label_prints_unchanged() {
+        assert_eq!(event_label_name("Z", ReceiptLanguage::Fr), "Z");
+    }
+}

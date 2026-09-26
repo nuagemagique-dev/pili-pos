@@ -26,7 +26,7 @@ Code   Taux     Base HT      TVA
 
 PAIEMENTS
 ------------------------------------------------
-Espèces (18x)                             612.00
+Especes (18x)                             612.00
 Carte (24x)                               911.50
 
 Ouvertures caisse:                             3

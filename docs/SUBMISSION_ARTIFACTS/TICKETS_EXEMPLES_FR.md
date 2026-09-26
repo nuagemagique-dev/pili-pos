@@ -61,7 +61,7 @@ colonne par type de ticket émis par moyun-pos.
 
 Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) ; cette référence n'est pas imprimée. La copie réimprime le QR code de l'événement N original (spec POS v2.2 §6.5).
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples ci-dessous sont en français. Le code source supporte le rendu multilingue (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). Le code source supporte par ailleurs le rendu multilingue des libellés produits (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
 
 ---
 
@@ -331,7 +331,7 @@ Code   Taux     Base HT      TVA
 
 PAIEMENTS
 ------------------------------------------------
-Espèces (18x)                             612.00
+Especes (18x)                             612.00
 Carte (24x)                               911.50
 
 Ouvertures caisse:                             3
@@ -380,7 +380,7 @@ Code   Taux     Base HT      TVA
 
 PAIEMENTS
 ------------------------------------------------
-Espèces (18x)                             612.00
+Especes (18x)                             612.00
 Carte (24x)                               911.50
 
 Ouvertures caisse:                             3
@@ -392,6 +392,115 @@ TOTAL                                    1523.50
 
                  FIN DE JOURNEE
              Compteurs remis a zero
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Rapport Z en néerlandais (NL)
+
+Même scénario que la section 7, imprimé dans la langue configurée
+pour le ticket (`pos.json::language = "nl"`, cf.
+*GARANTIE_MAJ_LANGUES_FR.md* §3). Le rapport X, le rapport
+utilisateur (M182/M183/M184) et les noms de moyen de paiement suivent
+la même règle : le rendu ci-dessous est généré par le même code que
+la section 7, seule la langue change.
+
+```
+      RAPPORT Z #1
+
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
+               BTW: BE0499999960
+
+Datum:                                2026-07-03
+Begin:                          2026-07-03 11:02
+Einde:                          2026-07-03 22:41
+Terminal:                                   POS1
+Werknemer:                           85073003328
+Ticket:                                       #3
+================================================
+TRANSACTIES
+------------------------------------------------
+Verkoop (42)                             1523.50
+Pro forma (12)                              0.00
+------------------------------------------------
+Totaal (54)                              1523.50
+
+BTW
+------------------------------------------------
+Code   Tarief   Basis      BTW
+ A      21%     317.78      66.72
+ B      12%    1016.96     122.04
+
+BETALINGEN
+------------------------------------------------
+Contant (18x)                             612.00
+Kaart (24x)                               911.50
+
+Kassa-openingen:                               3
+================================================
+TOTAAL                                   1523.50
+================================================
+                FDM: CBX01000042
+           2026-07-03T22:42:00+02:00
+
+                EINDE VAN DE DAG
+              Tellers op nul gezet
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Rapport Z en allemand (DE)
+
+Même scénario, imprimé en allemand (`pos.json::language = "de"`).
+
+```
+      BERICHT Z #1
+
+               Restaurant Exemple
+         Rue de l'Exemple 1, 4000 Liège
+               MwSt: BE0499999960
+
+Datum:                                2026-07-03
+Beginn:                         2026-07-03 11:02
+Ende:                           2026-07-03 22:41
+Terminal:                                   POS1
+Mitarbeiter:                         85073003328
+Bon:                                          #3
+================================================
+TRANSAKTIONEN
+------------------------------------------------
+Umsaetze (42)                            1523.50
+Pro forma (12)                              0.00
+------------------------------------------------
+Gesamt (54)                              1523.50
+
+MwSt
+------------------------------------------------
+Code   Satz     Netto      MwSt
+ A      21%     317.78      66.72
+ B      12%    1016.96     122.04
+
+ZAHLUNGEN
+------------------------------------------------
+Bar (18x)                                 612.00
+Karte (24x)                               911.50
+
+Kassenoeffnungen:                              3
+================================================
+GESAMT                                   1523.50
+================================================
+                FDM: CBX01000042
+           2026-07-03T22:42:00+02:00
+
+                 TAGESABSCHLUSS
+            Zaehler auf Null gesetzt
 
 
 

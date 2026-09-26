@@ -518,6 +518,7 @@ fn build_print_data(
         fdm_datetime: None,
         short_signature: None,
         ticket_number,
+        lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
     }
 }
 
@@ -720,6 +721,7 @@ fn build_user_print_data(
         fdm_datetime: None,
         short_signature: None,
         ticket_number,
+        lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
     }
 }
 

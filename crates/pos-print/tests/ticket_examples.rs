@@ -182,7 +182,11 @@ fn example_t_training() {
 
 // ── X / Z reports ──────────────────────────────────────────────
 
-fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::ReportPrintData {
+fn base_report(
+    report_type: &str,
+    report_no: Option<i64>,
+    lang: ReceiptLanguage,
+) -> pos_print::report::ReportPrintData {
     use pos_print::report::*;
     ReportPrintData {
         report_type: report_type.to_string(),
@@ -223,14 +227,17 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
                 vat_cents: 12_204,
             },
         ],
+        // Raw FDM financials.name ("Cash"/"Card" - see
+        // pos_fiscal::event::build_sale_input): the printed label is
+        // localized from this at print time (`payment_label`).
         payment_totals: vec![
             ReportPaymentTotal {
-                method: "Espèces".to_string(),
+                method: "Cash".to_string(),
                 count: 18,
                 amount_cents: 61_200,
             },
             ReportPaymentTotal {
-                method: "Carte".to_string(),
+                method: "Card".to_string(),
                 count: 24,
                 amount_cents: 91_150,
             },
@@ -242,6 +249,7 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
         // R events get no short signature from the FDM (§2.4).
         short_signature: None,
         ticket_number: 3,
+        lang,
     }
 }
 
@@ -249,7 +257,7 @@ fn base_report(report_type: &str, report_no: Option<i64>) -> pos_print::report::
 fn example_x_report() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
-    let data = base_report("X", None);
+    let data = base_report("X", None, ReceiptLanguage::Fr);
     let text = render_plain_text(&pos_print::report::format_report(&data));
     std::fs::write(dir.join("rapport_X.txt"), text).expect("write example");
 }
@@ -258,7 +266,25 @@ fn example_x_report() {
 fn example_z_report() {
     let Some(dir) = out_dir() else { return };
     std::fs::create_dir_all(&dir).expect("create examples dir");
-    let data = base_report("Z", Some(1));
+    let data = base_report("Z", Some(1), ReceiptLanguage::Fr);
     let text = render_plain_text(&pos_print::report::format_report(&data));
     std::fs::write(dir.join("rapport_Z.txt"), text).expect("write example");
+}
+
+#[test]
+fn example_z_report_nl() {
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    let data = base_report("Z", Some(1), ReceiptLanguage::Nl);
+    let text = render_plain_text(&pos_print::report::format_report(&data));
+    std::fs::write(dir.join("rapport_Z_nl.txt"), text).expect("write example");
+}
+
+#[test]
+fn example_z_report_de() {
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    let data = base_report("Z", Some(1), ReceiptLanguage::De);
+    let text = render_plain_text(&pos_print::report::format_report(&data));
+    std::fs::write(dir.join("rapport_Z_de.txt"), text).expect("write example");
 }

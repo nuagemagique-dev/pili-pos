@@ -1,80 +1,7 @@
-use pos_fiscal::ticket::{FiscalTicket, ReceiptLanguage};
+use pos_fiscal::ticket::FiscalTicket;
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
-
-/// Fixed receipt labels per ticket language (FR/NL/DE - §VI of the
-/// certification manual requires the ticket in a national language).
-/// ASCII only, so the labels print the same whatever code page a
-/// replacement printer starts in.
-struct Labels {
-    vat_no: &'static str,
-    est_no: &'static str,
-    date: &'static str,
-    ticket: &'static str,
-    terminal: &'static str,
-    pos: &'static str,
-    software: &'static str,
-    device: &'static str,
-    user: &'static str,
-    subtotal: &'static str,
-    rounding: &'static str,
-    total: &'static str,
-    vat_header: &'static str,
-    refund: &'static str,
-}
-
-fn labels(lang: ReceiptLanguage) -> &'static Labels {
-    match lang {
-        ReceiptLanguage::Fr => &Labels {
-            vat_no: "TVA",
-            est_no: "Etab",
-            date: "Date:",
-            ticket: "Ticket:",
-            terminal: "Terminal:",
-            pos: "POS:",
-            software: "Logiciel:",
-            device: "Appareil:",
-            user: "Utilisateur:",
-            subtotal: "Sous-total",
-            rounding: "Arrondi",
-            total: "TOTAL",
-            vat_header: "TVA    Taux    Base HT    TVA",
-            refund: "REMBOURSEMENT",
-        },
-        ReceiptLanguage::Nl => &Labels {
-            vat_no: "BTW",
-            est_no: "Vest",
-            date: "Datum:",
-            ticket: "Ticket:",
-            terminal: "Terminal:",
-            pos: "POS:",
-            software: "Software:",
-            device: "Toestel:",
-            user: "Gebruiker:",
-            subtotal: "Subtotaal",
-            rounding: "Afronding",
-            total: "TOTAAL",
-            vat_header: "BTW    Tarief  Basis      BTW",
-            refund: "TERUGBETALING",
-        },
-        ReceiptLanguage::De => &Labels {
-            vat_no: "MwSt",
-            est_no: "Niederl",
-            date: "Datum:",
-            ticket: "Bon:",
-            terminal: "Terminal:",
-            pos: "POS:",
-            software: "Software:",
-            device: "Geraet:",
-            user: "Benutzer:",
-            subtotal: "Zwischensumme",
-            rounding: "Rundung",
-            total: "GESAMT",
-            vat_header: "MwSt   Satz    Netto      MwSt",
-            refund: "RUECKERSTATTUNG",
-        },
-    }
-}
+use crate::labels::{labels, payment_label};
 
 /// Format a FiscalTicket into ESC/POS binary commands.
 /// Follows SCE 2.0 printing requirements:
@@ -177,7 +104,8 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
 
     // ── Payments ───────────────────────────────────────────────
     for pay in &ticket.payments {
-        p.text_columns(&pay.method, &format_price(pay.amount));
+        let method = payment_label(&pay.method, ticket.lang);
+        p.text_columns(&method, &format_price(pay.amount));
     }
 
     // ── VAT breakdown ──────────────────────────────────────────
@@ -333,7 +261,7 @@ fn format_datetime(rfc3339: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pos_fiscal::ticket::{TicketLine, TicketPayment};
+    use pos_fiscal::ticket::{ReceiptLanguage, TicketLine, TicketPayment};
     use pos_fiscal::types::EventLabel;
 
     fn sample_ticket() -> FiscalTicket {
