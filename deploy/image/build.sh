@@ -11,7 +11,7 @@
 #     first. This is what makes the image embed the exact binary whose
 #     SHA-1 is in that run's build_info_*.txt (the value declared to
 #     SPF Finances) - see .github/workflows/image.yml's `image` job,
-#     which checks this with `systemd-dissect --copy-from`.
+#     which checks this on a read-only mount of the root partition.
 #   - root, and a Linux x86_64 host (real or a --platform linux/amd64
 #     container - the "privileged container" path from a macOS
 #     development machine: `mkosi build` uses loopback devices only
@@ -283,7 +283,7 @@ build_profile() {
     # moyun-pos BINARY this image embeds - the value declared to SPF
     # Finances (build_info_*.txt from build-release.sh --docker) - kept
     # alongside the image so .github/workflows/image.yml's `image` job
-    # can compare it against `systemd-dissect --copy-from` without
+    # can compare it against the binary inside the image without
     # re-extracting deploy/dist/moyun-pos.
     sha1sum "$DIST_DIR/moyun-pos" | awk '{print $1}' > "$out_dir/moyun-pos-embedded-binary.sha1"
 

@@ -11,8 +11,8 @@ name: Kiosk image
 #                 state).
 #   image       - needs: repro. Installs the pinned mkosi
 #                 (deploy/image/.mkosi-pin) and builds both profiles
-#                 (production, admission); verifies with
-#                 `systemd-dissect --copy-from` that /opt/moyun-pos/
+#                 (production, admission); verifies, by mounting the
+#                 root partition read-only, that /opt/moyun-pos/
 #                 moyun-pos INSIDE each finished image is the exact
 #                 binary repro just certified; uploads the .img.xz.
 #   boot-smoke  - needs: image. Boots the admission image headless
@@ -125,7 +125,7 @@ jobs:
       - name: Build the ${{ matrix.profile }} image
         run: sudo deploy/image/build.sh ${{ matrix.profile }}
 
-      - name: Verify the embedded binary's SHA-1 (systemd-dissect --copy-from)
+      - name: Verify the embedded binary's SHA-1 (read-only mount of the root partition)
         run: |
           set -euo pipefail
           OUT_DIR="deploy/image/mkosi.output/${{ matrix.profile }}"
@@ -135,10 +135,15 @@ jobs:
             exit 1
           fi
           EXPECTED_SHA1="$(cat "$OUT_DIR/moyun-pos-embedded-binary.sha1")"
-          COPY_DIR="$(mktemp -d)"
-          sudo systemd-dissect --copy-from "$RAW" /opt/moyun-pos/moyun-pos "$COPY_DIR/moyun-pos"
-          sudo chown "$USER" "$COPY_DIR/moyun-pos"
-          ACTUAL_SHA1="$(sha1sum "$COPY_DIR/moyun-pos" | awk '{print $1}')"
+          # Plain losetup + read-only mount, as deploy/image/build.sh does:
+          # the runner's systemd-dissect refuses the image ("File system
+          # is too uncommon"). Partition 2 is the root (mkosi.repart/20-root.conf).
+          MNT="$(mktemp -d)"
+          LOOP="$(sudo losetup --show -f -P -r "$RAW")"
+          trap 'sudo umount "$MNT" 2>/dev/null || true; sudo losetup -d "$LOOP" 2>/dev/null || true' EXIT
+          sudo blkid "${LOOP}"p* || true
+          sudo mount -o ro,noload "${LOOP}p2" "$MNT"
+          ACTUAL_SHA1="$(sudo sha1sum "$MNT/opt/moyun-pos/moyun-pos" | awk '{print $1}')"
           echo "Expected (build_info / repro job): $EXPECTED_SHA1"
           echo "Actual   (inside the ${{ matrix.profile }} image): $ACTUAL_SHA1"
           if [[ "$EXPECTED_SHA1" != "$ACTUAL_SHA1" ]]; then

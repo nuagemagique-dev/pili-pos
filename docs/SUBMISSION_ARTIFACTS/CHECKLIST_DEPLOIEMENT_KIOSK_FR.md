@@ -66,8 +66,8 @@ monolithique.
       `--no-default-features --features cert`, UI embarquée) - le
       SHA-1 déclaré est vérifié par `.github/workflows/image.yml`
       (job `repro`, build reproductible x2, puis job `image`, hash de
-      `/opt/moyun-pos/moyun-pos` **à l'intérieur** de l'image finie via
-      `systemd-dissect --copy-from`).
+      `/opt/moyun-pos/moyun-pos` **à l'intérieur** de l'image finie,
+      partition racine montée en lecture seule).
 - [ ] Binaire `pos-fdm-mock` dans `/opt/moyun-pos/bin/pos-fdm-mock`
       (utilisé pendant la démo d'admission si le FDM virtuel est
       injoignable) - image d'admission uniquement.
@@ -166,8 +166,8 @@ sha1sum /opt/moyun-pos/moyun-pos
 
 `.github/workflows/image.yml` automatise les étapes 1 et 6 en CI :
 job `repro` (build #1/#2, compare les SHA-1), job `image` (build les
-deux profils, vérifie via `systemd-dissect --copy-from` que le binaire
-embarqué dans chaque `.img.xz` a bien le SHA-1 certifié), job
+deux profils, vérifie sur la partition racine montée en lecture seule
+que le binaire embarqué dans chaque `.img.xz` a bien le SHA-1 certifié), job
 `boot-smoke` (démarre l'image d'admission sous QEMU+KVM+swtpm,
 capture d'écran QMP, échoue si l'écran est vide/uniforme).
 
