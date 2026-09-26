@@ -148,16 +148,7 @@ pub fn do_start_remote_support(
     insz: String,
     pin: String,
 ) -> Result<SupportStatus, String> {
-    let operator = access::operator_named(state, &insz, Access::Admin)?;
-    {
-        let db = state.db.lock().map_err(errors::internal)?;
-        let hash = pos_db::queries::users::get_pin_hash(&db, &insz)
-            .map_err(errors::internal)?
-            .ok_or_else(|| errors::PIN_SETUP_REQUIRED.to_string())?;
-        if !bcrypt::verify(&pin, &hash).unwrap_or(false) {
-            return Err(errors::PIN_WRONG.to_string());
-        }
-    }
+    let operator = access::confirmed_operator(state, &insz, &pin, Access::Admin)?;
     let program = state
         .support
         .program

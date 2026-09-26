@@ -113,6 +113,13 @@ pub async fn do_refund_checkout_with(
         let original_lines = pos_db::queries::orders::get_order_lines(&db, original_order_id)
             .map_err(|e| e.to_string())?;
 
+        // A sale closed unpaid took no money: none goes back.
+        let request: serde_json::Value =
+            serde_json::from_str(&event.event_data_json).unwrap_or_default();
+        if pos_fiscal::ticket::is_unpaid_sale(&request) {
+            return Ok(CheckoutResult::refused(errors::REFUND_UNPAID_SALE));
+        }
+
         let original_signature = event.short_signature.clone();
         let fdm_id = event.fdm_id.ok_or_else(|| incomplete("fdmId"))?;
         let fdm_datetime = event

@@ -284,6 +284,7 @@ fn main() {
         commands::auth::deactivate_user,
         // Checkout
         commands::checkout::checkout,
+        commands::unpaid::close_unpaid,
         commands::checkout::check_fdm_status,
         // Ticket delivery (paper / email)
         commands::delivery::check_mail_status,
@@ -361,6 +362,7 @@ fn main() {
         commands::auth::deactivate_user,
         // Checkout
         commands::checkout::checkout,
+        commands::unpaid::close_unpaid,
         commands::checkout::check_fdm_status,
         // Ticket delivery (paper / email)
         commands::delivery::check_mail_status,

@@ -71,6 +71,8 @@ pub const REFUND_PRODUCT_NOT_SOLD: &str = "refund_product_not_sold";
 pub const REFUND_EXCEEDS_SOLD: &str = "refund_exceeds_sold";
 pub const REFUND_IN_TRAINING: &str = "refund_in_training";
 pub const REFUND_OF_REFUND: &str = "refund_of_refund";
+/// A sale closed unpaid: no money came in, none goes back.
+pub const REFUND_UNPAID_SALE: &str = "refund_unpaid_sale";
 
 // Payment.
 /// A part without an amount, a zero or negative amount, a cash part
@@ -80,6 +82,9 @@ pub const PAYMENT_INVALID: &str = "payment_invalid";
 pub const PAYMENT_EXCEEDS_TOTAL: &str = "payment_exceeds_total";
 /// Something is left to pay and no cash part pays it.
 pub const PAYMENT_INCOMPLETE: &str = "payment_incomplete";
+/// Only a sale with something to pay can be closed unpaid; a sale of
+/// 0,00 EUR is paid normally (a cash payment of 0, FAQ Q206).
+pub const UNPAID_NOTHING_DUE: &str = "unpaid_nothing_due";
 
 // Settings.
 pub const OPEN_ORDERS_TRAINING: &str = "open_orders_training";
@@ -147,9 +152,11 @@ pub const ALL: &[&str] = &[
     REFUND_EXCEEDS_SOLD,
     REFUND_IN_TRAINING,
     REFUND_OF_REFUND,
+    REFUND_UNPAID_SALE,
     PAYMENT_INVALID,
     PAYMENT_EXCEEDS_TOTAL,
     PAYMENT_INCOMPLETE,
+    UNPAID_NOTHING_DUE,
     OPEN_ORDERS_TRAINING,
     DIGITAL_UNAVAILABLE,
     EMAIL_INVALID,

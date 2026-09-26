@@ -105,6 +105,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         lang: ReceiptLanguage::Fr,
         original: None,
         copy_made_at: None,
+        unpaid: false,
     }
 }
 

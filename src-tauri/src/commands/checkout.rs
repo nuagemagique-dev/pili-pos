@@ -113,6 +113,35 @@ pub async fn do_checkout_split(
         Ok(user) => user,
         Err(e) => return Ok(CheckoutResult::refused(e)),
     };
+    sell(
+        state,
+        cashier,
+        order_id,
+        Payment::Parts(parts),
+        delivery_request,
+    )
+    .await
+}
+
+/// How a sale is paid.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Payment<'a> {
+    /// The parts the operator took (see [`pos_fiscal::payment::settle`]).
+    Parts(&'a [PaymentPart]),
+    /// Closed without payment: the customer left without paying
+    /// (Advanced Set UC4109). The sale is signed with no payment line.
+    Unpaid,
+}
+
+/// Sign the sale of an open order in `operator`'s name and close it.
+pub(crate) async fn sell(
+    state: &AppState,
+    operator: pos_core::user::User,
+    order_id: i64,
+    payment: Payment<'_>,
+    delivery_request: Option<&TicketDeliveryRequest>,
+) -> Result<CheckoutResult, String> {
+    let cashier = operator;
     // 1. Read order + lines from DB
     // `lines` is the consolidated order (printed); `entries` the journal
     // of every addition and correction, sent to the FDM (§2).
@@ -187,10 +216,20 @@ pub async fn do_checkout_split(
     // The payment: card and meal voucher parts are exact, cash pays the
     // rest, rounded to 5 cents (a sale at 0,00 EUR is a cash payment of
     // 0, FAQ Q206). Refused before anything is signed.
-    let settlement = match pos_fiscal::payment::settle(order.total_cents, parts) {
-        Ok(s) => s,
-        Err(e) => return Ok(CheckoutResult::refused(payment_error(e))),
+    let settlement = match payment {
+        Payment::Parts(parts) => match pos_fiscal::payment::settle(order.total_cents, parts) {
+            Ok(s) => s,
+            Err(e) => return Ok(CheckoutResult::refused(payment_error(e))),
+        },
+        // Nothing paid: no payment line at all (UC4109 sends
+        // `financials: []`). A sale of 0,00 EUR is paid normally.
+        Payment::Unpaid if order.total_cents > 0 => Settlement {
+            payments: Vec::new(),
+            rounding_cents: 0,
+        },
+        Payment::Unpaid => return Ok(CheckoutResult::refused(errors::UNPAID_NOTHING_DUE)),
     };
+    let unpaid = matches!(payment, Payment::Unpaid);
 
     // 2. RESERVE (peek, don't commit) the next sequence number.
     //
@@ -263,7 +302,7 @@ pub async fn do_checkout_split(
     // 6. Build the fiscal ticket (display, print, email) before the
     // commit: its email is queued in the same transaction.
     let operator = super::operator_name(state, &order.user_insz);
-    let ticket = sign_result.as_ref().map(|result| {
+    let mut ticket = sign_result.as_ref().map(|result| {
         let ticket_lines: Vec<TicketLine> = lines
             .iter()
             .map(|l| TicketLine {
@@ -297,6 +336,9 @@ pub async fn do_checkout_split(
             operator: &operator,
         })
     });
+    if let Some(t) = ticket.as_mut() {
+        t.unpaid = unpaid;
+    }
 
     // 6-8. COMMIT counter + archive fiscal event + close order
     // ATOMICALLY in a single SQLite transaction.
@@ -416,7 +458,7 @@ pub async fn do_checkout_split(
     // on transient failures. Gated behind the `hubrise` feature so the
     // certification build (no HubRise) skips this entirely.
     #[cfg(feature = "hubrise")]
-    {
+    if !unpaid {
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()

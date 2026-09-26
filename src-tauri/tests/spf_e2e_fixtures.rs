@@ -725,6 +725,61 @@ async fn uc4119_split_payment_on_one_ticket() {
     app.dump_evidence("UC4119");
 }
 
+/// UC4109: a business menu all-in ordered on table 1, then the
+/// customer leaves without paying. A manager closes the table unpaid:
+/// the sale is signed with no payment line.
+// covers: UC4109
+#[tokio::test]
+async fn uc4109_unpaid_table() {
+    use moyun_pos::commands::auth::do_set_pin;
+    use moyun_pos::commands::unpaid::do_close_unpaid;
+    let order_uc = load_uc(&advanced_set_root(), "UC4109_NoPayment/UC4109_1");
+    let sale_uc = load_uc(&advanced_set_root(), "UC4109_NoPayment/UC4109_2");
+    let order_vars = read_variables(&order_uc)["data"].clone();
+    let sale_vars = read_variables(&sale_uc)["data"].clone();
+    let app = spf_app(&operator(&order_vars)).await;
+    // The menu is sold here as one product (the seed keeps it off the
+    // menu: composite products are not offered).
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch(
+            "UPDATE menu_items SET active = 1 WHERE id = 30010;
+             UPDATE categories SET active = 1 WHERE id = 30;",
+        )
+        .unwrap();
+    let order_id = order_from(&app, &order_vars, OrderType::DineIn, Some(1));
+    mock_from_fixture(&app, &order_uc).await;
+    do_sign_table_order(&app.state, order_id).await.unwrap();
+
+    let manager = operator(&sale_vars);
+    app.login_as(&manager, pos_core::user::UserRole::Admin);
+    do_set_pin(&app.state, manager.clone(), "4321".into()).unwrap();
+    mock_from_fixture(&app, &sale_uc).await;
+    let result = do_close_unpaid(&app.state, order_id, &manager, "4321")
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    // The menu is one product here, not a composite of its dishes:
+    // its VAT is on the line itself. `financials: []` matches exactly.
+    let menu = [
+        Deviation {
+            path: "transaction.transactionLines[0].lineType",
+            reason: "composite products are not supported: the menu is a single product",
+        },
+        Deviation {
+            path: "transaction.transactionLines[0].vats",
+            reason: "a single product carries its own VAT line (B 58,00)",
+        },
+    ];
+    let r = requests(&app);
+    assert_matches_fixture("UC4109_1", &r[0], &order_vars, &menu);
+    assert_matches_fixture("UC4109_2", &r[1], &sale_vars, &menu);
+    app.dump_evidence("UC4109");
+}
+
 // ── Catalogue guards ───────────────────────────────────────────────
 
 fn add(app: &TestApp, order_id: i64, menu_item_id: i64, price: Option<i64>) -> Result<(), String> {

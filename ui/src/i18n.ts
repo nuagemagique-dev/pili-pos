@@ -118,6 +118,8 @@ const coreMessages: Messages = {
   "err_payment_invalid": { fr: "Paiement non valable : vérifiez les montants.", en: "Invalid payment: check the amounts.", zh: "付款无效：请检查金额。" },
   "err_payment_exceeds_total": { fr: "Les paiements dépassent le total.", en: "The payments exceed the total.", zh: "付款超过总额。" },
   "err_payment_incomplete": { fr: "Il reste un montant à payer.", en: "An amount is still to be paid.", zh: "仍有金额未付。" },
+  "err_unpaid_nothing_due": { fr: "Rien à payer : encaissez la vente normalement.", en: "Nothing to pay: take the sale normally.", zh: "无需付款：请正常结账。" },
+  "err_refund_unpaid_sale": { fr: "Cette vente n'a pas été payée : rien à rembourser.", en: "This sale was not paid: nothing to refund.", zh: "此笔销售未付款：无可退款。" },
   "err_takeaway_not_registered": { fr: "Une vente à emporter se termine par un paiement.", en: "A takeaway ends with a payment.", zh: "外带订单须以付款结束。" },
   "err_order_total_negative": { fr: "Le total ne peut pas être négatif.", en: "The total cannot be negative.", zh: "总额不能为负数。" },
   "err_amount_negative": { fr: "Le montant ne peut pas être négatif.", en: "The amount cannot be negative.", zh: "金额不能为负数。" },

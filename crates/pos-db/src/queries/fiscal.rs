@@ -120,7 +120,8 @@ pub struct RefundableEvent {
     pub created_at: String,
 }
 
-/// List recent N-type events that can be refunded.
+/// List recent N-type events that can be refunded: sales, not the
+/// ones closed unpaid.
 pub fn list_refundable_events(
     conn: &Connection,
     limit: i64,
@@ -132,6 +133,9 @@ pub fn list_refundable_events(
          JOIN orders o ON o.id = fe.order_id
          WHERE fe.event_type = 'N'
            AND o.status = 'closed'
+           -- A sale closed unpaid (no payment line) has nothing to
+           -- pay back.
+           AND COALESCE(json_array_length(fe.event_data_json, '$.financials'), 1) > 0
          ORDER BY fe.created_at DESC
          LIMIT ?1",
     )?;

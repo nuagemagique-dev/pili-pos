@@ -112,6 +112,11 @@ pub struct FiscalTicket {
     /// §1.8).
     #[serde(default)]
     pub copy_made_at: Option<String>,
+    /// A sale closed without payment (the customer left without
+    /// paying, Advanced Set UC4109): its `financials` is empty and the
+    /// ticket says so where the payments would be.
+    #[serde(default)]
+    pub unpaid: bool,
 }
 
 /// The control data of an earlier signed event (POS description v2.2
@@ -205,6 +210,7 @@ impl FiscalTicket {
             lang: params.lang,
             original: None,
             copy_made_at: None,
+            unpaid: false,
         }
     }
 
@@ -282,6 +288,17 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .map(|f| cents(&f["amount"]))
         .sum();
     (payments, (rounding != 0).then(|| rounding as f64 / 100.0))
+}
+
+/// True for a sale closed without payment: an archived sale request
+/// whose `financials` is empty while something was sold.
+pub fn is_unpaid_sale(request: &serde_json::Value) -> bool {
+    request["financials"]
+        .as_array()
+        .is_some_and(|f| f.is_empty())
+        && request["transaction"]["transactionTotal"]
+            .as_f64()
+            .is_some_and(|t| t != 0.0)
 }
 
 /// The payment name a ticket prints for a `financials` line, from its
@@ -381,6 +398,21 @@ mod tests {
         assert_eq!(payments[0].method, "Card");
         assert_eq!(payments[0].amount, 12.5);
         assert_eq!(rounding, None);
+    }
+
+    #[test]
+    fn an_unpaid_sale_has_no_payment_line_and_something_sold() {
+        let sale = |financials: serde_json::Value, total: f64| {
+            serde_json::json!({
+                "transaction": { "transactionTotal": total },
+                "financials": financials,
+            })
+        };
+        assert!(is_unpaid_sale(&sale(serde_json::json!([]), 58.0)));
+        let cash = serde_json::json!([{ "type": "CASH", "amountType": "PAYMENT", "amount": 58.0 }]);
+        assert!(!is_unpaid_sale(&sale(cash, 58.0)));
+        assert!(!is_unpaid_sale(&sale(serde_json::json!([]), 0.0)));
+        assert!(!is_unpaid_sale(&serde_json::json!({ "reportType": "X" })));
     }
 
     #[test]

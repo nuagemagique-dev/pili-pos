@@ -21,6 +21,7 @@ pub mod settings;
 pub mod social;
 pub mod support;
 pub mod tables;
+pub mod unpaid;
 
 use crate::state::AppState;
 

@@ -140,7 +140,12 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     p.separator('.');
 
     // ── Payment lines, rounding included ───────────────────────
-    if !ticket.payments.is_empty() || ticket.rounding.is_some() {
+    if ticket.unpaid {
+        // Closed without payment (Advanced Set UC4109): no payment
+        // line was signed, the ticket says so instead.
+        p.textln(l.payment_header);
+        p.textln(l.unpaid);
+    } else if !ticket.payments.is_empty() || ticket.rounding.is_some() {
         p.textln(l.payment_header);
         for pay in &ticket.payments {
             let method = payment_label(&pay.method, ticket.lang);
@@ -367,7 +372,27 @@ mod tests {
             lang: ReceiptLanguage::default(),
             original: None,
             copy_made_at: None,
+            unpaid: false,
         }
+    }
+
+    #[test]
+    fn an_unpaid_sale_says_so_instead_of_its_payments() {
+        for (lang, word) in [
+            (ReceiptLanguage::Fr, "Non paye"),
+            (ReceiptLanguage::Nl, "Niet betaald"),
+            (ReceiptLanguage::De, "Nicht bezahlt"),
+        ] {
+            let mut t = sample_ticket();
+            t.lang = lang;
+            t.payments.clear();
+            t.unpaid = true;
+            let text = crate::render::render_plain_text(&format_receipt(&t));
+            assert!(text.contains(word), "{lang:?}: {text}");
+            assert!(!text.contains("Cash"), "{text}");
+        }
+        let text = crate::render::render_plain_text(&format_receipt(&sample_ticket()));
+        assert!(!text.contains("Non paye"));
     }
 
     fn copy_of_sample(lang: ReceiptLanguage) -> String {

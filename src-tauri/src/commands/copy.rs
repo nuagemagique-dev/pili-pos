@@ -5,7 +5,8 @@ use pos_fiscal::event::build_copy_input;
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::response::{FdmReference, SignResult};
 use pos_fiscal::ticket::{
-    FiscalTicket, ReceiptLanguage, TicketLine, TicketParams, TicketPayment, printed_payments,
+    FiscalTicket, ReceiptLanguage, TicketLine, TicketParams, TicketPayment, is_unpaid_sale,
+    printed_payments,
 };
 use pos_fiscal::types::EventLabel;
 
@@ -197,7 +198,7 @@ pub async fn do_copy_ticket_with(
                 let request = serde_json::from_str(&original_event.event_data_json)
                     .unwrap_or(serde_json::Value::Null);
                 let (payments, rounding) = printed_payments(&request);
-                FiscalTicket::from_sign_result(TicketParams {
+                let mut copy = FiscalTicket::from_sign_result(TicketParams {
                     result: original,
                     restaurant_name: &config.restaurant_name,
                     restaurant_address: &config.restaurant_address,
@@ -212,7 +213,10 @@ pub async fn do_copy_ticket_with(
                     lang,
                     operator: &original_operator,
                 })
-                .into_copy(&result)
+                .into_copy(&result);
+                // A sale closed unpaid reprints as unpaid.
+                copy.unpaid = is_unpaid_sale(&request);
+                copy
             }
             // No readable archive of the original (never expected: the
             // FDM response is archived with every signed event): the

@@ -63,6 +63,25 @@ pub fn operator_named(state: &AppState, insz: &str, access: Access) -> Result<Us
     Ok(user)
 }
 
+/// [`operator_named`], confirmed by the operator's PIN: for an action
+/// a tap alone must not take (remote support, a sale closed unpaid).
+pub fn confirmed_operator(
+    state: &AppState,
+    insz: &str,
+    pin: &str,
+    access: Access,
+) -> Result<User, String> {
+    let user = operator_named(state, insz, access)?;
+    let db = state.db.lock().map_err(errors::internal)?;
+    let hash = pos_db::queries::users::get_pin_hash(&db, insz)
+        .map_err(errors::internal)?
+        .ok_or_else(|| errors::PIN_SETUP_REQUIRED.to_string())?;
+    if !bcrypt::verify(pin, &hash).unwrap_or(false) {
+        return Err(errors::PIN_WRONG.to_string());
+    }
+    Ok(user)
+}
+
 /// Open a session for `user` (after `login` checked them).
 pub fn open_session(state: &AppState, user: &User) -> Result<(), String> {
     *state.session.lock().map_err(|e| e.to_string())? = Some(user.clone());

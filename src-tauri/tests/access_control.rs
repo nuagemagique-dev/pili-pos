@@ -38,6 +38,7 @@ use moyun_pos::commands::report::{
 use moyun_pos::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_training_mode};
 use moyun_pos::commands::social::{do_work_in, do_work_out};
 use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use moyun_pos::commands::unpaid::do_close_unpaid;
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 
@@ -95,9 +96,18 @@ fn add_line(app: &TestApp, order_id: i64) -> Result<i64, String> {
     .map(|l| l.id)
 }
 
-/// A paid sale, signed by a manager; returns its fiscal event id.
+/// The manager's PIN (closing a sale unpaid asks for it).
+const MANAGER_PIN: &str = "4321";
+/// The table whose customer left without paying.
+const LEFT_UNPAID: i32 = 21;
+
+/// A paid sale, signed by a manager; returns its fiscal event id. The
+/// manager also has a PIN and table 21 is left open, for the
+/// unpaid-sale command.
 async fn paid_sale(app: &TestApp) -> i64 {
     as_(app, MANAGER, UserRole::Admin);
+    do_set_pin(&app.state, MANAGER.into(), MANAGER_PIN.into()).unwrap();
+    table(app, MANAGER, LEFT_UNPAID);
     let id = table(app, MANAGER, 20);
     let r = do_checkout(&app.state, id, CheckoutPaymentMethod::Card)
         .await
@@ -125,6 +135,20 @@ async fn manager_commands(
     .await
     .unwrap();
     let copy = do_copy_ticket(&app.state, sale, insz.into()).await.unwrap();
+    let left_unpaid: i64 = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT id FROM orders WHERE table_number = ?1 AND status = 'open'",
+            [LEFT_UNPAID],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let unpaid = do_close_unpaid(&app.state, left_unpaid, insz, MANAGER_PIN)
+        .await
+        .unwrap();
     let flat = |r: Result<bool, String>| r.and_then(|ok| ok.then_some(()).ok_or("failed".into()));
     vec![
         (
@@ -139,6 +163,13 @@ async fn manager_commands(
             copy.success
                 .then_some(())
                 .ok_or(copy.error.unwrap_or_default()),
+        ),
+        (
+            "unpaid",
+            unpaid
+                .success
+                .then_some(())
+                .ok_or(unpaid.error.unwrap_or_default()),
         ),
         (
             "money in",

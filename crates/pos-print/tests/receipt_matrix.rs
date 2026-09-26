@@ -141,6 +141,7 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
         lang,
         original: None,
         copy_made_at: None,
+        unpaid: false,
     }
 }
 

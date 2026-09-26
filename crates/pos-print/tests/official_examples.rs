@@ -107,6 +107,7 @@ fn vat_ticket() -> FiscalTicket {
         lang: ReceiptLanguage::Fr,
         original: None,
         copy_made_at: None,
+        unpaid: false,
     }
 }
 

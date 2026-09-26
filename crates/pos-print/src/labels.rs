@@ -32,6 +32,8 @@ pub(crate) struct Labels {
     pub(crate) total_row: &'static str,
     pub(crate) payment_header: &'static str,
     pub(crate) rounding: &'static str,
+    /// Printed where the payments would be on a sale closed unpaid.
+    pub(crate) unpaid: &'static str,
     /// VAT table columns: rate, code, taxable base, VAT, gross.
     pub(crate) vat_columns: [&'static str; 5],
     pub(crate) fdm_info: &'static str,
@@ -60,6 +62,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             total_row: "TOTAL :",
             payment_header: "Mode de paiement :",
             rounding: "Arrondi",
+            unpaid: "Non paye",
             vat_columns: ["% TVA", "CODE", "HT", "TVA", "Brut"],
             fdm_info: "INFORMATIONS FDM",
             legal_name: "Denomination legale :",
@@ -84,6 +87,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             total_row: "TOTAAL :",
             payment_header: "Betaalwijze :",
             rounding: "Afronding",
+            unpaid: "Niet betaald",
             vat_columns: ["% BTW", "CODE", "Excl.", "BTW", "Bruto"],
             fdm_info: "FDM-INFORMATIE",
             legal_name: "Juridische naam :",
@@ -108,6 +112,7 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             total_row: "GESAMT :",
             payment_header: "Zahlungsart :",
             rounding: "Rundung",
+            unpaid: "Nicht bezahlt",
             vat_columns: ["% MwSt", "CODE", "Netto", "MwSt", "Brutto"],
             fdm_info: "FDM-INFORMATIONEN",
             legal_name: "Rechtlicher Name :",

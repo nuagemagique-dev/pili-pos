@@ -40,10 +40,6 @@ reason = "moyun-pos émet toujours le rapport Z combiné (M184) ; il n'émet jam
 kind = "couvert_par"
 by = "M184"
 
-[UC4109]
-reason = "La vente sans paiement (client parti sans payer) n'existe pas dans moyun-pos v1.0.0 : la table reste ouverte. Prévue (plan, section 2.5)."
-kind = "hors_perimetre"
-
 # ---------------------------------------------------------------------------
 # Advanced Set - fonctionnalités absentes du code (voir le rapport final de
 # l'agent pour les preuves de grep confirmant chaque absence).
