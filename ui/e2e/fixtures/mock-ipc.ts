@@ -210,6 +210,10 @@ function defaultHandlers(): Record<string, Handler> {
       };
     }),
     list_open_takeaways: () => [],
+    close_unpaid: () => ({
+      success: true, ticket: null, error: null, fdm_connected: true,
+      fiscal_event_id: 9, delivery: null, kitchen_slip: 'printed',
+    }),
     check_fdm_status: () => ({ connected: false }),
 
     // Refund (event N, negative lines)

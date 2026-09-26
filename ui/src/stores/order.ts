@@ -163,6 +163,20 @@ export const useOrderStore = defineStore("order", () => {
     warnIfSlipFailed(await ipc.signPreBill(currentOrder.value.id));
   }
 
+  /** Close the current order unpaid, confirmed by the manager's PIN.
+   * A refusal is thrown (the PIN dialog shows it); on success the
+   * order is signed and closed, and the cart is cleared. */
+  async function closeUnpaid(pin: string) {
+    const current = currentOrder.value;
+    const insz = useAuthStore().currentUser?.insz;
+    if (!current || !insz) throw new Error("No active order");
+    const result = await ipc.closeUnpaid(current.id, insz, pin);
+    // The error code as the backend sent it, for describeError.
+    if (!result.success) throw result.error ?? "";
+    warnIfSlipFailed(result.kitchen_slip);
+    clearOrder();
+  }
+
   function clearOrder() {
     currentOrder.value = null;
     lines.value = [];
@@ -182,6 +196,7 @@ export const useOrderStore = defineStore("order", () => {
     loadOpenOrders,
     registerPending,
     preBill,
+    closeUnpaid,
     clearOrder,
     getCategoryId,
   };

@@ -119,6 +119,12 @@ export function checkout(
   return invoke("checkout", { orderId, payments, delivery });
 }
 
+/** Close an order the customer left without paying (manager, PIN):
+ * the sale is signed with no payment line (UC4109). */
+export function closeUnpaid(orderId: number, insz: string, pin: string): Promise<CheckoutResult> {
+  return invoke("close_unpaid", { orderId, insz, pin });
+}
+
 export function checkFdmStatus(): Promise<unknown> {
   return invoke("check_fdm_status");
 }

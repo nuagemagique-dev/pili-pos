@@ -10,6 +10,7 @@ import { useI18n } from "../i18n";
 import { formatPrice } from "../utils/format";
 import OrderLineItem from "./OrderLineItem.vue";
 import VatSummary from "./VatSummary.vue";
+import PinDialog from "./PinDialog.vue";
 
 const router = useRouter();
 const order = useOrderStore();
@@ -41,6 +42,23 @@ async function printPreBill() {
   } finally {
     preBilling.value = false;
   }
+}
+
+// The customer left without paying (UC4109): a manager closes the
+// order, confirmed by their PIN; the sale is signed with no payment.
+const canCloseUnpaid = computed(
+  () => auth.isManager && order.currentOrder?.status === "open" && order.lines.length > 0,
+);
+const confirmUnpaid = ref(false);
+
+async function closeUnpaid(pin: string) {
+  await order.closeUnpaid(pin);
+}
+
+async function onUnpaidClosed() {
+  confirmUnpaid.value = false;
+  toast.show(t("unpaid_closed"), "success");
+  await router.push({ name: "tables" });
 }
 </script>
 
@@ -77,6 +95,10 @@ async function printPreBill() {
         <span class="total-amount">{{ formatPrice(order.totalCents) }}</span>
       </div>
 
+      <button v-if="canCloseUnpaid" class="unpaid-btn" @click="confirmUnpaid = true">
+        {{ t('unpaid_close') }}
+      </button>
+
       <div class="cart-actions">
         <button
           v-if="auth.canTakePayment && order.currentOrder?.order_type === 'dine_in'"
@@ -97,6 +119,16 @@ async function printPreBill() {
         </button>
       </div>
     </div>
+
+    <PinDialog
+      v-if="confirmUnpaid && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      :hint="t('unpaid_hint')"
+      :verify="closeUnpaid"
+      @done="onUnpaidClosed"
+      @cancel="confirmUnpaid = false"
+    />
   </aside>
 </template>
 
@@ -193,6 +225,21 @@ async function printPreBill() {
   pointer-events: none;
 }
 .pre-bill-btn:active { transform: scale(var(--tap-scale)); }
+
+/* Rare manager action: kept small, apart from the payment buttons. */
+.unpaid-btn {
+  align-self: flex-start;
+  min-height: 48px;
+  padding: 0 var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent-danger);
+  background: transparent;
+  color: var(--accent-danger);
+  transition: transform var(--tap-duration) ease;
+}
+.unpaid-btn:active { transform: scale(var(--tap-scale)); }
 
 /* UX Guide §4.1: pleine largeur × 72px */
 .checkout-btn {

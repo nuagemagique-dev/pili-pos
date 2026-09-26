@@ -56,6 +56,15 @@ async function hidden(page: Page, code: string, nature: Nature) {
 }
 
 test.describe('§V messages obligatoires (M)', () => {
+  // POS description v2.2 tb_messages: mandatory, not in the manual's §V.
+  test('numéro de TVA différent de celui de la boîte noire (UPDATE_POS_VATNO)', async ({ page }) => {
+    await shows(page, 'UPDATE_POS_VATNO', 'Warning', 'MANDATORY',
+      'Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien.', 'warn');
+  });
+  test("numéro d'unité d'établissement différent (UPDATE_POS_ESTNO)", async ({ page }) => {
+    await shows(page, 'UPDATE_POS_ESTNO', 'Warning', 'MANDATORY',
+      "Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien.", 'warn');
+  });
   test('[V_CLIENT_CERT_EXPIRED] certificat expiré', async ({ page }) => {
     await shows(page, 'CLIENT_CERT_EXPIRED', 'Warning', 'MANDATORY',
       'Le certificat de la boîte noire a expiré. Contactez votre technicien.', 'warn');

@@ -13,6 +13,13 @@ export const ERROR_MESSAGES: Record<string, string> = {
   UNKNOWN_POS: "Cette caisse n'est pas reconnue par la boîte noire.",
   BUFFER_NEAR_FULL: "La boîte noire est presque pleine. Programmez une intervention.",
   CLIENT_CERT_EXPIRED: "Le certificat de la boîte noire a expiré. Contactez votre technicien.",
+  // Mandatory warnings of the POS description v2.2 tb_messages (not in
+  // the manual's §V table): the identity configured on the POS does not
+  // match the one the SPF gave the FDM.
+  UPDATE_POS_VATNO:
+    "Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien.",
+  UPDATE_POS_ESTNO:
+    "Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien.",
   // Optional (O) - recommended display
   CLIENT_CERT_NEAR_EXPIRATION: "Le certificat de la boîte noire expire bientôt.",
   UNAUTHORIZED: "La caisse n'est pas autorisée à parler à la boîte noire.",

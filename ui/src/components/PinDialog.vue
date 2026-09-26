@@ -21,6 +21,8 @@ const props = defineProps<{
   /** Confirm an action with the user's current PIN (typed once):
    * called on the 4th digit, a refusal is shown and the pad cleared. */
   verify?: (pin: string) => Promise<void>;
+  /** What the PIN confirms, shown under the name. */
+  hint?: string;
 }>();
 
 const emit = defineEmits<{
@@ -100,6 +102,7 @@ async function onKey(key: string) {
       </h2>
       <p class="who">{{ userName }}</p>
       <p v-if="firstLogin" class="hint">{{ t('pin_first_login_hint') }}</p>
+      <p v-else-if="hint" class="hint">{{ hint }}</p>
       <p v-if="error" class="error-msg shake">{{ error }}</p>
       <div class="pin-display">
         <span v-for="i in 4" :key="i" class="pin-dot" :class="{ filled: i <= pin.length }"></span>
