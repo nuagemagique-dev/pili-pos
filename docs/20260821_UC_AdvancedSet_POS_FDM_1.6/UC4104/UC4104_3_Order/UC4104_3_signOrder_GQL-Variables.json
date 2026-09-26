@@ -1,0 +1,131 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 55,
+    "posDateTime": "2024-05-03T15:40:19.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "abcde456-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-03",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T20",
+      "type": "TABLE",
+      "reference": "150"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "25003",
+            "productName": "Burger du chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28
+              }
+            ]
+          },
+          "lineTotal": 28
+        },
+        {
+          "lineType": "COMPOSITE_PRODUCT",
+          "mainProduct": {
+            "productId": "30001",
+            "productName": "Business menu",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 38,
+            "vats": []
+          },
+          "subProducts": [
+            {
+              "productId": "20001",
+              "productName": "Carpaccio Beef",
+              "departmentId": "20",
+              "departmentName": "Starters",
+              "quantity": 1,
+              "quantityType": "PIECE",
+              "unitPrice": 20,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 20,
+                  "priceChanges": [
+                    {
+                      "groupingId": 1,
+                      "id": "5",
+                      "name": "MenuDiscount",
+                      "scope": "LINE",
+                      "type": "INTERNAL",
+                      "amount": -5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "productId": "22001",
+              "productName": "Burger of the Chef",
+              "departmentId": "22",
+              "departmentName": "Main Dishes",
+              "quantity": 1,
+              "quantityType": "PIECE",
+              "unitPrice": 28,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 28,
+                  "priceChanges": [
+                    {
+                      "groupingId": 1,
+                      "id": "5",
+                      "name": "MenuDiscount",
+                      "scope": "LINE",
+                      "type": "INTERNAL",
+                      "amount": -5
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lineTotal": 38
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22005",
+            "productName": "Catch of the day",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 0.4,
+            "quantityType": "KILOGRAM",
+            "unitPrice": 45,
+            "vats": [
+              {
+                "label": "B",
+                "price": 18
+              }
+            ]
+          },
+          "lineTotal": 18
+        }
+      ],
+      "transactionTotal": 84
+    }
+  }
+}

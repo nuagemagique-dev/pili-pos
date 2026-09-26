@@ -1,0 +1,17 @@
+Scenario (prebill, pricechange, tip, copy, invoice)
+
+1.	Customer takes a seat at table 25 and orders:
+	1 dry Martini (12 EUR, A), 
+	1 business menu (38 EUR, B) 
+	1 perrier (2.50 EUR, A)
+
+2.	Customer asks (pre)bill and complains about quality of food. 
+	A 50% discount is granted on the 'business menu'.
+
+3.	Prebill
+
+4.	Customer pays cash (customer gives 35 EUR, change 1.5 eur= tip).
+
+5.	Glass of water falls on VAT receipt, a copy is printed 
+
+6.	Customer asks for an invoice

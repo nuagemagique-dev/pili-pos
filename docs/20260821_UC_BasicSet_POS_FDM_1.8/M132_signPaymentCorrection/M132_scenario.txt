@@ -1,0 +1,3 @@
+PaymentCorrection
+ 
+Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard via EFT) and not in cash (as originally registered) 

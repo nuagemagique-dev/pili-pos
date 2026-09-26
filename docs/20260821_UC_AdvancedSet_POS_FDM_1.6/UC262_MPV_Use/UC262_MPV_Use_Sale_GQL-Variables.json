@@ -1,0 +1,93 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6000,
+    "posDateTime": "2024-09-03T12:25:03.000+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "a1b2c3d4",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12
+              }
+            ]
+          },
+          "lineTotal": 12
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28
+              }
+            ]
+          },
+          "lineTotal": 28
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "C",
+                "price": 2.5
+              }
+            ]
+          },
+          "lineTotal": 2.5
+        }
+      ],
+      "transactionTotal": 42.5
+    },
+    "financials": [
+      {
+        "id": "6",
+        "name": "MPV",
+        "type": "VOUCHER_STORE",
+        "inputMethod": "MANUAL",
+        "amount": 42.5,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ]
+  }
+}

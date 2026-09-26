@@ -1,0 +1,24 @@
+{
+  "data": {
+    "signReportTurnoverX": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 208,
+      "posDateTime": "2024-07-30T13:00:35.000+02:00",
+      "terminalId": "POS-1-BAR",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "eventOperation": "REPORT_TURNOVER_X",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-07-30T11:00:38.000Z",
+        "eventLabel": "R",
+        "eventCounter": 3,
+        "totalCounter": 57
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "warnings": [],
+      "informations": []
+    }
+  }
+}

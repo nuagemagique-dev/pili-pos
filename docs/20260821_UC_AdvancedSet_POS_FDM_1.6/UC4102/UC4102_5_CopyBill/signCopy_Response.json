@@ -1,0 +1,24 @@
+{
+  "data": {
+    "signCopy": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 6017,
+      "posDateTime": "2024-05-02T16:16:05.000+02:00",
+      "terminalId": "TER-4-HH",
+      "deviceId": "a1b2c3d4",
+      "eventOperation": "COPY",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-05-02T14:16:12.000Z",
+        "eventLabel": "C",
+        "eventCounter": 1,
+        "totalCounter": 125
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "warnings": null,
+      "informations": null
+    }
+  }
+}

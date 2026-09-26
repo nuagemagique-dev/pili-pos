@@ -1,0 +1,55 @@
+# Request FDM status with multi language messages
+query Q110_Status_multi_lang_messages {
+  status(language: EN) {
+    __typename
+    initialized
+    device {
+      __typename
+      bufferCapacityUsed
+      fdmDateTime
+      fdmId
+      fdmSwVersion
+    }
+    ...messages
+  }
+  messagesFR: status(language: FR) {
+    ...messages
+  }
+  messagesNL: status(language: NL) {
+    ...messages
+  }
+  messagesDE: status(language: DE) {
+    ...messages
+  }
+}
+
+fragment messageFields on MessageItem {
+  __typename
+  message
+  locations {
+    line
+    column
+  }
+  extensions {
+    __typename
+    category
+    code
+    data {
+      __typename
+      name
+      value
+    }
+    showPos
+  }
+}
+fragment messages on FdmStatus {
+  errors {
+    ...messageFields
+  }
+  warnings {
+    ...messageFields
+  }
+  informations {
+    ...messageFields
+  }
+}

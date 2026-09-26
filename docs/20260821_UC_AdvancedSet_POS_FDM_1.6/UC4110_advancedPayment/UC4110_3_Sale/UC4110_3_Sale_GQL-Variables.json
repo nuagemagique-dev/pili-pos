@@ -1,0 +1,178 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6303,
+    "posDateTime": "2023-04-20T12:35:03.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "244e491f-9b82-4956-9710-9ac1067e82e5",
+    "bookingDate": "2024-04-20",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "100",
+      "type": "CUSTOMER",
+      "reference": "offertnr"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30085",
+            "productName": "Menu",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": 1500
+              }
+            ]
+          },
+          "lineTotal": 1500
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30099",
+            "productName": "Wine pairing",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 50,
+            "vats": [
+              {
+                "label": "A",
+                "price": 1000
+              }
+            ]
+          },
+          "lineTotal": 1000
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "80085",
+            "productName": "Prepayment Food",
+            "departmentId": "8",
+            "departmentName": "Prepayments",
+            "quantity": -1,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 750,
+            "vats": [
+              {
+                "label": "B",
+                "price": -750
+              }
+            ]
+          },
+          "lineTotal": -750
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "80099",
+            "productName": "Prepayment Drinks",
+            "departmentId": "8",
+            "departmentName": "Prepayments",
+            "quantity": -1,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 500,
+            "vats": [
+              {
+                "label": "A",
+                "price": -500
+              }
+            ]
+          },
+          "lineTotal": -500
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30001",
+            "productName": "Menu",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": -2,
+            "negQuantityReason": "CORRECTION",
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": -150
+              }
+            ]
+          },
+          "lineTotal": -150
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30020",
+            "productName": "Menu drink",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": -12,
+            "negQuantityReason": "CORRECTION",
+            "quantityType": "PIECE",
+            "unitPrice": 50,
+            "vats": [
+              {
+                "label": "A",
+                "price": -600
+              }
+            ]
+          },
+          "lineTotal": -600
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "11001",
+            "productName": "Water (1L)",
+            "departmentId": "11",
+            "departmentName": "Water",
+            "quantity": 8,
+            "quantityType": "PIECE",
+            "unitPrice": 5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 40
+              }
+            ]
+          },
+          "lineTotal": 40
+        }
+      ],
+      "transactionTotal": 540
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 540,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

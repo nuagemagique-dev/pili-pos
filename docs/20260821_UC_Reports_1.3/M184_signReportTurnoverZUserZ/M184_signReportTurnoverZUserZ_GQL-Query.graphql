@@ -1,0 +1,57 @@
+# Both reports are created simultaneously and sent to the FDM in one operation.
+# The response contains the results of both signing operations.
+
+mutation M184_signReportTurnoverZUserZ(
+  $turnover: ReportTurnoverZInput!
+  $user: ReportUserZInput!
+  $training: Boolean!
+) {
+  signReportTurnoverZ(data: $turnover, isTraining: $training) {
+    ...resultFields
+  }
+  signReportUserZ(data: $user, isTraining: $training) {
+    ...resultFields
+  }
+}
+
+fragment messageFields on MessageItem {
+  message
+  locations {
+    line
+    column
+  }
+  extensions {
+    category
+    code
+    data {
+      name
+      value
+    }
+    showPos
+  }
+}
+
+fragment resultFields on SignResult {
+  posId
+  posFiscalTicketNo
+  posDateTime
+  terminalId
+  deviceId
+  fdmSwVersion
+  eventOperation
+  digitalSignature
+  bufferCapacityUsed
+  fdmRef {
+    fdmId
+    fdmDateTime
+    eventLabel
+    eventCounter
+    totalCounter
+  }
+  warnings {
+    ...messageFields
+  }
+  informations {
+    ...messageFields
+  }
+}

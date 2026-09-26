@@ -1,0 +1,7 @@
+on Table 1: Order of 
+    - 1 Dry Martini (costcenter Chair 1)
+    - 1 Burger of the CHEF (costcenter Chair 1)
+    - 1 coca cola (costcenter Chair2)
+    - 1 dish of the day (costcenter Chair2)
+    - 1 Perrier (costcenter Chair3)
+    - 1 Carpaccio (costcenter Chair3)

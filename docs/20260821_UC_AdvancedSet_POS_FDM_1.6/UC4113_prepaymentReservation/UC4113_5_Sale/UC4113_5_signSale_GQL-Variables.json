@@ -1,0 +1,99 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6132,
+    "posDateTime": "2024-03-12T13:05:23.000+01:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "12174187-a3c0-4936-b3fc-d4c750a5e9f8",
+    "bookingDate": "2024-03-12",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "1",
+      "type": "TABLE",
+      "reference": "212"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30100",
+            "productName": "MENU",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 4,
+            "quantityType": "PIECE",
+            "unitPrice": 200,
+            "vats": [
+              {
+                "label": "B",
+                "price": 800
+              }
+            ]
+          },
+          "lineTotal": 800
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30101",
+            "productName": "WINE MENU",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 4,
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "A",
+                "price": 300
+              }
+            ]
+          },
+          "lineTotal": 300
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "8010",
+            "productName": "DEPOSIT",
+            "departmentId": "800",
+            "departmentName": "DEPOSIT",
+            "quantity": -4,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 100,
+            "vats": [
+              {
+                "label": "A",
+                "price": -400
+              }
+            ]
+          },
+          "lineTotal": -400
+        }
+      ],
+      "transactionTotal": 700
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 700,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

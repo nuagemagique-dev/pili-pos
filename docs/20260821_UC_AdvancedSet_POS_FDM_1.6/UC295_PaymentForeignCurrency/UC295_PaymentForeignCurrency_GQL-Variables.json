@@ -1,0 +1,102 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 54910,
+    "posDateTime": "2024-05-02T14:56:13.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-02",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio Beef",
+            "departmentId": "20",
+            "departmentName": "Starters",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 40
+              }
+            ]
+          },
+          "lineTotal": 40
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "90001",
+            "productName": "Bottle S",
+            "departmentId": "90",
+            "departmentName": "Bottle Deposits",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 0.01,
+            "vats": [
+              {
+                "label": "X",
+                "price": 0.02
+              }
+            ]
+          },
+          "lineTotal": 0.02
+        }
+      ],
+      "transactionTotal": 40.02
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "Contant",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 44,
+        "amountType": "PAYMENT",
+        "foreignCurrency": {
+          "amount": 50,
+          "iso": "USD"
+        },
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      },
+      {
+        "id": "1",
+        "name": "Contant",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": -3.98,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      },
+      {
+        "id": "1",
+        "name": "Contant",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": -0.02,
+        "amountType": "ROUNDING",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ]
+  }
+}

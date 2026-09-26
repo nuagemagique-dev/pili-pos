@@ -1,0 +1,24 @@
+{
+  "data": {
+    "signOrder": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 5004,
+      "posDateTime": "2024-09-02T14:32:23.000+02:00",
+      "terminalId": "TER-2-DIN",
+      "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+      "eventOperation": "ORDER",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-09-02T12:32:31.000Z",
+        "eventLabel": "P",
+        "eventCounter": 23,
+        "totalCounter": 48
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "warnings": [],
+      "informations": []
+    }
+  }
+}

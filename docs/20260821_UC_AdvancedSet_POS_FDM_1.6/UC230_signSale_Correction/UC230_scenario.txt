@@ -1,0 +1,4 @@
+Direct Sale of 2 Dry Martini (unit price 12.00 EUR, VAT-code A):
+    order of 3 pieces,  quantity is immediately corrected to 2 pieces
+
+    Payment: debit card (EFT)

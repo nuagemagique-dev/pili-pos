@@ -1,0 +1,24 @@
+{
+  "data": {
+    "signPreBill": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 6010,
+      "posDateTime": "2024-05-02T15:46:05.000+02:00",
+      "terminalId": "TER-4-HH",
+      "deviceId": "a1b2c3d4",
+      "eventOperation": "PRE_BILL",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-05-02T13:46:10.000Z",
+        "eventLabel": "P",
+        "eventCounter": 53,
+        "totalCounter": 123
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "warnings": null,
+      "informations": null
+    }
+  }
+}

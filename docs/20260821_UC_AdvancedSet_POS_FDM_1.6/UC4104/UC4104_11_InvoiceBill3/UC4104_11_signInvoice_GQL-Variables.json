@@ -1,0 +1,28 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 152,
+    "posDateTime": "2024-05-31T09:54:07.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "23ba3827-f64f-4fe0-b820-8d365210a50b",
+    "bookingDate": "2024-05-31",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "customerVatNo": "BE0000000097",
+    "invoiceNo": "20230005",
+    "fdmRefs": [
+      {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-05-03T13:50:10.000Z",
+        "eventLabel": "N",
+        "eventCounter": 59,
+        "totalCounter": 141
+      }
+    ]
+  }
+}

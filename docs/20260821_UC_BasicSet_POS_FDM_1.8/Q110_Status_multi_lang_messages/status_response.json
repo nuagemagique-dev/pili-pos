@@ -1,0 +1,33 @@
+{
+  "data": {
+    "status": {
+      "__typename": "FdmStatus",
+      "initialized": true,
+      "device": {
+        "__typename": "Device",
+        "bufferCapacityUsed": 10.02,
+        "fdmDateTime": "2025-08-10T10:00:39.000Z",
+        "fdmId": "FOD01000001",
+        "fdmSwVersion": "1.2.0"
+      },
+      "errors": [],
+      "warnings": [],
+      "informations": []
+    },
+    "messagesFR": {
+      "errors": [],
+      "warnings": [],
+      "informations": []
+    },
+    "messagesNL": {
+      "errors": [],
+      "warnings": [],
+      "informations": []
+    },
+    "messagesDE": {
+      "errors": [],
+      "warnings": [],
+      "informations": []
+    }
+  }
+}

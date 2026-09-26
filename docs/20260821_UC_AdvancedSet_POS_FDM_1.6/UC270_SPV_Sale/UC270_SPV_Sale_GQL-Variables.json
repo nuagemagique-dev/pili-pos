@@ -1,0 +1,52 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6000,
+    "posDateTime": "2024-09-03T12:25:03.000+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-4-HH",
+    "deviceId": "a1b2c3d4",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "40020",
+            "productName": "Voucher Special Diner Offer",
+            "departmentId": "400",
+            "departmentName": "Vouchers",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": 75
+              }
+            ]
+          },
+          "lineTotal": 75
+        }
+      ],
+      "transactionTotal": 75
+    },
+    "financials": [
+      {
+        "id": "5",
+        "name": "EFT",
+        "type": "CARD_DEBIT",
+        "inputMethod": "AUTOMATIC",
+        "amount": 75,
+        "amountType": "PAYMENT",
+        "provider": "VISA"
+      }
+    ]
+  }
+}

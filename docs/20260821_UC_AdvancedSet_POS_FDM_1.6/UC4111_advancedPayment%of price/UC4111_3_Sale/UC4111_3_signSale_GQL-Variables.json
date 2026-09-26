@@ -1,0 +1,158 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6090,
+    "posDateTime": "2024-03-07T20:05:23.000+01:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "2165562d-66e5-4e12-abc5-d218a415352b",
+    "bookingDate": "2024-03-06",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "120",
+      "type": "CUSTOMER",
+      "reference": "OFF2024_005"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30085",
+            "productName": "MENU",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": 1500
+              }
+            ]
+          },
+          "lineTotal": 1500
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30099",
+            "productName": "WINE PAIRING",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 50,
+            "vats": [
+              {
+                "label": "A",
+                "price": 1000
+              }
+            ]
+          },
+          "lineTotal": 1000
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "8009",
+            "productName": "PREPAYMENT",
+            "departmentId": "800",
+            "departmentName": "PREPAYMENT",
+            "quantity": -1,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 1250,
+            "vats": [
+              {
+                "label": "A",
+                "price": -1250
+              }
+            ]
+          },
+          "lineTotal": -1250
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30085",
+            "productName": "MENU",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": -2,
+            "negQuantityReason": "CORRECTION",
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": -150
+              }
+            ]
+          },
+          "lineTotal": -150
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30099",
+            "productName": "WINE PAIRING",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": -12,
+            "negQuantityReason": "CORRECTION",
+            "quantityType": "PIECE",
+            "unitPrice": 50,
+            "vats": [
+              {
+                "label": "A",
+                "price": -600
+              }
+            ]
+          },
+          "lineTotal": -600
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "11001",
+            "productName": "Water 1l",
+            "departmentId": "11",
+            "departmentName": "Water",
+            "quantity": 8,
+            "quantityType": "PIECE",
+            "unitPrice": 5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 40
+              }
+            ]
+          },
+          "lineTotal": 40
+        }
+      ],
+      "transactionTotal": 540
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 540,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

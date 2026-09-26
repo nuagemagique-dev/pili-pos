@@ -1,0 +1,55 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6050,
+    "posDateTime": "2024-03-05T16:05:23.000+01:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "aac2b90a-2fba-4fef-a787-5489bfa3f7b9",
+    "bookingDate": "2024-03-05",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "8010",
+            "productName": "PREPAYMENT",
+            "departmentId": "800",
+            "departmentName": "PREPAYMENT",
+            "quantity": 4,
+            "quantityType": "PIECE",
+            "unitPrice": 100,
+            "vats": [
+              {
+                "label": "A",
+                "price": 400
+              }
+            ]
+          },
+          "lineTotal": 400
+        }
+      ],
+      "transactionTotal": 400
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 400,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "D1",
+          "name": "Drawer1"
+        }
+      }
+    ]
+  }
+}

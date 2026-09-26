@@ -1,0 +1,53 @@
+mutation T7_signPreBill($data: PreBillInput!, $training: Boolean! = false) {
+  signPreBill(data: $data, isTraining: $training) {
+    posId
+    posFiscalTicketNo
+    posDateTime
+    terminalId
+    deviceId
+    fdmSwVersion
+    eventOperation
+    digitalSignature
+    verificationUrl
+    bufferCapacityUsed
+    fdmRef {
+      fdmId
+      fdmDateTime
+      eventLabel
+      eventCounter
+      totalCounter
+    }
+    warnings {
+      message
+      locations {
+        line
+        column
+      }
+      extensions {
+        category
+        code
+        data {
+          name
+          value
+        }
+        showPos
+      }
+    }
+    informations {
+      message
+      locations {
+        line
+        column
+      }
+      extensions {
+        category
+        code
+        data {
+          name
+          value
+        }
+        showPos
+      }
+    }
+  }
+}

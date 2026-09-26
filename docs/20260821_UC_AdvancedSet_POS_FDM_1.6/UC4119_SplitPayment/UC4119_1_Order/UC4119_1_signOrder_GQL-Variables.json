@@ -1,0 +1,103 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 3567,
+    "posDateTime": "2024-08-29T13:57:03.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "terminalId": "TER-1-BAR",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-08-29",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T1",
+      "type": "TABLE",
+      "reference": "O158"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio Beef",
+            "departmentId": "20",
+            "departmentName": "Starters",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 40
+              }
+            ]
+          },
+          "lineTotal": 40
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of teh CHEF",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28
+              }
+            ]
+          },
+          "lineTotal": 28
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "15003",
+            "productName": "Wine (glass)",
+            "departmentId": "15",
+            "departmentName": "Wines",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 8,
+            "vats": [
+              {
+                "label": "A",
+                "price": 16
+              }
+            ]
+          },
+          "lineTotal": 16
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 3,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "A",
+                "price": 9.12
+              }
+            ]
+          },
+          "lineTotal": 9.12
+        }
+      ],
+      "transactionTotal": 93.12
+    }
+  }
+}

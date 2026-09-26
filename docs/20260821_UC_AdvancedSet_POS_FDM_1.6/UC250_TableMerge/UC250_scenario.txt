@@ -1,0 +1,4 @@
+OPERATION 1: Order of 1 Dry Martini, 1 Perrier and 1 burger of the CHEF on table 1 (P order)
+OPERATION 2: Order of 1 Dry Martini, 1 Business menu all-in on table 2 (P order)
+OPERATION 3: Table merge: Order from table 2 is moved to table 1 (P CostcenterChange)
+OPERATION 4: Finalise order on table1, payment by credit card

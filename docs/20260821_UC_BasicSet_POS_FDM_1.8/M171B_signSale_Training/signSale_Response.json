@@ -1,0 +1,24 @@
+{
+  "data": {
+    "signSale": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 1015,
+      "posDateTime": "2024-07-29T17:10:39.000+02:00",
+      "terminalId": "TER-1-BAR",
+      "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+      "fdmSwVersion": "1.2.0",
+      "eventOperation": "SALE",
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "bufferCapacityUsed": 0.25,
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-07-29T15:10:41.000Z",
+        "eventLabel": "T",
+        "eventCounter": 4,
+        "totalCounter": 64
+      },
+      "warnings": null,
+      "informations": null
+    }
+  }
+}

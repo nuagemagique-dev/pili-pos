@@ -1,0 +1,17 @@
+{
+  "data": {
+    "status": {
+      "__typename": "FdmStatus",
+      "initialized": true,
+      "device": {
+        "bufferCapacityUsed": 10.02,
+        "fdmDateTime": "2025-08-10T10:00:39.000Z",
+        "fdmId": "FOD01000001",
+        "fdmSwVersion": "1.2.0"
+      },
+      "errors": [],
+      "warnings": [],
+      "informations": []
+    }
+  }
+}

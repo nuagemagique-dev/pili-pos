@@ -1,0 +1,52 @@
+mutation UC241_2_TableSplitToExisting_OrderT2($data: OrderInput!, $training: Boolean! = false) {
+  signOrder(data: $data, isTraining: $training) {
+    posId
+    posFiscalTicketNo
+    posDateTime
+    terminalId
+    deviceId
+    fdmSwVersion
+    eventOperation
+    digitalSignature
+    bufferCapacityUsed
+    fdmRef {
+      fdmId
+      fdmDateTime
+      eventLabel
+      eventCounter
+      totalCounter
+    }
+    warnings {
+      message
+      locations {
+        line
+        column
+      }
+      extensions {
+        category
+        code
+        data {
+          name
+          value
+        }
+        showPos
+      }
+    }
+    informations {
+      message
+      locations {
+        line
+        column
+      }
+      extensions {
+        category
+        code
+        data {
+          name
+          value
+        }
+        showPos
+      }
+    }
+  }
+}

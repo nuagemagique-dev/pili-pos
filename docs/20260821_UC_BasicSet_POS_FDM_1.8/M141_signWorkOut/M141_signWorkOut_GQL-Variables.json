@@ -1,0 +1,17 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1011,
+    "posDateTime": "2024-07-29T15:59:39.000+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "NONE",
+    "employeeId": "84022899837"
+  }
+}

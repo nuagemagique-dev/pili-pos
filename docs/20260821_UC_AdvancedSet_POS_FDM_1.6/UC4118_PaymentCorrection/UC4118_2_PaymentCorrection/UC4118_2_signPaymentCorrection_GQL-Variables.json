@@ -1,0 +1,42 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1008,
+    "posDateTime": "2024-06-07T15:22:06.000+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "NONE",
+    "employeeId": "75061189702",
+    "fdmRef": {
+      "fdmId": "FOD01000001",
+      "fdmDateTime": "2024-05-30T11:00:06.000Z",
+      "eventLabel": "N",
+      "eventCounter": 32,
+      "totalCounter": 78
+    },
+    "financials": [
+      {
+        "id": "2",
+        "name": "CUSTOMER",
+        "type": "CUSTOMER_CREDIT",
+        "inputMethod": "MANUAL",
+        "amount": -52,
+        "amountType": "PAYMENT"
+      },
+      {
+        "id": "1",
+        "name": "MASTERCARD",
+        "type": "CARD_CREDIT",
+        "inputMethod": "AUTOMATIC",
+        "amount": 52,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 1100,
+    "posDateTime": "2024-07-15T13:00:06.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "costCenter": {
+      "id": "C1",
+      "type": "CUSTOMER",
+      "reference": "JANSSENS"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "25003",
+            "productName": "Dame Blanche",
+            "departmentId": "25",
+            "departmentName": "Desserts",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 11.52,
+            "vats": [
+              {
+                "label": "B",
+                "price": 23.04
+              }
+            ]
+          },
+          "lineTotal": 23.04
+        }
+      ],
+      "transactionTotal": 23.04
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CUSTOMER",
+        "type": "CUSTOMER_CREDIT",
+        "inputMethod": "MANUAL",
+        "amount": 23.04,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

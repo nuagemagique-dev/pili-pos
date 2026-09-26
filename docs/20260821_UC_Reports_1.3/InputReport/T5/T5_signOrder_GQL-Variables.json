@@ -1,0 +1,46 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 204,
+    "posDateTime": "2024-07-30T11:45:12.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-07-30",
+    "ticketMedium": "NONE",
+    "employeeId": "84022899837",
+    "costCenter": {
+      "id": "T10",
+      "type": "TABLE",
+      "reference": "O1001"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 24
+              }
+            ]
+          },
+          "lineTotal": 24
+        }
+      ],
+      "transactionTotal": 24
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "data": {
+    "signSale": {
+      "posId": "CPOS0031234567",
+      "posFiscalTicketNo": 6010,
+      "posDateTime": "2024-09-03T12:30:03.000+02:00",
+      "terminalId": "TER-1-BAR",
+      "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+      "vatCalc": [
+        {
+          "label": "B",
+          "rate": 12,
+          "taxableAmount": 53.14,
+          "vatAmount": 6.38,
+          "totalAmount": 59.52,
+          "outOfScope": false
+        },
+        {
+          "label": "A",
+          "rate": 21,
+          "taxableAmount": 24.38,
+          "vatAmount": 5.12,
+          "totalAmount": 29.5,
+          "outOfScope": false
+        }
+      ],
+      "eventOperation": "SALE",
+      "fdmRef": {
+        "fdmId": "FOD01000001",
+        "fdmDateTime": "2024-09-03T10:30:10.000Z",
+        "eventLabel": "N",
+        "eventCounter": 53,
+        "totalCounter": 129
+      },
+      "fdmSwVersion": "1.2.0",
+      "bufferCapacityUsed": 0.25,
+      "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+      "shortSignature": "ca39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "verificationUrl": "https://gs2.be/",
+      "warnings": [],
+      "informations": null,
+      "footer": []
+    }
+  }
+}

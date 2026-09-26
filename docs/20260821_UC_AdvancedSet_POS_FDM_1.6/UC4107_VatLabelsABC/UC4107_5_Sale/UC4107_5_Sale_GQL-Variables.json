@@ -1,0 +1,165 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 134701,
+    "posDateTime": "2024-05-03T16:15:05.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-05-03",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T53",
+      "type": "TABLE",
+      "reference": "173"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio",
+            "departmentId": "20",
+            "departmentName": "STARTERS",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 40,
+                "priceChanges": [
+                  {
+                    "groupingId": 1,
+                    "id": "1",
+                    "name": "korting5p",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -2
+                  },
+                  {
+                    "groupingId": 2,
+                    "id": "2",
+                    "name": "korting20P",
+                    "scope": "EVENT",
+                    "type": "PUBLIC",
+                    "amount": -7.6
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 30.4
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12,
+                "priceChanges": [
+                  {
+                    "groupingId": 2,
+                    "id": "2",
+                    "name": "korting20p",
+                    "scope": "EVENT",
+                    "type": "PUBLIC",
+                    "amount": -2.4
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 9.6
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12007",
+            "productName": "Perrier",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 2.5,
+            "vats": [
+              {
+                "label": "A",
+                "price": 2.5,
+                "priceChanges": [
+                  {
+                    "groupingId": 2,
+                    "id": "2",
+                    "name": "korting20p",
+                    "scope": "EVENT",
+                    "type": "PUBLIC",
+                    "amount": -0.5
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 2
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "25008",
+            "productName": "crème brûlée",
+            "departmentId": "25",
+            "departmentName": "Desserts",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 10,
+            "vats": [
+              {
+                "label": "C",
+                "price": 10,
+                "priceChanges": [
+                  {
+                    "groupingId": 1,
+                    "id": "3",
+                    "name": "korting25P",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -2.5
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 7.5
+        }
+      ],
+      "transactionTotal": 49.5
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 46.4,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ]
+  }
+}

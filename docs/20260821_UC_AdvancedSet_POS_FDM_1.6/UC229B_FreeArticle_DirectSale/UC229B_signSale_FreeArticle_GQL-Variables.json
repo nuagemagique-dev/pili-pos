@@ -1,0 +1,84 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 3000,
+    "posDateTime": "2024-09-03T13:20:00.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "123cd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "PAPER",
+    "employeeId": "84022899837",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the Chef",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 2,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 56
+              }
+            ]
+          },
+          "lineTotal": 56
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "B",
+                "price": 3.04,
+                "priceChanges": [
+                  {
+                    "id": "D4",
+                    "groupingId": 1,
+                    "name": "FreeArticle",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -3.04
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 0
+        }
+      ],
+      "transactionTotal": 56
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CONTANT",
+        "type": "CASH",
+        "inputMethod": "MANUAL",
+        "amount": 56,
+        "amountType": "PAYMENT",
+        "drawer": {
+          "id": "1",
+          "name": "Drawer 1"
+        }
+      }
+    ]
+  }
+}

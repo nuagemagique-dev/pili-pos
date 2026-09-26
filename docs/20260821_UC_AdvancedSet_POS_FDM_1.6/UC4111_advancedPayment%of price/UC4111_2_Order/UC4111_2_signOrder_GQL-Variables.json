@@ -1,0 +1,85 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6080,
+    "posDateTime": "2024-03-06T10:32:23.000+01:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "a1b2c3d4",
+    "terminalId": "TER-4-HH",
+    "bookingPeriodId": "46f0b4c6-46e0-487a-a806-42ce2ff6952c",
+    "bookingDate": "2024-03-06",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "120",
+      "type": "CUSTOMER",
+      "reference": "OFF2024_005"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30085",
+            "productName": "MENU",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 75,
+            "vats": [
+              {
+                "label": "B",
+                "price": 1500
+              }
+            ]
+          },
+          "lineTotal": 1500
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "30099",
+            "productName": "WINE PAIRING",
+            "departmentId": "30",
+            "departmentName": "Menus",
+            "quantity": 20,
+            "quantityType": "PIECE",
+            "unitPrice": 50,
+            "vats": [
+              {
+                "label": "A",
+                "price": 1000
+              }
+            ]
+          },
+          "lineTotal": 1000
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "8009",
+            "productName": "PREPAYMENT",
+            "departmentId": "800",
+            "departmentName": "PREPAYMENT",
+            "quantity": -1,
+            "negQuantityReason": "REFUND",
+            "quantityType": "PIECE",
+            "unitPrice": 1250,
+            "vats": [
+              {
+                "label": "A",
+                "price": -1250
+              }
+            ]
+          },
+          "lineTotal": -1250
+        }
+      ],
+      "transactionTotal": 1250
+    }
+  }
+}

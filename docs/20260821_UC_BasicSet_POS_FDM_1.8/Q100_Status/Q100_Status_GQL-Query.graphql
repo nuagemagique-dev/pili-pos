@@ -1,0 +1,42 @@
+query Q100_Status {
+  status(language: EN) {
+    __typename
+    initialized
+    device {
+      bufferCapacityUsed
+      fdmDateTime
+      fdmId
+      fdmSwVersion
+    }
+    errors {
+      ...messageFields
+    }
+    warnings {
+      ...messageFields
+    }
+    informations {
+      ...messageFields
+    }
+    __typename
+  }
+} 
+fragment messageFields on MessageItem {
+  message
+  locations {
+    line
+    column
+    __typename
+  }
+  extensions {
+    category
+    code
+    data {
+      name
+      value
+      __typename
+    }
+    showPos
+    __typename
+  }
+  __typename
+}

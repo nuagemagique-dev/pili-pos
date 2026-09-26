@@ -1,0 +1,7 @@
+Client comes to diner: 2 business menu all-in (total price 116 EUR) 
+and pays with a Multi Purpose Voucher (value 50 EUR).
+The remaining balance is paid in cash.
+
+OPERATION 1: order on table 1: 2 business menu all-in
+
+OPERATION 2: Finalise ticket, payment by MPV and cash

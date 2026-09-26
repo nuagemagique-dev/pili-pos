@@ -1,0 +1,71 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6000,
+    "posDateTime": "2024-09-03T12:25:03.000+02:00",
+    "posSwVersion": "1.8.3",
+    "terminalId": "TER-1-BAR",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "DIGITAL",
+    "employeeId": "75061189702",
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca-Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 5,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "C",
+                "price": 15.2
+              }
+            ]
+          },
+          "lineTotal": 15.2
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "90001",
+            "productName": "Bottle S",
+            "departmentId": "90",
+            "departmentName": "Bottle Deposits",
+            "quantity": 5,
+            "quantityType": "PIECE",
+            "unitPrice": 0.01,
+            "vats": [
+              {
+                "label": "X",
+                "price": 0.05
+              }
+            ]
+          },
+          "lineTotal": 0.05
+        }
+      ],
+      "transactionTotal": 15.25
+    },
+    "financials": [
+      {
+        "id": "1",
+        "name": "CARD",
+        "type": "CARD_DEBIT",
+        "inputMethod": "AUTOMATIC",
+        "provider": "VISA",
+        "amount": 15.25,
+        "amountType": "PAYMENT"
+      }
+    ]
+  }
+}

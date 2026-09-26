@@ -1,0 +1,4 @@
+Sale of 2 carpaccio (unit price 20EUR) and 1 bottle of Chardonnay (unit price 40EUR ), payment type CUSTOMER CREDIT
+Sale of 2  dry Martini (unit price 12EUR), payment type CUSTOMER CREDIT
+Sale of 2 dame blanche (unit price 11,52EUR), payment type CUSTOMER CREDIT
+End of the month: invoice with reference to tickets

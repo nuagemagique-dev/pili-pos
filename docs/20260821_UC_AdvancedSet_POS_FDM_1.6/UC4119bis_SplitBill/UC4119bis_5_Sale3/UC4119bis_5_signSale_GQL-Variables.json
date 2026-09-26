@@ -1,0 +1,81 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 3571,
+    "posDateTime": "2024-08-29T14:28:00.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
+    "terminalId": "TER-2-DIN",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-08-29",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "T1",
+      "type": "TABLE",
+      "reference": "O158",
+      "costCenter": {
+        "id": "C3",
+        "type": "CHAIR",
+        "reference": "C3_1"
+      }
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "22001",
+            "productName": "Burger of the CHEF",
+            "departmentId": "22",
+            "departmentName": "Main Dishes",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 28,
+            "vats": [
+              {
+                "label": "B",
+                "price": 28
+              }
+            ]
+          },
+          "lineTotal": 28
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "12009",
+            "productName": "Coca Cola",
+            "departmentId": "12",
+            "departmentName": "Soft Drinks",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 3.04,
+            "vats": [
+              {
+                "label": "A",
+                "price": 3.04
+              }
+            ]
+          },
+          "lineTotal": 3.04
+        }
+      ],
+      "transactionTotal": 31.04
+    },
+    "financials": [
+      {
+        "id": "4",
+        "name": "Meal Check",
+        "type": "CHEQUE_MEAL",
+        "inputMethod": "MANUAL",
+        "amount": 31.04,
+        "amountType": "PAYMENT",
+        "provider": "PLUXEE"
+      }
+    ]
+  }
+}

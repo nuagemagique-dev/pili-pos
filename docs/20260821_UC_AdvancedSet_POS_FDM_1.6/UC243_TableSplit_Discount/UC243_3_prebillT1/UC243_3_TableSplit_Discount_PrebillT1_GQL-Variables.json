@@ -1,0 +1,85 @@
+{
+  "data": {
+    "language": "NL",
+    "vatNo": "BE0000000097",
+    "estNo": "2000000042",
+    "posId": "CPOS0031234567",
+    "posFiscalTicketNo": 6002,
+    "posDateTime": "2024-09-03T12:31:03.000+02:00",
+    "posSwVersion": "1.8.3",
+    "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
+    "terminalId": "TER-1-BAR",
+    "bookingPeriodId": "dffcd829-a0e5-41ca-a0ae-9eb887f95637",
+    "bookingDate": "2024-09-03",
+    "ticketMedium": "PAPER",
+    "employeeId": "75061189702",
+    "costCenter": {
+      "id": "1",
+      "type": "TABLE",
+      "reference": "20240903_001"
+    },
+    "transaction": {
+      "transactionLines": [
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "20001",
+            "productName": "Carpaccio beef",
+            "departmentId": "20",
+            "departmentName": "Starters",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 20,
+            "vats": [
+              {
+                "label": "B",
+                "price": 20,
+                "priceChanges": [
+                  {
+                    "id": "1",
+                    "groupingId": 1,
+                    "name": "10%KORTING",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -2
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 18
+        },
+        {
+          "lineType": "SINGLE_PRODUCT",
+          "mainProduct": {
+            "productId": "10006",
+            "productName": "Dry Martini",
+            "departmentId": "10",
+            "departmentName": "Aperitifs",
+            "quantity": 1,
+            "quantityType": "PIECE",
+            "unitPrice": 12,
+            "vats": [
+              {
+                "label": "A",
+                "price": 12,
+                "priceChanges": [
+                  {
+                    "id": "3",
+                    "groupingId": 1,
+                    "name": "10%KORTING",
+                    "scope": "LINE",
+                    "type": "PUBLIC",
+                    "amount": -1.2
+                  }
+                ]
+              }
+            ]
+          },
+          "lineTotal": 10.8
+        }
+      ],
+      "transactionTotal": 28.8
+    }
+  }
+}

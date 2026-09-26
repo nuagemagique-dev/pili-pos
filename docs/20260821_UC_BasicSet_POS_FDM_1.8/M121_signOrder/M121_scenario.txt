@@ -1,0 +1,4 @@
+BAR: Client orders:
+    2 Dry Martini (unit price 12 EUR, VAT code A)
+    4 Tapas variation (unit price 3,34 EUR, VAT code B)
+on table 1.

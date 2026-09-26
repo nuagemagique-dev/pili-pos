@@ -1,0 +1,6 @@
+Sale of 
+    1 x Dry Martini (12 EUR, A)
+    1 x Burger of the chef (28 EUR, B)
+    1 x Perrier on take away (2.50 EUR, C)
+
+    Payment method = MPV

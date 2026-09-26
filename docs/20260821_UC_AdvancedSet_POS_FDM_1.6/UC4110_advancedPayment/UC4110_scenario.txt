@@ -1,0 +1,12 @@
+1. Sale: Advance payment in cash for a party:
+	Prepayment Food: 750 EUR , B, (=Prepayment food 10 x Menu (75 EUR pp)) 
+	and 
+	Prepayment Drink 500 EUR, A (=Prepayment Drink 10 x  Menu drink (50 EUR pp))
+
+2. Order for a 20-people party: 
+	20 x Menus (75 EUR, B) and 20 x Menu Drink (50 EUR, A) with refund of the prepayments
+
+3. Final bill:
+	- there were only 18 people present
+	- Only 8 people took the drink menu
+	- 8 additional bottles of water (5 EUR) were consumed

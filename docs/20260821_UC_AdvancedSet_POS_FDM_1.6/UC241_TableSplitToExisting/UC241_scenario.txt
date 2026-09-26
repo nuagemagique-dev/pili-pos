@@ -1,0 +1,10 @@
+
+1.	Order of 1 Burger of the Chef, 1 Dish of the day (18 EUR) and 2 Dry Martini's on table 1 
+
+2.	Order of 1 Dish of the day and 1 Perrier on table 2 
+
+3.	Table split: 1 Dish of the day and 1 Dry Martini are moved from table 1 to table 2 
+
+4.	Finalise order on table1: cash payment, tip EUR
+
+5.	Finalise order on table2: payment with VISA card 
