@@ -15,7 +15,7 @@ cargo clippy --workspace -- -D warnings   # doit être propre
 cargo fmt --all --check       # doit être propre
 scripts/generate_test_report.py   # totaux de RAPPORT_TESTS_BASELINE_FR.md, sur cette révision
 
-# Build cert Linux x86_64 dans un conteneur Debian 12 (toolchain
+# Build cert Linux x86_64 dans un conteneur Debian 13 (toolchain
 # épinglée par rust-toolchain.toml via rustup). Construit l'UI,
 # compile avec --no-default-features --features cert, vérifie
 # l'absence de symboles hubrise et d'URL de dev-server, calcule les
@@ -44,7 +44,7 @@ corriger dans le code, rebuilder, re-répéter.
 
 ## Étape 3 - Construire l'image kiosk
 
-Une install Debian 12 minimale avec :
+Une install Debian 13 minimale avec :
 
 - Binaire cert `moyun-pos` (paquet `deploy/dist/` produit par
   `deploy/build-release.sh --docker`).

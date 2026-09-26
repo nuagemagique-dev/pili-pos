@@ -64,7 +64,7 @@ This is a **Tauri v2 desktop application** running on Linux (Debian minimal + Ca
 - **CSS Grid/Flexbox** - responsive touch layout for 15.6" 1920x1080
 
 ### Target OS
-- Debian 12 minimal (no desktop environment)
+- Debian 13 minimal (no desktop environment)
 - Cage compositor (Wayland kiosk mode) - auto-starts Tauri app fullscreen
 - x86_64 architecture (Intel J6412)
 

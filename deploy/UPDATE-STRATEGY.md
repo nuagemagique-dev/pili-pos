@@ -20,7 +20,7 @@ channel.
 
 1. Tag `vX.Y.Z` (GPG-signed) on the certified commit.
 2. `deploy/build-release.sh --docker` builds the cert binary in a
-   linux/amd64 Debian 12 container with the toolchain pinned by
+   linux/amd64 Debian 13 container with the toolchain pinned by
    `rust-toolchain.toml`, and writes the `build_info_*.txt` report
    (SHA-1 / SHA-256).
 3. File the update certification request with the changelog and the

@@ -10,7 +10,7 @@
 ## 1. Vue d'ensemble du système
 
 `moyun-pos` est une **application desktop Tauri v2** s'exécutant sur
-Linux x86_64 (Debian 12 minimal + compositeur Cage Wayland en mode
+Linux x86_64 (Debian 13 minimal + compositeur Cage Wayland en mode
 kiosk). Elle cible les terminaux POS Penetek A3216 M82 / Advantech
 USC-360J, se connecte à un FDM certifié SPF Finances par LAN, pilote
 une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque

@@ -23,7 +23,7 @@ monolithique.
 
 ## Couche OS (image mkosi, `deploy/image/`)
 
-- [ ] Debian 12 "bookworm" minimal, construit par mkosi
+- [ ] Debian 13 "trixie" minimal, construit par mkosi
       (`deploy/image/mkosi.conf`, profils `production`/`admission`
       sous `mkosi.profiles/`) - sans environnement de bureau.
 - [ ] Disque GPT : ESP (512 M) + racine ext4 **lecture seule** (4 G,

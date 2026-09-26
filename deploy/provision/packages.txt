@@ -1,8 +1,8 @@
-# moyun-pos - shared package list (Debian 12 / bookworm)
+# moyun-pos - shared package list (Debian 13 / trixie)
 #
 # Single source of truth, read by:
 #   - deploy/provision/provision.sh --phase packages (apt-get install, on an
-#     already-booted Debian 12 machine - the deploy/install.sh path)
+#     already-booted Debian 13 machine - the deploy/install.sh path)
 #   - deploy/image/mkosi.conf ([Content] Packages=, kept in sync by hand for
 #     the mkosi image build - mkosi has no "include packages from a text
 #     file" directive, so the two lists are the same packages, maintained
@@ -10,7 +10,7 @@
 #
 # Image-only packages (systemd-boot-efi, cryptsetup, tpm2-tools,
 # systemd-repart, sqlite3-utils for pos-db-ro, etc.) are NOT here: they are
-# meaningless on a plain Debian 12 box and are declared directly in
+# meaningless on a plain Debian 13 box and are declared directly in
 # deploy/image/mkosi.conf instead.
 #
 # libfuse2 was dropped: RustDesk now runs via `--appimage-extract`
@@ -20,12 +20,13 @@
 
 # Kiosk compositor + Tauri/WebKitGTK runtime deps
 cage
-# Debian 12's Cage is built with XWayland and refuses to start without
-# the binary (then hangs: black kiosk, no restart), even though moyun-pos
-# itself runs on Wayland (GDK_BACKEND=wayland).
+# Debian's Cage is built with XWayland and refuses to start without the
+# binary (then hangs: black kiosk, no restart), even though moyun-pos
+# itself runs on Wayland (GDK_BACKEND=wayland). Debian 13's cage package
+# depends on it; listed anyway so the requirement stays visible.
 xwayland
 libwebkit2gtk-4.1-0
-libgtk-3-0
+libgtk-3-0t64
 libayatana-appindicator3-1
 librsvg2-common
 gstreamer1.0-plugins-base
@@ -38,7 +39,7 @@ fonts-noto-color-emoji
 
 # Maintenance console text editor (MANUEL_INSTALLATION_FR.md §4.2 tells
 # the distributor to `vi /etc/moyun-pos/pos.json` at Ctrl+Alt+F2 -
-# Debian 12 minbase ships no editor at all otherwise). vim-tiny provides
+# Debian minbase ships no editor at all otherwise). vim-tiny provides
 # `/usr/bin/vi` via update-alternatives, ~1 MB, no GUI/X11 deps.
 vim-tiny
 

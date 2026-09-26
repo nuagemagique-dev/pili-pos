@@ -8,7 +8,7 @@
 # image, staged into the image by deploy/image/build.sh alongside its
 # other build inputs (see that script) at /opt/moyun-pos/.build-input/
 # and /opt/moyun-pos/deploy/provision/ - the same script that
-# deploy/install.sh runs on a plain, already-booted Debian 12 box.
+# deploy/install.sh runs on a plain, already-booted Debian 13 box.
 set -euo pipefail
 
 ARGS=(

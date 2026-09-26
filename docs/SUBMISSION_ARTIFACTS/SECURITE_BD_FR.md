@@ -141,7 +141,7 @@ modes `0640`/`0750` ci-dessus sans étape de `chmod` séparée.
 Le service `moyun-pos.service` (systemd) tourne sous l'utilisateur
 non-root `pos`, créé lors de la construction de l'image
 (`deploy/provision/provision.sh --phase image`, appelé aussi bien pour
-l'image kiosque mkosi que pour une installation sur un Debian 12 déjà
+l'image kiosque mkosi que pour une installation sur un Debian 13 déjà
 démarré). Il n'a PAS de shell de connexion (`/usr/sbin/nologin`) ni de
 mot de passe.
 
@@ -211,7 +211,7 @@ L'image kiosque livrée est **scellée**, avec les précisions suivantes
   compte `spf` (voir §3.2). Ce n'est donc **pas** une image sans aucune
   console active : c'est une image où seul `tty1` (celui visible à
   l'écran) est verrouillé sur le kiosque.
-- L'image est un Debian 12 "bookworm" minimal construit par mkosi
+- L'image est un Debian 13 "trixie" minimal construit par mkosi
   (paquets listés dans `deploy/provision/packages.txt` +
   `deploy/image/mkosi.conf`), pas du busybox : les utilitaires standard
   (`cat`, `cp`, `mv`, coreutils GNU) sont présents. `sqlite3` **est**

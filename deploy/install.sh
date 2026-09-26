@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
 # moyun-pos - Installation Script (thin wrapper)
-# Target: an ALREADY INSTALLED, booted Debian 12 minimal, x86_64
+# Target: an ALREADY INSTALLED, booted Debian 13 minimal, x86_64
 # (Intel J6412).
 #
 # The kiosk image (deploy/image/, built with mkosi) is the primary
 # deployment path: a distributor writes it to the terminal's disk from a
 # USB stick (docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md §3).
 # This script remains for installing moyun-pos directly onto a plain
-# Debian 12 box - dev/test machines, or before the image flow is used -
+# Debian 13 box - dev/test machines, or before the image flow is used -
 # and now just runs all three deploy/provision/provision.sh phases in
 # order; see that script for what each phase actually does.
 #
@@ -38,8 +38,9 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-if [[ ! -f /etc/debian_version ]]; then
-    echo "ERROR: This script targets Debian 12."
+# The package list (deploy/provision/packages.txt) uses Debian 13 names.
+if [[ ! -f /etc/os-release ]] || [[ "$(. /etc/os-release; echo "${ID:-}:${VERSION_ID:-}")" != "debian:13" ]]; then
+    echo "ERROR: This script targets Debian 13."
     exit 1
 fi
 

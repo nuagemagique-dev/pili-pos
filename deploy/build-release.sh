@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
 # moyun-pos - Release Build (certification build)
-# Builds the cert binary for x86_64 Linux (Debian 12 / Intel J6412)
+# Builds the cert binary for x86_64 Linux (Debian 13 / Intel J6412)
 # through scripts/build_and_hash.sh, then assembles the deploy package.
 #
-# Option A: Build natively on a Debian 12 x86_64 machine or VM
-# Option B: Build in a linux/amd64 Debian 12 container (e.g. from macOS)
+# Option A: Build natively on a Debian 13 x86_64 machine or VM
+# Option B: Build in a linux/amd64 Debian 13 container (e.g. from macOS)
 #
 # The SHA-1 declared to SPF Finances is the one of THIS Linux binary
 # (see the build_info_*.txt report copied into the package), never the
@@ -21,17 +21,17 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 
 # Build inputs of the reference (container) build, pinned so that a
 # rebuild from the same commit gives the same binary:
-# - the Rust image by digest, not tag (`rust:1.98.1-bookworm` is rebuilt
+# - the Rust image by digest, not tag (`rust:1.98.1-trixie` is rebuilt
 #   whenever Debian ships security updates); its toolchain is the one
 #   rust-toolchain.toml pins. Digest of the linux/amd64 image, resolved
 #   from the Docker Hub registry API.
 # - Node from the nodejs.org tarball, checked against its SHA-256, not
 #   Debian's nodejs/npm packages (whose version moves with the archive).
-# The system libraries (webkit2gtk, gtk, openssl) come from Debian 12 at
+# The system libraries (webkit2gtk, gtk, openssl) come from Debian 13 at
 # build time; the binary links them dynamically.
 # .github/workflows/image.yml's `repro` job builds twice and compares
 # (scripts/check_repro.sh).
-RUST_BUILD_IMAGE="rust:1.98.1-bookworm@sha256:c49256cbe5ea0188bc658a689500d70c41eb51f009a7a7be209caf60a944f3ec"
+RUST_BUILD_IMAGE="rust:1.98.1-trixie@sha256:f31fa9eaac4e417505e10009786ec0c636558e02dff3fa662cc92c10894ba065"
 NODE_VERSION="v24.21.0"
 NODE_TARBALL="node-${NODE_VERSION}-linux-x64.tar.xz"
 NODE_SHA256="fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6"
@@ -47,7 +47,7 @@ mkdir -p "$OUTPUT_DIR" "$LINUX_TARGET_DIR"
 
 if [[ "${1:-}" == "--docker" ]]; then
     echo "══════════════════════════════════════════════════"
-    echo "  Building in a linux/amd64 Debian 12 container"
+    echo "  Building in a linux/amd64 Debian 13 container"
     echo "══════════════════════════════════════════════════"
 
     # - rustup in the image installs the toolchain pinned by
@@ -101,7 +101,7 @@ if [[ "${1:-}" == "--docker" ]]; then
     POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
 else
     echo "══════════════════════════════════════════════════"
-    echo "  Native build (run on a Debian 12 x86_64 machine)"
+    echo "  Native build (run on a Debian 13 x86_64 machine)"
     echo "══════════════════════════════════════════════════"
     if [[ "$(uname -s)" != "Linux" || "$(uname -m)" != "x86_64" ]]; then
         echo "✗ Native mode needs Linux x86_64 - use --docker on this host."

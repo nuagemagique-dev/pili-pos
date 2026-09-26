@@ -155,7 +155,7 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
    ```
    deploy/build-release.sh --docker
    ```
-   (construit dans un conteneur Debian 12 linux/amd64 désigné par son empreinte, Node.js vérifié par SHA-256, chemins de l'hôte neutralisés, cf. `deploy/build-release.sh`. La CI refait la build deux fois depuis un arbre nettoyé et compare les SHA-1 : `scripts/check_repro.sh`. Seule la build en conteneur est la référence ; la build native sur une machine Debian 12 x86_64 sert au développement.)
+   (construit dans un conteneur Debian 13 linux/amd64 désigné par son empreinte, Node.js vérifié par SHA-256, chemins de l'hôte neutralisés, cf. `deploy/build-release.sh`. La CI refait la build deux fois depuis un arbre nettoyé et compare les SHA-1 : `scripts/check_repro.sh`. Seule la build en conteneur est la référence ; la build native sur une machine Debian 13 x86_64 sert au développement.)
 2. **Empreinte SHA-1 du binaire.** Le script `scripts/build_and_hash.sh` produit le SHA-1 du binaire à chaque build et le consigne. Le SHA-1 déclaré au formulaire §I.D est vérifiable sur toute installation cliente via :
    ```
    sha1sum /opt/moyun-pos/moyun-pos
@@ -762,7 +762,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | E-mail | cloud@nuagemagique.dev |
 | Nom du logiciel | moyun-pos |
 | N° de version | 1.0.0 |
-| Système d'exploitation | Debian 12 minimal + Cage Wayland compositor |
+| Système d'exploitation | Debian 13 minimal + Cage Wayland compositor |
 | Numéro de certificat | (à compléter par le SPF Finances) |
 | Date de certification | (à compléter par le SPF Finances) |
 | Agent de certification | (à compléter par le SPF Finances) |

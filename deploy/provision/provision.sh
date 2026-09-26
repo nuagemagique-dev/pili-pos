@@ -11,7 +11,7 @@
 #     `systemctl enable`/`mask`, which are symlink operations that work
 #     without a running init or network, chroot-safe by design)
 #
-#   - a plain, already-booted Debian 12 machine (deploy/install.sh, the
+#   - a plain, already-booted Debian 13 machine (deploy/install.sh, the
 #     thin wrapper next to this script, runs all three phases in order)
 #
 # Usage:
@@ -205,7 +205,7 @@ materialize_or_symlink_etc() {
         echo "    moyun-provision.service at first boot, see deploy/image/)"
         return
     fi
-    # Plain Debian 12 install (no mkosi read-only-root/LUKS layout): make
+    # Plain Debian 13 install (no mkosi read-only-root/LUKS layout): make
     # /etc/moyun-pos and /var/lib/moyun-pos real directories now, seeded
     # from the same factory artifacts the kiosk image uses.
     mkdir -p /etc/moyun-pos "$POS_HOME"

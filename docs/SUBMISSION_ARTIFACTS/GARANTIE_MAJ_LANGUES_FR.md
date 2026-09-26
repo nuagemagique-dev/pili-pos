@@ -20,7 +20,7 @@ Le dépôt source contient :
 - `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.98.1`).
 - `package-lock.json` (UI Vue) - fige les versions exactes des dépendances Node.
 
-La build cert est produite par une commande unique et figée, exécutée dans un conteneur Debian 12 `linux/amd64` :
+La build cert est produite par une commande unique et figée, exécutée dans un conteneur Debian 13 `linux/amd64` :
 ```bash
 ./deploy/build-release.sh --docker
 # → scripts/build_and_hash.sh : npm ci + build de l'UI, puis
@@ -28,7 +28,7 @@ La build cert est produite par une commande unique et figée, exécutée dans un
 ```
 
 Le conteneur fixe l'environnement de compilation :
-- l'image Rust est désignée par son empreinte (`rust:1.98.1-bookworm@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
+- l'image Rust est désignée par son empreinte (`rust:1.98.1-trixie@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
 - Node.js vient de l'archive officielle nodejs.org, dont l'empreinte SHA-256 est vérifiée avant usage ;
 - les chemins de l'hôte (dépôt, registre Cargo) sont remplacés dans le binaire par des noms fixes (`--remap-path-prefix`) ;
 - l'UI embarquée est construite depuis `package-lock.json`.
@@ -54,7 +54,7 @@ sha1sum /opt/moyun-pos/moyun-pos
 
 Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite par `deploy/image/build.sh` (mkosi, qui installe le binaire certifié via `deploy/provision/provision.sh` et vérifie son SHA-1 dans l'image finie) ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB, sur place - jamais par `scp`, aucun serveur SSH n'étant installé (une session RustDesk donne accès à l'écran de la caisse, pas à un shell, cf. §2.2).
 
-L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
+L'OS hôte (Debian 13 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 
 - Système de fichiers racine en lecture seule (option `ro` sur la ligne
   de commande du noyau, drapeau GPT lecture seule sur la partition racine,

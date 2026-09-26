@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - kiosk image build (mkosi, Debian 12 "bookworm")
+# moyun-pos - kiosk image build (mkosi, Debian 13 "trixie")
 #
 # Builds both profiles (production, admission) into
 # deploy/image/mkosi.output/<profile>/moyun-pos-kiosk-<profile>.img.xz.
@@ -58,13 +58,12 @@ if [[ "$(uname -s)" != "Linux" || "$(uname -m)" != "x86_64" ]]; then
 fi
 
 # ── Host tools ─────────────────────────────────────────────────
-# NOTE: `ukify` is NOT installed from here - Debian 12 "bookworm" has
-# no systemd-ukify package (ukify only became a separate Debian
-# package starting with trixie/systemd 255). It is instead taken from
-# mkosi's own tools tree (ToolsTree=default in mkosi.conf, built from
-# Debian testing by mkosi itself on a Debian/Ubuntu host - see
-# find_tool() below), which is also what makes the two extra
-# Install/Update UKIs reproducible across the developer Mac and CI.
+# NOTE: `ukify` is NOT installed from here, whatever the host ships: it
+# is taken from mkosi's own tools tree (ToolsTree=default in
+# mkosi.conf, built from Debian testing by mkosi itself on a
+# Debian/Ubuntu host - see find_tool() below), which is also what makes
+# the two extra Install/Update UKIs reproducible across the developer
+# Mac and CI.
 NEEDED_BINS=(python3 xz sgdisk losetup mount umount)
 MISSING=0
 for b in "${NEEDED_BINS[@]}"; do

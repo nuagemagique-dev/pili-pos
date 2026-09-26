@@ -1,8 +1,8 @@
 # Kiosk Lockdown
 
-How the POS terminal (Debian 12 minimal, Cage compositor) is locked
+How the POS terminal (Debian 13 minimal, Cage compositor) is locked
 down. Applied either by `deploy/install.sh` (thin wrapper, plain
-already-booted Debian 12 box) or baked into the mkosi kiosk image
+already-booted Debian 13 box) or baked into the mkosi kiosk image
 (`deploy/image/`, `mkosi.postinst.chroot`) - both call the same
 `deploy/provision/provision.sh`, see that script's header.
 

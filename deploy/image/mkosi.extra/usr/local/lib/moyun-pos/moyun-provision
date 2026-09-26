@@ -47,8 +47,8 @@ FACTORY_DIR="/usr/share/moyun-pos/factory"
 VAR_MNT="/run/moyun-provision/var"
 POS_HOME="$VAR_MNT/lib/moyun-pos"
 ETC_DIR="$VAR_MNT/lib/moyun-etc"
-# Debian 12 ships systemd-cryptsetup inside the systemd package, off the
-# PATH; later releases put it in /usr/bin.
+# Debian 13's systemd-cryptsetup package installs it in /usr/bin (Debian
+# 12 kept it off the PATH, in /usr/lib/systemd).
 SYSTEMD_CRYPTSETUP="$(command -v systemd-cryptsetup || echo /usr/lib/systemd/systemd-cryptsetup)"
 
 # To tty1 for the installer, and to the journal (never the secrets: the

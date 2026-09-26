@@ -105,7 +105,7 @@ fait le travail :
    présente sur le disque interne (avec son contenu chiffré) n'est
    **jamais touchée** - c'est ce qui préserve `pos.db` d'une mise à
    jour à l'autre.
-3. Le disque interne contient maintenant Debian 12 minimal + moyun-pos
+3. Le disque interne contient maintenant Debian 13 minimal + moyun-pos
    + Cage + RustDesk (extrait) + les outils de provisioning, en lecture
    seule pour la racine - mais rien n'est encore déchiffré ni
    configuré : cette étape ne fait que poser les partitions ESP/racine
