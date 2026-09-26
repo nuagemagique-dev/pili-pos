@@ -5,6 +5,8 @@ import { useOrderStore } from "../stores/order";
 import { useAuthStore } from "../stores/auth";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
+import { describeError } from "../utils/errorMessages";
+import { useToastStore } from "../stores/toast";
 import { formatPrice } from "../utils/format";
 
 const router = useRouter();
@@ -12,6 +14,7 @@ const { t } = useI18n();
 const order = useOrderStore();
 const auth = useAuthStore();
 
+const toast = useToastStore();
 const tables = ref<ipc.TableInfo[]>([]);
 
 onMounted(async () => {
@@ -20,13 +23,18 @@ onMounted(async () => {
 });
 
 async function selectTable(table: ipc.TableInfo) {
-  if (table.orderId) {
-    // Rehydrate the existing order AND its lines so the cart is
-    // repopulated (fixes the bug where tapping a busy table after
-    // a takeaway switch showed an empty cart).
-    await order.loadOrder(table.orderId);
-  } else {
-    await order.startOrder(table.tableNumber);
+  try {
+    if (table.orderId) {
+      // Rehydrate the existing order AND its lines so the cart is
+      // repopulated (fixes the bug where tapping a busy table after
+      // a takeaway switch showed an empty cart).
+      await order.loadOrder(table.orderId);
+    } else {
+      await order.startOrder(table.tableNumber);
+    }
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+    return;
   }
   router.push({ name: "order" });
 }

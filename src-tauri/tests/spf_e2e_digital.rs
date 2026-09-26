@@ -19,6 +19,8 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::errors;
+
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout_with};
 use moyun_pos::commands::copy::do_copy_ticket_with;
 use moyun_pos::commands::delivery::{
@@ -467,7 +469,7 @@ async fn an_unprinted_original_prints_once() {
         delivery::do_print_missing_original(&app.state, event_id, &ticket)
             .await
             .unwrap_err()
-            .starts_with("Print failed")
+            .starts_with("print_failed|detail=")
     );
     assert!(!app.original_printed(event_id));
 
@@ -542,7 +544,7 @@ async fn printing_an_unknown_event_is_refused() {
         delivery::do_print_missing_original(&app.state, 9999, result.ticket.as_ref().unwrap())
             .await
             .unwrap_err();
-    assert_eq!(err, "Fiscal event not found");
+    assert_eq!(err, errors::EVENT_NOT_FOUND);
 }
 
 // ── Refunds, copies, training ──────────────────────────────────

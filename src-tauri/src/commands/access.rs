@@ -14,11 +14,12 @@
 
 use pos_core::user::{User, UserRole};
 
+use crate::commands::errors;
 use crate::state::AppState;
 
-pub const ERR_NOT_LOGGED_IN: &str = "Not logged in";
-pub const ERR_FORBIDDEN: &str = "Forbidden";
-pub const ERR_NOT_THE_OPERATOR: &str = "Forbidden: not the logged-in operator";
+pub const ERR_NOT_LOGGED_IN: &str = errors::NOT_LOGGED_IN;
+pub const ERR_FORBIDDEN: &str = errors::FORBIDDEN;
+pub const ERR_NOT_THE_OPERATOR: &str = errors::NOT_THE_OPERATOR;
 
 /// The least a command requires.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

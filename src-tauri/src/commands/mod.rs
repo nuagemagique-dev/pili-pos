@@ -3,6 +3,7 @@ pub mod auth;
 pub mod checkout;
 pub mod copy;
 pub mod delivery;
+pub mod errors;
 pub mod financial;
 #[cfg(feature = "hubrise")]
 pub mod hubrise;
@@ -119,11 +120,10 @@ pub(crate) fn commit_signed_event_then<T>(
     // without `commit()`), so the counter reverts and no gap results;
     // the loser can safely retry and will peek the next free number.
     if committed != event.ticket_number {
-        return Err(format!(
-            "counter drifted between peek and commit for {:?} (peeked {}, committed {}) - \
-             likely a concurrent sign of the same event; retry",
+        return Err(errors::concurrent(format_args!(
+            "sign {:?}: peeked {}, committed {}",
             event.label, event.ticket_number, committed
-        ));
+        )));
     }
     let id = pos_fiscal::archive::archive_event(
         &tx,

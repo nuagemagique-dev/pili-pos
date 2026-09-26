@@ -4,6 +4,7 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -24,15 +25,15 @@ pub fn create_order(state: State<'_, AppState>, input: CreateOrderInput) -> Resu
 /// second one on the tables screen.
 pub fn do_create_order(state: &AppState, input: CreateOrderInput) -> Result<Order, String> {
     if !pos_core::user::validate_insz(&input.user_insz) {
-        return Err("Invalid operator INSZ".into());
+        return Err(errors::OPERATOR_INVALID.into());
     }
     access::operator_named(state, &input.user_insz, Access::Staff)?;
     match (input.order_type, input.table_number) {
         (OrderType::DineIn, Some(t)) if t > 0 => {}
-        (OrderType::DineIn, _) => return Err("A dine-in order needs a table".into()),
+        (OrderType::DineIn, _) => return Err(errors::DINE_IN_NEEDS_TABLE.into()),
         (OrderType::Takeaway, None) => {}
         (OrderType::Takeaway, Some(_)) => {
-            return Err("A takeaway order has no table".into());
+            return Err(errors::TAKEAWAY_HAS_NO_TABLE.into());
         }
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -87,7 +88,7 @@ pub fn add_order_line(
 pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<OrderLine, String> {
     access::operator(state, Access::Staff)?;
     if input.quantity <= 0 {
-        return Err("Quantity must be greater than zero".into());
+        return Err(errors::QUANTITY_POSITIVE.into());
     }
     // Product and department names are fiscal data: always in the
     // establishment's national language, whatever the operator's UI
@@ -100,7 +101,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
     let order =
         pos_db::queries::orders::get_order(&db, input.order_id).map_err(|e| e.to_string())?;
     if order.status != OrderStatus::Open {
-        return Err("Order is not open".into());
+        return Err(errors::ORDER_NOT_OPEN.into());
     }
     let product = pos_db::queries::menu::resolve_catalogue_line(
         &db,
@@ -109,17 +110,21 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
         lang,
     )
     .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
-            format!("Product {} is not available", input.menu_item_id)
-        }
-        other => other.to_string(),
+        rusqlite::Error::QueryReturnedNoRows => errors::coded(
+            errors::PRODUCT_UNAVAILABLE,
+            &[("product", &input.menu_item_id)],
+        ),
+        other => errors::internal(other),
     })?;
     let unit_price_cents = match (product.open_price, input.unit_price_cents) {
         (true, Some(price)) if price > 0 => price,
-        (true, _) => return Err("Enter a price greater than zero".into()),
+        (true, _) => return Err(errors::PRICE_POSITIVE.into()),
         (false, None) => product.price_cents,
         (false, Some(_)) => {
-            return Err(format!("Product {} has a fixed price", input.menu_item_id));
+            return Err(errors::coded(
+                errors::FIXED_PRICE,
+                &[("product", &input.menu_item_id)],
+            ));
         }
     };
     pos_db::queries::orders::add_order_line(
@@ -170,7 +175,7 @@ pub fn do_update_order_line_quantity(
 ) -> Result<(), String> {
     access::operator(state, Access::Staff)?;
     if quantity <= 0 {
-        return Err("Quantity must be greater than zero".into());
+        return Err(errors::QUANTITY_POSITIVE.into());
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::update_order_line_quantity(&db, line_id, quantity).map_err(line_error)
@@ -178,8 +183,8 @@ pub fn do_update_order_line_quantity(
 
 fn line_error(e: rusqlite::Error) -> String {
     match e {
-        rusqlite::Error::QueryReturnedNoRows => "Order line not found".into(),
-        other => other.to_string(),
+        rusqlite::Error::QueryReturnedNoRows => errors::LINE_NOT_FOUND.into(),
+        other => errors::internal(other),
     }
 }
 

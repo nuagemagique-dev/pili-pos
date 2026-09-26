@@ -9,7 +9,7 @@ import { HUBRISE_ENABLED } from "../features";
 import { useOrderStore } from "../stores/order";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
-import { describeError } from "../utils/fdmMessages";
+import { describeError } from "../utils/errorMessages";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", name: "login", component: LoginView },

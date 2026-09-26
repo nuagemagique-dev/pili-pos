@@ -54,12 +54,3 @@ export function translateFdmError(raw: string | null): string | null {
   // UX Guide §8.3: no raw technical jargon - generic fallback
   return "Erreur boîte noire. Contactez votre technicien.";
 }
-
-/** A backend error as the operator should read it: an FDM failure
- * (the backend prefixes those with "FDM") in plain French, anything
- * else (access, validation) as it is. */
-export function describeError(raw: unknown): string {
-  const text = String(raw ?? "");
-  if (/^FDM\b/.test(text)) return translateFdmError(text) ?? text;
-  return text;
-}

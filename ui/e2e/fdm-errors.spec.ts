@@ -8,7 +8,8 @@ import {
   DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
 
 // An FDM refusal reaches the operator in plain French, as in the header
-// indicator (certification manual §V); other errors stay as they are.
+// indicator (certification manual §V); other refusals are backend codes
+// with their own text (errors.spec.ts).
 
 async function payByCard(page: Page, checkoutResult: object) {
   await mockTauriIPC(page, {
@@ -62,7 +63,7 @@ test('an FDM answer that does not match the sale is explained', async ({ page })
   await expect(page.locator('.card-btn')).toBeVisible();
 });
 
-test('an error that is not the FDM’s is shown as it is', async ({ page }) => {
-  await payByCard(page, refused('Forbidden'));
-  await expect(page.locator('.checkout .error-msg')).toHaveText('Forbidden');
+test('an error that is not the FDM’s gets its own message', async ({ page }) => {
+  await payByCard(page, refused('forbidden'));
+  await expect(page.locator('.checkout .error-msg')).toHaveText('Action réservée à un autre profil.');
 });

@@ -31,6 +31,7 @@ use pos_mail::outbox::{self, SendNowOutcome};
 use pos_mail::tem::TemClient;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
 
 /// Longest the checkout waits for an email before printing instead.
@@ -190,8 +191,8 @@ impl ResolvedDelivery {
 }
 
 /// Refusals returned before anything is signed.
-pub const ERR_DIGITAL_UNAVAILABLE: &str = "Digital ticket is not configured on this terminal";
-pub const ERR_INVALID_EMAIL: &str = "Invalid email address";
+pub const ERR_DIGITAL_UNAVAILABLE: &str = errors::DIGITAL_UNAVAILABLE;
+pub const ERR_INVALID_EMAIL: &str = errors::EMAIL_INVALID;
 
 /// Check the operator's choice. Pure, so every rule is unit-tested:
 ///
@@ -223,7 +224,8 @@ pub fn resolve_with(
         .map(str::trim)
         .filter(|e| !e.is_empty())
         .ok_or_else(|| ERR_INVALID_EMAIL.to_string())?;
-    pos_mail::address::validate(email).map_err(|e| format!("{ERR_INVALID_EMAIL}: {e}"))?;
+    pos_mail::address::validate(email)
+        .map_err(|e| errors::coded(ERR_INVALID_EMAIL, &[("detail", &e)]))?;
 
     let medium = match request.medium {
         RequestedMedium::Digital if digital.allow_digital_only && recently_reachable => {
@@ -550,9 +552,8 @@ pub async fn print_missing_original(
     do_print_missing_original(state.inner(), fiscal_event_id, &ticket).await
 }
 
-pub const ERR_ALREADY_PRINTED: &str =
-    "The original ticket was already printed; print a copy (C) instead";
-pub const ERR_EMAIL_SENT: &str = "The ticket was sent by email; print a copy (C) instead";
+pub const ERR_ALREADY_PRINTED: &str = errors::ALREADY_PRINTED;
+pub const ERR_EMAIL_SENT: &str = errors::EMAIL_SENT;
 
 pub async fn do_print_missing_original(
     state: &AppState,
@@ -564,7 +565,7 @@ pub async fn do_print_missing_original(
         let db = state.db.lock().map_err(|e| e.to_string())?;
         pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Fiscal event not found".to_string())?;
+            .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?;
         let delivery: Option<(i64, String)> = db
             .query_row(
                 "SELECT id, status FROM ticket_deliveries
@@ -597,8 +598,8 @@ pub async fn do_print_missing_original(
             Ok(())
         }
         PrintOutcome::AlreadyPrinted => Err(ERR_ALREADY_PRINTED.to_string()),
-        PrintOutcome::NoPrinter => Err("No printer configured".to_string()),
-        PrintOutcome::Failed(e) => Err(format!("Print failed: {e}")),
+        PrintOutcome::NoPrinter => Err(errors::PRINTER_NOT_CONFIGURED.to_string()),
+        PrintOutcome::Failed(e) => Err(errors::coded(errors::PRINT_FAILED, &[("detail", &e)])),
     }
 }
 

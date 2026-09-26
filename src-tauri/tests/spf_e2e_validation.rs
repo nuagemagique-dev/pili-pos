@@ -14,6 +14,8 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::errors;
+
 use moyun_pos::commands::auth::{CreateUserInput, do_create_user, do_login, do_set_pin};
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::copy::do_copy_ticket;
@@ -279,7 +281,7 @@ async fn checkout_of_an_empty_order_is_refused_without_calling_the_fdm() {
         result
             .error
             .as_deref()
-            .is_some_and(|e| e.contains("no lines"))
+            .is_some_and(|e| e == errors::ORDER_NO_LINES)
     );
 }
 

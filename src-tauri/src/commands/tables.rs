@@ -7,6 +7,7 @@ use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -109,7 +110,7 @@ async fn sign_table_order_as(
     };
     order.user_insz = operator.insz;
     if order.status != OrderStatus::Open {
-        return Err("Order is not open".into());
+        return Err(errors::ORDER_NOT_OPEN.into());
     }
 
     let label = EventLabel::P.in_mode(config.training_mode);
@@ -163,7 +164,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
     };
     order.user_insz = operator.insz;
     if lines.is_empty() {
-        return Err("Order has no lines".into());
+        return Err(errors::ORDER_NO_LINES.into());
     }
 
     let label = EventLabel::P.in_mode(config.training_mode);

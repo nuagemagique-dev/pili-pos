@@ -9,6 +9,7 @@ use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
+use crate::commands::errors::{self, incomplete};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -77,23 +78,19 @@ pub async fn do_copy_ticket_with(
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Fiscal event not found".to_string())?;
+            .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?;
 
-        let fdm_id = event
-            .fdm_id
-            .ok_or_else(|| "Original event has no FDM ID".to_string())?;
+        let fdm_id = event.fdm_id.ok_or_else(|| incomplete("fdmId"))?;
         let fdm_datetime = event
             .fdm_datetime
-            .ok_or_else(|| "Original event has no FDM datetime".to_string())?;
-        let event_label_str = event
-            .event_label
-            .ok_or_else(|| "Original event has no label".to_string())?;
+            .ok_or_else(|| incomplete("fdmDateTime"))?;
+        let event_label_str = event.event_label.ok_or_else(|| incomplete("eventLabel"))?;
         let event_counter = event
             .event_counter
-            .ok_or_else(|| "Original event has no counter".to_string())?;
+            .ok_or_else(|| incomplete("eventCounter"))?;
         let total_counter = event
             .total_counter
-            .ok_or_else(|| "Original event has no total counter".to_string())?;
+            .ok_or_else(|| incomplete("totalCounter"))?;
 
         let label = match event_label_str.as_str() {
             "N" => EventLabel::N,
@@ -104,7 +101,12 @@ pub async fn do_copy_ticket_with(
             "R" => EventLabel::R,
             "C" => EventLabel::C,
             "T" => EventLabel::T,
-            _ => return Err(format!("Unknown event label: {event_label_str}")),
+            _ => {
+                return Err(errors::coded(
+                    errors::EVENT_LABEL_UNKNOWN,
+                    &[("label", &event_label_str)],
+                ));
+            }
         };
 
         let fdm_ref = FdmReference {

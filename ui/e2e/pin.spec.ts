@@ -51,10 +51,10 @@ test.describe('Own PIN - tap your name on the order screen', () => {
   });
 
   test('a refusal from the backend is shown and the dialog stays', async ({ page }) => {
-    await overrideIPC(page, 'set_pin', { __reject: 'PIN must be exactly 4 digits' });
+    await overrideIPC(page, 'set_pin', { __reject: 'pin_format' });
     await typePin(page, '1234');
     await typePin(page, '1234');
-    await expect(page.locator('.pin-dialog .error-msg')).toHaveText('PIN must be exactly 4 digits');
+    await expect(page.locator('.pin-dialog .error-msg')).toHaveText('Le PIN doit compter exactement 4 chiffres.');
     await expect(page.locator('.pin-dialog .title')).toHaveText('Saisir le PIN');
   });
 

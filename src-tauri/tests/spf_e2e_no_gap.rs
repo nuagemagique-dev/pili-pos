@@ -16,6 +16,8 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::errors;
+
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
@@ -226,7 +228,7 @@ async fn zero_total_sale_is_rejected_before_the_fdm() {
         result
             .error
             .as_deref()
-            .is_some_and(|e| e.contains("greater than zero")),
+            .is_some_and(|e| e == errors::ORDER_TOTAL_POSITIVE),
         "unexpected error: {:?}",
         result.error
     );

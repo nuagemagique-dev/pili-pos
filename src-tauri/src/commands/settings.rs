@@ -45,7 +45,7 @@ pub fn set_training_mode(state: State<'_, AppState>, enabled: bool) -> Result<bo
     do_set_training_mode(state.inner(), enabled)
 }
 
-pub const ERR_OPEN_ORDERS: &str = "Pay or empty the open orders before switching training mode";
+pub const ERR_OPEN_ORDERS: &str = crate::commands::errors::OPEN_ORDERS_TRAINING;
 
 /// Switch training mode. Managers only, and never while an order with
 /// lines is open: a real table would otherwise be paid as a training

@@ -80,7 +80,7 @@ Profil restreint. Peut :
 - Enregistrer la commande (Événement P - `signOrder`).
 - **NE peut PAS** imprimer l'addition ni encaisser : les boutons
   « Addition » et « Payer » ne lui sont pas présentés, et le backend
-  refuse la commande (`Forbidden`) ; un Serveur ou un Gérant encaisse.
+  refuse la commande (code `forbidden`) ; un Serveur ou un Gérant encaisse.
 - **NE peut PAS** générer de rapport, copier un ticket, rembourser,
   ouvrir le tiroir, ni modifier les paramètres.
 
@@ -101,9 +101,12 @@ L'enforcement vit à deux niveaux :
    | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant |
    | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs, sauvegarde |
 
-   Une commande refusée renvoie `Not logged in` (aucune session) ou
-   `Forbidden` (rôle insuffisant) avant tout appel au FDM : aucun
-   compteur ni aucune donnée n'est modifié.
+   Une commande refusée renvoie le code `not_logged_in` (aucune
+   session) ou `forbidden` (rôle insuffisant) avant tout appel au FDM :
+   aucun compteur ni aucune donnée n'est modifié. L'écran affiche le
+   message correspondant dans la langue de l'interface (« Session
+   fermée : reconnectez-vous. », « Action réservée à un autre
+   profil. »), voir `src-tauri/src/commands/errors.rs`.
 
 2. **Niveau UI** (`ui/src/stores/auth.ts`) : les boutons et écrans
    qu'un rôle ne peut pas utiliser ne lui sont pas présentés (Payer et
@@ -113,7 +116,7 @@ L'enforcement vit à deux niveaux :
 L'INSZ de chaque événement est celui de l'opérateur connecté : une
 commande qui nomme un autre opérateur (pointage, remboursement,
 copie, mouvement de caisse, rapport) est refusée
-(`Forbidden: not the logged-in operator`). Une vente est signée au nom
+(code `not_the_operator`). Une vente est signée au nom
 du Serveur ou du Gérant qui encaisse, même si la commande a été prise
 par un autre membre du personnel.
 

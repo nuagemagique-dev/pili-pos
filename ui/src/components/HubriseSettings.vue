@@ -7,6 +7,7 @@ import { open as openUrl } from "@tauri-apps/plugin-shell";
 import * as ipc from "../api/ipc";
 import type { HubriseConnectionInfo } from "../api/ipc";
 import { useI18n } from "../i18n";
+import { describeError } from "../utils/errorMessages";
 const { t } = useI18n();
 
 // ── HubRise connection ─────────────────────────────────────────────
@@ -19,7 +20,7 @@ async function loadHubriseStatus() {
   try {
     hubriseStatus.value = await ipc.hubriseGetConnectionStatus();
   } catch (e) {
-    hubriseError.value = String(e);
+    hubriseError.value = describeError(e);
   }
 }
 
@@ -30,7 +31,7 @@ async function connectHubrise() {
     const url = await ipc.hubriseStartOauthFlow();
     await openUrl(url);
   } catch (e) {
-    hubriseError.value = String(e);
+    hubriseError.value = describeError(e);
   } finally {
     hubriseLoading.value = false;
   }
@@ -47,7 +48,7 @@ async function completeHubrise() {
     hubriseStatus.value = await ipc.hubriseCompleteOauth(hubriseCode.value.trim());
     hubriseCode.value = "";
   } catch (e) {
-    hubriseError.value = String(e);
+    hubriseError.value = describeError(e);
   } finally {
     hubriseLoading.value = false;
   }
@@ -59,7 +60,7 @@ async function disconnectHubrise() {
     await ipc.hubriseDisconnect();
     await loadHubriseStatus();
   } catch (e) {
-    hubriseError.value = String(e);
+    hubriseError.value = describeError(e);
   } finally {
     hubriseLoading.value = false;
   }

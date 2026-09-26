@@ -10,6 +10,7 @@ import {
 } from '../api/ipc'
 import { useI18n } from '../i18n'
 import { useToastStore } from './toast'
+import { describeError, errorCode } from '../utils/errorMessages'
 
 /**
  * Default preparation window in minutes, applied automatically on
@@ -70,7 +71,7 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
       try {
         this.orders = await hubriseListWebshopOrders()
       } catch (err) {
-        this.error = String(err)
+        this.error = describeError(err)
       } finally {
         this.loading = false
       }
@@ -87,7 +88,7 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
           target.hubrise_status = newStatus
         }
       } catch (err) {
-        this.error = String(err)
+        this.error = describeError(err)
         throw err
       }
     },
@@ -158,7 +159,7 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
         if (target) target.confirmed_time = iso
         toast.show(`${t('webshop_toast_delay_ok')} +${minutes} min`, 'success')
       } catch (err) {
-        toast.show(String(err), 'error')
+        toast.show(describeError(err), 'error')
         throw err
       }
     },
@@ -170,11 +171,10 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
         await printWebshopKitchen(orderId)
         toast.show(t('webshop_toast_print_ok'), 'success')
       } catch (err) {
-        const raw = String(err ?? '')
-        if (raw.includes('Printer not configured')) {
+        if (errorCode(err) === 'printer_not_configured') {
           toast.show(t('webshop_toast_printer_missing'), 'warning')
         } else {
-          toast.show(raw, 'error')
+          toast.show(describeError(err), 'error')
         }
       }
     },
@@ -186,11 +186,10 @@ export const useWebshopOrdersStore = defineStore('webshopOrders', {
         await printWebshopCustomer(orderId)
         toast.show(t('webshop_toast_print_ok'), 'success')
       } catch (err) {
-        const raw = String(err ?? '')
-        if (raw.includes('Printer not configured')) {
+        if (errorCode(err) === 'printer_not_configured') {
           toast.show(t('webshop_toast_printer_missing'), 'warning')
         } else {
-          toast.show(raw, 'error')
+          toast.show(describeError(err), 'error')
         }
       }
     },

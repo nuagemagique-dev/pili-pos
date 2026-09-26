@@ -12,6 +12,7 @@ import type { DeliveryView, User } from "../types";
 import * as ipc from "../api/ipc";
 import PinDialog from "../components/PinDialog.vue";
 import { useI18n } from "../i18n";
+import { describeError } from "../utils/errorMessages";
 import { HUBRISE_ENABLED } from "../features";
 
 // Folded at build time so the cert build drops the HubRise panel (see
@@ -31,8 +32,7 @@ async function toggleTraining() {
   try {
     await pos.toggleTrainingMode();
   } catch (e) {
-    const msg = String(e).includes("open orders") ? t("training_open_orders") : String(e);
-    toast.show(msg, "error", 6000);
+    toast.show(describeError(e), "error", 6000);
   }
 }
 const menu = useMenuStore();
@@ -61,7 +61,7 @@ async function deactivate(insz: string) {
     await ipc.deactivateUser(insz);
     await loadWorkers();
   } catch (e) {
-    addError.value = String(e);
+    addError.value = describeError(e);
   }
 }
 
@@ -81,7 +81,7 @@ async function addWorker() {
     newInsz.value = "";
     await loadWorkers();
   } catch (e) {
-    addError.value = String(e);
+    addError.value = describeError(e);
   }
 }
 

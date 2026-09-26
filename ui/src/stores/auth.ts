@@ -4,7 +4,7 @@ import type { User } from "../types";
 import * as ipc from "../api/ipc";
 import { useToastStore } from "./toast";
 import { useI18n } from "../i18n";
-import { describeError } from "../utils/fdmMessages";
+import { describeError } from "../utils/errorMessages";
 
 /** Event S (ONSS presence). Never blocks the login or logout, but an
  * unregistered clock-in/out is reported so it can be fixed. */

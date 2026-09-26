@@ -28,6 +28,8 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::errors;
+
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout};
 use moyun_pos::commands::social::do_work_in;
 use moyun_pos::commands::tables::do_sign_table_order;
@@ -152,7 +154,10 @@ async fn concurrent_checkouts_of_the_same_order_do_not_double_archive_or_create_
         .await
         .expect("state.db must not be poisoned by the loser's graceful error");
     assert!(!post_race.success);
-    assert_eq!(post_race.error.as_deref(), Some("Order already closed"));
+    assert_eq!(
+        post_race.error.as_deref(),
+        Some(errors::ORDER_ALREADY_CLOSED)
+    );
 
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
     let work_in = do_work_in(&app.state, TEST_INSZ.to_string())

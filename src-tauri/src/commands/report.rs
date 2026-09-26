@@ -20,6 +20,7 @@ use pos_fiscal::report_totals::{self, ReportEvent};
 use pos_fiscal::types::*;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -264,11 +265,9 @@ pub async fn do_generate_z_report(
         let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
         // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
         if committed != turnover_ticket {
-            return Err(format!(
-                "counter drifted between peek and commit for {label:?} (peeked \
-                 {turnover_ticket}, committed {committed}) - likely a concurrent \
-                 report generation; retry"
-            ));
+            return Err(errors::concurrent(format_args!(
+                "Z turnover {label:?}: peeked {turnover_ticket}, committed {committed}"
+            )));
         }
         let fiscal_event_id = archive::archive_event(
             &tx,
@@ -287,11 +286,9 @@ pub async fn do_generate_z_report(
         let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
         // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
         if committed != user_ticket {
-            return Err(format!(
-                "counter drifted between peek and commit for {label:?} (peeked \
-                 {user_ticket}, committed {committed}) - likely a concurrent \
-                 report generation; retry"
-            ));
+            return Err(errors::concurrent(format_args!(
+                "Z user {label:?}: peeked {user_ticket}, committed {committed}"
+            )));
         }
         archive::archive_event(
             &tx,

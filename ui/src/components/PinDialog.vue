@@ -10,6 +10,7 @@ import { ref } from "vue";
 import NumPad from "./NumPad.vue";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
+import { describeError } from "../utils/errorMessages";
 import { useToastStore } from "../stores/toast";
 import { useAuthStore } from "../stores/auth";
 
@@ -64,7 +65,7 @@ async function onKey(key: string) {
     toast.show(t(props.firstLogin ? "pin_chosen" : "pin_changed"), "success");
     emit("done");
   } catch (e) {
-    error.value = String(e);
+    error.value = describeError(e);
     first.value = "";
     pin.value = "";
     step.value = "enter";

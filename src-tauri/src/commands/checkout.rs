@@ -11,6 +11,7 @@ use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
+use crate::commands::errors;
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
 use crate::state::AppState;
@@ -105,7 +106,7 @@ pub async fn do_checkout_with(
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
-            error: Some("Order has no lines".into()),
+            error: Some(errors::ORDER_NO_LINES.into()),
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
@@ -119,7 +120,7 @@ pub async fn do_checkout_with(
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
-            error: Some("Order total must be greater than zero".into()),
+            error: Some(errors::ORDER_TOTAL_POSITIVE.into()),
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
@@ -133,7 +134,7 @@ pub async fn do_checkout_with(
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
-            error: Some("Order already closed".into()),
+            error: Some(errors::ORDER_ALREADY_CLOSED.into()),
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
@@ -302,11 +303,9 @@ pub async fn do_checkout_with(
         // transaction rolls back, so the loser sees a clean error and
         // can retry.
         if committed_no != ticket_number {
-            return Err(format!(
-                "counter drifted between peek and commit for {label:?} (peeked \
-                 {ticket_number}, committed {committed_no}) - likely a concurrent \
-                 checkout of the same order; retry"
-            ));
+            return Err(errors::concurrent(format_args!(
+                "checkout {label:?}: peeked {ticket_number}, committed {committed_no}"
+            )));
         }
 
         let event_id = archive::archive_event(

@@ -57,6 +57,72 @@ const coreMessages: Messages = {
   "pin_enter": { fr: "Saisir le PIN", en: "Enter PIN", zh: "输入PIN" },
   "pin_change": { fr: "Changer le PIN", en: "Change PIN", zh: "修改PIN" },
   "pin_changed": { fr: "PIN modifié", en: "PIN changed", zh: "PIN已修改" },
+
+  // Backend error codes (src-tauri/src/commands/errors.rs), shown by
+  // utils/errorMessages.ts::describeError.
+  "err_failed": { fr: "L'opération a échoué.", en: "The operation failed.", zh: "操作失败。" },
+  "err_unexpected": {
+    fr: "Erreur inattendue. Contactez votre technicien. ({detail})",
+    en: "Unexpected error. Contact your technician. ({detail})",
+    zh: "意外错误，请联系技术人员。（{detail}）",
+  },
+  "err_not_logged_in": { fr: "Session fermée : reconnectez-vous.", en: "Session closed: log in again.", zh: "会话已关闭：请重新登录。" },
+  "err_forbidden": { fr: "Action réservée à un autre profil.", en: "This action is reserved for another role.", zh: "此操作仅限其他角色。" },
+  "err_not_the_operator": { fr: "Action au nom d'un autre employé refusée.", en: "Acting for another employee is refused.", zh: "不能以其他员工的名义操作。" },
+  "err_insz_invalid": { fr: "INSZ invalide", en: "Invalid INSZ", zh: "INSZ无效" },
+  "err_user_unknown": { fr: "Utilisateur inconnu", en: "Unknown user", zh: "未知用户" },
+  "err_pin_required": { fr: "PIN requis", en: "PIN required", zh: "需要PIN" },
+  "err_pin_wrong": { fr: "PIN incorrect", en: "Wrong PIN", zh: "PIN错误" },
+  "err_pin_format": { fr: "Le PIN doit compter exactement 4 chiffres.", en: "The PIN must be exactly 4 digits.", zh: "PIN必须为4位数字。" },
+  "err_pin_setup_required": { fr: "Un gérant doit choisir un PIN.", en: "A manager must choose a PIN.", zh: "经理必须设置PIN。" },
+  "err_pin_already_set": { fr: "Ce compte a déjà un PIN.", en: "This account already has a PIN.", zh: "该账户已有PIN。" },
+  "err_system_user": { fr: "L'identité système ne peut pas se connecter.", en: "The system identity cannot log in.", zh: "系统身份无法登录。" },
+  "err_name_required": { fr: "Nom requis", en: "Name required", zh: "需要姓名" },
+  "err_role_invalid": { fr: "Profil inconnu", en: "Unknown role", zh: "未知角色" },
+  "err_deactivate_self": { fr: "Vous ne pouvez pas vous désactiver vous-même.", en: "You cannot deactivate yourself.", zh: "不能停用自己。" },
+  "err_operator_invalid": { fr: "Employé invalide : reconnectez-vous.", en: "Invalid employee: log in again.", zh: "员工无效：请重新登录。" },
+  "err_dine_in_needs_table": { fr: "Une commande sur place a besoin d'une table.", en: "A dine-in order needs a table.", zh: "堂食订单需要桌号。" },
+  "err_takeaway_has_no_table": { fr: "Une commande à emporter n'a pas de table.", en: "A takeaway order has no table.", zh: "外带订单没有桌号。" },
+  "err_quantity_positive": { fr: "La quantité doit être d'au moins 1.", en: "The quantity must be at least 1.", zh: "数量至少为1。" },
+  "err_order_not_open": { fr: "Cette commande est déjà clôturée.", en: "This order is already closed.", zh: "该订单已结束。" },
+  "err_price_positive": { fr: "Saisissez un prix supérieur à zéro.", en: "Enter a price greater than zero.", zh: "请输入大于零的价格。" },
+  "err_fixed_price": { fr: "Le produit {product} a un prix fixe.", en: "Product {product} has a fixed price.", zh: "商品{product}为固定价格。" },
+  "err_product_unavailable": { fr: "Le produit {product} n'est pas disponible.", en: "Product {product} is not available.", zh: "商品{product}不可用。" },
+  "err_line_not_found": { fr: "Cette ligne n'existe plus.", en: "This line no longer exists.", zh: "该行已不存在。" },
+  "err_order_no_lines": { fr: "La commande est vide.", en: "The order is empty.", zh: "订单为空。" },
+  "err_order_total_positive": { fr: "Le total doit être supérieur à zéro.", en: "The total must be greater than zero.", zh: "总额必须大于零。" },
+  "err_order_already_closed": { fr: "Cette commande est déjà payée.", en: "This order is already paid.", zh: "该订单已付款。" },
+  "err_event_not_found": { fr: "Ticket introuvable.", en: "Ticket not found.", zh: "未找到票据。" },
+  "err_original_incomplete": {
+    fr: "Le ticket d'origine est incomplet ({field}). Contactez votre technicien.",
+    en: "The original ticket is incomplete ({field}). Contact your technician.",
+    zh: "原始票据不完整（{field}），请联系技术人员。",
+  },
+  "err_event_label_unknown": { fr: "Type de ticket inconnu ({label}).", en: "Unknown ticket type ({label}).", zh: "未知票据类型（{label}）。" },
+  "err_nothing_to_refund": { fr: "Choisissez au moins un article à rembourser.", en: "Choose at least one item to refund.", zh: "请至少选择一件退款商品。" },
+  "err_not_refundable": { fr: "Seul un ticket de vente se rembourse (ici : {label}).", en: "Only a sale ticket can be refunded (here: {label}).", zh: "只能对销售票据退款（此处：{label}）。" },
+  "err_refund_quantity_positive": { fr: "Quantité à rembourser invalide (produit {product}).", en: "Invalid refund quantity (product {product}).", zh: "退款数量无效（商品{product}）。" },
+  "err_refund_product_not_sold": { fr: "Le produit {product} n'est pas sur le ticket d'origine.", en: "Product {product} is not on the original ticket.", zh: "商品{product}不在原始票据上。" },
+  "err_refund_exceeds_sold": {
+    fr: "Produit {product} : {requested} demandé(s), {sold} vendu(s), {refunded} déjà remboursé(s).",
+    en: "Product {product}: {requested} requested, {sold} sold, {refunded} already refunded.",
+    zh: "商品{product}：申请{requested}，已售{sold}，已退{refunded}。",
+  },
+  "err_refund_in_training": { fr: "Une vente réelle ne se rembourse pas en mode formation.", en: "A real sale cannot be refunded in training mode.", zh: "培训模式下不能退款真实销售。" },
+  "err_refund_of_refund": { fr: "Un remboursement ne se rembourse pas.", en: "A refund cannot be refunded.", zh: "退款不能再退款。" },
+  "err_open_orders_training": {
+    fr: "Encaissez ou videz les commandes ouvertes avant de changer de mode",
+    en: "Pay or empty the open orders before switching mode",
+    zh: "切换模式前请结清或清空未结订单",
+  },
+  "err_digital_unavailable": { fr: "Le ticket par e-mail n'est pas configuré sur cette caisse.", en: "Email tickets are not set up on this terminal.", zh: "此收银机未配置电子邮件票据。" },
+  "err_email_invalid": { fr: "Adresse e-mail invalide.", en: "Invalid email address.", zh: "电子邮件地址无效。" },
+  "err_already_printed": { fr: "Le ticket original est déjà imprimé : imprimez une copie.", en: "The original ticket is already printed: print a copy.", zh: "原始票据已打印：请打印副本。" },
+  "err_email_sent": { fr: "Le ticket a été envoyé par e-mail : imprimez une copie.", en: "The ticket was sent by email: print a copy.", zh: "票据已通过电子邮件发送：请打印副本。" },
+  "err_printer_not_configured": { fr: "Aucune imprimante configurée.", en: "No printer configured.", zh: "未配置打印机。" },
+  "err_print_failed": { fr: "L'impression a échoué. Vérifiez l'imprimante. ({detail})", en: "Printing failed. Check the printer. ({detail})", zh: "打印失败，请检查打印机。（{detail}）" },
+  "err_concurrent_operation": { fr: "Une autre opération était en cours : rien n'a été enregistré, réessayez.", en: "Another operation was in progress: nothing was recorded, try again.", zh: "另一操作正在进行：未记录任何内容，请重试。" },
+  "err_internal_error": { fr: "Erreur interne. Contactez votre technicien. ({detail})", en: "Internal error. Contact your technician. ({detail})", zh: "内部错误，请联系技术人员。（{detail}）" },
   "pin_choose": { fr: "Choisissez votre PIN", en: "Choose your PIN", zh: "设置您的PIN" },
   "pin_chosen": { fr: "PIN enregistré", en: "PIN saved", zh: "PIN已保存" },
   "pin_first_login_hint": {
@@ -115,7 +181,6 @@ const coreMessages: Messages = {
   "name": { fr: "Nom", en: "Name", zh: "姓名" },
   "role": { fr: "Rôle", en: "Role", zh: "角色" },
   "config_problems": { fr: "Configuration invalide : le FDM refusera les tickets. Appelez l'installateur.", en: "Invalid configuration: the FDM will refuse tickets. Call the installer.", zh: "配置无效：FDM 将拒绝票据。请联系安装人员。" },
-  "training_open_orders": { fr: "Encaissez ou videz les commandes ouvertes avant de changer de mode", en: "Pay or empty the open orders before switching mode", zh: "切换模式前请结清或清空未结订单" },
   "deactivate": { fr: "Désactiver", en: "Deactivate", zh: "停用" },
   "confirm_deactivate": { fr: "Confirmer ?", en: "Confirm?", zh: "确认？" },
   "role_admin": { fr: "Gérant", en: "Manager", zh: "经理" },
@@ -217,6 +282,11 @@ const coreMessages: Messages = {
 const messages: Messages = HUBRISE_ENABLED
   ? { ...coreMessages, ...webshopMessages }
   : coreMessages;
+
+/** Whether `key` has a text (used to tell a known error code). */
+export function hasMessage(key: string): boolean {
+  return key in messages;
+}
 
 export function useI18n() {
   const pos = usePosStore();

@@ -54,7 +54,7 @@ test.describe('Settings View', () => {
 
   test('training mode is refused while an order is open, and says so', async ({ page }) => {
     await overrideIPC(page, 'set_training_mode', {
-      __reject: 'Pay or empty the open orders before switching training mode',
+      __reject: 'open_orders_training',
     });
     await page.locator('.toggle').click();
     await expect(page.locator('.toast')).toContainText('Encaissez ou videz les commandes ouvertes');

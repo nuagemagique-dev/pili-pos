@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { describeError } from "../utils/fdmMessages";
+import { describeError } from "../utils/errorMessages";
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";

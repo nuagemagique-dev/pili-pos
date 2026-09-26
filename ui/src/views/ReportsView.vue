@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { describeError } from "../utils/fdmMessages";
+import { describeError } from "../utils/errorMessages";
 import { formatDate as formatDay, formatTime, formatTimestamp } from "../utils/datetime";
 import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
@@ -47,7 +47,7 @@ async function generateX() {
     if (result.success) {
       toast.show(`${t('report_generated')} (X)`, "success", 4000);
     } else {
-      toast.show(describeError(result.error ?? "Report failed"), "error", 5000);
+      toast.show(describeError(result.error), "error", 5000);
     }
   } catch (e) {
     toast.show(describeError(e), "error", 5000);
@@ -64,7 +64,7 @@ async function generateUserX() {
     if (result.success) {
       toast.show(`${t('report_generated')} (X util.)`, "success", 4000);
     } else {
-      toast.show(describeError(result.error ?? "Report failed"), "error", 5000);
+      toast.show(describeError(result.error), "error", 5000);
     }
   } catch (e) {
     toast.show(describeError(e), "error", 5000);
@@ -98,7 +98,7 @@ async function generateZ() {
       toast.show(label, "success", 4000);
       await loadHistory();
     } else {
-      toast.show(describeError(result.error ?? "Report failed"), "error", 5000);
+      toast.show(describeError(result.error), "error", 5000);
     }
   } catch (e) {
     toast.show(describeError(e), "error", 5000);
@@ -168,7 +168,7 @@ async function confirmCopy() {
     if (result.success) {
       toast.show(t('report_reprint_ok'), "success");
     } else {
-      toast.show(describeError(result.error ?? "Copy failed"), "error", 5000);
+      toast.show(describeError(result.error), "error", 5000);
     }
     copyStep.value = "result";
   } catch (e) {
@@ -202,7 +202,7 @@ async function handleCashInOut(direction: "in" | "out", reason: string) {
       toast.show(t("cash_success"), "success");
       cashAmountCents.value = 0;
     } else {
-      toast.show(describeError(result.error ?? t("cash_failed")), "error", 5000);
+      toast.show(result.error ? describeError(result.error) : t("cash_failed"), "error", 5000);
     }
   } catch (e) {
     toast.show(describeError(e), "error");
@@ -219,7 +219,7 @@ async function handleOpenDrawer() {
     if (result.success) {
       toast.show(t("cash_drawer_opened"), "success");
     } else {
-      toast.show(describeError(result.error ?? t("cash_failed")), "error", 5000);
+      toast.show(result.error ? describeError(result.error) : t("cash_failed"), "error", 5000);
     }
   } catch (e) {
     toast.show(describeError(e), "error");
@@ -325,7 +325,7 @@ async function confirmRefund() {
     if (result.success) {
       toast.show(t("refund_success"), "success");
     } else {
-      toast.show(describeError(result.error ?? "Refund failed"), "error");
+      toast.show(describeError(result.error), "error");
     }
     refundStep.value = "result";
   } catch (e) {

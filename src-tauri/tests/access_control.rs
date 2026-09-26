@@ -16,6 +16,8 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::errors;
+
 use moyun_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
 use moyun_pos::commands::auth::{
     CreateUserInput, ERR_DEACTIVATE_SELF, ERR_PIN_ALREADY_SET, ERR_PIN_FORMAT,
@@ -716,7 +718,7 @@ async fn a_first_pin_is_refused_for_an_unknown_or_departed_user() {
     app.logout();
     assert_eq!(
         do_login_with_new_pin(&app.state, APPRENTICE.into(), "1234".into()).unwrap_err(),
-        "Utilisateur inconnu"
+        errors::USER_UNKNOWN
     );
     insert_user(&app, APPRENTICE, "waiter");
     as_(&app, MANAGER, UserRole::Admin);
@@ -724,11 +726,11 @@ async fn a_first_pin_is_refused_for_an_unknown_or_departed_user() {
     app.logout();
     assert_eq!(
         do_login_with_new_pin(&app.state, APPRENTICE.into(), "1234".into()).unwrap_err(),
-        "Utilisateur inconnu"
+        errors::USER_UNKNOWN
     );
     assert_eq!(
         do_login_with_new_pin(&app.state, "123".into(), "1234".into()).unwrap_err(),
-        "INSZ invalide"
+        errors::INSZ_INVALID
     );
 }
 

@@ -3,6 +3,20 @@ import { ref, computed } from "vue";
 import type { Order, OrderLine, MenuItem } from "../types";
 import * as ipc from "../api/ipc";
 import { useAuthStore } from "./auth";
+import { useToastStore } from "./toast";
+import { describeError } from "../utils/errorMessages";
+
+/** Run a cart action; a refusal (order paid meanwhile, product no
+ * longer available, session closed) is shown instead of being lost. */
+async function reported(action: () => Promise<void>): Promise<boolean> {
+  try {
+    await action();
+    return true;
+  } catch (e) {
+    useToastStore().show(describeError(e), "error", 5000);
+    return false;
+  }
+}
 
 export const useOrderStore = defineStore("order", () => {
   const currentOrder = ref<Order | null>(null);
@@ -46,7 +60,11 @@ export const useOrderStore = defineStore("order", () => {
 
   /** `unitPriceCents` is the operator-entered price of a free-price
    * product; fixed-price products take the catalogue price. */
-  async function addItem(item: MenuItem, quantity = 1, unitPriceCents?: number) {
+  function addItem(item: MenuItem, quantity = 1, unitPriceCents?: number) {
+    return reported(() => addItemUnreported(item, quantity, unitPriceCents));
+  }
+
+  async function addItemUnreported(item: MenuItem, quantity: number, unitPriceCents?: number) {
     if (!currentOrder.value) throw new Error("No active order");
 
     // If item already in cart, increment quantity instead of adding a
@@ -56,7 +74,7 @@ export const useOrderStore = defineStore("order", () => {
       ? undefined
       : lines.value.find((l) => l.menu_item_id === item.id);
     if (existing) {
-      await updateQuantity(existing.id, existing.quantity + quantity);
+      await updateQuantityUnreported(existing.id, existing.quantity + quantity);
       return;
     }
 
@@ -73,7 +91,11 @@ export const useOrderStore = defineStore("order", () => {
     currentOrder.value = await ipc.getOrder(currentOrder.value.id);
   }
 
-  async function removeLine(lineId: number) {
+  function removeLine(lineId: number) {
+    return reported(() => removeLineUnreported(lineId));
+  }
+
+  async function removeLineUnreported(lineId: number) {
     await ipc.removeOrderLine(lineId);
     lines.value = lines.value.filter((l) => l.id !== lineId);
     if (currentOrder.value) {
@@ -81,9 +103,13 @@ export const useOrderStore = defineStore("order", () => {
     }
   }
 
-  async function updateQuantity(lineId: number, quantity: number) {
+  function updateQuantity(lineId: number, quantity: number) {
+    return reported(() => updateQuantityUnreported(lineId, quantity));
+  }
+
+  async function updateQuantityUnreported(lineId: number, quantity: number) {
     if (quantity <= 0) {
-      await removeLine(lineId);
+      await removeLineUnreported(lineId);
       return;
     }
     await ipc.updateOrderLineQuantity(lineId, quantity);

@@ -13,6 +13,7 @@ use pos_fiscal::types::{EventLabel, PaymentType};
 use crate::commands::access::{self, Access};
 use crate::commands::checkout::CheckoutResult;
 use crate::commands::delivery::{self, TicketDeliveryRequest};
+use crate::commands::errors::{self, incomplete};
 use crate::state::AppState;
 
 /// One item to refund (sent from the frontend). Price, VAT label,
@@ -92,7 +93,7 @@ pub async fn do_refund_checkout_with(
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
-            error: Some("No items to refund".into()),
+            error: Some(errors::NOTHING_TO_REFUND.into()),
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
@@ -104,24 +105,28 @@ pub async fn do_refund_checkout_with(
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = fiscal::get_fiscal_event(&db, original_fiscal_event_id)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Original fiscal event not found".to_string())?;
-        let original_order_id = event.order_id.ok_or("Original event has no order")?;
+            .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?;
+        let original_order_id = event.order_id.ok_or_else(|| incomplete("order"))?;
         let original_lines = pos_db::queries::orders::get_order_lines(&db, original_order_id)
             .map_err(|e| e.to_string())?;
 
-        let fdm_id = event.fdm_id.ok_or("Original event has no FDM ID")?;
+        let fdm_id = event.fdm_id.ok_or_else(|| incomplete("fdmId"))?;
         let fdm_datetime = event
             .fdm_datetime
-            .ok_or("Original event has no FDM datetime")?;
-        let event_label_str = event.event_label.ok_or("Original event has no label")?;
-        let event_counter = event.event_counter.ok_or("Original event has no counter")?;
+            .ok_or_else(|| incomplete("fdmDateTime"))?;
+        let event_label_str = event.event_label.ok_or_else(|| incomplete("eventLabel"))?;
+        let event_counter = event
+            .event_counter
+            .ok_or_else(|| incomplete("eventCounter"))?;
         let total_counter = event
             .total_counter
-            .ok_or("Original event has no total counter")?;
+            .ok_or_else(|| incomplete("totalCounter"))?;
 
         let label = match event_label_str.as_str() {
             "N" => EventLabel::N,
-            other => return Err(format!("Cannot refund event type {other}")),
+            other => {
+                return Err(errors::coded(errors::NOT_REFUNDABLE, &[("label", &other)]));
+            }
         };
 
         let fdm_ref = FdmReference {
@@ -176,9 +181,9 @@ pub async fn do_refund_checkout_with(
         let mut requested: std::collections::HashMap<i64, i32> = std::collections::HashMap::new();
         for item in &items {
             if item.quantity <= 0 {
-                return Err(format!(
-                    "Refund quantity for product {} must be positive",
-                    item.menu_item_id
+                return Err(errors::coded(
+                    errors::REFUND_QUANTITY_POSITIVE,
+                    &[("product", &item.menu_item_id)],
                 ));
             }
             *requested.entry(item.menu_item_id).or_default() += item.quantity;
@@ -341,11 +346,9 @@ pub async fn do_refund_checkout_with(
             let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
             // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
             if committed_no != ticket_number {
-                return Err(format!(
-                    "counter drifted between peek and commit for {label:?} (peeked \
-                     {ticket_number}, committed {committed_no}) - likely a concurrent \
-                     refund of the same sale; retry"
-                ));
+                return Err(errors::concurrent(format_args!(
+                    "refund {label:?}: peeked {ticket_number}, committed {committed_no}"
+                )));
             }
             let event_id = archive::archive_event(
                 &tx,
@@ -438,8 +441,8 @@ fn void_order(state: &AppState, order_id: i64) {
     }
 }
 
-pub const ERR_REFUND_IN_TRAINING: &str = "A real sale cannot be refunded in training mode";
-pub const ERR_REFUND_OF_REFUND: &str = "A refund cannot be refunded";
+pub const ERR_REFUND_IN_TRAINING: &str = errors::REFUND_IN_TRAINING;
+pub const ERR_REFUND_OF_REFUND: &str = errors::REFUND_OF_REFUND;
 
 /// The original sale line a refunded product comes from. The quantity
 /// refunded for a product - summed over THIS request AND every prior
@@ -454,7 +457,12 @@ fn refunded_line(
     let line = original_lines
         .iter()
         .find(|l| l.menu_item_id == menu_item_id)
-        .ok_or_else(|| format!("Product {menu_item_id} is not on the original ticket"))?;
+        .ok_or_else(|| {
+            errors::coded(
+                errors::REFUND_PRODUCT_NOT_SOLD,
+                &[("product", &menu_item_id)],
+            )
+        })?;
     let sold: i32 = original_lines
         .iter()
         .filter(|l| l.menu_item_id == menu_item_id)
@@ -462,10 +470,14 @@ fn refunded_line(
         .sum();
     let total_refunded = requested + already_refunded;
     if total_refunded > sold {
-        return Err(format!(
-            "Cannot refund {requested} of product {menu_item_id}: {sold} sold on the \
-             original ticket and {already_refunded} already refunded ({total_refunded} \
-             would exceed what was sold)"
+        return Err(errors::coded(
+            errors::REFUND_EXCEEDS_SOLD,
+            &[
+                ("product", &menu_item_id),
+                ("requested", &requested),
+                ("sold", &sold),
+                ("refunded", &already_refunded),
+            ],
         ));
     }
     Ok(line)

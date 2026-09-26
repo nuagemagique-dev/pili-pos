@@ -540,9 +540,9 @@ test.describe('Ticket copy (event C) - pick the ticket first', () => {
   test('a refused listing is shown, and no list opens', async ({ page }) => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
     await loginAndGoto(page, '/reports');
-    await overrideIPC(page, 'list_copyable_tickets', { __reject: 'Forbidden' });
+    await overrideIPC(page, 'list_copyable_tickets', { __reject: 'forbidden' });
     await page.getByRole('button', { name: 'Copie de ticket' }).click();
-    await expect(page.locator('.toast', { hasText: 'Forbidden' })).toBeVisible();
+    await expect(page.locator('.toast', { hasText: 'Action réservée à un autre profil.' })).toBeVisible();
     await expect(page.locator('.refund-modal')).toHaveCount(0);
   });
 

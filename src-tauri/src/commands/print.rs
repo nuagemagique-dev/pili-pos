@@ -48,7 +48,7 @@ pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
 /// Canonical "Printer not configured" error string. The UI maps
 /// this to an i18n toast so it can present a friendly message
 /// without parsing transport errors.
-const ERR_PRINTER_NOT_CONFIGURED: &str = "Printer not configured";
+const ERR_PRINTER_NOT_CONFIGURED: &str = crate::commands::errors::PRINTER_NOT_CONFIGURED;
 
 /// Load and deserialize the stored HubRise Order JSON for a local
 /// `orders.id`. Returns the printer-ready payload or a user-facing

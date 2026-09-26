@@ -7,6 +7,7 @@ import { useToastStore } from "../stores/toast";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
+import { describeError, errorCode } from "../utils/errorMessages";
 import PinDialog from "../components/PinDialog.vue";
 
 const router = useRouter();
@@ -75,11 +76,11 @@ async function quickLogin(user: User) {
     toast.show(t("pin_not_set_warning"), "warning", 5000);
     router.push({ name: "order" });
   } catch (e) {
-    if (String(e).includes("pin_setup_required")) {
+    if (errorCode(e) === "pin_setup_required") {
       firstPinUser.value = { insz: user.insz, name: user.name };
       return;
     }
-    error.value = String(e);
+    error.value = describeError(e);
   }
 }
 
@@ -105,14 +106,7 @@ async function submitPin() {
     await auth.loginWithInsz(pinUser.value.insz, pin.value);
     router.push({ name: "order" });
   } catch (e) {
-    const msg = String(e);
-    if (msg.includes("pin_wrong")) {
-      pinError.value = t("pin_wrong");
-    } else if (msg.includes("pin_required")) {
-      pinError.value = t("pin_required");
-    } else {
-      pinError.value = msg;
-    }
+    pinError.value = describeError(e);
     pin.value = "";
   }
 }
@@ -144,16 +138,16 @@ async function submitInsz() {
     await auth.loginWithInsz(insz.value);
     router.push({ name: "order" });
   } catch (e) {
-    const msg = String(e);
-    if (msg.includes("pin_setup_required")) {
+    const code = errorCode(e);
+    if (code === "pin_setup_required") {
       firstPinUser.value = { insz: insz.value, name: nameOf(insz.value) };
-    } else if (msg.includes("pin_required")) {
+    } else if (code === "pin_required") {
       const known = savedUsers.value.find((u) => u.insz === insz.value);
       openPinOverlay(
         known ?? { insz: insz.value, name: insz.value, role: "waiter", active: true, has_pin: true },
       );
     } else {
-      error.value = msg;
+      error.value = describeError(e);
     }
   }
 }

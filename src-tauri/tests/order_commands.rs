@@ -16,6 +16,8 @@ mod common;
 
 use common::*;
 
+use moyun_pos::commands::errors;
+
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_get_order,
@@ -133,7 +135,7 @@ async fn an_order_needs_a_well_formed_operator() {
             },
         )
         .unwrap_err();
-        assert_eq!(err, "Invalid operator INSZ", "{insz:?}");
+        assert_eq!(err, errors::OPERATOR_INVALID, "{insz:?}");
     }
     assert!(do_list_open_orders(&app.state).unwrap().is_empty());
 }
@@ -142,14 +144,10 @@ async fn an_order_needs_a_well_formed_operator() {
 async fn dine_in_needs_a_table_and_takeaway_has_none() {
     let app = app().await;
     for (order_type, table, expected) in [
-        (OrderType::DineIn, None, "A dine-in order needs a table"),
-        (OrderType::DineIn, Some(0), "A dine-in order needs a table"),
-        (OrderType::DineIn, Some(-3), "A dine-in order needs a table"),
-        (
-            OrderType::Takeaway,
-            Some(4),
-            "A takeaway order has no table",
-        ),
+        (OrderType::DineIn, None, errors::DINE_IN_NEEDS_TABLE),
+        (OrderType::DineIn, Some(0), errors::DINE_IN_NEEDS_TABLE),
+        (OrderType::DineIn, Some(-3), errors::DINE_IN_NEEDS_TABLE),
+        (OrderType::Takeaway, Some(4), errors::TAKEAWAY_HAS_NO_TABLE),
     ] {
         let err = do_create_order(
             &app.state,
@@ -314,15 +312,12 @@ async fn a_free_price_line_needs_a_positive_price_and_a_fixed_one_refuses_it() {
     for price in [None, Some(0), Some(-500)] {
         assert_eq!(
             with_price(3, price).unwrap_err(),
-            "Enter a price greater than zero",
+            errors::PRICE_POSITIVE,
             "{price:?}"
         );
     }
     assert_eq!(with_price(3, Some(1450)).unwrap().unit_price_cents, 1450);
-    assert_eq!(
-        with_price(1, Some(1)).unwrap_err(),
-        "Product 1 has a fixed price"
-    );
+    assert_eq!(with_price(1, Some(1)).unwrap_err(), "fixed_price|product=1");
     assert_eq!(total(&app, order), 1450);
 }
 
@@ -332,7 +327,7 @@ async fn unknown_products_and_orders_are_refused() {
     let order = start(&app, Some(1));
     assert_eq!(
         add(&app, order, 999, 1).unwrap_err(),
-        "Product 999 is not available"
+        "product_unavailable|product=999"
     );
     assert!(add(&app, 424_242, 1, 1).is_err());
     assert!(do_get_order(&app.state, 424_242).is_err());
@@ -346,7 +341,7 @@ async fn quantities_start_at_one() {
     for qty in [0, -1, i32::MIN] {
         assert_eq!(
             add(&app, order, 1, qty).unwrap_err(),
-            "Quantity must be greater than zero"
+            errors::QUANTITY_POSITIVE
         );
     }
     assert!(do_list_order_lines(&app.state, order).unwrap().is_empty());
@@ -393,7 +388,7 @@ async fn a_quantity_of_zero_or_less_is_refused() {
     for qty in [0, -2] {
         assert_eq!(
             do_update_order_line_quantity(&app.state, line.id, qty).unwrap_err(),
-            "Quantity must be greater than zero"
+            errors::QUANTITY_POSITIVE
         );
     }
     assert_eq!(total(&app, order), 2400, "nothing changed");
@@ -423,11 +418,11 @@ async fn unknown_lines_are_reported_as_such() {
     let app = app().await;
     assert_eq!(
         do_remove_order_line(&app.state, 31_337).unwrap_err(),
-        "Order line not found"
+        errors::LINE_NOT_FOUND
     );
     assert_eq!(
         do_update_order_line_quantity(&app.state, 31_337, 2).unwrap_err(),
-        "Order line not found"
+        errors::LINE_NOT_FOUND
     );
 }
 

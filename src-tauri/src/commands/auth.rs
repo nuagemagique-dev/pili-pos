@@ -3,6 +3,7 @@ use serde::Deserialize;
 use tauri::State;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
 
 /// Login with INSZ + optional PIN. If the user has a PIN set (pin_hash
@@ -25,7 +26,7 @@ pub fn login(
 /// every other command module's `do_*` functions).
 pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<User, String> {
     if !pos_core::user::validate_insz(&insz) {
-        return Err("INSZ invalide".to_string());
+        return Err(errors::INSZ_INVALID.to_string());
     }
     if insz == SYSTEM_INSZ {
         return Err(ERR_SYSTEM_USER.to_string());
@@ -34,7 +35,7 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let user = pos_db::queries::users::get_user(&db, &insz)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Utilisateur inconnu".to_string())?;
+        .ok_or_else(|| errors::USER_UNKNOWN.to_string())?;
 
     if user.role == UserRole::Admin && !user.has_pin {
         return Err(ERR_PIN_SETUP_REQUIRED.to_string());
@@ -44,10 +45,10 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     if user.has_pin {
         let stored_hash = pos_db::queries::users::get_pin_hash(&db, &insz)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| "PIN hash missing".to_string())?;
-        let provided = pin.ok_or_else(|| "pin_required".to_string())?;
+            .ok_or_else(|| errors::internal("PIN hash missing"))?;
+        let provided = pin.ok_or_else(|| errors::PIN_REQUIRED.to_string())?;
         if !bcrypt::verify(&provided, &stored_hash).unwrap_or(false) {
-            return Err("pin_wrong".to_string());
+            return Err(errors::PIN_WRONG.to_string());
         }
     }
     drop(db);
@@ -57,12 +58,12 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
 }
 
 /// The system identity (`SYSTEM_INSZ`) is not an operator.
-pub const ERR_SYSTEM_USER: &str = "system_user";
+pub const ERR_SYSTEM_USER: &str = errors::SYSTEM_USER;
 /// A manager has no PIN yet: they must choose one to log in.
-pub const ERR_PIN_SETUP_REQUIRED: &str = "pin_setup_required";
+pub const ERR_PIN_SETUP_REQUIRED: &str = errors::PIN_SETUP_REQUIRED;
 /// `login_with_new_pin` for a user who already has a PIN.
-pub const ERR_PIN_ALREADY_SET: &str = "pin_already_set";
-pub const ERR_PIN_FORMAT: &str = "PIN must be exactly 4 digits";
+pub const ERR_PIN_ALREADY_SET: &str = errors::PIN_ALREADY_SET;
+pub const ERR_PIN_FORMAT: &str = errors::PIN_FORMAT;
 
 fn valid_pin(pin: &str) -> bool {
     pin.len() == 4 && pin.chars().all(|c| c.is_ascii_digit())
@@ -86,7 +87,7 @@ pub fn do_login_with_new_pin(
     new_pin: String,
 ) -> Result<User, String> {
     if !pos_core::user::validate_insz(&insz) {
-        return Err("INSZ invalide".to_string());
+        return Err(errors::INSZ_INVALID.to_string());
     }
     if insz == SYSTEM_INSZ {
         return Err(ERR_SYSTEM_USER.to_string());
@@ -100,7 +101,7 @@ pub fn do_login_with_new_pin(
     let user = pos_db::queries::users::get_user(&db, &insz)
         .map_err(|e| e.to_string())?
         .filter(|u| u.active)
-        .ok_or_else(|| "Utilisateur inconnu".to_string())?;
+        .ok_or_else(|| errors::USER_UNKNOWN.to_string())?;
     if !pos_db::queries::users::set_first_pin_hash(&db, &insz, &hash).map_err(user_error)? {
         return Err(ERR_PIN_ALREADY_SET.to_string());
     }
@@ -155,13 +156,16 @@ pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, 
         return Err(ERR_SYSTEM_USER.to_string());
     }
     if input.name.trim().is_empty() {
-        return Err("Name required".to_string());
+        return Err(errors::NAME_REQUIRED.to_string());
     }
     if !pos_core::user::validate_insz(&input.insz) {
-        return Err("INSZ invalide".to_string());
+        return Err(errors::INSZ_INVALID.to_string());
     }
 
-    let role: UserRole = input.role.parse().map_err(|e: String| e)?;
+    let role: UserRole = input
+        .role
+        .parse()
+        .map_err(|_: String| errors::ROLE_INVALID.to_string())?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::users::create_user(&db, &input.insz, &input.name, role)
         .map_err(|e| e.to_string())
@@ -198,7 +202,7 @@ pub fn deactivate_user(state: State<'_, AppState>, insz: String) -> Result<(), S
     do_deactivate_user(state.inner(), insz)
 }
 
-pub const ERR_DEACTIVATE_SELF: &str = "You cannot deactivate yourself";
+pub const ERR_DEACTIVATE_SELF: &str = errors::DEACTIVATE_SELF;
 
 pub fn do_deactivate_user(state: &AppState, insz: String) -> Result<(), String> {
     let operator = access::operator(state, Access::Admin)?;
@@ -211,8 +215,8 @@ pub fn do_deactivate_user(state: &AppState, insz: String) -> Result<(), String> 
 
 fn user_error(e: rusqlite::Error) -> String {
     match e {
-        rusqlite::Error::QueryReturnedNoRows => "Utilisateur inconnu".to_string(),
-        other => other.to_string(),
+        rusqlite::Error::QueryReturnedNoRows => errors::USER_UNKNOWN.to_string(),
+        other => errors::internal(other),
     }
 }
 
