@@ -9,9 +9,11 @@
 #   2. LUKS2-format it with a random TEMPORARY key.
 #   3. Enroll a TPM2 token (auto-unlock, bound to PCR 7 - Secure Boot
 #      policy) AND a recovery key, using the temp key to authorize both.
-#   4. Wipe the temp key's slot - from here on the disk unlocks only
+#   4. Open the volume THROUGH THE TPM2 (systemd-cryptsetup, the same
+#      path every later boot takes): the first boot proves the unlock.
+#   5. Wipe the temp key's slot - from here on the disk unlocks only
 #      via TPM2 (normal boots) or the recovery key (TPM replaced/reset).
-#   5. mkfs.ext4 the decrypted device and mount it on a temporary
+#      mkfs.ext4 the decrypted device and mount it on a temporary
 #      mount point (not /var: see step 9).
 #   6. Copy the factory pos.db + pos.json template
 #      (/usr/share/moyun-pos/factory/, built at image time by
@@ -22,11 +24,11 @@
 #   8. Print the root/spf passwords and the recovery key ONCE, then
 #      wait for Enter - the distributor copies them into the
 #      installation notebook (MANUEL_INSTALLATION_FR.md §3.3/§4.1).
-#   9. Unmount and close the volume. systemd then unlocks it through
-#      the TPM2 (systemd-cryptsetup@moyun-data, /etc/crypttab), checks
-#      it (systemd-fsck@) and mounts it on /var (/etc/fstab), exactly as
-#      on every later boot: the first boot already proves the TPM2
-#      unlock, and fsck never meets a mounted filesystem.
+#   9. Unmount it and leave it open. systemd-cryptsetup@moyun-data
+#      (/etc/crypttab) finds it already active, then systemd-fsck@
+#      checks it and var.mount mounts it on /var (/etc/fstab), as on
+#      every later boot. Closing it here would pull the device from
+#      under the fsck and mount jobs already queued on it.
 #
 # Idempotent: moyun-provision.service only starts this script while
 # /var is not yet a mountpoint (ConditionPathIsMountPoint=!/var), so a
@@ -167,7 +169,6 @@ main() {
     head -c 64 /dev/urandom | base64 > "$tempkey"
 
     cryptsetup luksFormat --type luks2 --batch-mode --key-file "$tempkey" "$raw"
-    cryptsetup luksOpen --key-file "$tempkey" "$raw" moyun-data
 
     log "Enrolling TPM2 (PCR 7) auto-unlock…"
     systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 \
@@ -177,6 +178,9 @@ main() {
     local recovery_key
     recovery_key="$(systemd-cryptenroll --recovery-key --unlock-key-file="$tempkey" "$raw" \
         | tail -n1 | tr -d '[:space:]')"
+
+    log "Unlocking through the TPM2…"
+    "$SYSTEMD_CRYPTSETUP" attach moyun-data "$raw" - tpm2-device=auto,headless=1
 
     log "Removing the temporary key…"
     printf '%s' "$recovery_key" | cryptsetup luksKillSlot --batch-mode --key-file=- "$raw" 0
@@ -277,10 +281,9 @@ BANNER
     read -r -p "Appuyez sur Entrée une fois ces informations notées… " _ || true
     clear || true
 
-    # Step 9: from here systemd unlocks the volume with the TPM2 and
-    # mounts it on /var (this unit is ordered before both).
+    # Step 9: open, unmounted; systemd checks it and mounts it on /var
+    # (this unit is ordered before both).
     umount "$VAR_MNT"
-    cryptsetup close moyun-data
     log "Provisioning complete."
 }
 

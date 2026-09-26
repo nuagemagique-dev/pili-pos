@@ -8,8 +8,8 @@ Wants=systemd-repart.service
 # ordered after basic.target, itself after local-fs.target, so that made
 # an ordering cycle and systemd dropped this unit from the boot.
 Before=local-fs.target systemd-cryptsetup@moyun\x2ddata.service moyun-pos.service getty@tty1.service
-# The device appears as soon as this unit opens it: keep the check and
-# the mount of /var for after it has closed it again.
+# The device appears as soon as this unit opens it (through the TPM2):
+# the check and the mount of /var wait until it has unmounted it.
 Before=systemd-fsck@dev-mapper-moyun\x2ddata.service var.mount
 # Idempotent: does nothing once /var is a real mount (every boot after
 # the first, and any manual re-run). See usr/local/lib/moyun-pos/
