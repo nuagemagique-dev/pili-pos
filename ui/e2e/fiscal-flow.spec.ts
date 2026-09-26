@@ -244,6 +244,32 @@ test.describe('Cash events (F)', () => {
     await expect(page.locator('.toast-success')).toHaveCount(0);
   });
 
+  test('[M133] the counted cash is declared with the amount typed', async ({ page }) => {
+    await mockTauriIPC(page);
+    await loginAndGoto(page, '/reports');
+    await page.locator('.declaration-btn').click();
+    for (const key of ['3', '4', '7', '2', '0']) {
+      await page.locator('.numpad button', { hasText: new RegExp(`^${key}$`) }).click();
+    }
+    await expect(page.getByTestId('open-price-amount')).toContainText('347,20');
+    await page.locator('.btn-confirm').click();
+
+    await expect(page.locator('.toast-success')).toContainText('Contenu du tiroir déclaré');
+    const calls = await ipcCalls(page, 'money_in_out');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ amountCents: 34720, direction: 'declaration' });
+  });
+
+  test('[M133] an empty drawer is declared as 0', async ({ page }) => {
+    await mockTauriIPC(page);
+    await loginAndGoto(page, '/reports');
+    await page.locator('.declaration-btn').click();
+    await expect(page.locator('.btn-confirm')).toBeEnabled();
+    await page.locator('.btn-confirm').click();
+    const calls = await ipcCalls(page, 'money_in_out');
+    expect(calls[0]).toMatchObject({ amountCents: 0, direction: 'declaration' });
+  });
+
   test('cash buttons stay disabled until an amount is chosen', async ({ page }) => {
     await mockTauriIPC(page);
     await loginAndGoto(page, '/reports');

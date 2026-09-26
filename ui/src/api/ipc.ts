@@ -315,7 +315,7 @@ export interface FinancialResult {
 export function moneyInOut(
   employeeInsz: string,
   amountCents: number,
-  direction: "in" | "out",
+  direction: "in" | "out" | "declaration",
   reason: string,
 ): Promise<FinancialResult> {
   return invoke("money_in_out", { employeeInsz, amountCents, direction, reason });

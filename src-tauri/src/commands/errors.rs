@@ -46,6 +46,7 @@ pub const PRODUCT_UNAVAILABLE: &str = "product_unavailable";
 pub const LINE_NOT_FOUND: &str = "line_not_found";
 pub const ORDER_NO_LINES: &str = "order_no_lines";
 pub const ORDER_TOTAL_NEGATIVE: &str = "order_total_negative";
+pub const AMOUNT_NEGATIVE: &str = "amount_negative";
 pub const ORDER_ALREADY_CLOSED: &str = "order_already_closed";
 
 // Tickets: copies and refunds.
@@ -118,6 +119,7 @@ pub const ALL: &[&str] = &[
     LINE_NOT_FOUND,
     ORDER_NO_LINES,
     ORDER_TOTAL_NEGATIVE,
+    AMOUNT_NEGATIVE,
     ORDER_ALREADY_CLOSED,
     EVENT_NOT_FOUND,
     ORIGINAL_INCOMPLETE,

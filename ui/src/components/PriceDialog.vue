@@ -1,13 +1,18 @@
 <script setup lang="ts">
-// Price entry for free-price products ("Prix libre"). Digits are typed
-// as cents, like a payment terminal: 2 0 0 0 → 20,00 €.
+// Amount entry: the price of a free-price product ("Prix libre"), or
+// the cash counted in the drawer. Digits are typed as cents, like a
+// payment terminal: 2 0 0 0 → 20,00 €.
 import { computed, ref } from "vue";
 import NumPad from "./NumPad.vue";
 import { formatPrice } from "../utils/format";
 import { useI18n } from "../i18n";
 
-defineProps<{
+const props = defineProps<{
   itemName: string;
+  /** Defaults to the free-price title. */
+  title?: string;
+  /** An empty drawer is counted as 0,00 €; a price never is. */
+  allowZero?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -30,21 +35,23 @@ function onKey(key: string) {
   }
 }
 
+const valid = computed(() => cents.value > 0 || (props.allowZero === true && cents.value === 0));
+
 function confirm() {
-  if (cents.value > 0) emit("confirm", cents.value);
+  if (valid.value) emit("confirm", cents.value);
 }
 </script>
 
 <template>
   <div class="backdrop" @click.self="emit('cancel')">
-    <div class="dialog" role="dialog" :aria-label="t('open_price_title')">
-      <h2 class="title">{{ t('open_price_title') }}</h2>
+    <div class="dialog" role="dialog" :aria-label="title ?? t('open_price_title')">
+      <h2 class="title">{{ title ?? t('open_price_title') }}</h2>
       <p class="item">{{ itemName }}</p>
       <p class="amount" data-testid="open-price-amount">{{ formatPrice(cents) }} €</p>
       <NumPad :model-value="digits" @update:model-value="onKey" />
       <div class="actions">
         <button class="btn btn-cancel" @click="emit('cancel')">{{ t('back') }}</button>
-        <button class="btn btn-confirm" :disabled="cents <= 0" @click="confirm">
+        <button class="btn btn-confirm" :disabled="!valid" @click="confirm">
           {{ t('validate') }}
         </button>
       </div>

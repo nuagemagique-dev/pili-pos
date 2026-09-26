@@ -526,6 +526,28 @@ async fn m130_money_in() {
     app.dump_evidence("M130");
 }
 
+/// M133: the cash counted in the drawer, declared as it is.
+#[tokio::test]
+async fn m133_drawer_declaration() {
+    let vars = variables("M133");
+    let app = spf_app(&operator(&vars)).await;
+    mock_uc(&app, "M133", None).await;
+
+    let amount = vars["financials"][0]["amount"].as_f64().unwrap();
+    do_money_in_out(
+        &app.state,
+        operator(&vars),
+        (amount * 100.0).round() as i64,
+        MoneyDirection::Declaration,
+        "Declaration tiroir".to_string(),
+    )
+    .await
+    .unwrap();
+
+    assert_matches_fixture("M133", &requests(&app)[0], &vars, &[]);
+    app.dump_evidence("M133");
+}
+
 #[tokio::test]
 async fn m131_drawer_open() {
     let vars = variables("M131");

@@ -6,6 +6,7 @@ use pos_fiscal::inputs::*;
 use pos_fiscal::types::*;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -20,10 +21,13 @@ pub struct FinancialResult {
 pub enum MoneyDirection {
     In,
     Out,
+    /// The cash counted in the drawer (Basic Set M133): the amount is
+    /// what is there, not a movement.
+    Declaration,
 }
 
-/// Record a cash in/out financial event (Event F).
-/// Used for declaring cash float, tips, withdrawals, etc.
+/// Record a cash financial event (Event F): money put in or taken
+/// out (cash float, withdrawal, ...), or the count of the drawer.
 #[tauri::command]
 pub async fn money_in_out(
     state: State<'_, AppState>,
@@ -64,10 +68,21 @@ pub async fn do_money_in_out(
         pos_fiscal::types::TicketMedium::None,
     );
 
-    // Direction conveyed by sign: positive = money in, negative = money out
-    let amount = match direction {
-        MoneyDirection::In => amount_cents as f64 / 100.0,
-        MoneyDirection::Out => -(amount_cents as f64 / 100.0),
+    // A movement's direction is its sign: positive in, negative out.
+    // A declaration is the counted amount, never negative.
+    if amount_cents < 0 {
+        return Err(errors::AMOUNT_NEGATIVE.into());
+    }
+    let (amount, amount_type) = match direction {
+        MoneyDirection::In => (amount_cents as f64 / 100.0, MoneyInOutLineType::MoneyInOut),
+        MoneyDirection::Out => (
+            -(amount_cents as f64 / 100.0),
+            MoneyInOutLineType::MoneyInOut,
+        ),
+        MoneyDirection::Declaration => (
+            amount_cents as f64 / 100.0,
+            MoneyInOutLineType::DrawerDeclaration,
+        ),
     };
 
     let input = MoneyInOutInput {
@@ -80,7 +95,7 @@ pub async fn do_money_in_out(
             provider: None,
             input_method: InputMethod::Manual,
             amount,
-            amount_type: MoneyInOutLineType::MoneyInOut,
+            amount_type,
             foreign_currency: None,
             reference: None,
             drawer: None,

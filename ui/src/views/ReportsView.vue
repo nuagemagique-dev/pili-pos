@@ -13,6 +13,7 @@ import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
+import PriceDialog from "../components/PriceDialog.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -201,6 +202,28 @@ async function handleCashInOut(direction: "in" | "out", reason: string) {
     if (result.success) {
       toast.show(t("cash_success"), "success");
       cashAmountCents.value = 0;
+    } else {
+      toast.show(result.error ? describeError(result.error) : t("cash_failed"), "error", 5000);
+    }
+  } catch (e) {
+    toast.show(describeError(e), "error");
+  } finally {
+    cashLoading.value = false;
+  }
+}
+
+// Cash count (Basic Set M133): any amount, 0 for an empty drawer.
+const declarationOpen = ref(false);
+
+async function handleDeclaration(amountCents: number) {
+  declarationOpen.value = false;
+  const insz = auth.currentUser?.insz;
+  if (!insz) return;
+  cashLoading.value = true;
+  try {
+    const result = await ipc.moneyInOut(insz, amountCents, "declaration", "declaration_tiroir");
+    if (result.success) {
+      toast.show(t("cash_declared"), "success");
     } else {
       toast.show(result.error ? describeError(result.error) : t("cash_failed"), "error", 5000);
     }
@@ -427,6 +450,9 @@ function formatRefundTime(iso: string): string {
         <button class="drawer-btn" @click="handleOpenDrawer">
           {{ t('cash_open_drawer') }}
         </button>
+        <button class="declaration-btn" :disabled="cashLoading" @click="declarationOpen = true">
+          {{ t('cash_declaration') }}
+        </button>
         <button class="refund-btn" @click="openRefund">
           {{ t('refund') }}
         </button>
@@ -569,6 +595,15 @@ function formatRefundTime(iso: string): string {
         </div>
       </div>
     </Teleport>
+
+    <PriceDialog
+      v-if="declarationOpen"
+      :title="t('cash_declaration')"
+      :item-name="t('cash_declaration_hint')"
+      allow-zero
+      @confirm="handleDeclaration"
+      @cancel="declarationOpen = false"
+    />
   </div>
 </template>
 
@@ -655,14 +690,17 @@ function formatRefundTime(iso: string): string {
 .cash-in { background: var(--accent-success); }
 .cash-out { background: var(--accent-warning); }
 
-.drawer-btn {
+.drawer-btn,
+.declaration-btn {
   width: 100%; height: 52px;
   font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
   border-radius: var(--radius-md);
   background: var(--bg-surface); color: var(--text-primary);
   transition: transform var(--tap-duration) ease;
 }
-.drawer-btn:active { transform: scale(var(--tap-scale)); }
+.drawer-btn:active,
+.declaration-btn:active { transform: scale(var(--tap-scale)); }
+.declaration-btn:disabled { opacity: 0.4; }
 
 .refund-btn {
   width: 100%; height: 52px;

@@ -110,6 +110,7 @@ const coreMessages: Messages = {
   "err_line_not_found": { fr: "Cette ligne n'existe plus.", en: "This line no longer exists.", zh: "该行已不存在。" },
   "err_order_no_lines": { fr: "La commande est vide.", en: "The order is empty.", zh: "订单为空。" },
   "err_order_total_negative": { fr: "Le total ne peut pas être négatif.", en: "The total cannot be negative.", zh: "总额不能为负数。" },
+  "err_amount_negative": { fr: "Le montant ne peut pas être négatif.", en: "The amount cannot be negative.", zh: "金额不能为负数。" },
   "err_order_already_closed": { fr: "Cette commande est déjà payée.", en: "This order is already paid.", zh: "该订单已付款。" },
   "err_event_not_found": { fr: "Ticket introuvable.", en: "Ticket not found.", zh: "未找到票据。" },
   "err_original_incomplete": {
@@ -242,6 +243,9 @@ const coreMessages: Messages = {
   "cash_in": { fr: "Entrée de caisse", en: "Cash in", zh: "现金入账" },
   "cash_out": { fr: "Sortie de caisse", en: "Cash out", zh: "现金出账" },
   "cash_open_drawer": { fr: "Ouvrir tiroir", en: "Open drawer", zh: "打开钱箱" },
+  "cash_declaration": { fr: "Déclarer le contenu du tiroir", en: "Declare the drawer count", zh: "申报钱箱现金" },
+  "cash_declaration_hint": { fr: "Montant compté dans le tiroir", en: "Amount counted in the drawer", zh: "钱箱中清点的金额" },
+  "cash_declared": { fr: "Contenu du tiroir déclaré", en: "Drawer count declared", zh: "钱箱现金已申报" },
   "cash_amount_placeholder": { fr: "Montant (€)", en: "Amount (€)", zh: "金额 (€)" },
   "cash_reason_placeholder": { fr: "Motif", en: "Reason", zh: "原因" },
   "cash_success": { fr: "Mouvement enregistré", en: "Movement recorded", zh: "已记录" },
