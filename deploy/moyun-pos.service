@@ -8,6 +8,9 @@ After=systemd-user-sessions.service plymouth-quit-wait.service network-online.ta
 Wants=dbus.socket systemd-logind.service network-online.target
 Before=graphical.target
 ConditionPathExists=/dev/tty0
+# Kiosk image: never start on the USB installer/updater boot entries
+# (moyun-installer.service owns tty1 then). No effect on a plain install.
+ConditionKernelCommandLine=!moyun.installer
 # The kiosk owns tty1; no login prompt is ever shown there.
 Conflicts=getty@tty1.service
 After=getty@tty1.service

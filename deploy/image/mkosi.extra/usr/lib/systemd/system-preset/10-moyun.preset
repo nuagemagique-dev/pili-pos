@@ -1,0 +1,11 @@
+# Read by `systemctl preset-all`, which mkosi runs after
+# mkosi.postinst.chroot. Sorts before Debian's 90-systemd.preset, which
+# enables systemd-networkd (and with it systemd-networkd-wait-online):
+# NetworkManager is the only network manager of the kiosk, so network-
+# online.target (wanted by moyun-pos.service) waits for it alone.
+disable systemd-networkd.service
+disable systemd-networkd.socket
+disable systemd-networkd-wait-online.service
+disable systemd-network-generator.service
+enable NetworkManager.service
+enable NetworkManager-wait-online.service

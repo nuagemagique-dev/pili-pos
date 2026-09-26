@@ -11,7 +11,8 @@
 #      policy) AND a recovery key, using the temp key to authorize both.
 #   4. Wipe the temp key's slot - from here on the disk unlocks only
 #      via TPM2 (normal boots) or the recovery key (TPM replaced/reset).
-#   5. mkfs.ext4 the decrypted device, mount it on /var.
+#   5. mkfs.ext4 the decrypted device and mount it on a temporary
+#      mount point (not /var: see step 9).
 #   6. Copy the factory pos.db + pos.json template
 #      (/usr/share/moyun-pos/factory/, built at image time by
 #      deploy/provision/provision.sh --phase image) into place, and
@@ -21,6 +22,11 @@
 #   8. Print the root/spf passwords and the recovery key ONCE, then
 #      wait for Enter - the distributor copies them into the
 #      installation notebook (MANUEL_INSTALLATION_FR.md §3.3/§4.1).
+#   9. Unmount and close the volume. systemd then unlocks it through
+#      the TPM2 (systemd-cryptsetup@moyun-data, /etc/crypttab), checks
+#      it (systemd-fsck@) and mounts it on /var (/etc/fstab), exactly as
+#      on every later boot: the first boot already proves the TPM2
+#      unlock, and fsck never meets a mounted filesystem.
 #
 # Idempotent: moyun-provision.service only starts this script while
 # /var is not yet a mountpoint (ConditionPathIsMountPoint=!/var), so a
@@ -30,13 +36,20 @@
 set -euo pipefail
 
 FACTORY_DIR="/usr/share/moyun-pos/factory"
-POS_HOME="/var/lib/moyun-pos"
-ETC_DIR="/var/lib/moyun-etc"
+# The new volume's future /var, mounted here while it is prepared.
+VAR_MNT="/run/moyun-provision/var"
+POS_HOME="$VAR_MNT/lib/moyun-pos"
+ETC_DIR="$VAR_MNT/lib/moyun-etc"
 # Debian 12 ships systemd-cryptsetup inside the systemd package, off the
 # PATH; later releases put it in /usr/bin.
 SYSTEMD_CRYPTSETUP="$(command -v systemd-cryptsetup || echo /usr/lib/systemd/systemd-cryptsetup)"
 
-log() { echo "[moyun-provision] $*"; }
+# To tty1 for the installer, and to the journal (never the secrets: the
+# passwords and recovery key are only printed by the final banner).
+log() {
+    echo "[moyun-provision] $*"
+    printf '%s\n' "$*" | systemd-cat -t moyun-provision 2>/dev/null || true
+}
 
 # ── device_id: the terminal's NIC MAC (manual §VI row VII). Duplicated
 #    from deploy/provision/provision.sh's detect_device_id() - the two
@@ -87,12 +100,12 @@ set_password_rw() {
 
 # ── Recovery: LUKS header exists (from a previous, interrupted run)
 #    and a TPM2 token is already enrolled, but /var never got mounted.
-#    Best-effort: unlock and mount what is already there; do NOT
-#    reformat (that would destroy data + the already-shown recovery
-#    key) and do NOT regenerate/redisplay passwords (they may already
-#    have been shown once on an earlier boot - showing a second,
-#    different value would be actively misleading). Anything short of
-#    a clean unlock+mount here is left for manual recovery.
+#    Do NOT reformat (that would destroy data + the already-shown
+#    recovery key) and do NOT regenerate/redisplay passwords (they may
+#    already have been shown once on an earlier boot - showing a
+#    second, different value would be actively misleading). The TPM2
+#    unlock and the /var mount are left to systemd-cryptsetup@ and
+#    var.mount, as on any boot; if they fail, recover manually.
 recover_existing_luks() {
     local raw="$1"
     if ! cryptsetup luksDump "$raw" 2>/dev/null | grep -qi 'tpm2'; then
@@ -102,11 +115,7 @@ recover_existing_luks() {
         log "       manually from the maintenance console (Ctrl+Alt+F2)."
         exit 1
     fi
-    log "LUKS2 + TPM2 already present, /var not mounted - unlocking…"
-    "$SYSTEMD_CRYPTSETUP" attach moyun-data "$raw" - tpm2-device=auto
-    mkdir -p /var
-    mount /dev/mapper/moyun-data /var
-    log "/var mounted from an existing moyun-data volume; nothing else to do."
+    log "LUKS2 + TPM2 already present: unlock and /var left to systemd."
 }
 
 main() {
@@ -130,7 +139,9 @@ main() {
 
     log "Formatting $raw (LUKS2)…"
     local tempkey
-    tempkey="$(mktemp)"
+    # /run is tmpfs from the start of boot (this runs before
+    # local-fs.target, / is read-only): the key never touches a disk.
+    tempkey="$(mktemp -p /run)"
     chmod 600 "$tempkey"
     head -c 64 /dev/urandom | base64 > "$tempkey"
 
@@ -152,8 +163,8 @@ main() {
 
     log "Formatting the filesystem…"
     mkfs.ext4 -F -L moyun-pos-var /dev/mapper/moyun-data >/dev/null
-    mkdir -p /var
-    mount /dev/mapper/moyun-data /var
+    mkdir -p "$VAR_MNT"
+    mount /dev/mapper/moyun-data "$VAR_MNT"
 
     log "Copying factory data…"
     mkdir -p "$ETC_DIR/moyun-pos" "$ETC_DIR/system-connections" "$POS_HOME/logs" "$POS_HOME/backups"
@@ -238,6 +249,11 @@ BANNER
 BANNER
     read -r -p "Appuyez sur Entrée une fois ces informations notées… " _ || true
     clear || true
+
+    # Step 9: from here systemd unlocks the volume with the TPM2 and
+    # mounts it on /var (this unit is ordered before both).
+    umount "$VAR_MNT"
+    cryptsetup close moyun-data
     log "Provisioning complete."
 }
 

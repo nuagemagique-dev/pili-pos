@@ -12,7 +12,12 @@ ConditionKernelCommandLine=|moyun.installer=install
 ConditionKernelCommandLine=|moyun.installer=update
 After=systemd-udevd.service getty@tty1.service
 Before=multi-user.target
-Conflicts=getty@tty1.service moyun-pos.service moyun-provision.service
+# Only getty: this unit is in every boot's transaction (its conditions
+# are checked when it runs, not when the transaction is built), so a
+# Conflicts= on moyun-pos or moyun-provision would cancel their start
+# on a normal boot. Those two skip installer boots by their own
+# ConditionKernelCommandLine=!moyun.installer instead.
+Conflicts=getty@tty1.service
 
 [Service]
 Type=oneshot

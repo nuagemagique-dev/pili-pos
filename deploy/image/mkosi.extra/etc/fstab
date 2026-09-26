@@ -15,3 +15,6 @@
 #
 # <device>                 <mount>  <type>  <options>       <dump> <pass>
 /dev/mapper/moyun-data     /var     ext4    defaults,nofail 0      2
+# / is read-only: /tmp is RAM (PrivateTmp= of moyun-pos.service and the
+# other services need it writable).
+tmpfs                      /tmp     tmpfs   mode=1777,nosuid,nodev,size=512M 0 0
