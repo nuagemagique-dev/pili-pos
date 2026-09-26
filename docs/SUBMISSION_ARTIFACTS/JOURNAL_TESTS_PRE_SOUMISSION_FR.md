@@ -78,7 +78,7 @@ posDateTime :       À effectuer
 INSZ :              À effectuer
 Compteur :          À effectuer (S, séquentiel)
 shortSignature :    À effectuer
-Vérifié via secp256r1 : À effectuer OUI / NON
+Réponse acceptée par le contrôle de cohérence : À effectuer OUI / NON
 ```
 
 ### 3. Commande (événement P) - table 4
@@ -141,11 +141,13 @@ Comportement UI POS : À effectuer modale bloquante affichée ? OUI / NON
 Retry reconnexion :   À effectuer idempotent ? OUI / NON
 ```
 
-### 10. Vérification de signature
+### 10. Contrôle des réponses du FDM réel
 
-Pour chaque `SignResult` capturé ci-dessus, exécuter
-`signature::verify_signature` avec la clé publique secp256r1 publiée
-par le FDM (lue depuis la même réponse de Status) et enregistrer :
+Pour chaque `SignResult` capturé ci-dessus, vérifier que le contrôle
+de cohérence du POS (`pos_fiscal::response_check::check_sign_result`,
+exécuté par le test `e2e_staging`) l'a accepté : écho de la requête,
+opération et label attendus et, pour N, shortSignature égale à
+Hex(SHA1(Base64Decode(digitalSignature))). Enregistrer :
 
 | Événement | Compteur | Vérifié |
 |---|---|---|
@@ -162,7 +164,7 @@ par le FDM (lue depuis la même réponse de Status) et enregistrer :
 
 - [ ] Toutes les vérifications de statut passent.
 - [ ] Tous les types d'événements exercés end-to-end.
-- [ ] Toutes les signatures vérifient localement.
+- [ ] Toutes les réponses du FDM passent le contrôle de cohérence.
 - [ ] Compteurs strictement monotones par label.
 - [ ] Inspection visuelle du ticket (scan QR + bloc de contrôle
       lisible).

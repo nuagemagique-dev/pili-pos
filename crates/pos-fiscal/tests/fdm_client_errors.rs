@@ -8,6 +8,8 @@
 //! exercises each failure mode with wiremock (and, for the network
 //! failures, raw TCP listeners) and asserts `Err` every time.
 
+mod common;
+
 use std::time::Duration;
 
 use pos_core::config::PosConfig;
@@ -115,7 +117,7 @@ async fn empty_errors_array_with_data_is_not_treated_as_an_error() {
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .and(body_string_contains("signWorkIn"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+        .respond_with(common::EchoRequest(serde_json::json!({
             "data": { "signWorkIn": sample_sign_result_json() },
             "errors": []
         })))
@@ -270,8 +272,8 @@ async fn response_with_malformed_sign_result_shape_yields_err() {
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::GraphQl(msg) => assert!(msg.contains("Failed to parse SignResult")),
-        other => panic!("expected GraphQl(\"Failed to parse SignResult...\"), got {other:?}"),
+        FdmError::GraphQl(msg) => assert!(msg.contains("Failed to parse signWorkIn")),
+        other => panic!("expected GraphQl(\"Failed to parse signWorkIn...\"), got {other:?}"),
     }
 }
 
@@ -362,5 +364,103 @@ async fn hung_connection_times_out_quickly_and_yields_err() {
     assert!(
         elapsed < Duration::from_secs(2),
         "must respect the configured total timeout, took {elapsed:?}"
+    );
+}
+
+// ── Responses that do not answer the request ────────────────────
+
+/// Mount `result` (echoed or not) as the answer to `signWorkIn`.
+async fn answer_work_in(result: serde_json::Value, echo: bool) -> Result<(), FdmError> {
+    let server = MockServer::start().await;
+    let body = serde_json::json!({ "data": { "signWorkIn": result } });
+    let mock = Mock::given(method("POST")).and(path("/graphql"));
+    if echo {
+        mock.respond_with(common::EchoRequest(body))
+            .mount(&server)
+            .await;
+    } else {
+        mock.respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&server)
+            .await;
+    }
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let client = FdmClient::new(&cfg.fdm_url);
+    sign_work_in_call(&client, &cfg).await.map(|_| ())
+}
+
+fn mismatch_field(result: Result<(), FdmError>) -> String {
+    match result {
+        Err(FdmError::ResponseMismatch(msg)) => msg,
+        other => panic!("expected ResponseMismatch, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_response_answering_another_request_is_refused() {
+    // The canned body carries ticket 1 and a fixed date: never the
+    // request's date, so the echo check trips.
+    let msg = mismatch_field(answer_work_in(sample_sign_result_json(), false).await);
+    assert!(msg.starts_with("posDateTime"), "{msg}");
+}
+
+#[tokio::test]
+async fn a_response_for_another_pos_is_refused() {
+    let server = MockServer::start().await;
+    let body = serde_json::json!({ "data": { "signWorkIn": sample_sign_result_json() } });
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(move |req: &wiremock::Request| {
+            let mut answer = common::answer(&body, &req.body);
+            answer["data"]["signWorkIn"]["posId"] = "CPOS0031234567".into();
+            ResponseTemplate::new(200).set_body_json(answer)
+        })
+        .mount(&server)
+        .await;
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let client = FdmClient::new(&cfg.fdm_url);
+    let msg = mismatch_field(sign_work_in_call(&client, &cfg).await.map(|_| ()));
+    assert_eq!(msg, "posId attendu CFOD0061234567, reçu CPOS0031234567");
+}
+
+#[tokio::test]
+async fn a_response_with_another_label_is_refused() {
+    let mut result = sample_sign_result_json();
+    result["fdmRef"]["eventLabel"] = "N".into();
+    let msg = mismatch_field(answer_work_in(result, true).await);
+    assert!(msg.starts_with("eventLabel attendu S"), "{msg}");
+}
+
+#[tokio::test]
+async fn a_response_with_another_operation_is_refused() {
+    let mut result = sample_sign_result_json();
+    result["eventOperation"] = "WORK_OUT".into();
+    let msg = mismatch_field(answer_work_in(result, true).await);
+    assert!(msg.starts_with("eventOperation"), "{msg}");
+}
+
+#[tokio::test]
+async fn a_response_without_signature_is_refused() {
+    let mut result = sample_sign_result_json();
+    result["digitalSignature"] = "".into();
+    let msg = mismatch_field(answer_work_in(result, true).await);
+    assert!(msg.starts_with("digitalSignature"), "{msg}");
+}
+
+#[tokio::test]
+async fn an_echoed_response_is_accepted() {
+    answer_work_in(sample_sign_result_json(), true)
+        .await
+        .expect("a consistent answer is accepted");
+}
+
+#[tokio::test]
+async fn the_mismatch_reaches_the_ui_with_its_code() {
+    let err = answer_work_in(sample_sign_result_json(), false)
+        .await
+        .unwrap_err();
+    let ui_text = format!("FDM error: {err}");
+    assert!(
+        ui_text.starts_with("FDM error: FDM_RESPONSE_MISMATCH: "),
+        "{ui_text}"
     );
 }

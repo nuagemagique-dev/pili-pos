@@ -13,12 +13,12 @@ thiserror = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 qrcode = "0.14"
-p256 = { version = "0.13", features = ["ecdsa"] }
 sha1 = "0.10"
 base64 = "0.22"
 hex = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 rusqlite = { workspace = true }
+tracing = "0.1"
 
 [dev-dependencies]
 pos-db = { path = "../pos-db" }

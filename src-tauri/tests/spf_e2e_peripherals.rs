@@ -196,11 +196,7 @@ async fn the_sale_receipt_carries_the_fdm_control_data() {
     let (app, printer) = with_printer().await;
     sale(&app, CheckoutPaymentMethod::Card).await;
     let receipt = &printer.settle(1).await[0];
-    for needle in [
-        "Burger",
-        "FOD01000001",
-        "ca39a3ee5e6b4b0d3255bfef95601890afd80709",
-    ] {
+    for needle in ["Burger", "FOD01000001", M110_SHORT_SIGNATURE] {
         assert!(receipt.contains(needle), "missing {needle}");
     }
 }
@@ -293,7 +289,8 @@ async fn a_z_report_prints_and_is_listed_in_the_history() {
 async fn a_training_z_is_not_listed_in_the_history() {
     let (app, _printer) = with_printer().await;
     app.state.config.lock().unwrap().training_mode = true;
-    mock_from_fixture(&app, &load_uc(&reports_root(), "M184")).await;
+    let fixture = load_uc(&reports_root(), "M184");
+    mock_response(&app, in_training(read_response_envelope(&fixture))).await;
     let z = do_generate_z_report(&app.state, INSZ.into()).await.unwrap();
     assert!(z.success, "{:?}", z.error);
     assert!(z.report_no.is_none());
@@ -373,10 +370,7 @@ async fn the_event_list_is_newest_first_and_limited() {
     assert_eq!(all.len(), 2);
     assert_eq!(all[0]["eventType"], "F", "newest first");
     assert_eq!(all[1]["eventType"], "N");
-    assert_eq!(
-        all[1]["shortSignature"],
-        "ca39a3ee5e6b4b0d3255bfef95601890afd80709"
-    );
+    assert_eq!(all[1]["shortSignature"], M110_SHORT_SIGNATURE);
 
     let one = do_list_fiscal_events(&app.state, Some(1)).unwrap();
     assert_eq!(one.as_array().unwrap().len(), 1);
@@ -400,7 +394,7 @@ async fn a_backup_is_a_readable_copy_of_the_archive() {
         )
         .unwrap();
     assert_eq!(events, 1);
-    assert_eq!(sig, "ca39a3ee5e6b4b0d3255bfef95601890afd80709");
+    assert_eq!(sig, M110_SHORT_SIGNATURE);
     // The copy keeps the append-only protection of the archive.
     assert!(copy.execute("DELETE FROM fiscal_events", []).is_err());
 }

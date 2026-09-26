@@ -467,7 +467,11 @@ async fn a_training_z_neither_takes_a_z_number_nor_closes_the_period() {
     play_service_day(&app).await;
     app.state.config.lock().unwrap().training_mode = true;
 
-    fdm_signs_report(&app, "M184_signReportTurnoverZUserZ").await;
+    mock_response(
+        &app,
+        in_training(read_json("M184_signReportTurnoverZUserZ", "_Response.json")),
+    )
+    .await;
     let result = do_generate_z_report(&app.state, U1.to_string())
         .await
         .unwrap();

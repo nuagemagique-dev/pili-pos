@@ -50,7 +50,7 @@ This is a **Tauri v2 desktop application** running on Linux (Debian minimal + Ca
 - **ESC/POS** - raw binary thermal printer commands via serial/USB/TCP
 - **QR code** - `qrcode` crate for fiscal ticket QR codes
 - **JSON serialization** - `serde` + `serde_json` for fiscal event archival
-- **Crypto** - `p256` crate for ECDSA secp256r1 signature verification (FDM responses)
+- **FDM response check** - `pos-fiscal::response_check` refuses any sign response that does not echo its request (identity, operation, label, N shortSignature = SHA-1 of digitalSignature). The ECDSA signature is stored, not verified (the POS has no FDM public key).
 - **Chrono** - `chrono` for timestamp handling
 
 ### Frontend (Vue 3 + TypeScript)
@@ -210,7 +210,8 @@ moyun-pos/
 │   │       ├── lib.rs
 │   │       ├── event.rs        # FiscalEvent enum (N/P/T/C/I/F/S/R)
 │   │       ├── fdm_client.rs   # GraphQL client to FDM
-│   │       ├── signature.rs    # ECDSA secp256r1 verification
+│   │       ├── signature.rs    # shortSignature = hex(SHA1(digitalSignature))
+│   │       ├── response_check.rs # FDM response vs request consistency check
 │   │       ├── ticket.rs       # Fiscal ticket data structure
 │   │       ├── archive.rs      # JSON archival logic
 │   │       ├── counter.rs      # Sequential numbering

@@ -4,6 +4,36 @@ use serde::Serialize;
 
 use crate::inputs::*;
 use crate::response::*;
+use crate::response_check::{ExpectedEvent, check_sign_result};
+
+/// Parse one sign result out of the GraphQL `data` object and check it
+/// against the request it answers before anyone can archive it.
+fn parse_checked<D: Serialize>(
+    data: &serde_json::Value,
+    mutation_name: &str,
+    request: &D,
+    is_training: bool,
+) -> Result<SignResult, FdmError> {
+    let value = data
+        .get(mutation_name)
+        .ok_or_else(|| FdmError::GraphQl(format!("Missing {mutation_name} in response")))?;
+    let result: SignResult = serde_json::from_value(value.clone())
+        .map_err(|e| FdmError::GraphQl(format!("Failed to parse {mutation_name}: {e}")))?;
+    let expected = ExpectedEvent::for_mutation(mutation_name, is_training)
+        .ok_or_else(|| FdmError::GraphQl(format!("Unknown sign mutation {mutation_name}")))?;
+    let request = serde_json::to_value(request)
+        .map_err(|e| FdmError::GraphQl(format!("Failed to serialize {mutation_name}: {e}")))?;
+    check_sign_result(&request, expected, &result).map_err(|mismatch| {
+        tracing::error!(
+            mutation = mutation_name,
+            %mismatch,
+            response = %value,
+            "FDM response does not match its request; event not archived"
+        );
+        FdmError::ResponseMismatch(mismatch.to_string())
+    })?;
+    Ok(result)
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum FdmError {
@@ -15,6 +45,10 @@ pub enum FdmError {
     NotConnected,
     #[error("FDM not operational: {0}")]
     NotOperational(String),
+    /// The FDM answered, but its response does not match the request
+    /// (see [`crate::response_check`]). Nothing may be archived.
+    #[error("FDM_RESPONSE_MISMATCH: {0}")]
+    ResponseMismatch(String),
 }
 
 /// Client for communicating with the FDM over GraphQL/HTTP.
@@ -332,14 +366,10 @@ impl FdmClient {
             .data
             .ok_or_else(|| FdmError::GraphQl("No data in response".into()))?;
 
-        let parse = |key: &str| -> Result<SignResult, FdmError> {
-            let value = data
-                .get(key)
-                .ok_or_else(|| FdmError::GraphQl(format!("Missing {key} in response")))?;
-            serde_json::from_value(value.clone())
-                .map_err(|e| FdmError::GraphQl(format!("Failed to parse {key}: {e}")))
-        };
-        Ok((parse("signReportTurnoverZ")?, parse("signReportUserZ")?))
+        Ok((
+            parse_checked(&data, "signReportTurnoverZ", &turnover, is_training)?,
+            parse_checked(&data, "signReportUserZ", &user, is_training)?,
+        ))
     }
 
     pub async fn sign_cost_center_change(
@@ -382,6 +412,7 @@ impl FdmClient {
         }
 
         let vars = Vars { data, is_training };
+        let data_in = data;
 
         let resp: GraphQlResponse<serde_json::Value> = self.execute_raw(&query, &vars).await?;
 
@@ -402,12 +433,7 @@ impl FdmClient {
             .ok_or_else(|| FdmError::GraphQl("No data in response".into()))?;
 
         // The response is at data.<mutationName>
-        let result_value = data
-            .get(mutation_name)
-            .ok_or_else(|| FdmError::GraphQl(format!("Missing {mutation_name} in response")))?;
-
-        serde_json::from_value(result_value.clone())
-            .map_err(|e| FdmError::GraphQl(format!("Failed to parse SignResult: {e}")))
+        parse_checked(&data, mutation_name, data_in, is_training)
     }
 
     async fn execute_raw<V: Serialize, R: serde::de::DeserializeOwned>(

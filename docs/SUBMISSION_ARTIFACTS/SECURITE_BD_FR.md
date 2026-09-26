@@ -301,12 +301,33 @@ jamais l'ouvrir en écriture : wrapper `pos-db-ro`
 ### 4.1 Signature ECDSA secp256r1 (par le FDM)
 
 Chaque événement fiscal porte la signature `digitalSignature` du
-FDM dans `fiscal_events.fdm_response_json`. Cette signature couvre
-le payload de la requête. Toute modification a posteriori d'une
-ligne `fiscal_events` (DELETE + INSERT avec contenu différent, par
-exemple via accès physique) **briserait la signature** : une
-re-vérification par `pos_fiscal::signature::verify_signature` avec
-la clé publique du FDM échouerait, prouvant la falsification.
+FDM dans `fiscal_events.fdm_response_json`, conservée telle que le
+FDM l'a renvoyée, avec la réponse complète. Le FDM garde lui-même
+chaque événement signé et le transmet au SPF Finances. Une ligne
+`fiscal_events` modifiée a posteriori (par exemple via un accès
+physique) ne correspondrait donc plus à l'événement signé détenu par
+le FDM et le SPF Finances : la comparaison révèle la falsification.
+
+Le POS ne détient pas la clé publique du FDM (le schéma GraphQL du
+FDM ne l'expose pas) et ne vérifie donc pas lui-même la signature
+ECDSA. Il contrôle en revanche, avant tout archivage, que chaque
+réponse correspond à la requête envoyée
+(`crates/pos-fiscal/src/response_check.rs`) :
+
+- `posId`, `posFiscalTicketNo`, `posDateTime`, `deviceId` et
+  `terminalId` identiques à la requête ;
+- `eventOperation` et `eventLabel` conformes à la mutation appelée
+  (label T en mode formation) ;
+- `digitalSignature` présente et en base64 valide ;
+- pour un événement N : `shortSignature` présente et égale à
+  Hex(SHA1(Base64Decode(digitalSignature))), `verificationUrl`
+  présente.
+
+Une réponse qui ne respecte pas ces règles n'est jamais archivée : la
+vente est refusée, rien n'est imprimé, la commande reste ouverte et
+l'écran affiche « Réponse de la boîte noire incohérente ». Un
+compteur FDM qui ne progresse pas (même FDM) est consigné dans le
+journal technique.
 
 ### 4.2 Hash SHA-1 du binaire
 

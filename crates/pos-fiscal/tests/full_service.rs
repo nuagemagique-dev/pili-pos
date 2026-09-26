@@ -23,6 +23,8 @@
 //! - FDM communication (mock validates GraphQL structure)
 //! - Receipt binary (ESC/POS contains required labels + FDM control data)
 
+mod common;
+
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use pos_core::config::PosConfig;
@@ -44,7 +46,7 @@ use pos_fiscal::types::*;
 use pos_print::receipt;
 use uuid::Uuid;
 use wiremock::matchers::{body_string_contains, method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{Mock, MockServer};
 
 /// A booking period for tests.
 fn bk(period_id: &str) -> pos_fiscal::event::Booking {
@@ -164,7 +166,7 @@ async fn mock_mutation(
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .and(body_string_contains(mutation_contains))
-        .respond_with(ResponseTemplate::new(200).set_body_json(&body))
+        .respond_with(common::EchoRequest(body.clone()))
         .up_to_n_times(1)
         .named(mutation_contains)
         .mount(server)

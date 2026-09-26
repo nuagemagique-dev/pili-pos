@@ -59,6 +59,10 @@ pub fn archive_event(
         .trim_matches('"')
         .to_string();
 
+    if let Some(result) = params.sign_result {
+        warn_on_counter_regression(conn, result);
+    }
+
     conn.execute(
         "INSERT INTO fiscal_events (
             event_type, sequence_number, order_id, pos_id, terminal_id,
@@ -83,6 +87,70 @@ pub fn archive_event(
     )?;
 
     Ok(conn.last_insert_rowid())
+}
+
+/// The FDM's counters only go up. A signed event whose `totalCounter`
+/// (or per-label `eventCounter`) is not above the last one archived
+/// from the same FDM points at a replayed or foreign response. The
+/// event is already signed at this point, so it is still archived (a
+/// refusal would lose a record the FDM keeps anyway), but the
+/// technician finds it in the log.
+fn warn_on_counter_regression(conn: &rusqlite::Connection, result: &SignResult) {
+    for regression in counter_regressions(conn, result) {
+        tracing::warn!(
+            fdm_id = %result.fdm_ref.fdm_id,
+            counter = regression.counter,
+            received = regression.received,
+            last_archived = regression.last_archived,
+            "FDM counter did not increase"
+        );
+    }
+}
+
+/// A counter of a new FDM response that is not above the last one
+/// archived from the same FDM.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CounterRegression {
+    pub counter: &'static str,
+    pub received: i64,
+    pub last_archived: i64,
+}
+
+pub fn counter_regressions(
+    conn: &rusqlite::Connection,
+    result: &SignResult,
+) -> Vec<CounterRegression> {
+    let fdm = &result.fdm_ref;
+    let label = serde_json::to_string(&fdm.event_label).unwrap_or_default();
+    let label = label.trim_matches('"');
+    let last = conn.query_row(
+        "SELECT
+            MAX(json_extract(fdm_response_json, '$.fdmRef.totalCounter')),
+            MAX(CASE WHEN event_label = ?2
+                THEN json_extract(fdm_response_json, '$.fdmRef.eventCounter') END)
+         FROM fiscal_events WHERE fdm_id = ?1",
+        rusqlite::params![fdm.fdm_id, label],
+        |row| Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?)),
+    );
+    let Ok((last_total, last_event)) = last else {
+        return vec![];
+    };
+    let mut regressions = vec![];
+    if let Some(last) = last_total.filter(|&t| fdm.total_counter <= t) {
+        regressions.push(CounterRegression {
+            counter: "totalCounter",
+            received: fdm.total_counter,
+            last_archived: last,
+        });
+    }
+    if let Some(last) = last_event.filter(|&c| fdm.event_counter <= c) {
+        regressions.push(CounterRegression {
+            counter: "eventCounter",
+            received: fdm.event_counter,
+            last_archived: last,
+        });
+    }
+    regressions
 }
 
 /// Every event archived in the booking period `booking_period_id`
@@ -458,5 +526,85 @@ mod tests {
             conn.execute("UPDATE z_reports SET data_json = '{}'", [])
                 .is_err()
         );
+    }
+
+    fn archive_signed(conn: &rusqlite::Connection, seq: i64, sr: &SignResult) {
+        archive_event(
+            conn,
+            ArchiveParams {
+                event_type: sr.fdm_ref.event_label,
+                sequence_number: seq,
+                order_id: None,
+                pos_id: "CFOD0061234567",
+                terminal_id: "POS1",
+                user_insz: "12345678901",
+                request_json: "{}",
+                sign_result: Some(sr),
+            },
+        )
+        .unwrap();
+    }
+
+    fn with_counters(label: EventLabel, event: i64, total: i64) -> SignResult {
+        let mut sr = sign_result();
+        sr.fdm_ref.event_label = label;
+        sr.fdm_ref.event_counter = event;
+        sr.fdm_ref.total_counter = total;
+        sr
+    }
+
+    #[test]
+    fn increasing_counters_are_not_a_regression() {
+        let conn = setup();
+        archive_signed(&conn, 1, &with_counters(EventLabel::N, 1, 1));
+        archive_signed(&conn, 1, &with_counters(EventLabel::P, 1, 2));
+        assert!(counter_regressions(&conn, &with_counters(EventLabel::N, 2, 3)).is_empty());
+    }
+
+    #[test]
+    fn a_total_counter_going_back_is_reported() {
+        let conn = setup();
+        archive_signed(&conn, 1, &with_counters(EventLabel::N, 1, 5));
+        archive_signed(&conn, 1, &with_counters(EventLabel::P, 1, 6));
+        let found = counter_regressions(&conn, &with_counters(EventLabel::N, 2, 6));
+        assert_eq!(
+            found,
+            vec![CounterRegression {
+                counter: "totalCounter",
+                received: 6,
+                last_archived: 6,
+            }]
+        );
+    }
+
+    #[test]
+    fn an_event_counter_going_back_is_reported_per_label() {
+        let conn = setup();
+        archive_signed(&conn, 1, &with_counters(EventLabel::N, 4, 4));
+        // P has its own counter: 1 after N's 4 is fine.
+        assert!(counter_regressions(&conn, &with_counters(EventLabel::P, 1, 5)).is_empty());
+        let found = counter_regressions(&conn, &with_counters(EventLabel::N, 3, 5));
+        assert_eq!(found[0].counter, "eventCounter");
+        assert_eq!((found[0].received, found[0].last_archived), (3, 4));
+    }
+
+    #[test]
+    fn another_fdm_starts_its_own_counters() {
+        let conn = setup();
+        archive_signed(&conn, 1, &with_counters(EventLabel::N, 9, 9));
+        let mut replacement = with_counters(EventLabel::N, 1, 1);
+        replacement.fdm_ref.fdm_id = "CBX01000099".to_string();
+        assert!(counter_regressions(&conn, &replacement).is_empty());
+    }
+
+    #[test]
+    fn a_counter_regression_is_logged_but_still_archived() {
+        let conn = setup();
+        archive_signed(&conn, 1, &with_counters(EventLabel::N, 2, 2));
+        archive_signed(&conn, 2, &with_counters(EventLabel::N, 1, 1));
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM fiscal_events", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 2, "the signed event is never lost");
     }
 }

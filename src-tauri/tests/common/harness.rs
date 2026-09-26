@@ -271,13 +271,124 @@ impl TestApp {
 /// test relies on each command issuing exactly the mutation we're
 /// servicing. For multi-step UCs, register multiple mocks; wiremock
 /// dispatches in registration order via `up_to_n_times(1)`.
+///
+/// The envelope is replayed through [`EchoRequest`]: its business
+/// content is the fixture's, but its identity fields answer the request
+/// actually sent, as a real FDM does. Use [`mock_raw_response`] to send
+/// an envelope exactly as given (for inconsistent-response tests).
 pub async fn mock_response(app: &TestApp, response_envelope: Value) {
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(EchoRequest(response_envelope))
+        .up_to_n_times(1)
+        .mount(&app.fdm)
+        .await;
+}
+
+/// A published non-training envelope as the FDM answers it in training
+/// mode: every event is labelled T (POS detailed description v2.2
+/// §2.2.4, last row of `tb_eventOperation`).
+#[allow(dead_code)]
+pub fn in_training(mut envelope: Value) -> Value {
+    if let Some(fields) = envelope.get_mut("data").and_then(Value::as_object_mut) {
+        for result in fields.values_mut() {
+            if let Some(fdm_ref) = result.get_mut("fdmRef").and_then(Value::as_object_mut) {
+                fdm_ref.insert("eventLabel".into(), Value::String("T".into()));
+            }
+        }
+    }
+    envelope
+}
+
+/// Short signature of the digital signature carried by the published
+/// M110 sale response. The fixture's own `shortSignature` is a
+/// placeholder (SHA-1 of nothing); the replay derives the real one.
+#[allow(dead_code)]
+pub const M110_SHORT_SIGNATURE: &str = "e2c43d6bbe9be265f2ecc1578368c224ff980c26";
+
+/// Same as [`mock_response`] but replays the envelope byte for byte,
+/// without echoing the request.
+#[allow(dead_code)]
+pub async fn mock_raw_response(app: &TestApp, response_envelope: Value) {
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .respond_with(ResponseTemplate::new(200).set_body_json(response_envelope))
         .up_to_n_times(1)
         .mount(&app.fdm)
         .await;
+}
+
+/// Replays an official response envelope as the answer to the request
+/// the POS really sent.
+///
+/// The published fixtures were produced by another POS (`posId`
+/// CPOS0031234567, ticket numbers 1000+, placeholder short signatures
+/// on M110/M111/T*). The POS now refuses any response that does not
+/// echo its request, so the replay copies `posId`, `posFiscalTicketNo`,
+/// `posDateTime`, `deviceId` and `terminalId` from the request and
+/// derives `shortSignature` from `digitalSignature` when the fixture
+/// carries one. Lines, VAT, totals, labels and counters stay the
+/// fixture's. Status queries and error envelopes pass through untouched.
+pub struct EchoRequest(pub Value);
+
+impl EchoRequest {
+    pub fn answer(envelope: &Value, request_body: &[u8]) -> Value {
+        let mut envelope = envelope.clone();
+        let Ok(request) = serde_json::from_slice::<Value>(request_body) else {
+            return envelope;
+        };
+        let variables = &request["variables"];
+        let Some(fields) = envelope.get_mut("data").and_then(Value::as_object_mut) else {
+            return envelope;
+        };
+        for (field, result) in fields.iter_mut() {
+            let input = match field.as_str() {
+                "signReportTurnoverZ" if variables.get("turnover").is_some() => {
+                    &variables["turnover"]
+                }
+                "signReportUserZ" if variables.get("user").is_some() => &variables["user"],
+                _ => &variables["data"],
+            };
+            echo_identity(result, input);
+        }
+        envelope
+    }
+}
+
+/// Copy the request identity into one sign result (see [`EchoRequest`]).
+pub fn echo_identity(result: &mut Value, input: &Value) {
+    let (Some(result), Some(input)) = (result.as_object_mut(), input.as_object()) else {
+        return;
+    };
+    if !result.contains_key("digitalSignature") {
+        return;
+    }
+    for key in ["posId", "posFiscalTicketNo", "posDateTime", "deviceId"] {
+        if let Some(value) = input.get(key) {
+            result.insert(key.to_string(), value.clone());
+        }
+    }
+    match input.get("terminalId") {
+        Some(value) => result.insert("terminalId".to_string(), value.clone()),
+        None => result.remove("terminalId"),
+    };
+    let has_short = result
+        .get("shortSignature")
+        .is_some_and(|short| !short.is_null());
+    if has_short
+        && let Some(short) = result
+            .get("digitalSignature")
+            .and_then(Value::as_str)
+            .and_then(|sig| pos_fiscal::signature::compute_short_signature(sig).ok())
+    {
+        result.insert("shortSignature".to_string(), Value::String(short));
+    }
+}
+
+impl wiremock::Respond for EchoRequest {
+    fn respond(&self, request: &wiremock::Request) -> ResponseTemplate {
+        ResponseTemplate::new(200).set_body_json(Self::answer(&self.0, &request.body))
+    }
 }
 
 /// Convenience helper: load the fixture's response file and register

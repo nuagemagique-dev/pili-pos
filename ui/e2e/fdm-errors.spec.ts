@@ -52,6 +52,17 @@ test('an FDM error code gets its §V message', async ({ page }) => {
   );
 });
 
+test('an FDM answer that does not match the sale is explained', async ({ page }) => {
+  await payByCard(
+    page,
+    refused('FDM error: FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41'),
+  );
+  await expect(page.locator('.checkout .error-msg')).toHaveText(
+    'Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien.',
+  );
+  await expect(page.locator('.card-btn')).toBeVisible();
+});
+
 test('an error that is not the FDM’s is shown as it is', async ({ page }) => {
   await payByCard(page, refused('Forbidden'));
   await expect(page.locator('.checkout .error-msg')).toHaveText('Forbidden');

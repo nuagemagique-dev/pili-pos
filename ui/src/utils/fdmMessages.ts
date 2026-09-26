@@ -31,8 +31,20 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INITIALIZATION_FAILED: "L'initialisation de la boîte noire a échoué.",
 };
 
+// Refusals detected by the POS itself, not codes of the FDM (so not
+// part of the §V table).
+export const POS_CHECK_MESSAGES: Record<string, string> = {
+  // The FDM answered, but not to the request sent: nothing was
+  // recorded (pos_fiscal::response_check).
+  FDM_RESPONSE_MISMATCH:
+    "Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien.",
+};
+
 export function translateFdmError(raw: string | null): string | null {
   if (!raw) return null;
+  for (const [code, msg] of Object.entries(POS_CHECK_MESSAGES)) {
+    if (raw.includes(code)) return msg;
+  }
   for (const [code, msg] of Object.entries(ERROR_MESSAGES)) {
     if (raw.includes(code)) return msg;
   }

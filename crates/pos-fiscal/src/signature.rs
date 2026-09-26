@@ -5,8 +5,6 @@ use sha1::Digest;
 pub enum SignatureError {
     #[error("Base64 decode failed: {0}")]
     Base64(#[from] base64::DecodeError),
-    #[error("Invalid signature format")]
-    InvalidFormat,
 }
 
 /// Compute the shortSignature from the FDM's digitalSignature.

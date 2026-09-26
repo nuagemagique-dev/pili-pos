@@ -46,8 +46,10 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
   garantit qu'un échec FDM ne crée jamais de trou dans la séquence
   - voir `COUNTER_STRATEGY.md` §3 et le test de régression
   `moyun-pos::spf_e2e_no_gap`.
-- **Vérification ECDSA secp256r1** de la signature FDM -
-  `crates/pos-fiscal/src/signature.rs::verify_short_signature`.
+- **Contrôle de chaque réponse FDM avant archivage** (écho de la
+  requête, opération et label, shortSignature dérivée de la signature
+  pour N) - `crates/pos-fiscal/src/response_check.rs`. Une réponse
+  incohérente n'est jamais archivée.
 - **JSON canonique** (RFC 8785) pour la reproductibilité des
   signatures - `crates/pos-fiscal/src/canonical.rs`.
 - **Clé d'idempotence**

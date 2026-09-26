@@ -9,6 +9,7 @@ pub mod inputs;
 pub mod qr;
 pub mod report_totals;
 pub mod response;
+pub mod response_check;
 pub mod signature;
 pub mod ticket;
 pub mod types;

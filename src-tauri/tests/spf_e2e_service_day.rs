@@ -25,6 +25,7 @@ use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, Request, Respond, ResponseTemplate};
 
+use base64::Engine;
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::copy::do_copy_ticket;
 use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
@@ -62,6 +63,17 @@ impl DynamicFdm {
 
     fn sign_result(&self, ticket_number: i64, operation: &str, label: &str) -> Value {
         let total = self.total_counter.fetch_add(1, Ordering::SeqCst) + 1;
+        let signature =
+            base64::engine::general_purpose::STANDARD.encode(format!("SIGDAY{total:06}"));
+        // Only a normal sale carries a short signature and a URL.
+        let (short, url) = if label == "N" {
+            (
+                json!(pos_fiscal::signature::compute_short_signature(&signature).unwrap()),
+                json!(format!("https://gs2.be/day{total}")),
+            )
+        } else {
+            (Value::Null, Value::Null)
+        };
         json!({
             "posId": "CFOD0061234567",
             "posFiscalTicketNo": ticket_number,
@@ -77,9 +89,9 @@ impl DynamicFdm {
                 "totalCounter": total
             },
             "fdmSwVersion": "1.0.0-test",
-            "digitalSignature": format!("SIGDAY{total:06}"),
-            "shortSignature": format!("S{total:06}"),
-            "verificationUrl": Value::Null,
+            "digitalSignature": signature,
+            "shortSignature": short,
+            "verificationUrl": url,
             "vatCalc": Value::Null,
             "bufferCapacityUsed": 0.1,
             "warnings": Value::Null,
@@ -125,10 +137,11 @@ impl Respond for DynamicFdm {
             let u_ticket = vars["user"]["posFiscalTicketNo"]
                 .as_i64()
                 .expect("user ticket number");
-            let data = json!({
-                "signReportTurnoverZ": self.sign_result(t_ticket, "REPORT_TURNOVER_Z", label),
-                "signReportUserZ": self.sign_result(u_ticket, "REPORT_USER_Z", label),
-            });
+            let mut turnover = self.sign_result(t_ticket, "REPORT_TURNOVER_Z", label);
+            let mut user = self.sign_result(u_ticket, "REPORT_USER_Z", label);
+            echo_identity(&mut turnover, &vars["turnover"]);
+            echo_identity(&mut user, &vars["user"]);
+            let data = json!({ "signReportTurnoverZ": turnover, "signReportUserZ": user });
             return ResponseTemplate::new(200).set_body_json(json!({ "data": data }));
         }
 
@@ -141,7 +154,8 @@ impl Respond for DynamicFdm {
             .as_i64()
             .unwrap_or_else(|| panic!("DynamicFdm: no posFiscalTicketNo in {vars}"));
         let label = if is_training { "T" } else { base_label };
-        let result = self.sign_result(ticket, operation, label);
+        let mut result = self.sign_result(ticket, operation, label);
+        echo_identity(&mut result, &vars["data"]);
         ResponseTemplate::new(200).set_body_json(json!({ "data": { mutation: result } }))
     }
 }

@@ -48,7 +48,7 @@ une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque
                              ▼
 ┌────────────────────────────────────────────────────────────────┐
 │  FDM Checkbox CBX01 (FDM de développement au rendez-vous cert)  │
-│  - Signature ECDSA secp256r1                                     │
+│  - Signature ECDSA secp256r1 (clé détenue par le FDM)            │
 │  - Stratégie compteurs : par type d'événement                    │
 │  - Uplink cloud vers SPF Finances (hors périmètre POS)           │
 └────────────────────────────────────────────────────────────────┘
@@ -89,12 +89,23 @@ Chaque branche :
   de l'app et à chaque entrée de checkout.
 
 ### 3.2 Signature de réponse
-- Algorithme : **ECDSA secp256r1**.
-- Implémentation : `pos-fiscal::signature::verify_short_signature`
-  (crate Rust `p256`).
-- La short signature apparaît sur le ticket imprimé (10 caractères
-  hex) ; la signature complète est stockée dans
-  `fiscal_events.fdm_response_json`.
+- Algorithme : **ECDSA secp256r1**, calculé par le FDM avec sa propre
+  clé. Le POS ne détient pas la clé publique du FDM et ne vérifie pas
+  la signature ECDSA ; il la conserve telle quelle, avec la réponse
+  complète, dans `fiscal_events.fdm_response_json`.
+- Contrôle de cohérence avant archivage :
+  `pos_fiscal::response_check::check_sign_result`, appelé par
+  `FdmClient` pour chaque réponse de signature (y compris les deux
+  moitiés du Z M184). Il exige l'écho de `posId`,
+  `posFiscalTicketNo`, `posDateTime`, `deviceId` et `terminalId`,
+  l'`eventOperation` et l'`eventLabel` de la mutation (T en
+  formation), une `digitalSignature` en base64 valide et, pour N, une
+  `shortSignature` égale à Hex(SHA1(Base64Decode(digitalSignature)))
+  (`pos_fiscal::signature::compute_short_signature`) ainsi qu'une
+  `verificationUrl`. Toute divergence produit l'erreur
+  `FDM_RESPONSE_MISMATCH` : rien n'est archivé ni imprimé.
+- La short signature apparaît sur le ticket imprimé (40 caractères
+  hexadécimaux).
 
 ### 3.3 JSON canonique
 - `pos-fiscal::canonical::to_canonical()` sérialise une valeur en
@@ -218,7 +229,8 @@ $ nm target/release/moyun-pos | grep -c pos_hubrise
 | Types d'événements fiscaux & structs d'input | `crates/pos-fiscal/src/inputs.rs` |
 | Client GraphQL FDM | `crates/pos-fiscal/src/fdm_client.rs` |
 | JSON canonique | `crates/pos-fiscal/src/canonical.rs` |
-| Vérification de signature | `crates/pos-fiscal/src/signature.rs` |
+| Short signature (SHA-1) | `crates/pos-fiscal/src/signature.rs` |
+| Contrôle des réponses FDM | `crates/pos-fiscal/src/response_check.rs` |
 | Compteurs fiscaux | `crates/pos-fiscal/src/counter.rs` |
 | Archivage tickets | `crates/pos-fiscal/src/archive.rs` |
 | Schéma base de données | `crates/pos-db/src/schema.rs` |

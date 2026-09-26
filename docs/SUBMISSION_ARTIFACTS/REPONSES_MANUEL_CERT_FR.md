@@ -123,7 +123,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | Item | Réponse |
 |---|---|
 | ☑ Description du format de la base de données | *Voir : SCHEMA_BD_FR.md* |
-| ☑ Sécurité de la base de données | *Voir : SECURITE_BD_FR.md* (WAL, FK constraints, append-only enforcement, durcissement systemd, scellement image, ECDSA, vérification SHA-1) |
+| ☑ Sécurité de la base de données | *Voir : SECURITE_BD_FR.md* (WAL, FK constraints, append-only enforcement, durcissement systemd, scellement image, signature ECDSA du FDM conservée, contrôle de cohérence de chaque réponse FDM, shortSignature SHA-1) |
 | ☑ Données utilisées et créées par le POS | *Voir : FEUILLE_ACQUISITION_DONNEES_FR.md* |
 | ☑ Aperçu des tables contenant les données des events | Table `fiscal_events` documentée dans `SCHEMA_BD_FR.md`. Table append-only avec 1 ligne par événement N/P/T/C/I/F/S/R. |
 | ☑ Disposition des tables de données | *Voir : SCHEMA_BD_FR.md* (organisation par domaine : menu, orders, payments, fiscal, users, reports) |

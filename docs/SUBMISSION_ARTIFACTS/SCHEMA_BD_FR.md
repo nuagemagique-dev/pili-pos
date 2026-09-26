@@ -186,7 +186,7 @@ envoyé au FDM, jamais modifiée ni supprimée après insertion.
 | `fdm_id` | TEXT (nullable) | ID du FDM extrait de la réponse |
 | `fdm_datetime` | TEXT (nullable) | `fdmDateTime` extrait |
 | `event_label` | TEXT (nullable) | Label retourné par le FDM (peut différer de event_type en formation) |
-| `short_signature` | TEXT (nullable) | 10 caractères hexa pour le ticket |
+| `short_signature` | TEXT (nullable) | 40 caractères hexadécimaux (SHA-1), événements N uniquement, imprimés sur le ticket |
 | `qr_data` | TEXT (nullable) | URL 38 caractères pour le QR code |
 | `created_at` | TEXT | Date / heure d'insertion (= clôture de la tx) |
 | `archived` | INTEGER | Vestige de schéma - toujours 0, candidat à suppression |

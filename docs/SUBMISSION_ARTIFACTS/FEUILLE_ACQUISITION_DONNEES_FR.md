@@ -62,9 +62,10 @@ ligne contient la réponse complète du FDM (incluant la signature
 ECDSA brute, l'URL de vérification, le QR data, les éventuelles
 informations/avertissements).
 
-Ceci permet à un contrôleur de **rejouer la vérification de signature**
-sur n'importe quel événement passé, sans dépendre du FDM
-(`pos-fiscal::signature::verify_signature`).
+Ceci permet à un contrôleur de comparer chaque événement passé,
+signature ECDSA comprise, à l'enregistrement que le FDM a transmis au
+SPF Finances. Avant d'archiver une réponse, le POS a contrôlé qu'elle
+répond bien à sa requête (`crates/pos-fiscal/src/response_check.rs`).
 
 ### 1.5 Ticket numérique par e-mail (§III.H)
 
@@ -224,9 +225,9 @@ soumise au SPF Finances.
   `BEGIN IMMEDIATE` qui inclut compteur + archive + (le cas échéant)
   fermeture commande. Cf. `COUNTER_STRATEGY.md`.
 - La signature ECDSA secp256r1 stockée dans
-  `fiscal_events.fdm_response_json` permet de prouver
-  cryptographiquement qu'une ligne n'a pas été modifiée
-  rétroactivement : la signature ne re-vérifierait pas.
+  `fiscal_events.fdm_response_json` est celle que le FDM a calculée et
+  transmise au SPF Finances : une ligne modifiée rétroactivement ne
+  correspondrait plus à l'événement signé détenu par le FDM et le SPF.
 - Hash SHA-1 du binaire `moyun-pos` consigné dans le formulaire de
   demande de certification, vérifiable sur le kiosque déployé via
   `sha1sum /opt/moyun-pos/moyun-pos`.
@@ -262,13 +263,16 @@ Lors d'un contrôle, le distributeur ou son représentant fournit :
 
 1. Un export complet de `pos.db` (par la Méthode A ou B ci-dessus).
 2. Une copie du log `pos.log.*` couvrant la période contrôlée.
-3. La clé publique secp256r1 du FDM (récupérable via la query
-   `Status` du FDM, champ `device.fdmCertificate`).
-4. Le hash SHA-1 du binaire moyun-pos en cours d'exécution sur le
+3. Le hash SHA-1 du binaire moyun-pos en cours d'exécution sur le
    kiosque.
 
-Le contrôleur peut alors, indépendamment du FDM :
-- Vérifier chaque signature avec la clé publique.
+Le POS ne détient pas la clé publique du FDM : la vérification
+cryptographique des signatures se fait avec les données du FDM et du
+SPF Finances. Le contrôleur peut, à partir de l'export :
+- Comparer chaque événement (signature comprise) aux enregistrements
+  du FDM et du SPF Finances.
+- Recalculer chaque shortSignature d'un événement N :
+  Hex(SHA1(Base64Decode(digitalSignature))).
 - Reconstituer la séquence chronologique des événements.
 - Croiser avec les tickets imprimés (vérification QR code).
 - Repérer toute incohérence éventuelle entre l'archive locale et

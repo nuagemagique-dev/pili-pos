@@ -13,6 +13,8 @@
 //! Each test spins up a mock FDM (wiremock) that validates the incoming
 //! GraphQL mutation and returns a realistic SignResult.
 
+mod common;
+
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use pos_core::config::PosConfig;
@@ -28,7 +30,7 @@ use pos_fiscal::signature;
 use pos_fiscal::types::*;
 use uuid::Uuid;
 use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{Mock, MockServer};
 
 /// A booking period for tests.
 fn bk(period_id: &str) -> pos_fiscal::event::Booking {
@@ -200,7 +202,7 @@ async fn mock_fdm_mutation(
 
     Mock::given(method("POST"))
         .and(path("/graphql"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(&body))
+        .respond_with(common::EchoRequest(body.clone()))
         .up_to_n_times(1)
         .named(mutation_name)
         .mount(server)

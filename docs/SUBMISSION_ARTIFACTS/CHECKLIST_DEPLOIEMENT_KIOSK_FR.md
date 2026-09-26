@@ -147,7 +147,7 @@ cargo test --workspace --no-fail-fast                           # → tout vert
 # 5) Smoke test contre le FDM Checkbox (émulateur ou boîtier physique).
 MOYUN_STAGING_FDM_URL=https://... \
   cargo test --package pos-fiscal --test e2e_staging -- --ignored
-# → tous les UC passent avec signatures vérifiées
+# → tous les UC passent ; chaque réponse passe le contrôle de cohérence
 
 # 6) Construire l'image kiosque (les deux profils) - root Linux x86_64
 #    réel, ou conteneur linux/amd64 privilégié depuis macOS.
