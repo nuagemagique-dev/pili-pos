@@ -8,9 +8,15 @@ KMS/Cage crash, moyun-pos never started, VGA still at the firmware
 splash) has zero, or near-zero, brightness spread; a real rendered UI
 frame does not.
 
+A spread alone is weak: a black console with one cursor passes it.
+--expect-color RRGGBB --min-fraction F also requires that color (the
+app's own background, ui/src/styles/tokens.css --bg-primary) on at
+least F of the frame, which a text console never has.
+
 Usage: check-not-blank.py <image.png> [--min-spread N]
-Exit 0 if the frame has enough brightness spread to be a real UI
-frame, 1 if it looks blank/uniform, 2 on a usage/dependency error.
+                          [--expect-color RRGGBB --min-fraction F]
+Exit 0 if the frame looks like a real UI frame, 1 if not, 2 on a
+usage/dependency error.
 """
 
 import argparse
@@ -32,6 +38,13 @@ def main() -> int:
         default=8,
         help="minimum (max-min) grayscale value across the frame (default: 8)",
     )
+    parser.add_argument("--expect-color", help="RRGGBB that must cover part of the frame")
+    parser.add_argument(
+        "--min-fraction",
+        type=float,
+        default=0.3,
+        help="share of the frame --expect-color must cover (default: 0.3)",
+    )
     args = parser.parse_args()
 
     try:
@@ -50,6 +63,21 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+
+    if args.expect_color:
+        want = tuple(int(args.expect_color[i : i + 2], 16) for i in (0, 2, 4))
+        rgb = Image.open(args.image).convert("RGB")
+        total = rgb.size[0] * rgb.size[1]
+        hits = sum(n for n, color in rgb.getcolors(maxcolors=total) if color == want)
+        share = hits / total
+        print(f"#{args.expect_color}: {share:.1%} of the frame (need {args.min_fraction:.0%})")
+        if share < args.min_fraction:
+            print(
+                f"ERROR: the app's background #{args.expect_color} covers only {share:.1%}"
+                " of the frame: the kiosk UI is not on screen",
+                file=sys.stderr,
+            )
+            return 1
     return 0
 
 

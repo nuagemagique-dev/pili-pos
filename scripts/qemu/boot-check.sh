@@ -64,8 +64,19 @@ if grep -qE 'moyun-pos\.service: (Main process exited|Failed|Scheduled restart)'
 fi
 echo "✓ moyun-pos.service still running after 30s"
 
-"$SCRIPT_DIR/screendump.sh" "$NAME" "$OUT"
-python3 "$SCRIPT_DIR/check-not-blank.py" "$REPO_ROOT/docs/SUBMISSION_ARTIFACTS/screenshots/$OUT.png"
+# The login screen's own background (ui/src/styles/tokens.css
+# --bg-primary), not just "something is drawn". WebKit renders in
+# software under QEMU: allow it up to two minutes.
+SHOT="$REPO_ROOT/docs/SUBMISSION_ARTIFACTS/screenshots/$OUT.png"
+for attempt in $(seq 1 12); do
+    "$SCRIPT_DIR/screendump.sh" "$NAME" "$OUT" >/dev/null
+    if python3 "$SCRIPT_DIR/check-not-blank.py" "$SHOT" --expect-color 1a1a2e --min-fraction 0.3; then
+        echo "✓ kiosk UI on screen (attempt $attempt)"
+        break
+    fi
+    (( attempt == 12 )) && fail "the kiosk UI never appeared on screen (see $OUT.png)"
+    sleep 10
+done
 
 check_no_failures
 echo "✓ no failed unit, no ordering cycle"

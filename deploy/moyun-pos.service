@@ -25,6 +25,10 @@ TTYReset=yes
 TTYVHangup=yes
 TTYVTDisallocate=yes
 StandardInput=tty-fail
+# Cage and WebKit report their errors on stdout/stderr: keep them in the
+# journal (the fiscal log itself is the app's pos.log).
+StandardOutput=journal
+StandardError=journal
 UtmpIdentifier=tty1
 UtmpMode=user
 
