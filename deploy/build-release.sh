@@ -21,7 +21,7 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 
 # Build inputs of the reference (container) build, pinned so that a
 # rebuild from the same commit gives the same binary:
-# - the Rust image by digest, not tag (`rust:1.96.0-bookworm` is rebuilt
+# - the Rust image by digest, not tag (`rust:1.98.1-bookworm` is rebuilt
 #   whenever Debian ships security updates); its toolchain is the one
 #   rust-toolchain.toml pins. Digest of the linux/amd64 image, resolved
 #   from the Docker Hub registry API.
@@ -31,7 +31,7 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 # build time; the binary links them dynamically.
 # .github/workflows/image.yml's `repro` job builds twice and compares
 # (scripts/check_repro.sh).
-RUST_BUILD_IMAGE="rust:1.96.0-bookworm@sha256:c993d32d95cc146bd12c84d66f0b924a6a96f3988325f39c144f2f9893dea120"
+RUST_BUILD_IMAGE="rust:1.98.1-bookworm@sha256:c49256cbe5ea0188bc658a689500d70c41eb51f009a7a7be209caf60a944f3ec"
 NODE_VERSION="v22.23.3"
 NODE_TARBALL="node-${NODE_VERSION}-linux-x64.tar.xz"
 NODE_SHA256="df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de"

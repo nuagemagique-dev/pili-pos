@@ -564,10 +564,11 @@ Branche `feat/cert-dossier-kiosk-image`.
   synthétique (« Test item », 10 €) au lieu des scénarios officiels
   (ex. M110 = 2× Dry Martini + 1× Burger of the Chef, 52 €). À
   recapturer contre le FDM Checkbox en rejouant les fixtures.
-- **Toolchain** - une build hors conteneur (cargo Homebrew) ignore
-  `rust-toolchain.toml` (1.98.1 au lieu de 1.96.0). Seule la build
-  `deploy/build-release.sh --docker` fait foi ; vérifier par deux
-  builds successives du tag cert que le SHA-1 est identique.
+- **Toolchain** - résolu : `rust-toolchain.toml` et l'image de build
+  passent à Rust 1.98.1, la version du cargo de développement. Seule
+  la build `deploy/build-release.sh --docker` fait foi ; la CI
+  (`scripts/check_repro.sh`) vérifie que deux builds donnent le même
+  SHA-1.
 - **Adresses IP / port FDM** - plan d'adressage aligné (POS .10, FDM
   .20, imprimante .30) ; port GraphQL du Checkbox CBX01 à confirmer à
   réception du kit.

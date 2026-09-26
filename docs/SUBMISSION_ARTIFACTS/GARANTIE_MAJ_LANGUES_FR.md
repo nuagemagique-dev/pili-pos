@@ -17,7 +17,7 @@ La correspondance exacte entre le build de certification soumis au SPF Finances 
 
 Le dépôt source contient :
 - `Cargo.lock` commité - fige les versions exactes de toutes les dépendances Rust transitives.
-- `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.96.0`).
+- `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.98.1`).
 - `package-lock.json` (UI Vue) - fige les versions exactes des dépendances Node.
 
 La build cert est produite par une commande unique et figée, exécutée dans un conteneur Debian 12 `linux/amd64` :
@@ -28,7 +28,7 @@ La build cert est produite par une commande unique et figée, exécutée dans un
 ```
 
 Le conteneur fixe l'environnement de compilation :
-- l'image Rust est désignée par son empreinte (`rust:1.96.0-bookworm@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
+- l'image Rust est désignée par son empreinte (`rust:1.98.1-bookworm@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
 - Node.js vient de l'archive officielle nodejs.org, dont l'empreinte SHA-256 est vérifiée avant usage ;
 - les chemins de l'hôte (dépôt, registre Cargo) sont remplacés dans le binaire par des noms fixes (`--remap-path-prefix`) ;
 - l'UI embarquée est construite depuis `package-lock.json`.

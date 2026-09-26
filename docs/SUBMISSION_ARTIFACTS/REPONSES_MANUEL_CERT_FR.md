@@ -151,7 +151,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 
 L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build déployée chez chaque client est garantie par :
 
-1. **Build reproductible.** `Cargo.lock` est commité dans le dépôt. `rust-toolchain.toml` épingle la version exacte du compilateur (Rust 1.96.0). La commande de build est documentée et figée :
+1. **Build reproductible.** `Cargo.lock` est commité dans le dépôt. `rust-toolchain.toml` épingle la version exacte du compilateur (Rust 1.98.1). La commande de build est documentée et figée :
    ```
    deploy/build-release.sh --docker
    ```

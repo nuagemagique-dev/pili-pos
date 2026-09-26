@@ -1,7 +1,7 @@
 # Rapport de tests baseline (couverture de la build cert)
 
 **Date et révision :** voir l'en-tête du bloc « Totaux de tests » (généré).
-**Toolchain :** Rust 1.96.0 épinglée (`rust-toolchain.toml`), edition 2024, workspace Cargo, Tauri v2.
+**Toolchain :** Rust 1.98.1 épinglée (`rust-toolchain.toml`), edition 2024, workspace Cargo, Tauri v2.
 **Objet :** Photographier la posture de tests à la date de soumission,
 afin que tout mouvement de tests ultérieur puisse être tracé et
 attribué à des modifications futures.
