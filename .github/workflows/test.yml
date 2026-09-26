@@ -49,6 +49,24 @@ jobs:
         with:
           key: ${{ matrix.features.name }}
 
+      # The cert build embeds the UI bundle (tauri.conf.json frontendDist,
+      # custom-protocol): build it as scripts/build_and_hash.sh does,
+      # webshop left out.
+      - name: Setup Node (cert)
+        if: matrix.features.name == 'cert'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: UI bundle (cert)
+        if: matrix.features.name == 'cert'
+        working-directory: ui
+        run: |
+          npm ci
+          VITE_FEATURE_HUBRISE=false npm run build
+
       - name: Format
         if: matrix.features.name == 'default'
         run: cargo fmt --all --check
