@@ -32,6 +32,9 @@ set -euo pipefail
 FACTORY_DIR="/usr/share/moyun-pos/factory"
 POS_HOME="/var/lib/moyun-pos"
 ETC_DIR="/var/lib/moyun-etc"
+# Debian 12 ships systemd-cryptsetup inside the systemd package, off the
+# PATH; later releases put it in /usr/bin.
+SYSTEMD_CRYPTSETUP="$(command -v systemd-cryptsetup || echo /usr/lib/systemd/systemd-cryptsetup)"
 
 log() { echo "[moyun-provision] $*"; }
 
@@ -100,7 +103,7 @@ recover_existing_luks() {
         exit 1
     fi
     log "LUKS2 + TPM2 already present, /var not mounted - unlocking…"
-    systemd-cryptsetup attach moyun-data "$raw" - tpm2-device=auto
+    "$SYSTEMD_CRYPTSETUP" attach moyun-data "$raw" - tpm2-device=auto
     mkdir -p /var
     mount /dev/mapper/moyun-data /var
     log "/var mounted from an existing moyun-data volume; nothing else to do."
