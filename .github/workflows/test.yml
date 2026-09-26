@@ -28,7 +28,7 @@ jobs:
           - name: cert
             flags: "--no-default-features --features cert"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system deps (webkit2gtk for Tauri)
         run: |
@@ -54,9 +54,9 @@ jobs:
       # webshop left out.
       - name: Setup Node (cert)
         if: matrix.features.name == 'cert'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: "24.21.0"  # latest LTS, same as deploy/build-release.sh
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
@@ -95,12 +95,12 @@ jobs:
       run:
         working-directory: ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: "24.21.0"  # latest LTS, same as deploy/build-release.sh
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: ui/test-results/
@@ -135,7 +135,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: [rust, playwright-e2e]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system deps
         run: |
@@ -152,9 +152,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: "24.21.0"  # latest LTS, same as deploy/build-release.sh
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
@@ -193,7 +193,7 @@ jobs:
 
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-report
           path: ui/test-results/
@@ -209,10 +209,10 @@ jobs:
     name: Dossier consistency
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

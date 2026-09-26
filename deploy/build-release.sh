@@ -32,9 +32,9 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 # .github/workflows/image.yml's `repro` job builds twice and compares
 # (scripts/check_repro.sh).
 RUST_BUILD_IMAGE="rust:1.98.1-bookworm@sha256:c49256cbe5ea0188bc658a689500d70c41eb51f009a7a7be209caf60a944f3ec"
-NODE_VERSION="v22.23.3"
+NODE_VERSION="v24.21.0"
 NODE_TARBALL="node-${NODE_VERSION}-linux-x64.tar.xz"
-NODE_SHA256="df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de"
+NODE_SHA256="fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6"
 
 # Paths that would otherwise be embedded in the binary (panic messages,
 # debug info) are rewritten to fixed names, so the result does not
