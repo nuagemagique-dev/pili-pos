@@ -70,14 +70,19 @@ MISSING=0
 for b in "${NEEDED_BINS[@]}"; do
     command -v "$b" >/dev/null 2>&1 || MISSING=1
 done
-if [[ "$MISSING" -eq 1 || ! -x "$MKOSI_VENV/bin/mkosi" ]]; then
+# mkosi fetches Debian packages (the image, and the Debian tools tree)
+# and checks them against the Debian archive keyring: an Ubuntu host
+# does not have it by default.
+DEBIAN_KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+if [[ "$MISSING" -eq 1 || ! -x "$MKOSI_VENV/bin/mkosi" || ! -f "$DEBIAN_KEYRING" ]]; then
     log "Installing host prerequisites (apt-get)…"
     apt-get update -qq
     apt-get install -y -qq \
         python3 python3-venv python3-pip \
         curl ca-certificates \
         binutils \
-        xz-utils gdisk parted util-linux e2fsprogs
+        xz-utils gdisk parted util-linux e2fsprogs \
+        debian-archive-keyring
 fi
 
 # Prefer mkosi's own tools tree (present after the first `mkosi build`
