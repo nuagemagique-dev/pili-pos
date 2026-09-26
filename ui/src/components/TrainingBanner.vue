@@ -7,25 +7,22 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <!-- UX Guide §9: impossible à confondre avec le mode normal -->
-  <div v-if="pos.trainingMode" class="training-overlay">
-    <div class="training-watermark">TRAINING</div>
-    <div class="training-banner">
+  <!-- UX Guide §9: impossible à confondre avec le mode normal.
+       The banner takes its own row at the top of #app (a flex column),
+       so the screen below starts under it and no control is hidden or
+       blocked; the watermark lies over everything and lets taps through. -->
+  <template v-if="pos.trainingMode">
+    <div class="training-banner" role="status">
       {{ t('training_banner') }}
     </div>
-  </div>
+    <div class="training-watermark">TRAINING</div>
+  </template>
 </template>
 
 <style scoped>
-.training-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-}
-
 .training-watermark {
-  position: absolute;
+  position: fixed;
+  z-index: 9999;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-35deg);
@@ -38,10 +35,7 @@ const { t } = useI18n();
 }
 
 .training-banner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  flex: none;
   background: var(--accent-training);
   color: var(--text-on-accent);
   text-align: center;
@@ -49,7 +43,5 @@ const { t } = useI18n();
   font-size: var(--font-size-sm);
   padding: 6px;
   letter-spacing: 0.05em;
-  pointer-events: auto;
-  z-index: 10000;
 }
 </style>

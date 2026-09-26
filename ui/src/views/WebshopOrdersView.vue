@@ -589,7 +589,8 @@ function handleLogout() {
 .webshop-view {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-family);

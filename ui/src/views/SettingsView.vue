@@ -322,7 +322,7 @@ onMounted(() => {
 .support-btn { align-self: flex-start; padding: var(--space-sm) var(--space-lg); min-height: 48px; border-radius: var(--radius-md); font-weight: var(--font-weight-bold); color: var(--text-on-accent); background: var(--accent-primary); transition: transform var(--tap-duration) ease; }
 .support-btn.stop { background: var(--accent-danger); }
 .support-btn:active { transform: scale(var(--tap-scale)); }
-.settings { display: flex; flex-direction: column; height: 100vh; background: var(--bg-primary); }
+.settings { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg-primary); }
 .header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); background: var(--bg-secondary); border-bottom: 1px solid rgba(160,160,176,0.1); height: 48px; }
 .header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
 .nav-btn { padding: var(--space-xs) var(--space-md); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); min-height: 36px; transition: transform var(--tap-duration) ease; }

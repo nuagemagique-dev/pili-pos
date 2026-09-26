@@ -20,6 +20,9 @@ const step = ref<"method" | "cash" | "card" | "processing" | "done">("method");
 const result = ref<CheckoutResult | null>(null);
 const error = ref<string | null>(null);
 const cashReceived = ref(0);
+// Change handed back, fixed when the sale is recorded: the done screen
+// cannot recompute it, the cart (and so the total) is cleared by then.
+const changeDue = ref(0);
 const cashInput = ref("");
 
 // The picker needs a fresh mail probe every time it's about to be
@@ -108,6 +111,10 @@ async function doCheckout(method: CheckoutPaymentMethod) {
     const req = delivery.request.medium === "paper" ? undefined : delivery.request;
     result.value = await ipc.checkout(order.currentOrder.id, method, req);
     if (result.value.success) {
+      // In cents: no float leftovers such as 9,999999.
+      changeDue.value = method === "cash"
+        ? Math.max(0, Math.round(cashReceived.value * 100) - Math.round(roundedTotal.value * 100)) / 100
+        : 0;
       // Clear the order from the store immediately so it can't be
       // re-submitted. The "done" screen reads from result.value.
       order.clearOrder();
@@ -219,8 +226,8 @@ function finish() {
       <div v-if="result?.ticket" class="receipt-mini">
         <div class="receipt-label">{{ result.ticket.ticket_type_label }}</div>
         <div class="receipt-total">{{ formatPrice(result.ticket.total) }}</div>
-        <div v-if="cashReceived > roundedTotal" class="receipt-change">
-          {{ t('change') }}: {{ formatPrice(cashReceived - roundedTotal) }}
+        <div v-if="changeDue > 0" class="receipt-change">
+          {{ t('change') }}: {{ formatPrice(changeDue) }}
         </div>
         <div v-if="result.ticket.fdm_ref" class="receipt-fdm">
           FDM: {{ result.ticket.fdm_ref.fdm_id }}

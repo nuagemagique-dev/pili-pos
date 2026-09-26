@@ -65,7 +65,7 @@ async function selectTable(table: ipc.TableInfo) {
 </template>
 
 <style scoped>
-.tables-view { display: flex; flex-direction: column; height: 100vh; background: var(--bg-primary); }
+.tables-view { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg-primary); }
 .header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); background: var(--bg-secondary); border-bottom: 1px solid rgba(160,160,176,0.1); height: 48px; }
 .header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
 .nav-btn { padding: var(--space-xs) var(--space-md); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); min-height: 36px; transition: transform var(--tap-duration) ease; }
