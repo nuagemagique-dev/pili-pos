@@ -680,6 +680,51 @@ async fn uc230_a_line_corrected_before_payment() {
     app.dump_evidence("UC230");
 }
 
+/// UC4119: table T1 ordered by John, then paid by Elisa a third each
+/// in cash, by card and in meal vouchers, on one VAT ticket. Only the
+/// cash third is rounded (+0,01).
+#[tokio::test]
+async fn uc4119_split_payment_on_one_ticket() {
+    use moyun_pos::commands::checkout::{PaymentPart, do_checkout_split};
+    let order_uc = load_uc(&advanced_set_root(), "UC4119_SplitPayment/UC4119_1");
+    let sale_uc = load_uc(&advanced_set_root(), "UC4119_SplitPayment/UC4119_2");
+    let order_vars = read_variables(&order_uc)["data"].clone();
+    let sale_vars = read_variables(&sale_uc)["data"].clone();
+    let app = spf_app(&operator(&order_vars)).await;
+    let order_id = order_from(&app, &order_vars, OrderType::DineIn, Some(1));
+    mock_from_fixture(&app, &order_uc).await;
+    do_sign_table_order(&app.state, order_id).await.unwrap();
+
+    app.login_as(&operator(&sale_vars), pos_core::user::UserRole::Admin);
+    mock_from_fixture(&app, &sale_uc).await;
+    let result = do_checkout_split(
+        &app.state,
+        order_id,
+        &[
+            PaymentPart::cash(),
+            PaymentPart::of(CheckoutPaymentMethod::Card, 3104),
+            PaymentPart::of(CheckoutPaymentMethod::MealVoucher, 3104),
+        ],
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let r = requests(&app);
+    assert_matches_fixture("UC4119_1", &r[0], &order_vars, &[]);
+    assert_matches_fixture(
+        "UC4119_2",
+        &r[1],
+        &sale_vars,
+        &[Deviation {
+            path: "financials[0].type",
+            reason: "the operator does not tell debit from credit cards: CARD_DEBIT",
+        }],
+    );
+    app.dump_evidence("UC4119");
+}
+
 // ── Catalogue guards ───────────────────────────────────────────────
 
 fn add(app: &TestApp, order_id: i64, menu_item_id: i64, price: Option<i64>) -> Result<(), String> {

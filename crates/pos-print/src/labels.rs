@@ -352,17 +352,21 @@ pub(crate) fn event_label_name(label: &str, lang: ReceiptLanguage) -> &str {
 enum PaymentKind {
     Cash,
     Card,
+    MealVoucher,
     Other,
 }
 
 /// Recognize a payment kind from a raw method/name string: the FDM
-/// `financials.name` sent on the wire ("Cash"/"Card"/"Payment"), or
-/// its `type` enum wire value ("CASH"/"CARD_DEBIT"/...) if that ever
+/// `financials.name` sent on the wire ("Cash"/"Card"/"Meal voucher"/
+/// "Payment"), or its `type` enum wire value ("CASH"/"CARD_DEBIT"/
+/// "CHEQUE_MEAL"/...) if that ever
 /// ends up in the string instead. Matching is case-insensitive and by
 /// substring, so any casing or card sub-type variant is recognized.
 fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
     let lower = name.to_ascii_lowercase();
-    if lower.contains("cash") {
+    if lower.contains("meal") || lower.contains("repas") {
+        Some(PaymentKind::MealVoucher)
+    } else if lower.contains("cash") {
         Some(PaymentKind::Cash)
     } else if lower.contains("card") {
         Some(PaymentKind::Card)
@@ -374,7 +378,7 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
 }
 
 fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str {
-    use PaymentKind::{Card, Cash, Other};
+    use PaymentKind::{Card, Cash, MealVoucher, Other};
     use ReceiptLanguage::{De, Fr, Nl};
     match (kind, lang) {
         (Cash, Fr) => "Especes",
@@ -383,6 +387,9 @@ fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str 
         (Card, Fr) => "Carte",
         (Card, Nl) => "Kaart",
         (Card, De) => "Karte",
+        (MealVoucher, Fr) => "Cheques-repas",
+        (MealVoucher, Nl) => "Maaltijdcheques",
+        (MealVoucher, De) => "Essensgutscheine",
         (Other, Fr) => "Autre",
         (Other, Nl) => "Overige",
         (Other, De) => "Sonstige",
@@ -438,12 +445,25 @@ mod tests {
 
     #[test]
     fn falls_back_to_the_raw_name_when_unrecognized() {
-        assert_eq!(
-            payment_label("MealVoucher", ReceiptLanguage::Nl),
-            "MealVoucher"
-        );
+        assert_eq!(payment_label("Voucher", ReceiptLanguage::Nl), "Voucher");
         assert_eq!(payment_label("-", ReceiptLanguage::De), "-");
         assert_eq!(payment_label("Espèces", ReceiptLanguage::Fr), "Espèces");
+    }
+
+    #[test]
+    fn recognizes_meal_vouchers() {
+        assert_eq!(
+            payment_label("Meal voucher", ReceiptLanguage::Fr),
+            "Cheques-repas"
+        );
+        assert_eq!(
+            payment_label("CHEQUE_MEAL", ReceiptLanguage::Nl),
+            "Maaltijdcheques"
+        );
+        assert_eq!(
+            payment_label("Meal voucher", ReceiptLanguage::De),
+            "Essensgutscheine"
+        );
     }
 
     #[test]
@@ -455,9 +475,13 @@ mod tests {
         ] {
             let cash = payment_label("Cash", lang);
             let card = payment_label("Card", lang);
+            let meal = payment_label("Meal voucher", lang);
             assert_ne!(cash, card, "{lang:?}");
-            assert!(cash.is_ascii(), "{lang:?}: {cash:?}");
-            assert!(card.is_ascii(), "{lang:?}: {card:?}");
+            assert_ne!(meal, card, "{lang:?}");
+            assert_ne!(meal, cash, "{lang:?}");
+            for label in [&cash, &card, &meal] {
+                assert!(label.is_ascii(), "{lang:?}: {label:?}");
+            }
         }
     }
 

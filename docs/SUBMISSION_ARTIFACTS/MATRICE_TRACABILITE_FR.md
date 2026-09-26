@@ -108,7 +108,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC4116 | Correction combinée à une modification de prix | - | - | Hors périmètre |
 | UC4117 | Code GTIN sur une ligne de produit | - | - | Hors périmètre |
 | UC4118 | Correction de paiement (avancé) | - | - | Hors périmètre |
-| UC4119 | Paiement scindé (split payment) | - | - | Hors périmètre |
+| UC4119 | Paiement scindé (split payment) | `uc4119_split_payment_on_one_ticket`, `uc4119_three_thirds_cash_last` | - | Couvert |
 | UC4119bis | Scission d'addition (bis) | - | - | Hors périmètre |
 | UC4120 | Supplément avec modification de prix | - | - | Hors périmètre |
 | UC4120bis | Supplément sur une ligne de transaction (bis) | - | - | Hors périmètre |
@@ -123,8 +123,8 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ROUND1 | Arrondi cash, vente directe simple 11,52 EUR (situation 1, arrondi -0,02 EUR) | `round1_11_52_is_paid_11_50` | - | Couvert |
 | ROUND2 | Arrondi cash, vente directe simple 3,34 EUR (situation 2, arrondi +0,01 EUR) | `round2_3_34_is_paid_3_35` | - | Couvert |
 | ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | `round3_14_86_is_paid_14_85` | - | Couvert |
-| ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | - | - | Hors périmètre |
-| ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | - | - | Hors périmètre |
+| ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | `round4_meal_vouchers_then_cash`, `round4_meal_vouchers_then_cash_rounds_the_cash_rest_only` | - | Couvert |
+| ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | `round5_meal_vouchers_card_and_cash` | - | Couvert |
 | VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +15 | `[VI_BAR] a pre-bill whose slip failed says so next to its confirmation`, `[VI_BAR] a printed slip needs no message`, `[VI_BAR] a sale whose slip failed is still paid, with the warning`, `[VI_BAR] a slip that did not print is told, the order stays registered` | Couvert |
 | VI_COPY | Contenu du ticket copie (réimpression) | `vi_copy_m160_a_copy_reproduces_the_original_sale`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket`, `vi_copy_the_copy_mark_and_the_original_block_follow_the_language`, `vi_copy_the_official_copy_example` +1 | - | Couvert |
 | VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | `vi_n_a_sale_ticket_has_no_original_block`, `vi_n_the_issuer_legal_name_is_printed`, `vi_n_the_official_vat_ticket_example`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | - | Couvert |

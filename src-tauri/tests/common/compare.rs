@@ -37,10 +37,13 @@ pub fn business_view(d: &Value) -> Value {
         );
     }
     if let Some(f) = d.get("financials").and_then(Value::as_array) {
-        let lines: Vec<Value> = f
+        // The order of the payment lines carries no meaning (a split
+        // sale may list cash first or last): compare them sorted.
+        let mut lines: Vec<Value> = f
             .iter()
             .map(|p| json!({ "type": p["type"], "amount": p["amount"], "amountType": p["amountType"] }))
             .collect();
+        lines.sort_by_key(|l| (l["type"].to_string(), l["amountType"].to_string()));
         view.insert("financials".into(), Value::Array(lines));
     }
     if let Some(cc) = d.get("costCenter") {

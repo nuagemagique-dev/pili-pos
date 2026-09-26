@@ -656,6 +656,8 @@ fn print_payments<'a>(
                 .filter_map(|e| e.request["financials"].as_array())
                 .flatten()
                 .filter(|f| f["id"].as_str() == Some(&p.id) && f["name"].as_str() == Some(&p.name))
+                // A cash sale's rounding line is not a second payment.
+                .filter(|f| f["amountType"] == "PAYMENT")
                 .count() as i64,
             // The payment lines; the rounding is totalled apart.
             amount_cents: p

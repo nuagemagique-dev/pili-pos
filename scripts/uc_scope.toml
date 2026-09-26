@@ -282,9 +282,6 @@ kind = "hors_perimetre"
 
 # -- Paiement scindé --
 
-[UC4119]
-reason = "Le paiement scindé structuré (split payment) au sens de l'UC4119 n'est pas implémenté dans moyun-pos v1.0.0."
-kind = "hors_perimetre"
 
 # -- Correction de paiement (avancée) --
 
@@ -296,18 +293,6 @@ kind = "hors_perimetre"
 
 [UC4108]
 reason = "Le libellé de TVA X pour un acompte n'est pas implémenté dans moyun-pos v1.0.0 (aucune gestion d'acompte)."
-kind = "hors_perimetre"
-
-# ---------------------------------------------------------------------------
-# Manuel de certification - arrondi des moyens de paiement
-# ---------------------------------------------------------------------------
-
-[ROUND4]
-reason = "Les chèques-repas ne sont pas un moyen de paiement de moyun-pos v1.0.0 (test de base 2)."
-kind = "hors_perimetre"
-
-[ROUND5]
-reason = "Une vente payée en chèques-repas, carte et cash à la fois n'est pas possible dans moyun-pos v1.0.0 : un seul moyen de paiement par vente, sans chèques-repas (test de base 3)."
 kind = "hors_perimetre"
 
 # ---------------------------------------------------------------------------

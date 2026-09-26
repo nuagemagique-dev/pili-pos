@@ -1,13 +1,14 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::State;
 
 use pos_fiscal::archive::{self, ArchiveParams};
 use pos_fiscal::counter::FiscalCounter;
-use pos_fiscal::event::build_sale_input;
+use pos_fiscal::event::build_sale_input_split;
 use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::payment::{PaymentError, Settlement, payment_line_identity};
 use pos_fiscal::response::SignResult;
-use pos_fiscal::ticket::{self, FiscalTicket, TicketLine, TicketParams, TicketPayment};
-use pos_fiscal::types::{EventLabel, PaymentType};
+use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
+use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::{self, SlipOutcome};
@@ -17,12 +18,9 @@ use crate::commands::errors;
 use crate::commands::hubrise_push;
 use crate::state::AppState;
 
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CheckoutPaymentMethod {
-    Cash,
-    Card,
-}
+/// A payment method the operator takes: cash, card or meal vouchers.
+pub use pos_fiscal::payment::PaymentMethod as CheckoutPaymentMethod;
+pub use pos_fiscal::payment::PaymentPart;
 
 #[derive(Debug, Serialize)]
 pub struct CheckoutResult {
@@ -57,10 +55,10 @@ impl CheckoutResult {
 pub async fn checkout(
     state: State<'_, AppState>,
     order_id: i64,
-    payment_method: CheckoutPaymentMethod,
+    payments: Vec<PaymentPart>,
     delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
-    do_checkout_with(state.inner(), order_id, payment_method, delivery.as_ref()).await
+    do_checkout_split(state.inner(), order_id, &payments, delivery.as_ref()).await
 }
 
 /// Inner implementation of [`checkout`], decoupled from Tauri's
@@ -82,6 +80,32 @@ pub async fn do_checkout_with(
     state: &AppState,
     order_id: i64,
     payment_method: CheckoutPaymentMethod,
+    delivery_request: Option<&TicketDeliveryRequest>,
+) -> Result<CheckoutResult, String> {
+    // One method pays the whole sale: its amount is the order total
+    // (cash always pays the rest).
+    let part = match payment_method {
+        CheckoutPaymentMethod::Cash => PaymentPart::cash(),
+        method => {
+            let total = {
+                let db = state.db.lock().map_err(|e| e.to_string())?;
+                pos_db::queries::orders::get_order(&db, order_id)
+                    .map(|o| o.total_cents)
+                    .unwrap_or(0)
+            };
+            PaymentPart::of(method, total)
+        }
+    };
+    do_checkout_split(state, order_id, &[part], delivery_request).await
+}
+
+/// A sale paid in one or several parts (card, meal vouchers, cash for
+/// the rest), with the operator's ticket choice. See
+/// [`pos_fiscal::payment::settle`] for the rules.
+pub async fn do_checkout_split(
+    state: &AppState,
+    order_id: i64,
+    parts: &[PaymentPart],
     delivery_request: Option<&TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
     // A sale is signed in the name of the cashier taking the payment.
@@ -160,6 +184,14 @@ pub async fn do_checkout_with(
         Err(e) => return Ok(CheckoutResult::refused(e)),
     };
 
+    // The payment: card and meal voucher parts are exact, cash pays the
+    // rest, rounded to 5 cents (a sale at 0,00 EUR is a cash payment of
+    // 0, FAQ Q206). Refused before anything is signed.
+    let settlement = match pos_fiscal::payment::settle(order.total_cents, parts) {
+        Ok(s) => s,
+        Err(e) => return Ok(CheckoutResult::refused(payment_error(e))),
+    };
+
     // 2. RESERVE (peek, don't commit) the next sequence number.
     //
     // We deliberately do NOT call `FiscalCounter::next` here yet.
@@ -183,37 +215,13 @@ pub async fn do_checkout_with(
         FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
-    // A sale at 0,00 EUR moves no money: it is registered as a cash
-    // payment of 0 (FAQ Q206) and opens no drawer.
-    let payment_method = if order.total_cents == 0 {
-        CheckoutPaymentMethod::Cash
-    } else {
-        payment_method
-    };
-
-    // 3. Belgian 5-cent rounding (cash only, per Belgian law).
-    let rounding_cents: i64 = match payment_method {
-        CheckoutPaymentMethod::Cash => ticket::round_to_5_cents(order.total_cents),
-        CheckoutPaymentMethod::Card => 0,
-    };
-    let payment_total_cents = order.total_cents + rounding_cents;
-
-    // 4. Build the SaleInput
-    let payment_type = match payment_method {
-        CheckoutPaymentMethod::Cash => PaymentType::Cash,
-        CheckoutPaymentMethod::Card => PaymentType::CardDebit,
-    };
-
-    let mut sale_input = build_sale_input(
+    let mut sale_input = build_sale_input_split(
         &config,
         &order,
         &entries,
         ticket_number,
         &booking_period_id,
-        payment_type,
-        order.total_cents,
-        rounding_cents,
-        None, // no fdm_ref for normal sales
+        &settlement,
     );
     sale_input.common.ticket_medium = resolved.medium;
 
@@ -267,21 +275,11 @@ pub async fn do_checkout_with(
             })
             .collect();
 
-        // The payment line carries the sale amount, the cash rounding
-        // its own line (FAQ Q403, SPF example VAT ticket).
-        let payments = vec![TicketPayment {
-            method: match payment_method {
-                CheckoutPaymentMethod::Cash => "Cash".to_string(),
-                CheckoutPaymentMethod::Card => "Card".to_string(),
-            },
-            amount: order.total_cents as f64 / 100.0,
-        }];
-
-        let rounding_eur = if rounding_cents != 0 {
-            Some(rounding_cents as f64 / 100.0)
-        } else {
-            None
-        };
+        // One row per payment, the sale amount it pays; the cash
+        // rounding is its own line (FAQ Q403, SPF example VAT ticket).
+        let payments = ticket_payments(&settlement);
+        let rounding_eur =
+            (settlement.rounding_cents != 0).then(|| settlement.rounding_cents as f64 / 100.0);
 
         FiscalTicket::from_sign_result(TicketParams {
             result,
@@ -363,15 +361,20 @@ pub async fn do_checkout_with(
         // Training-mode "sales" move no real money, so they are not
         // recorded here (mirrors the FDM's T-vs-N counter split).
         if label != EventLabel::T {
-            let method = match payment_method {
-                CheckoutPaymentMethod::Cash => "cash",
-                CheckoutPaymentMethod::Card => "card",
-            };
-            tx.execute(
-                "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
-                rusqlite::params![order_id, method, payment_total_cents],
-            )
-            .map_err(|e| e.to_string())?;
+            for p in &settlement.payments {
+                let (method, amount) = match p.method {
+                    CheckoutPaymentMethod::Cash => {
+                        ("cash", p.amount_cents + settlement.rounding_cents)
+                    }
+                    CheckoutPaymentMethod::Card => ("card", p.amount_cents),
+                    CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
+                };
+                tx.execute(
+                    "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
+                    rusqlite::params![order_id, method, amount],
+                )
+                .map_err(|e| e.to_string())?;
+            }
         }
 
         let delivery_id = delivery::enqueue_in_tx(&tx, event_id, &resolved, ticket.as_ref())?;
@@ -390,8 +393,7 @@ pub async fn do_checkout_with(
         ticket.as_ref(),
     )
     .await;
-    if matches!(payment_method, CheckoutPaymentMethod::Cash)
-        && order.total_cents != 0
+    if settlement.has_cash()
         && let Some(ref addr) = config.printer_address
     {
         let drawer_data = pos_print::drawer::kick_drawer_bytes();
@@ -415,11 +417,17 @@ pub async fn do_checkout_with(
     // certification build (no HubRise) skips this entirely.
     #[cfg(feature = "hubrise")]
     {
-        let payment_name = match payment_method {
-            CheckoutPaymentMethod::Cash => "Cash",
-            CheckoutPaymentMethod::Card => "Card",
-        };
-        let body = hubrise_push::build_hubrise_order_body(&order, &lines, payment_name);
+        let payments: Vec<(&str, i64)> = settlement
+            .payments
+            .iter()
+            .map(|p| {
+                (
+                    payment_line_identity(p.method.payment_type()).1,
+                    p.amount_cents,
+                )
+            })
+            .collect();
+        let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments);
         let body_json = serde_json::to_string(&body).unwrap_or_default();
         let db = state.db.lock().map_err(|e| e.to_string())?;
         if let Err(e) = pos_hubrise::outbox::enqueue(&db, order_id, &body_json) {
@@ -438,6 +446,27 @@ pub async fn do_checkout_with(
         delivery: Some(delivery_outcome),
         kitchen_slip: Some(kitchen_slip),
     })
+}
+
+/// The payment rows of a sale's ticket: the name the printer
+/// translates ("Cash", "Card", "Meal voucher") and the amount paid.
+fn ticket_payments(settlement: &Settlement) -> Vec<TicketPayment> {
+    settlement
+        .payments
+        .iter()
+        .map(|p| TicketPayment {
+            method: payment_line_identity(p.method.payment_type()).1.to_string(),
+            amount: p.amount_cents as f64 / 100.0,
+        })
+        .collect()
+}
+
+fn payment_error(e: PaymentError) -> &'static str {
+    match e {
+        PaymentError::Invalid => errors::PAYMENT_INVALID,
+        PaymentError::ExceedsTotal => errors::PAYMENT_EXCEEDS_TOTAL,
+        PaymentError::Incomplete => errors::PAYMENT_INCOMPLETE,
+    }
 }
 
 /// Check FDM connection status.

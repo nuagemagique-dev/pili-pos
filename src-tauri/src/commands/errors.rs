@@ -69,6 +69,15 @@ pub const REFUND_EXCEEDS_SOLD: &str = "refund_exceeds_sold";
 pub const REFUND_IN_TRAINING: &str = "refund_in_training";
 pub const REFUND_OF_REFUND: &str = "refund_of_refund";
 
+// Payment.
+/// A part without an amount, a zero or negative amount, a cash part
+/// with an amount, or two cash parts.
+pub const PAYMENT_INVALID: &str = "payment_invalid";
+/// The card and meal voucher parts come to more than the total.
+pub const PAYMENT_EXCEEDS_TOTAL: &str = "payment_exceeds_total";
+/// Something is left to pay and no cash part pays it.
+pub const PAYMENT_INCOMPLETE: &str = "payment_incomplete";
+
 // Settings.
 pub const OPEN_ORDERS_TRAINING: &str = "open_orders_training";
 
@@ -134,6 +143,9 @@ pub const ALL: &[&str] = &[
     REFUND_EXCEEDS_SOLD,
     REFUND_IN_TRAINING,
     REFUND_OF_REFUND,
+    PAYMENT_INVALID,
+    PAYMENT_EXCEEDS_TOTAL,
+    PAYMENT_INCOMPLETE,
     OPEN_ORDERS_TRAINING,
     DIGITAL_UNAVAILABLE,
     EMAIL_INVALID,

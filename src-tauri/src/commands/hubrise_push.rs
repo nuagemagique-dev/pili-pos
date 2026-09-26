@@ -20,7 +20,12 @@ fn cents_to_hubrise(cents: i64) -> String {
 /// The order is pushed as `status: "completed"` because POS orders
 /// are only pushed AFTER successful checkout (FDM signed + paid).
 /// HubRise doesn't need to advance them through a state machine.
-pub fn build_hubrise_order_body(order: &Order, lines: &[OrderLine], payment_method: &str) -> Value {
+/// `payments` are the sale's payments, `(name, cents)`, one per method.
+pub fn build_hubrise_order_body(
+    order: &Order,
+    lines: &[OrderLine],
+    payments: &[(&str, i64)],
+) -> Value {
     let service_type = match order.order_type {
         OrderType::DineIn => "eat_in",
         OrderType::Takeaway => "collection",
@@ -46,10 +51,10 @@ pub fn build_hubrise_order_body(order: &Order, lines: &[OrderLine], payment_meth
 
     let total = cents_to_hubrise(order.total_cents);
 
-    let payment = json!({
-        "name": payment_method,
-        "amount": total,
-    });
+    let payments: Vec<Value> = payments
+        .iter()
+        .map(|(name, cents)| json!({ "name": name, "amount": cents_to_hubrise(*cents) }))
+        .collect();
 
     let mut body = json!({
         "status": "completed",
@@ -58,7 +63,7 @@ pub fn build_hubrise_order_body(order: &Order, lines: &[OrderLine], payment_meth
         "connection_name": "moyun-pos",
         "items": items,
         "total": total,
-        "payments": [payment],
+        "payments": payments,
         "created_at": order.created_at.to_rfc3339(),
     });
 

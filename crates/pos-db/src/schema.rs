@@ -457,6 +457,23 @@ pub(crate) const MIGRATION_007_GERMAN_LANGUAGE: &str = r#"
 INSERT OR IGNORE INTO languages (code, name) VALUES ('de', 'Deutsch');
 "#;
 
+/// v8 - Meal vouchers (split payment): the order's payment history
+/// accepts a `meal_voucher` row. SQLite cannot alter a CHECK, so the
+/// table is rebuilt with its rows.
+pub(crate) const MIGRATION_008_MEAL_VOUCHER_PAYMENTS: &str = r#"
+CREATE TABLE payments_v8 (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    method TEXT NOT NULL CHECK(method IN ('cash','card','meal_voucher','other')),
+    amount_cents INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+INSERT INTO payments_v8 (id, order_id, method, amount_cents, created_at)
+    SELECT id, order_id, method, amount_cents, created_at FROM payments;
+DROP TABLE payments;
+ALTER TABLE payments_v8 RENAME TO payments;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -475,6 +492,40 @@ mod tests {
                 .unwrap();
             assert_eq!(known, 1, "{lang}");
         }
+    }
+
+    #[test]
+    fn a_meal_voucher_payment_can_be_recorded_and_old_rows_are_kept() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::migrate::run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, order_type, status, user_insz) VALUES (1, 'takeaway', 'closed', '00000000029');
+             INSERT INTO payments (order_id, method, amount_cents) VALUES (1, 'meal_voucher', 313), (1, 'cash', 775);",
+        )
+        .unwrap();
+        assert!(
+            conn.execute(
+                "INSERT INTO payments (order_id, method, amount_cents) VALUES (1, 'bitcoin', 1)",
+                []
+            )
+            .is_err()
+        );
+        // Rows written before v8 survive the rebuild.
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_SQL).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, order_type, status, user_insz) VALUES (1, 'takeaway', 'closed', '00000000029');
+             INSERT INTO payments (order_id, method, amount_cents) VALUES (1, 'card', 1200);",
+        )
+        .unwrap();
+        conn.execute_batch(MIGRATION_008_MEAL_VOUCHER_PAYMENTS)
+            .unwrap();
+        let kept: (String, i64) = conn
+            .query_row("SELECT method, amount_cents FROM payments", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(kept, ("card".to_string(), 1200));
     }
 
     #[test]
