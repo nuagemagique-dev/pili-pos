@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER, tapUserTile } from './fixtures/mock-ipc';
 
 test.describe('Tables View', () => {
   test.beforeEach(async ({ page }) => {
@@ -9,7 +9,7 @@ test.describe('Tables View', () => {
     });
     // Login then navigate to tables
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
   });
 
@@ -42,7 +42,7 @@ test.describe('Tables View', () => {
       },
     });
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
 
     const occupied = page.locator('.table-card.occupied');

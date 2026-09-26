@@ -8,8 +8,7 @@ import {
   DEFAULT_ORDER,
   DEFAULT_ORDER_LINE,
   DEFAULT_CATEGORY,
-  DEFAULT_MENU_ITEM,
-} from './fixtures/mock-ipc';
+  DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
 
 // Fiscal side effects of the operator's navigation: an order left unpaid
 // is registered with the FDM (event P, POS spec §1.3), the "Addition"
@@ -28,7 +27,7 @@ async function openTable(page: Page, overrides: Handlers = {}) {
     ...overrides,
   });
   await page.goto('/');
-  await page.click('.user-btn');
+  await tapUserTile(page);
   await page.waitForURL(/tables/);
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);
@@ -167,7 +166,7 @@ test.describe('Pre-bill ("Addition")', () => {
       list_order_lines: () => [],
     });
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
     await page.locator('.table-card').first().click();
     await page.waitForURL(/order/);
@@ -183,7 +182,7 @@ test.describe('FDM refusals on presence and cash events', () => {
       work_in: () => ({ success: false, error: 'FDM error: offline' }),
     });
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
     await expect(page.locator('.toast-error')).toContainText('Pointage non enregistré');
     await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
@@ -195,7 +194,7 @@ test.describe('FDM refusals on presence and cash events', () => {
       list_users: () => [DEFAULT_USER],
     });
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
     expect(await ipcCalls(page, 'work_in')).toHaveLength(1);
     await expect(page.locator('.toast-error')).toHaveCount(0);

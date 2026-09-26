@@ -26,7 +26,7 @@ test.describe('Integration - real binary', () => {
   test('login screen renders with seeded user', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.user-btn')).toBeVisible();
-    await expect(page.locator('.user-name')).toContainText('CI Robot');
+    await expect(page.locator('.user-name')).toContainText('CI Server');
   });
 
   test('tables view renders after login', async ({ page }) => {

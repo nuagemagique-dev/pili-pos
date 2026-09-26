@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
 
 test.describe('Order View', () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +18,7 @@ test.describe('Order View', () => {
     });
     // Login → tables → pick table 1
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
     await page.locator('.table-card').first().click();
     await page.waitForURL(/order/);
@@ -83,7 +83,7 @@ test.describe('Order View - busy table', () => {
       get_menu_items: () => [DEFAULT_MENU_ITEM],
     });
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
     await page.locator('.table-card').first().click();
     await page.waitForURL(/order/);

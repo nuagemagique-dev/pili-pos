@@ -37,6 +37,18 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  /** First login with a PIN chosen now (a manager must have one). */
+  async function loginWithNewPin(insz: string, pin: string) {
+    error.value = null;
+    try {
+      currentUser.value = await ipc.loginWithNewPin(insz, pin);
+      void registerPresence(insz, true);
+    } catch (e) {
+      error.value = String(e);
+      throw e;
+    }
+  }
+
   /** Clock out, then end the backend session (in that order: the
    * clock-out is signed in the operator's name). */
   async function logout() {
@@ -56,5 +68,13 @@ export const useAuthStore = defineStore("auth", () => {
   const canTakePayment = computed(() => role.value === "admin" || role.value === "cashier");
   const isManager = computed(() => role.value === "admin");
 
-  return { currentUser, error, loginWithInsz, logout, canTakePayment, isManager };
+  return {
+    currentUser,
+    error,
+    loginWithInsz,
+    loginWithNewPin,
+    logout,
+    canTakePayment,
+    isManager,
+  };
 });

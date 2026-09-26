@@ -31,6 +31,11 @@ impl std::str::FromStr for UserRole {
     }
 }
 
+/// INSZ of the system identity (POS detailed description v2.2: the
+/// "robot" user of automatic registrations such as webshop orders).
+/// It is never an operator: it cannot log in and is not listed.
+pub const SYSTEM_INSZ: &str = "00000000029";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub insz: String,

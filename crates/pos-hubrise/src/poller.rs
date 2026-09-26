@@ -215,7 +215,7 @@ fn ingest_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
     // Placeholder INSZ for system-inserted orders - the schema
     // requires a non-null user_insz and webshop orders have no
     // operator yet.
-    let system_insz = "00000000029";
+    let system_insz = pos_core::user::SYSTEM_INSZ;
 
     // Serialize the full HubRise Order so the UI can surface items,
     // customer notes, etc. without going through order_lines (which

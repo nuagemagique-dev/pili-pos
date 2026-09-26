@@ -266,9 +266,9 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 | POS login - Serveur | INSZ : `84022899837` (test) | PIN : `2222` | Rôle `cashier` (= Serveur) : commandes, addition et encaissement. |
 | POS login - Apprenti | INSZ : `99012345667` (test) | PIN : `3333` | Rôle `waiter` (= Apprenti) : commandes uniquement, sans encaissement. |
 | POS login - Technicien | INSZ : `00000000097` | PIN : `0097` | NISS technicien standard SPF, rôle `admin`. |
-| POS login - Kiosk / App | INSZ : `00000000029` | N/A (sans PIN) | NISS robot/automate standard SPF, rôle `admin`. |
+| Identité système (robot) | INSZ : `00000000029` | Aucune connexion possible | NISS robot/automate standard SPF, utilisé comme opérateur des enregistrements automatiques (commandes en ligne). Ce n'est pas un compte de connexion : il n'a pas de tuile et la caisse refuse de l'ouvrir en session. |
 
-Ces cinq comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun d'eux et vérifie son rôle.
+Ces comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des quatre comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN : un Gérant créé sans PIN le choisit à sa première connexion (`MANUEL_UTILISATEUR_FR.md` §2.1).
 
 ### Gestion des utilisateurs et rôles
 

@@ -72,15 +72,28 @@ employé (initiale, nom, profil).
    revient aux tuiles.
 
 "Autre (INSZ)" permet de se connecter en tapant son numéro INSZ
-(11 chiffres) puis "Connexion". Ce chemin ne demande pas de PIN : un
-compte qui a un PIN doit passer par sa tuile, sinon la caisse refuse.
+(11 chiffres) puis "Connexion". Si ce compte a un PIN, le pavé du PIN
+s'affiche ensuite, comme depuis la tuile.
+
+L'identité système `00000000029` (enregistrements automatiques, par
+exemple les commandes en ligne) n'a pas de tuile et ne peut pas se
+connecter.
+
+**Première connexion d'un Gérant.** Un Gérant doit avoir un PIN. S'il
+n'en a pas encore (première connexion après l'installation), toucher
+sa tuile ouvre "Choisissez votre PIN" : taper un PIN de 4 chiffres, puis
+une seconde fois ("Confirmer le PIN"). La session s'ouvre et "PIN
+enregistré" s'affiche. Si les deux saisies diffèrent, "Les PIN ne
+correspondent pas" s'affiche et personne n'est connecté. Le PIN est
+ensuite demandé à chaque connexion.
 
 ### 2.2 Le PIN
 
-Sans PIN, n'importe qui peut ouvrir la session d'un employé en touchant
-sa tuile. Tant qu'un employé n'a pas de PIN, un avertissement s'affiche
-à sa connexion : "PIN non configuré : touchez votre nom en haut de
-l'écran".
+Un Gérant a toujours un PIN (voir §2.1, première connexion). Un Serveur
+ou un Apprenti peut se connecter sans PIN, mais alors n'importe qui peut
+ouvrir sa session en touchant sa tuile. Tant qu'il n'a pas de PIN, un
+avertissement s'affiche à sa connexion : "PIN non configuré : touchez
+votre nom en haut de l'écran".
 
 - **Son propre PIN** : sur l'écran de commande, toucher son nom dans
   l'en-tête. Taper le nouveau PIN ("Saisir le PIN"), puis une seconde
@@ -399,7 +412,8 @@ La liste montre chaque employé (nom, profil, INSZ) avec deux boutons :
 
 "Ajouter" : taper le nom et l'INSZ (11 chiffres), choisir le profil
 (Gérant, Serveur ou Apprenti), puis "Ajouter". Demander ensuite à
-l'employé de fixer son PIN.
+l'employé de fixer son PIN. Un nouveau Gérant le choisit lui-même à
+sa première connexion (§2.1).
 
 ### 12.4 Informations
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, DEFAULT_USER } from './fixtures/mock-ipc';
+import { mockTauriIPC, loginAndGoto, ipcCalls, overrideIPC, DEFAULT_USER, tapUserTile } from './fixtures/mock-ipc';
 
 // A PIN is what keeps one employee from opening another's session by
 // tapping their tile: every user can set their own (tap their name on
@@ -14,7 +14,7 @@ test.describe('Own PIN - tap your name on the order screen', () => {
   test.beforeEach(async ({ page }) => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
     await page.goto('/');
-    await page.click('.user-btn');
+    await tapUserTile(page);
     await page.waitForURL(/tables/);
     await page.locator('.table-card').first().click();
     await page.waitForURL(/order/);
@@ -83,8 +83,10 @@ test.describe('Employee PIN - set by a manager in Settings', () => {
 });
 
 test('the no-PIN warning at login says where to set one', async ({ page }) => {
-  await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+  // A server may still log in without a PIN (a manager may not).
+  const server = { ...DEFAULT_USER, role: 'cashier', has_pin: false };
+  await mockTauriIPC(page, { login: () => server, list_users: () => [server] });
   await page.goto('/');
-  await page.click('.user-btn');
+  await tapUserTile(page);
   await expect(page.locator('.toast', { hasText: 'touchez votre nom' })).toBeVisible();
 });

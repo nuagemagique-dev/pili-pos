@@ -34,10 +34,11 @@ pub fn get_user(conn: &Connection, insz: &str) -> Result<Option<User>, rusqlite:
 pub fn list_users(conn: &Connection) -> Result<Vec<User>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT insz, name, role, active, pin_hash IS NOT NULL
-         FROM users WHERE active = 1 ORDER BY name",
+         FROM users WHERE active = 1 AND insz <> ?1 ORDER BY name",
     )?;
 
-    let rows = stmt.query_map([], |row| {
+    // The system identity is not an operator (see `SYSTEM_INSZ`).
+    let rows = stmt.query_map([pos_core::user::SYSTEM_INSZ], |row| {
         let role_str: String = row.get(2)?;
         Ok(User {
             insz: row.get(0)?,
@@ -107,6 +108,22 @@ pub fn set_pin_hash(conn: &Connection, insz: &str, hash: &str) -> Result<(), rus
         return Err(rusqlite::Error::QueryReturnedNoRows);
     }
     Ok(())
+}
+
+/// Store the first PIN of an active user who has none yet. Returns
+/// false when the user already has a PIN (or is unknown/inactive), so
+/// two terminals racing on the same tile cannot both choose it.
+pub fn set_first_pin_hash(
+    conn: &Connection,
+    insz: &str,
+    hash: &str,
+) -> Result<bool, rusqlite::Error> {
+    let updated = conn.execute(
+        "UPDATE users SET pin_hash = ?1
+         WHERE insz = ?2 AND active = 1 AND pin_hash IS NULL",
+        params![hash, insz],
+    )?;
+    Ok(updated == 1)
 }
 
 /// Deactivate a user: they can no longer log in, and leave the lists.
@@ -274,5 +291,39 @@ mod tests {
             let user = get_user(&conn, insz).unwrap().unwrap();
             assert_eq!(user.role, role);
         }
+    }
+
+    #[test]
+    fn the_system_identity_is_never_listed() {
+        let conn = db();
+        create_user(&conn, pos_core::user::SYSTEM_INSZ, "Robot", UserRole::Admin).unwrap();
+        create_user(&conn, "12345678958", "Anna", UserRole::Cashier).unwrap();
+        let listed: Vec<_> = list_users(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|u| u.insz)
+            .collect();
+        assert_eq!(listed, vec!["12345678958".to_string()]);
+    }
+
+    #[test]
+    fn a_first_pin_is_stored_once_only() {
+        let conn = db();
+        create_user(&conn, "12345678958", "Anna", UserRole::Admin).unwrap();
+        assert!(set_first_pin_hash(&conn, "12345678958", "first").unwrap());
+        assert!(!set_first_pin_hash(&conn, "12345678958", "second").unwrap());
+        assert_eq!(
+            get_pin_hash(&conn, "12345678958").unwrap().as_deref(),
+            Some("first")
+        );
+    }
+
+    #[test]
+    fn a_first_pin_is_refused_for_an_unknown_or_departed_user() {
+        let conn = db();
+        assert!(!set_first_pin_hash(&conn, "12345678958", "hash").unwrap());
+        create_user(&conn, "12345678958", "Anna", UserRole::Admin).unwrap();
+        deactivate_user(&conn, "12345678958").unwrap();
+        assert!(!set_first_pin_hash(&conn, "12345678958", "hash").unwrap());
     }
 }

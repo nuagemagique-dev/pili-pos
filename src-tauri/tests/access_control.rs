@@ -18,8 +18,9 @@ use common::*;
 
 use moyun_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
 use moyun_pos::commands::auth::{
-    CreateUserInput, ERR_DEACTIVATE_SELF, do_create_user, do_deactivate_user, do_login, do_logout,
-    do_set_pin,
+    CreateUserInput, ERR_DEACTIVATE_SELF, ERR_PIN_ALREADY_SET, ERR_PIN_FORMAT,
+    ERR_PIN_SETUP_REQUIRED, ERR_SYSTEM_USER, do_create_user, do_deactivate_user, do_login,
+    do_login_with_new_pin, do_logout, do_set_pin,
 };
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::copy::do_copy_ticket;
@@ -580,7 +581,6 @@ async fn the_admission_seed_logs_in_every_documented_profile() {
         ("94060242576", Some("1111"), UserRole::Admin),
         ("84022899837", Some("2222"), UserRole::Cashier),
         ("99012345667", Some("3333"), UserRole::Waiter),
-        ("00000000029", None, UserRole::Admin),
     ] {
         assert!(
             pos_core::user::validate_insz(insz),
@@ -597,6 +597,150 @@ async fn the_admission_seed_logs_in_every_documented_profile() {
             .unwrap_or_else(|e| panic!("{insz}: {e}"));
         assert_eq!(user.role, role, "{insz}");
         assert_eq!(user.has_pin, pin.is_some(), "{insz}");
+        do_logout(&app.state).unwrap();
+    }
+    // The robot of the seed is the system identity, not a login.
+    assert_eq!(
+        do_login(&app.state, "00000000029".into(), None).unwrap_err(),
+        ERR_SYSTEM_USER
+    );
+    let listed = moyun_pos::commands::auth::do_list_users(&app.state).unwrap();
+    assert!(listed.iter().all(|u| u.insz != "00000000029"));
+    for insz in ["00000000097", "94060242576", "84022899837", "99012345667"] {
+        assert!(
+            listed.iter().any(|u| u.insz == insz),
+            "{insz} has a login tile"
+        );
+    }
+}
+
+// ── The system identity and the first manager PIN ──────────────
+
+const ROBOT: &str = "00000000029";
+
+fn insert_user(app: &TestApp, insz: &str, role: &str) {
+    let conn = app.state.db.lock().unwrap();
+    conn.execute(
+        "INSERT INTO users (insz, name, role, active) VALUES (?1, 'Nouveau', ?2, 1)",
+        [insz, role],
+    )
+    .unwrap();
+}
+
+#[tokio::test]
+async fn the_system_identity_never_logs_in_nor_gets_a_pin() {
+    let app = app().await;
+    insert_user(&app, ROBOT, "admin");
+    app.logout();
+    for pin in [None, Some("1234".to_string())] {
+        assert_eq!(
+            do_login(&app.state, ROBOT.into(), pin).unwrap_err(),
+            ERR_SYSTEM_USER
+        );
+    }
+    assert_eq!(
+        do_login_with_new_pin(&app.state, ROBOT.into(), "1234".into()).unwrap_err(),
+        ERR_SYSTEM_USER
+    );
+    assert_eq!(
+        do_backup_database(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN,
+        "no session was opened"
+    );
+    as_(&app, MANAGER, UserRole::Admin);
+    assert_eq!(
+        do_set_pin(&app.state, ROBOT.into(), "1234".into()).unwrap_err(),
+        ERR_SYSTEM_USER
+    );
+    assert_eq!(
+        do_create_user(
+            &app.state,
+            CreateUserInput {
+                insz: ROBOT.into(),
+                name: "Robot".into(),
+                role: "admin".into(),
+            },
+        )
+        .unwrap_err(),
+        ERR_SYSTEM_USER
+    );
+}
+
+#[tokio::test]
+async fn a_manager_without_pin_must_choose_one_to_log_in() {
+    let app = app().await;
+    insert_user(&app, MANAGER, "admin");
+    app.logout();
+
+    assert_eq!(
+        do_login(&app.state, MANAGER.into(), None).unwrap_err(),
+        ERR_PIN_SETUP_REQUIRED
+    );
+    assert_eq!(
+        do_backup_database(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    for bad in ["", "123", "12345", "12a4"] {
+        assert_eq!(
+            do_login_with_new_pin(&app.state, MANAGER.into(), bad.into()).unwrap_err(),
+            ERR_PIN_FORMAT,
+            "{bad:?}"
+        );
+    }
+    let user = do_login_with_new_pin(&app.state, MANAGER.into(), "4321".into()).unwrap();
+    assert!(user.has_pin);
+    assert_eq!(user.role, UserRole::Admin);
+    assert_ne!(
+        do_backup_database(&app.state).err().as_deref(),
+        Some(ERR_NOT_LOGGED_IN),
+        "the session is open"
+    );
+
+    // Once chosen, the PIN is required and cannot be chosen again.
+    do_logout(&app.state).unwrap();
+    assert_eq!(
+        do_login_with_new_pin(&app.state, MANAGER.into(), "0000".into()).unwrap_err(),
+        ERR_PIN_ALREADY_SET
+    );
+    assert_eq!(
+        do_login(&app.state, MANAGER.into(), None).unwrap_err(),
+        "pin_required"
+    );
+    assert!(do_login(&app.state, MANAGER.into(), Some("4321".into())).is_ok());
+}
+
+#[tokio::test]
+async fn a_first_pin_is_refused_for_an_unknown_or_departed_user() {
+    let app = app().await;
+    app.logout();
+    assert_eq!(
+        do_login_with_new_pin(&app.state, APPRENTICE.into(), "1234".into()).unwrap_err(),
+        "Utilisateur inconnu"
+    );
+    insert_user(&app, APPRENTICE, "waiter");
+    as_(&app, MANAGER, UserRole::Admin);
+    do_deactivate_user(&app.state, APPRENTICE.into()).unwrap();
+    app.logout();
+    assert_eq!(
+        do_login_with_new_pin(&app.state, APPRENTICE.into(), "1234".into()).unwrap_err(),
+        "Utilisateur inconnu"
+    );
+    assert_eq!(
+        do_login_with_new_pin(&app.state, "123".into(), "1234".into()).unwrap_err(),
+        "INSZ invalide"
+    );
+}
+
+#[tokio::test]
+async fn a_server_or_apprentice_without_pin_still_logs_in() {
+    let app = app().await;
+    insert_user(&app, SERVER, "cashier");
+    insert_user(&app, APPRENTICE, "waiter");
+    app.logout();
+    for insz in [SERVER, APPRENTICE] {
+        let user = do_login(&app.state, insz.into(), None).unwrap();
+        assert!(!user.has_pin, "{insz}");
         do_logout(&app.state).unwrap();
     }
 }

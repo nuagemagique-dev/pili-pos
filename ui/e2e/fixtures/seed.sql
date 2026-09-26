@@ -2,9 +2,11 @@
 -- Applied to a fresh SQLite DB before starting the real Tauri binary.
 -- The schema is created by run_migrations() at POS boot.
 
--- Test operator (no PIN for CI speed - PIN tests are covered in Layer 2).
+-- Test operator: a server without PIN, so the tile logs in directly
+-- (PIN tests are covered in Layer 2). Not a manager, who must have a
+-- PIN, and not 00000000029, the system identity that never logs in.
 INSERT OR IGNORE INTO users (insz, name, role, active)
-VALUES ('00000000029', 'CI Robot', 'admin', 1);
+VALUES ('84022899837', 'CI Server', 'cashier', 1);
 
 -- Two categories
 INSERT OR IGNORE INTO categories (id, sort_order, color, active)

@@ -5,8 +5,7 @@ import {
   DEFAULT_ORDER,
   DEFAULT_ORDER_LINE,
   DEFAULT_CATEGORY,
-  DEFAULT_MENU_ITEM,
-} from './fixtures/mock-ipc';
+  DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
 
 // An FDM refusal reaches the operator in plain French, as in the header
 // indicator (certification manual §V); other errors stay as they are.
@@ -22,7 +21,7 @@ async function payByCard(page: Page, checkoutResult: object) {
     checkout: () => checkoutResult,
   });
   await page.goto('/');
-  await page.click('.user-btn');
+  await tapUserTile(page);
   await page.waitForURL(/tables/);
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);

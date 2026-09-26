@@ -76,6 +76,12 @@ export function logout(): Promise<void> {
   return invoke("logout");
 }
 
+/** First login of a user without a PIN (required for a manager):
+ * stores the chosen PIN and opens the session in one step. */
+export function loginWithNewPin(insz: string, newPin: string): Promise<User> {
+  return invoke("login_with_new_pin", { insz, newPin });
+}
+
 export function setPin(insz: string, newPin: string): Promise<void> {
   return invoke("set_pin", { insz, newPin });
 }

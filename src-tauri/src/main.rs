@@ -234,6 +234,7 @@ fn main() {
         commands::order::list_open_orders,
         // Auth
         commands::auth::login,
+        commands::auth::login_with_new_pin,
         commands::auth::list_users,
         commands::auth::create_user,
         commands::auth::set_pin,
@@ -306,6 +307,7 @@ fn main() {
         commands::order::list_open_orders,
         // Auth
         commands::auth::login,
+        commands::auth::login_with_new_pin,
         commands::auth::list_users,
         commands::auth::create_user,
         commands::auth::set_pin,

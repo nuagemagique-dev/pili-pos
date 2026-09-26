@@ -7,6 +7,7 @@ import { useToastStore } from "../stores/toast";
 import type { User } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
+import PinDialog from "../components/PinDialog.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -25,6 +26,26 @@ const pinUser = ref<User | null>(null);
 const pin = ref("");
 const pinError = ref<string | null>(null);
 
+// A manager without a PIN chooses one before logging in
+// (commands/auth.rs::do_login_with_new_pin).
+const firstPinUser = ref<{ insz: string; name: string } | null>(null);
+
+function nameOf(insz: string): string {
+  return savedUsers.value.find((u) => u.insz === insz)?.name ?? insz;
+}
+
+function openPinOverlay(user: User) {
+  pinUser.value = user;
+  pinMode.value = true;
+  pin.value = "";
+  pinError.value = null;
+}
+
+function onFirstPinDone() {
+  firstPinUser.value = null;
+  router.push({ name: "order" });
+}
+
 onMounted(async () => {
   try {
     savedUsers.value = await ipc.listUsers();
@@ -41,10 +62,11 @@ async function quickLogin(user: User) {
   error.value = null;
   if (user.has_pin) {
     // User has a PIN → show the PIN entry overlay
-    pinUser.value = user;
-    pinMode.value = true;
-    pin.value = "";
-    pinError.value = null;
+    openPinOverlay(user);
+    return;
+  }
+  if (user.role === "admin") {
+    firstPinUser.value = { insz: user.insz, name: user.name };
     return;
   }
   // No PIN set → login directly + warning toast
@@ -53,6 +75,10 @@ async function quickLogin(user: User) {
     toast.show(t("pin_not_set_warning"), "warning", 5000);
     router.push({ name: "order" });
   } catch (e) {
+    if (String(e).includes("pin_setup_required")) {
+      firstPinUser.value = { insz: user.insz, name: user.name };
+      return;
+    }
     error.value = String(e);
   }
 }
@@ -118,7 +144,17 @@ async function submitInsz() {
     await auth.loginWithInsz(insz.value);
     router.push({ name: "order" });
   } catch (e) {
-    error.value = String(e);
+    const msg = String(e);
+    if (msg.includes("pin_setup_required")) {
+      firstPinUser.value = { insz: insz.value, name: nameOf(insz.value) };
+    } else if (msg.includes("pin_required")) {
+      const known = savedUsers.value.find((u) => u.insz === insz.value);
+      openPinOverlay(
+        known ?? { insz: insz.value, name: insz.value, role: "waiter", active: true, has_pin: true },
+      );
+    } else {
+      error.value = msg;
+    }
   }
 }
 </script>
@@ -128,6 +164,15 @@ async function submitInsz() {
     <h1 class="title">{{ pos.settings?.restaurantName || "moyun-pos" }}</h1>
 
     <p v-if="error" class="error-msg shake">{{ error }}</p>
+
+    <PinDialog
+      v-if="firstPinUser"
+      :insz="firstPinUser.insz"
+      :user-name="firstPinUser.name"
+      first-login
+      @done="onFirstPinDone"
+      @cancel="firstPinUser = null"
+    />
 
     <!-- PIN overlay - shown when tapping a user tile that has a PIN -->
     <div v-if="pinMode && pinUser" class="pin-overlay">

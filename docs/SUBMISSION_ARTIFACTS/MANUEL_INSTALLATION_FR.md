@@ -349,6 +349,12 @@ INSERT INTO users (insz, name, role, active)
 VALUES ('ZZZZZZZZZZZ', 'Pierre Tran', 'waiter', 1);
 ```
 
+Aucun PIN n'est saisi ici. Le Gérant choisit le sien à sa première
+connexion : sa tuile ouvre "Choisissez votre PIN" (un Gérant ne peut
+pas se connecter sans PIN). Le Serveur et l'Apprenti fixent le leur en
+touchant leur nom sur l'écran de commande. Ne pas créer l'INSZ
+`00000000029` : c'est l'identité système, qui ne se connecte jamais.
+
 (Voir `MANUEL_PROGRAMMATION_FR.md` pour la création/modification
 de menus, modificateurs etc.)
 
@@ -447,7 +453,7 @@ Les INSZ de test SPF (depuis `UC_TestSetup_20240806.md`) :
 | Gérant | 00000000196 |
 | Serveur | 00000000295 |
 | Apprenti | 00000000394 |
-| Robot (automate) | 00000000029 |
+| Robot (automate, identité système, sans connexion) | 00000000029 |
 
 À utiliser exclusivement lors de la phase de test pré-soumission.
 

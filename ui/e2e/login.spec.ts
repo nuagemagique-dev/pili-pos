@@ -1,5 +1,22 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, overrideIPC, DEFAULT_USER, DEFAULT_USER_WITH_PIN } from './fixtures/mock-ipc';
+import {
+  mockTauriIPC,
+  overrideIPC,
+  ipcCalls,
+  tapUserTile,
+  DEFAULT_USER,
+  DEFAULT_USER_WITH_PIN,
+} from './fixtures/mock-ipc';
+
+// A manager without a PIN yet (the first login after installation).
+const NEW_MANAGER = { ...DEFAULT_USER, has_pin: false };
+// A server without a PIN: allowed, with a warning.
+const SERVER_NO_PIN = { ...DEFAULT_USER, insz: '84022899837', name: 'Serveur', role: 'cashier', has_pin: false };
+
+async function typeOnDialog(page: import('@playwright/test').Page, pin: string) {
+  const dialog = page.locator('.pin-dialog');
+  for (const d of pin) await dialog.getByRole('button', { name: d, exact: true }).click();
+}
 
 test.describe('Login View', () => {
   test.beforeEach(async ({ page }) => {
@@ -41,10 +58,19 @@ test.describe('Login View', () => {
     await expect(page.locator('.user-role')).toHaveText('Gérant');
   });
 
-  test('quick login without PIN redirects to tables', async ({ page }) => {
-    await page.click('.user-btn');
-    // No PIN → direct login → redirect to /tables (no current order)
+  test('a manager logs in with their PIN', async ({ page }) => {
+    await tapUserTile(page);
     await expect(page).toHaveURL(/tables/);
+    expect(await ipcCalls(page, 'login')).toEqual([{ insz: DEFAULT_USER.insz, pin: '1234' }]);
+  });
+
+  test('a server without PIN logs in directly, with a warning', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [SERVER_NO_PIN], login: () => SERVER_NO_PIN });
+    await page.goto('/');
+    await page.click('.user-btn');
+    await expect(page).toHaveURL(/tables/);
+    await expect(page.locator('.toast', { hasText: 'touchez votre nom' })).toBeVisible();
+    expect(await ipcCalls(page, 'login')).toEqual([{ insz: SERVER_NO_PIN.insz, pin: null }]);
   });
 
   test('shows PIN overlay when user has PIN', async ({ page }) => {
@@ -106,4 +132,72 @@ test.describe('Login View', () => {
     await page.goto('/');
     await expect(page.locator('.numpad-section')).toBeVisible();
   });
+});
+
+test.describe('First login of a manager without PIN', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [NEW_MANAGER],
+      login: () => NEW_MANAGER,
+      login_with_new_pin: () => ({ ...NEW_MANAGER, has_pin: true }),
+    });
+    await page.goto('/');
+  });
+
+  test('the tile asks to choose a PIN, typed twice, then logs in', async ({ page }) => {
+    await page.click('.user-btn');
+    const dialog = page.locator('.pin-dialog');
+    await expect(dialog.locator('.title')).toHaveText('Choisissez votre PIN');
+    await expect(dialog.locator('.who')).toHaveText(NEW_MANAGER.name);
+    await expect(dialog.locator('.hint')).toContainText('Première connexion d\'un gérant');
+    expect(await ipcCalls(page, 'login')).toHaveLength(0);
+
+    await typeOnDialog(page, '4321');
+    await expect(dialog.locator('.title')).toHaveText('Confirmer le PIN');
+    await typeOnDialog(page, '4321');
+
+    await expect(page).toHaveURL(/tables/);
+    expect(await ipcCalls(page, 'login_with_new_pin')).toEqual([
+      { insz: NEW_MANAGER.insz, newPin: '4321' },
+    ]);
+    expect(await ipcCalls(page, 'set_pin')).toHaveLength(0);
+    await expect(page.locator('.toast', { hasText: 'PIN enregistré' })).toBeVisible();
+  });
+
+  test('two different PINs start over and log nobody in', async ({ page }) => {
+    await page.click('.user-btn');
+    await typeOnDialog(page, '4321');
+    await typeOnDialog(page, '1234');
+    await expect(page.locator('.pin-dialog .error-msg')).toHaveText('Les PIN ne correspondent pas');
+    expect(await ipcCalls(page, 'login_with_new_pin')).toHaveLength(0);
+    await expect(page).not.toHaveURL(/tables/);
+  });
+
+  test('back closes the dialog and stays on the login screen', async ({ page }) => {
+    await page.click('.user-btn');
+    await page.locator('.pin-dialog').getByRole('button', { name: 'Retour' }).click();
+    await expect(page.locator('.pin-dialog')).toHaveCount(0);
+    await expect(page.locator('.user-btn')).toBeVisible();
+    expect(await ipcCalls(page, 'login_with_new_pin')).toHaveLength(0);
+  });
+
+  test('a manager typed by INSZ is asked to choose a PIN too', async ({ page }) => {
+    await overrideIPC(page, 'login', { __reject: 'pin_setup_required' });
+    await page.click('.other-link');
+    for (const d of NEW_MANAGER.insz) await page.click(`.numpad-section .nk:has-text("${d}")`);
+    await page.locator('.submit-btn').click();
+    await expect(page.locator('.pin-dialog .title')).toHaveText('Choisissez votre PIN');
+    await expect(page.locator('.pin-dialog .who')).toHaveText(NEW_MANAGER.name);
+  });
+});
+
+test('a PIN-protected user typed by INSZ gets the PIN overlay', async ({ page }) => {
+  await mockTauriIPC(page, { list_users: () => [DEFAULT_USER_WITH_PIN] });
+  await page.goto('/');
+  await overrideIPC(page, 'login', { __reject: 'pin_required' });
+  await page.click('.other-link');
+  for (const d of DEFAULT_USER_WITH_PIN.insz) await page.click(`.numpad-section .nk:has-text("${d}")`);
+  await page.locator('.submit-btn').click();
+  await expect(page.locator('.pin-overlay')).toBeVisible();
+  await expect(page.locator('.pin-user')).toHaveText(DEFAULT_USER_WITH_PIN.name);
 });

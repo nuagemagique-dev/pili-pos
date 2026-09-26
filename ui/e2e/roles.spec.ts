@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
 
 // PROFILS_UTILISATEURS_FR.md §2: the backend refuses what a role may
 // not do; the UI does not offer it.
@@ -14,7 +14,7 @@ async function openTableAs(page: import('@playwright/test').Page, role: string) 
     get_menu_items: () => [DEFAULT_MENU_ITEM],
   });
   await page.goto('/');
-  await page.click('.user-btn');
+  await tapUserTile(page);
   await page.waitForURL(/tables/);
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);

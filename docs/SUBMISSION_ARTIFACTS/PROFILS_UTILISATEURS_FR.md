@@ -139,12 +139,18 @@ présence du personnel.
 - Les PINs sont stockés sous forme de hash bcrypt (coût 12) dans la
   colonne `users.pin_hash`. Le PIN lui-même n'est jamais stocké en
   clair ni journalisé.
-- Un PIN n'est pas obligatoire : un utilisateur sans PIN peut se
-  connecter uniquement par INSZ - utile pour les apprentis en
-  période d'essai. Le drapeau `has_pin` (calculé) informe le
+- Un Gérant (`admin`) a toujours un PIN : sans PIN, la caisse refuse
+  sa connexion et lui fait choisir un PIN (saisi deux fois), enregistré
+  en même temps que la session s'ouvre
+  (`commands/auth.rs::do_login_with_new_pin`). Une fois choisi, ce
+  chemin est refusé : personne ne peut s'approprier une tuile qui a
+  déjà un PIN.
+- Pour un Serveur ou un Apprenti, le PIN n'est pas obligatoire (utile
+  pour un apprenti en période d'essai) ; un avertissement s'affiche à
+  chaque connexion sans PIN. Le drapeau `has_pin` (calculé) informe le
   frontend de présenter ou non le pavé numérique de PIN.
-- En l'absence de PIN, la sécurité repose sur l'unicité physique du
-  poste (terminal à l'entrée du restaurant, kiosk-mode plein écran).
+- L'identité système `00000000029` (robot, enregistrements
+  automatiques) ne peut jamais ouvrir de session et n'a pas de tuile.
 
 ## 6. Limitations connues
 

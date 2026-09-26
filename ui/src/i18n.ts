@@ -57,6 +57,13 @@ const coreMessages: Messages = {
   "pin_enter": { fr: "Saisir le PIN", en: "Enter PIN", zh: "输入PIN" },
   "pin_change": { fr: "Changer le PIN", en: "Change PIN", zh: "修改PIN" },
   "pin_changed": { fr: "PIN modifié", en: "PIN changed", zh: "PIN已修改" },
+  "pin_choose": { fr: "Choisissez votre PIN", en: "Choose your PIN", zh: "设置您的PIN" },
+  "pin_chosen": { fr: "PIN enregistré", en: "PIN saved", zh: "PIN已保存" },
+  "pin_first_login_hint": {
+    fr: "Première connexion d'un gérant : choisissez un PIN à 4 chiffres. Il sera demandé à chaque connexion.",
+    en: "First login of a manager: choose a 4-digit PIN. It will be asked at every login.",
+    zh: "经理首次登录：请设置4位PIN，以后每次登录都需要输入。",
+  },
   "pin_confirm": { fr: "Confirmer le PIN", en: "Confirm PIN", zh: "确认PIN" },
   "pin_mismatch": { fr: "Les PIN ne correspondent pas", en: "PINs don't match", zh: "PIN不匹配" },
   "other_insz": { fr: "Autre (INSZ)", en: "Other (INSZ)", zh: "其他 (INSZ)" },

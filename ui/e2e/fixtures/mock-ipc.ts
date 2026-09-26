@@ -16,12 +16,14 @@ import type { Page } from '@playwright/test';
 
 // ── Default fixtures ────────────────────────────────────────────
 
+// A manager always has a PIN (a manager without one must choose it at
+// first login, see login.spec.ts). `tapUserTile` types it.
 const DEFAULT_USER = {
   insz: '94060242576',
   name: 'Bruno Moyse',
   role: 'admin',
   active: true,
-  has_pin: false,
+  has_pin: true,
 };
 
 const DEFAULT_USER_WITH_PIN = {
@@ -119,6 +121,7 @@ function defaultHandlers(): Record<string, Handler> {
   return {
     // Auth
     login: () => DEFAULT_USER,
+    login_with_new_pin: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     create_user: ({ input }: any) => ({ ...input, active: true, has_pin: false }),
     set_pin: () => undefined,
@@ -438,6 +441,28 @@ export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
   );
 }
 
+/** PIN typed by `tapUserTile` (the mocked `login` accepts any). */
+export const TEST_PIN = '1234';
+
+/**
+ * Tap a user tile on the login screen and, when that user has a PIN,
+ * type it on the overlay (the 4th digit submits).
+ */
+export async function tapUserTile(page: Page, name?: string) {
+  const tile = name
+    ? page.locator('.user-btn', { hasText: name })
+    : page.locator('.user-btn').first();
+  await tile.click();
+  const overlay = page.locator('.pin-overlay');
+  await Promise.race([
+    page.waitForURL(/tables|order/),
+    overlay.waitFor({ state: 'visible' }),
+  ]);
+  if (await overlay.isVisible()) {
+    for (const d of TEST_PIN) await overlay.locator('.nk', { hasText: d }).first().click();
+  }
+}
+
 /**
  * Login via the tile flow then SPA-navigate to a target route.
  * Uses `window.location.hash` for client-side navigation so the
@@ -446,7 +471,7 @@ export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
  */
 export async function loginAndGoto(page: Page, hashRoute: string) {
   await page.goto('/');
-  await page.click('.user-btn');
+  await tapUserTile(page);
   // After login, the app redirects to /#/tables or /#/order.
   await page.waitForURL(/tables|order/);
   // Client-side navigation (no page reload → Pinia state preserved).

@@ -237,8 +237,10 @@ empêcherait la suppression, et même si elle réussissait par cascade
 UPDATE users SET pin_hash = NULL WHERE insz = '85073003328';
 ```
 
-L'utilisateur peut alors se connecter sans PIN (seulement avec son
-INSZ). Le distributeur lui en définit un nouveau ensuite.
+Un Serveur ou un Apprenti peut alors se connecter sans PIN, puis en
+fixe un nouveau en touchant son nom sur l'écran de commande. Un Gérant
+choisit un nouveau PIN dès sa connexion suivante ("Choisissez votre
+PIN") : il ne peut pas se connecter sans.
 
 ## 7. Configuration de la période de réservation
 

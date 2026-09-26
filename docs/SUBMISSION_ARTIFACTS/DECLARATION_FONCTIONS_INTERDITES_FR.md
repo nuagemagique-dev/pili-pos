@@ -173,7 +173,12 @@ identifier l'opérateur par son INSZ.
 - Le format de l'INSZ (11 chiffres + mod-97) est validé par
   `pos_core::user::validate_insz` avant tout appel commande.
 - Le robot/automatisme utilise l'INSZ réservé `00000000029` (cf.
-  spec POS v2.2 §II.3).
+  spec POS v2.2 §II.3). Cette identité système ne peut pas ouvrir de
+  session (`commands/auth.rs::do_login`) et n'apparaît pas sur l'écran
+  de connexion.
+- Un Gérant (rôle `admin`) ne peut pas se connecter sans PIN : il le
+  choisit à sa première connexion
+  (`commands/auth.rs::do_login_with_new_pin`).
 
 ## 10. Données fiscales en dehors du périmètre du FDM
 

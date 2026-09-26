@@ -2,15 +2,21 @@
 // Set or change a 4-digit PIN: typed twice, saved only when both
 // match. The backend allows the user's own PIN, or anyone's for a
 // manager (commands/auth.rs::do_set_pin).
+//
+// `firstLogin`: a user without a PIN (a manager must have one) chooses
+// it at login; the PIN is stored and the session opened in one step
+// (commands/auth.rs::do_login_with_new_pin).
 import { ref } from "vue";
 import NumPad from "./NumPad.vue";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { useToastStore } from "../stores/toast";
+import { useAuthStore } from "../stores/auth";
 
 const props = defineProps<{
   insz: string;
   userName: string;
+  firstLogin?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -50,8 +56,12 @@ async function onKey(key: string) {
   }
   saving.value = true;
   try {
-    await ipc.setPin(props.insz, pin.value);
-    toast.show(t("pin_changed"), "success");
+    if (props.firstLogin) {
+      await useAuthStore().loginWithNewPin(props.insz, pin.value);
+    } else {
+      await ipc.setPin(props.insz, pin.value);
+    }
+    toast.show(t(props.firstLogin ? "pin_chosen" : "pin_changed"), "success");
     emit("done");
   } catch (e) {
     error.value = String(e);
@@ -67,8 +77,11 @@ async function onKey(key: string) {
 <template>
   <div class="backdrop" @click.self="emit('cancel')">
     <div class="dialog pin-dialog" role="dialog" :aria-label="t('pin_change')">
-      <h2 class="title">{{ step === 'enter' ? t('pin_enter') : t('pin_confirm') }}</h2>
+      <h2 class="title">
+        {{ step === 'confirm' ? t('pin_confirm') : firstLogin ? t('pin_choose') : t('pin_enter') }}
+      </h2>
       <p class="who">{{ userName }}</p>
+      <p v-if="firstLogin" class="hint">{{ t('pin_first_login_hint') }}</p>
       <p v-if="error" class="error-msg shake">{{ error }}</p>
       <div class="pin-display">
         <span v-for="i in 4" :key="i" class="pin-dot" :class="{ filled: i <= pin.length }"></span>
@@ -80,6 +93,14 @@ async function onKey(key: string) {
 </template>
 
 <style scoped>
+.hint {
+  margin: 0;
+  max-width: 22rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

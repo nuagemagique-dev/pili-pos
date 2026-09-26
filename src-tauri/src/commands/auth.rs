@@ -1,4 +1,4 @@
-use pos_core::user::{User, UserRole};
+use pos_core::user::{SYSTEM_INSZ, User, UserRole};
 use serde::Deserialize;
 use tauri::State;
 
@@ -7,8 +7,10 @@ use crate::state::AppState;
 
 /// Login with INSZ + optional PIN. If the user has a PIN set (pin_hash
 /// is not NULL), the caller MUST provide the correct PIN or login is
-/// rejected. If no PIN is set, login succeeds without one - but the
-/// frontend should warn the operator to configure a PIN via Settings.
+/// rejected. A manager without a PIN is refused with
+/// [`ERR_PIN_SETUP_REQUIRED`]: they choose one through
+/// [`login_with_new_pin`]. Other roles without a PIN log in, and the
+/// frontend warns them to set one. The system identity never logs in.
 #[tauri::command]
 pub fn login(
     state: State<'_, AppState>,
@@ -25,11 +27,18 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     if !pos_core::user::validate_insz(&insz) {
         return Err("INSZ invalide".to_string());
     }
+    if insz == SYSTEM_INSZ {
+        return Err(ERR_SYSTEM_USER.to_string());
+    }
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let user = pos_db::queries::users::get_user(&db, &insz)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "Utilisateur inconnu".to_string())?;
+
+    if user.role == UserRole::Admin && !user.has_pin {
+        return Err(ERR_PIN_SETUP_REQUIRED.to_string());
+    }
 
     // PIN verification: only when the user has a stored hash.
     if user.has_pin {
@@ -47,6 +56,64 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     Ok(user)
 }
 
+/// The system identity (`SYSTEM_INSZ`) is not an operator.
+pub const ERR_SYSTEM_USER: &str = "system_user";
+/// A manager has no PIN yet: they must choose one to log in.
+pub const ERR_PIN_SETUP_REQUIRED: &str = "pin_setup_required";
+/// `login_with_new_pin` for a user who already has a PIN.
+pub const ERR_PIN_ALREADY_SET: &str = "pin_already_set";
+pub const ERR_PIN_FORMAT: &str = "PIN must be exactly 4 digits";
+
+fn valid_pin(pin: &str) -> bool {
+    pin.len() == 4 && pin.chars().all(|c| c.is_ascii_digit())
+}
+
+/// First login of a user who has no PIN yet (required for a manager):
+/// the chosen PIN is stored and the session opened in one step. Refused
+/// once a PIN exists, so nobody can take over a tile that has one.
+#[tauri::command]
+pub fn login_with_new_pin(
+    state: State<'_, AppState>,
+    insz: String,
+    new_pin: String,
+) -> Result<User, String> {
+    do_login_with_new_pin(state.inner(), insz, new_pin)
+}
+
+pub fn do_login_with_new_pin(
+    state: &AppState,
+    insz: String,
+    new_pin: String,
+) -> Result<User, String> {
+    if !pos_core::user::validate_insz(&insz) {
+        return Err("INSZ invalide".to_string());
+    }
+    if insz == SYSTEM_INSZ {
+        return Err(ERR_SYSTEM_USER.to_string());
+    }
+    if !valid_pin(&new_pin) {
+        return Err(ERR_PIN_FORMAT.to_string());
+    }
+    let hash = bcrypt::hash(&new_pin, bcrypt::DEFAULT_COST).map_err(|e| e.to_string())?;
+
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let user = pos_db::queries::users::get_user(&db, &insz)
+        .map_err(|e| e.to_string())?
+        .filter(|u| u.active)
+        .ok_or_else(|| "Utilisateur inconnu".to_string())?;
+    if !pos_db::queries::users::set_first_pin_hash(&db, &insz, &hash).map_err(user_error)? {
+        return Err(ERR_PIN_ALREADY_SET.to_string());
+    }
+    drop(db);
+
+    let user = User {
+        has_pin: true,
+        ..user
+    };
+    access::open_session(state, &user)?;
+    Ok(user)
+}
+
 /// End the operator's session (after their clock-out): every command
 /// needing an operator is refused until the next login.
 #[tauri::command]
@@ -60,6 +127,11 @@ pub fn do_logout(state: &AppState) -> Result<(), String> {
 
 #[tauri::command]
 pub fn list_users(state: State<'_, AppState>) -> Result<Vec<User>, String> {
+    do_list_users(state.inner())
+}
+
+/// The login tiles: active users, the system identity excluded.
+pub fn do_list_users(state: &AppState) -> Result<Vec<User>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::users::list_users(&db).map_err(|e| e.to_string())
 }
@@ -79,6 +151,9 @@ pub fn create_user(state: State<'_, AppState>, input: CreateUserInput) -> Result
 /// Create a user. Managers only.
 pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, String> {
     access::operator(state, Access::Admin)?;
+    if input.insz == SYSTEM_INSZ {
+        return Err(ERR_SYSTEM_USER.to_string());
+    }
     if input.name.trim().is_empty() {
         return Err("Name required".to_string());
     }
@@ -105,8 +180,11 @@ pub fn do_set_pin(state: &AppState, insz: String, new_pin: String) -> Result<(),
     if operator.insz != insz && !Access::Admin.allows(operator.role) {
         return Err(access::ERR_FORBIDDEN.to_string());
     }
-    if new_pin.len() != 4 || !new_pin.chars().all(|c| c.is_ascii_digit()) {
-        return Err("PIN must be exactly 4 digits".to_string());
+    if insz == SYSTEM_INSZ {
+        return Err(ERR_SYSTEM_USER.to_string());
+    }
+    if !valid_pin(&new_pin) {
+        return Err(ERR_PIN_FORMAT.to_string());
     }
     let hash = bcrypt::hash(&new_pin, bcrypt::DEFAULT_COST).map_err(|e| e.to_string())?;
     let db = state.db.lock().map_err(|e| e.to_string())?;

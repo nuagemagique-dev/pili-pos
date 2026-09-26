@@ -8,8 +8,7 @@ import {
   DEFAULT_ORDER,
   DEFAULT_ORDER_LINE,
   DEFAULT_CATEGORY,
-  DEFAULT_MENU_ITEM,
-} from './fixtures/mock-ipc';
+  DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
 
 // Digital ticket delivery (paper / email / both): the medium picker on
 // checkout/refund/copy, the on-screen email keypad, the "done" screen
@@ -54,7 +53,7 @@ async function goToCheckoutMethodStep(page: Page, overrides: Handlers = {}) {
     ...overrides,
   });
   await page.goto('/');
-  await page.click('.user-btn');
+  await tapUserTile(page);
   await page.waitForURL(/tables/);
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);
