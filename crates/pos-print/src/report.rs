@@ -1,4 +1,4 @@
-use pos_fiscal::ticket::{ReceiptLanguage, ticket_type_label};
+use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer, ticket_type_label};
 use pos_fiscal::types::EventLabel;
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
@@ -29,7 +29,7 @@ pub struct ReportPrintData {
     pub event_totals: Vec<ReportEventTotal>,
     /// VAT breakdown
     pub vat_totals: Vec<ReportVatTotal>,
-    /// Payment totals
+    /// Payment totals (payment lines, rounding excluded)
     pub payment_totals: Vec<ReportPaymentTotal>,
     /// Grand total
     pub grand_total_cents: i64,
@@ -42,6 +42,38 @@ pub struct ReportPrintData {
     pub ticket_number: i64,
     /// Language of the printed mentions (§VI, like receipts).
     pub lang: ReceiptLanguage,
+    /// The rest of the content of AM of 29 April 2024 art. 29.
+    pub details: ReportDetails,
+}
+
+/// Report content required by art. 29 beyond the totals above (SPF
+/// example Z report of 2026-09-24).
+#[derive(Debug, Clone, Default)]
+pub struct ReportDetails {
+    /// Establishment unit number (art. 29 c).
+    pub restaurant_est_no: String,
+    pub booking_period_id: String,
+    /// When the report was made (art. 29 d), Belgian time.
+    pub created_at: String,
+    /// The first and last event of the FDM in the report (art. 29 f,
+    /// x): total counter and FDM time.
+    pub fdm_first_event: Option<(i64, String)>,
+    pub fdm_last_event: Option<(i64, String)>,
+    /// Turnover per department, VAT included (art. 29 j).
+    pub departments: Vec<(String, i64)>,
+    /// Corrections that lowered the turnover (art. 29 v): amount.
+    pub corrections_cents: i64,
+    /// Refunds: tickets and amount (art. 29 s).
+    pub refunds: (i64, i64),
+    /// Training tickets: count and amount (art. 29 r).
+    pub training: (i64, i64),
+    /// Reductions per type: count and amount (art. 29 u).
+    pub line_reductions: (i64, i64),
+    pub event_reductions: (i64, i64),
+    /// Invoices: number and amount (art. 29 w).
+    pub invoices: Vec<(String, i64)>,
+    /// Total of the rounding payment lines (art. 29 o).
+    pub rounding_cents: i64,
 }
 
 pub struct ReportEventTotal {
@@ -63,11 +95,35 @@ pub struct ReportPaymentTotal {
     pub amount_cents: i64,
 }
 
-/// Format an X or Z report for the thermal printer.
+/// A centered bold section title.
+fn section(p: &mut EscPosBuilder, title: &str) {
+    p.separator('-');
+    p.align(Alignment::Center);
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
+    p.textln(title);
+    p.style_reset();
+    p.align(Alignment::Left);
+}
+
+/// A row: label, optional count, amount on the right.
+fn count_row(p: &mut EscPosBuilder, label: &str, count: i64, amount_cents: i64) {
+    p.text_columns(&format!("{label} {count}"), &fmt_price(amount_cents));
+}
+
+/// The four Belgian VAT rates, in the order of the report.
+const VAT_RATES: [(&str, f64); 4] = [("A", 21.0), ("B", 12.0), ("C", 6.0), ("D", 0.0)];
+
+/// Format an X or Z turnover report for the thermal printer, in the
+/// order of the SPF example Z report of 2026-09-24 (AM of 29 April
+/// 2024 art. 29).
 pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     let mut p = EscPosBuilder::new();
     let l = labels(data.lang);
     let rl = report_labels(data.lang);
+    let d = &data.details;
 
     // ── Training mode banner ───────────────────────────────────
     if data.is_training {
@@ -83,25 +139,17 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         p.separator('=');
     }
 
-    // ── Report header ──────────────────────────────────────────
+    // ── Title: "Z CHIFFRE D'AFFAIRES" (art. 29) ────────────────
     p.align(Alignment::Center);
     p.style(TextStyle {
         bold: true,
         double_height: true,
-        double_width: true,
         ..Default::default()
     });
-    let report_word = ticket_type_label(EventLabel::R, data.lang);
-    let title = match data.report_no {
-        Some(no) => format!("{report_word} {} #{}", data.report_type, no),
-        None => format!("{report_word} {}", data.report_type),
-    };
-    p.textln(&title);
+    p.textln(&format!("{} {}", data.report_type, rl.turnover));
     p.style_reset();
-    p.blank_line();
 
-    // ── Restaurant header ──────────────────────────────────────
-    p.align(Alignment::Center);
+    // ── Issuer (art. 29 a, b, c) ───────────────────────────────
     p.style(TextStyle {
         bold: true,
         ..Default::default()
@@ -110,149 +158,198 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
     p.style_reset();
     p.textln_wrapped(&data.restaurant_address);
     p.textln(&format!("{}: {}", l.vat_no, data.restaurant_vat));
-    p.blank_line();
+    if !d.restaurant_est_no.is_empty() {
+        p.textln(&format!("{} {}", l.est_unit, d.restaurant_est_no));
+    }
+    p.separator('-');
 
-    // ── Report metadata ────────────────────────────────────────
+    // ── Report identification (art. 29 d, y) ───────────────────
     p.align(Alignment::Left);
+    let report_word = ticket_type_label(EventLabel::R, data.lang);
+    p.text_columns(
+        &format!("{report_word} {}", data.report_type),
+        &d.created_at,
+    );
+    if let Some(no) = data.report_no {
+        p.textln(&format!("{} {no}", rl.report_no));
+    }
+    p.text_columns(l.ticket, &format!("{:06}", data.ticket_number));
+    p.text_columns(rl.employee, &data.employee_insz);
+
+    // ── Opening period (art. 29 e, f, g, h, x) ─────────────────
+    section(&mut p, rl.opening_period);
     p.text_columns(l.date, &data.report_date);
+    if !d.booking_period_id.is_empty() {
+        p.textln("BookingPeriodId:");
+        p.textln(&d.booking_period_id);
+    }
     p.text_columns(rl.start, &fmt_datetime(&data.first_datetime));
     p.text_columns(rl.end, &fmt_datetime(&data.last_datetime));
-    p.text_columns(l.terminal, &data.terminal_id);
-    p.text_columns(rl.employee, &data.employee_insz);
-    p.text_columns(l.ticket, &format!("#{}", data.ticket_number));
-    p.separator('=');
-
-    // ── Transaction summary ────────────────────────────────────
-    if !data.event_totals.is_empty() {
-        p.style(TextStyle {
-            bold: true,
-            ..Default::default()
-        });
-        p.textln(rl.transactions);
-        p.style_reset();
-        p.separator('-');
-
-        let mut total_count: i64 = 0;
-        for et in &data.event_totals {
-            let label = event_label_name(&et.label, data.lang);
-            p.text_columns(
-                &format!("{} ({})", label, et.count),
-                &fmt_price(et.amount_cents),
-            );
-            total_count += et.count;
+    p.text_columns("POSID", &data.pos_id);
+    p.text_columns("TerminalId", &data.terminal_id);
+    if let Some(ref fdm_id) = data.fdm_id {
+        p.text_columns("FDMID", fdm_id);
+    }
+    for (label, event) in [(rl.first, &d.fdm_first_event), (rl.last, &d.fdm_last_event)] {
+        if let Some((counter, at)) = event {
+            p.text_columns(label, &format!("{counter} {}", fmt_datetime(at)));
         }
-        p.separator('-');
-        p.style(TextStyle {
-            bold: true,
-            ..Default::default()
-        });
-        p.text_columns(
-            &format!("{} ({})", rl.total_word, total_count),
-            &fmt_price(data.grand_total_cents),
+    }
+
+    // ── Turnover per event label (art. 29 i, t) ────────────────
+    p.separator('-');
+    for et in &data.event_totals {
+        let name = event_label_name(&et.label, data.lang);
+        count_row(
+            &mut p,
+            &format!("Event {} {name}", et.label),
+            et.count,
+            et.amount_cents,
         );
-        p.style_reset();
-        p.blank_line();
     }
 
-    // ── VAT breakdown ──────────────────────────────────────────
-    if !data.vat_totals.is_empty() {
-        p.style(TextStyle {
-            bold: true,
-            ..Default::default()
-        });
-        p.textln(l.vat_no);
-        p.style_reset();
-        p.separator('-');
-
-        p.style(TextStyle {
-            font_b: true,
-            ..Default::default()
-        });
-        p.textln(rl.vat_table_header);
-        for vt in &data.vat_totals {
-            let base_cents = vt.total_incl_cents - vt.vat_cents;
-            let line = format!(
-                " {}    {:>4.0}%  {:>9}  {:>9}",
-                vt.code,
-                vt.rate,
-                fmt_price(base_cents),
-                fmt_price(vt.vat_cents),
-            );
-            p.textln(&line);
+    // ── VAT overview, every rate (art. 29 k, l, m) ─────────────
+    section(&mut p, rl.vat_overview);
+    let [rate, base, vat, total] = rl.vat_columns;
+    p.textln(&vat_row(rate, base, vat, total));
+    let (mut sum_base, mut sum_vat, mut sum_total) = (0, 0, 0);
+    for (code, default_rate) in VAT_RATES {
+        match data.vat_totals.iter().find(|v| v.code == code) {
+            Some(v) => {
+                let base_cents = v.total_incl_cents - v.vat_cents;
+                sum_base += base_cents;
+                sum_vat += v.vat_cents;
+                sum_total += v.total_incl_cents;
+                p.textln(&vat_row(
+                    &format!("{}%", fmt_rate(v.rate)),
+                    &fmt_price(base_cents),
+                    &fmt_price(v.vat_cents),
+                    &fmt_price(v.total_incl_cents),
+                ));
+            }
+            None => {
+                p.textln(&vat_row(
+                    &format!("{}%", fmt_rate(default_rate)),
+                    "-",
+                    "-",
+                    "-",
+                ));
+            }
         }
-        p.style_reset();
-        p.blank_line();
     }
+    p.textln(&vat_row(
+        rl.total_word,
+        &fmt_price(sum_base),
+        &fmt_price(sum_vat),
+        &fmt_price(sum_total),
+    ));
 
-    // ── Payment breakdown ──────────────────────────────────────
-    if !data.payment_totals.is_empty() {
-        p.style(TextStyle {
-            bold: true,
-            ..Default::default()
-        });
-        p.textln(rl.payments_title);
-        p.style_reset();
-        p.separator('-');
-
-        for pt in &data.payment_totals {
-            let method = payment_label(&pt.method, data.lang);
-            p.text_columns(
-                &format!("{} ({}x)", method, pt.count),
-                &fmt_price(pt.amount_cents),
-            );
+    // ── Departments (art. 29 j) ────────────────────────────────
+    if !d.departments.is_empty() {
+        section(&mut p, rl.departments);
+        for (name, amount) in &d.departments {
+            p.text_columns(name, &fmt_price(*amount));
         }
-        p.blank_line();
     }
 
-    // ── Drawer opens ───────────────────────────────────────────
-    p.text_columns(rl.drawer_opens, &data.drawer_opens.to_string());
-    p.separator('=');
+    // ── Corrections and refunds (art. 29 s, v) ─────────────────
+    section(&mut p, rl.corrections);
+    p.text_columns(rl.corrections, &fmt_price(d.corrections_cents));
+    section(&mut p, rl.refunds);
+    count_row(&mut p, rl.refunds, d.refunds.0, d.refunds.1);
 
-    // ── Grand total ────────────────────────────────────────────
+    // ── Drawer opened without a sale (art. 29 q) ───────────────
+    section(&mut p, rl.drawer);
+    p.textln(&format!("{} {}", rl.drawer, data.drawer_opens));
+
+    // ── Training tickets (art. 29 r) ───────────────────────────
+    section(&mut p, rl.training);
+    count_row(&mut p, rl.training_tickets, d.training.0, d.training.1);
+
+    // ── Reductions per type (art. 29 u) ────────────────────────
+    section(&mut p, rl.reductions);
+    count_row(
+        &mut p,
+        rl.line_reductions,
+        d.line_reductions.0,
+        d.line_reductions.1,
+    );
+    count_row(
+        &mut p,
+        rl.event_reductions,
+        d.event_reductions.0,
+        d.event_reductions.1,
+    );
+
+    // ── Invoices (art. 29 w) ───────────────────────────────────
+    section(&mut p, rl.invoices_title);
+    if d.invoices.is_empty() {
+        p.textln(&format!("{} 0", rl.invoices));
+    }
+    for (no, amount) in &d.invoices {
+        p.text_columns(&format!("{} {no}", rl.invoice_no), &fmt_price(*amount));
+    }
+
+    // ── Payments recorded, rounding apart (art. 29 n, o) ───────
+    section(&mut p, rl.payments_title);
+    for pt in &data.payment_totals {
+        let method = payment_label(&pt.method, data.lang);
+        p.text_columns(&method, &fmt_price(pt.amount_cents));
+    }
     p.style(TextStyle {
         bold: true,
-        double_height: true,
         ..Default::default()
     });
-    p.text_columns(l.total, &fmt_price(data.grand_total_cents));
+    p.text_columns(rl.payments_total, &fmt_price(data.grand_total_cents));
     p.style_reset();
-    p.separator('=');
+    p.text_columns(rl.roundings, &fmt_price(d.rounding_cents));
 
-    // ── FDM control data ───────────────────────────────────────
-    if let Some(ref fdm_id) = data.fdm_id {
+    // ── FDM control data of the report event ───────────────────
+    if data.fdm_datetime.is_some() || data.short_signature.is_some() {
+        p.separator('-');
         p.align(Alignment::Center);
         p.style(TextStyle {
             font_b: true,
             ..Default::default()
         });
-        p.textln(&format!("FDM: {fdm_id}"));
         if let Some(ref dt) = data.fdm_datetime {
-            p.textln(dt);
+            p.textln(&format!("fdmDateTime: {dt};"));
         }
         if let Some(ref sig) = data.short_signature {
-            p.textln(&format!("Sig: {sig}"));
+            p.textln(&format!("shortSignature: {sig};"));
         }
         p.style_reset();
     }
 
-    // ── Z-report specific footer ───────────────────────────────
-    if data.report_type == "Z" {
-        p.blank_line();
-        p.align(Alignment::Center);
-        p.style(TextStyle {
-            bold: true,
-            ..Default::default()
-        });
-        p.textln(rl.z_footer_line1);
-        p.textln(rl.z_footer_line2);
-        p.style_reset();
-    }
+    // ── Not a VAT ticket ───────────────────────────────────────
+    p.separator('=');
+    p.align(Alignment::Center);
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
+    p.textln_wrapped(invalid_disclaimer(data.lang));
+    p.style_reset();
 
     // ── End ────────────────────────────────────────────────────
     p.feed(4);
     p.cut();
 
     p.build()
+}
+
+/// One row of the VAT overview: rate, base, VAT, total.
+fn vat_row(rate: &str, base: &str, vat: &str, total: &str) -> String {
+    format!("{rate:<9}{base:>13}{vat:>13}{total:>13}")
+}
+
+/// A VAT rate without needless decimals ("21", "5,5").
+fn fmt_rate(rate: f64) -> String {
+    if (rate - rate.round()).abs() < f64::EPSILON {
+        format!("{}", rate as i64)
+    } else {
+        format!("{rate}").replace('.', ",")
+    }
 }
 
 // ── User report (M182 X / M183 Z / M184 combined Z) ────────────
@@ -411,8 +508,8 @@ pub fn format_user_report(data: &UserReportPrintData) -> Vec<u8> {
 // ── Helpers ────────────────────────────────────────────────────
 
 fn fmt_price(cents: i64) -> String {
-    let euros = cents as f64 / 100.0;
-    format!("{:.2}", euros)
+    // Belgian notation: decimal comma.
+    format!("{:.2}", cents as f64 / 100.0).replace('.', ",")
 }
 
 fn fmt_datetime(s: &str) -> String {
@@ -489,6 +586,7 @@ mod tests {
             short_signature: None,
             ticket_number: 45,
             lang: ReceiptLanguage::Fr,
+            details: Default::default(),
         }
     }
 
@@ -509,12 +607,14 @@ mod tests {
     }
 
     #[test]
-    fn z_report_has_end_of_day_footer() {
-        let data = sample_report_data("Z");
-        let bytes = format_report(&data);
-        // Footer is printed with bold (not double-width) so the
-        // plain text appears consecutively in the byte stream.
-        assert!(bytes.windows(14).any(|w| w == b"FIN DE JOURNEE"));
+    fn a_report_says_it_is_not_a_vat_ticket() {
+        for kind in ["X", "Z"] {
+            let text = crate::render::render_plain_text(&format_report(&sample_report_data(kind)));
+            assert!(
+                text.contains("CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"),
+                "{text}"
+            );
+        }
     }
 
     #[test]
@@ -652,17 +752,12 @@ mod tests {
     fn x_report_has_no_report_no_but_z_does() {
         let x = format_report(&sample_report_data("X"));
         let x_text = crate::render::render_plain_text(&x);
-        assert!(x_text.contains("RAPPORT X"));
-        assert!(!x_text.contains("RAPPORT X #"));
+        assert!(x_text.contains("X CHIFFRE D'AFFAIRES"));
+        assert!(!x_text.contains("Rapport nr."));
 
         let z = format_report(&sample_report_data("Z"));
         let z_text = crate::render::render_plain_text(&z);
-        assert!(z_text.contains("RAPPORT Z #1"));
-    }
-
-    #[test]
-    fn x_report_has_no_end_of_day_footer() {
-        let bytes = format_report(&sample_report_data("X"));
-        assert!(!bytes.windows(14).any(|w| w == b"FIN DE JOURNEE"));
+        assert!(z_text.contains("Z CHIFFRE D'AFFAIRES"));
+        assert!(z_text.contains("Rapport nr. 1"));
     }
 }

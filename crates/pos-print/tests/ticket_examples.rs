@@ -270,6 +270,24 @@ fn base_report(
         short_signature: None,
         ticket_number: 3,
         lang,
+        details: ReportDetails {
+            restaurant_est_no: "2123456791".to_string(),
+            booking_period_id: "3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83".to_string(),
+            created_at: "03/07/26 23:05:41".to_string(),
+            fdm_first_event: Some((41, "2026-07-03T11:02:13+02:00".to_string())),
+            fdm_last_event: Some((63, "2026-07-03T22:48:09+02:00".to_string())),
+            departments: vec![
+                ("Boissons".to_string(), 38450),
+                ("Plats".to_string(), 113900),
+            ],
+            corrections_cents: -1200,
+            refunds: (1, -5200),
+            training: (1, 5200),
+            line_reductions: (0, 0),
+            event_reductions: (0, 0),
+            invoices: vec![],
+            rounding_cents: 2,
+        },
     }
 }
 

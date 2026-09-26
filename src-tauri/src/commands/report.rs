@@ -1,8 +1,8 @@
 use chrono::Timelike;
 use pos_db::queries::reports::{self as report_queries, ZReportSummary};
 use pos_print::report::{
-    ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal, UserReportPrintData,
-    UserReportUser,
+    ReportDetails, ReportEventTotal, ReportPaymentTotal, ReportPrintData, ReportVatTotal,
+    UserReportPrintData, UserReportUser,
 };
 use serde::Serialize;
 use tauri::State;
@@ -557,11 +557,86 @@ fn build_print_data(
         grand_total_cents: payment_totals.iter().map(|p| p.amount_cents).sum(),
         payment_totals,
         drawer_opens: turnover.drawers_open_count,
-        fdm_id: None,
+        fdm_id: data.fdm_devices.first().map(|f| f.fdm_id.clone()),
         fdm_datetime: None,
         short_signature: None,
         ticket_number,
         lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
+        details: report_details(config, period, data),
+    }
+}
+
+/// The art. 29 content of the printed report beyond its totals.
+fn report_details(
+    config: &pos_core::config::PosConfig,
+    period: &BookingPeriod,
+    data: &TurnoverReportData,
+) -> ReportDetails {
+    let turnover = &data.turnover;
+    let neg = |refund: bool| {
+        turnover
+            .neg_quantities
+            .iter()
+            .filter(|n| (n.neg_quantity_reason == NegQuantityReason::Refund) == refund)
+            .fold((0, 0), |(count, amount), n| {
+                (count + n.ticket_count, amount + cents(n.amount))
+            })
+    };
+    let transactions_of = |label: EventLabel| {
+        turnover
+            .transactions
+            .iter()
+            .filter(|t| t.event_label == label)
+            .fold((0, 0), |(count, amount), t| {
+                (count + t.ticket_count, amount + cents(t.amount))
+            })
+    };
+    // Price changes are not made by this POS (Advanced Set, out of
+    // scope): whatever the FDM totals hold is shown as line reductions.
+    let reductions = turnover
+        .price_changes
+        .iter()
+        .fold((0, 0), |(count, amount), change| {
+            let sum: f64 = change.amount.iter().map(|a| a.negative + a.positive).sum();
+            (count + 1, amount + cents(sum))
+        });
+    ReportDetails {
+        restaurant_est_no: config.restaurant_est_no.clone(),
+        booking_period_id: period.id.clone(),
+        created_at: pos_fiscal::event::now_in_belgium()
+            .format("%d/%m/%y %H:%M:%S")
+            .to_string(),
+        fdm_first_event: data
+            .fdm_devices
+            .first()
+            .map(|f| (f.first_total_counter, f.first_fdm_date_time.clone())),
+        fdm_last_event: data
+            .fdm_devices
+            .first()
+            .map(|f| (f.last_total_counter, f.last_fdm_date_time.clone())),
+        departments: turnover
+            .departments
+            .iter()
+            .map(|d| (d.department_name.clone(), cents(d.amount)))
+            .collect(),
+        corrections_cents: neg(false).1,
+        refunds: neg(true),
+        training: transactions_of(EventLabel::T),
+        line_reductions: reductions,
+        event_reductions: (0, 0),
+        invoices: turnover
+            .invoices
+            .iter()
+            .flatten()
+            .map(|i| (i.invoice_no.clone(), cents(i.amount)))
+            .collect(),
+        rounding_cents: turnover
+            .payments
+            .iter()
+            .flat_map(|p| &p.amount)
+            .filter(|a| a.amount_type == PaymentLineType::Rounding)
+            .map(|a| cents(a.total_amount))
+            .sum(),
     }
 }
 
@@ -582,7 +657,13 @@ fn print_payments<'a>(
                 .flatten()
                 .filter(|f| f["id"].as_str() == Some(&p.id) && f["name"].as_str() == Some(&p.name))
                 .count() as i64,
-            amount_cents: p.amount.iter().map(|a| cents(a.total_amount)).sum(),
+            // The payment lines; the rounding is totalled apart.
+            amount_cents: p
+                .amount
+                .iter()
+                .filter(|a| a.amount_type == PaymentLineType::Payment)
+                .map(|a| cents(a.total_amount))
+                .sum(),
         })
         .collect()
 }

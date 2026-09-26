@@ -4,7 +4,7 @@
 //! carry the labels, event names and payment names of its language -
 //! no more, no less. Modeled on `receipt_matrix.rs`.
 
-use pos_fiscal::ticket::{ReceiptLanguage, ticket_type_label};
+use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer, ticket_type_label};
 use pos_fiscal::types::EventLabel;
 use pos_print::render::render_plain_text;
 use pos_print::report::{
@@ -113,6 +113,7 @@ fn report_data(kind: Kind, lang: ReceiptLanguage) -> ReportPrintData {
         short_signature: None,
         ticket_number: 3,
         lang,
+        details: Default::default(),
     }
 }
 
@@ -178,31 +179,19 @@ fn expected_labels(lang: ReceiptLanguage) -> &'static [&'static str] {
     match lang {
         ReceiptLanguage::Fr => &[
             "TVA: BE0499999960",
-            "Terminal:",
             "Employe:",
             "Ticket:",
-            "TOTAL",
             "Especes",
             "Carte",
         ],
         ReceiptLanguage::Nl => &[
             "BTW: BE0499999960",
-            "Terminal:",
             "Werknemer:",
             "Ticket:",
-            "TOTAAL",
             "Contant",
             "Kaart",
         ],
-        ReceiptLanguage::De => &[
-            "MwSt: BE0499999960",
-            "Terminal:",
-            "Mitarbeiter:",
-            "Bon:",
-            "GESAMT",
-            "Bar",
-            "Karte",
-        ],
+        ReceiptLanguage::De => &["MwSt: BE0499999960", "Mitarbeiter:", "Bon:", "Bar", "Karte"],
     }
 }
 
@@ -290,23 +279,90 @@ fn event_type_names_follow_the_ticket_language() {
 }
 
 #[test]
-fn only_the_z_report_carries_the_end_of_day_footer() {
-    fn footer(lang: ReceiptLanguage) -> &'static str {
+fn the_turnover_report_follows_article_29() {
+    fn words(lang: ReceiptLanguage) -> [&'static str; 9] {
         match lang {
-            ReceiptLanguage::Fr => "FIN DE JOURNEE",
-            ReceiptLanguage::Nl => "EINDE VAN DE DAG",
-            ReceiptLanguage::De => "TAGESABSCHLUSS",
+            ReceiptLanguage::Fr => [
+                "CHIFFRE D'AFFAIRES",
+                "Periode d'ouverture",
+                "Apercu TVA",
+                "Corrections",
+                "Remboursements",
+                "Tiroir-caisse",
+                "Tickets de formation",
+                "Reductions de lignes",
+                "Total des paiements",
+            ],
+            ReceiptLanguage::Nl => [
+                "OMZET",
+                "Openingsperiode",
+                "BTW-overzicht",
+                "Correcties",
+                "Terugbetalingen",
+                "Kassalade",
+                "Opleidingstickets",
+                "Lijnkortingen",
+                "Totaal betalingen",
+            ],
+            ReceiptLanguage::De => [
+                "UMSATZ",
+                "Oeffnungszeitraum",
+                "MwSt-Uebersicht",
+                "Korrekturen",
+                "Rueckerstattungen",
+                "Kassenschublade",
+                "Schulungsbons",
+                "Zeilenrabatte",
+                "Summe Zahlungen",
+            ],
         }
     }
+    for kind in [Kind::X, Kind::Z] {
+        for lang in LANGS {
+            let text = render(kind, lang);
+            for word in words(lang) {
+                assert!(
+                    text.contains(word),
+                    "{kind:?}/{lang:?}: missing {word:?}\n{text}"
+                );
+            }
+            // Every rate is listed, even without turnover.
+            for rate in ["21%", "12%", "6%", "0%"] {
+                assert!(
+                    text.lines().any(|l| l.starts_with(rate)),
+                    "{kind:?}/{lang:?}: no {rate} row\n{text}"
+                );
+            }
+            assert!(
+                text.contains(invalid_disclaimer(lang)),
+                "{kind:?}/{lang:?}: a report is not a VAT ticket\n{text}"
+            );
+        }
+    }
+}
+
+#[test]
+fn only_the_z_report_is_numbered() {
     for lang in LANGS {
-        assert!(
-            render(Kind::Z, lang).contains(footer(lang)),
-            "{lang:?}: Z report missing its footer"
-        );
-        assert!(
-            !render(Kind::X, lang).contains(footer(lang)),
-            "{lang:?}: X report must never carry the end-of-day footer"
-        );
+        let z = render(Kind::Z, lang);
+        let x = render(Kind::X, lang);
+        let no = match lang {
+            ReceiptLanguage::De => "Bericht Nr.",
+            _ => "Rapport nr.",
+        };
+        assert!(z.contains(no), "{lang:?}\n{z}");
+        assert!(!x.contains(no), "{lang:?}\n{x}");
+        let title = |k: &str| format!("{k} {}", z_word(lang));
+        assert!(z.contains(&title("Z")), "{lang:?}\n{z}");
+        assert!(x.contains(&title("X")), "{lang:?}\n{x}");
+    }
+}
+
+fn z_word(lang: ReceiptLanguage) -> &'static str {
+    match lang {
+        ReceiptLanguage::Fr => "CHIFFRE D'AFFAIRES",
+        ReceiptLanguage::Nl => "OMZET",
+        ReceiptLanguage::De => "UMSATZ",
     }
 }
 

@@ -80,6 +80,18 @@ impl PrinterSink {
             .collect()
     }
 
+    /// Every printed document as the paper shows it (ESC/POS commands
+    /// rendered, see `pos_print::render`).
+    pub fn rendered(&self) -> Vec<String> {
+        self.jobs
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|j| j.len() > 64)
+            .map(|j| pos_print::render::render_plain_text(j))
+            .collect()
+    }
+
     /// Bar / kitchen order slips, in print order.
     pub fn bar_slips(&self) -> Vec<String> {
         self.documents()
