@@ -37,6 +37,11 @@ set -euo pipefail
 
 FACTORY_DIR="/usr/share/moyun-pos/factory"
 # The new volume's future /var, mounted here while it is prepared.
+# Once systemd mounts it on /var, the tree prepared below is:
+#   /var/lib/moyun-pos             pos.db, and backups/
+#   /var/lib/moyun-pos/logs        pos.log.* (daily files)
+#   /var/lib/moyun-etc/moyun-pos   pos.json, secrets/ (/etc/moyun-pos points here)
+#   /var/lib/moyun-etc/system-connections  (NetworkManager's, linked from /etc)
 VAR_MNT="/run/moyun-provision/var"
 POS_HOME="$VAR_MNT/lib/moyun-pos"
 ETC_DIR="$VAR_MNT/lib/moyun-etc"
