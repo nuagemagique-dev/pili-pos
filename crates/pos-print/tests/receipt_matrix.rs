@@ -229,6 +229,7 @@ fn every_ticket_is_in_its_language() {
 }
 
 #[test]
+// covers: FAQ_Q507
 fn every_ticket_carries_its_type_label_and_identification() {
     for kind in KINDS {
         for lang in LANGS {

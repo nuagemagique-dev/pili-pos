@@ -309,3 +309,11 @@ kind = "hors_perimetre"
 [ROUND5]
 reason = "Une vente payée en chèques-repas, carte et cash à la fois n'est pas possible dans moyun-pos v1.0.0 : un seul moyen de paiement par vente, sans chèques-repas (test de base 3)."
 kind = "hors_perimetre"
+
+# ---------------------------------------------------------------------------
+# FAQ producteurs
+# ---------------------------------------------------------------------------
+
+[FAQ_Q212]
+reason = "Le transfert de table (et donc le changement de référence du costCenter qui l'accompagne) n'existe pas dans moyun-pos v1.0.0."
+kind = "hors_perimetre"

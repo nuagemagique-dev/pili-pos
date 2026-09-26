@@ -881,6 +881,7 @@ mod tests {
     }
 
     #[test]
+    // covers: FAQ_Q303
     fn negative_lines_are_counted_per_reason() {
         let neg = |id: &str, qty: i64, price: f64, reason: &str| {
             let mut l = line(id, ("10", "A"), qty, &[("A", price)]);

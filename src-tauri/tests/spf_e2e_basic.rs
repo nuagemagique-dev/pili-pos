@@ -259,6 +259,7 @@ async fn m121_sign_order_archives_p_event_and_keeps_order_open() {
 // ── M123 - Pre-bill (event P) ──────────────────────────────────────
 
 #[tokio::test]
+// covers: FAQ_Q202
 async fn m123_sign_pre_bill_archives_p_event_and_keeps_order_open() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
@@ -280,6 +281,7 @@ async fn m123_sign_pre_bill_archives_p_event_and_keeps_order_open() {
 // ── M130 - Money in/out (event F) ──────────────────────────────────
 
 #[tokio::test]
+// covers: FAQ_Q401
 async fn m130_money_in_out_archives_f_event() {
     let app = TestApp::new().await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M130")).await;
@@ -355,6 +357,7 @@ async fn m141_work_out_archives_s_event() {
 // ── M160 - Copy of a previous sale (event C) ───────────────────────
 
 #[tokio::test]
+// covers: FAQ_Q503
 async fn m160_copy_of_sale_archives_c_event_with_ref_to_original() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);

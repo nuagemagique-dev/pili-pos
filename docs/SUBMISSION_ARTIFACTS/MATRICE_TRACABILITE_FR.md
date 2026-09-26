@@ -30,7 +30,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | M161 | Copie d'une commande | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket` | - | Couvert |
 | M170 | Entrée en service en mode formation | `m170_work_in_in_training`, `m170_work_in_training_does_not_advance_normal_s_counter` | - | Couvert |
 | M171 | Vente en mode formation | `m171_sale_in_training`, `m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero`, `m171_training_sale_has_no_vat_calc` | - | Couvert |
-| M171B | Vente en mode formation (style de requête @skip) | - | - | MANQUANT |
+| M171B | Vente en mode formation (style de requête @skip) | `m171b_sale_in_training_with_skipped_fields` | - | Couvert |
 | M172 | Copie en mode formation | `m172_copy_in_training`, `m172_copy_in_training_mode_archives_c_event` | - | Couvert |
 | Q100 | Requête de statut du FDM | `q100_status_response_shape` | - | Couvert |
 | Q110 | Requête de statut, messages multilingues | `q110_multi_lang_status_response_shape`, `status_multi_lang_parses_q110_envelope` | - | Couvert |
@@ -44,14 +44,14 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | M182 | Rapport X des utilisateurs | `m182_generate_user_x_report_archives_r_event_with_user_block`, `m182_user_x`, `m182_user_x_of_the_scenario_day`, `m182_user_x_response_parses` | - | Couvert |
 | M183 | Rapport Z des utilisateurs | `m183_user_z_has_the_same_users`, `m183_user_z_response_parses` | - | Couvert |
 | M184 | Rapport Z combiné (chiffre d'affaires + utilisateurs) | `m184_combined_z`, `m184_combined_z_of_the_scenario_day`, `m184_combined_z_response_parses_and_counters_increment`, `m184_generate_z_report_signs_both_reports_in_one_operation` | - | Couvert |
-| T1 | Rejeu d'entrée T1 (signOrder) | - | - | MANQUANT |
-| T2 | Rejeu d'entrée T2 (signSale) | - | - | MANQUANT |
-| T3 | Rejeu d'entrée T3 (signSale, remboursement) | - | - | MANQUANT |
-| T4 | Rejeu d'entrée T4 (signSale) | - | - | MANQUANT |
-| T5 | Rejeu d'entrée T5 (signOrder) | - | - | MANQUANT |
-| T6 | Rejeu d'entrée T6 (signOrder) | - | - | MANQUANT |
-| T7 | Rejeu d'entrée T7 (signPreBill) | - | - | MANQUANT |
-| T8 | Rejeu d'entrée T8 (signSale) | - | - | MANQUANT |
+| T1 | Rejeu d'entrée T1 (signOrder) | `t1_table_1_order` | - | Couvert |
+| T2 | Rejeu d'entrée T2 (signSale) | `t2_table_1_paid_cash`, `t3_the_t2_sale_refunded` | - | Couvert |
+| T3 | Rejeu d'entrée T3 (signSale, remboursement) | `t3_the_t2_sale_refunded` | - | Couvert |
+| T4 | Rejeu d'entrée T4 (signSale) | `t4_takeaway_paid_by_card` | - | Couvert |
+| T5 | Rejeu d'entrée T5 (signOrder) | `t5_table_10_first_round` | - | Couvert |
+| T6 | Rejeu d'entrée T6 (signOrder) | `t6_table_10_second_round_with_a_free_price` | - | Couvert |
+| T7 | Rejeu d'entrée T7 (signPreBill) | `t7_table_10_pre_bill` | - | Couvert |
+| T8 | Rejeu d'entrée T8 (signSale) | `t8_table_10_paid_cash` | - | Couvert |
 
 ## Advanced Set
 
@@ -69,7 +69,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC225B | Modification de prix en vente indirecte (cas B) | - | - | Hors périmètre |
 | UC226 | Modification de prix | - | - | Hors périmètre |
 | UC229B | Article gratuit en vente directe | - | - | Hors périmètre |
-| UC230 | Correction d'une ligne de vente avant paiement | - | - | MANQUANT |
+| UC230 | Correction d'une ligne de vente avant paiement | `uc230_a_line_corrected_before_payment` | - | Couvert |
 | UC240 | Scission de table vers une nouvelle table | - | - | Hors périmètre |
 | UC241 | Scission de table vers une table existante | - | - | Hors périmètre |
 | UC242 | Scission de table vers deux nouvelles tables | - | - | Hors périmètre |
@@ -99,7 +99,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC4106 | Modification de prix sur un menu tout compris | - | - | Hors périmètre |
 | UC4107 | Libellés de TVA A/B/C | - | - | Hors périmètre |
 | UC4108 | Libellé de TVA X (acompte) | - | - | Hors périmètre |
-| UC4109 | Vente sans paiement | - | - | MANQUANT |
+| UC4109 | Vente sans paiement | - | - | Hors périmètre |
 | UC4110 | Paiement anticipé (acompte) | - | - | Hors périmètre |
 | UC4111 | Paiement anticipé (pourcentage du prix) | - | - | Hors périmètre |
 | UC4112 | Produit vendu au poids | - | - | Hors périmètre |
@@ -120,70 +120,70 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
-| ROUND1 | Arrondi cash, vente directe simple 11,52 EUR (situation 1, arrondi -0,02 EUR) | - | - | MANQUANT |
-| ROUND2 | Arrondi cash, vente directe simple 3,34 EUR (situation 2, arrondi +0,01 EUR) | - | - | MANQUANT |
-| ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | - | - | MANQUANT |
-| ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | - | - | MANQUANT |
-| ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | - | - | MANQUANT |
+| ROUND1 | Arrondi cash, vente directe simple 11,52 EUR (situation 1, arrondi -0,02 EUR) | `round1_11_52_is_paid_11_50` | - | Couvert |
+| ROUND2 | Arrondi cash, vente directe simple 3,34 EUR (situation 2, arrondi +0,01 EUR) | `round2_3_34_is_paid_3_35` | - | Couvert |
+| ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | `round3_14_86_is_paid_14_85` | - | Couvert |
+| ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | - | - | Hors périmètre |
+| ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | - | - | Hors périmètre |
 | VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +15 | `[VI_BAR] a pre-bill whose slip failed says so next to its confirmation`, `[VI_BAR] a printed slip needs no message`, `[VI_BAR] a sale whose slip failed is still paid, with the warning`, `[VI_BAR] a slip that did not print is told, the order stays registered` | Couvert |
 | VI_COPY | Contenu du ticket copie (réimpression) | `vi_copy_m160_a_copy_reproduces_the_original_sale`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket`, `vi_copy_the_copy_mark_and_the_original_block_follow_the_language`, `vi_copy_the_official_copy_example` +1 | - | Couvert |
 | VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | `vi_n_a_sale_ticket_has_no_original_block`, `vi_n_the_issuer_legal_name_is_printed`, `vi_n_the_official_vat_ticket_example`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | - | Couvert |
 | VI_PROFORMA | Contenu du ticket pro forma (aperçu d'addition) | `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat`, `vi_proforma_the_official_pre_bill_example` | - | Couvert |
 | VI_REFUND | Contenu du ticket de remboursement (event N REFUND) | `vi_refund_m111_the_refund_ticket_shows_the_sale_it_reverses`, `vi_refund_says_remboursement_once`, `vi_refund_the_official_refund_example` | - | Couvert |
-| VI_TRAINING | Contenu du ticket en mode formation (training) | - | - | MANQUANT |
+| VI_TRAINING | Contenu du ticket en mode formation (training) | `vi_training_a_training_sale_prints_its_training_marks` | - | Couvert |
 | VI_Z | Contenu du ticket de rapport Z | `vi_z_the_official_z_report_example` | - | Couvert |
-| V_BUFFER_FULL | Buffer du FDM plein | - | - | MANQUANT |
-| V_BUFFER_NEAR_FULL | Utilisation du buffer du FDM au-delà de 70% | - | - | MANQUANT |
-| V_CLIENT_CERT_EXPIRED | Certificat client expiré | - | - | MANQUANT |
-| V_CLIENT_CERT_NEAR_EXPIRATION | Certificat client proche de l'expiration | - | - | MANQUANT |
-| V_CORRUPT_RECORD_ENCOUNTERED | Transaction corrompue rencontrée en mémoire du FDM | - | - | MANQUANT |
-| V_DUPLICATE_REQUEST | Requête en doublon reçue par le FDM | - | - | MANQUANT |
-| V_FDM_LOCKED | FDM verrouillé | - | - | MANQUANT |
-| V_FDM_NOT_OPERATIONAL | FDM non opérationnel | - | - | MANQUANT |
-| V_INITIALIZATION_FAILED | Échec d'initialisation du FDM | - | - | MANQUANT |
-| V_INTERNAL_ERROR | Problème technique interne du FDM | - | - | MANQUANT |
-| V_INVALID_REQUEST | Requête invalide, non traitable par le FDM | - | - | MANQUANT |
-| V_NOP_FAILED | Échec de l'envoi du message NOP | - | - | MANQUANT |
-| V_RTC_NOT_INITIALIZED | Horloge temps réel du FDM non synchronisée | - | - | MANQUANT |
-| V_RTC_SYNC_FAILED | Échec de synchronisation de l'horloge temps réel | - | - | MANQUANT |
-| V_SERVER_CERT_RESOLVE_FAILED | Échec de résolution du certificat serveur | - | - | MANQUANT |
-| V_TASK_FEEDBACK_FAILED | Échec de signalement du résultat de la tâche | - | - | MANQUANT |
-| V_TOO_MANY_MEMORY_ERRORS | Trop de transactions corrompues en mémoire | - | - | MANQUANT |
-| V_TRANSACTION_UPLOAD_FAILED | Échec répété (plus de 10 fois) d'envoi d'une transaction | - | - | MANQUANT |
-| V_UNAUTHORIZED | Requête non autorisée reçue par le FDM | - | - | MANQUANT |
-| V_UNDEFINED_ERROR | Erreur indéfinie rencontrée par le FDM | - | - | MANQUANT |
-| V_UNDEFINED_OTHER | Autre erreur, avertissement ou information non listée | - | - | MANQUANT |
-| V_UNKNOWN_POS | POS non repris dans la liste d'autorisation du FDM | - | - | MANQUANT |
-| V_UPDATE_CLIENT_CERT_FAILED | Échec de mise à jour du certificat client | - | - | MANQUANT |
-| V_UPDATE_PARAMS_FAILED | Échec de mise à jour des paramètres | - | - | MANQUANT |
-| V_UPDATE_POS_ALLOWLIST_FAILED | Échec de mise à jour de la liste d'autorisation | - | - | MANQUANT |
-| V_UPDATE_TASK_LIST_FAILED | Échec de téléchargement de la liste de tâches | - | - | MANQUANT |
-| V_UPDATE_TRUST_CERT_FAILED | Échec de mise à jour des certificats de confiance | - | - | MANQUANT |
-| V_UPDATE_URLS_FAILED | Échec de mise à jour des URLs | - | - | MANQUANT |
-| V_UPDATE_VAT_RATES_FAILED | Échec de mise à jour des taux de TVA | - | - | MANQUANT |
+| V_BUFFER_FULL | Buffer du FDM plein | - | `[V_BUFFER_FULL] buffer plein, caisse bloquée` | Couvert |
+| V_BUFFER_NEAR_FULL | Utilisation du buffer du FDM au-delà de 70% | - | `[V_BUFFER_NEAR_FULL] buffer au-delà de 70%` | Couvert |
+| V_CLIENT_CERT_EXPIRED | Certificat client expiré | - | `[V_CLIENT_CERT_EXPIRED] certificat expiré` | Couvert |
+| V_CLIENT_CERT_NEAR_EXPIRATION | Certificat client proche de l'expiration | - | `[V_CLIENT_CERT_NEAR_EXPIRATION] certificat proche de l\` | Couvert |
+| V_CORRUPT_RECORD_ENCOUNTERED | Transaction corrompue rencontrée en mémoire du FDM | - | `[V_CORRUPT_RECORD_ENCOUNTERED] transaction corrompue` | Couvert |
+| V_DUPLICATE_REQUEST | Requête en doublon reçue par le FDM | - | `[V_DUPLICATE_REQUEST] requête en doublon` | Couvert |
+| V_FDM_LOCKED | FDM verrouillé | - | `[V_FDM_LOCKED] FDM verrouillé, caisse bloquée` | Couvert |
+| V_FDM_NOT_OPERATIONAL | FDM non opérationnel | - | `[V_FDM_NOT_OPERATIONAL] FDM non opérationnel, caisse bloquée` | Couvert |
+| V_INITIALIZATION_FAILED | Échec d'initialisation du FDM | - | `[V_INITIALIZATION_FAILED] initialisation` | Couvert |
+| V_INTERNAL_ERROR | Problème technique interne du FDM | - | `[V_INTERNAL_ERROR] problème technique` | Couvert |
+| V_INVALID_REQUEST | Requête invalide, non traitable par le FDM | - | `[V_INVALID_REQUEST] requête invalide` | Couvert |
+| V_NOP_FAILED | Échec de l'envoi du message NOP | - | `[V_NOP_FAILED] message NOP` | Couvert |
+| V_RTC_NOT_INITIALIZED | Horloge temps réel du FDM non synchronisée | - | `[V_RTC_NOT_INITIALIZED] horloge non initialisée` | Couvert |
+| V_RTC_SYNC_FAILED | Échec de synchronisation de l'horloge temps réel | - | `[V_RTC_SYNC_FAILED] horloge non synchronisée` | Couvert |
+| V_SERVER_CERT_RESOLVE_FAILED | Échec de résolution du certificat serveur | - | `[V_SERVER_CERT_RESOLVE_FAILED] certificat serveur` | Couvert |
+| V_TASK_FEEDBACK_FAILED | Échec de signalement du résultat de la tâche | - | `[V_TASK_FEEDBACK_FAILED] résultat de tâche` | Couvert |
+| V_TOO_MANY_MEMORY_ERRORS | Trop de transactions corrompues en mémoire | - | `[V_TOO_MANY_MEMORY_ERRORS] trop de transactions corrompues` | Couvert |
+| V_TRANSACTION_UPLOAD_FAILED | Échec répété (plus de 10 fois) d'envoi d'une transaction | - | `[V_TRANSACTION_UPLOAD_FAILED] envoi des transactions` | Couvert |
+| V_UNAUTHORIZED | Requête non autorisée reçue par le FDM | - | `[V_UNAUTHORIZED] requête non autorisée` | Couvert |
+| V_UNDEFINED_ERROR | Erreur indéfinie rencontrée par le FDM | - | `[V_UNDEFINED_ERROR] erreur indéfinie` | Couvert |
+| V_UNDEFINED_OTHER | Autre erreur, avertissement ou information non listée | - | `[V_UNDEFINED_OTHER] autre message` | Couvert |
+| V_UNKNOWN_POS | POS non repris dans la liste d'autorisation du FDM | - | `[V_UNKNOWN_POS] caisse absente de la liste du FDM, caisse bloquée` | Couvert |
+| V_UPDATE_CLIENT_CERT_FAILED | Échec de mise à jour du certificat client | - | `[V_UPDATE_CLIENT_CERT_FAILED] mise à jour du certificat client` | Couvert |
+| V_UPDATE_PARAMS_FAILED | Échec de mise à jour des paramètres | - | `[V_UPDATE_PARAMS_FAILED] mise à jour des paramètres` | Couvert |
+| V_UPDATE_POS_ALLOWLIST_FAILED | Échec de mise à jour de la liste d'autorisation | - | `[V_UPDATE_POS_ALLOWLIST_FAILED] mise à jour de la liste d\` | Couvert |
+| V_UPDATE_TASK_LIST_FAILED | Échec de téléchargement de la liste de tâches | - | `[V_UPDATE_TASK_LIST_FAILED] liste de tâches` | Couvert |
+| V_UPDATE_TRUST_CERT_FAILED | Échec de mise à jour des certificats de confiance | - | `[V_UPDATE_TRUST_CERT_FAILED] certificats de confiance` | Couvert |
+| V_UPDATE_URLS_FAILED | Échec de mise à jour des URLs | - | `[V_UPDATE_URLS_FAILED] mise à jour des URLs` | Couvert |
+| V_UPDATE_VAT_RATES_FAILED | Échec de mise à jour des taux de TVA | - | `[V_UPDATE_VAT_RATES_FAILED] mise à jour des taux de TVA` | Couvert |
 
 ## FAQ
 
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
-| FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | - | - | MANQUANT |
-| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | - | - | MANQUANT |
+| FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order` | - | Couvert |
+| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | - | `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] logging out registers it`, `[FAQ_Q205] switching to a takeaway registers the table first` | Couvert |
 | FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
-| FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | - | - | MANQUANT |
-| FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | - | - | MANQUANT |
-| FAQ_Q211 | Unicité de la référence de costCenter | - | - | MANQUANT |
-| FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | MANQUANT |
-| FAQ_Q301 | Distinction entre motifs REFUND et CORRECTION (negQuantityReason) | - | - | MANQUANT |
-| FAQ_Q303 | Base de comptage des negQuantityReason dans le rapport X/Z | - | - | MANQUANT |
-| FAQ_Q401 | Money In/Out obligatoire dès que la caisse encaisse du cash, même sans tiroir | - | - | MANQUANT |
-| FAQ_Q402 | Enregistrement du rendu de monnaie et du cashback dans les objets payment | - | - | MANQUANT |
+| FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | `faq_q207_a_second_order_carries_only_the_new_lines` | - | Couvert |
+| FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
+| FAQ_Q211 | Unicité de la référence de costCenter | `faq_q211_each_table_session_has_its_own_reference` | - | Couvert |
+| FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | Hors périmètre |
+| FAQ_Q301 | Distinction entre motifs REFUND et CORRECTION (negQuantityReason) | `m111_full_refund`, `negative_quantity_reason_depends_on_the_sale`, `uc230_a_line_corrected_before_payment` | - | Couvert |
+| FAQ_Q303 | Base de comptage des negQuantityReason dans le rapport X/Z | `negative_lines_are_counted_per_reason` | - | Couvert |
+| FAQ_Q401 | Money In/Out obligatoire dès que la caisse encaisse du cash, même sans tiroir | `m130_money_in`, `m130_money_in_out_archives_f_event` | - | Couvert |
+| FAQ_Q402 | Enregistrement du rendu de monnaie et du cashback dans les objets payment | `uc201_cash_rounding_is_its_own_payment_line` | - | Couvert |
 | FAQ_Q403 | Encodage des pourboires (TIP) et des arrondis (ROUNDING) vers le FDM | `faq_q403_a_card_payment_has_no_rounding_line`, `faq_q403_rounding_is_reported_apart_and_left_out_of_the_turnover` | - | Couvert |
-| FAQ_Q405 | signDrawerOpen: usage et absence de lien obligatoire avec signMoneyInOut | - | - | MANQUANT |
+| FAQ_Q405 | signDrawerOpen: usage et absence de lien obligatoire avec signMoneyInOut | `a_cash_sale_prints_and_opens_the_drawer`, `the_drawer_opens_with_its_signed_event` | - | Couvert |
 | FAQ_Q501 | Périodicité du rapport Z de chiffre d'affaires (au moins une fois par jour) | `faq_q501_a_day_left_open_is_closed_by_an_automatic_z`, `faq_q501_a_new_period_takes_the_business_day`, `faq_q501_a_service_past_midnight_stays_on_its_day`, `faq_q501_an_fdm_failure_leaves_the_day_open` +4 | - | Couvert |
-| FAQ_Q502 | Les events R de rapport sont exclus des timestamps de la période couverte | - | - | MANQUANT |
-| FAQ_Q503 | signCopy obligatoire pour toute réimpression, y compris une facture A4 | - | - | MANQUANT |
-| FAQ_Q504 | Le rapport de chiffre d'affaires n'inclut pas les events de type Copy | - | - | MANQUANT |
-| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | - | - | MANQUANT |
-| FAQ_Q506 | La query Status du FDM est facultative | - | - | MANQUANT |
-| FAQ_Q507 | La mention TICKET DE CAISSE TVA est réservée au ticket de caisse fiscal | - | - | MANQUANT |
-| FAQ_Q509 | Champ totalAmount du rapport Z (objet users): somme des transactionTotal | - | - | MANQUANT |
+| FAQ_Q502 | Les events R de rapport sont exclus des timestamps de la période couverte | `m180_turnover_x_of_the_scenario_day` | - | Couvert |
+| FAQ_Q503 | signCopy obligatoire pour toute réimpression, y compris une facture A4 | `a_printed_original_can_not_be_printed_again`, `m160_copy_of_sale_archives_c_event_with_ref_to_original` | - | Couvert |
+| FAQ_Q504 | Le rapport de chiffre d'affaires n'inclut pas les events de type Copy | `faq_q504_a_copy_is_not_turnover` | - | Couvert |
+| FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | `m110_sale` | - | Couvert |
+| FAQ_Q506 | La query Status du FDM est facultative | `faq_q506_a_sale_is_signed_without_a_status_query` | - | Couvert |
+| FAQ_Q507 | La mention TICKET DE CAISSE TVA est réservée au ticket de caisse fiscal | `every_ticket_carries_its_type_label_and_identification`, `vi_training_a_training_sale_prints_its_training_marks` | - | Couvert |
+| FAQ_Q509 | Champ totalAmount du rapport Z (objet users): somme des transactionTotal | `faq_q509_the_user_total_leaves_the_rounding_out` | - | Couvert |

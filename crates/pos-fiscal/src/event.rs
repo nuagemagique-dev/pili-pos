@@ -689,6 +689,7 @@ mod tests {
     }
 
     #[test]
+    // covers: FAQ_Q301
     fn negative_quantity_reason_depends_on_the_sale() {
         let config = test_config();
         let order = test_order();

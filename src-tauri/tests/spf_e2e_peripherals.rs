@@ -105,11 +105,14 @@ async fn fdm_refuses(app: &TestApp) {
 // ── Cash drawer ────────────────────────────────────────────────
 
 #[tokio::test]
+// covers: FAQ_Q405
 async fn a_cash_sale_prints_and_opens_the_drawer() {
     let (app, printer) = with_printer().await;
     sale(&app, CheckoutPaymentMethod::Cash).await;
     assert_eq!(printer.settle(1).await.len(), 1);
     assert_eq!(printer.drawer_kicks(), 1);
+    // The sale opens the drawer itself: no signDrawerOpen with it.
+    assert_eq!(app.counter_for(EventLabel::F), 0);
 }
 
 #[tokio::test]
@@ -156,6 +159,7 @@ async fn a_cash_refund_prints_and_opens_the_drawer() {
 }
 
 #[tokio::test]
+// covers: FAQ_Q405
 async fn the_drawer_opens_with_its_signed_event() {
     let (app, printer) = with_printer().await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M131")).await;
@@ -223,6 +227,7 @@ async fn a_table_order_prints_nothing_and_the_pre_bill_prints_pro_forma() {
 }
 
 #[tokio::test]
+// covers: FAQ_Q507
 async fn vi_training_a_training_sale_prints_its_training_marks() {
     let (app, printer) = with_printer().await;
     app.state.config.lock().unwrap().training_mode = true;

@@ -467,6 +467,7 @@ async fn pre_bill_fdm_failure_modes_leave_no_archive_and_counter_at_zero() {
 /// already-flushed entries (no double order-flush) while still using
 /// the next sequential ticket number for the pre-bill.
 #[tokio::test]
+// covers: FAQ_Q202
 async fn pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);

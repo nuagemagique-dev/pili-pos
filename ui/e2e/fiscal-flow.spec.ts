@@ -39,7 +39,7 @@ const navButton = (page: Page, name: string) =>
   page.locator('.header-nav .nav-btn', { hasText: name });
 
 test.describe('Table order registration (P)', () => {
-  test('leaving the order for the tables registers it', async ({ page }) => {
+  test('[FAQ_Q205] leaving the order for the tables registers it', async ({ page }) => {
     await openTable(page);
     await navButton(page, 'Tables').click();
     await page.waitForURL(/tables/);
@@ -79,7 +79,7 @@ test.describe('Table order registration (P)', () => {
     expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
   });
 
-  test('switching to a takeaway registers the table first', async ({ page }) => {
+  test('[FAQ_Q205] switching to a takeaway registers the table first', async ({ page }) => {
     await openTable(page);
     await navButton(page, 'À emporter').click();
 
@@ -94,7 +94,7 @@ test.describe('Table order registration (P)', () => {
     expect(order).toEqual(['create:dine_in', 'sign', 'create:takeaway']);
   });
 
-  test('logging out registers it', async ({ page }) => {
+  test('[FAQ_Q205] logging out registers it', async ({ page }) => {
     await openTable(page);
     await navButton(page, 'Sortir').click();
     await page.waitForURL(/#\/$/);

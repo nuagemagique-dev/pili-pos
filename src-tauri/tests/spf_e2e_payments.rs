@@ -82,6 +82,7 @@ fn last_financials(app: &TestApp) -> Value {
 /// UC201: 2 x 3,04 = 6,08 paid cash is rounded to 6,10. The payment
 /// line carries the sale amount, the rounding its own line.
 #[tokio::test]
+// covers: FAQ_Q402
 async fn uc201_cash_rounding_is_its_own_payment_line() {
     let app = app().await;
     let order = order_of(&app, &[(1, 2)]).await;
@@ -245,6 +246,7 @@ async fn faq_q403_rounding_is_reported_apart_and_left_out_of_the_turnover() {
 /// Q206, Q209: a sale that comes to 0,00 EUR is an N event with a VAT
 /// ticket, paid as cash 0, and opens no drawer.
 #[tokio::test]
+// covers: FAQ_Q209
 async fn faq_q206_a_zero_sale_is_signed_with_a_vat_ticket() {
     let app = app().await;
     let printer = PrinterSink::start().await;

@@ -76,7 +76,7 @@ Today a sale takes one payment method (cash or card), and an open table whose cu
       - the report payment totals;
       - Playwright for the payment screen (partial amounts, remainder, cancel).
     - Dossier: remove the "no split payment" statement (section 4).
-18. **Meal vouchers (decision for you).** `ROUND4` and `ROUND5` need meal vouchers, which are never rounded. Adding a "chèques-repas" method on top of item 17 is small: a new `PaymentType`, no rounding, its own report row. Without it, both stay "non applicable" in the matrix.
+18. **Meal vouchers (decided 2026-09-26: build them with item 17).** `ROUND4` and `ROUND5` need meal vouchers, which are never rounded. Adding a "chèques-repas" method on top of item 17 is small: a new `PaymentType`, no rounding, its own report row. Then `ROUND4` and `ROUND5` get real tests and leave `uc_scope.toml`.
 19. **Unpaid table (UC4109).** A manager action "Client parti sans payer" on an open table.
     - The operator confirms with their PIN. It signs a `signSale` N event with the order's untransmitted lines and an empty `financials`, as in `UC4109_2_Sale`, closes the order, and prints the VAT ticket for the records.
     - The turnover counts the sale; the payments do not.
@@ -86,6 +86,7 @@ Today a sale takes one payment method (cash or card), and an open table whose cu
       - refused for a cashier or in training mode as the rules require;
       - Playwright for the confirmation.
     - Dossier: the user manual and the III answers on open tables.
+    - FAQ Q205 says a direct sale ends in N. Today a takeaway left unpaid is registered as a P (costCenter table 0) by the router guard, like a table. Decide in this step: an unpaid takeaway either stays a draft with nothing sent, or ends through this same unpaid-sale action. Test it with a `faq_q205_` test.
 20. **FDM codes `UPDATE_POS_VATNO` and `UPDATE_POS_ESTNO`.** POS spec v2.2 marks them mandatory display, but they are not in the manual's §V table. Today they show the generic "Erreur boîte noire" text. Give each its own message in `fdmMessages.ts`, with a Playwright case.
 
 ## 3. Questions for the SPF (secr.gksce@minfin.fed.be)
@@ -142,7 +143,7 @@ Effort: step 0 half a day, step 1 one day, step 2 three to five days, step 3 two
 3. Client test sites: use as many as allowed (up to 5).
 4. Automatic Z (item 9): build now, as proposed.
 5. Bar/kitchen ticket: build it (section 2.3).
-6. Split payment and unpaid table: plan them (section 2.5), built as phase B10 and B11. Meal vouchers (item 18) still to decide.
+6. Split payment and unpaid table: plan them (section 2.5), built as phase B10 and B11. Meal vouchers (item 18): build them in B10.
 
 ## 7. Order of work
 
@@ -151,7 +152,7 @@ The SHA-1 of record must come after the last binary change, so:
 | Phase | Content | Changes the binary |
 |---|---|---|
 | A | Commit the docs import; send the SPF questions; test step 0 and step 1 (matrix) | No |
-| B | Section 2 fixes, each with its tests from section 5 step 2, one commit each, in this order: B1 zero-total sale (7), B2 rounding line (8), B3 cash count declaration M133 (10), B4 automatic Z (9), B5 bar ticket (12-16), B6 copy and refund tickets (1), B7 pre-bill and layout details (3, 4), B8 Z report printout (2), B9 golden tests of the six official example tickets, B10 split payment (17, 18 if decided), B11 unpaid table (19) and the two FDM codes (20) | Yes |
+| B | Section 2 fixes, each with its tests from section 5 step 2, one commit each, in this order: B1 zero-total sale (7), B2 rounding line (8), B3 cash count declaration M133 (10), B4 automatic Z (9), B5 bar ticket (12-16), B6 copy and refund tickets (1), B7 pre-bill and layout details (3, 4), B8 Z report printout (2), B9 golden tests of the six official example tickets, B10 split payment and meal vouchers (17, 18), B11 unpaid table (19) and the two FDM codes (20) | Yes |
 | C | Section 5 step 3 (real-binary day); local gate | No |
 | D | Local reproducible build twice, local image and QEMU boot, record the SHA-1 | Output only |
 | E | Section 4 dossier work, `Report_Testing`, PDFs, `check_dossier.py --final`, `make_submission_zip.sh` | No |

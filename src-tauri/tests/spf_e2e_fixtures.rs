@@ -288,6 +288,7 @@ const TABLE_SALE: Deviation = Deviation {
 };
 
 #[tokio::test]
+// covers: FAQ_Q505
 async fn m110_sale() {
     let vars = variables("M110");
     let app = spf_app(&operator(&vars)).await;
@@ -304,6 +305,7 @@ async fn m110_sale() {
 }
 
 #[tokio::test]
+// covers: FAQ_Q301
 async fn m111_full_refund() {
     let sale = variables("M110");
     let refund = variables("M111");
@@ -421,6 +423,7 @@ async fn m123_pre_bill() {
 // ── Financial (F) ──────────────────────────────────────────────────
 
 #[tokio::test]
+// covers: FAQ_Q401
 async fn m130_money_in() {
     let vars = variables("M130");
     let app = spf_app(&operator(&vars)).await;
@@ -652,6 +655,7 @@ async fn m172_copy_in_training() {
 /// journal keeps the 3 and the -1, and the sale carries both, the -1
 /// with negQuantityReason CORRECTION.
 #[tokio::test]
+// covers: FAQ_Q301
 async fn uc230_a_line_corrected_before_payment() {
     let fixture = load_uc(&advanced_set_root(), "UC230");
     let vars = read_variables(&fixture)["data"].clone();

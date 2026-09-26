@@ -442,6 +442,7 @@ async fn digital_with_email_and_printer_down_keeps_trying_the_email() {
 // ── Printing a missing original ────────────────────────────────
 
 #[tokio::test]
+// covers: FAQ_Q503
 async fn a_printed_original_can_not_be_printed_again() {
     let (app, printer) = app_with_printer().await;
     let result = sell(&app, None).await;

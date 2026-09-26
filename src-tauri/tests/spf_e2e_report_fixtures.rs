@@ -449,6 +449,7 @@ async fn t8_table_10_paid_cash() {
 }
 
 #[tokio::test]
+// covers: FAQ_Q502
 async fn m180_turnover_x_of_the_scenario_day() {
     let app = scenario_app().await;
     play_service_day(&app).await;
