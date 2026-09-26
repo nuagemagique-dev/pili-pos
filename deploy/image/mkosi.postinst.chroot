@@ -37,11 +37,6 @@ fi
 rm -rf /etc/NetworkManager/system-connections
 ln -s /var/lib/moyun-etc/system-connections /etc/NetworkManager/system-connections
 
-# / is read-only: NetworkManager keeps the DNS servers it learns in
-# /run/NetworkManager/resolv.conf, and /etc/resolv.conf points there.
-rm -f /etc/resolv.conf
-ln -s /run/NetworkManager/resolv.conf /etc/resolv.conf
-
 # Build-input files are transient staging, never part of the shipped
 # image (no fiscal or fixed-identity content belongs on read-only root
 # outside /usr/share/moyun-pos/factory).

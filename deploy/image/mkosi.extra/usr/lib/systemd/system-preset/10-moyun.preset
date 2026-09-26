@@ -9,3 +9,11 @@ disable systemd-networkd-wait-online.service
 disable systemd-network-generator.service
 enable NetworkManager.service
 enable NetworkManager-wait-online.service
+
+# A unit no preset line matches gets enabled by preset-all, whatever
+# deploy/provision/provision.sh left: name the ones that must stay off.
+# Admission image: the mock FDM is started by hand for the demonstration.
+disable pos-fdm-mock.service
+# The maintenance console (tty2, enabled by provision.sh) stays on. tty1
+# is the kiosk's: moyun-pos.service conflicts with its getty.
+enable getty@.service tty2

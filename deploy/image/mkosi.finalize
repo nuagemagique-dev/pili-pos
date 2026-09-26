@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# mkosi.finalize - auto-discovered by mkosi (FinalizeScripts=), run on
+# the build host after mkosi.postinst.chroot and `systemctl preset-all`,
+# with the image tree at $BUILDROOT. Not a .chroot script: inside the
+# chroot mkosi bind-mounts the host's /etc/resolv.conf, which then
+# cannot be replaced.
+set -euo pipefail
+
+# / is read-only: NetworkManager keeps the DNS servers it learns in
+# /run/NetworkManager/resolv.conf, and /etc/resolv.conf points there.
+ln -sfn /run/NetworkManager/resolv.conf "$BUILDROOT/etc/resolv.conf"
