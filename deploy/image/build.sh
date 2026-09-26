@@ -21,7 +21,7 @@
 #   - Everything else (mkosi itself, at the version pinned in
 #     .mkosi-pin, plus binutils/systemd-ukify/xz-utils/gdisk) is
 #     installed by this script if missing (apt-get, Debian/Ubuntu
-#     hosts only - matches ubuntu-24.04 CI and the Mac's Debian
+#     hosts only - matches ubuntu-26.04 CI and the Mac's Debian
 #     container).
 #
 # Usage: sudo ./build.sh [production] [admission]

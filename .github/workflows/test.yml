@@ -18,7 +18,7 @@ jobs:
   # suites all run here; any failure or warning blocks.
   rust:
     name: Rust (${{ matrix.features.name }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -90,7 +90,7 @@ jobs:
   # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
   playwright-e2e:
     name: Playwright E2E
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ui
@@ -131,7 +131,7 @@ jobs:
   # feature branches. Uses the real Tauri binary with a test DB.
   integration:
     name: Integration (real binary)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: github.ref == 'refs/heads/main'
     needs: [rust, playwright-e2e]
     steps:
@@ -207,7 +207,7 @@ jobs:
   # the checker.
   dossier:
     name: Dossier consistency
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 

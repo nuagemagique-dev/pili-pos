@@ -25,7 +25,7 @@ name: Kiosk image
 #                 job's own comments for exactly what this does and
 #                 does not prove.
 #
-# runs-on: ubuntu-24.04 everywhere (needs KVM, and matches the
+# runs-on: ubuntu-26.04 everywhere (needs KVM, and matches the
 # platform deploy/image/build.sh and the manual assume).
 on:
   push:
@@ -55,7 +55,7 @@ jobs:
   # ── Reproducible build: same inputs, same binary, twice ──────────
   repro:
     name: Reproducible build (SHA-1 match)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       sha1: ${{ steps.compare.outputs.sha1 }}
     steps:
@@ -90,7 +90,7 @@ jobs:
   image:
     name: Kiosk image (mkosi)
     needs: repro
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -165,7 +165,7 @@ jobs:
   boot-smoke:
     name: Boot smoke test (admission image)
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -185,7 +185,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            qemu-system-x86 qemu-utils ovmf swtpm \
+            qemu-system-x86 qemu-utils ovmf-generic swtpm \
             netcat-openbsd python3 python3-pil
 
       - name: Download the admission image
