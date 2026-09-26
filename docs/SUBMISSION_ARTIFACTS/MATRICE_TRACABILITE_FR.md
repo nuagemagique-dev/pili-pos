@@ -13,12 +13,12 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
 | M110 | Vente directe (ticket de caisse TVA) | `m110_sale`, `m110_sign_sale_archives_n_event_and_closes_order`, `m110_sign_sale_response_shape` | - | Couvert |
-| M111 | Remboursement total d'une vente | `m111_full_refund`, `m111_full_refund_archives_negative_n_with_fdm_ref` | - | Couvert |
+| M111 | Remboursement total d'une vente | `m111_full_refund`, `m111_full_refund_archives_negative_n_with_fdm_ref`, `vi_refund_m111_the_refund_ticket_shows_the_sale_it_reverses` | - | Couvert |
 | M112A | Remboursement partiel combiné à une nouvelle vente | - | - | Non applicable |
 | M112B | Remboursement partiel en ticket séparé | `m112b_partial_refund_as_a_separate_ticket`, `m112b_partial_refund_is_separate_event_chained_to_original` | - | Couvert |
 | M121 | Commande en gestion de table | `m121_sign_order_archives_p_event_and_keeps_order_open`, `m121_sign_order_response_omits_n_only_fields`, `m121_table_order` | - | Couvert |
 | M122 | Changement de centre de coût (transfert de table) | - | - | Hors périmètre |
-| M123 | Addition provisoire (pre-bill) | `m123_pre_bill`, `m123_sign_pre_bill_archives_p_event_and_keeps_order_open` | - | Couvert |
+| M123 | Addition provisoire (pre-bill) | `m123_pre_bill`, `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat` | - | Couvert |
 | M130 | Mouvement de caisse (argent entrant/sortant) | `m130_money_in`, `m130_money_in_out_archives_f_event` | - | Couvert |
 | M131 | Ouverture du tiroir-caisse | `m131_drawer_open`, `m131_drawer_open_archives_f_event` | - | Couvert |
 | M132 | Correction de paiement | - | - | Hors périmètre |
@@ -26,8 +26,8 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | M140 | Entrée en service de l'utilisateur | `m140_work_in`, `m140_work_in_archives_s_event` | - | Couvert |
 | M141 | Sortie de service de l'utilisateur | `m141_work_out`, `m141_work_out_archives_s_event` | - | Couvert |
 | M150 | Facturation | `m150_invoice_fdm_failure_does_not_advance_i_counter`, `m150_sign_invoice_archives_i_event_referencing_the_sale` | - | Hors périmètre |
-| M160 | Copie d'un ticket de vente | `m160_copy_of_a_sale`, `m160_copy_of_sale_archives_c_event_with_ref_to_original` | - | Couvert |
-| M161 | Copie d'une commande | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event` | - | Couvert |
+| M160 | Copie d'un ticket de vente | `m160_copy_of_a_sale`, `m160_copy_of_sale_archives_c_event_with_ref_to_original`, `vi_copy_m160_a_copy_reproduces_the_original_sale` | - | Couvert |
+| M161 | Copie d'une commande | `m161_copy_of_an_order`, `m161_copy_of_order_archives_c_event_with_ref_to_p_event`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket` | - | Couvert |
 | M170 | Entrée en service en mode formation | `m170_work_in_in_training`, `m170_work_in_training_does_not_advance_normal_s_counter` | - | Couvert |
 | M171 | Vente en mode formation | `m171_sale_in_training`, `m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero`, `m171_training_sale_has_no_vat_calc` | - | Couvert |
 | M171B | Vente en mode formation (style de requête @skip) | - | - | MANQUANT |
@@ -39,8 +39,8 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
-| M180 | Rapport X du chiffre d'affaires | `m180_generate_x_report_archives_r_event_without_resetting_counter`, `m180_turnover_x`, `m180_turnover_x_of_the_scenario_day`, `m180_turnover_x_response_parses` | - | Couvert |
-| M181 | Rapport Z du chiffre d'affaires | `m181_turnover_z_has_the_same_totals`, `m181_turnover_z_response_parses` | - | Couvert |
+| M180 | Rapport X du chiffre d'affaires | `m180_generate_x_report_archives_r_event_without_resetting_counter`, `m180_the_x_report_is_not_numbered`, `m180_turnover_x`, `m180_turnover_x_of_the_scenario_day` +1 | - | Couvert |
+| M181 | Rapport Z du chiffre d'affaires | `m181_the_z_report_prints_the_article_29_content`, `m181_turnover_z_has_the_same_totals`, `m181_turnover_z_response_parses` | - | Couvert |
 | M182 | Rapport X des utilisateurs | `m182_generate_user_x_report_archives_r_event_with_user_block`, `m182_user_x`, `m182_user_x_of_the_scenario_day`, `m182_user_x_response_parses` | - | Couvert |
 | M183 | Rapport Z des utilisateurs | `m183_user_z_has_the_same_users`, `m183_user_z_response_parses` | - | Couvert |
 | M184 | Rapport Z combiné (chiffre d'affaires + utilisateurs) | `m184_combined_z`, `m184_combined_z_of_the_scenario_day`, `m184_combined_z_response_parses_and_counters_increment`, `m184_generate_z_report_signs_both_reports_in_one_operation` | - | Couvert |
@@ -58,7 +58,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
 | UC200 | Vente directe d'un produit composite | - | - | Hors périmètre |
-| UC201 | Vente avec arrondi du paiement | `uc201_cash_rounding_is_its_own_payment_line` | - | Couvert |
+| UC201 | Vente avec arrondi du paiement | `uc201_cash_rounding_is_its_own_payment_line`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | - | Couvert |
 | UC220 | Modification de prix sur une ligne de vente | - | - | Hors périmètre |
 | UC221A | Modification de prix sur une ligne (cas A) | - | - | Hors périmètre |
 | UC221B | Modification de prix sur une ligne (cas B) | - | - | Hors périmètre |
@@ -125,13 +125,13 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | - | - | MANQUANT |
 | ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | - | - | MANQUANT |
 | ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | - | - | MANQUANT |
-| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +14 | `[VI_BAR] a pre-bill whose slip failed says so next to its confirmation`, `[VI_BAR] a printed slip needs no message`, `[VI_BAR] a sale whose slip failed is still paid, with the warning`, `[VI_BAR] a slip that did not print is told, the order stays registered` | Couvert |
-| VI_COPY | Contenu du ticket copie (réimpression) | - | - | MANQUANT |
-| VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | - | - | MANQUANT |
-| VI_PROFORMA | Contenu du ticket pro forma (aperçu d'addition) | - | - | MANQUANT |
-| VI_REFUND | Contenu du ticket de remboursement (event N REFUND) | - | - | MANQUANT |
+| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +15 | `[VI_BAR] a pre-bill whose slip failed says so next to its confirmation`, `[VI_BAR] a printed slip needs no message`, `[VI_BAR] a sale whose slip failed is still paid, with the warning`, `[VI_BAR] a slip that did not print is told, the order stays registered` | Couvert |
+| VI_COPY | Contenu du ticket copie (réimpression) | `vi_copy_m160_a_copy_reproduces_the_original_sale`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket`, `vi_copy_the_copy_mark_and_the_original_block_follow_the_language`, `vi_copy_the_official_copy_example` +1 | - | Couvert |
+| VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | `vi_n_a_sale_ticket_has_no_original_block`, `vi_n_the_issuer_legal_name_is_printed`, `vi_n_the_official_vat_ticket_example`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | - | Couvert |
+| VI_PROFORMA | Contenu du ticket pro forma (aperçu d'addition) | `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat`, `vi_proforma_the_official_pre_bill_example` | - | Couvert |
+| VI_REFUND | Contenu du ticket de remboursement (event N REFUND) | `vi_refund_m111_the_refund_ticket_shows_the_sale_it_reverses`, `vi_refund_says_remboursement_once`, `vi_refund_the_official_refund_example` | - | Couvert |
 | VI_TRAINING | Contenu du ticket en mode formation (training) | - | - | MANQUANT |
-| VI_Z | Contenu du ticket de rapport Z | - | - | MANQUANT |
+| VI_Z | Contenu du ticket de rapport Z | `vi_z_the_official_z_report_example` | - | Couvert |
 | V_BUFFER_FULL | Buffer du FDM plein | - | - | MANQUANT |
 | V_BUFFER_NEAR_FULL | Utilisation du buffer du FDM au-delà de 70% | - | - | MANQUANT |
 | V_CLIENT_CERT_EXPIRED | Certificat client expiré | - | - | MANQUANT |

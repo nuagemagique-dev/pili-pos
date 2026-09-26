@@ -200,6 +200,33 @@ fn example_t_training() {
     write_example("ticket_T_training", &ticket);
 }
 
+#[test]
+fn example_bar_slip() {
+    use pos_print::bar_ticket::{BarItem, BarTicket, format_bar_ticket};
+    let slip = BarTicket {
+        date_time: "03/07/2026 12:31:05".to_string(),
+        operator: "Marie Dupont".to_string(),
+        table: Some(4),
+        items: vec![
+            BarItem {
+                quantity: 2,
+                name: "Dry Martini".to_string(),
+            },
+            BarItem {
+                quantity: 1,
+                name: "Burger du chef".to_string(),
+            },
+        ],
+        lang: ReceiptLanguage::Fr,
+        is_training: false,
+    };
+    let text = render_plain_text(&format_bar_ticket(&slip));
+    assert!(!text.contains(','), "a bar ticket never shows a price");
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("ticket_bar.txt"), text).expect("write example");
+}
+
 // ── X / Z reports ──────────────────────────────────────────────
 
 fn base_report(

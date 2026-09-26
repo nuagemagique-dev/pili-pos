@@ -35,8 +35,8 @@ colonne par type de ticket émis par moyun-pos.
 | XI.1. Lignes produits : qté, désignation, prix, code TVA | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | ☑ (désignation seule, pas de prix) |
 | XI.2. Modifications de prix sur la ligne | N/A (MVP) | N/A | N/A | N/A | N/A | - |
 | XI.3. GTIN (optionnel) | N/A | N/A | N/A | N/A | N/A | - |
-| XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | À PAYER (estimation) | ☑ | ☑ | - |
-| XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (pas avant paiement) | ☑ | ☑ | - |
+| XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | - |
+| XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (jamais sur une addition) | ☑ | ☑ | - |
 | XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
 | XV. Modifications de prix hors lignes produits | N/A (MVP) | N/A | N/A | N/A | N/A | - |
 | XVI.I. Pied de page configuré par SPF Finances | ☑ | ☑ | ☑ | ☑ | ☑ | - |
@@ -45,21 +45,22 @@ colonne par type de ticket émis par moyun-pos.
 | XVI.IV. eventLabel | ☑ (N) | ☑ (N) | ☑ (P) | ☑ (C) | ☑ (T) | - |
 | XVI.V. eventCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.VI. totalCounter | ☑ | ☑ | ☑ | ☑ | ☑ | - |
-| XVI.VII. shortSignature (renvoyée par le FDM pour les events N uniquement) | ☑ | ☑ | - (non renvoyée pour P) | - (non réimprimée) | - (non renvoyée pour T) | - |
+| XVI.VII. shortSignature (renvoyée par le FDM pour les events N uniquement) | ☑ | ☑ | - (non renvoyée pour P) | ☑ (celle de l'original, sous « Informations FDM d'origine ») | - (non renvoyée pour T) | - |
 | XVII. Lignes de paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - (pas encore payé) | ☑ (reprises de l'original) | ☑ | - |
-| XVIII. QR Code URL du FDM (renvoyée par le FDM pour les events N uniquement) | ☑ (Model 2, 29×29) | ☑ | - (non renvoyée pour P) | - (non renvoyée pour C) | - (non renvoyée pour T) | - |
+| XVIII. QR Code URL du FDM (renvoyée par le FDM pour les events N uniquement) | ☑ (Model 2, 29×29) | ☑ | - (non renvoyée pour P) | ☑ (QR de l'original, spec POS v2.2 §6.5) | - (non renvoyée pour T) | - |
 
 **Mentions spécifiques cochées :**
 
 | Mention | N | N Refund | P | C | T | Autres |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| Mention "PRO FORMA - ne tient pas lieu de ticket TVA valable" | - | - | ☑ | - | - | - |
-| Mention "REMBOURSEMENT" | - | ☑ | - | - | - | - |
-| Mention "COPIE - pas un original" | - | - | - | ☑ | - | - |
-| Mention "CECI N'EST PAS UN TICKET DE CAISSE DE TVA VALABLE" | - | - | ☑ (équivalent) | ☑ | ☑ | ☑ |
+| Mention "PRO FORMA" et "Addition Provisoire" | - | - | ☑ | - | - | - |
+| Mention "REMBOURSEMENT" (sous le titre, une fois) | - | ☑ | - | - | - | - |
+| Mention "COPIE" (sous le titre) et date de la copie | - | - | - | ☑ | - | - |
+| Bloc "Informations FDM d'origine" (fdmRef de l'original) | - | ☑ | - | ☑ | - | - |
+| Mention "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE" | - | - | ☑ | - (copie d'un ticket TVA, spec §1.8 ; ☑ pour la copie d'un autre événement) | ☑ | ☑ (bon bar / cuisine) |
 | Bandeau "TRAINING" début et fin | - | - | - | - | ☑ | - |
 
-Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) ; cette référence n'est pas imprimée. La copie réimprime le QR code de l'événement N original (spec POS v2.2 §6.5).
+Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) et l'impriment sous « Informations FDM d'origine », comme les tickets d'exemple du SPF du 24/09/2026. La copie reproduit le ticket original (tous les champs, données de contrôle comprises) et réimprime le QR code de l'événement N original (spec POS v2.2 §1.8, §6.5). La mise en page suit les tickets d'exemple du SPF ; `crates/pos-print/tests/official_examples.rs` imprime les données de chacun des six exemples et vérifie chaque mention, dans l'ordre de l'exemple.
 
 **Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). Le code source supporte par ailleurs le rendu multilingue des libellés produits (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
 
@@ -73,38 +74,40 @@ Scénario (produits du manuel, M110) : 2 × Dry Martini (12,00 €, TVA A)
 
 ```
               TICKET DE CAISSE TVA
-
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                      #15
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Espèces                                    52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
 ------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
+                INFORMATIONS FDM
 ------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-Espèces                                    52.00
-
-TVA    Taux    Base HT    TVA
- A      21%     19.83      4.17
- B      12%     25.00      3.00
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                    N 15/59
- Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f701234567
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
 
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
 
@@ -123,29 +126,32 @@ mention d'invalidité en bas.
 
 ```
                    PRO FORMA
+              Addition Provisoire
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000004
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: P; eventCounter: 4;
+totalCounter: 61;
 
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                       #4
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
-------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
-------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                     P 4/61
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
@@ -159,45 +165,54 @@ TOTAL                                      52.00
 ## 3. Remboursement complet (M111 - Événement N négatif)
 
 Scénario : remboursement intégral du M110 ci-dessus (quantités et
-montants négatifs, en-tête REMBOURSEMENT DU TICKET DE CAISSE TVA).
+montants négatifs, titre TICKET DE CAISSE TVA et mention
+REMBOURSEMENT, données de contrôle de la vente d'origine sous
+« Informations FDM d'origine »).
 
 ```
-     REMBOURSEMENT DU TICKET DE CAISSE TVA
-
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                      #16
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
+              TICKET DE CAISSE TVA
+                 REMBOURSEMENT
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000016
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+-2 Dry Martini                         -24,00  A
+-1 Burger du chef                      -28,00  B
+TOTAL :                                  €-52,00
+................................................
+Mode de paiement :
+Espèces                                   -52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A         -19,83     -4,17    -24,00
+12,00%  B         -25,00     -3,00    -28,00
 ------------------------------------------------
--2x Dry Martini                         -24.00 A
--1x Burger du chef                      -28.00 B
+                INFORMATIONS FDM
 ------------------------------------------------
-TOTAL                                     -52.00
-------------------------------------------------
-Espèces                                   -52.00
-
-TVA    Taux    Base HT    TVA
- A      21%     19.83      4.17
- B      12%     25.00      3.00
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                    N 16/60
- Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f701234567
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 16;
+totalCounter: 60; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
 
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
-      www.systemedecaisseenregistreuse.be
+Informations FDM d'origine :
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
 
-                 REMBOURSEMENT
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
+      www.systemedecaisseenregistreuse.be
 
 
 
@@ -211,38 +226,49 @@ Scénario : copie du ticket M110. Mention COPIE, pas de
 shortSignature réimprimée, mention d'invalidité en bas.
 
 ```
+              TICKET DE CAISSE TVA
                      COPIE
-
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                       #2
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Espèces                                    52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
 ------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
+                INFORMATIONS FDM
 ------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-Espèces                                    52.00
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: C; eventCounter: 2;
+totalCounter: 62;
 
-TVA    Taux    Base HT    TVA
- A      21%     19.83      4.17
- B      12%     25.00      3.00
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                     C 2/62
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+Informations FDM d'origine :
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+Copie etablie le 03.07.2026 12:41
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
-
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
 
 
 
@@ -259,34 +285,36 @@ TRAINING (double largeur) en tête, mention d'invalidité en bas.
         TRAINING
 ================================================
                     TRAINING
-
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                       #7
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000007
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Espèces                                    52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
 ------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
+                INFORMATIONS FDM
 ------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-Espèces                                    52.00
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: T; eventCounter: 7;
+totalCounter: 63;
 
-TVA    Taux    Base HT    TVA
- A      21%     19.83      4.17
- B      12%     25.00      3.00
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                     T 7/63
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
@@ -303,43 +331,71 @@ Scénario : rapport X en cours de service (42 events N, 152,35 € de
 chiffre, 3 ouvertures de tiroir).
 
 ```
-       RAPPORT X
-
+              X CHIFFRE D'AFFAIRES
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-
-Date:                                 2026-07-03
-Debut:                          2026-07-03 11:02
-Fin:                            2026-07-03 22:41
-Terminal:                                   POS1
+        Unite d'etablissement 2123456791
+------------------------------------------------
+RAPPORT X                      03/07/26 23:05:41
+Ticket:                                   000003
 Employe:                             85073003328
-Ticket:                                       #3
+------------------------------------------------
+              Periode d'ouverture
+Date:                                 2026-07-03
+BookingPeriodId:
+3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83
+Debut                           2026-07-03 11:02
+Fin                             2026-07-03 22:41
+POSID                             CFOD0061234567
+TerminalId                                  POS1
+FDMID                                CBX01000042
+Premier                      41 2026-07-03 11:02
+Dernier                      63 2026-07-03 22:48
+------------------------------------------------
+Event N Ventes 42                        1523,50
+Event P Pro forma 12                        0,00
+------------------------------------------------
+                   Apercu TVA
+Taux                HT          TVA          TTC
+21%             317,78        66,72       384,50
+12%            1016,96       122,04      1139,00
+6%                   -            -            -
+0%                   -            -            -
+Total          1334,74       188,76      1523,50
+------------------------------------------------
+       Departements du chiffre d'affaires
+Boissons                                  384,50
+Plats                                    1139,00
+------------------------------------------------
+                  Corrections
+Corrections                               -12,00
+------------------------------------------------
+                 Remboursements
+Remboursements 1                          -52,00
+------------------------------------------------
+                 Tiroir-caisse
+Tiroir-caisse 3
+------------------------------------------------
+                   Formation
+Tickets de formation 1                     52,00
+------------------------------------------------
+                   Reductions
+Reductions de lignes 0                      0,00
+Reductions d'evenements 0                   0,00
+------------------------------------------------
+                    FACTURE
+Factures 0
+------------------------------------------------
+             PAIEMENTS ENREGISTRES
+Especes                                   612,00
+Carte                                     911,50
+Total des paiements                      1523,50
+Arrondis                                    0,02
+------------------------------------------------
+    fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
-TRANSACTIONS
-------------------------------------------------
-Ventes (42)                              1523.50
-Pro forma (12)                              0.00
-------------------------------------------------
-Total (54)                               1523.50
-
-TVA
-------------------------------------------------
-Code   Taux     Base HT      TVA
- A      21%     317.78      66.72
- B      12%    1016.96     122.04
-
-PAIEMENTS
-------------------------------------------------
-Especes (18x)                             612.00
-Carte (24x)                               911.50
-
-Ouvertures caisse:                             3
-================================================
-TOTAL                                    1523.50
-================================================
-                FDM: CBX01000042
-           2026-07-03T22:42:00+02:00
+ CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
 
 
 
@@ -352,46 +408,72 @@ TOTAL                                    1523.50
 Scénario : clôture journalière (Z n°1) sur les mêmes totaux.
 
 ```
-      RAPPORT Z #1
-
+              Z CHIFFRE D'AFFAIRES
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-
-Date:                                 2026-07-03
-Debut:                          2026-07-03 11:02
-Fin:                            2026-07-03 22:41
-Terminal:                                   POS1
+        Unite d'etablissement 2123456791
+------------------------------------------------
+RAPPORT Z                      03/07/26 23:05:41
+Rapport nr. 1
+Ticket:                                   000003
 Employe:                             85073003328
-Ticket:                                       #3
+------------------------------------------------
+              Periode d'ouverture
+Date:                                 2026-07-03
+BookingPeriodId:
+3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83
+Debut                           2026-07-03 11:02
+Fin                             2026-07-03 22:41
+POSID                             CFOD0061234567
+TerminalId                                  POS1
+FDMID                                CBX01000042
+Premier                      41 2026-07-03 11:02
+Dernier                      63 2026-07-03 22:48
+------------------------------------------------
+Event N Ventes 42                        1523,50
+Event P Pro forma 12                        0,00
+------------------------------------------------
+                   Apercu TVA
+Taux                HT          TVA          TTC
+21%             317,78        66,72       384,50
+12%            1016,96       122,04      1139,00
+6%                   -            -            -
+0%                   -            -            -
+Total          1334,74       188,76      1523,50
+------------------------------------------------
+       Departements du chiffre d'affaires
+Boissons                                  384,50
+Plats                                    1139,00
+------------------------------------------------
+                  Corrections
+Corrections                               -12,00
+------------------------------------------------
+                 Remboursements
+Remboursements 1                          -52,00
+------------------------------------------------
+                 Tiroir-caisse
+Tiroir-caisse 3
+------------------------------------------------
+                   Formation
+Tickets de formation 1                     52,00
+------------------------------------------------
+                   Reductions
+Reductions de lignes 0                      0,00
+Reductions d'evenements 0                   0,00
+------------------------------------------------
+                    FACTURE
+Factures 0
+------------------------------------------------
+             PAIEMENTS ENREGISTRES
+Especes                                   612,00
+Carte                                     911,50
+Total des paiements                      1523,50
+Arrondis                                    0,02
+------------------------------------------------
+    fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
-TRANSACTIONS
-------------------------------------------------
-Ventes (42)                              1523.50
-Pro forma (12)                              0.00
-------------------------------------------------
-Total (54)                               1523.50
-
-TVA
-------------------------------------------------
-Code   Taux     Base HT      TVA
- A      21%     317.78      66.72
- B      12%    1016.96     122.04
-
-PAIEMENTS
-------------------------------------------------
-Especes (18x)                             612.00
-Carte (24x)                               911.50
-
-Ouvertures caisse:                             3
-================================================
-TOTAL                                    1523.50
-================================================
-                FDM: CBX01000042
-           2026-07-03T22:42:00+02:00
-
-                 FIN DE JOURNEE
-             Compteurs remis a zero
+ CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
 
 
 
@@ -409,46 +491,72 @@ la même règle : le rendu ci-dessous est généré par le même code que
 la section 7, seule la langue change.
 
 ```
-      RAPPORT Z #1
-
+                    Z OMZET
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                BTW: BE0499999960
-
-Datum:                                2026-07-03
-Begin:                          2026-07-03 11:02
-Einde:                          2026-07-03 22:41
-Terminal:                                   POS1
+          Vestigingseenheid 2123456791
+------------------------------------------------
+RAPPORT Z                      03/07/26 23:05:41
+Rapport nr. 1
+Ticket:                                   000003
 Werknemer:                           85073003328
-Ticket:                                       #3
+------------------------------------------------
+                Openingsperiode
+Datum:                                2026-07-03
+BookingPeriodId:
+3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83
+Begin                           2026-07-03 11:02
+Einde                           2026-07-03 22:41
+POSID                             CFOD0061234567
+TerminalId                                  POS1
+FDMID                                CBX01000042
+Eerste                       41 2026-07-03 11:02
+Laatste                      63 2026-07-03 22:48
+------------------------------------------------
+Event N Verkoop 42                       1523,50
+Event P Pro forma 12                        0,00
+------------------------------------------------
+                 BTW-overzicht
+Tarief           Excl.          BTW        Incl.
+21%             317,78        66,72       384,50
+12%            1016,96       122,04      1139,00
+6%                   -            -            -
+0%                   -            -            -
+Totaal         1334,74       188,76      1523,50
+------------------------------------------------
+               Omzet per afdeling
+Boissons                                  384,50
+Plats                                    1139,00
+------------------------------------------------
+                   Correcties
+Correcties                                -12,00
+------------------------------------------------
+                Terugbetalingen
+Terugbetalingen 1                         -52,00
+------------------------------------------------
+                   Kassalade
+Kassalade 3
+------------------------------------------------
+                   Opleiding
+Opleidingstickets 1                        52,00
+------------------------------------------------
+                   Kortingen
+Lijnkortingen 0                             0,00
+Ticketkortingen 0                           0,00
+------------------------------------------------
+                    FACTUUR
+Facturen 0
+------------------------------------------------
+           GEREGISTREERDE BETALINGEN
+Contant                                   612,00
+Kaart                                     911,50
+Totaal betalingen                        1523,50
+Afrondingen                                 0,02
+------------------------------------------------
+    fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
-TRANSACTIES
-------------------------------------------------
-Verkoop (42)                             1523.50
-Pro forma (12)                              0.00
-------------------------------------------------
-Totaal (54)                              1523.50
-
-BTW
-------------------------------------------------
-Code   Tarief   Basis      BTW
- A      21%     317.78      66.72
- B      12%    1016.96     122.04
-
-BETALINGEN
-------------------------------------------------
-Contant (18x)                             612.00
-Kaart (24x)                               911.50
-
-Kassa-openingen:                               3
-================================================
-TOTAAL                                   1523.50
-================================================
-                FDM: CBX01000042
-           2026-07-03T22:42:00+02:00
-
-                EINDE VAN DE DAG
-              Tellers op nul gezet
+        DIT IS GEEN GELDIG BTW-KASTICKET
 
 
 
@@ -461,46 +569,72 @@ TOTAAL                                   1523.50
 Même scénario, imprimé en allemand (`pos.json::language = "de"`).
 
 ```
-      BERICHT Z #1
-
+                    Z UMSATZ
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                MwSt: BE0499999960
-
-Datum:                                2026-07-03
-Beginn:                         2026-07-03 11:02
-Ende:                           2026-07-03 22:41
-Terminal:                                   POS1
+        Niederlassungseinheit 2123456791
+------------------------------------------------
+BERICHT Z                      03/07/26 23:05:41
+Bericht Nr. 1
+Bon:                                      000003
 Mitarbeiter:                         85073003328
-Bon:                                          #3
+------------------------------------------------
+               Oeffnungszeitraum
+Datum:                                2026-07-03
+BookingPeriodId:
+3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83
+Beginn                          2026-07-03 11:02
+Ende                            2026-07-03 22:41
+POSID                             CFOD0061234567
+TerminalId                                  POS1
+FDMID                                CBX01000042
+Erstes                       41 2026-07-03 11:02
+Letztes                      63 2026-07-03 22:48
+------------------------------------------------
+Event N Umsaetze 42                      1523,50
+Event P Pro forma 12                        0,00
+------------------------------------------------
+                MwSt-Uebersicht
+Satz             Netto         MwSt       Brutto
+21%             317,78        66,72       384,50
+12%            1016,96       122,04      1139,00
+6%                   -            -            -
+0%                   -            -            -
+Gesamt         1334,74       188,76      1523,50
+------------------------------------------------
+             Umsatz nach Abteilung
+Boissons                                  384,50
+Plats                                    1139,00
+------------------------------------------------
+                  Korrekturen
+Korrekturen                               -12,00
+------------------------------------------------
+               Rueckerstattungen
+Rueckerstattungen 1                       -52,00
+------------------------------------------------
+                Kassenschublade
+Kassenschublade 3
+------------------------------------------------
+                    Schulung
+Schulungsbons 1                            52,00
+------------------------------------------------
+                    Rabatte
+Zeilenrabatte 0                             0,00
+Bonrabatte 0                                0,00
+------------------------------------------------
+                    RECHNUNG
+Rechnungen 0
+------------------------------------------------
+               ERFASSTE ZAHLUNGEN
+Bar                                       612,00
+Karte                                     911,50
+Summe Zahlungen                          1523,50
+Rundungen                                   0,02
+------------------------------------------------
+    fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
-TRANSAKTIONEN
-------------------------------------------------
-Umsaetze (42)                            1523.50
-Pro forma (12)                              0.00
-------------------------------------------------
-Gesamt (54)                              1523.50
-
-MwSt
-------------------------------------------------
-Code   Satz     Netto      MwSt
- A      21%     317.78      66.72
- B      12%    1016.96     122.04
-
-ZAHLUNGEN
-------------------------------------------------
-Bar (18x)                                 612.00
-Karte (24x)                               911.50
-
-Kassenoeffnungen:                              3
-================================================
-GESAMT                                   1523.50
-================================================
-                FDM: CBX01000042
-           2026-07-03T22:42:00+02:00
-
-                 TAGESABSCHLUSS
-            Zaehler auf Null gesetzt
+   DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL
 
 
 
@@ -508,7 +642,36 @@ GESAMT                                   1523.50
 ✂-----------------------------------------------
 ```
 
-## 8. Ticket numérique par e-mail (exemple)
+## 8. Bon de commande bar / cuisine (sans prix)
+
+Scénario : les lignes d'une table envoyées au FDM (événement P) ou
+d'une vente directe (événement N) sortent aussi sur le bon du bar ou
+de la cuisine (`pos.json::kitchen_printer_address`, à défaut
+l'imprimante des tickets), comme le ticket bar d'exemple du SPF du
+24/09/2026 : jamais de prix, et la mention d'invalidité en bas. Seules
+les lignes nouvellement envoyées y figurent, corrections comprises
+(quantité négative), pour les produits marqués « cuisine ».
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:31:05
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Qte   Article
+2 x Dry Martini
+1 x Burger du chef
+------------------------------------------------
+ CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+## 9. Ticket numérique par e-mail (exemple)
 
 Scénario : la même vente M110 qu'à la section 1, envoyée par e-mail
 ("E-mail" ou "Les deux" choisi avant l'encaissement, cf.
@@ -524,38 +687,40 @@ vide puis de l'URL de vérification seule :
 
 ```
               TICKET DE CAISSE TVA
-
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456789
-
-Date:                           2026-07-03 12:34
-Ticket:                                      #15
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Espèces                                    52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
 ------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
+                INFORMATIONS FDM
 ------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-Espèces                                    52.00
-
-TVA    Taux    Base HT    TVA
- A      21%     19.83      4.17
- B      12%     25.00      3.00
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                    N 15/59
-Sig: a3f9c2b1e8d4750616fb92c3a4e5d6f70123456789
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
 
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
 
@@ -574,14 +739,15 @@ le lien de vérification repris comme ancre cliquable
 module 8 px, encodant la même URL de vérification). Aucune pièce
 jointe PDF.
 
-Une **copie (C)** ou un **ticket de formation (T)** envoyé par e-mail
+Une **copie (C)** envoyée par e-mail reprend l'URL et le QR code du
+ticket original (spec POS v2.2 §6.5). Un **ticket de formation (T)**
 suit le même gabarit, sans la ligne d'URL ni la pièce jointe QR : le
 FDM ne renvoie une URL de vérification que pour les événements N
 (POS spec v2.2 §2.4) - le corps de l'e-mail est alors la transcription
-du ticket seule (cf. sections 4 et 5 ci-dessus pour le texte imprimé
+du ticket seule (cf. section 5 ci-dessus pour le texte imprimé
 équivalent).
 
-## 9. Note sur la reproduction
+## 10. Note sur la reproduction
 
 Les rendus ci-dessus sont générés par le pipeline d'impression réel
 (`crates/pos-print/src/receipt.rs` et `report.rs`) - ils ne peuvent

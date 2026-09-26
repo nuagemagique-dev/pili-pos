@@ -1,43 +1,69 @@
-      RAPPORT Z #1
-
+                    Z OMZET
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                BTW: BE0499999960
-
-Datum:                                2026-07-03
-Begin:                          2026-07-03 11:02
-Einde:                          2026-07-03 22:41
-Terminal:                                   POS1
+          Vestigingseenheid 2123456791
+------------------------------------------------
+RAPPORT Z                      03/07/26 23:05:41
+Rapport nr. 1
+Ticket:                                   000003
 Werknemer:                           85073003328
-Ticket:                                       #3
+------------------------------------------------
+                Openingsperiode
+Datum:                                2026-07-03
+BookingPeriodId:
+3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83
+Begin                           2026-07-03 11:02
+Einde                           2026-07-03 22:41
+POSID                             CFOD0061234567
+TerminalId                                  POS1
+FDMID                                CBX01000042
+Eerste                       41 2026-07-03 11:02
+Laatste                      63 2026-07-03 22:48
+------------------------------------------------
+Event N Verkoop 42                       1523,50
+Event P Pro forma 12                        0,00
+------------------------------------------------
+                 BTW-overzicht
+Tarief           Excl.          BTW        Incl.
+21%             317,78        66,72       384,50
+12%            1016,96       122,04      1139,00
+6%                   -            -            -
+0%                   -            -            -
+Totaal         1334,74       188,76      1523,50
+------------------------------------------------
+               Omzet per afdeling
+Boissons                                  384,50
+Plats                                    1139,00
+------------------------------------------------
+                   Correcties
+Correcties                                -12,00
+------------------------------------------------
+                Terugbetalingen
+Terugbetalingen 1                         -52,00
+------------------------------------------------
+                   Kassalade
+Kassalade 3
+------------------------------------------------
+                   Opleiding
+Opleidingstickets 1                        52,00
+------------------------------------------------
+                   Kortingen
+Lijnkortingen 0                             0,00
+Ticketkortingen 0                           0,00
+------------------------------------------------
+                    FACTUUR
+Facturen 0
+------------------------------------------------
+           GEREGISTREERDE BETALINGEN
+Contant                                   612,00
+Kaart                                     911,50
+Totaal betalingen                        1523,50
+Afrondingen                                 0,02
+------------------------------------------------
+    fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
-TRANSACTIES
-------------------------------------------------
-Verkoop (42)                             1523.50
-Pro forma (12)                              0.00
-------------------------------------------------
-Totaal (54)                              1523.50
-
-BTW
-------------------------------------------------
-Code   Tarief   Basis      BTW
- A      21%     317.78      66.72
- B      12%    1016.96     122.04
-
-BETALINGEN
-------------------------------------------------
-Contant (18x)                             612.00
-Kaart (24x)                               911.50
-
-Kassa-openingen:                               3
-================================================
-TOTAAL                                   1523.50
-================================================
-                FDM: CBX01000042
-           2026-07-03T22:42:00+02:00
-
-                EINDE VAN DE DAG
-              Tellers op nul gezet
+        DIT IS GEEN GELDIG BTW-KASTICKET
 
 
 

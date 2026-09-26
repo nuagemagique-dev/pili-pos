@@ -1,43 +1,69 @@
-      RAPPORT Z #1
-
+              Z CHIFFRE D'AFFAIRES
                Restaurant Exemple
          Rue de l'Exemple 1, 4000 Liège
                TVA: BE0499999960
-
-Date:                                 2026-07-03
-Debut:                          2026-07-03 11:02
-Fin:                            2026-07-03 22:41
-Terminal:                                   POS1
+        Unite d'etablissement 2123456791
+------------------------------------------------
+RAPPORT Z                      03/07/26 23:05:41
+Rapport nr. 1
+Ticket:                                   000003
 Employe:                             85073003328
-Ticket:                                       #3
+------------------------------------------------
+              Periode d'ouverture
+Date:                                 2026-07-03
+BookingPeriodId:
+3f6c2a4e-8b1d-4c7a-9e25-7d0b6a1f4c83
+Debut                           2026-07-03 11:02
+Fin                             2026-07-03 22:41
+POSID                             CFOD0061234567
+TerminalId                                  POS1
+FDMID                                CBX01000042
+Premier                      41 2026-07-03 11:02
+Dernier                      63 2026-07-03 22:48
+------------------------------------------------
+Event N Ventes 42                        1523,50
+Event P Pro forma 12                        0,00
+------------------------------------------------
+                   Apercu TVA
+Taux                HT          TVA          TTC
+21%             317,78        66,72       384,50
+12%            1016,96       122,04      1139,00
+6%                   -            -            -
+0%                   -            -            -
+Total          1334,74       188,76      1523,50
+------------------------------------------------
+       Departements du chiffre d'affaires
+Boissons                                  384,50
+Plats                                    1139,00
+------------------------------------------------
+                  Corrections
+Corrections                               -12,00
+------------------------------------------------
+                 Remboursements
+Remboursements 1                          -52,00
+------------------------------------------------
+                 Tiroir-caisse
+Tiroir-caisse 3
+------------------------------------------------
+                   Formation
+Tickets de formation 1                     52,00
+------------------------------------------------
+                   Reductions
+Reductions de lignes 0                      0,00
+Reductions d'evenements 0                   0,00
+------------------------------------------------
+                    FACTURE
+Factures 0
+------------------------------------------------
+             PAIEMENTS ENREGISTRES
+Especes                                   612,00
+Carte                                     911,50
+Total des paiements                      1523,50
+Arrondis                                    0,02
+------------------------------------------------
+    fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
-TRANSACTIONS
-------------------------------------------------
-Ventes (42)                              1523.50
-Pro forma (12)                              0.00
-------------------------------------------------
-Total (54)                               1523.50
-
-TVA
-------------------------------------------------
-Code   Taux     Base HT      TVA
- A      21%     317.78      66.72
- B      12%    1016.96     122.04
-
-PAIEMENTS
-------------------------------------------------
-Especes (18x)                             612.00
-Carte (24x)                               911.50
-
-Ouvertures caisse:                             3
-================================================
-TOTAL                                    1523.50
-================================================
-                FDM: CBX01000042
-           2026-07-03T22:42:00+02:00
-
-                 FIN DE JOURNEE
-             Compteurs remis a zero
+ CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
 
 
 

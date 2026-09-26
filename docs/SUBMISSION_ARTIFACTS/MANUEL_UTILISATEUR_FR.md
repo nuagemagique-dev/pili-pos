@@ -331,8 +331,10 @@ Réservé au Gérant.
    puis "Rembourser" à nouveau.
 
 Le FDM signe un nouveau ticket (événement N, quantités négatives,
-référence au ticket d'origine), marqué "REMBOURSEMENT DU TICKET DE
-CAISSE TVA". Le ticket d'origine n'est jamais modifié. Le tiroir
+référence au ticket d'origine) : un ticket de caisse TVA marqué
+"REMBOURSEMENT", qui imprime les données de contrôle du ticket
+d'origine sous « Informations FDM d'origine ». Le ticket d'origine
+n'est jamais modifié. Le tiroir
 s'ouvre pour rendre les espèces.
 
 La caisse refuse de rembourser un remboursement, de rembourser plus que

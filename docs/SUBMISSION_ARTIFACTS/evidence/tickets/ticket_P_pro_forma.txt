@@ -1,27 +1,30 @@
                    PRO FORMA
+              Addition Provisoire
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000004
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: P; eventCounter: 4;
+totalCounter: 61;
 
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                       #4
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
-------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
-------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                     P 4/61
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
  CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE

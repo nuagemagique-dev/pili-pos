@@ -1,35 +1,46 @@
+              TICKET DE CAISSE TVA
                      COPIE
-
-               Restaurant Exemple
-         Rue de l'Exemple 1, 4000 Liège
-               TVA: BE0499999960
-                Etab: 2123456791
-
-Date:                           2026-07-03 12:34
-Ticket:                                       #2
-POS:                              CFOD0061234567
-Logiciel:                        moyun-pos/1.0.0
-Terminal:                                   POS1
-Appareil:                      00:1b:44:11:3a:b7
-Utilisateur:                        Marie Dupont
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Espèces                                    52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
 ------------------------------------------------
-2x Dry Martini                           24.00 A
-Burger du chef                           28.00 B
+                INFORMATIONS FDM
 ------------------------------------------------
-TOTAL                                      52.00
-------------------------------------------------
-Espèces                                    52.00
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: C; eventCounter: 2;
+totalCounter: 62;
 
-TVA    Taux    Base HT    TVA
- A      21%     19.83      4.17
- B      12%     25.00      3.00
-================================================
-                FDM: CBX01000042
-           2026-07-03T12:34:57+02:00
-                     C 2/62
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+Informations FDM d'origine :
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+Copie etablie le 03.07.2026 12:41
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
-
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
 
 
 

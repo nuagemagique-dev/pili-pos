@@ -722,7 +722,9 @@ Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket
 | Mention | FR | NL | DE |
 |---|---|---|---|
 | Dénomination ticket N | TICKET DE CAISSE TVA | BTW-KASTICKET | MWST.-KASSENZETTEL |
-| Remboursement | REMBOURSEMENT DU TICKET DE CAISSE TVA | TERUGBETALING BTW-KASTICKET | RUECKERSTATTUNG MWST.-KASSENZETTEL |
+| Remboursement (sous le titre du ticket TVA) | REMBOURSEMENT | TERUGBETALING | RUECKERSTATTUNG |
+| Addition (sous PRO FORMA) | Addition Provisoire | Voorlopige rekening | Vorlaeufige Rechnung |
+| Rapport X / Z | X / Z CHIFFRE D'AFFAIRES | X / Z OMZET | X / Z UMSATZ |
 | Mention d'invalidité (bas de ticket non-N) | CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE | DIT IS GEEN GELDIG BTW-KASTICKET | DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL |
 | Copie | COPIE | KOPIE | KOPIE |
 | Facture | FACTURE | FACTUUR | RECHNUNG |

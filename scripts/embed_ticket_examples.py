@@ -27,6 +27,9 @@ SECTIONS = {
     # receipts already do - see GARANTIE_MAJ_LANGUES_FR.md §3).
     "### Rapport Z en néerlandais (NL)": "rapport_Z_nl.txt",
     "### Rapport Z en allemand (DE)": "rapport_Z_de.txt",
+    "## 8. ": "ticket_bar.txt",
+    # The email body: the section 1 ticket, then its verification URL.
+    "## 9. ": ("ticket_N_vente.txt", "\n\nhttps://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug"),
 }
 
 
@@ -42,7 +45,8 @@ def main() -> int:
         if not match:
             print(f"no code block in section {heading!r}", file=sys.stderr)
             return 1
-        body = (TICKETS / name).read_text().rstrip("\n")
+        name, suffix = name if isinstance(name, tuple) else (name, "")
+        body = (TICKETS / name).read_text().rstrip("\n") + suffix
         text = text[: match.start()] + "```\n" + body + "\n```" + text[match.end() :]
     DOC.write_text(text)
     print(f"embedded {len(SECTIONS)} transcriptions into {DOC.relative_to(ROOT)}")
