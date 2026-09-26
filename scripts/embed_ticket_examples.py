@@ -30,6 +30,8 @@ SECTIONS = {
     "## 8. ": "ticket_bar.txt",
     # The email body: the section 1 ticket, then its verification URL.
     "## 9. ": ("ticket_N_vente.txt", "\n\nhttps://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug"),
+    "## 10. ": "ticket_N_paiement_mixte.txt",
+    "## 11. ": "ticket_N_non_paye.txt",
 }
 
 

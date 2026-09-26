@@ -134,6 +134,58 @@ fn example_n_sale() {
     write_example("ticket_N_vente", &ticket);
 }
 
+/// Manual rounding test 3 (ROUND5): 3,13 in meal vouchers, 3,97 by
+/// card, the rest 7,76 in cash, paid 7,75. Only the cash is rounded.
+#[test]
+fn example_n_split_payment() {
+    let mut ticket = base_ticket(EventLabel::N);
+    ticket.lines = vec![
+        TicketLine {
+            quantity: 1.0,
+            description: "Dame Blanche".to_string(),
+            unit_price: 11.52,
+            total: 11.52,
+            vat_code: "B".to_string(),
+        },
+        TicketLine {
+            quantity: 1.0,
+            description: "Tapas Variation".to_string(),
+            unit_price: 3.34,
+            total: 3.34,
+            vat_code: "B".to_string(),
+        },
+    ];
+    ticket.subtotal = 14.86;
+    ticket.total = 14.86;
+    ticket.vat_breakdown = vec![VatCalcItem {
+        label: VatLabel::B,
+        rate: 12.0,
+        taxable_amount: 13.27,
+        vat_amount: 1.59,
+        total_amount: 14.86,
+        out_of_scope: false,
+    }];
+    ticket.payments = [("Meal voucher", 3.13), ("Card", 3.97), ("Cash", 7.76)]
+        .into_iter()
+        .map(|(method, amount)| TicketPayment {
+            method: method.to_string(),
+            amount,
+        })
+        .collect();
+    ticket.rounding = Some(-0.01);
+    write_example("ticket_N_paiement_mixte", &ticket);
+}
+
+/// UC4109: the customer left without paying; the sale is signed with
+/// no payment line.
+#[test]
+fn example_n_unpaid() {
+    let mut ticket = base_ticket(EventLabel::N);
+    ticket.payments.clear();
+    ticket.unpaid = true;
+    write_example("ticket_N_non_paye", &ticket);
+}
+
 #[test]
 fn example_n_refund() {
     let mut ticket = base_ticket(EventLabel::N);

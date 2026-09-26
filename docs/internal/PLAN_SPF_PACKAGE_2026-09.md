@@ -60,9 +60,21 @@ Every webshop order must end in an N event in the register. The certified build 
 - `REPONSES_MANUEL_CERT_FR.md:217` "Webshop existe mais hors périmètre fiscal" must become "the certified product has no webshop integration".
 - A restaurant running the certified build must still register its webshop sales. Decision for you (section 6).
 
-### 2.5 Split payment and unpaid table (asked 2026-09-26: plan them)
+### 2.5 Split payment and unpaid table (asked 2026-09-26: plan them; built 2026-09-26 as B10 and B11)
 
-Today a sale takes one payment method (cash or card), and an open table whose customer leaves without paying stays open for ever (its P events are in the FDM, no N event ever closes it).
+Before B10 a sale took one payment method (cash or card), and an open table whose customer left without paying stayed open for ever (its P events are in the FDM, no N event ever closes it).
+
+**Status (2026-09-26): items 17 to 20 are done** on branch `feat/split-payment-unpaid`:
+- `crates/pos-fiscal/src/payment.rs::settle` (item 17), `CHEQUE_MEAL` meal vouchers (item 18);
+- `src-tauri/src/commands/unpaid.rs` (item 19);
+- the two FDM messages (item 20).
+
+`ROUND4`, `ROUND5`, `UC4119` and `UC4109` left `uc_scope.toml`; the matrix shows them covered, none missing.
+
+Decisions taken while building:
+- The unpaid sale is allowed in training, where it signs a T: training cannot be left while an order is open, so an abandoned training table must close too.
+- Takeaways (FAQ Q205): leaving an unpaid takeaway sends nothing. It stays a draft, listed on the Tables screen, until it is paid or closed unpaid, and always ends in an N without a cost center. `sign_table_order` refuses a takeaway. Side effect: a takeaway's bar or kitchen slip now prints at payment only.
+- A refund is always paid back in cash. An unpaid sale is never refundable (`refund_unpaid_sale`) and is not listed.
 
 17. **Split payment.** A sale paid with several methods, for example part card and the rest cash.
     - Checkout keeps a list of payments. Each entry is a method and an amount; the screen shows what is left to pay, and the sale is signed once the rest is zero.
@@ -104,6 +116,8 @@ Send early: the answers take time and several decide code.
 9. Reports scenario T4: the takeaway Coca Cola carries VAT label A, while the manual's product table (§III) gives C to take away. We follow the manual. Which one is right?
 10. Refund ticket lines: we print "-1 Cola -3,04"; the example refund shows "1 Cola -3,04". Is the positive quantity required?
 11. Bar ticket: the example shows "Nombre de convives". We do not record the number of guests. Is it mandatory?
+12. Unpaid sale: POS spec v2.2 allows an empty `financials` only "si le montant à payer est nul", while `UC4109_2` sends `financials: []` for 58 EUR. We follow UC4109: an N with no payment line and a non-zero total. Please confirm.
+13. Payment totals on the reports: our "Total des paiements" row sums the PAYMENT lines only and shows the roundings on their own "Arrondis" row. The manual's rounding test 4 seems to include the rounding in the payment total. Which one is expected?
 
 ## 4. Dossier and procedure work (docs only, after the binary is final)
 

@@ -747,7 +747,112 @@ FDM ne renvoie une URL de vérification que pour les événements N
 du ticket seule (cf. section 5 ci-dessus pour le texte imprimé
 équivalent).
 
-## 10. Note sur la reproduction
+## 10. Paiement en plusieurs moyens (ROUND5 - Événement N)
+
+Scénario (test d'arrondi 3 du manuel) : Dame Blanche (11,52 €) +
+Tapas Variation (3,34 €), TVA B, total 14,86 €, payé 3,13 € en
+chèques-repas, 3,97 € par carte et le reste, 7,76 €, en espèces :
+encaissé 7,75 €. Chaque moyen de paiement a sa ligne ; seul le reste en
+espèces est arrondi, sur la ligne "Arrondi".
+
+```
+              TICKET DE CAISSE TVA
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+1 Dame Blanche                          11,52  B
+1 Tapas Variation                        3,34  B
+TOTAL :                                   €14,86
+................................................
+Mode de paiement :
+Cheques-repas                               3,13
+Carte                                       3,97
+Especes                                     7,76
+Arrondi                                    -0,01
+% TVA   CODE          HT       TVA      Brut
+12,00%  B          13,27      1,59     14,86
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
+      www.systemedecaisseenregistreuse.be
+
+
+
+
+✂-----------------------------------------------
+```
+
+## 11. Vente sans paiement (UC4109 - Événement N)
+
+Scénario : la vente M110 de la section 1, dont le client est parti sans
+payer. Le Gérant la clôture avec son PIN : le FDM signe la vente sans
+ligne de paiement (`financials: []`) et le ticket de caisse TVA porte
+"Non paye" à la place des paiements.
+
+```
+              TICKET DE CAISSE TVA
+Restaurant Exemple
+Unite d'etablissement 2123456791
+03.07.2026                                 12:34
+Utilisateur: Marie Dupont
+Terminal: POS1
+Ticketnr.: 000015
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Non paye
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: CBX01000042;
+fdmDateTime: 2026-07-03T12:34:57+02:00;
+Event: N; eventCounter: 15;
+totalCounter: 59; shortSignature:
+a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
+
+[QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
+
+
+Denomination legale : Societe Exemple SRL
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0499999960
+      www.systemedecaisseenregistreuse.be
+
+
+
+
+✂-----------------------------------------------
+```
+
+## 12. Note sur la reproduction
 
 Les rendus ci-dessus sont générés par le pipeline d'impression réel
 (`crates/pos-print/src/receipt.rs` et `report.rs`) - ils ne peuvent

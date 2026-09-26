@@ -39,6 +39,7 @@ refuse de toute façon une action interdite au profil
 | Changer son propre PIN | ☑ | ☑ | ☑ |
 | Imprimer l'addition, encaisser | - | ☑ | ☑ |
 | Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir | - | - | ☑ |
+| Clôturer une vente sans paiement (client parti sans payer, §7.5) | - | - | ☑ |
 | Mode formation, employés, PIN des autres, configuration | - | - | ☑ |
 | Démarrer / arrêter l'assistance à distance (§12.6) | - | - | ☑ |
 
@@ -181,6 +182,13 @@ son total.
 "À emporter" ouvre une commande sans table. L'addition (§6.2) n'existe
 pas pour une commande à emporter : on encaisse directement.
 
+Une vente à emporter est une vente directe : quitter la commande avant
+de l'encaisser n'enregistre rien auprès du FDM (pas d'événement P). La
+commande reste en cours, listée sur l'écran "Tables" sous "À emporter en
+cours" (heure, nombre d'articles, total) ; la toucher la reprend. Elle
+se termine par l'encaissement (§7) ou, si le client est parti sans
+payer, par une vente sans paiement (§7.5).
+
 ### 5.3 Ajouter, modifier, retirer
 
 - Choisir une catégorie dans la barre du haut, puis toucher un article :
@@ -201,7 +209,7 @@ total.
 
 Tant que la table n'est pas payée, ce qui a été commandé est enregistré
 auprès du FDM (événement P, `signOrder`) **dès que l'on quitte la
-commande** : "Tables", "À emporter", "Rapports", "Config", "Sortir" ou
+commande d'une table** (jamais pour une vente à emporter, §5.2) : "Tables", "À emporter", "Rapports", "Config", "Sortir" ou
 verrouillage automatique. Rien n'est imprimé. Les articles retirés
 entre-temps sont enregistrés aussi, comme corrections.
 
@@ -254,13 +262,36 @@ ticket est imprimé.
 
 ### 7.2 Paiement
 
-- **CASH** : taper le montant reçu sur le pavé, ou toucher "Exact" ou
-  un raccourci de billet. La caisse affiche le montant à rendre
-  ("Rendu"). Le total en espèces est **arrondi aux 5 cents** (règle
-  belge) ; le montant exact avant arrondi reste affiché. "Valider".
-- **CARTE** : encaisser le montant affiché sur le terminal de paiement
-  (qui n'est pas relié à la caisse), puis "Valider" une fois le
-  paiement accepté. Pas d'arrondi pour une carte.
+Une vente se paie en un ou plusieurs moyens de paiement, sur un seul
+ticket.
+
+- **CASH** : paie toujours tout ce qui reste. Taper le montant reçu sur
+  le pavé, ou toucher "Exact" ou un raccourci de billet. La caisse
+  affiche le montant à rendre ("Rendu"). Le reste en espèces est
+  **arrondi aux 5 cents** (règle belge) ; le montant exact avant arrondi
+  reste affiché. "Valider".
+- **CARTE** : le pavé propose le reste à payer ; le laisser ou taper un
+  montant plus petit (jamais plus que le reste : "Plus que le reste à
+  payer"). Encaisser ce montant sur le terminal de paiement (qui n'est
+  pas relié à la caisse), puis "Valider" une fois le paiement accepté.
+  Pas d'arrondi pour une carte.
+- **CHÈQUES-REPAS** (chèques-repas électroniques, payés sur le terminal
+  de paiement) : comme la carte, pour le montant payé en chèques-repas.
+  Pas d'arrondi, pas de rendu sur des chèques-repas.
+
+Tant qu'il reste un montant, chaque paiement pris s'affiche avec son
+montant et la caisse affiche le "Reste à payer". La vente est signée
+dès que le reste est payé : par une carte ou des chèques-repas pour le
+montant exact du reste, ou par le paiement en espèces. Exemple : 14,86 €
+payés 11,52 € en chèques-repas, puis 3,34 € en espèces, encaissés 3,35 €
+(arrondi +0,01 €).
+
+"Annuler les paiements" efface les paiements pris tant que la vente
+n'est pas signée (rien n'est encore enregistré ; rembourser au client ce
+qui a déjà été passé sur le terminal).
+
+Le ticket liste chaque moyen de paiement et son montant, puis
+l'arrondi des espèces.
 
 "Communication FDM..." s'affiche pendant la signature. La vente n'est
 enregistrée qu'une fois signée par le FDM.
@@ -281,8 +312,9 @@ l'identifiant du FDM, puis ce qui est arrivé au ticket :
   l'original, **une seule fois**. Pour toute autre reproduction, faire
   une copie (§8).
 
-Le tiroir-caisse s'ouvre pour un paiement en espèces. La table
-redevient libre. "Terminer" revient à la prise de commande.
+Le tiroir-caisse s'ouvre quand une partie est payée en espèces (jamais
+pour une carte ou des chèques-repas seuls). La table redevient libre.
+"Terminer" revient à la prise de commande.
 
 ### 7.4 Si le FDM ne répond pas
 
@@ -295,6 +327,27 @@ ouverte, le tiroir reste fermé.
 Vérifier le câble réseau et l'alimentation du FDM, puis réessayer.
 Appeler le distributeur si le problème persiste. Ne jamais encaisser en
 dehors de la caisse.
+
+### 7.5 Client parti sans payer
+
+Réservé au Gérant. Quand un client part sans payer, ce qui a été servi
+est tout de même vendu : la commande ne doit pas rester ouverte.
+
+1. Ouvrir la commande (la table, ou l'emporter en cours).
+2. Dans le panier, toucher "**Client parti sans payer**".
+3. Confirmer avec son PIN.
+
+Le FDM signe la vente (événement N) sans aucun paiement. Le ticket de
+caisse TVA est imprimé, avec "**Non paye**" à la place des paiements.
+Le tiroir ne s'ouvre pas et aucun paiement n'est compté dans les
+rapports ; le chiffre d'affaires, lui, compte la vente. La table
+redevient libre ("Vente clôturée sans paiement").
+
+Une vente sans paiement ne se rembourse pas (rien n'a été encaissé) et
+n'apparaît pas dans la liste des remboursements. Sa copie (§8) est
+possible. Un PIN erroné est refusé ("PIN incorrect") et rien n'est
+enregistré ; une commande à 0,00 € s'encaisse normalement. En mode
+formation, la vente est une vente de formation (T).
 
 ## 8. Copie de ticket (événement C)
 
@@ -337,9 +390,12 @@ d'origine sous « Informations FDM d'origine ». Le ticket d'origine
 n'est jamais modifié. Le tiroir
 s'ouvre pour rendre les espèces.
 
+Le remboursement est toujours rendu en espèces, quel que soit le moyen
+de paiement de la vente (carte, chèques-repas, plusieurs moyens).
+
 La caisse refuse de rembourser un remboursement, de rembourser plus que
-ce qui a été vendu, et de rembourser une vente réelle en mode
-formation. Si le FDM refuse, rien n'est enregistré et la vente reste
+ce qui a été vendu, de rembourser une vente sans paiement (§7.5) et de
+rembourser une vente réelle en mode formation. Si le FDM refuse, rien n'est enregistré et la vente reste
 remboursable.
 
 ## 10. Rapports X et Z (événements R)

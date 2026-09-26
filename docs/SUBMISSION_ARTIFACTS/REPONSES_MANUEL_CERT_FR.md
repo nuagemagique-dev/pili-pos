@@ -363,7 +363,9 @@ consolidée affichée/imprimée. Les entrées non encore transmises sont
 envoyées au FDM comme événement **P** (`sign_table_order`,
 "vente interrompue") lorsque l'opérateur quitte une table avec une
 commande non payée, ou dans son intégralité dans l'événement **N**
-final à l'encaissement ; `sent_event_id` marque l'entrée comme
+final à l'encaissement ; une vente à emporter, vente directe, n'est
+jamais enregistrée en P (FAQ Q205 : `sign_table_order` la refuse) et
+se termine toujours par un N ; `sent_event_id` marque l'entrée comme
 transmise, en excluant tout double-comptage. Les lignes à quantité
 négative portent `negQuantityReason` (`crates/pos-fiscal`) :
 `CORRECTION` dans les événements P (commande / pré-addition -
@@ -433,7 +435,9 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Carte de crédit | ☑ | - | OK (même flux que débit) |
 | Crédit client | ☐ | - | Pas de système clients (B2C) |
 | Facturation à l'hôtel | ☐ | - | Non supporté (POS destiné à la restauration) |
-| Chèque repas | ☐ | - | Non supporté en MVP |
+| Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé |
+| Paiement en plusieurs moyens (un ticket) | ☑ | UC4119, ROUND4, ROUND5 | Carte et chèques-repas pour un montant exact, espèces pour le reste (seul le reste en espèces est arrondi, ligne ROUNDING à part). Une ligne PAYMENT par moyen (`crates/pos-fiscal/src/payment.rs`) |
+| Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`src-tauri/src/commands/unpaid.rs`) |
 | Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
 | Vouchers à but multiple | ☐ | UC260/261 | Hors MVP |
 | Vouchers à but unique | ☐ | UC270/271 | Hors MVP |
@@ -672,7 +676,9 @@ Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 | FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran à fournir |
 | UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran à fournir |
 
-En complément des 21 codes ci-dessus, `fdmMessages.ts` prévoit deux messages génériques non listés dans la spec §V : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » (si le message brut contient `connect`/`timeout`) et « Erreur boîte noire. Contactez votre technicien. » (repli final pour tout code FDM non reconnu par le mapping ci-dessus) - ceci garantit qu'aucune erreur FDM ne s'affiche jamais sans message FR compréhensible par l'opérateur.
+La description détaillée POS v2.2 (`tb_messages`) liste en plus deux avertissements à affichage obligatoire, absents du tableau §V du manuel : `UPDATE_POS_VATNO` (« Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. ») et `UPDATE_POS_ESTNO` (« Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. »). Tous deux sont mappés et testés (`ui/e2e/fdm-messages.spec.ts`).
+
+En complément des codes ci-dessus, `fdmMessages.ts` prévoit deux messages génériques non listés dans la spec §V : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » (si le message brut contient `connect`/`timeout`) et « Erreur boîte noire. Contactez votre technicien. » (repli final pour tout code FDM non reconnu par le mapping ci-dessus) - ceci garantit qu'aucune erreur FDM ne s'affiche jamais sans message FR compréhensible par l'opérateur.
 
 **☐ Le test a été effectué et le JSON ainsi que les captures d'écran ont été ajoutés** - JSON ajoutés (`evidence/fdm_errors/`, 8 codes × 4 fichiers) ; case à cocher après les captures d'écran du bloc B2.
 

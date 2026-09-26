@@ -114,12 +114,20 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 
 ### 2.2 Encaissement
 
-- Modes de paiement : espèces, carte (saisie manuelle -
-  pas de terminal intégré dans cette version).
-- **Arrondi 5 cents légal belge** sur les paiements espèces
-  (`crates/pos-fiscal/src/ticket.rs::round_to_5_cents`).
+- Modes de paiement : espèces, carte et chèques-repas électroniques
+  (saisie manuelle - pas de terminal intégré dans cette version).
+- Paiement en plusieurs moyens sur un seul ticket : carte et
+  chèques-repas pour un montant exact, espèces pour le reste
+  (`crates/pos-fiscal/src/payment.rs::settle`).
+- **Arrondi 5 cents légal belge** sur le reste payé en espèces
+  seulement (`crates/pos-fiscal/src/ticket.rs::round_to_5_cents`).
 - Ouverture automatique du tiroir-caisse via commande ESC/POS
-  `0x1B 0x70 0x00 0x19 0xFA`.
+  `0x1B 0x70 0x00 0x19 0xFA` quand une partie est payée en espèces.
+- Vente sans paiement (client parti sans payer) : Gérant avec PIN,
+  N signé sans ligne de paiement, ticket "Non paye", jamais
+  remboursable (`src-tauri/src/commands/unpaid.rs`).
+- Ventes à emporter en cours listées sur l'écran des tables, jamais
+  enregistrées en P (FAQ Q205).
 - Impression du ticket fiscal après acceptation FDM (automatique pour
   Papier/Les deux ; en secours seulement, si l'e-mail n'aboutit pas
   dans le budget de 8 s, pour un ticket "E-mail" seul - §1.6).
