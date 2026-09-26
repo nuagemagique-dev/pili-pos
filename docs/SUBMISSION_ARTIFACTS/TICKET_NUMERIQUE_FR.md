@@ -265,8 +265,8 @@ le service réel (`{"emails":[{...}]}`), écrit chaque e-mail simulé sur
 disque (`MOCK_TEM_OUTBOX`, un `.json` + un `.txt` par envoi) et refuse
 les requêtes sans `X-Auth-Token` (401), comme l'API réelle. La variable
 `MOCK_TEM_FAIL=1` fait répondre 503 à tout (envoi et sonde), pour
-démontrer le repli papier sans dépendre d'une vraie panne - voir
-`CAPTURES_ECRAN_RUNBOOK_FR.md` pour la capture correspondante.
+démontrer le repli papier sans dépendre d'une vraie panne ; l'écran
+correspondant est la capture `09e` de *CAPTURES_ECRAN_FR.pdf*.
 
 ## 11. QR Code (rappel)
 

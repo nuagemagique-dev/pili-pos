@@ -107,7 +107,6 @@ monolithique.
 - [ ] `LIGNES_PRODUITS_FR.md`
 - [ ] `LISTE_DISTRIBUTEURS_FR.md`
 - [ ] `RAPPORT_TESTS_BASELINE_FR.md`
-- [ ] `DOSSIER_SOUMISSION_FR.md`
 - [ ] `MANUEL_INSTALLATION_FR.md`, `SECURITE_BD_FR.md`,
       `FEUILLE_ACQUISITION_DONNEES_FR.md` (à jour de l'image mkosi)
 - [ ] Formulaire de demande de certification signé (PDF + copie

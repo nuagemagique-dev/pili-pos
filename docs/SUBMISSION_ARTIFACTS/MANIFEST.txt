@@ -1,0 +1,54 @@
+# Contenu exact du ZIP de soumission SCE 2.0 (moyun-pos).
+#
+# Une entrée par ligne, relative à docs/SUBMISSION_ARTIFACTS/ ; "#"
+# commence un commentaire. Un répertoire est repris en entier, sans ses
+# fichiers .md ni .DS_Store. Dans le ZIP, les PDF de pdf_out/ sont
+# placés à la racine.
+#
+# Construit par scripts/make_submission_zip.sh, qui vérifie d'abord le
+# dossier (scripts/check_dossier.py --final). Jamais de .md, de script
+# ni de document interne (docs/internal/).
+#
+# Hors ZIP, ajoutés à l'envoi : le formulaire de demande signé et le
+# lien de téléchargement de l'image kiosque d'admission.
+
+# Annexes (numérotation de REPONSES_MANUEL_CERT_FR, "ANNEXES DU DOSSIER")
+pdf_out/REPONSES_MANUEL_CERT_FR.pdf
+pdf_out/LISTE_DISTRIBUTEURS_FR.pdf
+pdf_out/PROFIL_ENTREPRISE_FR.pdf
+pdf_out/MANUEL_UTILISATEUR_FR.pdf
+pdf_out/MANUEL_INSTALLATION_FR.pdf
+pdf_out/MANUEL_PROGRAMMATION_FR.pdf
+pdf_out/DECLARATION_FONCTIONS_INTERDITES_FR.pdf
+pdf_out/PROFILS_UTILISATEURS_FR.pdf
+pdf_out/DOCUMENT_PROCESSUS_TECHNIQUE_FR.pdf
+pdf_out/FLUX_DONNEES_FR.pdf
+pdf_out/SCHEMA_BD_FR.pdf
+pdf_out/SECURITE_BD_FR.pdf
+pdf_out/SCHEMA_ER_FR.pdf
+pdf_out/SCHEMA_ASSEMBLAGE_FR.pdf
+pdf_out/LISTE_FONCTIONNALITES_FR.pdf
+pdf_out/LIGNES_PRODUITS_FR.pdf
+pdf_out/STRATEGIE_COMPTEURS_FR.pdf
+pdf_out/FLUX_REMBOURSEMENT_FR.pdf
+pdf_out/TICKETS_EXEMPLES_FR.pdf
+pdf_out/DECISION_PEPPOL_AP_FR.pdf
+pdf_out/MAPPING_CONFORMITE_FR.pdf
+pdf_out/FEUILLE_ACQUISITION_DONNEES_FR.pdf
+pdf_out/RAPPORT_TESTS_BASELINE_FR.pdf
+pdf_out/COUVERTURE_FIXTURES_FR.pdf
+pdf_out/COUVERTURE_RAPPORTS_FR.pdf
+pdf_out/COUVERTURE_ADVANCED_SET_FR.pdf
+pdf_out/RESULTATS_TESTS_UC_FR.pdf
+CAPTURES_ECRAN_FR.pdf
+pdf_out/JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf
+pdf_out/CHECKLIST_DEPLOIEMENT_KIOSK_FR.pdf
+pdf_out/GARANTIE_MAJ_LANGUES_FR.pdf
+pdf_out/TICKET_NUMERIQUE_FR.pdf
+
+# Preuves brutes
+evidence/uc
+evidence/fdm_errors
+evidence/tickets
+evidence/build
+screenshots

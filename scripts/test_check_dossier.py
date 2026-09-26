@@ -309,6 +309,14 @@ class CheckDossierTestCase(unittest.TestCase):
         self.assertTrue(any("GAP_AUDIT_FR.md" in m and "internal" in m for m in rendered))
         self.assertFalse(any("FRESH_FR.pdf" in m for m in rendered))
 
+    def test_a_missing_manifest_is_a_finding(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = self.cd.rule_manifest(Path(tmp))
+        self.assertEqual(len(findings), 1)
+        self.assertIn("MANIFEST.txt is missing", findings[0].render())
+
     # -- CLI plumbing ---------------------------------------------------------
 
     def test_rules_flag_selects_exact_subset(self):

@@ -41,8 +41,7 @@ Les totaux ci-dessous ne sont jamais recopiés à la main : ils sont
 régénérés par `scripts/generate_test_report.py`, qui exécute les deux
 suites et réécrit le bloc. La colonne « Couche » reprend la première
 phrase du commentaire de module (`//!`) de chaque binaire de test. Le
-script est relancé sur la révision soumise (ASSEMBLAGE_FINAL_FR.md,
-étape 1) ; la CI exécute les mêmes suites à chaque push.
+script est relancé sur la révision soumise, avant l'envoi ; la CI exécute les mêmes suites à chaque push.
 
 <!-- TEST_TOTALS:BEGIN (scripts/generate_test_report.py) -->
 

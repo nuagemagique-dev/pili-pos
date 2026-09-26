@@ -700,7 +700,7 @@ def is_manifest_internal(entry: str) -> bool:
 def rule_manifest(root: Path) -> list:
     manifest = root / "docs" / "SUBMISSION_ARTIFACTS" / "MANIFEST.txt"
     if not manifest.is_file():
-        return []
+        return [Finding(rel(manifest), 1, "manifest", "MANIFEST.txt is missing: the ZIP has no content list")]
     findings = []
     relpath = rel(manifest)
     dossier = root / "docs" / "SUBMISSION_ARTIFACTS"

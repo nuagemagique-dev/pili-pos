@@ -30,7 +30,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe, en cours de finalisation - bloc C de l'audit). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
 
 ## §I.C Manuels du POS
 
@@ -602,7 +602,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 
 - Les 22 fixtures Basic Set v1.7 + 5 Reports v1.3 + 141 Advanced Set v1.5 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
 - 16 UC Basic Set + 4 Reports + 2 no-gap sont couverts par les tests e2e applicatifs (commande Tauri → tx SQLite → archive). *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
-- **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf* (annexe en cours de finalisation - bloc C de `GAP_AUDIT_FR.md`).
+- **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf*.
 
 Récap mappings UC <-> commande Tauri <-> test :
 
@@ -636,7 +636,7 @@ soit disponible dans la build cert v1.0.0 soumise - voir §III.F et
 
 **Statut implémentation :** `ui/src/utils/fdmMessages.ts` mappe **21 codes FDM** vers des messages FR (constante `ERROR_MESSAGES`) ; le composant `ui/src/components/FdmStatus.vue` les affiche dans une pilule du bandeau (rouge / jaune / vert), et chaque écran qui reçoit un refus du FDM (encaissement, remboursement, copie, addition, commande, pointage, caisse, rapports) affiche le même message (`describeError`), plus un repli générique pour les erreurs de connexion (mots-clés `connect`/`timeout`) et un repli générique final pour tout code non listé. Le sondage du status FDM (`FdmClient::status`) tourne en arrière-plan toutes les 30 secondes. Les textes ci-dessous sont recopiés **mot pour mot** depuis le code source (source de vérité) ; toute divergence future entre ce tableau et `fdmMessages.ts` doit être résolue en faveur du code.
 
-**Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.7). Les **captures d'écran** de l'UI restent à produire (bloc B2, `CAPTURES_ECRAN_RUNBOOK_FR.md`).
+**Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.7). Les **captures d'écran** de l'UI pour chaque message sont dans *CAPTURES_ECRAN_FR.pdf* (écrans 20 à 42).
 
 Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 
@@ -791,7 +791,7 @@ L'opérateur (rôle Admin ou Cashier) accède au menu "Rapports" depuis la barre
 
 *Voir : MANUEL_UTILISATEUR_FR.md §10 "Rapports X et Z" et TICKETS_EXEMPLES_FR.md §6 (rapport X) et §7 (rapport Z) pour le rendu papier.*
 
-**Captures d'écran à fournir** : oui (cf. bloc B2 de `GAP_AUDIT_FR.md`).
+**Captures d'écran à fournir** : oui, *CAPTURES_ECRAN_FR.pdf* (écrans 14 et 15).
 
 **Comment les rapports d'utilisateur X/Z sont-ils visibles/imprimables ?**
 
@@ -806,7 +806,7 @@ L'opérateur (rôle Admin ou Cashier) accède au menu "Rapports" depuis la barre
 | Item | Réponse |
 |---|---|
 | ☑ Demande complète et signée | Sera cochée et signée électroniquement au moment de la soumission par Bruno Moyse via certificat eID belge ou Itsme. |
-| ☑ Résultats des tests présents dans le PDF ou dans les annexes | *Voir : RESULTATS_TESTS_UC_FR.pdf* (en cours de finalisation - bloc C) + *RAPPORT_TESTS_BASELINE_FR.md* + *COUVERTURE_FIXTURES_FR.md* + *COUVERTURE_RAPPORTS_FR.md* + *COUVERTURE_ADVANCED_SET_FR.md*. |
+| ☑ Résultats des tests présents dans le PDF ou dans les annexes | *Voir : RESULTATS_TESTS_UC_FR.pdf* + *RAPPORT_TESTS_BASELINE_FR.md* + *COUVERTURE_FIXTURES_FR.md* + *COUVERTURE_RAPPORTS_FR.md* + *COUVERTURE_ADVANCED_SET_FR.md*. |
 
 **SIGNEZ ICI :** signature électronique qualifiée apposée sur le PDF final du formulaire au moment de l'envoi à `secr.gksce@minfin.fed.be`.
 
@@ -814,7 +814,9 @@ L'opérateur (rôle Admin ou Cashier) accède au menu "Rapports" depuis la barre
 
 # ANNEXES DU DOSSIER
 
-Liste des fichiers à inclure dans le ZIP de soumission :
+Liste des fichiers du ZIP de soumission (la liste exacte, fichier par fichier, est `MANIFEST.txt`, à partir de laquelle `scripts/make_submission_zip.sh` construit le ZIP) :
+
+Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pdf` du même nom.
 
 | # | Fichier | Section couverte |
 |---|---|---|
@@ -844,14 +846,15 @@ Liste des fichiers à inclure dans le ZIP de soumission :
 | 24 | COUVERTURE_FIXTURES_FR.pdf | §IV |
 | 25 | COUVERTURE_RAPPORTS_FR.pdf | §IV |
 | 26 | COUVERTURE_ADVANCED_SET_FR.pdf | §IV |
-| 27 | RESULTATS_TESTS_UC_FR.pdf | §IV - PDF de résultats UC (en cours, bloc C) |
-| 28 | CAPTURES_ECRAN_FR.pdf | §V + §VII.D (en cours, bloc B2) |
+| 27 | RESULTATS_TESTS_UC_FR.pdf | §IV - PDF de résultats UC |
+| 28 | CAPTURES_ECRAN_FR.pdf | §V + §VII.D |
 | 29 | JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf | §IV (répétition pré-soumission) |
-| 30 | ASSEMBLAGE_FINAL_FR.pdf | runbook opérateur |
-| 31 | DOSSIER_SOUMISSION_FR.pdf | checklist maître |
-| 32 | CHECKLIST_DEPLOIEMENT_KIOSK_FR.pdf | machine de test |
+| 30 | CHECKLIST_DEPLOIEMENT_KIOSK_FR.pdf | machine de test |
+| 31 | GARANTIE_MAJ_LANGUES_FR.pdf | §II.E + §VI (langue du ticket) |
+| 32 | TICKET_NUMERIQUE_FR.pdf | §III.H |
 
 Plus :
 - `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM_signe.pdf` - formulaire SPF rempli et signé.
-- Hash SHA-1 du binaire `moyun-pos` (produit par `scripts/build_and_hash.sh`).
-- Image kiosk ISO (lien de téléchargement séparé via WeTransfer).
+- Preuves brutes : `evidence/` (JSON requête/réponse par UC et par code d'erreur FDM, rapports `build_info_*.txt` des deux builds de référence).
+- Hash SHA-1 du binaire `moyun-pos` : §I.D.
+- Image kiosque d'admission (`.img.xz`, lien de téléchargement séparé).
