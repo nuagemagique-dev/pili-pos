@@ -273,6 +273,12 @@ phase_image() {
     if [[ "$VARIANT" == "admission" ]]; then
         POS_ID_TEMPLATE="CFOD0061234567"
         RESTAURANT_NAME_TEMPLATE="SPF Admission Test"
+        # The dossier's example identity (MANUEL_INSTALLATION_FR.md §4,
+        # TICKETS_EXEMPLES_FR.md): valid modulo 97, so the admission
+        # image opens without the invalid-configuration banner.
+        RESTAURANT_ADDRESS_TEMPLATE="Rue de l'Exemple 1, 4000 Liège"
+        RESTAURANT_VAT_TEMPLATE="BE0499999960"
+        RESTAURANT_EST_NO_TEMPLATE="2123456791"
         # Digital ticket through the local mock (pos-fdm-mock serves
         # the Scaleway TEM API too), so email works without internet.
         DIGITAL_TICKET_TEMPLATE='
@@ -290,6 +296,11 @@ phase_image() {
     else
         POS_ID_TEMPLATE="CHANGE_ME_14CH"
         RESTAURANT_NAME_TEMPLATE="CHANGE ME"
+        # Invalid on purpose: the POS shows the invalid-configuration
+        # banner until the installer enters the client's real numbers.
+        RESTAURANT_ADDRESS_TEMPLATE="CHANGE ME"
+        RESTAURANT_VAT_TEMPLATE="BE0000000000"
+        RESTAURANT_EST_NO_TEMPLATE="0000000000"
         # Production: the digital ticket is configured at installation
         # (MANUEL_INSTALLATION_FR.md §4.2, « Ticket numérique par e-mail »); without it the POS is paper only.
         DIGITAL_TICKET_TEMPLATE=""
@@ -300,9 +311,9 @@ phase_image() {
   "terminal_id": "POS1",
   "device_id": "$DEVICE_ID_PLACEHOLDER",
   "restaurant_name": "$RESTAURANT_NAME_TEMPLATE",
-  "restaurant_address": "CHANGE ME",
-  "restaurant_vat": "BE0000000000",
-  "restaurant_est_no": "0000000000",
+  "restaurant_address": "$RESTAURANT_ADDRESS_TEMPLATE",
+  "restaurant_vat": "$RESTAURANT_VAT_TEMPLATE",
+  "restaurant_est_no": "$RESTAURANT_EST_NO_TEMPLATE",
   "fdm_url": "http://192.168.1.20/graphql",
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,

@@ -161,11 +161,17 @@ RuntimeDirectory=moyun-pos
 RuntimeDirectoryMode=0750
 UMask=0027
 ProtectSystem=strict
-ProtectHome=yes
+ProtectHome=no
+InaccessiblePaths=-/home -/root
 PrivateTmp=yes
 NoNewPrivileges=yes
 SupplementaryGroups=input video render
 ```
+
+`ProtectHome=yes` masquerait aussi `/run/user`, où Cage crée son socket
+Wayland (répertoire de session du compte `pos`) : le kiosque ne
+démarrerait pas. `/home` et `/root` sont donc rendus inaccessibles
+explicitement ; le répertoire de `pos` est `/var/lib/moyun-pos`.
 
 L'opérateur n'a aucun moyen de s'élever en `root` (cf. §3.4
 ci-dessous), donc aucun moyen de manipuler les permissions ou

@@ -22,6 +22,10 @@ NAME="${1:?usage: $0 <name> [out-basename]}"
 OUT="${2:-$NAME}"
 LOG="$SCRIPT_DIR/.run/$NAME/serial.log"
 BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs|Read-only file system|moyun-provision.*ERROR|cage\[[0-9]+\]: .*\[ERROR\]'
+# wlroots on QEMU's virtio-vga (pixman renderer, no cursor plane) logs
+# these while probing the output; the frame still renders. Any other
+# Cage error still fails the check.
+BENIGN='cage\[[0-9]+\]: .*\[ERROR\] \[types/output/(output\.c:[0-9]+\] Basic output test failed|cursor\.c:[0-9]+\] Failed to (pick cursor format|render cursor buffer))'
 
 [[ -f "$LOG" ]] || { echo "ERROR: no serial log at $LOG" >&2; exit 1; }
 
@@ -32,10 +36,16 @@ fail() {
     exit 1
 }
 
+failures() {
+    grep -E "$BAD" "$LOG" | grep -vE "$BENIGN" || true
+}
+
 check_no_failures() {
-    if grep -qE "$BAD" "$LOG"; then
+    local found
+    found="$(failures)"
+    if [[ -n "$found" ]]; then
         echo "── failures in the guest journal ──"
-        grep -E "$BAD" "$LOG"
+        echo "$found"
         fail "the boot has failed units or a broken ordering cycle"
     fi
 }

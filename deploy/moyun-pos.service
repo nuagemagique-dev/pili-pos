@@ -59,6 +59,9 @@ Environment=WLR_RENDERER=pixman
 Environment=GDK_BACKEND=wayland
 Environment=WEBKIT_DISABLE_COMPOSITING_MODE=1
 Environment=RUST_LOG=info
+# Borderless fullscreen window: no title bar, no close button
+# (src-tauri/src/main.rs).
+Environment=MOYUN_KIOSK=1
 # Cage identifies as a wlroots compositor; some WebKitGTK/portal codepaths
 # (xdg-desktop-portal-wlr, used by the RustDesk screen-capture session)
 # branch on this to pick the wlr-specific screencast backend.
@@ -73,7 +76,12 @@ StartLimitIntervalSec=60
 
 # Hardening
 ProtectSystem=strict
-ProtectHome=yes
+# Not ProtectHome=yes: it also hides /run/user, and Cage creates its
+# Wayland socket in the session's XDG_RUNTIME_DIR (/run/user/<uid>), so
+# it fails with "Unable to open Wayland socket". pos's home is
+# /var/lib/moyun-pos; hide the other homes explicitly.
+ProtectHome=no
+InaccessiblePaths=-/home -/root
 PrivateTmp=yes
 NoNewPrivileges=yes
 

@@ -96,6 +96,23 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(app_state)
         .setup(move |_app| {
+            // Kiosk (deploy/moyun-pos.service sets MOYUN_KIOSK=1): no
+            // title bar, so no close or minimise button on the
+            // touchscreen. tao draws its own header bar, so Cage's
+            // server-side decoration flag cannot remove it. Development
+            // keeps a normal window.
+            if std::env::var_os("MOYUN_KIOSK").is_some() {
+                use tauri::Manager;
+                if let Some(window) = _app.get_webview_window("main") {
+                    if let Err(e) = window.set_decorations(false) {
+                        tracing::warn!(%e, "kiosk: could not remove the title bar");
+                    }
+                    if let Err(e) = window.set_fullscreen(true) {
+                        tracing::warn!(%e, "kiosk: could not go fullscreen");
+                    }
+                }
+            }
+
             // Digital ticket outbox: retries queued emails and clears
             // addresses after 72 h. Runs in every build; it does
             // nothing when no email client is configured.
