@@ -21,7 +21,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NAME="${1:?usage: $0 <name> [out-basename]}"
 OUT="${2:-$NAME}"
 LOG="$SCRIPT_DIR/.run/$NAME/serial.log"
-BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs|Read-only file system|moyun-provision.*ERROR'
+BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs|Read-only file system|moyun-provision.*ERROR|cage\[[0-9]+\]: .*\[ERROR\]'
 
 [[ -f "$LOG" ]] || { echo "ERROR: no serial log at $LOG" >&2; exit 1; }
 
