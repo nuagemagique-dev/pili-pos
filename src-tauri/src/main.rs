@@ -270,6 +270,9 @@ fn main() {
         commands::copy::copy_ticket,
         commands::copy::list_fiscal_events,
         commands::copy::list_copyable_tickets,
+        commands::support::remote_support_status,
+        commands::support::start_remote_support,
+        commands::support::stop_remote_support,
         // Refund
         commands::refund::list_refundable_events,
         commands::refund::refund_checkout,
@@ -341,6 +344,9 @@ fn main() {
         commands::copy::copy_ticket,
         commands::copy::list_fiscal_events,
         commands::copy::list_copyable_tickets,
+        commands::support::remote_support_status,
+        commands::support::start_remote_support,
+        commands::support::stop_remote_support,
         // Refund
         commands::refund::list_refundable_events,
         commands::refund::refund_checkout,

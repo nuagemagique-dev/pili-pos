@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { usePosStore } from "./stores/pos";
 import { useAuthStore } from "./stores/auth";
@@ -9,6 +9,8 @@ import { HUBRISE_ENABLED } from "./features";
 import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
 import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
+import SupportBanner from "./components/SupportBanner.vue";
+import { useSupportStore } from "./stores/support";
 
 const pos = usePosStore();
 const auth = useAuthStore();
@@ -28,9 +30,19 @@ useIdleTimer(5 * 60 * 1000, () => {
   }
 });
 
+// Remote support banner: polled while someone is logged in.
+const support = useSupportStore();
+let supportPoll: ReturnType<typeof setInterval> | undefined;
+
 onMounted(() => {
   pos.loadSettings();
+  supportPoll = setInterval(() => {
+    if (auth.currentUser) void support.refresh();
+    else support.status = null;
+  }, 5000);
 });
+
+onUnmounted(() => clearInterval(supportPoll));
 </script>
 
 <template>
@@ -38,4 +50,5 @@ onMounted(() => {
   <RouterView />
   <ToastStack />
   <ConfigProblemsBanner />
+  <SupportBanner />
 </template>

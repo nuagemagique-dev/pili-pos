@@ -18,6 +18,7 @@ pub mod refund;
 pub mod report;
 pub mod settings;
 pub mod social;
+pub mod support;
 pub mod tables;
 
 use crate::state::AppState;

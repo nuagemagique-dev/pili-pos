@@ -417,3 +417,28 @@ export function printWebshopKitchen(orderId: number): Promise<void> {
 export function printWebshopCustomer(orderId: number): Promise<void> {
   return invoke("print_webshop_customer", { orderId });
 }
+
+// Remote support (commands/support.rs)
+
+export interface SupportStatus {
+  /** RustDesk is installed on this terminal. */
+  available: boolean;
+  running: boolean;
+  /** Name of the manager who started the running session. */
+  startedBy: string | null;
+  /** RFC 3339, UTC. */
+  startedAt: string | null;
+}
+
+export function remoteSupportStatus(): Promise<SupportStatus> {
+  return invoke("remote_support_status");
+}
+
+/** Start a session: the logged-in manager, confirmed by their PIN. */
+export function startRemoteSupport(insz: string, pin: string): Promise<SupportStatus> {
+  return invoke("start_remote_support", { insz, pin });
+}
+
+export function stopRemoteSupport(): Promise<SupportStatus> {
+  return invoke("stop_remote_support");
+}

@@ -58,6 +58,25 @@ const coreMessages: Messages = {
   "pin_change": { fr: "Changer le PIN", en: "Change PIN", zh: "修改PIN" },
   "pin_changed": { fr: "PIN modifié", en: "PIN changed", zh: "PIN已修改" },
 
+  // Remote support (commands/support.rs)
+  "support_title": { fr: "Assistance à distance", en: "Remote support", zh: "远程协助" },
+  "support_desc": {
+    fr: "Démarre RustDesk : lisez au technicien l'ID et le mot de passe affichés. Arrêtez la session quand il a terminé.",
+    en: "Starts RustDesk: read the ID and password it shows to the technician. Stop the session when they are done.",
+    zh: "启动RustDesk：将显示的ID和密码告诉技术人员。完成后请结束会话。",
+  },
+  "support_start": { fr: "Démarrer", en: "Start", zh: "开始" },
+  "support_stop": { fr: "Arrêter la session", en: "Stop the session", zh: "结束会话" },
+  "support_running_since": { fr: "En cours depuis {time} ({name})", en: "Running since {time} ({name})", zh: "自{time}起进行中（{name}）" },
+  "support_not_installed": { fr: "Non installée sur cette caisse", en: "Not installed on this terminal", zh: "此收银机未安装" },
+  "support_banner": {
+    fr: "Assistance à distance en cours (démarrée par {name})",
+    en: "Remote support in progress (started by {name})",
+    zh: "远程协助进行中（由{name}启动）",
+  },
+  "support_started": { fr: "Assistance à distance démarrée", en: "Remote support started", zh: "远程协助已开始" },
+  "support_stopped": { fr: "Assistance à distance arrêtée", en: "Remote support stopped", zh: "远程协助已结束" },
+
   // Backend error codes (src-tauri/src/commands/errors.rs), shown by
   // utils/errorMessages.ts::describeError.
   "err_failed": { fr: "L'opération a échoué.", en: "The operation failed.", zh: "操作失败。" },
@@ -121,6 +140,9 @@ const coreMessages: Messages = {
   "err_email_sent": { fr: "Le ticket a été envoyé par e-mail : imprimez une copie.", en: "The ticket was sent by email: print a copy.", zh: "票据已通过电子邮件发送：请打印副本。" },
   "err_printer_not_configured": { fr: "Aucune imprimante configurée.", en: "No printer configured.", zh: "未配置打印机。" },
   "err_print_failed": { fr: "L'impression a échoué. Vérifiez l'imprimante. ({detail})", en: "Printing failed. Check the printer. ({detail})", zh: "打印失败，请检查打印机。（{detail}）" },
+  "err_support_unavailable": { fr: "L'assistance à distance n'est pas installée sur cette caisse.", en: "Remote support is not installed on this terminal.", zh: "此收银机未安装远程协助。" },
+  "err_support_running": { fr: "Une session d'assistance est déjà en cours.", en: "A support session is already running.", zh: "远程协助会话已在进行中。" },
+  "err_support_start_failed": { fr: "L'assistance à distance n'a pas démarré. ({detail})", en: "Remote support did not start. ({detail})", zh: "远程协助未能启动。（{detail}）" },
   "err_concurrent_operation": { fr: "Une autre opération était en cours : rien n'a été enregistré, réessayez.", en: "Another operation was in progress: nothing was recorded, try again.", zh: "另一操作正在进行：未记录任何内容，请重试。" },
   "err_internal_error": { fr: "Erreur interne. Contactez votre technicien. ({detail})", en: "Internal error. Contact your technician. ({detail})", zh: "内部错误，请联系技术人员。（{detail}）" },
   "pin_choose": { fr: "Choisissez votre PIN", en: "Choose your PIN", zh: "设置您的PIN" },

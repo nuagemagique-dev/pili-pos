@@ -40,6 +40,7 @@ refuse de toute façon une action interdite au profil
 | Imprimer l'addition, encaisser | - | ☑ | ☑ |
 | Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir | - | - | ☑ |
 | Mode formation, employés, PIN des autres, configuration | - | - | ☑ |
+| Démarrer / arrêter l'assistance à distance (§12.6) | - | - | ☑ |
 
 ## 2. Démarrage, connexion et PIN
 
@@ -436,6 +437,23 @@ tentatives et dernière erreur. "Actualiser" recharge la liste.
 
 L'adresse complète n'est jamais affichée ; elle est effacée dès l'envoi
 réussi, et au plus tard après 72 h (`TICKET_NUMERIQUE_FR.md`).
+
+### 12.6 Assistance à distance
+
+Quand le technicien doit voir la caisse à distance :
+
+1. "Config", section "Assistance à distance", bouton "Démarrer".
+2. Taper son PIN ("Saisir le PIN"). Un PIN erroné affiche "PIN
+   incorrect" et rien ne démarre.
+3. RustDesk s'ouvre et affiche un identifiant et un mot de passe : les
+   lire au technicien par téléphone.
+
+Tant que la session dure, un bandeau "Assistance à distance en cours
+(démarrée par <nom>)" s'affiche en bas de chaque écran, pour tout le
+personnel. La section indique depuis quand elle dure. Quand le
+technicien a terminé, toucher "Arrêter la session". Une seule session
+à la fois ; si RustDesk n'est pas installé, la section l'indique ("Non
+installée sur cette caisse").
 
 ## 13. Mode formation (événements T)
 

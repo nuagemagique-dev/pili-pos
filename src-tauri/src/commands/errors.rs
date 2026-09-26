@@ -78,6 +78,12 @@ pub const PRINTER_NOT_CONFIGURED: &str = "printer_not_configured";
 /// `detail`: the printer's error, for the technician.
 pub const PRINT_FAILED: &str = "print_failed";
 
+// Remote support.
+pub const SUPPORT_UNAVAILABLE: &str = "support_unavailable";
+pub const SUPPORT_RUNNING: &str = "support_running";
+/// `detail`: why the program did not start.
+pub const SUPPORT_START_FAILED: &str = "support_start_failed";
+
 // Integrity.
 /// Two terminals (or two taps) signed at the same time: nothing was
 /// recorded, the operator retries.
@@ -130,6 +136,9 @@ pub const ALL: &[&str] = &[
     EMAIL_SENT,
     PRINTER_NOT_CONFIGURED,
     PRINT_FAILED,
+    SUPPORT_UNAVAILABLE,
+    SUPPORT_RUNNING,
+    SUPPORT_START_FAILED,
     CONCURRENT_OPERATION,
     INTERNAL_ERROR,
 ];

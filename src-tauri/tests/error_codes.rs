@@ -69,6 +69,7 @@ fn a_text_with_values_names_them() {
             &["product", "requested", "sold", "refunded"],
         ),
         (errors::PRINT_FAILED, &["detail"]),
+        (errors::SUPPORT_START_FAILED, &["detail"]),
         (errors::INTERNAL_ERROR, &["detail"]),
     ] {
         let text = entry(&format!("err_{code}")).unwrap();

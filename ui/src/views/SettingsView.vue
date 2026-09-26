@@ -13,6 +13,7 @@ import * as ipc from "../api/ipc";
 import PinDialog from "../components/PinDialog.vue";
 import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
+import { useSupportStore } from "../stores/support";
 import { HUBRISE_ENABLED } from "../features";
 
 // Folded at build time so the cert build drops the HubRise panel (see
@@ -37,6 +38,37 @@ async function toggleTraining() {
 }
 const menu = useMenuStore();
 const delivery = useDeliveryStore();
+
+// Remote support: started with the manager's PIN, stopped here.
+const support = useSupportStore();
+const confirmSupport = ref(false);
+
+async function startSupport(pin: string) {
+  await support.start(auth.currentUser?.insz ?? "", pin);
+}
+
+function onSupportStarted() {
+  confirmSupport.value = false;
+  toast.show(t("support_started"), "success");
+}
+
+async function stopSupport() {
+  try {
+    await support.stop();
+    toast.show(t("support_stopped"), "success");
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+  }
+}
+
+function supportSince(): string {
+  const s = support.status;
+  if (!s?.startedAt) return "";
+  return t("support_running_since", {
+    time: formatTimestamp(s.startedAt, formatDayTime),
+    name: s.startedBy ?? "",
+  });
+}
 
 const workers = ref<User[]>([]);
 // The employee whose PIN the manager is setting (PinDialog open).
@@ -120,6 +152,7 @@ onMounted(() => {
   loadWorkers();
   delivery.refreshMailStatus();
   loadDeliveries();
+  void support.refresh();
 });
 </script>
 
@@ -243,8 +276,33 @@ onMounted(() => {
         </ul>
       </div>
 
+      <!-- Remote support (manager) -->
+      <div class="support-section">
+        <h3>{{ t('support_title') }}</h3>
+        <p class="support-desc">{{ t('support_desc') }}</p>
+        <p v-if="support.status && !support.status.available" class="support-state">
+          {{ t('support_not_installed') }}
+        </p>
+        <template v-else-if="support.status?.running">
+          <p class="support-state running">{{ supportSince() }}</p>
+          <button class="support-btn stop" @click="stopSupport">{{ t('support_stop') }}</button>
+        </template>
+        <button v-else class="support-btn start" @click="confirmSupport = true">
+          {{ t('support_start') }}
+        </button>
+      </div>
+
       <component :is="HubriseSettings" v-if="HubriseSettings" />
     </div>
+
+    <PinDialog
+      v-if="confirmSupport && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      :verify="startSupport"
+      @done="onSupportStarted"
+      @cancel="confirmSupport = false"
+    />
 
     <PinDialog
       v-if="pinFor"
@@ -257,6 +315,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.support-section { margin-top: var(--space-lg); padding: var(--space-lg); background: var(--bg-secondary); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: var(--space-sm); }
+.support-desc { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.support-state { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--text-secondary); }
+.support-state.running { color: var(--text-primary); }
+.support-btn { align-self: flex-start; padding: var(--space-sm) var(--space-lg); min-height: 48px; border-radius: var(--radius-md); font-weight: var(--font-weight-bold); color: var(--text-on-accent); background: var(--accent-primary); transition: transform var(--tap-duration) ease; }
+.support-btn.stop { background: var(--accent-danger); }
+.support-btn:active { transform: scale(var(--tap-scale)); }
 .settings { display: flex; flex-direction: column; height: 100vh; background: var(--bg-primary); }
 .header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); background: var(--bg-secondary); border-bottom: 1px solid rgba(160,160,176,0.1); height: 48px; }
 .header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }

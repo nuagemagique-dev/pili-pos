@@ -18,23 +18,42 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
   `/opt/moyun-pos/rustdesk/`, lancée via
   `/opt/moyun-pos/rustdesk/AppRun`. Aucun service, jamais lancé au
   boot.
-- Ouverture : un responsable présent sur place démarre la session à la
-  demande du distributeur ; l'identifiant et le mot de passe à usage
-  unique affichés sont communiqués par téléphone. La session se
-  termine à la fermeture de RustDesk ou au redémarrage du terminal.
-- Machine de test SPF : sur demande du SPF Finances, les identifiants
-  d'une session de test sont fournis avec la machine (manuel §II.E).
+- Ouverture : depuis la caisse, par un Gérant connecté. "Config",
+  section "Assistance à distance", bouton "Démarrer", puis son PIN
+  (`src-tauri/src/commands/support.rs::do_start_remote_support`, rôle
+  `admin` et PIN obligatoires). RustDesk s'ouvre et affiche un
+  identifiant et un mot de passe à usage unique, que le Gérant lit au
+  technicien par téléphone.
+- Pendant la session, **chaque écran** de la caisse affiche le bandeau
+  "Assistance à distance en cours (démarrée par <nom>)" : le personnel
+  sait que quelqu'un peut voir ou agir sur le terminal.
+- Fin : "Arrêter la session" dans la même section, la fermeture de
+  RustDesk, ou le redémarrage du terminal. Une seule session à la
+  fois. Le démarrage et l'arrêt (qui, quand) sont écrits dans le
+  journal applicatif (`pos.log`).
+- RustDesk reçoit un `HOME` privé sous le répertoire d'exécution du
+  service (`RuntimeDirectory=moyun-pos`, effacé à l'arrêt) : rien de ce
+  qu'il écrit ne survit à un redémarrage.
+- Machine de test SPF : sur demande du SPF Finances, une session de
+  test est ouverte de la même façon et ses identifiants fournis
+  (manuel §II.E).
 
-> **À valider dans l'image kiosk (QEMU puis matériel) avant la
-> soumission :** capture d'écran sous Cage via
-> `xdg-desktop-portal-wlr` + PipeWire, saisie clavier distante
-> (problèmes connus de RustDesk sur les compositeurs wlroots), et le
-> point de déclenchement de la session depuis l'interface du POS
-> (réservé au rôle administrateur). Ce document sera complété avec la
-> procédure exacte une fois ces points vérifiés.
+Ce que permet la session : voir l'écran de la caisse et guider le
+Gérant (ou agir sur l'écran si la saisie distante fonctionne, voir
+ci-dessous). Elle ne donne **pas** de shell : la console de maintenance
+(`Ctrl+Alt+F2`, login `root`) n'est accessible que sur place, au
+clavier. Une mise à jour du binaire (`deploy/update.sh --sha1`) se fait
+donc toujours sur place, depuis une clé USB.
 
-Pendant la session, le distributeur travaille sur la console de
-maintenance (`Ctrl+Alt+F2`, login `root`).
+> **Point restant à vérifier sur le terminal (image d'admission sous
+> QEMU puis matériel J6412) :** la capture d'écran sous Cage via
+> `xdg-desktop-portal-wlr` + PipeWire et la saisie clavier/tactile
+> distante (problèmes connus de RustDesk sur les compositeurs
+> wlroots). Si la saisie distante ne fonctionne pas, la session reste
+> en **lecture seule** : le technicien voit l'écran et guide le Gérant
+> par téléphone. Le déclenchement, le bandeau et l'arrêt décrits
+> ci-dessus sont implémentés et testés
+> (`src-tauri/tests/remote_support.rs`, `ui/e2e/support.spec.ts`).
 
 ## Emplacements
 

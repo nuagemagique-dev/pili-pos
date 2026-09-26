@@ -18,6 +18,9 @@ const props = defineProps<{
   insz: string;
   userName: string;
   firstLogin?: boolean;
+  /** Confirm an action with the user's current PIN (typed once):
+   * called on the 4th digit, a refusal is shown and the pad cleared. */
+  verify?: (pin: string) => Promise<void>;
 }>();
 
 const emit = defineEmits<{
@@ -40,6 +43,20 @@ async function onKey(key: string) {
   else if (key === "CLEAR") pin.value = "";
   else if (pin.value.length < 4) pin.value += key;
   if (pin.value.length < 4) return;
+
+  if (props.verify) {
+    saving.value = true;
+    try {
+      await props.verify(pin.value);
+      emit("done");
+    } catch (e) {
+      error.value = describeError(e);
+      pin.value = "";
+    } finally {
+      saving.value = false;
+    }
+    return;
+  }
 
   if (step.value === "enter") {
     first.value = pin.value;
@@ -79,7 +96,7 @@ async function onKey(key: string) {
   <div class="backdrop" @click.self="emit('cancel')">
     <div class="dialog pin-dialog" role="dialog" :aria-label="t('pin_change')">
       <h2 class="title">
-        {{ step === 'confirm' ? t('pin_confirm') : firstLogin ? t('pin_choose') : t('pin_enter') }}
+        {{ verify ? t('pin_enter') : step === 'confirm' ? t('pin_confirm') : firstLogin ? t('pin_choose') : t('pin_enter') }}
       </h2>
       <p class="who">{{ userName }}</p>
       <p v-if="firstLogin" class="hint">{{ t('pin_first_login_hint') }}</p>

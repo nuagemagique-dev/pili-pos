@@ -112,6 +112,7 @@ impl TestApp {
             shutdown_token: CancellationToken::new(),
             mail: moyun_pos::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),
+            support: moyun_pos::commands::support::SupportState::disabled(),
         };
 
         let app = Self { state, fdm };

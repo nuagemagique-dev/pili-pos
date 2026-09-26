@@ -46,7 +46,7 @@ sha1sum /opt/moyun-pos/moyun-pos
 
 ### 1.3 Environnement kiosk scellé
 
-Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite avec `deploy/install.sh` ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB ou par transfert de fichiers pendant une session RustDesk à la demande - jamais par `scp`, aucun serveur SSH n'étant installé.
+Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite avec `deploy/install.sh` ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB, sur place - jamais par `scp`, aucun serveur SSH n'étant installé (une session RustDesk donne accès à l'écran de la caisse, pas à un shell, cf. §2.2).
 
 L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 
@@ -91,12 +91,12 @@ La procédure de mise à jour est la suivante :
    - Soumission d'une nouvelle demande de certification (mise à jour) au SPF Finances.
 
 2. **Sur la machine de test SPF (pendant le cycle de mise à jour) :**
-   - Le producteur transfère le nouveau binaire `moyun-pos` sur la machine de test (remise physique sur clé USB, ou transfert de fichiers pendant une session RustDesk à la demande, cf. §2.2).
+   - Le producteur remet le nouveau binaire `moyun-pos` pour la machine de test sur clé USB (cf. §2.2).
    - Le binaire est installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>` : le script refuse tout binaire dont le SHA-1 diffère de la valeur déclarée, sauvegarde binaire et base, applique les migrations puis redémarre le service. Cf. *MANUEL_INSTALLATION_FR.md* §6.
    - Tests de validation effectués par l'agent SPF.
 
 3. **Côté client (après acceptation SPF de la mise à jour) :**
-   - Mise à jour du binaire client par le distributeur via `deploy/update.sh --sha1`, sur site ou pendant une session RustDesk à la demande (jamais par SSH : aucun serveur SSH n'est installé).
+   - Mise à jour du binaire client par le distributeur via `deploy/update.sh --sha1`, sur site (jamais par SSH : aucun serveur SSH n'est installé).
    - Sauvegarde préalable de la DB `pos.db` (cf. backups automatiques nocturnes).
    - Vérification post-update du SHA-1.
 
@@ -110,10 +110,12 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 - **Raison secondaire :** la spec SCE 2.0 demande un appliance scellé. Un agent SSH ou un client TeamViewer permanent contredit l'esprit du scellement.
 
 **Compromis pratique :** pour les interventions techniques planifiées (mise à jour, debug d'un problème reporté par le client) :
-- Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à l'installation, placé dans `/opt/moyun-pos/bin/rustdesk`. Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
-- Ouverture : un responsable présent sur place démarre la session à la demande du producteur ; l'identifiant et le mot de passe à usage unique sont communiqués par téléphone.
-- La session prend fin à la fermeture de RustDesk ou au redémarrage du terminal. Aucun accès permanent, aucun port en écoute hors session.
-- Pour la machine de test, le SPF Finances peut demander qu'une session de test soit ouverte et ses identifiants fournis (manuel §II.E).
+- Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à la construction de l'image, extrait dans `/opt/moyun-pos/rustdesk/` (lancé via `/opt/moyun-pos/rustdesk/AppRun`). Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
+- Ouverture : depuis la caisse, par un Gérant connecté qui confirme avec son PIN ("Config" > "Assistance à distance" > "Démarrer", `src-tauri/src/commands/support.rs`). RustDesk affiche un identifiant et un mot de passe à usage unique, communiqués au producteur par téléphone.
+- Pendant la session, chaque écran de la caisse affiche le bandeau "Assistance à distance en cours" ; démarrage et arrêt sont journalisés (qui, quand).
+- La session prend fin par "Arrêter la session", à la fermeture de RustDesk ou au redémarrage du terminal. Une seule session à la fois. Aucun accès permanent, aucun port en écoute hors session.
+- La session donne accès à l'écran de la caisse, pas à un shell : les mises à jour du binaire se font sur place (clé USB, `deploy/update.sh --sha1`). La saisie distante sous le compositeur kiosque (Cage) reste à confirmer sur le terminal ; à défaut, la session est en lecture seule et le producteur guide le Gérant par téléphone.
+- Pour la machine de test, le SPF Finances peut demander qu'une session de test soit ouverte de la même façon et ses identifiants fournis (manuel §II.E).
 
 **Au rendez-vous d'admission SPF Finances :**
 

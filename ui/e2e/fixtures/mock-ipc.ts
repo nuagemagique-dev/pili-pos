@@ -122,6 +122,11 @@ function defaultHandlers(): Record<string, Handler> {
     // Auth
     login: () => DEFAULT_USER,
     login_with_new_pin: () => DEFAULT_USER,
+    remote_support_status: () => ({ available: true, running: false, startedBy: null, startedAt: null }),
+    start_remote_support: () => ({
+      available: true, running: true, startedBy: 'Bruno Moyse', startedAt: '2026-09-26T08:30:00Z',
+    }),
+    stop_remote_support: () => ({ available: true, running: false, startedBy: null, startedAt: null }),
     list_users: () => [DEFAULT_USER],
     create_user: ({ input }: any) => ({ ...input, active: true, has_pin: false }),
     set_pin: () => undefined,

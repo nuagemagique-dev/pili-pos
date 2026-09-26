@@ -167,14 +167,14 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
 
 **Procédure de mise à jour du POS :**
 
-Toute modification du logiciel POS post-certification nécessite une nouvelle demande de certification (mise à jour). Sur la machine de test, le nouveau binaire est remis sur clé USB ou transféré pendant une session RustDesk à la demande, puis installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>`, qui refuse tout binaire dont le SHA-1 diffère de la valeur déclarée. Aucune mise à jour automatique en arrière-plan n'est implémentée : c'est une décision explicite de scellement. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.
+Toute modification du logiciel POS post-certification nécessite une nouvelle demande de certification (mise à jour). Sur la machine de test, le nouveau binaire est remis sur clé USB, puis installé sur place via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>`, qui refuse tout binaire dont le SHA-1 diffère de la valeur déclarée. Aucune mise à jour automatique en arrière-plan n'est implémentée : c'est une décision explicite de scellement. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.
 
 **Solution d'accès à distance pour l'agent SPF :**
 
 Aucune solution permanente d'accès à distance n'est installée sur la machine de test livrée à l'Intake (la spec SCE 2.0 demande un appliance scellé, sans SSH ni service de gestion réseau). Cependant, pour faciliter les interventions techniques entre la soumission et le rendez-vous d'admission :
 
 - **Accès local au rendez-vous d'admission.** Lors de l'Intake, l'agent SPF peut accéder à la machine de test localement via la console physique (login `spf` documenté au §II.C). C'est suffisant pour vérifier la version, exécuter les tests, et copier la DB.
-- **Accès à distance : RustDesk portable, à la demande.** RustDesk (open source, AppImage autonome, version épinglée) est présent sur la machine de test comme sur les terminaux clients, mais n'est jamais lancé au boot. Une session est ouverte ponctuellement pour une mise à jour de certification ou une intervention technique ; sur demande du SPF Finances, les identifiants d'une session de test sont fournis. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.2.
+- **Accès à distance : RustDesk portable, à la demande.** RustDesk (open source, AppImage autonome, version épinglée) est présent sur la machine de test comme sur les terminaux clients, mais n'est jamais lancé au boot. Un Gérant connecté le démarre depuis la caisse en confirmant son PIN ("Config" > "Assistance à distance") ; chaque écran affiche alors un bandeau tant que la session dure, et le Gérant l'arrête au même endroit. La session sert à l'assistance technique sur l'écran de la caisse (pas de shell) ; sur demande du SPF Finances, une session de test est ouverte et ses identifiants fournis. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.2.
 
 Cette absence de solution d'accès à distance permanente est délibérée : pour un terminal de caisse fiscale, ouvrir un canal d'administration distante augmente la surface d'attaque sans bénéfice opérationnel (le producteur n'a pas accès à la caisse du client en service).
 
@@ -253,7 +253,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 |---|---|
 | Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), le POS ouvre en plus une connexion sortante HTTPS (443) vers `api.scaleway.com` pour l'envoi des e-mails ; sans cette configuration, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
 | La connexion Internet peut se faire par | ☑ Ethernet (recommandé pour fiabilité) - ☐ Wifi (techniquement possible, déconseillé en production) |
-| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, si le ticket numérique est configuré, une connexion sortante HTTPS (443) vers `api.scaleway.com`. RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement à la demande d'un responsable sur place - jamais au démarrage du terminal. |
+| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, si le ticket numérique est configuré, une connexion sortante HTTPS (443) vers `api.scaleway.com`. RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement quand un Gérant démarre une session depuis la caisse - jamais au démarrage du terminal. |
 
 ## §III.C Utilisateurs & Mots de Passe
 

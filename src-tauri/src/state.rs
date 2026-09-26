@@ -37,6 +37,9 @@ pub struct AppState {
     /// The logged-in operator (`commands::access`): set by `login`,
     /// cleared by `logout`, `None` at start-up.
     pub session: Mutex<Option<pos_core::user::User>>,
+    /// Remote support program and its running session
+    /// (`commands::support`).
+    pub support: crate::commands::support::SupportState,
 }
 
 impl AppState {
@@ -80,6 +83,7 @@ impl AppState {
             shutdown_token: CancellationToken::new(),
             mail,
             session: Mutex::new(None),
+            support: crate::commands::support::SupportState::installed(),
         })
     }
 
