@@ -236,7 +236,7 @@ test.describe('Pre-bill ("Addition")', () => {
     const takeaway = { ...DEFAULT_ORDER, order_type: 'takeaway', table_number: null };
     await openTable(page, { create_order: () => takeaway, get_order: () => takeaway });
     await expect(page.locator('.header-takeaway')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'PAYER' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'PAYER', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Addition' })).toHaveCount(0);
   });
 

@@ -65,12 +65,17 @@ async fn sell(app: &TestApp) -> Result<bool, String> {
         .map(|r| r.success)
 }
 
-/// Move the open period `days` days back, as if the POS had been left
-/// on since then without a Z.
+/// Move the open period `days` business days back, as if the POS had
+/// been left on since then without a Z. Counted from the business day,
+/// which runs until the day end hour (05:00): between midnight and
+/// 05:00 today's business day is still yesterday's date.
 fn age_open_period(app: &TestApp, days: i64) -> String {
-    let date = (pos_fiscal::event::now_in_belgium() - chrono::Duration::days(days))
-        .date_naive()
-        .to_string();
+    let day_end = i64::from(app.state.config.lock().unwrap().day_end_hour);
+    let date = (pos_fiscal::event::now_in_belgium()
+        - chrono::Duration::hours(day_end)
+        - chrono::Duration::days(days))
+    .date_naive()
+    .to_string();
     app.state
         .db
         .lock()
