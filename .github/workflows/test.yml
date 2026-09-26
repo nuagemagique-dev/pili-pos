@@ -127,12 +127,12 @@ jobs:
           retention-days: 7
 
   # ── Layer 3: Integration (real binary + WebDriver) ────────────
-  # Runs only on the main branch to avoid burning CI minutes on
-  # feature branches. Uses the real Tauri binary with a test DB.
+  # Runs only on the main branch (or a manual run) to avoid burning CI
+  # minutes on feature branches. Uses the real Tauri binary with a test DB.
   integration:
     name: Integration (real binary)
     runs-on: ubuntu-26.04
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     needs: [rust, playwright-e2e]
     steps:
       - uses: actions/checkout@v7
