@@ -267,12 +267,14 @@ pub async fn do_checkout_with(
             })
             .collect();
 
+        // The payment line carries the sale amount, the cash rounding
+        // its own line (FAQ Q403, SPF example VAT ticket).
         let payments = vec![TicketPayment {
             method: match payment_method {
                 CheckoutPaymentMethod::Cash => "Cash".to_string(),
                 CheckoutPaymentMethod::Card => "Card".to_string(),
             },
-            amount: payment_total_cents as f64 / 100.0,
+            amount: order.total_cents as f64 / 100.0,
         }];
 
         let rounding_eur = if rounding_cents != 0 {
@@ -287,6 +289,7 @@ pub async fn do_checkout_with(
             restaurant_address: &config.restaurant_address,
             restaurant_vat: &config.restaurant_vat,
             restaurant_est_no: &config.restaurant_est_no,
+            restaurant_legal_name: config.legal_name(),
             lines: ticket_lines,
             payments,
             total: order.total_cents as f64 / 100.0,

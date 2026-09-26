@@ -7,7 +7,11 @@
 //!   "Informations FDM d'origine";
 //! - a copy of a VAT ticket never says it is not a VAT ticket; a copy
 //!   of any other event does;
-//! - a refund ticket shows the control data of the sale it reverses.
+//! - a refund ticket shows the control data of the sale it reverses,
+//!   and says REMBOURSEMENT once, under the VAT ticket title;
+//! - a VAT ticket shows the sale total, the cash paid for it and the
+//!   rounding as its own payment line, and the issuer's legal name;
+//! - a pre-bill says "Addition Provisoire" and shows no VAT.
 //!
 //! Events are signed by the admission image's mock FDM.
 
@@ -90,9 +94,10 @@ fn printed(ticket: &FiscalTicket) -> String {
     pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(ticket))
 }
 
+/// How the ticket prints an event's counters (SPF example tickets).
 fn counters(r: &pos_fiscal::response::FdmReference) -> String {
     format!(
-        "{:?} {}/{}",
+        "Event: {:?}; eventCounter: {};\ntotalCounter: {};",
         r.event_label, r.event_counter, r.total_counter
     )
 }
@@ -158,7 +163,7 @@ async fn vi_copy_the_printed_copy_of_a_sale_is_a_vat_ticket_marked_copie() {
         "Informations FDM d'origine :",
         "Copie etablie le",
         &counters(&sold),
-        &sold.fdm_id,
+        &format!("fdmId: {};", sold.fdm_id),
     ] {
         assert!(
             text.contains(expected),
@@ -228,7 +233,7 @@ async fn vi_refund_m111_the_refund_ticket_shows_the_sale_it_reverses() {
     for expected in [
         "Informations FDM d'origine :",
         &counters(&sold),
-        &sold.fdm_id,
+        &format!("fdmId: {};", sold.fdm_id),
     ] {
         assert!(
             text.contains(expected),
@@ -247,4 +252,82 @@ async fn vi_n_a_sale_ticket_has_no_original_block() {
     let text = printed(&ticket);
     assert!(!text.contains("Informations FDM d'origine"), "{text}");
     assert!(!text.contains("COPIE"), "{text}");
+}
+
+#[tokio::test]
+async fn vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart() {
+    let app = app().await;
+    let sale = cash_sale(&app).await;
+    let text = printed(sale.ticket.as_ref().unwrap());
+    let row = |label: &str| {
+        text.lines()
+            .find(|l| l.starts_with(label))
+            .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
+            .unwrap_or_else(|| panic!("no {label:?} row in:\n{text}"))
+    };
+    assert_eq!(row("TOTAL :"), "TOTAL : €6,08");
+    assert!(text.contains("Mode de paiement :"), "{text}");
+    assert_eq!(row("Especes"), "Especes 6,08");
+    assert_eq!(row("Arrondi"), "Arrondi 0,02");
+    // Quantity, name, line total, VAT code.
+    let product = row("2 ");
+    assert!(product.ends_with("6,08 A"), "{product}");
+}
+
+#[tokio::test]
+async fn vi_n_the_issuer_legal_name_is_printed() {
+    let app = app().await;
+    app.state.config.lock().unwrap().restaurant_legal_name = Some("Exemple Horeca SRL".into());
+    let sale = cash_sale(&app).await;
+    let text = printed(sale.ticket.as_ref().unwrap());
+    assert!(
+        text.contains("Denomination legale : Exemple Horeca SRL"),
+        "{text}"
+    );
+}
+
+#[tokio::test]
+async fn vi_refund_says_remboursement_once() {
+    let app = app().await;
+    let sale = cash_sale(&app).await;
+    let refund = do_refund_checkout(
+        &app.state,
+        sale.fiscal_event_id.unwrap(),
+        vec![RefundItem {
+            menu_item_id: 1,
+            quantity: 1,
+        }],
+        MANAGER.into(),
+    )
+    .await
+    .unwrap();
+    assert!(refund.success, "{:?}", refund.error);
+    let text = printed(refund.ticket.as_ref().unwrap());
+    assert_eq!(text.matches("REMBOURSEMENT").count(), 1, "{text}");
+    assert!(text.contains("TICKET DE CAISSE TVA"), "{text}");
+}
+
+#[tokio::test]
+async fn vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat() {
+    let app = app().await;
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let id = order(&app, Some(2), 1).await;
+    do_sign_pre_bill(&app.state, id).await.unwrap();
+    let receipts = printer.settle(1).await;
+    let pre_bill = receipts
+        .iter()
+        .find(|r| r.contains("PRO FORMA"))
+        .expect("the pre-bill");
+    for expected in ["Addition Provisoire", "TOTAL :", INVALID_MENTION] {
+        assert!(
+            pre_bill.contains(expected),
+            "{expected:?} missing from:\n{pre_bill}"
+        );
+    }
+    assert!(
+        !pre_bill.contains("% TVA"),
+        "no VAT on a pre-bill:\n{pre_bill}"
+    );
+    assert!(!pre_bill.contains("Mode de paiement"), "{pre_bill}");
 }

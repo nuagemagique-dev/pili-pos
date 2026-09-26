@@ -203,6 +203,7 @@ pub async fn do_copy_ticket_with(
                     restaurant_address: &config.restaurant_address,
                     restaurant_vat: &config.restaurant_vat,
                     restaurant_est_no: &config.restaurant_est_no,
+                    restaurant_legal_name: config.legal_name(),
                     lines: ticket_lines,
                     payments,
                     total,
@@ -222,6 +223,7 @@ pub async fn do_copy_ticket_with(
                 restaurant_address: &config.restaurant_address,
                 restaurant_vat: &config.restaurant_vat,
                 restaurant_est_no: &config.restaurant_est_no,
+                restaurant_legal_name: config.legal_name(),
                 lines: ticket_lines,
                 payments: vec![TicketPayment {
                     method: "-".to_string(),

@@ -330,6 +330,7 @@ pub async fn do_refund_checkout_with(
                 restaurant_address: &config.restaurant_address,
                 restaurant_vat: &config.restaurant_vat,
                 restaurant_est_no: &config.restaurant_est_no,
+                restaurant_legal_name: config.legal_name(),
                 lines: ticket_lines,
                 payments,
                 total: refund_order.total_cents as f64 / 100.0,

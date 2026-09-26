@@ -25,8 +25,13 @@ pub struct PosConfig {
     pub terminal_id: String,
     /// Device identifier
     pub device_id: String,
-    /// Restaurant name
+    /// Restaurant name: the commercial name at the top of the ticket
     pub restaurant_name: String,
+    /// Legal name of the company that runs the restaurant ("Denomination
+    /// legale" at the bottom of the ticket, AM of 29 April 2024 art. 20
+    /// b). Absent when it is the commercial name.
+    #[serde(default)]
+    pub restaurant_legal_name: Option<String>,
     /// Restaurant address
     pub restaurant_address: String,
     /// Restaurant VAT number (BE format)
@@ -75,6 +80,15 @@ fn default_day_end_hour() -> u32 {
 }
 
 impl PosConfig {
+    /// The legal name printed on tickets: the commercial name unless
+    /// a distinct legal name is set.
+    pub fn legal_name(&self) -> &str {
+        self.restaurant_legal_name
+            .as_deref()
+            .filter(|n| !n.trim().is_empty())
+            .unwrap_or(&self.restaurant_name)
+    }
+
     /// Load the configuration from the JSON file documented in the
     /// installation manual (`/etc/moyun-pos/pos.json` in production).
     ///
@@ -216,6 +230,7 @@ impl Default for PosConfig {
             fdm_url: "http://localhost:8080/graphql".to_string(),
             printer_address: None,
             kitchen_printer_address: None,
+            restaurant_legal_name: None,
             training_mode: false,
             language: "fr".to_string(),
             day_end_hour: default_day_end_hour(),

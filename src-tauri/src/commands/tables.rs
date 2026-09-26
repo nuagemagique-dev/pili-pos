@@ -219,6 +219,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<SlipOut
                 restaurant_address: &config.restaurant_address,
                 restaurant_vat: &config.restaurant_vat,
                 restaurant_est_no: &config.restaurant_est_no,
+                restaurant_legal_name: config.legal_name(),
                 lines: lines
                     .iter()
                     .map(|l| pos_fiscal::ticket::TicketLine {

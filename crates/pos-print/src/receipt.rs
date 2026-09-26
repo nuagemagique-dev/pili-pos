@@ -1,28 +1,68 @@
 use pos_fiscal::response::FdmReference;
 use pos_fiscal::ticket::FiscalTicket;
+use pos_fiscal::types::EventLabel;
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
-use crate::labels::{labels, payment_label};
+use crate::labels::{Labels, labels, payment_label};
 
-/// The FDM control data of one event (POS description v2.2 §6.6).
+/// The FDM control data of one event (POS description v2.2 §6.6), in
+/// the wording of the SPF example tickets of 2026-09-24.
 fn control_data(p: &mut EscPosBuilder, fdm_ref: &FdmReference, short_signature: Option<&str>) {
-    p.textln(&format!("FDM: {}", fdm_ref.fdm_id));
-    p.textln(&fdm_ref.fdm_date_time);
-    let label = format!("{:?}", fdm_ref.event_label);
+    p.textln(&format!("fdmId: {};", fdm_ref.fdm_id));
+    p.textln(&format!("fdmDateTime: {};", fdm_ref.fdm_date_time));
     p.textln(&format!(
-        "{label} {}/{}",
-        fdm_ref.event_counter, fdm_ref.total_counter
+        "Event: {:?}; eventCounter: {};",
+        fdm_ref.event_label, fdm_ref.event_counter
     ));
-    if let Some(sig) = short_signature {
-        p.textln(&format!("Sig: {sig}"));
+    match short_signature {
+        Some(sig) => {
+            p.textln(&format!(
+                "totalCounter: {}; shortSignature:",
+                fdm_ref.total_counter
+            ));
+            p.textln(&format!("{sig};"));
+        }
+        None => {
+            p.textln(&format!("totalCounter: {};", fdm_ref.total_counter));
+        }
     }
 }
 
-/// Format a FiscalTicket into ESC/POS binary commands.
-/// Follows SCE 2.0 printing requirements:
-/// - Event N: "TICKET DE CAISSE TVA" header, QR code, FDM control data
-/// - Event T: "TRAINING" watermark + invalid-ticket mention
-/// - Other events: spec-mandated invalid-ticket mention at bottom (FR/NL/DE)
+/// A boxed section title ("INFORMATIONS FDM").
+fn section_title(p: &mut EscPosBuilder, title: &str) {
+    p.separator('-');
+    p.align(Alignment::Center);
+    p.style(TextStyle {
+        bold: true,
+        ..Default::default()
+    });
+    p.textln(title);
+    p.style_reset();
+    p.separator('-');
+}
+
+/// The mentions printed under the title: REMBOURSEMENT, Addition
+/// Provisoire (pre-bill), COPIE.
+fn subtitles(ticket: &FiscalTicket, l: &Labels) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    if ticket.is_refund {
+        out.push(l.refund);
+    }
+    if ticket.event_label == EventLabel::P {
+        out.push(l.pre_bill);
+    }
+    if ticket.is_copy() {
+        out.push(l.copy);
+    }
+    out
+}
+
+/// Format a FiscalTicket into ESC/POS binary commands, following the
+/// SPF example tickets of 2026-09-24 (AM of 29 April 2024 art. 20):
+/// title, commercial name, identification rows, product lines, total,
+/// payment lines with the rounding, VAT per rate, FDM control data and
+/// QR code, legal identity; non-N events end with the spec-mandated
+/// invalid-ticket mention (FR/NL/DE).
 pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     let mut p = EscPosBuilder::new();
     let l = labels(ticket.lang);
@@ -41,7 +81,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         p.separator('=');
     }
 
-    // ── Ticket type label ──────────────────────────────────────
+    // ── Title and its mentions ─────────────────────────────────
     p.align(Alignment::Center);
     p.style(TextStyle {
         bold: true,
@@ -49,110 +89,92 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         ..Default::default()
     });
     p.textln(&ticket.ticket_type_label);
-    if ticket.is_copy() {
-        p.textln(l.copy);
-    }
     p.style_reset();
-    p.blank_line();
-
-    // ── Restaurant header ──────────────────────────────────────
-    p.align(Alignment::Center);
     p.style(TextStyle {
         bold: true,
         ..Default::default()
     });
-    p.textln_wrapped(&ticket.restaurant_name);
+    for subtitle in subtitles(ticket, l) {
+        p.textln(subtitle);
+    }
     p.style_reset();
-    p.textln_wrapped(&ticket.restaurant_address);
-    p.textln(&format!("{}: {}", l.vat_no, ticket.restaurant_vat));
-    if !ticket.restaurant_est_no.is_empty() {
-        p.textln(&format!("{}: {}", l.est_no, ticket.restaurant_est_no));
-    }
-    p.blank_line();
 
-    // ── Date/time + ticket number ──────────────────────────────
+    // ── Commercial name and identification rows ────────────────
     p.align(Alignment::Left);
-    p.text_columns(l.date, &format_datetime(&ticket.pos_datetime));
-    p.text_columns(l.ticket, &format!("#{}", ticket.ticket_number));
-    // Identification rows of the manual §VI ticket table: POS number
-    // and software version (V), terminal (VI), input device (VII) and
-    // user (VIII). Tickets archived before these fields existed have
-    // them empty and print without them.
-    p.text_columns(l.pos, &ticket.pos_id);
-    if !ticket.pos_sw_version.is_empty() {
-        p.text_columns(l.software, &ticket.pos_sw_version);
+    p.textln_wrapped(&ticket.restaurant_name);
+    if !ticket.restaurant_est_no.is_empty() {
+        p.textln(&format!("{} {}", l.est_unit, ticket.restaurant_est_no));
     }
-    p.text_columns(l.terminal, &ticket.terminal_id);
-    if !ticket.device_id.is_empty() {
-        p.text_columns(l.device, &ticket.device_id);
-    }
+    let (date, time) = date_and_time(&ticket.pos_datetime);
+    p.text_columns(&date, &time);
     if !ticket.operator.is_empty() {
-        p.text_columns(l.user, &ticket.operator);
+        p.textln(&format!("{} {}", l.user, ticket.operator));
     }
-    p.separator('-');
+    p.textln(&format!("{} {}", l.terminal, ticket.terminal_id));
+    p.textln(&format!("{} {:06}", l.ticket_no, ticket.ticket_number));
+    p.textln(&format!("{} {}", l.pos_serial, ticket.pos_id));
+    // Tickets archived before these fields existed print without them.
+    if !ticket.device_id.is_empty() {
+        p.textln(&format!("{} {}", l.device, ticket.device_id));
+    }
+    if !ticket.pos_sw_version.is_empty() {
+        p.textln(&format!("{} {}", l.software, ticket.pos_sw_version));
+    }
+    p.separator('.');
 
-    // ── Line items ─────────────────────────────────────────────
+    // ── Product lines: quantity, description, line total, VAT code
     for line in &ticket.lines {
-        let qty_desc = if (line.quantity - 1.0).abs() < f64::EPSILON {
-            line.description.clone()
-        } else {
-            format!("{}x {}", format_qty(line.quantity), line.description)
-        };
-        let price = format!("{} {}", format_price(line.total), line.vat_code);
+        let qty_desc = format!("{}  {}", format_qty(line.quantity), line.description);
+        let price = format!("{}  {}", format_price(line.total), line.vat_code);
         item_line(&mut p, &qty_desc, &price);
     }
 
-    p.separator('-');
-
-    // ── Subtotal / Rounding / Total ────────────────────────────
-    if let Some(rounding) = ticket.rounding {
-        p.text_columns(l.subtotal, &format_price(ticket.subtotal));
-        p.text_columns(l.rounding, &format_price(rounding));
-    }
-
+    // ── Total due (the sale; the rounding is a payment line) ───
     p.style(TextStyle {
         bold: true,
         double_height: true,
         ..Default::default()
     });
-    p.text_columns(l.total, &format_price(ticket.total));
+    p.text_columns(l.total_row, &format!("€{}", format_price(ticket.subtotal)));
     p.style_reset();
+    p.separator('.');
 
-    p.separator('-');
-
-    // ── Payments ───────────────────────────────────────────────
-    for pay in &ticket.payments {
-        let method = payment_label(&pay.method, ticket.lang);
-        p.text_columns(&method, &format_price(pay.amount));
-    }
-
-    // ── VAT breakdown ──────────────────────────────────────────
-    if !ticket.vat_breakdown.is_empty() {
-        p.blank_line();
-        p.style(TextStyle {
-            font_b: true,
-            ..Default::default()
-        });
-        // Header row
-        p.textln(l.vat_header);
-        for vat in &ticket.vat_breakdown {
-            if vat.out_of_scope {
-                continue;
-            }
-            let label = format!("{:?}", vat.label);
-            let base = format_price(vat.taxable_amount);
-            let vat_amt = format_price(vat.vat_amount);
-            let line = format!(" {label}    {:>4.0}%  {base:>8}  {vat_amt:>8}", vat.rate,);
-            p.textln(&line);
+    // ── Payment lines, rounding included ───────────────────────
+    if !ticket.payments.is_empty() || ticket.rounding.is_some() {
+        p.textln(l.payment_header);
+        for pay in &ticket.payments {
+            let method = payment_label(&pay.method, ticket.lang);
+            p.text_columns(&method, &format_price(pay.amount));
         }
-        p.style_reset();
+        if let Some(rounding) = ticket.rounding {
+            p.text_columns(l.rounding, &format_price(rounding));
+        }
     }
 
-    p.separator('=');
+    // ── VAT per rate, as computed by the FDM (never on a pre-bill)
+    let vat_rows: Vec<_> = ticket
+        .vat_breakdown
+        .iter()
+        .filter(|v| !v.out_of_scope)
+        .collect();
+    if ticket.event_label != EventLabel::P && !vat_rows.is_empty() {
+        let [rate, code, base, vat, gross] = l.vat_columns;
+        p.textln(&vat_row(rate, code, base, vat, gross));
+        for v in vat_rows {
+            p.textln(&vat_row(
+                &format!("{}%", format_price(v.rate)),
+                &format!("{:?}", v.label),
+                &format_price(v.taxable_amount),
+                &format_price(v.vat_amount),
+                &format_price(v.total_amount),
+            ));
+        }
+    }
 
-    // ── FDM control data ───────────────────────────────────────
+    // ── FDM control data and QR code ───────────────────────────
     if let Some(ref fdm_ref) = ticket.fdm_ref {
-        p.align(Alignment::Center);
+        section_title(&mut p, l.fdm_info);
+        p.align(Alignment::Left);
         p.style(TextStyle {
             font_b: true,
             ..Default::default()
@@ -160,8 +182,6 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         control_data(&mut p, fdm_ref, ticket.short_signature.as_deref());
         p.style_reset();
     }
-
-    // ── QR Code ────────────────────────────────────────────────
     if let Some(ref url) = ticket.verification_url {
         p.blank_line();
         p.align(Alignment::Center);
@@ -173,8 +193,8 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
     // ── Control data of the original event ─────────────────────
     // The sale a refund reverses, the event a copy reproduces (SPF
     // example copy and refund tickets of 2026-09-24).
+    p.align(Alignment::Left);
     if let Some(ref original) = ticket.original {
-        p.align(Alignment::Center);
         p.style(TextStyle {
             font_b: true,
             ..Default::default()
@@ -188,9 +208,18 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         p.style_reset();
     }
     if let Some(ref made_at) = ticket.copy_made_at {
-        p.align(Alignment::Center);
-        p.textln(&format!("{} {}", l.copy_made_at, format_datetime(made_at)));
+        let (date, time) = date_and_time(made_at);
+        p.textln(&format!("{} {date} {time}", l.copy_made_at));
     }
+
+    // ── Legal identity of the issuer ───────────────────────────
+    p.blank_line();
+    p.textln_wrapped(&format!(
+        "{} {}",
+        l.legal_name, ticket.restaurant_legal_name
+    ));
+    p.textln_wrapped(&ticket.restaurant_address);
+    p.textln(&format!("{}: {}", l.vat_no, ticket.restaurant_vat));
 
     // ── Footer (from FDM / SPF Finances) ───────────────────────
     if !ticket.footer.is_empty() {
@@ -217,24 +246,16 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         p.style_reset();
     }
 
-    // ── Refund label ───────────────────────────────────────────
-    if ticket.is_refund {
-        p.blank_line();
-        p.align(Alignment::Center);
-        p.style(TextStyle {
-            bold: true,
-            double_height: true,
-            ..Default::default()
-        });
-        p.textln(l.refund);
-        p.style_reset();
-    }
-
     // ── End ────────────────────────────────────────────────────
     p.feed(4);
     p.cut();
 
     p.build()
+}
+
+/// One row of the VAT table: rate, code, base, VAT, gross.
+fn vat_row(rate: &str, code: &str, base: &str, vat: &str, gross: &str) -> String {
+    format!("{rate:<8}{code:<6}{base:>10}{vat:>10}{gross:>10}")
 }
 
 /// One article: description left, amount and VAT code right. A
@@ -267,25 +288,27 @@ pub fn format_drawer_open() -> Vec<u8> {
 // ── Formatting helpers ─────────────────────────────────────────
 
 fn format_price(amount: f64) -> String {
-    format!("{:.2}", amount)
+    // Belgian notation: decimal comma.
+    format!("{:.2}", amount).replace('.', ",")
 }
 
 fn format_qty(qty: f64) -> String {
     if (qty - qty.round()).abs() < f64::EPSILON {
         format!("{}", qty as i64)
     } else {
-        format!("{:.2}", qty)
+        format_price(qty)
     }
 }
 
-fn format_datetime(rfc3339: &str) -> String {
-    // Try to extract "YYYY-MM-DD HH:MM" from an RFC3339 string
-    if rfc3339.len() >= 16 {
-        let date = &rfc3339[..10];
-        let time = &rfc3339[11..16];
-        format!("{date} {time}")
-    } else {
-        rfc3339.to_string()
+/// "23.06.2026" and "11:35" from an RFC 3339 date-time, whatever its
+/// offset notation; anything shorter prints as it is.
+fn date_and_time(rfc3339: &str) -> (String, String) {
+    match (rfc3339.get(..10), rfc3339.get(11..16)) {
+        (Some(date), Some(time)) if date.len() == 10 && date.as_bytes()[4] == b'-' => {
+            let (y, m, d) = (&date[..4], &date[5..7], &date[8..10]);
+            (format!("{d}.{m}.{y}"), time.to_string())
+        }
+        _ => (rfc3339.to_string(), String::new()),
     }
 }
 
@@ -301,6 +324,7 @@ mod tests {
             restaurant_address: "Rue Test 1, 1000 Bruxelles".to_string(),
             restaurant_vat: "BE0499999960".to_string(),
             restaurant_est_no: String::new(),
+            restaurant_legal_name: "Societe Exemple SRL".to_string(),
             pos_id: "CFOD0061234567".to_string(),
             pos_sw_version: "moyun-pos/1.0.0".to_string(),
             terminal_id: "POS1".to_string(),
@@ -378,31 +402,37 @@ mod tests {
             (
                 ReceiptLanguage::Fr,
                 "COPIE",
-                "Copie etablie le 2026-04-09 19:45",
+                "Copie etablie le 09.04.2026 19:45",
                 "Informations FDM d'origine :",
             ),
             (
                 ReceiptLanguage::Nl,
                 "KOPIE",
-                "Kopie gemaakt op 2026-04-09 19:45",
+                "Kopie gemaakt op 09.04.2026 19:45",
                 "Oorspronkelijke FDM-gegevens :",
             ),
             (
                 ReceiptLanguage::De,
                 "KOPIE",
-                "Kopie erstellt am 2026-04-09 19:45",
+                "Kopie erstellt am 09.04.2026 19:45",
                 "Urspruengliche FDM-Daten :",
             ),
         ] {
             let text = copy_of_sample(lang);
-            for expected in [copy, made, original, "N 41/57", "C 3/60"] {
+            for expected in [
+                copy,
+                made,
+                original,
+                "Event: N; eventCounter: 41;",
+                "Event: C; eventCounter: 3;",
+            ] {
                 assert!(
                     text.contains(expected),
                     "{lang:?}: {expected:?} missing from:\n{text}"
                 );
             }
             // The original's block comes after the copy's own.
-            assert!(text.find("C 3/60") < text.find("N 41/57"), "{text}");
+            assert!(text.find("Event: C;") < text.find("Event: N;"), "{text}");
         }
     }
 
@@ -517,10 +547,15 @@ mod tests {
             },
         ];
         let text = crate::render::render_plain_text(&format_receipt(&ticket));
-        assert!(text.contains("Taux"), "VAT header row missing:\n{text}");
-        assert!(text.contains("B"), "VAT code B missing:\n{text}");
-        assert!(text.contains("12%"), "VAT rate 12% missing:\n{text}");
-        assert!(text.contains("21%"), "VAT rate 21% missing:\n{text}");
+        // The SPF example: rate with 2 decimals, code, base, VAT, gross.
+        assert!(text.contains("% TVA"), "VAT header row missing:\n{text}");
+        assert!(text.contains("Brut"), "gross column missing:\n{text}");
+        let row = text.lines().find(|l| l.starts_with("12,00%")).expect(&text);
+        assert_eq!(
+            row.split_whitespace().collect::<Vec<_>>(),
+            ["12,00%", "B", "26,34", "3,16", "29,50"]
+        );
+        assert!(text.contains("21,00%"), "VAT rate 21% missing:\n{text}");
     }
 
     #[test]
@@ -538,10 +573,9 @@ mod tests {
             out_of_scope: true,
         }];
         let text = crate::render::render_plain_text(&format_receipt(&ticket));
-        // The header row still prints (breakdown is non-empty), but
-        // the out-of-scope X line itself must be skipped.
-        assert!(text.contains("Taux"));
-        assert!(!text.contains(" X    "));
+        // Nothing but out-of-scope lines: no VAT table at all.
+        assert!(!text.contains("% TVA"), "{text}");
+        assert!(!text.lines().any(|l| l.starts_with("0,00%")), "{text}");
     }
 
     // ── CJK / accented character handling ───────────────────────

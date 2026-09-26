@@ -10,7 +10,8 @@
 
 use pos_fiscal::response::{FdmReference, VatCalcItem};
 use pos_fiscal::ticket::{
-    FiscalTicket, ReceiptLanguage, TicketLine, TicketPayment, ticket_type_label,
+    FiscalTicket, OriginalControlData, ReceiptLanguage, TicketLine, TicketPayment,
+    ticket_type_label,
 };
 use pos_fiscal::types::{EventLabel, VatLabel};
 use pos_print::receipt::format_receipt;
@@ -38,6 +39,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
         restaurant_est_no: "2123456791".to_string(),
+        restaurant_legal_name: "Societe Exemple SRL".to_string(),
         pos_id: "CFOD0061234567".to_string(),
         pos_sw_version: "moyun-pos/1.0.0".to_string(),
         terminal_id: "POS1".to_string(),
@@ -98,7 +100,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         verification_url: (label == EventLabel::N)
             .then(|| "https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug".to_string()),
         footer: vec!["www.systemedecaisseenregistreuse.be".to_string()],
-        ticket_type_label: ticket_type_label(label, false, ReceiptLanguage::Fr).to_string(),
+        ticket_type_label: ticket_type_label(label, ReceiptLanguage::Fr).to_string(),
         is_refund: false,
         lang: ReceiptLanguage::Fr,
         original: None,
@@ -108,12 +110,13 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
 
 fn write_example(name: &str, ticket: &FiscalTicket) {
     let text = render_plain_text(&format_receipt(ticket));
-    // Only N tickets carry the FDM's QR code and short signature (§2.4).
-    let is_n = ticket.fdm_ref.as_ref().map(|r| r.event_label) == Some(EventLabel::N);
+    // Only a VAT ticket (N) carries the FDM's QR code; its copy
+    // reprints the original's (§2.4, §6.5).
+    let vat_ticket = ticket.event_label == EventLabel::N;
     assert_eq!(
         text.contains("[QR"),
-        is_n,
-        "{name}: QR code only on N tickets"
+        vat_ticket,
+        "{name}: QR code only on VAT tickets and their copies"
     );
     if let Some(sig) = &ticket.short_signature {
         assert_eq!(sig.len(), 40, "{name}: short signature is a SHA-1 in hex");
@@ -134,23 +137,34 @@ fn example_n_sale() {
 fn example_n_refund() {
     let mut ticket = base_ticket(EventLabel::N);
     ticket.is_refund = true;
-    ticket.ticket_type_label = ticket_type_label(EventLabel::N, true, ReceiptLanguage::Fr).into();
+    ticket.ticket_type_label = ticket_type_label(EventLabel::N, ReceiptLanguage::Fr).into();
     for l in &mut ticket.lines {
         l.quantity = -l.quantity;
         l.total = -l.total;
+    }
+    // The FDM computes the refund's VAT on the negative lines.
+    for v in &mut ticket.vat_breakdown {
+        v.taxable_amount = -v.taxable_amount;
+        v.vat_amount = -v.vat_amount;
+        v.total_amount = -v.total_amount;
     }
     ticket.subtotal = -52.00;
     ticket.total = -52.00;
     ticket.payments[0].amount = -52.00;
     ticket.ticket_number = 16;
     ticket.fdm_ref = Some(fdm_ref(EventLabel::N, 16, 60));
+    // The sale it reverses.
+    ticket.original = Some(OriginalControlData {
+        fdm_ref: fdm_ref(EventLabel::N, 15, 59),
+        short_signature: Some("a3f9c2b1e8d4750616fb92c3a4e5d6f701234567".to_string()),
+    });
     write_example("ticket_N_remboursement", &ticket);
 }
 
 #[test]
 fn example_p_pro_forma() {
     let mut ticket = base_ticket(EventLabel::P);
-    ticket.ticket_type_label = ticket_type_label(EventLabel::P, false, ReceiptLanguage::Fr).into();
+    ticket.ticket_type_label = ticket_type_label(EventLabel::P, ReceiptLanguage::Fr).into();
     // Pro forma: no payment yet, no short signature, no VAT calc.
     ticket.payments.clear();
     ticket.short_signature = None;
@@ -162,12 +176,16 @@ fn example_p_pro_forma() {
 
 #[test]
 fn example_c_copy() {
-    let mut ticket = base_ticket(EventLabel::C);
-    ticket.ticket_type_label = ticket_type_label(EventLabel::C, false, ReceiptLanguage::Fr).into();
-    // Copies never re-print the short signature.
-    ticket.short_signature = None;
-    ticket.ticket_number = 2;
+    // The copy of the sale above: the original ticket, its QR code
+    // included, with the copy event's control data and the original's
+    // under "Informations FDM d'origine" (POS description v2.2 §1.8).
+    let mut ticket = base_ticket(EventLabel::N);
+    ticket.original = Some(OriginalControlData {
+        fdm_ref: fdm_ref(EventLabel::N, 15, 59),
+        short_signature: ticket.short_signature.take(),
+    });
     ticket.fdm_ref = Some(fdm_ref(EventLabel::C, 2, 62));
+    ticket.copy_made_at = Some("2026-07-03T12:41:08+02:00".to_string());
     write_example("ticket_C_copie", &ticket);
 }
 
@@ -175,7 +193,7 @@ fn example_c_copy() {
 fn example_t_training() {
     let mut ticket = base_ticket(EventLabel::T);
     ticket.is_training = true;
-    ticket.ticket_type_label = ticket_type_label(EventLabel::T, false, ReceiptLanguage::Fr).into();
+    ticket.ticket_type_label = ticket_type_label(EventLabel::T, ReceiptLanguage::Fr).into();
     ticket.short_signature = None;
     ticket.ticket_number = 7;
     ticket.fdm_ref = Some(fdm_ref(EventLabel::T, 7, 63));

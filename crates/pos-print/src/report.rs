@@ -91,7 +91,7 @@ pub fn format_report(data: &ReportPrintData) -> Vec<u8> {
         double_width: true,
         ..Default::default()
     });
-    let report_word = ticket_type_label(EventLabel::R, false, data.lang);
+    let report_word = ticket_type_label(EventLabel::R, data.lang);
     let title = match data.report_no {
         Some(no) => format!("{report_word} {} #{}", data.report_type, no),
         None => format!("{report_word} {}", data.report_type),

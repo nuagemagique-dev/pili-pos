@@ -202,6 +202,7 @@ mod tests {
             restaurant_address: "Rue Test 1",
             restaurant_vat: "BE0499999960",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines,
             payments: vec![TicketPayment {
                 method: "Cash".into(),
@@ -335,6 +336,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![],
             payments: vec![],
             total: 0.0,

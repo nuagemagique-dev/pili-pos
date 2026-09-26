@@ -193,6 +193,7 @@ installé sur l'image précisément pour cette étape) :
   "terminal_id": "POS1",
   "device_id": "00:1b:44:11:3a:b7",
   "restaurant_name": "Restaurant Exemple",
+  "restaurant_legal_name": "Exemple Horeca SRL",
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
   "restaurant_est_no": "2123456791",
@@ -214,6 +215,7 @@ Champs :
 | `terminal_id` | ID du terminal physique. Libre, en général `POS1`, `POS2`... | Distributeur |
 | `device_id` | Adresse MAC de la carte réseau du terminal (minuscules, séparée par `:`), imprimée sur chaque ticket (manuel §VI, ligne "Appareil: <deviceId>"). Renseignée **automatiquement** par `moyun-provision` au premier démarrage (interface de la route par défaut, sinon la première interface Ethernet non-`lo` - voir `deploy/provision/provision.sh::detect_device_id`) ; ne pas modifier à la main sauf changement matériel de la carte réseau. | Automatique (terminal) |
 | `restaurant_name` | Nom commercial du restaurant tel qu'apparaît sur le ticket | Client |
+| `restaurant_legal_name` | Facultatif. Dénomination légale de la société exploitante, imprimée en bas du ticket (« Dénomination légale : »), avec l'adresse et le numéro de TVA. Absent : le nom commercial est imprimé. | Client |
 | `restaurant_address` | Adresse complète | Client |
 | `restaurant_vat` | Numéro de TVA belge : `BE` suivi de 10 chiffres commençant par 0 ou 1, valide modulo 97 (ex. `BE0499999960`) | Client |
 | `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |

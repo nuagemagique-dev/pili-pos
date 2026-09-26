@@ -50,6 +50,10 @@ pub struct FiscalTicket {
     pub restaurant_address: String,
     pub restaurant_vat: String,
     pub restaurant_est_no: String,
+    /// Legal name of the issuer ("Denomination legale", AM of 29 April
+    /// 2024 art. 20 b); the commercial name when they are the same.
+    #[serde(default)]
+    pub restaurant_legal_name: String,
 
     // ── Transaction data ──
     pub pos_id: String,
@@ -140,6 +144,8 @@ pub struct TicketParams<'a> {
     pub restaurant_address: &'a str,
     pub restaurant_vat: &'a str,
     pub restaurant_est_no: &'a str,
+    /// Legal name of the issuer; empty when it is `restaurant_name`.
+    pub restaurant_legal_name: &'a str,
     pub lines: Vec<TicketLine>,
     pub payments: Vec<TicketPayment>,
     pub total: f64,
@@ -157,16 +163,21 @@ impl FiscalTicket {
     pub fn from_sign_result(params: TicketParams<'_>) -> Self {
         let result = params.result;
         let lines = params.lines;
-        let is_refund = lines.iter().all(|l| l.quantity < 0.0);
+        let is_refund = !lines.is_empty() && lines.iter().all(|l| l.quantity < 0.0);
 
         let ticket_type_label =
-            ticket_type_label(result.fdm_ref.event_label, is_refund, params.lang).to_string();
+            ticket_type_label(result.fdm_ref.event_label, params.lang).to_string();
 
         Self {
             restaurant_name: params.restaurant_name.to_string(),
             restaurant_address: params.restaurant_address.to_string(),
             restaurant_vat: params.restaurant_vat.to_string(),
             restaurant_est_no: params.restaurant_est_no.to_string(),
+            restaurant_legal_name: if params.restaurant_legal_name.is_empty() {
+                params.restaurant_name.to_string()
+            } else {
+                params.restaurant_legal_name.to_string()
+            },
             pos_id: result.pos_id.clone(),
             pos_sw_version: crate::event::POS_SW_VERSION.to_string(),
             terminal_id: result.terminal_id.clone().unwrap_or_default(),
@@ -249,27 +260,20 @@ impl FiscalTicket {
 
 /// The payment rows and cash rounding printed on the ticket of a
 /// signed sale, rebuilt from the `financials` of its archived request
-/// the way the checkout prints them: one row per payment, holding the
-/// amount paid (sale amount plus its rounding), and the rounding total.
+/// the way the checkout prints them: one row per payment line, and the
+/// rounding total (its own line, FAQ Q403).
 pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Option<f64>) {
     let cents = |v: &serde_json::Value| (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64;
     let financials = request["financials"]
         .as_array()
         .cloned()
         .unwrap_or_default();
-    let rounding_of = |id: &serde_json::Value| -> i64 {
-        financials
-            .iter()
-            .filter(|f| f["amountType"] == "ROUNDING" && &f["id"] == id)
-            .map(|f| cents(&f["amount"]))
-            .sum()
-    };
     let payments = financials
         .iter()
         .filter(|f| f["amountType"] == "PAYMENT")
         .map(|f| TicketPayment {
             method: if f["type"] == "CASH" { "Cash" } else { "Card" }.to_string(),
-            amount: (cents(&f["amount"]) + rounding_of(&f["id"])) as f64 / 100.0,
+            amount: cents(&f["amount"]) as f64 / 100.0,
         })
         .collect();
     let rounding: i64 = financials
@@ -292,18 +296,13 @@ pub fn invalid_disclaimer(lang: ReceiptLanguage) -> &'static str {
 }
 
 /// Header label ("dénomination complète", cert manual §VI element I)
-/// per event type and language.
-pub fn ticket_type_label(
-    label: EventLabel,
-    is_refund: bool,
-    lang: ReceiptLanguage,
-) -> &'static str {
+/// per event type and language. A refund is a VAT ticket: its
+/// REMBOURSEMENT mention is printed under this title (SPF example
+/// refund ticket of 2026-09-24).
+pub fn ticket_type_label(label: EventLabel, lang: ReceiptLanguage) -> &'static str {
     use EventLabel::*;
     use ReceiptLanguage::*;
     match (label, lang) {
-        (N, Fr) if is_refund => "REMBOURSEMENT DU TICKET DE CAISSE TVA",
-        (N, Nl) if is_refund => "TERUGBETALING BTW-KASTICKET",
-        (N, De) if is_refund => "RUECKERSTATTUNG MWST.-KASSENZETTEL",
         (N, Fr) => "TICKET DE CAISSE TVA",
         (N, Nl) => "BTW-KASTICKET",
         (N, De) => "MWST.-KASSENZETTEL",
@@ -350,7 +349,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn printed_payments_add_the_rounding_to_the_cash_paid() {
+    fn printed_payments_keep_the_rounding_apart() {
         let request = json!({"financials": [
             {"id": "1", "type": "CASH", "amountType": "PAYMENT", "amount": 6.08},
             {"id": "1", "type": "CASH", "amountType": "ROUNDING", "amount": 0.02},
@@ -358,7 +357,7 @@ mod tests {
         let (payments, rounding) = printed_payments(&request);
         assert_eq!(payments.len(), 1);
         assert_eq!(payments[0].method, "Cash");
-        assert_eq!(payments[0].amount, 6.10);
+        assert_eq!(payments[0].amount, 6.08);
         assert_eq!(rounding, Some(0.02));
     }
 
@@ -422,6 +421,7 @@ mod tests {
             restaurant_address: "Rue Test 1",
             restaurant_vat: "BE0499999960",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![TicketLine {
                 quantity: 1.0,
                 description: "Test".into(),
@@ -453,6 +453,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![TicketLine {
                 quantity: -2.0,
                 description: "Refund item".into(),
@@ -468,10 +469,8 @@ mod tests {
             operator: "Test",
         });
         assert!(ticket.is_refund);
-        assert_eq!(
-            ticket.ticket_type_label,
-            "REMBOURSEMENT DU TICKET DE CAISSE TVA"
-        );
+        // A refund is a VAT ticket; REMBOURSEMENT is printed under it.
+        assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
     }
 
     #[test]
@@ -483,6 +482,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![],
             payments: vec![],
             total: 0.0,
@@ -504,6 +504,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![],
             payments: vec![],
             total: 0.0,
@@ -525,6 +526,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![],
             payments: vec![],
             total: 0.0,
@@ -546,6 +548,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![],
             payments: vec![],
             total: 0.0,
@@ -572,6 +575,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![TicketLine {
                 quantity: 1.0,
                 description: "Item".into(),
@@ -603,6 +607,7 @@ mod tests {
             restaurant_address: "",
             restaurant_vat: "",
             restaurant_est_no: "",
+            restaurant_legal_name: "",
             lines: vec![],
             payments: vec![],
             total: 12.53,

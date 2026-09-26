@@ -258,7 +258,7 @@ fn the_turnover_report_title_follows_the_ticket_language() {
     for kind in [Kind::X, Kind::Z] {
         for lang in LANGS {
             let text = render(kind, lang);
-            let word = ticket_type_label(EventLabel::R, false, lang);
+            let word = ticket_type_label(EventLabel::R, lang);
             assert!(
                 text.contains(word),
                 "{kind:?}/{lang:?}: missing report title word {word:?}\n{text}"

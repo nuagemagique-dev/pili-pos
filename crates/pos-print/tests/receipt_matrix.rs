@@ -78,6 +78,7 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
         restaurant_address: "Rue de l’Exemple 1, 4000 Liège".to_string(),
         restaurant_vat: "BE0499999960".to_string(),
         restaurant_est_no: "2123456791".to_string(),
+        restaurant_legal_name: "Societe Exemple SRL".to_string(),
         pos_id: "CFOD0061234567".to_string(),
         pos_sw_version: "moyun-pos/1.0.0".to_string(),
         terminal_id: "POS1".to_string(),
@@ -135,7 +136,7 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
         short_signature: is_n.then(|| "a3f9c2b1e8d4750616fb92c3a4e5d6f701234567".to_string()),
         verification_url: is_n.then(|| "https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug".to_string()),
         footer: vec!["www.systemedecaisseenregistreuse.be".to_string()],
-        ticket_type_label: ticket_type_label(label, kind == Kind::Refund, lang).to_string(),
+        ticket_type_label: ticket_type_label(label, lang).to_string(),
         is_refund: kind == Kind::Refund,
         lang,
         original: None,
@@ -148,30 +149,30 @@ fn expected_labels(lang: ReceiptLanguage) -> &'static [&'static str] {
     match lang {
         ReceiptLanguage::Fr => &[
             "TVA: BE0499999960",
-            "Date:",
-            "Ticket:",
+            "Unite d'etablissement 2123456791",
             "Utilisateur:",
-            "Appareil:",
-            "Logiciel:",
-            "TOTAL",
+            "Ticketnr.:",
+            "Logiciel de caisse v.:",
+            "Denomination legale :",
+            "TOTAL :",
         ],
         ReceiptLanguage::Nl => &[
             "BTW: BE0499999960",
-            "Datum:",
-            "Ticket:",
+            "Vestigingseenheid 2123456791",
             "Gebruiker:",
-            "Toestel:",
-            "Software:",
-            "TOTAAL",
+            "Ticketnr.:",
+            "Kassasoftware v.:",
+            "Juridische naam :",
+            "TOTAAL :",
         ],
         ReceiptLanguage::De => &[
             "MwSt: BE0499999960",
-            "Datum:",
-            "Bon:",
+            "Niederlassungseinheit 2123456791",
             "Benutzer:",
-            "Geraet:",
-            "Software:",
-            "GESAMT",
+            "Bon-Nr.:",
+            "Kassensoftware v.:",
+            "Rechtlicher Name :",
+            "GESAMT :",
         ],
     }
 }
@@ -232,7 +233,7 @@ fn every_ticket_carries_its_type_label_and_identification() {
     for kind in KINDS {
         for lang in LANGS {
             let text = render(kind, lang);
-            let type_label = ticket_type_label(kind.label(), kind == Kind::Refund, lang);
+            let type_label = ticket_type_label(kind.label(), lang);
             assert!(
                 text.contains(type_label),
                 "{kind:?}/{lang:?}: {type_label:?}"
@@ -246,9 +247,11 @@ fn every_ticket_carries_its_type_label_and_identification() {
                 "POS1",
                 "00:1b:44:11:3a:b7",
                 "Marie Dupont",
-                "2026-07-03 12:34",
-                "#15",
-                "FDM: CBX01000042",
+                "03.07.2026",
+                "12:34",
+                "000015",
+                "Societe Exemple SRL",
+                "fdmId: CBX01000042;",
                 "www.systemedecaisseenregistreuse.be",
             ] {
                 assert!(
@@ -256,8 +259,12 @@ fn every_ticket_carries_its_type_label_and_identification() {
                     "{kind:?}/{lang:?}: missing {row:?}\n{text}"
                 );
             }
-            let counters = format!("{:?} 15/59", kind.label());
-            assert!(text.contains(&counters), "{kind:?}/{lang:?}: {counters:?}");
+            for counters in [
+                format!("Event: {:?}; eventCounter: 15;", kind.label()),
+                "totalCounter: 59;".to_string(),
+            ] {
+                assert!(text.contains(&counters), "{kind:?}/{lang:?}: {counters:?}");
+            }
         }
     }
 }
@@ -280,7 +287,7 @@ fn only_a_real_sale_is_a_valid_vat_ticket() {
                 "{kind:?}/{lang:?}: QR on N only"
             );
             assert_eq!(
-                text.contains("Sig: "),
+                text.contains("shortSignature:"),
                 valid,
                 "{kind:?}/{lang:?}: signature on N only"
             );
@@ -297,8 +304,8 @@ fn only_a_real_sale_is_a_valid_vat_ticket() {
 fn refunds_are_negative_and_say_so() {
     for lang in LANGS {
         let text = render(Kind::Refund, lang);
-        assert!(text.contains("-52.00"), "{lang:?}\n{text}");
-        assert!(text.contains("-24.00 A"), "{lang:?}\n{text}");
+        assert!(text.contains("-52,00"), "{lang:?}\n{text}");
+        assert!(text.contains("-24,00  A"), "{lang:?}\n{text}");
         let refund = match lang {
             ReceiptLanguage::Fr => "REMBOURSEMENT",
             ReceiptLanguage::Nl => "TERUGBETALING",
@@ -307,7 +314,7 @@ fn refunds_are_negative_and_say_so() {
         assert!(text.lines().any(|l| l.trim() == refund), "{lang:?}\n{text}");
         let sale = render(Kind::Sale, lang);
         assert!(!sale.contains(refund), "{lang:?}: a sale is no refund");
-        assert!(!sale.contains("-52.00"));
+        assert!(!sale.contains("-52,00"));
     }
 }
 
@@ -315,11 +322,11 @@ fn refunds_are_negative_and_say_so() {
 fn the_long_product_name_is_printed_whole() {
     for lang in LANGS {
         let text = render(Kind::Sale, lang);
-        // "Bœuf bourguignon « maison » – sauce au vin" + "28.00 B" does
+        // "Bœuf bourguignon « maison » – sauce au vin" + "28,00 B" does
         // not fit one line: it wraps between words, amount on the last.
         let flat: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(
-            flat.contains("Boeuf bourguignon « maison » - sauce au vin 28.00 B"),
+            flat.contains("Boeuf bourguignon « maison » - sauce au vin 28,00 B"),
             "{lang:?}\n{text}"
         );
         assert!(
@@ -345,9 +352,9 @@ fn a_pro_forma_shows_no_payment_or_vat_table() {
         let text = render(Kind::ProForma, lang);
         assert!(!text.contains(cash_label(lang)), "{lang:?}");
         let vat_header = match lang {
-            ReceiptLanguage::Fr => "Base HT",
-            ReceiptLanguage::Nl => "Basis",
-            ReceiptLanguage::De => "Netto",
+            ReceiptLanguage::Fr => "% TVA",
+            ReceiptLanguage::Nl => "% BTW",
+            ReceiptLanguage::De => "% MwSt",
         };
         assert!(!text.contains(vat_header), "{lang:?}");
         assert!(render(Kind::Sale, lang).contains(vat_header), "{lang:?}");
