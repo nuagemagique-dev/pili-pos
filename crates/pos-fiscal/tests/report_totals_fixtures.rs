@@ -25,7 +25,7 @@ use pos_fiscal::types::EventLabel;
 use serde_json::{Value, json};
 
 fn reports_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/20250916_UC_Reports_1.3")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/20260821_UC_Reports_1.3")
 }
 
 fn read_json(dir: &str, suffix: &str) -> Value {

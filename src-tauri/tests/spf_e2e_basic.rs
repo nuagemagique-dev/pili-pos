@@ -1,4 +1,4 @@
-//! Application-level e2e tests for the SPF Finances Basic Set v1.7.
+//! Application-level e2e tests for the SPF Finances Basic Set v1.8.
 //!
 //! Each test mounts a wiremock FDM, replays the official SPF response
 //! for one UC, drives the corresponding `do_*` command function, and

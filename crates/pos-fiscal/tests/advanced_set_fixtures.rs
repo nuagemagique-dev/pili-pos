@@ -1,6 +1,6 @@
-//! SCE 2.0 Advanced Set v1.5 fixture validation.
+//! SCE 2.0 Advanced Set v1.6 fixture validation.
 //!
-//! Walks `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` and validates that
+//! Walks `docs/20260821_UC_AdvancedSet_POS_FDM_1.6/` and validates that
 //! every published response deserializes into `SignResult`. The Advanced
 //! Set covers composite products, price changes, table split/merge, MPV/SPV
 //! vouchers, foreign currency, customer accounts, etc. - the "optional but
@@ -27,7 +27,7 @@ fn advanced_set_root() -> PathBuf {
         .join("..")
         .join("..")
         .join("docs")
-        .join("20250923_UC_AdvancedSet_POS_FDM_1.5")
+        .join("20260821_UC_AdvancedSet_POS_FDM_1.6")
 }
 
 struct UcFixture {
@@ -142,7 +142,7 @@ fn parse_response_flexible(path: &Path) -> (Vec<SignResult>, bool) {
 /// to deserialize blocks the test and prints the offending path + raw
 /// payload so the gap can be triaged.
 #[test]
-fn advanced_set_v1_5_fixtures_deserialize() {
+fn advanced_set_v1_6_fixtures_deserialize() {
     let fixtures = discover_fixtures();
     assert!(
         !fixtures.is_empty(),
@@ -188,7 +188,7 @@ fn advanced_set_v1_5_fixtures_deserialize() {
         let _ = fx.is_dual_envelope;
     }
 
-    eprintln!("\n── Advanced Set v1.5 fixture coverage ──");
+    eprintln!("\n── Advanced Set v1.6 fixture coverage ──");
     eprintln!("Total fixtures discovered: {}", fixtures.len());
     eprintln!("Event labels seen: {event_labels_seen:?}");
     eprintln!("Dual-envelope UCs: {dual_envelope_uc_count}");

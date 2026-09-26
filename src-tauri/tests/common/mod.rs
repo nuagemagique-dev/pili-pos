@@ -8,8 +8,8 @@
 //!    (`commands::checkout::do_checkout`, etc.) against the resulting
 //!    state. Assertions are made against the SQLite DB.
 //!
-//! 2. **Fixture loading** - walks `docs/20250916_UC_BasicSet_POS_FDM_1.7/`
-//!    and `docs/20250916_UC_Reports_1.3/`, returns `(uc_id, variables_path,
+//! 2. **Fixture loading** - walks `docs/20260821_UC_BasicSet_POS_FDM_1.8/`
+//!    and `docs/20260821_UC_Reports_1.3/`, returns `(uc_id, variables_path,
 //!    response_path)` tuples plus helpers to read each. Loosely modelled
 //!    on `crates/pos-fiscal/tests/uc_fixtures.rs::discover_fixtures` but
 //!    parameterised on the root directory so it serves both UC sets.

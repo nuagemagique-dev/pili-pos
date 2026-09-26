@@ -1,6 +1,6 @@
 //! SCE 2.0 Reports v1.3 fixture validation.
 //!
-//! Walks `docs/20250916_UC_Reports_1.3/` and validates:
+//! Walks `docs/20260821_UC_Reports_1.3/` and validates:
 //!
 //! 1. **M180–M184**: every report response deserializes cleanly into
 //!    `SignResult`. M184 is the spec-mandated "combined Z" emission -
@@ -34,7 +34,7 @@ fn reports_root() -> PathBuf {
         .join("..")
         .join("..")
         .join("docs")
-        .join("20250916_UC_Reports_1.3")
+        .join("20260821_UC_Reports_1.3")
 }
 
 /// Re-used envelope unwrapper from the Basic Set test. Mutation

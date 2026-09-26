@@ -5,7 +5,7 @@
 # For each FDM message code required by §V of the certification
 # manual (5 mandatory + selected optional), this script:
 #   1. starts pos-fdm-mock with MOCK_FDM_ERROR / MOCK_FDM_WARNING,
-#   2. sends the official M110 signSale payload (Basic Set v1.7
+#   2. sends the official M110 signSale payload (Basic Set v1.8
 #      fixture) and a Status query,
 #   3. records the JSON request + JSON response pairs under
 #      docs/SUBMISSION_ARTIFACTS/evidence/fdm_errors/.
@@ -24,7 +24,7 @@ cd "$PROJECT_ROOT"
 PORT=8091
 URL="http://localhost:${PORT}/graphql"
 OUT="$PROJECT_ROOT/docs/SUBMISSION_ARTIFACTS/evidence/fdm_errors"
-FIXTURE_DIR="$PROJECT_ROOT/docs/20250916_UC_BasicSet_POS_FDM_1.7/M110_signSale"
+FIXTURE_DIR="$PROJECT_ROOT/docs/20260821_UC_BasicSet_POS_FDM_1.8/M110_signSale"
 
 mkdir -p "$OUT"
 

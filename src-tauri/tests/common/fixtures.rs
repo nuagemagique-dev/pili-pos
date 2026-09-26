@@ -1,6 +1,6 @@
 //! Fixture discovery for SPF Finances UC sets.
 //!
-//! Each UC folder under `docs/20250916_UC_BasicSet_POS_FDM_1.7/` (or the
+//! Each UC folder under `docs/20260821_UC_BasicSet_POS_FDM_1.8/` (or the
 //! Reports / Advanced equivalents) carries the same triple:
 //!
 //! - `<UC>_GQL-Variables.json` - the GraphQL `variables` payload, i.e.
@@ -57,13 +57,13 @@ pub fn workspace_root() -> PathBuf {
 pub fn basic_set_root() -> PathBuf {
     workspace_root()
         .join("docs")
-        .join("20250916_UC_BasicSet_POS_FDM_1.7")
+        .join("20260821_UC_BasicSet_POS_FDM_1.8")
 }
 
 pub fn reports_root() -> PathBuf {
     workspace_root()
         .join("docs")
-        .join("20250916_UC_Reports_1.3")
+        .join("20260821_UC_Reports_1.3")
 }
 
 /// Discover all fixtures under a UC-set root directory.

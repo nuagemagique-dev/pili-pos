@@ -1,4 +1,4 @@
-//! SPF Finances Basic Set v1.7, replayed from the official fixtures.
+//! SPF Finances Basic Set v1.8, replayed from the official fixtures.
 //!
 //! Each test:
 //!

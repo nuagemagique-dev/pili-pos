@@ -5,7 +5,7 @@
 # Replays the official fixtures through the real commands of the
 # certification build (--no-default-features --features cert) with
 # UC_EVIDENCE_DIR set:
-#   - spf_e2e_fixtures: Basic Set v1.7, one test per UC, orders built
+#   - spf_e2e_fixtures: Basic Set v1.8, one test per UC, orders built
 #     from the fixture's products; writes <UC>_check.json, the
 #     field-by-field comparison with the fixture;
 #   - spf_e2e_report_fixtures: the Reports v1.3 service day T1–T8

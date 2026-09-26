@@ -1,6 +1,6 @@
-//! SCE 2.0 Basic Set v1.7 fixture validation.
+//! SCE 2.0 Basic Set v1.8 fixture validation.
 //!
-//! Walks every UC folder under `docs/20250916_UC_BasicSet_POS_FDM_1.7/` and
+//! Walks every UC folder under `docs/20260821_UC_BasicSet_POS_FDM_1.8/` and
 //! validates that:
 //!
 //! 1. The published `*_Response.json` deserializes cleanly into `SignResult`
@@ -13,7 +13,7 @@
 //!    M121 (signOrder, event P) has no `shortSignature` / `verificationUrl`;
 //!    M110 (sale, event N) has all three.
 //!
-//! When this whole file passes, the v1.7 contract is met on the receive side
+//! When this whole file passes, the v1.8 contract is met on the receive side
 //! and the dossier can claim the fiscal core "speaks the spec" for Basic Set.
 
 use std::fs;
@@ -24,7 +24,7 @@ use pos_fiscal::types::{EventLabel, EventOperation};
 
 // ── Fixture locator ────────────────────────────────────────────────
 
-/// Absolute path to the Basic Set v1.7 fixture root, computed from the
+/// Absolute path to the Basic Set v1.8 fixture root, computed from the
 /// crate's own manifest dir at compile time so this works no matter where
 /// `cargo test` is invoked from.
 fn basic_set_root() -> PathBuf {
@@ -32,7 +32,7 @@ fn basic_set_root() -> PathBuf {
         .join("..") // crates/pos-fiscal → crates/
         .join("..") // crates/ → workspace root
         .join("docs")
-        .join("20250916_UC_BasicSet_POS_FDM_1.7")
+        .join("20260821_UC_BasicSet_POS_FDM_1.8")
 }
 
 /// One discovered fixture set within a single UC folder.
@@ -263,7 +263,7 @@ fn assert_common_fields_present(uc_id: &str, vars: &serde_json::Value) {
 /// Reporting as one test (vs one #[test] per UC) keeps the output compact
 /// while still failing loudly with a precise per-UC diff.
 #[test]
-fn basic_set_v1_7_fixtures_deserialize_and_match_schema() {
+fn basic_set_v1_8_fixtures_deserialize_and_match_schema() {
     let fixtures = discover_fixtures();
     assert!(
         !fixtures.is_empty(),
@@ -384,7 +384,7 @@ fn basic_set_v1_7_fixtures_deserialize_and_match_schema() {
     }
 
     // Always print the matrix so the dossier capture is easy.
-    eprintln!("\n── Basic Set v1.7 fixture coverage ──");
+    eprintln!("\n── Basic Set v1.8 fixture coverage ──");
     eprintln!("Total UCs discovered: {}", fixtures.len());
     eprintln!("Event labels exercised: {:?}", event_labels_seen);
     eprintln!("Passed ({}):", passed.len());
