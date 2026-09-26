@@ -29,6 +29,14 @@ fi
 
 /opt/moyun-pos/deploy/provision/provision.sh "${ARGS[@]}"
 
+# Wi-Fi and network profiles live on the encrypted /var, like
+# /etc/moyun-pos (moyun-provision creates the target at first boot).
+# The NetworkManager package ships this path as a directory, which
+# mkosi.extra cannot replace with a link (cp refuses), so the link is
+# made here, after the packages.
+rm -rf /etc/NetworkManager/system-connections
+ln -s /var/lib/moyun-etc/system-connections /etc/NetworkManager/system-connections
+
 # Build-input files are transient staging, never part of the shipped
 # image (no fiscal or fixed-identity content belongs on read-only root
 # outside /usr/share/moyun-pos/factory).
