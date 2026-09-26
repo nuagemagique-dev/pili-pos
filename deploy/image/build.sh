@@ -194,7 +194,7 @@ stage_admission_inputs() {
 # on the finished .raw file, fully under this script's control and
 # easy to reason about, was the safer choice.
 add_installer_uki_variants() {
-    local raw="$1" workdir esp_loop esp_mnt uki_src stem objcopy_bin ukify_bin
+    local raw="$1" workdir esp_loop esp_mnt root_mnt uki_src stem objcopy_bin ukify_bin
 
     objcopy_bin="$(find_tool objcopy)"
     ukify_bin="$(find_tool ukify)"
@@ -206,13 +206,15 @@ add_installer_uki_variants() {
 
     workdir="$(mktemp -d)"
     esp_mnt="$workdir/esp"
-    mkdir -p "$esp_mnt"
+    root_mnt="$workdir/root"
+    mkdir -p "$esp_mnt" "$root_mnt"
 
     esp_loop="$(losetup --show -f -P "$raw")"
     # shellcheck disable=SC2064  # values must expand now, not at trap time
-    trap "umount '$esp_mnt' 2>/dev/null || true; losetup -d '$esp_loop' 2>/dev/null || true; rm -rf '$workdir'" RETURN
+    trap "umount '$esp_mnt' 2>/dev/null || true; umount '$root_mnt' 2>/dev/null || true; losetup -d '$esp_loop' 2>/dev/null || true; rm -rf '$workdir'" RETURN
 
     mount "${esp_loop}p1" "$esp_mnt"
+    mount -o ro "${esp_loop}p2" "$root_mnt"
     uki_src="$(find "$esp_mnt/EFI/Linux" -maxdepth 1 -name '*.efi' | head -n1)"
     if [[ -z "$uki_src" ]]; then
         echo "  ⚠ no UKI found in the ESP - skipping Install/Update boot entries" >&2
@@ -223,8 +225,27 @@ add_installer_uki_variants() {
     "$objcopy_bin" -O binary --only-section=.initrd "$uki_src" "$stem.initrd"
     "$objcopy_bin" -O binary --only-section=.osrel "$uki_src" "$stem.osrel" 2>/dev/null || true
 
+    # ukify defaults to the host's stub path. Prefer the stub shipped in
+    # the image itself (systemd-boot-efi, same version as its bootloader),
+    # then mkosi's tools tree, then the host.
+    local stub="" candidate
+    for candidate in \
+        "$root_mnt/usr/lib/systemd/boot/efi/linuxx64.efi.stub" \
+        "$IMAGE_DIR/mkosi.tools/usr/lib/systemd/boot/efi/linuxx64.efi.stub" \
+        /usr/lib/systemd/boot/efi/linuxx64.efi.stub; do
+        if [[ -f "$candidate" ]]; then
+            stub="$candidate"
+            break
+        fi
+    done
+    if [[ -z "$stub" ]]; then
+        echo "  ✗ linuxx64.efi.stub not found (image, mkosi.tools or host)" >&2
+        return 1
+    fi
+
     for mode in install update; do
         local args=(build
+            --stub "$stub"
             --linux "$stem.linux"
             --initrd "$stem.initrd"
             --cmdline "ro quiet moyun.installer=${mode}"
