@@ -29,6 +29,11 @@ const coreMessages: Messages = {
   // Checkout
   "cash": { fr: "CASH", en: "CASH", zh: "现金" },
   "card": { fr: "CARTE", en: "CARD", zh: "刷卡" },
+  "meal_voucher": { fr: "CHÈQUES-REPAS", en: "MEAL VOUCHERS", zh: "餐券" },
+  "rest_to_pay": { fr: "Reste à payer", en: "Left to pay", zh: "剩余应付" },
+  "clear_payments": { fr: "Annuler les paiements", en: "Cancel the payments", zh: "取消付款" },
+  "amount": { fr: "Montant", en: "Amount", zh: "金额" },
+  "amount_over_rest": { fr: "Plus que le reste à payer", en: "More than what is left to pay", zh: "超过剩余应付" },
   "exact": { fr: "Exact", en: "Exact", zh: "刚好" },
   "other": { fr: "Autre", en: "Other", zh: "其他" },
   "clear": { fr: "Effacer", en: "Clear", zh: "清除" },

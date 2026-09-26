@@ -7,7 +7,7 @@ import type {
   User,
   CreateOrderInput,
   AddOrderLineInput,
-  CheckoutPaymentMethod,
+  PaymentPart,
   CheckoutResult,
   FiscalTicket,
   TicketDeliveryRequest,
@@ -113,10 +113,10 @@ export function checkPrinter(): Promise<boolean> {
 // Checkout
 export function checkout(
   orderId: number,
-  paymentMethod: CheckoutPaymentMethod,
+  payments: PaymentPart[],
   delivery?: TicketDeliveryRequest
 ): Promise<CheckoutResult> {
-  return invoke("checkout", { orderId, paymentMethod, delivery });
+  return invoke("checkout", { orderId, payments, delivery });
 }
 
 export function checkFdmStatus(): Promise<unknown> {

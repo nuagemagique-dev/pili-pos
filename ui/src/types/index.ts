@@ -6,7 +6,13 @@ export type OrderStatus = "open" | "closed" | "voided";
 
 export type UserRole = "admin" | "cashier" | "waiter";
 
-export type CheckoutPaymentMethod = "cash" | "card";
+export type CheckoutPaymentMethod = "cash" | "card" | "meal_voucher";
+
+/** One part of a sale's payment. Cash has no amount: it pays the rest. */
+export interface PaymentPart {
+  method: CheckoutPaymentMethod;
+  amount_cents?: number;
+}
 
 export interface Category {
   id: number;
