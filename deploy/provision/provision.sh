@@ -100,7 +100,7 @@ detect_device_id() {
 
     # Prefer the interface carrying the default route.
     iface="$(ip -o route show default 2>/dev/null \
-        | awk '{for (i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')"
+        | awk '!found {for (i=1;i<NF;i++) if ($i=="dev") {print $(i+1); found=1; break}}')"
 
     # Otherwise, the first non-loopback interface that has a MAC address.
     if [[ -z "$iface" ]]; then

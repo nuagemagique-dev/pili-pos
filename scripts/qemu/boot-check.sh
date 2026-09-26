@@ -8,7 +8,8 @@
 #   2. Enter is pressed on the banner, as the installer would;
 #   3. moyun-pos.service starts and is still running 30 s later;
 #   4. the kiosk frame is saved as screenshots/<out-basename>.png;
-#   5. no unit failed and no ordering cycle was broken, in the whole boot.
+#   5. no unit failed, no ordering cycle was broken and nothing hit the
+#      read-only root, in the whole boot.
 #
 # A non-blank frame alone proves nothing: an unbootable system still
 # fills the screen with its errors.
@@ -20,7 +21,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NAME="${1:?usage: $0 <name> [out-basename]}"
 OUT="${2:-$NAME}"
 LOG="$SCRIPT_DIR/.run/$NAME/serial.log"
-BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs'
+BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs|Read-only file system|moyun-provision.*ERROR'
 
 [[ -f "$LOG" ]] || { echo "ERROR: no serial log at $LOG" >&2; exit 1; }
 

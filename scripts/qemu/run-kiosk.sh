@@ -142,7 +142,7 @@ done
 
 # ── Touch/pointer device: prefer virtio-multitouch, else usb-tablet ─
 TOUCH_ARGS=(-device usb-ehci,id=usb-bus -device usb-tablet,bus=usb-bus.0)
-if qemu-system-x86_64 -device help 2>/dev/null | grep -q 'virtio-multitouch-pci'; then
+if qemu-system-x86_64 -device help 2>/dev/null | grep 'virtio-multitouch-pci' >/dev/null; then
     TOUCH_ARGS=(-device virtio-multitouch-pci)
 fi
 

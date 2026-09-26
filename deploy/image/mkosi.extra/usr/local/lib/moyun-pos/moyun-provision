@@ -33,7 +33,7 @@
 # normal second boot never re-runs it. See recover_existing_luks()
 # below for the one partial-run recovery case this script does handle.
 # ─────────────────────────────────────────────────────────────────
-set -euo pipefail
+set -Eeuo pipefail
 
 FACTORY_DIR="/usr/share/moyun-pos/factory"
 # The new volume's future /var, mounted here while it is prepared.
@@ -55,6 +55,8 @@ log() {
     echo "[moyun-provision] $*"
     printf '%s\n' "$*" | systemd-cat -t moyun-provision 2>/dev/null || true
 }
+# Any unexpected failure names its command, on tty1 and in the journal.
+trap 'log "ERROR: line $LINENO: \"$BASH_COMMAND\" exited $?"' ERR
 
 # ── device_id: the terminal's NIC MAC (manual §VI row VII). Duplicated
 #    from deploy/provision/provision.sh's detect_device_id() - the two
@@ -63,7 +65,7 @@ log() {
 detect_device_id() {
     local iface candidate name mac
     iface="$(ip -o route show default 2>/dev/null \
-        | awk '{for (i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')"
+        | awk '!found {for (i=1;i<NF;i++) if ($i=="dev") {print $(i+1); found=1; break}}')"
     if [[ -z "$iface" ]]; then
         for candidate in /sys/class/net/*; do
             name="$(basename "$candidate")"
@@ -87,13 +89,27 @@ detect_device_id() {
 }
 
 random_password() {
-    # 20 chars, unambiguous alphabet (no 0/O/1/l/I).
-    tr -dc 'A-HJ-NP-Za-km-z2-9' < /dev/urandom | head -c 20
+    # 20 chars, unambiguous alphabet (no 0/O/1/l/I). Not
+    # `tr < /dev/urandom | head`: tr then dies of SIGPIPE, which
+    # pipefail turns into a failure and set -e into an aborted first boot.
+    local chars=""
+    while (( ${#chars} < 20 )); do
+        chars+="$(LC_ALL=C tr -dc 'A-HJ-NP-Za-km-z2-9' < <(head -c 512 /dev/urandom))"
+    done
+    printf '%s' "${chars:0:20}"
+}
+
+# True when / is mounted read-only. No `| grep -q` under pipefail: an
+# early grep exit can kill the writer and read as "not read-only".
+root_is_ro() {
+    local opts
+    opts="$(findmnt -no OPTIONS /)"
+    [[ ",$opts," == *,ro,* ]]
 }
 
 set_password_rw() {
     local user="$1" pass="$2" was_ro=0
-    if findmnt -no OPTIONS / | tr ',' '\n' | grep -qx ro; then
+    if root_is_ro; then
         was_ro=1
         mount -o remount,rw /
     fi
@@ -113,7 +129,7 @@ set_password_rw() {
 #    var.mount, as on any boot; if they fail, recover manually.
 recover_existing_luks() {
     local raw="$1"
-    if ! cryptsetup luksDump "$raw" 2>/dev/null | grep -qi 'tpm2'; then
+    if ! cryptsetup luksDump "$raw" 2>/dev/null | grep -i 'tpm2' >/dev/null; then
         log "ERROR: $raw is already a LUKS2 device but has no TPM2 token"
         log "       enrolled. This is an interrupted first-boot run this"
         log "       script cannot safely resume automatically - recover"
@@ -171,6 +187,12 @@ main() {
     mkdir -p "$VAR_MNT"
     mount /dev/mapper/moyun-data "$VAR_MNT"
 
+    # What the packages installed under /var on the read-only root
+    # (dpkg and apt state, empty log and spool trees, service state
+    # directories) would be hidden by the new volume: start it as a copy.
+    log "Copying the image's /var…"
+    cp -a /var/. "$VAR_MNT/"
+
     log "Copying factory data…"
     mkdir -p "$ETC_DIR/moyun-pos" "$ETC_DIR/system-connections" "$POS_HOME/logs" "$POS_HOME/backups"
     install -m 640 "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
@@ -220,7 +242,7 @@ main() {
         spf_pass="$(random_password)"
         # One remount,rw/ro bracket for both accounts.
         local was_ro=0
-        if findmnt -no OPTIONS / | tr ',' '\n' | grep -qx ro; then
+        if root_is_ro; then
             was_ro=1
             mount -o remount,rw /
         fi

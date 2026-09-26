@@ -54,7 +54,8 @@ echo "✓ SHA-1 matches the declared value ($ACTUAL_SHA1)"
 # (plain deploy/install.sh targets, dev boxes): findmnt then reports no
 # "ro" option and this block is a no-op.
 ROOT_WAS_RO=0
-if findmnt -no OPTIONS / | tr ',' '\n' | grep -qx ro; then
+ROOT_OPTS="$(findmnt -no OPTIONS /)"
+if [[ ",$ROOT_OPTS," == *,ro,* ]]; then
     ROOT_WAS_RO=1
     echo "▸ Remounting / read-write..."
     mount -o remount,rw /
