@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
-use pos_core::order::OrderStatus;
+use pos_core::order::{OrderStatus, OrderType};
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
@@ -74,6 +74,49 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
     Ok(tables)
 }
 
+/// An open takeaway with at least one line: a direct sale not paid yet.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TakeawayInfo {
+    pub order_id: i64,
+    pub total_cents: i64,
+    pub line_count: i64,
+    pub created_at: String,
+}
+
+/// The takeaways left open (nothing is registered for them until they
+/// are paid): the Tables screen lists them so each one ends in a sale
+/// or is closed unpaid (FAQ Q205). Empty drafts are left out.
+#[tauri::command]
+pub fn list_open_takeaways(state: State<'_, AppState>) -> Result<Vec<TakeawayInfo>, String> {
+    do_list_open_takeaways(state.inner())
+}
+
+pub fn do_list_open_takeaways(state: &AppState) -> Result<Vec<TakeawayInfo>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let mut stmt = db
+        .prepare(
+            "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at
+             FROM orders o
+             JOIN order_lines ol ON ol.order_id = o.id
+             WHERE o.order_type = 'takeaway' AND o.status = 'open'
+             GROUP BY o.id
+             ORDER BY o.id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok(TakeawayInfo {
+                order_id: r.get(0)?,
+                total_cents: r.get(1)?,
+                line_count: r.get(2)?,
+                created_at: r.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+}
+
 /// Register what was ordered at a table since the last registration
 /// (event P, "vente interrompue", POS description v2.2 §1.3): the
 /// order's journal entries not yet transmitted, corrections included,
@@ -111,6 +154,11 @@ async fn sign_table_order_as(
         (order, entries, config, bp)
     };
 
+    // A takeaway is a direct sale: it stays a draft until it is paid
+    // (or closed unpaid) and ends in an N event, never a P (FAQ Q205).
+    if order.order_type == OrderType::Takeaway {
+        return Err(errors::TAKEAWAY_NOT_REGISTERED.into());
+    }
     let Some(last_entry) = entries.last() else {
         return Ok(SlipOutcome::NothingToPrint);
     };

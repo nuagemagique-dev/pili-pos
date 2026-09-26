@@ -298,6 +298,7 @@ fn main() {
         commands::settings::set_training_mode,
         // Tables
         commands::tables::list_tables,
+        commands::tables::list_open_takeaways,
         commands::tables::sign_table_order,
         commands::tables::sign_pre_bill,
         // Reports
@@ -372,6 +373,7 @@ fn main() {
         commands::settings::set_training_mode,
         // Tables
         commands::tables::list_tables,
+        commands::tables::list_open_takeaways,
         commands::tables::sign_table_order,
         commands::tables::sign_pre_bill,
         // Reports

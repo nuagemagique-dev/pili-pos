@@ -8,7 +8,7 @@ import {
   DEFAULT_ORDER,
   DEFAULT_ORDER_LINE,
   DEFAULT_CATEGORY,
-  DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
+  DEFAULT_MENU_ITEM, tapUserTile, live } from './fixtures/mock-ipc';
 
 // Fiscal side effects of the operator's navigation: an order left unpaid
 // is registered with the FDM (event P, POS spec §1.3), the "Addition"
@@ -37,6 +37,87 @@ async function openTable(page: Page, overrides: Handlers = {}) {
 
 const navButton = (page: Page, name: string) =>
   page.locator('.header-nav .nav-btn', { hasText: name });
+
+// A takeaway is a direct sale: it ends in an N (FAQ Q205). Leaving it
+// unpaid registers nothing; it stays a draft listed on the Tables
+// screen until it is paid or closed unpaid. Order 501 is table 1,
+// order 502 the takeaway.
+const orderOf = (id: number) => ({
+  id,
+  table_number: id === 502 ? null : 1,
+  order_type: id === 502 ? 'takeaway' : 'dine_in',
+  status: 'open',
+  user_insz: '94060242576',
+  created_at: new Date().toISOString(),
+  closed_at: null,
+  subtotal_cents: 0,
+  total_cents: 0,
+});
+
+test.describe('Takeaway drafts (direct sale)', () => {
+  test('[FAQ_Q205] leaving an unpaid takeaway registers nothing', async ({ page }) => {
+    await openTable(page, {
+      create_order: live(({ input }: any = {}) => ({
+        id: input?.order_type === 'takeaway' ? 502 : 501,
+        table_number: input?.table_number ?? null,
+        order_type: input?.order_type ?? 'dine_in',
+        status: 'open', user_insz: '94060242576', created_at: new Date().toISOString(),
+        closed_at: null, subtotal_cents: 0, total_cents: 0,
+      })),
+      get_order: live(({ orderId }: any = {}) => ({
+        id: orderId,
+        table_number: orderId === 502 ? null : 1,
+        order_type: orderId === 502 ? 'takeaway' : 'dine_in',
+        status: 'open', user_insz: '94060242576', created_at: new Date().toISOString(),
+        closed_at: null, subtotal_cents: 0, total_cents: 0,
+      })),
+    });
+    await navButton(page, 'À emporter').click();
+    await expect(page.locator('.header-takeaway')).toBeVisible();
+    await page.locator('.item-btn').first().click();
+    await navButton(page, 'Tables').click();
+    await page.waitForURL(/tables/);
+
+    // Only the table was registered, when the takeaway was started.
+    const signed = (await ipcCalls(page, 'sign_table_order')).map((c) => c.orderId);
+    expect(signed).toEqual([501]);
+  });
+
+  test('[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      list_open_takeaways: () => [
+        { orderId: 502, totalCents: 608, lineCount: 1, createdAt: '2026-09-26 10:05:00' },
+      ],
+      get_order: () => orderOf(502),
+      list_order_lines: () => [DEFAULT_ORDER_LINE],
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [DEFAULT_MENU_ITEM],
+    });
+    await page.goto('/');
+    await tapUserTile(page);
+    await page.waitForURL(/tables/);
+
+    const card = page.locator('.takeaway-card');
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText('6,08');
+    await expect(card).toContainText('12:05');
+    await card.click();
+    await page.waitForURL(/order/);
+    await expect(page.locator('.header-takeaway')).toBeVisible();
+    expect((await ipcCalls(page, 'get_order')).map((c) => c.orderId)).toContain(502);
+  });
+
+  test('no takeaway in progress, no strip', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+    await page.goto('/');
+    await tapUserTile(page);
+    await page.waitForURL(/tables/);
+    await expect(page.locator('.table-card').first()).toBeVisible();
+    await expect(page.locator('.takeaways')).toHaveCount(0);
+  });
+});
 
 test.describe('Table order registration (P)', () => {
   test('[FAQ_Q205] leaving the order for the tables registers it', async ({ page }) => {

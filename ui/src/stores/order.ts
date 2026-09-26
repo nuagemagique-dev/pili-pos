@@ -141,7 +141,7 @@ export const useOrderStore = defineStore("order", () => {
   /**
    * Register with the FDM what was ordered since the last registration
    * (event P, interrupted sale - POS spec §1.3). Called whenever the
-   * operator leaves an open order unpaid. The backend is a no-op when
+   * operator leaves an open table order unpaid. The backend is a no-op when
    * nothing changed; on failure the entries stay pending and are sent
    * at the next registration, pre-bill or sale.
    */
@@ -150,6 +150,10 @@ export const useOrderStore = defineStore("order", () => {
     // Not skipped when the cart is empty: lines added then removed are
     // corrections the FDM must still receive.
     if (!current || current.status !== "open") return;
+    // A takeaway is a direct sale: nothing is registered when it is
+    // left, it stays a draft listed on the Tables screen until it is
+    // paid or closed unpaid, and ends in an N (FAQ Q205).
+    if (current.order_type === "takeaway") return;
     warnIfSlipFailed(await ipc.signTableOrder(current.id));
   }
 

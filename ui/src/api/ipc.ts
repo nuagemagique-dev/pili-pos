@@ -174,6 +174,18 @@ export function listTables(tableCount: number): Promise<TableInfo[]> {
   return invoke("list_tables", { tableCount });
 }
 
+/** An open takeaway with lines: a direct sale not paid yet (FAQ Q205). */
+export interface TakeawayInfo {
+  orderId: number;
+  totalCents: number;
+  lineCount: number;
+  createdAt: string;
+}
+
+export function listOpenTakeaways(): Promise<TakeawayInfo[]> {
+  return invoke("list_open_takeaways");
+}
+
 /** Register (event P) what was ordered at a table since the last
  * registration, then print it on the bar / kitchen slip. No-op when
  * nothing changed. */

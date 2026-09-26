@@ -36,6 +36,9 @@ pub const DEACTIVATE_SELF: &str = "deactivate_self";
 pub const OPERATOR_INVALID: &str = "operator_invalid";
 pub const DINE_IN_NEEDS_TABLE: &str = "dine_in_needs_table";
 pub const TAKEAWAY_HAS_NO_TABLE: &str = "takeaway_has_no_table";
+/// A takeaway is a direct sale: it ends in a sale, never in an order
+/// registration (FAQ Q205).
+pub const TAKEAWAY_NOT_REGISTERED: &str = "takeaway_not_registered";
 pub const QUANTITY_POSITIVE: &str = "quantity_positive";
 pub const ORDER_NOT_OPEN: &str = "order_not_open";
 pub const PRICE_POSITIVE: &str = "price_positive";
@@ -122,6 +125,7 @@ pub const ALL: &[&str] = &[
     OPERATOR_INVALID,
     DINE_IN_NEEDS_TABLE,
     TAKEAWAY_HAS_NO_TABLE,
+    TAKEAWAY_NOT_REGISTERED,
     QUANTITY_POSITIVE,
     ORDER_NOT_OPEN,
     PRICE_POSITIVE,

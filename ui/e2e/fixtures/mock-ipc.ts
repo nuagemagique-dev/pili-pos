@@ -209,6 +209,7 @@ function defaultHandlers(): Record<string, Handler> {
         kitchen_slip: 'printed',
       };
     }),
+    list_open_takeaways: () => [],
     check_fdm_status: () => ({ connected: false }),
 
     // Refund (event N, negative lines)

@@ -16,11 +16,31 @@ const auth = useAuthStore();
 
 const toast = useToastStore();
 const tables = ref<ipc.TableInfo[]>([]);
+// Takeaways left unpaid: each one must still end in a sale (FAQ Q205).
+const takeaways = ref<ipc.TakeawayInfo[]>([]);
 
 onMounted(async () => {
   if (!auth.currentUser) { router.push({ name: "login" }); return; }
   tables.value = await ipc.listTables(20);
+  takeaways.value = await ipc.listOpenTakeaways();
 });
+
+async function resumeTakeaway(takeaway: ipc.TakeawayInfo) {
+  try {
+    await order.loadOrder(takeaway.orderId);
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+    return;
+  }
+  router.push({ name: "order" });
+}
+
+function timeOf(iso: string): string {
+  const d = new Date(iso.includes("T") ? iso : iso.replace(" ", "T") + "Z");
+  return isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+}
 
 async function selectTable(table: ipc.TableInfo) {
   try {
@@ -46,6 +66,22 @@ async function selectTable(table: ipc.TableInfo) {
       <h1>{{ t('tables') }}</h1>
       <button class="nav-btn" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
     </header>
+
+    <section v-if="takeaways.length" class="takeaways">
+      <h2>{{ t('takeaways_open') }}</h2>
+      <div class="takeaway-row">
+        <button
+          v-for="tk in takeaways"
+          :key="tk.orderId"
+          class="takeaway-card"
+          @click="resumeTakeaway(tk)"
+        >
+          <span class="takeaway-time">{{ timeOf(tk.createdAt) }}</span>
+          <span class="table-info">{{ tk.lineCount }} {{ t('items_short') }}</span>
+          <span class="table-total">{{ formatPrice(tk.totalCents) }}</span>
+        </button>
+      </div>
+    </section>
 
     <div class="grid">
       <button
@@ -86,4 +122,16 @@ async function selectTable(table: ipc.TableInfo) {
 .table-info { font-size: var(--font-size-xs); color: var(--text-secondary); }
 .table-total { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--accent-primary); }
 .table-free { font-size: var(--font-size-sm); color: var(--text-secondary); }
+
+.takeaways { padding: var(--space-md) var(--space-lg) 0; }
+.takeaways h2 { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--accent-warning); margin-bottom: var(--space-sm); }
+.takeaway-row { display: flex; gap: var(--space-md); overflow-x: auto; }
+.takeaway-card {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);
+  min-width: 140px; padding: var(--space-md); border-radius: var(--radius-lg);
+  background: var(--bg-surface); color: var(--text-primary); border: 2px solid var(--accent-warning);
+  transition: transform var(--tap-duration) ease;
+}
+.takeaway-card:active { transform: scale(var(--tap-scale)); }
+.takeaway-time { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
 </style>

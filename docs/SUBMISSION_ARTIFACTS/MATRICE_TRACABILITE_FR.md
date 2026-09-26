@@ -167,7 +167,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
 | FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order` | - | Couvert |
-| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | - | `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] logging out registers it`, `[FAQ_Q205] switching to a takeaway registers the table first` | Couvert |
+| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | `[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes`, `[FAQ_Q205] leaving an unpaid takeaway registers nothing`, `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] logging out registers it` +1 | Couvert |
 | FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
 | FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | `faq_q207_a_second_order_carries_only_the_new_lines` | - | Couvert |
 | FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |

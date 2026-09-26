@@ -2,6 +2,8 @@
 //! Reports scenario exercises on its own, played through the commands
 //! the UI calls.
 //!
+//! - Q205: a direct sale (takeaway) ends in N, never in a P: it stays
+//!   a listed draft until it is paid;
 //! - Q207: a signOrder carries only the lines added since the last one;
 //! - Q211: every table session has its own costCenter reference;
 //! - Q504: a copy is not turnover;
@@ -19,11 +21,12 @@ use serde_json::Value;
 
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use moyun_pos::commands::copy::do_copy_ticket;
+use moyun_pos::commands::errors;
 use moyun_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
 use moyun_pos::commands::report::{do_generate_user_x_report, do_generate_x_report};
-use moyun_pos::commands::tables::do_sign_table_order;
+use moyun_pos::commands::tables::{do_list_open_takeaways, do_sign_table_order};
 use pos_core::order::OrderType;
 
 const MANAGER: &str = "12345678958";
@@ -93,6 +96,58 @@ fn product_ids(request: &Value) -> Vec<String> {
         .iter()
         .map(|l| l["mainProduct"]["productId"].as_str().unwrap().to_string())
         .collect()
+}
+
+#[tokio::test]
+async fn faq_q205_a_takeaway_is_never_registered_as_an_order() {
+    let app = app().await;
+    let takeaway = open(&app, None);
+    add(&app, takeaway, 1, 1);
+    let refused = do_sign_table_order(&app.state, takeaway).await;
+    assert_eq!(refused, Err(errors::TAKEAWAY_NOT_REGISTERED.to_string()));
+    assert!(app.fiscal_events().is_empty());
+
+    // Paid, it ends in a single N, without a cost center.
+    let sale = do_checkout(&app.state, takeaway, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    let labels: Vec<_> = app
+        .fiscal_events()
+        .iter()
+        .map(|e| e.event_type.clone())
+        .collect();
+    assert_eq!(labels, ["N"]);
+    assert!(requests(&app)[0].get("costCenter").is_none());
+}
+
+#[tokio::test]
+async fn faq_q205_open_takeaways_are_listed_until_paid() {
+    let app = app().await;
+    let empty = open(&app, None);
+    let first = open(&app, None);
+    add(&app, first, 1, 2);
+    let second = open(&app, None);
+    add(&app, second, 2, 1);
+    let table = open(&app, Some(3));
+    add(&app, table, 1, 1);
+
+    let listed = |app: &TestApp| -> Vec<(i64, i64, i64)> {
+        do_list_open_takeaways(&app.state)
+            .unwrap()
+            .iter()
+            .map(|t| (t.order_id, t.total_cents, t.line_count))
+            .collect()
+    };
+    // Empty drafts and tables are not takeaways in progress.
+    assert_eq!(listed(&app), [(first, 608, 1), (second, 1200, 1)]);
+    assert_ne!(empty, first);
+
+    let sale = do_checkout(&app.state, first, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    assert_eq!(listed(&app), [(second, 1200, 1)]);
 }
 
 #[tokio::test]
