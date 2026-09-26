@@ -172,7 +172,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The admission image copies its journal to ttyS0
+# (journald.conf.d/90-moyun-serial.conf); scripts/qemu/boot-check.sh reads it.
+SERIAL_LOG="$WORK_DIR/serial.log"
+: > "$SERIAL_LOG"
+
 echo "▸ QMP socket: $QMP_SOCK (scripts/qemu/screendump.sh $NAME)"
+echo "▸ Serial console (journal): $SERIAL_LOG"
 echo "▸ Booting '$NAME' ($ACCEL)…"
 
 exec qemu-system-x86_64 \
@@ -192,5 +198,6 @@ exec qemu-system-x86_64 \
     -tpmdev emulator,id=tpm0,chardev=chrtpm \
     -device tpm-tis,tpmdev=tpm0 \
     -qmp "unix:$QMP_SOCK,server,nowait" \
+    -serial "file:$SERIAL_LOG" \
     "${FW_CFG_ARGS[@]}" \
     -display none -vnc :0

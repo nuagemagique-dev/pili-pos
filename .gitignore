@@ -30,3 +30,6 @@ ui/playwright-report/
 
 # Python bytecode (scripts/)
 __pycache__/
+
+# QEMU harness state (scripts/qemu/run-kiosk.sh)
+scripts/qemu/.run/

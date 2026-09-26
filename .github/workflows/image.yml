@@ -16,14 +16,11 @@ name: Kiosk image
 #                 moyun-pos INSIDE each finished image is the exact
 #                 binary repro just certified; uploads the .img.xz.
 #   boot-smoke  - needs: image. Boots the admission image headless
-#                 under QEMU (KVM + swtpm/TPM2), waits for it to reach
-#                 a rendered UI frame, and fails if the frame is
-#                 blank/uniform (Cage/moyun-pos never actually came
-#                 up). Does NOT exercise the first-boot LUKS2/TPM2
-#                 provisioning to completion within the job's 5-minute
-#                 boot budget - see scripts/qemu/run-kiosk.sh and the
-#                 job's own comments for exactly what this does and
-#                 does not prove.
+#                 under QEMU (KVM + swtpm/TPM2) through its whole first
+#                 boot (LUKS2 + TPM2 provisioning, banner, kiosk) and
+#                 fails on any failed unit or broken ordering cycle in
+#                 the guest journal, or if moyun-pos.service does not
+#                 stay up (scripts/qemu/boot-check.sh).
 #
 # runs-on: ubuntu-26.04 everywhere (needs KVM, and matches the
 # platform deploy/image/build.sh and the manual assume).
@@ -194,7 +191,7 @@ jobs:
           name: kiosk-image-admission
           path: deploy/image/mkosi.output/admission
 
-      - name: Boot headless, with a 5-minute timeout
+      - name: Boot headless, with a 15-minute ceiling
         id: boot
         run: |
           set -euo pipefail
@@ -203,14 +200,8 @@ jobs:
             echo "::error::no .img.xz artifact found for the admission profile"
             exit 1
           fi
-          timeout 300 scripts/qemu/run-kiosk.sh "$IMG" --name boot-smoke --clean &
+          timeout 900 scripts/qemu/run-kiosk.sh "$IMG" --name boot-smoke --clean &
           echo "qemu_pid=$!" >> "$GITHUB_OUTPUT"
-          # Give the guest time to reach a rendered UI frame: OVMF ->
-          # systemd-boot -> UKI -> systemd-repart (moyun-data) ->
-          # moyun-provision.service (LUKS2 format + TPM2 enrollment,
-          # the slowest step) -> Cage -> moyun-pos. This budget is
-          # generous but the job's own 5-minute `timeout` above is the
-          # hard ceiling.
           for i in $(seq 1 24); do
             [[ -S "scripts/qemu/.run/boot-smoke/qmp.sock" ]] && break
             sleep 5
@@ -219,13 +210,13 @@ jobs:
             echo "::error::QMP socket never appeared - QEMU failed to start"
             exit 1
           fi
-          sleep 150
 
-      - name: Screendump
-        run: scripts/qemu/screendump.sh boot-smoke ci-boot-smoke
-
-      - name: Fail if the frame is blank/uniform
-        run: scripts/qemu/check-not-blank.py docs/SUBMISSION_ARTIFACTS/screenshots/ci-boot-smoke.png
+      # OVMF -> systemd-boot -> UKI -> systemd-repart (moyun-data) ->
+      # moyun-provision (LUKS2 + TPM2, banner, Enter) -> Cage -> moyun-pos,
+      # judged from the guest journal on its serial port, not from the
+      # frame alone: fails on any failed unit or broken ordering cycle.
+      - name: First-boot check (provisioning, kiosk up, no failed unit)
+        run: scripts/qemu/boot-check.sh boot-smoke 00_boot_admission
 
       - name: Stop QEMU
         if: always()
@@ -234,11 +225,13 @@ jobs:
           sleep 2
           pkill -f 'qemu-system-x86_64.*boot-smoke' 2>/dev/null || true
 
-      - name: Upload the screenshot (always, including on failure)
+      - name: Upload the screenshot and guest journal (always, including on failure)
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: boot-smoke-screenshot
-          path: docs/SUBMISSION_ARTIFACTS/screenshots/ci-boot-smoke.png
+          path: |
+            docs/SUBMISSION_ARTIFACTS/screenshots/00_boot_admission.png
+            scripts/qemu/.run/boot-smoke/serial.log
           retention-days: 30
           if-no-files-found: ignore

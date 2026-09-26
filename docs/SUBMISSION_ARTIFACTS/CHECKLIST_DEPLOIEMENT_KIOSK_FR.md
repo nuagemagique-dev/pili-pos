@@ -168,8 +168,12 @@ sha1sum /opt/moyun-pos/moyun-pos
 job `repro` (build #1/#2, compare les SHA-1), job `image` (build les
 deux profils, vérifie sur la partition racine montée en lecture seule
 que le binaire embarqué dans chaque `.img.xz` a bien le SHA-1 certifié), job
-`boot-smoke` (démarre l'image d'admission sous QEMU+KVM+swtpm,
-capture d'écran QMP, échoue si l'écran est vide/uniforme).
+`boot-smoke` (premier démarrage complet de l'image d'admission sous
+QEMU+KVM+swtpm : provisionnement LUKS2 + TPM2, écran des mots de passe
+validé par Entrée, puis kiosque ; échoue si un service a échoué, si un
+cycle d'ordonnancement a été rompu ou si `moyun-pos.service` ne reste
+pas démarré, d'après le journal du système invité copié sur son port
+série ; capture d'écran finale et journal publiés en artefact CI `boot-smoke-screenshot`).
 
 ## Script de démonstration pour le rendez-vous d'admission
 
