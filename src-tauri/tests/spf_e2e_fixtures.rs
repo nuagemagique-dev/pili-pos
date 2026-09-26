@@ -153,91 +153,6 @@ struct Deviation {
     reason: &'static str,
 }
 
-/// The business content of a request, independent of the installation.
-fn business_view(d: &Value) -> Value {
-    let mut view = serde_json::Map::new();
-    view.insert("ticketMedium".into(), d["ticketMedium"].clone());
-    if let Some(t) = d.get("transaction") {
-        let lines: Vec<Value> = t["transactionLines"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|l| {
-                let p = &l["mainProduct"];
-                json!({
-                    "lineType": l["lineType"],
-                    "productId": p["productId"],
-                    "departmentId": p["departmentId"],
-                    "quantity": p["quantity"],
-                    "quantityType": p["quantityType"],
-                    "negQuantityReason": p.get("negQuantityReason").cloned().unwrap_or(Value::Null),
-                    "unitPrice": p["unitPrice"],
-                    "vats": p["vats"].as_array().unwrap().iter()
-                        .map(|v| json!({ "label": v["label"], "price": v["price"] }))
-                        .collect::<Vec<_>>(),
-                    "lineTotal": l["lineTotal"],
-                })
-            })
-            .collect();
-        view.insert(
-            "transaction".into(),
-            json!({ "transactionLines": lines, "transactionTotal": t["transactionTotal"] }),
-        );
-    }
-    if let Some(f) = d.get("financials").and_then(Value::as_array) {
-        let lines: Vec<Value> = f
-            .iter()
-            .map(|p| json!({ "type": p["type"], "amount": p["amount"], "amountType": p["amountType"] }))
-            .collect();
-        view.insert("financials".into(), Value::Array(lines));
-    }
-    if let Some(cc) = d.get("costCenter") {
-        view.insert("costCenter.type".into(), cc["type"].clone());
-    }
-    if let Some(r) = d.get("fdmRef") {
-        view.insert("fdmRef".into(), r.clone());
-    }
-    if d.get("drawer").is_some() {
-        view.insert("drawer".into(), json!(true));
-    }
-    Value::Object(view)
-}
-
-fn diff(path: &str, ours: &Value, fixture: &Value, out: &mut Vec<(String, Value, Value)>) {
-    match (ours, fixture) {
-        (Value::Object(a), Value::Object(b)) => {
-            let mut keys: Vec<&String> = a.keys().chain(b.keys()).collect();
-            keys.sort();
-            keys.dedup();
-            for k in keys {
-                let child = if path.is_empty() {
-                    k.clone()
-                } else {
-                    format!("{path}.{k}")
-                };
-                diff(
-                    &child,
-                    a.get(k).unwrap_or(&Value::Null),
-                    b.get(k).unwrap_or(&Value::Null),
-                    out,
-                );
-            }
-        }
-        (Value::Array(a), Value::Array(b)) if a.len() == b.len() => {
-            for (i, (x, y)) in a.iter().zip(b).enumerate() {
-                diff(&format!("{path}[{i}]"), x, y, out);
-            }
-        }
-        (Value::Number(a), Value::Number(b)) => {
-            if (a.as_f64().unwrap() - b.as_f64().unwrap()).abs() > 0.005 {
-                out.push((path.to_string(), ours.clone(), fixture.clone()));
-            }
-        }
-        _ if ours != fixture => out.push((path.to_string(), ours.clone(), fixture.clone())),
-        _ => {}
-    }
-}
-
 /// Format of the fields that identify the installation, not the sale.
 fn check_identification(uc: &str, d: &Value) {
     let s = |k: &str| d[k].as_str().unwrap_or_else(|| panic!("{uc}: {k} missing"));
@@ -664,6 +579,38 @@ async fn m171_sale_in_training() {
     app.dump_evidence("M171");
 }
 
+/// M171B is M171 with the query style of the changelog 1.7: the
+/// fields that are always null in training are `@skip`ped, so the
+/// FDM's answer has no `shortSignature`, `verificationUrl` or
+/// `vatCalc` at all. The sale is signed and archived all the same.
+#[tokio::test]
+async fn m171b_sale_in_training_with_skipped_fields() {
+    let vars = variables("M171B_signSale_Training");
+    let app = spf_app(&operator(&vars)).await;
+    set_training_mode(&app, true);
+    let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
+    let envelope = read_response_envelope(&load_uc(&basic_set_root(), "M171B_signSale_Training"));
+    let result_obj = envelope["data"]["signSale"].as_object().unwrap();
+    for skipped in ["shortSignature", "verificationUrl", "vatCalc"] {
+        assert!(
+            !result_obj.contains_key(skipped),
+            "M171B answers without {skipped}"
+        );
+    }
+    mock_response(&app, envelope).await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let event = &app.fiscal_events()[0];
+    assert_eq!(event.event_type, "T");
+    assert!(event.short_signature.is_none());
+
+    assert_matches_fixture("M171B", &requests(&app)[0], &vars, &[TABLE_SALE]);
+    app.dump_evidence("M171B");
+}
+
 /// M172 copies a normal ticket (N 35/73) while the POS is in training
 /// mode: the sale is made first, then training mode is switched on.
 #[tokio::test]
@@ -696,6 +643,37 @@ async fn m172_copy_in_training() {
         }],
     );
     app.dump_evidence("M172");
+}
+
+// ── Advanced Set cases moyun-pos supports ──────────────────────────
+
+/// UC230: 3 Dry Martini ordered, corrected at once to 2, paid by debit
+/// card. The operator lowers the quantity on the order screen; the
+/// journal keeps the 3 and the -1, and the sale carries both, the -1
+/// with negQuantityReason CORRECTION.
+#[tokio::test]
+async fn uc230_a_line_corrected_before_payment() {
+    let fixture = load_uc(&advanced_set_root(), "UC230");
+    let vars = read_variables(&fixture)["data"].clone();
+    let app = spf_app(&operator(&vars)).await;
+    let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
+    let line = &moyun_pos::commands::order::do_list_order_lines(&app.state, order_id).unwrap()[0];
+    assert_eq!(line.quantity, 3);
+    moyun_pos::commands::order::do_update_order_line_quantity(&app.state, line.id, 2).unwrap();
+    mock_from_fixture(&app, &fixture).await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let ours = &requests(&app)[0];
+    assert_eq!(
+        ours["transaction"]["transactionLines"][1]["mainProduct"]["negQuantityReason"],
+        "CORRECTION"
+    );
+    assert_matches_fixture("UC230", ours, &vars, &[TABLE_SALE]);
+    app.dump_evidence("UC230");
 }
 
 // ── Catalogue guards ───────────────────────────────────────────────

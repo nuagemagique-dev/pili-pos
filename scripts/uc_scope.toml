@@ -40,13 +40,16 @@ reason = "moyun-pos émet toujours le rapport Z combiné (M184) ; il n'émet jam
 kind = "couvert_par"
 by = "M184"
 
+[UC4109]
+reason = "La vente sans paiement (client parti sans payer) n'existe pas dans moyun-pos v1.0.0 : la table reste ouverte. Prévue (plan, section 2.5)."
+kind = "hors_perimetre"
+
 # ---------------------------------------------------------------------------
 # Advanced Set - fonctionnalités absentes du code (voir le rapport final de
 # l'agent pour les preuves de grep confirmant chaque absence).
 #
-# UC201 (arrondi), UC230 (correction) et UC4109 (vente sans paiement) sont
-# volontairement absents de ce fichier : ils correspondent à des
-# fonctionnalités existantes et doivent obtenir un vrai test.
+# UC201 (arrondi) et UC230 (correction) sont volontairement absents de ce
+# fichier : ce sont des fonctionnalités existantes, qui ont un vrai test.
 # ---------------------------------------------------------------------------
 
 # -- Scission / fusion de table et changement de centre de coût associé --
@@ -293,4 +296,16 @@ kind = "hors_perimetre"
 
 [UC4108]
 reason = "Le libellé de TVA X pour un acompte n'est pas implémenté dans moyun-pos v1.0.0 (aucune gestion d'acompte)."
+kind = "hors_perimetre"
+
+# ---------------------------------------------------------------------------
+# Manuel de certification - arrondi des moyens de paiement
+# ---------------------------------------------------------------------------
+
+[ROUND4]
+reason = "Les chèques-repas ne sont pas un moyen de paiement de moyun-pos v1.0.0 (test de base 2)."
+kind = "hors_perimetre"
+
+[ROUND5]
+reason = "Une vente payée en chèques-repas, carte et cash à la fois n'est pas possible dans moyun-pos v1.0.0 : un seul moyen de paiement par vente, sans chèques-repas (test de base 3)."
 kind = "hors_perimetre"

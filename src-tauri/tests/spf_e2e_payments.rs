@@ -111,6 +111,78 @@ async fn uc201_cash_rounding_is_its_own_payment_line() {
     assert_eq!(financials[0]["id"], financials[1]["id"]);
 }
 
+// ── Manual "Arrondissement des méthodes de paiement", test 1 ───────
+// Direct sales of the manual's Dame Blanche (11,52, B) and Tapas
+// Variation (3,34, B), paid cash only (situations 1 to 3). Tests 2 and
+// 3 (ROUND4, ROUND5) pay one sale with meal vouchers, card and cash,
+// which this version does not take.
+
+const DAME_BLANCHE: i64 = 25003;
+const TAPAS_VARIATION: i64 = 28007;
+
+/// The cash lines (PAYMENT, ROUNDING) a direct cash sale sends.
+async fn cash_sale(lines: &[(i64, i32)]) -> Vec<(String, f64)> {
+    let app = app().await;
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute_batch(
+            "INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order, active) VALUES
+                (25003, 1, 1152, 'B', 2, 1),
+                (28007, 1, 334, 'B', 3, 1);",
+        )
+        .unwrap();
+    let order = order_of(&app, lines).await;
+    let r = do_checkout(&app.state, order, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(r.success, "{:?}", r.error);
+    last_financials(&app)
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| {
+            assert_eq!(f["type"], "CASH");
+            (
+                f["amountType"].as_str().unwrap().to_string(),
+                f["amount"].as_f64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+fn lines(v: &[(&str, f64)]) -> Vec<(String, f64)> {
+    v.iter().map(|(t, a)| (t.to_string(), *a)).collect()
+}
+
+/// Situation 1: 11,52 is paid 11,50, rounding -0,02.
+#[tokio::test]
+async fn round1_11_52_is_paid_11_50() {
+    assert_eq!(
+        cash_sale(&[(DAME_BLANCHE, 1)]).await,
+        lines(&[("PAYMENT", 11.52), ("ROUNDING", -0.02)])
+    );
+}
+
+/// Situation 2: 3,34 is paid 3,35, rounding +0,01.
+#[tokio::test]
+async fn round2_3_34_is_paid_3_35() {
+    assert_eq!(
+        cash_sale(&[(TAPAS_VARIATION, 1)]).await,
+        lines(&[("PAYMENT", 3.34), ("ROUNDING", 0.01)])
+    );
+}
+
+/// Situation 3: 11,52 + 3,34 = 14,86 is paid 14,85, rounding -0,01.
+#[tokio::test]
+async fn round3_14_86_is_paid_14_85() {
+    assert_eq!(
+        cash_sale(&[(DAME_BLANCHE, 1), (TAPAS_VARIATION, 1)]).await,
+        lines(&[("PAYMENT", 14.86), ("ROUNDING", -0.01)])
+    );
+}
+
 /// A card payment is never rounded: one line, the exact amount.
 #[tokio::test]
 async fn faq_q403_a_card_payment_has_no_rounding_line() {

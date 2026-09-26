@@ -223,7 +223,7 @@ async fn a_table_order_prints_nothing_and_the_pre_bill_prints_pro_forma() {
 }
 
 #[tokio::test]
-async fn a_training_sale_prints_its_training_marks() {
+async fn vi_training_a_training_sale_prints_its_training_marks() {
     let (app, printer) = with_printer().await;
     app.state.config.lock().unwrap().training_mode = true;
     let order_id = open_order(&app, Some(1), 1);
@@ -235,7 +235,12 @@ async fn a_training_sale_prints_its_training_marks() {
     let receipt = &printer.settle(1).await[0];
     assert!(receipt.contains("TRAINING"));
     assert!(receipt.contains("CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"));
+    // Not a VAT ticket: neither its title nor a verification QR code.
+    assert!(!receipt.contains("TICKET DE CAISSE TVA\n"), "{receipt}");
     assert!(!receipt.contains("[QR"), "no verification URL for T");
+    // The FDM's control data of the T event.
+    assert!(receipt.contains("INFORMATIONS FDM"), "{receipt}");
+    assert!(receipt.contains("Event: T;"), "{receipt}");
 }
 
 // ── Reports ────────────────────────────────────────────────────

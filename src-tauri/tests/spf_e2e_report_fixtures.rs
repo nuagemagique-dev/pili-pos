@@ -20,6 +20,10 @@
 //!   CARD_DEBIT (the operator does not tell debit from credit cards),
 //!   CARD_CREDIT in the scenario.
 //! - Department names are the catalogue's French names.
+//! - T4: the takeaway Coca Cola carries VAT label C, as the
+//!   certification manual's product table says; the scenario (2024)
+//!   uses A. The mock FDM replays the scenario's VAT, so the reports
+//!   still compare with the published ones.
 //! - posDevices / fdmDevices are this single terminal and the mock FDM.
 
 mod common;
@@ -351,6 +355,97 @@ fn assert_report_identity(report: &Value, label: &str) {
         report["bookingPeriodId"].as_str().is_some(),
         "{label}: bookingPeriodId"
     );
+}
+
+// ── The eight input tickets, one by one ────────────────────────────
+
+/// The request moyun-pos built for input ticket `t` (1 to 8) against
+/// the scenario's own request, business fields only
+/// (`common::compare`). `allowed` lists the paths that differ on
+/// purpose, with the reason; any other difference fails, and so does a
+/// listed one that no longer occurs.
+async fn assert_input_ticket(t: usize, allowed: &[(&str, &str)]) {
+    let app = scenario_app().await;
+    play_service_day(&app).await;
+    let ours = archived_request(&app, 8 - t);
+    let fixture = read_json(&format!("InputReport/T{t}"), "_GQL-Variables.json")["data"].clone();
+    assert_eq!(
+        ours["employeeId"], fixture["employeeId"],
+        "T{t}: the scenario's operator"
+    );
+    let mut found = Vec::new();
+    diff(
+        "",
+        &business_view(&ours),
+        &business_view(&fixture),
+        &mut found,
+    );
+    let unexpected: Vec<_> = found
+        .iter()
+        .filter(|(p, _, _)| !allowed.iter().any(|(a, _)| a == p))
+        .collect();
+    assert!(unexpected.is_empty(), "T{t}: {unexpected:#?}");
+    let stale: Vec<_> = allowed
+        .iter()
+        .filter(|(a, _)| !found.iter().any(|(p, _, _)| p == a))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "T{t}: deviations no longer occur: {stale:?}"
+    );
+}
+
+#[tokio::test]
+async fn t1_table_1_order() {
+    assert_input_ticket(1, &[]).await;
+}
+
+#[tokio::test]
+async fn t2_table_1_paid_cash() {
+    assert_input_ticket(2, &[]).await;
+}
+
+#[tokio::test]
+async fn t3_the_t2_sale_refunded() {
+    assert_input_ticket(3, &[]).await;
+}
+
+#[tokio::test]
+async fn t4_takeaway_paid_by_card() {
+    assert_input_ticket(
+        4,
+        &[
+            (
+                "financials[0].type",
+                "the operator does not tell debit from credit cards: CARD_DEBIT",
+            ),
+            (
+                "transaction.transactionLines[0].vats[0].label",
+                "the manual's product table labels a Coca Cola to take away C, the scenario A",
+            ),
+        ],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn t5_table_10_first_round() {
+    assert_input_ticket(5, &[]).await;
+}
+
+#[tokio::test]
+async fn t6_table_10_second_round_with_a_free_price() {
+    assert_input_ticket(6, &[]).await;
+}
+
+#[tokio::test]
+async fn t7_table_10_pre_bill() {
+    assert_input_ticket(7, &[]).await;
+}
+
+#[tokio::test]
+async fn t8_table_10_paid_cash() {
+    assert_input_ticket(8, &[]).await;
 }
 
 #[tokio::test]

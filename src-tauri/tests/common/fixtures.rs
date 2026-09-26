@@ -66,9 +66,15 @@ pub fn reports_root() -> PathBuf {
         .join("20260821_UC_Reports_1.3")
 }
 
+pub fn advanced_set_root() -> PathBuf {
+    workspace_root()
+        .join("docs")
+        .join("20260821_UC_AdvancedSet_POS_FDM_1.6")
+}
+
 /// Discover all fixtures under a UC-set root directory.
 ///
-/// Walks the top-level folder for entries matching `M*` / `Q*`, then
+/// Walks the top-level folder for entries matching `M*` / `Q*` / `UC*`, then
 /// for each:
 /// - If the folder itself contains a `*_Response.json`, register one
 ///   fixture.
@@ -87,7 +93,7 @@ pub fn discover_fixtures(root: &Path) -> Vec<UcFixture> {
             continue;
         }
         let name = entry.file_name().to_string_lossy().into_owned();
-        if !(name.starts_with('M') || name.starts_with('Q')) {
+        if !(name.starts_with('M') || name.starts_with('Q') || name.starts_with("UC")) {
             continue;
         }
 
