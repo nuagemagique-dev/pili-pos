@@ -61,8 +61,22 @@ echo "✓ UI bundle embedded (no dev-server URL)"
 echo "── 3/5 Fiscal-archive mutation scan ─────────────────────"
 # The fiscal archive is append-only by law. No source file may
 # contain a DELETE or UPDATE statement targeting fiscal_events.
-if grep -rniE "(DELETE[[:space:]]+FROM|UPDATE)[[:space:]]+fiscal_events" \
-        crates src-tauri/src --include="*.rs" --include="*.sql"; then
+# `#[cfg(test)]` blocks are left out: their DELETE/UPDATE statements
+# are the tests proving the database refuses them.
+MUTATIONS="$(find crates src-tauri/src -name '*.rs' -o -name '*.sql' | sort | xargs awk '
+    FNR == 1 { armed = 0; skip = 0; depth = 0 }
+    /^[[:space:]]*#\[cfg\(test\)\]/ { armed = 1; next }
+    armed && !skip && /\{/ { skip = 1; depth = 0 }
+    skip {
+        depth += gsub(/\{/, "{") - gsub(/\}/, "}")
+        if (depth <= 0) { skip = 0; armed = 0 }
+        next
+    }
+    { armed = 0 }
+    tolower($0) ~ /(delete[[:space:]]+from|update)[[:space:]]+fiscal_events/ { print FILENAME ":" FNR ": " $0 }
+')"
+if [[ -n "$MUTATIONS" ]]; then
+    echo "$MUTATIONS"
     echo "✗ forbidden mutation of fiscal_events found in source"
     exit 1
 fi

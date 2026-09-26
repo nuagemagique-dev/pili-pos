@@ -40,7 +40,7 @@ Deux builds du même commit produisent donc le même SHA-1. La CI le vérifie à
 Le script `scripts/build_and_hash.sh` :
 1. Compile le build de certification.
 2. Vérifie l'absence de symboles d'intégrations tierces (vérification anti-régression).
-3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source.
+3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source, hors blocs de test (ceux-ci exécutent ces requêtes pour prouver que la base les refuse).
 4. Calcule SHA-1, SHA-256 et MD5 du binaire.
 5. Produit un rapport `build_info_YYYYMMDD-HHMMSS.txt`.
 

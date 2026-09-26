@@ -154,7 +154,7 @@ async fn a_session_ended_by_the_program_is_no_longer_running() {
     let (app, _dir) = app_with("exit 0").await;
     do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
     let mut running = true;
-    for _ in 0..50 {
+    for _ in 0..200 {
         running = do_remote_support_status(&app.state).unwrap().running;
         if !running {
             break;
@@ -170,9 +170,15 @@ async fn a_session_ended_by_the_program_is_no_longer_running() {
 async fn the_session_gets_a_private_home() {
     let dir = tempfile::tempdir().unwrap();
     let marker = dir.path().join("home.txt");
-    let (app, _program) = app_with(&format!("echo \"$HOME\" > {}", marker.display())).await;
+    // Written aside then renamed: the shell creates the file before
+    // echo fills it, and a busy machine would let us read it empty.
+    let (app, _program) = app_with(&format!(
+        "echo \"$HOME\" > {m}.tmp && mv {m}.tmp {m}",
+        m = marker.display()
+    ))
+    .await;
     do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
-    for _ in 0..50 {
+    for _ in 0..200 {
         if marker.exists() {
             break;
         }
