@@ -74,6 +74,9 @@ done
 # and checks them against the Debian archive keyring: an Ubuntu host
 # does not have it by default.
 DEBIAN_KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+# ukify (from the tools tree, see find_tool) runs under the host's
+# python3 and needs its pefile module.
+python3 -c 'import pefile' 2>/dev/null || MISSING=1
 if [[ "$MISSING" -eq 1 || ! -x "$MKOSI_VENV/bin/mkosi" || ! -f "$DEBIAN_KEYRING" ]]; then
     log "Installing host prerequisites (apt-get)…"
     apt-get update -qq
@@ -82,7 +85,7 @@ if [[ "$MISSING" -eq 1 || ! -x "$MKOSI_VENV/bin/mkosi" || ! -f "$DEBIAN_KEYRING"
         curl ca-certificates \
         binutils \
         xz-utils gdisk parted util-linux e2fsprogs \
-        debian-archive-keyring
+        debian-archive-keyring python3-pefile
 fi
 
 # Prefer mkosi's own tools tree (present after the first `mkosi build`
