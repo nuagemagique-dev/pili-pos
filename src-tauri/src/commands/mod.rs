@@ -36,20 +36,54 @@ pub(crate) fn operator_name(state: &AppState, insz: &str) -> String {
         .unwrap_or_else(|| insz.to_string())
 }
 
+/// The business day `now` belongs to: a service that runs past
+/// midnight stays on its day until `day_end_hour` (Belgian time).
+pub(crate) fn business_date(now: chrono::DateTime<chrono_tz::Tz>, day_end_hour: u32) -> String {
+    (now - chrono::Duration::hours(i64::from(day_end_hour)))
+        .date_naive()
+        .to_string()
+}
+
+/// Whether `period` belongs to a business day that is over: its Z was
+/// not made, and the POS makes it (producers FAQ Q501c).
+pub(crate) fn period_overdue(
+    period: &pos_db::queries::booking::BookingPeriod,
+    now: chrono::DateTime<chrono_tz::Tz>,
+    day_end_hour: u32,
+) -> bool {
+    period.booking_date < business_date(now, day_end_hour)
+}
+
 /// The open booking period (POS spec v2.2 §2.2.2), opened by the first
-/// event after a Z report. Its booking date is the date in Belgium when
-/// it opened, whatever the system time zone.
+/// event after a Z report. Its booking date is the business day in
+/// Belgium when it opened, whatever the system time zone.
 pub(crate) fn booking_period(
     db: &rusqlite::Connection,
+    config: &pos_core::config::PosConfig,
 ) -> Result<pos_db::queries::booking::BookingPeriod, String> {
-    let today = pos_fiscal::event::now_in_belgium().date_naive().to_string();
+    let today = business_date(pos_fiscal::event::now_in_belgium(), config.day_end_hour);
     pos_db::queries::booking::current_period(db, &uuid::Uuid::new_v4().to_string(), &today)
         .map_err(|e| e.to_string())
 }
 
-/// The open booking period, as carried by every fiscal event.
-pub(crate) fn booking(db: &rusqlite::Connection) -> Result<pos_fiscal::event::Booking, String> {
-    let period = booking_period(db)?;
+/// The open booking period, as carried by every fiscal event. No event
+/// goes into a business day that is over: its automatic Z comes first
+/// (`report::close_overdue_day`, run in the background). Training
+/// events take no Z, so they are let through.
+pub(crate) fn booking(
+    db: &rusqlite::Connection,
+    config: &pos_core::config::PosConfig,
+) -> Result<pos_fiscal::event::Booking, String> {
+    let period = booking_period(db, config)?;
+    if !config.training_mode
+        && period_overdue(
+            &period,
+            pos_fiscal::event::now_in_belgium(),
+            config.day_end_hour,
+        )
+    {
+        return Err(errors::PREVIOUS_DAY_OPEN.into());
+    }
     Ok(pos_fiscal::event::Booking {
         period_id: period.id,
         date: period.booking_date,
@@ -58,8 +92,9 @@ pub(crate) fn booking(db: &rusqlite::Connection) -> Result<pos_fiscal::event::Bo
 
 /// `booking`, for commands that don't hold the database lock.
 pub(crate) fn current_booking(state: &AppState) -> Result<pos_fiscal::event::Booking, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    booking(&db)
+    booking(&db, &config)
 }
 
 /// Ticket number the next event of `label` will use, without consuming

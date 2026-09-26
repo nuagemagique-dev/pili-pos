@@ -47,6 +47,8 @@ pub const LINE_NOT_FOUND: &str = "line_not_found";
 pub const ORDER_NO_LINES: &str = "order_no_lines";
 pub const ORDER_TOTAL_NEGATIVE: &str = "order_total_negative";
 pub const AMOUNT_NEGATIVE: &str = "amount_negative";
+/// The business day before is still open: its automatic Z comes first.
+pub const PREVIOUS_DAY_OPEN: &str = "previous_day_open";
 pub const ORDER_ALREADY_CLOSED: &str = "order_already_closed";
 
 // Tickets: copies and refunds.
@@ -120,6 +122,7 @@ pub const ALL: &[&str] = &[
     ORDER_NO_LINES,
     ORDER_TOTAL_NEGATIVE,
     AMOUNT_NEGATIVE,
+    PREVIOUS_DAY_OPEN,
     ORDER_ALREADY_CLOSED,
     EVENT_NOT_FOUND,
     ORIGINAL_INCOMPLETE,

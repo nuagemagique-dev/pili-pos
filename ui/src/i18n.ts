@@ -111,6 +111,7 @@ const coreMessages: Messages = {
   "err_order_no_lines": { fr: "La commande est vide.", en: "The order is empty.", zh: "订单为空。" },
   "err_order_total_negative": { fr: "Le total ne peut pas être négatif.", en: "The total cannot be negative.", zh: "总额不能为负数。" },
   "err_amount_negative": { fr: "Le montant ne peut pas être négatif.", en: "The amount cannot be negative.", zh: "金额不能为负数。" },
+  "err_previous_day_open": { fr: "La journée précédente n'est pas clôturée : son rapport Z automatique est en cours. Réessayez dans une minute.", en: "The previous day is not closed: its automatic Z report is under way. Try again in a minute.", zh: "前一天尚未结账：正在自动生成Z报表。请一分钟后重试。" },
   "err_order_already_closed": { fr: "Cette commande est déjà payée.", en: "This order is already paid.", zh: "该订单已付款。" },
   "err_event_not_found": { fr: "Ticket introuvable.", en: "Ticket not found.", zh: "未找到票据。" },
   "err_original_incomplete": {

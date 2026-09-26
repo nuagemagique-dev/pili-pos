@@ -113,6 +113,30 @@ fn main() {
                 }
             }
 
+            // Automatic Z of a business day left open (producers FAQ
+            // Q501c): at start-up, then every minute. A failure (FDM
+            // unreachable) is retried on the next tick; meanwhile new
+            // events wait (`commands::booking`).
+            {
+                use tauri::Manager;
+                let handle = _app.handle().clone();
+                let cancel = shutdown_for_setup.clone();
+                tauri::async_runtime::spawn(async move {
+                    let mut tick = tokio::time::interval(std::time::Duration::from_secs(60));
+                    loop {
+                        tokio::select! {
+                            _ = cancel.cancelled() => return,
+                            _ = tick.tick() => {
+                                let state = handle.state::<AppState>();
+                                if let Err(e) = commands::report::close_overdue_day(state.inner()).await {
+                                    tracing::warn!(%e, "automatic Z not made yet");
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
             // Digital ticket outbox: retries queued emails and clears
             // addresses after 72 h. Runs in every build; it does
             // nothing when no email client is configured.

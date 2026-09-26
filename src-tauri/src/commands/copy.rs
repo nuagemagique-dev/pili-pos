@@ -118,7 +118,7 @@ pub async fn do_copy_ticket_with(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db)?;
+        let bp = super::booking(&db, &config)?;
         (fdm_ref, config, bp)
     };
 

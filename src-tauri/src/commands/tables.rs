@@ -101,7 +101,7 @@ async fn sign_table_order_as(
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, true)
             .map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db)?;
+        let bp = super::booking(&db, &config)?;
         (order, entries, config, bp)
     };
 
@@ -159,7 +159,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db)?;
+        let bp = super::booking(&db, &config)?;
         (order, lines, config, bp)
     };
     order.user_insz = operator.insz;

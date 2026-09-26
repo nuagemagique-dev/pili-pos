@@ -816,6 +816,8 @@ mod tests {
         let mut d = digital(true);
         d.api_key_file = "/nonexistent/moyun-pos/tem.key".into();
         let config = PosConfig {
+            kitchen_printer_address: None,
+            day_end_hour: 5,
             digital_ticket: Some(d),
             ..PosConfig::default()
         };

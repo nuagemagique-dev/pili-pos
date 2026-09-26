@@ -138,7 +138,7 @@ pub async fn do_refund_checkout_with(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db)?;
+        let bp = super::booking(&db, &config)?;
         (fdm_ref, original_lines, config, bp)
     };
     // Training never touches real sales: a training refund would count

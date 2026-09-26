@@ -97,6 +97,8 @@ impl TestApp {
             training_mode: false,
             language: "fr".to_string(),
             backup_dir: None,
+            kitchen_printer_address: None,
+            day_end_hour: 5,
             digital_ticket: None,
         };
 

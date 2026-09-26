@@ -38,6 +38,16 @@ pub struct PosConfig {
     /// Printer address (TCP, e.g. 192.168.1.200:9100)
     #[serde(default)]
     pub printer_address: Option<String>,
+    /// Printer of the bar/kitchen order slips (TCP). Absent: the slips
+    /// print on `printer_address`.
+    #[serde(default)]
+    pub kitchen_printer_address: Option<String>,
+    /// Hour (Belgian time, 0 to 12) at which a business day ends: a
+    /// service running past midnight stays on its day until then. Once
+    /// it has passed, a day left without a Z report is closed by an
+    /// automatic Z (producers FAQ Q501c).
+    #[serde(default = "default_day_end_hour")]
+    pub day_end_hour: u32,
     /// Training mode flag
     #[serde(default)]
     pub training_mode: bool,
@@ -60,14 +70,19 @@ fn default_language() -> String {
     "fr".to_string()
 }
 
+fn default_day_end_hour() -> u32 {
+    5
+}
+
 impl PosConfig {
     /// Load the configuration from the JSON file documented in the
     /// installation manual (`/etc/moyun-pos/pos.json` in production).
     ///
     /// Identity fields (pos_id, restaurant_vat, fdm_url, …) are
     /// required - a fiscal terminal must not boot with a partial
-    /// identity. Only printer_address, training_mode, language and
-    /// backup_dir may be omitted.
+    /// identity. Only printer_address, kitchen_printer_address,
+    /// training_mode, language, day_end_hour, backup_dir and
+    /// digital_ticket may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
             path: path.display().to_string(),
@@ -139,6 +154,12 @@ impl PosConfig {
                 self.language
             ));
         }
+        if self.day_end_hour > 12 {
+            out.push(format!(
+                "day_end_hour: 0 to 12 expected, got {}",
+                self.day_end_hour
+            ));
+        }
         if let Some(d) = &self.digital_ticket {
             if d.project_id.trim().is_empty() {
                 out.push("digital_ticket.project_id: must not be empty".to_string());
@@ -194,8 +215,10 @@ impl Default for PosConfig {
             restaurant_est_no: String::new(),
             fdm_url: "http://localhost:8080/graphql".to_string(),
             printer_address: None,
+            kitchen_printer_address: None,
             training_mode: false,
             language: "fr".to_string(),
+            day_end_hour: default_day_end_hour(),
             backup_dir: None,
             digital_ticket: None,
         }

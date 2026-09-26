@@ -49,7 +49,7 @@ pub async fn do_generate_x_report(
     let (config, period, turnover_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let period = super::booking_period(&db)?;
+        let period = super::booking_period(&db, &config)?;
         let events = period_events(&db, &period.id)?;
         let data = turnover_data(&config, &events);
         let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
@@ -170,6 +170,49 @@ pub async fn do_generate_z_report(
     employee_insz: String,
 ) -> Result<ReportResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
+    generate_z_report_as(state, employee_insz).await
+}
+
+/// Close a business day left without its Z (producers FAQ Q501c): when
+/// the open booking period belongs to a day that is over (see
+/// `PosConfig::day_end_hour`), make its Z in the name of the system
+/// identity. `Ok(true)` when a Z was made. Run at start-up and every
+/// minute; new events wait for it (`commands::booking`). Nothing to do
+/// in training mode, whose Z closes no period.
+///
+/// A day without any event has no open period, so it gets no Z: only a
+/// day with recorded activity is closed.
+pub async fn close_overdue_day(state: &AppState) -> Result<bool, String> {
+    let overdue = {
+        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let open = pos_db::queries::booking::open_period(&db).map_err(|e| e.to_string())?;
+        !config.training_mode
+            && open.is_some_and(|period| {
+                super::period_overdue(
+                    &period,
+                    pos_fiscal::event::now_in_belgium(),
+                    config.day_end_hour,
+                )
+            })
+    };
+    if !overdue {
+        return Ok(false);
+    }
+    let result = generate_z_report_as(state, pos_core::user::SYSTEM_INSZ.to_string()).await?;
+    if result.success {
+        tracing::info!(report_no = ?result.report_no, "automatic Z of a day left open");
+        Ok(true)
+    } else {
+        Err(result.error.unwrap_or_else(|| "automatic Z failed".into()))
+    }
+}
+
+/// The Z in the name of `employee_insz`, who is allowed to make it.
+async fn generate_z_report_as(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<ReportResult, String> {
     let (
         config,
         period,
@@ -183,7 +226,7 @@ pub async fn do_generate_z_report(
     ) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let period = super::booking_period(&db)?;
+        let period = super::booking_period(&db, &config)?;
         let events = period_events(&db, &period.id)?;
         let data = turnover_data(&config, &events);
         let users = user_data(&config, &events);
@@ -361,7 +404,7 @@ pub async fn do_generate_user_x_report(
     let (config, period, user_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let period = super::booking_period(&db)?;
+        let period = super::booking_period(&db, &config)?;
         let events = period_events(&db, &period.id)?;
         let users = user_data(&config, &events);
         let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
@@ -767,6 +810,51 @@ mod tests {
 
     fn at(y: i32, m: u32, d: u32, h: u32, min: u32) -> chrono::DateTime<chrono_tz::Tz> {
         Brussels.with_ymd_and_hms(y, m, d, h, min, 0).unwrap()
+    }
+
+    #[test]
+    fn faq_q501_a_service_past_midnight_stays_on_its_day() {
+        // Day ends at 05:00: Friday's period is still Friday at 01:30.
+        let p = period("2026-07-03");
+        assert!(!crate::commands::period_overdue(
+            &p,
+            at(2026, 7, 4, 1, 30),
+            5
+        ));
+        assert!(!crate::commands::period_overdue(
+            &p,
+            at(2026, 7, 4, 4, 59),
+            5
+        ));
+        assert!(crate::commands::period_overdue(&p, at(2026, 7, 4, 5, 0), 5));
+    }
+
+    #[test]
+    fn faq_q501_the_day_end_hour_is_configurable() {
+        let p = period("2026-07-03");
+        assert!(crate::commands::period_overdue(&p, at(2026, 7, 4, 0, 0), 0));
+        assert!(!crate::commands::period_overdue(
+            &p,
+            at(2026, 7, 4, 11, 59),
+            12
+        ));
+        assert!(crate::commands::period_overdue(
+            &p,
+            at(2026, 7, 4, 12, 0),
+            12
+        ));
+    }
+
+    #[test]
+    fn faq_q501_a_new_period_takes_the_business_day() {
+        assert_eq!(
+            crate::commands::business_date(at(2026, 7, 4, 1, 30), 5),
+            "2026-07-03"
+        );
+        assert_eq!(
+            crate::commands::business_date(at(2026, 7, 4, 5, 0), 5),
+            "2026-07-04"
+        );
     }
 
     #[test]

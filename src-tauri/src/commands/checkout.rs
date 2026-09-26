@@ -96,7 +96,7 @@ pub async fn do_checkout_with(
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, false)
             .map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db)?;
+        let bp = super::booking(&db, &config)?;
         (order, lines, entries, config, bp)
     };
     let mut order = order;
