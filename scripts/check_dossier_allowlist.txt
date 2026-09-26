@@ -1,0 +1,18 @@
+# Allowlist for scripts/check_dossier.py's "placeholder" rule.
+#
+# Format: relative/path.md:substring
+#   - one entry per line, "#" starts a comment
+#   - a finding on that file is suppressed when its line contains the
+#     given substring verbatim
+#
+# Seed this file ONLY with placeholder markers that are legitimate example
+# content (e.g. a masked INSZ number, a field the SPF form fills in), never
+# with a real "to do" gap. A real gap should be fixed in the doc instead.
+
+# Belgian VAT number format example ("BE0" + 9 digits), shown with X's as
+# the placeholder digits in the installation manual's config table.
+docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md:BE0XXXXXXXXX
+
+# Masked INSZ number (11 digits) in the seed-data SQL example for the
+# manager account created during installation.
+docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md:XXXXXXXXXXX

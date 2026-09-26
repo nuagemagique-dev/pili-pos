@@ -178,3 +178,26 @@ jobs:
           name: integration-report
           path: ui/test-results/
           retention-days: 7
+
+  # ── Dossier: certification bundle consistency ──────────────────
+  # Cross-checks docs/SUBMISSION_ARTIFACTS against the code (Rust
+  # identifiers, repo paths, brand-neutral wording, no em dashes, no
+  # leftover placeholders). The dossier is being rewritten in parallel,
+  # so this job may be red for a while; that is expected, not a bug in
+  # the checker.
+  dossier:
+    name: Dossier consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run checker unit tests
+        run: python3 scripts/test_check_dossier.py -v
+
+      - name: Check dossier against the code
+        run: python3 scripts/check_dossier.py
