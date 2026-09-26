@@ -8,8 +8,8 @@ Checklist de haut niveau de ce qui est remis à SPF Finances à
 | Artefact | Emplacement | Statut |
 |---|---|---|
 | Formulaire de demande de certification signé | `docs/original_pdfs/20250307_.../20250115_FORMULAIRE...pdf` (rempli + signé) | À effectuer Phase 12 |
-| Image kiosk (clé USB) | Construite selon `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md` | À effectuer Phase 12 |
-| Binaire du simulateur FDM | `pos-fdm-mock` cross-compilé pour amd64 | OK Construit |
+| Image kiosk (clé USB) | `deploy/image/build.sh admission` (CI : `.github/workflows/image.yml`, artefact `kiosk-image-admission`) ; installation selon `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md` | Construite en CI |
+| Binaire du simulateur FDM | `pos-fdm-mock`, construit dans le même conteneur linux/amd64 que le binaire certifié | OK Construit |
 | ZIP du dossier | Contenu de `docs/SUBMISSION_ARTIFACTS/` | OK |
 | Rapport de tests fixtures | `RAPPORT_TESTS_BASELINE_FR.md` + `COUVERTURE_FIXTURES_FR.md` + `COUVERTURE_RAPPORTS_FR.md` + `COUVERTURE_ADVANCED_SET_FR.md` | OK |
 | Journal de répétition pré-soumission | `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` | À effectuer Phase 11 |

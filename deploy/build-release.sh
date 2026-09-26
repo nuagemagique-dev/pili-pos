@@ -19,23 +19,31 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="$PROJECT_ROOT/deploy/dist"
 LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 
-# Pinned by digest, not tag: `rust:1-bookworm` is a moving tag (rebuilt
-# whenever Debian ships security updates), which would make the
-# certification build non-reproducible byte-for-byte even with the same
-# rust-toolchain.toml. .github/workflows/image.yml's `repro` job relies
-# on this being deterministic (same image, run twice, same binary
-# SHA-1).
-# TODO(image-repro): this digest could not be resolved from this
-# environment (no outbound registry access at the time this was
-# written - see the final report). Before relying on the `repro` CI
-# job, resolve the current `rust:1-bookworm` digest (e.g.
-# `docker pull rust:1-bookworm && docker inspect --format='{{index .RepoDigests 0}}' rust:1-bookworm`
-# on a machine with registry access) and replace the tag below with
-# `rust@sha256:<digest>`.
-RUST_BUILD_IMAGE="rust:1-bookworm"
+# Build inputs of the reference (container) build, pinned so that a
+# rebuild from the same commit gives the same binary:
+# - the Rust image by digest, not tag (`rust:1.96.0-bookworm` is rebuilt
+#   whenever Debian ships security updates); its toolchain is the one
+#   rust-toolchain.toml pins. Digest of the linux/amd64 image, resolved
+#   from the Docker Hub registry API.
+# - Node from the nodejs.org tarball, checked against its SHA-256, not
+#   Debian's nodejs/npm packages (whose version moves with the archive).
+# The system libraries (webkit2gtk, gtk, openssl) come from Debian 12 at
+# build time; the binary links them dynamically.
+# .github/workflows/image.yml's `repro` job builds twice and compares
+# (scripts/check_repro.sh).
+RUST_BUILD_IMAGE="rust:1.96.0-bookworm@sha256:c993d32d95cc146bd12c84d66f0b924a6a96f3988325f39c144f2f9893dea120"
+NODE_VERSION="v22.23.3"
+NODE_TARBALL="node-${NODE_VERSION}-linux-x64.tar.xz"
+NODE_SHA256="df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de"
+
+# Paths that would otherwise be embedded in the binary (panic messages,
+# debug info) are rewritten to fixed names, so the result does not
+# depend on where the repository or cargo live on the build host.
+REMAP_FLAGS="--remap-path-prefix=/workspace=/moyun-pos --remap-path-prefix=/usr/local/cargo=/cargo-home"
 
 rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR"
+# Created by the host user, so the container never owns target/.
+mkdir -p "$OUTPUT_DIR" "$LINUX_TARGET_DIR"
 
 if [[ "${1:-}" == "--docker" ]]; then
     echo "══════════════════════════════════════════════════"
@@ -57,7 +65,9 @@ if [[ "${1:-}" == "--docker" ]]; then
         -v /workspace/ui/node_modules \
         -w /workspace \
         -e CARGO_TARGET_DIR=/workspace/target/linux-amd64 \
-        -e RUSTFLAGS="--remap-path-prefix=/workspace=/moyun-pos --remap-path-prefix=/usr/local/cargo=/cargo-home" \
+        -e RUSTFLAGS="$REMAP_FLAGS" \
+        -e HOST_UID="$(id -u)" \
+        -e HOST_GID="$(id -g)" \
         "$RUST_BUILD_IMAGE" \
         bash -c "
             set -euo pipefail
@@ -69,8 +79,12 @@ if [[ "${1:-}" == "--docker" ]]; then
                 librsvg2-dev \
                 libssl-dev \
                 pkg-config \
-                nodejs \
-                npm
+                xz-utils
+            curl -fsSL -o /tmp/$NODE_TARBALL https://nodejs.org/dist/$NODE_VERSION/$NODE_TARBALL
+            echo '$NODE_SHA256  /tmp/$NODE_TARBALL' | sha256sum -c -
+            mkdir -p /opt/node
+            tar -xJf /tmp/$NODE_TARBALL -C /opt/node --strip-components=1
+            export PATH=/opt/node/bin:\$PATH
             git config --global --add safe.directory /workspace
             scripts/build_and_hash.sh
             # pos-fdm-mock: the admission kiosk image's fallback FDM
@@ -79,6 +93,9 @@ if [[ "${1:-}" == "--docker" ]]; then
             # above, so it is a real linux/amd64 binary too - never
             # cross-compiled from the macOS host.
             cargo build --release --package pos-fdm-mock
+            # The container runs as root: hand the outputs back to the
+            # host user, who deletes them before the next clean build.
+            chown -R \$HOST_UID:\$HOST_GID target/linux-amd64 ui/dist build_info_*.txt
         "
     BINARY="$LINUX_TARGET_DIR/release/moyun-pos"
     POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
@@ -96,12 +113,19 @@ else
     echo "    build-essential curl pkg-config \\"
     echo "    libwebkit2gtk-4.1-dev libgtk-3-dev \\"
     echo "    libayatana-appindicator3-dev librsvg2-dev \\"
-    echo "    libssl-dev nodejs npm"
+    echo "    libssl-dev"
+    echo "  Node $NODE_VERSION (https://nodejs.org/dist/$NODE_VERSION/$NODE_TARBALL)"
     echo "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
     echo ""
+    echo "Not the reference build: the SHA-1 declared to SPF Finances is the"
+    echo "one of the --docker build (pinned image and Node)."
+    echo ""
 
-    CARGO_TARGET_DIR="$LINUX_TARGET_DIR" "$PROJECT_ROOT/scripts/build_and_hash.sh"
-    CARGO_TARGET_DIR="$LINUX_TARGET_DIR" cargo build --release --package pos-fdm-mock
+    # Same neutral names as the container build for this checkout and
+    # this host's cargo home.
+    NATIVE_REMAP="--remap-path-prefix=$PROJECT_ROOT=/moyun-pos --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo-home"
+    RUSTFLAGS="$NATIVE_REMAP" CARGO_TARGET_DIR="$LINUX_TARGET_DIR" "$PROJECT_ROOT/scripts/build_and_hash.sh"
+    RUSTFLAGS="$NATIVE_REMAP" CARGO_TARGET_DIR="$LINUX_TARGET_DIR" cargo build --release --package pos-fdm-mock
     BINARY="$LINUX_TARGET_DIR/release/moyun-pos"
     POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
 fi

@@ -1,7 +1,6 @@
 # Assemblage final - ce que l'opérateur fait au moment de soumettre
 
-Ce document est un runbook. Le travail de code est terminé ; les
-étapes restantes sont manuelles et ne peuvent pas être effectuées par
+Ce document est un runbook. Les étapes ci-dessous sont manuelles et ne peuvent pas être effectuées par
 l'outil de développement - elles requièrent le distributeur humain
 (Bruno Moyse) pour signer les documents, construire les artefacts et
 envoyer l'email.
@@ -57,9 +56,10 @@ Une install Debian 12 minimale avec :
 - `chrony` configuré pour NTP.
 - Pas de serveur SSH ; RustDesk portable présent, jamais lancé au boot.
 
-Approche recommandée : un script packer / debootstrap dans une PR de
-suivi. Pour la soumission, une install manuelle sur une image disque
-USB-bootable est suffisante.
+L'image est construite par `deploy/image/build.sh` (mkosi, profils
+`production` et `admission`) et vérifiée en CI
+(`.github/workflows/image.yml` : build reproductible, SHA-1 du binaire
+embarqué, démarrage sous QEMU).
 
 ## Étape 4 - Remplir le formulaire de demande de certification
 
@@ -113,8 +113,6 @@ pas été automatisés :
   électronique qualifiée).
 - Achat du kit de développement Checkbox (€380 HTVA, devis
   TAIGER/Eutronix en cours).
-- Construction de l'image OS (reportée à une PR de suivi avec un
-  script packer).
 - Achat d'un contrat Peppol Access Point (relation commerciale
   Storecove/Unifiedpost).
 - Envoi de l'email proprement dit.

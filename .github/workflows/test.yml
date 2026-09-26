@@ -5,6 +5,7 @@ on:
     branches: [main, feat/*]
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 env:
   CARGO_TERM_COLOR: always
@@ -132,11 +133,6 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Build Tauri app
-        run: cargo tauri build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ""  # skip signing in CI
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -144,20 +140,26 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
+      # The certification build, UI bundle embedded: the binary under
+      # test is the one declared to SPF Finances.
+      - name: Build the certification binary
+        run: scripts/build_and_hash.sh
+
       - name: Install Playwright
         working-directory: ui
         run: |
           npm ci
           npx playwright install --with-deps webkit
 
+      # The binary creates the schema, then loads the seed.
       - name: Seed test database
-        run: |
-          mkdir -p /tmp/moyun-pos
-          sqlite3 /tmp/moyun-pos/pos.db < e2e/fixtures/seed.sql
+        run: ./target/release/moyun-pos --init-db --seed ui/e2e/fixtures/seed.sql
+        env:
+          MOYUN_POS_DATA_DIR: /tmp/moyun-pos
 
       - name: Start POS binary
         run: |
-          export XDG_DATA_HOME=/tmp
+          export MOYUN_POS_DATA_DIR=/tmp/moyun-pos
           export WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
           xvfb-run -- ./target/release/moyun-pos &
           # Wait for healthcheck

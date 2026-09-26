@@ -27,7 +27,13 @@ La build cert est produite par une commande unique et figée, exécutée dans un
 #   cargo build --release --no-default-features --features cert
 ```
 
-Le conteneur fixe l'environnement de compilation : `rustup` y installe la toolchain épinglée par `rust-toolchain.toml`, les chemins de compilation (`/workspace`, registre Cargo) sont identiques d'une build à l'autre, et l'UI embarquée est construite depuis `package-lock.json`. Deux builds du même tag dans ce conteneur doivent donc produire le même SHA-1 ; cette propriété est vérifiée avant soumission par deux builds successives du tag cert, dont les rapports `build_info_*.txt` sont joints au dossier.
+Le conteneur fixe l'environnement de compilation :
+- l'image Rust est désignée par son empreinte (`rust:1.96.0-bookworm@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
+- Node.js vient de l'archive officielle nodejs.org, dont l'empreinte SHA-256 est vérifiée avant usage ;
+- les chemins de l'hôte (dépôt, registre Cargo) sont remplacés dans le binaire par des noms fixes (`--remap-path-prefix`) ;
+- l'UI embarquée est construite depuis `package-lock.json`.
+
+Deux builds du même commit produisent donc le même SHA-1. La CI le vérifie à chaque modification (`.github/workflows/image.yml`, tâche `repro`, script `scripts/check_repro.sh`) : deux builds complètes depuis un arbre nettoyé, comparaison des SHA-1. Les rapports `build_info_*.txt` des deux builds du tag cert sont joints au dossier (`evidence/build/`).
 
 ### 1.2 Empreinte SHA-1 du binaire
 
@@ -46,7 +52,7 @@ sha1sum /opt/moyun-pos/moyun-pos
 
 ### 1.3 Environnement kiosk scellé
 
-Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite avec `deploy/install.sh` ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB, sur place - jamais par `scp`, aucun serveur SSH n'étant installé (une session RustDesk donne accès à l'écran de la caisse, pas à un shell, cf. §2.2).
+Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite par `deploy/image/build.sh` (mkosi, qui installe le binaire certifié via `deploy/provision/provision.sh` et vérifie son SHA-1 dans l'image finie) ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB, sur place - jamais par `scp`, aucun serveur SSH n'étant installé (une session RustDesk donne accès à l'écran de la caisse, pas à un shell, cf. §2.2).
 
 L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 
@@ -54,7 +60,9 @@ L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale po
   de commande du noyau, drapeau GPT lecture seule sur la partition racine,
   `deploy/image/mkosi.repart/20-root.conf`).
 - Aucun serveur SSH installé (`openssh-server` exclu du paquet de base).
-- Aucun gestionnaire de paquets actif (apt désactivé via systemd-mask).
+- Aucune mise à jour automatique de paquets (`apt-daily.timer`,
+  `apt-daily-upgrade.timer` et `unattended-upgrades` masqués,
+  `deploy/provision/provision.sh`).
 - Seul `/var/lib/moyun-pos` est en lecture/écriture (pour la DB et les backups).
 - Cage Wayland compositor lance directement `moyun-pos` en plein écran ; pas de bureau, pas de terminal accessible.
 
@@ -183,7 +191,7 @@ Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré av
 
 | Engagement | Mécanisme | Vérifiabilité |
 |---|---|---|
-| Build cert reproductible | `Cargo.lock` + `rust-toolchain.toml` épinglés | `cargo build --release` identique sur 2 machines |
+| Build cert reproductible | `Cargo.lock`, `rust-toolchain.toml`, image de build par empreinte, Node.js par SHA-256 | `scripts/check_repro.sh` : deux builds, même SHA-1 (CI, tâche `repro`) |
 | Build = déploiement client | Binaire Tauri scellé + SHA-1 vérifiable | `sha1sum /opt/moyun-pos/moyun-pos` |
 | Pas de modification post-cert | Système de fichiers racine monté en lecture seule (option `ro` du noyau, drapeau GPT lecture seule) ; binaire identifié par son SHA-1 | `sha1sum` du binaire installé comparé au SHA-1 déclaré ; `moyun-pos --version` |
 | Nouvelle MAJ = nouveau cert | Procédure §II.E + Article 109 du manuel | Chaque tag `vX.Y.Z+1` ouvre une nouvelle demande SPF |

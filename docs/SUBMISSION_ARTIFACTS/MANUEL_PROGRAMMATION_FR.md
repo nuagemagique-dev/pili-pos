@@ -376,21 +376,26 @@ cargo test --workspace
 cargo clippy --workspace -- -D warnings
 cargo fmt --all --check
 
-# 2. Build de certification reproductible
-cargo build --release --no-default-features --features cert
+# 2. Build de certification de référence (conteneur épinglé), qui
+#    vérifie aussi l'absence de symboles d'intégrations tierces et
+#    produit le rapport build_info_*.txt (SHA-1, SHA-256, MD5)
+./deploy/build-release.sh --docker
 
-# 3. Vérifier l'absence de symboles d'intégrations tierces
-nm target/release/moyun-pos | grep -c pos_hubrise   # → doit être 0
+# 3. Reproductibilité : deux builds depuis un arbre nettoyé, même SHA-1
+#    (lancé aussi par la CI, .github/workflows/image.yml, tâche repro)
+scripts/check_repro.sh
 
-# 4. Calculer le hash SHA-1 du binaire
-sha1sum target/release/moyun-pos
+# 4. Le SHA-1 à déclarer
+grep '^SHA-1' deploy/dist/build_info_*.txt
 
 # 5. Tag git signé GPG
 git tag -s vX.Y.Z -m "moyun-pos vX.Y.Z - <résumé>"
 git push origin vX.Y.Z
 
-# 6. Construction de l'image kiosque
-# (procédure mkimage à documenter dans un script séparé)
+# 6. Construction de l'image kiosque (mkosi), profils production et
+#    admission ; le SHA-1 du binaire embarqué est vérifié dans l'image
+sudo deploy/image/build.sh production
+sudo deploy/image/build.sh admission
 
 # 7. Déclaration au SPF Finances si modifications fonctionnelles
 # Voir Manuel_Intro_FR §C - procédure post-cert (délai 15 jours)

@@ -4,9 +4,9 @@ name: Kiosk image
 # smoke-boots it under QEMU+KVM.
 #
 # Three jobs, chained:
-#   repro       - builds deploy/build-release.sh --docker TWICE and
-#                 checks the embedded moyun-pos binary is byte-for-byte
-#                 the same both times (the SHA-1 declared to SPF
+#   repro       - builds deploy/build-release.sh --docker TWICE
+#                 (scripts/check_repro.sh) and checks the moyun-pos
+#                 binary is byte-for-byte the same both times (the SHA-1 declared to SPF
 #                 Finances must not depend on incidental build-host
 #                 state).
 #   image       - needs: repro. Installs the pinned mkosi
@@ -61,60 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build #1
-        run: ./deploy/build-release.sh --docker
-
-      - name: Save build #1 output
-        run: |
-          mkdir -p /tmp/repro/run1
-          cp deploy/dist/moyun-pos /tmp/repro/run1/moyun-pos
-          cp deploy/dist/build_info_*.txt /tmp/repro/run1/
-
-      - name: Wipe release output between runs
-        # A clean rebuild, not an incrementally-cached one: the point
-        # of this job is to prove the two builds are independently
-        # reproducible, not that cargo's incremental cache returned
-        # its own previous output unchanged.
-        run: |
-          rm -rf deploy/dist
-          rm -rf "$GITHUB_WORKSPACE/target/linux-amd64"
-          rm -f "$GITHUB_WORKSPACE"/build_info_*.txt
-
-      - name: Build #2 (same CARGO_TARGET_DIR, clean tree)
-        run: ./deploy/build-release.sh --docker
-
-      - name: Save build #2 output
-        run: |
-          mkdir -p /tmp/repro/run2
-          cp deploy/dist/moyun-pos /tmp/repro/run2/moyun-pos
-          cp deploy/dist/build_info_*.txt /tmp/repro/run2/
-
-      - name: Compare SHA-1 (from the build_info reports)
+      - name: Build twice from a clean tree and compare
         id: compare
         run: |
           set -euo pipefail
-          SHA1_1="$(grep '^SHA-1' /tmp/repro/run1/build_info_*.txt | awk '{print $3}')"
-          SHA1_2="$(grep '^SHA-1' /tmp/repro/run2/build_info_*.txt | awk '{print $3}')"
-          echo "Run 1 SHA-1: $SHA1_1"
-          echo "Run 2 SHA-1: $SHA1_2"
-          if [[ -z "$SHA1_1" || -z "$SHA1_2" ]]; then
-            echo "::error::could not read a SHA-1 out of one of the build_info reports"
-            exit 1
-          fi
-          if [[ "$SHA1_1" != "$SHA1_2" ]]; then
-            echo "::error::build is not reproducible: $SHA1_1 != $SHA1_2"
-            exit 1
-          fi
-          # Belt-and-braces: also hash the binaries directly, not just
-          # trust the reports' own claim.
-          BIN_SHA1_1="$(sha1sum /tmp/repro/run1/moyun-pos | awk '{print $1}')"
-          BIN_SHA1_2="$(sha1sum /tmp/repro/run2/moyun-pos | awk '{print $1}')"
-          if [[ "$BIN_SHA1_1" != "$SHA1_1" || "$BIN_SHA1_2" != "$SHA1_2" || "$BIN_SHA1_1" != "$BIN_SHA1_2" ]]; then
-            echo "::error::binary SHA-1 does not match the build_info report, or the two binaries differ"
-            exit 1
-          fi
-          echo "✓ Reproducible: $SHA1_1"
-          echo "sha1=$SHA1_1" >> "$GITHUB_OUTPUT"
+          scripts/check_repro.sh /tmp/repro
+          echo "sha1=$(cat /tmp/repro/sha1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy/dist (build #2 - feeds the `image` job)
         uses: actions/upload-artifact@v4
@@ -128,7 +80,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: repro-build-info
-          path: /tmp/repro/**/build_info_*.txt
+          path: |
+            /tmp/repro/**/build_info_*.txt
+            /tmp/repro/sha1
           retention-days: 14
           if-no-files-found: ignore
 

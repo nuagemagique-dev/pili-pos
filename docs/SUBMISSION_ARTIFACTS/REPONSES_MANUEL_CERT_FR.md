@@ -143,7 +143,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | Item | Réponse |
 |---|---|
 | ☑ Audit trail possible (timestamps, utilisateurs, Primary Key, ...) | Chaque ligne `fiscal_events` porte `created_at` (timestamp UTC), `user_insz` (identité opérateur), `id` (PK auto-incrément monotone), `sequence_number` (compteur fiscal séquentiel), `pos_id` et `terminal_id`. Toute autre table porte `created_at`. *Voir : SCHEMA_BD_FR.md*. |
-| Mesures contre la manipulation frauduleuse | *Voir : SECURITE_BD_FR.md* §1 "Append-only enforcement" + `DECLARATION_FONCTIONS_INTERDITES_FR.md`. Résumé : pas de DELETE/UPDATE applicatif sur `fiscal_events` (vérifié par grep), durcissement systemd (NoNewPrivileges, ProtectSystem=strict, ReadWritePaths uniquement sur `/var/lib/moyun-pos`), checksum SHA-1 du binaire vérifiable, build reproductible (Cargo.lock + rust-toolchain.toml épinglés), pas de port d'administration distante côté POS, FDM = seul canal sortant. |
+| Mesures contre la manipulation frauduleuse | *Voir : SECURITE_BD_FR.md* §1 "Append-only enforcement" + `DECLARATION_FONCTIONS_INTERDITES_FR.md`. Résumé : pas de DELETE/UPDATE applicatif sur `fiscal_events` (vérifié par grep), durcissement systemd (NoNewPrivileges, ProtectSystem=strict, ReadWritePaths uniquement sur `/var/lib/moyun-pos`), checksum SHA-1 du binaire vérifiable, build reproductible (Cargo.lock, rust-toolchain.toml, image de build et Node.js épinglés par empreinte, vérifiée par deux builds en CI), pas de port d'administration distante côté POS, FDM = seul canal sortant. |
 
 ## §II.D Garantie du produit
 
@@ -155,7 +155,7 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
    ```
    deploy/build-release.sh --docker
    ```
-   (construit dans un conteneur Debian 12 linux/amd64, cf. `deploy/build-release.sh` ; équivalent natif : `cargo build --release --no-default-features --features cert` sur une machine Debian 12 x86_64.)
+   (construit dans un conteneur Debian 12 linux/amd64 désigné par son empreinte, Node.js vérifié par SHA-256, chemins de l'hôte neutralisés, cf. `deploy/build-release.sh`. La CI refait la build deux fois depuis un arbre nettoyé et compare les SHA-1 : `scripts/check_repro.sh`. Seule la build en conteneur est la référence ; la build native sur une machine Debian 12 x86_64 sert au développement.)
 2. **Empreinte SHA-1 du binaire.** Le script `scripts/build_and_hash.sh` produit le SHA-1 du binaire à chaque build et le consigne. Le SHA-1 déclaré au formulaire §I.D est vérifiable sur toute installation cliente via :
    ```
    sha1sum /opt/moyun-pos/moyun-pos
