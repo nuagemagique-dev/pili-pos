@@ -60,6 +60,34 @@ Every webshop order must end in an N event in the register. The certified build 
 - `REPONSES_MANUEL_CERT_FR.md:217` "Webshop existe mais hors périmètre fiscal" must become "the certified product has no webshop integration".
 - A restaurant running the certified build must still register its webshop sales. Decision for you (section 6).
 
+### 2.5 Split payment and unpaid table (asked 2026-09-26: plan them)
+
+Today a sale takes one payment method (cash or card), and an open table whose customer leaves without paying stays open for ever (its P events are in the FDM, no N event ever closes it).
+
+17. **Split payment.** A sale paid with several methods, for example part card and the rest cash.
+    - Checkout keeps a list of payments. Each entry is a method and an amount; the screen shows what is left to pay, and the sale is signed once the rest is zero.
+    - `financials` gets one PAYMENT line per entry, with its own id per method (the reports already total per id).
+    - The ROUNDING line applies to the cash part only, computed on what is left when cash pays the rest (manual rounding test 3, situation 5). Change given back follows FAQ Q402.
+    - Ticket and report print every payment line. The cash drawer opens when any part is cash.
+    - Refund of a split sale: the refund is paid back cash or card as today; say so in the user manual.
+    - Tests:
+      - request equality with `UC4119_SplitPayment` (today declared out of scope);
+      - the rounding case of situation 5 without meal vouchers;
+      - the report payment totals;
+      - Playwright for the payment screen (partial amounts, remainder, cancel).
+    - Dossier: remove the "no split payment" statement (section 4).
+18. **Meal vouchers (decision for you).** `ROUND4` and `ROUND5` need meal vouchers, which are never rounded. Adding a "chèques-repas" method on top of item 17 is small: a new `PaymentType`, no rounding, its own report row. Without it, both stay "non applicable" in the matrix.
+19. **Unpaid table (UC4109).** A manager action "Client parti sans payer" on an open table.
+    - The operator confirms with their PIN. It signs a `signSale` N event with the order's untransmitted lines and an empty `financials`, as in `UC4109_2_Sale`, closes the order, and prints the VAT ticket for the records.
+    - The turnover counts the sale; the payments do not.
+    - Tests:
+      - request equality with `UC4109_1` and `UC4109_2` (a single product instead of the composite menu, a declared deviation);
+      - report totals;
+      - refused for a cashier or in training mode as the rules require;
+      - Playwright for the confirmation.
+    - Dossier: the user manual and the III answers on open tables.
+20. **FDM codes `UPDATE_POS_VATNO` and `UPDATE_POS_ESTNO`.** POS spec v2.2 marks them mandatory display, but they are not in the manual's §V table. Today they show the generic "Erreur boîte noire" text. Give each its own message in `fdmMessages.ts`, with a Playwright case.
+
 ## 3. Questions for the SPF (secr.gksce@minfin.fed.be)
 
 Send early: the answers take time and several decide code.
@@ -72,6 +100,9 @@ Send early: the answers take time and several decide code.
 6. Q205: must the POS block logout or shift closing while a non-empty table order is unsigned, or is operator discipline enough?
 7. Q206: our submitted III.D answer said a zero registration is impossible. Is a corrected dossier and binary enough?
 8. QR code: the spec names 25x25, the 38-character mixed-case URL needs version 3 (29x29). Confirm version 3.
+9. Reports scenario T4: the takeaway Coca Cola carries VAT label A, while the manual's product table (§III) gives C to take away. We follow the manual. Which one is right?
+10. Refund ticket lines: we print "-1 Cola -3,04"; the example refund shows "1 Cola -3,04". Is the positive quantity required?
+11. Bar ticket: the example shows "Nombre de convives". We do not record the number of guests. Is it mandatory?
 
 ## 4. Dossier and procedure work (docs only, after the binary is final)
 
@@ -111,6 +142,7 @@ Effort: step 0 half a day, step 1 one day, step 2 three to five days, step 3 two
 3. Client test sites: use as many as allowed (up to 5).
 4. Automatic Z (item 9): build now, as proposed.
 5. Bar/kitchen ticket: build it (section 2.3).
+6. Split payment and unpaid table: plan them (section 2.5), built as phase B10 and B11. Meal vouchers (item 18) still to decide.
 
 ## 7. Order of work
 
@@ -119,7 +151,7 @@ The SHA-1 of record must come after the last binary change, so:
 | Phase | Content | Changes the binary |
 |---|---|---|
 | A | Commit the docs import; send the SPF questions; test step 0 and step 1 (matrix) | No |
-| B | Section 2 fixes, each with its tests from section 5 step 2, one commit each, in this order: B1 zero-total sale (7), B2 rounding line (8), B3 cash count declaration M133 (10), B4 automatic Z (9), B5 bar ticket (12-16), B6 copy and refund tickets (1), B7 pre-bill and layout details (3, 4), B8 Z report printout (2), B9 golden tests of the six official example tickets | Yes |
+| B | Section 2 fixes, each with its tests from section 5 step 2, one commit each, in this order: B1 zero-total sale (7), B2 rounding line (8), B3 cash count declaration M133 (10), B4 automatic Z (9), B5 bar ticket (12-16), B6 copy and refund tickets (1), B7 pre-bill and layout details (3, 4), B8 Z report printout (2), B9 golden tests of the six official example tickets, B10 split payment (17, 18 if decided), B11 unpaid table (19) and the two FDM codes (20) | Yes |
 | C | Section 5 step 3 (real-binary day); local gate | No |
 | D | Local reproducible build twice, local image and QEMU boot, record the SHA-1 | Output only |
 | E | Section 4 dossier work, `Report_Testing`, PDFs, `check_dossier.py --final`, `make_submission_zip.sh` | No |
