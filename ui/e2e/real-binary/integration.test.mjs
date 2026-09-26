@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 
 const DRIVER = process.env.TAURI_DRIVER_URL;
 const BINARY = process.env.MOYUN_POS_BINARY;
-const ELEMENT = "element-6066-11e4-a23f-da3e2b66b0f7";
+const ELEMENT = "element-6066-11e4-a52e-4f735466cecf";
 const skip = !DRIVER || !BINARY ? "needs TAURI_DRIVER_URL and MOYUN_POS_BINARY (CI only)" : false;
 
 let session;
@@ -36,9 +36,9 @@ async function wd(method, path, body) {
 }
 
 const cmd = (method, path, body) => wd(method, `/session/${session}${path}`, body);
-// W3C names the element reference ELEMENT; older drivers use "ELEMENT".
+// The W3C web element identifier (WebDriver spec, §12.1).
 function elementId(ref) {
-  const id = ref?.[ELEMENT] ?? ref?.ELEMENT;
+  const id = ref?.[ELEMENT];
   if (!id) throw new Error(`unexpected element reference: ${JSON.stringify(ref)}`);
   return id;
 }
