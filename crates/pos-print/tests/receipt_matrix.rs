@@ -138,6 +138,8 @@ fn ticket(kind: Kind, lang: ReceiptLanguage) -> FiscalTicket {
         ticket_type_label: ticket_type_label(label, kind == Kind::Refund, lang).to_string(),
         is_refund: kind == Kind::Refund,
         lang,
+        original: None,
+        copy_made_at: None,
     }
 }
 

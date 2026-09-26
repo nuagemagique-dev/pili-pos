@@ -1,7 +1,22 @@
+use pos_fiscal::response::FdmReference;
 use pos_fiscal::ticket::FiscalTicket;
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle, wrap};
 use crate::labels::{labels, payment_label};
+
+/// The FDM control data of one event (POS description v2.2 §6.6).
+fn control_data(p: &mut EscPosBuilder, fdm_ref: &FdmReference, short_signature: Option<&str>) {
+    p.textln(&format!("FDM: {}", fdm_ref.fdm_id));
+    p.textln(&fdm_ref.fdm_date_time);
+    let label = format!("{:?}", fdm_ref.event_label);
+    p.textln(&format!(
+        "{label} {}/{}",
+        fdm_ref.event_counter, fdm_ref.total_counter
+    ));
+    if let Some(sig) = short_signature {
+        p.textln(&format!("Sig: {sig}"));
+    }
+}
 
 /// Format a FiscalTicket into ESC/POS binary commands.
 /// Follows SCE 2.0 printing requirements:
@@ -34,6 +49,9 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         ..Default::default()
     });
     p.textln(&ticket.ticket_type_label);
+    if ticket.is_copy() {
+        p.textln(l.copy);
+    }
     p.style_reset();
     p.blank_line();
 
@@ -139,16 +157,7 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
             font_b: true,
             ..Default::default()
         });
-        p.textln(&format!("FDM: {}", fdm_ref.fdm_id));
-        p.textln(&fdm_ref.fdm_date_time);
-        let label = format!("{:?}", fdm_ref.event_label);
-        p.textln(&format!(
-            "{label} {}/{}",
-            fdm_ref.event_counter, fdm_ref.total_counter
-        ));
-        if let Some(ref sig) = ticket.short_signature {
-            p.textln(&format!("Sig: {sig}"));
-        }
+        control_data(&mut p, fdm_ref, ticket.short_signature.as_deref());
         p.style_reset();
     }
 
@@ -159,6 +168,28 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         // Use printer's built-in QR command - module size 6 for clear scan
         p.qr_code(url, 6);
         p.blank_line();
+    }
+
+    // ── Control data of the original event ─────────────────────
+    // The sale a refund reverses, the event a copy reproduces (SPF
+    // example copy and refund tickets of 2026-09-24).
+    if let Some(ref original) = ticket.original {
+        p.align(Alignment::Center);
+        p.style(TextStyle {
+            font_b: true,
+            ..Default::default()
+        });
+        p.textln(l.original_fdm);
+        control_data(
+            &mut p,
+            &original.fdm_ref,
+            original.short_signature.as_deref(),
+        );
+        p.style_reset();
+    }
+    if let Some(ref made_at) = ticket.copy_made_at {
+        p.align(Alignment::Center);
+        p.textln(&format!("{} {}", l.copy_made_at, format_datetime(made_at)));
     }
 
     // ── Footer (from FDM / SPF Finances) ───────────────────────
@@ -310,6 +341,68 @@ mod tests {
             ticket_type_label: "TICKET DE CAISSE TVA".to_string(),
             is_refund: false,
             lang: ReceiptLanguage::default(),
+            original: None,
+            copy_made_at: None,
+        }
+    }
+
+    fn copy_of_sample(lang: ReceiptLanguage) -> String {
+        use pos_fiscal::response::FdmReference;
+        use pos_fiscal::ticket::OriginalControlData;
+        let mut t = sample_ticket();
+        t.lang = lang;
+        t.fdm_ref = Some(FdmReference {
+            fdm_id: "CBX01000042".into(),
+            fdm_date_time: "2026-04-09T19:45:00".into(),
+            event_label: EventLabel::C,
+            event_counter: 3,
+            total_counter: 60,
+        });
+        t.original = Some(OriginalControlData {
+            fdm_ref: FdmReference {
+                fdm_id: "CBX01000042".into(),
+                fdm_date_time: "2026-04-09T19:30:01".into(),
+                event_label: EventLabel::N,
+                event_counter: 41,
+                total_counter: 57,
+            },
+            short_signature: Some("a3f9c2b1e8d4750616fb92c3a4e5d6f701234567".into()),
+        });
+        t.copy_made_at = Some("2026-04-09T19:45:00+02:00".into());
+        crate::render::render_plain_text(&format_receipt(&t))
+    }
+
+    #[test]
+    fn vi_copy_the_copy_mark_and_the_original_block_follow_the_language() {
+        for (lang, copy, made, original) in [
+            (
+                ReceiptLanguage::Fr,
+                "COPIE",
+                "Copie etablie le 2026-04-09 19:45",
+                "Informations FDM d'origine :",
+            ),
+            (
+                ReceiptLanguage::Nl,
+                "KOPIE",
+                "Kopie gemaakt op 2026-04-09 19:45",
+                "Oorspronkelijke FDM-gegevens :",
+            ),
+            (
+                ReceiptLanguage::De,
+                "KOPIE",
+                "Kopie erstellt am 2026-04-09 19:45",
+                "Urspruengliche FDM-Daten :",
+            ),
+        ] {
+            let text = copy_of_sample(lang);
+            for expected in [copy, made, original, "N 41/57", "C 3/60"] {
+                assert!(
+                    text.contains(expected),
+                    "{lang:?}: {expected:?} missing from:\n{text}"
+                );
+            }
+            // The original's block comes after the copy's own.
+            assert!(text.find("C 3/60") < text.find("N 41/57"), "{text}");
         }
     }
 

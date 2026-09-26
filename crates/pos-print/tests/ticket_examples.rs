@@ -101,6 +101,8 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         ticket_type_label: ticket_type_label(label, false, ReceiptLanguage::Fr).to_string(),
         is_refund: false,
         lang: ReceiptLanguage::Fr,
+        original: None,
+        copy_made_at: None,
     }
 }
 

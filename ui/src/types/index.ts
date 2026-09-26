@@ -105,6 +105,11 @@ export interface FiscalTicket {
   is_refund: boolean;
   /** Language of the printed fiscal mentions (FR/NL/DE). */
   lang: 'fr' | 'nl' | 'de';
+  /** Control data of the sale a refund reverses, or of the event a
+   * copy reproduces ("Informations FDM d'origine"). */
+  original?: { fdm_ref: FdmReference; short_signature: string | null } | null;
+  /** Copies only: when the copy was made. */
+  copy_made_at?: string | null;
 }
 
 export interface TicketLine {

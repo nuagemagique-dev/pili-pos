@@ -30,6 +30,9 @@ pub(crate) struct Labels {
     pub(crate) total: &'static str,
     pub(crate) vat_header: &'static str,
     pub(crate) refund: &'static str,
+    pub(crate) copy: &'static str,
+    pub(crate) copy_made_at: &'static str,
+    pub(crate) original_fdm: &'static str,
 }
 
 pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
@@ -49,6 +52,9 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             total: "TOTAL",
             vat_header: "TVA    Taux    Base HT    TVA",
             refund: "REMBOURSEMENT",
+            copy: "COPIE",
+            copy_made_at: "Copie etablie le",
+            original_fdm: "Informations FDM d'origine :",
         },
         ReceiptLanguage::Nl => &Labels {
             vat_no: "BTW",
@@ -65,6 +71,9 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             total: "TOTAAL",
             vat_header: "BTW    Tarief  Basis      BTW",
             refund: "TERUGBETALING",
+            copy: "KOPIE",
+            copy_made_at: "Kopie gemaakt op",
+            original_fdm: "Oorspronkelijke FDM-gegevens :",
         },
         ReceiptLanguage::De => &Labels {
             vat_no: "MwSt",
@@ -81,6 +90,9 @@ pub(crate) fn labels(lang: ReceiptLanguage) -> &'static Labels {
             total: "GESAMT",
             vat_header: "MwSt   Satz    Netto      MwSt",
             refund: "RUECKERSTATTUNG",
+            copy: "KOPIE",
+            copy_made_at: "Kopie erstellt am",
+            original_fdm: "Urspruengliche FDM-Daten :",
         },
     }
 }

@@ -15,6 +15,10 @@ pub struct FiscalEventRef {
     pub short_signature: Option<String>,
     pub qr_data: Option<String>,
     pub fdm_response_json: Option<String>,
+    /// Operator who registered the event.
+    pub user_insz: String,
+    /// The signed request, as sent to the FDM.
+    pub event_data_json: String,
 }
 
 /// Get a fiscal event by ID.
@@ -25,7 +29,8 @@ pub fn get_fiscal_event(
     let mut stmt = conn.prepare(
         "SELECT id, event_type, sequence_number, order_id,
                 fdm_id, fdm_datetime, event_label,
-                short_signature, qr_data, fdm_response_json
+                short_signature, qr_data, fdm_response_json,
+                user_insz, event_data_json
          FROM fiscal_events WHERE id = ?1",
     )?;
 
@@ -43,6 +48,8 @@ pub fn get_fiscal_event(
             short_signature: row.get(7)?,
             qr_data: row.get(8)?,
             fdm_response_json: row.get(9)?,
+            user_insz: row.get(10)?,
+            event_data_json: row.get(11)?,
         })
     })?;
 
@@ -73,7 +80,8 @@ pub fn list_recent_events(
     let mut stmt = conn.prepare(
         "SELECT id, event_type, sequence_number, order_id,
                 fdm_id, fdm_datetime, event_label,
-                short_signature, qr_data, fdm_response_json
+                short_signature, qr_data, fdm_response_json,
+                user_insz, event_data_json
          FROM fiscal_events
          ORDER BY id DESC LIMIT ?1",
     )?;
@@ -92,6 +100,8 @@ pub fn list_recent_events(
             short_signature: row.get(7)?,
             qr_data: row.get(8)?,
             fdm_response_json: row.get(9)?,
+            user_insz: row.get(10)?,
+            event_data_json: row.get(11)?,
         })
     })?;
 

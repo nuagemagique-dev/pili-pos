@@ -3,8 +3,10 @@ use tauri::State;
 
 use pos_fiscal::event::build_copy_input;
 use pos_fiscal::fdm_client::FdmClient;
-use pos_fiscal::response::FdmReference;
-use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
+use pos_fiscal::response::{FdmReference, SignResult};
+use pos_fiscal::ticket::{
+    FiscalTicket, ReceiptLanguage, TicketLine, TicketParams, TicketPayment, printed_payments,
+};
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
@@ -74,17 +76,21 @@ pub async fn do_copy_ticket_with(
         return Ok(CopyResult::failed(e));
     }
     // 1. Load the original event
-    let (original_ref, config, bp_id) = {
+    let (original_ref, original_event, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?;
 
-        let fdm_id = event.fdm_id.ok_or_else(|| incomplete("fdmId"))?;
+        let fdm_id = event.fdm_id.clone().ok_or_else(|| incomplete("fdmId"))?;
         let fdm_datetime = event
             .fdm_datetime
+            .clone()
             .ok_or_else(|| incomplete("fdmDateTime"))?;
-        let event_label_str = event.event_label.ok_or_else(|| incomplete("eventLabel"))?;
+        let event_label_str = event
+            .event_label
+            .clone()
+            .ok_or_else(|| incomplete("eventLabel"))?;
         let event_counter = event
             .event_counter
             .ok_or_else(|| incomplete("eventCounter"))?;
@@ -119,7 +125,7 @@ pub async fn do_copy_ticket_with(
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = super::booking(&db, &config)?;
-        (fdm_ref, config, bp)
+        (fdm_ref, event, config, bp)
     };
 
     // Ticket medium: refused choices stop here, before any signing.
@@ -132,15 +138,11 @@ pub async fn do_copy_ticket_with(
     // order (reports, cash movements) have no ticket body to show.
     let original_order = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
-            .ok()
-            .flatten()
-            .and_then(|e| e.order_id)
-            .and_then(|oid| {
-                let order = pos_db::queries::orders::get_order(&db, oid).ok()?;
-                let lines = pos_db::queries::orders::get_order_lines(&db, oid).ok()?;
-                Some((order, lines))
-            })
+        original_event.order_id.and_then(|oid| {
+            let order = pos_db::queries::orders::get_order(&db, oid).ok()?;
+            let lines = pos_db::queries::orders::get_order_lines(&db, oid).ok()?;
+            Some((order, lines))
+        })
     };
     let operator = super::operator_name(state, &employee_insz);
 
@@ -169,6 +171,15 @@ pub async fn do_copy_ticket_with(
         Err(e) => return Ok(CopyResult::failed(format!("FDM error: {e}"))),
     };
 
+    // The copy reproduces the original ticket, rebuilt from its
+    // archive (the FDM's response and the signed request), and adds
+    // the copy's own control data (POS description v2.2 §1.8).
+    let lang = ReceiptLanguage::from_code(&config.language);
+    let original_result: Option<SignResult> = original_event
+        .fdm_response_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str(json).ok());
+    let original_operator = super::operator_name(state, &original_event.user_insz);
     let ticket = original_order.map(|(order, lines)| {
         let ticket_lines: Vec<TicketLine> = lines
             .iter()
@@ -180,23 +191,49 @@ pub async fn do_copy_ticket_with(
                 vat_code: l.vat_code.as_str().to_string(),
             })
             .collect();
-        FiscalTicket::from_sign_result(TicketParams {
-            result: &result,
-            restaurant_name: &config.restaurant_name,
-            restaurant_address: &config.restaurant_address,
-            restaurant_vat: &config.restaurant_vat,
-            restaurant_est_no: &config.restaurant_est_no,
-            lines: ticket_lines,
-            payments: vec![TicketPayment {
-                method: "-".to_string(),
-                amount: order.total_cents as f64 / 100.0,
-            }],
-            total: order.total_cents as f64 / 100.0,
-            is_training: config.training_mode,
-            rounding: None, // copies don't re-round
-            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-            operator: &operator,
-        })
+        let total = order.total_cents as f64 / 100.0;
+        match original_result.as_ref() {
+            Some(original) => {
+                let request = serde_json::from_str(&original_event.event_data_json)
+                    .unwrap_or(serde_json::Value::Null);
+                let (payments, rounding) = printed_payments(&request);
+                FiscalTicket::from_sign_result(TicketParams {
+                    result: original,
+                    restaurant_name: &config.restaurant_name,
+                    restaurant_address: &config.restaurant_address,
+                    restaurant_vat: &config.restaurant_vat,
+                    restaurant_est_no: &config.restaurant_est_no,
+                    lines: ticket_lines,
+                    payments,
+                    total,
+                    is_training: original.fdm_ref.event_label == EventLabel::T,
+                    rounding,
+                    lang,
+                    operator: &original_operator,
+                })
+                .into_copy(&result)
+            }
+            // No readable archive of the original (never expected: the
+            // FDM response is archived with every signed event): the
+            // copy's own data, as a last resort.
+            None => FiscalTicket::from_sign_result(TicketParams {
+                result: &result,
+                restaurant_name: &config.restaurant_name,
+                restaurant_address: &config.restaurant_address,
+                restaurant_vat: &config.restaurant_vat,
+                restaurant_est_no: &config.restaurant_est_no,
+                lines: ticket_lines,
+                payments: vec![TicketPayment {
+                    method: "-".to_string(),
+                    amount: total,
+                }],
+                total,
+                is_training: config.training_mode,
+                rounding: None,
+                lang,
+                operator: &operator,
+            }),
+        }
     });
 
     // Commit the counter + archive + the email row atomically, then

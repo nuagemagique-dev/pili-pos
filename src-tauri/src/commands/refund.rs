@@ -7,7 +7,9 @@ use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::build_sale_input;
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::response::FdmReference;
-use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
+use pos_fiscal::ticket::{
+    FiscalTicket, OriginalControlData, TicketLine, TicketParams, TicketPayment,
+};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::access::{self, Access};
@@ -102,7 +104,7 @@ pub async fn do_refund_checkout_with(
     }
 
     // 1. Load original fiscal event → extract FdmReference
-    let (original_ref, original_lines, config, bp_id) = {
+    let (original_ref, original_signature, original_lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = fiscal::get_fiscal_event(&db, original_fiscal_event_id)
             .map_err(|e| e.to_string())?
@@ -111,6 +113,7 @@ pub async fn do_refund_checkout_with(
         let original_lines = pos_db::queries::orders::get_order_lines(&db, original_order_id)
             .map_err(|e| e.to_string())?;
 
+        let original_signature = event.short_signature.clone();
         let fdm_id = event.fdm_id.ok_or_else(|| incomplete("fdmId"))?;
         let fdm_datetime = event
             .fdm_datetime
@@ -140,7 +143,7 @@ pub async fn do_refund_checkout_with(
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = super::booking(&db, &config)?;
-        (fdm_ref, original_lines, config, bp)
+        (fdm_ref, original_signature, original_lines, config, bp)
     };
     // Training never touches real sales: a training refund would count
     // against what the real sale may still refund.
@@ -334,6 +337,10 @@ pub async fn do_refund_checkout_with(
                 rounding: None,
                 lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
                 operator: &operator,
+            })
+            .with_original(OriginalControlData {
+                fdm_ref: original_ref.clone(),
+                short_signature: original_signature.clone(),
             })
         });
 

@@ -98,6 +98,24 @@ pub struct FiscalTicket {
     /// archived before this field existed).
     #[serde(default)]
     pub lang: ReceiptLanguage,
+    /// Control data of the event this ticket refers to (the sale a
+    /// refund reverses, the event a copy reproduces), printed under
+    /// "Informations FDM d'origine".
+    #[serde(default)]
+    pub original: Option<OriginalControlData>,
+    /// Copies only: when the copy was made (`posDateTime` of the C
+    /// event), printed as "copie etablie le" (POS description v2.2
+    /// §1.8).
+    #[serde(default)]
+    pub copy_made_at: Option<String>,
+}
+
+/// The control data of an earlier signed event (POS description v2.2
+/// §6.6: fdmId, fdmDateTime, eventLabel, counters, shortSignature).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OriginalControlData {
+    pub fdm_ref: FdmReference,
+    pub short_signature: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,7 +192,46 @@ impl FiscalTicket {
             ticket_type_label,
             is_refund,
             lang: params.lang,
+            original: None,
+            copy_made_at: None,
         }
+    }
+
+    /// The copy (event C) of this ticket, `self` being the original
+    /// ticket rebuilt from its archive. The copy keeps every field of
+    /// the original, its QR code included (a copy gets no new URL,
+    /// §6.5), and adds the COPIE mention and the copy event's control
+    /// data; the original's move under "Informations FDM d'origine"
+    /// (POS description v2.2 §1.8, SPF example copy ticket of
+    /// 2026-09-24).
+    pub fn into_copy(mut self, copy: &SignResult) -> Self {
+        let original_ref = self.fdm_ref.take();
+        self.original = original_ref.map(|fdm_ref| OriginalControlData {
+            fdm_ref,
+            short_signature: self.short_signature.take(),
+        });
+        self.fdm_ref = Some(copy.fdm_ref.clone());
+        self.short_signature = copy.short_signature.clone();
+        if let Some(url) = copy.verification_url.clone() {
+            self.verification_url = Some(url);
+        }
+        if !copy.footer.is_empty() {
+            self.footer = copy.footer.clone();
+        }
+        self.copy_made_at = Some(copy.pos_date_time.clone());
+        self
+    }
+
+    /// This ticket with the control data of the event it refers to
+    /// (the sale a refund reverses).
+    pub fn with_original(mut self, original: OriginalControlData) -> Self {
+        self.original = Some(original);
+        self
+    }
+
+    /// Whether this is the copy of an earlier event.
+    pub fn is_copy(&self) -> bool {
+        self.copy_made_at.is_some()
     }
 
     /// Check whether this ticket needs the "not a valid VAT receipt"
@@ -188,6 +245,39 @@ impl FiscalTicket {
     pub fn invalid_disclaimer(&self) -> &'static str {
         invalid_disclaimer(self.lang)
     }
+}
+
+/// The payment rows and cash rounding printed on the ticket of a
+/// signed sale, rebuilt from the `financials` of its archived request
+/// the way the checkout prints them: one row per payment, holding the
+/// amount paid (sale amount plus its rounding), and the rounding total.
+pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Option<f64>) {
+    let cents = |v: &serde_json::Value| (v.as_f64().unwrap_or(0.0) * 100.0).round() as i64;
+    let financials = request["financials"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let rounding_of = |id: &serde_json::Value| -> i64 {
+        financials
+            .iter()
+            .filter(|f| f["amountType"] == "ROUNDING" && &f["id"] == id)
+            .map(|f| cents(&f["amount"]))
+            .sum()
+    };
+    let payments = financials
+        .iter()
+        .filter(|f| f["amountType"] == "PAYMENT")
+        .map(|f| TicketPayment {
+            method: if f["type"] == "CASH" { "Cash" } else { "Card" }.to_string(),
+            amount: (cents(&f["amount"]) + rounding_of(&f["id"])) as f64 / 100.0,
+        })
+        .collect();
+    let rounding: i64 = financials
+        .iter()
+        .filter(|f| f["amountType"] == "ROUNDING")
+        .map(|f| cents(&f["amount"]))
+        .sum();
+    (payments, (rounding != 0).then(|| rounding as f64 / 100.0))
 }
 
 /// Spec-mandated bottom mention for every printed non-N event
@@ -257,6 +347,37 @@ pub fn round_to_5_cents(total_cents: i64) -> i64 {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
+    #[test]
+    fn printed_payments_add_the_rounding_to_the_cash_paid() {
+        let request = json!({"financials": [
+            {"id": "1", "type": "CASH", "amountType": "PAYMENT", "amount": 6.08},
+            {"id": "1", "type": "CASH", "amountType": "ROUNDING", "amount": 0.02},
+        ]});
+        let (payments, rounding) = printed_payments(&request);
+        assert_eq!(payments.len(), 1);
+        assert_eq!(payments[0].method, "Cash");
+        assert_eq!(payments[0].amount, 6.10);
+        assert_eq!(rounding, Some(0.02));
+    }
+
+    #[test]
+    fn printed_payments_of_a_card_sale_have_no_rounding() {
+        let request = json!({"financials": [
+            {"id": "2", "type": "CARD_DEBIT", "amountType": "PAYMENT", "amount": 12.5},
+        ]});
+        let (payments, rounding) = printed_payments(&request);
+        assert_eq!(payments[0].method, "Card");
+        assert_eq!(payments[0].amount, 12.5);
+        assert_eq!(rounding, None);
+    }
+
+    #[test]
+    fn printed_payments_of_an_order_are_empty() {
+        assert!(printed_payments(&json!({})).0.is_empty());
+    }
+
     use super::*;
     use crate::response::{FdmReference, SignResult};
     use crate::types::{EventLabel, EventOperation};

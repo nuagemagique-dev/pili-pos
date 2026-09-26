@@ -635,10 +635,14 @@ async fn a_copy_can_be_emailed_only() {
     assert!(!d.paper_printed);
     assert_eq!(printer.settle(1).await.len(), 1, "only the sale printed");
     assert_eq!(app.deliveries()[0].fiscal_event_id, copy_id);
-    // The FDM returns no verification URL for a copy (§2.4): no QR.
+    // The FDM returns no verification URL for a copy: the copy uses
+    // the original sale's QR code (POS description v2.2 §6.5).
+    let original_url = sale.ticket.as_ref().unwrap().verification_url.clone();
+    assert!(original_url.is_some());
+    assert_eq!(copy.ticket.as_ref().unwrap().verification_url, original_url);
     let sent = tem_sent(&tem).await;
     assert_eq!(sent.len(), 1);
-    assert!(sent[0]["attachments"].as_array().unwrap().is_empty());
+    assert_eq!(sent[0]["attachments"].as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
