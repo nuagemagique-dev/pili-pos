@@ -1,0 +1,296 @@
+# uc_scope.toml - declared exclusions for scripts/uc_matrix.py
+#
+# One table per excluded official test identifier. Fields:
+#   reason = French, one sentence, why this id has no test.
+#   kind   = "hors_perimetre"  (feature absent from moyun-pos v1.0.0)
+#          | "non_applicable"  (this exact case cannot occur given our design)
+#          | "couvert_par"     (another id's tests already exercise this case)
+#   by     = required when kind = "couvert_par": the id that covers this one.
+#
+# Any id NOT listed here must have a matching test, or scripts/uc_matrix.py
+# reports it as MANQUANT and exits 1.
+
+# ---------------------------------------------------------------------------
+# Basic Set / Reports
+# ---------------------------------------------------------------------------
+
+[M112A]
+reason = "moyun-pos émet toujours le remboursement partiel comme un ticket séparé (M112B) ; le remboursement partiel combiné à une vente sur le même ticket ne peut pas se produire avec ce comportement."
+kind = "non_applicable"
+
+[M122]
+reason = "Le changement de centre de coût (transfert de table) est hors périmètre de moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[M132]
+reason = "La correction de paiement est hors périmètre de moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[M150]
+reason = "La facturation (event I, intégration Peppol) est hors périmètre du build de certification ; elle est prévue pour moyun-pos v1.1."
+kind = "hors_perimetre"
+
+[M181]
+reason = "moyun-pos émet toujours le rapport Z combiné (M184) ; il n'émet jamais de rapport Z du chiffre d'affaires séparé des utilisateurs."
+kind = "couvert_par"
+by = "M184"
+
+[M183]
+reason = "moyun-pos émet toujours le rapport Z combiné (M184) ; il n'émet jamais de rapport Z des utilisateurs séparé du chiffre d'affaires."
+kind = "couvert_par"
+by = "M184"
+
+# ---------------------------------------------------------------------------
+# Advanced Set - fonctionnalités absentes du code (voir le rapport final de
+# l'agent pour les preuves de grep confirmant chaque absence).
+#
+# UC201 (arrondi), UC230 (correction) et UC4109 (vente sans paiement) sont
+# volontairement absents de ce fichier : ils correspondent à des
+# fonctionnalités existantes et doivent obtenir un vrai test.
+# ---------------------------------------------------------------------------
+
+# -- Scission / fusion de table et changement de centre de coût associé --
+
+[UC240]
+reason = "La scission de table n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC241]
+reason = "La scission de table n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC242]
+reason = "La scission de table (y compris pour un produit vendu au poids) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC243]
+reason = "La scission de table avec remise n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC250]
+reason = "La fusion de tables n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC251]
+reason = "La fusion de tables n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC252]
+reason = "La fusion de tables avec remise n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4101]
+reason = "Le transfert de table vers une chambre (changement de centre de coût) n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4103]
+reason = "La scission d'addition avec changement de centre de coût n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4103bis]
+reason = "La scission d'addition n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4119bis]
+reason = "La scission d'addition n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4123]
+reason = "Le changement de centre de coût par chaise n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Bons (vouchers) MPV / SPV --
+
+[UC260]
+reason = "Les bons à usage multiple (MPV) ne sont pas implémentés dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC261]
+reason = "Les bons à usage multiple (MPV) ne sont pas implémentés dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC262]
+reason = "Les bons à usage multiple (MPV) ne sont pas implémentés dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC270]
+reason = "Les bons à usage unique (SPV) ne sont pas implémentés dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC271]
+reason = "Les bons à usage unique (SPV) ne sont pas implémentés dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4105]
+reason = "La conversion d'un bon à usage multiple (MPV) en espèces n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Devise étrangère --
+
+[UC290]
+reason = "Le paiement en devise étrangère n'est pas implémenté dans moyun-pos v1.0.0 (seul l'euro est géré)."
+kind = "hors_perimetre"
+
+[UC291]
+reason = "Le paiement en devise étrangère n'est pas implémenté dans moyun-pos v1.0.0 (seul l'euro est géré)."
+kind = "hors_perimetre"
+
+[UC294]
+reason = "Le paiement en devise étrangère n'est pas implémenté dans moyun-pos v1.0.0 (seul l'euro est géré)."
+kind = "hors_perimetre"
+
+[UC295]
+reason = "Le paiement en devise étrangère n'est pas implémenté dans moyun-pos v1.0.0 (seul l'euro est géré)."
+kind = "hors_perimetre"
+
+[UC296]
+reason = "Le paiement en devise étrangère n'est pas implémenté dans moyun-pos v1.0.0 (seul l'euro est géré)."
+kind = "hors_perimetre"
+
+# -- Pourboire --
+
+[UC292]
+reason = "La fonction pourboire (TIP) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Acompte / paiement anticipé / caution --
+
+[UC4110]
+reason = "Le paiement anticipé (acompte) n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4111]
+reason = "Le paiement anticipé (pourcentage du prix) n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4113]
+reason = "L'acompte sur réservation n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4114]
+reason = "La caution pour événement (festival) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Compte client --
+
+[UC4100]
+reason = "Le compte client (customer account) n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- GTIN --
+
+[UC4117]
+reason = "Le code GTIN sur une ligne de produit n'est pas implémenté dans moyun-pos v1.0.0 (catalogue interne uniquement, champ toujours absent)."
+kind = "hors_perimetre"
+
+# -- Produit vendu au poids --
+
+[UC4112]
+reason = "Le produit vendu au poids (quantityType KILOGRAM) n'est pas implémenté dans moyun-pos v1.0.0 (menu fixe, uniquement des produits à la pièce)."
+kind = "hors_perimetre"
+
+# -- Note de crédit et factures --
+
+[UC4121]
+reason = "La facture client (event I) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4122]
+reason = "La note de crédit n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4102]
+reason = "La facturation combinée à une modification de prix n'est pas implémentée dans moyun-pos v1.0.0 (ni la facture, ni la modification de prix ne sont implémentées)."
+kind = "hors_perimetre"
+
+# -- Modifications de prix, remises et produits composites --
+
+[UC200]
+reason = "Le produit composite n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC220]
+reason = "La modification de prix sur une ligne de vente (priceChange) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC221A]
+reason = "La modification de prix sur une ligne de vente (priceChange) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC221B]
+reason = "La modification de prix sur une ligne de vente (priceChange) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC222]
+reason = "La modification de prix sur un produit composite n'est pas implémentée dans moyun-pos v1.0.0 (ni le produit composite, ni la modification de prix)."
+kind = "hors_perimetre"
+
+[UC223]
+reason = "La modification de prix au niveau de l'event de vente n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC224]
+reason = "Les modifications de prix multiples sur une vente ne sont pas implémentées dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC225A]
+reason = "La modification de prix en vente indirecte n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC225B]
+reason = "La modification de prix en vente indirecte n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC226]
+reason = "La modification de prix n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC229B]
+reason = "L'article gratuit en vente directe (remise à 100% via priceChange) n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC280]
+reason = "Le produit composite n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4104]
+reason = "Le menu tout compris avec modification de prix n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4106]
+reason = "La modification de prix sur un menu tout compris n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4107]
+reason = "Les libellés de TVA A/B/C combinés à une modification de prix ne sont pas implémentés dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4116]
+reason = "La correction combinée à une modification de prix n'est pas implémentée dans moyun-pos v1.0.0 (la modification de prix est absente)."
+kind = "hors_perimetre"
+
+[UC4120]
+reason = "Le supplément avec modification de prix n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+[UC4120bis]
+reason = "Le supplément sur une ligne de transaction n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Paiement scindé --
+
+[UC4119]
+reason = "Le paiement scindé structuré (split payment) au sens de l'UC4119 n'est pas implémenté dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Correction de paiement (avancée) --
+
+[UC4118]
+reason = "La correction de paiement (modification d'un paiement déjà enregistré) n'est pas implémentée dans moyun-pos v1.0.0."
+kind = "hors_perimetre"
+
+# -- Acompte et libellé de TVA X --
+
+[UC4108]
+reason = "Le libellé de TVA X pour un acompte n'est pas implémenté dans moyun-pos v1.0.0 (aucune gestion d'acompte)."
+kind = "hors_perimetre"
