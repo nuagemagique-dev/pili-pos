@@ -36,8 +36,14 @@ async function wd(method, path, body) {
 }
 
 const cmd = (method, path, body) => wd(method, `/session/${session}${path}`, body);
+// W3C names the element reference ELEMENT; older drivers use "ELEMENT".
+function elementId(ref) {
+  const id = ref?.[ELEMENT] ?? ref?.ELEMENT;
+  if (!id) throw new Error(`unexpected element reference: ${JSON.stringify(ref)}`);
+  return id;
+}
 const findAll = async (css) =>
-  (await cmd("POST", "/elements", { using: "css selector", value: css })).map((e) => e[ELEMENT]);
+  (await cmd("POST", "/elements", { using: "css selector", value: css })).map(elementId);
 const text = (id) => cmd("GET", `/element/${id}/text`);
 const click = (id) => cmd("POST", `/element/${id}/click`, {});
 const url = () => cmd("GET", "/url");
