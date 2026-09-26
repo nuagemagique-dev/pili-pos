@@ -44,7 +44,14 @@ function elementId(ref) {
 }
 const findAll = async (css) =>
   (await cmd("POST", "/elements", { using: "css selector", value: css })).map(elementId);
-const text = (id) => cmd("GET", `/element/${id}/text`);
+// textContent, not WebDriver's "rendered text": WebKitWebDriver drops the
+// item names, which use -webkit-line-clamp. Clicks still go through
+// WebDriver's own interactability checks.
+const text = async (id) =>
+  (await cmd("POST", "/execute/sync", {
+    script: "return arguments[0].textContent;",
+    args: [{ [ELEMENT]: id }],
+  })).trim();
 const click = (id) => cmd("POST", `/element/${id}/click`, {});
 const url = () => cmd("GET", "/url");
 
