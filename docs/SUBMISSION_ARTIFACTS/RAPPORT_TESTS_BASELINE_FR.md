@@ -136,10 +136,13 @@ Checkbox), et sont exécutables via
 Ils ne font PAS partie de la barrière CI hors-ligne.
 
 L'interface est couverte à part, par Playwright (`ui/e2e/`, IPC Tauri
-simulée) : `cd ui && npx playwright test`. Dernier passage (2026-09-26,
-révision `3c91719`) : 157 passants, 0 échec, 4 ignorés. Les 4 ignorés
-sont `ui/e2e/integration.spec.ts`, qui pilote le vrai binaire et ne
-tourne qu'en CI (job `integration`).
+simulée) : `cd ui && npx playwright test`. Dernier passage (2026-09-26) :
+157 passants, 0 échec, 0 ignoré.
+
+Le vrai binaire de certification, avec sa base SQLite et son IPC réels,
+est piloté à part par WebDriver (`tauri-driver` + `WebKitWebDriver`) :
+`ui/e2e/real-binary/integration.test.mjs`, job CI `integration`
+(connexion, tables, menu du jeu d'essai, ajout d'une ligne et total).
 
 ### Familles de tests
 

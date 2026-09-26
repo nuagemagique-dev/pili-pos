@@ -22,23 +22,10 @@ export default defineConfig({
         hasTouch: true,
       },
       testMatch: /\.spec\.ts$/,
-      testIgnore: [/integration/, /captures/],
+      testIgnore: [/real-binary/, /captures/],
     },
-    // Layer 3: Real binary via CDP (CI only, see test.yml).
-    {
-      name: 'integration',
-      use: {
-        browserName: 'webkit',
-        viewport: { width: 1920, height: 1080 },
-        locale: 'fr-BE',
-        hasTouch: true,
-        // connectOverCDP reads this from env.
-        ...(process.env.INTEGRATION_CDP_URL
-          ? { connectOptions: { wsEndpoint: process.env.INTEGRATION_CDP_URL } }
-          : {}),
-      },
-      testMatch: /integration\.spec\.ts$/,
-    },
+    // Layer 3 (the real binary) is not Playwright: WebKitGTK is driven
+    // over WebDriver by tauri-driver, see e2e/real-binary/.
     // Certification dossier screenshot tour (docs/SUBMISSION_ARTIFACTS).
     // Not part of the normal gate - run explicitly with `npm run captures`.
     // Playwright runs every configured project when no --project filter

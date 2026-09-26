@@ -128,7 +128,9 @@ jobs:
 
   # ── Layer 3: Integration (real binary + WebDriver) ────────────
   # Runs only on the main branch (or a manual run) to avoid burning CI
-  # minutes on feature branches. Uses the real Tauri binary with a test DB.
+  # minutes on feature branches. The certification binary, its real
+  # SQLite database and IPC, driven over WebDriver: tauri-driver +
+  # WebKitWebDriver, as Tauri documents for Linux (ui/e2e/real-binary/).
   integration:
     name: Integration (real binary)
     runs-on: ubuntu-26.04
@@ -146,7 +148,8 @@ jobs:
             librsvg2-dev \
             libssl-dev \
             patchelf \
-            xvfb
+            xvfb \
+            webkitgtk-webdriver
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -158,16 +161,13 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --version 2.0.6 --locked
+
       # The certification build, UI bundle embedded: the binary under
       # test is the one declared to SPF Finances.
       - name: Build the certification binary
         run: scripts/build_and_hash.sh
-
-      - name: Install Playwright
-        working-directory: ui
-        run: |
-          npm ci
-          npx playwright install --with-deps webkit
 
       # The binary creates the schema, then loads the seed.
       - name: Seed test database
@@ -175,29 +175,28 @@ jobs:
         env:
           MOYUN_POS_DATA_DIR: /tmp/moyun-pos
 
-      - name: Start POS binary
-        run: |
-          export MOYUN_POS_DATA_DIR=/tmp/moyun-pos
-          export WEBKIT_INSPECTOR_SERVER=127.0.0.1:9222
-          xvfb-run -- ./target/release/moyun-pos &
-          # Wait for healthcheck
-          for i in $(seq 1 30); do
-            curl -sf http://127.0.0.1:9999/health && break || sleep 1
-          done
-
+      # tauri-driver starts WebKitWebDriver, which launches the binary
+      # with this environment.
       - name: Run integration tests
         working-directory: ui
-        run: npx playwright test --project=integration --reporter=github
         env:
-          INTEGRATION_CDP_URL: http://127.0.0.1:9222
+          MOYUN_POS_DATA_DIR: /tmp/moyun-pos
+          MOYUN_POS_BINARY: ${{ github.workspace }}/target/release/moyun-pos
+          TAURI_DRIVER_URL: http://127.0.0.1:4444
+          DISPLAY: ":99"
+          GDK_BACKEND: x11
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          tauri-driver --port 4444 > /tmp/tauri-driver.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4444/status >/dev/null && break
+            sleep 1
+          done
+          npm run test:real-binary
 
-      - name: Upload results
+      - name: tauri-driver log
         if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: integration-report
-          path: ui/test-results/
-          retention-days: 7
+        run: cat /tmp/tauri-driver.log || true
 
   # ── Dossier: certification bundle consistency ──────────────────
   # Cross-checks docs/SUBMISSION_ARTIFACTS against the code (Rust
