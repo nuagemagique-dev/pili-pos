@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # mkosi.finalize - auto-discovered by mkosi (FinalizeScripts=), run on
-# the build host after mkosi.postinst.chroot and `systemctl preset-all`,
+# the build host after mkosi.postinst.chroot, `systemctl preset-all`
+# and systemd-firstboot (Keymap=, Locale=, ...),
 # with the image tree at $BUILDROOT. Not a .chroot script: inside the
 # chroot mkosi bind-mounts the host's /etc/resolv.conf, which then
 # cannot be replaced.
@@ -9,3 +10,15 @@ set -euo pipefail
 # / is read-only: NetworkManager keeps the DNS servers it learns in
 # /run/NetworkManager/resolv.conf, and /etc/resolv.conf points there.
 ln -sfn /run/NetworkManager/resolv.conf "$BUILDROOT/etc/resolv.conf"
+
+# Debian 13's tmpfiles.d/debian.conf has `L+ /etc/vconsole.conf - - - -
+# default/keyboard`: at every boot it replaces a regular vconsole.conf
+# with that symlink, which fails on the read-only root. mkosi (Keymap=)
+# writes vconsole.conf before this script runs; move its content (KEYMAP
+# plus the XKB* lines, the /etc/default/keyboard format too) there and
+# leave the symlink the rule expects.
+if [[ -f "$BUILDROOT/etc/vconsole.conf" && ! -L "$BUILDROOT/etc/vconsole.conf" ]]; then
+    mkdir -p "$BUILDROOT/etc/default"
+    mv "$BUILDROOT/etc/vconsole.conf" "$BUILDROOT/etc/default/keyboard"
+    ln -s default/keyboard "$BUILDROOT/etc/vconsole.conf"
+fi
