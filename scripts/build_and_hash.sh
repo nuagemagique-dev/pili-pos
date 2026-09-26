@@ -52,11 +52,22 @@ if strings "$BINARY" | grep -q "api.hubrise.com"; then
     exit 1
 fi
 echo "✓ no third-party integration symbols"
-if strings "$BINARY" | grep -q "localhost:1420"; then
-    echo "✗ cert binary points at the Vite dev server (custom-protocol missing)"
-    exit 1
-fi
-echo "✓ UI bundle embedded (no dev-server URL)"
+# devUrl (localhost:1420) is part of the config Tauri always embeds, so
+# its presence proves nothing. Without custom-protocol the bundle is not
+# embedded at all: check that every built asset's path is in the binary.
+BIN_STRINGS="$(mktemp)"
+strings "$BINARY" > "$BIN_STRINGS"
+ASSETS=(ui/dist/assets/*)
+[[ -e "${ASSETS[0]}" ]] || { echo "✗ ui/dist/assets is empty"; rm -f "$BIN_STRINGS"; exit 1; }
+for asset in "${ASSETS[@]}"; do
+    if ! grep -qF "/assets/$(basename "$asset")" "$BIN_STRINGS"; then
+        echo "✗ /assets/$(basename "$asset") is not embedded (custom-protocol missing?)"
+        rm -f "$BIN_STRINGS"
+        exit 1
+    fi
+done
+rm -f "$BIN_STRINGS"
+echo "✓ UI bundle embedded (${#ASSETS[@]} assets)"
 
 echo "── 3/5 Fiscal-archive mutation scan ─────────────────────"
 # The fiscal archive is append-only by law. No source file may
