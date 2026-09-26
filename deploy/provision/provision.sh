@@ -317,6 +317,7 @@ phase_image() {
   "fdm_url": "http://192.168.1.20/graphql",
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,
+  "day_end_hour": 5,
   "language": "fr",$DIGITAL_TICKET_TEMPLATE
   "backup_dir": "/var/lib/moyun-pos/backups"
 }

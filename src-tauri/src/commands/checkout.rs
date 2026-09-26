@@ -10,6 +10,7 @@ use pos_fiscal::ticket::{self, FiscalTicket, TicketLine, TicketParams, TicketPay
 use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::access::{self, Access};
+use crate::commands::bar_slip::{self, SlipOutcome};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 use crate::commands::errors;
 #[cfg(feature = "hubrise")]
@@ -33,6 +34,8 @@ pub struct CheckoutResult {
     pub fiscal_event_id: Option<i64>,
     /// How the ticket reached the customer (paper and/or email).
     pub delivery: Option<DeliveryOutcome>,
+    /// The bar / kitchen slip of the lines not yet sent (sales only).
+    pub kitchen_slip: Option<SlipOutcome>,
 }
 
 impl CheckoutResult {
@@ -45,6 +48,7 @@ impl CheckoutResult {
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
+            kitchen_slip: None,
         }
     }
 }
@@ -88,16 +92,20 @@ pub async fn do_checkout_with(
     // 1. Read order + lines from DB
     // `lines` is the consolidated order (printed); `entries` the journal
     // of every addition and correction, sent to the FDM (§2).
-    let (order, lines, entries, config, booking_period_id) = {
+    // `unsent` are the entries no table order has registered yet: the
+    // bar / kitchen slip prints them once the sale is signed.
+    let (order, lines, entries, unsent, config, booking_period_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, false)
             .map_err(|e| e.to_string())?;
+        let unsent = pos_db::queries::orders::get_order_entries(&db, order_id, true)
+            .map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = super::booking(&db, &config)?;
-        (order, lines, entries, config, bp)
+        (order, lines, entries, unsent, config, bp)
     };
     let mut order = order;
     order.user_insz = cashier.insz;
@@ -110,6 +118,7 @@ pub async fn do_checkout_with(
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
+            kitchen_slip: None,
         });
     }
 
@@ -126,6 +135,7 @@ pub async fn do_checkout_with(
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
+            kitchen_slip: None,
         });
     }
 
@@ -140,6 +150,7 @@ pub async fn do_checkout_with(
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
+            kitchen_slip: None,
         });
     }
 
@@ -225,6 +236,7 @@ pub async fn do_checkout_with(
                 fdm_connected: false,
                 fiscal_event_id: None,
                 delivery: None,
+                kitchen_slip: None,
             });
         }
         Err(e) => {
@@ -235,6 +247,7 @@ pub async fn do_checkout_with(
                 fdm_connected: true,
                 fiscal_event_id: None,
                 delivery: None,
+                kitchen_slip: None,
             });
         }
     };
@@ -381,6 +394,14 @@ pub async fn do_checkout_with(
         let drawer_data = pos_print::drawer::kick_drawer_bytes();
         let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
     }
+    let kitchen_slip = bar_slip::print_bar_slip(
+        state,
+        &config,
+        &order.user_insz,
+        order.table_number,
+        &unsent,
+    )
+    .await;
 
     // 10. Enqueue the completed order for async push to HubRise.
     // This is a pure SQLite write - zero network, zero latency, never
@@ -412,6 +433,7 @@ pub async fn do_checkout_with(
         fdm_connected,
         fiscal_event_id: Some(event_id),
         delivery: Some(delivery_outcome),
+        kitchen_slip: Some(kitchen_slip),
     })
 }
 

@@ -198,7 +198,9 @@ installé sur l'image précisément pour cette étape) :
   "restaurant_est_no": "2123456791",
   "fdm_url": "http://192.168.1.20:8080/graphql",
   "printer_address": "192.168.1.30:9100",
+  "kitchen_printer_address": "192.168.1.31:9100",
   "training_mode": false,
+  "day_end_hour": 5,
   "language": "fr",
   "backup_dir": "/var/lib/moyun-pos/backups"
 }
@@ -217,7 +219,9 @@ Champs :
 | `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |
 | `fdm_url` | URL GraphQL du FDM sur le LAN (port selon le modèle de FDM ; à confirmer sur le Checkbox CBX01) | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante (ou chemin série/USB) | Configuration imprimante |
+| `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le bon de commande (sans prix, « ceci n'est pas un ticket de caisse TVA valable ») des lignes envoyées. Absent : le bon sort sur `printer_address`. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
+| `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) - toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/moyun-pos/backups`) | Distributeur |
 

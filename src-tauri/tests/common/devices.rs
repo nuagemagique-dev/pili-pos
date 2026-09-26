@@ -59,9 +59,9 @@ impl PrinterSink {
         Self { addr, jobs }
     }
 
-    /// Jobs that carried a receipt (the drawer kick and status queries
-    /// alone are a handful of bytes).
-    pub fn receipts(&self) -> Vec<String> {
+    /// Printed documents (the drawer kick and status queries alone are
+    /// a handful of bytes).
+    fn documents(&self) -> Vec<String> {
         self.jobs
             .lock()
             .unwrap()
@@ -69,6 +69,36 @@ impl PrinterSink {
             .filter(|j| j.len() > 64)
             .map(|j| String::from_utf8_lossy(j).into_owned())
             .collect()
+    }
+
+    /// Jobs that carried a receipt: every document but the bar /
+    /// kitchen slips.
+    pub fn receipts(&self) -> Vec<String> {
+        self.documents()
+            .into_iter()
+            .filter(|d| !is_bar_slip(d))
+            .collect()
+    }
+
+    /// Bar / kitchen order slips, in print order.
+    pub fn bar_slips(&self) -> Vec<String> {
+        self.documents()
+            .into_iter()
+            .filter(|d| is_bar_slip(d))
+            .collect()
+    }
+
+    /// Wait until `n` bar slips arrived, then a little longer to catch
+    /// extra ones.
+    pub async fn settle_slips(&self, n: usize) -> Vec<String> {
+        for _ in 0..40 {
+            if self.bar_slips().len() >= n {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        self.bar_slips()
     }
 
     /// Jobs that opened the cash drawer (ESC p 0 25 250).
@@ -94,6 +124,13 @@ impl PrinterSink {
         tokio::time::sleep(Duration::from_millis(150)).await;
         self.receipts()
     }
+}
+
+/// The title of the bar / kitchen slip, in FR, NL or DE.
+fn is_bar_slip(document: &str) -> bool {
+    ["BON DE COMMANDE", "BESTELBON", "BESTELLSCHEIN"]
+        .iter()
+        .any(|title| document.contains(title))
 }
 
 /// An address nothing listens on: every print fails at connect.

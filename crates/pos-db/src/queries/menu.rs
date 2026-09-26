@@ -175,6 +175,21 @@ pub fn resolve_catalogue_line(
     )
 }
 
+/// Whether an ordered product goes on the bar / kitchen slip
+/// (`menu_items.kitchen_printer`). An unknown product does not.
+pub fn sends_to_kitchen(conn: &Connection, menu_item_id: i64) -> Result<bool, rusqlite::Error> {
+    conn.query_row(
+        "SELECT kitchen_printer FROM menu_items WHERE id = ?1",
+        params![menu_item_id],
+        |row| row.get::<_, i32>(0),
+    )
+    .map(|flag| flag != 0)
+    .or_else(|e| match e {
+        rusqlite::Error::QueryReturnedNoRows => Ok(false),
+        e => Err(e),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -172,8 +172,8 @@ function defaultHandlers(): Record<string, Handler> {
       }
       return tables;
     },
-    sign_table_order: () => undefined,
-    sign_pre_bill: () => undefined,
+    sign_table_order: () => 'printed',
+    sign_pre_bill: () => 'printed',
 
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),
@@ -206,6 +206,7 @@ function defaultHandlers(): Record<string, Handler> {
         fdm_connected: false,
         fiscal_event_id: 1,
         delivery: mockDeliveryOutcome(delivery, 1),
+        kitchen_slip: 'printed',
       };
     }),
     check_fdm_status: () => ({ connected: false }),

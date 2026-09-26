@@ -14,6 +14,7 @@ import type {
   DeliveryOutcome,
   MailStatus,
   DeliveryView,
+  SlipOutcome,
 } from "../types";
 
 // Menu
@@ -174,12 +175,14 @@ export function listTables(tableCount: number): Promise<TableInfo[]> {
 }
 
 /** Register (event P) what was ordered at a table since the last
- * registration. No-op when nothing changed. */
-export function signTableOrder(orderId: number): Promise<void> {
+ * registration, then print it on the bar / kitchen slip. No-op when
+ * nothing changed. */
+export function signTableOrder(orderId: number): Promise<SlipOutcome> {
   return invoke("sign_table_order", { orderId });
 }
 
-export function signPreBill(orderId: number): Promise<void> {
+/** Pre-bill; its new lines go to the bar / kitchen slip first. */
+export function signPreBill(orderId: number): Promise<SlipOutcome> {
   return invoke("sign_pre_bill", { orderId });
 }
 

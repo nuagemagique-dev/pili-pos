@@ -2,7 +2,7 @@
 import { describeError } from "../utils/errorMessages";
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useOrderStore } from "../stores/order";
+import { useOrderStore, warnIfSlipFailed } from "../stores/order";
 import { useDeliveryStore } from "../stores/delivery";
 import type { CheckoutPaymentMethod, CheckoutResult } from "../types";
 import * as ipc from "../api/ipc";
@@ -111,6 +111,7 @@ async function doCheckout(method: CheckoutPaymentMethod) {
     const req = delivery.request.medium === "paper" ? undefined : delivery.request;
     result.value = await ipc.checkout(order.currentOrder.id, method, req);
     if (result.value.success) {
+      warnIfSlipFailed(result.value.kitchen_slip);
       // In cents: no float leftovers such as 9,999999.
       changeDue.value = method === "cash"
         ? Math.max(0, Math.round(cashReceived.value * 100) - Math.round(roundedTotal.value * 100)) / 100

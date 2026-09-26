@@ -97,6 +97,7 @@ pub async fn do_refund_checkout_with(
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
+            kitchen_slip: None,
         });
     }
 
@@ -284,6 +285,7 @@ pub async fn do_refund_checkout_with(
                     fdm_connected: false,
                     fiscal_event_id: None,
                     delivery: None,
+                    kitchen_slip: None,
                 });
             }
             Err(e) => {
@@ -294,6 +296,7 @@ pub async fn do_refund_checkout_with(
                     fdm_connected: true,
                     fiscal_event_id: None,
                     delivery: None,
+                    kitchen_slip: None,
                 });
             }
         };
@@ -423,6 +426,7 @@ pub async fn do_refund_checkout_with(
             fdm_connected,
             fiscal_event_id: Some(event_id),
             delivery: Some(delivery_outcome),
+            kitchen_slip: None,
         })
     }
     .await;

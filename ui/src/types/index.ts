@@ -146,7 +146,12 @@ export interface CheckoutResult {
   fiscal_event_id: number | null;
   /** How the ticket reached the customer (paper and/or email). */
   delivery: DeliveryOutcome | null;
+  /** The bar / kitchen slip of the lines not yet sent (sales only). */
+  kitchen_slip?: SlipOutcome | null;
 }
+
+/** What became of the bar / kitchen order slip. */
+export type SlipOutcome = "printed" | "nothing_to_print" | "no_printer" | "failed";
 
 // ── Ticket delivery (paper / email / both) ─────────────────────────
 

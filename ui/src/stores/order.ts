@@ -5,6 +5,16 @@ import * as ipc from "../api/ipc";
 import { useAuthStore } from "./auth";
 import { useToastStore } from "./toast";
 import { describeError } from "../utils/errorMessages";
+import { useI18n } from "../i18n";
+import type { SlipOutcome } from "../types";
+
+/** The order is signed either way; a slip that did not print must be
+ * told to the bar / kitchen by hand. */
+export function warnIfSlipFailed(outcome: SlipOutcome | null | undefined) {
+  if (outcome === "failed") {
+    useToastStore().show(useI18n().t("kitchen_slip_failed"), "warning", 8000);
+  }
+}
 
 /** Run a cart action; a refusal (order paid meanwhile, product no
  * longer available, session closed) is shown instead of being lost. */
@@ -140,13 +150,13 @@ export const useOrderStore = defineStore("order", () => {
     // Not skipped when the cart is empty: lines added then removed are
     // corrections the FDM must still receive.
     if (!current || current.status !== "open") return;
-    await ipc.signTableOrder(current.id);
+    warnIfSlipFailed(await ipc.signTableOrder(current.id));
   }
 
   /** Provisional bill ("addition provisoire", §1.4), printed PRO FORMA. */
   async function preBill() {
     if (!currentOrder.value) throw new Error("No active order");
-    await ipc.signPreBill(currentOrder.value.id);
+    warnIfSlipFailed(await ipc.signPreBill(currentOrder.value.id));
   }
 
   function clearOrder() {

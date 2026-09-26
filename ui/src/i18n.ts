@@ -246,6 +246,7 @@ const coreMessages: Messages = {
   "cash_open_drawer": { fr: "Ouvrir tiroir", en: "Open drawer", zh: "打开钱箱" },
   "cash_declaration": { fr: "Déclarer le contenu du tiroir", en: "Declare the drawer count", zh: "申报钱箱现金" },
   "cash_declaration_hint": { fr: "Montant compté dans le tiroir", en: "Amount counted in the drawer", zh: "钱箱中清点的金额" },
+  "kitchen_slip_failed": { fr: "Bon de commande non imprimé : prévenez le bar ou la cuisine.", en: "Order slip not printed: tell the bar or kitchen.", zh: "点单小票未打印：请通知吧台或厨房。" },
   "cash_declared": { fr: "Contenu du tiroir déclaré", en: "Drawer count declared", zh: "钱箱现金已申报" },
   "cash_amount_placeholder": { fr: "Montant (€)", en: "Amount (€)", zh: "金额 (€)" },
   "cash_reason_placeholder": { fr: "Motif", en: "Reason", zh: "原因" },

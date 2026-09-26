@@ -174,6 +174,55 @@ test.describe('Pre-bill ("Addition")', () => {
   });
 });
 
+test.describe('[VI_BAR] Bar / kitchen order slip', () => {
+  const SLIP_WARNING = 'Bon de commande non imprimé';
+
+  test('[VI_BAR] a slip that did not print is told, the order stays registered', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'sign_table_order', 'failed');
+    await navButton(page, 'Tables').click();
+    await page.waitForURL(/tables/);
+    await expect(page.locator('.toast-warning')).toContainText(SLIP_WARNING);
+    await expect(page.locator('.toast-error')).toHaveCount(0);
+  });
+
+  test('[VI_BAR] a printed slip needs no message', async ({ page }) => {
+    await openTable(page);
+    await navButton(page, 'Tables').click();
+    await page.waitForURL(/tables/);
+    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    await expect(page.locator('.toast-warning')).toHaveCount(0);
+  });
+
+  test('[VI_BAR] a pre-bill whose slip failed says so next to its confirmation', async ({ page }) => {
+    await openTable(page);
+    await overrideIPC(page, 'sign_pre_bill', 'failed');
+    await page.getByRole('button', { name: 'Addition' }).click();
+    await expect(page.locator('.toast-success')).toContainText('Addition provisoire imprimée');
+    await expect(page.locator('.toast-warning')).toContainText(SLIP_WARNING);
+  });
+
+  test('[VI_BAR] a sale whose slip failed is still paid, with the warning', async ({ page }) => {
+    await openTable(page, {
+      checkout: () => ({
+        success: true,
+        ticket: null,
+        error: null,
+        fdm_connected: true,
+        fiscal_event_id: 1,
+        delivery: null,
+        kitchen_slip: 'failed',
+      }),
+    });
+    await page.locator('.checkout-btn').click();
+    await page.waitForURL(/checkout/);
+    await page.locator('.card-btn').click();
+    await page.locator('.card-confirm').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+    await expect(page.locator('.toast-warning')).toContainText(SLIP_WARNING);
+  });
+});
+
 test.describe('FDM refusals on presence and cash events', () => {
   test('a refused clock-in is reported but does not block the login', async ({ page }) => {
     await mockTauriIPC(page, {

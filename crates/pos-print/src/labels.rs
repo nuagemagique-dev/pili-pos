@@ -175,6 +175,45 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
     }
 }
 
+/// Labels of the bar / kitchen order slip (`bar_ticket.rs`).
+pub(crate) struct BarLabels {
+    pub(crate) title: &'static str,
+    pub(crate) date: &'static str,
+    pub(crate) operator: &'static str,
+    pub(crate) table: &'static str,
+    pub(crate) direct_sale: &'static str,
+    pub(crate) items_header: &'static str,
+}
+
+pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
+    match lang {
+        ReceiptLanguage::Fr => &BarLabels {
+            title: "BON DE COMMANDE",
+            date: "Date:",
+            operator: "Operateur:",
+            table: "Table",
+            direct_sale: "Vente directe",
+            items_header: "Qte   Article",
+        },
+        ReceiptLanguage::Nl => &BarLabels {
+            title: "BESTELBON",
+            date: "Datum:",
+            operator: "Bediende:",
+            table: "Tafel",
+            direct_sale: "Directe verkoop",
+            items_header: "Aantal Artikel",
+        },
+        ReceiptLanguage::De => &BarLabels {
+            title: "BESTELLSCHEIN",
+            date: "Datum:",
+            operator: "Bediener:",
+            table: "Tisch",
+            direct_sale: "Direktverkauf",
+            items_header: "Menge  Artikel",
+        },
+    }
+}
+
 /// Localized name of an FDM event-label letter (N/P/T/C/I/F/S/R), for
 /// the report's per-type transaction breakdown. Unknown letters print
 /// unchanged: defensive, the report must never fail to print over an

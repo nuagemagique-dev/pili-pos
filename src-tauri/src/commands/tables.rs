@@ -7,6 +7,7 @@ use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
+use crate::commands::bar_slip::{self, SlipOutcome};
 use crate::commands::errors;
 use crate::state::AppState;
 
@@ -77,23 +78,28 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
 /// (event P, "vente interrompue", POS description v2.2 §1.3): the
 /// order's journal entries not yet transmitted, corrections included,
 /// in chronological order. A no-op when nothing changed. The UI calls
-/// it when the operator leaves a table.
+/// it when the operator leaves a table. Once signed, the new lines go
+/// to the bar / kitchen slip; the result says what became of it.
 #[tauri::command]
-pub async fn sign_table_order(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
+pub async fn sign_table_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<SlipOutcome, String> {
     do_sign_table_order(state.inner(), order_id).await
 }
 
-pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<(), String> {
+pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<SlipOutcome, String> {
     sign_table_order_as(state, order_id, Access::Staff).await
 }
 
 /// Register the order's unsent entries (event P) in the name of the
-/// logged-in operator, if their role allows `access`.
+/// logged-in operator, if their role allows `access`, then print them
+/// on the bar / kitchen slip.
 async fn sign_table_order_as(
     state: &AppState,
     order_id: i64,
     access: Access,
-) -> Result<(), String> {
+) -> Result<SlipOutcome, String> {
     let operator = access::operator(state, access)?;
     let (mut order, entries, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -106,7 +112,7 @@ async fn sign_table_order_as(
     };
 
     let Some(last_entry) = entries.last() else {
-        return Ok(());
+        return Ok(SlipOutcome::NothingToPrint);
     };
     order.user_insz = operator.insz;
     if order.status != OrderStatus::Open {
@@ -137,21 +143,32 @@ async fn sign_table_order_as(
             sent_entries: Some((order_id, last_entry.id)),
         },
     )?;
-    Ok(())
+    Ok(bar_slip::print_bar_slip(
+        state,
+        &config,
+        &order.user_insz,
+        order.table_number,
+        &entries,
+    )
+    .await)
 }
 
 /// Send a signPreBill (provisional bill P event).
 #[tauri::command]
-pub async fn sign_pre_bill(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
+pub async fn sign_pre_bill(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<SlipOutcome, String> {
     do_sign_pre_bill(state.inner(), order_id).await
 }
 
 /// Provisional bill ("addition provisoire", §1.4): the consolidated
 /// order, printed PRO FORMA. Entries not yet registered are sent as an
-/// order first, since a pre-bill may not add or change lines.
-pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), String> {
+/// order first, since a pre-bill may not add or change lines; the
+/// result is the bar / kitchen slip of those entries.
+pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<SlipOutcome, String> {
     let operator = access::operator(state, Access::Cashier)?;
-    sign_table_order_as(state, order_id, Access::Cashier).await?;
+    let slip = sign_table_order_as(state, order_id, Access::Cashier).await?;
 
     let (mut order, lines, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -223,5 +240,5 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<(), Str
         let _ = pos_print::transport::send_to_printer(addr, &data).await;
     }
 
-    Ok(())
+    Ok(slip)
 }
