@@ -1,6 +1,7 @@
 use chrono::Utc;
 
 use crate::inputs::*;
+use crate::payment::{Settlement, payment_line_identity};
 use crate::response::FdmReference;
 use crate::types::*;
 use pos_core::config::PosConfig;
@@ -191,29 +192,11 @@ pub fn build_sale_input(
         .table_number
         .map(|t| build_table_cost_center(t, &order_reference(order)));
 
-    // The id identifies the payment method (spec §2.2.2 `financials.id`):
-    // the reports total the payments per id.
-    let (payment_id, payment_name) = match payment_type {
-        PaymentType::Cash => ("1", "Cash"),
-        PaymentType::CardDebit => ("2", "Card"),
-        _ => ("9", "Payment"),
-    };
-    let payment_line = |amount_cents: i64, amount_type: PaymentLineType| PaymentLineInput {
-        id: payment_id.to_string(),
-        name: payment_name.to_string(),
-        payment_type,
-        provider: None,
-        input_method: InputMethod::Manual,
-        amount: eur(amount_cents),
-        amount_type,
-        foreign_currency: None,
-        reference: None,
-        drawer: None,
-    };
-    let mut financials = vec![payment_line(payment_amount_cents, PaymentLineType::Payment)];
-    if rounding_cents != 0 {
-        financials.push(payment_line(rounding_cents, PaymentLineType::Rounding));
-    }
+    let (id, name) = payment_line_identity(payment_type);
+    let financials = financial_lines(
+        &[(id, name, payment_type, payment_amount_cents)],
+        rounding_cents,
+    );
 
     SaleInput {
         common,
@@ -228,6 +211,84 @@ pub fn build_sale_input(
         transaction,
         financials,
     }
+}
+
+/// [`build_sale_input`] for a sale paid in several parts (split
+/// payment, meal vouchers): one PAYMENT line per settled part, in the
+/// settlement's order (cash last), and the cash rounding on its own
+/// ROUNDING line right after the cash payment.
+pub fn build_sale_input_split(
+    config: &PosConfig,
+    order: &Order,
+    lines: &[OrderLine],
+    ticket_number: i64,
+    booking: &Booking,
+    settlement: &Settlement,
+) -> SaleInput {
+    let mut sale = build_sale_input(
+        config,
+        order,
+        lines,
+        ticket_number,
+        booking,
+        PaymentType::Cash,
+        0,
+        0,
+        None,
+    );
+    let parts: Vec<_> = settlement
+        .payments
+        .iter()
+        .map(|p| {
+            let payment_type = p.method.payment_type();
+            let (id, name) = payment_line_identity(payment_type);
+            (id, name, payment_type, p.amount_cents)
+        })
+        .collect();
+    sale.financials = financial_lines(&parts, settlement.rounding_cents);
+    sale
+}
+
+/// The `financials` of a sale: a PAYMENT line per `(id, name, type,
+/// amount)`, and `rounding_cents` (if any) on a ROUNDING line of the
+/// cash payment, right after it (FAQ Q403). Only cash is rounded.
+fn financial_lines(
+    payments: &[(&str, &str, PaymentType, i64)],
+    rounding_cents: i64,
+) -> Vec<PaymentLineInput> {
+    let line =
+        |id: &str, name: &str, payment_type, amount_cents: i64, amount_type| PaymentLineInput {
+            id: id.to_string(),
+            name: name.to_string(),
+            payment_type,
+            provider: None,
+            input_method: InputMethod::Manual,
+            amount: eur(amount_cents),
+            amount_type,
+            foreign_currency: None,
+            reference: None,
+            drawer: None,
+        };
+    let mut out = Vec::new();
+    for &(id, name, payment_type, amount_cents) in payments {
+        out.push(line(
+            id,
+            name,
+            payment_type,
+            amount_cents,
+            PaymentLineType::Payment,
+        ));
+        if rounding_cents != 0 && payment_type == PaymentType::Cash {
+            out.push(line(
+                id,
+                name,
+                payment_type,
+                rounding_cents,
+                PaymentLineType::Rounding,
+            ));
+        }
+    }
+    out
 }
 
 // ── Event P - Order (pro forma) ────────────────────────────────
@@ -622,6 +683,64 @@ mod tests {
         assert_eq!(line.main_product.product_name, "Saumon roll x8");
         assert!((line.line_total - 25.0).abs() < 0.01);
         assert!((sale.transaction.transaction_total - 25.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_split_sale_has_a_payment_line_per_part_and_the_rounding_after_cash() {
+        use crate::payment::{PaymentMethod, PaymentPart, settle};
+        let (config, order, lines) = (test_config(), test_order(), test_lines());
+        let bp_id = Uuid::new_v4().to_string();
+        // 25,00: 3,13 in meal vouchers, 3,97 by card, the rest (17,90)
+        // cash. The sale total here is the settlement's, 25,02, so the
+        // cash rest 17,92 is rounded down by 0,02.
+        let settlement = settle(
+            2502,
+            &[
+                PaymentPart::of(PaymentMethod::MealVoucher, 313),
+                PaymentPart::of(PaymentMethod::Card, 397),
+                PaymentPart::cash(),
+            ],
+        )
+        .unwrap();
+        let sale = build_sale_input_split(&config, &order, &lines, 1, &bk(&bp_id), &settlement);
+        let financials = serde_json::to_value(&sale.financials).unwrap();
+        let summary: Vec<(String, String, String, f64)> = financials
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| {
+                (
+                    f["id"].as_str().unwrap().to_string(),
+                    f["type"].as_str().unwrap().to_string(),
+                    f["amountType"].as_str().unwrap().to_string(),
+                    f["amount"].as_f64().unwrap(),
+                )
+            })
+            .collect();
+        let row =
+            |id: &str, t: &str, a: &str, x: f64| (id.to_string(), t.to_string(), a.to_string(), x);
+        assert_eq!(
+            summary,
+            [
+                row("3", "CHEQUE_MEAL", "PAYMENT", 3.13),
+                row("2", "CARD_DEBIT", "PAYMENT", 3.97),
+                row("1", "CASH", "PAYMENT", 17.92),
+                row("1", "CASH", "ROUNDING", -0.02),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_unpaid_settlement_sends_empty_financials() {
+        let (config, order, lines) = (test_config(), test_order(), test_lines());
+        let bp_id = Uuid::new_v4().to_string();
+        let unpaid = crate::payment::Settlement {
+            payments: vec![],
+            rounding_cents: 0,
+        };
+        let sale = build_sale_input_split(&config, &order, &lines, 1, &bk(&bp_id), &unpaid);
+        let json = serde_json::to_value(&sale).unwrap();
+        assert_eq!(json["financials"], serde_json::json!([]));
     }
 
     #[test]

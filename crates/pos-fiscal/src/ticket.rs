@@ -272,7 +272,7 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .iter()
         .filter(|f| f["amountType"] == "PAYMENT")
         .map(|f| TicketPayment {
-            method: if f["type"] == "CASH" { "Cash" } else { "Card" }.to_string(),
+            method: printed_method(f),
             amount: cents(&f["amount"]) as f64 / 100.0,
         })
         .collect();
@@ -282,6 +282,17 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .map(|f| cents(&f["amount"]))
         .sum();
     (payments, (rounding != 0).then(|| rounding as f64 / 100.0))
+}
+
+/// The payment name a ticket prints for a `financials` line, from its
+/// type: the printer translates "Cash", "Card" and "Meal voucher".
+fn printed_method(line: &serde_json::Value) -> String {
+    match line["type"].as_str().unwrap_or("") {
+        "CASH" => "Cash".to_string(),
+        "CHEQUE_MEAL" => "Meal voucher".to_string(),
+        t if t.starts_with("CARD") => "Card".to_string(),
+        _ => line["name"].as_str().unwrap_or("-").to_string(),
+    }
 }
 
 /// Spec-mandated bottom mention for every printed non-N event
@@ -370,6 +381,26 @@ mod tests {
         assert_eq!(payments[0].method, "Card");
         assert_eq!(payments[0].amount, 12.5);
         assert_eq!(rounding, None);
+    }
+
+    #[test]
+    fn printed_payments_of_a_split_sale_keep_each_method() {
+        let request = json!({"financials": [
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL", "amountType": "PAYMENT", "amount": 3.13},
+            {"id": "2", "name": "Card", "type": "CARD_DEBIT", "amountType": "PAYMENT", "amount": 3.97},
+            {"id": "1", "name": "Cash", "type": "CASH", "amountType": "PAYMENT", "amount": 7.76},
+            {"id": "1", "name": "Cash", "type": "CASH", "amountType": "ROUNDING", "amount": -0.01},
+        ]});
+        let (payments, rounding) = printed_payments(&request);
+        let rows: Vec<_> = payments
+            .iter()
+            .map(|p| (p.method.as_str(), p.amount))
+            .collect();
+        assert_eq!(
+            rows,
+            [("Meal voucher", 3.13), ("Card", 3.97), ("Cash", 7.76)]
+        );
+        assert_eq!(rounding, Some(-0.01));
     }
 
     #[test]
