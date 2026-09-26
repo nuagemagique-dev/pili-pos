@@ -174,7 +174,8 @@ ajoute à `fiscal_events`, de sorte que :
   bloc de données de contrôle issu de la réponse FDM, QR Code
   (Model 2, ECC M, URL 38 caractères ; version 3, 29×29 modules - voir
   `TICKET_NUMERIQUE_FR.md` §11).
-- Tickets cuisine : layout séparé (`pos-print::receipt::kitchen`).
+- Tickets cuisine : layout séparé
+  (`crates/pos-print/src/kitchen_ticket.rs::format_kitchen_ticket`).
 - Ouverture tiroir : séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA`
   émise dès qu'un paiement `cash` clôture une vente.
 

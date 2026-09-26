@@ -47,7 +47,7 @@ l'e-mail, client Scaleway TEM, file d'attente avec réessais),
    le service a répondu à une sonde récente (§4).
 2. S'il choisit "E-mail" ou "Les deux", un clavier virtuel à l'écran
    permet de saisir l'adresse. Une **adresse invalide ou vide** est
-   refusée sur place, avant tout appel au FDM (`ERR_INVALID_EMAIL`) :
+   refusée sur place, avant tout appel au FDM (code `email_invalid`) :
    l'opérateur corrige la saisie ou repasse sur "Papier".
 3. Un écran de confirmation affiche l'adresse saisie pour que
    l'opérateur (ou le client, en la lui montrant) la valide avant la
@@ -71,8 +71,8 @@ l'ordre :
 | Cas | Résultat |
 |---|---|
 | Pas de choix envoyé, ou "Papier" | `PAPER`, pas d'e-mail. L'adresse éventuellement fournie est ignorée. |
-| "E-mail" ou "Les deux" mais le terminal n'a pas de configuration `digital_ticket` utilisable (absente, ou clé API illisible au démarrage) | **Refusé** avant signature (`ERR_DIGITAL_UNAVAILABLE`, "Digital ticket is not configured on this terminal"). |
-| Adresse manquante, vide ou invalide (`pos_mail::address::validate`) | **Refusé** avant signature (`ERR_INVALID_EMAIL`). L'adresse est acceptée telle quelle après un simple `trim()` ; la validation est pragmatique (un seul `@`, partie locale et domaine non vides, domaine avec un point, labels valides, ≤ 254 caractères) - elle couvre les fautes de frappe réelles au clavier tactile sans exiger une conformité RFC stricte, et accepte les adresses Unicode/IDN. |
+| "E-mail" ou "Les deux" mais le terminal n'a pas de configuration `digital_ticket` utilisable (absente, ou clé API illisible au démarrage) | **Refusé** avant signature (code `digital_unavailable`, message affiché dans la langue de l'interface). |
+| Adresse manquante, vide ou invalide (`pos_mail::address::validate`) | **Refusé** avant signature (code `email_invalid`). L'adresse est acceptée telle quelle, espaces de début et de fin retirés ; la validation est pragmatique (un seul `@`, partie locale et domaine non vides, domaine avec un point, labels valides, ≤ 254 caractères) - elle couvre les fautes de frappe réelles au clavier tactile sans exiger une conformité RFC stricte, et accepte les adresses Unicode/IDN. |
 | "E-mail" seul, `allow_digital_only=true` **et** une sonde récente (< 120 s) a confirmé le service joignable | `DIGITAL` : e-mail seul, pas de papier - sauf repli (§4). |
 | "E-mail" seul dans tout autre cas (config par défaut `allow_digital_only=false`, ou service non confirmé joignable récemment) | `PAPER_DIGITAL` : le client reçoit le papier tout de suite, l'e-mail suit dès que possible. |
 | "Les deux" | `PAPER_DIGITAL`, y compris hors ligne - le papier sort toujours, l'e-mail est mis en file. |
@@ -188,11 +188,11 @@ seule fois** ; toute impression ultérieure doit être une **copie**
   imprimante sans papier) sert **exclusivement** à rattraper une
   impression manquée, jamais à réimprimer un original déjà sorti :
   - Refusée si l'original a déjà été imprimé
-    (`ERR_ALREADY_PRINTED` : *"The original ticket was already
-    printed; print a copy (C) instead"*).
+    (code `already_printed` : *"Le ticket original est déjà imprimé :
+    imprimez une copie."*).
   - Refusée pour un ticket `DIGITAL` dont l'e-mail a déjà été envoyé
-    (`ERR_EMAIL_SENT` : *"The ticket was sent by email; print a copy
-    (C) instead"*) - l'e-mail **est** l'original numérique ; en
+    (code `email_sent` : *"Le ticket a été envoyé par e-mail :
+    imprimez une copie."*) - l'e-mail **est** l'original numérique ; en
     demander une version papier après coup en ferait un second
     original.
   - Sur succès, la ligne `ticket_deliveries` correspondante (s'il y en

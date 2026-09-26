@@ -16,18 +16,18 @@ Format :
 | # | Exigence | Spec | Code | Test |
 |---|---|---|---|---|
 | 1 | Le POS utilise GraphQL sur HTTP pour communiquer avec le FDM | POS v2.2 §III.1 | `crates/pos-fiscal/src/fdm_client.rs` | `crates/pos-fiscal/tests/spf_basic_set.rs` (10 tests wiremock) |
-| 2 | 8 types d'événements supportés : N/P/T/C/I/F/S/R | POS v2.2 §II.4 | `crates/pos-fiscal/src/event.rs::EventLabel` | `crates/pos-fiscal/src/event.rs::tests` |
+| 2 | 8 types d'événements supportés : N/P/T/C/I/F/S/R | POS v2.2 §II.4 | `crates/pos-fiscal/src/types.rs::EventLabel` | `crates/pos-fiscal/src/event.rs::tests` |
 | 3 | Codes TVA A/B/C/D/X avec taux corrects | POS v2.2 §II.5 | `crates/pos-core/src/vat.rs::VatCode` | `crates/pos-core/src/vat.rs::tests` |
-| 4 | Ticket avec en-tête (nom, adresse, TVA) + TVA par ligne + données de contrôle + QR | POS v2.2 §III.3 | `crates/pos-print/src/receipt.rs` | `crates/pos-print/tests/receipt_layout.rs` |
+| 4 | Ticket avec en-tête (nom, adresse, TVA) + TVA par ligne + données de contrôle + QR | POS v2.2 §III.3 | `crates/pos-print/src/receipt.rs` | `crates/pos-print/tests/receipt_matrix.rs` (FR/NL/DE, chaque type de ticket) |
 | 5 | QR Code Model 2, ECC M, URL 38 caractères (version 3, 29×29 : le 25×25 ne peut pas contenir l'URL, à confirmer avec le SPF) | POS v2.2 §6.5 | `crates/pos-fiscal/src/qr.rs` | `crates/pos-fiscal/src/qr.rs::tests::spec_example_url_needs_version_3_with_ecc_m` |
-| 6 | Compteurs fiscaux strictement séquentiels, sans trou | POS v2.2 §II.6 | `crates/pos-fiscal/src/counter.rs::FiscalCounter::next` | `crates/pos-fiscal/src/counter.rs::tests::counter_is_sequential` |
+| 6 | Compteurs fiscaux strictement séquentiels, sans trou | POS v2.2 §II.6 | `crates/pos-fiscal/src/counter.rs::FiscalCounter::next` | `crates/pos-fiscal/src/counter.rs::tests::counter_is_strictly_sequential_with_no_gaps` |
 | 7 | Allocation de compteur rollback sur échec FDM | POS v2.2 §II.6 | `src-tauri/src/commands/checkout.rs` (tx unique) | `src-tauri/tests/spf_e2e_no_gap.rs::checkout_fdm_failure_does_not_advance_counter` |
-| 8 | Tous les événements fiscaux ajoutés à l'archive locale, jamais supprimés | POS v2.2 §II.7 | `crates/pos-db/src/schema.rs::SCHEMA_SQL` (table fiscal_events, pas de DELETE/UPDATE dans le code applicatif) | `crates/pos-db/src/queries/fiscal.rs::tests::archive_is_append_only` |
-| 9 | Le POS bloque les transactions quand le FDM est injoignable | POS v2.2 §III.6 | `src-tauri/src/commands/checkout.rs` (pré-vérification `check_fdm_status`) | `crates/pos-fiscal/tests/full_service.rs::blocks_on_fdm_disconnect` |
-| 10 | Mode formation visuellement distinct, événements T non comptés normalement | POS v2.2 §II.4.3 | `ui/src/components/TrainingBanner.vue` + flag `is_training` dans les inputs | `crates/pos-fiscal/tests/spf_basic_set.rs::training_event_does_not_advance_n_counter` |
+| 8 | Tous les événements fiscaux ajoutés à l'archive locale, jamais supprimés | POS v2.2 §II.7 | `crates/pos-db/src/schema.rs` (table fiscal_events, déclencheurs SQLite qui refusent tout DELETE et UPDATE) | `crates/pos-fiscal/src/archive.rs::tests::{archived_event_cannot_be_deleted, archived_event_cannot_be_rewritten}` |
+| 9 | Le POS bloque les transactions quand le FDM est injoignable | POS v2.2 §III.6 | `src-tauri/src/commands/checkout.rs` (pré-vérification `check_fdm_status`) | `src-tauri/tests/spf_e2e_fdm_failures.rs::checkout_unreachable_fdm_blocks_the_sale_without_archiving` |
+| 10 | Mode formation visuellement distinct, événements T non comptés normalement | POS v2.2 §II.4.3 | `ui/src/components/TrainingBanner.vue` + flag `is_training` dans les inputs | `src-tauri/tests/spf_e2e_basic.rs::m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero` |
 | 11 | Chaque réponse FDM est contrôlée avant archivage (écho de la requête, opération et label, shortSignature = SHA-1 de digitalSignature pour N) ; la signature ECDSA est conservée telle quelle pour vérification par l'administration | POS v2.2 §2.2.4 et §III.5 | `crates/pos-fiscal/src/response_check.rs::check_sign_result` | `crates/pos-fiscal/src/response_check.rs::tests`, `src-tauri/tests/spf_e2e_fdm_response_check.rs` |
-| 12 | Retry idempotent sur échecs FDM transitoires | POS v2.2 §III.7 | `crates/pos-fiscal/src/inputs.rs::idempotency_key` | `crates/pos-fiscal/src/inputs.rs::tests::idempotent_retry_returns_same_key` |
-| 13 | JSON canonique pour reproductibilité de signature | POS v2.2 §III.5 (entrées de signature) | `crates/pos-fiscal/src/canonical.rs` | `crates/pos-fiscal/src/canonical.rs::tests::deterministic_50x` |
+| 12 | Un échec FDM transitoire ne laisse aucune trace : rien n'est archivé, le compteur n'avance pas, l'opérateur relance la même opération avec le même numéro (pas de relance automatique) | POS v2.2 §III.7 | `src-tauri/src/commands/checkout.rs` (numéro lu avant l'appel, validé seulement après la réponse) | `src-tauri/tests/spf_e2e_fdm_failures.rs::restoring_the_fdm_url_after_unreachable_lets_the_next_call_succeed` |
+| 13 | Requêtes envoyées au FDM en JSON canonique (clés triées, sans espaces) : mêmes données, mêmes octets, journal de requêtes comparable. Le FDM applique sa propre canonicalisation pour signer | POS v2.2 §III.5 | `crates/pos-fiscal/src/canonical.rs` | `crates/pos-fiscal/src/canonical.rs::tests::canonical_is_deterministic` |
 | 14 | Les événements C portent un `fdmRef` vers l'original | POS v2.2 §II.4.6 | `src-tauri/src/commands/copy.rs` | e2e `spf_e2e_basic::{m160_*, m161_*, m172_*}` + fixture UC_BasicSet M160/M161 |
 | 15 | Événements I avec n° TVA client + cost-center optionnel | POS v2.2 §II.4.5 | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` (existe, `#[cfg(feature = "peppol")]` - **non compilé dans la build cert v1.0.0**, event I hors périmètre v1.0.0, prévu v1.1, cf. *DECISION_PEPPOL_AP_FR.md*) | e2e `spf_e2e_basic::m150_*` + fixture UC_BasicSet M150 (features par défaut, pas la build cert) |
 | 16 | F-WAR ouverture tiroir émis à chaque kick tiroir | POS v2.2 §II.4.7 | `src-tauri/src/commands/financial.rs::open_drawer_fiscal` | e2e `spf_e2e_basic::m131_*` + fixture UC_BasicSet M131 |
@@ -52,7 +52,7 @@ Détail complet (30 tests e2e) : *voir TICKET_NUMERIQUE_FR.md* §12.
 | # | Exigence | Spec | Code | Test |
 |---|---|---|---|---|
 | 19 | Le POS ne parle PAS directement à SPF Finances | FDM v1.4 §I.1 | (architectural - le FDM est le seul canal sortant ; aucun appel SPF Finances nulle part dans `moyun-pos`) | grep vérifié : `grep -r "finances" crates/ src-tauri/ → 0 hit` |
-| 20 | La short signature FDM est affichée sur le ticket | FDM v1.4 §IV.2 | `crates/pos-print/src/receipt.rs::render_control_block` | `crates/pos-print/tests/receipt_layout.rs::receipt_includes_short_signature` |
+| 20 | La short signature FDM est affichée sur le ticket | FDM v1.4 §IV.2 | `crates/pos-print/src/receipt.rs::format_receipt` | `src-tauri/tests/spf_e2e_peripherals.rs::the_sale_receipt_carries_the_fdm_control_data` |
 | 21 | Le statut FDM est remonté à l'UI | FDM v1.4 §V | `src-tauri/src/state.rs` (mirror dans store Pinia) | E2E manuel (kill du mock FDM → pilule de statut UI) |
 
 ## Basic Set v1.7

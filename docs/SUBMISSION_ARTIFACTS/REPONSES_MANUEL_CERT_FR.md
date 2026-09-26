@@ -342,7 +342,7 @@ support, `refund::refund_checkout`).
 
 **Enregistrement zéro :**
 
-Un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, est **techniquement impossible** à produire avec `moyun-pos` v1.0.0 : la garde n'est pas seulement une omission de l'UI, elle est appliquée côté serveur (Rust), dans la couche `src-tauri/src/commands`, avant tout appel au FDM :
+Un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, ne peut **techniquement pas** être créé avec `moyun-pos` v1.0.0 : la garde n'est pas seulement une omission de l'UI, elle est appliquée côté serveur (Rust), dans la couche `src-tauri/src/commands`, avant tout appel au FDM :
 
 - `commands/checkout.rs` : rejette la commande si `lines.is_empty()` (aucune ligne de produit) et rejette explicitement tout total non strictement positif - message `"Order total must be greater than zero"`.
 - `commands/tables.rs` (signature d'un Pro Forma / d'une commande de table) : rejette de la même façon `lines.is_empty()`.
@@ -369,7 +369,7 @@ négative portent `negQuantityReason` (`crates/pos-fiscal`) :
 `CORRECTION` dans les événements P (commande / pré-addition -
 réduction avant encaissement) et `CORRECTION` ou `REFUND` dans
 l'événement N final selon qu'une vente d'origine est référencée ou
-non (`event.rs::reason`).
+non (`crates/pos-fiscal/src/event.rs`, `NegQuantityReason`).
 
 **Bouton "Addition" (pré-addition, événement P) :** `sign_pre_bill`
 imprime la facture consolidée au format PRO FORMA ("addition

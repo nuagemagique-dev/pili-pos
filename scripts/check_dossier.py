@@ -324,10 +324,18 @@ def try_rust_ident(content: str, external_crates: frozenset = frozenset()):
     return None
 
 
+def source_roots(root: Path) -> list:
+    """Where a short source path (`commands/auth.rs`) may live."""
+    roots = [root, root / "src-tauri" / "src", root / "src-tauri"]
+    crates_dir = root / "crates"
+    if crates_dir.is_dir():
+        roots += [c / "src" for c in sorted(crates_dir.iterdir())]
+    return roots
+
+
 def resolve_file_hint(root: Path, hint: str, rust_index: RustIndex) -> list:
     if "/" in hint:
-        candidate = root / hint
-        return [candidate] if candidate.is_file() else []
+        return [r / hint for r in source_roots(root) if (r / hint).is_file()]
     return list(rust_index.files_by_basename.get(hint, []))
 
 
@@ -377,6 +385,13 @@ def strip_trailing_punct(token: str) -> str:
 
 def collect_abs_allowed_paths(root: Path) -> set:
     allowed = set()
+    # Files the image installs verbatim: deploy/image/**/mkosi.extra/<abs>.
+    image_dir = root / "deploy" / "image"
+    if image_dir.is_dir():
+        for extra in image_dir.rglob("mkosi.extra"):
+            for f in extra.rglob("*"):
+                installed = "/" + f.relative_to(extra).as_posix()
+                allowed.add(installed.rstrip("/"))
     literal_re = re.compile(r'"((?:/etc|/var/lib|/opt|/usr|/run)/[^"]*)"')
     token_re = re.compile(r"(?:/etc|/var/lib|/opt|/usr|/run)(?:/[^\s\"'`)]*)?")
 
@@ -391,13 +406,73 @@ def collect_abs_allowed_paths(root: Path) -> set:
         for f in deploy_dir.rglob("*"):
             if not f.is_file():
                 continue
-            for m in token_re.finditer(read_text(f)):
+            for m in token_re.finditer(expand_shell_vars(read_text(f))):
                 token = strip_trailing_punct(m.group(0))
                 allowed.add(token.rstrip("/"))
     return allowed
 
 
+SHELL_ASSIGN_RE = re.compile(
+    r'^\s*(?:readonly\s+|local\s+|export\s+)?([A-Z_][A-Z0-9_]*)="?((?:/etc|/var/lib|/opt|/usr|/run)[^"\s]*)"?\s*$',
+    re.MULTILINE,
+)
+
+
+def expand_shell_vars(text: str) -> str:
+    """Replace `$VAR` / `${VAR}` by the absolute path a script assigns to
+    it (`ETC_DIR="/var/lib/moyun-etc"`), so `"$ETC_DIR/moyun-pos"` is
+    seen as `/var/lib/moyun-etc/moyun-pos`."""
+    for name, value in SHELL_ASSIGN_RE.findall(text):
+        text = re.sub(r"\$\{" + name + r"\}|\$" + name + r"\b", value, text)
+    return text
+
+
+# SQLite writes these next to the database it names.
+SQLITE_SIBLING_SUFFIXES = ("-wal", "-shm", "-journal")
+# A date in a file name (`pos.log.YYYY-MM-DD`): the directory is checked.
+DATE_PLACEHOLDER_RE = re.compile(r"YYYY|HHMMSS")
+
+
+def abs_path_known(path: str, allowed: set) -> bool:
+    if path in allowed:
+        return True
+    for suffix in SQLITE_SIBLING_SUFFIXES:
+        if path.endswith(suffix) and path[: -len(suffix)] in allowed:
+            return True
+    parent, _, name = path.rpartition("/")
+    return bool(DATE_PLACEHOLDER_RE.search(name)) and parent in allowed
+
+
 LINE_REF_RE = re.compile(r":\d+(?::\d+)?$")
+BRACE_RE = re.compile(r"\{([^{}]*)\}")
+
+# Build outputs (gitignored): named in the docs, never in the repo.
+BUILD_OUTPUT_PREFIXES = ("deploy/dist", "src-tauri/target", "target", "ui/dist")
+
+
+def expand_braces(path: str) -> list:
+    """`a/{b,c}.rs` -> [`a/b.rs`, `a/c.rs`]."""
+    m = BRACE_RE.search(path)
+    if not m:
+        return [path]
+    out = []
+    for alt in m.group(1).split(","):
+        out += expand_braces(path[: m.start()] + alt + path[m.end():])
+    return out
+
+
+def missing_relative_paths(candidate: str, doc: Path) -> list:
+    """The expansions of `candidate` found nowhere. A relative path is read
+    from the repo root, the document's folder, the dossier folder, or a
+    source root (`commands/x.rs`)."""
+    if candidate.rstrip("/").startswith(BUILD_OUTPUT_PREFIXES):
+        return []
+    roots = [ROOT, doc.parent, DOSSIER_DIR] + source_roots(ROOT)
+    return [
+        one
+        for one in expand_braces(candidate)
+        if not any((r / one).exists() for r in roots)
+    ]
 
 
 def repo_path_candidate(content: str):
@@ -440,7 +515,7 @@ def rule_repo_path(md_files: list, abs_allowed: set, external_crates: frozenset)
                 )
                 if is_abs:
                     norm = candidate.rstrip("/")
-                    if norm not in abs_allowed:
+                    if not abs_path_known(norm, abs_allowed):
                         findings.append(
                             Finding(
                                 rel(path),
@@ -450,9 +525,9 @@ def rule_repo_path(md_files: list, abs_allowed: set, external_crates: frozenset)
                             )
                         )
                 else:
-                    if not (ROOT / candidate).exists():
+                    for missing in missing_relative_paths(candidate, path):
                         findings.append(
-                            Finding(rel(path), lineno, "repo-path", f"path `{candidate}` does not exist")
+                            Finding(rel(path), lineno, "repo-path", f"path `{missing}` does not exist")
                         )
     return findings
 

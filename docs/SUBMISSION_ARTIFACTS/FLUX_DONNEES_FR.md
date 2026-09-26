@@ -14,8 +14,9 @@ un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
 
 **Circulation des données.**
 
-1. UI (`LoginView.vue`) → IPC `commands::auth::login(insz)`.
-2. `pos-db::queries::users::find_by_insz` → ligne SQLite `users`.
+1. UI (`LoginView.vue`) → IPC `commands::auth::login(insz, pin)`.
+2. `pos-db::queries::users::get_user` → ligne SQLite `users` ; le PIN
+   est comparé à son hash bcrypt.
 3. Le store Pinia auth enregistre `(insz, name, role)`.
 4. L'UI redirige vers `TablesView.vue`. Le store appelle
    automatiquement `commands::social::work_in()` - un événement
@@ -46,7 +47,7 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
      qu'une vente mais sans paiement.
    - Idempotency-keyed et sérialisé en JSON canonique.
    - Le FDM signe ; on archive l'événement P.
-   - `pos-print::receipt::kitchen` construit un payload ESC/POS et
+   - `pos-print::kitchen_ticket::format_kitchen_ticket` construit un payload ESC/POS et
      l'envoie à l'imprimante cuisine (destination TCP distincte de
      l'imprimante du ticket client principal).
 
@@ -113,8 +114,9 @@ rapports pour voir les totaux en cours.
 **Circulation des données.**
 
 1. UI → `commands::report::generate_x_report`.
-2. `pos-db::queries::reports::get_turnover_summary_for_date` retourne
-   les agrégats de la période de réservation ouverte.
+2. Les événements de la période de réservation ouverte sont relus
+   dans `fiscal_events` et agrégés par
+   `pos-fiscal::report_totals::turnover`.
 3. Construit `ReportTurnoverXInput` (pas de champ booking-date dans
    les rapports X selon v1.3).
 4. Le FDM signe un événement **R** labellisé `R-X-TURNOVER`. Archivé
@@ -141,7 +143,7 @@ rapports pour voir les totaux en cours.
    - Si l'un ou l'autre appel FDM échoue, toute la tx est rollback -
      aucun état partiel n'est persisté.
 4. Sauvegarde de la DB SQLite vers
-   `/var/lib/moyun-pos/backups/YYYY-MM-DD.db` via l'API Online Backup.
+   `/var/lib/moyun-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via l'API Online Backup.
 5. Deux tickets de rapport Z sont imprimés.
 
 ## 6. Fin de service - Pointage sortie (Événement S)

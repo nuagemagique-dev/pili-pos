@@ -46,9 +46,10 @@ MOYUN_STAGING_DUMP=1 \
 ```
 
 Avec `MOYUN_STAGING_DUMP=1`, chaque paire requête/réponse est écrite
-dans `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md`
-(horodaté, URL FDM incluse) - à committer après la répétition réelle
-et à référencer depuis ce journal.
+dans le fichier `rehearsal_log.md` du répertoire
+`docs/SUBMISSION_ARTIFACTS/evidence/staging/` (horodaté, URL FDM
+incluse, créé par le test) - à committer après la répétition réelle et
+à référencer depuis ce journal.
 
 Restent **manuels** (hors périmètre du smoke automatisé) : le rapport Z
 (réinitialise les compteurs FDM - section 7), le test de

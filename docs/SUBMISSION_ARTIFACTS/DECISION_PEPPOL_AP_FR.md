@@ -95,7 +95,8 @@ v1.1).
 
 1. **Enregistrer le Peppol endpoint-ID de l'établissement.** Le TVA
    belge utilise le schéma `0208` (numéro d'entreprise BCE, 10 chiffres
-   sans préfixe `BE`) ; l'endpoint-ID a la forme `0208:0XXXXXXXXX`. L'enregistrement est effectué par l'AP choisi
+   sans préfixe `BE`) ; l'endpoint-ID est `0208:` suivi de ce numéro BCE (par exemple
+   `0208:0123456789`). L'enregistrement est effectué par l'AP choisi
    à l'onboarding - prend typiquement 1 à 2 jours ouvrables.
 2. **Ouvrir un compte Storecove**, demander une clé API sandbox,
    exécuter un test de bout en bout contre leur récepteur de

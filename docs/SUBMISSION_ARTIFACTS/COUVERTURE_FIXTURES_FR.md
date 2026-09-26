@@ -92,7 +92,7 @@ fallback d'orthographe, parsing de l'enveloppe multi-langue Q110).
 **Labels d'événements exercés :** les 8 sur 8 - N, P, F, S, I, C, T
 dans `spf_e2e_basic.rs` (I testé mais hors périmètre de la build
 cert v1.0.0, cf. ci-dessus), et R dans `spf_e2e_reports.rs` (M180,
-M182, M184) en complément du parsing `tests/reports_fixtures.rs`.
+M182, M184) en complément du parsing `crates/pos-fiscal/tests/reports_fixtures.rs`.
 
 ---
 

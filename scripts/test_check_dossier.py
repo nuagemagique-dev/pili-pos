@@ -99,7 +99,8 @@ class CheckDossierTestCase(unittest.TestCase):
         # --- deploy/: the source of truth for absolute install paths -----
         write(
             root / "deploy" / "install.sh",
-            '#!/usr/bin/env bash\nPOS_HOME="/var/lib/moyun-pos"\nmkdir -p "$POS_HOME"\n',
+            '#!/usr/bin/env bash\nPOS_HOME="/var/lib/moyun-pos"\nETC_DIR="/var/lib/moyun-etc"\n'
+            'mkdir -p "$POS_HOME" "${ETC_DIR}/moyun-pos" "$POS_HOME/logs"\ntouch "$POS_HOME/pos.db"\n',
         )
 
         # --- scripts/: allowlist for the placeholder rule -----------------
@@ -135,9 +136,15 @@ class CheckDossierTestCase(unittest.TestCase):
             "- `crates/pos-fiscal/src/signature.rs:5`\n"
             "- `/var/lib/moyun-pos/backups/pos-*.db`\n"
             "- `~/.local/share/moyun-pos/pos.db`\n"
+            "- `/var/lib/moyun-etc/moyun-pos`\n"
+            "- `/var/lib/moyun-pos/logs/pos.log.YYYY-MM-DD`\n"
+            "- `/var/lib/moyun-pos/pos.db-wal`\n"
+            "- `crates/pos-fiscal/src/{signature,missing_but_braced}.rs`\n"
+            "- `commands/checkout.rs`\n"
             "\n"
             "Failing references:\n"
             "- `crates/pos-fiscal/src/does_not_exist.rs`\n"
+            "- `/var/lib/elsewhere/unknown-YYYY.db`\n"
             "- `/etc/does-not-exist/config.json`\n",
         )
 
@@ -233,7 +240,24 @@ class CheckDossierTestCase(unittest.TestCase):
 
         self.assertTrue(any("does_not_exist.rs" in m for m in msgs))
         self.assertTrue(any("/etc/does-not-exist/config.json" in m for m in msgs))
-        self.assertEqual(len(msgs), 2, f"expected exactly 2 repo-path findings, got:\n{joined}")
+        self.assertTrue(any("missing_but_braced.rs" in m for m in msgs))
+        self.assertTrue(any("unknown-YYYY.db" in m for m in msgs))
+        self.assertEqual(len(msgs), 4, f"expected exactly 4 repo-path findings, got:\n{joined}")
+
+    def test_shell_variables_are_expanded(self):
+        text = 'ETC_DIR="/var/lib/moyun-etc"\ncp a "$ETC_DIR/moyun-pos/pos.json" "${ETC_DIR}/x"\n'
+        out = self.cd.expand_shell_vars(text)
+        self.assertIn("/var/lib/moyun-etc/moyun-pos/pos.json", out)
+        self.assertIn("/var/lib/moyun-etc/x", out)
+
+    def test_known_absolute_paths(self):
+        allowed = {"/var/lib/moyun-pos/pos.db", "/var/lib/moyun-pos/logs"}
+        known = self.cd.abs_path_known
+        self.assertTrue(known("/var/lib/moyun-pos/pos.db-shm", allowed))
+        self.assertTrue(known("/var/lib/moyun-pos/logs/pos.log.YYYY-MM-DD", allowed))
+        self.assertFalse(known("/var/lib/moyun-pos/other.db-wal", allowed))
+        self.assertFalse(known("/var/lib/moyun-pos/logs/pos.log", allowed))
+        self.assertFalse(known("/var/lib/elsewhere/YYYY.log", allowed))
 
     # -- brand ------------------------------------------------------------------
 

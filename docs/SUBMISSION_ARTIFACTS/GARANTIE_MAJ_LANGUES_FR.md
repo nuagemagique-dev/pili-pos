@@ -50,7 +50,9 @@ Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTA
 
 L'OS hôte (Debian 12 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 
-- Système de fichiers racine en lecture seule (option `ro` dans `/etc/fstab`).
+- Système de fichiers racine en lecture seule (option `ro` sur la ligne
+  de commande du noyau, drapeau GPT lecture seule sur la partition racine,
+  `deploy/image/mkosi.repart/20-root.conf`).
 - Aucun serveur SSH installé (`openssh-server` exclu du paquet de base).
 - Aucun gestionnaire de paquets actif (apt désactivé via systemd-mask).
 - Seul `/var/lib/moyun-pos` est en lecture/écriture (pour la DB et les backups).
@@ -183,7 +185,7 @@ Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré av
 |---|---|---|
 | Build cert reproductible | `Cargo.lock` + `rust-toolchain.toml` épinglés | `cargo build --release` identique sur 2 machines |
 | Build = déploiement client | Binaire Tauri scellé + SHA-1 vérifiable | `sha1sum /opt/moyun-pos/moyun-pos` |
-| Pas de modification post-cert | Système de fichiers racine en lecture seule + tag git signé | Vérification au boot, lecture du tag dans `/etc/moyun-pos/version` |
+| Pas de modification post-cert | Système de fichiers racine monté en lecture seule (option `ro` du noyau, drapeau GPT lecture seule) ; binaire identifié par son SHA-1 | `sha1sum` du binaire installé comparé au SHA-1 déclaré ; `moyun-pos --version` |
 | Nouvelle MAJ = nouveau cert | Procédure §II.E + Article 109 du manuel | Chaque tag `vX.Y.Z+1` ouvre une nouvelle demande SPF |
 | Pas d'accès distant permanent | Pas de SSH ; RustDesk portable présent mais jamais lancé au boot | Vérification au scan réseau du POS (aucun port ouvert hors session) |
 | Ticket dans la langue de la région linguistique de l'établissement | `translations` (libellés produits) + `pos.json::language` (mentions fiscales FR/NL/DE) | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |
