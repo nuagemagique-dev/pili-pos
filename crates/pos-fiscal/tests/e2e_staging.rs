@@ -397,6 +397,7 @@ async fn staging_basic_set_smoke() {
         &bk(&booking_period_id),
         PaymentType::Cash,
         1200,
+        0,
         None,
     );
     let result = client
@@ -421,6 +422,7 @@ async fn staging_basic_set_smoke() {
         &bk(&booking_period_id),
         PaymentType::Cash,
         -1200,
+        0,
         Some(&sale_ref),
     );
     let result = client

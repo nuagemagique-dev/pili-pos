@@ -261,6 +261,7 @@ async fn test_direct_sale() {
         &bk(&bp_id),
         PaymentType::Cash,
         total,
+        0,
         None,
     );
 
@@ -369,6 +370,7 @@ async fn test_complete_refund() {
         &bk(&bp_id),
         PaymentType::Cash,
         -2500,
+        0,
         None,
     );
 
@@ -479,6 +481,7 @@ async fn test_interrupted_sale_table_flow() {
         &bk(&bp_id),
         PaymentType::CardDebit,
         total,
+        0,
         None,
     );
 
@@ -581,6 +584,7 @@ async fn test_training_mode() {
         &bk(&bp_id),
         PaymentType::Cash,
         total,
+        0,
         None,
     );
 
@@ -948,6 +952,7 @@ async fn test_full_service_day() {
         &bk(&bp_id),
         PaymentType::Cash,
         1790,
+        0,
         None,
     );
     let sale1_result = fdm.sign_sale(sale1, false).await.unwrap();

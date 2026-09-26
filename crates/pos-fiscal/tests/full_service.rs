@@ -618,6 +618,7 @@ async fn test_full_service_day_e2e() {
         &bk(&bp_id),
         PaymentType::Cash,
         order_mod.total_cents,
+        0,
         None,
     );
 
@@ -858,6 +859,7 @@ async fn test_full_service_day_e2e() {
         &bk(&bp_id),
         PaymentType::CardDebit,
         1790,
+        0,
         None,
     );
     assert_eq!(sale2.financials[0].payment_type, PaymentType::CardDebit);

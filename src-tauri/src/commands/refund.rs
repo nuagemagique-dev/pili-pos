@@ -261,6 +261,7 @@ pub async fn do_refund_checkout_with(
             &bp_id,
             PaymentType::Cash,
             refund_order.total_cents, // negative
+            0,                        // refunds are not rounded
             Some(&original_ref),
         );
         sale_input.common.ticket_medium = resolved.medium;

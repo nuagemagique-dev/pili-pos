@@ -109,7 +109,7 @@ const coreMessages: Messages = {
   "err_product_unavailable": { fr: "Le produit {product} n'est pas disponible.", en: "Product {product} is not available.", zh: "商品{product}不可用。" },
   "err_line_not_found": { fr: "Cette ligne n'existe plus.", en: "This line no longer exists.", zh: "该行已不存在。" },
   "err_order_no_lines": { fr: "La commande est vide.", en: "The order is empty.", zh: "订单为空。" },
-  "err_order_total_positive": { fr: "Le total doit être supérieur à zéro.", en: "The total must be greater than zero.", zh: "总额必须大于零。" },
+  "err_order_total_negative": { fr: "Le total ne peut pas être négatif.", en: "The total cannot be negative.", zh: "总额不能为负数。" },
   "err_order_already_closed": { fr: "Cette commande est déjà payée.", en: "This order is already paid.", zh: "该订单已付款。" },
   "err_event_not_found": { fr: "Ticket introuvable.", en: "Ticket not found.", zh: "未找到票据。" },
   "err_original_incomplete": {

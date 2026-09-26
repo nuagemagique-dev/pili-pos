@@ -113,14 +113,16 @@ pub async fn do_checkout_with(
         });
     }
 
-    // Guard: no zero-total sale. Together with the empty-order check
-    // above this makes a "zero registration" impossible, as declared
-    // in the certification dossier (manual §III.D).
-    if order.total_cents <= 0 {
+    // Guard: no negative sale (a refund goes through `refund.rs`). A
+    // sale that comes to 0,00 EUR is signed like any other: event N
+    // and a VAT ticket (producers FAQ Q206, Q209). Together with the
+    // empty-order check above, no record without a product line can
+    // be made (manual §III.D).
+    if order.total_cents < 0 {
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
-            error: Some(errors::ORDER_TOTAL_POSITIVE.into()),
+            error: Some(errors::ORDER_TOTAL_NEGATIVE.into()),
             fdm_connected: false,
             fiscal_event_id: None,
             delivery: None,
@@ -170,6 +172,14 @@ pub async fn do_checkout_with(
         FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
     };
 
+    // A sale at 0,00 EUR moves no money: it is registered as a cash
+    // payment of 0 (FAQ Q206) and opens no drawer.
+    let payment_method = if order.total_cents == 0 {
+        CheckoutPaymentMethod::Cash
+    } else {
+        payment_method
+    };
+
     // 3. Belgian 5-cent rounding (cash only, per Belgian law).
     let rounding_cents: i64 = match payment_method {
         CheckoutPaymentMethod::Cash => ticket::round_to_5_cents(order.total_cents),
@@ -190,7 +200,8 @@ pub async fn do_checkout_with(
         ticket_number,
         &booking_period_id,
         payment_type,
-        payment_total_cents,
+        order.total_cents,
+        rounding_cents,
         None, // no fdm_ref for normal sales
     );
     sale_input.common.ticket_medium = resolved.medium;
@@ -364,6 +375,7 @@ pub async fn do_checkout_with(
     )
     .await;
     if matches!(payment_method, CheckoutPaymentMethod::Cash)
+        && order.total_cents != 0
         && let Some(ref addr) = config.printer_address
     {
         let drawer_data = pos_print::drawer::kick_drawer_bytes();

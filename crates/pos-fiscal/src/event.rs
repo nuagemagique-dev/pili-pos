@@ -154,6 +154,11 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 /// `lines` is the order's journal (additions and corrections in
 /// chronological order, POS description v2.2 §2). For refunds, pass
 /// `original_fdm_ref` referencing the original ticket.
+///
+/// `payment_amount_cents` is the amount of the sale itself; a cash
+/// rounding (`rounding_cents`, 0 for none) goes on its own `ROUNDING`
+/// line of the same payment method, never into the payment amount
+/// (producers FAQ Q403, Advanced Set UC201).
 // The argument list mirrors the spec-mandated SaleInput composition;
 // grouping them into an ad-hoc struct would just move the same fields.
 #[allow(clippy::too_many_arguments)]
@@ -165,6 +170,7 @@ pub fn build_sale_input(
     booking: &Booking,
     payment_type: PaymentType,
     payment_amount_cents: i64,
+    rounding_cents: i64,
     original_fdm_ref: Option<&FdmReference>,
 ) -> SaleInput {
     let common = build_common_fields(
@@ -185,7 +191,6 @@ pub fn build_sale_input(
         .table_number
         .map(|t| build_table_cost_center(t, &order_reference(order)));
 
-    let payment_amount = eur(payment_amount_cents);
     // The id identifies the payment method (spec §2.2.2 `financials.id`):
     // the reports total the payments per id.
     let (payment_id, payment_name) = match payment_type {
@@ -193,18 +198,22 @@ pub fn build_sale_input(
         PaymentType::CardDebit => ("2", "Card"),
         _ => ("9", "Payment"),
     };
-    let financials = vec![PaymentLineInput {
+    let payment_line = |amount_cents: i64, amount_type: PaymentLineType| PaymentLineInput {
         id: payment_id.to_string(),
         name: payment_name.to_string(),
         payment_type,
         provider: None,
         input_method: InputMethod::Manual,
-        amount: payment_amount,
-        amount_type: PaymentLineType::Payment,
+        amount: eur(amount_cents),
+        amount_type,
         foreign_currency: None,
         reference: None,
         drawer: None,
-    }];
+    };
+    let mut financials = vec![payment_line(payment_amount_cents, PaymentLineType::Payment)];
+    if rounding_cents != 0 {
+        financials.push(payment_line(rounding_cents, PaymentLineType::Rounding));
+    }
 
     SaleInput {
         common,
@@ -600,6 +609,7 @@ mod tests {
             &bk(&bp_id),
             PaymentType::Cash,
             2500,
+            0,
             None,
         );
 
@@ -629,6 +639,7 @@ mod tests {
             &bk(&bp_id),
             PaymentType::Cash,
             2500,
+            0,
             None,
         );
         let json = serde_json::to_string(&sale).unwrap();
@@ -711,6 +722,7 @@ mod tests {
                 &bk(&bp_id),
                 PaymentType::Cash,
                 -2500,
+                0,
                 fdm_ref,
             )
             .transaction
@@ -739,6 +751,7 @@ mod tests {
             &bk(&bp_id),
             PaymentType::Cash,
             2500,
+            0,
             None,
         );
 
@@ -780,6 +793,7 @@ mod tests {
             &bk(&bp_id),
             PaymentType::Cash,
             -1250,
+            0,
             Some(&original_ref),
         );
 
@@ -810,6 +824,7 @@ mod tests {
             &bk(&bp_id),
             PaymentType::Cash,
             2500,
+            0,
             None,
         );
         assert!(sale.fdm_ref.is_none());
@@ -849,6 +864,7 @@ mod tests {
             &bk("bp"),
             PaymentType::Cash,
             2500,
+            0,
             None,
         );
         assert_eq!(sale.common.ticket_medium, TicketMedium::Paper);
@@ -1084,6 +1100,7 @@ mod tests {
             &bk(&bp_id),
             PaymentType::Cash,
             0,
+            0,
             None,
         );
         assert!(sale.transaction.transaction_lines.is_empty());
@@ -1115,6 +1132,7 @@ mod tests {
             &bk("bp"),
             PaymentType::Cash,
             1000,
+            0,
             None,
         );
         let product = &sale.transaction.transaction_lines[0].main_product;
@@ -1139,6 +1157,7 @@ mod tests {
             &bk("bp"),
             PaymentType::Cash,
             2500,
+            0,
             None,
         );
         let json = serde_json::to_string(&sale).unwrap();
@@ -1177,6 +1196,7 @@ mod tests {
             &bk("bp"),
             PaymentType::Cash,
             expected_cents,
+            0,
             None,
         );
         assert_eq!(sale.transaction.transaction_total, eur(expected_cents));
@@ -1247,6 +1267,7 @@ mod tests {
                 &bk("bp"),
                 PaymentType::Cash,
                 total,
+                0,
                 None,
             );
             assert_eq!(sale.transaction.transaction_total, eur(total));
@@ -1296,6 +1317,7 @@ mod tests {
             &bk("bp"),
             PaymentType::Cash,
             330,
+            0,
             None,
         );
         let json = serde_json::to_string(&sale).unwrap();
