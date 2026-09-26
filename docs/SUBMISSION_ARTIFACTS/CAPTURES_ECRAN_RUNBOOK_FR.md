@@ -4,59 +4,61 @@
 (rapports X/Z visibles et imprimables) du manuel de certification.
 
 Ce document liste, dans l'ordre d'exécution, les captures d'écran à
-produire à partir de l'application en cours d'exécution. Les fichiers
-vont dans `docs/SUBMISSION_ARTIFACTS/screenshots/`, puis sont réunis
-dans `CAPTURES_ECRAN_FR.pdf`. Les libellés cités sont ceux de l'écran
-(voir `MANUEL_UTILISATEUR_FR.md`).
+produire. Les fichiers vont dans
+`docs/SUBMISSION_ARTIFACTS/screenshots/`, puis sont réunis dans
+`CAPTURES_ECRAN_FR.pdf`. Les libellés cités sont ceux de l'écran (voir
+`MANUEL_UTILISATEUR_FR.md`).
 
 ---
 
-## Pré-requis
+## Méthode
 
-1. **FDM simulé.** Dans un terminal :
-   ```bash
-   cargo run --package pos-fdm-mock        # écoute sur :8081
-   ```
-   Le même binaire simule le service d'e-mail (TEM) sur la même
-   adresse. `MOCK_TEM_OUTBOX=<dossier>` y écrit les e-mails simulés ;
-   `MOCK_TEM_FAIL=1` fait échouer l'envoi (capture `09e`).
+Les sections 1 et 2 (captures `01` à `44`) sont produites
+automatiquement par une visite Playwright de l'interface, la couche
+IPC Tauri étant simulée (comme le reste de la suite e2e de `ui/`) :
+pas de FDM simulé, pas de base SQLite, pas de `cargo tauri dev`.
 
-2. **Base de test et configuration**, dans un dossier jetable :
-   ```bash
-   export MOYUN_POS_DATA_DIR=/tmp/moyun-captures
-   export MOYUN_POS_CONFIG=/tmp/moyun-captures/pos.json
-   cargo run --package moyun-pos -- --init-db --seed src-tauri/seed_spf_test.sql
-   ```
-   `pos.json` : l'identité de test de l'installation
-   (`MANUEL_INSTALLATION_FR.md` §4.2) avec `"fdm_url":
-   "http://localhost:8081/graphql"`, et pour les captures `09a`-`09f`
-   un bloc `digital_ticket` dont `"api_base"` vaut
-   `"http://localhost:8081"`. Vérifier avec
-   `cargo run --package moyun-pos -- --check-config`.
+```bash
+cd ui && npm run captures
+```
 
-3. **Application.** Dans un autre terminal, avec les mêmes variables :
-   ```bash
-   cargo tauri dev
-   ```
-   Sur l'image d'admission (QEMU, `scripts/qemu/run-kiosk.sh`), les
-   mêmes écrans se capturent avec `scripts/qemu/screendump.sh <nom>`.
+Le test (`ui/e2e/captures.spec.ts`) rejoue chaque écran, vérifie le
+texte attendu avant de capturer (un écran cassé fait donc échouer le
+test au lieu de produire une image fausse), puis écrit le PNG sous le
+nom attendu ci-dessous. Ce n'est pas la suite e2e normale (`npm run
+test:e2e`) : `captures.spec.ts` tourne dans son propre projet
+Playwright (`--project=captures`) et n'est jamais inclus dans la
+passe de test habituelle.
 
-4. **Comptes de test** (seed `seed_spf_test.sql`) : Gérant
-   `94060242576`, PIN `1111` ; Serveur `84022899837`, PIN `2222` ;
-   Apprenti `99012345667`, PIN `3333`.
+Données de test utilisées par la visite (fictives, sans lien avec un
+client réel) : établissement « Restaurant Exemple », employés
+« Gérant Test » (INSZ `94060242576`), « Serveur Test » (INSZ
+`84022899837`) et « Apprenti Test » (INSZ `99012345667`) - les rôles
+du §1 de `PROFILS_UTILISATEURS_FR.md`.
 
-5. **Captures macOS.** `Cmd + Shift + 4`, puis `Espace` et clic sur la
-   fenêtre du POS.
+**Image d'admission (QEMU).** La capture `00_boot_admission.png` (le
+premier écran affiché au démarrage de l'image kiosk) n'est pas
+couverte par la visite Playwright ci-dessus : elle est produite en CI
+à partir de l'image QEMU (`scripts/qemu/run-kiosk.sh`) avec
+`scripts/qemu/screendump.sh <nom> 00_boot_admission`, qui capture
+l'écran via le socket QMP de l'instance en cours.
 
-6. **Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09f_` :
-   ticket numérique ; `20_` à `41_` : messages du FDM (§V) ; `50_` à
-   `56_` : tickets imprimés.
+La section 3 (tickets imprimés) reste manuelle - voir plus bas.
+
+**Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09f_` :
+ticket numérique ; `20_` à `44_` : messages du FDM (§V) et écrans
+additionnels ; `50_` à `56_` : tickets imprimés.
 
 ---
 
 ## Section 1 - Écrans de flux fonctionnels
 
-FDM simulé démarré sans erreur.
+Chaque écran ci-dessous correspond à un état FDM sans erreur ni
+avertissement. Les indications « Action » et « Écran attendu »
+décrivent l'état capturé ; la visite automatique
+(`ui/e2e/captures.spec.ts`) le produit en simulant l'IPC Tauri (pas
+de FDM réel ni simulé), et vérifie le texte attendu avant chaque
+capture.
 
 ### `01_login.png`
 - **Action :** ouvrir l'application.
@@ -189,12 +191,17 @@ FDM simulé démarré sans erreur.
 
 ## Section 2 - Messages du FDM (§V)
 
-Pour chaque capture : arrêter le FDM simulé, le relancer avec la
-variable indiquée, puis attendre que la caisse revérifie l'état du FDM
-(toutes les 30 s) ou revenir à l'écran de commande. Le message
-s'affiche dans l'en-tête, à côté de la pastille "Caisse". Les textes
-ci-dessous sont repris de `ui/src/utils/fdmMessages.ts`, la source
-affichée.
+Les entrées `20` à `41` correspondent chacune à un code d'état ou de
+warning FDM (colonne "Mock" : la variable du FDM simulé, pour une
+reproduction manuelle). Le message s'affiche dans l'en-tête, à côté
+de la pastille "Caisse". Les textes ci-dessous sont repris de
+`ui/src/utils/fdmMessages.ts`, la source affichée.
+
+La visite automatique (`ui/e2e/captures.spec.ts`) ne relance pas de
+FDM simulé : elle simule directement, via l'IPC Tauri, la réponse
+`check_fdm_status` (pour la pastille et le message d'en-tête) ou le
+refus de `checkout` (pour le message au-dessus des modes de paiement),
+puis vérifie le texte exact avant de capturer.
 
 ### Affichage obligatoire (M)
 
@@ -340,6 +347,24 @@ affichée.
 - **Écran attendu :** pastille "Caisse" rouge, « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » dans l'en-tête et au-dessus des modes de paiement ; la vente est refusée.
 - **Capture :** plein écran.
 
+### Écrans additionnels (42-44)
+
+#### `42_fdm_response_mismatch.png`
+- **Mock :** la réponse du FDM à la vente ne correspond pas à la requête (le contrôle de cohérence de `pos-fiscal::response_check` échoue), ex. `FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41`.
+- **Action :** payer par carte : le contrôle échoue, la vente n'est pas enregistrée.
+- **Écran attendu :** « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. » au-dessus des modes de paiement.
+- **Capture :** plein écran.
+
+#### `43_first_login_pin.png`
+- **Action :** toucher la tuile d'un Gérant qui n'a encore aucun PIN défini.
+- **Écran attendu :** pavé "Choisissez votre PIN" avec le nom de l'employé et une aide de saisie, à la place du pavé de saisie du PIN habituel.
+- **Capture :** plein écran.
+
+#### `44_remote_support.png`
+- **Action :** "Config", section "Assistance à distance", pendant qu'une session est en cours.
+- **Écran attendu :** état "en cours" avec l'employé qui l'a démarrée et l'heure de début, plus le bandeau d'alerte affiché en permanence tant que la session tourne.
+- **Capture :** plein écran, section assistance visible (faire défiler si besoin).
+
 ---
 
 ## Section 3 - Tickets imprimés (annexe §VI)
@@ -372,12 +397,18 @@ transcriptions texte de ces tickets sont dans `TICKETS_EXEMPLES_FR.md`.
 
 ## Compilation finale
 
-Une fois toutes les captures dans `docs/SUBMISSION_ARTIFACTS/screenshots/` :
+Une fois toutes les captures dans `docs/SUBMISSION_ARTIFACTS/screenshots/`
+(sections 1 et 2 via `npm run captures`, `00_boot_admission` via QEMU,
+section 3 photographiée) :
 
 ```bash
-cd docs/SUBMISSION_ARTIFACTS
-magick screenshots/*.png screenshots/*.jpg CAPTURES_ECRAN_FR.pdf
+scripts/make_captures_pdf.sh
 ```
+
+Le script assemble `screenshots/*.png` et `*.jpg`, dans l'ordre du
+nom de fichier, en `docs/SUBMISSION_ARTIFACTS/CAPTURES_ECRAN_FR.pdf`
+avec `magick` (ImageMagick 7), et échoue clairement s'il ne trouve
+aucune capture.
 
 Puis vérifier que `CAPTURES_ECRAN_FR.pdf` figure dans les annexes de
 `REPONSES_MANUEL_CERT_FR.md` §V et §VII.D.
@@ -386,8 +417,9 @@ Puis vérifier que `CAPTURES_ECRAN_FR.pdf` figure dans les annexes de
 
 ## Estimation de temps
 
-- Section 1 (25 écrans) : 45 minutes environ.
-- Section 2 (22 captures) : 45 minutes environ (1 à 2 minutes par capture, relance du FDM simulé entre chaque).
+- Sections 1 et 2 (44 écrans) : quelques secondes, `npm run captures`.
+- `00_boot_admission` (QEMU, CI) : automatique, aucune action manuelle.
 - Section 3 (7 tickets) : 20 à 30 minutes (impression et photo).
+- Compilation (`scripts/make_captures_pdf.sh`) : quelques secondes.
 
-**Total : 2 h à 2 h 15.**
+**Total : environ 20 à 30 minutes, dominé par la section 3.**

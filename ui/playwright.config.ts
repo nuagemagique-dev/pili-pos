@@ -22,7 +22,7 @@ export default defineConfig({
         hasTouch: true,
       },
       testMatch: /\.spec\.ts$/,
-      testIgnore: /integration/,
+      testIgnore: [/integration/, /captures/],
     },
     // Layer 3: Real binary via CDP (CI only, see test.yml).
     {
@@ -39,6 +39,31 @@ export default defineConfig({
       },
       testMatch: /integration\.spec\.ts$/,
     },
+    // Certification dossier screenshot tour (docs/SUBMISSION_ARTIFACTS).
+    // Not part of the normal gate - run explicitly with `npm run captures`.
+    // Playwright runs every configured project when no --project filter
+    // is given, so this project only exists in the config when PW_CAPTURES
+    // is set (the `captures` npm script sets it); otherwise a bare
+    // `playwright test` never discovers captures.spec.ts. Viewport
+    // matches the kiosk's 15.6" FHD touchscreen. Longer timeout than the
+    // default 15s: several captures walk a full sale (login, tables,
+    // order, checkout) in one test, screenshotting along the way.
+    ...(process.env.PW_CAPTURES
+      ? [
+          {
+            name: 'captures',
+            timeout: 60_000,
+            use: {
+              baseURL: `http://localhost:${port}`,
+              browserName: 'webkit' as const,
+              viewport: { width: 1920, height: 1080 },
+              locale: 'fr-BE',
+              hasTouch: true,
+            },
+            testMatch: /captures\.spec\.ts$/,
+          },
+        ]
+      : []),
   ],
 
   // Vite dev server for the e2e project.

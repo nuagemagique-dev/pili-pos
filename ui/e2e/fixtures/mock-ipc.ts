@@ -108,8 +108,14 @@ type Handler = (args?: any) => any;
  * be fully self-contained: no closures over anything outside its own
  * body (module-level constants, helpers, counters - none of that
  * exists in the page). Keep helpers nested inside the handler itself.
+ *
+ * Exported so a spec can build its own live handler (e.g. captures.spec.ts's
+ * catalogue-aware `add_order_line`/`get_menu_items`, needed when a single
+ * test adds several different products and the static default handler -
+ * which always echoes `DEFAULT_ORDER_LINE` - would return the wrong name/
+ * price/VAT for every product but the first).
  */
-function live(fn: Handler): Handler {
+export function live(fn: Handler): Handler {
   (fn as { __live?: boolean }).__live = true;
   return fn;
 }
