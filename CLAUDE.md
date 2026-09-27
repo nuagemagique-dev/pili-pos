@@ -104,6 +104,8 @@ Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corres
   - `InputReport/` - input fixtures, `Scenario Reports.md` - full scenario doc (⚠️ source PDF is diagram-only - open the PDF for the flow charts), changelog: `CHANGELOG-UC_ReportsBasicSet1.3.md`
 - `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` - **Advanced Set v1.5** - optional/advanced flows (out of MVP scope, but the data model must not preclude them). Covers: composite products, price changes, rounding, table split/merge, MPV/SPV vouchers, foreign currency & tips, customer accounts, cost-center changes, advance payments / deposits, weighted products, GTIN, supplements, credit notes, etc. `UC200…UC4123`. Changelog: `CHANGELOG-UC_AdvancedSet_1.5.md`. Bundle: `20250916_AdvancedSet_1.5.zip`.
 
+**Legislation** (in `docs/legislation/`, French text from Justel and the Moniteur belge): the AM of 29 April 2024 on the technical aspects of certification (authoritative for ticket wording, report contents and the automatic Z), the AR of 30 December 2009 on the cash register system (consolidated), and the AR of 25 May 2026 amending it (in force 1 July 2026).
+
 **Design guide:**
 - `docs/UX-DESIGN-GUIDE.md` - **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design.
 
@@ -161,7 +163,7 @@ Every dine-in ticket must include:
   - Counter values
   - `shortSignature`
   - Footer text
-- QR code: Model 2, ECC M, from the 38-character URL provided by FDM. The spec names 25x25, but that can't hold the mixed-case URL; the encoder uses version 3 (29x29), to confirm with the SPF
+- QR code: Model 2, ECC M, from the 38-character URL provided by FDM. The spec names 25x25, but that can't hold the mixed-case URL; the encoder uses version 3 (29x29), decided 2026-09-27 (see `docs/internal/PLAN_SPF_PACKAGE_2026-09.md` §3)
 
 ### Critical Behavioral Rules
 1. **POS MUST block** if FDM is disconnected - no transactions without FDM

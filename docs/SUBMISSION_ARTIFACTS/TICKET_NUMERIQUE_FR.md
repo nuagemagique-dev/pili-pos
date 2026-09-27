@@ -278,8 +278,10 @@ pas contenir l'URL (préfixe en minuscules, valeur en base 62, donc mode
 octet ISO/IEC 18004, limité à 34 octets en version 2 même avec la
 correction la plus faible). `moyun-pos` utilise donc la version 3
 (29×29 modules), la plus petite qui contienne les 38 caractères avec
-la correction M - point signalé au SPF pour confirmation
-(`crates/pos-fiscal/src/qr.rs`).
+la correction M (`crates/pos-fiscal/src/qr.rs`). Ni l'arrêté
+ministériel du 29 avril 2024 ni la description POS n'imposent une autre
+correction d'erreur : la correction M de la spec est gardée, et seule
+la version suit, parce qu'elle est la seule qui contienne l'URL.
 
 ## 12. Table exigence → code → test
 

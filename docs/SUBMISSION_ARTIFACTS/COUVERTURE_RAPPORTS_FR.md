@@ -130,7 +130,7 @@ la période d'ouverture courante (table `booking_periods`, migration
 | `departments` | Σ montant des lignes des événements N, par `departmentId`/`departmentName` |
 | `vats` | Σ du `vatCalc` renvoyé par le FDM sur chaque N (repli sur les taux standard A/B/C/D si absent) |
 | `payments` | Les `financials` des événements N, par méthode (`id`/`name`/`type`) |
-| `negQuantities` | Les lignes à quantité négative des événements N, par `negQuantityReason` (`CORRECTION`/`REFUND`) |
+| `negQuantities` | Les lignes à quantité négative, par `negQuantityReason` (`CORRECTION`/`REFUND`), comptées une fois, sur l'événement qui les a transmises en premier (FAQ Q303) : l'enregistrement de commande (P, `ORDER`) pour une table, la vente N pour une vente directe ou un remboursement, jamais une addition provisoire. La vente d'une table renvoie ses corrections déjà enregistrées, même avant un Z : elles ne sont pas recomptées |
 | `drawersOpenCount` | Événements F dont `eventOperation == DRAWER_OPEN` |
 | `users[].totalAmount` | Σ `transaction.transactionTotal` des événements N de l'employé |
 | Plage d'activité utilisateur | Tous les événements de l'employé **sauf** les rapports R eux-mêmes |
@@ -173,8 +173,10 @@ compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario
 enregistre 4 événements P (T1, T5, T6, T7 - commandes et pré-addition)
 pour 250 € ; la spec §2.2.2 définit `ticketCount` comme le nombre
 d'événements de ce label dans la période, donc moyun-pos rapporte 4 et
-250 € - conforme au texte de la spec, différent du chiffre publié
-dans la fixture. Écarts additionnels documentés et volontaires :
+250 € - conforme au texte de la spec et à l'arrêté ministériel du 29
+avril 2024 (art. 29, t : le nombre et le montant des tickets de chaque
+type), différent du chiffre publié dans la fixture. Aucun texte ne
+permet d'exclure T1 : ce choix est délibéré. Écarts additionnels documentés et volontaires :
 l'`id`/`name` de paiement sont ceux de moyun-pos (ci-dessus), les
 paiements carte sont `CARD_DEBIT` (fixture : `CARD_CREDIT`), les noms
 de département sont ceux du catalogue en français, et

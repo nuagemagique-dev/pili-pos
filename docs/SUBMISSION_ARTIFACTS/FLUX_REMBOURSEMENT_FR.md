@@ -53,7 +53,10 @@ Le flux reflète l'encaissement standard de
    `UPDATE orders SET status='closed'` dans une tx, rollback si
    l'un échoue. Cf. fix B3 dans `STRATEGIE_COMPTEURS_FR.md` §5.
 7. **Impression ticket de remboursement + ouverture tiroir.**
-   Best-effort - non-fatal si imprimante injoignable.
+   Best-effort - non-fatal si imprimante injoignable. Chaque ligne
+   remboursée est imprimée avec sa quantité et son montant négatifs
+   (« -1 Cola -3,04 »), comme la requête M111 les transmet au FDM :
+   le ticket reproduit les données signées.
 
 Si le remboursement s'arrête après la création de sa commande (refus
 ou indisponibilité du FDM, échec de l'archivage), la commande est

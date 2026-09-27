@@ -342,15 +342,17 @@ support, `refund::refund_checkout`).
 
 **Enregistrement zéro :**
 
-Un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, ne peut **techniquement pas** être créé avec `moyun-pos` v1.0.0 : la garde n'est pas seulement une omission de l'UI, elle est appliquée côté serveur (Rust), dans la couche `src-tauri/src/commands`, avant tout appel au FDM :
+Un enregistrement **sans ligne de produit** ne peut **techniquement pas** être créé avec `moyun-pos` v1.0.0. La garde n'est pas seulement une omission de l'UI : elle est appliquée côté serveur (Rust), dans `src-tauri/src/commands`, avant tout appel au FDM.
 
-- `commands/checkout.rs` : rejette la commande si `lines.is_empty()` (aucune ligne de produit) et rejette explicitement tout total non strictement positif - message `"Order total must be greater than zero"`.
-- `commands/tables.rs` (signature d'un Pro Forma / d'une commande de table) : rejette de la même façon `lines.is_empty()`.
-- `commands/refund.rs` : rejette le remboursement si `items.is_empty()` (aucune ligne à rembourser).
+- `commands/checkout.rs` : une vente sans ligne de produit est refusée (code `order_no_lines`). Une vente dont le total est négatif est refusée aussi (code `order_total_negative`) : un montant négatif ne passe que par un remboursement.
+- `commands/tables.rs` : une addition provisoire sans ligne est refusée (`order_no_lines`). L'enregistrement d'une commande de table n'envoie rien quand aucune entrée n'est en attente : pas d'événement P vide.
+- `commands/refund.rs` : un remboursement sans ligne à rembourser est refusé (`nothing_to_refund`).
 
-Ces trois gardes s'exécutent avant toute construction de payload FDM ; aucun `SaleInput`/`OrderInput` à zéro ligne ou à total nul/négatif n'est donc jamais soumis au FDM.
+Une vente dont le total vaut **0,00 EUR** (par exemple un article offert à prix nul) n'est pas un enregistrement zéro : elle porte ses lignes de produit. Elle est signée comme toute vente, en événement **N**, avec un ticket de caisse T.V.A. (FAQ producteurs Q206 et Q209 ; arrêté ministériel du 29 avril 2024, art. 5, 1°).
 
-**Déclaration formelle :** un enregistrement sans ligne de produit, ou avec un total de vente nul ou négatif, **n'est jamais possible** avec `moyun-pos` v1.0.0, ni via l'UI opérateur, ni via la couche applicative (garde serveur-side dans `checkout.rs`, `tables.rs` et `refund.rs`, cf. ci-dessus).
+Tests : `checkout_of_an_empty_order_is_refused_without_calling_the_fdm`, `a_negative_sale_is_refused_before_the_fdm`, `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket`.
+
+**Déclaration formelle :** un enregistrement sans ligne de produit **n'est jamais possible** avec `moyun-pos` v1.0.0, ni via l'UI opérateur, ni via la couche applicative (gardes serveur dans `checkout.rs`, `tables.rs` et `refund.rs`, cf. ci-dessus).
 
 **Journal de commande (`order_entries`) :** chaque ajout, correction ou
 remboursement de ligne sur une commande ouverte est journalisé dans la
@@ -371,7 +373,21 @@ négative portent `negQuantityReason` (`crates/pos-fiscal`) :
 `CORRECTION` dans les événements P (commande / pré-addition -
 réduction avant encaissement) et `CORRECTION` ou `REFUND` dans
 l'événement N final selon qu'une vente d'origine est référencée ou
-non (`crates/pos-fiscal/src/event.rs`, `NegQuantityReason`).
+non (`crates/pos-fiscal/src/event.rs`, `NegQuantityReason`). Dans
+les rapports X et Z, une correction de table est comptée sur
+l'événement P qui l'a transmise, même si la table est payée après le
+Z ; la vente finale qui la renvoie ne la recompte pas (FAQ Q303 ;
+`crates/pos-fiscal/src/report_totals.rs`).
+
+**Déconnexion avec une table ouverte :** la déconnexion n'est pas
+bloquée. Quitter une commande de table, quel que soit l'écran visé,
+enregistre d'abord ses entrées en attente (événement P, vente
+interrompue : arrêté ministériel du 29 avril 2024, art. 6 ; FAQ Q205).
+Si le FDM refuse ou ne répond pas, l'opérateur reste sur la commande ;
+seul le verrouillage de l'écran passe, et les entrées restent en
+attente jusqu'au prochain enregistrement, à l'addition ou à la vente.
+Sans FDM, aucune opération fiscale n'est de toute façon possible. La
+table reste listée comme ouverte sur l'écran des tables.
 
 **Bouton "Addition" (pré-addition, événement P) :** `sign_pre_bill`
 imprime la facture consolidée au format PRO FORMA ("addition
@@ -437,7 +453,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Facturation à l'hôtel | ☐ | - | Non supporté (POS destiné à la restauration) |
 | Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé |
 | Paiement en plusieurs moyens (un ticket) | ☑ | UC4119, ROUND4, ROUND5 | Carte et chèques-repas pour un montant exact, espèces pour le reste (seul le reste en espèces est arrondi, ligne ROUNDING à part). Une ligne PAYMENT par moyen (`crates/pos-fiscal/src/payment.rs`) |
-| Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`src-tauri/src/commands/unpaid.rs`) |
+| Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`src-tauri/src/commands/unpaid.rs`). La description POS v2.2 ne prévoit des `financials` vides que pour un montant nul ; moyun-pos suit le cas d'utilisation officiel UC4109_2 (58 EUR, `financials: []`) |
 | Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
 | Vouchers à but multiple | ☐ | UC260/261 | Hors MVP |
 | Vouchers à but unique | ☐ | UC270/271 | Hors MVP |
@@ -727,15 +743,15 @@ Pour répondre à la spec belge, le POS génère les mentions fiscales du ticket
 
 | Mention | FR | NL | DE |
 |---|---|---|---|
-| Dénomination ticket N | TICKET DE CAISSE TVA | BTW-KASTICKET | MWST.-KASSENZETTEL |
+| Dénomination ticket N | TICKET DE CAISSE T.V.A. | BTW-KASTICKET | MWST.-KASSENZETTEL |
 | Remboursement (sous le titre du ticket TVA) | REMBOURSEMENT | TERUGBETALING | RUECKERSTATTUNG |
-| Addition (sous PRO FORMA) | Addition Provisoire | Voorlopige rekening | Vorlaeufige Rechnung |
+| Addition (sous PRO FORMA) | ADDITION PROVISOIRE | VOORLOPIGE REKENING | VORLAEUFIGE RECHNUNG |
 | Rapport X / Z | X / Z CHIFFRE D'AFFAIRES | X / Z OMZET | X / Z UMSATZ |
-| Mention d'invalidité (bas de ticket non-N) | CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE | DIT IS GEEN GELDIG BTW-KASTICKET | DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL |
+| Mention d'invalidité (bas de ticket non-N) | CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE | DIT IS GEEN GELDIG BTW-KASTICKET | DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL |
 | Copie | COPIE | KOPIE | KOPIE |
 | Facture | FACTURE | FACTUUR | RECHNUNG |
 
-Les libellés FR proviennent de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). La langue est un paramètre d'installation (`pos.json::language`) : aucun changement de binaire d'un établissement à l'autre.
+Les libellés FR sont ceux de la loi : arrêté royal du 30 décembre 2009, art. 2 (« TICKET DE CAISSE T.V.A. ») et arrêté ministériel du 29 avril 2024, art. 20, 29, 30 et 38 (« CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE », « ADDITION PROVISOIRE », « PRO FORMA », « Z CHIFFRE D'AFFAIRES ») ; les autres, de la description détaillée POS v2.2 et du tableau §VI du manuel ; les libellés NL des circulaires GKS ; les libellés DE sont une traduction de style officiel à confirmer sur la version DE de la spec (translittération ASCII, l'imprimante thermique n'ayant pas de négociation de code page). La langue est un paramètre d'installation (`pos.json::language`) : aucun changement de binaire d'un établissement à l'autre.
 
 **Cette politique de langue par client est documentée dans `MANUEL_INSTALLATION_FR.md` §"Langue du ticket".**
 

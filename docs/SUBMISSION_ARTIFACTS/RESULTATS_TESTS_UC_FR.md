@@ -3979,7 +3979,7 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 ; point signalé au SPF |
+| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 (AM du 29/04/2024, art. 29, t) |
 | `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
 | `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
 | `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
@@ -4515,7 +4515,7 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 ; point signalé au SPF |
+| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 (AM du 29/04/2024, art. 29, t) |
 | `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
 | `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
 | `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
@@ -5202,7 +5202,7 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 
 | Champ | Fixture | moyun-pos | Motif |
 |---|---|---|---|
-| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 ; point signalé au SPF |
+| `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 (AM du 29/04/2024, art. 29, t) |
 | `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
 | `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
 | `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |

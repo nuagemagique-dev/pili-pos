@@ -28,18 +28,18 @@ Ranked by certification risk. All verified against the source, with file referen
 
 1. **Copy ticket.** It must reproduce the original exactly (all fields and control data), carry "COPIE", add the copy event's own FDM block, and show an "Informations FDM d'origine" block. Our copy prints neither the original block nor the original QR. The original reference is already loaded (`copy.rs:77-123`) but never passed to `TicketParams`. Same for the refund ticket (`refund.rs:104-143`).
 2. **Z report printout.** Missing against the official example: establishment unit number (`ReportPrintData` has no field), the department breakdown (computed in `report_totals.rs::departments`, never printed), separate refund count and amount, the reductions rows at 0, the invoice section, and the "CECI N'EST PAS UN TICKET DE CAISSE T.V.A." line. Also check that `build_print_data` fills `fdm_id` and `short_signature` (reported as hardcoded to `None`).
-3. **Pre-bill.** Second title line "Addition Provisoire" missing.
+3. **Pre-bill.** Second title line "Addition Provisoire" missing. Done; printed "ADDITION PROVISOIRE" since 2026-09-27, as AM art. 38 writes it.
 4. **Layout details** from the examples: comma decimals and 2-decimal VAT rates; the euro sign on the total only, "TOTAL :"; a "Mode de paiement :" header; a labelled "INFORMATIONS FDM" block (fdmId, fdmDateTime, Event, eventCounter, totalCounter, shortSignature); quantity printed also for 1; label wording (Ticketnr., POS Serial, Input device MAC, Logiciel de caisse v., Unité d'établissement); legal identity at the bottom; a "Brut" VAT column; the refund ticket prints REMBOURSEMENT twice.
-5. **Header wording.** The examples write "TICKET DE CAISSE T.V.A.", the manual mostly "TICKET DE CAISSE TVA" (we print the latter, `ticket.rs:217`). Ask the SPF (section 3), then align.
+5. **Header wording.** The examples write "TICKET DE CAISSE T.V.A.", the manual mostly "TICKET DE CAISSE TVA" Settled by the law (2026-09-27): "TICKET DE CAISSE T.V.A." (AR 2009 art. 2, AM art. 20 a) and "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE" (AM art. 38), now printed. The 49-character mention wraps over two lines on the 48 columns.
 6. **Bar ticket.** We have none for dine-in (the kitchen ticket is HubRise only). The spec makes it optional: we declare it absent.
 
 ### 2.2 FAQ contradictions
 
 7. **Zero-total sale (Q206, Q209).** A sale that ends at 0,00 EUR must be signed as N with a VAT ticket, and `ticketMedium: NONE` is not allowed. `checkout.rs:116-128` refuses any total at or below 0, and `REPONSES_MANUEL_CERT_FR.md:343-350` presents this as a feature (manual III.D). Fix: refuse only an order with no lines or a negative total; sign 0,00 with a payment line of amount 0 (or an empty `financials`, per the FAQ). Rewrite the III.D answer.
 8. **Rounding line (Q403).** Cash rounding must be its own `ROUNDING` line in `payments` (the M112A fixture shows it). We fold it into the single PAYMENT line (`event.rs` `build_sale_input`, `checkout.rs:174-178`). Fix it, then check the X/Z payment totals and the user totals (Q509: rounding stays out of `totalAmount`).
-9. **Automatic Z on overrun (Q501c).** "En cas de dépassement, la caisse créera automatiquement un event R par période de booking date manquante." We only show a reminder (`report.rs` `needs_z_report`). Proposed: when a new booking date starts and earlier dates with activity have no Z, generate one Z per missing date before the first signing of the day. Confirm with the SPF how this fits the tolerance of Q501b.
+9. **Automatic Z on overrun (Q501c).** "En cas de dépassement, la caisse créera automatiquement un event R par période de booking date manquante." We only show a reminder (`report.rs` `needs_z_report`). Proposed: when a new booking date starts and earlier dates with activity have no Z, generate one Z per missing date before the first signing of the day. Settled by AM art. 22 (section 3).
 10. **Cash count declaration (M133, Basic Set).** Not implemented: `MoneyInOutLineType::DrawerDeclaration` exists (`types.rs:133`) but `do_money_in_out` sends only money in or out. Small feature: a third direction plus a Settings or cash-screen entry. The alternative is to declare it out of scope like M122 and M132.
-11. **negQuantities from signOrder (Q303).** For table service the FAQ counts corrections on `signOrder`; we count them only on `signSale`. The Reports replay passes either way (the scenario has no correction under P). Do not change before the SPF answers (section 3).
+11. **negQuantities from signOrder (Q303).** For table service the FAQ counts corrections on `signOrder`; we count them only on `signSale`. The Reports replay passes either way (the scenario has no correction under P). Done 2026-09-27: counted on the P/ORDER event, never on a pre-bill, and a table sale leaves out the corrections its orders already sent, even before a Z (`report_totals.rs`, `a_table_correction_counts_on_its_order_registration`).
 
 Checked and compliant: Q202 and Q207 (no artificial signOrder), Q211 and Q212 (unique, stable `reference`), Q401, Q405, Q502 (the official M181 counts the earlier X report, so our device ranges match), Q504, Q505, Q506, Q509.
 
@@ -101,23 +101,34 @@ Decisions taken while building:
     - FAQ Q205 says a direct sale ends in N. Today a takeaway left unpaid is registered as a P (costCenter table 0) by the router guard, like a table. Decide in this step: an unpaid takeaway either stays a draft with nothing sent, or ends through this same unpaid-sale action. Test it with a `faq_q205_` test.
 20. **FDM codes `UPDATE_POS_VATNO` and `UPDATE_POS_ESTNO`.** POS spec v2.2 marks them mandatory display, but they are not in the manual's §V table. Today they show the generic "Erreur boîte noire" text. Give each its own message in `fdmMessages.ts`, with a Playwright case.
 
-## 3. Questions for the SPF (secr.gksce@minfin.fed.be)
+## 3. Former SPF questions: answered or decided (2026-09-27)
 
-Send early: the answers take time and several decide code.
+No email is sent to the SPF: the owner decided on 2026-09-27 to settle every point here. Eight were answered by the texts (`docs/legislation/`, the FAQ, the UC sets); the five left open were decided by us and are documented in the dossier.
 
-1. Q501: how does the automatic R event per missing booking date fit the tolerance of Q501b (weekly closure)? Must the POS generate it on its own at the next start?
-2. Q303: is counting a table correction on the final `signSale` acceptable, or must it be counted on the `signOrder` that carried it, including an order that closes after a Z?
-3. Header: "TICKET DE CAISSE TVA" (manual) or "TICKET DE CAISSE T.V.A." (examples 20260924)? Same for "VALABLE" vs "VALIDE", "Z CHIFFRE D'AFFAIRES" vs "Z FINANCIER", "FACTURE PROVISOIRE" vs "Addition Provisoire", "PRO FORMA TICKET" vs "PROFORMA".
-4. M180/M181: the P turnover (3 tickets, 198 EUR) leaves out the first order of table T1 (52 EUR). Which rule produces that? We count 4 tickets, 250 EUR, and document the deviation.
-5. M111: the official request carries no `fdmRef` of the original, while Q301 requires it for a full refund. We send it; please confirm.
-6. Q205: must the POS block logout or shift closing while a non-empty table order is unsigned, or is operator discipline enough?
-7. Q206: our submitted III.D answer said a zero registration is impossible. Is a corrected dossier and binary enough?
-8. QR code: the spec names 25x25, the 38-character mixed-case URL needs version 3 (29x29). Confirm version 3.
-9. Reports scenario T4: the takeaway Coca Cola carries VAT label A, while the manual's product table (§III) gives C to take away. We follow the manual. Which one is right?
-10. Refund ticket lines: we print "-1 Cola -3,04"; the example refund shows "1 Cola -3,04". Is the positive quantity required?
-11. Bar ticket: the example shows "Nombre de convives". We do not record the number of guests. Is it mandatory?
-12. Unpaid sale: POS spec v2.2 allows an empty `financials` only "si le montant à payer est nul", while `UC4109_2` sends `financials: []` for 58 EUR. We follow UC4109: an N with no payment line and a non-zero total. Please confirm.
-13. Payment totals on the reports: our "Total des paiements" row sums the PAYMENT lines only and shows the roundings on their own "Arrondis" row. The manual's rounding test 4 seems to include the rounding in the payment total. Which one is expected?
+**Answered by the texts:**
+
+| # | Point | Answer | Source | Action |
+|---|---|---|---|---|
+| 1 | Automatic Z per missing booking date | The missing Z reports are made at the first report of the next period; generating them automatically is allowed | AM of 29/04/2024, art. 22, second paragraph | None: B4 complies |
+| 2 | Table corrections: signOrder or signSale | Counted on the signOrder for table service | FAQ Q303; AM art. 29 v | Done (section 2.2 item 11) |
+| 3 | Ticket titles and mentions | « TICKET DE CAISSE T.V.A. », « CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE », « ADDITION PROVISOIRE », « PRO FORMA », « Z CHIFFRE D'AFFAIRES » | AR of 30/12/2009 art. 2; AM art. 20, 29, 30, 38 | Done (section 2.1 items 3 and 5) |
+| 4 | Payment total vs rounding | Payments and roundings are separate lines; our layout matches the official Z example | AM art. 29 n and o | None |
+| 5 | M111 `fdmRef` | Our premise was wrong: the official M111 request does carry `fdmRef`, and the law requires it for a full refund | AM art. 5, 3°; FAQ Q301 | None |
+| 6 | Sale at 0,00 EUR | Always an N with a VAT ticket | AM art. 5, 1°; FAQ Q206, Q209 | III.D answer rewritten |
+| 7 | Reports T4 VAT label | T4 is an on-site sale at the counter, so A is right | UC TestSetup; the Z totals | None in code; see the note below |
+| 8 | "Nombre de convives" on the bar ticket | The bar ticket is optional; no rule requires the number of guests | Manual, optional features | None |
+
+T4 note: our replay rings T4 up as a takeaway (label C) and declares that deviation, because moyun-pos has no on-site sale without a table. The mock FDM replays the scenario's VAT, so the reports still match. `spf_e2e_report_fixtures.rs` and `COUVERTURE_RAPPORTS_FR.md` document it.
+
+**Decided by us (no text settles them):**
+
+| # | Point | Decision | Why | Where documented |
+|---|---|---|---|---|
+| 9 | M180/M181 P turnover: 3 tickets, 198 EUR published | Count every P event of the period: 4 tickets, 250 EUR | POS spec §2.2.2 `ticketCount` and AM art. 29 t count every event of the label; no text excludes T1 | `COUVERTURE_RAPPORTS_FR.md`, `RESULTATS_TESTS_UC_FR.md` |
+| 10 | Unpaid sale with empty `financials` | Follow UC4109_2: an N with `financials: []` and a non-zero total | The official use case is the only worked example; the spec line (:1714) is about a zero amount | `REPONSES_MANUEL_CERT_FR.md` §III.F (unpaid row) |
+| 11 | Block logout while a table order is unregistered | No block | Every exit from an order registers it (P); a failure keeps the operator on the order; only screen locking goes through, and the entries are sent at the next registration. The law asks for an event (AM art. 6, FAQ Q205), not a block | `REPONSES_MANUEL_CERT_FR.md` §III.D |
+| 12 | Sign of the quantity on a refund ticket | Negative: "-1 Cola -3,04" (owner's decision) | The ticket reproduces the signed data (M111 sends -1) | `FLUX_REMBOURSEMENT_FR.md` §1 step 7; golden test `vi_refund_the_official_refund_example` |
+| 13 | QR code size | Version 3 (29x29), ECC M, byte mode | The mixed-case URL needs byte mode; version 2 holds 26 bytes at M (32 at L), less than 38 | `TICKET_NUMERIQUE_FR.md` §11, `MAPPING_CONFORMITE_FR.md` |
 
 ## 4. Dossier and procedure work (docs only, after the binary is final)
 
@@ -165,7 +176,7 @@ The SHA-1 of record must come after the last binary change, so:
 
 | Phase | Content | Changes the binary |
 |---|---|---|
-| A | Commit the docs import; send the SPF questions; test step 0 and step 1 (matrix) | No |
+| A | Commit the docs import; test step 0 and step 1 (matrix); SPF questions settled without an email (section 3) | No |
 | B | Section 2 fixes, each with its tests from section 5 step 2, one commit each, in this order: B1 zero-total sale (7), B2 rounding line (8), B3 cash count declaration M133 (10), B4 automatic Z (9), B5 bar ticket (12-16), B6 copy and refund tickets (1), B7 pre-bill and layout details (3, 4), B8 Z report printout (2), B9 golden tests of the six official example tickets, B10 split payment and meal vouchers (17, 18), B11 unpaid table (19) and the two FDM codes (20) | Yes |
 | C | Section 5 step 3 (real-binary day); local gate | No |
 | D | Local reproducible build twice, local image and QEMU boot, record the SHA-1 | Output only |
