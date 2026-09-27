@@ -209,6 +209,9 @@ main() {
             [[ -f "$f" ]] && install -m 640 "$f" "$ETC_DIR/moyun-pos/secrets/"
         done
     fi
+    # The FDM vendor's TLS files (fdm_ca_file, fdm_client_cert_file,
+    # fdm_client_key_file), copied here by the technician.
+    install -d -m 750 "$ETC_DIR/moyun-pos/fdm"
 
     # scripts/qemu/run-kiosk.sh --pos-json <file> honoured HERE ONLY:
     # this whole branch of main() only ever runs once, on the actual
@@ -237,6 +240,7 @@ main() {
         chown -R pos:pos "$POS_HOME"
         chown root:pos "$ETC_DIR/moyun-pos/pos.json"
         [[ -d "$ETC_DIR/moyun-pos/secrets" ]] && chown -R root:pos "$ETC_DIR/moyun-pos/secrets"
+        chown root:pos "$ETC_DIR/moyun-pos/fdm"
     fi
 
     log "Setting the root password…"

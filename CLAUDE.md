@@ -512,7 +512,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ### FDM (Fiscal Data Module)
 - **module2** (PRACSYS, SCE 2.0 certified), chosen 2026-09-27
-- Connects to POS via LAN: GraphQL over HTTP (port 80), or HTTPS (443) with module2's mTLS client certificate
+- Connects to POS via LAN: GraphQL over HTTP (port 80), or HTTPS (443, recommended) with module2's mTLS client certificate (`fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file`; module2's certificates are X.509 v1, checked by `pos-fiscal::fdm_tls`, not webpki)
 - Every FDM requires its bearer token (`fdm_token_file`); the POS's posId must be allowed in the FDM settings
 - Connects to SPF Finances cloud itself
 - Development and certification test machine: module2 online simulator `http://fdm.module2.be/graphql/` (posId `CPOS0031234567`), no physical FDM at the intake (manual §IV: "fournissez un simulateur avec la machine test")

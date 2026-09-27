@@ -221,6 +221,8 @@ Champs :
 | `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |
 | `fdm_url` | URL GraphQL du FDM sur le LAN. FDM module2 : `http://<IP du FDM>/graphql/` (port 80) | Configuration FDM |
 | `fdm_token_file` | Facultatif. Fichier contenant le seul jeton d'accès (Bearer) d'un FDM qui en exige un (certains modèles, y compris sur le LAN : le jeton se lit sur la page de paramètres du FDM) ; jamais le jeton lui-même dans `pos.json`. Absent si le FDM n'en demande pas. | Configuration FDM |
+| `fdm_ca_file` | Requis si `fdm_url` est en `https://`. Autorité qui signe le certificat du FDM (PEM ; `ca.crt` de module2). | Configuration FDM |
+| `fdm_client_cert_file`, `fdm_client_key_file` | Ensemble ou pas du tout. Certificat client et sa clé (PEM ; `client.crt` et `client.key` de module2) pour un FDM en mTLS. Un fichier illisible s'affiche dans le bandeau des problèmes de configuration. | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante sur le LAN (port 9100 par défaut) | Configuration imprimante |
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le bon de commande (sans prix, « ceci n'est pas un ticket de caisse TVA valable ») des lignes envoyées. Absent : le bon sort sur `printer_address`. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
@@ -473,12 +475,21 @@ machine de test.
 ### 7.3 FDM
 
 - **FDM module2** (PRACSYS, certifié SCE 2.0) : **référence retenue.**
-  GraphQL sur le LAN en HTTP (port 80) ou HTTPS (port 443, certificat
-  client mTLS fourni par module2). Chaque FDM exige son jeton Bearer
+  GraphQL sur le LAN en HTTPS (port 443, certificat client mTLS
+  fourni par module2), configuration retenue ; HTTP (port 80) reste
+  possible. Les trois fichiers de module2 (`ca.crt`, `client.crt`,
+  `client.key`, publiés sur manual.module2.be, identiques pour tous ses
+  FDM et son simulateur) vont dans `/etc/moyun-pos/fdm/`, la clé en
+  droits 600, et sont désignés par `fdm_ca_file`,
+  `fdm_client_cert_file` et `fdm_client_key_file`. Le POS vérifie que le
+  certificat du FDM est signé par cette autorité et en cours de validité
+  (il ne porte pas de nom d'hôte, le FDM étant joint par son IP).
+  Chaque FDM exige son jeton Bearer
   (lu sur sa page de paramètres ou dans le portail module2), à placer
   dans le fichier désigné par `fdm_token_file`. Le posId du POS doit
   être autorisé dans les paramètres du FDM.
-- **Simulateur en ligne module2** : `http://fdm.module2.be/graphql/`,
+- **Simulateur en ligne module2** : `https://fdm.module2.be/graphql/`
+  (mêmes certificats) ou `http://fdm.module2.be/graphql/`,
   même jeton Bearer, utilisé pour les tests pré-certification et comme
   FDM de la machine de test à l'Intake (`SCHEMA_ASSEMBLAGE_FR.md` §7).
 - Le POS parle le protocole GraphQL standard du SPF, sans extension

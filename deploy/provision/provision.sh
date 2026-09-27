@@ -220,6 +220,9 @@ materialize_or_symlink_etc() {
             [[ -f "$f" ]] && install -m 640 -o root -g "$POS_USER" "$f" /etc/moyun-pos/secrets/
         done
     fi
+    # The FDM vendor's TLS files (fdm_ca_file, fdm_client_cert_file,
+    # fdm_client_key_file in pos.json), copied here by the technician.
+    install -d -m 750 -o root -g "$POS_USER" /etc/moyun-pos/fdm
     if [[ ! -f "$POS_HOME/pos.db" ]]; then
         install -m 640 -o "$POS_USER" -g "$POS_USER" "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
     fi

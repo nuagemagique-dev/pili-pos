@@ -19,9 +19,13 @@ monolithique.
 - [ ] Imprimante thermique Epson TM-m30III raccordée au LAN (TCP 9100 ; l'USB n'est pas pris en charge).
 - [ ] Tiroir-caisse RJ11 raccordé à l'imprimante.
 - [ ] URL du FDM module2 (boîtier sur le LAN, ou simulateur en ligne
-      `http://fdm.module2.be/graphql/` pour la machine de test)
-      configurée dans `/etc/moyun-pos/pos.json::fdm_url`, et son jeton
-      Bearer dans le fichier désigné par `fdm_token_file`.
+      `https://fdm.module2.be/graphql/` pour la machine de test)
+      configurée dans `/etc/moyun-pos/pos.json::fdm_url` (en
+      `https://`), son jeton Bearer dans le fichier désigné par
+      `fdm_token_file`, et les certificats module2 (`ca.crt`,
+      `client.crt`, `client.key` en droits 600) dans
+      `/etc/moyun-pos/fdm/`, désignés par `fdm_ca_file`,
+      `fdm_client_cert_file`, `fdm_client_key_file`.
 
 ## Couche OS (image mkosi, `deploy/image/`)
 

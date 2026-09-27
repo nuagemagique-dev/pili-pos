@@ -150,15 +150,16 @@ UC_EVIDENCE_DIR=/tmp/live-ev scripts/live_fdm.sh
 ## Recording (done once, 2026-09-27)
 
 The simulator's answers are kept in
-`crates/pos-fdm-mock/fixtures/module2/` (27 calls, README there);
+`crates/pos-fdm-mock/fixtures/module2/` (36 calls, README there);
 `module2_shape.rs` keeps the mock in the same shape and
 `module2_recorded.rs` runs the POS's parsing and response check over
-them. To record again (about 27 calls), with an empty directory:
+them. To record again (about 36 calls), with an empty directory:
 
 ```bash
 export MOYUN_LIVE_RECORD_DIR=$PWD/target/live-fdm/recording UC_EVIDENCE_DIR=/tmp/live-ev
 scripts/live_fdm.sh live_fdm_operator_day
 scripts/live_fdm.sh live_fdm_protocol_edges
+scripts/live_fdm.sh live_fdm_basic_set_rest
 # Developer tab: Buffer capacity full, then Buffer capacity near full
 MOYUN_LIVE_CONDITION=buffer_full scripts/live_fdm.sh live_fdm_simulated_condition
 MOYUN_LIVE_CONDITION=buffer_near_full scripts/live_fdm.sh live_fdm_simulated_condition
@@ -177,3 +178,40 @@ What the recording taught, beyond the list above:
 - The Q110 multi-language status (several `status` fields in one
   query, the official request included) gets HTTP 500 with an empty
   body. The POS never sends it at run time; to be reported to module2.
+
+## HTTPS and mTLS (port 443)
+
+module2's certificates (portal, "HTTPS en mTLS": `ca.crt`,
+`client.crt`, `client.key`) go in `target/live-fdm/mtls/`
+(git-ignored; `MOYUN_LIVE_TLS_DIR` overrides it). The client key is
+never committed. Then (about 5 calls):
+
+```bash
+scripts/live_fdm.sh live_fdm_https_mtls
+```
+
+It checks that a wrong CA is refused with `FDM_CERTIFICATE_REFUSED`
+(not reported as a cable problem), signs a status and a sale with the
+full setup, and asks module2 whether the call arrived encrypted
+(`info.https`). Evidence: `LIVE_https_*`.
+
+What it taught (2026-09-27):
+
+- `ca.crt` is an X.509 v3 root (CN=RootCA). The server and client
+  certificates are X.509 **v1**, without extensions or host name. The
+  usual checks (webpki) refuse v1 certificates, both the server's and,
+  when rustls pairs key and certificate, the client's. `pos-fiscal`
+  therefore checks the server certificate itself (`fdm_tls.rs`: signed
+  by the configured CA, within its dates, handshake signed with its
+  key) and presents the client certificate without webpki.
+- TLS 1.3, RSA-PSS SHA-256 handshake signature.
+- The simulator's port 443 also answers without a client certificate.
+  A physical FDM may not; the POS always presents it when configured.
+- The status cache is keyed on every connection setting (URL, token,
+  CA, client certificate), so a changed setting is queried again at
+  once.
+
+Offline twin: `pos-fdm-mock` with `MOCK_FDM_TLS_DIR` and
+`MOCK_FDM_TLS_REQUIRE_CLIENT=1` (v1 test certificates in
+`crates/pos-fdm-mock/fixtures/tls/`), exercised by
+`crates/pos-fiscal/tests/fdm_https_mock.rs`.

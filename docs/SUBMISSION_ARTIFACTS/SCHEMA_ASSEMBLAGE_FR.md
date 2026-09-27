@@ -96,7 +96,7 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
 |---|---|---|---|---|
 | 1 | Terminal POS | Penetek A3216 M82 (Intel Celeron J6412, 8 Go RAM, 128 Go SSD, écran tactile PCAP 15.6" 1920×1080, fanless, IP65) | IP statique LAN `192.168.1.10` | RJ45 vers routeur (1×), USB-A (4×) disponibles |
 | 2 | Routeur LAN | TP-Link Archer C6 (ou équivalent) - fourni avec la machine-test à l'Intake | IP gateway `192.168.1.1`, DHCP `192.168.1.100-200`, baux réservés pour FDM et imprimante | WAN RJ45 (Internet), LAN RJ45 (4×) |
-| 3 | FDM | FDM module2 (PRACSYS, certifié SCE 2.0, identifiant `MOD01...`) chez le client. **Machine de test : simulateur en ligne module2, sans boîtier physique** (cf. §7). | IP statique LAN `192.168.1.20` (réservation DHCP). GraphQL en HTTP sur le port TCP 80 (ou HTTPS 443 avec certificat client mTLS), jeton Bearer propre au FDM (`fdm_token_file`, cf. MANUEL_INSTALLATION_FR.md). | RJ45 vers routeur |
+| 3 | FDM | FDM module2 (PRACSYS, certifié SCE 2.0, identifiant `MOD01...`) chez le client. **Machine de test : simulateur en ligne module2, sans boîtier physique** (cf. §7). | IP statique LAN `192.168.1.20` (réservation DHCP). GraphQL en HTTPS sur le port TCP 443 avec le certificat client module2 (mTLS, recommandé par module2 ; HTTP sur le port 80 reste possible), jeton Bearer propre au FDM (`fdm_token_file`, cf. MANUEL_INSTALLATION_FR.md). | RJ45 vers routeur |
 | 4 | Imprimante thermique | Epson TM-m30III (80 mm thermique) | IP statique LAN `192.168.1.30` (réservation DHCP). TCP port 9100 ouvert (ESC/POS raw). RJ11 sortant vers tiroir. | RJ45 vers routeur. USB et Wifi disponibles mais non utilisés. RJ11 vers tiroir-caisse. |
 | 5 | Tiroir-caisse | Tiroir RJ11 standard (modèle générique compatible Epson) | N/A (passif) | RJ11 depuis l'imprimante. Ouverture par séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA` envoyée par le POS. |
 
@@ -155,7 +155,7 @@ Configurées sur le routeur : 3 baux statiques pour les MAC du POS, du FDM et de
 ### Pare-feu
 
 Sur le routeur : politique par défaut bloquante en LAN <-> LAN. Règles autorisées :
-- POS (.10) → FDM (.20) port TCP 80 (GraphQL ; 443 si HTTPS/mTLS)
+- POS (.10) → FDM (.20) port TCP 443 (GraphQL en HTTPS/mTLS ; 80 si HTTP)
 - POS (.10) → Imprimante (.30) port TCP 9100 (ESC/POS)
 - FDM (.20) → Internet (WAN) sur les domaines/IP SPF Finances (gérés par le FDM lui-même via mTLS)
 - POS (.10) → Internet (WAN) en HTTPS sortant uniquement : sessions RustDesk d'assistance à distance démarrées depuis la caisse par un Gérant, avec son PIN (jamais permanent), et - uniquement si `pos.json::digital_ticket` est configuré (§III.H) - l'envoi du ticket numérique par e-mail vers `api.scaleway.com` (port 443, cf. `TICKET_NUMERIQUE_FR.md` §9). Sans cette configuration, aucun trafic sortant n'est initié par le POS en dehors du FDM et de RustDesk.
@@ -175,8 +175,9 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 5. Brancher le POS au routeur via RJ45 (port LAN 1). Brancher l'alimentation. Mettre sous tension.
 6. Au démarrage du POS, l'image kiosk lance automatiquement Cage compositor + moyun-pos en plein écran après quelques secondes.
 7. Première connexion : INSZ technicien `00000000097` + PIN par défaut `0097`. L'écran "Configuration POS" s'affiche pour saisir/valider :
-   - `fdm_url` : `http://192.168.1.20/graphql/`
+   - `fdm_url` : `https://192.168.1.20/graphql/`
    - `fdm_token_file` : fichier contenant le jeton Bearer du FDM (lu sur la page de paramètres du FDM)
+   - `fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file` : les certificats module2 (`ca.crt`, `client.crt`, `client.key`, publiés sur manual.module2.be), dans `/etc/moyun-pos/fdm/`, la clé en droits 600
    - `printer_address` : `192.168.1.30:9100`
    - `restaurant_est_no` : (n° d'établissement TVA assigné au restaurant)
    - `pos_id` : code 14 caractères assigné par SPF Finances au moment de l'enregistrement du POS
@@ -207,7 +208,8 @@ Pour la machine de test livrée au rendez-vous d'admission SPF Finances :
   |---|---|
   | Fournisseur | module2 (PRACSYS), FDM certifié SCE 2.0 |
   | Simulateur | `FDM02000425` (logiciel FDM 2.2.0.5), rattaché au compte développeur du producteur |
-  | URL GraphQL | `http://fdm.module2.be/graphql/` (TCP 80), ou `https://fdm.module2.be/graphql/` (TCP 443, mTLS avec le certificat client module2) |
+  | URL GraphQL | `https://fdm.module2.be/graphql/` (TCP 443, HTTPS avec le certificat client module2), configurée sur la machine de test ; `http://fdm.module2.be/graphql/` (TCP 80) reste possible |
+  | Certificats | `ca.crt`, `client.crt`, `client.key` de module2 (`fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file`). Le POS n'accepte que le certificat serveur signé par l'autorité de module2 (ce certificat ne porte aucun nom d'hôte) ; tout autre est refusé avec le message « Connexion sécurisée à la boîte noire refusée (certificat) » |
   | Authentification | en-tête `Authorization: Bearer <jeton du simulateur>`, fichier `fdm_token_file` sur la machine de test |
   | En-tête facultatif | `Simulator-Version` (sans lui, la dernière version du simulateur) |
   | Identité de test | `posId` `CPOS0031234567`, TVA `BE0000000097`, unité d'établissement `2000000042` (UC_TestSetup_20240806) |
