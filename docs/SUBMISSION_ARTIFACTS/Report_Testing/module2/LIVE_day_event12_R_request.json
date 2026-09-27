@@ -1,0 +1,63 @@
+{
+  "bookingDate": "2026-09-27",
+  "bookingPeriodId": "6e0e7138-418d-400c-9a0c-10d07f4a7470",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "fdmDevices": [
+    {
+      "fdmId": "FDM02000425",
+      "firstFdmDateTime": "2026-09-27T16:52:41Z",
+      "firstTotalCounter": 3,
+      "lastFdmDateTime": "2026-09-27T16:52:52Z",
+      "lastTotalCounter": 13
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-27T18:52:52.308+02:00",
+  "posDevices": [
+    {
+      "firstPosDateTime": "2026-09-27T18:52:40.253+02:00",
+      "lastPosDateTime": "2026-09-27T18:52:51.212+02:00",
+      "posId": "CPOS0031234567",
+      "terminalId": "POS-1-BAR"
+    }
+  ],
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "users": [
+    {
+      "employeeId": "75061189702",
+      "firstPosDateTime": "2026-09-27T18:52:40.253+02:00",
+      "lastPosDateTime": "2026-09-27T18:52:50.117+02:00",
+      "payments": [
+        {
+          "amount": [
+            {
+              "correctionsCount": 0,
+              "negativeCorrections": 0.0,
+              "normalAmount": 40.0,
+              "positiveCorrections": 0.0,
+              "totalAmount": 40.0,
+              "type": "PAYMENT"
+            }
+          ],
+          "id": "1",
+          "name": "Cash",
+          "type": "CASH"
+        }
+      ],
+      "socialEvents": [
+        {
+          "inOut": "IN",
+          "posDateTime": "2026-09-27T18:52:40.253+02:00"
+        }
+      ],
+      "totalAmount": 40.0
+    }
+  ],
+  "vatNo": "BE0000000097"
+}

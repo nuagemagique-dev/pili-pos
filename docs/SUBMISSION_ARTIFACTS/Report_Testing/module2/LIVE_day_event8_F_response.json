@@ -1,0 +1,24 @@
+{
+  "bufferCapacityUsed": 0.05,
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "digitalSignature": "dummy_wiyVKtb4D51nln9zikLcc9TqXqIGeSNlOveF8A",
+  "eventOperation": "DRAWER_OPEN",
+  "fdmRef": {
+    "eventCounter": 2,
+    "eventLabel": "F",
+    "fdmDateTime": "2026-09-27T16:52:49Z",
+    "fdmId": "FDM02000425",
+    "totalCounter": 10
+  },
+  "fdmSwVersion": "2.2.0.5",
+  "footer": [],
+  "informations": [],
+  "posDateTime": "2026-09-27T18:52:47.934+02:00",
+  "posFiscalTicketNo": 2,
+  "posId": "CPOS0031234567",
+  "shortSignature": null,
+  "terminalId": "POS-1-BAR",
+  "vatCalc": null,
+  "verificationUrl": null,
+  "warnings": []
+}
