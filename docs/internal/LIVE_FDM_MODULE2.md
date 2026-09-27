@@ -215,3 +215,48 @@ Offline twin: `pos-fdm-mock` with `MOCK_FDM_TLS_DIR` and
 `MOCK_FDM_TLS_REQUIRE_CLIENT=1` (v1 test certificates in
 `crates/pos-fdm-mock/fixtures/tls/`), exercised by
 `crates/pos-fiscal/tests/fdm_https_mock.rs`.
+
+## The real app
+
+The certification binary itself, its UI and the SPF test seed
+(`seed_spf_test.sql`), against the simulator over HTTPS, driven over
+WebDriver in a Linux container (WebKitGTK, Xvfb, tauri-driver, as the
+CI integration job):
+
+```bash
+scripts/live_app/run.sh
+docker exec -w /work moyun-live-app python3 wd.py click .user-btn 'Gerant Test'
+docker exec -w /work moyun-live-app python3 wd.py shot 01_login   # target/live-app/shots/
+scripts/live_app/save_state.sh      # keep the ticket numbers
+docker rm -f moyun-live-app
+```
+
+`wd.py` (click, texts, wait, shot, url, js) takes one step at a time;
+every sign is a call to module2. The printer is `pos-printer-mock` in
+the container (`http://127.0.0.1:9180/jobs`).
+
+FDM unreachable: inside the container,
+`echo '127.0.0.1 fdm.module2.be' >> /etc/hosts` (connection refused),
+or also `python3 /work/deadfdm.py &` (accepts and closes, and logs each
+attempt, to time the polling). Restore with the saved `/etc/hosts`.
+
+The session of 2026-09-27 (9 events signed, evidence `LIVE_app_*` and
+`screens/` in `Report_Testing/module2/`):
+
+- Login signs the work in, logout the work out; a pre-bill signs the
+  table order and the pre-bill (P, P); cash sales sign N. The printed
+  pro forma and sale tickets carry module2's control data (fdmId,
+  counters, shortSignature, the 38-character verification URL in the
+  QR); the drawer opens on a cash sale.
+- The indicator is amber with "La boîte noire n'est pas encore
+  initialisée." while the simulator answers.
+- FDM unreachable: the sale is refused with "Connexion perdue avec la
+  boîte noire. Vérifiez le câble réseau.", nothing is archived, the
+  indicator turns red. The status is then asked after 60 s, then
+  2 min (the 5 min idle lock stopped the measurement). The idle lock's
+  table order and work out fail the same way and are not archived.
+- FDM back: the next login signs the work in and the blocked table is
+  paid.
+- Bugs it found, fixed: the success screen showed an empty "FDM:" (the
+  UI read `fdm_id`, the backend sends the FDM's camelCase `fdmId`);
+  the red indicator's text stayed amber.

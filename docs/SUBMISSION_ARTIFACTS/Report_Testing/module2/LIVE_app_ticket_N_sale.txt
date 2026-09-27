@@ -1,0 +1,40 @@
+            TICKET DE CAISSE T.V.A.
+SPF Test Setup
+Unite d'etablissement 2000000042
+27.09.2026                                 20:35
+Utilisateur: Gerant Test
+Terminal: POS-1-BAR
+Ticketnr.: 000115
+POS Serial: CPOS0031234567
+Input device MAC: F0:1D:3D:CC:13:C8
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+1 Dry Martini                           12,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €40,00
+................................................
+Mode de paiement :
+Especes                                    40,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A           9,92      2,08     12,00
+12,00%  B          25,00      3,00     28,00
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: FDM02000425;
+fdmDateTime: 2026-09-27T18:35:59Z;
+Event: N; eventCounter: 16;
+totalCounter: 49; shortSignature:
+ce915226e5f141b4fd6e04f22ce8a80b4dfc024a;
+
+  [QR: https://www.gs2.be/tRffi30NsdlNW2twOad]  
+
+
+Denomination legale : SPF Test Setup
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------

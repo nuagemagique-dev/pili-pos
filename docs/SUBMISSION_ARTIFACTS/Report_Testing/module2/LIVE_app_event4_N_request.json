@@ -1,0 +1,73 @@
+{
+  "language": "FR",
+  "vatNo": "BE0000000097",
+  "estNo": "2000000042",
+  "posId": "CPOS0031234567",
+  "posFiscalTicketNo": 115,
+  "posDateTime": "2026-09-27T20:35:59.517+02:00",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "bookingPeriodId": "53a52bb8-5b81-446c-bc13-28c9489443e6",
+  "bookingDate": "2026-09-27",
+  "ticketMedium": "PAPER",
+  "employeeId": "94060242576",
+  "costCenter": {
+    "id": "T01",
+    "type": "TABLE",
+    "reference": "O1"
+  },
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 12.0
+            }
+          ]
+        },
+        "lineTotal": 12.0
+      },
+      {
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "productId": "22001",
+          "productName": "Burger du chef",
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 28.0
+            }
+          ]
+        },
+        "lineTotal": 28.0
+      }
+    ],
+    "transactionTotal": 40.0
+  },
+  "financials": [
+    {
+      "id": "1",
+      "name": "Cash",
+      "type": "CASH",
+      "inputMethod": "MANUAL",
+      "amount": 40.0,
+      "amountType": "PAYMENT"
+    }
+  ]
+}

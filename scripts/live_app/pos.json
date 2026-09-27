@@ -1,0 +1,19 @@
+{
+  "pos_id": "CPOS0031234567",
+  "terminal_id": "POS-1-BAR",
+  "device_id": "F0:1D:3D:CC:13:C8",
+  "restaurant_name": "SPF Test Setup",
+  "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
+  "restaurant_vat": "BE0000000097",
+  "restaurant_est_no": "2000000042",
+  "fdm_url": "https://fdm.module2.be/graphql/",
+  "fdm_token_file": "/src/target/live-fdm/fdm.token",
+  "fdm_ca_file": "/src/target/live-fdm/mtls/ca.crt",
+  "fdm_client_cert_file": "/src/target/live-fdm/mtls/client.crt",
+  "fdm_client_key_file": "/src/target/live-fdm/mtls/client.key",
+  "printer_address": "127.0.0.1:9100",
+  "training_mode": false,
+  "day_end_hour": 5,
+  "language": "fr",
+  "backup_dir": "/data/backups"
+}

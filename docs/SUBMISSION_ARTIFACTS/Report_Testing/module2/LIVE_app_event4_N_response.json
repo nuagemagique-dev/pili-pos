@@ -1,0 +1,41 @@
+{
+  "posId": "CPOS0031234567",
+  "posFiscalTicketNo": 115,
+  "posDateTime": "2026-09-27T20:35:59.517+02:00",
+  "terminalId": "POS-1-BAR",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "eventOperation": "SALE",
+  "fdmRef": {
+    "fdmId": "FDM02000425",
+    "fdmDateTime": "2026-09-27T18:35:59Z",
+    "eventLabel": "N",
+    "eventCounter": 16,
+    "totalCounter": 49
+  },
+  "fdmSwVersion": "2.2.0.5",
+  "digitalSignature": "dummy_82p8FzRhIy6qDbg1fvB9fchC0HEcZaqprkHUeQ",
+  "shortSignature": "ce915226e5f141b4fd6e04f22ce8a80b4dfc024a",
+  "verificationUrl": "https://www.gs2.be/tRffi30NsdlNW2twOad",
+  "vatCalc": [
+    {
+      "label": "A",
+      "rate": 21.0,
+      "taxableAmount": 9.92,
+      "vatAmount": 2.08,
+      "totalAmount": 12.0,
+      "outOfScope": false
+    },
+    {
+      "label": "B",
+      "rate": 12.0,
+      "taxableAmount": 25.0,
+      "vatAmount": 3.0,
+      "totalAmount": 28.0,
+      "outOfScope": false
+    }
+  ],
+  "bufferCapacityUsed": 0.24,
+  "warnings": [],
+  "informations": [],
+  "footer": []
+}

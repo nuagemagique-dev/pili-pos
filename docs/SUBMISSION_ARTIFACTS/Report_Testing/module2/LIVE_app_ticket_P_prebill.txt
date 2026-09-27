@@ -1,0 +1,35 @@
+                   PRO FORMA
+              ADDITION PROVISOIRE
+SPF Test Setup
+Unite d'etablissement 2000000042
+27.09.2026                                 20:35
+Utilisateur: Gerant Test
+Terminal: POS-1-BAR
+Ticketnr.: 000107
+POS Serial: CPOS0031234567
+Input device MAC: F0:1D:3D:CC:13:C8
+Logiciel de caisse v.: moyun-pos/1.0.0
+................................................
+1 Dry Martini                           12,00  A
+1 Burger du chef                        28,00  B
+TOTAL :                                   €40,00
+................................................
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: FDM02000425;
+fdmDateTime: 2026-09-27T18:35:42Z;
+Event: P; eventCounter: 7;
+totalCounter: 48;
+
+Denomination legale : SPF Test Setup
+Rue de l'Exemple 1, 4000 Liège
+TVA: BE0000000097
+
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------

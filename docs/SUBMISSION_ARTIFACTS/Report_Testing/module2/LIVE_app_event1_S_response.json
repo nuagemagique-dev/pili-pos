@@ -1,0 +1,24 @@
+{
+  "posId": "CPOS0031234567",
+  "posFiscalTicketNo": 105,
+  "posDateTime": "2026-09-27T20:34:55.428+02:00",
+  "terminalId": "POS-1-BAR",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "eventOperation": "WORK_IN",
+  "fdmRef": {
+    "fdmId": "FDM02000425",
+    "fdmDateTime": "2026-09-27T18:34:55Z",
+    "eventLabel": "S",
+    "eventCounter": 5,
+    "totalCounter": 46
+  },
+  "fdmSwVersion": "2.2.0.5",
+  "digitalSignature": "dummy_U6NcClg2ywGpgyjqQrunBsJB4ke2UMalXD3wPQ",
+  "shortSignature": null,
+  "verificationUrl": null,
+  "vatCalc": null,
+  "bufferCapacityUsed": 0.23,
+  "warnings": [],
+  "informations": [],
+  "footer": []
+}
