@@ -9,6 +9,12 @@
 //! This is a consistency check, not a cryptographic one. The ECDSA
 //! signature itself is kept untouched in the archive (full response
 //! JSON) for verification by the administration.
+//!
+//! One exception: the module2 online simulator, the FDM of the
+//! certification test machine, signs with a placeholder (see
+//! [`SIMULATOR_SIGNATURE_PREFIX`]). Its signature is not base64 and its
+//! short signature is not derived from it, so those two checks are
+//! left out for it; every other check still applies.
 
 use base64::Engine;
 use chrono::DateTime;
@@ -17,6 +23,23 @@ use serde_json::Value;
 use crate::response::SignResult;
 use crate::signature::compute_short_signature;
 use crate::types::{EventLabel, EventOperation};
+
+/// The simulator's placeholder signature: `dummy_` followed by base64
+/// (seen on module2's simulator FDM02000425, FDM software 2.2.0.5). A
+/// real FDM returns base64 only, which never contains `_`.
+pub const SIMULATOR_SIGNATURE_PREFIX: &str = "dummy_";
+
+/// A simulator placeholder rather than a real signature.
+fn is_simulator_placeholder(signature: &str) -> bool {
+    signature
+        .strip_prefix(SIMULATOR_SIGNATURE_PREFIX)
+        .is_some_and(|rest| !rest.is_empty())
+}
+
+/// A short signature as printed: 40 hexadecimal characters (SHA-1).
+fn is_sha1_hex(short: &str) -> bool {
+    short.len() == 40 && short.bytes().all(|b| b.is_ascii_hexdigit())
+}
 
 /// What the POS asked the FDM to sign.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,11 +179,12 @@ pub fn check_sign_result(
     }
 
     let signature = res.digital_signature.trim();
+    let placeholder = is_simulator_placeholder(signature);
     let decoded = base64::engine::general_purpose::STANDARD.decode(signature);
     if signature.is_empty() || decoded.as_ref().is_ok_and(|raw| raw.is_empty()) {
         return Err(Mismatch::new("digitalSignature", "non vide", "vide"));
     }
-    if decoded.is_err() {
+    if decoded.is_err() && !placeholder {
         return Err(Mismatch::new(
             "digitalSignature",
             "base64",
@@ -178,10 +202,17 @@ pub fn check_sign_result(
         else {
             return Err(Mismatch::new("shortSignature", "présente", "absente"));
         };
-        let computed = compute_short_signature(signature)
-            .map_err(|_| Mismatch::new("digitalSignature", "base64", "valeur illisible"))?;
-        if !computed.eq_ignore_ascii_case(short.trim()) {
-            return Err(Mismatch::new("shortSignature", computed, short));
+        if placeholder {
+            // Nothing to derive it from: it must still look like one.
+            if !is_sha1_hex(short.trim()) {
+                return Err(Mismatch::new("shortSignature", "40 hexadécimaux", short));
+            }
+        } else {
+            let computed = compute_short_signature(signature)
+                .map_err(|_| Mismatch::new("digitalSignature", "base64", "valeur illisible"))?;
+            if !computed.eq_ignore_ascii_case(short.trim()) {
+                return Err(Mismatch::new("shortSignature", computed, short));
+            }
         }
         if res
             .verification_url
@@ -401,6 +432,54 @@ mod tests {
     fn an_empty_or_unreadable_digital_signature_is_refused() {
         for bad in ["", "   ", "not base64!!!"] {
             let mut res = sale_response();
+            res.digital_signature = bad.into();
+            assert_eq!(field_of(&res, sale()), "digitalSignature", "{bad:?}");
+        }
+    }
+
+    /// What module2's simulator answered to a sale on 2026-09-27.
+    const SIMULATOR_SIGNATURE: &str = "dummy_BU15o87GrSHWp7WJT8OLT86vLPrj09/RHQFa9g";
+    const SIMULATOR_SHORT: &str = "415342205c2c51304ccf415071f15cec716b6e86";
+
+    fn simulator_sale() -> SignResult {
+        let mut res = sale_response();
+        res.digital_signature = SIMULATOR_SIGNATURE.into();
+        res.short_signature = Some(SIMULATOR_SHORT.into());
+        res
+    }
+
+    #[test]
+    fn the_simulator_placeholder_signature_passes() {
+        assert_eq!(
+            check_sign_result(&request(), sale(), &simulator_sale()),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn the_simulator_placeholder_still_needs_a_short_signature_shaped_like_one() {
+        for bad in [None, Some(""), Some("not-hex"), Some("41534220")] {
+            let mut res = simulator_sale();
+            res.short_signature = bad.map(str::to_string);
+            assert_eq!(field_of(&res, sale()), "shortSignature", "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_simulator_placeholder_keeps_every_other_check() {
+        let mut res = simulator_sale();
+        res.pos_fiscal_ticket_no += 1;
+        assert_eq!(field_of(&res, sale()), "posFiscalTicketNo");
+        let mut res = simulator_sale();
+        res.verification_url = None;
+        assert_eq!(field_of(&res, sale()), "verificationUrl");
+    }
+
+    #[test]
+    fn only_the_exact_prefix_is_a_placeholder() {
+        // An unreadable signature that merely looks alike is refused.
+        for bad in ["dummy_", "Dummy_BU15o87", "xdummy_BU15o87", "dummy BU15o87"] {
+            let mut res = simulator_sale();
             res.digital_signature = bad.into();
             assert_eq!(field_of(&res, sale()), "digitalSignature", "{bad:?}");
         }

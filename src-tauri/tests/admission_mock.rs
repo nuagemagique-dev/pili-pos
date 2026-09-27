@@ -302,3 +302,41 @@ async fn a_sale_signed_by_the_mock_carries_its_vat_breakdown() {
     assert!(ticket.verification_url.is_some());
     assert_eq!(ticket.short_signature.as_ref().map(String::len), Some(40));
 }
+
+/// module2's online simulator, the FDM of the certification test
+/// machine, signs with a `dummy_` placeholder: the POS accepts it,
+/// archives it untouched and prints the short signature it received.
+#[tokio::test]
+async fn a_sale_signed_like_the_module2_simulator_is_accepted() {
+    let app = app_on_mock().await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let simulator = pos_fdm_mock::app_with(pos_fdm_mock::Control {
+        placeholder_signatures: true,
+        ..Default::default()
+    });
+    tokio::spawn(async move {
+        axum::serve(listener, simulator).await.unwrap();
+    });
+    app.state.config.lock().unwrap().fdm_url = format!("http://{addr}/graphql");
+
+    let id = order(&app, Some(1), &[(1, 1)]);
+    let result = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let ticket = result.ticket.unwrap();
+    let short = ticket.short_signature.expect("a short signature");
+    assert_eq!(short.len(), 40);
+
+    let event = app.fiscal_events().pop().unwrap();
+    let response: serde_json::Value =
+        serde_json::from_str(event.fdm_response_json.as_deref().unwrap()).unwrap();
+    assert!(
+        response["digitalSignature"]
+            .as_str()
+            .is_some_and(|s| s.starts_with("dummy_")),
+        "{response}"
+    );
+    assert_eq!(event.short_signature.as_deref(), Some(short.as_str()));
+}

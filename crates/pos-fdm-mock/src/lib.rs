@@ -42,7 +42,8 @@ impl Counters {
 
 /// What the mock simulates. Start-up values come from the environment
 /// (`MOCK_FDM_ERROR`, `MOCK_FDM_WARNING`, `MOCK_FDM_BUFFER_PCT`,
-/// `MOCK_FDM_INITIALIZED`, `MOCK_FDM_TOKEN`, `MOCK_FDM_ALLOWED_POS`);
+/// `MOCK_FDM_INITIALIZED`, `MOCK_FDM_TOKEN`, `MOCK_FDM_ALLOWED_POS`,
+/// `MOCK_FDM_PLACEHOLDER_SIGNATURES`);
 /// `POST /mock/control` replaces them without a restart.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -61,6 +62,9 @@ pub struct Control {
     pub token: Option<String>,
     /// POS allowed to sign. Absent: any.
     pub allowed_pos: Option<Vec<String>>,
+    /// Sign like module2's online simulator: a `dummy_` placeholder
+    /// signature and a short signature not derived from it.
+    pub placeholder_signatures: bool,
 }
 
 impl Control {
@@ -79,6 +83,8 @@ impl Control {
                 .ok()
                 .filter(|t| !t.trim().is_empty()),
             allowed_pos: parse_codes("MOCK_FDM_ALLOWED_POS"),
+            placeholder_signatures: std::env::var("MOCK_FDM_PLACEHOLDER_SIGNATURES")
+                .is_ok_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
         }
     }
 
@@ -281,6 +287,9 @@ fn answer(
         let counters = fdm.counters.entry(pos_id).or_default();
         let mut result = build_sign_result(mutation, is_training, &data, counters);
         result.buffer_capacity_used = control.buffer_pct();
+        if control.placeholder_signatures {
+            as_simulator_signs(&mut result);
+        }
         if !control.warnings.is_empty() {
             result.warnings = Some(codes_to_messages(control.warnings.clone(), "FR"));
         }
@@ -294,6 +303,25 @@ fn answer(
         );
     }
     serde_json::json!({ "data": data_map })
+}
+
+/// Replace a signature by the simulator's kind: `dummy_` and 38
+/// base64 characters, with a short signature (N only) that is 40 hex
+/// characters but not derived from it, as module2's simulator
+/// FDM02000425 (FDM software 2.2.0.5) answered on 2026-09-27.
+fn as_simulator_signs(result: &mut SignResult) {
+    let seed = result.digital_signature.clone().into_bytes();
+    let seed = seed.as_slice();
+    let mut raw = sha1::Sha1::digest(seed).to_vec();
+    raw.extend_from_slice(&sha1::Sha1::digest([seed, b"-more"].concat())[..8]);
+    result.digital_signature = format!(
+        "dummy_{}",
+        base64::engine::general_purpose::STANDARD_NO_PAD.encode(raw)
+    );
+    if result.short_signature.is_some() {
+        let unrelated = sha1::Sha1::digest([seed, b"-short"].concat());
+        result.short_signature = Some(hex::encode(unrelated));
+    }
 }
 
 /// Build one signed result for a mutation, advancing the counters.
@@ -1004,6 +1032,27 @@ mod tests {
         assert_eq!(error_code(&wrong), "UNAUTHORIZED");
         let signed = answer(&mut f, &bearer("secret"), "signSale", &req);
         assert_eq!(signed["data"]["signSale"]["posId"], "CPOS0031234567");
+    }
+
+    #[test]
+    fn placeholder_signatures_look_like_the_simulator_ones() {
+        let mut f = fdm(Control {
+            placeholder_signatures: true,
+            ..Default::default()
+        });
+        let signed = answer(
+            &mut f,
+            &HeaderMap::new(),
+            "signSale",
+            &sale("CPOS0031234567"),
+        );
+        let sale = &signed["data"]["signSale"];
+        let sig = sale["digitalSignature"].as_str().unwrap();
+        let rest = sig.strip_prefix("dummy_").expect("dummy_ prefix");
+        assert_eq!(rest.len(), 38, "{sig}");
+        let short = sale["shortSignature"].as_str().unwrap();
+        assert_eq!(short.len(), 40);
+        assert!(short.bytes().all(|b| b.is_ascii_hexdigit()));
     }
 
     #[test]

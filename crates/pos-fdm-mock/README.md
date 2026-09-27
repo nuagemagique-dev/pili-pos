@@ -68,7 +68,8 @@ curl -s localhost:8081/mock/control -H 'content-type: application/json' -d '{}'
 ```
 
 Un `POST` remplace tous les réglages. Champs : `errors`, `warnings`,
-`bufferPct`, `initialized`, `token`, `allowedPos`.
+`bufferPct`, `initialized`, `token`, `allowedPos`,
+`placeholderSignatures`.
 
 Journal des appels (les 100 derniers, comme l'onglet Logs de module2) :
 
@@ -91,6 +92,7 @@ ensuite).
 | `MOCK_FDM_INITIALIZED` | `false` pour un FDM non initialisé (automatique avec une erreur) |
 | `MOCK_FDM_TOKEN` | jeton Bearer exigé |
 | `MOCK_FDM_ALLOWED_POS` | `posId` acceptés, séparés par virgules |
+| `MOCK_FDM_PLACEHOLDER_SIGNATURES` | `1` : signe comme le simulateur module2 (`dummy_...`, shortSignature non dérivée) |
 
 Warnings (§V du manuel) : `CLIENT_CERT_NEAR_EXPIRATION`,
 `CLIENT_CERT_EXPIRED`, `RTC_SYNC_FAILED`, `UPDATE_URLS_FAILED`,

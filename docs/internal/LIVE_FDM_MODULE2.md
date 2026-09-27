@@ -84,10 +84,24 @@ scripts/live_fdm.sh live_fdm_status_and_one_sale   # 2 calls
   `MOYUN_STAGING_FDM_URL=... MOYUN_STAGING_FDM_TOKEN=... cargo test -p pos-fiscal --test e2e_staging -- --ignored --test-threads=1`
   (about 13 calls, 1 s apart).
 
-If a response is refused by the POS (for example a short signature
-that is not the SHA-1 of the digital signature), stop and look at it
-before changing the POS: the simulator may use a placeholder
-signature.
+What the first live runs (2026-09-27) taught us:
+
+- `posDateTime` must carry at most milliseconds; a finer fraction is
+  refused with a misleading "+01:00 is only allowed during winter
+  time" message. The POS now sends `2026-09-27T18:31:26.931+02:00`.
+- The simulator signs with a placeholder, `dummy_` + base64, and a
+  short signature not derived from it. The POS accepts exactly that
+  form (and only it) without the two signature checks; every other
+  check still applies. `pos-fdm-mock` signs the same way with
+  `MOCK_FDM_PLACEHOLDER_SIGNATURES=1`.
+- A reused `posFiscalTicketNo` is signed again as a new event.
+- Answers carry an extra top-level `info` object (`https`,
+  `visitor_ip`, `version`) next to `data`; the POS ignores it.
+- The settings page, Developer tab, "Input/Output" shows each sign
+  request and its response (status queries are not listed).
+
+If a response is refused by the POS, stop and look at it in that
+Input/Output log before changing the POS.
 
 ## Error checklist (Developer tab)
 
