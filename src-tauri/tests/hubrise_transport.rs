@@ -187,10 +187,13 @@ async fn events_of_another_catalog_or_location_are_ignored() {
         let data = pos_hubrise_mock::builders::seed_catalog();
         inner.replace_catalog(common::hubrise::WEBSHOP_TOKEN, "other-catalog", None, data);
     }
+    // The start read the connected catalog once.
+    let reads = mock.requests("GET", "/v1/catalogs/").len();
     let report = poll_once(&poller(&app)).await.unwrap();
     assert_eq!(report.handled, 1);
-    assert!(
-        mock.requests("GET", "/v1/catalogs/").is_empty(),
+    assert_eq!(
+        mock.requests("GET", "/v1/catalogs/").len(),
+        reads,
         "not fetched"
     );
 }
@@ -205,8 +208,12 @@ async fn a_catalog_update_is_fetched() {
         let data = pos_hubrise_mock::builders::seed_catalog();
         inner.replace_catalog(common::hubrise::WEBSHOP_TOKEN, &id, None, data);
     }
+    let reads = mock.requests("GET", "/v1/catalogs/pili-dev-cat-1").len();
     poll_once(&poller(&app)).await.unwrap();
-    assert_eq!(mock.requests("GET", "/v1/catalogs/pili-dev-cat-1").len(), 1);
+    assert_eq!(
+        mock.requests("GET", "/v1/catalogs/pili-dev-cat-1").len(),
+        reads + 1
+    );
 }
 
 #[tokio::test]

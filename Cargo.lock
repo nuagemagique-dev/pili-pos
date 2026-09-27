@@ -2974,6 +2974,7 @@ dependencies = [
  "chrono-tz",
  "dirs",
  "dotenvy",
+ "pos-catalog",
  "pos-core",
  "pos-db",
  "pos-fdm-mock",
@@ -3069,6 +3070,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-catalog"
+version = "1.0.0"
+dependencies = [
+ "pos-core",
+ "pos-db",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "pos-core"
 version = "1.0.0"
 dependencies = [
@@ -3146,6 +3160,7 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "chrono",
+ "pos-catalog",
  "pos-core",
  "pos-db",
  "pos-hubrise-mock",

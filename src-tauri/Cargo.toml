@@ -15,6 +15,7 @@ pos-print = { path = "../crates/pos-print" }
 pos-db = { path = "../crates/pos-db" }
 pos-mail = { path = "../crates/pos-mail" }
 pos-hubrise = { path = "../crates/pos-hubrise", optional = true }
+pos-catalog = { path = "../crates/pos-catalog", optional = true }
 pos-hubrise-types = { path = "../crates/pos-hubrise-types", optional = true }
 pos-peppol = { path = "../crates/pos-peppol", optional = true }
 serde = { workspace = true }
@@ -53,7 +54,12 @@ base64 = "0.23"
 default = ["hubrise", "peppol"]
 # Enables the optional HubRise (webshop) integration: poller, outbox,
 # /health endpoint that reports outbox depth, and the IPC commands.
-hubrise = ["dep:pos-hubrise", "dep:pos-hubrise-types", "pos-db/hubrise"]
+hubrise = [
+    "dep:pos-hubrise",
+    "dep:pos-hubrise-types",
+    "dep:pos-catalog",
+    "pos-db/hubrise",
+]
 # Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,
 # the AccessPoint trait, and the invoice (I event) commands. Not part of
 # pili-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in

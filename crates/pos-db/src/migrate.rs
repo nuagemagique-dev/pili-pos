@@ -106,12 +106,24 @@ const HUBRISE_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_hubrise::MIGRATION_020_HUBRISE_TRANSPORT,
 }];
 
+/// Migrations of the menu mirrored from an external catalog (feature
+/// `catalog-sync`, which `hubrise` turns on).
+#[cfg(feature = "catalog-sync")]
+const CATALOG_MIGRATIONS: &[Migration] = &[Migration {
+    version: 21,
+    name: "catalog-sync",
+    sql: crate::schema_catalog::MIGRATION_021_CATALOG_SYNC,
+}];
+
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
+    #[cfg(feature = "catalog-sync")]
+    all.extend_from_slice(CATALOG_MIGRATIONS);
+    all.sort_by_key(|m| m.version);
     all
 }
 
@@ -243,6 +255,14 @@ mod tests {
     #[test]
     fn hubrise_migrations_start_at_20() {
         assert!(HUBRISE_MIGRATIONS.iter().all(|m| m.version >= 20));
+    }
+
+    #[cfg(feature = "catalog-sync")]
+    #[test]
+    fn the_catalog_migration_is_21() {
+        let versions: Vec<i64> = CATALOG_MIGRATIONS.iter().map(|m| m.version).collect();
+        assert_eq!(versions, vec![21]);
+        assert!(all_versions().contains(&21));
     }
 
     #[test]

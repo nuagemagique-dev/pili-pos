@@ -1,0 +1,20 @@
+[package]
+name = "pos-catalog"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# The POS menu kept as a mirror of an external catalog (HubRise today,
+# the owner's own catalog service later): a neutral model, its
+# validation, and the apply step that keeps product ids stable. Not
+# part of the certification build.
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-db = { path = "../pos-db", features = ["catalog-sync"] }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.10"
+thiserror = { workspace = true }

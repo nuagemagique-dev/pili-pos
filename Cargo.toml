@@ -10,6 +10,7 @@ members = [
     "crates/pos-printer-mock",
     "crates/pos-hubrise-types",
     "crates/pos-hubrise-mock",
+    "crates/pos-catalog",
     "crates/pos-hubrise",
     "crates/pos-peppol",
     "crates/pos-mail",

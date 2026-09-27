@@ -88,6 +88,10 @@ pub fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
         fiscal_events == 0,
         "refusing to seed: the database already holds {fiscal_events} fiscal event(s)"
     );
+    #[cfg(feature = "hubrise")]
+    if let Some(source) = pos_catalog::managed_by(conn)? {
+        anyhow::bail!("refusing to seed: the menu is managed by {source}");
+    }
     let tx = conn.unchecked_transaction()?;
     tx.execute_batch(sql)?;
     tx.commit()?;
@@ -217,6 +221,15 @@ mod tests {
         .unwrap();
         let err = apply_seed(&conn, include_str!("../seed_spf_test.sql")).unwrap_err();
         assert!(err.to_string().contains("refusing to seed"));
+    }
+
+    #[cfg(feature = "hubrise")]
+    #[test]
+    fn seeding_is_refused_while_a_catalog_manages_the_menu() {
+        let mut conn = migrated();
+        pos_catalog::apply(&mut conn, "hubrise", &pos_catalog::testing::catalog()).unwrap();
+        let err = apply_seed(&conn, include_str!("../seed.sql")).unwrap_err();
+        assert!(err.to_string().contains("managed by hubrise"), "{err}");
     }
 
     #[test]

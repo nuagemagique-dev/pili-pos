@@ -164,6 +164,8 @@ pub fn hubrise_disconnect(state: State<'_, AppState>) -> Result<(), String> {
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         token_store::clear(&db).map_err(|e| e.to_string())?;
+        // The menu stays as last synced, and can be edited again.
+        pos_catalog::release(&db, pos_hubrise::CATALOG_SOURCE).map_err(errors::internal)?;
     }
     {
         let db = state.poller_db.lock().map_err(|e| e.to_string())?;
@@ -550,6 +552,10 @@ pub struct HubriseStatus {
     pub parked_events: i64,
     /// Online orders still waiting for staff after 5 minutes.
     pub stale_orders: i64,
+    /// The last catalog sync: when, and the issues of a refused one.
+    pub catalog: Option<pos_catalog::SyncState>,
+    /// A first catalog waits for the manager to adopt local products.
+    pub catalog_awaiting_adoption: bool,
 }
 
 #[tauri::command]
@@ -579,11 +585,92 @@ pub fn do_hubrise_status(state: &AppState) -> Result<HubriseStatus, String> {
             |r| r.get(0),
         )
         .map_err(errors::internal)?;
+    let catalog = pos_catalog::state(&db, pos_hubrise::CATALOG_SOURCE).map_err(errors::internal)?;
+    let catalog_awaiting_adoption = pos_catalog::pending_catalog(&db, pos_hubrise::CATALOG_SOURCE)
+        .map_err(errors::internal)?
+        .is_some();
     Ok(HubriseStatus {
         health,
         outbox,
         outbox_error,
         parked_events,
         stale_orders,
+        catalog,
+        catalog_awaiting_adoption,
     })
+}
+
+/// Fetch and apply the HubRise catalog now (Settings, "Resynchroniser").
+#[tauri::command]
+pub async fn hubrise_sync_catalog(
+    state: State<'_, AppState>,
+) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
+    do_sync_catalog(state.inner()).await
+}
+
+pub async fn do_sync_catalog(
+    state: &AppState,
+) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
+    access::operator(state, Access::Staff)?;
+    let ctx = poller_ctx(state);
+    let outcome = poller::check_catalog(&ctx)
+        .await
+        .map_err(errors::internal)?;
+    if outcome.is_none() {
+        return Err(errors::hubrise::NOT_CONNECTED.to_string());
+    }
+    Ok(outcome)
+}
+
+/// The local products that can keep their id when HubRise takes over
+/// the menu (same French name and price as a catalog product).
+#[tauri::command]
+pub fn hubrise_adoption_preview(
+    state: State<'_, AppState>,
+) -> Result<Vec<pos_catalog::Adoption>, String> {
+    do_adoption_preview(state.inner())
+}
+
+pub fn do_adoption_preview(state: &AppState) -> Result<Vec<pos_catalog::Adoption>, String> {
+    access::operator(state, Access::Admin)?;
+    let db = state.db.lock().map_err(errors::internal)?;
+    let Some(pending) =
+        pos_catalog::pending_catalog(&db, pos_hubrise::CATALOG_SOURCE).map_err(errors::internal)?
+    else {
+        return Err(errors::hubrise::NOTHING_PENDING.to_string());
+    };
+    pos_catalog::adoption_preview(&db, &pending).map_err(errors::internal)
+}
+
+/// The manager confirms the take-over: the chosen products keep their
+/// id, every other hand-entered product is deactivated, and the menu
+/// mirrors HubRise. Refused while a POS order is open, since its
+/// products could vanish from the menu.
+#[tauri::command]
+pub fn hubrise_adopt_catalog(
+    state: State<'_, AppState>,
+    adoptions: Vec<pos_catalog::Adoption>,
+) -> Result<pos_catalog::ApplyOutcome, String> {
+    do_adopt_catalog(state.inner(), &adoptions)
+}
+
+pub fn do_adopt_catalog(
+    state: &AppState,
+    adoptions: &[pos_catalog::Adoption],
+) -> Result<pos_catalog::ApplyOutcome, String> {
+    access::operator(state, Access::Admin)?;
+    let mut db = state.db.lock().map_err(errors::internal)?;
+    let open: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM orders WHERE status = 'open' AND hubrise_order_id IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(errors::internal)?;
+    if open > 0 {
+        return Err(errors::hubrise::OPEN_ORDERS.to_string());
+    }
+    pos_catalog::adopt_and_apply(&mut db, pos_hubrise::CATALOG_SOURCE, adoptions)
+        .map_err(errors::internal)?
+        .ok_or_else(|| errors::hubrise::NOTHING_PENDING.to_string())
 }

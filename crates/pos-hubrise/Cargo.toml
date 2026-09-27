@@ -9,6 +9,7 @@ authors.workspace = true
 pos-hubrise-types = { path = "../pos-hubrise-types" }
 pos-db = { path = "../pos-db", features = ["hubrise"] }
 pos-core = { path = "../pos-core" }
+pos-catalog = { path = "../pos-catalog" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }

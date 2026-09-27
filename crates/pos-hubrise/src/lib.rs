@@ -8,7 +8,7 @@
 //! this crate. See `plans/witty-sleeping-nygaard.md` for rationale.
 
 pub mod callbacks;
-pub mod catalog_apply;
+pub mod catalog_map;
 pub mod catalog_mapper;
 pub mod client;
 pub mod dispatcher;
@@ -19,6 +19,7 @@ pub mod poller;
 pub mod push;
 pub mod token_store;
 
+pub use catalog_map::SOURCE as CATALOG_SOURCE;
 pub use client::Client;
 pub use errors::HubriseError;
 pub use oauth::OAuthConfig;

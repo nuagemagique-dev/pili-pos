@@ -184,12 +184,21 @@ pub mod hubrise {
     pub const STATUS_NOT_ALLOWED: &str = "hubrise_status_not_allowed";
     /// Not an RFC 3339 time.
     pub const TIME_INVALID: &str = "hubrise_time_invalid";
+    /// The menu mirrors an external catalog: it is edited there.
+    pub const MENU_MANAGED: &str = "hubrise_menu_managed";
+    /// Taking over the menu waits until every POS order is closed.
+    pub const OPEN_ORDERS: &str = "hubrise_open_orders";
+    /// No catalog is waiting for the manager's adoption.
+    pub const NOTHING_PENDING: &str = "hubrise_nothing_pending";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
         ORDER_UNKNOWN,
         STATUS_NOT_ALLOWED,
         TIME_INVALID,
+        MENU_MANAGED,
+        OPEN_ORDERS,
+        NOTHING_PENDING,
     ];
 }
 

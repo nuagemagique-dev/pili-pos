@@ -13,6 +13,10 @@ pub enum DispatchOutcome {
     OrderCreated,
     OrderUpdated,
     CatalogUpdated,
+    /// The catalog has issues; the menu stayed as it was.
+    CatalogRejected,
+    /// First sync over a hand-entered menu: waiting for a manager.
+    CatalogAwaitingAdoption,
     Ignored,
 }
 

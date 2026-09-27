@@ -2,8 +2,20 @@ use pos_core::menu::{Category, MenuItem};
 use pos_core::vat::VatCode;
 use rusqlite::{Connection, params};
 
+/// With a mirrored catalog, the grid leaves out hidden categories
+/// (charges) and items not sold on the POS; they still resolve on an
+/// order line.
+#[cfg(feature = "catalog-sync")]
+const GRID_CATEGORY_FILTER: &str = " AND c.hidden = 0";
+#[cfg(not(feature = "catalog-sync"))]
+const GRID_CATEGORY_FILTER: &str = "";
+#[cfg(feature = "catalog-sync")]
+const GRID_ITEM_FILTER: &str = " AND m.on_pos = 1 AND m.kind = 'product'";
+#[cfg(not(feature = "catalog-sync"))]
+const GRID_ITEM_FILTER: &str = "";
+
 pub fn get_categories(conn: &Connection, lang: &str) -> Result<Vec<Category>, rusqlite::Error> {
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT c.id, c.sort_order, c.color, c.active,
                 COALESCE(t.value, 'unnamed') as name,
                 (SELECT value FROM translations WHERE entity_type = 'category' AND entity_id = c.id AND field = 'name' AND lang = 'fr'),
@@ -12,9 +24,9 @@ pub fn get_categories(conn: &Connection, lang: &str) -> Result<Vec<Category>, ru
          LEFT JOIN translations t
            ON t.entity_type = 'category' AND t.entity_id = c.id
               AND t.field = 'name' AND t.lang = ?1
-         WHERE c.active = 1
-         ORDER BY c.sort_order",
-    )?;
+         WHERE c.active = 1{GRID_CATEGORY_FILTER}
+         ORDER BY c.sort_order"
+    ))?;
 
     let rows = stmt.query_map(params![lang], |row| {
         Ok(Category {
@@ -37,7 +49,7 @@ pub fn get_menu_items(
     lang: &str,
 ) -> Result<Vec<MenuItem>, rusqlite::Error> {
     let sql = if category_id.is_some() {
-        "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
+        format!("SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
                 COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
@@ -46,10 +58,10 @@ pub fn get_menu_items(
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
               AND t.field = 'name' AND t.lang = ?1
-         WHERE m.active = 1 AND m.category_id = ?2
-         ORDER BY m.sort_order"
+         WHERE m.active = 1 AND m.category_id = ?2{GRID_ITEM_FILTER}
+         ORDER BY m.sort_order")
     } else {
-        "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
+        format!("SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
                 COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
@@ -58,11 +70,11 @@ pub fn get_menu_items(
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
               AND t.field = 'name' AND t.lang = ?1
-         WHERE m.active = 1
-         ORDER BY m.sort_order"
+         WHERE m.active = 1{GRID_ITEM_FILTER}
+         ORDER BY m.sort_order")
     };
 
-    let mut stmt = conn.prepare(sql)?;
+    let mut stmt = conn.prepare(&sql)?;
 
     let rows = if let Some(cat_id) = category_id {
         stmt.query_map(params![lang, cat_id], map_menu_item)?

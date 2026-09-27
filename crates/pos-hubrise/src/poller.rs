@@ -34,11 +34,14 @@ use crate::dispatcher::{DispatchOutcome, mark_processed, persist_event};
 use crate::errors::{HubriseError, Result};
 use crate::token_store::{self, StoredConnection};
 use crate::{callbacks, outbox};
+use pos_catalog::ApplyOutcome;
 
 /// Default polling interval (HubRise asks for at least 30 s).
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
 /// Shortest gap between two passes, even when woken on purpose.
 pub const MIN_POLL_GAP: Duration = Duration::from_secs(5);
+/// How often the catalog is compared with the applied one.
+pub const CATALOG_DRIFT_INTERVAL: Duration = Duration::from_secs(15 * 60);
 /// Tries before an event is parked.
 pub const MAX_EVENT_ATTEMPTS: i64 = 5;
 
@@ -54,7 +57,7 @@ pub trait Handlers: Send + Sync {
     /// when the POS should acknowledge it (`received`).
     fn on_order(&self, conn: &Connection, order: &Order) -> Result<bool>;
     /// Apply the connected catalog.
-    fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<()>;
+    fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<ApplyOutcome>;
 }
 
 /// The default handlers: mirror the order row, apply the catalog.
@@ -66,8 +69,8 @@ impl Handlers for DefaultHandlers {
         Ok(order.status == OrderStatus::New)
     }
 
-    fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<()> {
-        crate::catalog_apply::apply(conn, catalog)
+    fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<ApplyOutcome> {
+        crate::catalog_map::apply(conn, catalog)
     }
 }
 
@@ -92,6 +95,8 @@ pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
     // fetches what arrived while the POS was off.
     let mut started = false;
     let mut last_pass: Option<Instant> = None;
+    // The start-up already syncs the catalog.
+    let mut last_catalog_check = Instant::now();
 
     loop {
         tokio::select! {
@@ -111,6 +116,15 @@ pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
         }
         if let Err(e) = poll_once(&ctx).await {
             tracing::warn!(?e, "hubrise poll error");
+        }
+        // Drift check: a catalog change HubRise sent no event for (one
+        // made by this client, or an event lost) still reaches the
+        // menu. Unchanged catalogs are a hash compare, no write.
+        if started && last_catalog_check.elapsed() >= CATALOG_DRIFT_INTERVAL {
+            last_catalog_check = Instant::now();
+            if let Err(e) = check_catalog(&ctx).await {
+                tracing::warn!(?e, "hubrise catalog drift check");
+            }
         }
         last_pass = Some(Instant::now());
     }
@@ -138,6 +152,15 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
             token_store::mark_callback_registered(&db)?;
         }
         Err(e) => return Err(note_error(ctx, e)),
+    }
+    // The menu first, so backfilled orders resolve against it. A
+    // failed read (the catalog endpoint allows 10 calls a minute) does
+    // not stop the start: the drift check tries again.
+    if let Err(e) = sync_catalog(ctx, &client, &stored).await {
+        tracing::warn!(error = %e, "hubrise catalog sync at start failed");
+        if matches!(e, HubriseError::Unauthorized) {
+            return Err(note_error(ctx, e));
+        }
     }
     for status in ["new", "received"] {
         let path = format!("/locations/{}/orders?status={status}", stored.location_id);
@@ -339,8 +362,12 @@ async fn process_event(
             if field("catalog_id").as_deref() != Some(stored.catalog_id.as_str()) {
                 return Ok(DispatchOutcome::Ignored);
             }
-            sync_catalog(ctx, client, stored).await?;
-            Ok(DispatchOutcome::CatalogUpdated)
+            Ok(match sync_catalog(ctx, client, stored).await? {
+                ApplyOutcome::Applied { .. } => DispatchOutcome::CatalogUpdated,
+                ApplyOutcome::Rejected(_) => DispatchOutcome::CatalogRejected,
+                ApplyOutcome::AwaitingAdoption => DispatchOutcome::CatalogAwaitingAdoption,
+                ApplyOutcome::Unchanged => DispatchOutcome::Ignored,
+            })
         }
         ("order", kind @ ("create" | "update")) => {
             let Some(order_id) = field("order_id") else {
@@ -402,11 +429,54 @@ fn handle_order(ctx: &PollerCtx, order: &Order) -> Result<()> {
 }
 
 /// Fetch the connected catalog and hand it to the handlers.
+/// Fetch and apply the connected catalog, if connected.
+pub async fn check_catalog(ctx: &PollerCtx) -> Result<Option<ApplyOutcome>> {
+    let Some((stored, client)) = load_client(ctx)? else {
+        return Ok(None);
+    };
+    match sync_catalog(ctx, &client, &stored).await {
+        Ok(outcome) => {
+            if let Some(hook) = &ctx.on_outcome
+                && let Some(kind) = catalog_outcome(&outcome)
+            {
+                hook(kind, synthetic_catalog_event(&stored));
+            }
+            Ok(Some(outcome))
+        }
+        Err(e) => Err(note_error(ctx, e)),
+    }
+}
+
+/// The drift check has no HubRise event; the hook gets one that names
+/// the catalog.
+fn synthetic_catalog_event(stored: &StoredConnection) -> CallbackEvent {
+    let mut extra = serde_json::Map::new();
+    extra.insert("catalog_id".into(), stored.catalog_id.clone().into());
+    CallbackEvent {
+        id: format!("drift-{}", chrono::Utc::now().timestamp()),
+        resource_type: "catalog".into(),
+        event_type: "update".into(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        previous_state: None,
+        new_state: None,
+        extra,
+    }
+}
+
+fn catalog_outcome(outcome: &ApplyOutcome) -> Option<DispatchOutcome> {
+    match outcome {
+        ApplyOutcome::Applied { .. } => Some(DispatchOutcome::CatalogUpdated),
+        ApplyOutcome::Rejected(_) => Some(DispatchOutcome::CatalogRejected),
+        ApplyOutcome::AwaitingAdoption => Some(DispatchOutcome::CatalogAwaitingAdoption),
+        ApplyOutcome::Unchanged => None,
+    }
+}
+
 pub async fn sync_catalog(
     ctx: &PollerCtx,
     client: &Client,
     stored: &StoredConnection,
-) -> Result<()> {
+) -> Result<ApplyOutcome> {
     let catalog: Catalog = client
         .get_json(&format!("/catalogs/{}", stored.catalog_id))
         .await?;

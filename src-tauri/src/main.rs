@@ -186,6 +186,8 @@ fn main() {
                         DispatchOutcome::OrderCreated => "webshop-order-received",
                         DispatchOutcome::OrderUpdated => "webshop-order-updated",
                         DispatchOutcome::CatalogUpdated => "catalog-updated",
+                        DispatchOutcome::CatalogRejected => "catalog-rejected",
+                        DispatchOutcome::CatalogAwaitingAdoption => "catalog-awaiting-adoption",
                         DispatchOutcome::Ignored => return,
                     };
                     let _ = handle.emit(topic, event);
@@ -347,6 +349,9 @@ fn main() {
         commands::hubrise::hubrise_patch_order_status,
         commands::hubrise::hubrise_set_confirmed_time,
         commands::hubrise::hubrise_status,
+        commands::hubrise::hubrise_sync_catalog,
+        commands::hubrise::hubrise_adoption_preview,
+        commands::hubrise::hubrise_adopt_catalog,
         // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,

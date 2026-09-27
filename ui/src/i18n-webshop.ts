@@ -99,4 +99,7 @@ export const webshopMessages: Messages = {
   "err_hubrise_order_unknown": { fr: "Commande en ligne inconnue.", en: "Unknown online order.", zh: "未知的在线订单。" },
   "err_hubrise_status_not_allowed": { fr: "Ce statut ne peut pas être choisi ici.", en: "This status cannot be set here.", zh: "此处不能设置该状态。" },
   "err_hubrise_time_invalid": { fr: "Heure non valable.", en: "Invalid time.", zh: "时间无效。" },
+  "err_hubrise_menu_managed": { fr: "Le menu est géré par HubRise : modifiez-le là.", en: "The menu is managed in HubRise: edit it there.", zh: "菜单由HubRise管理，请在那里修改。" },
+  "err_hubrise_open_orders": { fr: "Clôturez d'abord toutes les commandes ouvertes.", en: "Close every open order first.", zh: "请先结清所有未结订单。" },
+  "err_hubrise_nothing_pending": { fr: "Aucun catalogue en attente.", en: "No catalog is waiting.", zh: "没有待处理的菜单。" },
 };
