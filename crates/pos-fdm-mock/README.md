@@ -51,7 +51,18 @@ Comme module2 :
 - un `posDateTime` avec plus que des millisecondes, ou dont le décalage
   n'est pas celui de Bruxelles à ce moment, reçoit `INVALID_REQUEST` ;
 - un buffer plein est aussi signalé presque plein (`BUFFER_NEAR_FULL`
-  dans les warnings du status).
+  dans les warnings du status) ;
+- les champs d'une mutation `sign*` sont contrôlés comme chez module2
+  (son changelog, logiciel FDM 2.1.0.4 à 2.1.2.0), avec `INVALID_REQUEST`
+  en cas de refus : montants en multiples de 0.01, `quantity` et
+  `unitPrice` en multiples de 0.0001, `subProducts` null pour
+  SINGLE_PRODUCT et présent pour COMPOSITE_PRODUCT, `negQuantityReason`
+  pour toute quantité négative, `costCenter` sur `signOrder`, et tout
+  `fdmRef` cité avec un `fdmId` de 11 caractères et un `fdmDateTime` UTC
+  (`Z`).
+
+Le numéro de série du mock est `MCK00000001` (11 caractères, comme
+l'exemple `SPF01987654` de la spec).
 
 Seule différence voulue : la requête Q110 (plusieurs champs `status`
 dans un document) reçoit sa réponse selon la spec, là où le simulateur

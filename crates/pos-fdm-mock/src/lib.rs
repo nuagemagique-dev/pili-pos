@@ -213,6 +213,10 @@ async fn handle_graphql(
 /// What the mock reports as its FDM software version.
 const FDM_SW_VERSION: &str = "MOCK-FDM-1.0";
 
+/// The mock's serial number: 11 characters, as the spec's fdmId
+/// (example `SPF01987654`).
+const FDM_ID: &str = "MCK00000001";
+
 /// module2 adds an `info` object next to `data` (and next to GraphQL
 /// validation errors); the POS ignores it.
 fn with_info(mut body: serde_json::Value) -> serde_json::Value {
@@ -326,14 +330,165 @@ fn brussels_summer_time(at: chrono::DateTime<chrono::Utc>) -> bool {
 
 /// module2's refusal of an ill-formed `posDateTime`.
 fn invalid_pos_date_time() -> serde_json::Value {
+    invalid_request(
+        "posDateTime is not a valid ISO 8601 date-time string. +01:00 is only allowed during winter time, +02:00 is only allowed during summer time.",
+    )
+}
+
+/// An `INVALID_REQUEST` refusal: module2 uses that code for every
+/// field it rejects (FDM software 2.1.1.6).
+fn invalid_request(message: &str) -> serde_json::Value {
     serde_json::json!({ "errors": [{
-        "message": "posDateTime is not a valid ISO 8601 date-time string. +01:00 is only allowed during winter time, +02:00 is only allowed during summer time.",
+        "message": message,
         "extensions": {
             "category": code_category("INVALID_REQUEST"),
             "code": "INVALID_REQUEST",
             "showPos": code_show_pos("INVALID_REQUEST"),
         },
     }] })
+}
+
+/// Amounts: multiples of 0.01 (POS description v2.2, "multiple de
+/// 0.01" / "deux décimales").
+const CENT_FIELDS: [&str; 13] = [
+    "amount",
+    "lineTotal",
+    "transactionTotal",
+    "price",
+    "rate",
+    "taxableAmount",
+    "vatAmount",
+    "totalAmount",
+    "normalAmount",
+    "negativeCorrections",
+    "positiveCorrections",
+    "negative",
+    "positive",
+];
+
+/// Quantities and unit prices: multiples of 0.0001.
+const TEN_THOUSANDTH_FIELDS: [&str; 2] = ["quantity", "unitPrice"];
+
+fn is_multiple_of(value: f64, steps_per_unit: f64) -> bool {
+    let scaled = value * steps_per_unit;
+    (scaled - scaled.round()).abs() < 1e-6
+}
+
+/// The field checks module2's simulator makes on a sign input (its
+/// changelog, FDM software 2.1.0.4 to 2.1.2.0, and the POS
+/// description v2.2): amounts in cents, quantities and unit prices in
+/// ten-thousandths, `subProducts` null on a single product and present
+/// on a composite one, a `negQuantityReason` on every negative
+/// quantity, a `costCenter` on `signOrder`, and every cited `fdmRef`
+/// with an 11-character `fdmId` and a UTC `fdmDateTime`. The first
+/// problem found, as the refusal's message.
+fn sign_input_problem(mutation: &str, data: &serde_json::Value) -> Option<String> {
+    if mutation == "signOrder" && data.get("costCenter").is_none_or(|c| c.is_null()) {
+        return Some("costCenter is required for signOrder.".into());
+    }
+    let mut problem = None;
+    check_fields(data, "data", &mut problem);
+    problem
+}
+
+fn check_fields(value: &serde_json::Value, path: &str, problem: &mut Option<String>) {
+    if problem.is_some() {
+        return;
+    }
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, item) in map {
+                let here = format!("{path}.{key}");
+                if let Some(number) = item.as_f64() {
+                    let steps = if CENT_FIELDS.contains(&key.as_str()) {
+                        100.0
+                    } else if TEN_THOUSANDTH_FIELDS.contains(&key.as_str()) {
+                        10_000.0
+                    } else {
+                        continue;
+                    };
+                    if !is_multiple_of(number, steps) {
+                        *problem = Some(format!("{here} must be a multiple of {}.", 1.0 / steps));
+                        return;
+                    }
+                    continue;
+                }
+                if key == "fdmRef" && !item.is_null() {
+                    check_fdm_ref(item, &here, problem);
+                } else if key == "fdmRefs" {
+                    for (i, fdm_ref) in item.as_array().into_iter().flatten().enumerate() {
+                        check_fdm_ref(fdm_ref, &format!("{here}[{i}]"), problem);
+                    }
+                }
+                check_fields(item, &here, problem);
+            }
+            check_line(map, path, problem);
+            check_product(map, path, problem);
+        }
+        serde_json::Value::Array(items) => {
+            for (i, item) in items.iter().enumerate() {
+                check_fields(item, &format!("{path}[{i}]"), problem);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A transaction line: `subProducts` null on SINGLE_PRODUCT, present
+/// on COMPOSITE_PRODUCT.
+fn check_line(
+    line: &serde_json::Map<String, serde_json::Value>,
+    path: &str,
+    problem: &mut Option<String>,
+) {
+    let sub = line.get("subProducts").filter(|s| !s.is_null());
+    let message = match line.get("lineType").and_then(|t| t.as_str()) {
+        Some("SINGLE_PRODUCT") if sub.is_some() => "must be null for lineType SINGLE_PRODUCT",
+        Some("COMPOSITE_PRODUCT") if sub.is_none() => "is required for lineType COMPOSITE_PRODUCT",
+        _ => return,
+    };
+    problem.get_or_insert(format!("{path}.subProducts {message}."));
+}
+
+/// A product with a negative quantity says why.
+fn check_product(
+    product: &serde_json::Map<String, serde_json::Value>,
+    path: &str,
+    problem: &mut Option<String>,
+) {
+    let negative = product
+        .get("quantity")
+        .and_then(|q| q.as_f64())
+        .is_some_and(|q| q < 0.0);
+    let reason = product
+        .get("negQuantityReason")
+        .is_some_and(|r| !r.is_null());
+    if negative && !reason {
+        problem.get_or_insert(format!(
+            "{path}.negQuantityReason is required when quantity is negative."
+        ));
+    }
+}
+
+/// A cited event: an 11-character `fdmId`, a UTC `fdmDateTime`.
+fn check_fdm_ref(fdm_ref: &serde_json::Value, path: &str, problem: &mut Option<String>) {
+    if problem.is_some() {
+        return;
+    }
+    let fdm_id = fdm_ref.get("fdmId").and_then(|v| v.as_str()).unwrap_or("");
+    if fdm_id.chars().count() != 11 {
+        *problem = Some(format!("{path}.fdmId must be 11 characters long."));
+        return;
+    }
+    let at = fdm_ref
+        .get("fdmDateTime")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if !at.ends_with('Z') || chrono::DateTime::parse_from_rfc3339(at).is_err() {
+        *problem = Some(format!(
+            "{path}.fdmDateTime must be an RFC 3339 date-time in UTC (Z)."
+        ));
+    }
 }
 
 /// The FDM's answer to one GraphQL request.
@@ -419,6 +574,12 @@ fn answer(
     });
     if bad_date {
         return invalid_pos_date_time();
+    }
+    if let Some(problem) = parts
+        .iter()
+        .find_map(|(mutation, data)| sign_input_problem(mutation, data))
+    {
+        return invalid_request(&problem);
     }
 
     let mut data_map = serde_json::Map::new();
@@ -559,7 +720,7 @@ fn build_sign_result(
         device_id: device_id.to_string(),
         event_operation: event_op.to_string(),
         fdm_ref: FdmRef {
-            fdm_id: "CBX0MOCK0001".to_string(),
+            fdm_id: FDM_ID.to_string(),
             fdm_date_time: fdm_date_time(),
             event_label: event_label.to_string(),
             event_counter: ec,
@@ -723,7 +884,7 @@ fn status_response(query: &str, control: &Control) -> serde_json::Value {
             key,
             serde_json::json!({
                 "device": {
-                    "fdmId": "CBX0MOCK0001",
+                    "fdmId": FDM_ID,
                     "fdmSwVersion": FDM_SW_VERSION,
                     "fdmDateTime": fdm_date_time(),
                     // Coherent with the codes, so §V evidence is
@@ -1182,6 +1343,112 @@ mod tests {
         response["errors"][0]["extensions"]["code"]
             .as_str()
             .unwrap_or("")
+    }
+
+    /// A signSale with `data`, answered by a default mock.
+    fn sign_sale(data: serde_json::Value) -> serde_json::Value {
+        let req = GqlRequest {
+            query: sale("x").query,
+            variables: json!({ "data": data, "isTraining": false }),
+        };
+        answer(
+            &mut fdm(Control::default()),
+            &HeaderMap::new(),
+            "signSale",
+            &req,
+        )
+    }
+
+    fn line(line_type: &str, quantity: f64, sub: Option<serde_json::Value>) -> serde_json::Value {
+        json!({
+            "lineType": line_type,
+            "mainProduct": { "quantity": quantity, "unitPrice": 12.5, "vats": [{ "label": "A", "price": 12.5 }] },
+            "subProducts": sub,
+            "lineTotal": 12.5,
+        })
+    }
+
+    fn with_lines(lines: serde_json::Value) -> serde_json::Value {
+        json!({ "posId": "CPOS0031234567", "transaction": { "transactionLines": lines, "transactionTotal": 12.5 } })
+    }
+
+    fn refusal(response: &serde_json::Value) -> String {
+        assert_eq!(error_code(response), "INVALID_REQUEST", "{response}");
+        response["errors"][0]["message"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    }
+
+    #[test]
+    fn a_well_formed_sale_is_signed() {
+        let signed = sign_sale(with_lines(json!([line("SINGLE_PRODUCT", 2.0, None)])));
+        assert!(signed["data"]["signSale"].is_object(), "{signed}");
+    }
+
+    #[test]
+    fn amounts_are_in_cents_and_quantities_in_ten_thousandths() {
+        let mut data = with_lines(json!([line("SINGLE_PRODUCT", 1.0, None)]));
+        data["transaction"]["transactionTotal"] = json!(12.505);
+        assert!(refusal(&sign_sale(data)).contains("transactionTotal must be a multiple of 0.01"));
+
+        let signed = sign_sale(with_lines(json!([line("SINGLE_PRODUCT", 0.1234, None)])));
+        assert!(signed["data"].is_object(), "4 decimals are fine: {signed}");
+        let refused = sign_sale(with_lines(json!([line("SINGLE_PRODUCT", 0.12345, None)])));
+        assert!(refusal(&refused).contains("quantity must be a multiple of 0.0001"));
+    }
+
+    #[test]
+    fn sub_products_follow_the_line_type() {
+        let single = sign_sale(with_lines(json!([line(
+            "SINGLE_PRODUCT",
+            1.0,
+            Some(json!([]))
+        )])));
+        assert!(refusal(&single).contains("must be null for lineType SINGLE_PRODUCT"));
+        let composite = sign_sale(with_lines(json!([line("COMPOSITE_PRODUCT", 1.0, None)])));
+        assert!(refusal(&composite).contains("is required for lineType COMPOSITE_PRODUCT"));
+    }
+
+    #[test]
+    fn a_negative_quantity_needs_a_reason() {
+        let refused = sign_sale(with_lines(json!([line("SINGLE_PRODUCT", -1.0, None)])));
+        assert!(refusal(&refused).contains("negQuantityReason is required"));
+        let mut refund = line("SINGLE_PRODUCT", -1.0, None);
+        refund["mainProduct"]["negQuantityReason"] = json!("REFUND");
+        assert!(sign_sale(with_lines(json!([refund])))["data"].is_object());
+    }
+
+    #[test]
+    fn a_cited_event_has_a_spec_fdm_ref() {
+        let cite = |fdm_id: &str, at: &str| {
+            let mut data = with_lines(json!([line("SINGLE_PRODUCT", 1.0, None)]));
+            data["fdmRefs"] = json!([{ "fdmId": fdm_id, "fdmDateTime": at, "eventLabel": "N", "eventCounter": 1, "totalCounter": 1 }]);
+            sign_sale(data)
+        };
+        assert!(cite("FDM02000425", "2026-09-27T17:17:29Z")["data"].is_object());
+        assert!(
+            refusal(&cite("CBX0MOCK0001", "2026-09-27T17:17:29Z")).contains("fdmId must be 11")
+        );
+        assert!(refusal(&cite("FDM02000425", "2026-09-27T19:17:29+02:00")).contains("fdmDateTime"));
+    }
+
+    #[test]
+    fn an_order_has_a_cost_center() {
+        let order = |cost_center: serde_json::Value| {
+            let req = GqlRequest {
+                query: "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId } }".into(),
+                variables: json!({ "data": { "posId": "CPOS0031234567", "costCenter": cost_center }, "isTraining": false }),
+            };
+            answer(
+                &mut fdm(Control::default()),
+                &HeaderMap::new(),
+                "signOrder",
+                &req,
+            )
+        };
+        assert!(refusal(&order(json!(null))).contains("costCenter is required"));
+        assert!(order(json!({ "id": "4", "type": "TABLE" }))["data"].is_object());
     }
 
     #[test]

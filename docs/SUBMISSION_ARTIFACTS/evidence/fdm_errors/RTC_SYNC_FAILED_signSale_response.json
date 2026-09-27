@@ -3,13 +3,13 @@
         "signSale": {
             "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMy0zLTE3OTA1Mjk5NjU=",
+            "digitalSignature": "bW9jay1zaWctMy0zLTE3OTA1MzEyNjk=",
             "eventOperation": "SALE",
             "fdmRef": {
                 "eventCounter": 3,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-09-27T17:26:05Z",
-                "fdmId": "CBX0MOCK0001",
+                "fdmDateTime": "2026-09-27T17:47:49Z",
+                "fdmId": "MCK00000001",
                 "totalCounter": 3
             },
             "fdmSwVersion": "MOCK-FDM-1.0",
@@ -18,17 +18,9 @@
             "posDateTime": "2024-07-29T13:00:00.000+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "864ba1ea335dcfa526d50d98ce1647a5b790a929",
+            "shortSignature": "12f61dddd1cb20e9c6b87359f62f9d1a8aec0adf",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
-                {
-                    "label": "A",
-                    "outOfScope": false,
-                    "rate": 21.0,
-                    "taxableAmount": 19.83,
-                    "totalAmount": 24.0,
-                    "vatAmount": 4.17
-                },
                 {
                     "label": "B",
                     "outOfScope": false,
@@ -36,6 +28,14 @@
                     "taxableAmount": 25.0,
                     "totalAmount": 28.0,
                     "vatAmount": 3.0
+                },
+                {
+                    "label": "A",
+                    "outOfScope": false,
+                    "rate": 21.0,
+                    "taxableAmount": 19.83,
+                    "totalAmount": 24.0,
+                    "vatAmount": 4.17
                 }
             ],
             "verificationUrl": "https://www.gs2.be/M0000300003AbCdEfGhI",

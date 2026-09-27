@@ -48,6 +48,13 @@ simulator echoes in its `info` object was removed before writing.
   `BUFFER_FULL`.
 - **Warnings in sign responses:** `BUFFER_NEAR_FULL` comes back in the
   sale's `warnings` as well as in the status.
+- **Field checks** (not recorded, from module2's changelog, FDM
+  software 2.1.0.4 to 2.1.2.0): amounts in multiples of 0.01, quantities
+  and unit prices in multiples of 0.0001, `subProducts` null on
+  SINGLE_PRODUCT and present on COMPOSITE_PRODUCT, `negQuantityReason`
+  on a negative quantity, `costCenter` on `signOrder`, cited `fdmRef`
+  with an 11-character `fdmId` and a UTC `fdmDateTime`; each refused
+  with `INVALID_REQUEST`. The mock makes the same checks.
 - **Q110:** a query with several `status` fields (aliases), the official
   request included, gets HTTP 500 with an empty body. The mock keeps the
   spec's answer there (`KNOWN_DIFFERENCES` in `tests/module2_shape.rs`).

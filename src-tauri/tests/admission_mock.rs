@@ -245,7 +245,7 @@ async fn a_whole_service_day_against_the_admission_mock() {
             "{label}: verification URL on N only: {response}"
         );
         assert!(e.event_data_json.as_deref().is_some_and(|j| j.len() > 2));
-        assert_eq!(e.fdm_id.as_deref(), Some("CBX0MOCK0001"));
+        assert_eq!(e.fdm_id.as_deref(), Some("MCK00000001"));
     }
     // Per-label counting: three N events are N 1..3 on a fresh FDM
     // only if nothing else ran first - the mock is process-wide, so

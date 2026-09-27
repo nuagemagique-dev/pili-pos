@@ -3,8 +3,8 @@
         "fdmStatus": {
             "device": {
                 "bufferCapacityUsed": 1.2,
-                "fdmDateTime": "2026-09-27T17:26:05Z",
-                "fdmId": "CBX0MOCK0001",
+                "fdmDateTime": "2026-09-27T17:47:50Z",
+                "fdmId": "MCK00000001",
                 "fdmSwVersion": "MOCK-FDM-1.0"
             },
             "errors": [],
