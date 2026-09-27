@@ -26,8 +26,8 @@ rusqlite = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
-bcrypt = "0.17"
-dirs = "6"
+bcrypt = "0.19"
+dirs = "7"
 dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
@@ -40,7 +40,7 @@ tempfile = "3"
 # The admission image's mock FDM, served in-process by tests/admission_mock.rs.
 pos-fdm-mock = { path = "../crates/pos-fdm-mock" }
 axum = "0.8"
-base64 = "0.22"
+base64 = "0.23"
 
 [features]
 # Default dev build: includes the HubRise webshop integration so we can

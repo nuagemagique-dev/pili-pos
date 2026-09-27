@@ -27,11 +27,11 @@ chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
 thiserror = "2"
 anyhow = "1"
-rusqlite = { version = "0.35", features = ["bundled", "backup"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "http2"] }
+rusqlite = { version = "0.40", features = ["bundled", "backup"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "http2"] }
 tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "macros"] }
 tokio-util = "0.7"
 url = "2"
-axum = "0.7"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
+axum = "0.8"
+tower-http = { version = "0.7", features = ["cors", "trace"] }
 uuid = { version = "1", features = ["v4", "serde"] }
