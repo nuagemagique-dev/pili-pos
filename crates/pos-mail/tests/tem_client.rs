@@ -20,7 +20,7 @@ fn sample_email() -> Email {
     Email {
         to: "customer@example.be".to_string(),
         subject: "Votre ticket - Restaurant Exemple".to_string(),
-        text: "TICKET DE CAISSE TVA\n...\nhttps://www.gs2.be/abc".to_string(),
+        text: "TICKET DE CAISSE T.V.A.\n...\nhttps://www.gs2.be/abc".to_string(),
         html: "<html><body>...</body></html>".to_string(),
         attachments: vec![Attachment {
             name: "ticket-qr.png".to_string(),

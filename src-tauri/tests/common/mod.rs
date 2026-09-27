@@ -31,3 +31,5 @@ pub use devices::*;
 pub use fixtures::*;
 #[allow(unused_imports)]
 pub use harness::*;
+#[allow(unused_imports)]
+pub use pos_print::render::one_line;

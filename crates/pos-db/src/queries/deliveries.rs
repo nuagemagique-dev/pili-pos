@@ -273,7 +273,7 @@ mod tests {
             medium: "DIGITAL",
             recipient: "customer@example.be",
             recipient_hint: "c***@e***.be",
-            ticket_text: "TICKET DE CAISSE TVA\n...",
+            ticket_text: "TICKET DE CAISSE T.V.A.\n...",
             verification_url: Some("https://www.gs2.be/abc123"),
         }
     }

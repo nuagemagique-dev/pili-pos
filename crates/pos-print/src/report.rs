@@ -611,7 +611,8 @@ mod tests {
         for kind in ["X", "Z"] {
             let text = crate::render::render_plain_text(&format_report(&sample_report_data(kind)));
             assert!(
-                text.contains("CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"),
+                crate::render::one_line(&text)
+                    .contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"),
                 "{text}"
             );
         }

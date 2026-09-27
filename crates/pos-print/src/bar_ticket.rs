@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn vi_bar_the_slip_follows_the_official_example() {
-        let out = text(&ticket(ReceiptLanguage::Fr));
+        let out = crate::render::one_line(&text(&ticket(ReceiptLanguage::Fr)));
         for expected in [
             "BON DE COMMANDE",
             "15/06/2026 12:09:35",
@@ -130,7 +130,7 @@ mod tests {
             "Table 3",
             "1 x Dry Martini",
             "1 x Plat du jour",
-            "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE",
+            "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE",
         ] {
             assert!(out.contains(expected), "{expected:?} missing from:\n{out}");
         }

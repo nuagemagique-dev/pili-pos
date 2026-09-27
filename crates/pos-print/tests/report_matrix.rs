@@ -334,7 +334,7 @@ fn the_turnover_report_follows_article_29() {
                 );
             }
             assert!(
-                text.contains(invalid_disclaimer(lang)),
+                pos_print::render::one_line(&text).contains(invalid_disclaimer(lang)),
                 "{kind:?}/{lang:?}: a report is not a VAT ticket\n{text}"
             );
         }

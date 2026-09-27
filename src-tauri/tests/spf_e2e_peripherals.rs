@@ -222,7 +222,7 @@ async fn a_table_order_prints_nothing_and_the_pre_bill_prints_pro_forma() {
     let receipts = printer.settle(1).await;
     assert_eq!(receipts.len(), 1);
     assert!(receipts[0].contains("PRO FORMA"));
-    assert!(receipts[0].contains("CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"));
+    assert!(one_line(&receipts[0]).contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"));
     assert_eq!(printer.drawer_kicks(), 0);
 }
 
@@ -239,9 +239,14 @@ async fn vi_training_a_training_sale_prints_its_training_marks() {
     assert!(result.success, "{:?}", result.error);
     let receipt = &printer.settle(1).await[0];
     assert!(receipt.contains("TRAINING"));
-    assert!(receipt.contains("CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"));
+    assert!(one_line(receipt).contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"));
     // Not a VAT ticket: neither its title nor a verification QR code.
-    assert!(!receipt.contains("TICKET DE CAISSE TVA\n"), "{receipt}");
+    assert!(
+        !receipt
+            .lines()
+            .any(|l| l.trim() == "TICKET DE CAISSE T.V.A."),
+        "{receipt}"
+    );
     assert!(!receipt.contains("[QR"), "no verification URL for T");
     // The FDM's control data of the T event.
     assert!(receipt.contains("INFORMATIONS FDM"), "{receipt}");

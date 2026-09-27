@@ -125,10 +125,10 @@ async fn m181_the_z_report_prints_the_article_29_content() {
         "FDMID",
         "Apercu TVA",
         "Departements du chiffre d'affaires",
-        "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE",
+        "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE",
     ] {
         assert!(
-            text.contains(expected),
+            one_line(&text).contains(expected),
             "{expected:?} missing from:\n{text}"
         );
     }

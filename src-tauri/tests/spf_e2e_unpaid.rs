@@ -162,7 +162,7 @@ async fn a_manager_closes_a_table_the_customer_left_unpaid() {
     let ticket = printed(&printer, 1).await;
     assert!(ticket.contains("Non paye"), "{ticket}");
     assert!(!ticket.contains("Especes"), "{ticket}");
-    assert!(ticket.contains("TICKET DE CAISSE TVA"), "{ticket}");
+    assert!(ticket.contains("TICKET DE CAISSE T.V.A."), "{ticket}");
     assert_eq!(printer.drawer_kicks(), 0, "no cash, no drawer");
 }
 

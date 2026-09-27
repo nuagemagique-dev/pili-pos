@@ -367,7 +367,7 @@ mod tests {
             short_signature: None,
             verification_url: None,
             footer: vec![],
-            ticket_type_label: "TICKET DE CAISSE TVA".to_string(),
+            ticket_type_label: "TICKET DE CAISSE T.V.A.".to_string(),
             is_refund: false,
             lang: ReceiptLanguage::default(),
             original: None,
@@ -492,7 +492,7 @@ mod tests {
     fn receipt_contains_vat_receipt_label() {
         let ticket = sample_ticket();
         let bytes = format_receipt(&ticket);
-        assert!(bytes.windows(20).any(|w| w == b"TICKET DE CAISSE TVA"));
+        assert!(bytes.windows(23).any(|w| w == b"TICKET DE CAISSE T.V.A."));
     }
 
     #[test]
@@ -519,11 +519,8 @@ mod tests {
         ticket.ticket_type_label = "TRAINING".to_string();
         let bytes = format_receipt(&ticket);
         assert!(bytes.windows(8).any(|w| w == b"TRAINING"));
-        assert!(
-            bytes
-                .windows(46)
-                .any(|w| w == b"CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE")
-        );
+        let text = crate::render::one_line(&crate::render::render_plain_text(&bytes));
+        assert!(text.contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"));
     }
 
     #[test]

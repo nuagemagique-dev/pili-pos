@@ -408,7 +408,7 @@ mod tests {
     fn render_ticket_text_matches_the_printed_receipt() {
         let ticket = sample_ticket();
         let text = render_ticket_text(&ticket);
-        assert!(text.contains("TICKET DE CAISSE TVA"));
+        assert!(text.contains("TICKET DE CAISSE T.V.A."));
         assert!(text.contains("Saumon roll x8"));
     }
 }

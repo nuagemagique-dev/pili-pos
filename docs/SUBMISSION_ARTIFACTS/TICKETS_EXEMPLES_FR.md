@@ -73,7 +73,7 @@ Scénario (produits du manuel, M110) : 2 × Dry Martini (12,00 €, TVA A)
 + 1 × Burger du chef (28,00 €, TVA B), payé en espèces.
 
 ```
-              TICKET DE CAISSE TVA
+            TICKET DE CAISSE T.V.A.
 Restaurant Exemple
 Unite d'etablissement 2123456791
 03.07.2026                                 12:34
@@ -126,7 +126,7 @@ mention d'invalidité en bas.
 
 ```
                    PRO FORMA
-              Addition Provisoire
+              ADDITION PROVISOIRE
 Restaurant Exemple
 Unite d'etablissement 2123456791
 03.07.2026                                 12:34
@@ -154,7 +154,8 @@ Rue de l'Exemple 1, 4000 Liège
 TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
 
 
 
@@ -170,7 +171,7 @@ REMBOURSEMENT, données de contrôle de la vente d'origine sous
 « Informations FDM d'origine »).
 
 ```
-              TICKET DE CAISSE TVA
+            TICKET DE CAISSE T.V.A.
                  REMBOURSEMENT
 Restaurant Exemple
 Unite d'etablissement 2123456791
@@ -226,7 +227,7 @@ Scénario : copie du ticket M110. Mention COPIE, pas de
 shortSignature réimprimée, mention d'invalidité en bas.
 
 ```
-              TICKET DE CAISSE TVA
+            TICKET DE CAISSE T.V.A.
                      COPIE
 Restaurant Exemple
 Unite d'etablissement 2123456791
@@ -317,7 +318,8 @@ Rue de l'Exemple 1, 4000 Liège
 TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
 
 
 
@@ -395,7 +397,8 @@ Arrondis                                    0,02
 ------------------------------------------------
     fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
 
 
 
@@ -473,7 +476,8 @@ Arrondis                                    0,02
 ------------------------------------------------
     fdmDateTime: 2026-07-03T22:42:00+02:00;
 ================================================
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
 
 
 
@@ -663,7 +667,8 @@ Qte   Article
 2 x Dry Martini
 1 x Burger du chef
 ------------------------------------------------
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
 
 
 
@@ -686,7 +691,7 @@ appelle le même `format_receipt` que le papier), suivie d'une ligne
 vide puis de l'URL de vérification seule :
 
 ```
-              TICKET DE CAISSE TVA
+            TICKET DE CAISSE T.V.A.
 Restaurant Exemple
 Unite d'etablissement 2123456791
 03.07.2026                                 12:34
@@ -756,7 +761,7 @@ encaissé 7,75 €. Chaque moyen de paiement a sa ligne ; seul le reste en
 espèces est arrondi, sur la ligne "Arrondi".
 
 ```
-              TICKET DE CAISSE TVA
+            TICKET DE CAISSE T.V.A.
 Restaurant Exemple
 Unite d'etablissement 2123456791
 03.07.2026                                 12:34
@@ -809,7 +814,7 @@ ligne de paiement (`financials: []`) et le ticket de caisse TVA porte
 "Non paye" à la place des paiements.
 
 ```
-              TICKET DE CAISSE TVA
+            TICKET DE CAISSE T.V.A.
 Restaurant Exemple
 Unite d'etablissement 2123456791
 03.07.2026                                 12:34

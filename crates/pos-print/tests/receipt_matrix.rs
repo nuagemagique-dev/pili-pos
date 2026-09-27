@@ -279,7 +279,7 @@ fn only_a_real_sale_is_a_valid_vat_ticket() {
             let disclaimer = invalid_disclaimer(lang);
             let valid = matches!(kind, Kind::Sale | Kind::Refund);
             assert_eq!(
-                !text.contains(disclaimer),
+                !pos_print::render::one_line(&text).contains(disclaimer),
                 valid,
                 "{kind:?}/{lang:?}\n{text}"
             );

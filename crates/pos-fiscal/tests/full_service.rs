@@ -549,9 +549,8 @@ async fn test_full_service_day_e2e() {
         "Pre-bill ESC/POS must contain 'PRO FORMA'"
     );
     assert!(
-        pb_escpos
-            .windows(46)
-            .any(|w| w == b"CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"),
+        pos_print::render::one_line(&pos_print::render::render_plain_text(&pb_escpos))
+            .contains("CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"),
         "Pre-bill must have disclaimer"
     );
 
@@ -752,7 +751,7 @@ async fn test_full_service_day_e2e() {
         operator: "Test",
     });
 
-    assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
+    assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE T.V.A.");
     assert!(!ticket.needs_invalid_disclaimer());
     assert!(!ticket.is_refund);
     assert!(ticket.fdm_ref.is_some());
@@ -762,8 +761,8 @@ async fn test_full_service_day_e2e() {
     // Verify ESC/POS content
     assert!(!escpos.is_empty());
     assert!(
-        escpos.windows(20).any(|w| w == b"TICKET DE CAISSE TVA"),
-        "Must contain 'TICKET DE CAISSE TVA'"
+        escpos.windows(23).any(|w| w == b"TICKET DE CAISSE T.V.A."),
+        "Must contain 'TICKET DE CAISSE T.V.A.'"
     );
     assert!(
         escpos.windows(15).any(|w| w == b"Tokyo Sushi Bar"),

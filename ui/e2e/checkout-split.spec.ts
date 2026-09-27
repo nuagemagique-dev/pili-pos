@@ -29,7 +29,7 @@ const SALE = {
     pos_id: 'CFOD0061234567', terminal_id: 'POS1', pos_datetime: new Date().toISOString(),
     ticket_number: 1, event_label: 'N', is_training: false, lines: [], subtotal: 14.86, total: 14.86,
     vat_breakdown: [], payments: [], rounding: null, fdm_ref: null, short_signature: null,
-    verification_url: null, footer: [], ticket_type_label: 'TICKET DE CAISSE TVA', is_refund: false, lang: 'fr',
+    verification_url: null, footer: [], ticket_type_label: 'TICKET DE CAISSE T.V.A.', is_refund: false, lang: 'fr',
   },
   error: null, fdm_connected: true, fiscal_event_id: 1, delivery: null, kitchen_slip: 'printed',
 };

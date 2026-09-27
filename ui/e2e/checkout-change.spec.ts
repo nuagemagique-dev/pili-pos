@@ -36,7 +36,7 @@ const SALE = {
     short_signature: null,
     verification_url: null,
     footer: [],
-    ticket_type_label: 'TICKET DE CAISSE TVA',
+    ticket_type_label: 'TICKET DE CAISSE T.V.A.',
     is_refund: false,
     lang: 'fr',
   },

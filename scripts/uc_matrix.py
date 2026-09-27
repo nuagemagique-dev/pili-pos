@@ -268,7 +268,7 @@ FAQ_ITEMS = [
     Item("FAQ_Q504", "Le rapport de chiffre d'affaires n'inclut pas les events de type Copy"),
     Item("FAQ_Q505", "Identification du deviceId (adresse MAC ou identifiant matériel unique)"),
     Item("FAQ_Q506", "La query Status du FDM est facultative"),
-    Item("FAQ_Q507", "La mention TICKET DE CAISSE TVA est réservée au ticket de caisse fiscal"),
+    Item("FAQ_Q507", "La mention TICKET DE CAISSE T.V.A. est réservée au ticket de caisse fiscal"),
     Item("FAQ_Q509", "Champ totalAmount du rapport Z (objet users): somme des transactionTotal"),
 ]
 

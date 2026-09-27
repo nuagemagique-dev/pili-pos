@@ -11,7 +11,7 @@
 //!   and says REMBOURSEMENT once, under the VAT ticket title;
 //! - a VAT ticket shows the sale total, the cash paid for it and the
 //!   rounding as its own payment line, and the issuer's legal name;
-//! - a pre-bill says "Addition Provisoire" and shows no VAT.
+//! - a pre-bill says "ADDITION PROVISOIRE" and shows no VAT.
 //!
 //! Events are signed by the admission image's mock FDM.
 
@@ -32,7 +32,7 @@ use pos_fiscal::ticket::FiscalTicket;
 use pos_fiscal::types::EventLabel;
 
 const MANAGER: &str = "12345678958";
-const INVALID_MENTION: &str = "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE";
+const INVALID_MENTION: &str = "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE";
 
 async fn app() -> TestApp {
     let app = TestApp::new().await;
@@ -158,7 +158,7 @@ async fn vi_copy_the_printed_copy_of_a_sale_is_a_vat_ticket_marked_copie() {
     assert!(copy.success, "{:?}", copy.error);
     let text = printed(copy.ticket.as_ref().unwrap());
     for expected in [
-        "TICKET DE CAISSE TVA",
+        "TICKET DE CAISSE T.V.A.",
         "COPIE",
         "Informations FDM d'origine :",
         "Copie etablie le",
@@ -170,7 +170,7 @@ async fn vi_copy_the_printed_copy_of_a_sale_is_a_vat_ticket_marked_copie() {
             "{expected:?} missing from:\n{text}"
         );
     }
-    assert!(!text.contains(INVALID_MENTION), "{text}");
+    assert!(!one_line(&text).contains(INVALID_MENTION), "{text}");
     // Paper and email show the same thing.
     let receipts = printer.settle(2).await;
     assert!(receipts[1].contains("COPIE"), "{}", receipts[1]);
@@ -196,7 +196,7 @@ async fn vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket() {
         INVALID_MENTION,
     ] {
         assert!(
-            text.contains(expected),
+            one_line(&text).contains(expected),
             "{expected:?} missing from:\n{text}"
         );
     }
@@ -304,7 +304,7 @@ async fn vi_refund_says_remboursement_once() {
     assert!(refund.success, "{:?}", refund.error);
     let text = printed(refund.ticket.as_ref().unwrap());
     assert_eq!(text.matches("REMBOURSEMENT").count(), 1, "{text}");
-    assert!(text.contains("TICKET DE CAISSE TVA"), "{text}");
+    assert!(text.contains("TICKET DE CAISSE T.V.A."), "{text}");
 }
 
 #[tokio::test]
@@ -319,9 +319,9 @@ async fn vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat() {
         .iter()
         .find(|r| r.contains("PRO FORMA"))
         .expect("the pre-bill");
-    for expected in ["Addition Provisoire", "TOTAL :", INVALID_MENTION] {
+    for expected in ["ADDITION PROVISOIRE", "TOTAL :", INVALID_MENTION] {
         assert!(
-            pre_bill.contains(expected),
+            one_line(pre_bill).contains(expected),
             "{expected:?} missing from:\n{pre_bill}"
         );
     }

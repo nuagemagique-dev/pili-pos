@@ -37,7 +37,7 @@ fn enqueue(db: &Mutex<Connection>, fiscal_event_id: i64) -> i64 {
             medium: "DIGITAL",
             recipient: "customer@example.be",
             recipient_hint: "c***@e***.be",
-            ticket_text: "TICKET DE CAISSE TVA\nSaumon roll x8",
+            ticket_text: "TICKET DE CAISSE T.V.A.\nSaumon roll x8",
             verification_url: Some("https://www.gs2.be/abc123"),
         },
     )

@@ -227,7 +227,7 @@ article) imprime l'addition provisoire à présenter au client
 (événement P, `signPreBill`). "Addition provisoire imprimée" confirme.
 
 L'addition est marquée "**PRO FORMA**" et "**CECI N'EST PAS UN TICKET
-DE CAISSE TVA VALABLE**". Elle porte les données de contrôle du FDM
+DE CAISSE T.V.A. VALABLE**". Elle porte les données de contrôle du FDM
 (identifiant, date, compteurs), mais ni QR code ni signature courte :
 le FDM ne les donne qu'aux ventes (N). Elle ne clôture pas la table.
 
@@ -362,7 +362,7 @@ ou qui demande un double :
    §7.1) puis "Valider".
 
 La copie est signée par le FDM (événement C) et marquée "**COPIE**" et
-"**CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE**". Un e-mail de copie
+"**CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE**". Un e-mail de copie
 ne contient ni lien ni QR code : le FDM n'en donne pas pour une copie.
 C'est la **seule** façon de reproduire un ticket déjà remis : la caisse
 n'imprime jamais un original deux fois.
@@ -528,7 +528,7 @@ Pour former un employé sans toucher aux ventes réelles.
 
 En formation, tout ce qui est signé est un événement **T** : compteur à
 part, tickets marqués "**TRAINING**" et "**CECI N'EST PAS UN TICKET DE
-CAISSE TVA VALABLE**", sans effet sur le chiffre d'affaires des
+CAISSE T.V.A. VALABLE**", sans effet sur le chiffre d'affaires des
 rapports. Un remboursement de vente réelle est refusé en formation.
 
 Pour revenir au mode normal : même bouton, qui repasse à "INACTIF"

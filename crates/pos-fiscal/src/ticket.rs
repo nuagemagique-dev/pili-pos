@@ -314,24 +314,27 @@ fn printed_method(line: &serde_json::Value) -> String {
 
 /// Spec-mandated bottom mention for every printed non-N event
 /// (POS detailed description v2.2, §1.3–1.8 and the ticket-content
-/// table of the certification manual §VI).
+/// table of the certification manual §VI). The French wording is the
+/// law's: AM of 29 April 2024, art. 38.
 pub fn invalid_disclaimer(lang: ReceiptLanguage) -> &'static str {
     match lang {
-        ReceiptLanguage::Fr => "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE",
+        ReceiptLanguage::Fr => "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE",
         ReceiptLanguage::Nl => "DIT IS GEEN GELDIG BTW-KASTICKET",
         ReceiptLanguage::De => "DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL",
     }
 }
 
 /// Header label ("dénomination complète", cert manual §VI element I)
-/// per event type and language. A refund is a VAT ticket: its
+/// per event type and language. The French VAT ticket title is the
+/// law's: « TICKET DE CAISSE T.V.A. » (AR of 30 December 2009 art. 2,
+/// AM of 29 April 2024 art. 20 a). A refund is a VAT ticket: its
 /// REMBOURSEMENT mention is printed under this title (SPF example
 /// refund ticket of 2026-09-24).
 pub fn ticket_type_label(label: EventLabel, lang: ReceiptLanguage) -> &'static str {
     use EventLabel::*;
     use ReceiptLanguage::*;
     match (label, lang) {
-        (N, Fr) => "TICKET DE CAISSE TVA",
+        (N, Fr) => "TICKET DE CAISSE T.V.A.",
         (N, Nl) => "BTW-KASTICKET",
         (N, De) => "MWST.-KASSENZETTEL",
         // "PRO FORMA" and "TRAINING" are the literal mentions used by
@@ -502,7 +505,7 @@ mod tests {
             lang: ReceiptLanguage::default(),
             operator: "Test",
         });
-        assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
+        assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE T.V.A.");
         assert!(!ticket.is_refund);
         assert!(!ticket.needs_invalid_disclaimer());
     }
@@ -533,7 +536,7 @@ mod tests {
         });
         assert!(ticket.is_refund);
         // A refund is a VAT ticket; REMBOURSEMENT is printed under it.
-        assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE TVA");
+        assert_eq!(ticket.ticket_type_label, "TICKET DE CAISSE T.V.A.");
     }
 
     #[test]

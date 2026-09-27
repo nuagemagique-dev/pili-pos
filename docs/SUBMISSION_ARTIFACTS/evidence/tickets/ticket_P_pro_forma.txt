@@ -1,5 +1,5 @@
                    PRO FORMA
-              Addition Provisoire
+              ADDITION PROVISOIRE
 Restaurant Exemple
 Unite d'etablissement 2123456791
 03.07.2026                                 12:34
@@ -27,7 +27,8 @@ Rue de l'Exemple 1, 4000 Liège
 TVA: BE0499999960
       www.systemedecaisseenregistreuse.be
 
- CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
 
 
 

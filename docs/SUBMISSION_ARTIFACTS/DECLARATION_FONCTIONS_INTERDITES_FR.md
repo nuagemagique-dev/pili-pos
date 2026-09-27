@@ -131,7 +131,7 @@ sans marquage "COPIE".
   appose son propre `eventLabel = "C"` sur la réponse signée.
 - Le ticket de copie porte en en-tête la dénomination "**COPIE**"
   (NL/DE "KOPIE", `crates/pos-fiscal/src/ticket.rs::ticket_type_label`),
-  en pied la mention "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"
+  en pied la mention "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"
   (`invalid_disclaimer`), et son bloc control-data porte
   `eventLabel: C`.
 - Depuis l'ajout du ticket numérique (§III.H), cette garantie est

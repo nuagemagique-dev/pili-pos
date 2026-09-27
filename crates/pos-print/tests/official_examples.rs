@@ -4,11 +4,12 @@
 //! labels (AM of 29 April 2024 art. 20 for tickets, art. 29 for the Z
 //! report) must be printed, in the example's order.
 //!
-//! Known wording differences, asked to the SPF (plan section 3): the
-//! examples write "TICKET DE CAISSE T.V.A.", "PROFORMA" and "... T.V.A.
-//! VALIDE", the POS description v2.2 "TICKET DE CAISSE TVA", "PRO
-//! FORMA" and "... TVA VALABLE"; we print the latter. Fixed labels are
-//! ASCII ("Unite d'etablissement").
+//! Wording follows the law where the examples differ: the AM of 29
+//! April 2024 (art. 20 a, art. 38) and the AR of 30 December 2009
+//! (art. 2) write "TICKET DE CAISSE T.V.A.", "PRO FORMA", "ADDITION
+//! PROVISOIRE" and "CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+//! VALABLE"; the examples write "PROFORMA" and "... T.V.A. VALIDE".
+//! Fixed labels are ASCII ("Unite d'etablissement").
 
 use pos_fiscal::response::{FdmReference, VatCalcItem};
 use pos_fiscal::ticket::{
@@ -35,11 +36,13 @@ fn normalized(bytes: &[u8]) -> String {
         .join("\n")
 }
 
-/// Every `(mention, text)` is printed, after the one before it.
+/// Every `(mention, text)` is printed, after the one before it. A
+/// mention may wrap over two lines.
 fn assert_in_order(text: &str, mentions: &[(&str, &str)]) {
+    let flat = text.replace('\n', " ");
     let mut from = 0;
     for (mention, needle) in mentions {
-        match text[from..].find(needle) {
+        match flat[from..].find(needle) {
             Some(at) => from += at + needle.len(),
             None => panic!(
                 "mention {mention}: {needle:?} missing or out of order in:\n{text}\n\
@@ -138,7 +141,7 @@ const LEGAL: [(&str, &str); 4] = [
 #[test]
 fn vi_n_the_official_vat_ticket_example() {
     let text = normalized(&format_receipt(&vat_ticket()));
-    let mut mentions = vec![("a", "TICKET DE CAISSE TVA")];
+    let mut mentions = vec![("a", "TICKET DE CAISSE T.V.A.")];
     mentions.extend(identification("Ticketnr.: 000433"));
     mentions.extend([
         ("k", "1 Cola 3,04 A"),
@@ -175,7 +178,7 @@ fn vi_copy_the_official_copy_example() {
     ticket.copy_made_at = Some("2026-06-23T11:36:02+02:00".to_string());
     let text = normalized(&format_receipt(&ticket));
 
-    let mut mentions = vec![("A", "TICKET DE CAISSE TVA"), ("A", "COPIE")];
+    let mut mentions = vec![("A", "TICKET DE CAISSE T.V.A."), ("A", "COPIE")];
     mentions.extend(identification("Ticketnr.: 000434"));
     mentions.extend([
         ("B", "1 Cola 3,04 A"),
@@ -204,7 +207,8 @@ fn vi_refund_the_official_refund_example() {
     let mut ticket = vat_ticket();
     ticket.ticket_number = 435;
     ticket.is_refund = true;
-    ticket.lines[0].quantity = 1.0;
+    // A refund line carries the negative quantity it was signed with.
+    ticket.lines[0].quantity = -1.0;
     ticket.lines[0].total = -3.04;
     ticket.subtotal = -3.04;
     ticket.total = -3.05;
@@ -221,10 +225,12 @@ fn vi_refund_the_official_refund_example() {
     ticket.fdm_ref = Some(fdm_ref(EventLabel::N, 215, 1588, "2026-06-23T11:35:19.472"));
     let text = normalized(&format_receipt(&ticket));
 
-    let mut mentions = vec![("A", "TICKET DE CAISSE TVA"), ("B", "REMBOURSEMENT")];
+    let mut mentions = vec![("A", "TICKET DE CAISSE T.V.A."), ("B", "REMBOURSEMENT")];
     mentions.extend(identification("Ticketnr.: 000435"));
     mentions.extend([
-        ("A", "1 Cola -3,04 A"),
+        // Printed negative, as signed (M111); the example prints
+        // "1 Cola".
+        ("A", "-1 Cola -3,04 A"),
         ("A", "TOTAL : €-3,04"),
         ("A", "Especes -3,04"),
         ("A", "Arrondi -0,01"),
@@ -259,7 +265,7 @@ fn vi_proforma_the_official_pre_bill_example() {
     ticket.fdm_ref = Some(fdm_ref(EventLabel::P, 230, 1601, "2026-06-23T11:35:19.472"));
     let text = normalized(&format_receipt(&ticket));
 
-    let mut mentions = vec![("A", "PRO FORMA"), ("A", "Addition Provisoire")];
+    let mut mentions = vec![("A", "PRO FORMA"), ("A", "ADDITION PROVISOIRE")];
     mentions.extend(identification("Ticketnr.: 000437"));
     mentions.extend([
         ("C", "1 Cola 3,04 A"),
@@ -271,7 +277,7 @@ fn vi_proforma_the_official_pre_bill_example() {
         ("", "totalCounter: 1601;"),
     ]);
     mentions.extend(LEGAL);
-    mentions.push(("B", "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"));
+    mentions.push(("B", "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"));
     assert_in_order(&text, &mentions);
     // D: no VAT breakdown on a pre-bill; no payment, no QR code.
     assert!(!text.contains("% TVA"), "{text}");
@@ -307,7 +313,7 @@ fn vi_bar_the_official_bar_ticket_example() {
             ("A", "Qte Article"),
             ("", "1 x Dry Martini"),
             ("", "1 x Plat du jour"),
-            ("B", "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"),
+            ("B", "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"),
         ],
     );
     // A: never a price.
@@ -445,7 +451,7 @@ fn vi_z_the_official_z_report_example() {
             ("n", "MPV 27,80"),
             ("n", "Total des paiements 59,22"),
             ("o", "Arrondis 0,03"),
-            ("", "CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE"),
+            ("", "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"),
         ],
     );
 }

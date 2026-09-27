@@ -24,6 +24,14 @@ enum Align {
     Right,
 }
 
+/// Printed text with every run of whitespace, line breaks included,
+/// as one space: a mention wrapped over two lines reads as one (the
+/// 49-character "CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE"
+/// does not fit the 48 columns).
+pub fn one_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 /// Render an ESC/POS byte stream to plain text.
 pub fn render_plain_text(bytes: &[u8]) -> String {
     let mut out = String::new();
