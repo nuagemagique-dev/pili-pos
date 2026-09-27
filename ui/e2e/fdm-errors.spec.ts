@@ -69,3 +69,11 @@ test('an error that is not the FDM’s gets its own message', async ({ page }) =
   await payByCard(page, refused('forbidden'));
   await expect(page.locator('.checkout .error-msg')).toHaveText('Action réservée à un autre profil.');
 });
+
+test('a refused token is explained, though the FDM sends no code', async ({ page }) => {
+  // module2 answers a missing or wrong bearer token with a bare message.
+  await payByCard(page, refused('FDM error: GraphQL error: Not a valid Token'));
+  await expect(page.locator('.checkout .error-msg')).toHaveText(
+    "La caisse n'est pas autorisée à parler à la boîte noire.",
+  );
+});

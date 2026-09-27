@@ -180,3 +180,22 @@ test.describe('§V messages jamais affichés (N)', () => {
     await hidden(page, 'TOO_MANY_MEMORY_ERRORS', 'Error');
   });
 });
+
+test('an FDM that is not initialized says so in the indicator', async ({ page }) => {
+  // module2's online simulator: `initialized: false`, no message, and
+  // it still signs. Amber, with the reason.
+  await mockTauriIPC(page, {
+    login: () => DEFAULT_USER,
+    list_users: () => [DEFAULT_USER],
+    get_categories: () => [DEFAULT_CATEGORY],
+    get_menu_items: () => [DEFAULT_MENU_ITEM],
+    check_fdm_status: () => ({ initialized: false, errors: [], warnings: [], informations: [] }),
+  });
+  await page.goto('/');
+  await tapUserTile(page);
+  await page.waitForURL(/tables/);
+  await page.locator('.table-card').first().click();
+  await page.waitForURL(/order/);
+  await expect(page.locator('.fdm.warn')).toBeVisible();
+  await expect(page.locator('.fdm .msg')).toHaveText("La boîte noire n'est pas encore initialisée.");
+});

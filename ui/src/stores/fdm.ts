@@ -124,7 +124,9 @@ export const useFdmStore = defineStore("fdm", () => {
       // 2) Status query succeeded - inspect warnings/errors arrays.
       const { severity: sev, code } = pickPrimaryMessage(status);
       severity.value = sev;
-      lastError.value = code;
+      // An FDM that says it is not initialized, with nothing more to
+      // say, leaves the indicator amber: name the reason.
+      lastError.value = code ?? (status.initialized === false ? "FDM_NOT_INITIALIZED" : null);
       // Connected = transport OK AND no blocking condition.
       connected.value = status.initialized !== false && sev !== "blocking";
       return true;

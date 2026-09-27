@@ -45,6 +45,15 @@ export const POS_CHECK_MESSAGES: Record<string, string> = {
   // recorded (pos_fiscal::response_check).
   FDM_RESPONSE_MISMATCH:
     "Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien.",
+  // The FDM's status says `initialized: false` without any message
+  // (module2's online simulator always does). It still signs.
+  FDM_NOT_INITIALIZED: "La boîte noire n'est pas encore initialisée.",
+};
+
+// Refusals an FDM words without a code: module2 answers a missing or
+// wrong bearer token with this bare message.
+export const VENDOR_MESSAGES: Record<string, string> = {
+  "Not a valid Token": ERROR_MESSAGES.UNAUTHORIZED,
 };
 
 export function translateFdmError(raw: string | null): string | null {
@@ -54,6 +63,9 @@ export function translateFdmError(raw: string | null): string | null {
   }
   for (const [code, msg] of Object.entries(ERROR_MESSAGES)) {
     if (raw.includes(code)) return msg;
+  }
+  for (const [text, msg] of Object.entries(VENDOR_MESSAGES)) {
+    if (raw.includes(text)) return msg;
   }
   if (raw.includes("connect") || raw.includes("timeout")) {
     return "Connexion perdue avec la boîte noire. Vérifiez le câble réseau.";
