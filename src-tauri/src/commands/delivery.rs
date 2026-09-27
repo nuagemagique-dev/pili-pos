@@ -817,6 +817,7 @@ mod tests {
         d.api_key_file = "/nonexistent/moyun-pos/tem.key".into();
         let config = PosConfig {
             kitchen_printer_address: None,
+            fdm_token_file: None,
             restaurant_legal_name: None,
             day_end_hour: 5,
             digital_ticket: Some(d),

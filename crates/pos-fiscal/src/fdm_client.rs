@@ -55,6 +55,9 @@ pub enum FdmError {
 pub struct FdmClient {
     http: reqwest::Client,
     url: String,
+    /// Sent as `Authorization: Bearer ...` when the FDM requires it (a
+    /// cloud simulator); never logged.
+    bearer_token: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -81,7 +84,37 @@ impl FdmClient {
                 .build()
                 .expect("reqwest client builder"),
             url: fdm_url.to_string(),
+            bearer_token: None,
         }
+    }
+
+    /// The client of the configured FDM: its URL and, when
+    /// `fdm_token_file` is set, its bearer token. An unreadable token
+    /// file is logged and the request goes without one: the FDM then
+    /// refuses it (UNAUTHORIZED), which the operator sees.
+    pub fn from_config(config: &pos_core::config::PosConfig) -> Self {
+        let token =
+            config
+                .fdm_token_file
+                .as_deref()
+                .and_then(|path| match std::fs::read_to_string(path) {
+                    Ok(raw) if !raw.trim().is_empty() => Some(raw.trim().to_string()),
+                    Ok(_) => {
+                        tracing::error!(path, "FDM token file is empty");
+                        None
+                    }
+                    Err(e) => {
+                        tracing::error!(path, error = %e, "FDM token file unreadable");
+                        None
+                    }
+                });
+        Self::new(&config.fdm_url).with_bearer_token(token)
+    }
+
+    /// Send `token` as a bearer token with every request.
+    pub fn with_bearer_token(mut self, token: Option<String>) -> Self {
+        self.bearer_token = token;
+        self
     }
 
     pub fn url(&self) -> &str {
@@ -456,20 +489,20 @@ impl FdmClient {
         let body_canonical = crate::canonical::to_canonical(&body)
             .map_err(|e| FdmError::GraphQl(format!("canonical serialization: {e}")))?;
 
-        let resp = self
+        let mut request = self
             .http
             .post(&self.url)
-            .header("Content-Type", "application/json")
-            .body(body_canonical)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_connect() {
-                    FdmError::NotConnected
-                } else {
-                    FdmError::Http(e)
-                }
-            })?;
+            .header("Content-Type", "application/json");
+        if let Some(token) = &self.bearer_token {
+            request = request.bearer_auth(token);
+        }
+        let resp = request.body(body_canonical).send().await.map_err(|e| {
+            if e.is_connect() {
+                FdmError::NotConnected
+            } else {
+                FdmError::Http(e)
+            }
+        })?;
 
         let gql_resp: GraphQlResponse<R> = resp.json().await?;
         Ok(gql_resp)

@@ -166,7 +166,7 @@ pub async fn do_copy_ticket_with(
     copy_input.common.ticket_medium = resolved.medium;
     let request_json = serde_json::to_string(&copy_input).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let result = match fdm.sign_copy(copy_input, config.training_mode).await {
         Ok(result) => result,
         Err(e) => return Ok(CopyResult::failed(format!("FDM error: {e}"))),

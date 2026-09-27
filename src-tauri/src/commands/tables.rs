@@ -172,7 +172,7 @@ async fn sign_table_order_as(
     let order_input = build_order_input(&config, &order, &entries, ticket_number, &bp_id);
     let request_json = serde_json::to_string(&order_input).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let sign_result = fdm
         .sign_order(order_input, config.training_mode)
         .await
@@ -237,7 +237,7 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<SlipOut
     let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_number, &bp_id);
     let request_json = serde_json::to_string(&pre_bill).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let result = fdm
         .sign_pre_bill(pre_bill, config.training_mode)
         .await

@@ -40,6 +40,11 @@ pub struct PosConfig {
     pub restaurant_est_no: String,
     /// FDM endpoint URL (e.g. http://192.168.1.100:8080/graphql)
     pub fdm_url: String,
+    /// File holding the bearer token of an FDM that requires one (a
+    /// cloud FDM simulator used for tests). Absent for a LAN FDM. The
+    /// token stays out of `pos.json`, like the e-mail API key.
+    #[serde(default)]
+    pub fdm_token_file: Option<String>,
     /// Printer address (TCP, e.g. 192.168.1.200:9100)
     #[serde(default)]
     pub printer_address: Option<String>,
@@ -168,6 +173,13 @@ impl PosConfig {
                 self.language
             ));
         }
+        if let Some(path) = &self.fdm_token_file {
+            match std::fs::read_to_string(path) {
+                Ok(token) if !token.trim().is_empty() => {}
+                Ok(_) => out.push(format!("fdm_token_file: {path:?} is empty")),
+                Err(e) => out.push(format!("fdm_token_file: cannot read {path:?}: {e}")),
+            }
+        }
         if self.day_end_hour > 12 {
             out.push(format!(
                 "day_end_hour: 0 to 12 expected, got {}",
@@ -230,6 +242,7 @@ impl Default for PosConfig {
             fdm_url: "http://localhost:8080/graphql".to_string(),
             printer_address: None,
             kitchen_printer_address: None,
+            fdm_token_file: None,
             restaurant_legal_name: None,
             training_mode: false,
             language: "fr".to_string(),

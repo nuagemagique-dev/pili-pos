@@ -57,7 +57,7 @@ async fn do_work_event(
     let input = build_work_in_out(&config, ticket_number, &employee_insz, &bp_id);
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let signed = if is_in {
         fdm.sign_work_in(input, config.training_mode).await
     } else {

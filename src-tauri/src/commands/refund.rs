@@ -280,7 +280,7 @@ pub async fn do_refund_checkout_with(
         let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
         // 5. Send to FDM
-        let fdm = FdmClient::new(&config.fdm_url);
+        let fdm = FdmClient::from_config(&config);
         let fdm_result = fdm.sign_sale(sale_input, config.training_mode).await;
 
         let (sign_result, fdm_connected) = match fdm_result {

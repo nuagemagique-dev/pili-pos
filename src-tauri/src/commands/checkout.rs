@@ -268,7 +268,7 @@ pub(crate) async fn sell(
     let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
     // 5. Send to FDM
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let fdm_result: Result<SignResult, _> = fdm.sign_sale(sale_input, config.training_mode).await;
 
     let (sign_result, fdm_connected) = match fdm_result {
@@ -517,9 +517,35 @@ pub async fn check_fdm_status(state: State<'_, AppState>) -> Result<serde_json::
     do_check_fdm_status(state.inner()).await
 }
 
+/// How long a status answer is reused: two screens polling at once, or
+/// a screen mounting again, cost the FDM one query, not several.
+const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(20);
+
+/// The last status answer, keyed by FDM URL and message language.
+static STATUS_CACHE: std::sync::Mutex<Option<(String, std::time::Instant, serde_json::Value)>> =
+    std::sync::Mutex::new(None);
+
 pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let fdm = FdmClient::new(&config.fdm_url);
+    let key = format!("{}|{}", config.fdm_url, config.language);
+    if let Ok(cache) = STATUS_CACHE.lock()
+        && let Some((cached_key, at, value)) = cache.as_ref()
+        && *cached_key == key
+        && at.elapsed() < STATUS_CACHE_TTL
+    {
+        return Ok(value.clone());
+    }
+    let value = query_fdm_status(&config).await?;
+    if let Ok(mut cache) = STATUS_CACHE.lock() {
+        *cache = Some((key, std::time::Instant::now(), value.clone()));
+    }
+    Ok(value)
+}
+
+async fn query_fdm_status(
+    config: &pos_core::config::PosConfig,
+) -> Result<serde_json::Value, String> {
+    let fdm = FdmClient::from_config(config);
 
     // FDM messages come back localized to the operator's UI language
     // (Q100/Q110). The FDM only speaks FR/NL/DE/EN, so unsupported UI

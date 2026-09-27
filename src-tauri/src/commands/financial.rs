@@ -104,7 +104,7 @@ pub async fn do_money_in_out(
 
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let sign_result = match fdm.sign_money_in_out(input, config.training_mode).await {
         Ok(result) => result,
         Err(e) => {
@@ -174,7 +174,7 @@ pub async fn do_open_drawer_fiscal(
 
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let sign_result = match fdm.sign_drawer_open(input, config.training_mode).await {
         Ok(result) => result,
         Err(e) => {

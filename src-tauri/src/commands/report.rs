@@ -76,7 +76,7 @@ pub async fn do_generate_x_report(
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let sign_result = match fdm
         .sign_report_turnover_x(report, config.training_mode)
         .await
@@ -283,7 +283,7 @@ async fn generate_z_report_as(
     let user_json = serde_json::to_string(&user_report).map_err(|e| e.to_string())?;
 
     // M184 - one GraphQL operation signs both reports.
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let (turnover_result, user_result) = match fdm
         .sign_report_turnover_z_user_z(turnover_report, user_report, config.training_mode)
         .await
@@ -431,7 +431,7 @@ pub async fn do_generate_user_x_report(
     );
     let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
 
-    let fdm = FdmClient::new(&config.fdm_url);
+    let fdm = FdmClient::from_config(&config);
     let sign_result = match fdm.sign_report_user_x(report, config.training_mode).await {
         Ok(result) => result,
         Err(e) => {

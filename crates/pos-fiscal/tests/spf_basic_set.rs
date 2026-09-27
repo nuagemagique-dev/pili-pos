@@ -63,6 +63,7 @@ fn test_config(fdm_url: &str) -> PosConfig {
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,
+        fdm_token_file: None,
         restaurant_legal_name: None,
         day_end_hour: 5,
         digital_ticket: None,

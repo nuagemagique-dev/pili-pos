@@ -6,8 +6,7 @@ import { translateFdmError as translateError } from "../utils/fdmMessages";
 
 const fdm = useFdmStore();
 const { t } = useI18n();
-const displayMessage = ref<string | null>(null);
-let interval: ReturnType<typeof setInterval>;
+const displayMessage = computed(() => translateError(fdm.lastError));
 
 // UX Guide §4.2: no continuous loops. Pulse once on transition
 // into a degraded state (warn/err) to catch the operator's eye,
@@ -29,16 +28,9 @@ watch(visualState, (next, prev) => {
 });
 
 
-onMounted(async () => {
-  await fdm.checkStatus();
-  displayMessage.value = translateError(fdm.lastError);
-  interval = setInterval(async () => {
-    await fdm.checkStatus();
-    displayMessage.value = translateError(fdm.lastError);
-  }, 30_000);
-});
-
-onUnmounted(() => clearInterval(interval));
+// The store runs one poller for every screen showing this indicator.
+onMounted(() => fdm.startPolling());
+onUnmounted(() => fdm.stopPolling());
 </script>
 
 <template>

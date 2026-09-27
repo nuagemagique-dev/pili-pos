@@ -77,13 +77,25 @@ function pickPrimaryMessage(env: FdmStatusEnvelope): {
   return { severity: "info", code: null };
 }
 
+// One poller for the whole app, whatever the screens showing the FDM
+// indicator: every 30 s while the FDM answers, backing off to 5 min
+// while it does not, so a down or remote FDM is not hammered.
+const POLL_OK_MS = 30_000;
+const POLL_MAX_MS = 300_000;
+
+export function pollDelay(failures: number): number {
+  return failures === 0 ? POLL_OK_MS : Math.min(POLL_OK_MS * 2 ** failures, POLL_MAX_MS);
+}
+
 export const useFdmStore = defineStore("fdm", () => {
   const connected = ref(false);
   const checking = ref(false);
   const lastError = ref<string | null>(null); // FR message or raw code
   const severity = ref<Severity>("info");
 
-  async function checkStatus() {
+  /** Query the FDM status. Returns false when the FDM did not answer
+   * (transport failure), true when it answered, even with an error. */
+  async function checkStatus(): Promise<boolean> {
     checking.value = true;
     try {
       const status = (await ipc.checkFdmStatus()) as FdmStatusEnvelope;
@@ -92,7 +104,7 @@ export const useFdmStore = defineStore("fdm", () => {
         connected.value = false;
         lastError.value = status.error ?? "FDM_NOT_OPERATIONAL";
         severity.value = "blocking";
-        return;
+        return false;
       }
       // 2) Status query succeeded - inspect warnings/errors arrays.
       const { severity: sev, code } = pickPrimaryMessage(status);
@@ -100,14 +112,57 @@ export const useFdmStore = defineStore("fdm", () => {
       lastError.value = code;
       // Connected = transport OK AND no blocking condition.
       connected.value = status.initialized !== false && sev !== "blocking";
+      return true;
     } catch {
       connected.value = false;
       lastError.value = "FDM_NOT_OPERATIONAL";
       severity.value = "blocking";
+      return false;
     } finally {
       checking.value = false;
     }
   }
 
-  return { connected, checking, lastError, severity, checkStatus };
+  // Screens showing the indicator; the poller runs while there is one.
+  let subscribers = 0;
+  let failures = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  // Bumped on each start and stop, so a check still in flight when
+  // polling stopped (or restarted) schedules nothing.
+  let generation = 0;
+
+  async function poll(gen: number) {
+    const answered = await checkStatus();
+    if (gen !== generation || subscribers === 0) return;
+    failures = answered ? 0 : failures + 1;
+    timer = setTimeout(() => void poll(gen), pollDelay(failures));
+  }
+
+  /** A screen showing the FDM indicator appeared: check now, then poll. */
+  function startPolling() {
+    subscribers += 1;
+    if (subscribers > 1) return;
+    generation += 1;
+    failures = 0;
+    void poll(generation);
+  }
+
+  /** That screen went away: polling stops with the last one. */
+  function stopPolling() {
+    subscribers = Math.max(0, subscribers - 1);
+    if (subscribers > 0) return;
+    generation += 1;
+    if (timer) clearTimeout(timer);
+    timer = null;
+  }
+
+  return {
+    connected,
+    checking,
+    lastError,
+    severity,
+    checkStatus,
+    startPolling,
+    stopPolling,
+  };
 });
