@@ -27,6 +27,22 @@ pub fn now_in_belgium() -> chrono::DateTime<chrono_tz::Tz> {
     Utc::now().with_timezone(&chrono_tz::Europe::Brussels)
 }
 
+/// A date-time as the FDM takes it (`posDateTime`, POS description
+/// v2.2): RFC 3339 in Brussels time, with the offset of that instant
+/// (+01:00 in winter, +02:00 in summer) and milliseconds, like the
+/// spec's example `2022-11-03T15:01:25.123+01:00` and the official
+/// fixtures. A finer fraction (chrono's default: micro- or
+/// nanoseconds) is refused by a certified FDM.
+pub fn belgian_timestamp(at: chrono::DateTime<Utc>) -> String {
+    at.with_timezone(&chrono_tz::Europe::Brussels)
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, false)
+}
+
+/// Now, as the FDM takes it (see [`belgian_timestamp`]).
+pub fn fdm_now() -> String {
+    belgian_timestamp(Utc::now())
+}
+
 /// Build common fields shared by all FDM mutations. `ticket_medium`
 /// states what the POS does with the event: `None` when nothing is
 /// printed (drawer, money in/out, staff presence).
@@ -37,15 +53,13 @@ pub fn build_common_fields(
     booking: &Booking,
     ticket_medium: TicketMedium,
 ) -> CommonFields {
-    let now = now_in_belgium();
-
     CommonFields {
         language: fiscal_language(&config.language),
         vat_no: config.restaurant_vat.clone(),
         est_no: config.restaurant_est_no.clone(),
         pos_id: config.pos_id.clone(),
         pos_fiscal_ticket_no: ticket_number,
-        pos_date_time: now.to_rfc3339(),
+        pos_date_time: fdm_now(),
         pos_sw_version: POS_SW_VERSION.to_string(),
         terminal_id: Some(config.terminal_id.clone()),
         device_id: config.device_id.clone(),
@@ -606,7 +620,37 @@ mod tests {
         );
         // Same instant and same offset as Brussels at that instant.
         let belgian = at.with_timezone(&chrono_tz::Europe::Brussels);
-        assert_eq!(belgian.to_rfc3339(), common.pos_date_time);
+        assert_eq!(
+            belgian.to_rfc3339_opts(chrono::SecondsFormat::Millis, false),
+            common.pos_date_time
+        );
+    }
+
+    #[test]
+    fn belgian_timestamps_carry_milliseconds_and_the_offset_of_the_season() {
+        use chrono::TimeZone;
+        let at = |y, m, d, h, min, s, nanos| {
+            Utc.with_ymd_and_hms(y, m, d, h, min, s).unwrap() + chrono::Duration::nanoseconds(nanos)
+        };
+        // Summer (CEST, +02:00), with a nanosecond clock.
+        assert_eq!(
+            belgian_timestamp(at(2026, 9, 27, 16, 31, 5, 123_456_789)),
+            "2026-09-27T18:31:05.123+02:00"
+        );
+        // Winter (CET, +01:00), a whole second still shows .000.
+        assert_eq!(
+            belgian_timestamp(at(2026, 11, 3, 14, 1, 25, 0)),
+            "2026-11-03T15:01:25.000+01:00"
+        );
+        // Both sides of the switch to winter time (2026-10-25 01:00 UTC).
+        assert_eq!(
+            belgian_timestamp(at(2026, 10, 25, 0, 59, 59, 0)),
+            "2026-10-25T02:59:59.000+02:00"
+        );
+        assert_eq!(
+            belgian_timestamp(at(2026, 10, 25, 1, 0, 0, 0)),
+            "2026-10-25T02:00:00.000+01:00"
+        );
     }
     use super::*;
     use pos_core::order::{OrderStatus, OrderType};

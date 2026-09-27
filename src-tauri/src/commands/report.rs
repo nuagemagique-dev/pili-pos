@@ -766,7 +766,7 @@ fn as_booking(period: &BookingPeriod) -> pos_fiscal::event::Booking {
 
 /// This terminal, for a report whose period has no event yet.
 fn this_terminal(config: &pos_core::config::PosConfig) -> Vec<PosDeviceInput> {
-    let now = pos_fiscal::event::now_in_belgium().to_rfc3339();
+    let now = pos_fiscal::event::fdm_now();
     vec![PosDeviceInput {
         pos_id: config.pos_id.clone(),
         terminal_id: Some(config.terminal_id.clone()),
