@@ -1,9 +1,8 @@
 {
-    "data": null,
     "errors": [
         {
             "extensions": {
-                "category": "SPF_FOD",
+                "category": "FDM",
                 "code": "UNAUTHORIZED",
                 "showPos": "OPTIONAL"
             },

@@ -6,6 +6,10 @@
 //! bearer token and a list of allowed POS, and its errors and warnings
 //! can be switched at run time (`/mock/control`) as on the simulator's
 //! Developer tab; `/mock/requests` lists the last calls, like its Logs.
+//!
+//! Its answers have the shape module2's simulator FDM02000425 (FDM
+//! software 2.2.0.5) gave on 2026-09-27, recorded in
+//! `fixtures/module2/` and checked by `tests/module2_shape.rs`.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -206,6 +210,132 @@ async fn handle_graphql(
     Json(response)
 }
 
+/// What the mock reports as its FDM software version.
+const FDM_SW_VERSION: &str = "MOCK-FDM-1.0";
+
+/// module2 adds an `info` object next to `data` (and next to GraphQL
+/// validation errors); the POS ignores it.
+fn with_info(mut body: serde_json::Value) -> serde_json::Value {
+    body["info"] = serde_json::json!({ "https": false, "version": FDM_SW_VERSION });
+    body
+}
+
+/// The first root field of a GraphQL document (past an alias), with
+/// its 1-based line and column.
+fn first_root_field(query: &str) -> Option<(String, usize, usize)> {
+    let open = query.find('{')?;
+    let mut at = open + 1;
+    let ident_at = |from: usize| -> Option<(usize, String)> {
+        let start = from + query[from..].find(|c: char| !c.is_whitespace())?;
+        let name: String = query[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        (!name.is_empty()).then_some((start, name))
+    };
+    let (mut start, mut name) = ident_at(at)?;
+    at = start + name.len();
+    if query[at..].trim_start().starts_with(':') {
+        let colon = at + query[at..].find(':')?;
+        (start, name) = ident_at(colon + 1)?;
+    }
+    let before = &query[..start];
+    let line = before.matches('\n').count() + 1;
+    let column = start - before.rfind('\n').map_or(0, |n| n + 1) + 1;
+    Some((name, line, column))
+}
+
+/// The sign mutations the mock knows.
+const SIGN_MUTATIONS: [&str; 15] = [
+    "signSale",
+    "signOrder",
+    "signPreBill",
+    "signWorkIn",
+    "signWorkOut",
+    "signCopy",
+    "signInvoice",
+    "signMoneyInOut",
+    "signDrawerOpen",
+    "signPaymentCorrection",
+    "signCostCenterChange",
+    "signReportTurnoverX",
+    "signReportTurnoverZ",
+    "signReportUserX",
+    "signReportUserZ",
+];
+
+/// A GraphQL validation error for a root field the schema does not
+/// have, worded like module2's (graphene) server. The status field is
+/// spelled `status` there, as in the Q100/Q110 fixtures.
+fn unknown_field(query: &str) -> Option<serde_json::Value> {
+    let (field, line, column) = first_root_field(query)?;
+    let is_mutation = query.trim_start().starts_with("mutation");
+    let known = if is_mutation {
+        SIGN_MUTATIONS.contains(&field.as_str())
+    } else {
+        field == "status"
+    };
+    if known {
+        return None;
+    }
+    let root = if is_mutation { "Mutation" } else { "Query" };
+    let hint = if field.eq_ignore_ascii_case("status") && !is_mutation {
+        " Did you mean \"status\"?"
+    } else {
+        ""
+    };
+    Some(with_info(serde_json::json!({ "errors": [{
+        "message": format!("Cannot query field \"{field}\" on type \"{root}\".{hint}"),
+        "locations": [{ "line": line, "column": column }],
+    }] })))
+}
+
+/// module2's check of `posDateTime`: seconds, at most milliseconds,
+/// and the Belgian offset of that moment.
+fn pos_date_time_is_valid(value: &str) -> bool {
+    let Ok(at) = chrono::DateTime::parse_from_rfc3339(value) else {
+        return false;
+    };
+    let rest = &value[19..];
+    let (digits, offset) = match rest.strip_prefix('.') {
+        Some(fraction) => {
+            let n = fraction.chars().take_while(char::is_ascii_digit).count();
+            (n, &fraction[n..])
+        }
+        None => (0, rest),
+    };
+    let expected = if brussels_summer_time(at.with_timezone(&chrono::Utc)) {
+        "+02:00"
+    } else {
+        "+01:00"
+    };
+    digits <= 3 && offset == expected
+}
+
+/// EU summer time: from 01:00 UTC on the last Sunday of March to 01:00
+/// UTC on the last Sunday of October.
+fn brussels_summer_time(at: chrono::DateTime<chrono::Utc>) -> bool {
+    use chrono::Datelike;
+    let last_sunday = |month: u32| {
+        let last = chrono::NaiveDate::from_ymd_opt(at.year(), month, 31).unwrap();
+        let back = chrono::Days::new(u64::from(last.weekday().num_days_from_sunday()));
+        (last - back).and_hms_opt(1, 0, 0).unwrap().and_utc()
+    };
+    at >= last_sunday(3) && at < last_sunday(10)
+}
+
+/// module2's refusal of an ill-formed `posDateTime`.
+fn invalid_pos_date_time() -> serde_json::Value {
+    serde_json::json!({ "errors": [{
+        "message": "posDateTime is not a valid ISO 8601 date-time string. +01:00 is only allowed during winter time, +02:00 is only allowed during summer time.",
+        "extensions": {
+            "category": code_category("INVALID_REQUEST"),
+            "code": "INVALID_REQUEST",
+            "showPos": code_show_pos("INVALID_REQUEST"),
+        },
+    }] })
+}
+
 /// The FDM's answer to one GraphQL request.
 fn answer(
     fdm: &mut FdmState,
@@ -220,8 +350,13 @@ fn answer(
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.strip_prefix("Bearer "));
         if sent != Some(token.as_str()) {
-            return error_response(&["UNAUTHORIZED".to_string()]);
+            // module2: no code, no `data`, no `info`.
+            return serde_json::json!({ "errors": [{ "message": "Not a valid Token" }] });
         }
+    }
+
+    if let Some(refusal) = unknown_field(&req.query) {
+        return refusal;
     }
 
     if operation == "Status" {
@@ -277,6 +412,15 @@ fn answer(
         }
     }
 
+    let bad_date = parts.iter().any(|(_, data)| {
+        data.get("posDateTime")
+            .and_then(|v| v.as_str())
+            .is_some_and(|at| !pos_date_time_is_valid(at))
+    });
+    if bad_date {
+        return invalid_pos_date_time();
+    }
+
     let mut data_map = serde_json::Map::new();
     for (mutation, data) in parts {
         let pos_id = data
@@ -290,9 +434,7 @@ fn answer(
         if control.placeholder_signatures {
             as_simulator_signs(&mut result);
         }
-        if !control.warnings.is_empty() {
-            result.warnings = Some(codes_to_messages(control.warnings.clone(), "FR"));
-        }
+        result.warnings = codes_to_messages(control.warnings.clone(), "FR");
         println!(
             "[{}] {mutation} #{} (total: {})",
             result.fdm_ref.event_label, result.fdm_ref.event_counter, result.fdm_ref.total_counter
@@ -302,7 +444,7 @@ fn answer(
             serde_json::to_value(&result).unwrap_or_default(),
         );
     }
-    serde_json::json!({ "data": data_map })
+    with_info(serde_json::json!({ "data": data_map }))
 }
 
 /// Replace a signature by the simulator's kind: `dummy_` and 38
@@ -402,8 +544,8 @@ fn build_sign_result(
         None
     };
 
-    // Build VAT calc for sales
-    let vat_calc = if event_label == "N" || event_label == "T" {
+    // VAT for sales; none on a training event (M171B fixture, module2).
+    let vat_calc = if event_label == "N" {
         data.get("transaction").map(compute_vat_calc)
     } else {
         None
@@ -418,27 +560,33 @@ fn build_sign_result(
         event_operation: event_op.to_string(),
         fdm_ref: FdmRef {
             fdm_id: "CBX0MOCK0001".to_string(),
-            fdm_date_time: chrono::Utc::now().to_rfc3339(),
+            fdm_date_time: fdm_date_time(),
             event_label: event_label.to_string(),
             event_counter: ec,
             total_counter: tc,
         },
-        fdm_sw_version: "MOCK-FDM-1.0".to_string(),
+        fdm_sw_version: FDM_SW_VERSION.to_string(),
         digital_signature: digital_sig,
         short_signature: short_sig,
         verification_url,
         vat_calc,
         buffer_capacity_used: 1.2,
-        warnings: None,
-        informations: None,
-        footer: vec!["www.systemedecaisseenregistreuse.be".to_string()],
+        warnings: serde_json::json!([]),
+        informations: serde_json::json!([]),
+        // module2 and the official fixtures send no footer lines.
+        footer: Vec::new(),
     }
 }
 
+/// The FDM's clock as module2 gives it: UTC, seconds, `Z`.
+fn fdm_date_time() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
 fn extract_mutation_name(query: &str) -> String {
-    // Both spec spellings of the status field (SDL says `Status`, the
-    // Q100/Q110 UC fixtures use `status`) route to the status handler.
-    if query.contains("Status(") || query.contains("status(") {
+    // The status field (`status`, as module2 and the Q100/Q110
+    // fixtures spell it) routes to the status handler.
+    if query.contains("status(") {
         return "Status".to_string();
     }
     // Find pattern: mutationName( or mutationName(
@@ -562,9 +710,13 @@ fn status_response(query: &str, control: &Control) -> serde_json::Value {
         occurrences
     };
 
-    let listed = |codes: &[String], lang: &str| {
-        (!codes.is_empty()).then(|| codes_to_messages(codes.to_vec(), lang))
-    };
+    // A full buffer is also nearly full (module2 lists both).
+    let mut warnings = control.warnings.clone();
+    if control.errors.iter().any(|c| c == "BUFFER_FULL")
+        && !warnings.iter().any(|c| c == "BUFFER_NEAR_FULL")
+    {
+        warnings.push("BUFFER_NEAR_FULL".to_string());
+    }
     let mut data = serde_json::Map::new();
     for (key, lang) in occurrences {
         data.insert(
@@ -572,20 +724,20 @@ fn status_response(query: &str, control: &Control) -> serde_json::Value {
             serde_json::json!({
                 "device": {
                     "fdmId": "CBX0MOCK0001",
-                    "fdmSwVersion": "MOCK-FDM-1.0",
-                    "fdmDateTime": chrono::Utc::now().to_rfc3339(),
+                    "fdmSwVersion": FDM_SW_VERSION,
+                    "fdmDateTime": fdm_date_time(),
                     // Coherent with the codes, so §V evidence is
                     // self-consistent (BUFFER_NEAR_FULL means > 70%).
                     "bufferCapacityUsed": control.buffer_pct()
                 },
                 "initialized": control.initialized(),
-                "informations": null,
-                "warnings": listed(&control.warnings, &lang),
-                "errors": listed(&control.errors, &lang)
+                "informations": [],
+                "warnings": codes_to_messages(warnings.clone(), &lang),
+                "errors": codes_to_messages(control.errors.clone(), &lang)
             }),
         );
     }
-    serde_json::json!({ "data": data })
+    with_info(serde_json::json!({ "data": data }))
 }
 
 fn parse_codes(env_key: &str) -> Option<Vec<String>> {
@@ -623,7 +775,8 @@ fn codes_to_messages(codes: Vec<String>, lang: &str) -> serde_json::Value {
 /// `extensions.category` per the POS spec v2.2 is the message ORIGIN
 /// (`SPF_FOD` | `FDM` | `OTHER`), not its severity - severity is
 /// implied by which array (warnings/errors/informations) carries the
-/// message. All tb_messages codes are SPF_FOD-defined.
+/// message. The category is the one of the tb_messages table (SPF_FOD
+/// where it names two).
 fn code_category(code: &str) -> &'static str {
     match code {
         "CLIENT_CERT_NEAR_EXPIRATION"
@@ -644,17 +797,20 @@ fn code_category(code: &str) -> &'static str {
         | "UPDATE_CLIENT_CERT_FAILED"
         | "UPDATE_VAT_RATES_FAILED"
         | "UPDATE_POS_ALLOWLIST_FAILED"
-        | "DUPLICATE_REQUEST"
         | "TOO_MANY_MEMORY_ERRORS"
         | "BUFFER_FULL"
         | "FDM_LOCKED"
+        | "UNDEFINED_OTHER"
+        | "UPDATE_POS_VATNO"
+        | "UPDATE_POS_ESTNO" => "SPF_FOD",
+        // POS description v2.2 tb_messages: raised by the FDM itself.
+        "DUPLICATE_REQUEST"
         | "UNAUTHORIZED"
         | "INVALID_REQUEST"
         | "INTERNAL_ERROR"
         | "UNDEFINED_ERROR"
-        | "UNDEFINED_OTHER"
         | "FDM_NOT_OPERATIONAL"
-        | "UNKNOWN_POS" => "SPF_FOD",
+        | "UNKNOWN_POS" => "FDM",
         _ => "OTHER",
     }
 }
@@ -669,7 +825,9 @@ fn code_show_pos(code: &str) -> &'static str {
         | "BUFFER_FULL"
         | "FDM_LOCKED"
         | "FDM_NOT_OPERATIONAL"
-        | "UNKNOWN_POS" => "MANDATORY",
+        | "UNKNOWN_POS"
+        | "UPDATE_POS_VATNO"
+        | "UPDATE_POS_ESTNO" => "MANDATORY",
         // Never displayed on the POS
         "RTC_NOT_INITIALIZED"
         | "CORRUPT_RECORD_ENCOUNTERED"
@@ -736,6 +894,12 @@ fn code_to_human_fr(code: &str) -> &'static str {
         "UNKNOWN_POS" => {
             "Le FDM a reçu un message d'un POS non repris dans la liste d'autorisation"
         }
+        "UPDATE_POS_VATNO" => {
+            "Le numéro de TVA du POS ne correspond pas au numéro de TVA connu par le FDM"
+        }
+        "UPDATE_POS_ESTNO" => {
+            "Le numéro d'établissement du POS ne correspond pas à celui connu par le FDM"
+        }
         _ => "Erreur FDM",
     }
 }
@@ -771,7 +935,8 @@ fn error_response(codes: &[String]) -> serde_json::Value {
             })
         })
         .collect();
-    serde_json::json!({ "data": null, "errors": messages })
+    // No `data` key on a refusal, as module2.
+    serde_json::json!({ "errors": messages })
 }
 
 #[derive(Serialize)]
@@ -790,8 +955,8 @@ struct SignResult {
     verification_url: Option<String>,
     vat_calc: Option<Vec<VatCalcItem>>,
     buffer_capacity_used: f64,
-    warnings: Option<serde_json::Value>,
-    informations: Option<serde_json::Value>,
+    warnings: serde_json::Value,
+    informations: serde_json::Value,
     footer: Vec<String>,
 }
 
@@ -843,7 +1008,7 @@ mod tests {
             assert_eq!(extract_mutation_name(&q), m);
         }
         assert_eq!(
-            extract_mutation_name("query { Status(language: FR) { initialized } }"),
+            extract_mutation_name("query { status(language: FR) { initialized } }"),
             "Status"
         );
         assert_eq!(
@@ -1026,10 +1191,14 @@ mod tests {
             ..Default::default()
         });
         let req = sale("CPOS0031234567");
+        // As module2: a bare message, no code.
         let refused = answer(&mut f, &HeaderMap::new(), "signSale", &req);
-        assert_eq!(error_code(&refused), "UNAUTHORIZED");
+        assert_eq!(
+            refused,
+            json!({ "errors": [{ "message": "Not a valid Token" }] })
+        );
         let wrong = answer(&mut f, &bearer("other"), "signSale", &req);
-        assert_eq!(error_code(&wrong), "UNAUTHORIZED");
+        assert_eq!(wrong, refused);
         let signed = answer(&mut f, &bearer("secret"), "signSale", &req);
         assert_eq!(signed["data"]["signSale"]["posId"], "CPOS0031234567");
     }

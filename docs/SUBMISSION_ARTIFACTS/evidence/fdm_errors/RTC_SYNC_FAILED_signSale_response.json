@@ -3,24 +3,22 @@
         "signSale": {
             "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMy0zLTE3OTA1MjI1OTY=",
+            "digitalSignature": "bW9jay1zaWctMy0zLTE3OTA1Mjk5NjU=",
             "eventOperation": "SALE",
             "fdmRef": {
                 "eventCounter": 3,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-09-27T15:23:16.111799+00:00",
+                "fdmDateTime": "2026-09-27T17:26:05Z",
                 "fdmId": "CBX0MOCK0001",
                 "totalCounter": 3
             },
             "fdmSwVersion": "MOCK-FDM-1.0",
-            "footer": [
-                "www.systemedecaisseenregistreuse.be"
-            ],
-            "informations": null,
+            "footer": [],
+            "informations": [],
             "posDateTime": "2024-07-29T13:00:00.000+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "eb17b1c73c8ec0488a3f2c845f6a9146d68f44e9",
+            "shortSignature": "864ba1ea335dcfa526d50d98ce1647a5b790a929",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
                 {
@@ -52,5 +50,9 @@
                 }
             ]
         }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
     }
 }

@@ -14,18 +14,20 @@ PORT=18099 cargo run --package pos-fdm-mock
 
 Par défaut, le mock écoute sur `http://localhost:8081/graphql` et
 retourne :
-- `Status` : initialized=true, aucun warning, aucun erreur.
+- `status` : initialized=true, listes de messages vides (`[]`).
 - `signSale` / `signOrder` / etc. : `SignResult` valide avec
   compteurs incrémentés, signature mock et URL de vérification.
 
 ## Comportement
 
-Le mock suit le format d'erreur de la spec POS v2.2 (et du simulateur
-module2) :
+Les réponses ont la forme de celles du simulateur module2 FDM02000425
+(logiciel FDM 2.2.0.5), enregistrées le 27/09/2026 dans
+`fixtures/module2/` (voir son README) ; `tests/module2_shape.rs`
+vérifie que chaque réponse du mock garde cette forme. Un refus suit le
+format d'erreur de la spec POS v2.2, sans clé `data` :
 
 ```json
 {
-  "data": null,
   "errors": [{
     "message": "Le buffer du FDM est plein",
     "extensions": {"category": "SPF_FOD", "code": "BUFFER_FULL", "showPos": "MANDATORY"}
@@ -33,11 +35,34 @@ module2) :
 }
 ```
 
+La catégorie de chaque code est celle du tableau tb_messages de la
+description POS v2.2 (`FDM` pour UNAUTHORIZED, INVALID_REQUEST,
+INTERNAL_ERROR, UNDEFINED_ERROR, FDM_NOT_OPERATIONAL, UNKNOWN_POS,
+DUPLICATE_REQUEST ; `SPF_FOD` pour les autres).
+
+Comme module2 :
+- le champ de status s'écrit `status` ; `Status` ou un champ inconnu
+  reçoit une erreur de validation GraphQL (`Cannot query field ...`,
+  avec `locations`) ;
+- une réponse calculée porte un objet `info {https, version}` à côté
+  de `data` ;
+- `footer` est vide, et un événement de formation n'a pas de `vatCalc`
+  (comme la fixture officielle M171B) ;
+- un `posDateTime` avec plus que des millisecondes, ou dont le décalage
+  n'est pas celui de Bruxelles à ce moment, reçoit `INVALID_REQUEST` ;
+- un buffer plein est aussi signalé presque plein (`BUFFER_NEAR_FULL`
+  dans les warnings du status).
+
+Seule différence voulue : la requête Q110 (plusieurs champs `status`
+dans un document) reçoit sa réponse selon la spec, là où le simulateur
+répond HTTP 500.
+
 - **Compteurs par `posId`** : chaque POS a ses propres compteurs
   (`totalCounter` et compteur par label), comme un vrai FDM partagé.
 - **Jeton** : si `MOCK_FDM_TOKEN` est défini, une requête sans
-  `Authorization: Bearer <jeton>` (ou avec un autre jeton) reçoit
-  `UNAUTHORIZED`.
+  `Authorization: Bearer <jeton>` (ou avec un autre jeton) reçoit,
+  comme chez module2, `{"errors": [{"message": "Not a valid Token"}]}`
+  sans code.
 - **POS autorisés** : si `MOCK_FDM_ALLOWED_POS` est défini (liste
   séparée par virgules), tout autre `posId` reçoit `UNKNOWN_POS` sur
   les mutations `sign*`.

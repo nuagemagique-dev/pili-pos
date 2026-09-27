@@ -3,12 +3,12 @@
         "fdmStatus": {
             "device": {
                 "bufferCapacityUsed": 82.53,
-                "fdmDateTime": "2026-09-27T15:23:15.886257+00:00",
+                "fdmDateTime": "2026-09-27T17:26:04Z",
                 "fdmId": "CBX0MOCK0001",
                 "fdmSwVersion": "MOCK-FDM-1.0"
             },
-            "errors": null,
-            "informations": null,
+            "errors": [],
+            "informations": [],
             "initialized": true,
             "warnings": [
                 {
@@ -21,5 +21,9 @@
                 }
             ]
         }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
     }
 }

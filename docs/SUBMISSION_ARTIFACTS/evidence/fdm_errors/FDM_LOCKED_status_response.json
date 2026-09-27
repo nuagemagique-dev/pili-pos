@@ -3,7 +3,7 @@
         "fdmStatus": {
             "device": {
                 "bufferCapacityUsed": 1.2,
-                "fdmDateTime": "2026-09-27T15:23:15.263781+00:00",
+                "fdmDateTime": "2026-09-27T17:26:04Z",
                 "fdmId": "CBX0MOCK0001",
                 "fdmSwVersion": "MOCK-FDM-1.0"
             },
@@ -17,9 +17,13 @@
                     "message": "Le FDM est verrouill\u00e9"
                 }
             ],
-            "informations": null,
+            "informations": [],
             "initialized": false,
-            "warnings": null
+            "warnings": []
         }
+    },
+    "info": {
+        "https": false,
+        "version": "MOCK-FDM-1.0"
     }
 }
