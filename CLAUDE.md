@@ -108,6 +108,7 @@ Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corres
 
 **Design guide:**
 - `docs/UX-DESIGN-GUIDE.md` - **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design.
+- `docs/BRAND.md` - the Pili brand (logo, colours and their meaning, typography, tone). Colours are CSS tokens in `ui/src/styles/tokens.css`; every staff screen starts with `AppHeader.vue`.
 
 **Original PDFs:** all SPF Finances PDFs are preserved under `docs/original_pdfs/` (mirroring the subfolder structure above). Every `.md` links back to its source PDF in its header.
 

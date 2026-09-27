@@ -61,7 +61,7 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  FdmStatus    │  User: Ahmed  │  Table: 12  │  14:32  │  [🔒 Lock] │  ← Header bar (fixe, 48px)
+│  pili │ ● FDM ● Ticket ● Cuisine │ Ahmed │ Table 12 │ 14:32 │ [Verrouiller] │  ← Header (fixe, 64px)
 ├──────────────────────────────────────────┬───────────────────────────┤
 │                                          │                           │
 │  [Sushi] [Maki] [Sashimi] [Boissons]    │   COMMANDE #127           │
@@ -86,7 +86,9 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 
 **Proportions :** menu grid = ~65% de l'écran, cart sidebar = ~35%. Sur 1920px, ça donne ~1250px pour le menu et ~670px pour le cart.
 
-**Grille menu :** 4 colonnes de boutons items. Chaque bouton fait minimum 140x100px. Scrollable verticalement avec inertie tactile.
+**Grille menu :** 5 colonnes de boutons items (environ 230 × 120 px, au-dessus du minimum de 140 × 100 px). Scrollable verticalement avec inertie tactile.
+
+**Écarts assumés (charte Pili) :** en-tête de 64 px au lieu de 48, pour que ses boutons fassent 48 px (§4.1, §13) ; 5 colonnes au lieu de 4 ; catégories sur deux rangées fixes de 9 au lieu d'onglets à faire défiler, pour que les 17 catégories soient à un seul appui (§2.1). L'en-tête est le même sur tous les écrans (`AppHeader.vue`).
 
 ---
 
@@ -131,62 +133,29 @@ L'environnement restaurant est souvent tamisé le soir. Un écran blanc éclatan
 
 ### 5.2 - Palette de tokens CSS
 
-```css
-:root {
-  /* Backgrounds */
-  --bg-primary: #1a1a2e;        /* fond principal */
-  --bg-secondary: #16213e;      /* fond cart sidebar */
-  --bg-surface: #0f3460;        /* fond boutons menu */
-  --bg-hover: #533483;          /* état actif/pressed */
+La palette suit la charte Pili (`docs/BRAND.md`). Source de vérité : `ui/src/styles/tokens.css`.
 
-  /* Text */
-  --text-primary: #e8e8e8;      /* texte principal */
-  --text-secondary: #a0a0b0;    /* texte secondaire (labels, hints) */
-  --text-on-accent: #ffffff;    /* texte sur boutons accent */
+| Token | Valeur | Rôle |
+|---|---|---|
+| `--bg-primary` | `#0B0D0E` (Encre) | fond de l'écran |
+| `--bg-secondary` | `#15181A` (Graphite) | en-tête, panier, cartes |
+| `--bg-surface` | `#1F2327` (Ardoise) | boutons secondaires |
+| `--border` | `#2B3035` | filets, bordures |
+| `--text-primary` | `#F2F4F2` (Brume) | texte |
+| `--text-secondary` | `#9AA3A8` | texte secondaire |
+| `--selected-bg` / `--selected-fg` | Brume / Encre | sélection : onglet actif, table, méthode choisie |
+| `--accent-primary` | `#D7FF3A` (Volt) | **l'action principale, une seule par écran** (PAYER, VALIDER, Enregistrer) |
+| `--accent-warning` | `#FFB020` | en attente : pas encore en cuisine, nouvelle commande |
+| `--accent-danger` | `#FF4D3D` | supprimer, erreur, FDM hors ligne |
+| `--accent-success` | `#22C55E` | connecté, payé, rendu monnaie |
+| `--accent-info` | `#00D4FF` | information, commandes en ligne |
+| `--accent-training` | `#9B59B6` | mode formation, et rien d'autre |
 
-  /* Accent */
-  --accent-primary: #e94560;    /* bouton Payer, actions principales */
-  --accent-success: #2ecc71;    /* confirmation, paiement réussi */
-  --accent-warning: #f39c12;    /* avertissements FDM */
-  --accent-danger: #e74c3c;     /* erreurs, suppressions */
-  --accent-training: #9b59b6;   /* mode training (violet distinctif) */
-
-  /* Categories (couleurs pour les onglets catégories) */
-  --cat-sushi: #e94560;
-  --cat-maki: #f39c12;
-  --cat-sashimi: #3498db;
-  --cat-ramen: #2ecc71;
-  --cat-boissons: #9b59b6;
-  --cat-desserts: #e67e22;
-
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-
-  /* Border radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-
-  /* Typography */
-  --font-family: 'Noto Sans', 'Noto Sans CJK SC', sans-serif;
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 20px;
-  --font-size-xl: 28px;
-  --font-size-price: 18px;      /* prix sur les boutons items */
-  --font-weight-normal: 400;
-  --font-weight-bold: 700;
-}
-```
+Les prix et totaux sont en couleur neutre : la couleur est réservée aux actions et aux états. Tous les chiffres (prix, heures, quantités) sont en JetBrains Mono (`--font-mono`), alignés.
 
 ### 5.3 - Contraste
 
-Ratio minimum WCAG AA : 4.5:1 pour le texte, 3:1 pour les éléments graphiques. Sur fond sombre (#1a1a2e), le texte blanc (#e8e8e8) donne un ratio de ~14:1. Les prix et totaux doivent être en bold pour être lisibles à 50cm.
+Ratio minimum WCAG AA : 4.5:1 pour le texte, 3:1 pour les éléments graphiques. Sur fond Encre (#0B0D0E), le texte Brume (#F2F4F2) donne un ratio de ~18:1. Les prix et totaux doivent être en bold pour être lisibles à 50cm.
 
 ---
 
@@ -284,8 +253,8 @@ Pas de jargon technique. Le staff ne sait pas ce qu'est un "buffer" ou un "certi
 
 Le mode training doit être **visuellement impossible à confondre** avec le mode normal. Exigence légale SCE 2.0.
 
-- Background color change : remplacer `--bg-primary` par `--accent-training` (violet)
-- Bannière permanente en haut : **"⚠️ MODE FORMATION - Les transactions ne sont PAS enregistrées"**
+- Background color change : `--bg-primary` passe à `#2D1B4E` (violet foncé) et les surfaces suivent (`:root.training` dans `tokens.css`)
+- Bannière permanente, juste sous l'en-tête : **"MODE FORMATION · Les transactions ne sont PAS enregistrées"**
 - Watermark diagonal semi-transparent "TRAINING" sur tout l'écran
 - Tous les tickets imprimés portent "TRAINING" en haut et "THIS IS NOT A VALID VAT RECEIPT" en bas
 
@@ -295,17 +264,17 @@ Le mode training doit être **visuellement impossible à confondre** avec le mod
 
 Tokyo Sushi Bar a besoin d'afficher des noms en chinois simplifié (三文鱼卷, 拉面, 毛豆). Le staff est sinophone et le menu utilise des termes japonais transcrits en chinois. La police doit supporter le français ET le chinois.
 
-**Police :** Noto Sans + Noto Sans CJK SC (Google Fonts, gratuit, couverture complète chinois simplifié).
+**Police :** Noto Sans + Noto Sans CJK SC. Noto Sans et JetBrains Mono (chiffres) sont embarqués dans l'application (`@fontsource`, la caisse est hors ligne) ; Noto Sans CJK vient de l'image (`fonts-noto-cjk`).
 
 **Fallback stack :** `'Noto Sans', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif`
 
-Les noms d'items affichent le chinois en principal (pour le staff) et le français en secondaire (pour la conformité et les clients) :
+L'interface est en français par défaut, et passe en chinois (ou en anglais) dans Config. Les noms des produits et des catégories restent bilingues : la langue de l'interface en principal, l'autre langue (chinois ou français) en secondaire, pour que le staff francophone et sinophone lise le même bouton :
 ```
-┌─────────────┐
-│ 三文鱼卷 ×8  │  ← nom principal (ZH), 16px bold - le staff lit ça
-│ Salmon Roll  │  ← nom secondaire (FR), 12px, text-secondary
-│        12.00 │  ← prix
-└─────────────┘
+┌───────────────┐
+│ Saumon avocat │  ← nom principal (langue de l'interface), 17px bold
+│ 三文鱼牛油果卷  │  ← nom secondaire (l'autre langue), 13px, text-secondary
+│     5,60      │  ← prix (mono, neutre)
+└───────────────┘
 ```
 
 ---
