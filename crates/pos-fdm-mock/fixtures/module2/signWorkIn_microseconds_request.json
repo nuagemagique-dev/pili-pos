@@ -1,0 +1,21 @@
+{
+  "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "452a6a72-61b0-48fa-b08d-df9d0618b1d0",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "language": "FR",
+      "posDateTime": "2026-09-27T19:17:53.123456+02:00",
+      "posFiscalTicketNo": 1,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "NONE",
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

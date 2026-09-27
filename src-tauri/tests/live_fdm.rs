@@ -16,6 +16,7 @@
 //! | `MOYUN_LIVE_PAUSE_MS`     | `1000`           | least gap between two calls |
 //! | `MOYUN_LIVE_MAX_REQUESTS` | `60`             | calls per run, past it nothing is forwarded |
 //! | `UC_EVIDENCE_DIR`         | unset            | where each signed request and response is written |
+//! | `MOYUN_LIVE_RECORD_DIR`   | unset            | where each call is recorded as it went over the wire |
 //!
 //! Only what holds on any FDM is asserted: every command succeeds (so
 //! each response passed the POS's own response check), counters grow
@@ -150,23 +151,29 @@ async fn live_fdm_status_and_one_sale() {
 #[ignore]
 async fn live_fdm_operator_day() {
     let Some(app) = live_app().await else { return };
+    record_as("status");
     status_is_operational(&app).await;
 
+    record_as("signWorkIn");
     let r = do_work_in(&app.state, INSZ.into()).await.unwrap();
     signed(&app, "work in (M140)", r.success, r.error);
 
     // Table 4: an order (M121), its pre-bill (M123), then paid (M110).
     let table = order(&app, Some(4), &[(1, 2), (2, 1)]);
+    record_as("signOrder");
     let r = do_sign_table_order(&app.state, table).await;
     signed(&app, "table order (M121)", r.is_ok(), r.err());
+    record_as("signPreBill");
     let r = do_sign_pre_bill(&app.state, table).await;
     signed(&app, "pre-bill (M123)", r.is_ok(), r.err());
+    record_as("signSale");
     let paid = do_checkout(&app.state, table, CheckoutPaymentMethod::Cash)
         .await
         .unwrap();
     signed(&app, "sale (M110)", paid.success, paid.error.clone());
     let sale = paid.fiscal_event_id.unwrap();
 
+    record_as("signSale_refund");
     let refund = do_refund_checkout(
         &app.state,
         sale,
@@ -180,9 +187,11 @@ async fn live_fdm_operator_day() {
     .unwrap();
     signed(&app, "refund (M111)", refund.success, refund.error);
 
+    record_as("signCopy");
     let copy = do_copy_ticket(&app.state, sale, INSZ.into()).await.unwrap();
     signed(&app, "copy (M160)", copy.success, copy.error);
 
+    record_as("signMoneyInOut");
     let r = do_money_in_out(
         &app.state,
         INSZ.into(),
@@ -193,10 +202,12 @@ async fn live_fdm_operator_day() {
     .await
     .unwrap();
     signed(&app, "money in (M130)", r.success, r.error);
+    record_as("signDrawerOpen");
     let r = do_open_drawer_fiscal(&app.state, INSZ.into())
         .await
         .unwrap();
     signed(&app, "drawer open (M131)", r.success, r.error);
+    record_as("signMoneyInOut_declaration");
     let r = do_money_in_out(
         &app.state,
         INSZ.into(),
@@ -211,6 +222,7 @@ async fn live_fdm_operator_day() {
     // Training (M171), then back to normal.
     app.state.config.lock().unwrap().training_mode = true;
     let id = order(&app, None, &[(1, 1)]);
+    record_as("signSale_training");
     let training = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
         .await
         .unwrap();
@@ -222,15 +234,19 @@ async fn live_fdm_operator_day() {
     );
     app.state.config.lock().unwrap().training_mode = false;
 
+    record_as("signReportTurnoverX");
     let x = do_generate_x_report(&app.state, INSZ.into()).await.unwrap();
     signed(&app, "X (M180)", x.success, x.error);
+    record_as("signReportUserX");
     let ux = do_generate_user_x_report(&app.state, INSZ.into())
         .await
         .unwrap();
     signed(&app, "user X (M182)", ux.success, ux.error);
+    record_as("signReportTurnoverZ+signReportUserZ");
     let z = do_generate_z_report(&app.state, INSZ.into()).await.unwrap();
     signed(&app, "Z (M184)", z.success, z.error);
 
+    record_as("signWorkOut");
     let r = do_work_out(&app.state, INSZ.into()).await.unwrap();
     signed(&app, "work out (M141)", r.success, r.error);
 
@@ -317,8 +333,10 @@ async fn live_fdm_simulated_condition() {
     let Some(app) = live_app().await else { return };
     let condition = std::env::var("MOYUN_LIVE_CONDITION").unwrap_or_else(|_| "condition".into());
 
+    record_as(&format!("status_{condition}"));
     let status = do_check_fdm_status(&app.state).await.unwrap();
     let id = order(&app, None, &[(1, 1)]);
+    record_as(&format!("signSale_{condition}"));
     let sale = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
         .await
         .unwrap();
@@ -349,5 +367,82 @@ async fn live_fdm_simulated_condition() {
         let seen = record.to_string();
         assert!(seen.contains(&code), "{code} did not reach the POS");
     }
+    eprintln!("{} live calls", live_requests());
+}
+
+/// What the FDM answers outside the happy path, for the mock's
+/// fixtures (`MOYUN_LIVE_RECORD_DIR`): the capitalised `Status`
+/// spelling, no token, a wrong token, a malformed query, the Q110
+/// multi-language status, an unknown posId and a posDateTime with
+/// microseconds. 7 calls.
+#[tokio::test]
+#[ignore]
+async fn live_fdm_protocol_edges() {
+    let Some(app) = live_app().await else { return };
+    let config = app.state.config.lock().unwrap().clone();
+    let token = std::env::var("MOYUN_LIVE_FDM_TOKEN").unwrap_or_default();
+    let http = reqwest::Client::new();
+    let post = |body: Value, auth: Option<String>| {
+        let mut request = http.post(&config.fdm_url).json(&body);
+        if let Some(auth) = auth {
+            request = request.header("Authorization", auth);
+        }
+        request.send()
+    };
+    let status = |field: &str| {
+        serde_json::json!({ "query": format!(
+            "query {{ {field}(language: FR) {{ device {{ fdmId fdmSwVersion fdmDateTime bufferCapacityUsed }} initialized informations {{ message extensions {{ category code showPos }} }} warnings {{ message extensions {{ category code showPos }} }} errors {{ message extensions {{ category code showPos }} }} }} }}"
+        ) })
+    };
+
+    record_as("Status_capitalized");
+    post(status("Status"), Some(format!("Bearer {token}")))
+        .await
+        .unwrap();
+    record_as("status_no_token");
+    post(status("status"), None).await.unwrap();
+    record_as("status_wrong_token");
+    post(status("status"), Some("Bearer not-the-token".into()))
+        .await
+        .unwrap();
+    record_as("other_malformed");
+    post(
+        serde_json::json!({ "query": "query { nope }" }),
+        Some(format!("Bearer {token}")),
+    )
+    .await
+    .unwrap();
+
+    record_as("status_multi_lang");
+    let multi = pos_fiscal::fdm_client::FdmClient::from_config(&config)
+        .status_multi_lang()
+        .await;
+    eprintln!(
+        "multi-language status: {}",
+        if multi.is_ok() { "ok" } else { "refused" }
+    );
+
+    let booking = pos_fiscal::event::Booking {
+        period_id: uuid::Uuid::new_v4().to_string(),
+        date: pos_fiscal::event::fdm_now()[..10].to_string(),
+    };
+    let mut unknown = config.clone();
+    unknown.pos_id = "CPOS0039999999".into();
+    record_as("signWorkIn_unknown_pos");
+    let refused = pos_fiscal::fdm_client::FdmClient::from_config(&unknown)
+        .sign_work_in(
+            pos_fiscal::event::build_work_in_out(&unknown, 1, INSZ, &booking),
+            false,
+        )
+        .await;
+    assert!(refused.is_err(), "an unknown posId is refused");
+
+    let mut input = pos_fiscal::event::build_work_in_out(&config, 1, INSZ, &booking);
+    input.common.pos_date_time = format!("{}.123456+02:00", &input.common.pos_date_time[..19]);
+    record_as("signWorkIn_microseconds");
+    let refused = pos_fiscal::fdm_client::FdmClient::from_config(&config)
+        .sign_work_in(input, false)
+        .await;
+    assert!(refused.is_err(), "microseconds are refused");
     eprintln!("{} live calls", live_requests());
 }

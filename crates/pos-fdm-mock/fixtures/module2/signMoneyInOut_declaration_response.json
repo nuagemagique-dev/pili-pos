@@ -1,0 +1,32 @@
+{
+  "data": {
+    "signMoneyInOut": {
+      "bufferCapacityUsed": 0.14,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_RgY5yP7PSBRiFYBaSXXuWbDwt/9NBeFego+eLQ",
+      "eventOperation": "MONEY_IN_OUT",
+      "fdmRef": {
+        "eventCounter": 6,
+        "eventLabel": "F",
+        "fdmDateTime": "2026-09-27T17:17:34Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 28
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T19:17:33.799+02:00",
+      "posFiscalTicketNo": 6,
+      "posId": "CPOS0031234567",
+      "shortSignature": null,
+      "terminalId": "POS-1-BAR",
+      "vatCalc": null,
+      "verificationUrl": null,
+      "warnings": []
+    }
+  },
+  "info": {
+    "https": false,
+    "version": "2.2.0.5"
+  }
+}

@@ -10,7 +10,9 @@
 # 1 s apart, at most MOYUN_LIVE_MAX_REQUESTS (60) per run, through the
 # pacing proxy of src-tauri/tests/common/live.rs. Each signed request
 # and response is written to UC_EVIDENCE_DIR
-# (docs/SUBMISSION_ARTIFACTS/Report_Testing/module2 by default).
+# (docs/SUBMISSION_ARTIFACTS/Report_Testing/module2 by default). With
+# MOYUN_LIVE_RECORD_DIR set, each call is also recorded raw there (the
+# fixtures of crates/pos-fdm-mock/fixtures/module2).
 # See docs/internal/LIVE_FDM_MODULE2.md.
 set -euo pipefail
 

@@ -1,0 +1,25 @@
+{
+  "query": "mutation($data: DrawerOpenInput!, $isTraining: Boolean!) { signDrawerOpen(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "fdf45738-dcc2-4d44-9779-d89e89f6097d",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "drawer": {
+        "id": "DRAWER1",
+        "name": "Tiroir principal"
+      },
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "language": "FR",
+      "posDateTime": "2026-09-27T19:17:32.706+02:00",
+      "posFiscalTicketNo": 5,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "NONE",
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

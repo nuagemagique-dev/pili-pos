@@ -1,0 +1,56 @@
+{
+  "data": {
+    "signReportTurnoverZ": {
+      "bufferCapacityUsed": 0.16,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_2iFj3/AV2E71lvYz8igcA6ZQokynZLG2IXG3ow",
+      "eventOperation": "REPORT_TURNOVER_Z",
+      "fdmRef": {
+        "eventCounter": 7,
+        "eventLabel": "R",
+        "fdmDateTime": "2026-09-27T17:17:39Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 32
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T19:17:38.175+02:00",
+      "posFiscalTicketNo": 7,
+      "posId": "CPOS0031234567",
+      "shortSignature": null,
+      "terminalId": "POS-1-BAR",
+      "vatCalc": null,
+      "verificationUrl": null,
+      "warnings": []
+    },
+    "signReportUserZ": {
+      "bufferCapacityUsed": 0.16,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_QZJnf9MbnGRzpXKi/1cRcDcbf3axzFqYcMdX4A",
+      "eventOperation": "REPORT_USER_Z",
+      "fdmRef": {
+        "eventCounter": 8,
+        "eventLabel": "R",
+        "fdmDateTime": "2026-09-27T17:17:39Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 33
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T19:17:38.175+02:00",
+      "posFiscalTicketNo": 8,
+      "posId": "CPOS0031234567",
+      "shortSignature": null,
+      "terminalId": "POS-1-BAR",
+      "vatCalc": null,
+      "verificationUrl": null,
+      "warnings": []
+    }
+  },
+  "info": {
+    "https": false,
+    "version": "2.2.0.5"
+  }
+}

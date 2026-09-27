@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "extensions": {
+        "category": "FDM",
+        "code": "INVALID_REQUEST",
+        "showPos": "OPTIONAL"
+      },
+      "message": "posDateTime is not a valid ISO 8601 date-time string. +01:00 is only allowed during winter time, +02:00 is only allowed during summer time."
+    }
+  ]
+}

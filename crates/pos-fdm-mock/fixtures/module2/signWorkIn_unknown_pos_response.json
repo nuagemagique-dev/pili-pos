@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "extensions": {
+        "category": "FDM",
+        "code": "UNKNOWN_POS",
+        "showPos": "MANDATORY"
+      },
+      "message": "POS is not registered for the FDM."
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{"httpStatus":200,"label":"status","operation":"status","token":true}
+{"httpStatus":200,"label":"signWorkIn","operation":"signWorkIn","token":true}
+{"httpStatus":200,"label":"signOrder","operation":"signOrder","token":true}
+{"httpStatus":200,"label":"signPreBill","operation":"signPreBill","token":true}
+{"httpStatus":200,"label":"signSale","operation":"signSale","token":true}
+{"httpStatus":200,"label":"signSale_refund","operation":"signSale","token":true}
+{"httpStatus":200,"label":"signCopy","operation":"signCopy","token":true}
+{"httpStatus":200,"label":"signMoneyInOut","operation":"signMoneyInOut","token":true}
+{"httpStatus":200,"label":"signDrawerOpen","operation":"signDrawerOpen","token":true}
+{"httpStatus":200,"label":"signMoneyInOut_declaration","operation":"signMoneyInOut","token":true}
+{"httpStatus":200,"label":"signSale_training","operation":"signSale","token":true}
+{"httpStatus":200,"label":"signReportTurnoverX","operation":"signReportTurnoverX","token":true}
+{"httpStatus":200,"label":"signReportUserX","operation":"signReportUserX","token":true}
+{"httpStatus":200,"label":"signReportTurnoverZ+signReportUserZ","operation":"signReportTurnoverZ+signReportUserZ","token":true}
+{"httpStatus":200,"label":"signWorkOut","operation":"signWorkOut","token":true}
+{"httpStatus":200,"label":"Status_capitalized","operation":"Status","token":true}
+{"httpStatus":200,"label":"status_no_token","operation":"status","token":false}
+{"httpStatus":200,"label":"status_wrong_token","operation":"status","token":true}
+{"httpStatus":200,"label":"other_malformed","operation":"other","token":true}
+{"httpStatus":500,"label":"status_multi_lang","operation":"status","token":true}
+{"httpStatus":200,"label":"signWorkIn_unknown_pos","operation":"signWorkIn","token":true}
+{"httpStatus":200,"label":"signWorkIn_microseconds","operation":"signWorkIn","token":true}
+{"httpStatus": 500, "label": "status_multi_lang_official", "operation": "status", "token": true}
+{"httpStatus":200,"label":"status_buffer_full","operation":"status","token":true}
+{"httpStatus":200,"label":"signSale_buffer_full","operation":"signSale","token":true}
+{"httpStatus":200,"label":"status_buffer_near_full","operation":"status","token":true}
+{"httpStatus":200,"label":"signSale_buffer_near_full","operation":"signSale","token":true}

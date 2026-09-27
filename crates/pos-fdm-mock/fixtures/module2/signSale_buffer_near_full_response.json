@@ -1,0 +1,50 @@
+{
+  "data": {
+    "signSale": {
+      "bufferCapacityUsed": 0.17,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_cgY37AUdJ4efBfpuVuR8f7MA6fLN2o9h1GoABA",
+      "eventOperation": "SALE",
+      "fdmRef": {
+        "eventCounter": 9,
+        "eventLabel": "N",
+        "fdmDateTime": "2026-09-27T17:19:26Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 35
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T19:19:24.931+02:00",
+      "posFiscalTicketNo": 8,
+      "posId": "CPOS0031234567",
+      "shortSignature": "1883bc7ef674a48b32e6e348da31e2b14dad0bf2",
+      "terminalId": "POS-1-BAR",
+      "vatCalc": [
+        {
+          "label": "A",
+          "outOfScope": false,
+          "rate": 21,
+          "taxableAmount": 9.92,
+          "totalAmount": 12,
+          "vatAmount": 2.08
+        }
+      ],
+      "verificationUrl": "https://www.gs2.be/tRffi30NsdlNW2twOar",
+      "warnings": [
+        {
+          "extensions": {
+            "category": "SPF_FOD",
+            "code": "BUFFER_NEAR_FULL",
+            "showPos": "MANDATORY"
+          },
+          "message": "FDM buffer usage exceeds 70%."
+        }
+      ]
+    }
+  },
+  "info": {
+    "https": false,
+    "version": "2.2.0.5"
+  }
+}

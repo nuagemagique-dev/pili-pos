@@ -22,6 +22,14 @@
 //! A live FDM keeps its counters, so the POS's own ticket numbers
 //! (`fiscal_counters`) are carried from one run to the next in
 //! `target/live-fdm/state.json`.
+//!
+//! With `MOYUN_LIVE_RECORD_DIR` set, the proxy also writes each call
+//! there as it went over the wire: `<label>_request.json` (the GraphQL
+//! body) and `<label>_response.json` (the answer, with the simulator's
+//! `visitor_ip` removed), plus a line in `calls.jsonl` (label, HTTP
+//! status, whether a token was sent). The label is the one set with
+//! [`record_as`] when it starts with the operation's name, else the
+//! operation's name.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -39,6 +47,108 @@ use super::harness::TestApp;
 
 /// Calls forwarded to the live FDM by this test binary.
 static FORWARDED: AtomicUsize = AtomicUsize::new(0);
+
+/// The label of the next recorded call (see [`record_as`]).
+static NEXT_LABEL: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// Record the next call under `label` (with `MOYUN_LIVE_RECORD_DIR`).
+pub fn record_as(label: &str) {
+    *NEXT_LABEL.lock().unwrap() = Some(label.to_string());
+}
+
+/// The operations a GraphQL body asks for: its sign mutations, joined
+/// with `+`, else `status` / `Status`, else `other`.
+fn operation_name(body: &[u8]) -> String {
+    let query = serde_json::from_slice::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v["query"].as_str().map(str::to_string))
+        .unwrap_or_default();
+    let mut signs = Vec::new();
+    let mut rest = query.as_str();
+    while let Some(at) = rest.find("sign") {
+        let name: String = rest[at..]
+            .chars()
+            .take_while(char::is_ascii_alphanumeric)
+            .collect();
+        rest = &rest[at + name.len()..];
+        if rest.trim_start().starts_with('(') {
+            signs.push(name);
+        }
+    }
+    if !signs.is_empty() {
+        return signs.join("+");
+    }
+    for name in ["Status", "status"] {
+        if query.contains(&format!("{name}(")) || query.contains(&format!("{name} {{")) {
+            return name.to_string();
+        }
+    }
+    "other".to_string()
+}
+
+/// Drop every `visitor_ip` (the module2 simulator echoes the caller's
+/// public address in its `info` object).
+fn scrub(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            map.remove("visitor_ip");
+            map.values_mut().for_each(scrub);
+        }
+        serde_json::Value::Array(items) => items.iter_mut().for_each(scrub),
+        _ => {}
+    }
+}
+
+/// Write one call to `MOYUN_LIVE_RECORD_DIR`, when set.
+fn record(request: &[u8], with_token: bool, status: u16, response: &str) {
+    let Ok(dir) = std::env::var("MOYUN_LIVE_RECORD_DIR") else {
+        return;
+    };
+    let dir = PathBuf::from(dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // A label names the call of its own operation only: an extra call
+    // in between (a status check) keeps its operation's name.
+    let operation = operation_name(request);
+    let mut next = NEXT_LABEL.lock().unwrap();
+    let mut label = match next.as_deref() {
+        Some(l) if l.starts_with(&operation) => next.take().unwrap(),
+        _ => operation.clone(),
+    };
+    drop(next);
+    let base = label.clone();
+    for n in 2.. {
+        if !dir.join(format!("{label}_request.json")).exists() {
+            break;
+        }
+        label = format!("{base}_{n}");
+    }
+    let as_json = |raw: &[u8]| {
+        serde_json::from_slice::<serde_json::Value>(raw)
+            .unwrap_or_else(|_| serde_json::Value::String(String::from_utf8_lossy(raw).into()))
+    };
+    let mut answer = as_json(response.as_bytes());
+    scrub(&mut answer);
+    let pretty = |v: &serde_json::Value| serde_json::to_string_pretty(v).unwrap() + "\n";
+    std::fs::write(
+        dir.join(format!("{label}_request.json")),
+        pretty(&as_json(request)),
+    )
+    .unwrap();
+    std::fs::write(dir.join(format!("{label}_response.json")), pretty(&answer)).unwrap();
+    let line = serde_json::json!({
+        "label": label,
+        "operation": operation,
+        "httpStatus": status,
+        "token": with_token,
+    });
+    use std::io::Write;
+    let mut calls = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("calls.jsonl"))
+        .unwrap();
+    writeln!(calls, "{line}").unwrap();
+}
 
 /// The test setup identity module2 allows (UC_TestSetup_20240806).
 pub const LIVE_POS_ID: &str = "CPOS0031234567";
@@ -95,11 +205,12 @@ async fn forward(
         }
     }
     let n = FORWARDED.fetch_add(1, Ordering::SeqCst) + 1;
+    let with_token = headers.contains_key(header::AUTHORIZATION);
     let mut request = proxy
         .client
         .post(&proxy.target)
         .header(header::CONTENT_TYPE, "application/json")
-        .body(body);
+        .body(body.clone());
     if let Some(auth) = headers.get(header::AUTHORIZATION) {
         request = request.header(header::AUTHORIZATION, auth);
     }
@@ -113,6 +224,7 @@ async fn forward(
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             eprintln!("live FDM call {n}: HTTP {status}");
+            record(&body, with_token, status.as_u16(), &text);
             let status = StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
             (status, text).into_response()
         }

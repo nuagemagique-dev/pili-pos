@@ -1,0 +1,17 @@
+{
+  "errors": [
+    {
+      "locations": [
+        {
+          "column": 9,
+          "line": 1
+        }
+      ],
+      "message": "Cannot query field \"nope\" on type \"Query\"."
+    }
+  ],
+  "info": {
+    "https": false,
+    "version": "2.2.0.5"
+  }
+}

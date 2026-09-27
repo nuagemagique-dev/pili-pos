@@ -1,0 +1,113 @@
+{
+  "query": "mutation($data: ReportTurnoverXInput!, $isTraining: Boolean!) { signReportTurnoverX(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "fdf45738-dcc2-4d44-9779-d89e89f6097d",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "fdmDevices": [
+        {
+          "fdmId": "FDM02000425",
+          "firstFdmDateTime": "2026-09-27T17:17:26Z",
+          "firstTotalCounter": 20,
+          "lastFdmDateTime": "2026-09-27T17:17:35Z",
+          "lastTotalCounter": 29
+        }
+      ],
+      "language": "FR",
+      "posDateTime": "2026-09-27T19:17:35.985+02:00",
+      "posDevices": [
+        {
+          "firstPosDateTime": "2026-09-27T19:17:25.020+02:00",
+          "lastPosDateTime": "2026-09-27T19:17:34.893+02:00",
+          "posId": "CPOS0031234567",
+          "terminalId": "POS-1-BAR"
+        }
+      ],
+      "posFiscalTicketNo": 5,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "PAPER",
+      "turnover": {
+        "departments": [
+          {
+            "amount": 12.0,
+            "departmentId": "1",
+            "departmentName": "Boissons"
+          },
+          {
+            "amount": 28.0,
+            "departmentId": "2",
+            "departmentName": "Cuisine"
+          }
+        ],
+        "drawersOpenCount": 1,
+        "invoices": [],
+        "negQuantities": [
+          {
+            "amount": -12.0,
+            "negQuantityCount": 1,
+            "negQuantityReason": "REFUND",
+            "ticketCount": 1
+          }
+        ],
+        "payments": [
+          {
+            "amount": [
+              {
+                "correctionsCount": 0,
+                "negativeCorrections": 0.0,
+                "normalAmount": 40.0,
+                "positiveCorrections": 0.0,
+                "totalAmount": 40.0,
+                "type": "PAYMENT"
+              }
+            ],
+            "id": "1",
+            "name": "Cash",
+            "type": "CASH"
+          }
+        ],
+        "priceChanges": [],
+        "transactions": [
+          {
+            "amount": 40.0,
+            "eventLabel": "N",
+            "ticketCount": 2
+          },
+          {
+            "amount": 104.0,
+            "eventLabel": "P",
+            "ticketCount": 2
+          },
+          {
+            "amount": 12.0,
+            "eventLabel": "T",
+            "ticketCount": 1
+          }
+        ],
+        "vats": [
+          {
+            "label": "A",
+            "rate": 21.0,
+            "taxableAmount": 9.91,
+            "totalAmount": 12.0,
+            "vatAmount": 2.09
+          },
+          {
+            "label": "B",
+            "rate": 12.0,
+            "taxableAmount": 25.0,
+            "totalAmount": 28.0,
+            "vatAmount": 3.0
+          }
+        ]
+      },
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

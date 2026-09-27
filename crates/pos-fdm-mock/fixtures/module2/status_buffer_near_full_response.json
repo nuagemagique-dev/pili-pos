@@ -1,0 +1,29 @@
+{
+  "data": {
+    "fdmStatus": {
+      "device": {
+        "bufferCapacityUsed": 0.17,
+        "fdmDateTime": "2026-09-27T17:19:24Z",
+        "fdmId": "FDM02000425",
+        "fdmSwVersion": "2.2.0.5"
+      },
+      "errors": [],
+      "informations": [],
+      "initialized": false,
+      "warnings": [
+        {
+          "extensions": {
+            "category": "SPF_FOD",
+            "code": "BUFFER_NEAR_FULL",
+            "showPos": "MANDATORY"
+          },
+          "message": "FDM buffer usage exceeds 70%."
+        }
+      ]
+    }
+  },
+  "info": {
+    "https": false,
+    "version": "2.2.0.5"
+  }
+}

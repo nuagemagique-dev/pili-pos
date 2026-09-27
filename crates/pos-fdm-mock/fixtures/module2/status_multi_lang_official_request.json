@@ -1,0 +1,5 @@
+{
+    "operationName": "Q110_Status_multi_lang_messages",
+    "variables": {},
+    "query": "query Q110_Status_multi_lang_messages {\n  status(language: EN) {\n    __typename\n    initialized\n    device {\n      __typename\n      bufferCapacityUsed\n      fdmDateTime\n      fdmId\n      fdmSwVersion\n    }\n    ...messages\n  }\n  messagesFR: status(language: FR) {\n    ...messages\n  }\n  messagesNL: status(language: NL) {\n    ...messages\n  }\n  messagesDE: status(language: DE) {\n    ...messages\n  }\n}\n\nfragment messageFields on MessageItem {\n  __typename\n  message\n  locations {\n    line\n    column\n  }\n  extensions {\n    __typename\n    category\n    code\n    data {\n      __typename\n      name\n      value\n    }\n    showPos\n  }\n}\n\nfragment messages on FdmStatus {\n  errors {\n    ...messageFields\n  }\n  warnings {\n    ...messageFields\n  }\n  informations {\n    ...messageFields\n  }\n}\n"
+}

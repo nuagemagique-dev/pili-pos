@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "extensions": {
+        "category": "SPF_FOD",
+        "code": "BUFFER_FULL",
+        "showPos": "MANDATORY"
+      },
+      "message": "FDM buffer is full."
+    }
+  ]
+}

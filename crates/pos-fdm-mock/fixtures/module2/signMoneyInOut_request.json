@@ -1,0 +1,31 @@
+{
+  "query": "mutation($data: MoneyInOutInput!, $isTraining: Boolean!) { signMoneyInOut(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "fdf45738-dcc2-4d44-9779-d89e89f6097d",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "financials": [
+        {
+          "amount": 50.0,
+          "amountType": "MONEY_IN_OUT",
+          "id": "MOV1",
+          "inputMethod": "MANUAL",
+          "name": "Fond",
+          "type": "CASH"
+        }
+      ],
+      "language": "FR",
+      "posDateTime": "2026-09-27T19:17:31.616+02:00",
+      "posFiscalTicketNo": 4,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "NONE",
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

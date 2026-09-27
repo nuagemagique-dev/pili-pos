@@ -1,0 +1,32 @@
+{
+  "data": {
+    "signReportTurnoverX": {
+      "bufferCapacityUsed": 0.15,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_D6Vtt+A8XQnUGy0glcQOOfKKs6FApBxaW4DQDw",
+      "eventOperation": "REPORT_TURNOVER_X",
+      "fdmRef": {
+        "eventCounter": 5,
+        "eventLabel": "R",
+        "fdmDateTime": "2026-09-27T17:17:37Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 30
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T19:17:35.985+02:00",
+      "posFiscalTicketNo": 5,
+      "posId": "CPOS0031234567",
+      "shortSignature": null,
+      "terminalId": "POS-1-BAR",
+      "vatCalc": null,
+      "verificationUrl": null,
+      "warnings": []
+    }
+  },
+  "info": {
+    "https": false,
+    "version": "2.2.0.5"
+  }
+}
