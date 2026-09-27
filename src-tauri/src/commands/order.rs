@@ -215,6 +215,24 @@ pub fn do_list_order_lines(state: &AppState, order_id: i64) -> Result<Vec<OrderL
     pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())
 }
 
+/// The order's lines as the cart shows them: names in French and
+/// Chinese, and the quantity not yet sent to the bar / kitchen.
+#[tauri::command]
+pub fn list_cart_lines(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
+    do_list_cart_lines(state.inner(), order_id)
+}
+
+pub fn do_list_cart_lines(
+    state: &AppState,
+    order_id: i64,
+) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    pos_db::queries::orders::get_cart_lines(&db, order_id).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn list_open_orders(state: State<'_, AppState>) -> Result<Vec<Order>, String> {
     do_list_open_orders(state.inner())

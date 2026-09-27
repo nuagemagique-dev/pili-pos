@@ -308,6 +308,8 @@ fn main() {
         commands::settings::set_training_mode,
         // Tables
         commands::tables::list_tables,
+        commands::order::list_cart_lines,
+        commands::social::list_open_shifts,
         commands::tables::list_open_takeaways,
         commands::tables::sign_table_order,
         commands::tables::sign_pre_bill,
@@ -384,6 +386,8 @@ fn main() {
         commands::settings::set_training_mode,
         // Tables
         commands::tables::list_tables,
+        commands::order::list_cart_lines,
+        commands::social::list_open_shifts,
         commands::tables::list_open_takeaways,
         commands::tables::sign_table_order,
         commands::tables::sign_pre_bill,

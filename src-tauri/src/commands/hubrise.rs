@@ -156,6 +156,10 @@ pub struct WebshopOrderItem {
     /// wasabi", …) - empty when the item has no modifiers.
     pub options: Vec<String>,
     pub customer_notes: Option<String>,
+    /// Chinese name of the menu product whose French name matches
+    /// `product_name`, when there is one: the kitchen staff read
+    /// Chinese first (UX guide §10).
+    pub product_name_zh: Option<String>,
 }
 
 /// Summary of a webshop order kept locally (is_fiscal = 0).
@@ -269,6 +273,7 @@ fn summary_from_raw(
                 line_total_cents,
                 options,
                 customer_notes,
+                product_name_zh: None,
             });
         }
     }
@@ -363,7 +368,32 @@ pub fn hubrise_list_webshop_orders(
     for r in rows {
         out.push(r.map_err(|e| e.to_string())?);
     }
+    let chinese = chinese_names_by_french_name(&db).map_err(|e| e.to_string())?;
+    for item in out.iter_mut().flat_map(|o| o.items.iter_mut()) {
+        item.product_name_zh = chinese.get(&item.product_name.to_lowercase()).cloned();
+    }
     Ok(out)
+}
+
+/// Menu products' Chinese names, keyed by their lower-cased French name.
+fn chinese_names_by_french_name(
+    db: &rusqlite::Connection,
+) -> Result<std::collections::HashMap<String, String>, rusqlite::Error> {
+    let mut stmt = db.prepare(
+        "SELECT fr.value, zh.value
+         FROM translations fr
+         JOIN translations zh
+           ON zh.entity_type = 'menu_item' AND zh.entity_id = fr.entity_id
+              AND zh.field = 'name' AND zh.lang = 'zh'
+         WHERE fr.entity_type = 'menu_item' AND fr.field = 'name' AND fr.lang = 'fr'",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?.to_lowercase(),
+            row.get::<_, String>(1)?,
+        ))
+    })?;
+    rows.collect()
 }
 
 #[derive(Debug, Deserialize)]

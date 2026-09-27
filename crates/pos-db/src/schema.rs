@@ -474,6 +474,24 @@ DROP TABLE payments;
 ALTER TABLE payments_v8 RENAME TO payments;
 "#;
 
+/// v9 - Screen state shown by the UI.
+/// - `staff_shifts`: one row per shift, opened by a signed WorkIn and
+///   closed by a signed WorkOut. Locking the screen keeps the shift
+///   open, so the login screen can show who is on shift and since when.
+///   The fiscal record stays the S event; this table is a local index.
+/// - `orders.pre_bill_at`: when the last provisional bill was printed,
+///   so the Tables screen can flag a table whose bill is on the table.
+pub(crate) const MIGRATION_009_SHIFTS_AND_PRE_BILL: &str = r#"
+CREATE TABLE IF NOT EXISTS staff_shifts (
+    id INTEGER PRIMARY KEY,
+    user_insz TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    ended_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_staff_shifts_open ON staff_shifts(user_insz, ended_at);
+ALTER TABLE orders ADD COLUMN pre_bill_at TEXT;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -87,8 +87,35 @@ async fn do_work_event(
         },
     )?;
 
+    // The screen lock keeps a shift open; only a signed clock-out ends it.
+    {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let recorded = if is_in {
+            pos_db::queries::shifts::open_shift(&db, &employee_insz)
+        } else {
+            pos_db::queries::shifts::close_shift(&db, &employee_insz)
+        };
+        recorded.map_err(|e| e.to_string())?;
+    }
+
     Ok(SocialResult {
         success: true,
         error: None,
     })
+}
+
+/// Employees currently on shift (clocked in, not yet clocked out),
+/// shown on the login screen.
+#[tauri::command]
+pub fn list_open_shifts(
+    state: State<'_, AppState>,
+) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {
+    do_list_open_shifts(state.inner())
+}
+
+pub fn do_list_open_shifts(
+    state: &AppState,
+) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    pos_db::queries::shifts::list_open_shifts(&db).map_err(|e| e.to_string())
 }

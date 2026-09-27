@@ -6,6 +6,12 @@ use crate::vat::VatCode;
 pub struct Category {
     pub id: i64,
     pub name: String,
+    /// French and Chinese names, whatever the UI language: product
+    /// buttons and cart lines show both, the UI language first.
+    #[serde(default)]
+    pub name_fr: Option<String>,
+    #[serde(default)]
+    pub name_zh: Option<String>,
     pub sort_order: i32,
     pub color: Option<String>,
     pub active: bool,
@@ -16,6 +22,12 @@ pub struct MenuItem {
     pub id: i64,
     pub category_id: i64,
     pub name: String,
+    /// French and Chinese names, whatever the UI language: product
+    /// buttons and cart lines show both, the UI language first.
+    #[serde(default)]
+    pub name_fr: Option<String>,
+    #[serde(default)]
+    pub name_zh: Option<String>,
     pub price_cents: i64,
     pub vat_code: VatCode,
     /// VAT label for takeaway sales (manual §III product lines, column

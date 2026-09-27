@@ -5,7 +5,9 @@ use rusqlite::{Connection, params};
 pub fn get_categories(conn: &Connection, lang: &str) -> Result<Vec<Category>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT c.id, c.sort_order, c.color, c.active,
-                COALESCE(t.value, 'unnamed') as name
+                COALESCE(t.value, 'unnamed') as name,
+                (SELECT value FROM translations WHERE entity_type = 'category' AND entity_id = c.id AND field = 'name' AND lang = 'fr'),
+                (SELECT value FROM translations WHERE entity_type = 'category' AND entity_id = c.id AND field = 'name' AND lang = 'zh')
          FROM categories c
          LEFT JOIN translations t
            ON t.entity_type = 'category' AND t.entity_id = c.id
@@ -21,6 +23,8 @@ pub fn get_categories(conn: &Connection, lang: &str) -> Result<Vec<Category>, ru
             color: row.get(2)?,
             active: row.get::<_, i32>(3)? != 0,
             name: row.get(4)?,
+            name_fr: row.get(5)?,
+            name_zh: row.get(6)?,
         })
     })?;
 
@@ -35,7 +39,9 @@ pub fn get_menu_items(
     let sql = if category_id.is_some() {
         "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
-                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price
+                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh')
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -45,7 +51,9 @@ pub fn get_menu_items(
     } else {
         "SELECT m.id, m.category_id, m.price_cents, m.vat_code,
                 m.kitchen_printer, m.sort_order, m.active,
-                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price
+                COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh')
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -82,6 +90,8 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         name: row.get(7)?,
         vat_code_takeaway: parse_optional_vat(row, 8)?,
         open_price: row.get::<_, i32>(9)? != 0,
+        name_fr: row.get(10)?,
+        name_zh: row.get(11)?,
     })
 }
 

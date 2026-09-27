@@ -247,7 +247,61 @@ fn insert_entry(
             Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
         ],
     )?;
+    // A provisional bill no longer matches the order once it changes.
+    conn.execute(
+        "UPDATE orders SET pre_bill_at = NULL
+         WHERE id = (SELECT order_id FROM order_lines WHERE id = ?1)",
+        params![line_id],
+    )?;
     Ok(())
+}
+
+/// Record that a provisional bill of the order was printed.
+pub fn mark_pre_bill_printed(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "UPDATE orders SET pre_bill_at = ?1 WHERE id = ?2",
+        params![
+            Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            order_id
+        ],
+    )?;
+    Ok(())
+}
+
+/// A cart line as the order screen shows it: the consolidated line,
+/// its product name in French and Chinese, and the quantity not yet
+/// sent to the bar / kitchen (entries not yet in a signed P or N).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CartLine {
+    #[serde(flatten)]
+    pub line: OrderLine,
+    pub name_fr: Option<String>,
+    pub name_zh: Option<String>,
+    pub unsent_quantity: i64,
+}
+
+pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT ol.id, ol.order_id, ol.menu_item_id, ol.quantity, ol.unit_price_cents, ol.vat_code,
+                ol.name, ol.modifiers_json, ol.created_at,
+                COALESCE(ol.department_id, ''), COALESCE(ol.department_name, ''),
+                (SELECT value FROM translations WHERE entity_type = 'menu_item'
+                    AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'fr'),
+                (SELECT value FROM translations WHERE entity_type = 'menu_item'
+                    AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'zh'),
+                COALESCE((SELECT SUM(e.quantity) FROM order_entries e
+                          WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0)
+         FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
+    )?;
+    let rows = stmt.query_map(params![order_id], |row| {
+        Ok(CartLine {
+            line: map_order_line(row)?,
+            name_fr: row.get(11)?,
+            name_zh: row.get(12)?,
+            unsent_quantity: row.get(13)?,
+        })
+    })?;
+    rows.collect()
 }
 
 /// Lines of closed or voided orders are part of a signed record and

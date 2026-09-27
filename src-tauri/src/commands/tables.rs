@@ -19,6 +19,10 @@ pub struct TableInfo {
     pub total_cents: i64,
     pub line_count: i64,
     pub status: String,
+    /// When the table's order was opened (UTC, RFC 3339).
+    pub opened_at: Option<String>,
+    /// A provisional bill was printed and the order has not changed since.
+    pub pre_bill_printed: bool,
 }
 
 /// List tables with their current order status.
@@ -38,9 +42,9 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
     let mut tables = Vec::new();
 
     for t in 1..=table_count {
-        let row: Option<(i64, i64, i64)> = db
+        let row: Option<(i64, i64, i64, String, bool)> = db
             .query_row(
-                "SELECT o.id, o.total_cents, COUNT(ol.id)
+                "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at, o.pre_bill_at IS NOT NULL
                  FROM orders o
                  LEFT JOIN order_lines ol ON ol.order_id = o.id
                  WHERE o.table_number = ?1 AND o.status = 'open'
@@ -49,17 +53,27 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
                  ORDER BY o.id
                  LIMIT 1",
                 rusqlite::params![t],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .ok();
 
         tables.push(match row {
-            Some((order_id, total, count)) => TableInfo {
+            Some((order_id, total, count, opened_at, pre_bill_printed)) => TableInfo {
                 table_number: t,
                 order_id: Some(order_id),
                 total_cents: total,
                 line_count: count,
                 status: "occupied".to_string(),
+                opened_at: Some(opened_at),
+                pre_bill_printed,
             },
             None => TableInfo {
                 table_number: t,
@@ -67,6 +81,8 @@ pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInf
                 total_cents: 0,
                 line_count: 0,
                 status: "free".to_string(),
+                opened_at: None,
+                pre_bill_printed: false,
             },
         });
     }
@@ -256,6 +272,10 @@ pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<SlipOut
             sent_entries: None,
         },
     )?;
+    {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        pos_db::queries::orders::mark_pre_bill_printed(&db, order_id).map_err(|e| e.to_string())?;
+    }
 
     // Print pro forma receipt
     if let Some(addr) = config.printer_address.as_ref() {
