@@ -81,7 +81,7 @@ pub(crate) async fn print_bar_slip(
         is_training: config.training_mode,
     };
     match pos_print::transport::send_to_printer(addr, &format_bar_ticket(&ticket)).await {
-        Ok(status) if status.paper_ok && status.cover_closed => SlipOutcome::Printed,
+        Ok(status) if status.ready() => SlipOutcome::Printed,
         Ok(status) => {
             tracing::warn!(?status.warnings, addr, "bar slip printer not ready");
             SlipOutcome::Failed

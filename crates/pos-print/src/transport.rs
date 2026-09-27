@@ -35,6 +35,8 @@ pub enum TransportError {
 pub struct PrinterStatus {
     pub paper_ok: bool,
     pub cover_closed: bool,
+    /// No error stops the printer (cutter jam, head too hot, ...).
+    pub error_free: bool,
     pub warnings: Vec<String>,
 }
 
@@ -43,10 +45,63 @@ impl Default for PrinterStatus {
         Self {
             paper_ok: true,
             cover_closed: true,
+            error_free: true,
             warnings: Vec::new(),
         }
     }
 }
+
+impl PrinterStatus {
+    /// Nothing keeps the job from coming out of the printer.
+    pub fn ready(&self) -> bool {
+        self.paper_ok && self.cover_closed && self.error_free
+    }
+
+    /// Read the answer to DLE EOT 2, the offline cause (Epson ESC/POS:
+    /// bit 2 cover open, bit 5 stopped at paper end, bit 6 error).
+    pub fn read_offline_cause(&mut self, byte: u8) {
+        if byte & OFFLINE_COVER_OPEN != 0 {
+            self.cover_closed = false;
+            self.warnings.push("cover_open".to_string());
+        }
+        if byte & OFFLINE_PAPER_END != 0 && self.paper_ok {
+            self.paper_ok = false;
+            self.warnings.push("paper_end".to_string());
+        }
+        if byte & OFFLINE_ERROR != 0 {
+            self.error_free = false;
+            self.warnings.push("error".to_string());
+        }
+    }
+
+    /// Read the answer to DLE EOT 4, the roll paper sensor (Epson
+    /// ESC/POS: bits 2-3 near end, bits 5-6 paper end).
+    pub fn read_paper_sensor(&mut self, byte: u8) {
+        if byte & PAPER_END != 0 {
+            if self.paper_ok {
+                self.paper_ok = false;
+                self.warnings.push("paper_end".to_string());
+            }
+        } else if byte & PAPER_NEAR_END != 0 {
+            self.warnings.push("paper_near_end".to_string());
+        }
+    }
+}
+
+/// DLE EOT n: transmit real-time status n.
+pub const DLE_EOT: [u8; 2] = [0x10, 0x04];
+/// DLE EOT 2 answer: cover open.
+pub const OFFLINE_COVER_OPEN: u8 = 0x04;
+/// DLE EOT 2 answer: printing stopped at paper end.
+pub const OFFLINE_PAPER_END: u8 = 0x20;
+/// DLE EOT 2 answer: an error occurred.
+pub const OFFLINE_ERROR: u8 = 0x40;
+/// DLE EOT 4 answer: roll paper near end (both sensor bits).
+pub const PAPER_NEAR_END: u8 = 0x0C;
+/// DLE EOT 4 answer: roll paper end (both sensor bits).
+pub const PAPER_END: u8 = 0x60;
+/// The bits every status byte carries (bits 1 and 4 fixed to 1).
+pub const STATUS_FIXED: u8 = 0x12;
 
 /// TCP transport for sending ESC/POS data to a network printer.
 ///
@@ -121,56 +176,29 @@ pub async fn send_to_printer(address: &str, data: &[u8]) -> Result<PrinterStatus
     printer.send(data).await
 }
 
-/// Query the printer's real-time status via ESC/POS DLE EOT command.
+/// Query the printer's real-time status via ESC/POS DLE EOT: the
+/// offline cause (n = 2) and the roll paper sensor (n = 4).
 /// Returns a default (optimistic) status on timeout or read error.
 async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
     let mut status = PrinterStatus::default();
 
-    // DLE EOT 1 = paper sensor status
-    // DLE EOT 3 = error status (cover, paper feed)
-    for &(cmd_n, label) in &[(1u8, "paper"), (3u8, "error")] {
-        let cmd = [0x10u8, 0x04, cmd_n]; // DLE EOT n
-        if stream.write_all(&cmd).await.is_err() {
+    for n in [2u8, 4] {
+        if stream
+            .write_all(&[DLE_EOT[0], DLE_EOT[1], n])
+            .await
+            .is_err()
+        {
             return status; // Unidirectional - give up.
         }
         let _ = stream.flush().await;
 
         let mut buf = [0u8; 1];
-        let read_result =
-            tokio::time::timeout(STATUS_READ_TIMEOUT, stream.read_exact(&mut buf)).await;
-
-        match read_result {
-            Ok(Ok(_)) => {
-                let byte = buf[0];
-                match label {
-                    "paper" => {
-                        // Bit 5: paper near-end, Bit 6: paper end
-                        if byte & (1 << 6) != 0 {
-                            status.paper_ok = false;
-                            status.warnings.push("paper_end".to_string());
-                        } else if byte & (1 << 5) != 0 {
-                            status.warnings.push("paper_near_end".to_string());
-                        }
-                    }
-                    "error" => {
-                        // Bit 2: cover open, Bit 5: paper feed error
-                        if byte & (1 << 2) != 0 {
-                            status.cover_closed = false;
-                            status.warnings.push("cover_open".to_string());
-                        }
-                        if byte & (1 << 5) != 0 {
-                            status.paper_ok = false;
-                            status.warnings.push("feed_error".to_string());
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            _ => {
-                // Timeout or read error - printer may not support
-                // DLE EOT. Return what we have so far.
-                return status;
-            }
+        match tokio::time::timeout(STATUS_READ_TIMEOUT, stream.read_exact(&mut buf)).await {
+            Ok(Ok(_)) if n == 2 => status.read_offline_cause(buf[0]),
+            Ok(Ok(_)) => status.read_paper_sensor(buf[0]),
+            // Timeout or read error - printer may not support
+            // DLE EOT. Return what we have so far.
+            _ => return status,
         }
     }
 
@@ -199,6 +227,55 @@ mod tests {
         assert!(status.paper_ok);
         assert!(status.cover_closed);
         assert!(status.warnings.is_empty());
+        assert!(status.ready());
+    }
+
+    #[test]
+    fn an_all_fine_printer_answers_the_fixed_bits_only() {
+        let mut status = PrinterStatus::default();
+        status.read_offline_cause(STATUS_FIXED);
+        status.read_paper_sensor(STATUS_FIXED);
+        assert!(status.ready());
+        assert!(status.warnings.is_empty());
+    }
+
+    #[test]
+    fn the_offline_cause_reports_cover_paper_end_and_error() {
+        let mut status = PrinterStatus::default();
+        status.read_offline_cause(STATUS_FIXED | OFFLINE_COVER_OPEN);
+        assert!(!status.cover_closed && status.paper_ok && status.error_free);
+
+        let mut status = PrinterStatus::default();
+        status.read_offline_cause(STATUS_FIXED | OFFLINE_ERROR);
+        assert!(!status.error_free && !status.ready());
+        assert_eq!(status.warnings, ["error"]);
+    }
+
+    #[test]
+    fn paper_end_is_reported_once_by_both_bytes() {
+        let mut status = PrinterStatus::default();
+        status.read_offline_cause(STATUS_FIXED | OFFLINE_PAPER_END);
+        status.read_paper_sensor(STATUS_FIXED | PAPER_END);
+        assert!(!status.paper_ok);
+        assert_eq!(status.warnings, ["paper_end"]);
+    }
+
+    #[test]
+    fn paper_near_end_is_a_warning_only() {
+        let mut status = PrinterStatus::default();
+        status.read_paper_sensor(STATUS_FIXED | PAPER_NEAR_END);
+        assert!(status.ready());
+        assert_eq!(status.warnings, ["paper_near_end"]);
+    }
+
+    #[test]
+    fn the_feed_button_is_not_a_paper_problem() {
+        // Paper being fed with the button (DLE EOT 2 bit 3) stops
+        // nothing. The feed button bit of DLE EOT 1 used to be read as
+        // paper end.
+        let mut status = PrinterStatus::default();
+        status.read_offline_cause(STATUS_FIXED | 0x08); // paper fed by the button
+        assert!(status.ready());
     }
 
     /// Bind then immediately drop a listener: the OS refuses new
