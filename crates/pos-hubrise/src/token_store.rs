@@ -69,7 +69,9 @@ pub fn save(conn: &Connection, c: &StoredConnection) -> Result<()> {
             customer_list_id = excluded.customer_list_id,
             customer_list_name = excluded.customer_list_name,
             scope = excluded.scope,
-            base_url = excluded.base_url",
+            base_url = excluded.base_url,
+            auth_error_at = NULL,
+            last_error = NULL",
         params![
             c.access_token,
             c.account_id,
@@ -100,6 +102,78 @@ pub fn update_cursor(conn: &Connection, cursor: Option<&str>) -> Result<()> {
         params![cursor],
     )?;
     Ok(())
+}
+
+/// HubRise refused the token (401): the connection was revoked or
+/// blocked. Shown until a request succeeds again.
+pub fn set_auth_error(conn: &Connection, message: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE hubrise_connection
+         SET auth_error_at = COALESCE(auth_error_at, datetime('now')), last_error = ?1
+         WHERE id = 1",
+        params![message],
+    )?;
+    Ok(())
+}
+
+/// A request went through: no authentication error any more.
+pub fn clear_auth_error(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "UPDATE hubrise_connection SET auth_error_at = NULL WHERE id = 1 AND auth_error_at IS NOT NULL",
+        [],
+    )?;
+    Ok(())
+}
+
+/// The last transport error, for the status screen (`None` clears it).
+pub fn set_last_error(conn: &Connection, message: Option<&str>) -> Result<()> {
+    conn.execute(
+        "UPDATE hubrise_connection SET last_error = ?1 WHERE id = 1",
+        params![message],
+    )?;
+    Ok(())
+}
+
+/// The passive callback is registered (see `callbacks`).
+pub fn mark_callback_registered(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "UPDATE hubrise_connection SET callback_registered_at = datetime('now') WHERE id = 1",
+        [],
+    )?;
+    Ok(())
+}
+
+/// What the status screen shows about the connection.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct ConnectionHealth {
+    pub connected: bool,
+    pub last_poll_at: Option<String>,
+    pub auth_error_at: Option<String>,
+    pub last_error: Option<String>,
+    pub callback_registered_at: Option<String>,
+    pub last_catalog_sync_at: Option<String>,
+}
+
+pub fn health(conn: &Connection) -> Result<ConnectionHealth> {
+    let row = conn
+        .query_row(
+            "SELECT last_poll_at, auth_error_at, last_error, callback_registered_at,
+                    last_catalog_sync_at
+             FROM hubrise_connection WHERE id = 1",
+            [],
+            |r| {
+                Ok(ConnectionHealth {
+                    connected: true,
+                    last_poll_at: r.get(0)?,
+                    auth_error_at: r.get(1)?,
+                    last_error: r.get(2)?,
+                    callback_registered_at: r.get(3)?,
+                    last_catalog_sync_at: r.get(4)?,
+                })
+            },
+        )
+        .optional()?;
+    Ok(row.unwrap_or_default())
 }
 
 #[cfg(test)]
@@ -162,6 +236,24 @@ mod tests {
         save(&conn, &sample()).unwrap();
         clear(&conn).unwrap();
         assert!(load(&conn).unwrap().is_none());
+    }
+
+    #[test]
+    fn an_auth_error_shows_until_cleared() {
+        let conn = test_conn();
+        save(&conn, &sample()).unwrap();
+        set_auth_error(&conn, "blocked").unwrap();
+        let h = health(&conn).unwrap();
+        assert!(h.auth_error_at.is_some());
+        assert_eq!(h.last_error.as_deref(), Some("blocked"));
+        clear_auth_error(&conn).unwrap();
+        assert!(health(&conn).unwrap().auth_error_at.is_none());
+    }
+
+    #[test]
+    fn health_without_connection_is_disconnected() {
+        let conn = test_conn();
+        assert!(!health(&conn).unwrap().connected);
     }
 
     #[test]

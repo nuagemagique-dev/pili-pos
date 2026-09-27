@@ -80,6 +80,35 @@ impl TestApp {
     /// state is built.
     pub async fn with_fdm(fdm: MockServer) -> Self {
         let conn = Connection::open_in_memory().expect("in-memory sqlite");
+        #[cfg(feature = "hubrise")]
+        let poller = Connection::open_in_memory().expect("poller sqlite");
+        Self::with_fdm_and_db(
+            fdm,
+            conn,
+            #[cfg(feature = "hubrise")]
+            poller,
+        )
+    }
+
+    /// A TestApp whose UI and poller connections share one database
+    /// file, as in production: what the HubRise poller writes, the
+    /// commands read. The file lives until the returned guard drops.
+    #[cfg(feature = "hubrise")]
+    pub async fn with_shared_db() -> (Self, tempfile::TempDir) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("pos.db");
+        let conn = Connection::open(&path).expect("sqlite file");
+        pos_db::schema::run_migrations(&conn).expect("migrate");
+        let poller = Connection::open(&path).expect("poller sqlite");
+        let fdm = MockServer::start().await;
+        (Self::with_fdm_and_db(fdm, conn, poller), dir)
+    }
+
+    fn with_fdm_and_db(
+        fdm: MockServer,
+        conn: Connection,
+        #[cfg(feature = "hubrise")] poller: Connection,
+    ) -> Self {
         pos_db::schema::run_migrations(&conn).expect("migrate");
 
         let config = PosConfig {
@@ -113,12 +142,14 @@ impl TestApp {
         let state = AppState {
             db: Mutex::new(conn),
             #[cfg(feature = "hubrise")]
-            poller_db: Arc::new(Mutex::new(
-                Connection::open_in_memory().expect("poller sqlite"),
-            )),
+            poller_db: Arc::new(Mutex::new(poller)),
             config: Mutex::new(config),
             #[cfg(feature = "hubrise")]
             shared_http: reqwest::Client::new(),
+            #[cfg(feature = "hubrise")]
+            hubrise_poll_now: Arc::new(tokio::sync::Notify::new()),
+            #[cfg(feature = "hubrise")]
+            hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),
             shutdown_token: CancellationToken::new(),
             mail: pili_pos::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),

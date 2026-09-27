@@ -1,32 +1,75 @@
-//! Tokio-based polling loop that fetches HubRise callback events
-//! every 30 seconds and dispatches them.
+//! The HubRise event poller: reads the passive callback's events
+//! (`docs/hubrise/06-callbacks.md`), handles each, acknowledges it.
 //!
-//! Critical constraint: the `std::sync::MutexGuard` used to protect
-//! the SQLite connection is not `Send`, so we must NEVER hold it
-//! across `.await`. Each loop iteration takes the lock briefly to
-//! read stored state, releases it, performs HTTP calls, then
-//! re-acquires it to write results.
+//! Every pass reads all pages of `GET /callback/events`, oldest first.
+//! An event is stored before it is handled (idempotence: the same
+//! event twice is handled once), then deleted on HubRise. One that
+//! keeps failing is parked after [`MAX_EVENT_ATTEMPTS`] tries so it
+//! never blocks the others.
+//!
+//! Orders: the event names the order, the poller fetches it (events
+//! are listed without their state), stores it, and queues the
+//! `received` acknowledgement for a new one. Catalogs: the menu is
+//! synchronised from the connected catalog.
+//!
+//! At start-up (and on connect) [`start`] registers the passive
+//! callback and fetches the orders HubRise holds as `new` or
+//! `received`: an order placed while the POS was off is not lost.
+//!
+//! Critical constraint: the `std::sync::MutexGuard` protecting the
+//! SQLite connection is not `Send`, so it is NEVER held across
+//! `.await`: each step locks briefly, HTTP calls run unlocked.
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use pos_hubrise_types::{CallbackEvent, Catalog, Order, ServiceType};
-use rusqlite::{Connection, params};
+use pos_hubrise_types::{CallbackEvent, Catalog, Order, OrderStatus};
+use rusqlite::{Connection, OptionalExtension, params};
+use serde_json::json;
 use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 
-use crate::catalog_apply;
 use crate::client::Client;
-use crate::dispatcher::{DispatchOutcome, mark_failed, mark_processed, persist_event};
+use crate::dispatcher::{DispatchOutcome, mark_processed, persist_event};
 use crate::errors::{HubriseError, Result};
-use crate::token_store;
+use crate::token_store::{self, StoredConnection};
+use crate::{callbacks, outbox};
 
-/// Default polling interval (HubRise recommends at least 30s).
+/// Default polling interval (HubRise asks for at least 30 s).
 pub const POLL_INTERVAL: Duration = Duration::from_secs(30);
+/// Shortest gap between two passes, even when woken on purpose.
+pub const MIN_POLL_GAP: Duration = Duration::from_secs(5);
+/// Tries before an event is parked.
+pub const MAX_EVENT_ATTEMPTS: i64 = 5;
 
 /// Hook callback invoked by the loop whenever a dispatch produces a
 /// meaningful outcome. The Tauri layer uses this to `app.emit(...)`.
 pub type OutcomeHook = Arc<dyn Fn(DispatchOutcome, CallbackEvent) + Send + Sync>;
+
+/// What the poller does with a fetched order and a changed catalog.
+/// The Tauri layer plugs the webshop and menu logic in here; the
+/// defaults only mirror the order and apply the catalog as is.
+pub trait Handlers: Send + Sync {
+    /// Store or refresh an order fetched from HubRise. Returns true
+    /// when the POS should acknowledge it (`received`).
+    fn on_order(&self, conn: &Connection, order: &Order) -> Result<bool>;
+    /// Apply the connected catalog.
+    fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<()>;
+}
+
+/// The default handlers: mirror the order row, apply the catalog.
+pub struct DefaultHandlers;
+
+impl Handlers for DefaultHandlers {
+    fn on_order(&self, conn: &Connection, order: &Order) -> Result<bool> {
+        upsert_webshop_order(conn, order)?;
+        Ok(order.status == OrderStatus::New)
+    }
+
+    fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<()> {
+        crate::catalog_apply::apply(conn, catalog)
+    }
+}
 
 /// Context needed by the poller loop.
 pub struct PollerCtx {
@@ -35,165 +78,350 @@ pub struct PollerCtx {
     /// Must be separate from the UI connection to avoid lock contention.
     pub db: Arc<Mutex<Connection>>,
     pub on_outcome: Option<OutcomeHook>,
+    pub handlers: Arc<dyn Handlers>,
+    /// Wakes the loop for an early pass (after a staff action).
+    pub poll_now: Arc<tokio::sync::Notify>,
+    /// Wakes the outbox after queuing an acknowledgement.
+    pub outbox_wake: Option<Arc<tokio::sync::Notify>>,
 }
 
 /// Run the polling loop until `cancel` is triggered.
 pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
     let mut ticker = interval(POLL_INTERVAL);
-    // Skip the first immediate tick so startup doesn't hammer the API
-    // before the connection has a chance to be configured.
-    ticker.tick().await;
+    // The first tick is immediate: start-up registers the callback and
+    // fetches what arrived while the POS was off.
+    let mut started = false;
+    let mut last_pass: Option<Instant> = None;
 
     loop {
         tokio::select! {
-            _ = cancel.cancelled() => {
-                return;
-            }
-            _ = ticker.tick() => {
-                if let Err(e) = poll_once(&ctx).await {
-                    tracing::warn!(?e, "hubrise poll error");
+            _ = cancel.cancelled() => return,
+            _ = ticker.tick() => {}
+            _ = ctx.poll_now.notified() => {
+                if last_pass.is_some_and(|t| t.elapsed() < MIN_POLL_GAP) {
+                    continue;
                 }
             }
+        }
+        if !started {
+            match start(&ctx).await {
+                Ok(()) => started = true,
+                Err(e) => tracing::warn!(?e, "hubrise start-up"),
+            }
+        }
+        if let Err(e) = poll_once(&ctx).await {
+            tracing::warn!(?e, "hubrise poll error");
+        }
+        last_pass = Some(Instant::now());
+    }
+}
+
+fn load_client(ctx: &PollerCtx) -> Result<Option<(StoredConnection, Client)>> {
+    let db = ctx.db.lock().expect("poller db poisoned");
+    Ok(token_store::load(&db)?.map(|stored| {
+        let client = Client::new(ctx.http.clone(), &stored.base_url, &stored.access_token);
+        (stored, client)
+    }))
+}
+
+/// Register the passive callback, then fetch the orders HubRise holds
+/// as `new` or `received` and refresh the local open ones. Called at
+/// start-up and right after connecting. Does nothing when not
+/// connected.
+pub async fn start(ctx: &PollerCtx) -> Result<()> {
+    let Some((stored, client)) = load_client(ctx)? else {
+        return Ok(());
+    };
+    match callbacks::ensure_passive(&client).await {
+        Ok(_) => {
+            let db = ctx.db.lock().expect("poller db poisoned");
+            token_store::mark_callback_registered(&db)?;
+        }
+        Err(e) => return Err(note_error(ctx, e)),
+    }
+    for status in ["new", "received"] {
+        let path = format!("/locations/{}/orders?status={status}", stored.location_id);
+        let orders: Vec<Order> = match fetch_all(&client, &path).await {
+            Ok(o) => o,
+            Err(e) => return Err(note_error(ctx, e)),
+        };
+        for order in orders {
+            handle_order(ctx, &order)?;
+        }
+    }
+    // Orders already known and still open may have changed while the
+    // POS was off (a platform cancellation).
+    let open: Vec<String> = {
+        let db = ctx.db.lock().expect("poller db poisoned");
+        let mut stmt = db.prepare(
+            "SELECT hubrise_order_id FROM orders
+             WHERE hubrise_order_id IS NOT NULL AND status = 'open'",
+        )?;
+        stmt.query_map([], |r| r.get(0))?
+            .collect::<std::result::Result<_, _>>()?
+    };
+    for id in open {
+        let path = format!("/locations/{}/orders/{id}", stored.location_id);
+        match client.get_json::<Order>(&path).await {
+            Ok(order) => {
+                handle_order(ctx, &order)?;
+            }
+            Err(HubriseError::Api { status: 404, .. }) => {}
+            Err(e) => return Err(note_error(ctx, e)),
+        }
+    }
+    Ok(())
+}
+
+/// Every page of a list.
+async fn fetch_all<T: serde::de::DeserializeOwned>(client: &Client, path: &str) -> Result<Vec<T>> {
+    let mut all = Vec::new();
+    let mut cursor: Option<String> = None;
+    loop {
+        let page = client.get_page::<T>(path, cursor.as_deref()).await?;
+        all.extend(page.items);
+        match page.next_cursor {
+            Some(next) if Some(&next) != cursor.as_ref() => cursor = Some(next),
+            _ => return Ok(all),
         }
     }
 }
 
-async fn poll_once(ctx: &PollerCtx) -> Result<()> {
-    // 1. Snapshot the stored connection under a short, non-await lock.
-    let stored_opt = {
-        let db = ctx.db.lock().expect("poller db poisoned");
-        token_store::load(&db)?
-    };
-    let Some(stored) = stored_opt else {
-        return Ok(());
+/// Record `e` for the status screen (401: the authentication error).
+fn note_error(ctx: &PollerCtx, e: HubriseError) -> HubriseError {
+    if let Ok(db) = ctx.db.lock() {
+        let _ = match &e {
+            HubriseError::Unauthorized => {
+                token_store::set_auth_error(&db, "HubRise refused the access token")
+            }
+            other => token_store::set_last_error(&db, Some(&other.to_string())),
+        };
+    }
+    e
+}
+
+/// What one pass did.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PollReport {
+    pub events: usize,
+    pub handled: usize,
+    pub failed: usize,
+    pub parked: usize,
+    pub unauthorized: bool,
+}
+
+/// One pass over the waiting events.
+pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
+    let mut report = PollReport::default();
+    let Some((stored, client)) = load_client(ctx)? else {
+        return Ok(report);
     };
 
-    let client = Client::new(
-        ctx.http.clone(),
-        stored.base_url.clone(),
-        stored.access_token.clone(),
-    );
-
-    // 2. Fetch events over HTTP (no lock held).
-    let events: Vec<CallbackEvent> = match client.get_json("/callback/events?count=100").await {
+    let events: Vec<CallbackEvent> = match fetch_all(&client, "/callback/events").await {
         Ok(v) => v,
         Err(HubriseError::Unauthorized) => {
-            tracing::warn!("hubrise poll: unauthorized - token may be expired");
-            return Ok(());
+            note_error(ctx, HubriseError::Unauthorized);
+            report.unauthorized = true;
+            return Ok(report);
         }
-        Err(e) => return Err(e),
+        Err(e) => return Err(note_error(ctx, e)),
     };
+    {
+        let db = ctx.db.lock().expect("poller db poisoned");
+        token_store::clear_auth_error(&db)?;
+        token_store::update_cursor(&db, None)?;
+    }
+    report.events = events.len();
 
-    // 3. Persist + dispatch each event.
     for event in events {
         let raw = serde_json::to_string(&event)?;
-
-        // 3a. Short lock: idempotent insert.
-        {
+        let (done, parked) = {
             let db = ctx.db.lock().expect("poller db poisoned");
-            let _ = persist_event(&db, &event, &raw)?;
+            persist_event(&db, &event, &raw)?;
+            event_state(&db, &event.id)?
+        };
+        if done || parked {
+            // Handled (or given up) on an earlier pass whose delete was
+            // lost: acknowledge it again.
+            let _ = client
+                .delete(&format!("/callback/events/{}", event.id))
+                .await;
+            continue;
         }
 
-        // 3b. Route through a helper that returns the outcome after
-        //     any async work, keeping the DB lock scope minimal.
-        let outcome_res = process_event(&client, &ctx.db, &event).await;
-
-        match outcome_res {
+        match process_event(ctx, &client, &stored, &event).await {
             Ok(outcome) => {
                 {
                     let db = ctx.db.lock().expect("poller db poisoned");
                     mark_processed(&db, &event.id)?;
                 }
+                report.handled += 1;
                 if let Some(hook) = &ctx.on_outcome {
                     hook(outcome, event.clone());
                 }
-                // Ack on the remote side so the event isn't replayed.
                 let _ = client
                     .delete(&format!("/callback/events/{}", event.id))
                     .await;
             }
+            Err(HubriseError::Unauthorized) => {
+                note_error(ctx, HubriseError::Unauthorized);
+                report.unauthorized = true;
+                return Ok(report);
+            }
             Err(e) => {
-                let db = ctx.db.lock().expect("poller db poisoned");
-                let _ = mark_failed(&db, &event.id, &format!("{e:?}"));
+                let parked = {
+                    let db = ctx.db.lock().expect("poller db poisoned");
+                    record_failure(&db, &event.id, &e.to_string())?
+                };
+                if parked {
+                    report.parked += 1;
+                    tracing::error!(event = %event.id, %e, "hubrise event parked");
+                    let _ = client
+                        .delete(&format!("/callback/events/{}", event.id))
+                        .await;
+                } else {
+                    report.failed += 1;
+                    tracing::warn!(event = %event.id, %e, "hubrise event failed, will retry");
+                }
             }
         }
     }
+    Ok(report)
+}
 
+/// `(processed, parked)` of a stored event.
+fn event_state(conn: &Connection, id: &str) -> Result<(bool, bool)> {
+    Ok(conn.query_row(
+        "SELECT processed_at IS NOT NULL, parked_at IS NOT NULL FROM hubrise_events WHERE id = ?1",
+        params![id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?)
+}
+
+/// Count a failed try; park the event at the limit. Returns true when
+/// parked.
+fn record_failure(conn: &Connection, id: &str, err: &str) -> Result<bool> {
+    conn.execute(
+        "UPDATE hubrise_events
+         SET attempts = attempts + 1, error_msg = ?1,
+             parked_at = CASE WHEN attempts + 1 >= ?2 THEN datetime('now') END
+         WHERE id = ?3",
+        params![err, MAX_EVENT_ATTEMPTS, id],
+    )?;
+    let parked: Option<String> = conn
+        .query_row(
+            "SELECT parked_at FROM hubrise_events WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
+        .optional()?
+        .flatten();
+    Ok(parked.is_some())
+}
+
+/// Handle one event (HTTP unlocked, SQLite in short locks).
+async fn process_event(
+    ctx: &PollerCtx,
+    client: &Client,
+    stored: &StoredConnection,
+    event: &CallbackEvent,
+) -> Result<DispatchOutcome> {
+    let field = |k: &str| {
+        event
+            .extra
+            .get(k)
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+    };
+    match (event.resource_type.as_str(), event.event_type.as_str()) {
+        ("catalog", "create" | "update") => {
+            // Only the connected catalog makes the menu.
+            if field("catalog_id").as_deref() != Some(stored.catalog_id.as_str()) {
+                return Ok(DispatchOutcome::Ignored);
+            }
+            sync_catalog(ctx, client, stored).await?;
+            Ok(DispatchOutcome::CatalogUpdated)
+        }
+        ("order", kind @ ("create" | "update")) => {
+            let Some(order_id) = field("order_id") else {
+                return Ok(DispatchOutcome::Ignored);
+            };
+            let location = field("location_id").unwrap_or_else(|| stored.location_id.clone());
+            if location != stored.location_id {
+                return Ok(DispatchOutcome::Ignored);
+            }
+            let order: Order = client
+                .get_json(&format!("/locations/{location}/orders/{order_id}"))
+                .await?;
+            handle_order(ctx, &order)?;
+            Ok(if kind == "create" {
+                DispatchOutcome::OrderCreated
+            } else {
+                DispatchOutcome::OrderUpdated
+            })
+        }
+        _ => Ok(DispatchOutcome::Ignored),
+    }
+}
+
+/// Store an order through the handlers and queue its acknowledgement.
+fn handle_order(ctx: &PollerCtx, order: &Order) -> Result<()> {
+    let acknowledge = {
+        let mut db = ctx.db.lock().expect("poller db poisoned");
+        let conn = db.transaction()?;
+        let ack = ctx.handlers.on_order(&conn, order)?;
+        if ack {
+            let local_id: i64 = conn.query_row(
+                "SELECT id FROM orders WHERE hubrise_order_id = ?1",
+                params![order.id],
+                |r| r.get(0),
+            )?;
+            // Once: a second event for the same new order queues nothing.
+            let queued: bool = conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM hubrise_outbox
+                 WHERE hubrise_order_id = ?1 AND body_json LIKE '%\"received\"%')",
+                params![order.id],
+                |r| r.get(0),
+            )?;
+            if !queued {
+                outbox::enqueue_patch(
+                    &conn,
+                    local_id,
+                    &order.id,
+                    &json!({ "status": "received" }),
+                )?;
+            }
+        }
+        conn.commit()?;
+        ack
+    };
+    if acknowledge && let Some(wake) = &ctx.outbox_wake {
+        wake.notify_one();
+    }
     Ok(())
 }
 
-/// Handle a single event, splitting async HTTP work from SQLite
-/// writes so we never hold a `MutexGuard` across `.await`.
-async fn process_event(
+/// Fetch the connected catalog and hand it to the handlers.
+pub async fn sync_catalog(
+    ctx: &PollerCtx,
     client: &Client,
-    db: &Arc<Mutex<Connection>>,
-    event: &CallbackEvent,
-) -> Result<DispatchOutcome> {
-    if event.is_catalog_update() {
-        let catalog_id = event
-            .extra
-            .get("catalog_id")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let Some(catalog_id) = catalog_id else {
-            return Ok(DispatchOutcome::Ignored);
-        };
-
-        // Async HTTP fetch - no lock held.
-        let path = format!("/catalogs/{}", catalog_id);
-        let catalog: Catalog = client.get_json(&path).await?;
-
-        // Short lock to apply the snapshot.
-        {
-            let mut conn = db.lock().expect("poller db poisoned");
-            catalog_apply::apply(&mut conn, &catalog)?;
-        }
-        return Ok(DispatchOutcome::CatalogUpdated);
-    }
-
-    if event.is_order_create() {
-        let Some(order_id) = event
-            .extra
-            .get("order_id")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-        else {
-            return Ok(DispatchOutcome::Ignored);
-        };
-        let location_id = event
-            .extra
-            .get("location_id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        // Async HTTP fetch - no lock held.
-        let path = format!("/locations/{}/orders/{}", location_id, order_id);
-        let order: Order = client.get_json(&path).await?;
-
-        // Short lock to insert the local webshop row. Idempotent via
-        // the UNIQUE index on orders(hubrise_order_id).
-        {
-            let conn = db.lock().expect("poller db poisoned");
-            ingest_webshop_order(&conn, &order)?;
-        }
-        return Ok(DispatchOutcome::OrderCreated);
-    }
-
-    if event.is_order_update() {
-        return Ok(DispatchOutcome::OrderUpdated);
-    }
-
-    Ok(DispatchOutcome::Ignored)
+    stored: &StoredConnection,
+) -> Result<()> {
+    let catalog: Catalog = client
+        .get_json(&format!("/catalogs/{}", stored.catalog_id))
+        .await?;
+    let mut db = ctx.db.lock().expect("poller db poisoned");
+    ctx.handlers.on_catalog(&mut db, &catalog)
 }
 
-/// Insert a HubRise order into the local `orders` table as a
-/// non-fiscal webshop row (is_fiscal = 0). Idempotent: relies on a
-/// UNIQUE index on `hubrise_order_id` so repeated events are a no-op.
-fn ingest_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
+/// Insert or refresh a HubRise order as a local, not yet fiscal row
+/// (is_fiscal = 0). The first event inserts; later ones refresh the
+/// stored order and its HubRise status.
+pub fn upsert_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
+    use pos_hubrise_types::ServiceType;
     // Map HubRise service_type -> POS order_type. The orders table
     // CHECK constraint only allows 'dine_in' or 'takeaway', so both
-    // delivery and collection get bucketed as 'takeaway' for now.
+    // delivery and collection get bucketed as 'takeaway'.
     let order_type = match order.service_type {
         Some(ServiceType::EatIn) => "dine_in",
         _ => "takeaway",
@@ -203,39 +431,35 @@ fn ingest_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
         ServiceType::Collection => "collection",
         ServiceType::EatIn => "eat_in",
     });
-    let total_cents = parse_money_cents(order.total.as_deref().unwrap_or("0.00 EUR"));
-    // Prefer the HubRise `channel` (e.g. "Deliveroo", "Uber Eats") as
-    // the local `source` so the UI can differentiate platforms. Fall
-    // back to "webshop" when the channel is absent.
+    let total_cents = order
+        .total
+        .as_deref()
+        .and_then(|t| pos_hubrise_types::money::parse_cents(t).ok())
+        .unwrap_or(0);
+    // The HubRise `channel` (e.g. "Deliveroo", "Uber Eats") tells the
+    // platforms apart; "webshop" when absent.
     let source = order
         .channel
         .clone()
         .unwrap_or_else(|| "webshop".to_string());
-    let hubrise_status = order.status.as_wire();
-    // Placeholder INSZ for system-inserted orders - the schema
-    // requires a non-null user_insz and webshop orders have no
-    // operator yet.
-    let system_insz = pos_core::user::SYSTEM_INSZ;
-
-    // Serialize the full HubRise Order so the UI can surface items,
-    // customer notes, etc. without going through order_lines (which
-    // has a hard FK on menu_items(id) that HubRise rows never match).
     let raw_json = serde_json::to_string(order)?;
 
     conn.execute(
-        "INSERT OR IGNORE INTO orders
+        "INSERT INTO orders
             (order_type, status, user_insz, subtotal_cents, total_cents,
              hubrise_order_id, is_fiscal, source, hubrise_status, service_type,
              raw_hubrise_json)
-         VALUES (?1, 'open', ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9)",
+         VALUES (?1, 'open', ?2, ?3, ?3, ?4, 0, ?5, ?6, ?7, ?8)
+         ON CONFLICT(hubrise_order_id) WHERE hubrise_order_id IS NOT NULL DO UPDATE SET
+            hubrise_status = excluded.hubrise_status,
+            raw_hubrise_json = excluded.raw_hubrise_json",
         params![
             order_type,
-            system_insz,
-            total_cents,
+            pos_core::user::SYSTEM_INSZ,
             total_cents,
             order.id,
             source,
-            hubrise_status,
+            order.status.as_wire(),
             service_type_str,
             raw_json,
         ],
@@ -243,10 +467,57 @@ fn ingest_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
     Ok(())
 }
 
-/// Parse a HubRise money string such as `"28.50 EUR"` into an
-/// integer number of cents. Invalid strings fall back to 0.
-fn parse_money_cents(money: &str) -> i64 {
-    let num_part = money.split_whitespace().next().unwrap_or("0");
-    let parsed: f64 = num_part.parse().unwrap_or(0.0);
-    (parsed * 100.0).round() as i64
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pos_db::schema::run_migrations;
+
+    fn conn() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        run_migrations(&c).unwrap();
+        c
+    }
+
+    fn order(status: &str) -> Order {
+        serde_json::from_value(json!({
+            "id": "o1", "location_id": "l1", "status": status,
+            "created_at": "2026-09-27T12:00:00+02:00", "channel": "Deliveroo",
+            "service_type": "delivery", "total": "12.50 EUR"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn an_order_is_inserted_once_then_refreshed() {
+        let c = conn();
+        upsert_webshop_order(&c, &order("new")).unwrap();
+        upsert_webshop_order(&c, &order("cancelled")).unwrap();
+        let (n, status, total, source): (i64, String, i64, String) = c
+            .query_row(
+                "SELECT COUNT(*), MAX(hubrise_status), MAX(total_cents), MAX(source) FROM orders",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (n, status.as_str(), total, source.as_str()),
+            (1, "cancelled", 1250, "Deliveroo")
+        );
+    }
+
+    #[test]
+    fn an_event_is_parked_after_the_limit() {
+        let c = conn();
+        let ev: CallbackEvent = serde_json::from_value(json!({
+            "id": "e1", "resource_type": "order", "event_type": "create",
+            "created_at": "2026-09-27T12:00:00+02:00"
+        }))
+        .unwrap();
+        persist_event(&c, &ev, "{}").unwrap();
+        for i in 1..MAX_EVENT_ATTEMPTS {
+            assert!(!record_failure(&c, "e1", "boom").unwrap(), "try {i}");
+        }
+        assert!(record_failure(&c, "e1", "boom").unwrap());
+        assert_eq!(event_state(&c, "e1").unwrap(), (false, true));
+    }
 }

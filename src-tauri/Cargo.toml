@@ -41,6 +41,8 @@ tempfile = "3"
 pos-fdm-mock = { path = "../crates/pos-fdm-mock" }
 # A printer with switchable paper, cover and error states.
 pos-printer-mock = { path = "../crates/pos-printer-mock" }
+# The HubRise API, served in-process by the hubrise_* suites.
+pos-hubrise-mock = { path = "../crates/pos-hubrise-mock" }
 axum = "0.8"
 base64 = "0.23"
 
@@ -51,7 +53,7 @@ base64 = "0.23"
 default = ["hubrise", "peppol"]
 # Enables the optional HubRise (webshop) integration: poller, outbox,
 # /health endpoint that reports outbox depth, and the IPC commands.
-hubrise = ["dep:pos-hubrise", "dep:pos-hubrise-types"]
+hubrise = ["dep:pos-hubrise", "dep:pos-hubrise-types", "pos-db/hubrise"]
 # Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,
 # the AccessPoint trait, and the invoice (I event) commands. Not part of
 # pili-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in

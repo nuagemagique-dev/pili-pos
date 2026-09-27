@@ -3,3 +3,5 @@
 pub mod migrate;
 pub mod queries;
 pub mod schema;
+#[cfg(feature = "hubrise")]
+mod schema_hubrise;

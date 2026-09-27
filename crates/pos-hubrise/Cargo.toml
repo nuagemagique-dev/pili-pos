@@ -7,7 +7,7 @@ authors.workspace = true
 
 [dependencies]
 pos-hubrise-types = { path = "../pos-hubrise-types" }
-pos-db = { path = "../pos-db" }
+pos-db = { path = "../pos-db", features = ["hubrise"] }
 pos-core = { path = "../pos-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -20,3 +20,9 @@ tokio = { workspace = true }
 tokio-util = { workspace = true }
 url = { workspace = true }
 tracing = "0.1"
+bytes = "1"
+base64 = "0.23"
+
+[dev-dependencies]
+pos-hubrise-mock = { path = "../pos-hubrise-mock" }
+axum = { workspace = true }

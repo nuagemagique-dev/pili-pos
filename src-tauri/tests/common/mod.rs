@@ -22,6 +22,8 @@ pub mod compare;
 pub mod devices;
 pub mod fixtures;
 pub mod harness;
+#[cfg(feature = "hubrise")]
+pub mod hubrise;
 pub mod live;
 
 #[allow(unused_imports)]

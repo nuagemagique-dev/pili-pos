@@ -93,8 +93,27 @@ const MIGRATIONS: &[Migration] = &[
         sql: MIGRATION_009_SHIFTS_AND_PRE_BILL,
     },
     // Future schema diffs go here, as a new entry rather than an edit
-    // of an existing one.
+    // of an existing one. Versions 10 to 19 are kept for the certified
+    // build; the HubRise integration starts at 20 (`HUBRISE_MIGRATIONS`).
 ];
+
+/// Migrations of the HubRise integration (feature `hubrise`), from
+/// version 20: the certification build never creates these tables.
+#[cfg(feature = "hubrise")]
+const HUBRISE_MIGRATIONS: &[Migration] = &[Migration {
+    version: 20,
+    name: "hubrise-transport",
+    sql: crate::schema_hubrise::MIGRATION_020_HUBRISE_TRANSPORT,
+}];
+
+/// Every migration this build knows, in ascending version order.
+fn registry() -> Vec<Migration> {
+    #[allow(unused_mut)]
+    let mut all = MIGRATIONS.to_vec();
+    #[cfg(feature = "hubrise")]
+    all.extend_from_slice(HUBRISE_MIGRATIONS);
+    all
+}
 
 /// Run all pending migrations. Idempotent - a second call is a no-op.
 pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -113,9 +132,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
 
     backfill_legacy_db(conn)?;
+    check_applied_names(conn)?;
 
     let applied = applied_versions(conn)?;
-    for m in MIGRATIONS {
+    for m in &registry() {
         if applied.contains(&m.version) {
             continue;
         }
@@ -168,6 +188,36 @@ fn backfill_legacy_db(conn: &Connection) -> Result<(), rusqlite::Error> {
     Ok(())
 }
 
+/// Refuse a database where a version this build knows was applied
+/// under another name: the same number reused for two different
+/// schema changes (a certified hotfix and a HubRise table, say) would
+/// otherwise be skipped as "already applied" and the schema would
+/// silently lack it. Versions this build does not know are left alone.
+fn check_applied_names(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let mut stmt = conn.prepare("SELECT version, name FROM _migrations_applied")?;
+    let applied = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    for (version, name) in applied {
+        let Some(known) = registry().into_iter().find(|m| m.version == version) else {
+            continue;
+        };
+        let backfilled = version == 1 && name == format!("{} (backfilled)", known.name);
+        if name != known.name && !backfilled {
+            return Err(rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISMATCH),
+                Some(format!(
+                    "migration {version} was applied as {name:?}, this build knows it as {:?}",
+                    known.name
+                )),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn applied_versions(conn: &Connection) -> Result<Vec<i64>, rusqlite::Error> {
     let mut stmt = conn.prepare("SELECT version FROM _migrations_applied")?;
     let rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
@@ -178,18 +228,60 @@ fn applied_versions(conn: &Connection) -> Result<Vec<i64>, rusqlite::Error> {
 mod tests {
     use super::*;
 
+    /// The certified versions, then HubRise's when the feature is on.
+    fn all_versions() -> Vec<i64> {
+        registry().iter().map(|m| m.version).collect()
+    }
+
+    #[test]
+    fn the_certified_migrations_are_1_to_9() {
+        let certified: Vec<i64> = MIGRATIONS.iter().map(|m| m.version).collect();
+        assert_eq!(certified, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
+
+    #[cfg(feature = "hubrise")]
+    #[test]
+    fn hubrise_migrations_start_at_20() {
+        assert!(HUBRISE_MIGRATIONS.iter().all(|m| m.version >= 20));
+    }
+
+    #[test]
+    fn a_version_applied_under_another_name_is_refused() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "UPDATE _migrations_applied SET name = 'something-else' WHERE version = 9",
+            [],
+        )
+        .unwrap();
+        let err = run_migrations(&conn).unwrap_err().to_string();
+        assert!(err.contains("migration 9"), "{err}");
+    }
+
+    #[test]
+    fn a_version_this_build_does_not_know_is_left_alone() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO _migrations_applied (version, name) VALUES (999, 'from-a-later-build')",
+            [],
+        )
+        .unwrap();
+        run_migrations(&conn).unwrap();
+    }
+
     #[test]
     fn fresh_db_runs_all_migrations() {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
 
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(applied, all_versions());
 
         // Running again is a no-op.
         run_migrations(&conn).unwrap();
         let applied_again = applied_versions(&conn).unwrap();
-        assert_eq!(applied_again, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(applied_again, all_versions());
     }
 
     #[test]
@@ -202,7 +294,7 @@ mod tests {
 
         // v1 is stamped, later migrations run on top of it.
         let applied = applied_versions(&conn).unwrap();
-        assert_eq!(applied, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(applied, all_versions());
 
         let stamp: String = conn
             .query_row(
@@ -260,10 +352,7 @@ mod tests {
         .unwrap();
 
         run_migrations(&conn).unwrap();
-        assert_eq!(
-            applied_versions(&conn).unwrap(),
-            vec![1, 2, 3, 4, 5, 6, 7, 8, 9]
-        );
+        assert_eq!(applied_versions(&conn).unwrap(), all_versions());
 
         // The v4 triggers are actually present after this incremental path.
         conn.execute(
@@ -314,7 +403,7 @@ mod tests {
     #[test]
     fn migration_versions_are_strictly_monotonic() {
         let mut prev = 0;
-        for m in MIGRATIONS {
+        for m in &registry() {
             assert!(
                 m.version > prev,
                 "migration versions must be strictly increasing; \

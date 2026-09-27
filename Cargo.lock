@@ -2979,6 +2979,7 @@ dependencies = [
  "pos-fdm-mock",
  "pos-fiscal",
  "pos-hubrise",
+ "pos-hubrise-mock",
  "pos-hubrise-types",
  "pos-mail",
  "pos-peppol",
@@ -3141,9 +3142,13 @@ name = "pos-hubrise"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "axum",
+ "base64 0.23.1",
+ "bytes",
  "chrono",
  "pos-core",
  "pos-db",
+ "pos-hubrise-mock",
  "pos-hubrise-types",
  "reqwest",
  "rusqlite",
@@ -3162,12 +3167,16 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.23.1",
  "chrono",
+ "http-body-util",
  "pos-hubrise-types",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
  "tower-http 0.7.1",
+ "url",
  "uuid",
 ]
 

@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod common;
 pub mod custom_fields;
 pub mod error;
+pub mod money;
 pub mod oauth;
 pub mod order;
 
@@ -19,9 +20,9 @@ pub use callback::{
 };
 pub use catalog::{
     Catalog, CatalogData, CatalogSummary, Category, Charge, Deal, Discount, OptionList, Product,
-    Sku, SkuOption,
+    Sku, SkuOption, Variant,
 };
-pub use common::{Language, Money, ServiceType};
+pub use common::{Language, Money, PriceOverride, Restrictions, ServiceType, TaxRate};
 pub use custom_fields::{
     CategoryDescriptionPayload, CategoryTranslations, ProductTranslation, ProductTranslations,
     SkuCustomFields, VatCategory,

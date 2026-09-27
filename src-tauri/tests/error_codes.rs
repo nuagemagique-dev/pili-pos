@@ -5,11 +5,18 @@
 use pili_pos::commands::errors;
 
 const I18N: &str = include_str!("../../ui/src/i18n.ts");
+/// The webshop texts, merged into the dictionary only with HubRise.
+#[cfg(feature = "hubrise")]
+const I18N_WEBSHOP: &str = include_str!("../../ui/src/i18n-webshop.ts");
 
 /// The `{ fr: ..., en: ..., zh: ... }` entry of `key`, as text.
 fn entry(key: &str) -> Option<&'static str> {
-    let start = I18N.find(&format!("\"{key}\": {{"))?;
-    let rest = &I18N[start..];
+    entry_in(I18N, key)
+}
+
+fn entry_in(source: &'static str, key: &str) -> Option<&'static str> {
+    let start = source.find(&format!("\"{key}\": {{"))?;
+    let rest = &source[start..];
     let mut depth = 0;
     for (i, c) in rest.char_indices() {
         match c {
@@ -32,6 +39,26 @@ fn every_error_code_has_a_text_in_every_screen_language() {
     for code in errors::ALL {
         let key = format!("err_{code}");
         match entry(&key) {
+            None => missing.push(key),
+            Some(text) => {
+                for lang in ["fr:", "en:", "zh:"] {
+                    if !text.contains(lang) {
+                        missing.push(format!("{key} {lang}"));
+                    }
+                }
+            }
+        }
+    }
+    assert!(missing.is_empty(), "missing translations: {missing:?}");
+}
+
+#[cfg(feature = "hubrise")]
+#[test]
+fn every_hubrise_error_code_has_a_webshop_text_in_every_language() {
+    let mut missing = vec![];
+    for code in errors::hubrise::ALL {
+        let key = format!("err_{code}");
+        match entry_in(I18N_WEBSHOP, &key) {
             None => missing.push(key),
             Some(text) => {
                 for lang in ["fr:", "en:", "zh:"] {

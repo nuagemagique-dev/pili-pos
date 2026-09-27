@@ -10,9 +10,7 @@ use serde_json::{Value, json};
 /// Format an integer cents amount as `"12.50 EUR"` - the wire format
 /// HubRise expects for monetary values.
 fn cents_to_hubrise(cents: i64) -> String {
-    let euros = cents / 100;
-    let frac = (cents % 100).abs();
-    format!("{euros}.{frac:02} EUR")
+    pos_hubrise_types::money::format_cents(cents)
 }
 
 /// Build the JSON body for `POST /v1/locations/:loc/orders`.

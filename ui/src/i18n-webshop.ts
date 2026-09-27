@@ -93,4 +93,10 @@ export const webshopMessages: Messages = {
   "hubrise_code_placeholder": { fr: "Code d'autorisation", en: "Authorization code", zh: "授权码" },
   "hubrise_complete_connection": { fr: "Valider la connexion", en: "Complete connection", zh: "完成连接" },
   "hubrise_err_code_required": { fr: "Code requis", en: "Code required", zh: "授权码必填" },
+  // Backend error codes of the HubRise integration (commands/errors.rs,
+  // module `hubrise`).
+  "err_hubrise_not_connected": { fr: "HubRise n'est pas connecté.", en: "HubRise is not connected.", zh: "HubRise未连接。" },
+  "err_hubrise_order_unknown": { fr: "Commande en ligne inconnue.", en: "Unknown online order.", zh: "未知的在线订单。" },
+  "err_hubrise_status_not_allowed": { fr: "Ce statut ne peut pas être choisi ici.", en: "This status cannot be set here.", zh: "此处不能设置该状态。" },
+  "err_hubrise_time_invalid": { fr: "Heure non valable.", en: "Invalid time.", zh: "时间无效。" },
 };

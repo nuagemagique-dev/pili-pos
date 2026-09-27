@@ -7,6 +7,7 @@
 //! Strictly isolated from `pos-fiscal` - dine-in orders never reach
 //! this crate. See `plans/witty-sleeping-nygaard.md` for rationale.
 
+pub mod callbacks;
 pub mod catalog_apply;
 pub mod catalog_mapper;
 pub mod client;

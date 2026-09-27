@@ -31,6 +31,12 @@ pub struct AppState {
     /// Current booking period ID (UUID, set on first sale of the day / shift).
     #[cfg(feature = "hubrise")]
     pub shared_http: reqwest::Client,
+    /// Wakes the HubRise poller for an early pass (HubRise only).
+    #[cfg(feature = "hubrise")]
+    pub hubrise_poll_now: Arc<tokio::sync::Notify>,
+    /// Wakes the HubRise outbox: a change to send now (HubRise only).
+    #[cfg(feature = "hubrise")]
+    pub hubrise_outbox_wake: Arc<tokio::sync::Notify>,
     pub shutdown_token: CancellationToken,
     /// Digital ticket email client (disabled when not configured).
     pub mail: crate::commands::delivery::MailState,
@@ -80,6 +86,10 @@ impl AppState {
             config: Mutex::new(config),
             #[cfg(feature = "hubrise")]
             shared_http,
+            #[cfg(feature = "hubrise")]
+            hubrise_poll_now: Arc::new(tokio::sync::Notify::new()),
+            #[cfg(feature = "hubrise")]
+            hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),
             shutdown_token: CancellationToken::new(),
             mail,
             session: Mutex::new(None),

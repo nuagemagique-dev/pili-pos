@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::common::Money;
+use crate::common::{Money, PriceOverride, Restrictions, TaxRate, null_default};
 
 /// Catalog summary returned by list endpoints (without `data`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,24 +30,25 @@ pub struct Catalog {
 /// Catalog payload used on CREATE/PUT.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CatalogData {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub variants: Vec<Variant>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub categories: Vec<Category>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub products: Vec<Product>,
-    #[serde(default, alias = "options_lists")]
+    #[serde(default, alias = "options_lists", deserialize_with = "null_default")]
     pub option_lists: Vec<OptionList>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub deals: Vec<Deal>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub discounts: Vec<Discount>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub charges: Vec<Charge>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Variant {
+    #[serde(rename = "ref")]
     pub ref_: String,
     pub name: String,
 }
@@ -66,9 +67,9 @@ pub struct Category {
     /// `CategoryDescriptionPayload` in `custom_fields` module.
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tags: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub image_ids: Vec<String>,
 }
 
@@ -78,13 +79,21 @@ pub struct Product {
     pub id: Option<String>,
     #[serde(default, rename = "ref")]
     pub ref_field: Option<String>,
+    /// Upload bodies name the category by ref; retrieval responses by
+    /// HubRise id (`category_id`), so both are optional here.
+    #[serde(default, deserialize_with = "null_default")]
     pub category_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<String>,
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tags: Vec<String>,
-    #[serde(default)]
+    /// VAT rate per service type, the source of the POS VAT codes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tax_rate: Option<TaxRate>,
+    #[serde(default, deserialize_with = "null_default")]
     pub image_ids: Vec<String>,
     pub skus: Vec<Sku>,
 }
@@ -97,12 +106,28 @@ pub struct Sku {
     pub ref_field: Option<String>,
     #[serde(default)]
     pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restrictions: Option<Restrictions>,
     pub price: Money,
-    #[serde(default)]
+    #[serde(
+        default,
+        deserialize_with = "null_default",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub price_overrides: Vec<PriceOverride>,
+    #[serde(default, deserialize_with = "null_default")]
     pub option_list_refs: Vec<String>,
-    #[serde(default)]
+    /// Retrieval responses name option lists by HubRise id instead of
+    /// ref (`docs/hubrise/04-catalogs.md` §4 Retrieve Product).
+    #[serde(
+        default,
+        deserialize_with = "null_default",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub option_list_ids: Vec<String>,
+    #[serde(default, deserialize_with = "null_default")]
     pub tags: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub barcodes: Vec<String>,
     /// HubRise-documented custom_fields slot. We store `vat_category`
     /// and multi-language translations here. See `SkuCustomFields`.
@@ -123,8 +148,9 @@ pub struct OptionList {
     pub max_selections: Option<u32>,
     #[serde(default)]
     pub multiple_selection: Option<bool>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tags: Vec<String>,
+    #[serde(default, deserialize_with = "null_default")]
     pub options: Vec<SkuOption>,
 }
 
@@ -135,11 +161,19 @@ pub struct SkuOption {
     #[serde(default, rename = "ref")]
     pub ref_field: Option<String>,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restrictions: Option<Restrictions>,
     #[serde(default)]
     pub price: Option<Money>,
+    #[serde(
+        default,
+        deserialize_with = "null_default",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub price_overrides: Vec<PriceOverride>,
     #[serde(default)]
     pub default: Option<bool>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tags: Vec<String>,
 }
 
@@ -154,11 +188,11 @@ pub struct Deal {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub coupon_codes: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub tags: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub lines: Vec<serde_json::Value>,
 }
 
@@ -174,7 +208,7 @@ pub struct Discount {
     pub pricing_effect: String,
     #[serde(default)]
     pub pricing_value: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_default")]
     pub coupon_codes: Vec<String>,
 }
 
@@ -189,4 +223,6 @@ pub struct Charge {
     pub charge_type: String,
     #[serde(default)]
     pub price: Option<Money>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restrictions: Option<Restrictions>,
 }

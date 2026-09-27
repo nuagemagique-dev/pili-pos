@@ -171,6 +171,28 @@ pub const ALL: &[&str] = &[
     INTERNAL_ERROR,
 ];
 
+/// Codes of the HubRise integration (feature `hubrise`), translated
+/// in `ui/src/i18n-webshop.ts`.
+#[cfg(feature = "hubrise")]
+pub mod hubrise {
+    /// No HubRise connection is set up.
+    pub const NOT_CONNECTED: &str = "hubrise_not_connected";
+    /// The order is not one HubRise sent to this POS.
+    pub const ORDER_UNKNOWN: &str = "hubrise_order_unknown";
+    /// That status is set by the fiscal commands (accept, reject,
+    /// hand over), or is not a HubRise status.
+    pub const STATUS_NOT_ALLOWED: &str = "hubrise_status_not_allowed";
+    /// Not an RFC 3339 time.
+    pub const TIME_INVALID: &str = "hubrise_time_invalid";
+
+    pub const ALL: &[&str] = &[
+        NOT_CONNECTED,
+        ORDER_UNKNOWN,
+        STATUS_NOT_ALLOWED,
+        TIME_INVALID,
+    ];
+}
+
 /// A code with values: `code|name=value|...`. A `|` inside a value
 /// becomes `/`, so the UI can always split the string back.
 pub fn coded(code: &str, values: &[(&str, &dyn Display)]) -> String {

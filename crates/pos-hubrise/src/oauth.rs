@@ -59,28 +59,25 @@ pub struct TokenExchangeResponse {
 
 /// Exchange an auth code for a HubRise access token.
 ///
-/// Sends `client_id` + `client_secret` + `code` as required by the
-/// real HubRise API. The mock also accepts this shape (ignores the
-/// secret).
+/// As `docs/hubrise/02-authentication.md` describes it: a form body
+/// `code=...`, the client in HTTP Basic auth (`client_id:client_secret`).
 pub async fn exchange_code(
     http: &reqwest::Client,
     cfg: &OAuthConfig,
     code: &str,
 ) -> Result<TokenExchangeResponse> {
-    #[derive(Serialize)]
-    struct Body<'a> {
-        client_id: &'a str,
-        client_secret: &'a str,
-        code: &'a str,
-    }
+    use base64::Engine;
     let url = format!("{}/token", cfg.oauth_base_url);
+    let basic = base64::engine::general_purpose::STANDARD
+        .encode(format!("{}:{}", cfg.client_id, cfg.client_secret));
+    let body = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("code", code)
+        .finish();
     let resp = http
         .post(&url)
-        .json(&Body {
-            client_id: &cfg.client_id,
-            client_secret: &cfg.client_secret,
-            code,
-        })
+        .header("Authorization", format!("Basic {basic}"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
         .send()
         .await?;
     let status = resp.status();

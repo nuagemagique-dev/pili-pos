@@ -4,15 +4,34 @@
 //! `@tauri-apps/api/core`. All methods return `Result<_, String>`
 //! for consistent JSON-serialized error display.
 
+use std::sync::Arc;
+
 use pos_hubrise::{
-    client::Client as HubriseClient,
     oauth::{OAuthConfig, build_authorize_url, exchange_code},
+    outbox,
+    poller::{self, PollerCtx},
     token_store::{self, StoredConnection},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tauri::State;
 
+use crate::commands::access::{self, Access};
+use crate::commands::errors;
 use crate::state::AppState;
+
+/// The poller's context over the app state: the loop in `main.rs`
+/// and the commands that start or wake it share it.
+pub fn poller_ctx(state: &AppState) -> PollerCtx {
+    PollerCtx {
+        http: state.shared_http.clone(),
+        db: state.poller_db.clone(),
+        on_outcome: None,
+        handlers: Arc::new(poller::DefaultHandlers),
+        poll_now: state.hubrise_poll_now.clone(),
+        outbox_wake: Some(state.hubrise_outbox_wake.clone()),
+    }
+}
 
 /// What the frontend sees about the current HubRise connection.
 #[derive(Debug, Clone, Serialize)]
@@ -129,6 +148,14 @@ pub async fn hubrise_complete_oauth(
         token_store::save(&db, &stored).map_err(|e| e.to_string())?;
     }
 
+    // Register the passive callback and fetch what HubRise holds now,
+    // without waiting for the poller's next tick. A failure here is
+    // retried by the poller; the connection itself is kept.
+    if let Err(e) = poller::start(&poller_ctx(&state)).await {
+        tracing::warn!(%e, "hubrise: first start after connecting failed");
+    }
+    state.hubrise_poll_now.notify_one();
+
     Ok(HubriseConnectionInfo::from_stored(&stored))
 }
 
@@ -196,11 +223,8 @@ pub struct WebshopOrderSummary {
 }
 
 /// Parse a HubRise money string such as "12.50 EUR" into cents.
-/// Mirrors the parser in `pos_hubrise::poller`.
 fn money_to_cents(raw: &str) -> i64 {
-    let num = raw.split_whitespace().next().unwrap_or("0");
-    let parsed: f64 = num.parse().unwrap_or(0.0);
-    (parsed * 100.0).round() as i64
+    pos_hubrise_types::money::parse_cents(raw).unwrap_or(0)
 }
 
 /// Address fields teased out of a HubRise `customer` object - only
@@ -246,7 +270,7 @@ fn summary_from_raw(
             let quantity = raw_item
                 .get("quantity")
                 .and_then(|v| v.as_str())
-                .and_then(|s| s.parse::<i64>().ok())
+                .and_then(pos_hubrise_types::money::parse_quantity)
                 .unwrap_or(1);
             let unit_price_cents = raw_item
                 .get("price")
@@ -402,41 +426,83 @@ pub struct PatchStatusRequest {
     pub new_status: String,
 }
 
+/// The statuses staff set from the board. `accepted`, `rejected` and
+/// `completed` belong to the commands that sign (or refuse to sign)
+/// the order, never to a bare status change.
+pub const STAFF_STATUSES: &[&str] = &[
+    "in_preparation",
+    "awaiting_shipment",
+    "awaiting_collection",
+    "in_delivery",
+];
+
 #[tauri::command]
 pub async fn hubrise_patch_order_status(
     state: State<'_, AppState>,
     req: PatchStatusRequest,
 ) -> Result<(), String> {
-    let stored = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        token_store::load(&db).map_err(|e| e.to_string())?
-    };
-    let Some(stored) = stored else {
-        return Err("not connected to HubRise".to_string());
-    };
+    do_patch_order_status(state.inner(), &req.hubrise_order_id, &req.new_status)
+}
 
-    let client = HubriseClient::new(
-        state.shared_http.clone(),
-        stored.base_url.clone(),
-        stored.access_token.clone(),
-    );
-    pos_hubrise::push::patch_order_status(
-        &client,
-        &stored.location_id,
-        &req.hubrise_order_id,
-        &req.new_status,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
-    // Mirror the new status on the local row.
-    let db = state.db.lock().map_err(|e| e.to_string())?;
+/// Queue a status change for HubRise and show it at once on the POS.
+pub fn do_patch_order_status(
+    state: &AppState,
+    hubrise_order_id: &str,
+    new_status: &str,
+) -> Result<(), String> {
+    access::operator(state, Access::Staff)?;
+    if !STAFF_STATUSES.contains(&new_status) {
+        return Err(errors::hubrise::STATUS_NOT_ALLOWED.to_string());
+    }
+    queue_patch(
+        state,
+        hubrise_order_id,
+        &json!({ "status": new_status }),
+        |raw| raw["status"] = json!(new_status),
+    )?;
+    let db = state.db.lock().map_err(errors::internal)?;
     db.execute(
         "UPDATE orders SET hubrise_status = ?1 WHERE hubrise_order_id = ?2",
-        rusqlite::params![req.new_status, req.hubrise_order_id],
+        rusqlite::params![new_status, hubrise_order_id],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(errors::internal)?;
+    Ok(())
+}
 
+/// Queue `patch` for HubRise order `hubrise_order_id` and apply
+/// `mirror` to the stored order, in one transaction; wake the outbox.
+pub fn queue_patch(
+    state: &AppState,
+    hubrise_order_id: &str,
+    patch: &serde_json::Value,
+    mirror: impl FnOnce(&mut serde_json::Value),
+) -> Result<(), String> {
+    let db = state.db.lock().map_err(errors::internal)?;
+    if token_store::load(&db).map_err(errors::internal)?.is_none() {
+        return Err(errors::hubrise::NOT_CONNECTED.to_string());
+    }
+    let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    let row: Option<(i64, Option<String>)> = tx
+        .query_row(
+            "SELECT id, raw_hubrise_json FROM orders WHERE hubrise_order_id = ?1",
+            rusqlite::params![hubrise_order_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .ok();
+    let Some((order_id, raw)) = row else {
+        return Err(errors::hubrise::ORDER_UNKNOWN.to_string());
+    };
+    outbox::enqueue_patch(&tx, order_id, hubrise_order_id, patch).map_err(errors::internal)?;
+    if let Some(mut value) = raw.and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok()) {
+        mirror(&mut value);
+        tx.execute(
+            "UPDATE orders SET raw_hubrise_json = ?1 WHERE id = ?2",
+            rusqlite::params![value.to_string(), order_id],
+        )
+        .map_err(errors::internal)?;
+    }
+    tx.commit().map_err(errors::internal)?;
+    state.hubrise_outbox_wake.notify_one();
     Ok(())
 }
 
@@ -447,64 +513,77 @@ pub struct SetConfirmedTimeRequest {
     pub confirmed_time: String,
 }
 
-/// Push a new `confirmed_time` to HubRise and patch the local raw
-/// JSON blob so the UI sees the change without waiting for the next
-/// poller tick.
+/// Queue a new `confirmed_time` for HubRise and show it at once.
 #[tauri::command]
 pub async fn hubrise_set_confirmed_time(
     state: State<'_, AppState>,
     req: SetConfirmedTimeRequest,
 ) -> Result<(), String> {
-    let stored = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        token_store::load(&db).map_err(|e| e.to_string())?
-    };
-    let Some(stored) = stored else {
-        return Err("not connected to HubRise".to_string());
-    };
+    do_set_confirmed_time(state.inner(), &req.hubrise_order_id, &req.confirmed_time)
+}
 
-    let client = HubriseClient::new(
-        state.shared_http.clone(),
-        stored.base_url.clone(),
-        stored.access_token.clone(),
-    );
-    pos_hubrise::push::patch_order_confirmed_time(
-        &client,
-        &stored.location_id,
-        &req.hubrise_order_id,
-        &req.confirmed_time,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
-    // Mirror confirmed_time into the local raw_hubrise_json blob so
-    // the next list query returns the new value. We patch only that
-    // single field rather than re-fetching the order.
-    let db = state.db.lock().map_err(|e| e.to_string())?;
-    let raw: Option<String> = db
-        .query_row(
-            "SELECT raw_hubrise_json FROM orders WHERE hubrise_order_id = ?1",
-            rusqlite::params![req.hubrise_order_id],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    if let Some(raw) = raw
-        && let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&raw)
-    {
-        if let Some(obj) = value.as_object_mut() {
-            obj.insert(
-                "confirmed_time".to_string(),
-                serde_json::Value::String(req.confirmed_time.clone()),
-            );
-        }
-        if let Ok(updated) = serde_json::to_string(&value) {
-            db.execute(
-                "UPDATE orders SET raw_hubrise_json = ?1 WHERE hubrise_order_id = ?2",
-                rusqlite::params![updated, req.hubrise_order_id],
-            )
-            .map_err(|e| e.to_string())?;
-        }
+pub fn do_set_confirmed_time(
+    state: &AppState,
+    hubrise_order_id: &str,
+    confirmed_time: &str,
+) -> Result<(), String> {
+    access::operator(state, Access::Staff)?;
+    if chrono::DateTime::parse_from_rfc3339(confirmed_time).is_err() {
+        return Err(errors::hubrise::TIME_INVALID.to_string());
     }
+    queue_patch(
+        state,
+        hubrise_order_id,
+        &json!({ "confirmed_time": confirmed_time }),
+        |raw| raw["confirmed_time"] = json!(confirmed_time),
+    )
+}
 
-    Ok(())
+/// What the status lights and the settings panel show.
+#[derive(Debug, Clone, Serialize)]
+pub struct HubriseStatus {
+    #[serde(flatten)]
+    pub health: token_store::ConnectionHealth,
+    pub outbox: outbox::Backlog,
+    pub outbox_error: Option<String>,
+    /// Events HubRise sent that could not be handled.
+    pub parked_events: i64,
+    /// Online orders still waiting for staff after 5 minutes.
+    pub stale_orders: i64,
+}
+
+#[tauri::command]
+pub fn hubrise_status(state: State<'_, AppState>) -> Result<HubriseStatus, String> {
+    do_hubrise_status(state.inner())
+}
+
+pub fn do_hubrise_status(state: &AppState) -> Result<HubriseStatus, String> {
+    let db = state.db.lock().map_err(errors::internal)?;
+    let health = token_store::health(&db).map_err(errors::internal)?;
+    let outbox = outbox::backlog(&db).map_err(errors::internal)?;
+    let outbox_error = outbox::last_error(&db).map_err(errors::internal)?;
+    let parked_events: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM hubrise_events WHERE parked_at IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(errors::internal)?;
+    let stale_orders: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM orders
+             WHERE hubrise_order_id IS NOT NULL AND status = 'open'
+               AND hubrise_status IN ('new', 'received')
+               AND created_at <= datetime('now', '-5 minutes')",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(errors::internal)?;
+    Ok(HubriseStatus {
+        health,
+        outbox,
+        outbox_error,
+        parked_events,
+        stale_orders,
+    })
 }

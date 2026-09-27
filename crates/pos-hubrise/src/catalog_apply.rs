@@ -206,11 +206,7 @@ fn insert_translation(
 
 /// Parse a HubRise price string like "12.50 EUR" → 1250 cents.
 fn parse_price_cents(s: &str) -> i64 {
-    let number = s.split_whitespace().next().unwrap_or("0");
-    match number.parse::<f64>() {
-        Ok(f) => (f * 100.0).round() as i64,
-        Err(_) => 0,
-    }
+    pos_hubrise_types::money::parse_cents(s).unwrap_or(0)
 }
 
 fn uuid_like(p: &pos_hubrise_types::Product) -> String {

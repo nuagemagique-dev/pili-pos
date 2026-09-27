@@ -88,6 +88,10 @@ fn main() {
     let poller_db = app_state.poller_db.clone();
     #[cfg(feature = "hubrise")]
     let shared_http = app_state.shared_http.clone();
+    #[cfg(feature = "hubrise")]
+    let mut poller_ctx = commands::hubrise::poller_ctx(&app_state);
+    #[cfg(feature = "hubrise")]
+    let outbox_wake = app_state.hubrise_outbox_wake.clone();
     let shutdown_for_setup = app_state.shutdown_token.clone();
     let shutdown_for_window = app_state.shutdown_token.clone();
 
@@ -176,20 +180,16 @@ fn main() {
                 let handle = _app.handle().clone();
                 // Spawn the HubRise poller background task. The crate's
                 // run_loop returns when `shutdown_token` is cancelled.
-                let poller_ctx = pos_hubrise::poller::PollerCtx {
-                    http: shared_http.clone(),
-                    db: poller_db.clone(),
-                    on_outcome: Some(Arc::new(move |outcome, event| {
-                        use pos_hubrise::dispatcher::DispatchOutcome;
-                        let topic = match outcome {
-                            DispatchOutcome::OrderCreated => "webshop-order-received",
-                            DispatchOutcome::OrderUpdated => "webshop-order-updated",
-                            DispatchOutcome::CatalogUpdated => "catalog-updated",
-                            DispatchOutcome::Ignored => return,
-                        };
-                        let _ = handle.emit(topic, event);
-                    })),
-                };
+                poller_ctx.on_outcome = Some(Arc::new(move |outcome, event| {
+                    use pos_hubrise::dispatcher::DispatchOutcome;
+                    let topic = match outcome {
+                        DispatchOutcome::OrderCreated => "webshop-order-received",
+                        DispatchOutcome::OrderUpdated => "webshop-order-updated",
+                        DispatchOutcome::CatalogUpdated => "catalog-updated",
+                        DispatchOutcome::Ignored => return,
+                    };
+                    let _ = handle.emit(topic, event);
+                }));
                 let poller_cancel = shutdown_for_setup.clone();
                 tauri::async_runtime::spawn(async move {
                     pos_hubrise::poller::run_loop(poller_ctx, poller_cancel).await;
@@ -206,6 +206,7 @@ fn main() {
                 let outbox_ctx = pos_hubrise::outbox::OutboxCtx {
                     http: shared_http,
                     db: poller_db,
+                    wake: outbox_wake,
                 };
                 let outbox_cancel = shutdown_for_setup.clone();
                 tauri::async_runtime::spawn(async move {
@@ -237,7 +238,7 @@ fn main() {
                                     let outbox_pending: i64 = {
                                         let db = health_db.lock().expect("health db");
                                         db.query_row(
-                                            "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL",
+                                            "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL AND parked_at IS NULL",
                                             [], |r| r.get(0),
                                         ).unwrap_or(0)
                                     };
@@ -345,6 +346,7 @@ fn main() {
         commands::hubrise::hubrise_list_webshop_orders,
         commands::hubrise::hubrise_patch_order_status,
         commands::hubrise::hubrise_set_confirmed_time,
+        commands::hubrise::hubrise_status,
         // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,
