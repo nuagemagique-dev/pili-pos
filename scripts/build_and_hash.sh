@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - certification build + integrity report
+# pili-pos - certification build + integrity report
 #
 # Implements the five steps declared in
 # docs/SUBMISSION_ARTIFACTS/GARANTIE_MAJ_LANGUES_FR.md §1.2:
@@ -19,7 +19,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-BINARY="${CARGO_TARGET_DIR:-$PROJECT_ROOT/target}/release/moyun-pos"
+BINARY="${CARGO_TARGET_DIR:-$PROJECT_ROOT/target}/release/pili-pos"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 REPORT="$PROJECT_ROOT/build_info_${STAMP}.txt"
 
@@ -105,7 +105,7 @@ GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "(untagged)")
 GIT_DIRTY=$([[ -n "$(git status --porcelain)" ]] && echo "DIRTY" || echo "clean")
 
 cat > "$REPORT" <<REPORT_EOF
-moyun-pos certification build report
+pili-pos certification build report
 Generated : ${STAMP}
 Host      : $(uname -srm)
 

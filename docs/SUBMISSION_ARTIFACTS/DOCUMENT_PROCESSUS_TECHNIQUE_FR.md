@@ -1,7 +1,7 @@
-# Document de processus technique - moyun-pos SCE 2.0
+# Document de processus technique - pili-pos SCE 2.0
 
 **Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
-**Nom du produit :** moyun-pos
+**Nom du produit :** pili-pos
 **Version :** 1.0.0 (build de soumission cert)
 **Clients cibles :** établissements HoReCa en Belgique (restaurants avec service en salle)
 **Date de soumission :** 2026-05-14
@@ -9,7 +9,7 @@
 
 ## 1. Vue d'ensemble du système
 
-`moyun-pos` est une **application desktop Tauri v2** s'exécutant sur
+`pili-pos` est une **application desktop Tauri v2** s'exécutant sur
 Linux x86_64 (Debian 13 minimal + compositeur Cage Wayland en mode
 kiosk). Elle cible les terminaux POS Penetek A3216 M82 / Advantech
 USC-360J, se connecte à un FDM certifié SPF Finances par LAN, pilote
@@ -197,7 +197,7 @@ ajoute à `fiscal_events`, de sorte que :
 ## 7. Persistance
 
 - Moteur : **SQLite** (DB en un seul fichier dans
-  `~/.local/share/moyun-pos/pos.db` en dev, `/var/lib/moyun-pos/pos.db`
+  `~/.local/share/pili-pos/pos.db` en dev, `/var/lib/pili-pos/pos.db`
   en prod).
 - Mode : WAL (`PRAGMA journal_mode=WAL`).
 - Migrations : versionnées via `pos-db::migrate::run_migrations`. La
@@ -219,7 +219,7 @@ ajoute à `fiscal_events`, de sorte que :
 
 Vérification `nm` sur le binaire cert :
 ```
-$ nm target/release/moyun-pos | grep -c pos_hubrise
+$ nm target/release/pili-pos | grep -c pos_hubrise
 0
 ```
 

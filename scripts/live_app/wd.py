@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step-by-step WebDriver CLI for the real moyun-pos binary (tauri-driver).
+"""Step-by-step WebDriver CLI for the real pili-pos binary (tauri-driver).
 
   wd.py start                 open a session (launches the binary)
   wd.py stop                  close it
@@ -13,7 +13,7 @@
 import base64, json, os, sys, time, urllib.request
 
 DRIVER = "http://127.0.0.1:4444"
-BINARY = os.environ.get("MOYUN_POS_BINARY", "/cargo-target/release/moyun-pos")
+BINARY = os.environ.get("PILI_POS_BINARY", "/cargo-target/release/pili-pos")
 EL = "element-6066-11e4-a52e-4f735466cecf"
 SESSION_FILE = "/tmp/wd-session"
 

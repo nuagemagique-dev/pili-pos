@@ -12,7 +12,7 @@ rejoués tels que définis (les fixtures référencent ces `productId`).
   `departmentId`, `price_cents`, `vat_code` sur place, `active`,
   `open_price`) + `categories` + `translations` (libellés FR/EN/NL/DE).
 - En exploitation, chaque établissement charge son propre catalogue ;
-  le binaire `moyun-pos` est identique (le catalogue est de la
+  le binaire `pili-pos` est identique (le catalogue est de la
   donnée, pas du code).
 
 ## Liste chargée
@@ -89,7 +89,7 @@ selon la colonne « à emporter » ci-dessus (`menu_items.vat_code_takeaway`).
 ## Vérification sur la machine de test
 
 ```bash
-sqlite3 -header -column /var/lib/moyun-pos/pos.db \
+sqlite3 -header -column /var/lib/pili-pos/pos.db \
   "SELECT m.id AS productId, t.value AS nom, m.category_id AS dept,
           m.price_cents, m.vat_code, m.open_price, m.active
    FROM menu_items m

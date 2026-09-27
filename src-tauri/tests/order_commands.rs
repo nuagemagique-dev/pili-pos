@@ -16,14 +16,14 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::errors;
+use pili_pos::commands::errors;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_get_order,
     do_list_open_orders, do_list_order_lines, do_remove_order_line, do_update_order_line_quantity,
 };
-use moyun_pos::commands::tables::do_list_tables;
+use pili_pos::commands::tables::do_list_tables;
 use pos_core::order::{OrderStatus, OrderType};
 use pos_core::vat::VatCode;
 

@@ -13,7 +13,7 @@
   "posDateTime": "2026-09-25T19:05:15.828681+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "transaction": {

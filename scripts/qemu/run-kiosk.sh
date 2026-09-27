@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - boot a kiosk image (deploy/image/build.sh output) in QEMU
+# pili-pos - boot a kiosk image (deploy/image/build.sh output) in QEMU
 #
-# q35 + UEFI (OVMF) + swtpm (TPM2, needed by moyun-provision.service's
+# q35 + UEFI (OVMF) + swtpm (TPM2, needed by pili-provision.service's
 # systemd-cryptenroll --tpm2-device=auto), virtio-vga at 1920x1080, a
 # touch-capable pointer, and QEMU usermode networking so the guest can
 # reach:
@@ -17,16 +17,16 @@
 # without nested virtualization.
 #
 # The image file is never modified: a working copy (+8G of free space,
-# for systemd-repart to carve the "moyun-data" partition out of on
+# for systemd-repart to carve the "pili-data" partition out of on
 # first boot) is made under .run/<name>/ and thrown away with --clean.
 #
 # Usage:
 #   run-kiosk.sh <image.raw|image.img.xz> [--name NAME] [--pos-json FILE]
 #                [--ram MB] [--clean]
 #
-# --pos-json FILE: injected via -fw_cfg name=opt/moyun/pos.json - read
-#   by moyun-provision.service on FIRST boot only (i.e. only while no
-#   pos.json exists yet at /var/lib/moyun-etc/moyun-pos/pos.json); a
+# --pos-json FILE: injected via -fw_cfg name=opt/pili/pos.json - read
+#   by pili-provision.service on FIRST boot only (i.e. only while no
+#   pos.json exists yet at /var/lib/pili-etc/pili-pos/pos.json); a
 #   later run against the same working copy sees the fw_cfg entry
 #   present but ignores it, matching a real terminal where nobody can
 #   inject config after the fact. Mainly useful for
@@ -74,7 +74,7 @@ mkdir -p "$WORK_DIR"
 
 DISK="$WORK_DIR/disk.raw"
 if [[ ! -f "$DISK" ]]; then
-    echo "▸ Preparing disk (source + 8G free space for moyun-data)…"
+    echo "▸ Preparing disk (source + 8G free space for pili-data)…"
     case "$IMAGE" in
         *.img.xz) xz -dc "$IMAGE" > "$DISK" ;;
         *.raw)    cp "$IMAGE" "$DISK" ;;
@@ -164,7 +164,7 @@ rm -f "$QMP_SOCK"
 FW_CFG_ARGS=()
 if [[ -n "$POS_JSON" ]]; then
     [[ -f "$POS_JSON" ]] || { echo "ERROR: --pos-json file not found: $POS_JSON" >&2; exit 1; }
-    FW_CFG_ARGS=(-fw_cfg "name=opt/moyun/pos.json,file=$POS_JSON")
+    FW_CFG_ARGS=(-fw_cfg "name=opt/pili/pos.json,file=$POS_JSON")
 fi
 
 cleanup() {
@@ -173,7 +173,7 @@ cleanup() {
 trap cleanup EXIT
 
 # The admission image copies its journal to ttyS0
-# (journald.conf.d/90-moyun-serial.conf); scripts/qemu/boot-check.sh reads it.
+# (journald.conf.d/90-pili-serial.conf); scripts/qemu/boot-check.sh reads it.
 SERIAL_LOG="$WORK_DIR/serial.log"
 : > "$SERIAL_LOG"
 
@@ -182,7 +182,7 @@ echo "▸ Serial console (journal): $SERIAL_LOG"
 echo "▸ Booting '$NAME' ($ACCEL)…"
 
 exec qemu-system-x86_64 \
-    -name "moyun-pos-$NAME" \
+    -name "pili-pos-$NAME" \
     -machine "q35,accel=$ACCEL" \
     -cpu "$CPU" \
     -smp 4 \

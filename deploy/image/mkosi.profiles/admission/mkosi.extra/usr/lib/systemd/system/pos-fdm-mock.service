@@ -1,5 +1,5 @@
 [Unit]
-Description=moyun-pos mock FDM (admission demo fallback, manual start only)
+Description=pili-pos mock FDM (admission demo fallback, manual start only)
 # Deliberately not enabled anywhere (no [Install] pull-in target is
 # ever activated for it, and deploy/provision/provision.sh --phase
 # image never runs `systemctl enable` on this unit - see its
@@ -16,7 +16,7 @@ Description=moyun-pos mock FDM (admission demo fallback, manual start only)
 Type=simple
 User=pos
 Group=pos
-ExecStart=/opt/moyun-pos/bin/pos-fdm-mock
+ExecStart=/opt/pili-pos/bin/pos-fdm-mock
 Environment=PORT=8081
 Environment=MOCK_TEM_OUTBOX=/var/lib/pos-fdm-mock/tem-outbox
 StateDirectory=pos-fdm-mock

@@ -5,7 +5,7 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::settings::do_get_settings;
+use pili_pos::commands::settings::do_get_settings;
 
 #[tokio::test]
 async fn the_test_identity_has_no_problem() {

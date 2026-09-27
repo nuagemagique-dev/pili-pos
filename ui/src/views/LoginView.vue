@@ -155,7 +155,7 @@ async function submitInsz() {
 
 <template>
   <div class="login">
-    <h1 class="title">{{ pos.settings?.restaurantName || "moyun-pos" }}</h1>
+    <h1 class="title">{{ pos.settings?.restaurantName || "pili-pos" }}</h1>
 
     <p v-if="error" class="error-msg shake">{{ error }}</p>
 

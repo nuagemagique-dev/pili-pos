@@ -55,7 +55,7 @@ test('an unexpected error says so and keeps the detail for the technician', asyn
 });
 
 test('the text follows the screen language', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('moyun-pos-language', 'zh'));
+  await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'));
   await openTable(page);
   await overrideIPC(page, 'add_order_line', { __reject: 'order_not_open' });
   await page.locator('.item-btn').first().click();

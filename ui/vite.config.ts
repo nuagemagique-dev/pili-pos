@@ -6,9 +6,9 @@ import vue from "@vitejs/plugin-vue";
 // display font) as soon as the module is transformed. Resolving the
 // view to an empty stub keeps those files out of the bundle.
 function dropWebshopView(): Plugin {
-  const stubId = "\0moyun-webshop-view-stub";
+  const stubId = "\0pili-webshop-view-stub";
   return {
-    name: "moyun:drop-webshop-view",
+    name: "pili:drop-webshop-view",
     enforce: "pre",
     resolveId(source) {
       if (source.endsWith("/views/WebshopOrdersView.vue")) return stubId;

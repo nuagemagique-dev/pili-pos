@@ -29,7 +29,7 @@ use tokio_util::sync::CancellationToken;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use moyun_pos::state::AppState;
+use pili_pos::state::AppState;
 
 use super::fixtures::{ResponseKind, UcFixture, read_response_envelope};
 
@@ -120,9 +120,9 @@ impl TestApp {
             #[cfg(feature = "hubrise")]
             shared_http: reqwest::Client::new(),
             shutdown_token: CancellationToken::new(),
-            mail: moyun_pos::commands::delivery::MailState::disabled(),
+            mail: pili_pos::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),
-            support: moyun_pos::commands::support::SupportState::disabled(),
+            support: pili_pos::commands::support::SupportState::disabled(),
         };
 
         let app = Self {

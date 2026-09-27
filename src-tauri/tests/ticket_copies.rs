@@ -9,15 +9,15 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::copy::{do_copy_ticket, do_list_copyable_tickets};
-use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::copy::{do_copy_ticket, do_list_copyable_tickets};
+use pili_pos::commands::financial::{MoneyDirection, do_money_in_out};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::social::do_work_in;
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::social::do_work_in;
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 

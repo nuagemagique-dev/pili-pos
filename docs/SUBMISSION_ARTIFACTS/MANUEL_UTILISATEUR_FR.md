@@ -1,7 +1,7 @@
-# Manuel utilisateur - moyun-pos v1.0.0
+# Manuel utilisateur - pili-pos v1.0.0
 
 Ce manuel s'adresse au personnel de salle et de caisse qui utilise
-`moyun-pos` au quotidien : connexion, prise de commande, addition,
+`pili-pos` au quotidien : connexion, prise de commande, addition,
 encaissement, copies, remboursements, rapports, mouvements de caisse et
 mode formation. Les libellés cités entre guillemets sont ceux de
 l'écran, en français (l'interface existe aussi en anglais et en
@@ -45,7 +45,7 @@ refuse de toute façon une action interdite au profil
 
 ## 2. Démarrage, connexion et PIN
 
-Le terminal démarre seul sur moyun-pos, en plein écran. Aucune
+Le terminal démarre seul sur pili-pos, en plein écran. Aucune
 intervention n'est nécessaire.
 
 ### 2.1 Se connecter
@@ -544,7 +544,7 @@ Pour revenir au mode normal : même bouton, qui repasse à "INACTIF"
 | "Pointage non enregistré" | Le FDM n'a pas répondu à la connexion ou à la sortie. Prévenir le Gérant. |
 | "Commande non enregistrée par le FDM" | Rester sur la commande et réessayer quand le FDM répond (§6.1). |
 | Le tiroir ne s'ouvre pas | Vérifier le câble RJ11 entre l'imprimante et le tiroir, et la serrure du tiroir. |
-| L'écran ne réagit plus | Maintenir le bouton marche 5 secondes pour redémarrer. moyun-pos redémarre seul ; les commandes non encaissées restent ouvertes. |
+| L'écran ne réagit plus | Maintenir le bouton marche 5 secondes pour redémarrer. pili-pos redémarre seul ; les commandes non encaissées restent ouvertes. |
 | "PIN incorrect" répété | Le Gérant peut fixer un nouveau PIN (§12.3). |
 | INSZ refusé | Vérifier la saisie. L'employé doit exister et être actif (§12.3). |
 | Bandeau rouge "Configuration invalide" | Appeler l'installateur (§12.4). |

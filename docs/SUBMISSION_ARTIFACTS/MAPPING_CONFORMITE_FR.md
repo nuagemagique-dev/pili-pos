@@ -1,4 +1,4 @@
-# Mapping de conformité - moyun-pos SCE 2.0
+# Mapping de conformité - pili-pos SCE 2.0
 
 Mappe chaque exigence des spécifications SPF Finances vers le code qui
 l'implémente et le test qui prouve son fonctionnement. C'est le cœur
@@ -51,7 +51,7 @@ Détail complet (30 tests e2e) : *voir TICKET_NUMERIQUE_FR.md* §12.
 
 | # | Exigence | Spec | Code | Test |
 |---|---|---|---|---|
-| 19 | Le POS ne parle PAS directement à SPF Finances | FDM v1.4 §I.1 | (architectural - le FDM est le seul canal sortant ; aucun appel SPF Finances nulle part dans `moyun-pos`) | grep vérifié : `grep -r "finances" crates/ src-tauri/ → 0 hit` |
+| 19 | Le POS ne parle PAS directement à SPF Finances | FDM v1.4 §I.1 | (architectural - le FDM est le seul canal sortant ; aucun appel SPF Finances nulle part dans `pili-pos`) | grep vérifié : `grep -r "finances" crates/ src-tauri/ → 0 hit` |
 | 20 | La short signature FDM est affichée sur le ticket | FDM v1.4 §IV.2 | `crates/pos-print/src/receipt.rs::format_receipt` | `src-tauri/tests/spf_e2e_peripherals.rs::the_sale_receipt_carries_the_fdm_control_data` |
 | 21 | Le statut FDM est remonté à l'UI | FDM v1.4 §V | `src-tauri/src/state.rs` (mirror dans store Pinia) | E2E manuel (kill du mock FDM → pilule de statut UI) |
 
@@ -90,7 +90,7 @@ implémentés dans `crates/pos-peppol` ; IPC dans
 
 | Préoccupation | Preuve |
 |---|---|
-| Binaire cert sans intégrations tierces | `cargo build --release --no-default-features --features cert` ; `nm moyun-pos | grep -c pos_hubrise → 0` |
+| Binaire cert sans intégrations tierces | `cargo build --release --no-default-features --features cert` ; `nm pili-pos | grep -c pos_hubrise → 0` |
 | Tous les tests verts | `cargo test --workspace` et la build cert : 0 échec (totaux dans RAPPORT_TESTS_BASELINE_FR.md) |
 | Lint propre | `cargo clippy --workspace -- -D warnings` (à exécuter avant soumission) |
 | Format cohérent | `cargo fmt --all` |

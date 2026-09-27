@@ -8,7 +8,7 @@
 //!   and pre-bill T7, 250 €); the published report counts three
 //!   (198 €, T1 left out). The spec defines ticketCount as the number of
 //!   events of the label during the bookingDate (§2.2.2 turnover), so
-//!   moyun-pos reports 4 and 250 €.
+//!   pili-pos reports 4 and 250 €.
 //! - Payment names: the turnover report of the fixture names the methods
 //!   "Contant" and "Mastercard", while the sales (and the fixture's own
 //!   user report) use "CONTANT" and "Master Card". The report carries
@@ -16,7 +16,7 @@
 //!
 //! `fdmDevices` times are compared within a few seconds: the fixture
 //! rounds them (and its first one is the POS time of T1, 7 s before the
-//! FDM signed it), while moyun-pos copies the FDM's own `fdmDateTime`.
+//! FDM signed it), while pili-pos copies the FDM's own `fdmDateTime`.
 
 use std::path::PathBuf;
 
@@ -105,7 +105,7 @@ fn same(a: &Value, b: &Value) -> bool {
 fn assert_same(what: &str, ours: &Value, fixture: &Value) {
     assert!(
         same(ours, fixture),
-        "{what} differs\n moyun-pos: {ours:#}\n fixture:   {fixture:#}"
+        "{what} differs\n pili-pos: {ours:#}\n fixture:   {fixture:#}"
     );
 }
 

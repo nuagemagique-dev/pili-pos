@@ -1,4 +1,4 @@
-# Schéma de la base de données - moyun-pos
+# Schéma de la base de données - pili-pos
 
 Conformément au §II.C du Manuel de certification SCE 2.0, ce document
 liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
@@ -7,7 +7,7 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Moteur** : SQLite 3.x bundled via `rusqlite` (Rust).
 **Encodage** : UTF-8.
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
-**Fichier vivant** : `/var/lib/moyun-pos/pos.db` en production.
+**Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs` (lecture
 machine via `sqlite3 pos.db ".schema"`).
 

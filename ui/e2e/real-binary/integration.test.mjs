@@ -1,5 +1,5 @@
 /**
- * Layer 3: the REAL moyun-pos binary (certification build), its real
+ * Layer 3: the REAL pili-pos binary (certification build), its real
  * SQLite database and IPC, no mock: WebKitGTK driven over W3C WebDriver
  * through tauri-driver, the way Tauri documents end-to-end testing on
  * Linux. Playwright cannot drive a WebKitGTK webview.
@@ -9,7 +9,7 @@
  * (e2e/fixtures/seed.sql) and starts Xvfb + tauri-driver first:
  *
  *   TAURI_DRIVER_URL=http://127.0.0.1:4444 \
- *   MOYUN_POS_BINARY=$PWD/../target/release/moyun-pos \
+ *   PILI_POS_BINARY=$PWD/../target/release/pili-pos \
  *   npm run test:real-binary
  *
  * One session, one app launch: each step starts where the previous left.
@@ -18,9 +18,9 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 
 const DRIVER = process.env.TAURI_DRIVER_URL;
-const BINARY = process.env.MOYUN_POS_BINARY;
+const BINARY = process.env.PILI_POS_BINARY;
 const ELEMENT = "element-6066-11e4-a52e-4f735466cecf";
-const skip = !DRIVER || !BINARY ? "needs TAURI_DRIVER_URL and MOYUN_POS_BINARY (CI only)" : false;
+const skip = !DRIVER || !BINARY ? "needs TAURI_DRIVER_URL and PILI_POS_BINARY (CI only)" : false;
 
 let session;
 

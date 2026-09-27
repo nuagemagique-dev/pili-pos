@@ -254,7 +254,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         let dir = std::env::temp_dir().join(format!(
-            "moyun-pos-counter-test-{}-{unique}",
+            "pili-pos-counter-test-{}-{unique}",
             std::process::id()
         ));
         std::fs::create_dir_all(&dir).unwrap();

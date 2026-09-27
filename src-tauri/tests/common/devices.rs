@@ -10,7 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use moyun_pos::commands::delivery::MailState;
+use pili_pos::commands::delivery::MailState;
 use pos_mail::tem::TemClient;
 
 use super::harness::TestApp;

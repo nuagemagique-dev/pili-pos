@@ -1,20 +1,20 @@
-# /etc/fstab - moyun-pos kiosk image.
+# /etc/fstab - pili-pos kiosk image.
 #
 # ESP and root are found and mounted automatically by systemd (they
 # carry Discoverable Partitions Spec GUIDs - see mkosi.repart/), so
 # they are deliberately NOT listed here. /var is the one mount this
 # image cannot discover automatically: it only exists once
-# moyun-provision.service has LUKS-formatted and mkfs'd the "moyun-data"
+# pili-provision.service has LUKS-formatted and mkfs'd the "pili-data"
 # partition on first boot (see mkosi.extra/etc/crypttab), so it is
 # named through its decrypted mapper device.
 #
 # `nofail` matches crypttab: if /var never appears (TPM failure, first
-# boot not yet run), the rest of the boot proceeds; moyun-pos.service
-# cannot start without it (StateDirectory=moyun-pos), which is the
+# boot not yet run), the rest of the boot proceeds; pili-pos.service
+# cannot start without it (StateDirectory=pili-pos), which is the
 # correct fail-safe for a fiscal appliance.
 #
 # <device>                 <mount>  <type>  <options>       <dump> <pass>
-/dev/mapper/moyun-data     /var     ext4    defaults,nofail 0      2
-# / is read-only: /tmp is RAM (PrivateTmp= of moyun-pos.service and the
+/dev/mapper/pili-data     /var     ext4    defaults,nofail 0      2
+# / is read-only: /tmp is RAM (PrivateTmp= of pili-pos.service and the
 # other services need it writable).
 tmpfs                      /tmp     tmpfs   mode=1777,nosuid,nodev,size=512M 0 0

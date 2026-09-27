@@ -16,7 +16,7 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
@@ -117,7 +117,7 @@ async fn checkout_fdm_failure_does_not_advance_counter() {
 /// or archive in an inconsistent state.
 #[tokio::test]
 async fn refund_fdm_failure_does_not_advance_counter() {
-    use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
+    use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
 
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);

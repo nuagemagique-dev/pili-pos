@@ -107,7 +107,7 @@ impl PosConfig {
     }
 
     /// Load the configuration from the JSON file documented in the
-    /// installation manual (`/etc/moyun-pos/pos.json` in production).
+    /// installation manual (`/etc/pili-pos/pos.json` in production).
     ///
     /// Identity fields (pos_id, restaurant_vat, fdm_url, …) are
     /// required - a fiscal terminal must not boot with a partial
@@ -128,7 +128,7 @@ impl PosConfig {
     /// What the FDM would refuse in this identity (POS spec v2.2
     /// §2.2.2), or the ticket could not show. Empty when the
     /// configuration is usable. Checked at start-up and by
-    /// `moyun-pos --check-config`, so a typo in `pos.json` shows at
+    /// `pili-pos --check-config`, so a typo in `pos.json` shows at
     /// installation, not as refused sales on opening day.
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
@@ -421,7 +421,7 @@ mod tests {
             from_email: "tickets.example.com".into(),
             from_name: "Restaurant".into(),
             api_base: None,
-            api_key_file: "/etc/moyun-pos/secrets/tem.key".into(),
+            api_key_file: "/etc/pili-pos/secrets/tem.key".into(),
             allow_digital_only: false,
         });
         let problems = c.problems();
@@ -456,7 +456,7 @@ mod tests {
             "printer_address": "192.168.1.10:9100",
             "training_mode": false,
             "language": "fr",
-            "backup_dir": "/var/lib/moyun-pos/backups"
+            "backup_dir": "/var/lib/pili-pos/backups"
         }"#;
         let cfg: PosConfig = serde_json::from_str(json).unwrap();
         assert_eq!(cfg.pos_id, "CFOD0061234567");
@@ -505,8 +505,7 @@ mod tests {
 
     #[test]
     fn load_from_malformed_json_is_parse_error() {
-        let dir =
-            std::env::temp_dir().join(format!("moyun-pos-config-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pili-pos-config-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("pos.json");
         std::fs::write(&path, "{ not valid json").unwrap();
@@ -555,7 +554,7 @@ mod tests {
             "project_id": "11111111-1111-1111-1111-111111111111",
             "from_email": "tickets@restaurant-exemple.be",
             "from_name": "Restaurant Exemple",
-            "api_key_file": "/etc/moyun-pos/tem.key"
+            "api_key_file": "/etc/pili-pos/tem.key"
         }"#;
         let cfg: DigitalTicketConfig = serde_json::from_str(json).unwrap();
         assert_eq!(cfg.region, "fr-par");

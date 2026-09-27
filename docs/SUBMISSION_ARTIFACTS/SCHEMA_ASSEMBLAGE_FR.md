@@ -1,10 +1,10 @@
-# Schéma d'assemblage physique - moyun-pos
+# Schéma d'assemblage physique - pili-pos
 
 **Date :** 2026-05-14
 **Référence :** réponse au §I.C "Schéma d'assemblage" et §II.G du manuel de certification.
 
 Le présent document décrit l'assemblage physique du SCE (Système de
-Caisse Enregistreuse) `moyun-pos` dans sa configuration de référence (un établissement
+Caisse Enregistreuse) `pili-pos` dans sa configuration de référence (un établissement
 HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l'exception du FDM (simulateur en ligne, cf. §7).
 
 ---
@@ -144,7 +144,7 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
 | Appareil | Hostname | IP | MAC (à renseigner à l'install) | Service |
 |---|---|---|---|---|
 | Routeur | `gw` | `192.168.1.1` | - | DHCP, gateway, DNS |
-| POS | `pos-01` | `192.168.1.10` | (à renseigner) | moyun-pos (Tauri app, kiosk) |
+| POS | `pos-01` | `192.168.1.10` | (à renseigner) | pili-pos (Tauri app, kiosk) |
 | FDM | `fdm` | `192.168.1.20` | (à renseigner) | GraphQL du FDM module2 (TCP 80) |
 | Imprimante | `printer` | `192.168.1.30` | (à renseigner) | ESC/POS raw TCP 9100 |
 
@@ -173,11 +173,11 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 3. Brancher le FDM au routeur via RJ45 (port LAN 2). Mettre sous tension. Vérifier que le FDM obtient son IP réservée 192.168.1.20.
 4. Brancher l'imprimante au routeur via RJ45 (port LAN 3). Brancher l'alimentation. Vérifier IP 192.168.1.30. Brancher le RJ11 du tiroir-caisse au DK port de l'imprimante.
 5. Brancher le POS au routeur via RJ45 (port LAN 1). Brancher l'alimentation. Mettre sous tension.
-6. Au démarrage du POS, l'image kiosk lance automatiquement Cage compositor + moyun-pos en plein écran après quelques secondes.
+6. Au démarrage du POS, l'image kiosk lance automatiquement Cage compositor + pili-pos en plein écran après quelques secondes.
 7. Première connexion : INSZ technicien `00000000097` + PIN par défaut `0097`. L'écran "Configuration POS" s'affiche pour saisir/valider :
    - `fdm_url` : `https://192.168.1.20/graphql/`
    - `fdm_token_file` : fichier contenant le jeton Bearer du FDM (lu sur la page de paramètres du FDM)
-   - `fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file` : les certificats module2 (`ca.crt`, `client.crt`, `client.key`, publiés sur manual.module2.be), dans `/etc/moyun-pos/fdm/`, la clé en droits 600
+   - `fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file` : les certificats module2 (`ca.crt`, `client.crt`, `client.key`, publiés sur manual.module2.be), dans `/etc/pili-pos/fdm/`, la clé en droits 600
    - `printer_address` : `192.168.1.30:9100`
    - `restaurant_est_no` : (n° d'établissement TVA assigné au restaurant)
    - `pos_id` : code 14 caractères assigné par SPF Finances au moment de l'enregistrement du POS
@@ -192,7 +192,7 @@ En cas d'audit SPF Finances, le SCE peut être réassemblé à l'identique à pa
 
 - L'image kiosk de la build cert (fichier .iso).
 - Le fichier `pos.json` de configuration (sauvegardé séparément).
-- La base SQLite `pos.db` (snapshot quotidien dans `/var/lib/moyun-pos/backups/`).
+- La base SQLite `pos.db` (snapshot quotidien dans `/var/lib/pili-pos/backups/`).
 - Le présent schéma + les n° de série des composants (à consigner au formulaire d'Intake).
 
 ---

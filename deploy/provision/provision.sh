@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - Provisioning (packages / image / instance)
+# pili-pos - Provisioning (packages / image / instance)
 #
 # Split out of the old monolithic deploy/install.sh so the exact same
 # logic provisions both:
@@ -25,10 +25,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 POS_USER="pos"
-POS_HOME="/var/lib/moyun-pos"
-POS_BIN_DIR="/opt/moyun-pos"
-FACTORY_DIR="/usr/share/moyun-pos/factory"
-SERVICE_FILE="/etc/systemd/system/moyun-pos.service"
+POS_HOME="/var/lib/pili-pos"
+POS_BIN_DIR="/opt/pili-pos"
+FACTORY_DIR="/usr/share/pili-pos/factory"
+SERVICE_FILE="/etc/systemd/system/pili-pos.service"
 
 # Remote-support client (deploy/REMOTE-OPS.md): portable RustDesk, pinned.
 # Extracted (never mounted/run as a live AppImage) so it works with no FUSE:
@@ -40,8 +40,8 @@ RUSTDESK_SHA256="7902cd60a4f29817eebe2668a15c9a1952ac690e8f7b07bfe7620fedd4e2821
 # Placeholder patched with the terminal's real NIC MAC once one can be
 # read: never true at mkosi image-build time (the build chroot has no
 # access to the target terminal's hardware), always true at --phase
-# instance (a live machine) and at first boot (moyun-provision.service,
-# deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision - kept
+# instance (a live machine) and at first boot (pili-provision.service,
+# deploy/image/mkosi.extra/usr/local/lib/pili-pos/pili-provision - kept
 # in sync with detect_device_id() below by hand, see the comment there).
 DEVICE_ID_PLACEHOLDER="CHANGE_ME_MAC"
 
@@ -93,7 +93,7 @@ esac
 # no relevant hardware NIC. Called from phase_instance() below, and - a
 # second, intentionally duplicated copy, since the two run in unrelated
 # filesystem trees (build chroot vs. the booted kiosk image) - from
-# moyun-provision (deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision).
+# pili-provision (deploy/image/mkosi.extra/usr/local/lib/pili-pos/pili-provision).
 # Keep both copies in sync.
 detect_device_id() {
     local iface candidate name mac
@@ -159,7 +159,7 @@ install_rustdesk() {
         cd "$POS_BIN_DIR/.rustdesk-extract"
         # --appimage-extract never mounts anything (no FUSE, no user
         # namespace), which is why it works under NoNewPrivileges=yes
-        # (moyun-pos.service does not run RustDesk, but the same
+        # (pili-pos.service does not run RustDesk, but the same
         # constraint applies inside an unprivileged build chroot).
         "$tmp_appimage" --appimage-extract >/dev/null
     )
@@ -174,7 +174,7 @@ install_admission_extras() {
     if ! id spf &>/dev/null; then
         useradd --create-home --shell /bin/bash --groups pos spf
     fi
-    # Locked until moyun-provision.service sets a random password on
+    # Locked until pili-provision.service sets a random password on
     # first boot and displays it once (deploy/image design).
     passwd -l spf 2>/dev/null || true
 
@@ -187,7 +187,7 @@ install_admission_extras() {
 
     # tty2 console login for the spf role (manual §II.E: SPF may want
     # console access on the admission machine). The password is set by
-    # moyun-provision.service on first boot, not here.
+    # pili-provision.service on first boot, not here.
     systemctl enable getty@tty2.service 2>/dev/null || true
 
     # Installed by mkosi.extra; only enable it here (chroot-safe). Never
@@ -199,41 +199,41 @@ install_admission_extras() {
 }
 
 materialize_or_symlink_etc() {
-    echo "▸ [image:$VARIANT] /etc/moyun-pos…"
-    if [[ -L /etc/moyun-pos ]]; then
+    echo "▸ [image:$VARIANT] /etc/pili-pos…"
+    if [[ -L /etc/pili-pos ]]; then
         echo "  ✓ symlink already in place (kiosk image layout - resolved by"
-        echo "    moyun-provision.service at first boot, see deploy/image/)"
+        echo "    pili-provision.service at first boot, see deploy/image/)"
         return
     fi
     # Plain Debian 13 install (no mkosi read-only-root/LUKS layout): make
-    # /etc/moyun-pos and /var/lib/moyun-pos real directories now, seeded
+    # /etc/pili-pos and /var/lib/pili-pos real directories now, seeded
     # from the same factory artifacts the kiosk image uses.
-    mkdir -p /etc/moyun-pos "$POS_HOME"
-    if [[ ! -f /etc/moyun-pos/pos.json ]]; then
-        install -m 640 "$FACTORY_DIR/pos.json" /etc/moyun-pos/pos.json
-        chown root:"$POS_USER" /etc/moyun-pos/pos.json
-        echo "  ⚠ template written to /etc/moyun-pos/pos.json - edit before starting the service"
+    mkdir -p /etc/pili-pos "$POS_HOME"
+    if [[ ! -f /etc/pili-pos/pos.json ]]; then
+        install -m 640 "$FACTORY_DIR/pos.json" /etc/pili-pos/pos.json
+        chown root:"$POS_USER" /etc/pili-pos/pos.json
+        echo "  ⚠ template written to /etc/pili-pos/pos.json - edit before starting the service"
     fi
-    if [[ -d "$FACTORY_DIR/secrets" && ! -d /etc/moyun-pos/secrets ]]; then
-        install -d -m 750 -o root -g "$POS_USER" /etc/moyun-pos/secrets
+    if [[ -d "$FACTORY_DIR/secrets" && ! -d /etc/pili-pos/secrets ]]; then
+        install -d -m 750 -o root -g "$POS_USER" /etc/pili-pos/secrets
         for f in "$FACTORY_DIR"/secrets/*; do
-            [[ -f "$f" ]] && install -m 640 -o root -g "$POS_USER" "$f" /etc/moyun-pos/secrets/
+            [[ -f "$f" ]] && install -m 640 -o root -g "$POS_USER" "$f" /etc/pili-pos/secrets/
         done
     fi
     # The FDM vendor's TLS files (fdm_ca_file, fdm_client_cert_file,
     # fdm_client_key_file in pos.json), copied here by the technician.
-    install -d -m 750 -o root -g "$POS_USER" /etc/moyun-pos/fdm
+    install -d -m 750 -o root -g "$POS_USER" /etc/pili-pos/fdm
     if [[ ! -f "$POS_HOME/pos.db" ]]; then
         install -m 640 -o "$POS_USER" -g "$POS_USER" "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
     fi
     chown -R "$POS_USER:$POS_USER" "$POS_HOME"
     chmod 750 "$POS_HOME"
-    echo "  ✓ $POS_HOME and /etc/moyun-pos ready"
+    echo "  ✓ $POS_HOME and /etc/pili-pos ready"
 }
 
 phase_image() {
     if [[ -z "$BINARY_PATH" || ! -f "$BINARY_PATH" ]]; then
-        echo "ERROR: --phase image needs --binary /path/to/moyun-pos" >&2
+        echo "ERROR: --phase image needs --binary /path/to/pili-pos" >&2
         exit 1
     fi
 
@@ -251,14 +251,14 @@ phase_image() {
 
     echo "▸ [image:$VARIANT] Installing binary and directories…"
     mkdir -p "$POS_BIN_DIR/bin" "$POS_BIN_DIR/deploy" "$FACTORY_DIR"
-    install -m 755 "$BINARY_PATH" "$POS_BIN_DIR/moyun-pos"
+    install -m 755 "$BINARY_PATH" "$POS_BIN_DIR/pili-pos"
     # In the kiosk image build this script already runs from
     # $POS_BIN_DIR/deploy/provision/, so update.sh is in place.
     if [[ ! "$SCRIPT_DIR/../update.sh" -ef "$POS_BIN_DIR/deploy/update.sh" ]]; then
         install -D -m 755 "$SCRIPT_DIR/../update.sh" "$POS_BIN_DIR/deploy/update.sh"
     fi
     chmod 755 "$POS_BIN_DIR/deploy/update.sh"
-    echo "  ✓ $POS_BIN_DIR/moyun-pos"
+    echo "  ✓ $POS_BIN_DIR/pili-pos"
 
     echo "▸ [image:$VARIANT] Building the factory database…"
     INIT_ARGS=(--init-db)
@@ -269,7 +269,7 @@ phase_image() {
         exit 1
     fi
     [[ -n "$SEED_PATH" ]] && INIT_ARGS+=(--seed "$SEED_PATH")
-    MOYUN_POS_DATA_DIR="$FACTORY_DIR" "$POS_BIN_DIR/moyun-pos" "${INIT_ARGS[@]}"
+    PILI_POS_DATA_DIR="$FACTORY_DIR" "$POS_BIN_DIR/pili-pos" "${INIT_ARGS[@]}"
     echo "  ✓ $FACTORY_DIR/pos.db"
 
     echo "▸ [image:$VARIANT] Writing the pos.json template…"
@@ -290,7 +290,7 @@ phase_image() {
     "from_email": "tickets@admission.invalid",
     "from_name": "SPF Admission Test",
     "api_base": "http://127.0.0.1:8081",
-    "api_key_file": "/etc/moyun-pos/secrets/tem.key",
+    "api_key_file": "/etc/pili-pos/secrets/tem.key",
     "allow_digital_only": true
   },'
         install -d -m 750 "$FACTORY_DIR/secrets"
@@ -322,7 +322,7 @@ phase_image() {
   "training_mode": false,
   "day_end_hour": 5,
   "language": "fr",$DIGITAL_TICKET_TEMPLATE
-  "backup_dir": "/var/lib/moyun-pos/backups"
+  "backup_dir": "/var/lib/pili-pos/backups"
 }
 POSCONF
     echo "  ✓ $FACTORY_DIR/pos.json (device_id patched at instance/first-boot time from the NIC MAC)"
@@ -331,11 +331,11 @@ POSCONF
     install_rustdesk
 
     echo "▸ [image:$VARIANT] Kiosk session (systemd units + PAM)…"
-    install -m 644 "$SCRIPT_DIR/../moyun-pos.service" "$SERVICE_FILE"
-    install -D -m 644 "$SCRIPT_DIR/../kiosk/pam.d-moyun-pos" /etc/pam.d/moyun-pos
-    systemctl enable moyun-pos.service
+    install -m 644 "$SCRIPT_DIR/../pili-pos.service" "$SERVICE_FILE"
+    install -D -m 644 "$SCRIPT_DIR/../kiosk/pam.d-pili-pos" /etc/pam.d/pili-pos
+    systemctl enable pili-pos.service
     systemctl set-default graphical.target
-    echo "  ✓ moyun-pos.service enabled (graphical.target)"
+    echo "  ✓ pili-pos.service enabled (graphical.target)"
 
     echo "▸ [image:$VARIANT] Masking services never wanted on a kiosk…"
     systemctl mask bluetooth cups avahi-daemon ModemManager ssh \
@@ -353,7 +353,7 @@ POSCONF
     # phase only enables what is already present in the tree (symlinks
     # only - `systemctl enable` works offline in a chroot, per mkosi's
     # documented behaviour for postinst.chroot scripts).
-    for unit in moyun-provision.service moyun-installer.service systemd-repart.service; do
+    for unit in pili-provision.service pili-installer.service systemd-repart.service; do
         if [[ -f "/usr/lib/systemd/system/$unit" || -f "/etc/systemd/system/$unit" ]]; then
             systemctl enable "$unit" 2>/dev/null || true
         fi
@@ -378,22 +378,22 @@ phase_instance() {
     fi
 
     echo "▸ [instance] Device ID (NIC MAC, manual §VI row VII)…"
-    if [[ -f /etc/moyun-pos/pos.json ]]; then
+    if [[ -f /etc/pili-pos/pos.json ]]; then
         if ! MAC="$(detect_device_id)"; then
             echo "ERROR: could not determine device_id - fix the network interface and rerun" >&2
             exit 1
         fi
-        sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" /etc/moyun-pos/pos.json
+        sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" /etc/pili-pos/pos.json
         echo "  ✓ device_id = $MAC"
     else
-        echo "  ⚠ /etc/moyun-pos/pos.json not found - run --phase image first"
+        echo "  ⚠ /etc/pili-pos/pos.json not found - run --phase image first"
     fi
 
     echo "▸ [instance] Fiscal identity (what the FDM would refuse)…"
-    if "$POS_BIN_DIR/moyun-pos" --check-config; then
+    if "$POS_BIN_DIR/pili-pos" --check-config; then
         echo "  ✓ pos.json is a usable identity"
     else
-        echo "  ⚠ fix /etc/moyun-pos/pos.json, then rerun: $POS_BIN_DIR/moyun-pos --check-config"
+        echo "  ⚠ fix /etc/pili-pos/pos.json, then rerun: $POS_BIN_DIR/pili-pos --check-config"
     fi
 
     echo "▸ [instance] Time sync + hardening…"
@@ -403,7 +403,7 @@ phase_instance() {
         systemctl stop "$svc" 2>/dev/null || true
     done
     systemctl daemon-reload
-    echo "  ✓ instance ready - start with: systemctl start moyun-pos"
+    echo "  ✓ instance ready - start with: systemctl start pili-pos"
 }
 
 case "$PHASE" in

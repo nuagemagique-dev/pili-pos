@@ -2,10 +2,10 @@
 # Inside the container (scripts/live_app/run.sh): seed the database once, start
 # Xvfb, the printer mock and tauri-driver.
 set -euo pipefail
-export MOYUN_POS_DATA_DIR=/data MOYUN_POS_CONFIG=/work/pos.json DISPLAY=:99 GDK_BACKEND=x11
+export PILI_POS_DATA_DIR=/data PILI_POS_CONFIG=/work/pos.json DISPLAY=:99 GDK_BACKEND=x11
 mkdir -p /data/backups /shots
 if [[ ! -f /data/pos.db ]]; then
-  /cargo-target/release/moyun-pos --init-db --seed /src/src-tauri/seed_spf_test.sql
+  /cargo-target/release/pili-pos --init-db --seed /src/src-tauri/seed_spf_test.sql
   # Ticket numbers go on after the live suite's (target/live-fdm/state.json);
   # scripts/live_app/save_state.sh writes them back after the session.
   python3 - <<'PY'

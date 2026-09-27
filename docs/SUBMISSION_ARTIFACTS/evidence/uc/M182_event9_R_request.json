@@ -25,7 +25,7 @@
   ],
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "users": [

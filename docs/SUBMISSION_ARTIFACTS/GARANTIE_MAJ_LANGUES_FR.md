@@ -46,7 +46,7 @@ Le script `scripts/build_and_hash.sh` :
 
 La valeur SHA-1 est déclarée au formulaire §I.D et au tableau §VII.F. Toute installation cliente est vérifiable via :
 ```bash
-sha1sum /opt/moyun-pos/moyun-pos
+sha1sum /opt/pili-pos/pili-pos
 # doit correspondre à la valeur déclarée au SPF
 ```
 
@@ -63,8 +63,8 @@ L'OS hôte (Debian 13 minimal) est configuré lors de l'installation initiale po
 - Aucune mise à jour automatique de paquets (`apt-daily.timer`,
   `apt-daily-upgrade.timer` et `unattended-upgrades` masqués,
   `deploy/provision/provision.sh`).
-- Seul `/var/lib/moyun-pos` est en lecture/écriture (pour la DB et les backups).
-- Cage Wayland compositor lance directement `moyun-pos` en plein écran ; pas de bureau, pas de terminal accessible.
+- Seul `/var/lib/pili-pos` est en lecture/écriture (pour la DB et les backups).
+- Cage Wayland compositor lance directement `pili-pos` en plein écran ; pas de bureau, pas de terminal accessible.
 
 Une fois l'installation initiale effectuée, toute modification du binaire passe obligatoirement par `deploy/update.sh` avec les droits root.
 
@@ -94,14 +94,14 @@ La procédure de mise à jour est la suivante :
 1. **Côté producteur :**
    - Implémentation des modifications dans une branche dédiée.
    - Tests automatisés (`cargo test --workspace`) passent à 100%.
-   - Anti-régression : `cargo build --release --no-default-features --features cert` + `nm moyun-pos | grep -c pos_hubrise == 0`.
+   - Anti-régression : `cargo build --release --no-default-features --features cert` + `nm pili-pos | grep -c pos_hubrise == 0`.
    - Nouveau tag git signé `vX.Y.Z+1`.
-   - Production du nouvel exécutable Tauri (`moyun-pos`) via la commande de build de certification.
+   - Production du nouvel exécutable Tauri (`pili-pos`) via la commande de build de certification.
    - Calcul du SHA-1 du nouveau build.
    - Soumission d'une nouvelle demande de certification (mise à jour) au SPF Finances.
 
 2. **Sur la machine de test SPF (pendant le cycle de mise à jour) :**
-   - Le producteur remet le nouveau binaire `moyun-pos` pour la machine de test sur clé USB (cf. §2.2).
+   - Le producteur remet le nouveau binaire `pili-pos` pour la machine de test sur clé USB (cf. §2.2).
    - Le binaire est installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>` : le script refuse tout binaire dont le SHA-1 diffère de la valeur déclarée, sauvegarde binaire et base, applique les migrations puis redémarre le service. Cf. *MANUEL_INSTALLATION_FR.md* §6.
    - Tests de validation effectués par l'agent SPF.
 
@@ -114,13 +114,13 @@ La procédure de mise à jour est la suivante :
 
 Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, AnyDesk, RustDesk, VNC, Zoho Assist, Splashtop) pour faciliter les mises à jour et l'assistance technique.
 
-**Position de moyun-pos :** aucune solution d'accès à distance permanente n'est installée sur la machine de test livrée à l'Intake ni sur la production client. C'est une décision délibérée :
+**Position de pili-pos :** aucune solution d'accès à distance permanente n'est installée sur la machine de test livrée à l'Intake ni sur la production client. C'est une décision délibérée :
 
 - **Raison principale :** ouvrir un canal d'administration distante sur un terminal de caisse fiscale augmente la surface d'attaque sans bénéfice opérationnel suffisant. Un attaquant qui compromet l'accès distant peut potentiellement contourner les protections fiscales.
 - **Raison secondaire :** la spec SCE 2.0 demande un appliance scellé. Un agent SSH ou un client TeamViewer permanent contredit l'esprit du scellement.
 
 **Compromis pratique :** pour les interventions techniques planifiées (mise à jour, debug d'un problème reporté par le client) :
-- Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à la construction de l'image, extrait dans `/opt/moyun-pos/rustdesk/` (lancé via `/opt/moyun-pos/rustdesk/AppRun`). Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
+- Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à la construction de l'image, extrait dans `/opt/pili-pos/rustdesk/` (lancé via `/opt/pili-pos/rustdesk/AppRun`). Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
 - Ouverture : depuis la caisse, par un Gérant connecté qui confirme avec son PIN ("Config" > "Assistance à distance" > "Démarrer", `src-tauri/src/commands/support.rs`). RustDesk affiche un identifiant et un mot de passe à usage unique, communiqués au producteur par téléphone.
 - Pendant la session, chaque écran de la caisse affiche le bandeau "Assistance à distance en cours" ; démarrage et arrêt sont journalisés (qui, quand).
 - La session prend fin par "Arrêter la session", à la fermeture de RustDesk ou au redémarrage du terminal. Une seule session à la fois. Aucun accès permanent, aucun port en écoute hors session.
@@ -143,10 +143,10 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 
 ### 3.1 Langues supportées par le code source
 
-Le code de `moyun-pos` supporte le rendu multilingue des tickets via deux mécanismes complémentaires :
+Le code de `pili-pos` supporte le rendu multilingue des tickets via deux mécanismes complémentaires :
 
 - **Libellés produits** : table `translations` polymorphe (cf. *SCHEMA_BD_FR.md*) - couvre catégories, articles, modificateurs. Les lignes du ticket portent le libellé dénormalisé dans la langue active au moment de la vente.
-- **Mentions fiscales imprimées** : jeux de libellés FR/NL/DE embarqués dans le code (`crates/pos-fiscal/src/ticket.rs` : `ReceiptLanguage`, `ticket_type_label`, `invalid_disclaimer` ; `crates/pos-print/src/labels.rs` : libellés fixes Date/Ticket/TOTAL/TVA du reçu et du rapport, noms d'événement N/P/T/C/I/F/S/R, noms de moyen de paiement). Les rapports X et Z, le rapport utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivent la même langue que le reçu : ce n'est pas propre au ticket de vente. La langue est déterminée par la clé `language` du fichier de configuration `/etc/moyun-pos/pos.json`, mappée sur une langue nationale : `fr`/`nl`/`de` directement, toute autre valeur (en, zh) retombe sur le FR.
+- **Mentions fiscales imprimées** : jeux de libellés FR/NL/DE embarqués dans le code (`crates/pos-fiscal/src/ticket.rs` : `ReceiptLanguage`, `ticket_type_label`, `invalid_disclaimer` ; `crates/pos-print/src/labels.rs` : libellés fixes Date/Ticket/TOTAL/TVA du reçu et du rapport, noms d'événement N/P/T/C/I/F/S/R, noms de moyen de paiement). Les rapports X et Z, le rapport utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivent la même langue que le reçu : ce n'est pas propre au ticket de vente. La langue est déterminée par la clé `language` du fichier de configuration `/etc/pili-pos/pos.json`, mappée sur une langue nationale : `fr`/`nl`/`de` directement, toute autre valeur (en, zh) retombe sur le FR.
 
 Langues des mentions fiscales supportées par le code :
 - `fr` (français) - **complète** (libellés issus de la description détaillée POS v2.2 et du manuel §VI)
@@ -176,14 +176,14 @@ Le paramètre fait partie de la checklist de mise en service (`MANUEL_INSTALLATI
 
 **Pour basculer la langue des mentions fiscales (FR → NL ou DE)**, par exemple pour une installation dans une autre région linguistique, la procédure est une mise à jour de configuration (pas du code) :
 1. Compléter les traductions manquantes dans la table `translations` pour les articles.
-2. Éditer la clé `language` de `/etc/moyun-pos/pos.json` (`fr` / `nl` / `de`).
-3. Redémarrer le service `moyun-pos` (la configuration est lue au boot).
+2. Éditer la clé `language` de `/etc/pili-pos/pos.json` (`fr` / `nl` / `de`).
+3. Redémarrer le service `pili-pos` (la configuration est lue au boot).
 
-Les trois jeux de mentions FR/NL/DE étant déjà compilés dans le binaire, aucune modification du binaire `moyun-pos` n'est nécessaire pour changer de langue : c'est de la **configuration**, pas du code. Donc pas de nouveau cycle de certification.
+Les trois jeux de mentions FR/NL/DE étant déjà compilés dans le binaire, aucune modification du binaire `pili-pos` n'est nécessaire pour changer de langue : c'est de la **configuration**, pas du code. Donc pas de nouveau cycle de certification.
 
 ### 3.3 Tickets multilingues pour la machine de test SPF
 
-Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré avec les traductions FR/NL/DE/EN des produits du manuel (Dry Martini, Burger of the Chef, etc.). L'agent SPF pourra basculer la langue des mentions fiscales en éditant la clé `language` de `/etc/moyun-pos/pos.json` (procédure §3.2) et constater le changement sur le ticket suivant.
+Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré avec les traductions FR/NL/DE/EN des produits du manuel (Dry Martini, Burger of the Chef, etc.). L'agent SPF pourra basculer la langue des mentions fiscales en éditant la clé `language` de `/etc/pili-pos/pos.json` (procédure §3.2) et constater le changement sur le ticket suivant.
 
 ---
 
@@ -192,8 +192,8 @@ Pour la machine de test livrée à l'Intake, le seed `pos.db` sera configuré av
 | Engagement | Mécanisme | Vérifiabilité |
 |---|---|---|
 | Build cert reproductible | `Cargo.lock`, `rust-toolchain.toml`, image de build par empreinte, Node.js par SHA-256 | `scripts/check_repro.sh` : deux builds, même SHA-1 (CI, tâche `repro`) |
-| Build = déploiement client | Binaire Tauri scellé + SHA-1 vérifiable | `sha1sum /opt/moyun-pos/moyun-pos` |
-| Pas de modification post-cert | Système de fichiers racine monté en lecture seule (option `ro` du noyau, drapeau GPT lecture seule) ; binaire identifié par son SHA-1 | `sha1sum` du binaire installé comparé au SHA-1 déclaré ; `moyun-pos --version` |
+| Build = déploiement client | Binaire Tauri scellé + SHA-1 vérifiable | `sha1sum /opt/pili-pos/pili-pos` |
+| Pas de modification post-cert | Système de fichiers racine monté en lecture seule (option `ro` du noyau, drapeau GPT lecture seule) ; binaire identifié par son SHA-1 | `sha1sum` du binaire installé comparé au SHA-1 déclaré ; `pili-pos --version` |
 | Nouvelle MAJ = nouveau cert | Procédure §II.E + Article 109 du manuel | Chaque tag `vX.Y.Z+1` ouvre une nouvelle demande SPF |
 | Pas d'accès distant permanent | Pas de SSH ; RustDesk portable présent mais jamais lancé au boot | Vérification au scan réseau du POS (aucun port ouvert hors session) |
 | Ticket dans la langue de la région linguistique de l'établissement | `translations` (libellés produits) + `pos.json::language` (mentions fiscales FR/NL/DE) | Inspection visuelle du ticket, paramétrage modifiable sans changer le binaire |

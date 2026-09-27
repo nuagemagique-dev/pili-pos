@@ -4,7 +4,7 @@ import * as ipc from "../api/ipc";
 
 export type AppLanguage = "fr" | "en" | "zh";
 
-const LANG_KEY = "moyun-pos-language";
+const LANG_KEY = "pili-pos-language";
 
 export const usePosStore = defineStore("pos", () => {
   const trainingMode = ref(false);

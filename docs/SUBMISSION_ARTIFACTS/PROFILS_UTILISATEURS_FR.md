@@ -1,4 +1,4 @@
-# Profils utilisateurs - moyun-pos
+# Profils utilisateurs - pili-pos
 
 Le Manuel de certification SCE 2.0 (Introduction, p.9) impose
 **trois profils d'accès** distincts au système :
@@ -13,7 +13,7 @@ dans `crates/pos-core/src/user.rs`.
 
 ## 1. Correspondance des profils
 
-| Profil SCE 2.0 | Rôle technique `moyun-pos` | Code source |
+| Profil SCE 2.0 | Rôle technique `pili-pos` | Code source |
 |---|---|---|
 | Gérant / Technicien | `UserRole::Admin` | `crates/pos-core/src/user.rs:6` |
 | Serveur | `UserRole::Cashier` | `crates/pos-core/src/user.rs:7` |

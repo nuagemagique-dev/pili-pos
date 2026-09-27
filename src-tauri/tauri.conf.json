@@ -1,7 +1,7 @@
 {
-  "productName": "moyun-pos",
+  "productName": "pili-pos",
   "version": "1.0.0",
-  "identifier": "dev.nuagemagique.moyun-pos",
+  "identifier": "dev.nuagemagique.pili-pos",
   "build": {
     "frontendDist": "../ui/dist",
     "devUrl": "http://localhost:1420",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "moyun-pos",
+        "title": "pili-pos",
         "width": 1920,
         "height": 1080,
         "fullscreen": false,

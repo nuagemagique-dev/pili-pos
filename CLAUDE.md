@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-**Name:** moyun-pos  
+**Name:** pili-pos  
 **Purpose:** Point-of-Sale terminal application for Belgian HoReCa restaurants, certified SCE 2.0 compliant. First deployment target: Tokyo Sushi Bar (Liège - French-language region, tickets in FR).  
 **License:** Proprietary (nuagemagique.dev)  
 **Author:** Bruno - backend developer, Go/TypeScript/Rust stack, Brussels
@@ -177,7 +177,7 @@ Every dine-in ticket must include:
 ## Workspace Structure
 
 ```
-moyun-pos/
+pili-pos/
 ├── Cargo.toml                  # Workspace root
 ├── CLAUDE.md                   # This file
 ├── src-tauri/
@@ -564,7 +564,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - `cargo tauri dev` for hot-reload development
 - Mock FDM: implement a local mock server that simulates GraphQL responses
 - Live FDM: `scripts/live_fdm.sh` against the module2 simulator
-- SQLite DB file: `~/.local/share/moyun-pos/pos.db` (dev) or `/var/lib/moyun-pos/pos.db` (prod)
+- SQLite DB file: `~/.local/share/pili-pos/pos.db` (dev) or `/var/lib/pili-pos/pos.db` (prod)
 
 ---
 
@@ -572,7 +572,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ```bash
 # Setup workspace
-cargo init --name moyun-pos
+cargo init --name pili-pos
 cargo tauri init
 
 # Dev mode

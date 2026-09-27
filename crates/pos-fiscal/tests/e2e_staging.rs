@@ -4,8 +4,8 @@
 //! does NOT run it. Activate explicitly:
 //!
 //! ```bash
-//! MOYUN_STAGING_FDM_URL=https://<virtual-fdm>/graphql \
-//! MOYUN_STAGING_DUMP=1 \
+//! PILI_STAGING_FDM_URL=https://<virtual-fdm>/graphql \
+//! PILI_STAGING_DUMP=1 \
 //!     cargo test -p pos-fiscal --test e2e_staging -- --ignored --nocapture
 //! ```
 //!
@@ -13,15 +13,15 @@
 //!
 //! | Variable | Default | Purpose |
 //! |---|---|---|
-//! | `MOYUN_STAGING_FDM_URL`      | -                | FDM GraphQL endpoint (required) |
-//! | `MOYUN_STAGING_FDM_TOKEN`    | unset            | bearer token, for a cloud FDM (module2 simulator) |
-//! | `MOYUN_STAGING_POS_ID`       | `CPOS0031234567` | posId registered with the FDM (the test setup's) |
-//! | `MOYUN_STAGING_VAT`          | `BE0000000097`   | vatNo (SPF test identity) |
-//! | `MOYUN_STAGING_EST_NO`       | `2000000042`     | estNo (SPF test identity) |
-//! | `MOYUN_STAGING_INSZ`         | `12345678901`    | employee INSZ for S events |
-//! | `MOYUN_STAGING_TICKET_START` | `1`              | first posFiscalTicketNo - bump on re-runs so numbering stays strictly increasing across rehearsals |
-//! | `MOYUN_STAGING_PAUSE_MS`     | `1000`           | pause after each signed event, to go easy on a shared FDM |
-//! | `MOYUN_STAGING_DUMP`         | unset            | `1` → write every request/response pair to `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md` |
+//! | `PILI_STAGING_FDM_URL`      | -                | FDM GraphQL endpoint (required) |
+//! | `PILI_STAGING_FDM_TOKEN`    | unset            | bearer token, for a cloud FDM (module2 simulator) |
+//! | `PILI_STAGING_POS_ID`       | `CPOS0031234567` | posId registered with the FDM (the test setup's) |
+//! | `PILI_STAGING_VAT`          | `BE0000000097`   | vatNo (SPF test identity) |
+//! | `PILI_STAGING_EST_NO`       | `2000000042`     | estNo (SPF test identity) |
+//! | `PILI_STAGING_INSZ`         | `12345678901`    | employee INSZ for S events |
+//! | `PILI_STAGING_TICKET_START` | `1`              | first posFiscalTicketNo - bump on re-runs so numbering stays strictly increasing across rehearsals |
+//! | `PILI_STAGING_PAUSE_MS`     | `1000`           | pause after each signed event, to go easy on a shared FDM |
+//! | `PILI_STAGING_DUMP`         | unset            | `1` → write every request/response pair to `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md` |
 //!
 //! `staging_status_returns_operational` is the intake preflight;
 //! `staging_basic_set_smoke` replays the full Basic Set sequence the
@@ -76,7 +76,7 @@ fn bk(period_id: &str) -> pos_fiscal::event::Booking {
 }
 
 fn staging_url() -> Option<String> {
-    env::var("MOYUN_STAGING_FDM_URL").ok()
+    env::var("PILI_STAGING_FDM_URL").ok()
 }
 
 fn env_or(key: &str, default: &str) -> String {
@@ -86,7 +86,7 @@ fn env_or(key: &str, default: &str) -> String {
 /// A client for the staging FDM, with its bearer token when one is set.
 fn staging_client(url: &str) -> FdmClient {
     FdmClient::new(url).with_bearer_token(
-        env::var("MOYUN_STAGING_FDM_TOKEN")
+        env::var("PILI_STAGING_FDM_TOKEN")
             .ok()
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty()),
@@ -95,15 +95,15 @@ fn staging_client(url: &str) -> FdmClient {
 
 fn staging_config(url: &str) -> PosConfig {
     PosConfig {
-        pos_id: env_or("MOYUN_STAGING_POS_ID", "CPOS0031234567"),
+        pos_id: env_or("PILI_STAGING_POS_ID", "CPOS0031234567"),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),
         // SPF test identity (UC_TestSetup_20240806) unless overridden
         // with the identity the virtual FDM was provisioned for.
         restaurant_name: "The FPS Finances Experience".to_string(),
         restaurant_address: "Boulevard Albert II 33, 1030 Brussels".to_string(),
-        restaurant_vat: env_or("MOYUN_STAGING_VAT", "BE0000000097"),
-        restaurant_est_no: env_or("MOYUN_STAGING_EST_NO", "2000000042"),
+        restaurant_vat: env_or("PILI_STAGING_VAT", "BE0000000097"),
+        restaurant_est_no: env_or("PILI_STAGING_EST_NO", "2000000042"),
         fdm_url: url.to_string(),
         ..Default::default()
     }
@@ -118,7 +118,7 @@ async fn staging_status_returns_operational() {
         Some(u) => u,
         None => {
             eprintln!(
-                "MOYUN_STAGING_FDM_URL not set - skipping. \
+                "PILI_STAGING_FDM_URL not set - skipping. \
                  Provision a virtual FDM and re-run with the URL in env."
             );
             return;
@@ -169,7 +169,7 @@ async fn staging_status_returns_operational() {
 // ── Rehearsal bookkeeping ──────────────────────────────────────
 
 /// Tracks cross-event invariants (counter monotonicity) and, when
-/// `MOYUN_STAGING_DUMP=1`, accumulates a markdown log of every
+/// `PILI_STAGING_DUMP=1`, accumulates a markdown log of every
 /// request/response pair for the dossier.
 struct Rehearsal {
     pos_id: String,
@@ -191,7 +191,7 @@ impl Rehearsal {
                 fdm_url,
                 pos_id
             ),
-            dump: env::var("MOYUN_STAGING_DUMP").as_deref() == Ok("1"),
+            dump: env::var("PILI_STAGING_DUMP").as_deref() == Ok("1"),
             last_total_counter: 0,
             per_label_counter: HashMap::new(),
             results: Vec::new(),
@@ -272,9 +272,9 @@ impl Rehearsal {
 
         // One event at a time, spaced out: the FDM may be shared (the
         // module2 simulator is). Blocking is fine, nothing else runs.
-        let pause: u64 = env_or("MOYUN_STAGING_PAUSE_MS", "1000")
+        let pause: u64 = env_or("PILI_STAGING_PAUSE_MS", "1000")
             .parse()
-            .expect("MOYUN_STAGING_PAUSE_MS must be an integer");
+            .expect("PILI_STAGING_PAUSE_MS must be an integer");
         std::thread::sleep(std::time::Duration::from_millis(pause));
     }
 
@@ -349,16 +349,16 @@ async fn staging_basic_set_smoke() {
     let url = match staging_url() {
         Some(u) => u,
         None => {
-            eprintln!("MOYUN_STAGING_FDM_URL not set - skipping.");
+            eprintln!("PILI_STAGING_FDM_URL not set - skipping.");
             return;
         }
     };
 
     let config = staging_config(&url);
-    let insz = env_or("MOYUN_STAGING_INSZ", "12345678901");
-    let mut ticket_no: i64 = env_or("MOYUN_STAGING_TICKET_START", "1")
+    let insz = env_or("PILI_STAGING_INSZ", "12345678901");
+    let mut ticket_no: i64 = env_or("PILI_STAGING_TICKET_START", "1")
         .parse()
-        .expect("MOYUN_STAGING_TICKET_START must be an integer");
+        .expect("PILI_STAGING_TICKET_START must be an integer");
     let booking_period_id = Uuid::new_v4().to_string();
 
     let client = staging_client(&url);

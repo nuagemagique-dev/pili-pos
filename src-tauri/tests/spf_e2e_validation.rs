@@ -14,14 +14,14 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::errors;
+use pili_pos::commands::errors;
 
-use moyun_pos::commands::auth::{CreateUserInput, do_create_user, do_login, do_set_pin};
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::order::{AddOrderLineInput, do_add_order_line};
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::auth::{CreateUserInput, do_create_user, do_login, do_set_pin};
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::order::{AddOrderLineInput, do_add_order_line};
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 use pos_db::queries::orders::create_order;
 

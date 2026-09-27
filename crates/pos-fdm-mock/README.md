@@ -170,7 +170,7 @@ image, screenshots, demos). Point `pos.json` at it:
   "from_email": "tickets@admission.invalid",
   "from_name": "Restaurant",
   "api_base": "http://127.0.0.1:8081",
-  "api_key_file": "/etc/moyun-pos/secrets/tem.key",
+  "api_key_file": "/etc/pili-pos/secrets/tem.key",
   "allow_digital_only": true
 }
 ```

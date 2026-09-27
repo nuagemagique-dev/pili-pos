@@ -27,8 +27,8 @@ immédiatement communiqué au service compétent »).
 
 ## Portée
 
-La présente certification porte sur `moyun-pos v1.0.0` en tant que
+La présente certification porte sur `pili-pos v1.0.0` en tant que
 produit, destiné aux établissements HoReCa. Aucune modification de code
 n'est attendue d'un établissement à l'autre : identité de
 l'établissement, langue des tickets et catalogue sont de la
-configuration (`/etc/moyun-pos/pos.json` + base SQLite), pas du code.
+configuration (`/etc/pili-pos/pos.json` + base SQLite), pas du code.

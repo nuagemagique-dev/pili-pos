@@ -1,4 +1,4 @@
-# Update Strategy - moyun-pos
+# Update Strategy - pili-pos
 
 ## Constraints
 
@@ -32,7 +32,7 @@ channel.
 `deploy/update.sh <binary> --sha1 <declared SHA-1>` on the maintenance
 console. It refuses a binary whose SHA-1 differs from the declared
 value, backs up the binary and the database, applies schema migrations
-offline (`moyun-pos --init-db`), and restarts the kiosk.
+offline (`pili-pos --init-db`), and restarts the kiosk.
 
 The binary reaches the terminal either:
 
@@ -44,7 +44,7 @@ Schedule updates outside service hours, after the day's Z report.
 
 ## Rollback
 
-`update.sh` keeps the previous binary as `/opt/moyun-pos/moyun-pos.bak`
+`update.sh` keeps the previous binary as `/opt/pili-pos/pili-pos.bak`
 (also a certified version). Rolling back swaps the binary only; the
 database is never restored from a backup, since that would drop fiscal
 events recorded since.
@@ -55,4 +55,4 @@ Once the kiosk image is built with a read-only root (mkosi), updates
 move to A/B image partitions (`systemd-sysupdate`): the new image is
 written to the inactive slot and verified before reboot, so an update
 never leaves a half-installed system. The SHA-1 check on the
-`moyun-pos` binary stays the acceptance gate.
+`pili-pos` binary stays the acceptance gate.

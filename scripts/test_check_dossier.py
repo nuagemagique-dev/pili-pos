@@ -88,7 +88,7 @@ class CheckDossierTestCase(unittest.TestCase):
         )
         write(
             root / "src-tauri" / "Cargo.toml",
-            '[package]\nname = "moyun-pos"\n\n[dependencies]\n'
+            '[package]\nname = "pili-pos"\n\n[dependencies]\n'
             'pos-fiscal = { path = "../crates/pos-fiscal" }\n',
         )
         write(
@@ -99,8 +99,8 @@ class CheckDossierTestCase(unittest.TestCase):
         # --- deploy/: the source of truth for absolute install paths -----
         write(
             root / "deploy" / "install.sh",
-            '#!/usr/bin/env bash\nPOS_HOME="/var/lib/moyun-pos"\nETC_DIR="/var/lib/moyun-etc"\n'
-            'mkdir -p "$POS_HOME" "${ETC_DIR}/moyun-pos" "$POS_HOME/logs"\ntouch "$POS_HOME/pos.db"\n',
+            '#!/usr/bin/env bash\nPOS_HOME="/var/lib/pili-pos"\nETC_DIR="/var/lib/pili-etc"\n'
+            'mkdir -p "$POS_HOME" "${ETC_DIR}/pili-pos" "$POS_HOME/logs"\ntouch "$POS_HOME/pos.db"\n',
         )
 
         # --- scripts/: allowlist for the placeholder rule -----------------
@@ -132,13 +132,13 @@ class CheckDossierTestCase(unittest.TestCase):
             dossier / "REPO_PATH_FR.md",
             "Passing references:\n"
             "- `deploy/install.sh`\n"
-            "- `/var/lib/moyun-pos`\n"
+            "- `/var/lib/pili-pos`\n"
             "- `crates/pos-fiscal/src/signature.rs:5`\n"
-            "- `/var/lib/moyun-pos/backups/pos-*.db`\n"
-            "- `~/.local/share/moyun-pos/pos.db`\n"
-            "- `/var/lib/moyun-etc/moyun-pos`\n"
-            "- `/var/lib/moyun-pos/logs/pos.log.YYYY-MM-DD`\n"
-            "- `/var/lib/moyun-pos/pos.db-wal`\n"
+            "- `/var/lib/pili-pos/backups/pos-*.db`\n"
+            "- `~/.local/share/pili-pos/pos.db`\n"
+            "- `/var/lib/pili-etc/pili-pos`\n"
+            "- `/var/lib/pili-pos/logs/pos.log.YYYY-MM-DD`\n"
+            "- `/var/lib/pili-pos/pos.db-wal`\n"
             "- `crates/pos-fiscal/src/{signature,missing_but_braced}.rs`\n"
             "- `commands/checkout.rs`\n"
             "\n"
@@ -245,18 +245,18 @@ class CheckDossierTestCase(unittest.TestCase):
         self.assertEqual(len(msgs), 4, f"expected exactly 4 repo-path findings, got:\n{joined}")
 
     def test_shell_variables_are_expanded(self):
-        text = 'ETC_DIR="/var/lib/moyun-etc"\ncp a "$ETC_DIR/moyun-pos/pos.json" "${ETC_DIR}/x"\n'
+        text = 'ETC_DIR="/var/lib/pili-etc"\ncp a "$ETC_DIR/pili-pos/pos.json" "${ETC_DIR}/x"\n'
         out = self.cd.expand_shell_vars(text)
-        self.assertIn("/var/lib/moyun-etc/moyun-pos/pos.json", out)
-        self.assertIn("/var/lib/moyun-etc/x", out)
+        self.assertIn("/var/lib/pili-etc/pili-pos/pos.json", out)
+        self.assertIn("/var/lib/pili-etc/x", out)
 
     def test_known_absolute_paths(self):
-        allowed = {"/var/lib/moyun-pos/pos.db", "/var/lib/moyun-pos/logs"}
+        allowed = {"/var/lib/pili-pos/pos.db", "/var/lib/pili-pos/logs"}
         known = self.cd.abs_path_known
-        self.assertTrue(known("/var/lib/moyun-pos/pos.db-shm", allowed))
-        self.assertTrue(known("/var/lib/moyun-pos/logs/pos.log.YYYY-MM-DD", allowed))
-        self.assertFalse(known("/var/lib/moyun-pos/other.db-wal", allowed))
-        self.assertFalse(known("/var/lib/moyun-pos/logs/pos.log", allowed))
+        self.assertTrue(known("/var/lib/pili-pos/pos.db-shm", allowed))
+        self.assertTrue(known("/var/lib/pili-pos/logs/pos.log.YYYY-MM-DD", allowed))
+        self.assertFalse(known("/var/lib/pili-pos/other.db-wal", allowed))
+        self.assertFalse(known("/var/lib/pili-pos/logs/pos.log", allowed))
         self.assertFalse(known("/var/lib/elsewhere/YYYY.log", allowed))
 
     # -- brand ------------------------------------------------------------------

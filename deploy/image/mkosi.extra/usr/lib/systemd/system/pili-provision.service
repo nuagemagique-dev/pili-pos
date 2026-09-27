@@ -1,5 +1,5 @@
 [Unit]
-Description=moyun-pos first-boot provisioning (LUKS2 + TPM2, factory data)
+Description=pili-pos first-boot provisioning (LUKS2 + TPM2, factory data)
 DefaultDependencies=no
 After=systemd-repart.service systemd-udevd.service
 Wants=systemd-repart.service
@@ -7,20 +7,20 @@ Wants=systemd-repart.service
 # and the kiosk are ordered after it. Never After=getty@tty1: getty is
 # ordered after basic.target, itself after local-fs.target, so that made
 # an ordering cycle and systemd dropped this unit from the boot.
-Before=local-fs.target systemd-cryptsetup@moyun\x2ddata.service moyun-pos.service getty@tty1.service
+Before=local-fs.target systemd-cryptsetup@pili\x2ddata.service pili-pos.service getty@tty1.service
 # The device appears as soon as this unit opens it (through the TPM2):
 # the check and the mount of /var wait until it has unmounted it.
-Before=systemd-fsck@dev-mapper-moyun\x2ddata.service var.mount
+Before=systemd-fsck@dev-mapper-pili\x2ddata.service var.mount
 # Idempotent: does nothing once /var is a real mount (every boot after
-# the first, and any manual re-run). See usr/local/lib/moyun-pos/
-# moyun-provision for the full first-boot flow (LUKS2 format, TPM2 +
+# the first, and any manual re-run). See usr/local/lib/pili-pos/
+# pili-provision for the full first-boot flow (LUKS2 format, TPM2 +
 # recovery key enrollment, mkfs, factory data copy, root/spf password
 # generation, one-time display).
 ConditionPathIsMountPoint=!/var
 # Never run when booted in USB installer/updater mode - see
-# moyun-installer.service and usr/lib/systemd/system/
-# systemd-repart.service.d/91-moyun-installer-mode.conf.
-ConditionKernelCommandLine=!moyun.installer
+# pili-installer.service and usr/lib/systemd/system/
+# systemd-repart.service.d/91-pili-installer-mode.conf.
+ConditionKernelCommandLine=!pili.installer
 
 [Service]
 Type=oneshot
@@ -31,7 +31,7 @@ StandardOutput=tty
 StandardError=tty
 TTYReset=yes
 TTYVHangup=yes
-ExecStart=/usr/local/lib/moyun-pos/moyun-provision
+ExecStart=/usr/local/lib/pili-pos/pili-provision
 
 [Install]
 WantedBy=multi-user.target

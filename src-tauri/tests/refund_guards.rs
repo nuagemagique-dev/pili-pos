@@ -14,11 +14,11 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_list_open_orders,
 };
-use moyun_pos::commands::refund::{
+use pili_pos::commands::refund::{
     ERR_REFUND_IN_TRAINING, ERR_REFUND_OF_REFUND, RefundItem, do_refund_checkout,
 };
 use pos_core::order::OrderType;
@@ -193,12 +193,12 @@ async fn a_refused_ticket_medium_creates_no_refund_order() {
     let app = app().await;
     let original = sale(&app).await;
     let orders = order_count(&app);
-    let request = moyun_pos::commands::delivery::TicketDeliveryRequest::email(
-        moyun_pos::commands::delivery::RequestedMedium::Digital,
+    let request = pili_pos::commands::delivery::TicketDeliveryRequest::email(
+        pili_pos::commands::delivery::RequestedMedium::Digital,
         "client@example.com",
     );
     // Email is not configured on this terminal.
-    let r = moyun_pos::commands::refund::do_refund_checkout_with(
+    let r = pili_pos::commands::refund::do_refund_checkout_with(
         &app.state,
         original,
         items(&[(1, 1)]),

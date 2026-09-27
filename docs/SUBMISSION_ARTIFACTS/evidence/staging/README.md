@@ -2,7 +2,7 @@
 
 Ce répertoire reçoit `rehearsal_log.md`, écrit par le test
 `crates/pos-fiscal/tests/e2e_staging.rs` lancé avec
-`MOYUN_STAGING_DUMP=1` : chaque paire requête/réponse échangée avec le
+`PILI_STAGING_DUMP=1` : chaque paire requête/réponse échangée avec le
 FDM, horodatée, URL FDM incluse. Voir
 `JOURNAL_TESTS_PRE_SOUMISSION_FR.md`.
 

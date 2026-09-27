@@ -1,4 +1,4 @@
--- ── moyun-pos - Seed pour la machine de test SPF Finances ───────────
+-- ── pili-pos - Seed pour la machine de test SPF Finances ───────────
 --
 -- Reference : §III "Lignes de produit predefinies" du manuel de
 -- certification (page 29-30 de
@@ -12,7 +12,7 @@
 --
 -- Applique a la construction de l'image d'admission, sur une base
 -- vierge (refuse si des evenements fiscaux existent deja) :
---   moyun-pos --init-db --seed seed_spf_test.sql
+--   pili-pos --init-db --seed seed_spf_test.sql
 --
 -- VAT codes utilises (col vat_code) :
 --   A = 21% (alcools, boissons rafraichissantes)
@@ -235,4 +235,4 @@ INSERT INTO fiscal_counters (event_label, current_value) VALUES
 -- - etc.
 --
 -- Une image de production est construite avec le catalogue de
--- l'etablissement a la place de ce seed (meme binaire moyun-pos).
+-- l'etablissement a la place de ce seed (meme binaire pili-pos).

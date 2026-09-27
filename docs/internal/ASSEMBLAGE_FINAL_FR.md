@@ -8,7 +8,7 @@ envoyer l'email.
 ## Étape 1 - Vérification de sanité de la build cert
 
 ```bash
-cd moyun-pos   # racine du dépôt
+cd pili-pos   # racine du dépôt
 
 cargo test --workspace        # doit être tout vert
 cargo clippy --workspace -- -D warnings   # doit être propre
@@ -47,11 +47,11 @@ corriger dans le code, rebuilder, re-répéter.
 
 Une install Debian 13 minimale avec :
 
-- Binaire cert `moyun-pos` (paquet `deploy/dist/` produit par
+- Binaire cert `pili-pos` (paquet `deploy/dist/` produit par
   `deploy/build-release.sh --docker`).
 - Binaire `pos-fdm-mock` (pour le fallback de démo d'admission).
 - Compositeur Cage Wayland.
-- Unité systemd `moyun-pos.service` (autostart plein écran).
+- Unité systemd `pili-pos.service` (autostart plein écran).
 - `pos.db` initialisée avec `seed_spf_test.sql` (produits prédéfinis du
   manuel §III.N + utilisateurs de test SPF).
 - `chrony` configuré pour NTP.
@@ -75,7 +75,7 @@ enregistrer sous
 
 ```bash
 cd docs/SUBMISSION_ARTIFACTS
-zip -r ../moyun-pos_dossier_cert_$(date +%Y-%m-%d).zip .
+zip -r ../pili-pos_dossier_cert_$(date +%Y-%m-%d).zip .
 ```
 
 Déplacer le zip résultant vers un emplacement sécurisé (l'email de
@@ -87,7 +87,7 @@ Utiliser le gabarit de `DOSSIER_SOUMISSION_FR.md`. Joindre :
 1. Formulaire de demande de certification signé (PDF).
 2. ZIP du dossier.
 3. Un lien de téléchargement (par ex. WeTransfer, expiration à
-   30 jours) vers le binaire `moyun-pos` (build cert, signé GPG).
+   30 jours) vers le binaire `pili-pos` (build cert, signé GPG).
 
 Envoyer à : `secr.gksce@minfin.fed.be`.
 

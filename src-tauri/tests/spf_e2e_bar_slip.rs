@@ -16,12 +16,12 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::bar_slip::SlipOutcome;
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{
+use pili_pos::commands::bar_slip::SlipOutcome;
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
 };
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 
 const OPERATOR: &str = "12345678958";

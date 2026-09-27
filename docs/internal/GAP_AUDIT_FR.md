@@ -72,7 +72,7 @@ Source : `docs/20250307_POS_CERTIFICATION_MANUEAL_FRV1.1/20250307_FR - Manuel de
 - DB Centrale / Locale / Les deux - **OK** (Locale, SQLite) dans `SCHEMA_BD_FR.md`
 - DB + POS cloud-based - **OK** (Non, embarqué)
 - Identification DBMS, n° version - **OK** (SQLite 3.x)
-- Chemin d'accès - **OK** (`/var/lib/moyun-pos/pos.db`)
+- Chemin d'accès - **OK** (`/var/lib/pili-pos/pos.db`)
 - Aperçu des tables, colonnes, types, descriptions - **OK** dans `SCHEMA_BD_FR.md`
 - ☐ La liste contient toutes les colonnes - **OK**
 - ☐ Description brève et claire - **OK**
@@ -497,7 +497,7 @@ Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résul
   fiscales imprimées existent désormais en FR/NL/DE
   (`ReceiptLanguage` dans `crates/pos-fiscal/src/ticket.rs`, libellés
   fixes dans `crates/pos-print/src/receipt.rs`), pilotées par la clé
-  `language` de `/etc/moyun-pos/pos.json`. Au passage, correction d'un
+  `language` de `/etc/pili-pos/pos.json`. Au passage, correction d'un
   écart de conformité : les mentions étaient en anglais ("VAT RECEIPT",
   "THIS IS NOT A VALID VAT RECEIPT") ; elles utilisent maintenant les
   libellés exacts du manuel §VI ("TICKET DE CAISSE TVA",
@@ -509,10 +509,10 @@ Le bloc le plus critique est **Bloc A (réponses du manuel)** + **Bloc C (résul
   `REPONSES_MANUEL_CERT_FR.md` §II.E et `GARANTIE_MAJ_LANGUES_FR.md`.
 - **Nouveau gap découvert et RÉSOLU : chargement du fichier de
   configuration.** `MANUEL_INSTALLATION_FR.md` documentait
-  `/etc/moyun-pos/pos.json` mais le binaire ne lisait aucun fichier
+  `/etc/pili-pos/pos.json` mais le binaire ne lisait aucun fichier
   (identité codée en dur). `PosConfig::load_from_file` +
-  `AppState::load_config` implémentés : env `MOYUN_POS_CONFIG`
-  prioritaire, puis `/etc/moyun-pos/pos.json` (erreur de parse =
+  `AppState::load_config` implémentés : env `PILI_POS_CONFIG`
+  prioritaire, puis `/etc/pili-pos/pos.json` (erreur de parse =
   fatal), sinon identité de développement avec avertissement.
 - **Étape 1 du runbook (`ASSEMBLAGE_FINAL_FR.md`) revalidée** :
   `cargo test --workspace` (194 tests verts), `cargo clippy -D
@@ -551,8 +551,8 @@ Branche `feat/cert-dossier-kiosk-image`.
   jamais lancé au boot, session ouverte à la demande.
 - **Défauts de code/déploiement découverts et corrigés :**
   - la build cert ne contenait pas l'UI (mode dev Tauri → écran vide) ;
-  - la base était écrite sous `/var/lib/moyun-pos/.local/share/…` et
-    non au chemin déclaré `/var/lib/moyun-pos/pos.db` ;
+  - la base était écrite sous `/var/lib/pili-pos/.local/share/…` et
+    non au chemin déclaré `/var/lib/pili-pos/pos.db` ;
   - le seed de `install.sh` échouait silencieusement (pas de schéma) ;
   - unité systemd sans session logind pour Cage, `cage.ini` sans
     effet, règle udev HID inopérante, chrony absent ;

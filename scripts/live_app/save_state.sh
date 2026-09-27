@@ -4,7 +4,7 @@
 # go on after them.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-docker exec moyun-live-app sqlite3 -json /data/pos.db \
+docker exec pili-live-app sqlite3 -json /data/pos.db \
     "SELECT event_label, current_value FROM fiscal_counters WHERE event_label != 'I'" |
 python3 -c "
 import json, sys

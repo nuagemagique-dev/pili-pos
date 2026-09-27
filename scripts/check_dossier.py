@@ -420,8 +420,8 @@ SHELL_ASSIGN_RE = re.compile(
 
 def expand_shell_vars(text: str) -> str:
     """Replace `$VAR` / `${VAR}` by the absolute path a script assigns to
-    it (`ETC_DIR="/var/lib/moyun-etc"`), so `"$ETC_DIR/moyun-pos"` is
-    seen as `/var/lib/moyun-etc/moyun-pos`."""
+    it (`ETC_DIR="/var/lib/pili-etc"`), so `"$ETC_DIR/pili-pos"` is
+    seen as `/var/lib/pili-etc/pili-pos`."""
     for name, value in SHELL_ASSIGN_RE.findall(text):
         text = re.sub(r"\$\{" + name + r"\}|\$" + name + r"\b", value, text)
     return text

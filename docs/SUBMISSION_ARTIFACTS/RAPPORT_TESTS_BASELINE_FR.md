@@ -12,14 +12,14 @@ attribué à des modifications futures.
 
 | Configuration | Commande | Résultat |
 |---|---|---|
-| Par défaut (dev) | `cargo check --package moyun-pos` | OK vert |
-| Certification | `cargo check --package moyun-pos --no-default-features --features cert` | OK vert |
+| Par défaut (dev) | `cargo check --package pili-pos` | OK vert |
+| Certification | `cargo check --package pili-pos --no-default-features --features cert` | OK vert |
 
 **Vérification au niveau symboles** que le binaire cert n'embarque aucun
 code d'intégrations tierces désactivées :
 
 ```
-nm target/debug/moyun-pos | grep -c pos_hubrise
+nm target/debug/pili-pos | grep -c pos_hubrise
 ```
 
 | Configuration | Symboles d'intégrations tierces |
@@ -51,9 +51,9 @@ Généré le 2026-09-26 13:16 (Europe/Brussels) sur la révision `3c91719`.
 
 | Binaire de test | Couche | Passants | Échecs | Ignorés |
 |---|---|---:|---:|---:|
-| `moyun_pos` (unit) | Library facade for the moyun-pos binary. | 48 | 0 | 0 |
+| `pili_pos` (unit) | Library facade for the pili-pos binary. | 48 | 0 | 0 |
 | `access_control` (intégration) | Who may do what (`PROFILS_UTILISATEURS_FR.md` §2–3), enforced by the backend whatever the UI shows | 17 | 0 | 0 |
-| `admission_mock` (intégration) | The admission image runs moyun-pos against `pos-fdm-mock` (the examiners' machine has no real FDM until the kit arrives). | 3 | 0 | 0 |
+| `admission_mock` (intégration) | The admission image runs pili-pos against `pos-fdm-mock` (the examiners' machine has no real FDM until the kit arrives). | 3 | 0 | 0 |
 | `config_check` (intégration) | A fiscal identity the FDM would refuse is reported by the settings the UI reads at start-up, so it is fixed before the first sale. | 2 | 0 | 0 |
 | `error_codes` (intégration) | Every error code the backend can return has a text in the three languages of the screen (`ui/src/i18n.ts`, key `err_<code>`), so a refusal is never shown as… | 3 | 0 | 0 |
 | `order_commands` (intégration) | The order commands the order screen calls on every tap: start an order, add / change / remove lines, reload it. | 22 | 0 | 0 |
@@ -97,13 +97,13 @@ Généré le 2026-09-26 13:16 (Europe/Brussels) sur la révision `3c91719`.
 | Crates exclues de la build cert (unit) | intégrations hors v1.0.0 | 24 | 0 | 0 |
 | **Total** | | **866** | **0** | **2** |
 
-### Application, build cert (`cargo test -p moyun-pos --no-default-features --features cert`)
+### Application, build cert (`cargo test -p pili-pos --no-default-features --features cert`)
 
 | Binaire de test | Couche | Passants | Échecs | Ignorés |
 |---|---|---:|---:|---:|
-| `moyun_pos` (unit) | Library facade for the moyun-pos binary. | 48 | 0 | 0 |
+| `pili_pos` (unit) | Library facade for the pili-pos binary. | 48 | 0 | 0 |
 | `access_control` (intégration) | Who may do what (`PROFILS_UTILISATEURS_FR.md` §2–3), enforced by the backend whatever the UI shows | 17 | 0 | 0 |
-| `admission_mock` (intégration) | The admission image runs moyun-pos against `pos-fdm-mock` (the examiners' machine has no real FDM until the kit arrives). | 3 | 0 | 0 |
+| `admission_mock` (intégration) | The admission image runs pili-pos against `pos-fdm-mock` (the examiners' machine has no real FDM until the kit arrives). | 3 | 0 | 0 |
 | `config_check` (intégration) | A fiscal identity the FDM would refuse is reported by the settings the UI reads at start-up, so it is fixed before the first sale. | 2 | 0 | 0 |
 | `error_codes` (intégration) | Every error code the backend can return has a text in the three languages of the screen (`ui/src/i18n.ts`, key `err_<code>`), so a refusal is never shown as… | 3 | 0 | 0 |
 | `order_commands` (intégration) | The order commands the order screen calls on every tap: start an order, add / change / remove lines, reload it. | 22 | 0 | 0 |
@@ -152,7 +152,7 @@ est piloté à part par WebDriver (`tauri-driver` + `WebKitWebDriver`) :
 | Domaine et noyau fiscal (unit) | `pos_core`, `pos_db`, `pos_fiscal`, `pos_print`, `pos_mail`, `pos_fdm_mock` |
 | Formes des fixtures SPF Finances (requêtes et réponses officielles) | `uc_fixtures`, `reports_fixtures`, `advanced_set_fixtures` |
 | Client FDM : aller-retour par mutation, statut, erreurs | `spf_basic_set`, `full_service`, `client_status`, `fdm_client_errors` |
-| Rejeu des UC officiels à travers les commandes réelles (requête construite par moyun-pos comparée à la fixture) | `spf_e2e_fixtures`, `spf_e2e_report_fixtures`, `report_totals_fixtures` |
+| Rejeu des UC officiels à travers les commandes réelles (requête construite par pili-pos comparée à la fixture) | `spf_e2e_fixtures`, `spf_e2e_report_fixtures`, `report_totals_fixtures` |
 | Orchestration applicative (commande → FDM → transaction → archive) | `spf_e2e_basic`, `spf_e2e_reports`, `spf_e2e_journal`, `spf_e2e_service_day`, `order_commands` |
 | Numérotation sans trou, pannes FDM, crash, concurrence | `spf_e2e_no_gap`, `spf_e2e_fdm_failures`, `spf_e2e_crash_safety`, `spf_e2e_concurrency` |
 | Profils utilisateurs, validation des entrées, remboursements, configuration | `access_control`, `spf_e2e_validation`, `refund_guards`, `config_check` |
@@ -203,14 +203,14 @@ champs/arguments optionnels. Aucun changement de sémantique de test.
 ## Reproductibilité
 
 ```bash
-cd moyun-pos
+cd pili-pos
 
 # Build dev (features par défaut)
 cargo test --workspace --no-fail-fast
 
 # Build certification
-cargo build --package moyun-pos --no-default-features --features cert
-nm target/debug/moyun-pos | grep -c pos_hubrise   # → 0
+cargo build --package pili-pos --no-default-features --features cert
+nm target/debug/pili-pos | grep -c pos_hubrise   # → 0
 
 # Build UI certification (tree-shake WebshopOrdersView)
 VITE_FEATURE_HUBRISE=false npm --prefix ui run build

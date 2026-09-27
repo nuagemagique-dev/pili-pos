@@ -13,12 +13,12 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::{do_generate_x_report, do_generate_z_report};
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::{do_generate_x_report, do_generate_z_report};
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 

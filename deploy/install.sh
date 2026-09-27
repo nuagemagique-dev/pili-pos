@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - Installation Script (thin wrapper)
+# pili-pos - Installation Script (thin wrapper)
 # Target: an ALREADY INSTALLED, booted Debian 13 minimal, x86_64
 # (Intel J6412).
 #
 # The kiosk image (deploy/image/, built with mkosi) is the primary
 # deployment path: a distributor writes it to the terminal's disk from a
 # USB stick (docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md §3).
-# This script remains for installing moyun-pos directly onto a plain
+# This script remains for installing pili-pos directly onto a plain
 # Debian 13 box - dev/test machines, or before the image flow is used -
 # and now just runs all three deploy/provision/provision.sh phases in
 # order; see that script for what each phase actually does.
 #
-# Usage:  sudo ./install.sh --binary /path/to/moyun-pos [--seed /path/to/seed.sql]
+# Usage:  sudo ./install.sh --binary /path/to/pili-pos [--seed /path/to/seed.sql]
 #                            [--rustdesk /path/to/rustdesk.AppImage]
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -51,7 +51,7 @@ if [[ "$ARCH" != "x86_64" ]]; then
 fi
 
 if [[ -z "$BINARY_PATH" || ! -f "$BINARY_PATH" ]]; then
-    echo "ERROR: --binary /path/to/moyun-pos is required."
+    echo "ERROR: --binary /path/to/pili-pos is required."
     exit 1
 fi
 
@@ -61,7 +61,7 @@ if [[ -n "$SEED_PATH" && ! -f "$SEED_PATH" ]]; then
 fi
 
 echo "══════════════════════════════════════════════════"
-echo "  moyun-pos - Installation"
+echo "  pili-pos - Installation"
 echo "  Debian $(cat /etc/debian_version) / $ARCH"
 echo "══════════════════════════════════════════════════"
 
@@ -79,23 +79,23 @@ echo ""
 echo "══════════════════════════════════════════════════"
 echo "  Installation complete!"
 echo ""
-echo "  Binary:   /opt/moyun-pos/moyun-pos"
-echo "  Database: /var/lib/moyun-pos/pos.db"
-echo "  Service:  moyun-pos.service (tty1)"
+echo "  Binary:   /opt/pili-pos/pili-pos"
+echo "  Database: /var/lib/pili-pos/pos.db"
+echo "  Service:  pili-pos.service (tty1)"
 echo ""
-echo "  Start:    sudo systemctl start moyun-pos"
-echo "  Logs:     sudo journalctl -u moyun-pos -f"
-echo "            /var/lib/moyun-pos/logs/pos.log.*"
+echo "  Start:    sudo systemctl start pili-pos"
+echo "  Logs:     sudo journalctl -u pili-pos -f"
+echo "            /var/lib/pili-pos/logs/pos.log.*"
 echo ""
 echo "  BEFORE production use:"
-echo "    1. Edit /etc/moyun-pos/pos.json (identity, FDM URL, language)."
+echo "    1. Edit /etc/pili-pos/pos.json (identity, FDM URL, language)."
 echo "       device_id was auto-filled from the NIC MAC; leave it as is"
 echo "       unless the network card is replaced."
-echo "       Then check it: /opt/moyun-pos/moyun-pos --check-config"
+echo "       Then check it: /opt/pili-pos/pili-pos --check-config"
 echo "       (lists what the FDM would refuse; the POS also shows it)."
 echo "    2. Seal the appliance (GARANTIE_MAJ_LANGUES_FR.md §1.3):"
 echo "       - root filesystem read-only: add 'ro' to the root line"
-echo "         in /etc/fstab (keep /var/lib/moyun-pos on a rw mount)."
+echo "         in /etc/fstab (keep /var/lib/pili-pos on a rw mount)."
 echo "       - verify no SSH server: dpkg -l openssh-server → absent."
 echo "    3. Updates: on site with deploy/update.sh from a USB stick, or"
 echo "       remotely through an on-demand RustDesk session"

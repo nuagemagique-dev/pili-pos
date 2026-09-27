@@ -7,7 +7,7 @@ Terminal: POS1
 Ticketnr.: 000015
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B

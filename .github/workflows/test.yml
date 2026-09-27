@@ -77,7 +77,7 @@ jobs:
 
       - name: Clippy (app, cert features)
         if: matrix.features.name == 'cert'
-        run: cargo clippy -p moyun-pos --all-targets ${{ matrix.features.flags }} -- -D warnings
+        run: cargo clippy -p pili-pos --all-targets ${{ matrix.features.flags }} -- -D warnings
 
       - name: Tests (workspace)
         if: matrix.features.name == 'default'
@@ -85,7 +85,7 @@ jobs:
 
       - name: Tests (app, cert features)
         if: matrix.features.name == 'cert'
-        run: cargo test -p moyun-pos ${{ matrix.features.flags }} --no-fail-fast
+        run: cargo test -p pili-pos ${{ matrix.features.flags }} --no-fail-fast
 
   # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
   playwright-e2e:
@@ -171,17 +171,17 @@ jobs:
 
       # The binary creates the schema, then loads the seed.
       - name: Seed test database
-        run: ./target/release/moyun-pos --init-db --seed ui/e2e/fixtures/seed.sql
+        run: ./target/release/pili-pos --init-db --seed ui/e2e/fixtures/seed.sql
         env:
-          MOYUN_POS_DATA_DIR: /tmp/moyun-pos
+          PILI_POS_DATA_DIR: /tmp/pili-pos
 
       # tauri-driver starts WebKitWebDriver, which launches the binary
       # with this environment.
       - name: Run integration tests
         working-directory: ui
         env:
-          MOYUN_POS_DATA_DIR: /tmp/moyun-pos
-          MOYUN_POS_BINARY: ${{ github.workspace }}/target/release/moyun-pos
+          PILI_POS_DATA_DIR: /tmp/pili-pos
+          PILI_POS_BINARY: ${{ github.workspace }}/target/release/pili-pos
           TAURI_DRIVER_URL: http://127.0.0.1:4444
           DISPLAY: ":99"
           GDK_BACKEND: x11

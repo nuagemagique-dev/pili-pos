@@ -19,15 +19,15 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::errors;
+use pili_pos::commands::errors;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout_with};
-use moyun_pos::commands::copy::do_copy_ticket_with;
-use moyun_pos::commands::delivery::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout_with};
+use pili_pos::commands::copy::do_copy_ticket_with;
+use pili_pos::commands::delivery::{
     self, ERR_ALREADY_PRINTED, ERR_DIGITAL_UNAVAILABLE, ERR_EMAIL_SENT, ERR_INVALID_EMAIL,
     EmailStatus, RequestedMedium, TicketDeliveryRequest,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout_with};
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout_with};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;

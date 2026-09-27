@@ -5,21 +5,21 @@ name: Kiosk image
 #
 # Three jobs, chained:
 #   repro       - builds deploy/build-release.sh --docker TWICE
-#                 (scripts/check_repro.sh) and checks the moyun-pos
+#                 (scripts/check_repro.sh) and checks the pili-pos
 #                 binary is byte-for-byte the same both times (the SHA-1 declared to SPF
 #                 Finances must not depend on incidental build-host
 #                 state).
 #   image       - needs: repro. Installs the pinned mkosi
 #                 (deploy/image/.mkosi-pin) and builds both profiles
 #                 (production, admission); verifies, by mounting the
-#                 root partition read-only, that /opt/moyun-pos/
-#                 moyun-pos INSIDE each finished image is the exact
+#                 root partition read-only, that /opt/pili-pos/
+#                 pili-pos INSIDE each finished image is the exact
 #                 binary repro just certified; uploads the .img.xz.
 #   boot-smoke  - needs: image. Boots the admission image headless
 #                 under QEMU (KVM + swtpm/TPM2) through its whole first
 #                 boot (LUKS2 + TPM2 provisioning, banner, kiosk) and
 #                 fails on any failed unit or broken ordering cycle in
-#                 the guest journal, or if moyun-pos.service does not
+#                 the guest journal, or if pili-pos.service does not
 #                 stay up (scripts/qemu/boot-check.sh).
 #
 # runs-on: ubuntu-26.04 everywhere (needs KVM, and matches the
@@ -105,7 +105,7 @@ jobs:
         # actions/upload-artifact does not preserve the executable
         # bit; deploy/build-release.sh's own chmod is lost across the
         # artifact round-trip.
-        run: chmod +x deploy/dist/moyun-pos deploy/dist/install.sh deploy/dist/update.sh deploy/dist/pos-fdm-mock
+        run: chmod +x deploy/dist/pili-pos deploy/dist/install.sh deploy/dist/update.sh deploy/dist/pos-fdm-mock
 
       - name: Host packages (mkosi's own prerequisites)
         run: |
@@ -131,7 +131,7 @@ jobs:
             echo "::error::no .raw image found in $OUT_DIR"
             exit 1
           fi
-          EXPECTED_SHA1="$(cat "$OUT_DIR/moyun-pos-embedded-binary.sha1")"
+          EXPECTED_SHA1="$(cat "$OUT_DIR/pili-pos-embedded-binary.sha1")"
           # Plain losetup + read-only mount, as deploy/image/build.sh does:
           # the runner's systemd-dissect refuses the image ("File system
           # is too uncommon"). Partition 2 is the root (mkosi.repart/20-root.conf).
@@ -140,11 +140,11 @@ jobs:
           trap 'sudo umount "$MNT" 2>/dev/null || true; sudo losetup -d "$LOOP" 2>/dev/null || true' EXIT
           sudo blkid "${LOOP}"p* || true
           sudo mount -o ro,noload "${LOOP}p2" "$MNT"
-          ACTUAL_SHA1="$(sudo sha1sum "$MNT/opt/moyun-pos/moyun-pos" | awk '{print $1}')"
+          ACTUAL_SHA1="$(sudo sha1sum "$MNT/opt/pili-pos/pili-pos" | awk '{print $1}')"
           echo "Expected (build_info / repro job): $EXPECTED_SHA1"
           echo "Actual   (inside the ${{ matrix.profile }} image): $ACTUAL_SHA1"
           if [[ "$EXPECTED_SHA1" != "$ACTUAL_SHA1" ]]; then
-            echo "::error::/opt/moyun-pos/moyun-pos inside the ${{ matrix.profile }} image does not match the certified binary"
+            echo "::error::/opt/pili-pos/pili-pos inside the ${{ matrix.profile }} image does not match the certified binary"
             exit 1
           fi
           echo "✓ Embedded binary matches the certified SHA-1"
@@ -155,7 +155,7 @@ jobs:
           name: kiosk-image-${{ matrix.profile }}
           path: |
             deploy/image/mkosi.output/${{ matrix.profile }}/*.img.xz
-            deploy/image/mkosi.output/${{ matrix.profile }}/moyun-pos-embedded-binary.sha1
+            deploy/image/mkosi.output/${{ matrix.profile }}/pili-pos-embedded-binary.sha1
           retention-days: 14
 
   # ── Boot smoke test: does the admission image actually come up? ──
@@ -211,8 +211,8 @@ jobs:
             exit 1
           fi
 
-      # OVMF -> systemd-boot -> UKI -> systemd-repart (moyun-data) ->
-      # moyun-provision (LUKS2 + TPM2, banner, Enter) -> Cage -> moyun-pos,
+      # OVMF -> systemd-boot -> UKI -> systemd-repart (pili-data) ->
+      # pili-provision (LUKS2 + TPM2, banner, Enter) -> Cage -> pili-pos,
       # judged from the guest journal on its serial port, not from the
       # frame alone: fails on any failed unit or broken ordering cycle.
       - name: First-boot check (provisioning, kiosk up, no failed unit)

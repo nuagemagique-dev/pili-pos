@@ -3,7 +3,7 @@
   "deviations": [
     {
       "fixture": null,
-      "moyunPos": "TABLE",
+      "piliPos": "TABLE",
       "path": "costCenter.type",
       "reason": "dine-in sales are settled from a table and carry costCenter TABLE"
     }

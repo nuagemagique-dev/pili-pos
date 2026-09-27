@@ -118,7 +118,7 @@ No email is sent to the SPF: the owner decided on 2026-09-27 to settle every poi
 | 7 | Reports T4 VAT label | T4 is an on-site sale at the counter, so A is right | UC TestSetup; the Z totals | None in code; see the note below |
 | 8 | "Nombre de convives" on the bar ticket | The bar ticket is optional; no rule requires the number of guests | Manual, optional features | None |
 
-T4 note: our replay rings T4 up as a takeaway (label C) and declares that deviation, because moyun-pos has no on-site sale without a table. The mock FDM replays the scenario's VAT, so the reports still match. `spf_e2e_report_fixtures.rs` and `COUVERTURE_RAPPORTS_FR.md` document it.
+T4 note: our replay rings T4 up as a takeaway (label C) and declares that deviation, because pili-pos has no on-site sale without a table. The mock FDM replays the scenario's VAT, so the reports still match. `spf_e2e_report_fixtures.rs` and `COUVERTURE_RAPPORTS_FR.md` document it.
 
 **Decided by us (no text settles them):**
 

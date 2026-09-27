@@ -28,7 +28,7 @@ décrit :
 
 nuagemagique.dev développe et déploie des systèmes logiciels sur
 mesure pour le secteur HoReCa et la restauration. Le système de
-caisse `moyun-pos` est le premier produit soumis à certification
+caisse `pili-pos` est le premier produit soumis à certification
 SCE 2.0.
 
 ## 3. Organisation du développement
@@ -50,7 +50,7 @@ l'unique développeur.
 ### 3.3 Outils de développement
 
 - **Contrôle de version** : git, dépôt privé sur GitHub
-  (`github.com/nuagemagique/moyun-pos` ou équivalent).
+  (`github.com/nuagemagique/pili-pos` ou équivalent).
 - **Suivi des modifications** : commits signés GPG, tags de version
   signés (`git tag -s vX.Y.Z`).
 - **CI/CD** : GitHub Actions pour les tests et la construction
@@ -250,7 +250,7 @@ guest, pas de base clients.
 
 **Scaleway** (SAS de droit français, hébergement/traitement dans la
 région `fr-par`, Union européenne) est le seul sous-traitant de
-données personnelles utilisé par `moyun-pos`, via son API
+données personnelles utilisé par `pili-pos`, via son API
 Transactional Email :
 
 | Élément | Valeur |
@@ -263,7 +263,7 @@ Transactional Email :
 | Usage marketing | Aucun - API transactionnelle uniquement, pas de liste de diffusion |
 
 Aucun autre service tiers ne reçoit de donnée personnelle issue de
-`moyun-pos` (le FDM reçoit l'INSZ de l'opérateur, obligation légale,
+`pili-pos` (le FDM reçoit l'INSZ de l'opérateur, obligation légale,
 mais n'est pas un sous-traitant du producteur - c'est l'organe de
 contrôle SPF Finances).
 

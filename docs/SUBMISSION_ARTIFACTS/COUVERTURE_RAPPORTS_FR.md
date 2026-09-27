@@ -142,7 +142,7 @@ flottant cumulé, pour éviter la dérive à la sommation (0,01 € perdu
 sur des sommes comme 3,04 €, voir
 `report_totals.rs::amounts_are_summed_in_cents_without_float_drift`).
 
-Les identifiants de paiement sont ceux de moyun-pos
+Les identifiants de paiement sont ceux de pili-pos
 (`crates/pos-fiscal/src/event.rs`) : `"1"`/`"Cash"` pour les espèces,
 `"2"`/`"Card"` pour la carte - toujours `CARD_DEBIT`, l'opérateur ne
 distinguant pas débit et crédit à l'encaissement.
@@ -164,7 +164,7 @@ valider le calcul des totaux lui-même :
   `do_refund_checkout`, `do_generate_x_report`,
   `do_generate_user_x_report`, `do_generate_z_report`) contre un FDM
   simulé qui rejoue les réponses du scénario, puis compare les
-  rapports que moyun-pos construit depuis sa propre archive aux mêmes
+  rapports que pili-pos construit depuis sa propre archive aux mêmes
   fixtures publiées.
 
 Les deux tests documentent un écart assumé entre le rapport publié et
@@ -172,12 +172,12 @@ le rapport recalculé, avec la même conclusion : le rapport publié
 compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario
 enregistre 4 événements P (T1, T5, T6, T7 - commandes et pré-addition)
 pour 250 € ; la spec §2.2.2 définit `ticketCount` comme le nombre
-d'événements de ce label dans la période, donc moyun-pos rapporte 4 et
+d'événements de ce label dans la période, donc pili-pos rapporte 4 et
 250 € - conforme au texte de la spec et à l'arrêté ministériel du 29
 avril 2024 (art. 29, t : le nombre et le montant des tickets de chaque
 type), différent du chiffre publié dans la fixture. Aucun texte ne
 permet d'exclure T1 : ce choix est délibéré. Écarts additionnels documentés et volontaires :
-l'`id`/`name` de paiement sont ceux de moyun-pos (ci-dessus), les
+l'`id`/`name` de paiement sont ceux de pili-pos (ci-dessus), les
 paiements carte sont `CARD_DEBIT` (fixture : `CARD_CREDIT`), les noms
 de département sont ceux du catalogue en français, et
 `posDevices`/`fdmDevices` reflètent le terminal unique et le FDM
@@ -194,7 +194,7 @@ final (M184).
 ## Reproductibilité
 
 ```bash
-cd moyun-pos
+cd pili-pos
 cargo test --package pos-fiscal --test reports_fixtures -- --nocapture
 ```
 

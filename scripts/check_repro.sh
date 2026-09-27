@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - reproducible build check
+# pili-pos - reproducible build check
 #
 # Runs the reference build (deploy/build-release.sh --docker) twice
 # from a clean tree and checks both binaries have the same SHA-1: the
@@ -39,13 +39,13 @@ for run in run1 run2; do
     clean_outputs
     ./deploy/build-release.sh --docker
     mkdir -p "$OUT_DIR/$run"
-    cp deploy/dist/moyun-pos deploy/dist/build_info_*.txt "$OUT_DIR/$run/"
+    cp deploy/dist/pili-pos deploy/dist/build_info_*.txt "$OUT_DIR/$run/"
 done
 
 status=0
 for run in run1 run2; do
     reported="$(report_sha1 "$OUT_DIR/$run")"
-    actual="$(sha1sum "$OUT_DIR/$run/moyun-pos" | awk '{print $1}')"
+    actual="$(sha1sum "$OUT_DIR/$run/pili-pos" | awk '{print $1}')"
     echo "$run: report $reported, binary $actual"
     if [[ -z "$reported" || "$reported" != "$actual" ]]; then
         echo "✗ $run: the build_info report does not match its binary"
@@ -53,8 +53,8 @@ for run in run1 run2; do
     fi
 done
 
-sha1_1="$(sha1sum "$OUT_DIR/run1/moyun-pos" | awk '{print $1}')"
-sha1_2="$(sha1sum "$OUT_DIR/run2/moyun-pos" | awk '{print $1}')"
+sha1_1="$(sha1sum "$OUT_DIR/run1/pili-pos" | awk '{print $1}')"
+sha1_2="$(sha1sum "$OUT_DIR/run2/pili-pos" | awk '{print $1}')"
 if [[ "$sha1_1" != "$sha1_2" ]]; then
     echo "✗ Not reproducible: $sha1_1 != $sha1_2"
     status=1

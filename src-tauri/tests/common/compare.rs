@@ -1,4 +1,4 @@
-//! Field-by-field comparison of a request moyun-pos built with an
+//! Field-by-field comparison of a request pili-pos built with an
 //! official fixture's request: the business content only (products,
 //! quantities, prices, VAT, totals, payments, cost-center type,
 //! referenced ticket, ticket medium), not the installation's identity.

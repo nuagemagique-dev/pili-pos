@@ -2446,45 +2446,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "moyun-pos"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "axum",
- "base64 0.23.1",
- "bcrypt",
- "chrono",
- "chrono-tz",
- "dirs",
- "dotenvy",
- "pos-core",
- "pos-db",
- "pos-fdm-mock",
- "pos-fiscal",
- "pos-hubrise",
- "pos-hubrise-types",
- "pos-mail",
- "pos-peppol",
- "pos-print",
- "pos-printer-mock",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-shell",
- "tempfile",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
- "wiremock",
-]
-
-[[package]]
 name = "muda"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2999,6 +2960,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
 dependencies = [
  "siphasher",
+]
+
+[[package]]
+name = "pili-pos"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.23.1",
+ "bcrypt",
+ "chrono",
+ "chrono-tz",
+ "dirs",
+ "dotenvy",
+ "pos-core",
+ "pos-db",
+ "pos-fdm-mock",
+ "pos-fiscal",
+ "pos-hubrise",
+ "pos-hubrise-types",
+ "pos-mail",
+ "pos-peppol",
+ "pos-print",
+ "pos-printer-mock",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-shell",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]

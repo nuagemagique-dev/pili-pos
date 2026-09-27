@@ -18,10 +18,10 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{AddOrderLineInput, do_add_order_line};
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::order::{AddOrderLineInput, do_add_order_line};
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::{NewOrderLine, add_order_line, create_order};

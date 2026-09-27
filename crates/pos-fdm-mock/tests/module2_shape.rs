@@ -2,7 +2,7 @@
 //!
 //! `fixtures/module2/` holds what the simulator FDM02000425 (FDM
 //! software 2.2.0.5) answered on 2026-09-27 (`scripts/live_fdm.sh`
-//! with `MOYUN_LIVE_RECORD_DIR`, see its README). Each recorded request
+//! with `PILI_LIVE_RECORD_DIR`, see its README). Each recorded request
 //! is sent to the mock, set up as the simulator was, and both answers
 //! must have the same shape: the same keys, the same JSON types, the
 //! same HTTP status. Values that must differ (signatures, times,

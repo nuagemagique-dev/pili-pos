@@ -21,32 +21,32 @@ Selon le formulaire (`20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM.pdf`) :
 
 | Champ | Valeur |
 |---|---|
-| Nom du produit | moyun-pos |
+| Nom du produit | pili-pos |
 | Version | 1.0.0 |
 | Distributeur | Bruno Moyse / nuagemagique.dev (Bruxelles, BE) |
 | Versions de spec | POS v2.2, FDM v1.4, Addendum 1, Basic Set v1.7, Reports v1.3, Advanced Set v1.5 |
 | Remboursement partiel mélangé à une vente | NON - nous déclarons **M112B** (le remboursement est émis comme événement fiscal séparé, jamais combiné à des lignes de nouvelle vente). Voir `FLUX_REMBOURSEMENT_FR.md` pour la justification. |
 | FDM-BII (interface back-office) | NON (non implémenté ; hors périmètre cert) |
 | Multi-FDM | NON (un seul FDM par POS) |
-| Peppol B2B (événement I) | NON (prévu v1.1 - mise à jour certifiée post-cert). Le code UBL 2.1 BIS Billing 3.0 existe (`crates/pos-peppol`) mais n'est pas activé dans la build cert v1.0.0 (`cert = ["custom-protocol"]` dans `src-tauri/Cargo.toml`). En attendant, les factures B2B du restaurant sont émises via son outil de comptabilité/facturation, hors `moyun-pos`. *Voir : DECISION_PEPPOL_AP_FR.md*. |
+| Peppol B2B (événement I) | NON (prévu v1.1 - mise à jour certifiée post-cert). Le code UBL 2.1 BIS Billing 3.0 existe (`crates/pos-peppol`) mais n'est pas activé dans la build cert v1.0.0 (`cert = ["custom-protocol"]` dans `src-tauri/Cargo.toml`). En attendant, les factures B2B du restaurant sont émises via son outil de comptabilité/facturation, hors `pili-pos`. *Voir : DECISION_PEPPOL_AP_FR.md*. |
 | Stratégie de compteurs | Par type d'événement, documentée dans `STRATEGIE_COMPTEURS_FR.md` |
 | Matériel FDM pour l'admission | Simulateur en ligne module2 (PRACSYS), fourni avec la machine de test (manuel §IV, procédure de test, étape 1 : « fournissez un simulateur avec la machine test ») ; connexion et ports dans `SCHEMA_ASSEMBLAGE_FR.md` §7. En production : FDM module2 sur le LAN. |
 
 ## Gabarit d'email
 
 ```
-Sujet : Demande de certification SCE 2.0 - moyun-pos v1.0.0
+Sujet : Demande de certification SCE 2.0 - pili-pos v1.0.0
 
 Bonjour,
 
 Veuillez trouver ci-joint la demande de certification pour le
-système de caisse "moyun-pos" v1.0.0.
+système de caisse "pili-pos" v1.0.0.
 
 Distributeur : Bruno Moyse / nuagemagique.dev (Bruxelles).
 
 Pièces jointes :
 - 20250115_FORMULAIRE_DEMANDE_CERTIF_POS-FDM_signe.pdf
-- moyun-pos_dossier_cert_2026-05-14.zip
+- pili-pos_dossier_cert_2026-05-14.zip
 - Lien de téléchargement image kiosque (USB):
   https://... (lien expirant à 30j)
 

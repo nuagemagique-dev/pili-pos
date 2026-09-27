@@ -1,4 +1,4 @@
-# moyun-pos - shared package list (Debian 13 / trixie)
+# pili-pos - shared package list (Debian 13 / trixie)
 #
 # Single source of truth, read by:
 #   - deploy/provision/provision.sh --phase packages (apt-get install, on an
@@ -21,7 +21,7 @@
 # Kiosk compositor + Tauri/WebKitGTK runtime deps
 cage
 # Debian's Cage is built with XWayland and refuses to start without the
-# binary (then hangs: black kiosk, no restart), even though moyun-pos
+# binary (then hangs: black kiosk, no restart), even though pili-pos
 # itself runs on Wayland (GDK_BACKEND=wayland). Debian 13's cage package
 # depends on it; listed anyway so the requirement stays visible.
 xwayland
@@ -38,7 +38,7 @@ fonts-noto-cjk
 fonts-noto-color-emoji
 
 # Maintenance console text editor (MANUEL_INSTALLATION_FR.md §4.2 tells
-# the distributor to `vi /etc/moyun-pos/pos.json` at Ctrl+Alt+F2 -
+# the distributor to `vi /etc/pili-pos/pos.json` at Ctrl+Alt+F2 -
 # Debian minbase ships no editor at all otherwise). vim-tiny provides
 # `/usr/bin/vi` via update-alternatives, ~1 MB, no GUI/X11 deps.
 vim-tiny

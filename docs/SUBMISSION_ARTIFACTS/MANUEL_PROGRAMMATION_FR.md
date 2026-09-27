@@ -1,4 +1,4 @@
-# Manuel de programmation - moyun-pos v1.0.0
+# Manuel de programmation - pili-pos v1.0.0
 
 Ce manuel s'adresse au distributeur (nuagemagique.dev) ou à un
 intégrateur tiers autorisé. Il décrit la **configuration du
@@ -23,8 +23,8 @@ Sur le kiosque :
 - `sqlite3` : modification directe de la base SQLite (méthode
   privilégiée pour la programmation du catalogue).
 - `vi` : édition des fichiers de configuration.
-- `journalctl -u moyun-pos.service` : consultation des logs.
-- `systemctl restart moyun-pos.service` : redémarrer le service après
+- `journalctl -u pili-pos.service` : consultation des logs.
+- `systemctl restart pili-pos.service` : redémarrer le service après
   modifications majeures.
 
 ## 2. Gestion des langues
@@ -257,13 +257,13 @@ exploitation normale.
 Le mode formation est un drapeau dans `pos.json` :
 
 ```bash
-vi /etc/moyun-pos/pos.json
+vi /etc/pili-pos/pos.json
 ```
 
 Modifier `"training_mode": false` correspond à `true`. Puis :
 
 ```bash
-systemctl restart moyun-pos.service
+systemctl restart pili-pos.service
 ```
 
 Attention : Ne JAMAIS laisser `training_mode: true` à la livraison au
@@ -285,7 +285,7 @@ re-certification.
 ### 10.1 Sauvegarde manuelle
 
 ```bash
-sqlite3 /var/lib/moyun-pos/pos.db ".backup /tmp/pos-snapshot.db"
+sqlite3 /var/lib/pili-pos/pos.db ".backup /tmp/pos-snapshot.db"
 ```
 
 ### 10.2 Restauration
@@ -295,11 +295,11 @@ Attention : Opération **DESTRUCTIVE** - la base courante est remplacée.
 nécessité (panne disque, corruption avérée).
 
 ```bash
-systemctl stop moyun-pos.service
-cp /tmp/pos-snapshot.db /var/lib/moyun-pos/pos.db
-chown moyun-pos:moyun-pos /var/lib/moyun-pos/pos.db
-chmod 0640 /var/lib/moyun-pos/pos.db
-systemctl start moyun-pos.service
+systemctl stop pili-pos.service
+cp /tmp/pos-snapshot.db /var/lib/pili-pos/pos.db
+chown pili-pos:pili-pos /var/lib/pili-pos/pos.db
+chmod 0640 /var/lib/pili-pos/pos.db
+systemctl start pili-pos.service
 ```
 
 **Toute restauration doit être déclarée** :
@@ -324,7 +324,7 @@ FROM _migrations_applied
 ORDER BY version;
 ```
 
-Toute nouvelle migration introduite par un patch moyun-pos suivra le
+Toute nouvelle migration introduite par un patch pili-pos suivra le
 même mécanisme - aucune intervention manuelle n'est requise du
 distributeur sur site.
 
@@ -334,14 +334,14 @@ distributeur sur site.
 
 ```bash
 # En direct
-journalctl -fu moyun-pos.service
+journalctl -fu pili-pos.service
 
 # Dernière heure
-journalctl -u moyun-pos.service --since '1 hour ago'
+journalctl -u pili-pos.service --since '1 hour ago'
 
 # Logs fichier (rotation quotidienne)
-ls /var/lib/moyun-pos/logs/
-tail -f /var/lib/moyun-pos/logs/pos.log.YYYY-MM-DD
+ls /var/lib/pili-pos/logs/
+tail -f /var/lib/pili-pos/logs/pos.log.YYYY-MM-DD
 ```
 
 ### 12.2 Diagnostic FDM
@@ -389,7 +389,7 @@ scripts/check_repro.sh
 grep '^SHA-1' deploy/dist/build_info_*.txt
 
 # 5. Tag git signé GPG
-git tag -s vX.Y.Z -m "moyun-pos vX.Y.Z - <résumé>"
+git tag -s vX.Y.Z -m "pili-pos vX.Y.Z - <résumé>"
 git push origin vX.Y.Z
 
 # 6. Construction de l'image kiosque (mkosi), profils production et

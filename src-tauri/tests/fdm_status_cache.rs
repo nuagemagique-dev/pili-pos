@@ -5,7 +5,7 @@
 mod common;
 
 use common::*;
-use moyun_pos::commands::checkout::do_check_fdm_status;
+use pili_pos::commands::checkout::do_check_fdm_status;
 use serde_json::json;
 use wiremock::matchers::{body_string_contains, method};
 use wiremock::{Mock, ResponseTemplate};
@@ -82,6 +82,6 @@ async fn a_changed_connection_setting_is_queried_again() {
         .await;
 
     do_check_fdm_status(&app.state).await.unwrap();
-    app.state.config.lock().unwrap().fdm_token_file = Some("/etc/moyun-pos/fdm.token".into());
+    app.state.config.lock().unwrap().fdm_token_file = Some("/etc/pili-pos/fdm.token".into());
     do_check_fdm_status(&app.state).await.unwrap();
 }

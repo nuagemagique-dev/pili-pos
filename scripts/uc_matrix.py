@@ -722,7 +722,7 @@ def render_markdown(report: Report, root: Path) -> str:
     lines.append("")
     lines.append(
         "Légende du statut : Couvert (au moins un test automatisé trouvé), "
-        "Hors périmètre (fonctionnalité absente de moyun-pos v1.0.0, exclusion "
+        "Hors périmètre (fonctionnalité absente de pili-pos v1.0.0, exclusion "
         "documentée), Non applicable (ce cas précis ne peut pas se produire "
         "avec le comportement actuel), Couvert par X (les tests de "
         "l'identifiant X couvrent aussi ce cas), MANQUANT (aucun test "

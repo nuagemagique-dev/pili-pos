@@ -1,8 +1,8 @@
-# Réponses au manuel de certification SCE 2.0 - moyun-pos v1.0.0
+# Réponses au manuel de certification SCE 2.0 - pili-pos v1.0.0
 
 **Date :** 2026-05-14
 **Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
-**Produit :** moyun-pos v1.0.0
+**Produit :** pili-pos v1.0.0
 
 Ce document parcourt linéairement le manuel
 `20250307_FR - Manuel de certification_POS_V11.pdf` et fournit, dans
@@ -89,8 +89,8 @@ Le producteur est également importateur et distributeur (configuration mono-act
 
 | Champ | Valeur |
 |---|---|
-| Nom du POS | moyun-pos |
-| Modèle du POS | moyun-pos v1.0.0 (Tauri v2 desktop application) |
+| Nom du POS | pili-pos |
+| Modèle du POS | pili-pos v1.0.0 (Tauri v2 desktop application) |
 | N° de version du logiciel | 1.0.0 |
 | Langage(s) de programmation | Rust (backend, ~85% du code) + TypeScript/Vue 3 (frontend, ~15%) |
 
@@ -108,8 +108,8 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | La base de données et le POS sont tous les deux basés sur le cloud | ☐ Non |
 | Identification du DBMS | SQLite |
 | N° de version de la base de données | SQLite 3.45+ (version embarquée par le binaire Tauri/Rust crate `rusqlite`) |
-| Nom du logiciel et version | moyun-pos v1.0.0 (le DBMS est embarqué dans le binaire applicatif) |
-| Chemin d'accès | `/var/lib/moyun-pos/pos.db` en production (`~/.local/share/moyun-pos/pos.db` en dev) |
+| Nom du logiciel et version | pili-pos v1.0.0 (le DBMS est embarqué dans le binaire applicatif) |
+| Chemin d'accès | `/var/lib/pili-pos/pos.db` en production (`~/.local/share/pili-pos/pos.db` en dev) |
 
 ### Aperçu des tables
 
@@ -134,7 +134,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | Item | Réponse |
 |---|---|
 | ☑ Les agents SPF peuvent accéder/copier les données pertinentes | Procédure documentée dans `FEUILLE_ACQUISITION_DONNEES_FR.md`. Le fichier SQLite `pos.db` est copiable directement (lecture seule pour l'auditeur). |
-| ☑ URL, nom d'utilisateur et mot de passe | Compte SPF pré-créé sur la machine de test au rendez-vous d'admission : login `spf`, mot de passe communiqué sur place (mot de passe simple acceptable selon Manuel d'intro §V). Accès à la DB via la **console de maintenance locale** de l'appareil + `sqlite3 /var/lib/moyun-pos/pos.db`. Il n'y a **pas de serveur SSH** sur le POS (appliance scellée, cf. §II.E) ; aucun accès distant à la base n'est possible. |
+| ☑ URL, nom d'utilisateur et mot de passe | Compte SPF pré-créé sur la machine de test au rendez-vous d'admission : login `spf`, mot de passe communiqué sur place (mot de passe simple acceptable selon Manuel d'intro §V). Accès à la DB via la **console de maintenance locale** de l'appareil + `sqlite3 /var/lib/pili-pos/pos.db`. Il n'y a **pas de serveur SSH** sur le POS (appliance scellée, cf. §II.E) ; aucun accès distant à la base n'est possible. |
 | ☐ Les données exportées doivent être converties | Non. SQLite est lisible directement par tout outil standard (DB Browser for SQLite, sqlite3 CLI, etc.). Aucune conversion nécessaire. |
 | ☐ Les scripts/programmes de conversion sont fournis | Non applicable (cf. ligne précédente). |
 
@@ -143,7 +143,7 @@ Le producteur est également importateur et distributeur (configuration mono-act
 | Item | Réponse |
 |---|---|
 | ☑ Audit trail possible (timestamps, utilisateurs, Primary Key, ...) | Chaque ligne `fiscal_events` porte `created_at` (timestamp UTC), `user_insz` (identité opérateur), `id` (PK auto-incrément monotone), `sequence_number` (compteur fiscal séquentiel), `pos_id` et `terminal_id`. Toute autre table porte `created_at`. *Voir : SCHEMA_BD_FR.md*. |
-| Mesures contre la manipulation frauduleuse | *Voir : SECURITE_BD_FR.md* §1 "Append-only enforcement" + `DECLARATION_FONCTIONS_INTERDITES_FR.md`. Résumé : pas de DELETE/UPDATE applicatif sur `fiscal_events` (vérifié par grep), durcissement systemd (NoNewPrivileges, ProtectSystem=strict, ReadWritePaths uniquement sur `/var/lib/moyun-pos`), checksum SHA-1 du binaire vérifiable, build reproductible (Cargo.lock, rust-toolchain.toml, image de build et Node.js épinglés par empreinte, vérifiée par deux builds en CI), pas de port d'administration distante côté POS, FDM = seul canal sortant. |
+| Mesures contre la manipulation frauduleuse | *Voir : SECURITE_BD_FR.md* §1 "Append-only enforcement" + `DECLARATION_FONCTIONS_INTERDITES_FR.md`. Résumé : pas de DELETE/UPDATE applicatif sur `fiscal_events` (vérifié par grep), durcissement systemd (NoNewPrivileges, ProtectSystem=strict, ReadWritePaths uniquement sur `/var/lib/pili-pos`), checksum SHA-1 du binaire vérifiable, build reproductible (Cargo.lock, rust-toolchain.toml, image de build et Node.js épinglés par empreinte, vérifiée par deux builds en CI), pas de port d'administration distante côté POS, FDM = seul canal sortant. |
 
 ## §II.D Garantie du produit
 
@@ -158,9 +158,9 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
    (construit dans un conteneur Debian 13 linux/amd64 désigné par son empreinte, Node.js vérifié par SHA-256, chemins de l'hôte neutralisés, cf. `deploy/build-release.sh`. La CI refait la build deux fois depuis un arbre nettoyé et compare les SHA-1 : `scripts/check_repro.sh`. Seule la build en conteneur est la référence ; la build native sur une machine Debian 13 x86_64 sert au développement.)
 2. **Empreinte SHA-1 du binaire.** Le script `scripts/build_and_hash.sh` produit le SHA-1 du binaire à chaque build et le consigne. Le SHA-1 déclaré au formulaire §I.D est vérifiable sur toute installation cliente via :
    ```
-   sha1sum /opt/moyun-pos/moyun-pos
+   sha1sum /opt/pili-pos/pili-pos
    ```
-3. **Image kiosk scellée.** Le déploiement client se fait via une image disque produite à partir du tag git de la build cert. Aucune modification de la build n'est possible une fois l'image flashée (pas de SSH, pas de gestionnaire de paquets actif, système de fichiers root en lecture seule sauf `/var/lib/moyun-pos`). *Voir : SECURITE_BD_FR.md §2 "image scellée"*.
+3. **Image kiosk scellée.** Le déploiement client se fait via une image disque produite à partir du tag git de la build cert. Aucune modification de la build n'est possible une fois l'image flashée (pas de SSH, pas de gestionnaire de paquets actif, système de fichiers root en lecture seule sauf `/var/lib/pili-pos`). *Voir : SECURITE_BD_FR.md §2 "image scellée"*.
 4. **Tag git immutable.** Le commit de la build cert est tagué (`vX.Y.Z`) et signé. Toute MAJ ultérieure passe par un nouveau cycle de certification (procédure §II.E + Article 109 du Manuel).
 
 ## §II.E Mises à jour
@@ -241,7 +241,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 
 | Item | Réponse |
 |---|---|
-| ☑ La liste est claire et complète | Voir le fichier de configuration documenté `/etc/moyun-pos/pos.json` avec les champs obligatoires (`fdm_url`, `printer_address`, `restaurant_est_no`, `pos_id`, `terminal_id`, etc.). |
+| ☑ La liste est claire et complète | Voir le fichier de configuration documenté `/etc/pili-pos/pos.json` avec les champs obligatoires (`fdm_url`, `printer_address`, `restaurant_est_no`, `pos_id`, `terminal_id`, etc.). |
 | ☑ Les paramètres définis sont indiqués | Idem. |
 | ☑ Les paramètres définis peuvent être fixes | Oui. Une fois `pos.json` écrit lors du provisionnement initial, il est protégé en écriture (root uniquement, image système en lecture seule). |
 | Logs stockés | ☑ Localement (le POS est un appareil mono-terminal, pas de serveur de logs distant) |
@@ -261,7 +261,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 
 | Rôle | Nom d'utilisateur | Mot de passe | Commentaires |
 |---|---|---|---|
-| OS login (kiosk Linux) | `spf` (compte agent SPF) | Fourni à l'Intake (mot de passe simple) | Idéalement aucun login OS visible (Cage compositor lance directement moyun-pos en plein écran) |
+| OS login (kiosk Linux) | `spf` (compte agent SPF) | Fourni à l'Intake (mot de passe simple) | Idéalement aucun login OS visible (Cage compositor lance directement pili-pos en plein écran) |
 | POS login - Gérant | INSZ : `94060242576` (test) | PIN : `1111` | Rôle `admin` (= Gérant) : accès complet, dont rapports, copies, remboursements, mouvements de caisse et mode formation. Voir `PROFILS_UTILISATEURS_FR.md`. |
 | POS login - Serveur | INSZ : `84022899837` (test) | PIN : `2222` | Rôle `cashier` (= Serveur) : commandes, addition et encaissement. |
 | POS login - Apprenti | INSZ : `99012345667` (test) | PIN : `3333` | Rôle `waiter` (= Apprenti) : commandes uniquement, sans encaissement. |
@@ -299,7 +299,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 
 | Item | Réponse |
 |---|---|
-| ☑ La connexion au POS est expliquée | *Voir : DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §3.1 Transport et §9 Carte des sources. La connexion utilise `reqwest` (client HTTP Rust) sur l'URL `fdm_url` configurée dans `/etc/moyun-pos/pos.json`. |
+| ☑ La connexion au POS est expliquée | *Voir : DOCUMENT_PROCESSUS_TECHNIQUE_FR.md* §3.1 Transport et §9 Carte des sources. La connexion utilise `reqwest` (client HTTP Rust) sur l'URL `fdm_url` configurée dans `/etc/pili-pos/pos.json`. |
 | Logiciel intermédiaire externe | ☑ Aucun (le POS parle GraphQL directement au FDM, pas de proxy intermédiaire) |
 
 ## §III.F FDM Non-Opérationnel
@@ -342,7 +342,7 @@ support, `refund::refund_checkout`).
 
 **Enregistrement zéro :**
 
-Un enregistrement **sans ligne de produit** ne peut **techniquement pas** être créé avec `moyun-pos` v1.0.0. La garde n'est pas seulement une omission de l'UI : elle est appliquée côté serveur (Rust), dans `src-tauri/src/commands`, avant tout appel au FDM.
+Un enregistrement **sans ligne de produit** ne peut **techniquement pas** être créé avec `pili-pos` v1.0.0. La garde n'est pas seulement une omission de l'UI : elle est appliquée côté serveur (Rust), dans `src-tauri/src/commands`, avant tout appel au FDM.
 
 - `commands/checkout.rs` : une vente sans ligne de produit est refusée (code `order_no_lines`). Une vente dont le total est négatif est refusée aussi (code `order_total_negative`) : un montant négatif ne passe que par un remboursement.
 - `commands/tables.rs` : une addition provisoire sans ligne est refusée (`order_no_lines`). L'enregistrement d'une commande de table n'envoie rien quand aucune entrée n'est en attente : pas d'événement P vide.
@@ -352,7 +352,7 @@ Une vente dont le total vaut **0,00 EUR** (par exemple un article offert à prix
 
 Tests : `checkout_of_an_empty_order_is_refused_without_calling_the_fdm`, `a_negative_sale_is_refused_before_the_fdm`, `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket`.
 
-**Déclaration formelle :** un enregistrement sans ligne de produit **n'est jamais possible** avec `moyun-pos` v1.0.0, ni via l'UI opérateur, ni via la couche applicative (gardes serveur dans `checkout.rs`, `tables.rs` et `refund.rs`, cf. ci-dessus).
+**Déclaration formelle :** un enregistrement sans ligne de produit **n'est jamais possible** avec `pili-pos` v1.0.0, ni via l'UI opérateur, ni via la couche applicative (gardes serveur dans `checkout.rs`, `tables.rs` et `refund.rs`, cf. ci-dessus).
 
 **Journal de commande (`order_entries`) :** chaque ajout, correction ou
 remboursement de ligne sur une commande ouverte est journalisé dans la
@@ -453,7 +453,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Facturation à l'hôtel | ☐ | - | Non supporté (POS destiné à la restauration) |
 | Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé |
 | Paiement en plusieurs moyens (un ticket) | ☑ | UC4119, ROUND4, ROUND5 | Carte et chèques-repas pour un montant exact, espèces pour le reste (seul le reste en espèces est arrondi, ligne ROUNDING à part). Une ligne PAYMENT par moyen (`crates/pos-fiscal/src/payment.rs`) |
-| Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`src-tauri/src/commands/unpaid.rs`). La description POS v2.2 ne prévoit des `financials` vides que pour un montant nul ; moyun-pos suit le cas d'utilisation officiel UC4109_2 (58 EUR, `financials: []`) |
+| Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`src-tauri/src/commands/unpaid.rs`). La description POS v2.2 ne prévoit des `financials` vides que pour un montant nul ; pili-pos suit le cas d'utilisation officiel UC4109_2 (58 EUR, `financials: []`) |
 | Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
 | Vouchers à but multiple | ☐ | UC260/261 | Hors MVP |
 | Vouchers à but unique | ☐ | UC270/271 | Hors MVP |
@@ -479,13 +479,13 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 
 ### Remarque importante - facturation B2B Peppol
 
-À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Cette obligation est **hors périmètre de la build cert v1.0.0** de `moyun-pos` :
+À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Cette obligation est **hors périmètre de la build cert v1.0.0** de `pili-pos` :
 
 - **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active ni `peppol` ni `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
 - **Table d'audit** `peppol_deliveries` existe dans le schéma pour une activation future, mais n'est alimentée par aucun flux en v1.0.0.
 - **Mise à jour certifiée prévue v1.1** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
 
-**En attendant v1.1**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `moyun-pos`**, via l'outil de comptabilité/facturation du restaurant. `moyun-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
+**En attendant v1.1**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `pili-pos`**, via l'outil de comptabilité/facturation du restaurant. `pili-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
 
 ## §III.G CostCenterChange (Gestion de Table)
 
@@ -580,7 +580,7 @@ l'implémentation, la table exigence → code → test, et
 | Le POS dispose-t-il d'autres rapports que les rapports obligatoires X et Z ? | ☐ Non. Seuls X (turnover + user) et Z (turnover + user) sont implémentés. |
 | Calcul des totaux (turnover, users, posDevices, fdmDevices) | Calculés par `crates/pos-fiscal/src/report_totals.rs` **exclusivement à partir des événements fiscaux archivés et signés** de la période d'ouverture en cours (`booking_periods`, cf. §III.J), jamais des tables `orders`/`order_lines`/`payments` mutables - conforme POS v2.2 §2.2.2. Détail : `departments`, `payments` et `negQuantities` sont calculés à partir des événements N uniquement ; `vats` est la somme du `vatCalc` renvoyé par le FDM pour chaque N (repli sur les taux standard A/B/C si absent) ; `users[].totalAmount` est la somme des `transactionTotal` des N de l'employé, et la plage d'activité (`first`/`lastPosDateTime`) couvre tous ses événements **sauf** les rapports R eux-mêmes. Chaque moyen de paiement a son propre `financials.id` (spec §2.2.2) - `"1"` espèces, `"2"` carte - pour que les rapports les distinguent. Tous les montants sont additionnés en centimes (pas de flottants) pour éviter la perte de centime observée avant ce correctif (3,04 € devenait 3,03 €). |
 | Rapport Z en mode formation | ☐ Un Z de formation **ne consomme pas de numéro de Z** et **ne clôture pas** la période d'ouverture (`booking_periods` reste ouverte) - cohérent avec le principe que les événements T ne comptent jamais fiscalement. |
-| Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20250916_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`src-tauri/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc moyun-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement). |
+| Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20250916_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`src-tauri/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc pili-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement). |
 
 ## §III.M Intégration des tiers-parties
 
@@ -618,7 +618,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 3. La capture JSON request + response.
 4. Le ticket imprimé.
 
-**Statut moyun-pos :**
+**Statut pili-pos :**
 
 - Les 22 fixtures Basic Set v1.7 + 5 Reports v1.3 + 141 Advanced Set v1.5 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
 - 16 UC Basic Set + 4 Reports + 2 no-gap sont couverts par les tests e2e applicatifs (commande Tauri → tx SQLite → archive). *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
@@ -664,7 +664,7 @@ soit disponible dans la build cert v1.0.0 soumise - voir §III.F et
 
 Tableau de réponse (JSON fournis ; captures d'écran à compléter - bloc B2) :
 
-| Code | Nature | Affichage requis | Affichage moyun-pos | Capture |
+| Code | Nature | Affichage requis | Affichage pili-pos | Capture |
 |---|---|---|---|---|
 | CLIENT_CERT_NEAR_EXPIRATION | Warning | O | ☑ (mappé « Le certificat de la boîte noire expire bientôt. ») | À fournir |
 | CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé « Le certificat de la boîte noire a expiré. Contactez votre technicien. ») | JSON : `evidence/fdm_errors/CLIENT_CERT_EXPIRED_*.json` ; écran à fournir |
@@ -775,7 +775,7 @@ Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés a
 
 ## §VII.B Les données sont conservées dans le cloud
 
-**☑ J'ai pris ceci en considération et j'ai fourni une procédure à l'équipe SCE** (cochée par défaut bien que non applicable : `moyun-pos` est 100% local, aucune donnée fiscale dans le cloud. La déclaration cochée reconnaît qu'on a pris en compte la question).
+**☑ J'ai pris ceci en considération et j'ai fourni une procédure à l'équipe SCE** (cochée par défaut bien que non applicable : `pili-pos` est 100% local, aucune donnée fiscale dans le cloud. La déclaration cochée reconnaît qu'on a pris en compte la question).
 
 ## Feuille d'acquisition des données (DAS)
 
@@ -788,7 +788,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Producteur | Bruno Moyse / nuagemagique.dev |
 | Point de contact | Bruno Moyse |
 | E-mail | cloud@nuagemagique.dev |
-| Nom du logiciel | moyun-pos |
+| Nom du logiciel | pili-pos |
 | N° de version | 1.0.0 |
 | Système d'exploitation | Debian 13 minimal + Cage Wayland compositor |
 | Numéro de certificat | (à compléter par le SPF Finances) |
@@ -799,7 +799,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Connexion POS-FDM | ☑ Ethernet |
 | Périphériques supplémentaires | ☐ Non |
 | Logs disponibles, lisibles, copiables | ☑ Oui (journald + table `fiscal_events`) |
-| Méthode de lecture des logs | `journalctl -u moyun-pos.service` + `sqlite3 /var/lib/moyun-pos/pos.db ".dump fiscal_events"` |
+| Méthode de lecture des logs | `journalctl -u pili-pos.service` + `sqlite3 /var/lib/pili-pos/pos.db ".dump fiscal_events"` |
 | Logiciel DBMS | SQLite 3.45+ (embarqué) |
 | Langage de programmation | Rust + TypeScript/Vue |
 | Sécurité base de données | *Voir : SECURITE_BD_FR.md* |
@@ -884,5 +884,5 @@ Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pd
 Plus :
 - `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM_signe.pdf` - formulaire SPF rempli et signé.
 - Preuves brutes : `evidence/` (JSON requête/réponse par UC et par code d'erreur FDM, rapports `build_info_*.txt` des deux builds de référence).
-- Hash SHA-1 du binaire `moyun-pos` : §I.D.
+- Hash SHA-1 du binaire `pili-pos` : §I.D.
 - Image kiosque d'admission (`.img.xz`, lien de téléchargement séparé).

@@ -6,7 +6,7 @@ Généré automatiquement par `scripts/uc_matrix.py` à partir des dossiers sous
 
 Date de génération (date du dernier commit git) : 2026-09-26
 
-Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périmètre (fonctionnalité absente de moyun-pos v1.0.0, exclusion documentée), Non applicable (ce cas précis ne peut pas se produire avec le comportement actuel), Couvert par X (les tests de l'identifiant X couvrent aussi ce cas), MANQUANT (aucun test automatisé trouvé et aucune exclusion déclarée).
+Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périmètre (fonctionnalité absente de pili-pos v1.0.0, exclusion documentée), Non applicable (ce cas précis ne peut pas se produire avec le comportement actuel), Couvert par X (les tests de l'identifiant X couvrent aussi ce cas), MANQUANT (aucun test automatisé trouvé et aucune exclusion déclarée).
 
 ## Basic Set
 

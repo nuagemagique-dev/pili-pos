@@ -34,8 +34,8 @@ harnais ont été validés à blanc contre le mock FDM local
 
 - [ ] Accès développeur module2 : simulateur `FDM02000425` et posId
       `CPOS0031234567` autorisé dans ses paramètres.
-- [ ] `MOYUN_LIVE_FDM_URL=http://fdm.module2.be/graphql/` et
-      `MOYUN_LIVE_FDM_TOKEN` (jeton du simulateur) placés dans
+- [ ] `PILI_LIVE_FDM_URL=http://fdm.module2.be/graphql/` et
+      `PILI_LIVE_FDM_TOKEN` (jeton du simulateur) placés dans
       `.env.live` (exclu de git).
 - [ ] Build cert en place :
       `cargo build --release --no-default-features --features cert`.

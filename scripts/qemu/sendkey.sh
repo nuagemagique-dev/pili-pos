@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# moyun-pos - press a key in a running scripts/qemu/run-kiosk.sh guest,
+# pili-pos - press a key in a running scripts/qemu/run-kiosk.sh guest,
 # through its QMP socket (QEMU `send-key`, qcode names: ret, esc, a...).
 #
 # Usage: scripts/qemu/sendkey.sh <name> <qcode>

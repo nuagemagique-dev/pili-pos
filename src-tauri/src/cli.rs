@@ -1,13 +1,13 @@
-//! Offline command-line entry points of the `moyun-pos` binary.
+//! Offline command-line entry points of the `pili-pos` binary.
 //!
 //! Without arguments the binary starts the kiosk UI. The commands below
 //! run without a display and exit; they are used by the image build and
 //! by `deploy/install.sh`:
 //!
-//! - `moyun-pos --version`
-//! - `moyun-pos --init-db [--seed <file.sql>]` - create or migrate the
+//! - `pili-pos --version`
+//! - `pili-pos --init-db [--seed <file.sql>]` - create or migrate the
 //!   database at `paths::db_path()` and optionally load a catalogue seed.
-//! - `moyun-pos --check-config` - read `pos.json` as the kiosk would and
+//! - `pili-pos --check-config` - read `pos.json` as the kiosk would and
 //!   list what the FDM would refuse; exits 1 when anything is wrong.
 
 use std::path::{Path, PathBuf};
@@ -36,7 +36,7 @@ pub fn parse(args: &[String]) -> anyhow::Result<Command> {
             })
         }
         _ => bail!(
-            "usage: moyun-pos [--version | --check-config | --init-db [--seed <file.sql>]] (got: {})",
+            "usage: pili-pos [--version | --check-config | --init-db [--seed <file.sql>]] (got: {})",
             args.join(" ")
         ),
     }
@@ -65,13 +65,13 @@ pub fn init_db(db_path: &Path, seed: Option<&Path>) -> anyhow::Result<()> {
 }
 
 /// What is wrong with the configuration the kiosk would load: the file
-/// named by `env_path` (`MOYUN_POS_CONFIG`), else `production_path`.
+/// named by `env_path` (`PILI_POS_CONFIG`), else `production_path`.
 /// Unlike the kiosk, a missing file is a problem here: the development
 /// identity is never acceptable on an installed terminal.
 pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<String> {
     if env_path.is_none() && !production_path.exists() {
         return vec![format!(
-            "no configuration: {} is missing and MOYUN_POS_CONFIG is not set",
+            "no configuration: {} is missing and PILI_POS_CONFIG is not set",
             production_path.display()
         )];
     }
@@ -155,7 +155,7 @@ mod tests {
         assert_eq!(typo.len(), 1);
         assert!(typo[0].starts_with("restaurant_vat"), "{typo:?}");
 
-        // MOYUN_POS_CONFIG wins, and a missing file there is reported.
+        // PILI_POS_CONFIG wins, and a missing file there is reported.
         let env = dir.path().join("elsewhere.json");
         assert_eq!(check_config(Some(env.to_str().unwrap()), &prod).len(), 1);
     }

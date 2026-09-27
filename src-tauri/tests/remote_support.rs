@@ -11,10 +11,10 @@ use std::time::Duration;
 
 use common::*;
 
-use moyun_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
-use moyun_pos::commands::auth::do_set_pin;
-use moyun_pos::commands::errors;
-use moyun_pos::commands::support::{
+use pili_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
+use pili_pos::commands::auth::do_set_pin;
+use pili_pos::commands::errors;
+use pili_pos::commands::support::{
     do_remote_support_status, do_start_remote_support, do_stop_remote_support,
 };
 use pos_core::user::UserRole;
@@ -185,7 +185,7 @@ async fn the_session_gets_a_private_home() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     let home = std::fs::read_to_string(&marker).unwrap();
-    assert!(home.trim().ends_with("moyun-pos-support"), "{home}");
+    assert!(home.trim().ends_with("pili-pos-support"), "{home}");
 }
 
 #[tokio::test]

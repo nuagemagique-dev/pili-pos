@@ -16,7 +16,7 @@
       "posDateTime": "2026-09-27T19:17:26.155+02:00",
       "posFiscalTicketNo": 3,
       "posId": "CPOS0031234567",
-      "posSwVersion": "moyun-pos/1.0.0",
+      "posSwVersion": "pili-pos/1.0.0",
       "terminalId": "POS-1-BAR",
       "ticketMedium": "NONE",
       "transaction": {

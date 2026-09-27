@@ -3,7 +3,7 @@
   "deviations": [
     {
       "fixture": "NONE",
-      "moyunPos": "PAPER",
+      "piliPos": "PAPER",
       "path": "ticketMedium",
       "reason": "copies are printed in training mode too, so the medium is PAPER"
     }

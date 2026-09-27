@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - capture a screenshot from a running scripts/qemu/run-kiosk.sh
+# pili-pos - capture a screenshot from a running scripts/qemu/run-kiosk.sh
 # instance via its QMP socket, for
 # docs/internal/CAPTURES_ECRAN_RUNBOOK_FR.md.
 #
@@ -97,7 +97,7 @@ if [[ "$RESULT" == "OK" && -s "$OUT_PNG" ]]; then
 fi
 echo "▸ PNG screendump unavailable (${RESULT:-no response}) - falling back to PPM…"
 
-PPM_TMP="$(mktemp -t moyun-screendump-XXXXXX).ppm"
+PPM_TMP="$(mktemp -t pili-screendump-XXXXXX).ppm"
 RESULT="$(qmp_dump "$QMP_SOCK" "$PPM_TMP" ppm || true)"
 if [[ "$RESULT" != "OK" || ! -s "$PPM_TMP" ]]; then
     echo "ERROR: screendump failed: ${RESULT:-no response}" >&2

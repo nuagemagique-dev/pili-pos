@@ -1,4 +1,4 @@
-//! The admission image runs moyun-pos against `pos-fdm-mock` (the
+//! The admission image runs pili-pos against `pos-fdm-mock` (the
 //! examiners' machine has no real FDM until the kit arrives). Every
 //! other suite stubs the FDM with canned wiremock answers; this one
 //! serves the real mock over HTTP and plays a whole service day
@@ -16,18 +16,18 @@ use std::collections::HashMap;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_check_fdm_status, do_checkout};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_check_fdm_status, do_checkout};
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::{
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
-use moyun_pos::commands::social::{do_work_in, do_work_out};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::social::{do_work_in, do_work_out};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 
 const INSZ: &str = "12345678958";

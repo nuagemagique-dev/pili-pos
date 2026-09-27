@@ -129,7 +129,7 @@ spécifiques, afin que toute dérive future de l'API échoue bruyamment :
 ## Reproductibilité
 
 ```bash
-cd moyun-pos
+cd pili-pos
 cargo test --package pos-fiscal --test uc_fixtures -- --nocapture
 ```
 

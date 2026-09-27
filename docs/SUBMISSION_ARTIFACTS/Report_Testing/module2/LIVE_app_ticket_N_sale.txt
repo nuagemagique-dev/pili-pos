@@ -7,7 +7,7 @@ Terminal: POS-1-BAR
 Ticketnr.: 000115
 POS Serial: CPOS0031234567
 Input device MAC: F0:1D:3D:CC:13:C8
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 1 Dry Martini                           12,00  A
 1 Burger du chef                        28,00  B

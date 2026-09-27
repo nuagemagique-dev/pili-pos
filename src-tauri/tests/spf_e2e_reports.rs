@@ -24,7 +24,7 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::report::{
+use pili_pos::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
 use pos_fiscal::types::EventLabel;
@@ -224,7 +224,7 @@ async fn z_report_starts_new_booking_period() {
     let z_request: serde_json::Value =
         serde_json::from_str(app.fiscal_events()[0].event_data_json.as_deref().unwrap()).unwrap();
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
-    moyun_pos::commands::social::do_work_in(&app.state, TEST_INSZ.to_string())
+    pili_pos::commands::social::do_work_in(&app.state, TEST_INSZ.to_string())
         .await
         .unwrap();
     let next = open(&app).expect("the next event opens a period");

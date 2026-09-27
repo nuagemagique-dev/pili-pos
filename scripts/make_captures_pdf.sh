@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - certification dossier screenshot PDF
+# pili-pos - certification dossier screenshot PDF
 #
 # Assembles docs/SUBMISSION_ARTIFACTS/screenshots/*.png and *.jpg,
 # in filename order (01_..., 09a_..., 20_..., 50_...), into

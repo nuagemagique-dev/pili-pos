@@ -1,5 +1,5 @@
 [package]
-name = "moyun-pos"
+name = "pili-pos"
 version.workspace = true
 edition.workspace = true
 
@@ -54,7 +54,7 @@ default = ["hubrise", "peppol"]
 hubrise = ["dep:pos-hubrise", "dep:pos-hubrise-types"]
 # Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,
 # the AccessPoint trait, and the invoice (I event) commands. Not part of
-# moyun-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in
+# pili-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in
 # a later certified update, so the cert build leaves it out.
 peppol = ["dep:pos-peppol"]
 # Marker feature for the certification build: no third-party

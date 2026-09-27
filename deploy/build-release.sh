@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - Release Build (certification build)
+# pili-pos - Release Build (certification build)
 # Builds the cert binary for x86_64 Linux (Debian 13 / Intel J6412)
 # through scripts/build_and_hash.sh, then assembles the deploy package.
 #
@@ -39,7 +39,7 @@ NODE_SHA256="fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6"
 # Paths that would otherwise be embedded in the binary (panic messages,
 # debug info) are rewritten to fixed names, so the result does not
 # depend on where the repository or cargo live on the build host.
-REMAP_FLAGS="--remap-path-prefix=/workspace=/moyun-pos --remap-path-prefix=/usr/local/cargo=/cargo-home"
+REMAP_FLAGS="--remap-path-prefix=/workspace=/pili-pos --remap-path-prefix=/usr/local/cargo=/cargo-home"
 
 rm -rf "$OUTPUT_DIR"
 # Created by the host user, so the container never owns target/.
@@ -97,7 +97,7 @@ if [[ "${1:-}" == "--docker" ]]; then
             # host user, who deletes them before the next clean build.
             chown -R \$HOST_UID:\$HOST_GID target/linux-amd64 ui/dist build_info_*.txt
         "
-    BINARY="$LINUX_TARGET_DIR/release/moyun-pos"
+    BINARY="$LINUX_TARGET_DIR/release/pili-pos"
     POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
 else
     echo "══════════════════════════════════════════════════"
@@ -123,10 +123,10 @@ else
 
     # Same neutral names as the container build for this checkout and
     # this host's cargo home.
-    NATIVE_REMAP="--remap-path-prefix=$PROJECT_ROOT=/moyun-pos --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo-home"
+    NATIVE_REMAP="--remap-path-prefix=$PROJECT_ROOT=/pili-pos --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo-home"
     RUSTFLAGS="$NATIVE_REMAP" CARGO_TARGET_DIR="$LINUX_TARGET_DIR" "$PROJECT_ROOT/scripts/build_and_hash.sh"
     RUSTFLAGS="$NATIVE_REMAP" CARGO_TARGET_DIR="$LINUX_TARGET_DIR" cargo build --release --package pos-fdm-mock
-    BINARY="$LINUX_TARGET_DIR/release/moyun-pos"
+    BINARY="$LINUX_TARGET_DIR/release/pili-pos"
     POS_FDM_MOCK="$LINUX_TARGET_DIR/release/pos-fdm-mock"
 fi
 
@@ -136,12 +136,12 @@ if [[ ! -f "$BINARY" ]]; then
 fi
 
 # Assemble the deploy package
-cp "$BINARY" "$OUTPUT_DIR/moyun-pos"
+cp "$BINARY" "$OUTPUT_DIR/pili-pos"
 cp "$PROJECT_ROOT/deploy/install.sh" "$OUTPUT_DIR/"
 cp "$PROJECT_ROOT/deploy/update.sh" "$OUTPUT_DIR/"
-cp "$PROJECT_ROOT/deploy/moyun-pos.service" "$OUTPUT_DIR/"
+cp "$PROJECT_ROOT/deploy/pili-pos.service" "$OUTPUT_DIR/"
 mkdir -p "$OUTPUT_DIR/kiosk"
-cp "$PROJECT_ROOT/deploy/kiosk/pam.d-moyun-pos" "$OUTPUT_DIR/kiosk/"
+cp "$PROJECT_ROOT/deploy/kiosk/pam.d-pili-pos" "$OUTPUT_DIR/kiosk/"
 cp "$PROJECT_ROOT/src-tauri/seed_spf_test.sql" "$OUTPUT_DIR/"
 LATEST_BUILD_INFO="$(find "$PROJECT_ROOT" -maxdepth 1 -name 'build_info_*.txt' -print0 \
     | xargs -0 ls -t | head -1)"
@@ -165,6 +165,6 @@ echo ""
 echo "  SHA-1 (declare on the SPF form): $(grep '^SHA-1' "$OUTPUT_DIR"/build_info_*.txt | awk '{print $3}')"
 echo ""
 echo "  To install on a POS terminal (maintenance console, USB stick):"
-echo "    sudo ./install.sh --binary ./moyun-pos --seed ./seed_spf_test.sql"
+echo "    sudo ./install.sh --binary ./pili-pos --seed ./seed_spf_test.sql"
 echo "    (admission image; use the establishment's catalogue seed in production)"
 echo "═══════════════════════════════════════════════════"

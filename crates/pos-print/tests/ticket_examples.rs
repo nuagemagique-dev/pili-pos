@@ -41,7 +41,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         restaurant_est_no: "2123456791".to_string(),
         restaurant_legal_name: "Societe Exemple SRL".to_string(),
         pos_id: "CFOD0061234567".to_string(),
-        pos_sw_version: "moyun-pos/1.0.0".to_string(),
+        pos_sw_version: "pili-pos/1.0.0".to_string(),
         terminal_id: "POS1".to_string(),
         device_id: "00:1b:44:11:3a:b7".to_string(),
         operator: "Marie Dupont".to_string(),

@@ -158,7 +158,7 @@ en Phase 10).
 ## Reproductibilité
 
 ```bash
-cd moyun-pos
+cd pili-pos
 cargo test --package pos-fiscal --test advanced_set_fixtures -- --nocapture
 ```
 

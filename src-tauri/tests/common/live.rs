@@ -2,28 +2,28 @@
 //! gently.
 //!
 //! The app's `fdm_url` points at a local pacing proxy, which forwards
-//! each call to `MOYUN_LIVE_FDM_URL`:
+//! each call to `PILI_LIVE_FDM_URL`:
 //!
-//! - one call at a time, at least `MOYUN_LIVE_PAUSE_MS` (default 1000)
+//! - one call at a time, at least `PILI_LIVE_PAUSE_MS` (default 1000)
 //!   after the previous one;
-//! - at most `MOYUN_LIVE_MAX_REQUESTS` (default 60) calls per test
+//! - at most `PILI_LIVE_MAX_REQUESTS` (default 60) calls per test
 //!   binary run; past the cap the proxy answers a GraphQL error itself
 //!   and forwards nothing;
 //! - the request body and the `Authorization` header pass through
 //!   untouched and are never logged.
 //!
-//! `MOYUN_LIVE_SIMULATOR_VERSION`, when set, is sent as the
+//! `PILI_LIVE_SIMULATOR_VERSION`, when set, is sent as the
 //! `Simulator-Version` header module2's simulator reads (without it,
 //! the simulator answers as its latest version).
 //!
 //! The bearer token reaches the app the way it does in production:
-//! `fdm_token_file` names a file holding `MOYUN_LIVE_FDM_TOKEN`.
+//! `fdm_token_file` names a file holding `PILI_LIVE_FDM_TOKEN`.
 //!
 //! A live FDM keeps its counters, so the POS's own ticket numbers
 //! (`fiscal_counters`) are carried from one run to the next in
 //! `target/live-fdm/state.json`.
 //!
-//! With `MOYUN_LIVE_RECORD_DIR` set, the proxy also writes each call
+//! With `PILI_LIVE_RECORD_DIR` set, the proxy also writes each call
 //! there as it went over the wire: `<label>_request.json` (the GraphQL
 //! body) and `<label>_response.json` (the answer, with the simulator's
 //! `visitor_ip` removed), plus a line in `calls.jsonl` (label, HTTP
@@ -51,7 +51,7 @@ static FORWARDED: AtomicUsize = AtomicUsize::new(0);
 /// The label of the next recorded call (see [`record_as`]).
 static NEXT_LABEL: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// Record the next call under `label` (with `MOYUN_LIVE_RECORD_DIR`).
+/// Record the next call under `label` (with `PILI_LIVE_RECORD_DIR`).
 pub fn record_as(label: &str) {
     *NEXT_LABEL.lock().unwrap() = Some(label.to_string());
 }
@@ -99,9 +99,9 @@ fn scrub(value: &mut serde_json::Value) {
     }
 }
 
-/// Write one call to `MOYUN_LIVE_RECORD_DIR`, when set.
+/// Write one call to `PILI_LIVE_RECORD_DIR`, when set.
 fn record(request: &[u8], with_token: bool, status: u16, response: &str) {
-    let Ok(dir) = std::env::var("MOYUN_LIVE_RECORD_DIR") else {
+    let Ok(dir) = std::env::var("PILI_LIVE_RECORD_DIR") else {
         return;
     };
     let dir = PathBuf::from(dir);
@@ -155,7 +155,7 @@ pub const LIVE_POS_ID: &str = "CPOS0031234567";
 
 /// The live FDM from the environment, or `None` to skip.
 pub fn live_url() -> Option<String> {
-    std::env::var("MOYUN_LIVE_FDM_URL")
+    std::env::var("PILI_LIVE_FDM_URL")
         .ok()
         .filter(|u| !u.trim().is_empty())
 }
@@ -192,7 +192,7 @@ async fn forward(
         let body = serde_json::json!({
             "data": null,
             "errors": [{"message": format!(
-                "live request cap reached ({}), raise MOYUN_LIVE_MAX_REQUESTS",
+                "live request cap reached ({}), raise PILI_LIVE_MAX_REQUESTS",
                 proxy.cap
             )}]
         });
@@ -243,9 +243,9 @@ async fn start_proxy(target: String) -> String {
             .timeout(Duration::from_secs(30))
             .build()
             .unwrap(),
-        pause: Duration::from_millis(env_number("MOYUN_LIVE_PAUSE_MS", 1000)),
-        cap: env_number("MOYUN_LIVE_MAX_REQUESTS", 60) as usize,
-        simulator_version: std::env::var("MOYUN_LIVE_SIMULATOR_VERSION")
+        pause: Duration::from_millis(env_number("PILI_LIVE_PAUSE_MS", 1000)),
+        cap: env_number("PILI_LIVE_MAX_REQUESTS", 60) as usize,
+        simulator_version: std::env::var("PILI_LIVE_SIMULATOR_VERSION")
             .ok()
             .filter(|v| !v.trim().is_empty()),
         last: tokio::sync::Mutex::new(None),
@@ -268,7 +268,7 @@ fn state_file() -> PathBuf {
 
 impl TestApp {
     /// An app signing against the live FDM named by
-    /// `MOYUN_LIVE_FDM_URL`, through the pacing proxy, with the test
+    /// `PILI_LIVE_FDM_URL`, through the pacing proxy, with the test
     /// setup identity module2 allows. Ticket numbers go on from the
     /// previous live run.
     pub async fn live(target: String) -> Self {
@@ -278,10 +278,10 @@ impl TestApp {
         {
             let mut config = app.state.config.lock().unwrap();
             config.fdm_url = url;
-            config.pos_id = std::env::var("MOYUN_LIVE_POS_ID").unwrap_or(LIVE_POS_ID.into());
+            config.pos_id = std::env::var("PILI_LIVE_POS_ID").unwrap_or(LIVE_POS_ID.into());
             config.terminal_id = "POS-1-BAR".into();
             config.device_id = "F0:1D:3D:CC:13:C8".into();
-            if let Ok(token) = std::env::var("MOYUN_LIVE_FDM_TOKEN")
+            if let Ok(token) = std::env::var("PILI_LIVE_FDM_TOKEN")
                 && !token.trim().is_empty()
             {
                 let dir = workspace_root().join("target/live-fdm");

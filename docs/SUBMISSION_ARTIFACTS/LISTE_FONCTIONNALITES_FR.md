@@ -1,7 +1,7 @@
-# Liste des fonctionnalités - moyun-pos v1.0.0
+# Liste des fonctionnalités - pili-pos v1.0.0
 
 Inventaire exhaustif des fonctionnalités du système de caisse
-`moyun-pos` dans sa version soumise à certification (v1.0.0,
+`pili-pos` dans sa version soumise à certification (v1.0.0,
 build `--no-default-features --features cert`).
 
 ## 1. Fonctionnalités fiscales (SCE 2.0)
@@ -45,7 +45,7 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
 - **Allocation en transaction atomique** (peek-then-commit) qui
   garantit qu'un échec FDM ne crée jamais de trou dans la séquence
   - voir `COUNTER_STRATEGY.md` §3 et le test de régression
-  `moyun-pos::spf_e2e_no_gap`.
+  `pili-pos::spf_e2e_no_gap`.
 - **Contrôle de chaque réponse FDM avant archivage** (écho de la
   requête, opération et label, shortSignature dérivée de la signature
   pour N) - `crates/pos-fiscal/src/response_check.rs`. Une réponse
@@ -165,7 +165,7 @@ fonctionnalités suivantes sont **physiquement absentes du binaire** :
 
 - **Intégration webshop / agrégateurs de livraison** (Uber Eats,
   Deliveroo, etc.) - exclue par le système de features Cargo.
-  Vérification : `nm moyun-pos | grep -c pos_hubrise` → **0**.
+  Vérification : `nm pili-pos | grep -c pos_hubrise` → **0**.
 - **Vue de gestion webshop** (`WebshopOrdersView.vue`) - exclue du
   bundle via la variable d'environnement build Vite.
 

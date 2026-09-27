@@ -245,7 +245,7 @@ puis vérifie le texte exact avant de capturer.
 - **Écran attendu :** pastille "Caisse" orange, et à côté : « Le certificat de la boîte noire a expiré. Contactez votre technicien. »
 - **Capture :** plein écran.
 
-### Affichage facultatif (O), affiché par moyun-pos
+### Affichage facultatif (O), affiché par pili-pos
 
 #### `26_client_cert_near_expiration.png`
 - **Mock :** `MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION cargo run --package pos-fdm-mock`

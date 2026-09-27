@@ -15,15 +15,15 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::copy::do_list_fiscal_events;
-use moyun_pos::commands::financial::do_open_drawer_fiscal;
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::copy::do_list_fiscal_events;
+use pili_pos::commands::financial::do_open_drawer_fiscal;
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
     do_list_z_reports, do_needs_z_report,
 };
-use moyun_pos::commands::tables::{do_list_tables, do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::tables::{do_list_tables, do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;

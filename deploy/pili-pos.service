@@ -1,16 +1,16 @@
 [Unit]
-Description=moyun-pos kiosk (Cage Wayland compositor on tty1)
+Description=pili-pos kiosk (Cage Wayland compositor on tty1)
 # Layout follows Cage's reference unit ("Starting Cage on boot with
 # systemd", cage-kiosk/cage wiki): Cage needs a logind session on a
 # real VT to take the display and input devices, hence PAMName= and
-# TTYPath= below plus /etc/pam.d/moyun-pos (deploy/kiosk/pam.d-moyun-pos).
+# TTYPath= below plus /etc/pam.d/pili-pos (deploy/kiosk/pam.d-pili-pos).
 After=systemd-user-sessions.service plymouth-quit-wait.service network-online.target
 Wants=dbus.socket systemd-logind.service network-online.target
 Before=graphical.target
 ConditionPathExists=/dev/tty0
 # Kiosk image: never start on the USB installer/updater boot entries
-# (moyun-installer.service owns tty1 then). No effect on a plain install.
-ConditionKernelCommandLine=!moyun.installer
+# (pili-installer.service owns tty1 then). No effect on a plain install.
+ConditionKernelCommandLine=!pili.installer
 # The kiosk owns tty1; no login prompt is ever shown there.
 Conflicts=getty@tty1.service
 After=getty@tty1.service
@@ -19,7 +19,7 @@ After=getty@tty1.service
 Type=simple
 User=pos
 Group=pos
-PAMName=moyun-pos
+PAMName=pili-pos
 TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
@@ -36,18 +36,18 @@ UtmpMode=user
 # password-protected maintenance console with Ctrl+Alt+F2
 # (MANUEL_INSTALLATION_FR.md §4.1). All other Cage keybindings are
 # off by design (Cage has no configuration file).
-ExecStart=/usr/bin/cage -s -- /opt/moyun-pos/moyun-pos
+ExecStart=/usr/bin/cage -s -- /opt/pili-pos/pili-pos
 
-# Database, logs and backups live in /var/lib/moyun-pos, the path
+# Database, logs and backups live in /var/lib/pili-pos, the path
 # declared for SPF data acquisition. systemd exports it to the app as
 # $STATE_DIRECTORY (src-tauri/src/paths.rs).
-StateDirectory=moyun-pos
+StateDirectory=pili-pos
 StateDirectoryMode=0750
 
-# /run/moyun-pos: reserved for the on-demand RustDesk support session
-# (deploy/REMOTE-OPS.md, HOME=/run/moyun-pos/support) so it never needs
-# to write under the read-only root or under /var/lib/moyun-pos.
-RuntimeDirectory=moyun-pos
+# /run/pili-pos: reserved for the on-demand RustDesk support session
+# (deploy/REMOTE-OPS.md, HOME=/run/pili-pos/support) so it never needs
+# to write under the read-only root or under /var/lib/pili-pos.
+RuntimeDirectory=pili-pos
 RuntimeDirectoryMode=0750
 
 # Files the service creates (pos.db-wal/-shm, logs, backups) get group
@@ -61,7 +61,7 @@ Environment=WEBKIT_DISABLE_COMPOSITING_MODE=1
 Environment=RUST_LOG=info
 # Borderless fullscreen window: no title bar, no close button
 # (src-tauri/src/main.rs).
-Environment=MOYUN_KIOSK=1
+Environment=PILI_KIOSK=1
 # Cage identifies as a wlroots compositor; some WebKitGTK/portal codepaths
 # (xdg-desktop-portal-wlr, used by the RustDesk screen-capture session)
 # branch on this to pick the wlr-specific screencast backend.
@@ -79,7 +79,7 @@ ProtectSystem=strict
 # Not ProtectHome=yes: it also hides /run/user, and Cage creates its
 # Wayland socket in the session's XDG_RUNTIME_DIR (/run/user/<uid>), so
 # it fails with "Unable to open Wayland socket". pos's home is
-# /var/lib/moyun-pos; hide the other homes explicitly.
+# /var/lib/pili-pos; hide the other homes explicitly.
 ProtectHome=no
 InaccessiblePaths=-/home -/root
 PrivateTmp=yes

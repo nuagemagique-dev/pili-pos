@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - Update Script
-# Usage: sudo ./update.sh /path/to/moyun-pos --sha1 <declared SHA-1>
+# pili-pos - Update Script
+# Usage: sudo ./update.sh /path/to/pili-pos --sha1 <declared SHA-1>
 #
 # Every modification of the POS requires an update certification
 # request to SPF Finances (manual §II.E). Only install a binary whose
@@ -14,10 +14,10 @@
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-POS_BIN_DIR="/opt/moyun-pos"
-POS_HOME="/var/lib/moyun-pos"
+POS_BIN_DIR="/opt/pili-pos"
+POS_HOME="/var/lib/pili-pos"
 POS_DB_PATH="${POS_HOME}/pos.db"
-SERVICE="moyun-pos.service"
+SERVICE="pili-pos.service"
 
 BINARY_PATH="${1:-}"
 EXPECTED_SHA1=""
@@ -35,7 +35,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [[ -z "$BINARY_PATH" || ! -f "$BINARY_PATH" || -z "$EXPECTED_SHA1" ]]; then
-    echo "Usage: sudo $0 /path/to/moyun-pos --sha1 <declared SHA-1>"
+    echo "Usage: sudo $0 /path/to/pili-pos --sha1 <declared SHA-1>"
     exit 1
 fi
 
@@ -48,7 +48,7 @@ if [[ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]]; then
 fi
 echo "✓ SHA-1 matches the declared value ($ACTUAL_SHA1)"
 
-# The kiosk image (deploy/image/) mounts root read-only; /opt/moyun-pos
+# The kiosk image (deploy/image/) mounts root read-only; /opt/pili-pos
 # lives on that root partition, so the binary swap below needs a
 # temporary rw remount. Tolerant of a root that is already read-write
 # (plain deploy/install.sh targets, dev boxes): findmnt then reports no
@@ -73,8 +73,8 @@ systemctl stop "$SERVICE" 2>/dev/null || true
 sleep 1
 
 echo "▸ Backing up current binary..."
-if [[ -f "$POS_BIN_DIR/moyun-pos" ]]; then
-    cp "$POS_BIN_DIR/moyun-pos" "$POS_BIN_DIR/moyun-pos.bak"
+if [[ -f "$POS_BIN_DIR/pili-pos" ]]; then
+    cp "$POS_BIN_DIR/pili-pos" "$POS_BIN_DIR/pili-pos.bak"
 fi
 
 echo "▸ Backing up database..."
@@ -87,18 +87,18 @@ if [[ -f "$POS_DB_PATH" ]]; then
 fi
 
 echo "▸ Installing new binary..."
-install -m 755 "$BINARY_PATH" "$POS_BIN_DIR/moyun-pos"
+install -m 755 "$BINARY_PATH" "$POS_BIN_DIR/pili-pos"
 
 # Apply schema migrations offline so a migration failure is caught
 # here, with the service still stopped, rather than at kiosk boot.
 echo "▸ Migrating database..."
-runuser -u pos -- env MOYUN_POS_DATA_DIR="$POS_HOME" \
-    "$POS_BIN_DIR/moyun-pos" --init-db
+runuser -u pos -- env PILI_POS_DATA_DIR="$POS_HOME" \
+    "$POS_BIN_DIR/pili-pos" --init-db
 
 echo "▸ Starting POS service..."
 systemctl start "$SERVICE"
 
 echo "▸ Checking status..."
 sleep 2
-systemctl is-active "$SERVICE" && echo "✓ $("$POS_BIN_DIR/moyun-pos" --version) is running" \
+systemctl is-active "$SERVICE" && echo "✓ $("$POS_BIN_DIR/pili-pos" --version) is running" \
     || echo "✗ POS failed to start - check: journalctl -u $SERVICE"

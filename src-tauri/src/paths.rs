@@ -3,27 +3,27 @@
 //!
 //! The data directory is resolved, in priority order, from:
 //!
-//! 1. `MOYUN_POS_DATA_DIR` - explicit override (image build, tests).
-//! 2. `STATE_DIRECTORY` - exported by systemd for `StateDirectory=moyun-pos`
-//!    in `deploy/moyun-pos.service`, i.e. `/var/lib/moyun-pos`: the path
+//! 1. `PILI_POS_DATA_DIR` - explicit override (image build, tests).
+//! 2. `STATE_DIRECTORY` - exported by systemd for `StateDirectory=pili-pos`
+//!    in `deploy/pili-pos.service`, i.e. `/var/lib/pili-pos`: the path
 //!    declared to SPF Finances for data acquisition
 //!    (`FEUILLE_ACQUISITION_DONNEES_FR.md`).
-//! 3. `dirs::data_dir()/moyun-pos` - development machines.
+//! 3. `dirs::data_dir()/pili-pos` - development machines.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
 
 /// Directory holding `pos.db`, `logs/` and `backups/`.
 /// The configuration of an installed terminal (installation manual).
-pub const PRODUCTION_CONFIG: &str = "/etc/moyun-pos/pos.json";
+pub const PRODUCTION_CONFIG: &str = "/etc/pili-pos/pos.json";
 
 pub fn data_dir() -> PathBuf {
     resolve_data_dir(
-        std::env::var_os("MOYUN_POS_DATA_DIR"),
+        std::env::var_os("PILI_POS_DATA_DIR"),
         std::env::var_os("STATE_DIRECTORY"),
         dirs::data_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("moyun-pos"),
+            .join("pili-pos"),
     )
 }
 
@@ -65,14 +65,14 @@ mod tests {
     use super::*;
 
     fn fallback() -> PathBuf {
-        PathBuf::from("/home/dev/.local/share/moyun-pos")
+        PathBuf::from("/home/dev/.local/share/pili-pos")
     }
 
     #[test]
     fn override_wins_over_systemd() {
         let dir = resolve_data_dir(
             Some("/tmp/image-build".into()),
-            Some("/var/lib/moyun-pos".into()),
+            Some("/var/lib/pili-pos".into()),
             fallback(),
         );
         assert_eq!(dir, PathBuf::from("/tmp/image-build"));
@@ -80,18 +80,18 @@ mod tests {
 
     #[test]
     fn systemd_state_directory_is_used_in_production() {
-        let dir = resolve_data_dir(None, Some("/var/lib/moyun-pos".into()), fallback());
-        assert_eq!(dir, PathBuf::from("/var/lib/moyun-pos"));
+        let dir = resolve_data_dir(None, Some("/var/lib/pili-pos".into()), fallback());
+        assert_eq!(dir, PathBuf::from("/var/lib/pili-pos"));
     }
 
     #[test]
     fn first_of_several_state_directories() {
         let dir = resolve_data_dir(
             None,
-            Some("/var/lib/moyun-pos:/var/lib/other".into()),
+            Some("/var/lib/pili-pos:/var/lib/other".into()),
             fallback(),
         );
-        assert_eq!(dir, PathBuf::from("/var/lib/moyun-pos"));
+        assert_eq!(dir, PathBuf::from("/var/lib/pili-pos"));
     }
 
     #[test]

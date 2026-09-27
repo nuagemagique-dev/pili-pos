@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-installer - USB installer/updater, run by moyun-installer.service
-# only when the kernel command line carries moyun.installer=install or
-# moyun.installer=update (i.e. only when booted FROM the USB stick with
+# pili-installer - USB installer/updater, run by pili-installer.service
+# only when the kernel command line carries pili.installer=install or
+# pili.installer=update (i.e. only when booted FROM the USB stick with
 # that menu entry picked - a normal boot never reaches this script; see
 # the unit's ConditionKernelCommandLine=).
 #
 # install: wipes the internal disk and replicates this USB stick's
 #          partition table (ESP + root) and content onto it. The rest
 #          of the disk is left free for systemd-repart to claim as the
-#          "moyun-data" partition on the first real boot.
+#          "pili-data" partition on the first real boot.
 # update:  copies ONLY the CONTENTS of partitions 1 (ESP) and 2 (root)
 #          into the internal disk's EXISTING partitions 1 and 2,
 #          without touching its partition table at all - so its
-#          existing "moyun-data" partition (partition 3, the fiscal
+#          existing "pili-data" partition (partition 3, the fiscal
 #          database) is never disturbed. This is why update copies
 #          partition-to-partition rather than disk-to-disk.
 #
@@ -25,16 +25,16 @@
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-log() { echo "[moyun-installer] $*"; }
+log() { echo "[pili-installer] $*"; }
 
 CMDLINE=" $(cat /proc/cmdline) "
 MODE=""
-if [[ "$CMDLINE" == *" moyun.installer=install "* ]]; then
+if [[ "$CMDLINE" == *" pili.installer=install "* ]]; then
     MODE=install
-elif [[ "$CMDLINE" == *" moyun.installer=update "* ]]; then
+elif [[ "$CMDLINE" == *" pili.installer=update "* ]]; then
     MODE=update
 else
-    log "no moyun.installer= argument on the kernel command line - nothing to do"
+    log "no pili.installer= argument on the kernel command line - nothing to do"
     exit 0
 fi
 
@@ -75,7 +75,7 @@ fi
 clear || true
 cat <<BANNER
 ════════════════════════════════════════════════════════════════
-  moyun-pos - ${MODE_UPPER} sur ${TARGET_DISK}
+  pili-pos - ${MODE_UPPER} sur ${TARGET_DISK}
   Source : ${SRC_DISK} (cette clé USB)
 
   ${WARN_LINE}

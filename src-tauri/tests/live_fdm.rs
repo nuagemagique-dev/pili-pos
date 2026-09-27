@@ -9,14 +9,14 @@
 //!
 //! | Variable | Default | Purpose |
 //! |---|---|---|
-//! | `MOYUN_LIVE_FDM_URL`      | -                | FDM GraphQL endpoint (required, else every test returns) |
-//! | `MOYUN_LIVE_FDM_TOKEN`    | unset            | bearer token, handed to the app through `fdm_token_file` |
-//! | `MOYUN_LIVE_POS_ID`       | `CPOS0031234567` | posId the FDM allows |
-//! | `MOYUN_LIVE_SIMULATOR_VERSION` | unset       | `Simulator-Version` header (module2 simulator; unset = latest) |
-//! | `MOYUN_LIVE_PAUSE_MS`     | `1000`           | least gap between two calls |
-//! | `MOYUN_LIVE_MAX_REQUESTS` | `60`             | calls per run, past it nothing is forwarded |
+//! | `PILI_LIVE_FDM_URL`      | -                | FDM GraphQL endpoint (required, else every test returns) |
+//! | `PILI_LIVE_FDM_TOKEN`    | unset            | bearer token, handed to the app through `fdm_token_file` |
+//! | `PILI_LIVE_POS_ID`       | `CPOS0031234567` | posId the FDM allows |
+//! | `PILI_LIVE_SIMULATOR_VERSION` | unset       | `Simulator-Version` header (module2 simulator; unset = latest) |
+//! | `PILI_LIVE_PAUSE_MS`     | `1000`           | least gap between two calls |
+//! | `PILI_LIVE_MAX_REQUESTS` | `60`             | calls per run, past it nothing is forwarded |
 //! | `UC_EVIDENCE_DIR`         | unset            | where each signed request and response is written |
-//! | `MOYUN_LIVE_RECORD_DIR`   | unset            | where each call is recorded as it went over the wire |
+//! | `PILI_LIVE_RECORD_DIR`   | unset            | where each call is recorded as it went over the wire |
 //!
 //! Only what holds on any FDM is asserted: every command succeeds (so
 //! each response passed the POS's own response check), counters grow
@@ -31,18 +31,18 @@ use std::collections::HashMap;
 use common::*;
 use serde_json::Value;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_check_fdm_status, do_checkout};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_check_fdm_status, do_checkout};
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::{
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
-use moyun_pos::commands::social::{do_work_in, do_work_out};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::social::{do_work_in, do_work_out};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 
 /// The test setup's operator (UC_TestSetup_20240806).
@@ -50,7 +50,7 @@ const INSZ: &str = "75061189702";
 
 async fn live_app() -> Option<TestApp> {
     let Some(url) = live_url() else {
-        eprintln!("MOYUN_LIVE_FDM_URL not set: skipping (see scripts/live_fdm.sh)");
+        eprintln!("PILI_LIVE_FDM_URL not set: skipping (see scripts/live_fdm.sh)");
         return None;
     };
     let app = TestApp::live(url).await;
@@ -323,15 +323,15 @@ async fn live_fdm_operator_day() {
 
 /// One condition switched on in module2's Developer tab (buffer full,
 /// FDM locked, buffer near full, retry count): what the POS gets from
-/// a status query and a sale. `MOYUN_LIVE_CONDITION` names the file
-/// written to `UC_EVIDENCE_DIR`; `MOYUN_LIVE_EXPECT`, when set, is a
+/// a status query and a sale. `PILI_LIVE_CONDITION` names the file
+/// written to `UC_EVIDENCE_DIR`; `PILI_LIVE_EXPECT`, when set, is a
 /// code that must reach the POS (in the status, or in the refusal of
 /// the sale). 2 calls.
 #[tokio::test]
 #[ignore]
 async fn live_fdm_simulated_condition() {
     let Some(app) = live_app().await else { return };
-    let condition = std::env::var("MOYUN_LIVE_CONDITION").unwrap_or_else(|_| "condition".into());
+    let condition = std::env::var("PILI_LIVE_CONDITION").unwrap_or_else(|_| "condition".into());
 
     record_as(&format!("status_{condition}"));
     let status = do_check_fdm_status(&app.state).await.unwrap();
@@ -363,7 +363,7 @@ async fn live_fdm_simulated_condition() {
         std::fs::write(path, serde_json::to_string_pretty(&record).unwrap()).unwrap();
     }
 
-    if let Ok(code) = std::env::var("MOYUN_LIVE_EXPECT") {
+    if let Ok(code) = std::env::var("PILI_LIVE_EXPECT") {
         let seen = record.to_string();
         assert!(seen.contains(&code), "{code} did not reach the POS");
     }
@@ -371,7 +371,7 @@ async fn live_fdm_simulated_condition() {
 }
 
 /// What the FDM answers outside the happy path, for the mock's
-/// fixtures (`MOYUN_LIVE_RECORD_DIR`): the capitalised `Status`
+/// fixtures (`PILI_LIVE_RECORD_DIR`): the capitalised `Status`
 /// spelling, no token, a wrong token, a malformed query, the Q110
 /// multi-language status, an unknown posId and a posDateTime with
 /// microseconds. 7 calls.
@@ -380,7 +380,7 @@ async fn live_fdm_simulated_condition() {
 async fn live_fdm_protocol_edges() {
     let Some(app) = live_app().await else { return };
     let config = app.state.config.lock().unwrap().clone();
-    let token = std::env::var("MOYUN_LIVE_FDM_TOKEN").unwrap_or_default();
+    let token = std::env::var("PILI_LIVE_FDM_TOKEN").unwrap_or_default();
     let http = reqwest::Client::new();
     let post = |body: Value, auth: Option<String>| {
         let mut request = http.post(&config.fdm_url).json(&body);
@@ -570,14 +570,14 @@ async fn live_fdm_basic_set_rest() {
 /// then the full setup for a status and a sale, and one raw status to
 /// read module2's `info.https`. The certificates come from
 /// manual.module2.be ("Download losse certificaten"), in
-/// `MOYUN_LIVE_TLS_DIR` (default `target/live-fdm/mtls`: `ca.crt`,
+/// `PILI_LIVE_TLS_DIR` (default `target/live-fdm/mtls`: `ca.crt`,
 /// `client.crt`, `client.key`). About 5 calls.
 #[tokio::test]
 #[ignore]
 async fn live_fdm_https_mtls() {
     let Some(url) = live_url() else { return };
     let https = url.replacen("http://", "https://", 1);
-    let dir = std::env::var("MOYUN_LIVE_TLS_DIR").unwrap_or_else(|_| {
+    let dir = std::env::var("PILI_LIVE_TLS_DIR").unwrap_or_else(|_| {
         common::fixtures::workspace_root()
             .join("target/live-fdm/mtls")
             .to_string_lossy()
@@ -645,7 +645,7 @@ async fn live_fdm_https_mtls() {
             "Authorization",
             format!(
                 "Bearer {}",
-                std::env::var("MOYUN_LIVE_FDM_TOKEN").unwrap_or_default()
+                std::env::var("PILI_LIVE_FDM_TOKEN").unwrap_or_default()
             ),
         )
         .json(&serde_json::json!({ "query": "query { status { initialized } }" }))

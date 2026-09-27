@@ -89,9 +89,9 @@ impl AppState {
 
     /// Resolve the POS configuration, in priority order:
     ///
-    /// 1. `MOYUN_POS_CONFIG` env var - explicit path; any load error
+    /// 1. `PILI_POS_CONFIG` env var - explicit path; any load error
     ///    is fatal.
-    /// 2. `/etc/moyun-pos/pos.json` - the production path documented
+    /// 2. `/etc/pili-pos/pos.json` - the production path documented
     ///    in the installation manual. If the file exists, a parse
     ///    error is fatal: a fiscal terminal must never boot with a
     ///    partial or wrong identity.
@@ -99,7 +99,7 @@ impl AppState {
     ///    loudly so it can't be mistaken for a production setup.
     fn load_config() -> anyhow::Result<PosConfig> {
         load_config_from(
-            std::env::var("MOYUN_POS_CONFIG").ok().as_deref(),
+            std::env::var("PILI_POS_CONFIG").ok().as_deref(),
             std::path::Path::new(crate::paths::PRODUCTION_CONFIG),
         )
     }
@@ -123,7 +123,7 @@ pub fn recover_orphaned_checkouts(conn: &Connection) -> rusqlite::Result<usize> 
 }
 
 /// [`AppState::load_config`] with its inputs made explicit, for tests:
-/// `env_path` is `MOYUN_POS_CONFIG`, `production_path` the file of the
+/// `env_path` is `PILI_POS_CONFIG`, `production_path` the file of the
 /// installation manual.
 pub fn load_config_from(
     env_path: Option<&str>,
@@ -131,7 +131,7 @@ pub fn load_config_from(
 ) -> anyhow::Result<PosConfig> {
     if let Some(path) = env_path {
         let config = PosConfig::load_from_file(std::path::Path::new(path))?;
-        tracing::info!(%path, "config loaded from MOYUN_POS_CONFIG");
+        tracing::info!(%path, "config loaded from PILI_POS_CONFIG");
         return Ok(config);
     }
 
@@ -142,7 +142,7 @@ pub fn load_config_from(
     }
 
     tracing::warn!(
-        "no config file found (MOYUN_POS_CONFIG unset, /etc/moyun-pos/pos.json absent) - \
+        "no config file found (PILI_POS_CONFIG unset, /etc/pili-pos/pos.json absent) - \
          using development defaults with a TEST identity"
     );
     Ok(PosConfig {

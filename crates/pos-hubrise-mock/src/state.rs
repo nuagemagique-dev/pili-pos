@@ -62,7 +62,7 @@ impl MockState {
             "dev-token-pos".to_string(),
             ClientState {
                 access_token: "dev-token-pos".to_string(),
-                client_name: "moyun-pos".to_string(),
+                client_name: "pili-pos".to_string(),
                 account_name: "Tokyo Sushi Bar (dev)".to_string(),
                 location_name: "Liège".to_string(),
                 catalog_name: "Menu principal".to_string(),
@@ -78,10 +78,10 @@ impl MockState {
                 orders: HashMap::new(),
                 catalogs: HashMap::new(),
                 pending_auth_codes: HashMap::new(),
-                default_location_id: "moyun-dev-loc-1".to_string(),
-                default_catalog_id: "moyun-dev-cat-1".to_string(),
-                default_customer_list_id: "moyun-dev-cl-1".to_string(),
-                default_account_id: "moyun-dev-acc-1".to_string(),
+                default_location_id: "pili-dev-loc-1".to_string(),
+                default_catalog_id: "pili-dev-cat-1".to_string(),
+                default_customer_list_id: "pili-dev-cl-1".to_string(),
+                default_account_id: "pili-dev-acc-1".to_string(),
             }),
         }
     }

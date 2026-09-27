@@ -12,7 +12,7 @@ monolithique.
       fanless équivalent avec écran tactile PCAP 15.6" 1920×1080).
 - [ ] **TPM 2.0 activé en BIOS** (fTPM/Intel PTT ou puce discrète) -
       requis pour le chiffrement LUKS2 de `/var` au premier démarrage
-      (`SECURITE_BD_FR.md` §3.6). Sans cela, `moyun-provision.service`
+      (`SECURITE_BD_FR.md` §3.6). Sans cela, `pili-provision.service`
       échoue et le terminal ne dépasse jamais l'écran de mots de passe.
 - [ ] Secure Boot **désactivé** (aucune infrastructure de signature de
       l'UKI n'existe encore - l'activer empêche le boot).
@@ -20,11 +20,11 @@ monolithique.
 - [ ] Tiroir-caisse RJ11 raccordé à l'imprimante.
 - [ ] URL du FDM module2 (boîtier sur le LAN, ou simulateur en ligne
       `https://fdm.module2.be/graphql/` pour la machine de test)
-      configurée dans `/etc/moyun-pos/pos.json::fdm_url` (en
+      configurée dans `/etc/pili-pos/pos.json::fdm_url` (en
       `https://`), son jeton Bearer dans le fichier désigné par
       `fdm_token_file`, et les certificats module2 (`ca.crt`,
       `client.crt`, `client.key` en droits 600) dans
-      `/etc/moyun-pos/fdm/`, désignés par `fdm_ca_file`,
+      `/etc/pili-pos/fdm/`, désignés par `fdm_ca_file`,
       `fdm_client_cert_file`, `fdm_client_key_file`.
 
 ## Couche OS (image mkosi, `deploy/image/`)
@@ -33,26 +33,26 @@ monolithique.
       (`deploy/image/mkosi.conf`, profils `production`/`admission`
       sous `mkosi.profiles/`) - sans environnement de bureau.
 - [ ] Disque GPT : ESP (512 M) + racine ext4 **lecture seule** (4 G,
-      systemd-boot + UKI) + partition `moyun-data` (tout l'espace
+      systemd-boot + UKI) + partition `pili-data` (tout l'espace
       restant, créée par `systemd-repart` au premier démarrage).
-- [ ] `moyun-data` chiffrée **LUKS2**, déverrouillage automatique via
+- [ ] `pili-data` chiffrée **LUKS2**, déverrouillage automatique via
       **TPM2** (PCR 7) + clé de récupération de secours, mise en place
-      par `moyun-provision.service` au tout premier démarrage
+      par `pili-provision.service` au tout premier démarrage
       uniquement (`SECURITE_BD_FR.md` §3.6).
 - [ ] Mot de passe `root` aléatoire (et `spf` sur l'image d'admission)
       généré et affiché **une seule fois** à la fin du premier
       démarrage, avec la clé de récupération LUKS - à vérifier que le
       relecteur/distributeur les a bien notés
       (`MANUEL_INSTALLATION_FR.md` §3.4).
-- [ ] Compositeur Cage Wayland - lance automatiquement `moyun-pos` en
+- [ ] Compositeur Cage Wayland - lance automatiquement `pili-pos` en
       plein écran au boot, sur `tty1` exclusivement
       (`Conflicts=getty@tty1.service`).
-- [ ] Service systemd `moyun-pos.service` activé, tourne sous
+- [ ] Service systemd `pili-pos.service` activé, tourne sous
       l'utilisateur non-root `pos` (`SECURITE_BD_FR.md` §3.2).
 - [ ] Heure système synchronisée via chrony (les horodatages fiscaux
       corrects sont une exigence cert).
 - [ ] RustDesk pinné (SHA-256 vérifié), extrait avec
-      `--appimage-extract` dans `/opt/moyun-pos/rustdesk/`
+      `--appimage-extract` dans `/opt/pili-pos/rustdesk/`
       (`AppRun`) - aucun service, jamais lancé au boot
       (`deploy/REMOTE-OPS.md`).
 - [ ] Pas de serveur SSH (appliance scellée), Bluetooth/CUPS/Avahi/
@@ -60,26 +60,26 @@ monolithique.
       `tty2` (`Ctrl+Alt+F2`), terminal physique, login `root`.
 - [ ] USB installer/updater : le même artefact `.img.xz` propose au
       boot les entrées systemd-boot **"Install"** et **"Update"**
-      (`moyun.installer=install|update`) - "Install" réplique la table
+      (`pili.installer=install|update`) - "Install" réplique la table
       de partitions (`sgdisk --replicate`) et écrase le disque interne
       ; "Update" ne recopie que ESP+racine (`dd` partition à
-      partition) et **préserve** `moyun-data` (donc `pos.db`).
+      partition) et **préserve** `pili-data` (donc `pos.db`).
 
 ## Couche application
 
-- [ ] Build cert de `moyun-pos` installée dans `/opt/moyun-pos/`. Produite
+- [ ] Build cert de `pili-pos` installée dans `/opt/pili-pos/`. Produite
       par `deploy/build-release.sh --docker` (build Linux x86_64,
       `--no-default-features --features cert`, UI embarquée) - le
       SHA-1 déclaré est vérifié par `.github/workflows/image.yml`
       (job `repro`, build reproductible x2, puis job `image`, hash de
-      `/opt/moyun-pos/moyun-pos` **à l'intérieur** de l'image finie,
+      `/opt/pili-pos/pili-pos` **à l'intérieur** de l'image finie,
       partition racine montée en lecture seule).
-- [ ] Binaire `pos-fdm-mock` dans `/opt/moyun-pos/bin/pos-fdm-mock`
+- [ ] Binaire `pos-fdm-mock` dans `/opt/pili-pos/bin/pos-fdm-mock`
       (utilisé pendant la démo d'admission si le FDM virtuel est
       injoignable) - image d'admission uniquement.
-- [ ] Base de données de seed dans `/var/lib/moyun-pos/pos.db`,
+- [ ] Base de données de seed dans `/var/lib/pili-pos/pos.db`,
       initialisée à la construction de l'image (dans
-      `/usr/share/moyun-pos/factory/` puis copiée sur `/var` déchiffré
+      `/usr/share/pili-pos/factory/` puis copiée sur `/var` déchiffré
       au premier démarrage) avec `src-tauri/seed_spf_test.sql`
       (image d'admission) :
       - Lignes de produits prédéfinies du manuel §III.N (Dry Martini,
@@ -89,9 +89,9 @@ monolithique.
         `docs/20250916_UC_BasicSet_POS_FDM_1.7/UC_TestSetup_20240806.md`.
       - L'image de production (restaurant) utilise à la place
         le catalogue propre à l'établissement ; le binaire
-        `moyun-pos` est identique dans les deux images.
+        `pili-pos` est identique dans les deux images.
 - [ ] `pos.json::device_id` renseigné automatiquement par
-      `moyun-provision` (adresse MAC du terminal, pas
+      `pili-provision` (adresse MAC du terminal, pas
       `CHANGE_ME_MAC`) - voir `MANUEL_INSTALLATION_FR.md` §4.2.
 - [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`.
 - [ ] Sur l'image d'admission : compte `spf` (groupe `pos`, `tty2`,
@@ -131,15 +131,15 @@ contre l'arbre source qui a produit le binaire, pas sur le kiosk.
 ```bash
 # Sur la MACHINE DE BUILD (arbre source présent), avant la production
 # de l'image kiosk :
-cd ~/moyun-pos                          # le dépôt source
+cd ~/pili-pos                          # le dépôt source
 
 # 1) Build cert reproductible (linux/amd64, Docker) + rapport SHA-1.
 ./deploy/build-release.sh --docker
-# → deploy/dist/moyun-pos, deploy/dist/build_info_*.txt
+# → deploy/dist/pili-pos, deploy/dist/build_info_*.txt
 
 # 2) Confirmer que le binaire cert ne contient aucune intégration
 #    tierce désactivée (symboles résiduels attendus = 0).
-nm target/linux-amd64/release/moyun-pos | grep -c pos_hubrise   # → 0
+nm target/linux-amd64/release/pili-pos | grep -c pos_hubrise   # → 0
 
 # 3) Confirmer que fiscal_events est append-only (pas de DELETE/UPDATE
 #    dans le code).
@@ -157,7 +157,7 @@ scripts/live_fdm.sh
 # 6) Construire l'image kiosque (les deux profils) - root Linux x86_64
 #    réel, ou conteneur linux/amd64 privilégié depuis macOS.
 sudo deploy/image/build.sh production admission
-# → deploy/image/mkosi.output/<profil>/moyun-pos-kiosk-<profil>.img.xz
+# → deploy/image/mkosi.output/<profil>/pili-pos-kiosk-<profil>.img.xz
 ```
 
 Sur le **kiosk lui-même**, une fois démarré, le relecteur peut
@@ -165,7 +165,7 @@ vérifier que la version en cours d'exécution correspond au hash du
 dossier :
 
 ```bash
-sha1sum /opt/moyun-pos/moyun-pos
+sha1sum /opt/pili-pos/pili-pos
 # → doit correspondre à la valeur déclarée dans le formulaire cert
 #   et dans deploy/dist/build_info_*.txt
 ```
@@ -177,7 +177,7 @@ que le binaire embarqué dans chaque `.img.xz` a bien le SHA-1 certifié), job
 `boot-smoke` (premier démarrage complet de l'image d'admission sous
 QEMU+KVM+swtpm : provisionnement LUKS2 + TPM2, écran des mots de passe
 validé par Entrée, puis kiosque ; échoue si un service a échoué, si un
-cycle d'ordonnancement a été rompu ou si `moyun-pos.service` ne reste
+cycle d'ordonnancement a été rompu ou si `pili-pos.service` ne reste
 pas démarré, d'après le journal du système invité copié sur son port
 série ; capture d'écran finale et journal publiés en artefact CI `boot-smoke-screenshot`).
 
@@ -188,7 +188,7 @@ série ; capture d'écran finale et journal publiés en artefact CI `boot-smoke-
    notés - §3.4 du manuel d'installation) ; le rendez-vous d'admission
    ne doit pas être le moment où l'assistant découvre l'écran de mots
    de passe à usage unique.
-1. Boot du kiosk ; montrer Cage qui lance moyun-pos en plein écran.
+1. Boot du kiosk ; montrer Cage qui lance pili-pos en plein écran.
 2. Login avec INSZ ; montrer l'événement fiscal **S** work-in archivé.
 3. Ouvrir Table 4 ; ajouter trois articles ; envoyer en cuisine -
    événement **P** + ticket cuisine.

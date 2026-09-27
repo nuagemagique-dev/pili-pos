@@ -814,7 +814,7 @@ mod tests {
     #[test]
     fn a_missing_key_file_disables_mail() {
         let mut d = digital(true);
-        d.api_key_file = "/nonexistent/moyun-pos/tem.key".into();
+        d.api_key_file = "/nonexistent/pili-pos/tem.key".into();
         let config = PosConfig {
             kitchen_printer_address: None,
             fdm_token_file: None,

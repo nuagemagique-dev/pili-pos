@@ -1,6 +1,6 @@
-# Opérations à distance - moyun-pos
+# Opérations à distance - pili-pos
 
-Guide de dépannage et de mise à jour d'un terminal moyun-pos sans être
+Guide de dépannage et de mise à jour d'un terminal pili-pos sans être
 sur place. Le terminal est une appliance scellée : **pas de serveur
 SSH, aucun port en écoute, aucun accès distant permanent**
 (`GARANTIE_MAJ_LANGUES_FR.md` §2.2). Le seul canal distant est une
@@ -15,8 +15,8 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
   pour les deux profils d'image). Vérifiée (SHA-256) puis extraite
   avec `--appimage-extract` (jamais montée en FUSE - fonctionne sous
   `NoNewPrivileges=yes` et dans le chroot de build) dans
-  `/opt/moyun-pos/rustdesk/`, lancée via
-  `/opt/moyun-pos/rustdesk/AppRun`. Aucun service, jamais lancé au
+  `/opt/pili-pos/rustdesk/`, lancée via
+  `/opt/pili-pos/rustdesk/AppRun`. Aucun service, jamais lancé au
   boot.
 - Ouverture : depuis la caisse, par un Gérant connecté. "Config",
   section "Assistance à distance", bouton "Démarrer", puis son PIN
@@ -32,7 +32,7 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
   fois. Le démarrage et l'arrêt (qui, quand) sont écrits dans le
   journal applicatif (`pos.log`).
 - RustDesk reçoit un `HOME` privé sous le répertoire d'exécution du
-  service (`RuntimeDirectory=moyun-pos`, effacé à l'arrêt) : rien de ce
+  service (`RuntimeDirectory=pili-pos`, effacé à l'arrêt) : rien de ce
   qu'il écrit ne survit à un redémarrage.
 - Machine de test SPF : sur demande du SPF Finances, une session de
   test est ouverte de la même façon et ses identifiants fournis
@@ -59,22 +59,22 @@ donc toujours sur place, depuis une clé USB.
 
 | Quoi | Où |
 |---|---|
-| Base de données | `/var/lib/moyun-pos/pos.db` |
-| Logs applicatifs (rotation quotidienne) | `/var/lib/moyun-pos/logs/pos.log.AAAA-MM-JJ` |
-| Sauvegardes (auto après Z, manuelles, pré-MAJ) | `/var/lib/moyun-pos/backups/` |
-| Configuration | `/etc/moyun-pos/pos.json` |
-| Binaire | `/opt/moyun-pos/moyun-pos` |
-| Service | `moyun-pos.service` (Cage sur tty1) |
+| Base de données | `/var/lib/pili-pos/pos.db` |
+| Logs applicatifs (rotation quotidienne) | `/var/lib/pili-pos/logs/pos.log.AAAA-MM-JJ` |
+| Sauvegardes (auto après Z, manuelles, pré-MAJ) | `/var/lib/pili-pos/backups/` |
+| Configuration | `/etc/pili-pos/pos.json` |
+| Binaire | `/opt/pili-pos/pili-pos` |
+| Service | `pili-pos.service` (Cage sur tty1) |
 
 ## Lecture des logs
 
 ```bash
 # Journal systemd du kiosque
-journalctl -u moyun-pos --since "1 hour ago" --no-pager
+journalctl -u pili-pos --since "1 hour ago" --no-pager
 
 # Logs applicatifs
-tail -50 /var/lib/moyun-pos/logs/pos.log.$(date +%F)
-grep -i "error\|warn\|failed" /var/lib/moyun-pos/logs/pos.log.* | tail -20
+tail -50 /var/lib/pili-pos/logs/pos.log.$(date +%F)
+grep -i "error\|warn\|failed" /var/lib/pili-pos/logs/pos.log.* | tail -20
 ```
 
 **Messages courants** :
@@ -83,7 +83,7 @@ grep -i "error\|warn\|failed" /var/lib/moyun-pos/logs/pos.log.* | tail -20
 | `receipt print failed` | L'imprimante ne répond pas (papier ? câble ?) |
 | `boot: recovered orphaned checkout` | Un crash en plein encaissement a été récupéré au démarrage |
 | `post-Z backup failed` | La sauvegarde automatique après le rapport Z a échoué (espace disque ?) |
-| `no config file found` | `/etc/moyun-pos/pos.json` absent : le POS tourne avec une identité de TEST |
+| `no config file found` | `/etc/pili-pos/pos.json` absent : le POS tourne avec une identité de TEST |
 
 ## État de la base de données (lecture seule)
 
@@ -102,7 +102,7 @@ Depuis la console de maintenance root (`Ctrl+Alt+F2`), `sqlite3` brut
 reste disponible :
 
 ```bash
-sqlite3 -readonly /var/lib/moyun-pos/pos.db
+sqlite3 -readonly /var/lib/pili-pos/pos.db
 
 -- Commandes ouvertes
 SELECT id, table_number, order_type, total_cents, created_at
@@ -123,8 +123,8 @@ append-only par la loi.
 ## Redémarrage du service
 
 ```bash
-systemctl restart moyun-pos
-systemctl status moyun-pos
+systemctl restart pili-pos
+systemctl status pili-pos
 ```
 
 ## Mise à jour du binaire
@@ -137,18 +137,18 @@ dont le SHA-1 correspond à la valeur déclarée peut être installé.
    RustDesk, ou clé USB sur place) dans `/root/`.
 2. Sur la console de maintenance :
    ```bash
-   /opt/moyun-pos/deploy/update.sh /root/moyun-pos --sha1 <SHA-1 déclaré>
+   /opt/pili-pos/deploy/update.sh /root/pili-pos --sha1 <SHA-1 déclaré>
    ```
    Le script vérifie le SHA-1, sauvegarde le binaire et la base,
    applique les migrations puis redémarre le service.
-3. Vérifier : `sha1sum /opt/moyun-pos/moyun-pos` et un ticket de test.
+3. Vérifier : `sha1sum /opt/pili-pos/pili-pos` et un ticket de test.
 
 ### Rollback
 
 ```bash
-systemctl stop moyun-pos
-cp /opt/moyun-pos/moyun-pos.bak /opt/moyun-pos/moyun-pos
-systemctl start moyun-pos
+systemctl stop pili-pos
+cp /opt/pili-pos/pili-pos.bak /opt/pili-pos/pili-pos
+systemctl start pili-pos
 ```
 
 Un rollback ne réinstalle que le binaire précédent (version déjà
@@ -159,9 +159,9 @@ seraient perdus, ce qui est interdit.
 ## Sauvegarde manuelle
 
 ```bash
-sqlite3 /var/lib/moyun-pos/pos.db \
-  ".backup /var/lib/moyun-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
-ls -lh /var/lib/moyun-pos/backups/
+sqlite3 /var/lib/pili-pos/pos.db \
+  ".backup /var/lib/pili-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
+ls -lh /var/lib/pili-pos/backups/
 ```
 
 ## Dépannage courant
@@ -169,15 +169,15 @@ ls -lh /var/lib/moyun-pos/backups/
 ### « Le POS est gelé / ne répond pas »
 
 ```bash
-pgrep -a moyun-pos
-systemctl restart moyun-pos
-journalctl -u moyun-pos --since "10 minutes ago" --no-pager | tail -30
+pgrep -a pili-pos
+systemctl restart pili-pos
+journalctl -u pili-pos --since "10 minutes ago" --no-pager | tail -30
 ```
 
 ### « L'imprimante n'imprime plus »
 
 ```bash
-grep printer_address /etc/moyun-pos/pos.json
+grep printer_address /etc/pili-pos/pos.json
 nc -z -w 2 <printer-ip> 9100 && echo "OK" || echo "UNREACHABLE"
 ```
 
@@ -187,7 +187,7 @@ Le POS bloque toute transaction tant que le FDM est injoignable
 (comportement obligatoire). Vérifier le lien :
 
 ```bash
-FDM_URL=$(sed -n 's/.*"fdm_url": *"\([^"]*\)".*/\1/p' /etc/moyun-pos/pos.json)
+FDM_URL=$(sed -n 's/.*"fdm_url": *"\([^"]*\)".*/\1/p' /etc/pili-pos/pos.json)
 curl -sf "$FDM_URL" -X POST \
   -H "Content-Type: application/json" \
   -d '{"query":"{ Status(language: FR) { device { fdmId } } }"}'

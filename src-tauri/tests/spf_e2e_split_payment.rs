@@ -17,17 +17,17 @@ mod common;
 use common::*;
 use serde_json::Value;
 
-use moyun_pos::commands::checkout::{
+use pili_pos::commands::checkout::{
     CheckoutPaymentMethod::{Card, MealVoucher},
     PaymentPart, do_checkout_split,
 };
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::errors;
-use moyun_pos::commands::order::{
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::errors;
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::do_generate_x_report;
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::do_generate_x_report;
 use pos_core::order::OrderType;
 use pos_fiscal::types::EventLabel;
 
@@ -361,7 +361,7 @@ async fn a_rounded_cash_sale_is_one_payment_on_the_user_report() {
     let order = both_desserts(&app);
     pay(&app, order, &[PaymentPart::cash()]).await;
     printed(&printer, 1).await;
-    let r = moyun_pos::commands::report::do_generate_user_x_report(&app.state, MANAGER.into())
+    let r = pili_pos::commands::report::do_generate_user_x_report(&app.state, MANAGER.into())
         .await
         .unwrap();
     assert!(r.success, "{:?}", r.error);

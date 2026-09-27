@@ -18,18 +18,18 @@ mod common;
 use common::*;
 use serde_json::Value;
 
-use moyun_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_THE_OPERATOR};
-use moyun_pos::commands::auth::do_set_pin;
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::errors;
-use moyun_pos::commands::order::{
+use pili_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_THE_OPERATOR};
+use pili_pos::commands::auth::do_set_pin;
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::errors;
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
-use moyun_pos::commands::refund::{RefundItem, do_list_refundable_events, do_refund_checkout};
-use moyun_pos::commands::report::do_generate_x_report;
-use moyun_pos::commands::tables::do_sign_table_order;
-use moyun_pos::commands::unpaid::do_close_unpaid;
+use pili_pos::commands::refund::{RefundItem, do_list_refundable_events, do_refund_checkout};
+use pili_pos::commands::report::do_generate_x_report;
+use pili_pos::commands::tables::do_sign_table_order;
+use pili_pos::commands::unpaid::do_close_unpaid;
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 use pos_fiscal::types::EventLabel;

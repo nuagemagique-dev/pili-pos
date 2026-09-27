@@ -1,6 +1,6 @@
 //! Two sign calls firing at once on the same order/label.
 //!
-//! moyun-pos is a single-terminal POS (CLAUDE.md: "Multi-terminal
+//! pili-pos is a single-terminal POS (CLAUDE.md: "Multi-terminal
 //! sync - single terminal for MVP"), so this is a narrow scenario in
 //! practice - a UI double-tap slipping past its loading guard, a
 //! stuck request the operator retries while the first is still
@@ -28,11 +28,11 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::errors;
+use pili_pos::commands::errors;
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout};
-use moyun_pos::commands::social::do_work_in;
-use moyun_pos::commands::tables::do_sign_table_order;
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, CheckoutResult, do_checkout};
+use pili_pos::commands::social::do_work_in;
+use pili_pos::commands::tables::do_sign_table_order;
 use pos_core::order::OrderType;
 use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
@@ -87,7 +87,7 @@ fn describe_checkout(r: &Result<CheckoutResult, String>) -> String {
     }
 }
 
-fn describe_social(r: &Result<moyun_pos::commands::social::SocialResult, String>) -> String {
+fn describe_social(r: &Result<pili_pos::commands::social::SocialResult, String>) -> String {
     match r {
         Ok(res) => format!("Ok(success={}, error={:?})", res.success, res.error),
         Err(e) => format!("Err({e})"),

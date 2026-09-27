@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# moyun-pos - check the first boot of a running scripts/qemu/run-kiosk.sh
+# pili-pos - check the first boot of a running scripts/qemu/run-kiosk.sh
 # guest (admission image), from the journal it copies to its serial port
-# (journald.conf.d/90-moyun-serial.conf):
+# (journald.conf.d/90-pili-serial.conf):
 #
-#   1. moyun-provision reaches its one-time banner (LUKS2 format, TPM2
+#   1. pili-provision reaches its one-time banner (LUKS2 format, TPM2
 #      and recovery key enrollment, mkfs, factory data, passwords);
 #   2. Enter is pressed on the banner, as the installer would;
-#   3. moyun-pos.service starts and is still running 30 s later;
+#   3. pili-pos.service starts and is still running 30 s later;
 #   4. the kiosk frame is saved as screenshots/<out-basename>.png;
 #   5. no unit failed, no ordering cycle was broken and nothing hit the
 #      read-only root, in the whole boot.
@@ -21,7 +21,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NAME="${1:?usage: $0 <name> [out-basename]}"
 OUT="${2:-$NAME}"
 LOG="$SCRIPT_DIR/.run/$NAME/serial.log"
-BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs|Read-only file system|moyun-provision.*ERROR|cage\[[0-9]+\]: .*\[ERROR\]'
+BAD='Failed to start|Dependency failed|ordering cycle|Failed with result|Job .* deleted|contradicts existing jobs|Read-only file system|pili-provision.*ERROR|cage\[[0-9]+\]: .*\[ERROR\]'
 # wlroots on QEMU's virtio-vga (pixman renderer, no cursor plane) logs
 # these while probing the output; the frame still renders. Any other
 # Cage error still fails the check.
@@ -62,17 +62,17 @@ wait_for() {
 }
 
 # The banner follows the password step; give the terminal a moment to draw it.
-wait_for 'moyun-provision.*Setting the root password' 300 "first-boot provisioning"
+wait_for 'pili-provision.*Setting the root password' 300 "first-boot provisioning"
 sleep 5
 "$SCRIPT_DIR/sendkey.sh" "$NAME" ret
-wait_for 'moyun-provision.*Provisioning complete' 60 "provisioning banner acknowledged"
-wait_for 'Started moyun-pos\.service' 180 "moyun-pos.service started"
+wait_for 'pili-provision.*Provisioning complete' 60 "provisioning banner acknowledged"
+wait_for 'Started pili-pos\.service' 180 "pili-pos.service started"
 
 sleep 30
-if grep -qE 'moyun-pos\.service: (Main process exited|Failed|Scheduled restart)' "$LOG"; then
-    fail "moyun-pos.service did not stay up"
+if grep -qE 'pili-pos\.service: (Main process exited|Failed|Scheduled restart)' "$LOG"; then
+    fail "pili-pos.service did not stay up"
 fi
-echo "✓ moyun-pos.service still running after 30s"
+echo "✓ pili-pos.service still running after 30s"
 
 # The login screen's own background (ui/src/styles/tokens.css
 # --bg-primary), not just "something is drawn". WebKit renders in

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Embed the moyun-pos evidence into RESULTATS_TESTS_UC_FR.md.
+"""Embed the pili-pos evidence into RESULTATS_TESTS_UC_FR.md.
 
 For every UC section of the results document that the fixture replays
 cover, insert (or replace) a block with:
-- the request moyun-pos itself built and archived for the UC's event
+- the request pili-pos itself built and archived for the UC's event
   (evidence/uc/<UC>_event<N>_<label>_request.json);
 - the outcome of the field-by-field comparison with the fixture
   (evidence/uc/<UC>_check.json), with the intended deviations.
@@ -25,8 +25,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs/SUBMISSION_ARTIFACTS/RESULTATS_TESTS_UC_FR.md"
 EVIDENCE = ROOT / "docs/SUBMISSION_ARTIFACTS/evidence/uc"
 
-START = "<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->"
-END = "<!-- moyun-pos-evidence:end -->"
+START = "<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->"
+END = "<!-- pili-pos-evidence:end -->"
 
 # UC -> (test that replays it, check files)
 BASIC = {
@@ -62,9 +62,9 @@ REASONS_FR = {
         "une vente en salle est encaissée depuis sa table et porte le "
         "centre de coût TABLE"
     ),
-    "moyun-pos references the refunded ticket on every refund "
+    "pili-pos references the refunded ticket on every refund "
     "(FLUX_REMBOURSEMENT_FR.md); the fixture's partial refund carries no reference": (
-        "moyun-pos référence le ticket remboursé sur chaque remboursement "
+        "pili-pos référence le ticket remboursé sur chaque remboursement "
         "(*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la "
         "fixture n'en porte pas"
     ),
@@ -97,7 +97,7 @@ REPORT_DEVIATIONS = [
     (
         "`payments[].id` / `name`",
         "identifiants et libellés du scénario",
-        "identifiants et libellés de moyun-pos",
+        "identifiants et libellés de pili-pos",
         "propres à chaque POS",
     ),
     (
@@ -156,9 +156,9 @@ def basic_block(uc: str) -> str | None:
     main = events[-1]
     out = [
         START,
-        f"**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par "
+        f"**Preuve pili-pos (build `cert`)** - rejeu de la fixture par "
         f"`src-tauri/tests/{test}`. Requête **construite et archivée par "
-        f"moyun-pos** pour l'event de l'UC (`evidence/uc/{main.name}`) :",
+        f"pili-pos** pour l'event de l'UC (`evidence/uc/{main.name}`) :",
         "",
         json_block(main),
         "",
@@ -185,7 +185,7 @@ def basic_block(uc: str) -> str | None:
             out += [
                 "Écarts assumés :",
                 "",
-                "| Champ | Fixture | moyun-pos | Motif |",
+                "| Champ | Fixture | pili-pos | Motif |",
                 "|---|---|---|---|",
             ]
             for d in devs:
@@ -193,7 +193,7 @@ def basic_block(uc: str) -> str | None:
                 if reason is None:
                     sys.exit(f"{path.name}: no French wording for {d['reason']!r}")
                 out.append(
-                    f"| `{d['path']}` | {fmt(d.get('fixture'))} | {fmt(d.get('moyunPos'))} | {reason} |"
+                    f"| `{d['path']}` | {fmt(d.get('fixture'))} | {fmt(d.get('piliPos'))} | {reason} |"
                 )
             out.append("")
         else:
@@ -210,7 +210,7 @@ def report_block(uc: str) -> str | None:
         return "\n".join(
             [
                 START,
-                f"**Preuve moyun-pos (build `cert`)** - cet UC est signé par "
+                f"**Preuve pili-pos (build `cert`)** - cet UC est signé par "
                 f"le Z combiné de M184 (mutation `{VIA_M184[uc]}`), rejoué par "
                 f"`src-tauri/tests/{REPORTS['M184']}` : voir {file_list(events)} "
                 f"et la section M184.",
@@ -224,9 +224,9 @@ def report_block(uc: str) -> str | None:
     day = [p for p in events if p not in reports]
     out = [
         START,
-        f"**Preuve moyun-pos (build `cert`)** - la journée du scénario "
+        f"**Preuve pili-pos (build `cert`)** - la journée du scénario "
         f"(InputReport T1–T8) est jouée par les vraies commandes, puis le "
-        f"rapport est construit par moyun-pos à partir de son archive "
+        f"rapport est construit par pili-pos à partir de son archive "
         f"fiscale et comparé à la fixture par `src-tauri/tests/{REPORTS[uc]}`.",
         "",
     ]
@@ -240,7 +240,7 @@ def report_block(uc: str) -> str | None:
         "négatives, ouvertures de tiroir, totaux, paiements et présences "
         "par utilisateur. Écarts assumés :",
         "",
-        "| Champ | Fixture | moyun-pos | Motif |",
+        "| Champ | Fixture | pili-pos | Motif |",
         "|---|---|---|---|",
     ]
     for row in REPORT_DEVIATIONS:

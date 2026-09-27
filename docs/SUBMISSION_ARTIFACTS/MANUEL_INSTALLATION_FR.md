@@ -1,8 +1,8 @@
-# Manuel d'installation et de configuration - moyun-pos v1.0.0
+# Manuel d'installation et de configuration - pili-pos v1.0.0
 
 Ce manuel s'adresse au technicien installateur (= distributeur,
 nuagemagique.dev). Il décrit la mise en place complète d'un kiosque
-moyun-pos chez un client HoReCa.
+pili-pos chez un client HoReCa.
 
 ## 1. Matériel requis
 
@@ -14,7 +14,7 @@ moyun-pos chez un client HoReCa.
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
 | Câble Ethernet | RJ45 Cat-5e ou supérieur | 3 (POS, FDM, imprimante) |
 | Switch / box internet | 4 ports minimum | 1 |
-| Clé USB d'installation/mise à jour | 8 Go minimum - l'image kiosque complète (`moyun-pos-kiosk-<profil>.img.xz`) y est écrite telle quelle (§2), pas un simple installeur FAT32 | 1 |
+| Clé USB d'installation/mise à jour | 8 Go minimum - l'image kiosque complète (`pili-pos-kiosk-<profil>.img.xz`) y est écrite telle quelle (§2), pas un simple installeur FAT32 | 1 |
 | Onduleur (recommandé) | 600 VA minimum | 1 |
 
 **Puce TPM 2.0 obligatoire** (fTPM Intel PTT intégré au J6412, ou
@@ -29,10 +29,10 @@ et activer avant de commencer (§3.1).
 ### 2.1 Télécharger l'image kiosque
 
 L'image est fournie par le distributeur sous forme d'un fichier
-`moyun-pos-kiosk-vX.Y.Z.img.xz`. Sur la machine du distributeur :
+`pili-pos-kiosk-vX.Y.Z.img.xz`. Sur la machine du distributeur :
 
 ```bash
-xz -d moyun-pos-kiosk-vX.Y.Z.img.xz
+xz -d pili-pos-kiosk-vX.Y.Z.img.xz
 ```
 
 ### 2.2 Écrire l'image sur la clé USB
@@ -47,7 +47,7 @@ lsblk        # Linux
 diskutil list # macOS
 
 # Écrire l'image (remplacer /dev/sdX par le bon device)
-sudo dd if=moyun-pos-kiosk-vX.Y.Z.img of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=pili-pos-kiosk-vX.Y.Z.img of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 Sur Windows : utiliser **Rufus** ou **Balena Etcher** avec l'image.
@@ -62,7 +62,7 @@ Sur Windows : utiliser **Rufus** ou **Balena Etcher** avec l'image.
 2. Activer **Boot from USB**.
 3. **Activer le TPM 2.0** (souvent affiché "Intel PTT" ou "fTPM" sur
    le J6412) - obligatoire pour le chiffrement automatique de `/var`
-   au premier démarrage (§3.4, §1). Sans cela, `moyun-provision`
+   au premier démarrage (§3.4, §1). Sans cela, `pili-provision`
    échoue à l'enrôlement TPM2 et le terminal reste bloqué avant
    d'atteindre l'écran de connexion.
 4. **Laisser Secure Boot désactivé** (le paramètre par défaut sur la
@@ -90,22 +90,22 @@ Sur Windows : utiliser **Rufus** ou **Balena Etcher** avec l'image.
 
 ### 3.3 Procédure d'installation
 
-Le service `moyun-installer.service`, actif uniquement quand le noyau
-a démarré avec `moyun.installer=install` (l'entrée "Install" du menu),
+Le service `pili-installer.service`, actif uniquement quand le noyau
+a démarré avec `pili.installer=install` (l'entrée "Install" du menu),
 fait le travail :
 
 1. Détection du disque interne (le premier disque autre que la clé
    USB elle-même).
 2. **Install** : réplication complète de la table de partitions de la
    clé (`sgdisk --replicate` + `-G` pour de nouveaux UUID) puis copie
-   partition par partition (ESP + racine ; la partition `moyun-data`
+   partition par partition (ESP + racine ; la partition `pili-data`
    copiée est vide/non formatée à ce stade) vers le disque interne.
    **Update** : seules les partitions ESP et racine sont recopiées
-   (`dd` partition à partition) ; la partition `moyun-data` déjà
+   (`dd` partition à partition) ; la partition `pili-data` déjà
    présente sur le disque interne (avec son contenu chiffré) n'est
    **jamais touchée** - c'est ce qui préserve `pos.db` d'une mise à
    jour à l'autre.
-3. Le disque interne contient maintenant Debian 13 minimal + moyun-pos
+3. Le disque interne contient maintenant Debian 13 minimal + pili-pos
    + Cage + RustDesk (extrait) + les outils de provisioning, en lecture
    seule pour la racine - mais rien n'est encore déchiffré ni
    configuré : cette étape ne fait que poser les partitions ESP/racine
@@ -120,11 +120,11 @@ Debian nu).
 Retirer la clé USB et redémarrer. Le terminal doit :
 
 1. Démarrer sur le disque interne (systemd-boot → UKI).
-2. `systemd-repart` finalise la partition `moyun-data` (taille = tout
+2. `systemd-repart` finalise la partition `pili-data` (taille = tout
    l'espace libre restant sur le disque).
-3. `moyun-provision.service` s'exécute automatiquement, **une seule
+3. `pili-provision.service` s'exécute automatiquement, **une seule
    fois** (il ne se relance jamais aux démarrages suivants) :
-   - Formate `moyun-data` en LUKS2 avec une clé temporaire.
+   - Formate `pili-data` en LUKS2 avec une clé temporaire.
    - Enrôle le TPM2 (déverrouillage automatique, silencieux, à chaque
      démarrage normal) et une **clé de récupération**.
    - Supprime la clé temporaire.
@@ -142,7 +142,7 @@ Retirer la clé USB et redémarrer. Le terminal doit :
    **plus jamais réaffichées** et ne sont conservées nulle part sur le
    disque après cet écran.
 5. Une fois Entrée pressée, le terminal poursuit son démarrage : Cage
-   Wayland en plein écran, puis moyun-pos en mode kiosque.
+   Wayland en plein écran, puis pili-pos en mode kiosque.
 6. Écran de connexion affiché (avec un message rouge "POS NON
    CONFIGURÉ" tant que les champs propres à l'établissement de
    `pos.json` - §4.2 - n'ont pas été renseignés).
@@ -152,7 +152,7 @@ est l'opération la plus lente).
 
 **Reprise après coupure de courant pendant cette étape** : si le
 terminal est mis hors tension entre l'enrôlement TPM2 et le montage de
-`/var`, `moyun-provision` détecte au redémarrage suivant un volume
+`/var`, `pili-provision` détecte au redémarrage suivant un volume
 LUKS2 déjà enrôlé TPM2 mais non monté, et se contente de le
 déverrouiller/monter (aucune re-génération de mots de passe - ils
 n'auraient de toute façon plus la même valeur que ceux déjà notés).
@@ -174,17 +174,17 @@ maintenance initiale, le distributeur :
    l'opérateur).
 3. Se connecte en `root` avec le mot de passe noté à l'installation.
 
-### 4.2 Fichier de configuration `/etc/moyun-pos/pos.json`
+### 4.2 Fichier de configuration `/etc/pili-pos/pos.json`
 
-Ce fichier **existe déjà** à ce stade : `moyun-provision.service` l'a
+Ce fichier **existe déjà** à ce stade : `pili-provision.service` l'a
 copié depuis le gabarit d'usine au premier démarrage (§3.4) et y a
-déjà inscrit le `device_id` réel du terminal. `/etc/moyun-pos` est un
-lien symbolique vers `/var/lib/moyun-etc/moyun-pos` (partition
+déjà inscrit le `device_id` réel du terminal. `/etc/pili-pos` est un
+lien symbolique vers `/var/lib/pili-etc/pili-pos` (partition
 chiffrée LUKS2, §3.4) - il ne redevient lisible qu'après
 déverrouillage, donc uniquement une fois le terminal démarré. Reste à
 compléter les champs propres à l'établissement.
 
-Éditer avec `vi /etc/moyun-pos/pos.json` (l'éditeur `vim-tiny` est
+Éditer avec `vi /etc/pili-pos/pos.json` (l'éditeur `vim-tiny` est
 installé sur l'image précisément pour cette étape) :
 
 ```json
@@ -203,7 +203,7 @@ installé sur l'image précisément pour cette étape) :
   "training_mode": false,
   "day_end_hour": 5,
   "language": "fr",
-  "backup_dir": "/var/lib/moyun-pos/backups"
+  "backup_dir": "/var/lib/pili-pos/backups"
 }
 ```
 
@@ -213,7 +213,7 @@ Champs :
 |---|---|---|
 | `pos_id` | Identifiant POS : 14 caractères, lettres majuscules ou chiffres (commence par `C`). Attribué par le SPF Finances à la certification. | SPF Finances |
 | `terminal_id` | ID du terminal physique. Libre, en général `POS1`, `POS2`... | Distributeur |
-| `device_id` | Adresse MAC de la carte réseau du terminal (minuscules, séparée par `:`), imprimée sur chaque ticket (manuel §VI, ligne "Appareil: <deviceId>"). Renseignée **automatiquement** par `moyun-provision` au premier démarrage (interface de la route par défaut, sinon la première interface Ethernet non-`lo` - voir `deploy/provision/provision.sh::detect_device_id`) ; ne pas modifier à la main sauf changement matériel de la carte réseau. | Automatique (terminal) |
+| `device_id` | Adresse MAC de la carte réseau du terminal (minuscules, séparée par `:`), imprimée sur chaque ticket (manuel §VI, ligne "Appareil: <deviceId>"). Renseignée **automatiquement** par `pili-provision` au premier démarrage (interface de la route par défaut, sinon la première interface Ethernet non-`lo` - voir `deploy/provision/provision.sh::detect_device_id`) ; ne pas modifier à la main sauf changement matériel de la carte réseau. | Automatique (terminal) |
 | `restaurant_name` | Nom commercial du restaurant tel qu'apparaît sur le ticket | Client |
 | `restaurant_legal_name` | Facultatif. Dénomination légale de la société exploitante, imprimée en bas du ticket (« Dénomination légale : »), avec l'adresse et le numéro de TVA. Absent : le nom commercial est imprimé. | Client |
 | `restaurant_address` | Adresse complète | Client |
@@ -228,7 +228,7 @@ Champs :
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) - toute autre valeur émet le ticket en FR. | Client |
-| `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/moyun-pos/backups`) | Distributeur |
+| `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/pili-pos/backups`) | Distributeur |
 
 #### Vérification
 
@@ -236,7 +236,7 @@ Le FDM refuse tout événement dont l'identification est mal formée
 (description détaillée POS v2.2 §2.2.2). Après l'édition, vérifier :
 
 ```bash
-/opt/moyun-pos/moyun-pos --check-config
+/opt/pili-pos/pili-pos --check-config
 ```
 
 La commande lit `pos.json` comme le POS et affiche `configuration OK`,
@@ -244,7 +244,7 @@ ou la liste des champs à corriger (code de sortie 1) : format du
 `pos_id`, numéros de TVA et d'établissement (longueur, premier chiffre,
 modulo 97), champs vides, URL du FDM, langue, bloc `digital_ticket`.
 Tant qu'un champ est refusé, le POS le signale aussi dans un bandeau
-rouge au bas de l'écran et dans le journal (`journalctl -u moyun-pos`).
+rouge au bas de l'écran et dans le journal (`journalctl -u pili-pos`).
 
 #### Langue du ticket
 
@@ -276,7 +276,7 @@ n'affiche pas le choix du support. Pour proposer le ticket par e-mail
   "project_id": "<identifiant du projet Scaleway>",
   "from_email": "tickets@<domaine vérifié>",
   "from_name": "<nom du restaurant>",
-  "api_key_file": "/etc/moyun-pos/secrets/tem.key",
+  "api_key_file": "/etc/pili-pos/secrets/tem.key",
   "allow_digital_only": false
 }
 ```
@@ -293,10 +293,10 @@ n'affiche pas le choix du support. Pour proposer le ticket par e-mail
 Installer la clé, lisible par le seul service POS :
 
 ```bash
-install -d -m 750 -o root -g pos /etc/moyun-pos/secrets
-(umask 027; cat > /etc/moyun-pos/secrets/tem.key)   # coller la clé, Entrée, puis Ctrl+D
-chown root:pos /etc/moyun-pos/secrets/tem.key
-systemctl restart moyun-pos
+install -d -m 750 -o root -g pos /etc/pili-pos/secrets
+(umask 027; cat > /etc/pili-pos/secrets/tem.key)   # coller la clé, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/tem.key
+systemctl restart pili-pos
 ```
 
 Le seul trafic sortant ajouté est HTTPS (443) vers `api.scaleway.com`.
@@ -341,7 +341,7 @@ Adresses IP statiques recommandées (subnet `192.168.1.0/24`) :
 Créer les utilisateurs initiaux dans la base SQLite :
 
 ```bash
-sqlite3 /var/lib/moyun-pos/pos.db
+sqlite3 /var/lib/pili-pos/pos.db
 ```
 
 ```sql
@@ -403,11 +403,11 @@ un P si la commande a été envoyée en cuisine.
 
 ## 5. Vérification de l'intégrité du binaire
 
-Le hash SHA-1 du binaire `moyun-pos` certifié est consigné dans le
+Le hash SHA-1 du binaire `pili-pos` certifié est consigné dans le
 formulaire SPF Finances. Vérifier :
 
 ```bash
-sha1sum /opt/moyun-pos/moyun-pos
+sha1sum /opt/pili-pos/pili-pos
 ```
 
 La valeur doit correspondre exactement à celle déclarée dans le
@@ -434,17 +434,17 @@ Procédure technique de déploiement :
    demande par un responsable sur place (`deploy/REMOTE-OPS.md`).
 2. Accès maintenance (`Ctrl+Alt+F2`, login `root`), puis :
    ```bash
-   /opt/moyun-pos/deploy/update.sh /root/moyun-pos --sha1 <SHA-1 déclaré>
+   /opt/pili-pos/deploy/update.sh /root/pili-pos --sha1 <SHA-1 déclaré>
    ```
    Le script refuse tout binaire dont le SHA-1 diffère de la valeur
    déclarée. Les étapes 3 à 7 ci-dessous décrivent la variante
    « réinstallation complète de l'image » depuis une clé USB.
 3. Sauvegarder la base courante :
    ```bash
-   sqlite3 /var/lib/moyun-pos/pos.db ".backup /tmp/pos-before-update.db"
+   sqlite3 /var/lib/pili-pos/pos.db ".backup /tmp/pos-before-update.db"
    ```
 4. Booter sur la clé USB en mode "Update" (sélection menu).
-5. L'updater **conserve** le contenu de `/var/lib/moyun-pos/` (base +
+5. L'updater **conserve** le contenu de `/var/lib/pili-pos/` (base +
    sauvegardes + logs) et remplace uniquement le binaire et les
    ressources.
 6. Redémarrer.
@@ -479,7 +479,7 @@ machine de test.
   fourni par module2), configuration retenue ; HTTP (port 80) reste
   possible. Les trois fichiers de module2 (`ca.crt`, `client.crt`,
   `client.key`, publiés sur manual.module2.be, identiques pour tous ses
-  FDM et son simulateur) vont dans `/etc/moyun-pos/fdm/`, la clé en
+  FDM et son simulateur) vont dans `/etc/pili-pos/fdm/`, la clé en
   droits 600, et sont désignés par `fdm_ca_file`,
   `fdm_client_cert_file` et `fdm_client_key_file`. Le POS vérifie que le
   certificat du FDM est signé par cette autorité et en cours de validité

@@ -13,7 +13,7 @@ certification.
 
 ## 1. Vue d'ensemble
 
-`moyun-pos` v1.0.0 émet le ticket numérique par **e-mail**, en plus du
+`pili-pos` v1.0.0 émet le ticket numérique par **e-mail**, en plus du
 QR Code de vérification imprimé sur tout ticket papier (URL publique
 du FDM SPF Finances, cf. §12 ci-dessous). L'opérateur choisit, avant
 l'encaissement (ou la copie, ou le remboursement), l'un des trois
@@ -170,7 +170,7 @@ Exemple de transcription complète : *voir TICKETS_EXEMPLES_FR.md* §9.
 
 La spec impose qu'un ticket **original** ne soit imprimé qu'**une
 seule fois** ; toute impression ultérieure doit être une **copie**
-(événement C). `moyun-pos` l'applique désormais au niveau de la base :
+(événement C). `pili-pos` l'applique désormais au niveau de la base :
 
 - Migration v6, table `original_prints` : une ligne par
   `fiscal_event_id` dont l'original a été imprimé (clé primaire =
@@ -276,7 +276,7 @@ d'erreur M, URL de 38 caractères fournie par le FDM). La description
 POS v2.2 §6.5 cite 25×25 modules (version 2) ; cette version ne peut
 pas contenir l'URL (préfixe en minuscules, valeur en base 62, donc mode
 octet ISO/IEC 18004, limité à 34 octets en version 2 même avec la
-correction la plus faible). `moyun-pos` utilise donc la version 3
+correction la plus faible). `pili-pos` utilise donc la version 3
 (29×29 modules), la plus petite qui contienne les 38 caractères avec
 la correction M (`crates/pos-fiscal/src/qr.rs`). Ni l'arrêté
 ministériel du 29 avril 2024 ni la description POS n'imposent une autre

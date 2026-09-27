@@ -337,7 +337,7 @@ Certaines tables existent dans le schéma mais sont **inutilisées dans la build
 
 - `hubrise_outbox` - queue d'événements webshop. Le schéma est préservé pour rétro-compatibilité de lecture, mais aucun chemin de code vivant ne l'écrit dans la build cert.
 
-Ces tables apparaissent dans le SQL de seed mais ne reçoivent aucune écriture en production cert. *Voir : RAPPORT_TESTS_BASELINE_FR.md* §"Vérification de build" pour la preuve par `nm moyun-pos | grep -c pos_hubrise == 0`.
+Ces tables apparaissent dans le SQL de seed mais ne reçoivent aucune écriture en production cert. *Voir : RAPPORT_TESTS_BASELINE_FR.md* §"Vérification de build" pour la preuve par `nm pili-pos | grep -c pos_hubrise == 0`.
 
 ---
 

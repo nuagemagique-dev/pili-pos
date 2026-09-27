@@ -2,7 +2,7 @@
 # mkosi.postinst.chroot. Sorts before Debian's 90-systemd.preset, which
 # enables systemd-networkd (and with it systemd-networkd-wait-online):
 # NetworkManager is the only network manager of the kiosk, so network-
-# online.target (wanted by moyun-pos.service) waits for it alone.
+# online.target (wanted by pili-pos.service) waits for it alone.
 disable systemd-networkd.service
 disable systemd-networkd.socket
 disable systemd-networkd-wait-online.service
@@ -15,11 +15,11 @@ enable NetworkManager-wait-online.service
 # Admission image: the mock FDM is started by hand for the demonstration.
 disable pos-fdm-mock.service
 # The maintenance console (tty2, enabled by provision.sh) stays on. tty1
-# is the kiosk's: moyun-pos.service conflicts with its getty.
+# is the kiosk's: pili-pos.service conflicts with its getty.
 enable getty@.service tty2
 
 # systemd 257's pcrlock policy units: the data volume is bound to PCR 7
-# directly (moyun-provision, systemd-cryptenroll --tpm2-pcrs=7), not to a
+# directly (pili-provision, systemd-cryptenroll --tpm2-pcrs=7), not to a
 # pcrlock policy. Enabled, they run on every boot (the UKI is measured)
 # and fail without Secure Boot.
 disable systemd-pcrlock-*.service

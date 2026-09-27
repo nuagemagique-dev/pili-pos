@@ -5,7 +5,7 @@
 //! sale and refund, a takeaway paid by card, a second table ordered in
 //! two rounds (one with the free-price dish of the day), its pre-bill
 //! and its sale. Each event is signed by a mock FDM replaying the
-//! scenario's own response. The X, user X and Z reports moyun-pos then
+//! scenario's own response. The X, user X and Z reports pili-pos then
 //! builds from its archive are compared with the published M180, M182
 //! and M184 reports (M181 and M183 carry the same totals).
 //!
@@ -16,7 +16,7 @@
 //! - P tickets: 4 events, 250 € (T1, T5, T6, T7) where the published
 //!   report counts 3 (198 €); the spec counts every event of the label
 //!   (§2.2.2 `ticketCount`). See `pos-fiscal/tests/report_totals_fixtures.rs`.
-//! - Payment id and name are moyun-pos's own; card payments are
+//! - Payment id and name are pili-pos's own; card payments are
 //!   CARD_DEBIT (the operator does not tell debit from credit cards),
 //!   CARD_CREDIT in the scenario.
 //! - Department names are the catalogue's French names.
@@ -31,15 +31,15 @@ mod common;
 use common::*;
 use serde_json::{Value, json};
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::order::{
     AddOrderLineInput, do_add_order_line, do_update_order_line_quantity,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::{
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 
 const U1: &str = "75061189702";
@@ -71,7 +71,7 @@ async fn fdm_signs_report(app: &TestApp, uc_dir: &str) {
 async fn scenario_app() -> TestApp {
     let app = TestApp::new().await;
     let conn = app.state.db.lock().unwrap();
-    moyun_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
+    pili_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
     for (insz, name) in [(U1, "Operateur 1"), (U2, "Operateur 2")] {
         conn.execute(
             "INSERT OR IGNORE INTO users (insz, name, role) VALUES (?1, ?2, 'cashier')",
@@ -204,7 +204,7 @@ fn assert_amount(what: &str, ours: &Value, fixture: &Value) {
     let (a, b) = (ours.as_f64(), fixture.as_f64());
     assert!(
         matches!((a, b), (Some(a), Some(b)) if (a - b).abs() < 0.005),
-        "{what}: moyun-pos {ours} vs fixture {fixture}"
+        "{what}: pili-pos {ours} vs fixture {fixture}"
     );
 }
 
@@ -361,7 +361,7 @@ fn assert_report_identity(report: &Value, label: &str) {
 
 // ── The eight input tickets, one by one ────────────────────────────
 
-/// The request moyun-pos built for input ticket `t` (1 to 8) against
+/// The request pili-pos built for input ticket `t` (1 to 8) against
 /// the scenario's own request, business fields only
 /// (`common::compare`). `allowed` lists the paths that differ on
 /// purpose, with the reason; any other difference fails, and so does a

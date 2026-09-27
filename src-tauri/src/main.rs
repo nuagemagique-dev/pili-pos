@@ -1,9 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // Modules live in `lib.rs` so integration tests under `tests/` can
-// reach them via `use moyun_pos::commands;`. The binary just re-imports
+// reach them via `use pili_pos::commands;`. The binary just re-imports
 // them through the crate name - same code, same output.
-use moyun_pos::{cli, commands, paths, state};
+use pili_pos::{cli, commands, paths, state};
 
 #[cfg(feature = "hubrise")]
 use std::sync::Arc;
@@ -22,12 +22,12 @@ fn main() {
     match cli::parse(&args) {
         Ok(cli::Command::RunUi) => {}
         Ok(cli::Command::Version) => {
-            println!("moyun-pos {}", env!("CARGO_PKG_VERSION"));
+            println!("pili-pos {}", env!("CARGO_PKG_VERSION"));
             return;
         }
         Ok(cli::Command::CheckConfig) => {
             let problems = cli::check_config(
-                std::env::var("MOYUN_POS_CONFIG").ok().as_deref(),
+                std::env::var("PILI_POS_CONFIG").ok().as_deref(),
                 std::path::Path::new(paths::PRODUCTION_CONFIG),
             );
             if problems.is_empty() {
@@ -47,7 +47,7 @@ fn main() {
                     return;
                 }
                 Err(e) => {
-                    eprintln!("moyun-pos --init-db: {e:#}");
+                    eprintln!("pili-pos --init-db: {e:#}");
                     std::process::exit(1);
                 }
             }
@@ -77,7 +77,7 @@ fn main() {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
-    tracing::info!("moyun-pos starting");
+    tracing::info!("pili-pos starting");
 
     let app_state = AppState::new().expect("Failed to initialize app state");
 
@@ -105,12 +105,12 @@ fn main() {
                 });
             }
 
-            // Kiosk (deploy/moyun-pos.service sets MOYUN_KIOSK=1): no
+            // Kiosk (deploy/pili-pos.service sets PILI_KIOSK=1): no
             // title bar, so no close or minimise button on the
             // touchscreen. tao draws its own header bar, so Cage's
             // server-side decoration flag cannot remove it. Development
             // keeps a normal window.
-            if std::env::var_os("MOYUN_KIOSK").is_some() {
+            if std::env::var_os("PILI_KIOSK").is_some() {
                 use tauri::Manager;
                 if let Some(window) = _app.get_webview_window("main") {
                     if let Err(e) = window.set_decorations(false) {

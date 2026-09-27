@@ -23,7 +23,7 @@ Source : Arrêté Royal de 2024, transposant la Directive UE 2010/45/UE.
 
 ## Périmètre à la date de soumission
 
-Les établissements HoReCa ciblés par moyun-pos sont massivement B2C
+Les établissements HoReCa ciblés par pili-pos sont massivement B2C
 (clients sur place + emporter). Les factures B2B sont exceptionnelles -
 typiquement quand un client entreprise commande un plateau à
 emporter.
@@ -40,7 +40,7 @@ comme :
 > formalités côté opérateur indépendantes de la revue SCE-2.0.
 >
 > **En attendant v1.1**, les factures B2B de l'établissement sont
-> émises en dehors de `moyun-pos`, via son outil de
+> émises en dehors de `pili-pos`, via son outil de
 > comptabilité/facturation.
 
 ## Candidats Access Point
@@ -128,7 +128,7 @@ v1.1).
   à recevoir des lignes le jour où l'AP est câblé et le flag activé.
 - Le périmètre déclaré dans le formulaire de demande cert est
   "E-facturation B2B Peppol : NON, prévu v1.1" - pleinement véridique
-  et vérifiable (`nm moyun-pos | grep -c pos_peppol` → `0` sur le
+  et vérifiable (`nm pili-pos | grep -c pos_peppol` → `0` sur le
   binaire cert v1.0.0).
 
 ## Risques

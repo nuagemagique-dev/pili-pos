@@ -331,7 +331,7 @@ mod tests {
             restaurant_est_no: String::new(),
             restaurant_legal_name: "Societe Exemple SRL".to_string(),
             pos_id: "CFOD0061234567".to_string(),
-            pos_sw_version: "moyun-pos/1.0.0".to_string(),
+            pos_sw_version: "pili-pos/1.0.0".to_string(),
             terminal_id: "POS1".to_string(),
             device_id: "aa:bb:cc:dd:ee:ff".to_string(),
             operator: "Marie Dupont".to_string(),
@@ -475,7 +475,7 @@ mod tests {
         let text = crate::render::render_plain_text(&format_receipt(&sample_ticket()));
         for expected in [
             "CFOD0061234567",
-            "moyun-pos/1.0.0",
+            "pili-pos/1.0.0",
             "POS1",
             "aa:bb:cc:dd:ee:ff",
             "Marie Dupont",

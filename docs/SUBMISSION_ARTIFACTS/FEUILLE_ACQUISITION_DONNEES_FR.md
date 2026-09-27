@@ -1,4 +1,4 @@
-# Feuille d'Acquisition des Données (DAS) - moyun-pos
+# Feuille d'Acquisition des Données (DAS) - pili-pos
 
 Conformément au §II.C du Manuel de certification SCE 2.0, ce document
 décrit **où** les données fiscales et applicatives sont stockées,
@@ -14,12 +14,12 @@ Finances.
 |---|---|
 | Moteur | SQLite 3.x (bundled via `rusqlite`) |
 | Mode | WAL (Write-Ahead Logging) |
-| Chemin (production kiosque) | `/var/lib/moyun-pos/pos.db` |
-| Chemin (développement macOS) | `~/Library/Application Support/moyun-pos/pos.db` |
-| Chemin (développement Linux) | `~/.local/share/moyun-pos/pos.db` |
+| Chemin (production kiosque) | `/var/lib/pili-pos/pos.db` |
+| Chemin (développement macOS) | `~/Library/Application Support/pili-pos/pos.db` |
+| Chemin (développement Linux) | `~/.local/share/pili-pos/pos.db` |
 | Encodage | UTF-8 |
 | Fichiers annexes WAL | `pos.db-wal`, `pos.db-shm` (mêmes répertoire et permissions) |
-| Propriétaire | `moyun-pos:moyun-pos` (UID/GID dédiés sur le kiosque) |
+| Propriétaire | `pili-pos:pili-pos` (UID/GID dédiés sur le kiosque) |
 | Permissions | `0640` (lecture restreinte au service) |
 
 **Schéma complet** : voir `SCHEMA_BD_FR.md`.
@@ -30,7 +30,7 @@ Finances.
 |---|---|
 | Déclencheur | Chaque rapport Z (clôture journalière fiscale) |
 | Mécanisme | API SQLite Online Backup (cohérent en WAL) |
-| Répertoire | `<data_dir>/moyun-pos/backups/` ou chemin configuré dans `PosConfig.backup_dir` |
+| Répertoire | `<data_dir>/pili-pos/backups/` ou chemin configuré dans `PosConfig.backup_dir` |
 | Format de nom | `pos-YYYYMMDD-HHMMSS.db` |
 | Format | Fichier SQLite identique au fichier vivant |
 | Permissions | `0640` (lecture restreinte) |
@@ -44,7 +44,7 @@ Implémentation : `src-tauri/src/commands/report.rs::backup_database_impl`.
 |---|---|
 | Bibliothèque | `tracing` + `tracing-appender` |
 | Format | JSON ligne (production) / texte humain (développement) |
-| Chemin (production) | `/var/lib/moyun-pos/logs/pos.log.YYYY-MM-DD` |
+| Chemin (production) | `/var/lib/pili-pos/logs/pos.log.YYYY-MM-DD` |
 | Rotation | Quotidienne, sans purge automatique |
 | Niveaux | TRACE, DEBUG, INFO (défaut), WARN, ERROR |
 | Configuration runtime | Variable d'environnement `RUST_LOG` ou `LOG_LEVEL` |
@@ -85,7 +85,7 @@ complet.
 
 | Élément | Valeur |
 |---|---|
-| Fichier de configuration kiosque | `/etc/moyun-pos/pos.json` |
+| Fichier de configuration kiosque | `/etc/pili-pos/pos.json` |
 | Contenu | identifiants POS (posId, terminalId, deviceId), URL FDM, adresse imprimante, infos restaurant, mode formation |
 | Format | JSON |
 | Modifiable par l'opérateur | Non (image scellée, accès root absent) |
@@ -98,7 +98,7 @@ complet.
 - Pas de console SSH active sur le kiosque (cf.
   `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`).
 - L'opérateur ne dispose d'aucune commande shell : l'image démarre
-  directement sur l'interface moyun-pos en plein écran sous Cage
+  directement sur l'interface pili-pos en plein écran sous Cage
   Wayland.
 - Le fichier de base de données est protégé en lecture (mode 0640,
   propriétaire `pos`).
@@ -145,9 +145,9 @@ notée par le distributeur au premier démarrage
 
 ```bash
 # Sur une machine de maintenance, disque du kiosque branché en externe
-cryptsetup luksOpen /dev/sdX2 moyun-data-recovery   # demande la clé de récupération
-mount /dev/mapper/moyun-data-recovery /mnt
-sqlite3 -readonly /mnt/lib/moyun-pos/pos.db
+cryptsetup luksOpen /dev/sdX2 pili-data-recovery   # demande la clé de récupération
+mount /dev/mapper/pili-data-recovery /mnt
+sqlite3 -readonly /mnt/lib/pili-pos/pos.db
 ```
 
 La clé de récupération est communiquée sur demande par le
@@ -228,9 +228,9 @@ soumise au SPF Finances.
   `fiscal_events.fdm_response_json` est celle que le FDM a calculée et
   transmise au SPF Finances : une ligne modifiée rétroactivement ne
   correspondrait plus à l'événement signé détenu par le FDM et le SPF.
-- Hash SHA-1 du binaire `moyun-pos` consigné dans le formulaire de
+- Hash SHA-1 du binaire `pili-pos` consigné dans le formulaire de
   demande de certification, vérifiable sur le kiosque déployé via
-  `sha1sum /opt/moyun-pos/moyun-pos`.
+  `sha1sum /opt/pili-pos/pili-pos`.
 
 ## 6. Confidentialité (GDPR)
 
@@ -263,7 +263,7 @@ Lors d'un contrôle, le distributeur ou son représentant fournit :
 
 1. Un export complet de `pos.db` (par la Méthode A ou B ci-dessus).
 2. Une copie du log `pos.log.*` couvrant la période contrôlée.
-3. Le hash SHA-1 du binaire moyun-pos en cours d'exécution sur le
+3. Le hash SHA-1 du binaire pili-pos en cours d'exécution sur le
    kiosque.
 
 Le POS ne détient pas la clé publique du FDM : la vérification

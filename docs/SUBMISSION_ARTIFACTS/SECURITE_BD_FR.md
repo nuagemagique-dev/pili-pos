@@ -1,4 +1,4 @@
-# Mécanismes de sécurité de la base de données - moyun-pos
+# Mécanismes de sécurité de la base de données - pili-pos
 
 Conformément au §II.C du Manuel de certification SCE 2.0, ce document
 décrit les **mécanismes techniques et organisationnels** qui
@@ -94,7 +94,7 @@ Chaque événement fiscal est inséré dans une transaction
 Si l'une de ces opérations échoue, **toute la transaction est
 rejouée à la racine** : ni le compteur ni l'archive ni le statut
 de commande ne sont modifiés. Voir `COUNTER_STRATEGY.md` §3 et la
-régression `moyun-pos::spf_e2e_no_gap`.
+régression `pili-pos::spf_e2e_no_gap`.
 
 ### 2.3 Aucune suppression de compteur
 
@@ -122,42 +122,42 @@ exclusivement, jamais ne diminue). Voir
 
 | Fichier | Propriétaire | Mode | Justification |
 |---|---|---|---|
-| `/var/lib/moyun-pos/pos.db` | `pos:pos` | `0640` | Lecture/écriture par le service uniquement (le groupe `pos` donne un accès lecture au compte `spf`, voir §3.2) |
-| `/var/lib/moyun-pos/pos.db-wal` | `pos:pos` | `0640` | Idem |
-| `/var/lib/moyun-pos/pos.db-shm` | `pos:pos` | `0640` | Idem |
-| `/var/lib/moyun-pos/backups/` | `pos:pos` | `0750` | Répertoire des sauvegardes |
-| `/var/lib/moyun-pos/backups/pos-*.db` | `pos:pos` | `0640` | Sauvegardes journalières |
-| `/var/lib/moyun-pos/logs/pos.log.*` | `pos:pos` | `0640` | Journaux applicatifs |
-| `/etc/moyun-pos/pos.json` | `root:pos` | `0640` | Configuration, lecture par le service et le groupe `pos` uniquement |
-| `/opt/moyun-pos/moyun-pos` | `root:root` | `0755` | Binaire, exécution publique |
+| `/var/lib/pili-pos/pos.db` | `pos:pos` | `0640` | Lecture/écriture par le service uniquement (le groupe `pos` donne un accès lecture au compte `spf`, voir §3.2) |
+| `/var/lib/pili-pos/pos.db-wal` | `pos:pos` | `0640` | Idem |
+| `/var/lib/pili-pos/pos.db-shm` | `pos:pos` | `0640` | Idem |
+| `/var/lib/pili-pos/backups/` | `pos:pos` | `0750` | Répertoire des sauvegardes |
+| `/var/lib/pili-pos/backups/pos-*.db` | `pos:pos` | `0640` | Sauvegardes journalières |
+| `/var/lib/pili-pos/logs/pos.log.*` | `pos:pos` | `0640` | Journaux applicatifs |
+| `/etc/pili-pos/pos.json` | `root:pos` | `0640` | Configuration, lecture par le service et le groupe `pos` uniquement |
+| `/opt/pili-pos/pili-pos` | `root:root` | `0755` | Binaire, exécution publique |
 
-`/var/lib/moyun-pos/` est le `StateDirectory=` de `moyun-pos.service` ;
+`/var/lib/pili-pos/` est le `StateDirectory=` de `pili-pos.service` ;
 systemd le crée avec `StateDirectoryMode=0750`. Le service tourne avec
 `UMask=0027`, donc tout fichier qu'il crée hérite directement des
 modes `0640`/`0750` ci-dessus sans étape de `chmod` séparée.
 
 ### 3.2 Utilisateur de service dédié
 
-Le service `moyun-pos.service` (systemd) tourne sous l'utilisateur
+Le service `pili-pos.service` (systemd) tourne sous l'utilisateur
 non-root `pos`, créé lors de la construction de l'image
 (`deploy/provision/provision.sh --phase image`, appelé aussi bien pour
 l'image kiosque mkosi que pour une installation sur un Debian 13 déjà
 démarré). Il n'a PAS de shell de connexion (`/usr/sbin/nologin`) ni de
 mot de passe.
 
-Extrait réel de `deploy/moyun-pos.service` :
+Extrait réel de `deploy/pili-pos.service` :
 
 ```ini
 [Service]
 Type=simple
 User=pos
 Group=pos
-PAMName=moyun-pos
+PAMName=pili-pos
 TTYPath=/dev/tty1
-ExecStart=/usr/bin/cage -s -- /opt/moyun-pos/moyun-pos
-StateDirectory=moyun-pos
+ExecStart=/usr/bin/cage -s -- /opt/pili-pos/pili-pos
+StateDirectory=pili-pos
 StateDirectoryMode=0750
-RuntimeDirectory=moyun-pos
+RuntimeDirectory=pili-pos
 RuntimeDirectoryMode=0750
 UMask=0027
 ProtectSystem=strict
@@ -171,11 +171,11 @@ SupplementaryGroups=input video render
 `ProtectHome=yes` masquerait aussi `/run/user`, où Cage crée son socket
 Wayland (répertoire de session du compte `pos`) : le kiosque ne
 démarrerait pas. `/home` et `/root` sont donc rendus inaccessibles
-explicitement ; le répertoire de `pos` est `/var/lib/moyun-pos`.
+explicitement ; le répertoire de `pos` est `/var/lib/pili-pos`.
 
 L'opérateur n'a aucun moyen de s'élever en `root` (cf. §3.4
 ci-dessous), donc aucun moyen de manipuler les permissions ou
-d'écrire ailleurs que dans `/var/lib/moyun-pos/`.
+d'écrire ailleurs que dans `/var/lib/pili-pos/`.
 
 **Limite documentée honnêtement** : un sandboxing syscall/noyau plus
 strict (`ProtectKernelTunables=`, `ProtectKernelModules=`,
@@ -201,7 +201,7 @@ L'image kiosque livrée est **scellée**, avec les précisions suivantes
 - Pas de serveur SSH, pas de Bluetooth, CUPS, Avahi, ModemManager :
   masqués (`systemctl mask`, symlinks vers `/dev/null`) à la
   construction de l'image.
-- `tty1` est exclusivement occupé par `moyun-pos.service`
+- `tty1` est exclusivement occupé par `pili-pos.service`
   (`Conflicts=getty@tty1.service`) : **aucun** prompt de connexion n'y
   apparaît jamais derrière le kiosque.
 - `tty2` et suivants gardent leur `getty`/`autovt` standard Debian -
@@ -215,11 +215,11 @@ L'image kiosque livrée est **scellée**, avec les précisions suivantes
   (paquets listés dans `deploy/provision/packages.txt` +
   `deploy/image/mkosi.conf`), pas du busybox : les utilitaires standard
   (`cat`, `cp`, `mv`, coreutils GNU) sont présents. `sqlite3` **est**
-  présent (requis par `moyun-pos` lui-même et par le wrapper
+  présent (requis par `pili-pos` lui-même et par le wrapper
   `pos-db-ro`, §3.6). Un éditeur minimal (`vim-tiny`, fournissant
   `/usr/bin/vi`) est installé pour la maintenance de `pos.json`
   (§4.2 du manuel d'installation) ; `nano`/`less` restent absents.
-- Cage Wayland compositor démarre directement sur moyun-pos en
+- Cage Wayland compositor démarre directement sur pili-pos en
   plein écran, sans gestionnaire de fenêtres ni écran de connexion.
 
 Cf. `MANUEL_INSTALLATION_FR.md` pour les détails de construction
@@ -232,7 +232,7 @@ d'image et `deploy/image/` (mkosi) pour la configuration source.
   aucun groupe sensible (`wheel`, `sudo`, `adm`...) ; `spf` est membre
   du groupe `pos` uniquement, pour la lecture seule de `pos.db`.
 - L'opérateur (utilisateur du tactile) ne dispose même pas d'un compte
-  shell ; l'écran tactile démarre moyun-pos en kiosk-mode. Seuls le
+  shell ; l'écran tactile démarre pili-pos en kiosk-mode. Seuls le
   distributeur (`root`, `tty2`) et, sur l'image d'admission, le
   contrôleur SPF (`spf`, `tty2`) ont un shell.
 
@@ -252,12 +252,12 @@ d'image et `deploy/image/` (mkosi) pour la configuration source.
 ### 3.6 Chiffrement LUKS2 de `/var` avec déverrouillage TPM2
 
 Nouveau depuis l'image mkosi (`deploy/image/`) : la partition portant
-`/var` (donc `/var/lib/moyun-pos/pos.db`) n'est **pas** en clair sur le
+`/var` (donc `/var/lib/pili-pos/pos.db`) n'est **pas** en clair sur le
 disque. Au tout premier démarrage du terminal (jamais rejoué ensuite,
-`ConditionPathIsMountPoint=!/var`), `moyun-provision.service`
-(`deploy/image/mkosi.extra/usr/local/lib/moyun-pos/moyun-provision`) :
+`ConditionPathIsMountPoint=!/var`), `pili-provision.service`
+(`deploy/image/mkosi.extra/usr/local/lib/pili-pos/pili-provision`) :
 
-1. Formate la partition `moyun-data` en LUKS2 avec une clé temporaire
+1. Formate la partition `pili-data` en LUKS2 avec une clé temporaire
    aléatoire.
 2. Enrôle un jeton **TPM2** (`systemd-cryptenroll --tpm2-device=auto
    --tpm2-pcrs=7`, scellé au PCR 7 - état Secure Boot) pour un
@@ -337,12 +337,12 @@ journal technique.
 
 ### 4.2 Hash SHA-1 du binaire
 
-Le hash SHA-1 du binaire `moyun-pos` certifié est consigné dans le
+Le hash SHA-1 du binaire `pili-pos` certifié est consigné dans le
 formulaire de demande de certification. Le contrôleur peut à tout
 moment vérifier sur le kiosque :
 
 ```bash
-sha1sum /opt/moyun-pos/moyun-pos
+sha1sum /opt/pili-pos/pili-pos
 ```
 
 Toute différence avec la valeur consignée prouverait que le binaire

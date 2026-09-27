@@ -2,7 +2,7 @@
 //! languages of the screen (`ui/src/i18n.ts`, key `err_<code>`), so a
 //! refusal is never shown as a bare code or an English sentence.
 
-use moyun_pos::commands::errors;
+use pili_pos::commands::errors;
 
 const I18N: &str = include_str!("../../ui/src/i18n.ts");
 

@@ -5,7 +5,7 @@ FDM `FDM02000425`, FDM software 2.2.0.5 (`Simulator-Version: 2.2.0.5`),
 endpoint `http://fdm.module2.be/graphql/`, posId `CPOS0031234567`.
 
 36 calls, one at a time, 1 s apart, through the pacing proxy of
-`src-tauri/tests/common/live.rs` with `MOYUN_LIVE_RECORD_DIR` set:
+`src-tauri/tests/common/live.rs` with `PILI_LIVE_RECORD_DIR` set:
 
 | Calls | Test | What |
 |---|---|---|

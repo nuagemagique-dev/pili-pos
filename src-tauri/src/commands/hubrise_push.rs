@@ -60,7 +60,7 @@ pub fn build_hubrise_order_body(
         "status": "completed",
         "service_type": service_type,
         "channel": "POS",
-        "connection_name": "moyun-pos",
+        "connection_name": "pili-pos",
         "items": items,
         "total": total,
         "payments": payments,

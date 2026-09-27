@@ -10,11 +10,11 @@ already-booted Debian 13 box) or baked into the mkosi kiosk image
 
 | File | Destination | Purpose |
 |------|-------------|---------|
-| `pam.d-moyun-pos` | `/etc/pam.d/moyun-pos` | PAM stack for `moyun-pos.service` (`PAMName=moyun-pos`): opens the logind session Cage needs on tty1 |
+| `pam.d-pili-pos` | `/etc/pam.d/pili-pos` | PAM stack for `pili-pos.service` (`PAMName=pili-pos`): opens the logind session Cage needs on tty1 |
 
 ## What keeps the operator inside the POS
 
-- **Cage** runs `moyun-pos` fullscreen with no window decorations and
+- **Cage** runs `pili-pos` fullscreen with no window decorations and
   no shell or launcher. Cage has no configuration file and no
   keybindings besides VT switching; the unit passes `-s` so the
   distributor can reach the maintenance console.
@@ -26,8 +26,8 @@ already-booted Debian 13 box) or baked into the mkosi kiosk image
   machine can log in; `pos` has no password and a `nologin` shell.
 - **No SSH server**, no listening port. Remote support is an on-demand
   RustDesk session (pinned AppImage, verified then extracted with
-  `--appimage-extract` into `/opt/moyun-pos/rustdesk/` - launched via
-  `/opt/moyun-pos/rustdesk/AppRun`, never a service, never started at
+  `--appimage-extract` into `/opt/pili-pos/rustdesk/` - launched via
+  `/opt/pili-pos/rustdesk/AppRun`, never a service, never started at
   boot) - see `../REMOTE-OPS.md`.
 - **BIOS password** and boot order locked to the internal disk
   (`MANUEL_INSTALLATION_FR.md` §3.1). Software boot lockdown also
@@ -48,8 +48,8 @@ Done, as of this branch:
    UKI, ESP 512M + a 4G ext4 root marked `ReadOnly=yes`); `/var` is a
    separate partition.
 2. **LUKS2 full-disk encryption of `/var` with TPM2 auto-unlock** -
-   first-boot `moyun-provision.service`
-   (`mkosi.extra/usr/local/lib/moyun-pos/moyun-provision`): temporary
+   first-boot `pili-provision.service`
+   (`mkosi.extra/usr/local/lib/pili-pos/pili-provision`): temporary
    key → `luksFormat` → enroll a TPM2 token (`--tpm2-pcrs=7`) + a
    recovery key → wipe the temporary key. See `SECURITE_BD_FR.md` §3.6
    for what this does and does not protect against (Secure Boot stays
@@ -59,7 +59,7 @@ Done, as of this branch:
    notebook, is the fallback).
 3. **USB installer/updater** - the same image, booted from a USB key,
    exposes "Install" and "Update" systemd-boot entries
-   (`moyun.installer=install|update`) built from the exact same
+   (`pili.installer=install|update`) built from the exact same
    kernel+initrd via UKI section-splicing (`deploy/image/build.sh`).
 
 ## Still to do
@@ -69,7 +69,7 @@ Done, as of this branch:
 - A real Secure Boot signing pipeline (own MOK, `sbsign` the UKI,
   enroll the key in each terminal's firmware) so the TPM2 PCR 7
   binding gives its full guarantee.
-- A real boot test of `moyun-provision.service` on physical hardware
+- A real boot test of `pili-provision.service` on physical hardware
   with a real TPM2 chip (only QEMU+swtpm has exercised this so far,
   and even that boot-smoke path has not been observed to complete the
   full first-boot wizard end-to-end - see the Phase 4 final report).

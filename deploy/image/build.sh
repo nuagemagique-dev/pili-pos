@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - kiosk image build (mkosi, Debian 13 "trixie")
+# pili-pos - kiosk image build (mkosi, Debian 13 "trixie")
 #
 # Builds both profiles (production, admission) into
-# deploy/image/mkosi.output/<profile>/moyun-pos-kiosk-<profile>.img.xz.
+# deploy/image/mkosi.output/<profile>/pili-pos-kiosk-<profile>.img.xz.
 #
 # Prerequisites:
-#   - deploy/dist/moyun-pos (and, for the admission profile,
+#   - deploy/dist/pili-pos (and, for the admission profile,
 #     deploy/dist/pos-fdm-mock) - run `deploy/build-release.sh --docker`
 #     first. This is what makes the image embed the exact binary whose
 #     SHA-1 is in that run's build_info_*.txt (the value declared to
@@ -116,8 +116,8 @@ fi
 MKOSI="$MKOSI_VENV/bin/mkosi"
 "$MKOSI" --version
 
-if [[ ! -f "$DIST_DIR/moyun-pos" ]]; then
-    echo "ERROR: $DIST_DIR/moyun-pos not found - run" >&2
+if [[ ! -f "$DIST_DIR/pili-pos" ]]; then
+    echo "ERROR: $DIST_DIR/pili-pos not found - run" >&2
     echo "       'deploy/build-release.sh --docker' first." >&2
     exit 1
 fi
@@ -137,8 +137,8 @@ echo "${RUSTDESK_SHA256}  ${RUSTDESK_CACHED}" | sha256sum -c --quiet - \
 PROFILES=("$@")
 [[ "${#PROFILES[@]}" -eq 0 ]] && PROFILES=(production admission)
 
-BUILD_INPUT_BASE="$IMAGE_DIR/mkosi.extra/opt/moyun-pos/.build-input"
-BUILD_INPUT_ADMISSION="$IMAGE_DIR/mkosi.profiles/admission/mkosi.extra/opt/moyun-pos/.build-input"
+BUILD_INPUT_BASE="$IMAGE_DIR/mkosi.extra/opt/pili-pos/.build-input"
+BUILD_INPUT_ADMISSION="$IMAGE_DIR/mkosi.profiles/admission/mkosi.extra/opt/pili-pos/.build-input"
 
 cleanup_staging() {
     rm -rf "$BUILD_INPUT_BASE" "$BUILD_INPUT_ADMISSION"
@@ -148,25 +148,25 @@ cleanup_staging
 
 stage_shared_inputs() {
     mkdir -p "$BUILD_INPUT_BASE"
-    install -m 755 "$DIST_DIR/moyun-pos" "$BUILD_INPUT_BASE/moyun-pos"
+    install -m 755 "$DIST_DIR/pili-pos" "$BUILD_INPUT_BASE/pili-pos"
     install -m 755 "$RUSTDESK_CACHED" "$BUILD_INPUT_BASE/rustdesk.AppImage"
     # provision.sh --phase image needs these next to it inside the
     # chroot (see mkosi.postinst.chroot); staged fresh from the
     # canonical copies in deploy/provision/ and deploy/update.sh on
     # every build, never committed under mkosi.extra/ itself.
-    mkdir -p "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/provision"
+    mkdir -p "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/provision"
     install -m 755 "$PROJECT_ROOT/deploy/provision/provision.sh" \
-        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/provision/provision.sh"
+        "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/provision/provision.sh"
     install -m 644 "$PROJECT_ROOT/deploy/provision/packages.txt" \
-        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/provision/packages.txt"
+        "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/provision/packages.txt"
     install -m 755 "$PROJECT_ROOT/deploy/update.sh" \
-        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/update.sh"
+        "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/update.sh"
     # The kiosk session files provision.sh installs from ../ (next to
     # deploy/provision/): the systemd unit and the PAM service.
-    install -m 644 "$PROJECT_ROOT/deploy/moyun-pos.service" \
-        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/moyun-pos.service"
-    install -D -m 644 "$PROJECT_ROOT/deploy/kiosk/pam.d-moyun-pos" \
-        "$IMAGE_DIR/mkosi.extra/opt/moyun-pos/deploy/kiosk/pam.d-moyun-pos"
+    install -m 644 "$PROJECT_ROOT/deploy/pili-pos.service" \
+        "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/pili-pos.service"
+    install -D -m 644 "$PROJECT_ROOT/deploy/kiosk/pam.d-pili-pos" \
+        "$IMAGE_DIR/mkosi.extra/opt/pili-pos/deploy/kiosk/pam.d-pili-pos"
 }
 
 stage_admission_inputs() {
@@ -184,7 +184,7 @@ stage_admission_inputs() {
 
 # Two extra UKIs, reusing the .linux/.initrd/.osrel sections of the one
 # mkosi already built, with a different embedded cmdline
-# (moyun.installer=install|update) - the "Install"/"Update" boot menu
+# (pili.installer=install|update) - the "Install"/"Update" boot menu
 # entries on the USB stick (MANUEL_INSTALLATION_FR.md §3.2). Done here,
 # as a plain step after `mkosi build`, rather than as an mkosi
 # postoutput script: mkosi's postoutput hook timing/working directory
@@ -247,12 +247,12 @@ add_installer_uki_variants() {
             --stub "$stub"
             --linux "$stem.linux"
             --initrd "$stem.initrd"
-            --cmdline "ro quiet moyun.installer=${mode}"
-            --output "$esp_mnt/EFI/Linux/moyun-pos-${mode}.efi")
+            --cmdline "ro quiet pili.installer=${mode}"
+            --output "$esp_mnt/EFI/Linux/pili-pos-${mode}.efi")
         [[ -f "$stem.osrel" ]] && args+=(--os-release "$stem.osrel")
         "$ukify_bin" "${args[@]}"
     done
-    log "  ✓ EFI/Linux/moyun-pos-install.efi, moyun-pos-update.efi added"
+    log "  ✓ EFI/Linux/pili-pos-install.efi, pili-pos-update.efi added"
 }
 
 build_profile() {
@@ -275,16 +275,16 @@ build_profile() {
 
     add_installer_uki_variants "$raw_file"
 
-    img_xz="$out_dir/moyun-pos-kiosk-${profile}.img.xz"
+    img_xz="$out_dir/pili-pos-kiosk-${profile}.img.xz"
     log "Compressing $raw_file -> $img_xz…"
     xz -T0 -6 -c "$raw_file" > "$img_xz"
     # NOT a hash of the .raw image itself: this is the SHA-1 of the
-    # moyun-pos BINARY this image embeds - the value declared to SPF
+    # pili-pos BINARY this image embeds - the value declared to SPF
     # Finances (build_info_*.txt from build-release.sh --docker) - kept
     # alongside the image so .github/workflows/image.yml's `image` job
     # can compare it against the binary inside the image without
-    # re-extracting deploy/dist/moyun-pos.
-    sha1sum "$DIST_DIR/moyun-pos" | awk '{print $1}' > "$out_dir/moyun-pos-embedded-binary.sha1"
+    # re-extracting deploy/dist/pili-pos.
+    sha1sum "$DIST_DIR/pili-pos" | awk '{print $1}' > "$out_dir/pili-pos-embedded-binary.sha1"
 
     cleanup_staging
     log "✓ $img_xz"

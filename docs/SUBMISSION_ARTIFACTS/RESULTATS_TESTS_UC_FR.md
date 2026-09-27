@@ -1,4 +1,4 @@
-# Resultats des tests UC - moyun-pos v1.0.0
+# Resultats des tests UC - pili-pos v1.0.0
 
 **Date :** 2026-09-25
 **Reference :** §IV du manuel de certification (Procedure de communication GraphQL).
@@ -8,19 +8,19 @@ spec) + les 5 UC Reports v1.3. Sont hors périmètre v1.0.0, chacun
 dans sa section : **M150_signInvoice** (event I, voir
 *DECISION_PEPPOL_AP_FR.md*), **M122** (changement de centre de coût)
 et **M132** (correction de paiement) ; **M112A** n'est pas un parcours
-proposé par moyun-pos (le remboursement partiel est toujours émis en
+proposé par pili-pos (le remboursement partiel est toujours émis en
 ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 
 - Le scenario d'execution (extrait de la fixture officielle SPF Finances).
 - La requete et la reponse de reference de la fixture (fichiers Variables.json et *_Response.json publies).
 - Le tableau "Champs a verifier" de la fixture.
 - La reference au test automatise qui valide la conformite.
-- Pour chaque UC rejoue : la requete **construite par moyun-pos** et sa comparaison avec la fixture (bloc « Preuve moyun-pos »).
+- Pour chaque UC rejoue : la requete **construite par pili-pos** et sa comparaison avec la fixture (bloc « Preuve pili-pos »).
 - Les tickets correspondants sont transcrits dans *TICKETS_EXEMPLES_FR.md*.
 
-**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20250916_UC_BasicSet_POS_FDM_1.7/` et `docs/20250916_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que moyun-pos lit chaque fixture ; les rejeux applicatifs `src-tauri/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que moyun-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
+**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20250916_UC_BasicSet_POS_FDM_1.7/` et `docs/20250916_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que pili-pos lit chaque fixture ; les rejeux applicatifs `src-tauri/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que pili-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
 
-**Preuves generees par l'implementation :** chaque UC rejoue se termine par un bloc « Preuve moyun-pos (build `cert`) ». Le rejeu construit la commande a partir des produits, quantites et paiements de la fixture, la fait passer par les vraies commandes du binaire de certification (`--no-default-features --features cert`) et compare champ par champ la requete archivee a celle de la fixture : champs metier egaux, champs d'identification (posId, deviceId, numero de ticket, dates, periode de booking) controles sur leur format, ecarts assumes listes et motives. Le bloc reprend la requete **reellement construite par moyun-pos** (colonne `event_data_json` de l'archive fiscale) et le resultat de la comparaison ; les fichiers sont dans `evidence/uc/` (`<UC>_event<N>_<label>_request.json`, `_response.json`, `<UC>_check.json`). Regeneration : `scripts/capture_uc_evidence.sh`. Le FDM y est un mock qui rejoue la reponse de la fixture ; une journee d'exploitation est signee par le simulateur en ligne module2 lors de la repetition (*JOURNAL_TESTS_PRE_SOUMISSION_FR.md*).
+**Preuves generees par l'implementation :** chaque UC rejoue se termine par un bloc « Preuve pili-pos (build `cert`) ». Le rejeu construit la commande a partir des produits, quantites et paiements de la fixture, la fait passer par les vraies commandes du binaire de certification (`--no-default-features --features cert`) et compare champ par champ la requete archivee a celle de la fixture : champs metier egaux, champs d'identification (posId, deviceId, numero de ticket, dates, periode de booking) controles sur leur format, ecarts assumes listes et motives. Le bloc reprend la requete **reellement construite par pili-pos** (colonne `event_data_json` de l'archive fiscale) et le resultat de la comparaison ; les fichiers sont dans `evidence/uc/` (`<UC>_event<N>_<label>_request.json`, `_response.json`, `<UC>_check.json`). Regeneration : `scripts/capture_uc_evidence.sh`. Le FDM y est un mock qui rejoue la reponse de la fixture ; une journee d'exploitation est signee par le simulateur en ligne module2 lors de la repetition (*JOURNAL_TESTS_PRE_SOUMISSION_FR.md*).
 
 ---
 
@@ -193,10 +193,10 @@ Payment by CASH (52 EUR)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
 
 ```json
 {
@@ -224,7 +224,7 @@ Payment by CASH (52 EUR)
   "posDateTime": "2026-09-25T19:05:15.738761+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "transaction": {
@@ -278,11 +278,11 @@ Payment by CASH (52 EUR)
 
 Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M111_signSale_Refund
 
@@ -459,10 +459,10 @@ Products on original ticket N 1000/1200:
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
 
 ```json
 {
@@ -492,7 +492,7 @@ Products on original ticket N 1000/1200:
   "posDateTime": "2026-09-25T19:05:15.829507+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "transaction": {
@@ -550,7 +550,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M111_event1_N
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M112A_signSale_RefundPartial
 
@@ -569,7 +569,7 @@ ASSUMPTION: the cash register supports a partial refund in combination with a ne
     Payment by cash.
 ```
 
-**Note de déclaration :** le POS moyun-pos ne propose pas le pattern M112A
+**Note de déclaration :** le POS pili-pos ne propose pas le pattern M112A
 (remboursement partiel combiné à une nouvelle vente sur un même ticket).
 Le dossier déclare le pattern **M112B** (remboursement en événement séparé,
 chaîné à la vente d'origine via `fdmReference`) - voir la section
@@ -947,7 +947,7 @@ POS implémente et déclare. Couverture e2e applicative :
 `src-tauri/tests/spf_e2e_fixtures.rs` (rejeu de la fixture, build
 `cert`) et `m112b_partial_refund_is_separate_event_chained_to_original`
 dans `src-tauri/tests/spf_e2e_basic.rs` ; preuves générées dans
-`evidence/uc/M112B_*.json` (voir « Preuve moyun-pos » en fin de
+`evidence/uc/M112B_*.json` (voir « Preuve pili-pos » en fin de
 section).
 
 ### M112B_1_OriginalSale
@@ -1107,7 +1107,7 @@ section).
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 ### M112B_2_PartialRefund
 
@@ -1240,10 +1240,10 @@ section).
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
 
 ```json
 {
@@ -1273,7 +1273,7 @@ section).
   "posDateTime": "2026-09-25T19:05:15.830462+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "transaction": {
@@ -1311,7 +1311,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M112B_event1_
 
 Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
 
@@ -1319,11 +1319,11 @@ Events préalables du scénario, archivés de même : `evidence/uc/M112B_event1_
 
 Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
-| `fdmRef` | - | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | moyun-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
+| `fdmRef` | - | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | pili-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M121_signOrder
 
@@ -1459,10 +1459,10 @@ on table 1.
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
 
 ```json
 {
@@ -1480,7 +1480,7 @@ on table 1.
   "posDateTime": "2026-09-25T19:05:15.740140+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "NONE",
   "transaction": {
@@ -1534,15 +1534,15 @@ on table 1.
 
 Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `ticketMedium` | `PAPER` | `NONE` | les commandes ne sont pas imprimées en v1.0.0 (pas de ticket cuisine) : le support est NONE |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M122_signCostCenterChange - hors périmètre v1.0.0
 
-Le changement de centre de cout n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par moyun-pos.
+Le changement de centre de cout n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par pili-pos.
 
 **Mutation invoquee :** `signCostCenterChange`
 
@@ -1873,10 +1873,10 @@ on table 1 (BAR)  is printed
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
 
 ```json
 {
@@ -1894,7 +1894,7 @@ on table 1 (BAR)  is printed
   "posDateTime": "2026-09-25T19:05:15.828681+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "transaction": {
@@ -1950,7 +1950,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M123_event1_P
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M130_signMoneyInOut
 
@@ -2049,10 +2049,10 @@ Aucun écart.
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
 
 ```json
 {
@@ -2075,7 +2075,7 @@ Aucun écart.
   "posDateTime": "2026-09-25T19:05:15.734851+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "NONE",
   "vatNo": "BE0000000097"
@@ -2086,7 +2086,7 @@ Aucun écart.
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M131_signDrawerOpen
 
@@ -2175,10 +2175,10 @@ Drawer 1 is opened without any action
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
 
 ```json
 {
@@ -2195,7 +2195,7 @@ Drawer 1 is opened without any action
   "posDateTime": "2026-09-25T19:05:15.730835+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "NONE",
   "vatNo": "BE0000000097"
@@ -2206,11 +2206,11 @@ Drawer 1 is opened without any action
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M132_signPaymentCorrection - hors périmètre v1.0.0
 
-La correction de paiement n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par moyun-pos.
+La correction de paiement n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par pili-pos.
 
 **Mutation invoquee :** `signPaymentCorrection`
 
@@ -2510,10 +2510,10 @@ Registration of "Work In" of employee (employeeId 80113078968)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
 
 ```json
 {
@@ -2526,7 +2526,7 @@ Registration of "Work In" of employee (employeeId 80113078968)
   "posDateTime": "2026-09-25T19:05:15.744386+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "NONE",
   "vatNo": "BE0000000097"
@@ -2537,7 +2537,7 @@ Registration of "Work In" of employee (employeeId 80113078968)
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M141_signWorkOut
 
@@ -2622,10 +2622,10 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
 
 ```json
 {
@@ -2638,7 +2638,7 @@ Registration of "Work Out" of employee (employeeId 84022899837)
   "posDateTime": "2026-09-25T19:05:15.887585+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "NONE",
   "vatNo": "BE0000000097"
@@ -2649,7 +2649,7 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M150_signInvoice - hors périmètre v1.0.0
 
@@ -2759,10 +2759,10 @@ Print of a copy of ticket (sale) N 16/52
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
 
 ```json
 {
@@ -2782,7 +2782,7 @@ Print of a copy of ticket (sale) N 16/52
   "posDateTime": "2026-09-25T19:05:15.895102+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "vatNo": "BE0000000097"
@@ -2795,7 +2795,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M160_event1_N
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M161_signCopy_Order
 
@@ -2887,10 +2887,10 @@ Print of a copy of order P 22/53
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
 
 ```json
 {
@@ -2910,7 +2910,7 @@ Print of a copy of order P 22/53
   "posDateTime": "2026-09-25T19:05:15.895936+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "vatNo": "BE0000000097"
@@ -2923,7 +2923,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M161_event1_P
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M170_signWorkIn_Training
 
@@ -3009,10 +3009,10 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
 
 ```json
 {
@@ -3025,7 +3025,7 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
   "posDateTime": "2026-09-25T19:05:15.888047+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "NONE",
   "vatNo": "BE0000000097"
@@ -3036,7 +3036,7 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 
 Aucun écart.
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M171B_signSale_Training
 
@@ -3323,10 +3323,10 @@ in training mode. Paymentmethod: CASH
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
 
 ```json
 {
@@ -3354,7 +3354,7 @@ in training mode. Paymentmethod: CASH
   "posDateTime": "2026-09-25T19:05:15.892951+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "transaction": {
@@ -3408,11 +3408,11 @@ in training mode. Paymentmethod: CASH
 
 Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M172_signCopy_Training
 
@@ -3505,10 +3505,10 @@ In training mode: print of a copy of ticket (sale) N 35/73
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par moyun-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
 
 ```json
 {
@@ -3528,7 +3528,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
   "posDateTime": "2026-09-25T19:05:15.895743+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "vatNo": "BE0000000097"
@@ -3541,11 +3541,11 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
 
 Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `ticketMedium` | `NONE` | `PAPER` | les copies sont imprimées aussi en mode formation : le support est PAPER |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## Q100_Status
 
@@ -3836,10 +3836,10 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
 
@@ -3871,7 +3871,7 @@ Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
   ],
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "turnover": {
@@ -3977,19 +3977,19 @@ Events de la journée, archivés de même : `evidence/uc/M180_event1_P_request.j
 
 Comparés exactement : nombre d'events et montants par label, départements, TVA (taux, base, TVA, total), paiements, quantités négatives, ouvertures de tiroir, totaux, paiements et présences par utilisateur. Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 (AM du 29/04/2024, art. 29, t) |
-| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
+| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de pili-pos | propres à chaque POS |
 | `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
 | `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
 | `posDevices` / `fdmDevices` | appareils du scénario | ce terminal et le FDM de test | propres à l'installation |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M181_signReportTurnoverZ
 
-**Note de déclaration :** le POS moyun-pos n'émet jamais le Z financier
+**Note de déclaration :** le POS pili-pos n'émet jamais le Z financier
 seul : la clôture de journée émet toujours le **Z combiné M184**
 (`signReportTurnoverZ` + `signReportUserZ` dans un même document GraphQL,
 deux `posFiscalTicketNo` séquentiels) - voir la section M184 ci-dessous.
@@ -4209,11 +4209,11 @@ comparée à la fixture) et `m184_*` dans
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+<!-- pili-pos-evidence:end -->
 
 ## M182_signReportUserX
 
@@ -4402,10 +4402,10 @@ comparée à la fixture) et
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
 
@@ -4437,7 +4437,7 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
   ],
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "users": [
@@ -4513,15 +4513,15 @@ Events de la journée, archivés de même : `evidence/uc/M182_event1_P_request.j
 
 Comparés exactement : nombre d'events et montants par label, départements, TVA (taux, base, TVA, total), paiements, quantités négatives, ouvertures de tiroir, totaux, paiements et présences par utilisateur. Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 (AM du 29/04/2024, art. 29, t) |
-| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
+| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de pili-pos | propres à chaque POS |
 | `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
 | `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
 | `posDevices` / `fdmDevices` | appareils du scénario | ce terminal et le FDM de test | propres à l'installation |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ## M183_signReportUserZ
 
@@ -4707,11 +4707,11 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+<!-- pili-pos-evidence:end -->
 
 ## M184_signReportTurnoverZUserZ
 
@@ -4953,10 +4953,10 @@ comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve moyun-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
-<!-- moyun-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve moyun-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par moyun-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
 
@@ -4988,7 +4988,7 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
   ],
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "reportBookingDate": "2026-09-25",
   "reportNo": 1,
   "terminalId": "POS1",
@@ -5122,7 +5122,7 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
   ],
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
-  "posSwVersion": "moyun-pos/1.0.0",
+  "posSwVersion": "pili-pos/1.0.0",
   "reportBookingDate": "2026-09-25",
   "reportNo": 1,
   "terminalId": "POS1",
@@ -5200,15 +5200,15 @@ Events de la journée, archivés de même : `evidence/uc/M184_event1_P_request.j
 
 Comparés exactement : nombre d'events et montants par label, départements, TVA (taux, base, TVA, total), paiements, quantités négatives, ouvertures de tiroir, totaux, paiements et présences par utilisateur. Écarts assumés :
 
-| Champ | Fixture | moyun-pos | Motif |
+| Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
 | `transactions[P]` | 3 tickets, 198 € | 4 tickets, 250 € | chaque event P de la période est compté (§2.2.2 `ticketCount`) : T1, T5, T6 et T7 (AM du 29/04/2024, art. 29, t) |
-| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de moyun-pos | propres à chaque POS |
+| `payments[].id` / `name` | identifiants et libellés du scénario | identifiants et libellés de pili-pos | propres à chaque POS |
 | `payments[].type` (carte) | `CARD_CREDIT` | `CARD_DEBIT` | l'opérateur ne distingue pas carte de débit et de crédit |
 | `departments[].name` | libellés du scénario | libellés français du catalogue | propres au catalogue |
 | `posDevices` / `fdmDevices` | appareils du scénario | ce terminal et le FDM de test | propres à l'installation |
 
-<!-- moyun-pos-evidence:end -->
+<!-- pili-pos-evidence:end -->
 
 ---
 

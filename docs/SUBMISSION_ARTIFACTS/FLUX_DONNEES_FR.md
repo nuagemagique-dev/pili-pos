@@ -1,7 +1,7 @@
-# Description des flux de données - moyun-pos SCE 2.0
+# Description des flux de données - pili-pos SCE 2.0
 
 Ce document parcourt une journée de service complète dans un
-restaurant à travers le système moyun-pos, en montrant quelles données circulent
+restaurant à travers le système pili-pos, en montrant quelles données circulent
 et où à chaque étape. Il complète `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`
 (qui décrit l'architecture statique) en suivant les données le long
 d'un parcours utilisateur.
@@ -9,7 +9,7 @@ d'un parcours utilisateur.
 ## 1. Début de service - Pointage entrée (Événement S)
 
 **Action utilisateur.** L'opérateur démarre le kiosque. Le compositeur
-Cage Wayland lance `moyun-pos` en plein écran. L'écran de login demande
+Cage Wayland lance `pili-pos` en plein écran. L'écran de login demande
 un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
 
 **Circulation des données.**
@@ -143,7 +143,7 @@ rapports pour voir les totaux en cours.
    - Si l'un ou l'autre appel FDM échoue, toute la tx est rollback -
      aucun état partiel n'est persisté.
 4. Sauvegarde de la DB SQLite vers
-   `/var/lib/moyun-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via l'API Online Backup.
+   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via l'API Online Backup.
 5. Deux tickets de rapport Z sont imprimés.
 
 ## 6. Fin de service - Pointage sortie (Événement S)

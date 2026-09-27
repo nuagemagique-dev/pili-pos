@@ -12,14 +12,14 @@
 # Usage: pos-db-ro ["SELECT ..."]   (no argument -> interactive shell)
 set -euo pipefail
 
-DB=/var/lib/moyun-pos/pos.db
+DB=/var/lib/pili-pos/pos.db
 
 if [[ ! -r "$DB" ]]; then
     echo "pos-db-ro: cannot read $DB (wrong group? run as a member of 'pos')" >&2
     exit 1
 fi
 
-if systemctl is-active --quiet moyun-pos.service; then
+if systemctl is-active --quiet pili-pos.service; then
     # The service may be writing (WAL); -readonly opens through SQLite's
     # normal locking so reads stay consistent with any in-flight commit.
     exec sqlite3 -readonly "$DB" "$@"

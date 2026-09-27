@@ -49,14 +49,14 @@ The simulator allows the posId of the official test setup
 
 ## Setup
 
-Create `moyun-pos/.env.live` (git-ignored, never committed, never
+Create `pili-pos/.env.live` (git-ignored, never committed, never
 pasted anywhere):
 
 ```bash
-MOYUN_LIVE_FDM_URL=http://fdm.module2.be/graphql/
-MOYUN_LIVE_FDM_TOKEN=<token from settings.module2.be>
+PILI_LIVE_FDM_URL=http://fdm.module2.be/graphql/
+PILI_LIVE_FDM_TOKEN=<token from settings.module2.be>
 # optional: pin the simulator version the evidence was signed with
-MOYUN_LIVE_SIMULATOR_VERSION=2.2.0.5
+PILI_LIVE_SIMULATOR_VERSION=2.2.0.5
 ```
 
 The token reaches the POS as in production: the suite writes it to
@@ -71,8 +71,8 @@ scripts/live_fdm.sh live_fdm_status_and_one_sale   # 2 calls
 ```
 
 - Calls go through a local pacing proxy (`src-tauri/tests/common/live.rs`):
-  one at a time, 1 s apart (`MOYUN_LIVE_PAUSE_MS`), at most 60 per run
-  (`MOYUN_LIVE_MAX_REQUESTS`). Past the cap nothing is forwarded.
+  one at a time, 1 s apart (`PILI_LIVE_PAUSE_MS`), at most 60 per run
+  (`PILI_LIVE_MAX_REQUESTS`). Past the cap nothing is forwarded.
 - The POS ticket numbers go on from run to run
   (`target/live-fdm/state.json`, saved after every signed event).
   Deleting that file restarts them at 1, which a live FDM may refuse.
@@ -81,7 +81,7 @@ scripts/live_fdm.sh live_fdm_status_and_one_sale   # 2 calls
   (`UC_EVIDENCE_DIR` overrides it). The full output is in
   `target/live-fdm.log`.
 - The client-level rehearsal also works against the simulator:
-  `MOYUN_STAGING_FDM_URL=... MOYUN_STAGING_FDM_TOKEN=... cargo test -p pos-fiscal --test e2e_staging -- --ignored --test-threads=1`
+  `PILI_STAGING_FDM_URL=... PILI_STAGING_FDM_TOKEN=... cargo test -p pos-fiscal --test e2e_staging -- --ignored --test-threads=1`
   (about 13 calls, 1 s apart).
 
 What the first live runs (2026-09-27) taught us:
@@ -109,7 +109,7 @@ For each simulated condition: switch it on in the Developer tab and
 Save, run one status query and one sale (2 calls), switch it off:
 
 ```bash
-MOYUN_LIVE_CONDITION=buffer_full MOYUN_LIVE_EXPECT=BUFFER_FULL \
+PILI_LIVE_CONDITION=buffer_full PILI_LIVE_EXPECT=BUFFER_FULL \
   scripts/live_fdm.sh live_fdm_simulated_condition
 ```
 
@@ -143,7 +143,7 @@ suite against it:
 
 ```bash
 PORT=8093 MOCK_FDM_TOKEN=dry MOCK_FDM_ALLOWED_POS=CPOS0031234567 target/release/pos-fdm-mock &
-MOYUN_LIVE_FDM_URL=http://127.0.0.1:8093/graphql MOYUN_LIVE_FDM_TOKEN=dry \
+PILI_LIVE_FDM_URL=http://127.0.0.1:8093/graphql PILI_LIVE_FDM_TOKEN=dry \
 UC_EVIDENCE_DIR=/tmp/live-ev scripts/live_fdm.sh
 ```
 
@@ -156,13 +156,13 @@ The simulator's answers are kept in
 them. To record again (about 36 calls), with an empty directory:
 
 ```bash
-export MOYUN_LIVE_RECORD_DIR=$PWD/target/live-fdm/recording UC_EVIDENCE_DIR=/tmp/live-ev
+export PILI_LIVE_RECORD_DIR=$PWD/target/live-fdm/recording UC_EVIDENCE_DIR=/tmp/live-ev
 scripts/live_fdm.sh live_fdm_operator_day
 scripts/live_fdm.sh live_fdm_protocol_edges
 scripts/live_fdm.sh live_fdm_basic_set_rest
 # Developer tab: Buffer capacity full, then Buffer capacity near full
-MOYUN_LIVE_CONDITION=buffer_full scripts/live_fdm.sh live_fdm_simulated_condition
-MOYUN_LIVE_CONDITION=buffer_near_full scripts/live_fdm.sh live_fdm_simulated_condition
+PILI_LIVE_CONDITION=buffer_full scripts/live_fdm.sh live_fdm_simulated_condition
+PILI_LIVE_CONDITION=buffer_near_full scripts/live_fdm.sh live_fdm_simulated_condition
 ```
 
 The proxy removes `visitor_ip` before writing; check for the token
@@ -183,7 +183,7 @@ What the recording taught, beyond the list above:
 
 module2's certificates (portal, "HTTPS en mTLS": `ca.crt`,
 `client.crt`, `client.key`) go in `target/live-fdm/mtls/`
-(git-ignored; `MOYUN_LIVE_TLS_DIR` overrides it). The client key is
+(git-ignored; `PILI_LIVE_TLS_DIR` overrides it). The client key is
 never committed. Then (about 5 calls):
 
 ```bash
@@ -225,10 +225,10 @@ CI integration job):
 
 ```bash
 scripts/live_app/run.sh
-docker exec -w /work moyun-live-app python3 wd.py click .user-btn 'Gerant Test'
-docker exec -w /work moyun-live-app python3 wd.py shot 01_login   # target/live-app/shots/
+docker exec -w /work pili-live-app python3 wd.py click .user-btn 'Gerant Test'
+docker exec -w /work pili-live-app python3 wd.py shot 01_login   # target/live-app/shots/
 scripts/live_app/save_state.sh      # keep the ticket numbers
-docker rm -f moyun-live-app
+docker rm -f pili-live-app
 ```
 
 `wd.py` (click, texts, wait, shot, url, js) takes one step at a time;

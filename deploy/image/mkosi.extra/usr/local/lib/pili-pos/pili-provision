@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-provision - first-boot LUKS2 + TPM2 setup for the "moyun-data"
-# partition (mounted on /var), run by moyun-provision.service.
+# pili-provision - first-boot LUKS2 + TPM2 setup for the "pili-data"
+# partition (mounted on /var), run by pili-provision.service.
 #
 # Design (Phase 4 plan):
 #   1. Partition already exists (systemd-repart.service, this boot,
-#      see usr/lib/repart.d/90-moyun-data.conf) but is raw/unformatted.
+#      see usr/lib/repart.d/90-pili-data.conf) but is raw/unformatted.
 #   2. LUKS2-format it with a random TEMPORARY key.
 #   3. Enroll a TPM2 token (auto-unlock, bound to PCR 7 - Secure Boot
 #      policy) AND a recovery key, using the temp key to authorize both.
@@ -16,7 +16,7 @@
 #      mkfs.ext4 the decrypted device and mount it on a temporary
 #      mount point (not /var: see step 9).
 #   6. Copy the factory pos.db + pos.json template
-#      (/usr/share/moyun-pos/factory/, built at image time by
+#      (/usr/share/pili-pos/factory/, built at image time by
 #      deploy/provision/provision.sh --phase image) into place, and
 #      patch pos.json's device_id from the terminal's NIC MAC.
 #   7. Generate a random root password (and, on the admission image, a
@@ -24,29 +24,29 @@
 #   8. Print the root/spf passwords and the recovery key ONCE, then
 #      wait for Enter - the distributor copies them into the
 #      installation notebook (MANUEL_INSTALLATION_FR.md §3.3/§4.1).
-#   9. Unmount it and leave it open. systemd-cryptsetup@moyun-data
+#   9. Unmount it and leave it open. systemd-cryptsetup@pili-data
 #      (/etc/crypttab) finds it already active, then systemd-fsck@
 #      checks it and var.mount mounts it on /var (/etc/fstab), as on
 #      every later boot. Closing it here would pull the device from
 #      under the fsck and mount jobs already queued on it.
 #
-# Idempotent: moyun-provision.service only starts this script while
+# Idempotent: pili-provision.service only starts this script while
 # /var is not yet a mountpoint (ConditionPathIsMountPoint=!/var), so a
 # normal second boot never re-runs it. See recover_existing_luks()
 # below for the one partial-run recovery case this script does handle.
 # ─────────────────────────────────────────────────────────────────
 set -Eeuo pipefail
 
-FACTORY_DIR="/usr/share/moyun-pos/factory"
+FACTORY_DIR="/usr/share/pili-pos/factory"
 # The new volume's future /var, mounted here while it is prepared.
 # Once systemd mounts it on /var, the tree prepared below is:
-#   /var/lib/moyun-pos             pos.db, and backups/
-#   /var/lib/moyun-pos/logs        pos.log.* (daily files)
-#   /var/lib/moyun-etc/moyun-pos   pos.json, secrets/ (/etc/moyun-pos points here)
-#   /var/lib/moyun-etc/system-connections  (NetworkManager's, linked from /etc)
-VAR_MNT="/run/moyun-provision/var"
-POS_HOME="$VAR_MNT/lib/moyun-pos"
-ETC_DIR="$VAR_MNT/lib/moyun-etc"
+#   /var/lib/pili-pos             pos.db, and backups/
+#   /var/lib/pili-pos/logs        pos.log.* (daily files)
+#   /var/lib/pili-etc/pili-pos   pos.json, secrets/ (/etc/pili-pos points here)
+#   /var/lib/pili-etc/system-connections  (NetworkManager's, linked from /etc)
+VAR_MNT="/run/pili-provision/var"
+POS_HOME="$VAR_MNT/lib/pili-pos"
+ETC_DIR="$VAR_MNT/lib/pili-etc"
 # Debian 13's systemd-cryptsetup package installs it in /usr/bin (Debian
 # 12 kept it off the PATH, in /usr/lib/systemd).
 SYSTEMD_CRYPTSETUP="$(command -v systemd-cryptsetup || echo /usr/lib/systemd/systemd-cryptsetup)"
@@ -54,8 +54,8 @@ SYSTEMD_CRYPTSETUP="$(command -v systemd-cryptsetup || echo /usr/lib/systemd/sys
 # To tty1 for the installer, and to the journal (never the secrets: the
 # passwords and recovery key are only printed by the final banner).
 log() {
-    echo "[moyun-provision] $*"
-    printf '%s\n' "$*" | systemd-cat -t moyun-provision 2>/dev/null || true
+    echo "[pili-provision] $*"
+    printf '%s\n' "$*" | systemd-cat -t pili-provision 2>/dev/null || true
 }
 # Any unexpected failure names its command, on tty1 and in the journal.
 trap 'log "ERROR: line $LINENO: \"$BASH_COMMAND\" exited $?"' ERR
@@ -149,9 +149,9 @@ main() {
     udevadm settle --timeout=30 || true
 
     local raw
-    raw="$(readlink -f /dev/disk/by-partlabel/moyun-data 2>/dev/null || true)"
+    raw="$(readlink -f /dev/disk/by-partlabel/pili-data 2>/dev/null || true)"
     if [[ -z "$raw" || ! -b "$raw" ]]; then
-        log "ERROR: no 'moyun-data' partition found - did systemd-repart run?"
+        log "ERROR: no 'pili-data' partition found - did systemd-repart run?"
         exit 1
     fi
 
@@ -180,16 +180,16 @@ main() {
         | tail -n1 | tr -d '[:space:]')"
 
     log "Unlocking through the TPM2…"
-    "$SYSTEMD_CRYPTSETUP" attach moyun-data "$raw" - tpm2-device=auto,headless=1
+    "$SYSTEMD_CRYPTSETUP" attach pili-data "$raw" - tpm2-device=auto,headless=1
 
     log "Removing the temporary key…"
     printf '%s' "$recovery_key" | cryptsetup luksKillSlot --batch-mode --key-file=- "$raw" 0
     shred -u "$tempkey" 2>/dev/null || rm -f "$tempkey"
 
     log "Formatting the filesystem…"
-    mkfs.ext4 -F -L moyun-pos-var /dev/mapper/moyun-data >/dev/null
+    mkfs.ext4 -F -L pili-pos-var /dev/mapper/pili-data >/dev/null
     mkdir -p "$VAR_MNT"
-    mount /dev/mapper/moyun-data "$VAR_MNT"
+    mount /dev/mapper/pili-data "$VAR_MNT"
 
     # What the packages installed under /var on the read-only root
     # (dpkg and apt state, empty log and spool trees, service state
@@ -198,20 +198,20 @@ main() {
     cp -a /var/. "$VAR_MNT/"
 
     log "Copying factory data…"
-    mkdir -p "$ETC_DIR/moyun-pos" "$ETC_DIR/system-connections" "$POS_HOME/logs" "$POS_HOME/backups"
+    mkdir -p "$ETC_DIR/pili-pos" "$ETC_DIR/system-connections" "$POS_HOME/logs" "$POS_HOME/backups"
     install -m 640 "$FACTORY_DIR/pos.db" "$POS_HOME/pos.db"
-    install -m 640 "$FACTORY_DIR/pos.json" "$ETC_DIR/moyun-pos/pos.json"
+    install -m 640 "$FACTORY_DIR/pos.json" "$ETC_DIR/pili-pos/pos.json"
     # Email API key of the digital ticket (admission image: the local
     # mock's dummy key). Production keys are installed by hand.
     if [[ -d "$FACTORY_DIR/secrets" ]]; then
-        install -d -m 750 "$ETC_DIR/moyun-pos/secrets"
+        install -d -m 750 "$ETC_DIR/pili-pos/secrets"
         for f in "$FACTORY_DIR"/secrets/*; do
-            [[ -f "$f" ]] && install -m 640 "$f" "$ETC_DIR/moyun-pos/secrets/"
+            [[ -f "$f" ]] && install -m 640 "$f" "$ETC_DIR/pili-pos/secrets/"
         done
     fi
     # The FDM vendor's TLS files (fdm_ca_file, fdm_client_cert_file,
     # fdm_client_key_file), copied here by the technician.
-    install -d -m 750 "$ETC_DIR/moyun-pos/fdm"
+    install -d -m 750 "$ETC_DIR/pili-pos/fdm"
 
     # scripts/qemu/run-kiosk.sh --pos-json <file> honoured HERE ONLY:
     # this whole branch of main() only ever runs once, on the actual
@@ -220,15 +220,15 @@ main() {
     # --clean) is correctly ignored, exactly like a real terminal where
     # nobody can inject config after the fact.
     modprobe qemu_fw_cfg 2>/dev/null || true
-    FW_CFG_POS_JSON="/sys/firmware/qemu_fw_cfg/by_name/opt/moyun/pos.json/raw"
+    FW_CFG_POS_JSON="/sys/firmware/qemu_fw_cfg/by_name/opt/pili/pos.json/raw"
     if [[ -r "$FW_CFG_POS_JSON" ]]; then
-        log "Using the -fw_cfg opt/moyun/pos.json override (QEMU harness)…"
-        cp "$FW_CFG_POS_JSON" "$ETC_DIR/moyun-pos/pos.json"
-        chmod 640 "$ETC_DIR/moyun-pos/pos.json"
+        log "Using the -fw_cfg opt/pili/pos.json override (QEMU harness)…"
+        cp "$FW_CFG_POS_JSON" "$ETC_DIR/pili-pos/pos.json"
+        chmod 640 "$ETC_DIR/pili-pos/pos.json"
     fi
 
     if MAC="$(detect_device_id)"; then
-        sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" "$ETC_DIR/moyun-pos/pos.json"
+        sed -i "s/\"device_id\": *\"[^\"]*\"/\"device_id\": \"$MAC\"/" "$ETC_DIR/pili-pos/pos.json"
         log "device_id = $MAC"
     else
         log "WARNING: could not determine device_id from the NIC MAC - the"
@@ -238,9 +238,9 @@ main() {
 
     if id pos &>/dev/null; then
         chown -R pos:pos "$POS_HOME"
-        chown root:pos "$ETC_DIR/moyun-pos/pos.json"
-        [[ -d "$ETC_DIR/moyun-pos/secrets" ]] && chown -R root:pos "$ETC_DIR/moyun-pos/secrets"
-        chown root:pos "$ETC_DIR/moyun-pos/fdm"
+        chown root:pos "$ETC_DIR/pili-pos/pos.json"
+        [[ -d "$ETC_DIR/pili-pos/secrets" ]] && chown -R root:pos "$ETC_DIR/pili-pos/secrets"
+        chown root:pos "$ETC_DIR/pili-pos/fdm"
     fi
 
     log "Setting the root password…"
@@ -265,7 +265,7 @@ main() {
     cat <<BANNER
 
 ════════════════════════════════════════════════════════════════
-  moyun-pos - provisionnement premier démarrage terminé
+  pili-pos - provisionnement premier démarrage terminé
 
   Notez IMMÉDIATEMENT ces informations dans le carnet du
   distributeur (MANUEL_INSTALLATION_FR.md §3.3) - elles ne seront

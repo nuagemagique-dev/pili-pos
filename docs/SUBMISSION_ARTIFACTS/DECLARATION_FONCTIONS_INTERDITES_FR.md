@@ -3,7 +3,7 @@
 Conformément au §III.C du Manuel de certification SCE 2.0
 ("Fonctionnalités interdites - Système de caisse enregistreuse"),
 le soussigné déclare sur l'honneur que le système de caisse
-**moyun-pos v1.0.0** (build de certification, `--no-default-features
+**pili-pos v1.0.0** (build de certification, `--no-default-features
 --features cert`) ne comporte AUCUNE des fonctionnalités interdites
 suivantes :
 

@@ -9,7 +9,7 @@
 //!    departments come from the catalogue;
 //! 3. runs the real `do_*` command against a mock FDM that replays the
 //!    fixture's response;
-//! 4. compares the request moyun-pos built with the fixture, field by
+//! 4. compares the request pili-pos built with the fixture, field by
 //!    field (the "Champs à vérifier" of manual §IV).
 //!
 //! Business fields (products, quantities, prices, VAT, totals,
@@ -31,13 +31,13 @@ mod common;
 use common::*;
 use serde_json::{Value, json};
 
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
-use moyun_pos::commands::order::{AddOrderLineInput, do_add_order_line};
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::social::{do_work_in, do_work_out};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pili_pos::commands::order::{AddOrderLineInput, do_add_order_line};
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::social::{do_work_in, do_work_out};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_core::order::OrderType;
 
 // ── Setup ──────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ async fn spf_app(operator_insz: &str) -> TestApp {
     let app = TestApp::new().await;
     {
         let conn = app.state.db.lock().unwrap();
-        moyun_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
+        pili_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
     }
     // The fixture's operator is logged in, as a manager: the UCs cover
     // manager-only events (refund, copy, cash, reports).
@@ -125,7 +125,7 @@ async fn mock_uc(app: &TestApp, uc: &str, fdm_ref: Option<&Value>) {
     mock_response(app, envelope).await;
 }
 
-/// The archived requests built by moyun-pos, oldest first. Also checks
+/// The archived requests built by pili-pos, oldest first. Also checks
 /// that each event is archived under the label the FDM signed it with.
 fn requests(app: &TestApp) -> Vec<Value> {
     for e in app.fiscal_events() {
@@ -147,7 +147,7 @@ fn requests(app: &TestApp) -> Vec<Value> {
 
 // ── Comparison ─────────────────────────────────────────────────────
 
-/// An intended difference between moyun-pos and the fixture.
+/// An intended difference between pili-pos and the fixture.
 struct Deviation {
     path: &'static str,
     reason: &'static str,
@@ -260,7 +260,7 @@ fn write_check_report(uc: &str, found: &[(String, Value, Value)], allowed: &[Dev
         .iter()
         .map(|(path, ours, fixture)| {
             let reason = allowed.iter().find(|d| d.path == path).map(|d| d.reason);
-            json!({ "path": path, "moyunPos": ours, "fixture": fixture, "reason": reason })
+            json!({ "path": path, "piliPos": ours, "fixture": fixture, "reason": reason })
         })
         .collect();
     let report = json!({
@@ -279,7 +279,7 @@ fn write_check_report(uc: &str, found: &[(String, Value, Value)], allowed: &[Dev
 
 // ── Sales (N) ──────────────────────────────────────────────────────
 
-/// moyun-pos sells dine-in orders through a table (Tables → order →
+/// pili-pos sells dine-in orders through a table (Tables → order →
 /// checkout), so a settled dine-in sale carries its table; the
 /// fixture's "direct sale" has no cost center.
 const TABLE_SALE: Deviation = Deviation {
@@ -372,7 +372,7 @@ async fn m112b_partial_refund_as_a_separate_ticket() {
         &refund,
         &[Deviation {
             path: "fdmRef",
-            reason: "moyun-pos references the refunded ticket on every refund \
+            reason: "pili-pos references the refunded ticket on every refund \
                      (FLUX_REMBOURSEMENT_FR.md); the fixture's partial refund \
                      carries no reference",
         }],
@@ -648,7 +648,7 @@ async fn m172_copy_in_training() {
     app.dump_evidence("M172");
 }
 
-// ── Advanced Set cases moyun-pos supports ──────────────────────────
+// ── Advanced Set cases pili-pos supports ──────────────────────────
 
 /// UC230: 3 Dry Martini ordered, corrected at once to 2, paid by debit
 /// card. The operator lowers the quantity on the order screen; the
@@ -661,9 +661,9 @@ async fn uc230_a_line_corrected_before_payment() {
     let vars = read_variables(&fixture)["data"].clone();
     let app = spf_app(&operator(&vars)).await;
     let order_id = order_from(&app, &vars, OrderType::DineIn, Some(1));
-    let line = &moyun_pos::commands::order::do_list_order_lines(&app.state, order_id).unwrap()[0];
+    let line = &pili_pos::commands::order::do_list_order_lines(&app.state, order_id).unwrap()[0];
     assert_eq!(line.quantity, 3);
-    moyun_pos::commands::order::do_update_order_line_quantity(&app.state, line.id, 2).unwrap();
+    pili_pos::commands::order::do_update_order_line_quantity(&app.state, line.id, 2).unwrap();
     mock_from_fixture(&app, &fixture).await;
 
     let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Card)
@@ -685,7 +685,7 @@ async fn uc230_a_line_corrected_before_payment() {
 /// cash third is rounded (+0,01).
 #[tokio::test]
 async fn uc4119_split_payment_on_one_ticket() {
-    use moyun_pos::commands::checkout::{PaymentPart, do_checkout_split};
+    use pili_pos::commands::checkout::{PaymentPart, do_checkout_split};
     let order_uc = load_uc(&advanced_set_root(), "UC4119_SplitPayment/UC4119_1");
     let sale_uc = load_uc(&advanced_set_root(), "UC4119_SplitPayment/UC4119_2");
     let order_vars = read_variables(&order_uc)["data"].clone();
@@ -731,8 +731,8 @@ async fn uc4119_split_payment_on_one_ticket() {
 // covers: UC4109
 #[tokio::test]
 async fn uc4109_unpaid_table() {
-    use moyun_pos::commands::auth::do_set_pin;
-    use moyun_pos::commands::unpaid::do_close_unpaid;
+    use pili_pos::commands::auth::do_set_pin;
+    use pili_pos::commands::unpaid::do_close_unpaid;
     let order_uc = load_uc(&advanced_set_root(), "UC4109_NoPayment/UC4109_1");
     let sale_uc = load_uc(&advanced_set_root(), "UC4109_NoPayment/UC4109_2");
     let order_vars = read_variables(&order_uc)["data"].clone();

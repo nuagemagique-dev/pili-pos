@@ -1,4 +1,4 @@
-# Contenu exact du ZIP de soumission SCE 2.0 (moyun-pos).
+# Contenu exact du ZIP de soumission SCE 2.0 (pili-pos).
 #
 # Une entrée par ligne, relative à docs/SUBMISSION_ARTIFACTS/ ; "#"
 # commence un commentaire. Un répertoire est repris en entier, sans ses

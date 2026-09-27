@@ -2,7 +2,7 @@
 //!
 //! The kiosk runs no remote-access service. When the manager needs the
 //! technician, they start a session from Settings: their PIN is asked
-//! again, RustDesk is started (`/opt/moyun-pos/rustdesk/AppRun`,
+//! again, RustDesk is started (`/opt/pili-pos/rustdesk/AppRun`,
 //! installed by `deploy/provision/provision.sh`), and its window shows
 //! the ID and one-time password the manager reads to the technician by
 //! phone. The session ends when the manager stops it (or RustDesk
@@ -26,7 +26,7 @@ use crate::commands::errors;
 use crate::state::AppState;
 
 /// Where the image installs RustDesk (`deploy/provision/provision.sh`).
-pub const REMOTE_SUPPORT_PROGRAM: &str = "/opt/moyun-pos/rustdesk/AppRun";
+pub const REMOTE_SUPPORT_PROGRAM: &str = "/opt/pili-pos/rustdesk/AppRun";
 
 struct Session {
     child: Child,
@@ -91,13 +91,13 @@ pub struct SupportStatus {
 }
 
 /// Directory given to RustDesk as `HOME`: under the service's runtime
-/// directory (`RuntimeDirectory=moyun-pos`, wiped at stop), else the
+/// directory (`RuntimeDirectory=pili-pos`, wiped at stop), else the
 /// system temporary directory.
 fn support_home() -> PathBuf {
     std::env::var_os("RUNTIME_DIRECTORY")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)
-        .join("moyun-pos-support")
+        .join("pili-pos-support")
 }
 
 /// Forget a session whose program has exited.

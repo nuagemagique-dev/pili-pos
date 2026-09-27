@@ -18,7 +18,7 @@ matérialisent le QR code et la coupe papier.
 
 Réponse au tableau "Contenu du ticket" du manuel de certification §VI.
 Une ligne par élément obligatoire de la spec POS v2.2 §III.3, une
-colonne par type de ticket émis par moyun-pos.
+colonne par type de ticket émis par pili-pos.
 
 | Élément | N | N Refund | P (Pro Forma) | C (Copy) | T (Training) | Autres (cuisine) |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -82,7 +82,7 @@ Terminal: POS1
 Ticketnr.: 000015
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B
@@ -135,7 +135,7 @@ Terminal: POS1
 Ticketnr.: 000004
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B
@@ -181,7 +181,7 @@ Terminal: POS1
 Ticketnr.: 000016
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 -2 Dry Martini                         -24,00  A
 -1 Burger du chef                      -28,00  B
@@ -237,7 +237,7 @@ Terminal: POS1
 Ticketnr.: 000015
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B
@@ -294,7 +294,7 @@ Terminal: POS1
 Ticketnr.: 000007
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B
@@ -700,7 +700,7 @@ Terminal: POS1
 Ticketnr.: 000015
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B
@@ -770,7 +770,7 @@ Terminal: POS1
 Ticketnr.: 000015
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 1 Dame Blanche                          11,52  B
 1 Tapas Variation                        3,34  B
@@ -823,7 +823,7 @@ Terminal: POS1
 Ticketnr.: 000015
 POS Serial: CFOD0061234567
 Input device MAC: 00:1b:44:11:3a:b7
-Logiciel de caisse v.: moyun-pos/1.0.0
+Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 2 Dry Martini                           24,00  A
 1 Burger du chef                        28,00  B

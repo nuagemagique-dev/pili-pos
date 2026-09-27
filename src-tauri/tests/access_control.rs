@@ -16,29 +16,29 @@ mod common;
 
 use common::*;
 
-use moyun_pos::commands::errors;
+use pili_pos::commands::errors;
 
-use moyun_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
-use moyun_pos::commands::auth::{
+use pili_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
+use pili_pos::commands::auth::{
     CreateUserInput, ERR_DEACTIVATE_SELF, ERR_PIN_ALREADY_SET, ERR_PIN_FORMAT,
     ERR_PIN_SETUP_REQUIRED, ERR_SYSTEM_USER, do_create_user, do_deactivate_user, do_login,
     do_login_with_new_pin, do_logout, do_set_pin,
 };
-use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::copy::do_copy_ticket;
-use moyun_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
-use moyun_pos::commands::order::{
+use pili_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
+use pili_pos::commands::copy::do_copy_ticket;
+use pili_pos::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
     do_update_order_line_quantity,
 };
-use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
-use moyun_pos::commands::report::{
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
+use pili_pos::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
-use moyun_pos::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_training_mode};
-use moyun_pos::commands::social::{do_work_in, do_work_out};
-use moyun_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
-use moyun_pos::commands::unpaid::do_close_unpaid;
+use pili_pos::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_training_mode};
+use pili_pos::commands::social::{do_work_in, do_work_out};
+use pili_pos::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pili_pos::commands::unpaid::do_close_unpaid;
 use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 
@@ -606,7 +606,7 @@ async fn the_admission_seed_logs_in_every_documented_profile() {
     let app = TestApp::new().await;
     {
         let conn = app.state.db.lock().unwrap();
-        moyun_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
+        pili_pos::cli::apply_seed(&conn, include_str!("../seed_spf_test.sql")).expect("seed");
     }
     app.logout();
     for (insz, pin, role) in [
@@ -637,7 +637,7 @@ async fn the_admission_seed_logs_in_every_documented_profile() {
         do_login(&app.state, "00000000029".into(), None).unwrap_err(),
         ERR_SYSTEM_USER
     );
-    let listed = moyun_pos::commands::auth::do_list_users(&app.state).unwrap();
+    let listed = pili_pos::commands::auth::do_list_users(&app.state).unwrap();
     assert!(listed.iter().all(|u| u.insz != "00000000029"));
     for insz in ["00000000097", "94060242576", "84022899837", "99012345667"] {
         assert!(

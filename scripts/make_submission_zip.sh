@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────
-# moyun-pos - SCE 2.0 submission ZIP
+# pili-pos - SCE 2.0 submission ZIP
 #
 # 1. Regenerates the dossier PDFs (scripts/make_dossier_pdfs.sh) and
 #    the screenshot PDF (scripts/make_captures_pdf.sh).
@@ -11,7 +11,7 @@
 #    the PDFs of pdf_out/ at the root of the ZIP, the listed folders
 #    as they are, never a .md, a script or a .DS_Store.
 #
-# Output: target/submission/moyun-pos-dossier-v<version>.zip
+# Output: target/submission/pili-pos-dossier-v<version>.zip
 # Usage: scripts/make_submission_zip.sh [--skip-pdfs]
 #   --skip-pdfs  reuse the PDFs already built (the check still refuses
 #                a PDF older than its markdown).
@@ -34,7 +34,7 @@ python3 scripts/check_dossier.py --final
 echo "── 3/3 ZIP ──────────────────────────────────────────────"
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
 OUT_DIR="$PROJECT_ROOT/target/submission"
-ZIP="$OUT_DIR/moyun-pos-dossier-v${VERSION}.zip"
+ZIP="$OUT_DIR/pili-pos-dossier-v${VERSION}.zip"
 mkdir -p "$OUT_DIR"
 rm -f "$ZIP"
 
