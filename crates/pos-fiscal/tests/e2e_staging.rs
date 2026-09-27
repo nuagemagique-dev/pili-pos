@@ -14,11 +14,13 @@
 //! | Variable | Default | Purpose |
 //! |---|---|---|
 //! | `MOYUN_STAGING_FDM_URL`      | -                | FDM GraphQL endpoint (required) |
-//! | `MOYUN_STAGING_POS_ID`       | `CFOD0061234567` | posId registered with the FDM |
+//! | `MOYUN_STAGING_FDM_TOKEN`    | unset            | bearer token, for a cloud FDM (module2 simulator) |
+//! | `MOYUN_STAGING_POS_ID`       | `CPOS0031234567` | posId registered with the FDM (the test setup's) |
 //! | `MOYUN_STAGING_VAT`          | `BE0000000097`   | vatNo (SPF test identity) |
 //! | `MOYUN_STAGING_EST_NO`       | `2000000042`     | estNo (SPF test identity) |
 //! | `MOYUN_STAGING_INSZ`         | `12345678901`    | employee INSZ for S events |
 //! | `MOYUN_STAGING_TICKET_START` | `1`              | first posFiscalTicketNo - bump on re-runs so numbering stays strictly increasing across rehearsals |
+//! | `MOYUN_STAGING_PAUSE_MS`     | `1000`           | pause after each signed event, to go easy on a shared FDM |
 //! | `MOYUN_STAGING_DUMP`         | unset            | `1` → write every request/response pair to `docs/SUBMISSION_ARTIFACTS/evidence/staging/rehearsal_log.md` |
 //!
 //! `staging_status_returns_operational` is the intake preflight;
@@ -81,9 +83,19 @@ fn env_or(key: &str, default: &str) -> String {
     env::var(key).unwrap_or_else(|_| default.to_string())
 }
 
+/// A client for the staging FDM, with its bearer token when one is set.
+fn staging_client(url: &str) -> FdmClient {
+    FdmClient::new(url).with_bearer_token(
+        env::var("MOYUN_STAGING_FDM_TOKEN")
+            .ok()
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty()),
+    )
+}
+
 fn staging_config(url: &str) -> PosConfig {
     PosConfig {
-        pos_id: env_or("MOYUN_STAGING_POS_ID", "CFOD0061234567"),
+        pos_id: env_or("MOYUN_STAGING_POS_ID", "CPOS0031234567"),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),
         // SPF test identity (UC_TestSetup_20240806) unless overridden
@@ -113,7 +125,7 @@ async fn staging_status_returns_operational() {
         }
     };
 
-    let client = FdmClient::new(&url);
+    let client = staging_client(&url);
     let status = client
         .status()
         .await
@@ -257,6 +269,13 @@ impl Rehearsal {
             result.short_signature.as_deref().unwrap_or("-"),
         );
         self.results.push(result);
+
+        // One event at a time, spaced out: the FDM may be shared (the
+        // module2 simulator is). Blocking is fine, nothing else runs.
+        let pause: u64 = env_or("MOYUN_STAGING_PAUSE_MS", "1000")
+            .parse()
+            .expect("MOYUN_STAGING_PAUSE_MS must be an integer");
+        std::thread::sleep(std::time::Duration::from_millis(pause));
     }
 
     /// Write the accumulated log to the dossier evidence directory.
@@ -342,7 +361,7 @@ async fn staging_basic_set_smoke() {
         .expect("MOYUN_STAGING_TICKET_START must be an integer");
     let booking_period_id = Uuid::new_v4().to_string();
 
-    let client = FdmClient::new(&url);
+    let client = staging_client(&url);
     let mut r = Rehearsal::new(&config.pos_id, &url);
 
     let mut next_ticket = || {

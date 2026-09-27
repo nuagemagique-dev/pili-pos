@@ -60,6 +60,9 @@ pub const TEST_OPERATOR: &str = "12345678901";
 pub struct TestApp {
     pub state: AppState,
     pub fdm: MockServer,
+    /// Signing against a live FDM ([`TestApp::live`]): canned answers
+    /// cannot be mounted.
+    pub live: bool,
 }
 
 impl TestApp {
@@ -119,7 +122,11 @@ impl TestApp {
             support: moyun_pos::commands::support::SupportState::disabled(),
         };
 
-        let app = Self { state, fdm };
+        let app = Self {
+            state,
+            fdm,
+            live: false,
+        };
         app.login_as(TEST_OPERATOR, pos_core::user::UserRole::Admin);
         app
     }
@@ -282,6 +289,7 @@ impl TestApp {
 /// actually sent, as a real FDM does. Use [`mock_raw_response`] to send
 /// an envelope exactly as given (for inconsistent-response tests).
 pub async fn mock_response(app: &TestApp, response_envelope: Value) {
+    assert!(!app.live, "canned FDM answers on a live app");
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .respond_with(EchoRequest(response_envelope))
@@ -315,6 +323,7 @@ pub const M110_SHORT_SIGNATURE: &str = "e2c43d6bbe9be265f2ecc1578368c224ff980c26
 /// without echoing the request.
 #[allow(dead_code)]
 pub async fn mock_raw_response(app: &TestApp, response_envelope: Value) {
+    assert!(!app.live, "canned FDM answers on a live app");
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .respond_with(ResponseTemplate::new(200).set_body_json(response_envelope))

@@ -33,3 +33,6 @@ __pycache__/
 
 # QEMU harness state (scripts/qemu/run-kiosk.sh)
 scripts/qemu/.run/
+
+# Live FDM credentials (scripts/live_fdm.sh), never committed.
+.env.live
