@@ -1,0 +1,28 @@
+{
+  "query": "mutation($data: CopyInput!, $isTraining: Boolean!) { signCopy(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "19621137-7a96-4e93-9bb3-8f577bf38dec",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "fdmRef": {
+        "eventCounter": 5,
+        "eventLabel": "P",
+        "fdmDateTime": "2026-09-27T18:01:11Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 40
+      },
+      "language": "FR",
+      "posDateTime": "2026-09-27T20:01:11.810+02:00",
+      "posFiscalTicketNo": 3,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "PAPER",
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

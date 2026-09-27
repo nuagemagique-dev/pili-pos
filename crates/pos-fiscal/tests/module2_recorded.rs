@@ -63,9 +63,9 @@ fn every_event_module2_signed_passes_the_response_check() {
             signed += 1;
         }
     }
-    // The operator day (15 events, the Z counts two) and one sale with
-    // a warning.
-    assert_eq!(signed, 16);
+    // The operator day (15 events, the Z counts two), one sale with a
+    // warning, and the rest of the Basic Set (8 events).
+    assert_eq!(signed, 24);
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn every_status_module2_gave_parses() {
         assert_eq!(status.device.fdm_id, "FDM02000425", "{label}");
         parsed += 1;
     }
-    assert_eq!(parsed, 3);
+    assert_eq!(parsed, 4);
 }
 
 /// A refusal carries its code in `extensions.code`, except the token

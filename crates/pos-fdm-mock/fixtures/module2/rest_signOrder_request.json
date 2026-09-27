@@ -1,0 +1,50 @@
+{
+  "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "19621137-7a96-4e93-9bb3-8f577bf38dec",
+      "costCenter": {
+        "id": "T07",
+        "reference": "O5",
+        "type": "TABLE"
+      },
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "language": "FR",
+      "posDateTime": "2026-09-27T20:01:10.718+02:00",
+      "posFiscalTicketNo": 5,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "NONE",
+      "transaction": {
+        "transactionLines": [
+          {
+            "lineTotal": 28.0,
+            "lineType": "SINGLE_PRODUCT",
+            "mainProduct": {
+              "departmentId": "2",
+              "departmentName": "Cuisine",
+              "productId": "2",
+              "productName": "Burger du chef",
+              "quantity": 1.0,
+              "quantityType": "PIECE",
+              "unitPrice": 28.0,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 28.0
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": 28.0
+      },
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

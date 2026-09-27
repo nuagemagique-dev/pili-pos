@@ -446,3 +446,121 @@ async fn live_fdm_protocol_edges() {
     assert!(refused.is_err(), "microseconds are refused");
     eprintln!("{} live calls", live_requests());
 }
+
+/// The Basic Set use cases the operator day leaves out: a full refund
+/// (M111), a partial refund as a separate ticket (M112B), a copy of an
+/// order (M161), a work-in in training (M170) and a copy made in
+/// training (M172). 9 calls.
+#[tokio::test]
+#[ignore]
+async fn live_fdm_basic_set_rest() {
+    let Some(app) = live_app().await else { return };
+    record_as("status");
+    status_is_operational(&app).await;
+
+    // M111: a sale, refunded in full.
+    let id = order(&app, None, &[(1, 2), (2, 1)]);
+    record_as("signSale");
+    let sale = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    signed(&app, "sale for M111", sale.success, sale.error.clone());
+    let full_sale = sale.fiscal_event_id.unwrap();
+    record_as("signSale_refund_full");
+    let refund = do_refund_checkout(
+        &app.state,
+        full_sale,
+        vec![
+            RefundItem {
+                menu_item_id: 1,
+                quantity: 2,
+            },
+            RefundItem {
+                menu_item_id: 2,
+                quantity: 1,
+            },
+        ],
+        INSZ.into(),
+    )
+    .await
+    .unwrap();
+    signed(&app, "full refund (M111)", refund.success, refund.error);
+
+    // M112B: a sale, one of its items refunded on a separate ticket.
+    let id = order(&app, None, &[(1, 2)]);
+    record_as("signSale");
+    let sale = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    signed(&app, "sale for M112B", sale.success, sale.error.clone());
+    let partial_sale = sale.fiscal_event_id.unwrap();
+    record_as("signSale_refund_partial");
+    let refund = do_refund_checkout(
+        &app.state,
+        partial_sale,
+        vec![RefundItem {
+            menu_item_id: 1,
+            quantity: 1,
+        }],
+        INSZ.into(),
+    )
+    .await
+    .unwrap();
+    signed(&app, "partial refund (M112B)", refund.success, refund.error);
+
+    // M161: a table order, then a copy of it.
+    let table = order(&app, Some(7), &[(2, 1)]);
+    record_as("signOrder");
+    let r = do_sign_table_order(&app.state, table).await;
+    signed(&app, "order for M161", r.is_ok(), r.err());
+    let signed_order = app.fiscal_events().last().unwrap().id;
+    record_as("signCopy_order");
+    let copy = do_copy_ticket(&app.state, signed_order, INSZ.into())
+        .await
+        .unwrap();
+    signed(&app, "copy of the order (M161)", copy.success, copy.error);
+
+    // M170 and M172: training on, a work-in, then a copy of the M111 sale.
+    app.state.config.lock().unwrap().training_mode = true;
+    record_as("signWorkIn_training");
+    let r = do_work_in(&app.state, INSZ.into()).await.unwrap();
+    signed(&app, "work in in training (M170)", r.success, r.error);
+    record_as("signCopy_training");
+    let copy = do_copy_ticket(&app.state, full_sale, INSZ.into())
+        .await
+        .unwrap();
+    signed(&app, "copy in training (M172)", copy.success, copy.error);
+    app.state.config.lock().unwrap().training_mode = false;
+
+    app.dump_evidence("LIVE_rest");
+
+    // ── What the live FDM answered ──────────────────────────────
+    let events = app.fiscal_events();
+    let labels: Vec<&str> = events
+        .iter()
+        .map(|e| e.event_label.as_deref().unwrap())
+        .collect();
+    assert_eq!(
+        labels,
+        ["N", "N", "N", "N", "P", "C", "T", "T"],
+        "{labels:?}"
+    );
+    let cites = |event: &FiscalEventRow, cited: &FiscalEventRow, what: &str| {
+        let fdm_ref = &request(event)["fdmRef"];
+        let fdm_ref = if fdm_ref.is_null() {
+            &request(event)["fdmRefs"][0]
+        } else {
+            fdm_ref
+        };
+        assert_eq!(
+            fdm_ref["totalCounter"].as_i64(),
+            cited.total_counter,
+            "{what} cites its event: {fdm_ref}"
+        );
+    };
+    cites(&events[1], &events[0], "full refund");
+    cites(&events[3], &events[2], "partial refund");
+    cites(&events[5], &events[4], "copy of the order");
+    cites(&events[7], &events[0], "copy in training");
+    eprintln!("{} live calls", live_requests());
+}

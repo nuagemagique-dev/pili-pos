@@ -1,0 +1,74 @@
+{
+  "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "19621137-7a96-4e93-9bb3-8f577bf38dec",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "financials": [
+        {
+          "amount": 52.0,
+          "amountType": "PAYMENT",
+          "id": "1",
+          "inputMethod": "MANUAL",
+          "name": "Cash",
+          "type": "CASH"
+        }
+      ],
+      "language": "FR",
+      "posDateTime": "2026-09-27T20:01:06.325+02:00",
+      "posFiscalTicketNo": 9,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "PAPER",
+      "transaction": {
+        "transactionLines": [
+          {
+            "lineTotal": 24.0,
+            "lineType": "SINGLE_PRODUCT",
+            "mainProduct": {
+              "departmentId": "1",
+              "departmentName": "Boissons",
+              "productId": "1",
+              "productName": "Dry Martini",
+              "quantity": 2.0,
+              "quantityType": "PIECE",
+              "unitPrice": 12.0,
+              "vats": [
+                {
+                  "label": "A",
+                  "price": 24.0
+                }
+              ]
+            }
+          },
+          {
+            "lineTotal": 28.0,
+            "lineType": "SINGLE_PRODUCT",
+            "mainProduct": {
+              "departmentId": "2",
+              "departmentName": "Cuisine",
+              "productId": "2",
+              "productName": "Burger du chef",
+              "quantity": 1.0,
+              "quantityType": "PIECE",
+              "unitPrice": 28.0,
+              "vats": [
+                {
+                  "label": "B",
+                  "price": 28.0
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": 52.0
+      },
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

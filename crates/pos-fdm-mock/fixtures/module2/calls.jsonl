@@ -25,3 +25,12 @@
 {"httpStatus":200,"label":"signSale_buffer_full","operation":"signSale","token":true}
 {"httpStatus":200,"label":"status_buffer_near_full","operation":"status","token":true}
 {"httpStatus":200,"label":"signSale_buffer_near_full","operation":"signSale","token":true}
+{"httpStatus":200,"label":"rest_status","operation":"status","token":true}
+{"httpStatus":200,"label":"rest_signSale","operation":"signSale","token":true}
+{"httpStatus":200,"label":"rest_signSale_refund_full","operation":"signSale","token":true}
+{"httpStatus":200,"label":"rest_signSale_2","operation":"signSale","token":true}
+{"httpStatus":200,"label":"rest_signSale_refund_partial","operation":"signSale","token":true}
+{"httpStatus":200,"label":"rest_signOrder","operation":"signOrder","token":true}
+{"httpStatus":200,"label":"rest_signCopy_order","operation":"signCopy","token":true}
+{"httpStatus":200,"label":"rest_signWorkIn_training","operation":"signWorkIn","token":true}
+{"httpStatus":200,"label":"rest_signCopy_training","operation":"signCopy","token":true}

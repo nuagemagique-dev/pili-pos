@@ -1,0 +1,63 @@
+{
+  "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+  "variables": {
+    "data": {
+      "bookingDate": "2026-09-27",
+      "bookingPeriodId": "19621137-7a96-4e93-9bb3-8f577bf38dec",
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "employeeId": "75061189702",
+      "estNo": "2000000042",
+      "fdmRef": {
+        "eventCounter": 12,
+        "eventLabel": "N",
+        "fdmDateTime": "2026-09-27T18:01:09Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 38
+      },
+      "financials": [
+        {
+          "amount": -12.0,
+          "amountType": "PAYMENT",
+          "id": "1",
+          "inputMethod": "MANUAL",
+          "name": "Cash",
+          "type": "CASH"
+        }
+      ],
+      "language": "FR",
+      "posDateTime": "2026-09-27T20:01:09.635+02:00",
+      "posFiscalTicketNo": 12,
+      "posId": "CPOS0031234567",
+      "posSwVersion": "moyun-pos/1.0.0",
+      "terminalId": "POS-1-BAR",
+      "ticketMedium": "PAPER",
+      "transaction": {
+        "transactionLines": [
+          {
+            "lineTotal": -12.0,
+            "lineType": "SINGLE_PRODUCT",
+            "mainProduct": {
+              "departmentId": "1",
+              "departmentName": "Boissons",
+              "negQuantityReason": "REFUND",
+              "productId": "1",
+              "productName": "Dry Martini",
+              "quantity": -1.0,
+              "quantityType": "PIECE",
+              "unitPrice": 12.0,
+              "vats": [
+                {
+                  "label": "A",
+                  "price": -12.0
+                }
+              ]
+            }
+          }
+        ],
+        "transactionTotal": -12.0
+      },
+      "vatNo": "BE0000000097"
+    },
+    "isTraining": false
+  }
+}

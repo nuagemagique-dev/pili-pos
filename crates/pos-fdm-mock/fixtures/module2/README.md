@@ -4,7 +4,7 @@ What module2's online simulator answered, recorded once on 2026-09-27:
 FDM `FDM02000425`, FDM software 2.2.0.5 (`Simulator-Version: 2.2.0.5`),
 endpoint `http://fdm.module2.be/graphql/`, posId `CPOS0031234567`.
 
-27 calls, one at a time, 1 s apart, through the pacing proxy of
+36 calls, one at a time, 1 s apart, through the pacing proxy of
 `src-tauri/tests/common/live.rs` with `MOYUN_LIVE_RECORD_DIR` set:
 
 | Calls | Test | What |
@@ -12,6 +12,7 @@ endpoint `http://fdm.module2.be/graphql/`, posId `CPOS0031234567`.
 | 15 | `live_fdm_operator_day` | status, work in, table order, pre-bill, sale, refund, copy, money in, drawer open, cash count, training sale, X, user X, combined Z, work out |
 | 7 | `live_fdm_protocol_edges` | `Status` capitalised, no token, wrong token, malformed query, Q110 as the POS sends it, unknown posId, posDateTime with microseconds |
 | 1 | by hand (curl) | the official Q110 request of the Basic Set v1.7 |
+| 9 | `live_fdm_basic_set_rest` (files `rest_*`) | status, sale and full refund (M111), sale and partial refund (M112B), table order and its copy (M161), work in (M170) and copy (M172) in training |
 | 4 | `live_fdm_simulated_condition` | status and sale with "Buffer capacity full", then "Buffer capacity near full", switched on in the Developer tab |
 
 Files: `<label>_request.json` is the GraphQL body sent;

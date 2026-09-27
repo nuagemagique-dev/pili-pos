@@ -1,0 +1,15 @@
+{
+  "bookingDate": "2026-09-27",
+  "bookingPeriodId": "19621137-7a96-4e93-9bb3-8f577bf38dec",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "language": "FR",
+  "posDateTime": "2026-09-27T20:01:12.899+02:00",
+  "posFiscalTicketNo": 3,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
