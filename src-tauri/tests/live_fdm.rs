@@ -304,3 +304,50 @@ async fn live_fdm_operator_day() {
     }
     eprintln!("{} live calls", live_requests());
 }
+
+/// One condition switched on in module2's Developer tab (buffer full,
+/// FDM locked, buffer near full, retry count): what the POS gets from
+/// a status query and a sale. `MOYUN_LIVE_CONDITION` names the file
+/// written to `UC_EVIDENCE_DIR`; `MOYUN_LIVE_EXPECT`, when set, is a
+/// code that must reach the POS (in the status, or in the refusal of
+/// the sale). 2 calls.
+#[tokio::test]
+#[ignore]
+async fn live_fdm_simulated_condition() {
+    let Some(app) = live_app().await else { return };
+    let condition = std::env::var("MOYUN_LIVE_CONDITION").unwrap_or_else(|_| "condition".into());
+
+    let status = do_check_fdm_status(&app.state).await.unwrap();
+    let id = order(&app, None, &[(1, 1)]);
+    let sale = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    app.save_ticket_numbers();
+    let signed = sale
+        .fiscal_event_id
+        .and_then(|_| app.fiscal_events().pop())
+        .and_then(|e| e.fdm_response_json)
+        .map(|raw| serde_json::from_str::<Value>(&raw).unwrap());
+
+    let record = serde_json::json!({
+        "condition": condition,
+        "status": status,
+        "sale": {
+            "success": sale.success,
+            "error": sale.error,
+            "signedResponse": signed,
+        },
+    });
+    eprintln!("{}", serde_json::to_string_pretty(&record).unwrap());
+    if let Ok(dir) = std::env::var("UC_EVIDENCE_DIR") {
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = std::path::Path::new(&dir).join(format!("LIVE_condition_{condition}.json"));
+        std::fs::write(path, serde_json::to_string_pretty(&record).unwrap()).unwrap();
+    }
+
+    if let Ok(code) = std::env::var("MOYUN_LIVE_EXPECT") {
+        let seen = record.to_string();
+        assert!(seen.contains(&code), "{code} did not reach the POS");
+    }
+    eprintln!("{} live calls", live_requests());
+}

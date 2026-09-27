@@ -1,0 +1,74 @@
+{
+  "condition": "retry_count",
+  "sale": {
+    "error": null,
+    "signedResponse": {
+      "bufferCapacityUsed": 0.09,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_PmnZb239XTUk6pGvKCStwax1IrYwZmXYxiTcMg",
+      "eventOperation": "SALE",
+      "fdmRef": {
+        "eventCounter": 6,
+        "eventLabel": "N",
+        "fdmDateTime": "2026-09-27T16:59:15Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 19
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T18:59:14.578+02:00",
+      "posFiscalTicketNo": 5,
+      "posId": "CPOS0031234567",
+      "shortSignature": "4b2d815ba6b447df6cb72f28ffcf4552d08799ba",
+      "terminalId": "POS-1-BAR",
+      "vatCalc": [
+        {
+          "label": "A",
+          "outOfScope": false,
+          "rate": 21.0,
+          "taxableAmount": 9.92,
+          "totalAmount": 12.0,
+          "vatAmount": 2.08
+        }
+      ],
+      "verificationUrl": "https://www.gs2.be/tRffi3mljFUl02twOa5",
+      "warnings": [
+        {
+          "extensions": {
+            "category": "SPF_FOD",
+            "code": "TRANSACTION_UPLOAD_FAILED",
+            "data": null,
+            "showPos": "OPTIONAL"
+          },
+          "locations": null,
+          "message": "FDM has more than 10 failed attempts to post business transaction."
+        }
+      ]
+    },
+    "success": true
+  },
+  "status": {
+    "device": {
+      "bufferCapacityUsed": 0.09,
+      "fdmDateTime": "2026-09-27T16:59:14Z",
+      "fdmId": "FDM02000425",
+      "fdmSwVersion": "2.2.0.5"
+    },
+    "errors": [],
+    "informations": [],
+    "initialized": false,
+    "warnings": [
+      {
+        "extensions": {
+          "category": "SPF_FOD",
+          "code": "TRANSACTION_UPLOAD_FAILED",
+          "data": null,
+          "showPos": "OPTIONAL"
+        },
+        "locations": null,
+        "message": "FDM has more than 10 failed attempts to post business transaction."
+      }
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "condition": "buffer_full",
+  "sale": {
+    "error": "FDM error: GraphQL error: BUFFER_FULL: FDM buffer is full.",
+    "signedResponse": null,
+    "success": false
+  },
+  "status": {
+    "device": {
+      "bufferCapacityUsed": 0.09,
+      "fdmDateTime": "2026-09-27T16:57:57Z",
+      "fdmId": "FDM02000425",
+      "fdmSwVersion": "2.2.0.5"
+    },
+    "errors": [
+      {
+        "extensions": {
+          "category": "SPF_FOD",
+          "code": "BUFFER_FULL",
+          "data": null,
+          "showPos": "MANDATORY"
+        },
+        "locations": null,
+        "message": "FDM buffer is full."
+      }
+    ],
+    "informations": [],
+    "initialized": false,
+    "warnings": [
+      {
+        "extensions": {
+          "category": "SPF_FOD",
+          "code": "BUFFER_NEAR_FULL",
+          "data": null,
+          "showPos": "MANDATORY"
+        },
+        "locations": null,
+        "message": "FDM buffer usage exceeds 70%."
+      }
+    ]
+  }
+}

@@ -105,16 +105,29 @@ Input/Output log before changing the POS.
 
 ## Error checklist (Developer tab)
 
-For each simulated condition: switch it on in the Developer tab, run
-`scripts/live_fdm.sh live_fdm_status_and_one_sale` (2 calls), check
-what the POS reports, switch it off.
+For each simulated condition: switch it on in the Developer tab and
+Save, run one status query and one sale (2 calls), switch it off:
 
-| Condition | Expected on the POS |
-|---|---|
-| Buffer full | Sale refused, blocking `BUFFER_FULL` message, status pill red |
-| FDM locked | Sale refused, blocking `FDM_LOCKED` message, status pill red |
-| Buffer near full | Sale signed, `BUFFER_NEAR_FULL` warning shown, pill amber |
-| Retry count | To confirm: the code module2 sends is not documented yet. Status must still parse (an unknown code no longer breaks it) |
+```bash
+MOYUN_LIVE_CONDITION=buffer_full MOYUN_LIVE_EXPECT=BUFFER_FULL \
+  scripts/live_fdm.sh live_fdm_simulated_condition
+```
+
+The test writes `LIVE_condition_<condition>.json` (status answer, sale
+outcome) next to the other live evidence and fails if the expected
+code is missing.
+
+Run on 2026-09-27 against FDM02000425 (sw 2.2.0.5):
+
+| Condition | What the simulator sends | POS outcome |
+|---|---|---|
+| Buffer full | Status error `BUFFER_FULL` (SPF_FOD, MANDATORY) plus warning `BUFFER_NEAR_FULL`; sale answered with a GraphQL error `BUFFER_FULL` | Sale refused with `BUFFER_FULL: FDM buffer is full.`, no N number used |
+| FDM locked | Status error `FDM_LOCKED` (SPF_FOD, MANDATORY, "An error has occurred, contact government."); sale answered with the same error | Sale refused with `FDM_LOCKED`, no N number used |
+| Buffer near full | Warning `BUFFER_NEAR_FULL` (MANDATORY) in the status and in the sign response; `bufferCapacityUsed` stays at its real value (0.09) | Sale signed |
+| Retry count | Warning `TRANSACTION_UPLOAD_FAILED` (SPF_FOD, OPTIONAL, "FDM has more than 10 failed attempts to post business transaction.") in the status and in the sign response | Sale signed |
+
+The simulated errors sit next to a "POS id's" field, which held
+`CPOS0031234567` during these runs.
 
 Also try once in the app (`cargo tauri dev` with `fdm_url` and
 `fdm_token_file` set): the status pill polls every 30 s and backs off

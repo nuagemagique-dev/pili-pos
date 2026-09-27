@@ -1,0 +1,74 @@
+{
+  "condition": "buffer_near_full",
+  "sale": {
+    "error": null,
+    "signedResponse": {
+      "bufferCapacityUsed": 0.09,
+      "deviceId": "F0:1D:3D:CC:13:C8",
+      "digitalSignature": "dummy_aHGtvEjW4NcJTD2EWSIySScJB8uJzwb3PhOnkA",
+      "eventOperation": "SALE",
+      "fdmRef": {
+        "eventCounter": 5,
+        "eventLabel": "N",
+        "fdmDateTime": "2026-09-27T16:58:36Z",
+        "fdmId": "FDM02000425",
+        "totalCounter": 18
+      },
+      "fdmSwVersion": "2.2.0.5",
+      "footer": [],
+      "informations": [],
+      "posDateTime": "2026-09-27T18:58:35.290+02:00",
+      "posFiscalTicketNo": 4,
+      "posId": "CPOS0031234567",
+      "shortSignature": "1468bf27e852d4d6f7ecfa8061c2d1bd906cc247",
+      "terminalId": "POS-1-BAR",
+      "vatCalc": [
+        {
+          "label": "A",
+          "outOfScope": false,
+          "rate": 21.0,
+          "taxableAmount": 9.92,
+          "totalAmount": 12.0,
+          "vatAmount": 2.08
+        }
+      ],
+      "verificationUrl": "https://www.gs2.be/tRffi2WljFUl02twOa4",
+      "warnings": [
+        {
+          "extensions": {
+            "category": "SPF_FOD",
+            "code": "BUFFER_NEAR_FULL",
+            "data": null,
+            "showPos": "MANDATORY"
+          },
+          "locations": null,
+          "message": "FDM buffer usage exceeds 70%."
+        }
+      ]
+    },
+    "success": true
+  },
+  "status": {
+    "device": {
+      "bufferCapacityUsed": 0.09,
+      "fdmDateTime": "2026-09-27T16:58:35Z",
+      "fdmId": "FDM02000425",
+      "fdmSwVersion": "2.2.0.5"
+    },
+    "errors": [],
+    "informations": [],
+    "initialized": false,
+    "warnings": [
+      {
+        "extensions": {
+          "category": "SPF_FOD",
+          "code": "BUFFER_NEAR_FULL",
+          "data": null,
+          "showPos": "MANDATORY"
+        },
+        "locations": null,
+        "message": "FDM buffer usage exceeds 70%."
+      }
+    ]
+  }
+}
