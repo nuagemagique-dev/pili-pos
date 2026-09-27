@@ -375,8 +375,13 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
       }
     }
 
-    // Track event listeners so tests can emit events if needed.
-    const eventListeners: Record<string, Array<(payload: any) => void>> = {};
+    // Event listeners (callback ids), so tests can emit events.
+    const eventListeners: Record<string, number[]> = {};
+    (window as any).__emitTauriEvent = (event: string, payload: any) => {
+      for (const id of eventListeners[event] ?? []) {
+        (window as any)[`_${id}`]?.({ event, id, payload });
+      }
+    };
 
     // Every app command, in call order - read with `ipcCalls()`.
     const calls: Array<{ cmd: string; args: any }> = [];
@@ -390,6 +395,7 @@ export async function mockTauriIPC(page: Page, overrides?: Record<string, Handle
           const event = args?.event ?? args?.target;
           if (event && typeof event === 'string') {
             if (!eventListeners[event]) eventListeners[event] = [];
+            if (typeof args?.handler === 'number') eventListeners[event].push(args.handler);
           }
           // Return a numeric handler ID (used by unlisten).
           return Promise.resolve(Math.floor(Math.random() * 100000));
@@ -445,6 +451,14 @@ export async function overrideIPC(page: Page, cmd: string, value: any) {
       };
     },
     [cmd, value] as const,
+  );
+}
+
+/** Emit a backend event to the listeners the app registered. */
+export async function emitTauriEvent(page: Page, event: string, payload: unknown) {
+  await page.evaluate(
+    ([e, p]) => (window as any).__emitTauriEvent(e, p),
+    [event, payload] as const,
   );
 }
 

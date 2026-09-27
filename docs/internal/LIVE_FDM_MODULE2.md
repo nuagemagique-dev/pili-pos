@@ -123,8 +123,8 @@ Run on 2026-09-27 against FDM02000425 (sw 2.2.0.5):
 |---|---|---|
 | Buffer full | Status error `BUFFER_FULL` (SPF_FOD, MANDATORY) plus warning `BUFFER_NEAR_FULL`; sale answered with a GraphQL error `BUFFER_FULL` | Sale refused with `BUFFER_FULL: FDM buffer is full.`, no N number used |
 | FDM locked | Status error `FDM_LOCKED` (SPF_FOD, MANDATORY, "An error has occurred, contact government."); sale answered with the same error | Sale refused with `FDM_LOCKED`, no N number used |
-| Buffer near full | Warning `BUFFER_NEAR_FULL` (MANDATORY) in the status and in the sign response; `bufferCapacityUsed` stays at its real value (0.09) | Sale signed |
-| Retry count | Warning `TRANSACTION_UPLOAD_FAILED` (SPF_FOD, OPTIONAL, "FDM has more than 10 failed attempts to post business transaction.") in the status and in the sign response | Sale signed |
+| Buffer near full | Warning `BUFFER_NEAR_FULL` (MANDATORY) in the status and in the sign response; `bufferCapacityUsed` stays at its real value (0.09) | Sale signed; the warning comes with the sign response, shown as a toast once per bookingDate |
+| Retry count | Warning `TRANSACTION_UPLOAD_FAILED` (SPF_FOD, OPTIONAL, "FDM has more than 10 failed attempts to post business transaction.") in the status and in the sign response | Sale signed; toast once per bookingDate |
 
 The simulated errors sit next to a "POS id's" field, which held
 `CPOS0031234567` during these runs.

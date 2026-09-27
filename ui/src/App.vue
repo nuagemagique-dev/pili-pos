@@ -11,6 +11,7 @@ import ToastStack from "./components/ToastStack.vue";
 import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
 import SupportBanner from "./components/SupportBanner.vue";
 import { useSupportStore } from "./stores/support";
+import { useFdmStore } from "./stores/fdm";
 
 const pos = usePosStore();
 const auth = useAuthStore();
@@ -34,8 +35,11 @@ useIdleTimer(5 * 60 * 1000, () => {
 const support = useSupportStore();
 let supportPoll: ReturnType<typeof setInterval> | undefined;
 
+const fdm = useFdmStore();
+
 onMounted(() => {
   pos.loadSettings();
+  void fdm.listenSignMessages();
   supportPoll = setInterval(() => {
     if (auth.currentUser) void support.refresh();
     else support.status = null;

@@ -1,3 +1,4 @@
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -32,7 +33,59 @@ fn parse_checked<D: Serialize>(
         );
         FdmError::ResponseMismatch(mismatch.to_string())
     })?;
+    report_sign_messages(mutation_name, &request, &result);
     Ok(result)
+}
+
+/// The messages the FDM attached to a signed event, minus the ones it
+/// marks `showPos: NEVER`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignMessages {
+    pub mutation: String,
+    /// The request's `bookingDate` (`reportBookingDate` for a report).
+    pub booking_date: Option<String>,
+    pub warnings: Vec<MessageItem>,
+    pub informations: Vec<MessageItem>,
+}
+
+type SignMessageSink = Box<dyn Fn(&SignMessages) + Send + Sync>;
+
+static SIGN_MESSAGE_SINK: OnceLock<SignMessageSink> = OnceLock::new();
+
+/// Where the messages of signed events go. POS description v2.2,
+/// Message: a warning received with a mutation's response is shown at
+/// least once per bookingDate, so every sign response's warnings and
+/// informations reach `sink`, whichever command signed. Set once;
+/// returns false if a sink was already set.
+pub fn on_sign_messages(sink: impl Fn(&SignMessages) + Send + Sync + 'static) -> bool {
+    SIGN_MESSAGE_SINK.set(Box::new(sink)).is_ok()
+}
+
+fn report_sign_messages(mutation_name: &str, request: &serde_json::Value, result: &SignResult) {
+    let Some(sink) = SIGN_MESSAGE_SINK.get() else {
+        return;
+    };
+    let shown = |items: &Option<Vec<MessageItem>>| -> Vec<MessageItem> {
+        items
+            .iter()
+            .flatten()
+            .filter(|m| m.extensions.show_pos != crate::types::Display::Never)
+            .cloned()
+            .collect()
+    };
+    let messages = SignMessages {
+        mutation: mutation_name.to_string(),
+        booking_date: ["bookingDate", "reportBookingDate"]
+            .iter()
+            .find_map(|key| request.get(key).and_then(|v| v.as_str()))
+            .map(str::to_string),
+        warnings: shown(&result.warnings),
+        informations: shown(&result.informations),
+    };
+    if !messages.warnings.is_empty() || !messages.informations.is_empty() {
+        sink(&messages);
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

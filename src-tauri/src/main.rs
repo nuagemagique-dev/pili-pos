@@ -9,7 +9,6 @@ use moyun_pos::{cli, commands, paths, state};
 use std::sync::Arc;
 
 use state::AppState;
-#[cfg(feature = "hubrise")]
 use tauri::Emitter;
 
 // The dev handler list registers the invoice commands unconditionally.
@@ -96,6 +95,16 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(app_state)
         .setup(move |_app| {
+            // Warnings and informations the FDM attaches to a signed
+            // event go to the screen, whichever command signed
+            // (POS description v2.2, Message).
+            {
+                let handle = _app.handle().clone();
+                pos_fiscal::fdm_client::on_sign_messages(move |messages| {
+                    let _ = handle.emit("fdm-sign-messages", messages);
+                });
+            }
+
             // Kiosk (deploy/moyun-pos.service sets MOYUN_KIOSK=1): no
             // title bar, so no close or minimise button on the
             // touchscreen. tao draws its own header bar, so Cage's

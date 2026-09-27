@@ -1,6 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { listen } from "@tauri-apps/api/event";
 import * as ipc from "../api/ipc";
+import { ERROR_MESSAGES } from "../utils/fdmMessages";
+import { useToastStore } from "./toast";
 
 // Shape of an FDM message item as returned by the SCE 2.0 spec
 // (Status.warnings[i] and Status.errors[i]).
@@ -26,6 +29,18 @@ interface FdmStatusEnvelope {
     bufferCapacityUsed?: number;
   };
 }
+
+// Messages the FDM attached to a signed event (Rust
+// `pos_fiscal::fdm_client::SignMessages`, event "fdm-sign-messages"),
+// showPos NEVER already removed.
+export interface SignMessages {
+  mutation: string;
+  bookingDate?: string | null;
+  warnings: FdmMessage[];
+  informations: FdmMessage[];
+}
+
+const SIGN_MESSAGE_TTL_MS = 8000;
 
 // Severity tier - what the UI does about a code.
 // "blocking": red pill + checkout-blocking modal.
@@ -156,6 +171,44 @@ export const useFdmStore = defineStore("fdm", () => {
     timer = null;
   }
 
+  // POS description v2.2, Message: a warning received with a
+  // mutation's response is shown at least once per bookingDate. Each
+  // code is shown once per bookingDate, whichever event carried it.
+  const shownSignMessages = new Set<string>();
+
+  function showSignMessages(signed: SignMessages) {
+    const toast = useToastStore();
+    const groups: Array<[FdmMessage[], "warning" | "info"]> = [
+      [signed.warnings ?? [], "warning"],
+      [signed.informations ?? [], "info"],
+    ];
+    for (const [items, variant] of groups) {
+      for (const item of items) {
+        const code = item.extensions?.code;
+        if (!code) continue;
+        const key = `${signed.bookingDate ?? ""}|${code}`;
+        if (shownSignMessages.has(key)) continue;
+        shownSignMessages.add(key);
+        const text = ERROR_MESSAGES[code] ?? item.message ?? code;
+        toast.show(text, variant, SIGN_MESSAGE_TTL_MS);
+        // The header indicator shows it too until the next status.
+        if (variant === "warning" && severity.value === "info") {
+          severity.value = "warning";
+          lastError.value = code;
+        }
+      }
+    }
+  }
+
+  let signMessagesListened = false;
+
+  /** Show the messages of every signed event; call once at start-up. */
+  async function listenSignMessages() {
+    if (signMessagesListened) return;
+    signMessagesListened = true;
+    await listen<SignMessages>("fdm-sign-messages", (event) => showSignMessages(event.payload));
+  }
+
   return {
     connected,
     checking,
@@ -164,5 +217,7 @@ export const useFdmStore = defineStore("fdm", () => {
     checkStatus,
     startPolling,
     stopPolling,
+    showSignMessages,
+    listenSignMessages,
   };
 });
