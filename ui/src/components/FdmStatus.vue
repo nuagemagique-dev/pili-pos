@@ -75,6 +75,9 @@ onUnmounted(() => fdm.stopPolling());
   white-space: nowrap;
 }
 
+/* A blocking state reads red, like its dot. */
+.err .msg { color: var(--accent-danger); }
+
 @keyframes fdm-pulse {
   0%   { transform: scale(1); }
   50%  { transform: scale(1.6); }
