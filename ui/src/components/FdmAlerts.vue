@@ -50,9 +50,12 @@ function openBanner() {
 }
 
 watch(
-  () => [fdm.severity, fdm.lastError, fdm.mandatory] as const,
-  ([severity]) => {
-    if (severity === "warning" && message.value) openBanner();
+  () => [fdm.severity, fdm.lastError, fdm.mandatory, fdm.connected] as const,
+  ([severity, , , connected]) => {
+    // A warning, or an FDM that answers but is not ready (e.g. not
+    // initialized) without blocking the sale: say why.
+    const notReady = !connected && severity !== "blocking";
+    if ((severity === "warning" || notReady) && message.value) openBanner();
     else {
       bannerOpen.value = false;
       clearInterval(bannerTimer);

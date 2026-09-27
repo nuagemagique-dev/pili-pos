@@ -187,7 +187,7 @@ test.describe('§V messages jamais affichés (N)', () => {
   });
 });
 
-test('an FDM that is not initialized says so in the indicator', async ({ page }) => {
+test('an FDM that is not initialized says so under the header', async ({ page }) => {
   // module2's online simulator: `initialized: false`, no message, and
   // it still signs. Amber, with the reason.
   await mockTauriIPC(page, {
@@ -203,5 +203,5 @@ test('an FDM that is not initialized says so in the indicator', async ({ page })
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);
   await expect(page.locator('.fdm.warn')).toBeVisible();
-  await expect(page.locator('.fdm .msg')).toHaveText("La boîte noire n'est pas encore initialisée.");
+  await expect(page.locator('.fdm-alert .msg')).toHaveText("La boîte noire n'est pas encore initialisée.");
 });

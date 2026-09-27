@@ -82,6 +82,10 @@ export function translateFdmError(raw: string | null): string | null {
 // is in Chinese. The French text stays: it is the certified wording.
 const MESSAGES_ZH: Record<string, string> = {
   FDM_RESPONSE_MISMATCH: "黑匣子回应不一致，销售未登记。请联系技术人员。",
+  FDM_NOT_INITIALIZED: "黑匣子尚未初始化。",
+  FDM_CERTIFICATE_REFUSED: "与黑匣子的安全连接被拒绝（证书）。请联系技术人员。",
+  UNAUTHORIZED: "收银机无权与黑匣子通信。",
+  "Not a valid Token": "收银机无权与黑匣子通信。",
   BUFFER_FULL: "黑匣子已满。请联系技术人员。",
   FDM_LOCKED: "黑匣子已锁定。请联系技术人员。",
   FDM_NOT_OPERATIONAL: "黑匣子无法工作，无法登记销售。",

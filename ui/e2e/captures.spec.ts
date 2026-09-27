@@ -601,7 +601,7 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
   for (const { num, file, code, showPos, message } of GROUP_B) {
     test(`${num} - ${code} : pastille "Caisse"`, async ({ page }) => {
       await openOrderWithFdmWarning(page, code, showPos);
-      await expect(page.locator('.fdm .msg')).toHaveText(message);
+      await expect(page.locator('.fdm-alert .msg')).toHaveText(message);
       await expect(page.locator('.fdm.warn')).toBeVisible();
       await capture(page, file);
     });
