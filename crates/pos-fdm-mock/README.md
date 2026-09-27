@@ -129,6 +129,8 @@ ensuite).
 | `MOCK_FDM_TOKEN` | jeton Bearer exigé |
 | `MOCK_FDM_ALLOWED_POS` | `posId` acceptés, séparés par virgules |
 | `MOCK_FDM_PLACEHOLDER_SIGNATURES` | `1` : signe comme le simulateur module2 (`dummy_...`, shortSignature non dérivée) |
+| `MOCK_FDM_TLS_DIR` | répertoire avec `server.crt` et `server.key` : sert en HTTPS au lieu de HTTP |
+| `MOCK_FDM_TLS_REQUIRE_CLIENT` | `1` : exige un certificat client (mTLS), comme un FDM module2 |
 
 Warnings (§V du manuel) : `CLIENT_CERT_NEAR_EXPIRATION`,
 `CLIENT_CERT_EXPIRED`, `RTC_SYNC_FAILED`, `UPDATE_URLS_FAILED`,
@@ -145,6 +147,16 @@ Exemple :
 ```bash
 MOCK_FDM_TOKEN=dev MOCK_FDM_ALLOWED_POS=CPOS0031234567 cargo run --package pos-fdm-mock
 ```
+
+HTTPS avec les certificats de test de `fixtures/tls/` (X.509 v1 sans
+nom d'hôte, comme ceux de module2 ; clés de test uniquement) :
+```bash
+MOCK_FDM_TLS_DIR=crates/pos-fdm-mock/fixtures/tls MOCK_FDM_TLS_REQUIRE_CLIENT=1 \
+  cargo run --package pos-fdm-mock
+```
+Le POS s'y connecte avec `fdm_url` `https://127.0.0.1:8081/graphql`,
+`fdm_ca_file` `fixtures/tls/ca.crt`, `fdm_client_cert_file`
+`fixtures/tls/client.crt` et `fdm_client_key_file` `fixtures/tls/client.key`.
 
 ## Email API (Scaleway TEM)
 

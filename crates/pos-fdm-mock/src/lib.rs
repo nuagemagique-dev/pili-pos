@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use sha1::Digest;
 
 mod tem;
+pub mod tls;
 
 pub use tem::ROUTE as TEM_ROUTE;
 

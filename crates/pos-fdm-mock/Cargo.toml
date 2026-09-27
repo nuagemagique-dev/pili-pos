@@ -12,6 +12,10 @@ chrono = { workspace = true }
 base64 = "0.23"
 sha1 = "0.11"
 hex = "0.4"
+# HTTPS like module2 (MOCK_FDM_TLS_DIR): X.509 v1 certificates, an
+# optional client certificate.
+axum-server = { version = "0.7", features = ["tls-rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "aws_lc_rs"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
