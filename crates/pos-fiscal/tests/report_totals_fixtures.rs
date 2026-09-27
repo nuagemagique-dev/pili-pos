@@ -70,6 +70,7 @@ fn scenario() -> Vec<ReportEvent> {
             label,
             request,
             response,
+            registered_negatives: Vec::new(),
         }
     })
     .collect()

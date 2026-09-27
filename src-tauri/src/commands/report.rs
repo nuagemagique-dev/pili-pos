@@ -728,17 +728,31 @@ async fn print_report(
 }
 
 /// The events of the booking period, as signed by the FDM: the input of
-/// every report (see `pos_fiscal::report_totals`).
+/// every report (see `pos_fiscal::report_totals`). A sale carries the
+/// negative lines its order registrations already transmitted, even in
+/// an earlier period, so they are counted once (FAQ Q303).
 fn period_events(
     db: &rusqlite::Connection,
     booking_period_id: &str,
 ) -> Result<Vec<ReportEvent>, String> {
+    let unreadable = |id: i64| format!("archived fiscal event {id} is unreadable");
     archive::events_in_booking_period(db, booking_period_id)
         .map_err(|e| e.to_string())?
         .iter()
         .map(|e| {
-            ReportEvent::from_archive(e)
-                .ok_or_else(|| format!("archived fiscal event {} is unreadable", e.id))
+            let mut event = ReportEvent::from_archive(e).ok_or_else(|| unreadable(e.id))?;
+            if let (EventLabel::N, Some(order_id)) = (e.event_type, e.order_id) {
+                for earlier in
+                    archive::order_events_before(db, order_id, e.id).map_err(|e| e.to_string())?
+                {
+                    let earlier = ReportEvent::from_archive(&earlier)
+                        .ok_or_else(|| unreadable(earlier.id))?;
+                    if earlier.is_order_registration() {
+                        event.registered_negatives.extend(earlier.negative_lines());
+                    }
+                }
+            }
+            Ok(event)
         })
         .collect()
 }

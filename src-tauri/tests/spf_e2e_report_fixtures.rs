@@ -32,7 +32,9 @@ use common::*;
 use serde_json::{Value, json};
 
 use moyun_pos::commands::checkout::{CheckoutPaymentMethod, do_checkout};
-use moyun_pos::commands::order::{AddOrderLineInput, do_add_order_line};
+use moyun_pos::commands::order::{
+    AddOrderLineInput, do_add_order_line, do_update_order_line_quantity,
+};
 use moyun_pos::commands::refund::{RefundItem, do_refund_checkout};
 use moyun_pos::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
@@ -555,6 +557,88 @@ async fn reports_after_a_z_only_cover_the_new_period() {
         json!([{ "eventLabel": "N", "ticketCount": 1, "amount": 3.04 }])
     );
     assert_eq!(x["turnover"]["negQuantities"], json!([]));
+}
+
+/// FAQ Q303: a table correction counts once, in the period its order
+/// registration (P, ORDER) was signed, even when the table is paid
+/// after the Z.
+#[tokio::test]
+// covers: FAQ_Q303
+async fn a_table_correction_counts_on_its_order_registration() {
+    let app = scenario_app().await;
+    let table = open_order(&app, U2, OrderType::DineIn, Some(10));
+    let martini = do_add_order_line(
+        &app.state,
+        AddOrderLineInput {
+            order_id: table,
+            menu_item_id: 10006,
+            quantity: 2,
+            modifiers_json: None,
+            unit_price_cents: None,
+        },
+    )
+    .unwrap();
+    fdm_signs(&app, "T5").await;
+    do_sign_table_order(&app.state, table).await.unwrap();
+    // One Dry Martini was a mistake: the correction is registered (P).
+    do_update_order_line_quantity(&app.state, martini.id, 1).unwrap();
+    fdm_signs(&app, "T6").await;
+    do_sign_table_order(&app.state, table).await.unwrap();
+    let correction = json!([{
+        "negQuantityReason": "CORRECTION",
+        "negQuantityCount": 1,
+        "ticketCount": 1,
+        "amount": -12.0,
+    }]);
+
+    // The X report before the sale already counts it.
+    app.login_as(U1, pos_core::user::UserRole::Admin);
+    fdm_signs_report(&app, "M180_signReportTurnoverX").await;
+    let x = do_generate_x_report(&app.state, U1.to_string())
+        .await
+        .unwrap();
+    assert!(x.success, "{:?}", x.error);
+    assert_eq!(
+        archived_request(&app, 0)["turnover"]["negQuantities"],
+        correction
+    );
+
+    // The Z closes the day with the table still open.
+    fdm_signs_report(&app, "M184_signReportTurnoverZUserZ").await;
+    let z = do_generate_z_report(&app.state, U1.to_string())
+        .await
+        .unwrap();
+    assert!(z.success, "{:?}", z.error);
+    // The turnover Z, signed before the user Z.
+    assert_eq!(
+        archived_request(&app, 1)["turnover"]["negQuantities"],
+        correction
+    );
+
+    // Next day: the sale resends the correction, which is not counted
+    // again.
+    app.login_as(U2, pos_core::user::UserRole::Admin);
+    fdm_signs(&app, "T8").await;
+    let sale = do_checkout(&app.state, table, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    let resent = archived_request(&app, 0)["transaction"]["transactionLines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|l| l["mainProduct"]["quantity"].as_f64().unwrap() < 0.0)
+        .count();
+    assert_eq!(resent, 1, "the sale carries the correction");
+    app.login_as(U1, pos_core::user::UserRole::Admin);
+    fdm_signs_report(&app, "M180_signReportTurnoverX").await;
+    do_generate_x_report(&app.state, U1.to_string())
+        .await
+        .unwrap();
+    assert_eq!(
+        archived_request(&app, 0)["turnover"]["negQuantities"],
+        json!([])
+    );
 }
 
 #[tokio::test]

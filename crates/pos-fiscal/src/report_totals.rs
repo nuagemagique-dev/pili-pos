@@ -14,7 +14,12 @@
 //! - `departments`: Σ(VatInput.price) of label N lines, per department.
 //! - `vats`: Σ of the FDM's `vatCalc` of label N events, per VAT label.
 //! - `payments`: the financials of label N events, per payment method.
-//! - `negQuantities`: negative lines of label N events, per reason.
+//! - `negQuantities`: negative lines, per reason, counted once, on the
+//!   event that first transmitted them (producers FAQ Q303, AM of 29
+//!   April 2024 art. 29 v): on the order registration (P, ORDER) for
+//!   table service, on the sale (N) for a direct sale or a refund, and
+//!   never on a pre-bill. A table sale resends its registered entries:
+//!   those are left out ([`ReportEvent::registered_negatives`]).
 //! - `drawersOpenCount`: F events whose operation is DRAWER_OPEN.
 //! - `users[].totalAmount`: Σ transactionTotal of the user's N events;
 //!   the activity range covers every event but the reports themselves.
@@ -42,6 +47,11 @@ pub struct ReportEvent {
     pub label: EventLabel,
     pub request: Value,
     pub response: Value,
+    /// For a sale: the negative lines its order registrations (P,
+    /// ORDER) already transmitted, possibly in an earlier booking
+    /// period. They were counted there, so the sale does not count them
+    /// again.
+    pub registered_negatives: Vec<Value>,
 }
 
 impl ReportEvent {
@@ -58,6 +68,7 @@ impl ReportEvent {
             label: event.event_type,
             request,
             response,
+            registered_negatives: Vec::new(),
         })
     }
 
@@ -86,6 +97,20 @@ impl ReportEvent {
 
     fn operation(&self) -> Option<&str> {
         self.response["eventOperation"].as_str()
+    }
+
+    /// An order registration (`signOrder`), not a pre-bill.
+    pub fn is_order_registration(&self) -> bool {
+        self.label == EventLabel::P && self.operation() == Some("ORDER")
+    }
+
+    /// The transaction lines with a negative quantity.
+    pub fn negative_lines(&self) -> Vec<Value> {
+        self.lines()
+            .iter()
+            .filter(|l| l["mainProduct"]["quantity"].as_f64().unwrap_or(0.0) < 0.0)
+            .cloned()
+            .collect()
     }
 }
 
@@ -343,13 +368,28 @@ fn payments<'a>(sales: impl Iterator<Item = &'a ReportEvent>) -> Vec<PaymentTota
 fn neg_quantities(events: &[ReportEvent]) -> Vec<NegQuantityTotalInput> {
     // reason → (reason, lines, tickets, amount)
     let mut totals: BTreeMap<String, (NegQuantityReason, i64, i64, i64)> = BTreeMap::new();
-    for event in events.iter().filter(|e| is_sale(e)) {
+    for event in events {
+        let lines = if event.is_order_registration() {
+            event.negative_lines()
+        } else if is_sale(event) {
+            let mut registered = event.registered_negatives.clone();
+            event
+                .negative_lines()
+                .into_iter()
+                .filter(|line| match registered.iter().position(|r| r == line) {
+                    Some(i) => {
+                        registered.remove(i);
+                        false
+                    }
+                    None => true,
+                })
+                .collect()
+        } else {
+            continue;
+        };
         let mut seen_in_ticket: Vec<String> = Vec::new();
-        for line in event.lines() {
+        for line in &lines {
             let product = &line["mainProduct"];
-            if product["quantity"].as_f64().unwrap_or(0.0) >= 0.0 {
-                continue;
-            }
             let reason =
                 serde_json::from_value::<NegQuantityReason>(product["negQuantityReason"].clone())
                     .unwrap_or(NegQuantityReason::Correction);
@@ -543,6 +583,7 @@ mod tests {
             label,
             request,
             response,
+            registered_negatives: Vec::new(),
         }
     }
 
@@ -917,18 +958,59 @@ mod tests {
                 ),
                 Value::Null,
             ),
-            // Negative lines of orders are sent again in the sale: not counted twice.
+            // A table correction is counted on its order registration.
             event(
                 EventLabel::P,
                 sale(
                     U2,
-                    "2026-07-03T12:20:00+02:00",
-                    vec![neg("3", -1, -3.0, "CORRECTION")],
-                    -3.0,
+                    "2026-07-03T13:00:00+02:00",
+                    vec![neg("5", -1, -4.0, "CORRECTION")],
+                    -4.0,
                     Value::Null,
                 ),
-                Value::Null,
+                json!({"eventOperation": "ORDER"}),
             ),
+            // A pre-bill resends the entries: never counted.
+            event(
+                EventLabel::P,
+                sale(
+                    U2,
+                    "2026-07-03T13:10:00+02:00",
+                    vec![
+                        line("5", ("12", "Soft"), 1, &[("A", 4.0)]),
+                        neg("5", -1, -4.0, "CORRECTION"),
+                    ],
+                    0.0,
+                    Value::Null,
+                ),
+                json!({"eventOperation": "PRE_BILL"}),
+            ),
+            // The table sale resends the registered correction, and one
+            // registered in an earlier period (table open over a Z): both
+            // were counted on their order, so neither counts here.
+            ReportEvent {
+                registered_negatives: vec![
+                    neg("5", -1, -4.0, "CORRECTION"),
+                    neg("6", -1, -6.0, "CORRECTION"),
+                ],
+                ..event(
+                    EventLabel::N,
+                    sale(
+                        U2,
+                        "2026-07-03T13:20:00+02:00",
+                        vec![
+                            line("5", ("12", "Soft"), 1, &[("A", 4.0)]),
+                            neg("5", -1, -4.0, "CORRECTION"),
+                            line("6", ("12", "Soft"), 1, &[("A", 6.0)]),
+                            neg("6", -1, -6.0, "CORRECTION"),
+                            line("7", ("12", "Soft"), 1, &[("A", 1.0)]),
+                        ],
+                        1.0,
+                        cash(1.0),
+                    ),
+                    Value::Null,
+                )
+            },
         ];
         let n = turnover(&events).neg_quantities;
         let got: Vec<_> = n
@@ -945,7 +1027,7 @@ mod tests {
         assert_eq!(
             got,
             vec![
-                (NegQuantityReason::Correction, 1, 1, -3.0),
+                (NegQuantityReason::Correction, 2, 2, -7.0),
                 (NegQuantityReason::Refund, 2, 1, -52.0),
             ]
         );
