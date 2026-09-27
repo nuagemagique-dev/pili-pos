@@ -584,6 +584,9 @@ cargo tauri build --target x86_64-unknown-linux-gnu
 # Run tests
 cargo test --workspace
 
+# Live FDM (module2 simulator, by hand only, never in CI; reads .env.live)
+scripts/live_fdm.sh
+
 # Format
 cargo fmt --all
 

@@ -220,6 +220,7 @@ Champs :
 | `restaurant_vat` | Numéro de TVA belge : `BE` suivi de 10 chiffres commençant par 0 ou 1, valide modulo 97 (ex. `BE0499999960`) | Client |
 | `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |
 | `fdm_url` | URL GraphQL du FDM sur le LAN (port selon le modèle de FDM ; à confirmer sur le Checkbox CBX01) | Configuration FDM |
+| `fdm_token_file` | Facultatif. Fichier contenant le seul jeton d'accès (Bearer) d'un FDM qui en exige un (FDM en nuage) ; jamais le jeton lui-même dans `pos.json`. Absent pour un FDM sur le LAN. | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante (ou chemin série/USB) | Configuration imprimante |
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le bon de commande (sans prix, « ceci n'est pas un ticket de caisse TVA valable ») des lignes envoyées. Absent : le bon sort sur `printer_address`. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |

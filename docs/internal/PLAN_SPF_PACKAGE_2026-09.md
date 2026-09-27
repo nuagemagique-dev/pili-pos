@@ -178,7 +178,7 @@ The SHA-1 of record must come after the last binary change, so:
 |---|---|---|
 | A | Commit the docs import; test step 0 and step 1 (matrix); SPF questions settled without an email (section 3) | No |
 | B | Section 2 fixes, each with its tests from section 5 step 2, one commit each, in this order: B1 zero-total sale (7), B2 rounding line (8), B3 cash count declaration M133 (10), B4 automatic Z (9), B5 bar ticket (12-16), B6 copy and refund tickets (1), B7 pre-bill and layout details (3, 4), B8 Z report printout (2), B9 golden tests of the six official example tickets, B10 split payment and meal vouchers (17, 18), B11 unpaid table (19) and the two FDM codes (20) | Yes |
-| C | Section 5 step 3 (real-binary day); local gate | No |
+| C | Section 5 step 3 (real-binary day); the operator day against the module2 FDM simulator (`scripts/live_fdm.sh`, see `LIVE_FDM_MODULE2.md`) once module2 gives the endpoint; local gate | No |
 | D | Local reproducible build twice, local image and QEMU boot, record the SHA-1 | Output only |
 | E | Section 4 dossier work, `Report_Testing`, PDFs, `check_dossier.py --final`, `make_submission_zip.sh` | No |
 | F | Yours: Checkbox rehearsal and ticket photos, DE wording, signed form, submission | No |
