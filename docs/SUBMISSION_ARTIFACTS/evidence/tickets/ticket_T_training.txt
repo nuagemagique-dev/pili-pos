@@ -23,7 +23,7 @@ Espèces                                    52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: T; eventCounter: 7;
 totalCounter: 63;

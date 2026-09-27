@@ -29,14 +29,15 @@ jamais celui d'une build de développement macOS.
 
 ## Étape 2 - Exécuter la répétition pré-soumission
 
-Une fois le kit de développement Checkbox reçu (FDM physique +
-émulateur) :
+Contre le simulateur en ligne module2 (URL et jeton dans `.env.live`,
+cf. `docs/internal/LIVE_FDM_MODULE2.md`) :
 
 ```bash
-export MOYUN_STAGING_FDM_URL=https://...   # URL émulateur / FDM Checkbox
-cargo test --package pos-fiscal --test e2e_staging -- --ignored --nocapture \
-  | tee -a docs/SUBMISSION_ARTIFACTS/JOURNAL_TESTS_PRE_SOUMISSION_FR.md
+scripts/live_fdm.sh
 ```
+
+Puis reporter les résultats dans
+`docs/SUBMISSION_ARTIFACTS/JOURNAL_TESTS_PRE_SOUMISSION_FR.md`.
 
 Parcourir les 10 sections de `JOURNAL_TESTS_PRE_SOUMISSION_FR.md`,
 remplir chaque À effectuer au fur et à mesure. S'arrêter en cas d'échec -
@@ -111,8 +112,6 @@ pas été automatisés :
 
 - Signature du formulaire (requiert un certificat de signature
   électronique qualifiée).
-- Achat du kit de développement Checkbox (€380 HTVA, devis
-  TAIGER/Eutronix en cours).
 - Achat d'un contrat Peppol Access Point (relation commerciale
   Storecove/Unifiedpost).
 - Envoi de l'email proprement dit.

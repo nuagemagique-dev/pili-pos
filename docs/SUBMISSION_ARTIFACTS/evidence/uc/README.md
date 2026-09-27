@@ -28,7 +28,6 @@ vers l'original).
 Ces fichiers complètent `RESULTATS_TESTS_UC_FR.md` : le document cite
 les fixtures publiées (référence), ce répertoire prouve que notre
 implémentation produit des payloads conformes. Lors de la répétition
-pré-soumission avec le kit de développement Checkbox (FDM de
-développement / émulateur GraphQL), les mêmes flux seront rejoués
-contre le FDM réel et les réponses authentiques (signées par le FDM,
+pré-soumission avec le simulateur en ligne module2, les mêmes flux
+seront rejoués contre un FDM réel et les réponses authentiques (signées par le FDM,
 contrôlées par le POS avant archivage) archivées dans `JOURNAL_TESTS_PRE_SOUMISSION_FR.md`.

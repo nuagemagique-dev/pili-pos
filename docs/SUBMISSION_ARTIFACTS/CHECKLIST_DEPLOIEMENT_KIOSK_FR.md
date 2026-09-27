@@ -16,10 +16,12 @@ monolithique.
       échoue et le terminal ne dépasse jamais l'écran de mots de passe.
 - [ ] Secure Boot **désactivé** (aucune infrastructure de signature de
       l'UKI n'existe encore - l'activer empêche le boot).
-- [ ] Imprimante thermique Epson TM-m30III (USB ou TCP).
+- [ ] Imprimante thermique Epson TM-m30III raccordée au LAN (TCP 9100 ; l'USB n'est pas pris en charge).
 - [ ] Tiroir-caisse RJ11 raccordé à l'imprimante.
-- [ ] URL du FDM Checkbox (boîtier physique sur le LAN, ou émulateur)
-      configurée dans `/etc/moyun-pos/pos.json::fdm_url`.
+- [ ] URL du FDM module2 (boîtier sur le LAN, ou simulateur en ligne
+      `http://fdm.module2.be/graphql/` pour la machine de test)
+      configurée dans `/etc/moyun-pos/pos.json::fdm_url`, et son jeton
+      Bearer dans le fichier désigné par `fdm_token_file`.
 
 ## Couche OS (image mkosi, `deploy/image/`)
 
@@ -143,9 +145,9 @@ grep -r "DELETE FROM fiscal_events\|UPDATE fiscal_events" \
 # 4) Lancer la suite de tests hors-ligne.
 cargo test --workspace --no-fail-fast                           # → tout vert
 
-# 5) Smoke test contre le FDM Checkbox (émulateur ou boîtier physique).
-MOYUN_STAGING_FDM_URL=https://... \
-  cargo test --package pos-fiscal --test e2e_staging -- --ignored
+# 5) Journée d'exploitation contre le simulateur module2 (URL et jeton
+#    dans .env.live, cf. docs/internal/LIVE_FDM_MODULE2.md).
+scripts/live_fdm.sh
 # → tous les UC passent ; chaque réponse passe le contrôle de cohérence
 
 # 6) Construire l'image kiosque (les deux profils) - root Linux x86_64

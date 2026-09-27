@@ -140,7 +140,7 @@ The POS must support 8 event types sent to the FDM:
 ### POS ↔ FDM Communication
 - Protocol: **GraphQL** (mutations sent by POS to FDM)
 - Transport: HTTP over LAN (WiFi or RJ45 to FDM device)
-- FDM: Checkbox CBX01 (TAIGER BV, ~€195 excl. VAT one-time via Eutronix ref. TAFIP0002.00) - single POS connection
+- FDM: module2 (PRACSYS, SCE 2.0 certified); test machine uses the module2 online simulator (docs/internal/LIVE_FDM_MODULE2.md)
 - The POS **NEVER** communicates directly with SPF Finances - that's the FDM's job
 - FDM returns: ECDSA secp256r1 signature + control data (fdmId, fdmDateTime, eventLabel, counters, shortSignature)
 
@@ -511,15 +511,15 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - USB ports, RJ45 LAN, COM ports, RJ11 cash drawer
 
 ### FDM (Fiscal Data Module)
-- **Checkbox CBX01** (TAIGER BV, ~€195 excl. VAT one-time) - distributed by Eutronix (ref. TAFIP0002.00)
-- LAN (RJ45) + WiFi + USB, power supply included
-- Connects to POS via LAN (GraphQL over HTTP)
-- Connects to SPF Finances cloud via mTLS (handled by FDM itself)
-- For development: Checkbox dev kit (€380 excl. VAT) = physical dev FDM + GraphQL emulator + docs + support
-- Alternative (protocol-compatible, untested on hardware): BMC FDM Light (€12.95/month, zwartedoos.be)
+- **module2** (PRACSYS, SCE 2.0 certified), chosen 2026-09-27
+- Connects to POS via LAN: GraphQL over HTTP (port 80), or HTTPS (443) with module2's mTLS client certificate
+- Every FDM requires its bearer token (`fdm_token_file`); the POS's posId must be allowed in the FDM settings
+- Connects to SPF Finances cloud itself
+- Development and certification test machine: module2 online simulator `http://fdm.module2.be/graphql/` (posId `CPOS0031234567`), no physical FDM at the intake (manual §IV: "fournissez un simulateur avec la machine test")
+- Other certified FDMs are protocol-compatible, untested
 
 ### Printer
-- **Epson TM-m30III** - 80mm thermal, USB + LAN + WiFi + Bluetooth
+- **Epson TM-m30III** - 80mm thermal, connected over LAN (raw TCP 9100; the POS does not print over USB)
 - ESC/POS protocol
 - RJ11 port for cash drawer
 
@@ -553,7 +553,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 | Money type | i64 eurocents | Never use floats for financial calculations |
 | Printer protocol | Raw ESC/POS | Direct binary commands, no driver dependency, works on any thermal printer |
 | OS | Debian + Cage | Minimal attack surface, auto-starts in kiosk mode, no desktop clutter |
-| FDM vendor | Checkbox CBX01 (TAIGER BV) | €195 one-time via Eutronix (beats BMC's €12.95/month rental after ~15 months); dev kit €380 with physical FDM + emulator; standard GraphQL protocol = no lock-in |
+| FDM vendor | module2 (PRACSYS) | free online simulator with developer portal (error simulation, logs), readable docs; standard GraphQL protocol = no lock-in |
 | CJK fonts | Noto Sans CJK SC | Free, comprehensive Chinese simplified coverage for menu items. Staff is Chinese-speaking. |
 
 ---
@@ -563,7 +563,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - Dev machine: macOS or Linux desktop
 - `cargo tauri dev` for hot-reload development
 - Mock FDM: implement a local mock server that simulates GraphQL responses
-- Later: connect to the Checkbox emulator / physical dev FDM for realistic testing
+- Live FDM: `scripts/live_fdm.sh` against the module2 simulator
 - SQLite DB file: `~/.local/share/moyun-pos/pos.db` (dev) or `/var/lib/moyun-pos/pos.db` (prod)
 
 ---

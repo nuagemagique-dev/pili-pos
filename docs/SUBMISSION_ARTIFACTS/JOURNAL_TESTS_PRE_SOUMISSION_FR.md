@@ -1,60 +1,62 @@
 # Journal de répétition pré-soumission
 
-Ce document capture la répétition en direct contre le **FDM de
-développement Checkbox (émulateur ou boîtier physique)** avant
-l'envoi du dossier cert à SPF Finances. Selon le §1202 du manuel
-cert, un FDM virtuel/émulateur est une cible acceptable pour
-l'admission ; cette répétition prouve le comportement de bout en bout
-avec des signatures non-mockées.
+Ce document capture la répétition en direct contre le **simulateur en
+ligne du FDM module2** (PRACSYS, FDM certifié SCE 2.0) avant l'envoi
+du dossier à SPF Finances. Le même simulateur sert de FDM à la machine
+de test à l'Intake : le manuel de certification (§IV, procédure de
+test, étape 1) demande de fournir « un simulateur avec la machine
+test », et le guide d'introduction (section « Intake ») en demande la
+méthode de connexion et les ports (*SCHEMA_ASSEMBLAGE_FR.md* §7). Cette répétition prouve le
+comportement de bout en bout avec des signatures non mockées.
 
-Le harness de répétition est dans
-`crates/pos-fiscal/tests/e2e_staging.rs` (opt-in via `--ignored`).
-La séquence complète est **automatisée** : le test
-`staging_basic_set_smoke` rejoue S work-in → P order → P pre-bill →
-N vente → N remboursement → C copie → F tiroir → F entrée d'argent →
-R rapport X → S work-out, et vérifie pour chaque `SignResult` :
-label attendu, `totalCounter` strictement croissant, `eventCounter`
-monotone par label, `digitalSignature` présent, et
-`shortSignature == SHA-1(digitalSignature)` quand présent.
+Deux harnais, tous deux ignorés par défaut et jamais lancés en CI :
 
-Le harness a été validé à blanc contre le mock FDM local
-(`pos-fdm-mock`) - les 10 événements passent. Seul le kit de
-développement Checkbox manque pour la répétition réelle.
+- `src-tauri/tests/live_fdm.rs` : une journée d'exploitation par les
+  vraies commandes du POS (pointage entrée, commande de table,
+  pré-addition, vente, remboursement, copie, entrée d'argent,
+  ouverture du tiroir, comptage de caisse, vente en formation, rapport
+  X, rapport X utilisateur, rapport Z, pointage sortie). Pour chaque
+  événement : la commande réussit (donc la réponse a passé le contrôle
+  de cohérence du POS), compteurs croissants par label et au total,
+  shortSignature et URL de vérification sur les seuls événements N, et
+  le remboursement et la copie citent la vente signée.
+- `crates/pos-fiscal/tests/e2e_staging.rs` : la même séquence au
+  niveau du client FDM, avec en plus
+  `shortSignature == SHA-1(digitalSignature)` vérifié explicitement.
+
+Les appels partent un à un, espacés d'une seconde, plafonnés à 60 par
+exécution (le simulateur est un service partagé). Les numéros de
+ticket du POS se poursuivent d'une exécution à l'autre. Les deux
+harnais ont été validés à blanc contre le mock FDM local
+(`pos-fdm-mock`, avec jeton et liste de posId autorisés).
 
 ## Checklist pré-répétition
 
-- [ ] Kit de développement Checkbox reçu (FDM physique + émulateur ;
-      devis TAIGER/Eutronix en cours).
-- [ ] Credentials placés dans `.env.staging` (gitignored).
-- [ ] `MOYUN_STAGING_FDM_URL` exporté dans le shell qui lance les tests
-      de répétition.
-- [ ] Si le FDM virtuel est provisionné pour une identité précise :
-      exporter `MOYUN_STAGING_POS_ID`, `MOYUN_STAGING_VAT`,
-      `MOYUN_STAGING_EST_NO` en conséquence (défauts = identité de
-      test SPF `BE0000000097` / `2000000042`).
-- [ ] Sur re-run : bumper `MOYUN_STAGING_TICKET_START` pour garder la
-      numérotation strictement croissante côté FDM.
+- [ ] Accès développeur module2 : simulateur `FDM02000425` et posId
+      `CPOS0031234567` autorisé dans ses paramètres.
+- [ ] `MOYUN_LIVE_FDM_URL=http://fdm.module2.be/graphql/` et
+      `MOYUN_LIVE_FDM_TOKEN` (jeton du simulateur) placés dans
+      `.env.live` (exclu de git).
 - [ ] Build cert en place :
       `cargo build --release --no-default-features --features cert`.
 
 ## Commande de répétition
 
 ```bash
-MOYUN_STAGING_FDM_URL=https://... \
-MOYUN_STAGING_DUMP=1 \
-    cargo test -p pos-fiscal --test e2e_staging -- --ignored --nocapture
+scripts/live_fdm.sh                                # journée complète (~17 appels)
+scripts/live_fdm.sh live_fdm_status_and_one_sale   # statut + une vente (2 appels)
 ```
 
-Avec `MOYUN_STAGING_DUMP=1`, chaque paire requête/réponse est écrite
-dans le fichier `rehearsal_log.md` du répertoire
-`docs/SUBMISSION_ARTIFACTS/evidence/staging/` (horodaté, URL FDM
-incluse, créé par le test) - à committer après la répétition réelle et
-à référencer depuis ce journal.
+Chaque paire requête/réponse signée est écrite dans le dossier
+Report_Testing (sous-dossier module2, créé à la première exécution),
+et la sortie
+complète dans `target/live-fdm.log`. Procédure détaillée et liste des
+erreurs à provoquer depuis l'onglet « Developer » du portail module2 :
+`docs/internal/LIVE_FDM_MODULE2.md`.
 
-Restent **manuels** (hors périmètre du smoke automatisé) : le rapport Z
-(réinitialise les compteurs FDM - section 7), le test de
-déconnexion/reconnexion (section 9, nécessite l'app complète), et
-l'inspection visuelle du ticket imprimé (scan QR).
+Restent **manuels** : le test de déconnexion/reconnexion (section 9,
+nécessite l'app complète) et l'inspection visuelle du ticket imprimé
+(scan du QR code).
 
 ## Journal de répétition
 
@@ -171,6 +173,5 @@ Hex(SHA1(Base64Decode(digitalSignature))). Enregistrer :
       lisible).
 - [ ] Gestion de déconnexion testée.
 
-Si toutes les cases sont cochées → procéder à la soumission
-Phase 12. Sinon → ouvrir des issues, corriger, re-répéter avant
-l'envoi de l'email.
+Si toutes les cases sont cochées → procéder à la soumission. Sinon →
+corriger, puis répéter à nouveau avant l'envoi du dossier.

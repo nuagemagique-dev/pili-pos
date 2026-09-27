@@ -133,7 +133,7 @@ T4 note: our replay rings T4 up as a takeaway (label C) and declares that deviat
 ## 4. Dossier and procedure work (docs only, after the binary is final)
 
 - Version references: `LISTE_FONCTIONNALITES_FR.md:189-193` (also API 1.09 to 1.10), `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md:8`, `MAPPING_CONFORMITE_FR.md:31-34,58,69`, the three `COUVERTURE_*`, `RESULTATS_TESTS_UC_FR.md` (its JSON extracts come from the old folders), `RAPPORT_TESTS_BASELINE_FR.md`, `REPONSES_MANUEL_CERT_FR.md:416-639`, both evidence READMEs, `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md:83` (test setup file now only in the Reports folder), and the form field "Versions de spec" in `docs/internal/DOSSIER_SOUMISSION_FR.md:27`.
-- New `Report_Testing` folder (procedure 3.2): per test, the JSON request and response, plus a photo or PDF of every printed ticket. The UC harness already dumps request and response (`UC_EVIDENCE_DIR`); add a PDF render of each ticket (section 5) and keep the photos of the real printer for the Checkbox rehearsal.
+- New `Report_Testing` folder (procedure 3.2): per test, the JSON request and response, plus a photo or PDF of every printed ticket. The UC harness already dumps request and response (`UC_EVIDENCE_DIR`); add a PDF render of each ticket (section 5) and keep the photos of the real printer for the module2 rehearsal.
 - Test setup rule (procedure 3.1): every submitted result must use the official products, prices and VAT labels. Check `seed_spf_test.sql` against `UC_TestSetup_20240806.md`.
 - `ASSEMBLAGE_FINAL_FR.md`: add step 8 "register as distributor", and your decision on the up-to-5 client test sites.
 - III.D answer (zero registration), the webshop line, a "no tip, no split payment" statement, the ticket examples in `TICKETS_EXEMPLES_FR.md` (regenerated after section 2.1).
@@ -181,6 +181,6 @@ The SHA-1 of record must come after the last binary change, so:
 | C | Section 5 step 3 (real-binary day); the operator day against the module2 FDM simulator (`scripts/live_fdm.sh`, see `LIVE_FDM_MODULE2.md`) once module2 gives the endpoint; local gate | No |
 | D | Local reproducible build twice, local image and QEMU boot, record the SHA-1 | Output only |
 | E | Section 4 dossier work, `Report_Testing`, PDFs, `check_dossier.py --final`, `make_submission_zip.sh` | No |
-| F | Yours: Checkbox rehearsal and ticket photos, DE wording, signed form, submission | No |
+| F | Yours: module2 simulator rehearsal and ticket photos, DE wording, signed form, submission | No |
 
 Everything runs locally. Before merging, check the remaining Actions minutes and decide whether one final CI run is worth it.

@@ -76,7 +76,7 @@ Généré le 2026-09-26 13:16 (Europe/Brussels) sur la révision `3c91719`.
 | `ticket_copies` (intégration) | The copy picker lists what a customer can ask a copy of (manual §III, event C): sales, refunds, pre-bills and training tickets the FDM signed. | 4 | 0 | 0 |
 | `pos_core` (unit) | Business types of the POS: configuration, catalogue, orders, tables, users and VAT. | 57 | 0 | 0 |
 | `pos_db` (unit) | SQLite persistence: schema, migrations and typed queries, with the fiscal archive append-only. | 107 | 0 | 0 |
-| `pos_fdm_mock` (unit) | Mock FDM (Checkbox-compatible GraphQL) and mock Scaleway TEM, for development, the admission image and screenshots. | 15 | 0 | 0 |
+| `pos_fdm_mock` (unit) | Mock FDM (GraphQL SCE 2.0, erreurs au format de la spécification) and mock Scaleway TEM, for development, the admission image and screenshots. | 15 | 0 | 0 |
 | `pos_fiscal` (unit) | SCE 2.0 protocol: event building, FDM client, counters, archive, tickets and reports. | 139 | 0 | 0 |
 | `advanced_set_fixtures` (intégration) | SCE 2.0 Advanced Set v1.5 fixture validation. | 1 | 0 | 0 |
 | `client_status` (intégration) | FdmClient status-query contract tests (Q100 / Q110). | 3 | 0 | 0 |
@@ -128,11 +128,12 @@ Généré le 2026-09-26 13:16 (Europe/Brussels) sur la révision `3c91719`.
 
 <!-- TEST_TOTALS:END -->
 
-Les tests ignorés de `e2e_staging` constituent le harness de
-répétition pré-soumission ; ils requièrent `MOYUN_STAGING_FDM_URL`
-pointant vers un vrai FDM (émulateur ou FDM de développement
-Checkbox), et sont exécutables via
-`cargo test --package pos-fiscal --test e2e_staging -- --ignored`.
+Les tests ignorés de `e2e_staging` (niveau client FDM) et de
+`live_fdm` (journée d'exploitation par les vraies commandes)
+constituent le harness de répétition pré-soumission ; ils requièrent
+un vrai FDM, le simulateur en ligne module2, et s'exécutent via
+`scripts/live_fdm.sh` (ou
+`cargo test --package pos-fiscal --test e2e_staging -- --ignored`).
 Ils ne font PAS partie de la barrière CI hors-ligne.
 
 L'interface est couverte à part, par Playwright (`ui/e2e/`, IPC Tauri

@@ -96,7 +96,7 @@ Espèces                                    52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:
@@ -144,7 +144,7 @@ TOTAL :                                   €52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: P; eventCounter: 4;
 totalCounter: 61;
@@ -195,7 +195,7 @@ Espèces                                   -52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 16;
 totalCounter: 60; shortSignature:
@@ -204,7 +204,7 @@ a3f9c2b1e8d4750616fb92c3a4e5d6f701234567;
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
 Informations FDM d'origine :
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:
@@ -251,7 +251,7 @@ Espèces                                    52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: C; eventCounter: 2;
 totalCounter: 62;
@@ -259,7 +259,7 @@ totalCounter: 62;
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
 Informations FDM d'origine :
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:
@@ -308,7 +308,7 @@ Espèces                                    52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: T; eventCounter: 7;
 totalCounter: 63;
@@ -351,7 +351,7 @@ Debut                           2026-07-03 11:02
 Fin                             2026-07-03 22:41
 POSID                             CFOD0061234567
 TerminalId                                  POS1
-FDMID                                CBX01000042
+FDMID                                FDM02000425
 Premier                      41 2026-07-03 11:02
 Dernier                      63 2026-07-03 22:48
 ------------------------------------------------
@@ -430,7 +430,7 @@ Debut                           2026-07-03 11:02
 Fin                             2026-07-03 22:41
 POSID                             CFOD0061234567
 TerminalId                                  POS1
-FDMID                                CBX01000042
+FDMID                                FDM02000425
 Premier                      41 2026-07-03 11:02
 Dernier                      63 2026-07-03 22:48
 ------------------------------------------------
@@ -514,7 +514,7 @@ Begin                           2026-07-03 11:02
 Einde                           2026-07-03 22:41
 POSID                             CFOD0061234567
 TerminalId                                  POS1
-FDMID                                CBX01000042
+FDMID                                FDM02000425
 Eerste                       41 2026-07-03 11:02
 Laatste                      63 2026-07-03 22:48
 ------------------------------------------------
@@ -592,7 +592,7 @@ Beginn                          2026-07-03 11:02
 Ende                            2026-07-03 22:41
 POSID                             CFOD0061234567
 TerminalId                                  POS1
-FDMID                                CBX01000042
+FDMID                                FDM02000425
 Erstes                       41 2026-07-03 11:02
 Letztes                      63 2026-07-03 22:48
 ------------------------------------------------
@@ -714,7 +714,7 @@ Espèces                                    52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:
@@ -786,7 +786,7 @@ Arrondi                                    -0,01
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:
@@ -837,7 +837,7 @@ Non paye
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:

@@ -205,8 +205,9 @@ contractuelle indépendante de la certification SCE 2.0.
 - **Terminal POS** : Penetek A3216 M82 ou Advantech USC-360J (Intel
   J6412, x86_64, 8 Go RAM, 128 Go SSD, écran 15,6" tactile PCAP
   1920×1080, IP65). Cf. `KIOSK_DEPLOYMENT_CHECKLIST.md`.
-- **Imprimante thermique** : Epson TM-m30III (USB / LAN / WiFi /
-  Bluetooth). Protocole ESC/POS.
+- **Imprimante thermique** : Epson TM-m30III, raccordée en LAN
+  (TCP 9100). Protocole ESC/POS.
 - **Tiroir-caisse** : standard RJ11 connecté à l'imprimante.
-- **FDM** : Checkbox CBX01 (TAIGER BV, ~€195 HTVA, achat unique
-  via Eutronix réf. TAFIP0002.00). Connexion LAN (HTTP/GraphQL).
+- **FDM** : module2 (PRACSYS, certifié SCE 2.0). Connexion LAN
+  (GraphQL en HTTP, ou HTTPS avec mTLS), jeton Bearer propre au FDM.
+  Machine de test : simulateur en ligne module2.

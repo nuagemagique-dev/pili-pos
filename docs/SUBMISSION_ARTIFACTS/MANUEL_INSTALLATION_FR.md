@@ -9,10 +9,10 @@ moyun-pos chez un client HoReCa.
 | Élément | Modèle / spécifications | Qté |
 |---|---|---|
 | Terminal POS | Penetek A3216 M82 ou Advantech USC-360J (Intel J6412, 8 Go RAM, 128 Go SSD, écran 15,6" 1920×1080 PCAP, IP65) | 1 |
-| Boîtier FDM | Checkbox CBX01 (TAIGER BV, via Eutronix réf. TAFIP0002.00) ou équivalent agréé SPF Finances | 1 |
-| Imprimante thermique | Epson TM-m30III (USB ou LAN) | 1 |
+| Boîtier FDM | FDM module2 (PRACSYS, certifié SCE 2.0) ou autre FDM certifié SCE 2.0 | 1 |
+| Imprimante thermique | Epson TM-m30III, raccordée au LAN (le POS imprime en TCP brut, port 9100 ; l'USB n'est pas pris en charge) | 1 |
 | Tiroir-caisse | Standard, connexion RJ11 vers l'imprimante | 1 |
-| Câble Ethernet | RJ45 Cat-5e ou supérieur | 2 (POS + FDM) |
+| Câble Ethernet | RJ45 Cat-5e ou supérieur | 3 (POS, FDM, imprimante) |
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB d'installation/mise à jour | 8 Go minimum - l'image kiosque complète (`moyun-pos-kiosk-<profil>.img.xz`) y est écrite telle quelle (§2), pas un simple installeur FAT32 | 1 |
 | Onduleur (recommandé) | 600 VA minimum | 1 |
@@ -219,9 +219,9 @@ Champs :
 | `restaurant_address` | Adresse complète | Client |
 | `restaurant_vat` | Numéro de TVA belge : `BE` suivi de 10 chiffres commençant par 0 ou 1, valide modulo 97 (ex. `BE0499999960`) | Client |
 | `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |
-| `fdm_url` | URL GraphQL du FDM sur le LAN (port selon le modèle de FDM ; à confirmer sur le Checkbox CBX01) | Configuration FDM |
+| `fdm_url` | URL GraphQL du FDM sur le LAN. FDM module2 : `http://<IP du FDM>/graphql/` (port 80) | Configuration FDM |
 | `fdm_token_file` | Facultatif. Fichier contenant le seul jeton d'accès (Bearer) d'un FDM qui en exige un (certains modèles, y compris sur le LAN : le jeton se lit sur la page de paramètres du FDM) ; jamais le jeton lui-même dans `pos.json`. Absent si le FDM n'en demande pas. | Configuration FDM |
-| `printer_address` | IP:port de l'imprimante (ou chemin série/USB) | Configuration imprimante |
+| `printer_address` | IP:port de l'imprimante sur le LAN (port 9100 par défaut) | Configuration imprimante |
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le bon de commande (sans prix, « ceci n'est pas un ticket de caisse TVA valable ») des lignes envoyées. Absent : le bon sort sur `printer_address`. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
@@ -466,18 +466,24 @@ Les INSZ de test SPF (depuis `UC_TestSetup_20240806.md`) :
 
 ### 7.2 Numéros pos_id de test
 
-`CFOD0061234567` - réservé tests SPF Finances.
+`CPOS0031234567` - le posId de la configuration de test SPF Finances
+(UC_TestSetup_20240806), autorisé sur le simulateur module2 de la
+machine de test.
 
-### 7.3 Fournisseurs FDM agréés
+### 7.3 FDM
 
-- **Checkbox CBX01** : TAIGER BV, distribution via Eutronix
-  (réf. TAFIP0002.00) - ~€195 HTVA, achat unique, LAN+WiFi+USB,
-  alimentation incluse. **Référence retenue.**
-- **BMC Light** : boxapos.com / zwartedoos.be - €12,95/mois
-  (location), LAN+WiFi. Alternative.
-- **Émulateur Checkbox** : inclus dans le kit de développement
-  TAIGER (€380 HTVA, avec FDM physique de développement) - pour la
-  phase de tests pré-certification.
+- **FDM module2** (PRACSYS, certifié SCE 2.0) : **référence retenue.**
+  GraphQL sur le LAN en HTTP (port 80) ou HTTPS (port 443, certificat
+  client mTLS fourni par module2). Chaque FDM exige son jeton Bearer
+  (lu sur sa page de paramètres ou dans le portail module2), à placer
+  dans le fichier désigné par `fdm_token_file`. Le posId du POS doit
+  être autorisé dans les paramètres du FDM.
+- **Simulateur en ligne module2** : `http://fdm.module2.be/graphql/`,
+  même jeton Bearer, utilisé pour les tests pré-certification et comme
+  FDM de la machine de test à l'Intake (`SCHEMA_ASSEMBLAGE_FR.md` §7).
+- Le POS parle le protocole GraphQL standard du SPF, sans extension
+  propriétaire : tout FDM certifié SCE 2.0 joignable en HTTP sur le LAN
+  convient (jeton Bearer facultatif selon le modèle).
 
 ### 7.4 Contact distributeur
 

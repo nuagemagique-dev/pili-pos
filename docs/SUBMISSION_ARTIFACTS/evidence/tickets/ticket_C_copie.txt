@@ -22,7 +22,7 @@ Espèces                                    52,00
 ------------------------------------------------
                 INFORMATIONS FDM
 ------------------------------------------------
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: C; eventCounter: 2;
 totalCounter: 62;
@@ -30,7 +30,7 @@ totalCounter: 62;
 [QR: https://www.gs2.be/Mk9Xa7Qb2Lc4Rd8Se3Tf5Ug]
 
 Informations FDM d'origine :
-fdmId: CBX01000042;
+fdmId: FDM02000425;
 fdmDateTime: 2026-07-03T12:34:57+02:00;
 Event: N; eventCounter: 15;
 totalCounter: 59; shortSignature:

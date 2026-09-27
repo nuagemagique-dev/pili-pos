@@ -47,7 +47,7 @@ une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque
                              │ HTTP GraphQL (LAN, mTLS optionnel)
                              ▼
 ┌────────────────────────────────────────────────────────────────┐
-│  FDM Checkbox CBX01 (FDM de développement au rendez-vous cert)  │
+│  FDM module2 (simulateur en ligne pour la machine de test)      │
 │  - Signature ECDSA secp256r1 (clé détenue par le FDM)            │
 │  - Stratégie compteurs : par type d'événement                    │
 │  - Uplink cloud vers SPF Finances (hors périmètre POS)           │

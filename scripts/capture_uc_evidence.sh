@@ -16,7 +16,8 @@
 # RESULTATS_TESTS_UC_FR.md by scripts/embed_uc_evidence.py.
 #
 # The FDM is a mock that replays the fixture's response; the same
-# tests run against the Checkbox during the rehearsal.
+# commands sign against the module2 simulator in the rehearsal
+# (scripts/live_fdm.sh).
 #
 # Usage: scripts/capture_uc_evidence.sh
 # ─────────────────────────────────────────────────────────────────

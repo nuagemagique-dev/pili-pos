@@ -25,7 +25,7 @@ fn out_dir() -> Option<std::path::PathBuf> {
 
 fn fdm_ref(label: EventLabel, event_counter: i64, total_counter: i64) -> FdmReference {
     FdmReference {
-        fdm_id: "CBX01000042".to_string(),
+        fdm_id: "FDM02000425".to_string(),
         fdm_date_time: "2026-07-03T12:34:57+02:00".to_string(),
         event_label: label,
         event_counter,
@@ -344,7 +344,7 @@ fn base_report(
         ],
         grand_total_cents: 152_350,
         drawer_opens: 3,
-        fdm_id: Some("CBX01000042".to_string()),
+        fdm_id: Some("FDM02000425".to_string()),
         fdm_datetime: Some("2026-07-03T22:42:00+02:00".to_string()),
         // R events get no short signature from the FDM (§2.4).
         short_signature: None,

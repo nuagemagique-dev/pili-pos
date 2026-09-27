@@ -30,7 +30,7 @@ Selon le formulaire (`20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM.pdf`) :
 | Multi-FDM | NON (un seul FDM par POS) |
 | Peppol B2B (événement I) | NON (prévu v1.1 - mise à jour certifiée post-cert). Le code UBL 2.1 BIS Billing 3.0 existe (`crates/pos-peppol`) mais n'est pas activé dans la build cert v1.0.0 (`cert = ["custom-protocol"]` dans `src-tauri/Cargo.toml`). En attendant, les factures B2B du restaurant sont émises via son outil de comptabilité/facturation, hors `moyun-pos`. *Voir : DECISION_PEPPOL_AP_FR.md*. |
 | Stratégie de compteurs | Par type d'événement, documentée dans `STRATEGIE_COMPTEURS_FR.md` |
-| Matériel FDM pour l'admission | FDM physique de développement Checkbox (TAIGER BV, modèle certifié CBX01) ; émulateur Checkbox en secours (acceptable selon ligne 1202 du manuel de certification) |
+| Matériel FDM pour l'admission | Simulateur en ligne module2 (PRACSYS), fourni avec la machine de test (manuel §IV, procédure de test, étape 1 : « fournissez un simulateur avec la machine test ») ; connexion et ports dans `SCHEMA_ASSEMBLAGE_FR.md` §7. En production : FDM module2 sur le LAN. |
 
 ## Gabarit d'email
 
@@ -50,8 +50,8 @@ Pièces jointes :
 - Lien de téléchargement image kiosque (USB):
   https://... (lien expirant à 30j)
 
-FDM utilisé pour le rendez-vous d'admission : FDM physique de
-développement Checkbox (TAIGER BV, modèle certifié CBX01).
+FDM utilisé pour le rendez-vous d'admission : simulateur en ligne
+module2 (PRACSYS), fourni avec la machine de test.
 
 Le code source, les tests et le dossier complet sont disponibles
 sur demande. Je reste à votre disposition pour fixer le rendez-vous

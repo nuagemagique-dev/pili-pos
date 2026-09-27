@@ -5,7 +5,7 @@
 
 Le présent document décrit l'assemblage physique du SCE (Système de
 Caisse Enregistreuse) `moyun-pos` dans sa configuration de référence (un établissement
-HoReCa), identique à la configuration livrée à l'Intake SPF Finances.
+HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l'exception du FDM (simulateur en ligne, cf. §7).
 
 ---
 
@@ -29,10 +29,10 @@ HoReCa), identique à la configuration livrée à l'Intake SPF Finances.
        +----------+--+    +--+---------------+
        |             |    |                  |
        |   FDM       |    |   IMPRIMANTE     |
-       |  Checkbox   |    |   Epson TM-m30III|
-       |  CBX01      |    |                  |
+       |  module2    |    |   Epson TM-m30III|
+       |  (MOD01...) |    |                  |
        | IP : 192.168.1.20|  IP : 192.168.1.30|
-       | TCP 8080 GraphQL |  TCP 9100 ESC/POS|
+       | TCP 80 GraphQL   |  TCP 9100 ESC/POS|
        +------------------+  +-------+--------+
                                      |
                                      | RJ11
@@ -96,7 +96,7 @@ HoReCa), identique à la configuration livrée à l'Intake SPF Finances.
 |---|---|---|---|---|
 | 1 | Terminal POS | Penetek A3216 M82 (Intel Celeron J6412, 8 Go RAM, 128 Go SSD, écran tactile PCAP 15.6" 1920×1080, fanless, IP65) | IP statique LAN `192.168.1.10` | RJ45 vers routeur (1×), USB-A (4×) disponibles |
 | 2 | Routeur LAN | TP-Link Archer C6 (ou équivalent) - fourni avec la machine-test à l'Intake | IP gateway `192.168.1.1`, DHCP `192.168.1.100-200`, baux réservés pour FDM et imprimante | WAN RJ45 (Internet), LAN RJ45 (4×) |
-| 3 | FDM | Checkbox CBX01 (TAIGER BV, via Eutronix réf. TAFIP0002.00) - **FDM physique de développement Checkbox pour l'Intake ; émulateur en secours (acceptable selon manuel §1202)** | IP statique LAN `192.168.1.20` (réservation DHCP). TCP port 8080 ouvert (GraphQL - cf. MANUEL_INSTALLATION_FR.md pour le statut de confirmation de ce port). | RJ45 vers routeur |
+| 3 | FDM | FDM module2 (PRACSYS, certifié SCE 2.0, identifiant `MOD01...`) chez le client. **Machine de test : simulateur en ligne module2, sans boîtier physique** (cf. §7). | IP statique LAN `192.168.1.20` (réservation DHCP). GraphQL en HTTP sur le port TCP 80 (ou HTTPS 443 avec certificat client mTLS), jeton Bearer propre au FDM (`fdm_token_file`, cf. MANUEL_INSTALLATION_FR.md). | RJ45 vers routeur |
 | 4 | Imprimante thermique | Epson TM-m30III (80 mm thermique) | IP statique LAN `192.168.1.30` (réservation DHCP). TCP port 9100 ouvert (ESC/POS raw). RJ11 sortant vers tiroir. | RJ45 vers routeur. USB et Wifi disponibles mais non utilisés. RJ11 vers tiroir-caisse. |
 | 5 | Tiroir-caisse | Tiroir RJ11 standard (modèle générique compatible Epson) | N/A (passif) | RJ11 depuis l'imprimante. Ouverture par séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA` envoyée par le POS. |
 
@@ -145,7 +145,7 @@ HoReCa), identique à la configuration livrée à l'Intake SPF Finances.
 |---|---|---|---|---|
 | Routeur | `gw` | `192.168.1.1` | - | DHCP, gateway, DNS |
 | POS | `pos-01` | `192.168.1.10` | (à renseigner) | moyun-pos (Tauri app, kiosk) |
-| FDM | `fdm` | `192.168.1.20` | (à renseigner) | Checkbox GraphQL endpoint |
+| FDM | `fdm` | `192.168.1.20` | (à renseigner) | GraphQL du FDM module2 (TCP 80) |
 | Imprimante | `printer` | `192.168.1.30` | (à renseigner) | ESC/POS raw TCP 9100 |
 
 ### Réservations DHCP
@@ -155,7 +155,7 @@ Configurées sur le routeur : 3 baux statiques pour les MAC du POS, du FDM et de
 ### Pare-feu
 
 Sur le routeur : politique par défaut bloquante en LAN <-> LAN. Règles autorisées :
-- POS (.10) → FDM (.20) port TCP 8080 (GraphQL)
+- POS (.10) → FDM (.20) port TCP 80 (GraphQL ; 443 si HTTPS/mTLS)
 - POS (.10) → Imprimante (.30) port TCP 9100 (ESC/POS)
 - FDM (.20) → Internet (WAN) sur les domaines/IP SPF Finances (gérés par le FDM lui-même via mTLS)
 - POS (.10) → Internet (WAN) en HTTPS sortant uniquement : sessions RustDesk d'assistance à distance démarrées depuis la caisse par un Gérant, avec son PIN (jamais permanent), et - uniquement si `pos.json::digital_ticket` est configuré (§III.H) - l'envoi du ticket numérique par e-mail vers `api.scaleway.com` (port 443, cf. `TICKET_NUMERIQUE_FR.md` §9). Sans cette configuration, aucun trafic sortant n'est initié par le POS en dehors du FDM et de RustDesk.
@@ -175,7 +175,8 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 5. Brancher le POS au routeur via RJ45 (port LAN 1). Brancher l'alimentation. Mettre sous tension.
 6. Au démarrage du POS, l'image kiosk lance automatiquement Cage compositor + moyun-pos en plein écran après quelques secondes.
 7. Première connexion : INSZ technicien `00000000097` + PIN par défaut `0097`. L'écran "Configuration POS" s'affiche pour saisir/valider :
-   - `fdm_url` : `http://192.168.1.20:8080/graphql`
+   - `fdm_url` : `http://192.168.1.20/graphql/`
+   - `fdm_token_file` : fichier contenant le jeton Bearer du FDM (lu sur la page de paramètres du FDM)
    - `printer_address` : `192.168.1.30:9100`
    - `restaurant_est_no` : (n° d'établissement TVA assigné au restaurant)
    - `pos_id` : code 14 caractères assigné par SPF Finances au moment de l'enregistrement du POS
@@ -200,8 +201,20 @@ En cas d'audit SPF Finances, le SCE peut être réassemblé à l'identique à pa
 Pour la machine de test livrée au rendez-vous d'admission SPF Finances :
 
 - Routeur fourni par le distributeur (mini-routeur de prêt).
-- FDM physique de développement Checkbox utilisé pour l'Intake ; l'émulateur Checkbox reste utilisable en secours (acceptable selon manuel de certification §1202). Dans ce cas, l'URL FDM dans `pos.json` pointe vers l'endpoint de l'émulateur plutôt que vers une IP LAN.
+- **Pas de FDM physique : le simulateur en ligne module2 est fourni avec la machine de test.** Le manuel de certification (§IV « Procédure de communication GraphQL », procédure de test, étape 1) demande d'appliquer les scénarios « à l'aide d'un simulateur FDM » et de fournir « un simulateur avec la machine test » ; le guide d'introduction (section « Intake », « Machine de test ») précise : « Si un simulateur de FDM est utilisé, sa méthode de connexion et ses ports doivent être clairement documentés. » Connexion du simulateur :
+
+  | Élément | Valeur |
+  |---|---|
+  | Fournisseur | module2 (PRACSYS), FDM certifié SCE 2.0 |
+  | Simulateur | `FDM02000425` (logiciel FDM 2.2.0.5), rattaché au compte développeur du producteur |
+  | URL GraphQL | `http://fdm.module2.be/graphql/` (TCP 80), ou `https://fdm.module2.be/graphql/` (TCP 443, mTLS avec le certificat client module2) |
+  | Authentification | en-tête `Authorization: Bearer <jeton du simulateur>`, fichier `fdm_token_file` sur la machine de test |
+  | En-tête facultatif | `Simulator-Version` (sans lui, la dernière version du simulateur) |
+  | Identité de test | `posId` `CPOS0031234567`, TVA `BE0000000097`, unité d'établissement `2000000042` (UC_TestSetup_20240806) |
+  | Réseau requis | accès Internet sortant de la machine de test (Wi-Fi ou UTP du laboratoire, via le routeur de prêt) |
+
+  Les erreurs et avertissements du FDM (buffer plein, FDM verrouillé, buffer presque plein, nombre de tentatives) se déclenchent depuis l'onglet « Developer » du portail module2, et les requêtes reçues par le simulateur s'y consultent (onglet « Logs »).
 - Tiroir-caisse RJ11 fourni avec l'imprimante.
 - Compte SPF pré-créé sur la machine de test (login `spf`, mot de passe communiqué à l'Intake).
 
-Le reste du schéma est identique à la production.
+Le reste du schéma est identique à la production, à ceci près que le FDM est joint par Internet et non sur le LAN.

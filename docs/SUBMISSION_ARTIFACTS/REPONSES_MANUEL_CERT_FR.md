@@ -190,9 +190,9 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Ordinateur portable | ☐ | ☐ | |
 | Tablette | ☐ | ☐ | |
 | Kiosk | ☑ | ☑ | ☑ Le POS est seulement un kiosk |
-| **FDM** | ☑ | ☑ | Checkbox CBX01 (TAIGER BV ; distribution Eutronix, réf. TAFIP0002.00). Pour l'Intake : FDM physique de développement Checkbox. |
+| **FDM** | ☐ | ☑ | FDM module2 (PRACSYS, certifié SCE 2.0) chez le client. Pas de boîtier livré à l'Intake : la machine de test signe auprès du simulateur en ligne module2 (`http://fdm.module2.be/graphql/`, jeton Bearer, posId `CPOS0031234567`) ; méthode de connexion et ports documentés dans *SCHEMA_ASSEMBLAGE_FR.md* §7. |
 | **Multiprise** | ☑ | ☐ | Fourni à l'Intake pour faciliter le branchement physique |
-| **Imprimante thermique** | ☑ | ☑ | Epson TM-m30III (80 mm, USB + LAN + RJ11 pour tiroir-caisse) |
+| **Imprimante thermique** | ☑ | ☑ | Epson TM-m30III (80 mm), raccordée en LAN (TCP 9100) ; RJ11 pour le tiroir-caisse |
 | **Connectivité** | | | |
 | Router/Hub | ☑ | ☐ | Mini-routeur fourni à l'Intake. En production, le restaurant fournit son propre réseau. |
 | Câbles | ☑ | ☐ | Câbles RJ45, USB, alimentation. En production, fournis avec l'install. |
@@ -292,7 +292,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 |---|---|
 | Load-balancing | ☐ Non (un seul FDM par POS) |
 | Si OUI, middleware ? | N/A |
-| POS compatible avec d'autres marques FDM | ☑ Oui par conception (protocole GraphQL standard SPF, aucune extension propriétaire). FDM de référence testé : Checkbox CBX01 (TAIGER BV). Autres marques certifiées FDM 2.0 : compatibles par protocole, non testées sur matériel. |
+| POS compatible avec d'autres marques FDM | ☑ Oui par conception (protocole GraphQL standard SPF, aucune extension propriétaire). FDM de référence testé : module2 (PRACSYS), via son simulateur en ligne. Autres marques certifiées FDM 2.0 : compatibles par protocole, non testées. |
 | ☑ Les terminaux ne peuvent pas communiquer avec le FDM à moins d'être identifiés avec posId | Confirmé. Chaque requête sortante du POS porte le champ `posId` 14 caractères dans le payload GraphQL (vérifié dans `crates/pos-fiscal/src/inputs.rs::CommonFields`). |
 
 ## §III.E Connexion au FDM
