@@ -10,6 +10,12 @@ use serde_json::json;
 use wiremock::matchers::{body_string_contains, method};
 use wiremock::{Mock, ResponseTemplate};
 
+/// The cache is process-wide and holds one answer: the tests of this
+/// file take turns, or one would evict the other's answer mid-test.
+/// They also ask in different languages: a mock FDM may get the port
+/// (so the URL, the cache key) the other test's FDM just released.
+static CACHE_TURN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn status(fdm_id: &str) -> serde_json::Value {
     json!({ "data": { "fdmStatus": {
         "device": {
@@ -27,9 +33,11 @@ fn status(fdm_id: &str) -> serde_json::Value {
 
 #[tokio::test]
 async fn a_status_answer_is_reused_for_twenty_seconds() {
+    let _turn = CACHE_TURN.lock().await;
     let app = TestApp::new().await;
+    app.state.config.lock().unwrap().language = "de".into();
     Mock::given(method("POST"))
-        .and(body_string_contains("status(language: FR)"))
+        .and(body_string_contains("status(language: DE)"))
         .respond_with(ResponseTemplate::new(200).set_body_json(status("FDM02000425")))
         .expect(1)
         .mount(&app.fdm)
@@ -43,6 +51,7 @@ async fn a_status_answer_is_reused_for_twenty_seconds() {
 
 #[tokio::test]
 async fn another_language_is_queried_again() {
+    let _turn = CACHE_TURN.lock().await;
     let app = TestApp::new().await;
     for (lang, fdm_id) in [("FR", "FDM-FR"), ("NL", "FDM-NL")] {
         Mock::given(method("POST"))
