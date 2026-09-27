@@ -15,11 +15,23 @@ one at a time, and never from CI.
 | Logs tab | System log, "fodcall" success and error, unsent buffer, archive |
 | usecases.module2.be | Their use-case console (proxied through their own `index.php`) |
 
-Still to get from module2:
+The developer manual is manual.module2.be (reached from the
+dashboard's "Developer docs" link; log in again if it bounces to the
+dashboard). What it says about the simulator:
 
-- the simulator's GraphQL endpoint URL (shown nowhere in the portal);
-- a working link to the developer docs (manual.module2.be redirects
-  to the dashboard).
+- Endpoint: `http://fdm.module2.be/graphql/` (port 80), or
+  `https://fdm.module2.be/graphql/` (port 443, mTLS with module2's
+  client certificate, the same for the simulator and every physical
+  FDM).
+- Headers: `Authorization: Bearer <token>` and, optionally,
+  `Simulator-Version: 2.2.0.0` (without it, the latest version).
+- posId: `CPOS0031234567`.
+- The Status query is spelled `status` (lowercase).
+- Every module2 FDM, physical ones on the LAN included, needs its
+  bearer token (read on its settings page or in the portal).
+- `https://cb.module2.be` is not the simulator: it is the Cloud Bridge
+  (BII) to reach a physical FDM over the internet, only for FDMs
+  module2 explicitly allowed (otherwise `FDM_BII_NOT_ALLOWED`).
 
 ## Identity
 
@@ -41,7 +53,7 @@ Create `moyun-pos/.env.live` (git-ignored, never committed, never
 pasted anywhere):
 
 ```bash
-MOYUN_LIVE_FDM_URL=https://<endpoint from module2>/graphql
+MOYUN_LIVE_FDM_URL=http://fdm.module2.be/graphql/
 MOYUN_LIVE_FDM_TOKEN=<token from settings.module2.be>
 ```
 
