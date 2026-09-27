@@ -587,6 +587,10 @@ cargo test --workspace
 # Live FDM (module2 simulator, by hand only, never in CI; reads .env.live)
 scripts/live_fdm.sh
 
+# Mock peripherals: FDM + email API on :8081, printer on :9100 (jobs on :9180)
+cargo run --package pos-fdm-mock
+cargo run --package pos-printer-mock
+
 # Format
 cargo fmt --all
 

@@ -1,0 +1,15 @@
+[package]
+name = "pos-printer-mock"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pos-print = { path = "../pos-print" }
+axum = "0.8"
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

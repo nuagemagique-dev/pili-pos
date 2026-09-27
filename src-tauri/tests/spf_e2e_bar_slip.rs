@@ -6,7 +6,8 @@
 //! - a direct sale prints the lines no table order sent, at checkout;
 //! - products without the kitchen flag are left out;
 //! - the slip goes to the kitchen printer, else the ticket printer;
-//! - no printer, or a failed one, never undoes the signing;
+//! - no printer, or a failed one, never undoes the signing; a printer
+//!   stopped (paper out, cover open, error) counts as failed;
 //! - a bar ticket shows no price and is not a VAT ticket.
 //!
 //! Events are signed by the admission image's mock FDM.
@@ -173,6 +174,57 @@ async fn vi_bar_a_failed_printer_never_undoes_the_signing() {
         SlipOutcome::NothingToPrint
     );
     assert_eq!(app.fiscal_events().len(), events.len());
+}
+
+/// The slip against a printer in each state, as an Epson printer
+/// reports it (`pos-printer-mock`): only a stopped printer fails it.
+#[tokio::test]
+async fn vi_bar_a_stopped_printer_fails_the_slip() {
+    use pos_printer_mock::{Control, Paper, Printer};
+    let cases = [
+        (Control::default(), SlipOutcome::Printed),
+        (
+            Control {
+                paper: Paper::NearEnd,
+                ..Control::default()
+            },
+            SlipOutcome::Printed,
+        ),
+        (
+            Control {
+                paper: Paper::End,
+                ..Control::default()
+            },
+            SlipOutcome::Failed,
+        ),
+        (
+            Control {
+                cover_open: true,
+                ..Control::default()
+            },
+            SlipOutcome::Failed,
+        ),
+        (
+            Control {
+                error: true,
+                ..Control::default()
+            },
+            SlipOutcome::Failed,
+        ),
+    ];
+    for (control, expected) in cases {
+        let app = app().await;
+        let printer = Printer::new(control.clone(), None);
+        let addr = pos_printer_mock::bind("127.0.0.1:0".parse().unwrap(), printer)
+            .await
+            .unwrap();
+        app.set_printer(&addr.to_string());
+        let o = order(&app, Some(1));
+        add(&app, o, 1, 1);
+        let outcome = do_sign_table_order(&app.state, o).await.unwrap();
+        assert_eq!(outcome, expected, "{control:?}");
+        assert_eq!(app.fiscal_events().last().unwrap().event_type, "P");
+    }
 }
 
 #[tokio::test]

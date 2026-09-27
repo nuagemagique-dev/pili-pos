@@ -2359,6 +2359,7 @@ dependencies = [
  "pos-mail",
  "pos-peppol",
  "pos-print",
+ "pos-printer-mock",
  "reqwest",
  "rusqlite",
  "serde",
@@ -3074,6 +3075,19 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "tokio",
+]
+
+[[package]]
+name = "pos-printer-mock"
+version = "1.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "pos-print",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
 ]
 
 [[package]]

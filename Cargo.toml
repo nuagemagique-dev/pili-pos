@@ -7,6 +7,7 @@ members = [
     "crates/pos-print",
     "crates/pos-db",
     "crates/pos-fdm-mock",
+    "crates/pos-printer-mock",
     "crates/pos-hubrise-types",
     "crates/pos-hubrise-mock",
     "crates/pos-hubrise",
