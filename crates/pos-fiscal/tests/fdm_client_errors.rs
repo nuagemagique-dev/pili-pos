@@ -113,6 +113,52 @@ async fn graphql_errors_array_yields_err_not_panic() {
     }
 }
 
+/// The spec's own error response (POS description v2.2): the code is
+/// in `extensions`, `message` is free text. The code must reach the
+/// caller, which maps it to the operator's message.
+#[tokio::test]
+async fn the_code_of_a_spec_shaped_error_is_kept() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "errors": [{
+                "message": "FDM buffer is full.",
+                "extensions": { "category": "SPF_FOD", "code": "BUFFER_FULL", "showPos": "MANDATORY" }
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "GraphQL error: BUFFER_FULL: FDM buffer is full."
+    );
+}
+
+/// A code the message already names is not repeated.
+#[tokio::test]
+async fn a_message_that_is_the_code_is_not_doubled() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "errors": [{ "message": "FDM_LOCKED", "extensions": { "code": "FDM_LOCKED" } }]
+        })))
+        .mount(&server)
+        .await;
+
+    let cfg = config(&format!("{}/graphql", server.uri()));
+    let err = sign_work_in_call(&FdmClient::new(&cfg.fdm_url), &cfg)
+        .await
+        .unwrap_err();
+    assert_eq!(err.to_string(), "GraphQL error: FDM_LOCKED");
+}
+
 #[tokio::test]
 async fn empty_errors_array_with_data_is_not_treated_as_an_error() {
     // Some GraphQL servers send `"errors": []` alongside valid data.

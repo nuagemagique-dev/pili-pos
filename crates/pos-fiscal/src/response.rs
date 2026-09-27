@@ -143,8 +143,22 @@ pub struct GraphQlError {
     pub extensions: Option<serde_json::Value>,
 }
 
+impl GraphQlError {
+    /// The message code (`extensions.code`), where the FDM puts it: the
+    /// `message` itself is free text such as "FDM buffer is full." (POS
+    /// description v2.2, error response example).
+    pub fn code(&self) -> Option<&str> {
+        self.extensions.as_ref()?.get("code")?.as_str()
+    }
+}
+
+/// "CODE: message", so the code reaches the UI, which maps it to the
+/// operator's message and to its blocking behaviour.
 impl std::fmt::Display for GraphQlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
+        match self.code() {
+            Some(code) if !self.message.contains(code) => write!(f, "{code}: {}", self.message),
+            _ => write!(f, "{}", self.message),
+        }
     }
 }

@@ -450,15 +450,7 @@ impl FdmClient {
         let resp: GraphQlResponse<serde_json::Value> = self.execute_raw(&query, &vars).await?;
 
         if resp.errors.as_ref().is_some_and(|e| !e.is_empty()) {
-            let msg = resp
-                .errors
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|e| e.message.clone())
-                .collect::<Vec<_>>()
-                .join("; ");
-            return Err(FdmError::GraphQl(msg));
+            return Err(FdmError::GraphQl(format_gql_errors(resp.errors)));
         }
 
         let data = resp
@@ -513,7 +505,7 @@ fn format_gql_errors(errors: Option<Vec<GraphQlError>>) -> String {
     match errors {
         Some(errs) => errs
             .iter()
-            .map(|e| e.message.clone())
+            .map(|e| e.to_string())
             .collect::<Vec<_>>()
             .join("; "),
         None => "Unknown GraphQL error".to_string(),

@@ -126,3 +126,48 @@ async fn status_multi_lang_parses_q110_envelope() {
     assert_ne!(fr[0].message, nl[0].message);
     assert_ne!(nl[0].message, de[0].message);
 }
+
+/// The two codes of the POS description v2.2 our first list lacked, and
+/// a code outside the spec (another FDM version, a vendor code): the
+/// Status still parses, so the FDM is not shown as down.
+#[tokio::test]
+async fn status_with_new_and_unknown_codes_still_parses() {
+    use pos_fiscal::types::{FdmWarningCode, MessageCategory};
+    let server = MockServer::start().await;
+    let msg = |category: &str, code: &str| {
+        serde_json::json!({
+            "message": code,
+            "extensions": { "category": category, "code": code, "showPos": "MANDATORY" }
+        })
+    };
+    let mut body = status_payload();
+    body["warnings"] = serde_json::json!([
+        msg("SPF_FOD", "UPDATE_POS_VATNO"),
+        msg("SPF_FOD", "UPDATE_POS_ESTNO"),
+        msg("VENDOR", "MODULE2_SOMETHING_NEW"),
+    ]);
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "data": { "fdmStatus": body } })),
+        )
+        .mount(&server)
+        .await;
+
+    let status = FdmClient::new(&format!("{}/graphql", server.uri()))
+        .status()
+        .await
+        .expect("status parses");
+    let warnings = status.warnings.expect("warnings");
+    let codes: Vec<_> = warnings.iter().map(|w| w.extensions.code).collect();
+    assert_eq!(
+        codes,
+        [
+            FdmWarningCode::UpdatePosVatno,
+            FdmWarningCode::UpdatePosEstno,
+            FdmWarningCode::Unrecognized
+        ]
+    );
+    assert_eq!(warnings[2].extensions.category, MessageCategory::Other);
+}

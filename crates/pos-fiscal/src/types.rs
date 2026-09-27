@@ -181,6 +181,7 @@ pub enum PriceChangeScope {
     Event,
 }
 
+/// Message code (POS description v2.2, `enum Code`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FdmWarningCode {
@@ -212,6 +213,13 @@ pub enum FdmWarningCode {
     UndefinedOther,
     FdmNotOperational,
     UnknownPos,
+    UpdatePosVatno,
+    UpdatePosEstno,
+    /// A code outside the spec's list (an FDM of another version, or a
+    /// vendor code). Kept parseable so one unknown message never makes
+    /// the whole Status unreadable, which would show the FDM as down.
+    #[serde(other)]
+    Unrecognized,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -219,6 +227,8 @@ pub enum FdmWarningCode {
 pub enum MessageCategory {
     SpfFod,
     Fdm,
+    /// Also any category outside the spec's list.
+    #[serde(other)]
     Other,
 }
 

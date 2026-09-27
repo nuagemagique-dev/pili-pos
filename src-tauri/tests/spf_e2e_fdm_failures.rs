@@ -205,6 +205,47 @@ async fn checkout_fdm_failure_modes_leave_no_archive_and_counter_at_zero() {
     }
 }
 
+/// An FDM refusal shaped as the spec's example (code in `extensions`,
+/// free text in `message`) reaches the UI with its code, which maps it
+/// to the operator's message; nothing is signed.
+#[tokio::test]
+async fn checkout_refused_with_a_spec_shaped_error_hands_its_code_to_the_ui() {
+    for (code, text) in [
+        ("BUFFER_FULL", "FDM buffer is full."),
+        ("FDM_LOCKED", "FDM is locked."),
+    ] {
+        let app = TestApp::new().await;
+        let order_id = seed_minimal_open_order(&app);
+        Mock::given(method("POST"))
+            .and(path("/graphql"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "errors": [{
+                    "message": text,
+                    "extensions": { "category": "SPF_FOD", "code": code, "showPos": "MANDATORY" }
+                }]
+            })))
+            .mount(&app.fdm)
+            .await;
+
+        let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+            .await
+            .expect("checkout returns a result");
+        assert!(!result.success, "{code}");
+        let error = result.error.unwrap_or_default();
+        assert!(
+            error.contains(&format!("{code}: {text}")),
+            "{code}: {error}"
+        );
+        assert_eq!(app.counter_for(EventLabel::N), 0, "{code}");
+        assert_eq!(app.fiscal_events().len(), 0, "{code}");
+        assert_eq!(
+            app.order_status(order_id).as_deref(),
+            Some("open"),
+            "{code}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn checkout_unreachable_fdm_blocks_the_sale_without_archiving() {
     let app = TestApp::new().await;

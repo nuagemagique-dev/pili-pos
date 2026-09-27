@@ -46,7 +46,9 @@ test('an unreachable FDM is explained, not shown as a raw message', async ({ pag
 });
 
 test('an FDM error code gets its §V message', async ({ page }) => {
-  await payByCard(page, refused('FDM error: GraphQL error: FDM_LOCKED'));
+  // As a spec-shaped FDM error reaches the UI: the code from
+  // `extensions`, then the FDM's own text.
+  await payByCard(page, refused('FDM error: GraphQL error: FDM_LOCKED: FDM is locked.'));
   await expect(page.locator('.checkout .error-msg')).toHaveText(
     'La boîte noire est verrouillée. Contactez votre technicien.',
   );
