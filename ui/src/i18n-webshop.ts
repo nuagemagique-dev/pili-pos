@@ -1,8 +1,10 @@
 // Webshop (HubRise) UI strings. Merged into the dictionary by i18n.ts
-// only when HUBRISE_ENABLED, so the certification build drops them.
+// only when __HUBRISE_ENABLED__, so the certification build drops them.
 import type { Messages } from "./i18n";
 
 export const webshopMessages: Messages = {
+  // Settings, HubRise panel.
+  "settings_hubrise_pending": { fr: "{count} en attente", en: "{count} pending", zh: "{count} 待处理" },
   "online_orders": { fr: "En ligne", en: "Online", zh: "在线" },
   // WebshopOrdersView - one column per stage. The terminal statuses
   // (completed / rejected / cancelled) share the "Terminées" view

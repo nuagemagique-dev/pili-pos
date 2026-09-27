@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // HubRise (webshop) connection panel for Settings. Only rendered when
-// the build has HUBRISE_ENABLED (see features.ts); the certification
+// the build has __HUBRISE_ENABLED__ (see env.d.ts); the certification
 // build leaves this component out of the bundle.
 import { onMounted, ref } from "vue";
 import { open as openUrl } from "@tauri-apps/plugin-shell";

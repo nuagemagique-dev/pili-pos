@@ -14,11 +14,10 @@ import PinDialog from "../components/PinDialog.vue";
 import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
-import { HUBRISE_ENABLED } from "../features";
 
 // Folded at build time so the cert build drops the HubRise panel (see
 // OrderView for why this is not a template v-if).
-const HubriseSettings = HUBRISE_ENABLED
+const HubriseSettings = __HUBRISE_ENABLED__
   ? defineAsyncComponent(() => import("../components/HubriseSettings.vue"))
   : null;
 const { t } = useI18n();

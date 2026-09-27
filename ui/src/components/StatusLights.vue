@@ -11,7 +11,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import * as ipc from "../api/ipc";
 import { useFdmStore } from "../stores/fdm";
 import { useI18n } from "../i18n";
-import { HUBRISE_ENABLED } from "../features";
 
 type Light = "ok" | "warn" | "err" | "none";
 
@@ -26,6 +25,11 @@ const fdmLight = computed<Light>(() => {
 const ticket = ref<Light>("none");
 const kitchen = ref<Light>("none");
 const hubrise = ref<Light>("none");
+// Built in script, not a template `v-if`: with HubRise off the branch
+// folds to [] and the certification bundle drops it.
+const hubriseLights = computed(() =>
+  __HUBRISE_ENABLED__ ? [{ label: "HubRise", state: hubrise.value }] : [],
+);
 
 // §4.2: no continuous loops. Pulse once when the FDM degrades.
 const fdmPulse = ref(false);
@@ -51,7 +55,7 @@ async function checkPrinters() {
 }
 
 async function checkHubrise() {
-  if (!HUBRISE_ENABLED) return;
+  if (!__HUBRISE_ENABLED__) return;
   try {
     hubrise.value = (await ipc.hubriseGetConnectionStatus()).connected ? "ok" : "warn";
   } catch {
@@ -67,7 +71,7 @@ onMounted(() => {
   void checkPrinters();
   void checkHubrise();
   printerTimer = setInterval(() => void checkPrinters(), 30_000);
-  if (HUBRISE_ENABLED) hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
+  if (__HUBRISE_ENABLED__) hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
 });
 onUnmounted(() => {
   fdm.stopPolling();
@@ -90,9 +94,9 @@ onUnmounted(() => {
       <span class="dot" />
       <span>{{ t('status_kitchen') }}</span>
     </div>
-    <div v-if="HUBRISE_ENABLED" class="light" :class="hubrise">
+    <div v-for="light in hubriseLights" :key="light.label" class="light" :class="light.state">
       <span class="dot" />
-      <span>HubRise</span>
+      <span>{{ light.label }}</span>
     </div>
   </div>
 </template>

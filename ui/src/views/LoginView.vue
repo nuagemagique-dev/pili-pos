@@ -10,7 +10,6 @@ import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { describeError, errorCode } from "../utils/errorMessages";
 import { formatTimestamp, formatTime } from "../utils/datetime";
-import { HUBRISE_ENABLED } from "../features";
 import PinDialog from "../components/PinDialog.vue";
 import PiliLogo from "../components/PiliLogo.vue";
 
@@ -100,7 +99,7 @@ async function runChecks() {
     text: kitchen == null ? t("check_not_configured") : kitchen ? t("check_ready") : t("check_unreachable"),
   });
 
-  if (HUBRISE_ENABLED) {
+  if (__HUBRISE_ENABLED__) {
     const hub = await ipc.hubriseGetConnectionStatus().catch(() => null);
     list.push({
       key: "hubrise",

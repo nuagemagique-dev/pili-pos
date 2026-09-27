@@ -1,7 +1,6 @@
 import { computed } from "vue";
 import { usePosStore } from "./stores/pos";
 import type { AppLanguage } from "./stores/pos";
-import { HUBRISE_ENABLED } from "./features";
 import { webshopMessages } from "./i18n-webshop";
 import { checkoutMessages } from "./i18n-checkout";
 import { reportsMessages } from "./i18n-reports";
@@ -375,7 +374,7 @@ const screenMessages: Messages = {
   ...reportsMessages,
   ...settingsMessages,
 };
-const messages: Messages = HUBRISE_ENABLED
+const messages: Messages = __HUBRISE_ENABLED__
   ? { ...screenMessages, ...webshopMessages }
   : screenMessages;
 

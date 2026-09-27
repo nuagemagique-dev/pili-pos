@@ -12,7 +12,6 @@ import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { formatTime } from "../utils/datetime";
-import { HUBRISE_ENABLED } from "../features";
 import PiliLogo from "./PiliLogo.vue";
 import StatusLights from "./StatusLights.vue";
 import PinDialog from "./PinDialog.vue";
@@ -21,7 +20,7 @@ import TrainingBanner from "./TrainingBanner.vue";
 
 // Chosen here rather than with a template v-if: a folded ternary lets
 // the cert build (VITE_FEATURE_HUBRISE=false) drop the component.
-const OnlineOrdersNavButton = HUBRISE_ENABLED
+const OnlineOrdersNavButton = __HUBRISE_ENABLED__
   ? defineAsyncComponent(() => import("./OnlineOrdersNavButton.vue"))
   : null;
 

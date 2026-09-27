@@ -5,7 +5,6 @@ import CheckoutView from "../views/CheckoutView.vue";
 import TablesView from "../views/TablesView.vue";
 import ReportsView from "../views/ReportsView.vue";
 import SettingsView from "../views/SettingsView.vue";
-import { HUBRISE_ENABLED } from "../features";
 import { useOrderStore } from "../stores/order";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
@@ -20,9 +19,9 @@ const routes: RouteRecordRaw[] = [
   { path: "/settings", name: "settings", component: SettingsView },
 ];
 
-if (HUBRISE_ENABLED) {
+if (__HUBRISE_ENABLED__) {
   // Lazy import keeps WebshopOrdersView out of the main chunk and
-  // (with the static `if (HUBRISE_ENABLED)` constant) lets Vite
+  // (with the build-time `if (__HUBRISE_ENABLED__)` literal) lets Vite
   // eliminate the file from the cert build entirely.
   routes.push({
     path: "/webshop-orders",

@@ -43,5 +43,4 @@ export const settingsMessages: Messages = {
   "settings_email_title": { fr: "Tickets par email", en: "Email tickets", zh: "电子邮件票据" },
 
   // HubRise panel
-  "settings_hubrise_pending": { fr: "{count} en attente", en: "{count} pending", zh: "{count} 待处理" },
 };

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // "En ligne" nav button with the pending webshop-orders badge. Only
-// rendered when HUBRISE_ENABLED (see features.ts). The button is the
+// rendered when __HUBRISE_ENABLED__ (see env.d.ts). The button is the
 // component root, so AppHeader's scoped `.nav-btn` styles apply to it.
 import { onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";

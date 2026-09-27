@@ -5,7 +5,6 @@ import { usePosStore } from "./stores/pos";
 import { useAuthStore } from "./stores/auth";
 import { useIdleTimer } from "./composables/useIdleTimer";
 import { useOrderChime } from "./composables/useOrderChime";
-import { HUBRISE_ENABLED } from "./features";
 import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
 import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
@@ -24,7 +23,7 @@ watchEffect(() => {
 });
 
 // Two-tone chime when a new webshop order arrives (C5 → E5).
-if (HUBRISE_ENABLED) useOrderChime();
+if (__HUBRISE_ENABLED__) useOrderChime();
 
 // Auto-lock after 5 minutes of inactivity - redirects to login
 // silently. Prevents unauthorized POS use when the operator walks

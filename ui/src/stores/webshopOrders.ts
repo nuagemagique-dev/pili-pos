@@ -32,7 +32,9 @@ interface WebshopOrdersState {
   listenersAttached: boolean
 }
 
-export const useWebshopOrdersStore = defineStore('webshopOrders', {
+// Pure: with HubRise off nothing calls it, and the certification
+// bundle drops the store and its webshop commands.
+export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders', {
   state: (): WebshopOrdersState => ({
     orders: [],
     loading: false,

@@ -27,6 +27,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue(), ...(hubriseEnabled ? [] : [dropWebshopView()])],
+    // The HubRise flag as a literal at each use site (see src/env.d.ts):
+    // with it off, the bundler drops the webshop branches, their lazy
+    // chunks and the commands they call.
+    define: { __HUBRISE_ENABLED__: JSON.stringify(hubriseEnabled) },
     clearScreen: false,
     server: {
       port: 1420,
