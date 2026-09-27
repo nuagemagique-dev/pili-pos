@@ -200,7 +200,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
           vat_breakdown: [],
           payments: [],
           rounding: null,
-          fdm_ref: { fdm_id: 'FDM-TEST-0001', fdm_date_time: new Date().toISOString(), event_label: 'N', event_counter: 9, total_counter: 9 },
+          fdm_ref: { fdmId: 'FDM-TEST-0001', fdmDateTime: new Date().toISOString(), eventLabel: 'N', eventCounter: 9, totalCounter: 9 },
           short_signature: 'TESTSIGNATURE',
           verification_url: null,
           footer: [],

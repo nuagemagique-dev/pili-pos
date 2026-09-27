@@ -326,7 +326,7 @@ function finish() {
           {{ t('change') }}: {{ formatPrice(changeDue) }}
         </div>
         <div v-if="result.ticket.fdm_ref" class="receipt-fdm">
-          FDM: {{ result.ticket.fdm_ref.fdm_id }}
+          FDM: {{ result.ticket.fdm_ref.fdmId }}
         </div>
       </div>
       <div v-if="!result?.fdm_connected" class="fdm-warn">

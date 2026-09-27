@@ -86,6 +86,23 @@ test('a 30 € payment on a 24 € sale gives 6 € back', async ({ page }) => {
   await expect(page.locator('.receipt-change')).toContainText('6,00');
 });
 
+test('the success screen names the FDM that signed the sale', async ({ page }) => {
+  const signed = {
+    ...SALE,
+    ticket: {
+      ...SALE.ticket,
+      // As the backend sends it: the FDM's camelCase reference.
+      fdm_ref: {
+        fdmId: 'FDM02000425', fdmDateTime: '2026-09-27T18:35:42Z',
+        eventLabel: 'N', eventCounter: 15, totalCounter: 49,
+      },
+    },
+  };
+  await toPayment(page, signed);
+  await payCash(page, '30');
+  await expect(page.locator('.receipt-fdm')).toHaveText('FDM: FDM02000425');
+});
+
 test('the exact amount gives no change line', async ({ page }) => {
   await toPayment(page);
   await page.locator('.cash-btn').click();

@@ -131,21 +131,25 @@ export interface TicketPayment {
   amount: number;
 }
 
+/** camelCase, like FdmReference: the FDM protocol's own shape. */
 export interface VatCalcItem {
   label: string;
   rate: number;
-  taxable_amount: number;
-  vat_amount: number;
-  total_amount: number;
-  out_of_scope: boolean;
+  taxableAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  outOfScope: boolean;
 }
 
+/** The FDM's own reference, as it signed it: camelCase like the FDM
+ * protocol (pos_fiscal::response::FdmReference), unlike the rest of
+ * the IPC. */
 export interface FdmReference {
-  fdm_id: string;
-  fdm_date_time: string;
-  event_label: string;
-  event_counter: number;
-  total_counter: number;
+  fdmId: string;
+  fdmDateTime: string;
+  eventLabel: string;
+  eventCounter: number;
+  totalCounter: number;
 }
 
 export interface CheckoutResult {

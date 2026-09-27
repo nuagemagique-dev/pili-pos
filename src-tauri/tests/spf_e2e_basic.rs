@@ -122,6 +122,41 @@ async fn m110_sign_sale_archives_n_event_and_closes_order() {
     app.dump_evidence("M110");
 }
 
+/// The ticket's FDM reference and VAT lines reach the UI in the FDM's camelCase
+/// (`FdmReference`, `VatCalcItem` in ui/src/types/index.ts), unlike the rest of the
+/// IPC: the success screen once read `fdm_id` and showed an empty
+/// "FDM:" against module2.
+#[tokio::test]
+async fn the_ticket_fdm_reference_reaches_the_ui_in_camel_case() {
+    let app = TestApp::new().await;
+    let order_id = seed_minimal_open_order(&app);
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
+
+    let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .expect("checkout returned");
+
+    let ipc = serde_json::to_value(&result).unwrap();
+    let fdm_ref = ipc["ticket"]["fdm_ref"].as_object().expect("fdm_ref");
+    let mut keys: Vec<&str> = fdm_ref.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        [
+            "eventCounter",
+            "eventLabel",
+            "fdmDateTime",
+            "fdmId",
+            "totalCounter"
+        ]
+    );
+    assert!(fdm_ref["fdmId"].as_str().is_some_and(|id| !id.is_empty()));
+    let vat = ipc["ticket"]["vat_breakdown"][0].as_object().expect("vat line");
+    for key in ["taxableAmount", "vatAmount", "totalAmount", "outOfScope"] {
+        assert!(vat.contains_key(key), "{key} in {vat:?}");
+    }
+}
+
 // ── M111 - Full refund of a prior sale ─────────────────────────────
 
 #[tokio::test]
