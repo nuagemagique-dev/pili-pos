@@ -33,7 +33,7 @@ async fn status_with_language_passes_language_argument() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/graphql"))
-        .and(body_string_contains("Status(language: NL)"))
+        .and(body_string_contains("status(language: NL)"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": { "fdmStatus": status_payload() }
         })))
@@ -50,20 +50,9 @@ async fn status_with_language_passes_language_argument() {
 }
 
 #[tokio::test]
-async fn status_falls_back_to_lowercase_spelling() {
+async fn status_asks_the_lowercase_spelling_first() {
+    // The spelling of the fixtures and of certified FDMs: one call.
     let server = MockServer::start().await;
-    // The capitalised field is rejected like a strict UC-fixture FDM
-    // would: GraphQL error, no data.
-    Mock::given(method("POST"))
-        .and(path("/graphql"))
-        .and(body_string_contains("Status(language: FR)"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "data": null,
-            "errors": [{ "message": "Cannot query field \"Status\" on type \"Query\"" }]
-        })))
-        .expect(1)
-        .mount(&server)
-        .await;
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .and(body_string_contains("status(language: FR)"))
@@ -75,7 +64,37 @@ async fn status_falls_back_to_lowercase_spelling() {
         .await;
 
     let client = FdmClient::new(&format!("{}/graphql", server.uri()));
-    let status = client.status().await.expect("fallback to lowercase");
+    client.status().await.expect("lowercase status");
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn status_falls_back_to_the_schema_spelling() {
+    let server = MockServer::start().await;
+    // The lowercase field is rejected like an FDM that follows the
+    // SDL of the POS description would: GraphQL error, no data.
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .and(body_string_contains("status(language: FR)"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": null,
+            "errors": [{ "message": "Cannot query field \"status\" on type \"Query\"" }]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .and(body_string_contains("Status(language: FR)"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "fdmStatus": status_payload() }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = FdmClient::new(&format!("{}/graphql", server.uri()));
+    let status = client.status().await.expect("fallback to Status");
     assert!(status.initialized);
 }
 

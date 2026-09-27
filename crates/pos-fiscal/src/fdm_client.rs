@@ -153,10 +153,10 @@ impl FdmClient {
         lang: crate::types::Language,
     ) -> Result<FdmStatus, FdmError> {
         // The POS detailed description v2.2 SDL declares the field as
-        // `Status`, but the official Q100/Q110 UC fixtures query
-        // lowercase `status`. The two SPF documents contradict each
-        // other, so we try `Status` first and transparently fall back
-        // to `status` if the FDM rejects the capitalised field. An
+        // `Status`, but the official Q100/Q110 UC fixtures and the
+        // certified FDMs (module2's manual) query lowercase `status`.
+        // We ask `status` first, so a conforming FDM answers in one
+        // call, and fall back to `Status` if the FDM rejects it. An
         // alias keeps the response shape identical in both cases.
         #[derive(serde::Deserialize)]
         struct StatusData {
@@ -166,21 +166,21 @@ impl FdmClient {
 
         let gql_lang = Self::gql_language(lang);
         let selection = Self::STATUS_SELECTION;
-        let upper = format!("query {{ fdmStatus: Status(language: {gql_lang}) {selection} }}");
+        let lower = format!("query {{ fdmStatus: status(language: {gql_lang}) {selection} }}");
         let resp: GraphQlResponse<StatusData> =
-            self.execute_raw(&upper, serde_json::Value::Null).await?;
+            self.execute_raw(&lower, serde_json::Value::Null).await?;
         if let Some(d) = resp.data {
             return Ok(d.status);
         }
 
         let first_err = format_gql_errors(resp.errors);
-        let lower = format!("query {{ fdmStatus: status(language: {gql_lang}) {selection} }}");
+        let upper = format!("query {{ fdmStatus: Status(language: {gql_lang}) {selection} }}");
         let resp: GraphQlResponse<StatusData> =
-            self.execute_raw(&lower, serde_json::Value::Null).await?;
+            self.execute_raw(&upper, serde_json::Value::Null).await?;
         match resp.data {
             Some(d) => Ok(d.status),
-            // Report the original error - it is the one that matches
-            // the spec-mandated spelling.
+            // Report the first error: it answers the spelling the
+            // fixtures and the certified FDMs use.
             None => Err(FdmError::GraphQl(first_err)),
         }
     }
@@ -203,7 +203,7 @@ impl FdmClient {
         };
 
         let resp: GraphQlResponse<MultiLangStatus> = self
-            .execute_raw(&build("Status"), serde_json::Value::Null)
+            .execute_raw(&build("status"), serde_json::Value::Null)
             .await?;
         if let Some(d) = resp.data {
             return Ok(d);
@@ -211,7 +211,7 @@ impl FdmClient {
 
         let first_err = format_gql_errors(resp.errors);
         let resp: GraphQlResponse<MultiLangStatus> = self
-            .execute_raw(&build("status"), serde_json::Value::Null)
+            .execute_raw(&build("Status"), serde_json::Value::Null)
             .await?;
         match resp.data {
             Some(d) => Ok(d),

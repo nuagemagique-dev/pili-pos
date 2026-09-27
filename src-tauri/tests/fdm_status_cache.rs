@@ -29,7 +29,7 @@ fn status(fdm_id: &str) -> serde_json::Value {
 async fn a_status_answer_is_reused_for_twenty_seconds() {
     let app = TestApp::new().await;
     Mock::given(method("POST"))
-        .and(body_string_contains("Status(language: FR)"))
+        .and(body_string_contains("status(language: FR)"))
         .respond_with(ResponseTemplate::new(200).set_body_json(status("FDM02000425")))
         .expect(1)
         .mount(&app.fdm)
@@ -46,7 +46,7 @@ async fn another_language_is_queried_again() {
     let app = TestApp::new().await;
     for (lang, fdm_id) in [("FR", "FDM-FR"), ("NL", "FDM-NL")] {
         Mock::given(method("POST"))
-            .and(body_string_contains(format!("Status(language: {lang})")))
+            .and(body_string_contains(format!("status(language: {lang})")))
             .respond_with(ResponseTemplate::new(200).set_body_json(status(fdm_id)))
             .expect(1)
             .mount(&app.fdm)
