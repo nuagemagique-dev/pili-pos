@@ -191,8 +191,8 @@ commandes.
 **Circulation des données.**
 
 1. Le sondage de fond `FdmClient::status` attrape la déconnexion en
-   premier ; le store Pinia FDM bascule à `unhealthy` ; la pilule
-   `FdmStatus` dans le bandeau passe au rouge.
+   premier ; le store Pinia FDM bascule à `unhealthy` ; le voyant
+   FDM du bandeau passe au rouge et un voile couvre les écrans de vente.
 2. Toute tentative active de "Payer" échoue à la vérification
    préalable (`FdmUnreachable`) ; l'opérateur voit la modale bloquante.
 3. Les commandes pro forma (Événement P) et les ouvertures de tiroir

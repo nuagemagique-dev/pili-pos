@@ -53,7 +53,7 @@ Détail complet (30 tests e2e) : *voir TICKET_NUMERIQUE_FR.md* §12.
 |---|---|---|---|---|
 | 19 | Le POS ne parle PAS directement à SPF Finances | FDM v1.4 §I.1 | (architectural - le FDM est le seul canal sortant ; aucun appel SPF Finances nulle part dans `pili-pos`) | grep vérifié : `grep -r "finances" crates/ src-tauri/ → 0 hit` |
 | 20 | La short signature FDM est affichée sur le ticket | FDM v1.4 §IV.2 | `crates/pos-print/src/receipt.rs::format_receipt` | `src-tauri/tests/spf_e2e_peripherals.rs::the_sale_receipt_carries_the_fdm_control_data` |
-| 21 | Le statut FDM est remonté à l'UI | FDM v1.4 §V | `src-tauri/src/state.rs` (mirror dans store Pinia) | E2E manuel (kill du mock FDM → pilule de statut UI) |
+| 21 | Le statut FDM est remonté à l'UI | FDM v1.4 §V | `src-tauri/src/state.rs` (mirror dans store Pinia) | E2E manuel (kill du mock FDM → voyant FDM rouge et voile) |
 
 ## Basic Set v1.7
 
