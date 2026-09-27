@@ -169,6 +169,12 @@ jobs:
       - name: Build the certification binary
         run: scripts/build_and_hash.sh
 
+      # The FDM the binary talks to: without an answering FDM the
+      # sales screens are veiled (POS blocks, SCE 2.0). The development
+      # configuration points at http://localhost:8081/graphql.
+      - name: Build the mock FDM
+        run: cargo build --release -p pos-fdm-mock
+
       # The binary creates the schema, then loads the seed.
       - name: Seed test database
         run: ./target/release/pili-pos --init-db --seed ui/e2e/fixtures/seed.sql
@@ -186,10 +192,12 @@ jobs:
           DISPLAY: ":99"
           GDK_BACKEND: x11
         run: |
+          ../target/release/pos-fdm-mock > /tmp/fdm-mock.log 2>&1 &
           Xvfb :99 -screen 0 1920x1080x24 &
           tauri-driver --port 4444 > /tmp/tauri-driver.log 2>&1 &
           for i in $(seq 1 30); do
-            curl -sf http://127.0.0.1:4444/status >/dev/null && break
+            curl -sf http://127.0.0.1:4444/status >/dev/null \
+              && curl -sf http://127.0.0.1:8081/mock/control >/dev/null && break
             sleep 1
           done
           npm run test:real-binary

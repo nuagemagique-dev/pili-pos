@@ -6,7 +6,9 @@
  *
  * Run by .github/workflows/test.yml (job `integration`), which builds
  * the binary (scripts/build_and_hash.sh), seeds the database
- * (e2e/fixtures/seed.sql) and starts Xvfb + tauri-driver first:
+ * (e2e/fixtures/seed.sql) and starts the mock FDM (pos-fdm-mock on
+ * :8081: without an answering FDM the sales screens are veiled),
+ * Xvfb and tauri-driver first:
  *
  *   TAURI_DRIVER_URL=http://127.0.0.1:4444 \
  *   PILI_POS_BINARY=$PWD/../target/release/pili-pos \
