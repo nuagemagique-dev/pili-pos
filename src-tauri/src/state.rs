@@ -63,8 +63,8 @@ impl AppState {
         let poller_conn = Connection::open(&db_path)?;
 
         let config = Self::load_config()?;
-        for problem in config.problems() {
-            tracing::error!(%problem, "pos.json: the FDM will refuse this identity");
+        for problem in pos_fiscal::fdm_client::FdmClient::config_problems(&config) {
+            tracing::error!(%problem, "pos.json: the FDM will refuse this setting");
         }
         let mail = crate::commands::delivery::MailState::from_config(&config);
 

@@ -564,3 +564,100 @@ async fn live_fdm_basic_set_rest() {
     cites(&events[7], &events[0], "copy in training");
     eprintln!("{} live calls", live_requests());
 }
+
+/// module2 over HTTPS (port 443, mTLS), straight to the FDM, 1 s
+/// between calls: the CA alone (no client certificate), a wrong CA,
+/// then the full setup for a status and a sale, and one raw status to
+/// read module2's `info.https`. The certificates come from
+/// manual.module2.be ("Download losse certificaten"), in
+/// `MOYUN_LIVE_TLS_DIR` (default `target/live-fdm/mtls`: `ca.crt`,
+/// `client.crt`, `client.key`). About 5 calls.
+#[tokio::test]
+#[ignore]
+async fn live_fdm_https_mtls() {
+    let Some(url) = live_url() else { return };
+    let https = url.replacen("http://", "https://", 1);
+    let dir = std::env::var("MOYUN_LIVE_TLS_DIR").unwrap_or_else(|_| {
+        common::fixtures::workspace_root()
+            .join("target/live-fdm/mtls")
+            .to_string_lossy()
+            .into_owned()
+    });
+    let file = |name: &str| format!("{dir}/{name}");
+    let pause = || tokio::time::sleep(std::time::Duration::from_millis(1000));
+    let Some(app) = live_app().await else { return };
+    let set = |ca: Option<String>, client: bool| {
+        let mut config = app.state.config.lock().unwrap();
+        config.fdm_url = https.clone();
+        config.fdm_ca_file = ca;
+        config.fdm_client_cert_file = client.then(|| file("client.crt"));
+        config.fdm_client_key_file = client.then(|| file("client.key"));
+    };
+
+    // The CA alone. module2's simulator answers without a client
+    // certificate too (2026-09-27): noted, not asserted.
+    set(Some(file("ca.crt")), false);
+    let without_client = do_check_fdm_status(&app.state).await.unwrap();
+    eprintln!("without a client certificate: {without_client}");
+    pause().await;
+
+    // A wrong CA: the POS refuses the FDM's certificate.
+    let wrong_ca = format!(
+        "{}/crates/pos-fiscal/tests/fixtures/module2_tls/server.crt",
+        common::fixtures::workspace_root().display()
+    );
+    set(Some(wrong_ca), true);
+    let refused = do_check_fdm_status(&app.state).await.unwrap();
+    eprintln!("with a wrong CA: {refused}");
+    assert_eq!(refused["connected"], Value::Bool(false), "{refused}");
+    assert!(
+        refused["error"]
+            .as_str()
+            .is_some_and(|e| e.starts_with("FDM_CERTIFICATE_REFUSED")),
+        "{refused}"
+    );
+    pause().await;
+
+    // The full setup.
+    set(Some(file("ca.crt")), true);
+    let status = do_check_fdm_status(&app.state).await.unwrap();
+    assert_ne!(status["connected"], Value::Bool(false), "{status}");
+    pause().await;
+    let id = order(&app, None, &[(1, 1)]);
+    let sale = do_checkout(&app.state, id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    signed(&app, "sale over HTTPS", sale.success, sale.error.clone());
+    pause().await;
+
+    // module2 says whether it received the request encrypted.
+    let tls = pos_fiscal::fdm_tls::client_config(
+        &file("ca.crt"),
+        Some((&file("client.crt"), &file("client.key"))),
+    )
+    .unwrap();
+    let raw: Value = reqwest::Client::builder()
+        .tls_backend_preconfigured(tls)
+        .build()
+        .unwrap()
+        .post(&https)
+        .header(
+            "Authorization",
+            format!(
+                "Bearer {}",
+                std::env::var("MOYUN_LIVE_FDM_TOKEN").unwrap_or_default()
+            ),
+        )
+        .json(&serde_json::json!({ "query": "query { status { initialized } }" }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    eprintln!("module2 info: {}", raw["info"]["https"]);
+    assert_eq!(raw["info"]["https"], Value::Bool(true), "{}", raw["info"]);
+
+    app.dump_evidence("LIVE_https");
+    eprintln!("HTTPS: status, sale and raw status signed over mTLS");
+}

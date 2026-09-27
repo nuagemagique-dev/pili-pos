@@ -5,6 +5,7 @@ pub mod canonical;
 pub mod counter;
 pub mod event;
 pub mod fdm_client;
+pub mod fdm_tls;
 pub mod inputs;
 pub mod payment;
 pub mod qr;

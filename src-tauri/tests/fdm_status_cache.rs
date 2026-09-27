@@ -68,3 +68,20 @@ async fn another_language_is_queried_again() {
     assert_eq!(fr["device"]["fdmId"], "FDM-FR");
     assert_eq!(nl["device"]["fdmId"], "FDM-NL");
 }
+
+#[tokio::test]
+async fn a_changed_connection_setting_is_queried_again() {
+    let _turn = CACHE_TURN.lock().await;
+    let app = TestApp::new().await;
+    app.state.config.lock().unwrap().language = "en".into();
+    Mock::given(method("POST"))
+        .and(body_string_contains("status(language: EN)"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(status("FDM02000425")))
+        .expect(2)
+        .mount(&app.fdm)
+        .await;
+
+    do_check_fdm_status(&app.state).await.unwrap();
+    app.state.config.lock().unwrap().fdm_token_file = Some("/etc/moyun-pos/fdm.token".into());
+    do_check_fdm_status(&app.state).await.unwrap();
+}

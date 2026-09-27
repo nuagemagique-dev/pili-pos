@@ -76,7 +76,7 @@ pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<Strin
         )];
     }
     match crate::state::load_config_from(env_path, production_path) {
-        Ok(config) => config.problems(),
+        Ok(config) => pos_fiscal::fdm_client::FdmClient::config_problems(&config),
         Err(e) => vec![format!("{e:#}")],
     }
 }

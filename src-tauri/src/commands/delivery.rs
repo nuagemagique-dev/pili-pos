@@ -818,6 +818,9 @@ mod tests {
         let config = PosConfig {
             kitchen_printer_address: None,
             fdm_token_file: None,
+            fdm_ca_file: None,
+            fdm_client_cert_file: None,
+            fdm_client_key_file: None,
             restaurant_legal_name: None,
             day_end_hour: 5,
             digital_ticket: Some(d),

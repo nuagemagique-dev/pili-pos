@@ -1,0 +1,49 @@
+{
+  "bookingDate": "2026-09-27",
+  "bookingPeriodId": "c9cc9798-8932-4c9c-a389-405dcde93c21",
+  "deviceId": "F0:1D:3D:CC:13:C8",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 12.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-09-27T20:14:24.692+02:00",
+  "posFiscalTicketNo": 14,
+  "posId": "CPOS0031234567",
+  "posSwVersion": "moyun-pos/1.0.0",
+  "terminalId": "POS-1-BAR",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 12.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Boissons",
+          "productId": "1",
+          "productName": "Dry Martini",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 12.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 12.0
+  },
+  "vatNo": "BE0000000097"
+}

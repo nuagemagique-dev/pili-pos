@@ -96,6 +96,10 @@ pub enum FdmError {
     GraphQl(String),
     #[error("FDM not connected")]
     NotConnected,
+    /// The secure connection failed on a certificate: the FDM's is not
+    /// signed by `fdm_ca_file`, or the FDM wants the client certificate.
+    #[error("FDM_CERTIFICATE_REFUSED: {0}")]
+    CertificateRefused(String),
     #[error("FDM not operational: {0}")]
     NotOperational(String),
     /// The FDM answered, but its response does not match the request
@@ -130,12 +134,23 @@ impl FdmClient {
     /// exercise a real timeout in milliseconds instead of waiting out
     /// the full 10s production budget.
     pub fn with_timeouts(fdm_url: &str, connect_timeout: Duration, timeout: Duration) -> Self {
+        Self::build(fdm_url, connect_timeout, timeout, None)
+    }
+
+    fn build(
+        fdm_url: &str,
+        connect_timeout: Duration,
+        timeout: Duration,
+        tls: Option<rustls::ClientConfig>,
+    ) -> Self {
+        let mut http = reqwest::Client::builder()
+            .connect_timeout(connect_timeout)
+            .timeout(timeout);
+        if let Some(tls) = tls {
+            http = http.tls_backend_preconfigured(tls);
+        }
         Self {
-            http: reqwest::Client::builder()
-                .connect_timeout(connect_timeout)
-                .timeout(timeout)
-                .build()
-                .expect("reqwest client builder"),
+            http: http.build().expect("reqwest client builder"),
             url: fdm_url.to_string(),
             bearer_token: None,
         }
@@ -161,7 +176,51 @@ impl FdmClient {
                         None
                     }
                 });
-        Self::new(&config.fdm_url).with_bearer_token(token)
+        Self::build(
+            &config.fdm_url,
+            Duration::from_secs(5),
+            Duration::from_secs(10),
+            Self::tls_from_config(config),
+        )
+        .with_bearer_token(token)
+    }
+
+    /// The configuration's problems ([`PosConfig::problems`]) plus what
+    /// keeps the HTTPS setup from being built from its files.
+    ///
+    /// [`PosConfig::problems`]: pos_core::config::PosConfig::problems
+    pub fn config_problems(config: &pos_core::config::PosConfig) -> Vec<String> {
+        let mut problems = config.problems();
+        if config.fdm_url.starts_with("https://")
+            && let Some(ca) = config.fdm_ca_file.as_deref()
+        {
+            let client = config
+                .fdm_client_cert_file
+                .as_deref()
+                .zip(config.fdm_client_key_file.as_deref());
+            if let Err(e) = crate::fdm_tls::client_config(ca, client) {
+                problems.push(format!("FDM HTTPS: {e}"));
+            }
+        }
+        problems
+    }
+
+    /// HTTPS with the FDM's CA (and client certificate for mTLS), when
+    /// `fdm_url` is https and `fdm_ca_file` is set; see
+    /// [`crate::fdm_tls`]. Files that cannot be used are logged, and the
+    /// FDM's certificate is then refused, which the operator sees.
+    fn tls_from_config(config: &pos_core::config::PosConfig) -> Option<rustls::ClientConfig> {
+        if !config.fdm_url.starts_with("https://") {
+            return None;
+        }
+        let ca = config.fdm_ca_file.as_deref()?;
+        let client = config
+            .fdm_client_cert_file
+            .as_deref()
+            .zip(config.fdm_client_key_file.as_deref());
+        crate::fdm_tls::client_config(ca, client)
+            .inspect_err(|e| tracing::error!(error = %e, "FDM TLS setup failed"))
+            .ok()
     }
 
     /// Send `token` as a bearer token with every request.
@@ -542,7 +601,9 @@ impl FdmClient {
             request = request.bearer_auth(token);
         }
         let resp = request.body(body_canonical).send().await.map_err(|e| {
-            if e.is_connect() {
+            if let Some(tls) = tls_cause(&e) {
+                FdmError::CertificateRefused(tls.to_string())
+            } else if e.is_connect() {
                 FdmError::NotConnected
             } else {
                 FdmError::Http(e)
@@ -552,6 +613,27 @@ impl FdmClient {
         let gql_resp: GraphQlResponse<R> = resp.json().await?;
         Ok(gql_resp)
     }
+}
+
+/// The TLS error behind a failed request, if any. An `io::Error`'s
+/// `source()` skips the error it wraps, so look inside it too.
+fn tls_cause<'a>(error: &'a (dyn std::error::Error + 'static)) -> Option<&'a rustls::Error> {
+    let mut next: Option<&'a (dyn std::error::Error + 'static)> = Some(error);
+    while let Some(e) = next {
+        if let Some(tls) = e.downcast_ref::<rustls::Error>() {
+            return Some(tls);
+        }
+        // hyper wraps the TLS error in an io::Error, itself in another.
+        let mut io = e.downcast_ref::<std::io::Error>();
+        while let Some(inner) = io.and_then(|io| io.get_ref()) {
+            if let Some(tls) = inner.downcast_ref::<rustls::Error>() {
+                return Some(tls);
+            }
+            io = inner.downcast_ref::<std::io::Error>();
+        }
+        next = e.source();
+    }
+    None
 }
 
 fn format_gql_errors(errors: Option<Vec<GraphQlError>>) -> String {

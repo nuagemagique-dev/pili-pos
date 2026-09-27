@@ -36,7 +36,7 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         terminal_id: config.terminal_id.clone(),
         restaurant_name: config.restaurant_name.clone(),
         language: config.language.clone(),
-        config_problems: config.problems(),
+        config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config),
     })
 }
 

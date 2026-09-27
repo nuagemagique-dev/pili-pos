@@ -77,3 +77,13 @@ test('a refused token is explained, though the FDM sends no code', async ({ page
     "La caisse n'est pas autorisée à parler à la boîte noire.",
   );
 });
+
+test('a refused FDM certificate is not reported as a cable problem', async ({ page }) => {
+  await payByCard(
+    page,
+    refused('FDM error: FDM_CERTIFICATE_REFUSED: invalid peer certificate: UnknownIssuer'),
+  );
+  await expect(page.locator('.checkout .error-msg')).toHaveText(
+    'Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien.',
+  );
+});

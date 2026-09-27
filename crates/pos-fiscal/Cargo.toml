@@ -11,6 +11,11 @@ chrono = { workspace = true }
 chrono-tz = { workspace = true }
 thiserror = { workspace = true }
 reqwest = { version = "0.13", features = ["json"] }
+# HTTPS to the FDM (fdm_tls): the rustls reqwest uses, its aws-lc-rs
+# crypto, and a parser for the X.509 v1 certificates FDMs serve.
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "aws_lc_rs"] }
+aws-lc-rs = "1"
+x509-parser = "0.17"
 uuid = { version = "1", features = ["v4", "serde"] }
 qrcode = "0.14"
 sha1 = "0.11"
@@ -21,6 +26,7 @@ rusqlite = { workspace = true }
 tracing = "0.1"
 
 [dev-dependencies]
+pos-fdm-mock = { path = "../pos-fdm-mock" }
 pos-db = { path = "../pos-db" }
 pos-print = { path = "../pos-print" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

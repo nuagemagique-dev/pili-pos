@@ -48,6 +48,10 @@ export const POS_CHECK_MESSAGES: Record<string, string> = {
   // The FDM's status says `initialized: false` without any message
   // (module2's online simulator always does). It still signs.
   FDM_NOT_INITIALIZED: "La boîte noire n'est pas encore initialisée.",
+  // HTTPS to the FDM failed on a certificate (pos_fiscal::fdm_tls):
+  // its CA, or the client certificate it asks for.
+  FDM_CERTIFICATE_REFUSED:
+    "Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien.",
 };
 
 // Refusals an FDM words without a code: module2 answers a missing or

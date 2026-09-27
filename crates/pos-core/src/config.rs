@@ -45,6 +45,18 @@ pub struct PosConfig {
     /// token stays out of `pos.json`, like the e-mail API key.
     #[serde(default)]
     pub fdm_token_file: Option<String>,
+    /// HTTPS to the FDM (`fdm_url` in https): the CA that signs the
+    /// FDM's server certificate (PEM). module2 publishes one CA for all
+    /// its FDMs and its simulator; their certificates carry no host
+    /// name, so the FDM is trusted on that signature alone.
+    #[serde(default)]
+    pub fdm_ca_file: Option<String>,
+    /// Client certificate and key (PEM) for an FDM that asks for mTLS
+    /// (module2 on port 443). Both or neither.
+    #[serde(default)]
+    pub fdm_client_cert_file: Option<String>,
+    #[serde(default)]
+    pub fdm_client_key_file: Option<String>,
     /// Printer address (TCP, e.g. 192.168.1.200:9100)
     #[serde(default)]
     pub printer_address: Option<String>,
@@ -180,6 +192,23 @@ impl PosConfig {
                 Err(e) => out.push(format!("fdm_token_file: cannot read {path:?}: {e}")),
             }
         }
+        for (key, path) in [
+            ("fdm_ca_file", &self.fdm_ca_file),
+            ("fdm_client_cert_file", &self.fdm_client_cert_file),
+            ("fdm_client_key_file", &self.fdm_client_key_file),
+        ] {
+            if let Some(path) = path
+                && let Err(e) = std::fs::metadata(path)
+            {
+                out.push(format!("{key}: cannot read {path:?}: {e}"));
+            }
+        }
+        if self.fdm_client_cert_file.is_some() != self.fdm_client_key_file.is_some() {
+            out.push("fdm_client_cert_file and fdm_client_key_file go together".into());
+        }
+        if self.fdm_url.starts_with("https://") && self.fdm_ca_file.is_none() {
+            out.push("fdm_url is https: set fdm_ca_file to the FDM's CA".into());
+        }
         if self.day_end_hour > 12 {
             out.push(format!(
                 "day_end_hour: 0 to 12 expected, got {}",
@@ -243,6 +272,9 @@ impl Default for PosConfig {
             printer_address: None,
             kitchen_printer_address: None,
             fdm_token_file: None,
+            fdm_ca_file: None,
+            fdm_client_cert_file: None,
+            fdm_client_key_file: None,
             restaurant_legal_name: None,
             training_mode: false,
             language: "fr".to_string(),

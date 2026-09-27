@@ -521,13 +521,23 @@ pub async fn check_fdm_status(state: State<'_, AppState>) -> Result<serde_json::
 /// a screen mounting again, cost the FDM one query, not several.
 const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(20);
 
-/// The last status answer, keyed by FDM URL and message language.
+/// The last status answer, keyed by everything that reaches the FDM:
+/// its URL, the token and TLS files, the message language. A changed
+/// setting queries the FDM again at once.
 static STATUS_CACHE: std::sync::Mutex<Option<(String, std::time::Instant, serde_json::Value)>> =
     std::sync::Mutex::new(None);
 
 pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let key = format!("{}|{}", config.fdm_url, config.language);
+    let key = format!(
+        "{}|{:?}|{:?}|{:?}|{:?}|{}",
+        config.fdm_url,
+        config.fdm_token_file,
+        config.fdm_ca_file,
+        config.fdm_client_cert_file,
+        config.fdm_client_key_file,
+        config.language
+    );
     if let Ok(cache) = STATUS_CACHE.lock()
         && let Some((cached_key, at, value)) = cache.as_ref()
         && *cached_key == key
