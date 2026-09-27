@@ -12,6 +12,7 @@
 //! | `MOYUN_LIVE_FDM_URL`      | -                | FDM GraphQL endpoint (required, else every test returns) |
 //! | `MOYUN_LIVE_FDM_TOKEN`    | unset            | bearer token, handed to the app through `fdm_token_file` |
 //! | `MOYUN_LIVE_POS_ID`       | `CPOS0031234567` | posId the FDM allows |
+//! | `MOYUN_LIVE_SIMULATOR_VERSION` | unset       | `Simulator-Version` header (module2 simulator; unset = latest) |
 //! | `MOYUN_LIVE_PAUSE_MS`     | `1000`           | least gap between two calls |
 //! | `MOYUN_LIVE_MAX_REQUESTS` | `60`             | calls per run, past it nothing is forwarded |
 //! | `UC_EVIDENCE_DIR`         | unset            | where each signed request and response is written |

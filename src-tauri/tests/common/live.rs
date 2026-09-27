@@ -12,6 +12,10 @@
 //! - the request body and the `Authorization` header pass through
 //!   untouched and are never logged.
 //!
+//! `MOYUN_LIVE_SIMULATOR_VERSION`, when set, is sent as the
+//! `Simulator-Version` header module2's simulator reads (without it,
+//! the simulator answers as its latest version).
+//!
 //! The bearer token reaches the app the way it does in production:
 //! `fdm_token_file` names a file holding `MOYUN_LIVE_FDM_TOKEN`.
 //!
@@ -63,6 +67,7 @@ struct Proxy {
     client: reqwest::Client,
     pause: Duration,
     cap: usize,
+    simulator_version: Option<String>,
     last: tokio::sync::Mutex<Option<Instant>>,
 }
 
@@ -98,6 +103,9 @@ async fn forward(
     if let Some(auth) = headers.get(header::AUTHORIZATION) {
         request = request.header(header::AUTHORIZATION, auth);
     }
+    if let Some(version) = &proxy.simulator_version {
+        request = request.header("Simulator-Version", version);
+    }
     let answer = request.send().await;
     *last = Some(Instant::now());
     match answer {
@@ -125,6 +133,9 @@ async fn start_proxy(target: String) -> String {
             .unwrap(),
         pause: Duration::from_millis(env_number("MOYUN_LIVE_PAUSE_MS", 1000)),
         cap: env_number("MOYUN_LIVE_MAX_REQUESTS", 60) as usize,
+        simulator_version: std::env::var("MOYUN_LIVE_SIMULATOR_VERSION")
+            .ok()
+            .filter(|v| !v.trim().is_empty()),
         last: tokio::sync::Mutex::new(None),
     });
     let router = axum::Router::new()

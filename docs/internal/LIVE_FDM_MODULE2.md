@@ -55,6 +55,8 @@ pasted anywhere):
 ```bash
 MOYUN_LIVE_FDM_URL=http://fdm.module2.be/graphql/
 MOYUN_LIVE_FDM_TOKEN=<token from settings.module2.be>
+# optional: pin the simulator version the evidence was signed with
+MOYUN_LIVE_SIMULATOR_VERSION=2.2.0.5
 ```
 
 The token reaches the POS as in production: the suite writes it to
