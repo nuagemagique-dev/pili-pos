@@ -3,6 +3,9 @@ import { usePosStore } from "./stores/pos";
 import type { AppLanguage } from "./stores/pos";
 import { HUBRISE_ENABLED } from "./features";
 import { webshopMessages } from "./i18n-webshop";
+import { checkoutMessages } from "./i18n-checkout";
+import { reportsMessages } from "./i18n-reports";
+import { settingsMessages } from "./i18n-settings";
 
 export type Messages = Record<string, Record<AppLanguage, string>>;
 
@@ -271,7 +274,7 @@ const coreMessages: Messages = {
   "cash_err_amount": { fr: "Montant invalide", en: "Invalid amount", zh: "金额无效" },
 
   // Training banner
-  "training_banner": { fr: "MODE FORMATION : les transactions ne sont PAS enregistrées", en: "TRAINING MODE: transactions are NOT recorded", zh: "培训模式：交易不会被记录" },
+  "training_banner": { fr: "MODE FORMATION · Les transactions ne sont PAS enregistrées", en: "TRAINING MODE · Transactions are NOT recorded", zh: "培训模式 · 交易不会被记录" },
 
   // Ticket delivery - medium picker (checkout / refund / copy)
   "delivery_paper": { fr: "Papier", en: "Paper", zh: "纸质" },
@@ -318,13 +321,63 @@ const coreMessages: Messages = {
   "delivery_status_failed": { fr: "Échec", en: "Failed", zh: "失败" },
   "delivery_status_fallback_printed": { fr: "Imprimé (secours)", en: "Printed (fallback)", zh: "已打印（备用）" },
   "delivery_status_purged": { fr: "Purgé", en: "Purged", zh: "已清除" },
+
+  // Pili header, device lights and FDM alerts
+  "lock": { fr: "Verrouiller", en: "Lock", zh: "锁屏" },
+  "status_kitchen": { fr: "Cuisine", en: "Kitchen", zh: "厨房" },
+  "fdm_closes_in": { fr: "se ferme dans {s} s", en: "closes in {s} s", zh: "{s} 秒后关闭" },
+  "fdm_retry_in": { fr: "nouvel essai automatique dans {s} s", en: "automatic retry in {s} s", zh: "{s} 秒后自动重试" },
+  "fdm_retry_now": { fr: "Réessayer maintenant", en: "Retry now", zh: "立即重试" },
+
+  // Order screen (Pili)
+  "vat": { fr: "TVA", en: "VAT", zh: "增值税" },
+  "qty_less": { fr: "Un de moins", en: "One less", zh: "减一" },
+  "qty_more": { fr: "Un de plus", en: "One more", zh: "加一" },
+  "line_remove": { fr: "Retirer la ligne", en: "Remove the line", zh: "删除此行" },
+  "not_sent_to_kitchen": { fr: "Pas encore en cuisine", en: "Not sent to the kitchen yet", zh: "未送厨房" },
+  "send_to_kitchen": { fr: "Envoyer en cuisine", en: "Send to kitchen", zh: "送厨房" },
+  "sent_to_kitchen": { fr: "Envoyé en cuisine · {n} articles", en: "Sent to the kitchen · {n} items", zh: "已送厨房 · {n} 件" },
+
+  // Tables screen (Pili)
+  "takeaway_started_at": { fr: "Commencée à {time}", en: "Started at {time}", zh: "{time} 开始" },
+  "takeaway_start": { fr: "Nouvelle vente à emporter", en: "New takeaway sale", zh: "新外带订单" },
+
+  // Login screen (Pili)
+  "who_are_you": { fr: "Qui êtes-vous ?", en: "Who are you?", zh: "您是谁？" },
+  "pin_code": { fr: "Code PIN", en: "PIN code", zh: "PIN码" },
+  "pin_auto_hint": { fr: "connexion au 4ᵉ chiffre", en: "logs in at the 4th digit", zh: "输入第4位数字即登录" },
+  "other_person_insz": { fr: "Autre personne (INSZ)", en: "Someone else (INSZ)", zh: "其他人 (INSZ)" },
+  "on_shift_since": { fr: "en service · {time}", en: "on shift · {time}", zh: "上班中 · {time}" },
+  "off_shift": { fr: "hors service", en: "off shift", zh: "未上班" },
+  "end_shift": { fr: "Fin de service", en: "End shift", zh: "下班" },
+  "end_shift_hint": { fr: "le code PIN termine le service", en: "the PIN ends the shift", zh: "输入PIN即下班" },
+  "shift_ended": { fr: "Service terminé · {name}", en: "Shift ended · {name}", zh: "已下班 · {name}" },
+  "by_nuage_magique": { fr: "par Nuage Magique", en: "by Nuage Magique", zh: "Nuage Magique 出品" },
+  "check_title": { fr: "Démarrage", en: "Start-up", zh: "启动检查" },
+  "check_ticket_printer": { fr: "Imprimante ticket", en: "Ticket printer", zh: "小票打印机" },
+  "check_kitchen_printer": { fr: "Imprimante cuisine", en: "Kitchen printer", zh: "厨房打印机" },
+  "check_email": { fr: "Email tickets", en: "Email receipts", zh: "电子小票" },
+  "check_connected": { fr: "connecté", en: "connected", zh: "已连接" },
+  "check_not_connected": { fr: "non connecté", en: "not connected", zh: "未连接" },
+  "check_offline": { fr: "hors ligne", en: "offline", zh: "离线" },
+  "check_warning": { fr: "avertissement", en: "warning", zh: "警告" },
+  "check_ready": { fr: "prête", en: "ready", zh: "就绪" },
+  "check_unreachable": { fr: "injoignable", en: "unreachable", zh: "无法连接" },
+  "check_reachable": { fr: "joignable", en: "reachable", zh: "可连接" },
+  "check_not_configured": { fr: "non configuré", en: "not configured", zh: "未配置" },
 };
 
 // Webshop strings are merged only when HubRise is built in, so the
 // certification bundle carries no webshop wording.
+const screenMessages: Messages = {
+  ...coreMessages,
+  ...checkoutMessages,
+  ...reportsMessages,
+  ...settingsMessages,
+};
 const messages: Messages = HUBRISE_ENABLED
-  ? { ...coreMessages, ...webshopMessages }
-  : coreMessages;
+  ? { ...screenMessages, ...webshopMessages }
+  : screenMessages;
 
 /** Whether `key` has a text (used to tell a known error code). */
 export function hasMessage(key: string): boolean {

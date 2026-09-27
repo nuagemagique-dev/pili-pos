@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // "En ligne" nav button with the pending webshop-orders badge. Only
 // rendered when HUBRISE_ENABLED (see features.ts). The button is the
-// component root, so OrderView's scoped `.nav-btn` styles apply to it.
+// component root, so AppHeader's scoped `.nav-btn` styles apply to it.
 import { onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useWebshopOrdersStore } from "../stores/webshopOrders";
 import { useI18n } from "../i18n";
 
 const router = useRouter();
+const route = useRoute();
 const webshop = useWebshopOrdersStore();
 const { t } = useI18n();
 
@@ -39,7 +40,7 @@ onMounted(() => {
 <template>
   <button
     class="nav-btn"
-    :class="{ 'nav-btn-raised': webshop.pendingCount > 0 }"
+    :class="{ 'nav-btn-active': route.name === 'webshop-orders' }"
     @click="router.push({ name: 'webshop-orders' })"
   >
     {{ t('online_orders') }}

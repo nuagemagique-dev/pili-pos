@@ -78,12 +78,21 @@ const DEFAULT_ORDER_LINE = {
   department_name: 'Sushi',
 };
 
+const DEFAULT_CART_LINE = {
+  ...DEFAULT_ORDER_LINE,
+  name_fr: 'Maki saumon x8',
+  name_zh: '三文鱼细卷',
+  unsent_quantity: 1,
+};
+
 const DEFAULT_TABLE = (n: number) => ({
   tableNumber: n,
   orderId: null,
   totalCents: 0,
   lineCount: 0,
   status: 'free',
+  openedAt: null,
+  preBillPrinted: false,
 });
 
 // ── Handler registry ────────────────────────────────────────────
@@ -162,6 +171,8 @@ function defaultHandlers(): Record<string, Handler> {
     update_order_line_quantity: () => undefined,
     get_order: () => DEFAULT_ORDER,
     list_order_lines: () => [DEFAULT_ORDER_LINE],
+    // The cart reads its lines here (both names, quantity not yet sent).
+    list_cart_lines: () => [DEFAULT_CART_LINE],
     list_open_orders: () => [],
 
     // Tables
@@ -178,6 +189,7 @@ function defaultHandlers(): Record<string, Handler> {
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),
     work_out: () => ({ success: true, error: null }),
+    list_open_shifts: () => [],
     money_in_out: () => ({ success: true, error: null }),
     open_drawer_fiscal: () => ({ success: true, error: null }),
 
@@ -214,7 +226,9 @@ function defaultHandlers(): Record<string, Handler> {
       success: true, ticket: null, error: null, fdm_connected: true,
       fiscal_event_id: 9, delivery: null, kitchen_slip: 'printed',
     }),
-    check_fdm_status: () => ({ connected: false }),
+    // A healthy FDM: a blocking status covers the sales screens with a
+    // veil (FdmAlerts), so FDM specs set their own status.
+    check_fdm_status: () => ({ initialized: true, errors: [], warnings: [] }),
 
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
@@ -248,6 +262,7 @@ function defaultHandlers(): Record<string, Handler> {
 
     // Print
     check_printer: () => false,
+    check_kitchen_printer: () => null,
     print_webshop_kitchen: () => undefined,
     print_webshop_customer: () => undefined,
 
@@ -516,4 +531,4 @@ export async function loginAndGoto(page: Page, hashRoute: string) {
 }
 
 // Re-export fixtures for direct use in tests.
-export { DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE };
+export { DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };

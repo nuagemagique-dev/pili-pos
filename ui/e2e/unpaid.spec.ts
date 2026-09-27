@@ -23,7 +23,7 @@ async function toOrder(page: Page, user = DEFAULT_USER) {
     login: () => user,
     list_users: () => [user],
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
-    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    list_cart_lines: () => [DEFAULT_ORDER_LINE],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
   });

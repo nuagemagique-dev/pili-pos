@@ -77,3 +77,37 @@ export function translateFdmError(raw: string | null): string | null {
   // UX Guide §8.3: no raw technical jargon - generic fallback
   return "Erreur boîte noire. Contactez votre technicien.";
 }
+
+// Chinese line shown under the French §V message when the interface
+// is in Chinese. The French text stays: it is the certified wording.
+const MESSAGES_ZH: Record<string, string> = {
+  FDM_RESPONSE_MISMATCH: "黑匣子回应不一致，销售未登记。请联系技术人员。",
+  BUFFER_FULL: "黑匣子已满。请联系技术人员。",
+  FDM_LOCKED: "黑匣子已锁定。请联系技术人员。",
+  FDM_NOT_OPERATIONAL: "黑匣子无法工作，无法登记销售。",
+  UNKNOWN_POS: "黑匣子不认识这台收银机。",
+  BUFFER_NEAR_FULL: "黑匣子快满了。请安排维护。",
+  CLIENT_CERT_EXPIRED: "黑匣子证书已过期。请联系技术人员。",
+  UPDATE_POS_VATNO: "收银机的增值税号与黑匣子不一致。请联系技术人员。",
+  UPDATE_POS_ESTNO: "收银机的营业单位编号与黑匣子不一致。请联系技术人员。",
+  CLIENT_CERT_NEAR_EXPIRATION: "黑匣子证书即将过期。",
+  TRANSACTION_UPLOAD_FAILED: "黑匣子无法向财政部传送交易。请检查网络连接。",
+};
+
+export function translateFdmErrorZh(raw: string | null): string | null {
+  if (!raw) return null;
+  for (const [code, msg] of Object.entries(MESSAGES_ZH)) {
+    if (raw.includes(code)) return msg;
+  }
+  if (raw.includes("connect") || raw.includes("timeout")) {
+    return "与黑匣子的连接中断。请检查网线。";
+  }
+  return "黑匣子错误。请联系技术人员。";
+}
+
+/** The FDM code in `raw`, for the technician (shown small). */
+export function fdmCode(raw: string | null): string | null {
+  if (!raw) return null;
+  const known = [...Object.keys(POS_CHECK_MESSAGES), ...Object.keys(ERROR_MESSAGES)];
+  return known.find((code) => raw.includes(code)) ?? null;
+}

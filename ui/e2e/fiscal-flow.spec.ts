@@ -21,7 +21,7 @@ async function openTable(page: Page, overrides: Handlers = {}) {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
-    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    list_cart_lines: () => [DEFAULT_ORDER_LINE],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
     ...overrides,
@@ -91,7 +91,7 @@ test.describe('Takeaway drafts (direct sale)', () => {
         { orderId: 502, totalCents: 608, lineCount: 1, createdAt: '2026-09-26 10:05:00' },
       ],
       get_order: () => orderOf(502),
-      list_order_lines: () => [DEFAULT_ORDER_LINE],
+      list_cart_lines: () => [DEFAULT_ORDER_LINE],
       get_categories: () => [DEFAULT_CATEGORY],
       get_menu_items: () => [DEFAULT_MENU_ITEM],
     });
@@ -109,13 +109,13 @@ test.describe('Takeaway drafts (direct sale)', () => {
     expect((await ipcCalls(page, 'get_order')).map((c) => c.orderId)).toContain(502);
   });
 
-  test('no takeaway in progress, no strip', async ({ page }) => {
+  test('no takeaway in progress, none listed', async ({ page }) => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
     await page.goto('/');
     await tapUserTile(page);
     await page.waitForURL(/tables/);
     await expect(page.locator('.table-card').first()).toBeVisible();
-    await expect(page.locator('.takeaways')).toHaveCount(0);
+    await expect(page.locator('.takeaway-card')).toHaveCount(0);
   });
 });
 
@@ -175,9 +175,9 @@ test.describe('Table order registration (P)', () => {
     expect(order).toEqual(['create:dine_in', 'sign', 'create:takeaway']);
   });
 
-  test('[FAQ_Q205] logging out registers it', async ({ page }) => {
+  test('[FAQ_Q205] locking the screen registers it', async ({ page }) => {
     await openTable(page);
-    await navButton(page, 'Sortir').click();
+    await navButton(page, 'Verrouiller').click();
     await page.waitForURL(/#\/$/);
     expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
   });
@@ -201,10 +201,10 @@ test.describe('Table order registration (P)', () => {
     await expect(page.locator('.header-takeaway')).toHaveCount(0);
   });
 
-  test('an FDM refusal never blocks logging out', async ({ page }) => {
+  test('an FDM refusal never blocks locking the screen', async ({ page }) => {
     await openTable(page);
     await overrideIPC(page, 'sign_table_order', '__THROW__');
-    await navButton(page, 'Sortir').click();
+    await navButton(page, 'Verrouiller').click();
     await page.waitForURL(/#\/$/);
     await expect(page.locator('.user-btn').first()).toBeVisible();
   });
@@ -236,7 +236,7 @@ test.describe('Pre-bill ("Addition")', () => {
     const takeaway = { ...DEFAULT_ORDER, order_type: 'takeaway', table_number: null };
     await openTable(page, { create_order: () => takeaway, get_order: () => takeaway });
     await expect(page.locator('.header-takeaway')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'PAYER', exact: true })).toBeEnabled();
+    await expect(page.locator('.checkout-btn')).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Addition' })).toHaveCount(0);
   });
 
@@ -244,7 +244,7 @@ test.describe('Pre-bill ("Addition")', () => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
-      list_order_lines: () => [],
+      list_cart_lines: () => [],
     });
     await page.goto('/');
     await tapUserTile(page);
@@ -334,15 +334,20 @@ test.describe('FDM refusals on presence and cash events', () => {
 test.describe('Cash events (F)', () => {
   const REFUSED = { success: false, error: 'FDM error: offline' };
 
-  async function openCash(page: Page, overrides: Handlers = {}) {
+  async function gotoCashTab(page: Page, overrides: Handlers = {}) {
     await mockTauriIPC(page, overrides);
     await loginAndGoto(page, '/reports');
+    await page.getByRole('tab', { name: 'Caisse' }).click();
+  }
+
+  async function openCash(page: Page, overrides: Handlers = {}) {
+    await gotoCashTab(page, overrides);
     await page.locator('.cash-preset').first().click();
   }
 
   test('a recorded cash movement is confirmed and sent once', async ({ page }) => {
     await openCash(page);
-    await page.locator('.cash-in').first().click();
+    await page.locator('.cash-submit').click();
     await expect(page.locator('.toast-success')).toContainText('Mouvement enregistré');
 
     const calls = await ipcCalls(page, 'money_in_out');
@@ -352,14 +357,17 @@ test.describe('Cash events (F)', () => {
 
   test('a cash out is sent with its direction', async ({ page }) => {
     await openCash(page);
-    await page.locator('.cash-out').nth(1).click();
+    await page.locator('.cash-dir-out').click();
+    await page.locator('.cash-reason', { hasText: 'Retrait' }).click();
+    await page.locator('.cash-submit').click();
+    await expect.poll(() => ipcCalls(page, 'money_in_out')).toHaveLength(1);
     const calls = await ipcCalls(page, 'money_in_out');
-    expect(calls[0]).toMatchObject({ direction: 'out', reason: 'retrait' });
+    expect(calls[0]).toMatchObject({ amountCents: 1000, direction: 'out', reason: 'retrait' });
   });
 
   test('a refused cash movement is shown as an error, never as recorded', async ({ page }) => {
     await openCash(page, { money_in_out: () => REFUSED });
-    await page.locator('.cash-in').first().click();
+    await page.locator('.cash-submit').click();
 
     await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
     await expect(page.locator('.toast-success')).toHaveCount(0);
@@ -375,8 +383,7 @@ test.describe('Cash events (F)', () => {
   });
 
   test('[M133] the counted cash is declared with the amount typed', async ({ page }) => {
-    await mockTauriIPC(page);
-    await loginAndGoto(page, '/reports');
+    await gotoCashTab(page);
     await page.locator('.declaration-btn').click();
     for (const key of ['3', '4', '7', '2', '0']) {
       await page.locator('.numpad button', { hasText: new RegExp(`^${key}$`) }).click();
@@ -391,19 +398,21 @@ test.describe('Cash events (F)', () => {
   });
 
   test('[M133] an empty drawer is declared as 0', async ({ page }) => {
-    await mockTauriIPC(page);
-    await loginAndGoto(page, '/reports');
+    await gotoCashTab(page);
     await page.locator('.declaration-btn').click();
     await expect(page.locator('.btn-confirm')).toBeEnabled();
     await page.locator('.btn-confirm').click();
+    await expect.poll(() => ipcCalls(page, 'money_in_out')).toHaveLength(1);
     const calls = await ipcCalls(page, 'money_in_out');
     expect(calls[0]).toMatchObject({ amountCents: 0, direction: 'declaration' });
   });
 
   test('cash buttons stay disabled until an amount is chosen', async ({ page }) => {
-    await mockTauriIPC(page);
-    await loginAndGoto(page, '/reports');
-    await expect(page.locator('.cash-in').first()).toBeDisabled();
-    await expect(page.locator('.cash-out').first()).toBeDisabled();
+    await gotoCashTab(page);
+    await expect(page.locator('.cash-submit')).toBeDisabled();
+    await page.locator('.cash-dir-out').click();
+    await expect(page.locator('.cash-submit')).toBeDisabled();
+    await page.locator('.cash-submit').click({ force: true });
+    expect(await ipcCalls(page, 'money_in_out')).toHaveLength(0);
   });
 });

@@ -47,7 +47,7 @@ async function goToCheckoutMethodStep(page: Page, overrides: Handlers = {}) {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
-    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    list_cart_lines: () => [DEFAULT_ORDER_LINE],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
     ...overrides,
@@ -65,6 +65,7 @@ async function goToCheckoutMethodStep(page: Page, overrides: Handlers = {}) {
 async function payExact(page: Page) {
   await page.locator('.cash-btn').click();
   await page.locator('.shortcut.exact').click();
+  await page.locator('.validate-btn').click();
   await expect(page.locator('.success-icon')).toBeVisible();
 }
 
@@ -381,12 +382,12 @@ test.describe('Refund flow - ticket delivery', () => {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
       list_refundable_events: () => SAMPLE_REFUNDABLE,
-      list_order_lines: () => [DEFAULT_ORDER_LINE],
+      list_cart_lines: () => [DEFAULT_ORDER_LINE],
       ...overrides,
     });
     await loginAndGoto(page, '/reports');
-    await page.locator('.refund-btn').click();
-    await page.locator('.refund-ticket-btn').first().click();
+    await page.getByRole('tab', { name: 'Tickets' }).click();
+    await page.locator('.ticket-row', { hasText: '#42' }).locator('.refund-btn').click();
     await page.locator('.refund-line').first().click();
   }
 
@@ -442,6 +443,7 @@ test.describe('Copy flow - ticket delivery', () => {
       check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
     });
     await loginAndGoto(page, '/reports');
+    await page.locator('.z-history-btn').click();
     await page.locator('.reprint-btn').click();
     await expect(page.locator('.medium-picker')).toBeVisible();
     await expect(page.locator('.medium-btn.active')).toContainText('Papier');
@@ -455,6 +457,7 @@ test.describe('Copy flow - ticket delivery', () => {
       check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
     });
     await loginAndGoto(page, '/reports');
+    await page.locator('.z-history-btn').click();
     await page.locator('.reprint-btn').click();
     await page.locator('.medium-btn', { hasText: 'Les deux' }).click();
     await typeAndConfirmEmail(page, 'a', '@gmail.com');
@@ -477,82 +480,109 @@ test.describe('Copy flow - ticket delivery', () => {
       }),
     });
     await loginAndGoto(page, '/reports');
+    await page.locator('.z-history-btn').click();
     await page.locator('.reprint-btn').click();
     await page.getByRole('button', { name: 'Valider' }).click();
     await expect(page.locator('.delivery-msg')).toContainText('a***@b***.be');
   });
 });
 
-test.describe('Ticket copy (event C) - pick the ticket first', () => {
+test.describe('Ticket copy (event C) and refund - one list of tickets', () => {
   const TICKETS = [
     { fiscalEventId: 41, eventLabel: 'T', ticketNumber: 9, tableNumber: null, totalCents: 300, createdAt: '2026-09-25 12:30:00' },
     { fiscalEventId: 40, eventLabel: 'N', ticketNumber: 8, tableNumber: null, totalCents: -1200, createdAt: '2026-09-25 12:20:00' },
     { fiscalEventId: 39, eventLabel: 'P', ticketNumber: 7, tableNumber: 4, totalCents: 2800, createdAt: '2026-09-25 12:10:00' },
     { fiscalEventId: 38, eventLabel: 'N', ticketNumber: 6, tableNumber: 4, totalCents: 5200, createdAt: '2026-09-25 12:00:00' },
   ];
+  // Only the sale #6 can be refunded.
+  const REFUNDABLE = [
+    { fiscalEventId: 38, ticketNumber: 6, orderId: 5, tableNumber: 4, totalCents: 5200, createdAt: '2026-09-25 12:00:00' },
+  ];
 
-  async function openCopyList(page: Page, overrides: Handlers = {}) {
+  async function openTicketsTab(page: Page, overrides: Handlers = {}) {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
       list_copyable_tickets: () => TICKETS,
+      list_refundable_events: () => REFUNDABLE,
       ...overrides,
     });
     await loginAndGoto(page, '/reports');
-    await page.getByRole('button', { name: 'Copie de ticket' }).click();
+    await page.getByRole('tab', { name: 'Tickets' }).click();
   }
 
   test('lists each ticket with its kind, table and own total', async ({ page }) => {
-    await openCopyList(page);
-    const cards = page.locator('.copy-ticket-btn');
-    await expect(cards).toHaveCount(4);
-    await expect(cards.locator('.rt-kind')).toHaveText(['Formation', 'Remboursement', 'Addition', 'Vente']);
-    await expect(cards.nth(2)).toContainText('#7');
-    await expect(cards.nth(2)).toContainText('T4');
-    await expect(cards.nth(1).locator('.rt-total')).toContainText('-12,00');
+    await openTicketsTab(page);
+    const rows = page.locator('.ticket-row');
+    await expect(rows).toHaveCount(4);
+    await expect(rows.locator('.rt-kind')).toHaveText(['Formation', 'Remboursement', 'Addition', 'Vente']);
+    await expect(rows.nth(2)).toContainText('#7');
+    await expect(rows.nth(2)).toContainText('T4');
+    await expect(rows.nth(1).locator('.rt-total')).toContainText('-12,00');
     // SQLite UTC 12:00 is 14:00 in Brussels (summer time).
-    await expect(cards.nth(3).locator('.rt-time')).toHaveText('14:00');
+    await expect(rows.nth(3).locator('.rt-time')).toHaveText('14:00');
+  });
+
+  test('every ticket can be copied, only the refundable sale refunded', async ({ page }) => {
+    await openTicketsTab(page);
+    await expect(page.locator('.copy-ticket-btn')).toHaveCount(4);
+    await expect(page.locator('.ticket-row .refund-btn')).toHaveCount(1);
+    await expect(page.locator('.ticket-row', { hasText: '#6' }).locator('.refund-btn')).toBeVisible();
   });
 
   test('copies the chosen ticket, on paper by default', async ({ page }) => {
-    await openCopyList(page);
+    await openTicketsTab(page);
     await page.locator('.copy-ticket-btn').nth(3).click();
+    await expect(page.locator('.refund-modal h3')).toHaveText('Copie de ticket');
     await page.getByRole('button', { name: 'Valider' }).click();
+    await expect.poll(() => ipcCalls(page, 'copy_ticket')).toHaveLength(1);
     const calls = await ipcCalls(page, 'copy_ticket');
-    expect(calls).toHaveLength(1);
     expect(calls[0].fiscalEventId).toBe(38);
     expect(calls[0].employeeInsz).toBe(DEFAULT_USER.insz);
     expect(calls[0].delivery).toBeUndefined();
   });
 
-  test('back from the list signs nothing', async ({ page }) => {
-    await openCopyList(page);
+  test('back from the copy picker signs nothing', async ({ page }) => {
+    await openTicketsTab(page);
+    await page.locator('.copy-ticket-btn').first().click();
     await page.locator('.refund-modal').getByRole('button', { name: 'Retour' }).click();
     await expect(page.locator('.refund-modal')).toHaveCount(0);
     expect(await ipcCalls(page, 'copy_ticket')).toHaveLength(0);
   });
 
-  test('an empty list says so', async ({ page }) => {
-    await openCopyList(page, { list_copyable_tickets: () => [] });
-    await expect(page.locator('.refund-modal')).toContainText('Aucun ticket récent');
+  test('back from the refund items signs nothing', async ({ page }) => {
+    await openTicketsTab(page);
+    await page.locator('.ticket-row .refund-btn').click();
+    await page.locator('.refund-modal').getByRole('button', { name: 'Retour' }).click();
+    await expect(page.locator('.refund-modal')).toHaveCount(0);
+    expect(await ipcCalls(page, 'refund_checkout')).toHaveLength(0);
   });
 
-  test('a refused listing is shown, and no list opens', async ({ page }) => {
+  test('an empty list says so', async ({ page }) => {
+    await openTicketsTab(page, { list_copyable_tickets: () => [], list_refundable_events: () => [] });
+    await expect(page.locator('.tickets-empty')).toHaveText('Aucun ticket récent');
+  });
+
+  test('a refused listing is shown, and no copy is offered', async ({ page }) => {
     await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
     await loginAndGoto(page, '/reports');
     await overrideIPC(page, 'list_copyable_tickets', { __reject: 'forbidden' });
-    await page.getByRole('button', { name: 'Copie de ticket' }).click();
+    await page.getByRole('tab', { name: 'Tickets' }).click();
     await expect(page.locator('.toast', { hasText: 'Action réservée à un autre profil.' })).toBeVisible();
+    await expect(page.locator('.copy-ticket-btn')).toHaveCount(0);
     await expect(page.locator('.refund-modal')).toHaveCount(0);
   });
 
   test('the Z history copy keeps its own title', async ({ page }) => {
-    await openCopyList(page, {
+    await openTicketsTab(page, {
       list_z_reports: () => [
         { id: 1, reportDate: '2026-09-24', sequenceNumber: 1, createdAt: '2026-09-24T22:15:00Z', fiscalEventId: 77 },
       ],
     });
+    await page.locator('.copy-ticket-btn').first().click();
     await page.locator('.refund-modal').getByRole('button', { name: 'Retour' }).click();
+    await page.getByRole('tab', { name: 'Journée' }).click();
+    await page.locator('.z-history-btn').click();
     await page.locator('.reprint-btn').click();
     await expect(page.locator('.refund-modal h3')).toHaveText('Réimprimer');
   });

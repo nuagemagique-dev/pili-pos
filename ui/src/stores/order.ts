@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { Order, OrderLine, MenuItem } from "../types";
+import type { Order, CartLine, MenuItem } from "../types";
 import * as ipc from "../api/ipc";
 import { useAuthStore } from "./auth";
 import { useToastStore } from "./toast";
@@ -30,13 +30,19 @@ async function reported(action: () => Promise<void>): Promise<boolean> {
 
 export const useOrderStore = defineStore("order", () => {
   const currentOrder = ref<Order | null>(null);
-  const lines = ref<OrderLine[]>([]);
+  const lines = ref<CartLine[]>([]);
   const openOrders = ref<Order[]>([]);
   // Client-side lookup: menu_item_id → category_id
   const itemCategoryMap = ref<Map<number, number>>(new Map());
 
   const totalCents = computed(() =>
     lines.value.reduce((sum, line) => sum + line.unit_price_cents * line.quantity, 0)
+  );
+
+  /** Units ordered but not yet sent to the bar / kitchen (dine-in: they
+   * go out with the next P; takeaway: with the sale). */
+  const unsentCount = computed(() =>
+    lines.value.reduce((sum, line) => sum + Math.max(0, line.unsent_quantity ?? 0), 0)
   );
 
   async function startOrder(tableNumber: number | null) {
@@ -49,7 +55,7 @@ export const useOrderStore = defineStore("order", () => {
       user_insz: auth.currentUser.insz,
     });
     // A busy table returns its open order: show its lines.
-    lines.value = tableNumber ? await ipc.listOrderLines(currentOrder.value.id) : [];
+    lines.value = tableNumber ? await ipc.listCartLines(currentOrder.value.id) : [];
   }
 
   /**
@@ -62,7 +68,7 @@ export const useOrderStore = defineStore("order", () => {
   async function loadOrder(orderId: number) {
     const [order, orderLines] = await Promise.all([
       ipc.getOrder(orderId),
-      ipc.listOrderLines(orderId),
+      ipc.listCartLines(orderId),
     ]);
     currentOrder.value = order;
     lines.value = orderLines;
@@ -95,7 +101,12 @@ export const useOrderStore = defineStore("order", () => {
       modifiers_json: null,
       ...(item.open_price ? { unit_price_cents: unitPriceCents } : {}),
     });
-    lines.value.push(line);
+    lines.value.push({
+      ...line,
+      name_fr: item.name_fr ?? null,
+      name_zh: item.name_zh ?? null,
+      unsent_quantity: quantity,
+    });
     itemCategoryMap.value.set(item.id, item.category_id);
 
     currentOrder.value = await ipc.getOrder(currentOrder.value.id);
@@ -117,14 +128,16 @@ export const useOrderStore = defineStore("order", () => {
     return reported(() => updateQuantityUnreported(lineId, quantity));
   }
 
+  /** Quantities never go below 1 here (UX guide §4.3): removing a line
+   * is its own action (`removeLine`). */
   async function updateQuantityUnreported(lineId: number, quantity: number) {
-    if (quantity <= 0) {
-      await removeLineUnreported(lineId);
-      return;
-    }
+    if (quantity < 1) return;
     await ipc.updateOrderLineQuantity(lineId, quantity);
     const line = lines.value.find((l) => l.id === lineId);
-    if (line) line.quantity = quantity;
+    if (line) {
+      line.unsent_quantity = (line.unsent_quantity ?? 0) + (quantity - line.quantity);
+      line.quantity = quantity;
+    }
     if (currentOrder.value) {
       currentOrder.value = await ipc.getOrder(currentOrder.value.id);
     }
@@ -155,12 +168,20 @@ export const useOrderStore = defineStore("order", () => {
     // paid or closed unpaid, and ends in an N (FAQ Q205).
     if (current.order_type === "takeaway") return;
     warnIfSlipFailed(await ipc.signTableOrder(current.id));
+    markAllSent();
+  }
+
+  /** Everything ordered so far went out with a signed P (or the sale). */
+  function markAllSent() {
+    for (const line of lines.value) line.unsent_quantity = 0;
   }
 
   /** Provisional bill ("addition provisoire", §1.4), printed PRO FORMA. */
   async function preBill() {
     if (!currentOrder.value) throw new Error("No active order");
+    // Entries not yet registered are sent as an order first.
     warnIfSlipFailed(await ipc.signPreBill(currentOrder.value.id));
+    markAllSent();
   }
 
   /** Close the current order unpaid, confirmed by the manager's PIN.
@@ -188,6 +209,7 @@ export const useOrderStore = defineStore("order", () => {
     lines,
     openOrders,
     totalCents,
+    unsentCount,
     startOrder,
     loadOrder,
     addItem,

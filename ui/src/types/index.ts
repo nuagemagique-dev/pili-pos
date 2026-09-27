@@ -17,6 +17,9 @@ export interface PaymentPart {
 export interface Category {
   id: number;
   name: string;
+  /** French and Chinese names, whatever the UI language. */
+  name_fr?: string | null;
+  name_zh?: string | null;
   sort_order: number;
   color: string | null;
   active: boolean;
@@ -26,6 +29,9 @@ export interface MenuItem {
   id: number;
   category_id: number;
   name: string;
+  /** French and Chinese names, whatever the UI language. */
+  name_fr?: string | null;
+  name_zh?: string | null;
   price_cents: number;
   vat_code: VatCode;
   vat_code_takeaway: VatCode | null;
@@ -60,6 +66,14 @@ export interface OrderLine {
   created_at: string;
   department_id: string;
   department_name: string;
+}
+
+/** A cart line: the order line, its product's French and Chinese
+ * names, and the quantity not yet sent to the bar / kitchen. */
+export interface CartLine extends OrderLine {
+  name_fr: string | null;
+  name_zh: string | null;
+  unsent_quantity: number;
 }
 
 export interface User {

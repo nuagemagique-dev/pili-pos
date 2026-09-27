@@ -11,7 +11,7 @@ own webshop, …).
 | `deliveroo.svg` | Wikimedia Commons (`Deliveroo_logo.svg`) | Brand teal `#00CCBC`, reads directly on `--bg-primary`. |
 | `uber-eats.svg` | Wikimedia Commons (`Uber_Eats_2020_logo.svg`) | The "Uber" glyph was near-black (`#142328`) and invisible on the dark theme - recolored to `#ffffff` so it reads on `--bg-primary`. The "Eats" green `#06c167` is unchanged. |
 | `takeaway.svg` | Wikimedia Commons (`Takeaway_logo.svg`) | Brand orange `#ff8000`, reads directly on `--bg-primary`. |
-| _(no file)_ | - | TSB's own webshop has no brand SVG - `WebshopOrdersView` renders a "Tokyo" wordmark in the Channel display font (`../fonts/channel.woff2`, declared in the view's `@font-face`) so the staff sees the same typography as the tsb-core product category headers. |
+| _(no file)_ | - | The restaurant's own webshop has no brand SVG - `WebshopOrdersView` shows a mono "WEBSHOP" label and a Volt stripe instead. |
 
 ## Production checklist
 

@@ -120,7 +120,7 @@ test.describe('Login View', () => {
   });
 
   test('INSZ numpad shows on "Autre" tap', async ({ page }) => {
-    await page.click('.other-link');
+    await page.click('.other-btn');
     await expect(page.locator('.numpad-section')).toBeVisible();
     await expect(page.locator('.insz-display')).toBeVisible();
   });
@@ -183,7 +183,7 @@ test.describe('First login of a manager without PIN', () => {
 
   test('a manager typed by INSZ is asked to choose a PIN too', async ({ page }) => {
     await overrideIPC(page, 'login', { __reject: 'pin_setup_required' });
-    await page.click('.other-link');
+    await page.click('.other-btn');
     for (const d of NEW_MANAGER.insz) await page.click(`.numpad-section .nk:has-text("${d}")`);
     await page.locator('.submit-btn').click();
     await expect(page.locator('.pin-dialog .title')).toHaveText('Choisissez votre PIN');
@@ -195,9 +195,63 @@ test('a PIN-protected user typed by INSZ gets the PIN overlay', async ({ page })
   await mockTauriIPC(page, { list_users: () => [DEFAULT_USER_WITH_PIN] });
   await page.goto('/');
   await overrideIPC(page, 'login', { __reject: 'pin_required' });
-  await page.click('.other-link');
+  await page.click('.other-btn');
   for (const d of DEFAULT_USER_WITH_PIN.insz) await page.click(`.numpad-section .nk:has-text("${d}")`);
   await page.locator('.submit-btn').click();
   await expect(page.locator('.pin-overlay')).toBeVisible();
   await expect(page.locator('.pin-user')).toHaveText(DEFAULT_USER_WITH_PIN.name);
+});
+
+test.describe('Shifts (clock-in / clock-out, event S)', () => {
+  const ON_SHIFT = [{ userInsz: DEFAULT_USER.insz, startedAt: '2026-09-26T09:02:00Z' }];
+
+  test('a tile shows who is on shift, and since when', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER], list_open_shifts: () => ON_SHIFT });
+    await page.goto('/');
+    await expect(page.locator('.user-shift.on')).toContainText('en service · 11:02');
+  });
+
+  test('an employee off shift is clocked in at login', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER], list_open_shifts: () => [] });
+    await page.goto('/');
+    await expect(page.locator('.user-shift')).toContainText('hors service');
+    await tapUserTile(page);
+    await page.waitForURL(/tables|order/);
+    await expect.poll(() => ipcCalls(page, 'work_in')).toHaveLength(1);
+  });
+
+  test('an employee on shift is not clocked in again', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER], list_open_shifts: () => ON_SHIFT });
+    await page.goto('/');
+    await tapUserTile(page);
+    await page.waitForURL(/tables|order/);
+    await page.waitForTimeout(300);
+    expect(await ipcCalls(page, 'work_in')).toHaveLength(0);
+  });
+
+  test('"Fin de service" then the PIN clocks out and stays on the login screen', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER], list_open_shifts: () => ON_SHIFT });
+    await page.goto('/');
+    await page.locator('.user-btn').first().click();
+    await page.locator('.end-shift-btn').click();
+    await expect(page.locator('.pin-title')).toHaveText('Fin de service');
+    for (const d of '1234') await page.locator('.pin-overlay .nk', { hasText: d }).first().click();
+
+    await expect(page.locator('.toast-success')).toContainText('Service terminé');
+    await expect.poll(async () =>
+      page.evaluate(() => ((window as any).__ipcCalls as Array<{ cmd: string }>)
+        .map((c) => c.cmd)
+        .filter((c) => c === 'login' || c === 'work_out' || c === 'logout')),
+    ).toEqual(['login', 'work_out', 'logout']);
+    await expect(page).toHaveURL(/#\/$/);
+    expect(await ipcCalls(page, 'work_in')).toHaveLength(0);
+  });
+
+  test('without being on shift, there is no "Fin de service"', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER], list_open_shifts: () => [] });
+    await page.goto('/');
+    await page.locator('.user-btn').first().click();
+    await expect(page.locator('.pin-overlay')).toBeVisible();
+    await expect(page.locator('.end-shift-btn')).toHaveCount(0);
+  });
 });

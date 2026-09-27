@@ -36,3 +36,9 @@ export function formatTimestamp(iso: string, formatter: (d: Date) => string): st
   const d = parseTimestamp(iso);
   return d ? formatter(d) : iso;
 }
+
+/** Whole minutes from a backend timestamp to `now` (0 when unparsable). */
+export function minutesSince(iso: string, now: Date = new Date()): number {
+  const d = parseTimestamp(iso);
+  return d ? Math.max(0, Math.floor((now.getTime() - d.getTime()) / 60_000)) : 0;
+}

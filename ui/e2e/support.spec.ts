@@ -28,7 +28,7 @@ test('a manager starts a session with their PIN', async ({ page }) => {
   await mockTauriIPC(page);
   await loginAndGoto(page, '/settings');
   const section = page.locator('.support-section');
-  await expect(section.locator('h3')).toHaveText('Assistance à distance');
+  await expect(section.locator('h2')).toHaveText('Assistance à distance');
   await section.getByRole('button', { name: 'Démarrer' }).click();
 
   await expect(page.locator('.pin-dialog .title')).toHaveText('Saisir le PIN');

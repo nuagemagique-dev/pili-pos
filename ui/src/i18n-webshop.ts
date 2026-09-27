@@ -4,24 +4,23 @@ import type { Messages } from "./i18n";
 
 export const webshopMessages: Messages = {
   "online_orders": { fr: "En ligne", en: "Online", zh: "在线" },
-  // WebshopOrdersView - filter tabs. One tab per working status;
-  // the terminal statuses (completed / rejected / cancelled) share
-  // a single "Terminées" bucket since they all mean "card is dead"
-  // from the staff's live-triage perspective.
-  "webshop_filter_all": { fr: "Toutes", en: "All", zh: "全部" },
-  "webshop_filter_new": { fr: "Nouvelles", en: "New", zh: "新订单" },
-  "webshop_filter_accepted": { fr: "Acceptées", en: "Accepted", zh: "已接受" },
-  "webshop_filter_in_preparation": { fr: "En prépa", en: "In prep", zh: "准备中" },
-  "webshop_filter_awaiting_collection": { fr: "Prêtes", en: "Ready", zh: "待取" },
-  "webshop_filter_in_delivery": { fr: "En livraison", en: "In delivery", zh: "配送中" },
-  "webshop_filter_done": { fr: "Terminées", en: "Done", zh: "已完成" },
+  // WebshopOrdersView - one column per stage. The terminal statuses
+  // (completed / rejected / cancelled) share the "Terminées" view
+  // behind a button in the "Prêtes" column head.
+  "webshop_filter_done": { fr: "Terminées", en: "Done", zh: "已结束" },
+  "webshop_col_new": { fr: "Nouvelles", en: "New", zh: "新订单" },
+  "webshop_col_kitchen": { fr: "En cuisine", en: "In the kitchen", zh: "制作中" },
+  "webshop_col_ready": { fr: "Prêtes", en: "Ready", zh: "待取" },
+  // Key time at the top right of a card
+  "webshop_time_ago": { fr: "il y a {n} min", en: "{n} min ago", zh: "{n} 分钟前" },
+  "webshop_time_ready_at": { fr: "prêt à {time}", en: "ready at {time}", zh: "预计 {time}" },
+  "webshop_time_ready": { fr: "prête {time}", en: "ready {time}", zh: "{time} 已备好" },
+  // The restaurant's own webshop, in place of a channel logo
+  "webshop_own_label": { fr: "Webshop", en: "Webshop", zh: "网店" },
+  "webshop_delay_label": { fr: "Retarder", en: "Delay", zh: "延迟" },
+  "webshop_action_reprint": { fr: "Réimprimer", en: "Reprint", zh: "重新打印" },
 
-  // WebshopOrdersView - status chips
-  "webshop_status_new": { fr: "Nouvelle", en: "New", zh: "新" },
-  "webshop_status_received": { fr: "Reçue", en: "Received", zh: "已收到" },
-  "webshop_status_accepted": { fr: "Acceptée", en: "Accepted", zh: "已接受" },
-  "webshop_status_in_preparation": { fr: "En prépa", en: "In prep", zh: "准备中" },
-  "webshop_status_ready": { fr: "Prête", en: "Ready", zh: "待取" },
+  // WebshopOrdersView - status shown on in-delivery and finished cards
   "webshop_status_in_delivery": { fr: "En livraison", en: "In delivery", zh: "配送中" },
   "webshop_status_completed": { fr: "Terminée", en: "Done", zh: "已完成" },
   "webshop_status_rejected": { fr: "Refusée", en: "Rejected", zh: "已拒绝" },
@@ -46,11 +45,6 @@ export const webshopMessages: Messages = {
   "webshop_action_reject": { fr: "Refuser", en: "Reject", zh: "拒绝" },
 
   // WebshopOrdersView - row labels
-  "webshop_label_type": { fr: "Type", en: "Type", zh: "类型" },
-  "webshop_label_time": { fr: "Heure", en: "Time", zh: "时间" },
-  "webshop_label_customer": { fr: "Client", en: "Customer", zh: "顾客" },
-  "webshop_label_ref": { fr: "Réf.", en: "Ref.", zh: "编号" },
-  "webshop_label_total": { fr: "Total", en: "Total", zh: "合计" },
 
   // WebshopOrdersView - state messages
   "webshop_loading": { fr: "Chargement…", en: "Loading…", zh: "加载中…" },
@@ -61,14 +55,8 @@ export const webshopMessages: Messages = {
   },
 
   // WebshopOrdersView - delay chips + print buttons + toasts
-  "webshop_label_ready_at": { fr: "Prêt à", en: "Ready at", zh: "预计" },
-  "webshop_label_delivery_address": {
-    fr: "Livraison",
-    en: "Delivery",
-    zh: "送货地址",
-  },
-  "webshop_action_print_kitchen": { fr: "Cuisine", en: "Kitchen", zh: "厨房" },
-  "webshop_action_print_customer": { fr: "Client", en: "Customer", zh: "客单" },
+  "webshop_action_print_kitchen": { fr: "Ticket cuisine", en: "Kitchen ticket", zh: "厨房单" },
+  "webshop_action_print_customer": { fr: "Ticket client", en: "Customer ticket", zh: "客单" },
   "webshop_toast_delay_ok": {
     fr: "Délai appliqué",
     en: "Delay applied",

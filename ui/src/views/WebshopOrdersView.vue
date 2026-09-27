@@ -1,153 +1,96 @@
 <script setup lang="ts">
-import { formatTime, formatTimestamp, parseTimestamp } from '../utils/datetime'
-// WebshopOrdersView - dark-theme POS screen for HubRise-origin orders
-// (webshop, Deliveroo, Uber Eats, Takeaway.com, …). Matches the
-// layout & tokens of OrderView so the staff keeps the same muscle
-// memory (UX Guide §2.3) when switching tabs.
+// WebshopOrdersView - HubRise-origin orders (own webshop, Deliveroo,
+// Uber Eats, Takeaway.com, …) laid out as one column per stage
+// (UX Guide §2.1): the column tells the state, so cards carry no
+// status chip and at most two or three actions.
 
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { useOrderStore } from '../stores/order'
 import { usePosStore } from '../stores/pos'
 import { useWebshopOrdersStore } from '../stores/webshopOrders'
 import { useI18n } from '../i18n'
 import { formatPrice } from '../utils/format'
-import FdmStatus from '../components/FdmStatus.vue'
-import PrinterStatus from '../components/PrinterStatus.vue'
-import HubriseStatus from '../components/HubriseStatus.vue'
-import type { WebshopOrderSummary } from '../api/ipc'
+import { formatTime, parseTimestamp } from '../utils/datetime'
+import { useBilingualName } from '../utils/names'
+import AppHeader from '../components/AppHeader.vue'
+import type { WebshopOrderItem, WebshopOrderSummary } from '../api/ipc'
 // Bundled through this view only, so builds without HubRise ship none
-// of the aggregator logos or the webshop display font.
+// of the aggregator logos.
 import deliverooLogo from '../assets/webshop/logos/deliveroo.svg'
 import uberEatsLogo from '../assets/webshop/logos/uber-eats.svg'
 import takeawayLogo from '../assets/webshop/logos/takeaway.svg'
 
 const router = useRouter()
 const auth = useAuthStore()
-const orderStore = useOrderStore()
-const pos = usePosStore()
 const store = useWebshopOrdersStore()
 const { t } = useI18n()
+const bilingual = useBilingualName()
+const pos = usePosStore()
+// The Chinese name gets the Chinese font, whichever line it is on.
+const uiIsZh = computed(() => pos.language === 'zh')
 
-/**
- * Start a fresh takeaway order without going through the Tables
- * picker and jump to OrderView. Same behaviour as the OrderView
- * nav button so the action is identical from every screen.
- */
-async function handleTakeaway() {
-  await orderStore.startOrder(null)
-  router.push({ name: 'order' })
+// Ticking "now" for the "il y a N min" age of new orders.
+const now = ref(Date.now())
+let nowTimer: ReturnType<typeof setInterval> | undefined
+
+// ── Stages (one column each) ─────────────────────────────────────
+// new      : new / received                 → Accepter / Refuser
+// kitchen  : accepted / in_preparation      → Préparer, then Prête
+// ready    : awaiting_collection / in_delivery → En livraison / Terminer
+// done     : completed / rejected / cancelled (behind "Terminées")
+type Stage = 'new' | 'kitchen' | 'ready' | 'done'
+
+function statusOf(order: WebshopOrderSummary): string {
+  return order.hubrise_status ?? 'new'
 }
 
-// Pulse the pending-orders badge briefly whenever a new webshop
-// order arrives (UX Guide §4.2: informative, ≤ 200 ms).
-const pendingPulse = ref(false)
-watch(
-  () => store.pendingCount,
-  (next, prev) => {
-    if (next > (prev ?? 0)) {
-      pendingPulse.value = true
-      setTimeout(() => {
-        pendingPulse.value = false
-      }, 180)
-    }
-  },
-)
-
-// ── Clock (mirrors OrderView header) ─────────────────────────────
-const clock = ref('')
-let clockInterval: ReturnType<typeof setInterval>
-function updateClock() {
-  clock.value = formatTime(new Date())
-}
-
-// ── Filters ──────────────────────────────────────────────────────
-// Active statuses get their own tab so the staff can isolate every
-// working stage. Terminal statuses (completed / rejected / cancelled)
-// collapse into a single "Terminées" bucket - from the rush-hour
-// perspective they all mean "nothing to do, card is dead". The
-// distinction is only useful for after-the-fact reporting, not
-// live triage.
-type Filter =
-  | 'all'
-  | 'new'
-  | 'accepted'
-  | 'in_preparation'
-  | 'awaiting_collection'
-  | 'in_delivery'
-  | 'done'
-
-const activeFilter = ref<Filter>('all')
-
-// Computed so labels track locale changes via t().
-const filters = computed<{ id: Filter; label: string }[]>(() => [
-  { id: 'all', label: t('webshop_filter_all') },
-  { id: 'new', label: t('webshop_filter_new') },
-  { id: 'accepted', label: t('webshop_filter_accepted') },
-  { id: 'in_preparation', label: t('webshop_filter_in_preparation') },
-  { id: 'awaiting_collection', label: t('webshop_filter_awaiting_collection') },
-  { id: 'in_delivery', label: t('webshop_filter_in_delivery') },
-  { id: 'done', label: t('webshop_filter_done') },
-])
-
-function matchesFilter(order: WebshopOrderSummary, f: Filter): boolean {
-  const s = order.hubrise_status ?? 'new'
-  switch (f) {
-    case 'all':
-      return true
-    case 'new':
-      return s === 'new' || s === 'received'
+function stageOf(order: WebshopOrderSummary): Stage {
+  switch (statusOf(order)) {
     case 'accepted':
-      return s === 'accepted'
     case 'in_preparation':
-      return s === 'in_preparation'
+      return 'kitchen'
     case 'awaiting_collection':
-      return s === 'awaiting_collection'
     case 'in_delivery':
-      return s === 'in_delivery'
-    case 'done':
-      return s === 'completed' || s === 'rejected' || s === 'cancelled'
+      return 'ready'
+    case 'completed':
+    case 'rejected':
+    case 'cancelled':
+      return 'done'
+    default:
+      // new, received, and any status we don't know yet: surface it
+      // where the staff looks first rather than hiding it.
+      return 'new'
   }
 }
 
-const visibleOrders = computed(() =>
-  store.orders.filter((o) => matchesFilter(o, activeFilter.value)),
-)
+const byStage = computed(() => {
+  const groups: Record<Stage, WebshopOrderSummary[]> = { new: [], kitchen: [], ready: [], done: [] }
+  for (const o of store.orders) groups[stageOf(o)].push(o)
+  return groups
+})
+
+// The third column shows either the ready orders or, on demand, the
+// finished ones (completed / rejected / cancelled).
+const showDone = ref(false)
+
+const columns = computed(() => [
+  { id: 'new' as const, title: t('webshop_col_new'), orders: byStage.value.new },
+  { id: 'kitchen' as const, title: t('webshop_col_kitchen'), orders: byStage.value.kitchen },
+  showDone.value
+    ? { id: 'done' as const, title: t('webshop_filter_done'), orders: byStage.value.done }
+    : { id: 'ready' as const, title: t('webshop_col_ready'), orders: byStage.value.ready },
+])
 
 // ── Display helpers ──────────────────────────────────────────────
 function formatEuros(cents: number): string {
   return formatPrice(cents) + ' €'
 }
 
-function formatCreatedAt(iso: string): string {
-  return formatTimestamp(iso, formatTime)
-}
-
-function statusLabel(order: WebshopOrderSummary): string {
-  const s = order.hubrise_status ?? 'new'
-  switch (s) {
-    case 'new':
-      return t('webshop_status_new')
-    case 'received':
-      return t('webshop_status_received')
-    case 'accepted':
-      return t('webshop_status_accepted')
-    case 'in_preparation':
-      return t('webshop_status_in_preparation')
-    case 'awaiting_collection':
-      return t('webshop_status_ready')
-    case 'in_delivery':
-      return t('webshop_status_in_delivery')
-    case 'completed':
-      return t('webshop_status_completed')
-    case 'rejected':
-      return t('webshop_status_rejected')
-    case 'cancelled':
-      return t('webshop_status_cancelled')
-    default:
-      return s
-  }
+function formatClock(iso: string | null): string {
+  if (!iso) return ''
+  const d = parseTimestamp(iso)
+  return d ? formatTime(d) : ''
 }
 
 function serviceTypeLabel(order: WebshopOrderSummary): string {
@@ -163,24 +106,67 @@ function serviceTypeLabel(order: WebshopOrderSummary): string {
   }
 }
 
-/**
- * Color stripe per channel - makes it trivial to spot a Deliveroo
- * vs Uber Eats card across the grid at a glance (UX Guide §6).
- */
-function channelColor(order: WebshopOrderSummary): string {
-  const src = order.source?.toLowerCase() ?? ''
-  if (src.includes('deliveroo')) return 'var(--channel-deliveroo)'
-  if (src.includes('uber')) return 'var(--channel-uber-eats)'
-  if (src.includes('takeaway') || src.includes('just')) return 'var(--channel-takeaway)'
-  if (src.includes('web') || src.includes('webshop')) return 'var(--accent-primary)'
-  return 'var(--cat-boissons)'
+function metaLine(order: WebshopOrderSummary): string {
+  return [serviceTypeLabel(order), order.customer_name].filter(Boolean).join(' · ')
+}
+
+function doneLabel(order: WebshopOrderSummary): string {
+  switch (statusOf(order)) {
+    case 'rejected':
+      return t('webshop_status_rejected')
+    case 'cancelled':
+      return t('webshop_status_cancelled')
+    default:
+      return t('webshop_status_completed')
+  }
 }
 
 /**
- * Resolve a brand logo SVG for the order's channel. Returns null
- * when the channel has no logo file - the template then falls back
- * to a text label (UX Guide §2.1 "no hidden surprises"). Drop new
- * files in `ui/src/assets/webshop/logos/` and extend this mapping to wire them.
+ * The one time that matters for the card's stage, shown top right:
+ * age for new orders (amber, they are waiting), target time in the
+ * kitchen, ready time once ready.
+ */
+function keyTime(order: WebshopOrderSummary): { text: string; tone: 'warn' | 'info' | 'plain' | 'muted' } | null {
+  switch (stageOf(order)) {
+    case 'new': {
+      const created = parseTimestamp(order.created_at)
+      if (!created) return null
+      const minutes = Math.max(0, Math.floor((now.value - created.getTime()) / 60_000))
+      return { text: t('webshop_time_ago', { n: minutes }), tone: 'warn' }
+    }
+    case 'kitchen': {
+      const at = formatClock(order.confirmed_time)
+      return at ? { text: t('webshop_time_ready_at', { time: at }), tone: 'plain' } : null
+    }
+    case 'ready': {
+      if (statusOf(order) === 'in_delivery') {
+        return { text: t('webshop_status_in_delivery'), tone: 'info' }
+      }
+      const at = formatClock(order.confirmed_time)
+      return at ? { text: t('webshop_time_ready', { time: at }), tone: 'plain' } : null
+    }
+    case 'done':
+      return { text: doneLabel(order), tone: 'muted' }
+  }
+}
+
+/**
+ * Stripe colour per channel so Deliveroo / Uber Eats / Takeaway /
+ * own webshop are told apart at a glance (UX Guide §6).
+ */
+function channelClass(order: WebshopOrderSummary): string {
+  const src = order.source?.toLowerCase() ?? ''
+  if (src.includes('deliveroo')) return 'ch-deliveroo'
+  if (src.includes('uber')) return 'ch-uber'
+  if (src.includes('takeaway') || src.includes('just')) return 'ch-takeaway'
+  if (src.includes('web')) return 'ch-webshop'
+  return 'ch-other'
+}
+
+/**
+ * Brand logo for the order's channel, or null (the template then
+ * falls back to a text label). Drop new files in
+ * `ui/src/assets/webshop/logos/` and extend this mapping to wire them.
  */
 function channelLogo(order: WebshopOrderSummary): string | null {
   const src = order.source?.toLowerCase() ?? ''
@@ -190,62 +176,41 @@ function channelLogo(order: WebshopOrderSummary): string | null {
   return null
 }
 
-/**
- * TSB's own webshop (tsb-core) has no brand SVG - we render a
- * "Tokyo" wordmark in the same Channel display font the customer
- * site uses for product category headers, so the staff sees the
- * same visual identity across both surfaces.
- */
-function isTsbWebshop(order: WebshopOrderSummary): boolean {
+/** The restaurant's own webshop (no brand logo: "WEBSHOP" label). */
+function isOwnWebshop(order: WebshopOrderSummary): boolean {
   const src = order.source?.toLowerCase() ?? ''
-  return src.includes('web') || src.includes('webshop')
+  return src.includes('web')
 }
 
 /**
- * Show the full delivery address only on TSB webshop orders that
- * are of service_type `delivery`. TSB's own driver decides whether
- * the distance is acceptable - if not, the order is refused before
- * acceptance, so the full address must be visible at a glance.
- *
- * Aggregator channels (Deliveroo/Uber Eats/Takeaway) handle their
- * own delivery, so we deliberately hide the address on those cards
- * to keep them uncluttered.
+ * Full delivery address only on own-webshop delivery orders: the
+ * restaurant's driver decides from the distance whether to accept.
+ * Aggregators deliver themselves, so their cards stay uncluttered.
  */
-function shouldShowDeliveryAddress(order: WebshopOrderSummary): boolean {
-  return (
-    isTsbWebshop(order)
-    && order.service_type === 'delivery'
-    && !!(order.customer_address_1 || order.customer_postal_code || order.customer_city)
-  )
+function deliveryAddress(order: WebshopOrderSummary): string | null {
+  if (!isOwnWebshop(order) || order.service_type !== 'delivery') return null
+  const street = [order.customer_address_1, order.customer_address_2].filter(Boolean).join(' ').trim()
+  const city = [order.customer_postal_code, order.customer_city].filter(Boolean).join(' ').trim()
+  const text = [street, city].filter(Boolean).join(', ')
+  return text || null
 }
 
-/** Two-line "Rue Léopold 12 / 4000 Liège" rendering. */
-function addressStreet(order: WebshopOrderSummary): string {
-  const a1 = order.customer_address_1 ?? ''
-  const a2 = order.customer_address_2 ?? ''
-  return [a1, a2].filter(Boolean).join(' ').trim()
-}
-function addressCity(order: WebshopOrderSummary): string {
-  const pc = order.customer_postal_code ?? ''
-  const city = order.customer_city ?? ''
-  return [pc, city].filter(Boolean).join(' ').trim()
+function itemName(item: WebshopOrderItem) {
+  return bilingual({ name: item.product_name, name_fr: item.product_name, name_zh: item.product_name_zh })
 }
 
-// ── Primary action state machine ─────────────────────────────────
+// ── Actions ──────────────────────────────────────────────────────
 //
-// Most channels collapse `awaiting_collection → completed` with one
-// button because the transit itself is handled by an external driver
-// (Deliveroo / Uber Eats / Takeaway) or the customer walks in. TSB's
-// own webshop delivery, however, is handled by a TSB driver, so the
-// POS needs an explicit "En livraison" transition between Prête and
-// Terminer so the staff can mark the bag as having left the counter.
+// Most channels collapse `awaiting_collection → completed` in one
+// button: an external driver or the customer takes the bag. Own-webshop
+// delivery is driven by the restaurant, so it gets an explicit
+// "En livraison" step between Prête and Terminer.
 function nextAction(
   order: WebshopOrderSummary,
 ): { label: string; run: () => Promise<void> } | null {
-  const status = order.hubrise_status ?? 'new'
   const id = order.hubrise_order_id
   if (!id) return null
-  switch (status) {
+  switch (statusOf(order)) {
     case 'new':
     case 'received':
       return { label: t('webshop_action_accept'), run: () => store.acceptOrder(id) }
@@ -253,16 +218,11 @@ function nextAction(
       return { label: t('webshop_action_prepare'), run: () => store.startPreparation(id) }
     case 'in_preparation':
       return { label: t('webshop_action_ready'), run: () => store.markReady(id) }
-    case 'awaiting_collection': {
-      // TSB webshop delivery → insert an "En livraison" step.
-      if (isTsbWebshop(order) && order.service_type === 'delivery') {
-        return {
-          label: t('webshop_action_out_for_delivery'),
-          run: () => store.markOutForDelivery(id),
-        }
+    case 'awaiting_collection':
+      if (isOwnWebshop(order) && order.service_type === 'delivery') {
+        return { label: t('webshop_action_out_for_delivery'), run: () => store.markOutForDelivery(id) }
       }
       return { label: t('webshop_action_complete'), run: () => store.completeDelivery(id) }
-    }
     case 'in_delivery':
       return { label: t('webshop_action_complete'), run: () => store.completeDelivery(id) }
     default:
@@ -271,39 +231,32 @@ function nextAction(
 }
 
 function canReject(order: WebshopOrderSummary): boolean {
-  const s = order.hubrise_status ?? 'new'
+  const s = statusOf(order)
   return s === 'new' || s === 'received'
 }
 
-/**
- * Whether the order is currently in a state where delaying the
- * ready-at time is meaningful: the kitchen has taken it but not
- * yet marked it ready/out.
- */
+/** Delaying the ready time only makes sense while the kitchen works on it. */
 function canDelay(order: WebshopOrderSummary): boolean {
-  const s = order.hubrise_status ?? 'new'
+  const s = statusOf(order)
   return s === 'accepted' || s === 'in_preparation'
 }
 
-/**
- * Whether the card still has an active workflow so the print
- * buttons make sense. Terminal statuses (completed/rejected/
- * cancelled) hide them to reduce clutter on stale cards.
- */
-function isActive(order: WebshopOrderSummary): boolean {
-  const s = order.hubrise_status ?? 'new'
-  return s !== 'completed' && s !== 'rejected' && s !== 'cancelled'
+/** Reprints once the order is taken and not finished yet. */
+function canReprint(order: WebshopOrderSummary): boolean {
+  const stage = stageOf(order)
+  return stage === 'kitchen' || stage === 'ready'
 }
 
-function formatReadyAt(iso: string | null): string {
-  if (!iso) return ''
-  const d = parseTimestamp(iso)
-  return d ? formatTime(d) : ''
-}
-
-// Three chips is enough - +60 is a double tap on +30 when needed,
-// and dropping it leaves the row less crowded (UX Guide §2.1).
+// +60 is a double tap on +30 when needed (UX Guide §2.1).
 const delayChoices = [15, 30, 45]
+
+// "Réimprimer" groups the kitchen and customer tickets: a first tap
+// reveals both choices (2 taps, rare action - UX Guide §2.2).
+const reprintOpenId = ref<number | null>(null)
+
+function toggleReprint(order: WebshopOrderSummary) {
+  reprintOpenId.value = reprintOpenId.value === order.id ? null : order.id
+}
 
 async function handlePrimary(order: WebshopOrderSummary) {
   const action = nextAction(order)
@@ -321,10 +274,12 @@ async function handleDelay(order: WebshopOrderSummary, minutes: number) {
 }
 
 async function handlePrintKitchen(order: WebshopOrderSummary) {
+  reprintOpenId.value = null
   await store.printKitchen(order.id)
 }
 
 async function handlePrintCustomer(order: WebshopOrderSummary) {
+  reprintOpenId.value = null
   await store.printCustomer(order.id)
 }
 
@@ -334,259 +289,153 @@ onMounted(async () => {
     router.push({ name: 'login' })
     return
   }
-  updateClock()
-  clockInterval = setInterval(updateClock, 10_000)
+  nowTimer = setInterval(() => (now.value = Date.now()), 15_000)
   await store.attachListeners()
   await store.fetchOrders()
 })
 
-onUnmounted(() => clearInterval(clockInterval))
-
-function handleLogout() {
-  void auth.logout()
-  router.push({ name: 'login' })
-}
+onUnmounted(() => clearInterval(nowTimer))
 </script>
 
 <template>
-  <!--
-    UX Guide §3: same header as OrderView for muscle-memory parity.
-    Filters replace the CategoryTabs row; grid of order cards replaces
-    the menu grid; no cart sidebar on this screen.
-  -->
-  <div class="webshop-view" :class="{ training: pos.trainingMode }">
-    <header class="header">
-      <FdmStatus />
-      <PrinterStatus />
-      <HubriseStatus />
-      <span class="header-user">{{ auth.currentUser?.name }}</span>
-      <span class="header-clock">{{ clock }}</span>
-      <nav class="header-nav">
-        <button class="nav-btn" @click="router.push({ name: 'tables' })">
-          {{ t('tables') }}
-        </button>
-        <button class="nav-btn" @click="handleTakeaway">
-          {{ t('takeaway_new') }}
-        </button>
-        <button
-          class="nav-btn nav-btn-active"
-          :class="{ 'nav-btn-raised': store.pendingCount > 0 }"
-        >
-          {{ t('online_orders') }}
-          <span
-            v-if="store.pendingCount > 0"
-            class="nav-pending-badge"
-            :class="{ pulse: pendingPulse }"
-          >{{ store.pendingCount }}</span>
-        </button>
-        <button class="nav-btn" @click="router.push({ name: 'reports' })">
-          {{ t('reports') }}
-        </button>
-        <button class="nav-btn" @click="router.push({ name: 'settings' })">
-          {{ t('config') }}
-        </button>
-        <button class="nav-btn nav-logout" @click="handleLogout">
-          {{ t('logout') }}
-        </button>
-      </nav>
-    </header>
+  <div class="webshop-view">
+    <AppHeader />
 
-    <section class="filter-bar">
-      <button
-        v-for="f in filters"
-        :key="f.id"
-        class="filter-chip"
-        :class="{ 'filter-chip-active': activeFilter === f.id }"
-        @click="activeFilter = f.id"
+    <p v-if="store.loading && store.orders.length === 0" class="state-msg">
+      {{ t('webshop_loading') }}
+    </p>
+    <p v-else-if="store.error" class="state-msg state-error">{{ store.error }}</p>
+
+    <main class="board">
+      <section
+        v-for="col in columns"
+        :key="col.id"
+        class="column"
+        :class="`column-${col.id}`"
       >
-        <span class="filter-label">{{ f.label }}</span>
-        <span class="filter-count">
-          {{ store.orders.filter((o) => matchesFilter(o, f.id)).length }}
-        </span>
-      </button>
-    </section>
+        <header class="column-head">
+          <span class="column-dot" />
+          <span class="column-title">{{ col.title }}</span>
+          <span class="column-count">{{ col.orders.length }}</span>
+          <button
+            v-if="col.id === 'ready' || col.id === 'done'"
+            class="done-toggle"
+            :class="{ 'done-toggle-active': showDone }"
+            @click="showDone = !showDone"
+          >
+            {{ t('webshop_filter_done') }} · <span class="mono">{{ byStage.done.length }}</span>
+          </button>
+        </header>
 
-    <main class="grid-wrap">
-      <p v-if="store.loading" class="state-msg">{{ t('webshop_loading') }}</p>
-      <p v-else-if="store.error" class="state-msg state-error">
-        {{ store.error }}
-      </p>
-      <p v-else-if="visibleOrders.length === 0" class="state-msg">
-        {{ t('webshop_empty') }}
-      </p>
-
-      <ul v-else class="grid">
-        <li
-          v-for="order in visibleOrders"
-          :key="order.id"
-          class="card"
-          :class="`card-${order.hubrise_status ?? 'new'}`"
-          :style="{ '--channel-color': channelColor(order) }"
-        >
-          <header class="card-head">
-            <div class="card-channel">
+        <ul class="column-list">
+          <li v-if="col.orders.length === 0" class="column-empty">
+            {{ t('webshop_empty') }}
+          </li>
+          <li
+            v-for="order in col.orders"
+            :key="order.id"
+            class="card"
+            :class="[`card-${statusOf(order)}`, channelClass(order)]"
+          >
+            <header class="card-head">
               <img
                 v-if="channelLogo(order)"
                 :src="channelLogo(order)!"
                 :alt="order.source"
                 class="channel-logo"
               />
-              <span v-else-if="isTsbWebshop(order)" class="tsb-badge">
-                Tokyo
+              <span v-else-if="isOwnWebshop(order)" class="webshop-badge">
+                {{ t('webshop_own_label') }}
               </span>
               <span v-else class="card-source">{{ order.source }}</span>
-            </div>
-            <span class="card-status">{{ statusLabel(order) }}</span>
-          </header>
-          <div class="card-body">
-            <div class="row">
-              <span class="label">{{ t('webshop_label_type') }}</span>
-              <span class="value">{{ serviceTypeLabel(order) }}</span>
-            </div>
-            <div class="row">
-              <span class="label">{{ t('webshop_label_time') }}</span>
-              <span class="value">{{ formatCreatedAt(order.created_at) }}</span>
-            </div>
-            <div v-if="order.customer_name" class="row">
-              <span class="label">{{ t('webshop_label_customer') }}</span>
-              <span class="value">{{ order.customer_name }}</span>
-            </div>
-            <!-- Full delivery address - TSB webshop + delivery only.
-                 Aggregators are muted here because their drivers
-                 handle navigation; TSB drivers need this to decide
-                 accept/refuse based on distance. -->
-            <div v-if="shouldShowDeliveryAddress(order)" class="delivery-address">
-              <span class="delivery-address-label">
-                {{ t('webshop_label_delivery_address') }}
-              </span>
-              <span v-if="addressStreet(order)" class="delivery-address-line">
-                {{ addressStreet(order) }}
-              </span>
-              <span v-if="addressCity(order)" class="delivery-address-line">
-                {{ addressCity(order) }}
-              </span>
-            </div>
-            <div v-if="order.confirmed_time" class="row">
-              <span class="label">{{ t('webshop_label_ready_at') }}</span>
-              <span class="value ready-at">
-                {{ formatReadyAt(order.confirmed_time) }}
-              </span>
-            </div>
-            <div class="row">
-              <span class="label">{{ t('webshop_label_ref') }}</span>
-              <span class="value ref">
-                {{ order.hubrise_order_id?.slice(0, 8) ?? '-' }}
-              </span>
-            </div>
-          </div>
+              <span
+                v-if="keyTime(order)"
+                class="key-time"
+                :class="`key-time-${keyTime(order)!.tone}`"
+              >{{ keyTime(order)!.text }}</span>
+            </header>
 
-          <ul v-if="order.items.length > 0" class="items">
-            <li v-for="(item, idx) in order.items" :key="idx" class="item">
-              <div class="item-main">
-                <span class="item-qty">{{ item.quantity }}×</span>
-                <span class="item-name">{{ item.product_name }}</span>
-                <span class="item-price">
-                  {{ formatEuros(item.line_total_cents) }}
-                </span>
-              </div>
-              <div v-if="item.options.length > 0" class="item-options">
-                {{ item.options.join(' · ') }}
-              </div>
-              <div v-if="item.customer_notes" class="item-notes">
-                “{{ item.customer_notes }}”
-              </div>
-            </li>
-          </ul>
+            <div v-if="metaLine(order)" class="card-meta">{{ metaLine(order) }}</div>
 
-          <p v-if="order.customer_notes" class="order-notes">
-            “{{ order.customer_notes }}”
-          </p>
+            <div v-if="deliveryAddress(order)" class="delivery-address">
+              {{ deliveryAddress(order) }}
+            </div>
 
-          <div class="card-total">
-            <span class="total-label">{{ t('webshop_label_total') }}</span>
-            <span class="total-value">{{ formatEuros(order.total_cents) }}</span>
-          </div>
-          <footer class="card-actions">
-            <!-- Delay chips - visible only while the kitchen is
-                 working on the order, per UX Guide §2.1 (reduce
-                 noise when irrelevant). -->
+            <ul v-if="order.items.length > 0" class="items">
+              <li v-for="(item, idx) in order.items" :key="idx" class="item">
+                <div class="item-main">
+                  <span class="item-qty">{{ item.quantity }}×</span>
+                  <span class="item-names">
+                    <span class="item-name" :class="{ zh: uiIsZh }">
+                      {{ itemName(item).primary }}
+                    </span>
+                    <span v-if="itemName(item).secondary" class="item-name-alt" :class="{ zh: !uiIsZh }">
+                      {{ itemName(item).secondary }}
+                    </span>
+                  </span>
+                </div>
+                <div v-if="item.options.length > 0" class="item-options">
+                  {{ item.options.join(' · ') }}
+                </div>
+                <div v-if="item.customer_notes" class="item-notes">
+                  “{{ item.customer_notes }}”
+                </div>
+              </li>
+            </ul>
+
+            <p v-if="order.customer_notes" class="order-notes">“{{ order.customer_notes }}”</p>
+
             <div v-if="canDelay(order)" class="delay-row">
+              <span class="delay-label">{{ t('webshop_delay_label') }}</span>
               <button
                 v-for="m in delayChoices"
                 :key="m"
-                class="chip chip-delay"
+                class="chip-delay"
                 @click="handleDelay(order, m)"
-              >
-                +{{ m }} min
-              </button>
+              >+{{ m }}</button>
             </div>
 
-            <!-- Primary next-status button + reject pair -->
-            <div class="primary-row">
-              <button
-                v-if="nextAction(order)"
-                class="btn btn-primary"
-                @click="handlePrimary(order)"
-              >
-                {{ nextAction(order)!.label }}
-              </button>
-              <button
-                v-if="canReject(order)"
-                class="btn btn-secondary"
-                @click="handleReject(order)"
-              >
+            <footer class="card-actions">
+              <span class="total-value">{{ formatEuros(order.total_cents) }}</span>
+              <button v-if="canReject(order)" class="btn btn-secondary" @click="handleReject(order)">
                 {{ t('webshop_action_reject') }}
               </button>
-            </div>
-
-            <!-- Print row - available on every non-terminal state. -->
-            <div v-if="isActive(order)" class="print-row">
               <button
-                class="btn btn-ghost"
-                @click="handlePrintKitchen(order)"
+                v-if="canReprint(order)"
+                class="btn btn-reprint"
+                :class="{ 'btn-reprint-open': reprintOpenId === order.id }"
+                @click="toggleReprint(order)"
               >
+                {{ t('webshop_action_reprint') }}
+              </button>
+              <button v-if="nextAction(order)" class="btn btn-primary" @click="handlePrimary(order)">
+                {{ nextAction(order)!.label }}
+              </button>
+            </footer>
+
+            <div v-if="reprintOpenId === order.id && canReprint(order)" class="print-row">
+              <button class="btn btn-ghost" @click="handlePrintKitchen(order)">
                 {{ t('webshop_action_print_kitchen') }}
               </button>
-              <button
-                class="btn btn-ghost"
-                @click="handlePrintCustomer(order)"
-              >
+              <button class="btn btn-ghost" @click="handlePrintCustomer(order)">
                 {{ t('webshop_action_print_customer') }}
               </button>
             </div>
-          </footer>
-        </li>
-      </ul>
+          </li>
+        </ul>
+      </section>
     </main>
   </div>
 </template>
 
-<style>
-:root {
-  /* Delivery aggregator brand colors, matching the logos in
-     ui/src/assets/webshop/logos/. Used by channelColor() to paint the
-     left stripe of each order card; the own webshop uses
-     --accent-primary. */
+<style scoped>
+.webshop-view {
+  /* Delivery aggregator brand colours (their logos' colours); the own
+     webshop uses the Volt accent. */
   --channel-deliveroo: #00ccbc;
   --channel-uber-eats: #06c167;
-  --channel-takeaway:  #ff8000;
-}
+  --channel-takeaway: #ff8000;
 
-/* Webshop display font - mirrored from the customer webshop so the
-   own-webshop badge renders in the same typeface. Not for body copy. */
-@font-face {
-  font-family: 'Channel';
-  src: url('../assets/webshop/fonts/channel.woff2') format('woff2'),
-       url('../assets/webshop/fonts/channel.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-</style>
-
-<style scoped>
-/* UX Guide §3, §5: dark theme, same shell as OrderView */
-.webshop-view {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -596,143 +445,112 @@ function handleLogout() {
   font-family: var(--font-family);
 }
 
-.webshop-view.training {
-  --bg-primary: #2d1b4e;
+.mono {
+  font-family: var(--font-mono);
 }
 
-/* ── Header (48px, mirror OrderView) ──────────────────────────── */
-.header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: 0 var(--space-md);
-  background: var(--bg-secondary);
-  border-bottom: 1px solid rgba(160, 160, 176, 0.1);
-  flex-shrink: 0;
-  height: 48px;
-}
-.header-user {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-secondary);
-}
-.header-clock {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.header-nav {
-  margin-left: auto;
-  display: flex;
-  gap: var(--space-xs);
-}
-.nav-btn {
-  position: relative;
-  padding: var(--space-xs) var(--space-md);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  min-height: 36px;
-  border: none;
-  cursor: pointer;
-  transition: transform var(--tap-duration) ease;
-}
-.nav-btn:active {
-  transform: scale(var(--tap-scale));
-}
-.nav-btn-active {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-}
-.nav-logout {
-  color: var(--accent-danger);
-}
-
-/* ── Filter bar (replaces CategoryTabs) ───────────────────────── */
-.filter-bar {
-  display: flex;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  background: var(--bg-secondary);
-  border-bottom: 1px solid rgba(160, 160, 176, 0.1);
-  flex-shrink: 0;
-  overflow-x: auto;
-}
-.filter-chip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-height: 52px;
-  padding: 0 var(--space-md);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: none;
-  border-radius: var(--radius-md);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  transition: transform var(--tap-duration) ease;
-}
-.filter-chip:active {
-  transform: scale(var(--tap-scale));
-}
-.filter-chip-active {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-}
-.filter-label {
-  white-space: nowrap;
-}
-.filter-count {
-  min-width: 24px;
-  padding: 2px 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 999px;
-  font-size: var(--font-size-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Card grid ────────────────────────────────────────────────── */
-.grid-wrap {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-md);
-}
 .state-msg {
-  text-align: center;
-  margin-top: var(--space-xl);
+  margin: 16px 16px 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-md);
+  font-size: 16px;
 }
 .state-error {
   color: var(--accent-danger);
 }
 
-.grid {
+/* ── Board: one column per stage (§2.1) ───────────────────────── */
+.board {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-md);
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px;
+  overflow: hidden;
 }
-
-/* Each card uses --channel-color (set inline) for the left stripe
-   so Deliveroo/Uber Eats/Takeaway/Web are distinguishable at a
-   glance. */
-.card {
-  position: relative;
+.column {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-md) var(--space-md) calc(var(--space-md) + 6px);
+  gap: 12px;
+  min-height: 0;
+}
+.column-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.column-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+.column-new .column-dot { background: var(--accent-warning); }
+.column-kitchen .column-dot { background: var(--accent-info); }
+.column-ready .column-dot { background: var(--accent-success); }
+.column-title {
+  font-size: 24px;
+  font-weight: 800;
+}
+.column-count {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.done-toggle {
+  margin-left: auto;
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  transition: transform var(--tap-duration) ease;
+}
+.done-toggle-active {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+.column-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.column-empty {
+  padding: 24px 4px;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+/* ── Card ─────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 18px 24px;
   background: var(--bg-secondary);
-  border: 1px solid rgba(160, 160, 176, 0.12);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   overflow: hidden;
 }
 .card::before {
@@ -742,25 +560,24 @@ function handleLogout() {
   top: 0;
   bottom: 0;
   width: 6px;
-  background: var(--channel-color, var(--accent-primary));
+  background: var(--channel-color, var(--text-secondary));
 }
+.ch-deliveroo { --channel-color: var(--channel-deliveroo); }
+.ch-uber { --channel-color: var(--channel-uber-eats); }
+.ch-takeaway { --channel-color: var(--channel-takeaway); }
+.ch-webshop { --channel-color: var(--accent-primary); }
 .card-completed,
 .card-rejected,
 .card-cancelled {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .card-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  gap: var(--space-sm);
-}
-.card-channel {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-width: 0;
+  gap: 12px;
+  min-height: 36px;
 }
 .channel-logo {
   height: 28px;
@@ -768,113 +585,90 @@ function handleLogout() {
   object-fit: contain;
   display: block;
 }
-.card-source {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-primary);
-}
-/* TSB webshop identity - Channel display font, white text for the
-   dark POS theme, kept compact so it doesn't inflate the card head. */
-.tsb-badge {
-  font-family: 'Channel', var(--font-family);
-  font-size: 18px;
-  line-height: 18px;
-  color: var(--text-primary);
-  letter-spacing: 0.5px;
-}
-.card-status {
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+.webshop-badge {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.card-source {
+  font-size: 17px;
+  font-weight: 700;
+}
+.key-time {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
   white-space: nowrap;
 }
-.card-new .card-status,
-.card-received .card-status {
-  background: var(--accent-warning);
-  color: var(--bg-primary);
-}
-.card-accepted .card-status,
-.card-in_preparation .card-status {
-  background: var(--cat-sashimi);
-  color: var(--text-on-accent);
-}
-.card-awaiting_collection .card-status,
-.card-in_delivery .card-status {
-  background: var(--accent-success);
-  color: var(--bg-primary);
-}
-.card-rejected .card-status,
-.card-cancelled .card-status {
-  background: var(--accent-danger);
-  color: var(--text-on-accent);
-}
+.key-time-warn { color: var(--accent-warning); }
+.key-time-info { color: var(--accent-info); }
+.key-time-plain { color: var(--text-primary); }
+.key-time-muted { color: var(--text-secondary); font-size: 18px; }
 
-.card-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-.row {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-sm);
-}
-.label {
+.card-meta {
+  font-size: 16px;
   color: var(--text-secondary);
 }
-.value {
-  color: var(--text-primary);
-  font-weight: var(--font-weight-bold);
-}
-.value.ref {
-  font-family: 'SFMono-Regular', Menlo, monospace;
-  font-size: var(--font-size-xs);
+
+.delivery-address {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  font-size: 16px;
+  font-weight: 700;
 }
 
-/* ── Items list ───────────────────────────────────────────────── */
+/* ── Items ────────────────────────────────────────────────────── */
 .items {
   list-style: none;
   margin: 0;
-  padding: var(--space-sm) 0;
-  border-top: 1px dashed rgba(160, 160, 176, 0.2);
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-}
-.item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 .item-main {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: var(--space-sm);
-  align-items: baseline;
-  font-size: var(--font-size-sm);
-  color: var(--text-primary);
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
 }
 .item-qty {
-  min-width: 28px;
-  font-weight: var(--font-weight-bold);
-  color: var(--accent-primary);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+}
+.item-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.item-name,
+.item-name-alt {
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .item-name {
-  font-weight: var(--font-weight-normal);
+  font-size: 17px;
+  font-weight: 700;
 }
-.item-price {
-  font-variant-numeric: tabular-nums;
+.item-name.zh,
+.item-name-alt.zh {
+  font-family: var(--font-zh);
+}
+.item-name-alt {
+  font-size: 13px;
   color: var(--text-secondary);
 }
 .item-options,
 .item-notes {
-  margin-left: calc(28px + var(--space-sm));
-  font-size: var(--font-size-xs);
+  margin-left: 44px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 .item-notes {
@@ -883,139 +677,99 @@ function handleLogout() {
 
 .order-notes {
   margin: 0;
-  padding: var(--space-sm);
-  background: rgba(243, 156, 18, 0.12);
+  padding: 8px 12px;
   border-left: 3px solid var(--accent-warning);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  font-style: italic;
-  border-radius: var(--radius-sm);
+  font-size: 16px;
 }
 
-.card-total {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: var(--space-sm) 0;
-  border-top: 1px dashed rgba(160, 160, 176, 0.2);
-}
-.total-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.total-value {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--accent-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Card actions (UX Guide §4.1) ─────────────────────────────── */
-.card-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-.primary-row,
-.print-row,
+/* ── Delay (kitchen only) ─────────────────────────────────────── */
 .delay-row {
   display: flex;
-  gap: var(--space-sm);
+  align-items: center;
+  gap: 8px;
 }
-.btn {
-  flex: 1;
-  min-height: 64px;
-  padding: 0 var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  font-family: var(--font-family);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  transition: transform var(--tap-duration) ease;
-}
-.btn:active {
-  transform: scale(var(--tap-scale));
-}
-.btn-primary {
-  background: var(--accent-primary);
-  color: var(--text-on-accent);
-}
-.btn-primary:active {
-  background: var(--bg-pressed);
-}
-.btn-secondary {
-  flex: 0 0 auto;
-  min-width: 96px;
-  background: transparent;
+.delay-label {
+  font-size: 15px;
   color: var(--text-secondary);
-  border: 1px solid rgba(160, 160, 176, 0.25);
+  margin-right: 4px;
 }
-/* Print row is lower-priority than the status transition, so the
-   buttons are slightly smaller and use a ghost style. */
-.print-row .btn-ghost {
-  min-height: 48px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  border: none;
-}
-.print-row .btn-ghost:active {
-  background: var(--bg-pressed);
-}
-
-/* Delay chips - 4 equal-width chips above the primary action. */
 .chip-delay {
   flex: 1;
-  min-height: 52px;
+  height: 48px;
   background: var(--bg-surface);
   color: var(--text-primary);
-  border: 1px solid rgba(160, 160, 176, 0.18);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
   transition: transform var(--tap-duration) ease;
 }
-.chip-delay:active {
-  transform: scale(var(--tap-scale));
-  background: var(--accent-warning);
-  color: var(--bg-primary);
-}
 
-/* "Prêt à HH:MM" is the currently targeted ready time - shown
-   in amber so it stands out from the neutral metadata rows. */
-.value.ready-at {
-  color: var(--accent-warning);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Full delivery address block - only rendered on TSB webshop
-   delivery cards. Two lines max (street + postal+city) so the
-   driver can decide accept/refuse based on distance at a glance. */
-.delivery-address {
+/* ── Footer actions ───────────────────────────────────────────── */
+.card-actions {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-sm);
-  background: rgba(15, 52, 96, 0.35);
-  border-left: 3px solid var(--cat-sashimi);
-  border-radius: var(--radius-sm);
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
-.delivery-address-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.total-value {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.btn {
+  height: 64px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-family: var(--font-family);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform var(--tap-duration) ease;
+}
+.btn-secondary {
+  background: transparent;
   color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
-.delivery-address-line {
-  font-size: var(--font-size-sm);
+.btn-reprint {
+  padding: 0 16px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+.btn-reprint-open {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+/* Next step in Brume: Volt stays reserved for PAYER / VALIDER /
+   Enregistrer (note 03). */
+.btn-primary {
+  min-width: 150px;
+  padding: 0 22px;
+  margin-left: 8px;
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.print-row {
+  display: flex;
+  gap: 8px;
+}
+.btn-ghost {
+  flex: 1;
+  height: 56px;
+  background: var(--bg-surface);
   color: var(--text-primary);
-  font-weight: var(--font-weight-bold);
+}
+
+.btn:active,
+.chip-delay:active,
+.done-toggle:active {
+  transform: scale(var(--tap-scale));
 }
 </style>

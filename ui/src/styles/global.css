@@ -17,7 +17,7 @@ body {
 /* Scrollbar - UX Guide §11: visible fine 4px */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(160, 160, 176, 0.3); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 /* UX Guide §4.2: flash vert confirmation ajout cart */
 @keyframes flash-success {
@@ -44,40 +44,23 @@ body {
   overscroll-behavior-y: contain;
 }
 
-/* Raise the badge-bearing nav button above adjacent siblings so
-   the absolute-positioned badge is not clipped by the next
-   button in DOM order. Siblings without z-index paint last-wins,
-   which made the right half of the badge disappear under the
-   neighbouring "Rapports" tab. */
-.nav-btn-raised {
-  z-index: 10;
-}
-
 /* ── Pending-orders badge on the "En ligne" nav button ─────────
-   Persistent amber counter shown whenever there is at least one
-   webshop order still in `new`/`received` - staff must react to
-   these quickly but the state is non-blocking, so UX Guide §8.1
-   amber (`--accent-warning`) is the correct tier rather than red
-   (which §8.1 reserves for blocking FDM errors). §4.2: 150 ms
-   informative pulse on increment, no continuous animation. §13:
-   min 12 px font size. Scoped `.nav-btn` rules in the parent
-   views set `position: relative` so this absolute child is
-   anchored to the button. */
+   Amber counter while at least one webshop order is still new: staff
+   must react quickly but the state is non-blocking, so it is the
+   "waiting" colour, not red (UX guide §8.1). §4.2: 150 ms pulse on
+   increment, no continuous animation. */
 .nav-pending-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--accent-warning);
-  color: var(--bg-primary);
-  border: 2px solid var(--bg-secondary);
-  border-radius: 11px;
-  font-size: 12px;
+  color: var(--text-on-accent);
+  border-radius: 13px;
+  font-family: var(--font-mono);
+  font-size: 14px;
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
   line-height: 1;

@@ -94,7 +94,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await expect(page.locator('.user-btn')).toHaveCount(3);
     await expect(page.locator('.user-name')).toHaveText(['Gérant Test', 'Serveur Test', 'Apprenti Test']);
     await expect(page.locator('.user-role')).toHaveText(['Gérant', 'Serveur', 'Apprenti']);
-    await expect(page.locator('.other-link')).toBeVisible();
+    await expect(page.locator('.other-btn')).toBeVisible();
     await capture(page, '01_login');
   });
 
@@ -150,7 +150,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
       })),
       // The order starts genuinely empty (04_order_empty); the cart
       // fills up client-side as items are tapped (see order.ts).
-      list_order_lines: () => [],
+      list_cart_lines: () => [],
       get_order: () => ({
         id: 501, table_number: 4, order_type: 'dine_in', status: 'open',
         user_insz: GERANT.insz, created_at: new Date().toISOString(), closed_at: null,
@@ -244,7 +244,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     // shows as occupied - swap the mocks a real backend would have
     // updated by itself.
     await overrideIPC(page, 'list_tables', TABLES_AFTER);
-    await overrideIPC(page, 'list_order_lines', FILLED_LINES);
+    await overrideIPC(page, 'list_cart_lines', FILLED_LINES);
     await page.locator('.nav-btn', { hasText: 'Tables' }).click();
     await page.waitForURL(/tables/);
     await expect.poll(() => ipcCalls(page, 'sign_table_order')).toHaveLength(1);
@@ -265,10 +265,10 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     // CASH, 50 €.
     await page.locator('.cash-btn').click();
     for (const d of ['5', '0']) await page.locator('.nk', { hasText: d }).click();
-    await expect(page.locator('.cash-change')).toContainText('10,00');
+    await expect(page.locator('.change-box')).toContainText('10,00');
     await capture(page, '08_checkout_cash');
 
-    await page.locator('.act-btn.primary', { hasText: 'Valider' }).click();
+    await page.locator('.validate-btn').click();
     await expect(page.locator('.success-icon')).toBeVisible();
     await expect(page.locator('.receipt-fdm')).toContainText('FDM-TEST-0001');
     // 50 € for 40 €: 10 € back (checkout-change.spec.ts).
@@ -321,6 +321,7 @@ test.describe('09a-09f - ticket numérique par e-mail', () => {
     await page.locator('.act-btn.primary').click();
     await page.locator('.cash-btn').click();
     await page.locator('.shortcut.exact').click();
+    await page.locator('.validate-btn').click();
     await expect(page.locator('.success-icon')).toBeVisible();
     await expect(page.locator('.delivery-msg')).toContainText('Ticket envoyé à');
     await expect(page.locator('.delivery-msg')).toContainText('c***@g***');
@@ -346,6 +347,7 @@ test.describe('09a-09f - ticket numérique par e-mail', () => {
     await page.locator('.act-btn.primary').click();
     await page.locator('.cash-btn').click();
     await page.locator('.shortcut.exact').click();
+    await page.locator('.validate-btn').click();
     await expect(page.locator('.success-icon')).toBeVisible();
     await expect(page.locator('.delivery-msg')).toContainText('Ticket imprimé');
     await capture(page, '09e_checkout_done_paper_fallback');
@@ -396,11 +398,11 @@ test('11_refund - articles à rembourser, quantité ajustée', async ({ page }) 
     login: () => GERANT,
     list_users: () => STAFF,
     list_refundable_events: () => REFUNDABLE,
-    list_order_lines: () => LINES,
+    list_cart_lines: () => LINES,
   });
   await loginAndGoto(page, '/reports');
-  await page.locator('.refund-btn').click();
-  await page.locator('.refund-ticket-btn').first().click();
+  await page.getByRole('tab', { name: 'Tickets' }).click();
+  await page.locator('.ticket-row .refund-btn').first().click();
   const makiLine = page.locator('.refund-line', { hasText: 'Maki saumon x8' });
   await makiLine.click();
   await expect(makiLine.locator('.rl-qty')).toContainText('2');
@@ -425,9 +427,9 @@ test('12_copy - liste des tickets copiables', async ({ page }) => {
     list_copyable_tickets: () => TICKETS,
   });
   await loginAndGoto(page, '/reports');
-  await page.getByRole('button', { name: 'Copie de ticket' }).click();
+  await page.getByRole('tab', { name: 'Tickets' }).click();
   await expect(page.locator('.copy-ticket-btn')).toHaveCount(4);
-  await expect(page.getByRole('heading', { name: 'Ticket à copier' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tickets récents' })).toBeVisible();
   await capture(page, '12_copy');
 });
 
@@ -450,7 +452,7 @@ test('14-15 - rapport X puis Z armé', async ({ page }) => {
   await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
   await loginAndGoto(page, '/reports');
 
-  await page.getByRole('button', { name: 'Générer X', exact: true }).click();
+  await page.getByRole('button', { name: /^Rapport X/ }).click();
   await expect(page.locator('.toast', { hasText: 'Rapport généré (X)' })).toBeVisible();
   await capture(page, '14_reports_x');
 
@@ -463,9 +465,11 @@ test('14-15 - rapport X puis Z armé', async ({ page }) => {
 test('16-17 - mouvement de caisse puis ouverture du tiroir', async ({ page }) => {
   await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
   await loginAndGoto(page, '/reports');
+  await page.getByRole('tab', { name: 'Caisse' }).click();
 
-  await page.locator('.cash-preset', { hasText: '20,00' }).click();
-  await page.locator('.cash-action-btn', { hasText: 'Fond de caisse +' }).click();
+  await page.locator('.cash-preset', { hasText: '20 €' }).click();
+  await page.locator('.cash-reason', { hasText: 'Fond de caisse' }).click();
+  await page.locator('.cash-submit').click();
   await expect(page.locator('.toast', { hasText: 'Mouvement enregistré' })).toBeVisible();
   await capture(page, '16_cash_in_out');
 
@@ -508,7 +512,7 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
     success: false, ticket: null, error, fdm_connected: false, fiscal_event_id: null, delivery: null,
   });
 
-  // list_order_lines is left at its default ([DEFAULT_ORDER_LINE]),
+  // list_cart_lines is left at its default ([DEFAULT_ORDER_LINE]),
   // same as fdm-errors.spec.ts: the table opens with one demo line
   // already in the cart, which is all a payment-refusal capture needs.
   async function openCheckoutRefused(page: Page, checkoutError: string) {

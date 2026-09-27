@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "pili-pos",
+        "title": "Pili",
         "width": 1920,
         "height": 1080,
         "fullscreen": false,

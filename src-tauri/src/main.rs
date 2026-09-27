@@ -301,6 +301,7 @@ fn main() {
         commands::delivery::print_missing_original,
         // Print
         commands::print::check_printer,
+        commands::print::check_kitchen_printer,
         commands::print::print_webshop_kitchen,
         commands::print::print_webshop_customer,
         // Settings
@@ -381,6 +382,7 @@ fn main() {
         commands::delivery::print_missing_original,
         // Print (no webshop_* commands in the cert build)
         commands::print::check_printer,
+        commands::print::check_kitchen_printer,
         // Settings
         commands::settings::get_settings,
         commands::settings::set_training_mode,

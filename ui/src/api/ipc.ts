@@ -4,6 +4,7 @@ import type {
   MenuItem,
   Order,
   OrderLine,
+  CartLine,
   User,
   CreateOrderInput,
   AddOrderLineInput,
@@ -57,6 +58,11 @@ export function listOrderLines(orderId: number): Promise<OrderLine[]> {
   return invoke("list_order_lines", { orderId });
 }
 
+/** The order's lines as the cart shows them (both names, unsent quantity). */
+export function listCartLines(orderId: number): Promise<CartLine[]> {
+  return invoke("list_cart_lines", { orderId });
+}
+
 export function listOpenOrders(): Promise<Order[]> {
   return invoke("list_open_orders");
 }
@@ -108,6 +114,11 @@ export function createUser(input: {
 // open_drawer_fiscal, or backend-side on cash sales/refunds.
 export function checkPrinter(): Promise<boolean> {
   return invoke("check_printer");
+}
+
+/** `null` when the terminal has no separate kitchen printer. */
+export function checkKitchenPrinter(): Promise<boolean | null> {
+  return invoke("check_kitchen_printer");
 }
 
 // Checkout
@@ -174,6 +185,10 @@ export interface TableInfo {
   totalCents: number;
   lineCount: number;
   status: string;
+  /** When the table's order was opened (UTC). */
+  openedAt: string | null;
+  /** A provisional bill was printed and the order has not changed since. */
+  preBillPrinted: boolean;
 }
 
 export function listTables(tableCount: number): Promise<TableInfo[]> {
@@ -326,6 +341,17 @@ export function workOut(employeeInsz: string): Promise<SocialResult> {
   return invoke("work_out", { employeeInsz });
 }
 
+/** An employee on shift: clocked in, not yet clocked out. */
+export interface OpenShift {
+  userInsz: string;
+  /** UTC, RFC 3339. */
+  startedAt: string;
+}
+
+export function listOpenShifts(): Promise<OpenShift[]> {
+  return invoke("list_open_shifts");
+}
+
 // ── Financial (Event F - cash in/out, drawer) ───────────────────────
 
 export interface FinancialResult {
@@ -367,6 +393,8 @@ export interface WebshopOrderItem {
   line_total_cents: number;
   options: string[];
   customer_notes: string | null;
+  /** Chinese name of the matching menu product, if any. */
+  product_name_zh: string | null;
 }
 
 export interface WebshopOrderSummary {

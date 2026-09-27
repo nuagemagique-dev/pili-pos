@@ -8,6 +8,8 @@ const { t } = useI18n();
 const props = defineProps<{
   items: MenuItem[];
   categoryColor?: string | null;
+  /** Quantity already in the cart, per product id. */
+  cartQuantities?: Map<number, number>;
 }>();
 
 const emit = defineEmits<{
@@ -16,13 +18,16 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <!-- UX Guide §3: 4 colonnes, scrollable vertical, inertie tactile -->
+  <!-- 5 columns (buttons ~230 × 120 px, above the §4.1 minimum of
+       140 × 100; deliberate deviation from §3's 4 columns), vertical
+       scroll with touch inertia. -->
   <div class="menu-grid scroll-touch">
     <MenuItemButton
       v-for="item in items"
       :key="item.id"
       :item="item"
       :category-color="props.categoryColor ?? undefined"
+      :in-cart="props.cartQuantities?.get(item.id) ?? 0"
       @add="emit('addItem', $event)"
     />
     <div v-if="items.length === 0" class="empty">
@@ -32,13 +37,11 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-/* UX Guide §3: 4 colonnes, gap 8px, minimum 140px per cell */
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  padding-bottom: var(--space-md);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;

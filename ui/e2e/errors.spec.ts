@@ -17,7 +17,7 @@ async function openTable(page: Page) {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_order: () => DEFAULT_ORDER,
-    list_order_lines: () => [],
+    list_cart_lines: () => [],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
   });

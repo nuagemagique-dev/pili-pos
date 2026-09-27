@@ -13,13 +13,15 @@ async function openTable(page: Page) {
   await expect(page.locator('.fdm')).toBeVisible();
 }
 
-/** On a table's order screen, once its first status check is done:
- * the number of checks so far. */
-async function onOrderScreen(page: Page): Promise<number> {
+/** On a table's order screen (or, with `openOrder` false, on the
+ * Tables screen: an FDM that does not answer veils the sales screens),
+ * once its first status check is done: the number of checks so far. */
+async function onOrderScreen(page: Page, openOrder = true): Promise<number> {
   await page.goto('/');
   await tapUserTile(page);
   await page.waitForURL(/tables/);
-  await openTable(page);
+  if (openOrder) await openTable(page);
+  else await expect(page.locator('.fdm')).toBeVisible();
   await expect.poll(() => statusCalls(page)).toBeGreaterThan(0);
   return statusCalls(page);
 }
@@ -41,7 +43,7 @@ test('an FDM that does not answer is polled less and less often', async ({ page 
   await mockTauriIPC(page, {
     check_fdm_status: () => ({ connected: false, error: 'FDM not connected' }),
   });
-  const n = await onOrderScreen(page);
+  const n = await onOrderScreen(page, false);
   // First failure: next check in 60 s, not 30 s.
   await page.clock.runFor(30_000);
   expect(await statusCalls(page)).toBe(n);
@@ -55,7 +57,7 @@ test('an FDM that does not answer is polled less and less often', async ({ page 
   await expect(page.locator('.fdm.err')).toBeVisible();
 });
 
-test('leaving and coming back to a screen does not start a second poller', async ({ page }) => {
+test('changing screens keeps the one poller going, without a second one', async ({ page }) => {
   await page.clock.install();
   await mockTauriIPC(page, {
     check_fdm_status: () => ({ initialized: true, errors: [], warnings: [] }),
@@ -66,9 +68,12 @@ test('leaving and coming back to a screen does not start a second poller', async
   });
   await page.waitForURL(/tables/);
   await openTable(page);
-  // Coming back checks once, then the single poller goes on.
-  await expect.poll(() => statusCalls(page)).toBe(n + 1);
-  const afterReturn = await statusCalls(page);
+  // Every screen shows the indicator (AppHeader): the same poller goes
+  // on through the screen changes, with no extra check and no second
+  // poller - one check per 30 s.
+  expect(await statusCalls(page)).toBe(n);
   await page.clock.runFor(30_000);
-  await expect.poll(() => statusCalls(page)).toBe(afterReturn + 1);
+  await expect.poll(() => statusCalls(page)).toBe(n + 1);
+  await page.clock.runFor(30_000);
+  await expect.poll(() => statusCalls(page)).toBe(n + 2);
 });

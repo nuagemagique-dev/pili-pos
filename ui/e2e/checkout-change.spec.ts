@@ -57,7 +57,7 @@ async function toPayment(page: Page, checkout: object = SALE) {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
-    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    list_cart_lines: () => [DEFAULT_ORDER_LINE],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
     checkout: () => checkout,
@@ -76,12 +76,16 @@ async function toPayment(page: Page, checkout: object = SALE) {
 async function payCash(page: Page, digits: string) {
   await page.locator('.cash-btn').click();
   for (const d of digits) await page.locator('.nk', { hasText: d }).first().click();
-  await page.locator('.act-btn.primary', { hasText: 'Valider' }).click();
+  await page.locator('.validate-btn').click();
 }
 
 test('a 30 € payment on a 24 € sale gives 6 € back', async ({ page }) => {
   await toPayment(page);
-  await payCash(page, '30');
+  await page.locator('.cash-btn').click();
+  for (const d of '30') await page.locator('.nk', { hasText: d }).first().click();
+  // §5.3: the change is shown before validating.
+  await expect(page.locator('.change-box')).toContainText('6,00');
+  await page.locator('.validate-btn').click();
   await expect(page.locator('.success-icon')).toBeVisible();
   await expect(page.locator('.receipt-change')).toContainText('6,00');
 });
@@ -105,8 +109,10 @@ test('the success screen names the FDM that signed the sale', async ({ page }) =
 
 test('the exact amount gives no change line', async ({ page }) => {
   await toPayment(page);
-  await page.locator('.cash-btn').click();
+  // §7.1: PAYER -> Exact -> Valider (cash is selected by default).
+  await expect(page.locator('.cash-btn')).toHaveClass(/active/);
   await page.locator('.shortcut.exact').click();
+  await page.locator('.validate-btn').click();
   await expect(page.locator('.success-icon')).toBeVisible();
   await expect(page.locator('.receipt-change')).toHaveCount(0);
 });

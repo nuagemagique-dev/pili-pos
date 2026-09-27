@@ -9,7 +9,7 @@ async function openTableAs(page: import('@playwright/test').Page, role: string) 
     login: () => user,
     list_users: () => [user],
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
-    list_order_lines: () => [DEFAULT_ORDER_LINE],
+    list_cart_lines: () => [DEFAULT_ORDER_LINE],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
   });
@@ -46,13 +46,13 @@ test.describe('What each role is offered', () => {
     await expect(page.locator('.nav-btn', { hasText: 'Config' })).toBeVisible();
   });
 
-  test('logging out ends the backend session after the clock-out', async ({ page }) => {
+  test('locking the screen ends the backend session and keeps the shift', async ({ page }) => {
     await openTableAs(page, 'cashier');
     await page.locator('.nav-logout').click();
     await expect.poll(async () =>
       page.evaluate(() => ((window as any).__ipcCalls as Array<{ cmd: string }>)
         .map((c) => c.cmd)
         .filter((c) => c === 'sign_table_order' || c === 'work_out' || c === 'logout')),
-    ).toEqual(['sign_table_order', 'work_out', 'logout']);
+    ).toEqual(['sign_table_order', 'logout']);
   });
 });

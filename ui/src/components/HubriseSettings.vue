@@ -7,8 +7,11 @@ import { open as openUrl } from "@tauri-apps/plugin-shell";
 import * as ipc from "../api/ipc";
 import type { HubriseConnectionInfo } from "../api/ipc";
 import { useI18n } from "../i18n";
+import { useWebshopOrdersStore } from "../stores/webshopOrders";
 import { describeError } from "../utils/errorMessages";
 const { t } = useI18n();
+// Pending count kept live by the header's "En ligne" button.
+const webshop = useWebshopOrdersStore();
 
 // ── HubRise connection ─────────────────────────────────────────────
 const hubriseStatus = ref<HubriseConnectionInfo | null>(null);
@@ -72,61 +75,93 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- HubRise connection -->
-  <div class="hubrise-section">
-    <h3>HubRise</h3>
-    <p class="hubrise-help">{{ t('hubrise_section_help') }}</p>
-
-    <div class="info-row">
-      <span>{{ t('hubrise_status_label') }}</span>
-      <span :class="hubriseStatus?.connected ? 'status-ok' : 'status-off'">
-        {{ hubriseStatus?.connected ? t('hubrise_connected') : t('hubrise_disconnected') }}
+  <!-- HubRise connection panel. The parent passes the panel classes
+       (background, border, padding, grow); the layout is set here. -->
+  <section class="hubrise-section">
+    <h2>HubRise</h2>
+    <div class="pills">
+      <span class="pill" :class="hubriseStatus?.connected ? 'status-ok' : 'status-off'">
+        <span class="dot"></span>{{ hubriseStatus?.connected ? t('hubrise_connected') : t('hubrise_disconnected') }}
+      </span>
+      <span v-if="hubriseStatus?.connected" class="pill" :class="{ 'status-warn': webshop.pendingCount > 0 }">
+        <span class="dot"></span>{{ t('settings_hubrise_pending', { count: webshop.pendingCount }) }}
       </span>
     </div>
 
     <template v-if="hubriseStatus?.connected">
-      <div class="info-row"><span>{{ t('hubrise_account_label') }}</span><span>{{ hubriseStatus.account_name }}</span></div>
-      <div class="info-row"><span>{{ t('hubrise_location_label') }}</span><span>{{ hubriseStatus.location_name }}</span></div>
-      <div v-if="hubriseStatus.catalog_name" class="info-row">
-        <span>{{ t('hubrise_catalog_label') }}</span><span>{{ hubriseStatus.catalog_name }}</span>
+      <div class="info-rows">
+        <div class="info-row"><span>{{ t('hubrise_account_label') }}</span><span class="info-value">{{ hubriseStatus.account_name }}</span></div>
+        <div class="info-row"><span>{{ t('hubrise_location_label') }}</span><span class="info-value">{{ hubriseStatus.location_name }}</span></div>
+        <div v-if="hubriseStatus.catalog_name" class="info-row">
+          <span>{{ t('hubrise_catalog_label') }}</span><span class="info-value">{{ hubriseStatus.catalog_name }}</span>
+        </div>
       </div>
-      <button class="add-btn" :disabled="hubriseLoading" @click="disconnectHubrise">
+      <button class="action-btn danger" :disabled="hubriseLoading" @click="disconnectHubrise">
         {{ t('hubrise_disconnect_action') }}
       </button>
     </template>
 
     <template v-else>
-      <button class="add-btn" :disabled="hubriseLoading" @click="connectHubrise">
+      <p class="hubrise-help">{{ t('hubrise_section_help') }}</p>
+      <button class="action-btn" :disabled="hubriseLoading" @click="connectHubrise">
         {{ t('hubrise_open_authorize_url') }}
       </button>
-      <div class="add-worker">
-        <h4>{{ t('hubrise_paste_code_title') }}</h4>
-        <div class="add-fields">
-          <input v-model="hubriseCode" class="field" :placeholder="t('hubrise_code_placeholder')" />
-        </div>
-        <button class="add-btn" :disabled="hubriseLoading" @click="completeHubrise">
+      <div class="section-label">{{ t('hubrise_paste_code_title') }}</div>
+      <div class="code-row">
+        <input v-model="hubriseCode" class="field" :placeholder="t('hubrise_code_placeholder')" />
+        <button class="action-btn" :disabled="hubriseLoading" @click="completeHubrise">
           {{ t('hubrise_complete_connection') }}
         </button>
       </div>
     </template>
 
     <p v-if="hubriseError" class="add-error">{{ hubriseError }}</p>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.hubrise-section { padding: var(--space-md); border: 1px solid rgba(160,160,176,0.15); border-radius: var(--radius-md); }
-.hubrise-section h3 { margin-top: 0; }
-.hubrise-help { font-size: var(--font-size-xs); color: var(--text-secondary); margin-bottom: var(--space-sm); }
-.status-ok { color: var(--accent-success); font-weight: var(--font-weight-bold); }
+.hubrise-section { display: flex; flex-direction: column; gap: 16px; }
+.hubrise-section h2 { font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1.2; }
+.hubrise-help { font-size: 16px; color: var(--text-secondary); text-wrap: pretty; }
+.section-label {
+  font-family: var(--font-mono); font-size: 14px; font-weight: var(--font-weight-bold);
+  color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 14px; font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.status-ok { color: var(--accent-success); }
 .status-off { color: var(--text-secondary); }
-.info-row { display: flex; justify-content: space-between; padding: var(--space-sm) 0; border-bottom: 1px solid rgba(160,160,176,0.1); font-size: var(--font-size-sm); }
-.info-row span:first-child { color: var(--text-secondary); }
-.add-worker { margin-top: var(--space-md); padding: var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-md); }
-.add-worker h4 { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); margin-bottom: var(--space-sm); }
-.add-fields { display: flex; flex-direction: column; gap: var(--space-sm); }
-.field { padding: var(--space-sm) var(--space-md); font-size: var(--font-size-sm); border-radius: var(--radius-sm); border: 1px solid rgba(160,160,176,0.2); background: var(--bg-surface); color: var(--text-primary); height: 48px; }
-.add-error { color: var(--accent-danger); font-size: var(--font-size-xs); margin-top: var(--space-xs); }
-.add-btn { margin-top: var(--space-sm); width: 100%; height: 52px; font-size: var(--font-size-md); font-weight: var(--font-weight-bold); border-radius: var(--radius-md); background: var(--accent-primary); color: var(--text-on-accent); transition: transform var(--tap-duration) ease; }
-.add-btn:active { transform: scale(var(--tap-scale)); }
+.status-warn { color: var(--accent-warning); }
+
+.info-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  min-height: 48px; border-bottom: 1px solid var(--border); font-size: 16px;
+}
+.info-row span:first-child { color: var(--text-secondary); flex-shrink: 0; }
+.info-value { font-family: var(--font-mono); text-align: right; overflow-wrap: anywhere; }
+
+.code-row { display: flex; gap: 8px; }
+.field {
+  flex: 1; min-width: 0; height: 56px; padding: 0 16px;
+  border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: transparent; color: var(--text-primary); font-family: var(--font-mono); font-size: 16px;
+}
+.field::placeholder { color: var(--text-secondary); font-family: var(--font-family); }
+.action-btn {
+  min-height: 56px; padding: 0 20px; border-radius: var(--radius-md);
+  background: var(--bg-surface); color: var(--text-primary);
+  font-size: 16px; font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.action-btn.danger { background: transparent; border: 2px solid var(--accent-danger); color: var(--accent-danger); }
+.action-btn:active { transform: scale(var(--tap-scale)); }
+.action-btn:disabled { opacity: 0.5; }
+.add-error { color: var(--accent-danger); font-size: 15px; }
 </style>

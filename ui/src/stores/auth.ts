@@ -7,8 +7,9 @@ import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 
 /** Event S (ONSS presence). Never blocks the login or logout, but an
- * unregistered clock-in/out is reported so it can be fixed. */
-async function registerPresence(insz: string, isIn: boolean) {
+ * unregistered clock-in/out is reported so it can be fixed. Returns
+ * whether it was registered. */
+async function registerPresence(insz: string, isIn: boolean): Promise<boolean> {
   let error: string | null;
   try {
     const result = isIn ? await ipc.workIn(insz) : await ipc.workOut(insz);
@@ -20,6 +21,19 @@ async function registerPresence(insz: string, isIn: boolean) {
     const { t } = useI18n();
     useToastStore().show(`${t("presence_failed")} : ${describeError(error)}`, "error", 6000);
   }
+  return !error;
+}
+
+/** Clock in at login, unless the employee is already on shift (the
+ * screen was only locked). Never blocks the login. */
+async function clockInIfOffShift(insz: string) {
+  let onShift = false;
+  try {
+    onShift = ((await ipc.listOpenShifts()) ?? []).some((s) => s.userInsz === insz);
+  } catch {
+    /* unknown: clock in, a second WorkIn is harmless */
+  }
+  if (!onShift) await registerPresence(insz, true);
 }
 
 export const useAuthStore = defineStore("auth", () => {
@@ -30,7 +44,7 @@ export const useAuthStore = defineStore("auth", () => {
     error.value = null;
     try {
       currentUser.value = await ipc.login(insz, pin);
-      void registerPresence(insz, true);
+      void clockInIfOffShift(insz);
     } catch (e) {
       error.value = String(e);
       throw e;
@@ -42,23 +56,34 @@ export const useAuthStore = defineStore("auth", () => {
     error.value = null;
     try {
       currentUser.value = await ipc.loginWithNewPin(insz, pin);
-      void registerPresence(insz, true);
+      void clockInIfOffShift(insz);
     } catch (e) {
       error.value = String(e);
       throw e;
     }
   }
 
-  /** Clock out, then end the backend session (in that order: the
-   * clock-out is signed in the operator's name). */
-  async function logout() {
-    const user = currentUser.value;
+  /** Lock the screen: end the session, stay on shift. */
+  async function lock() {
     currentUser.value = null;
-    if (user) await registerPresence(user.insz, false);
     try {
       await ipc.logout();
     } catch {
       /* the next login replaces the session anyway */
+    }
+  }
+
+  /** End the employee's shift from the login screen: the PIN opens a
+   * session, the clock-out (S) is signed in their name, then the
+   * session ends. A refused PIN is thrown for the PIN pad to show.
+   * Returns whether the clock-out was registered. */
+  async function endShift(insz: string, pin?: string): Promise<boolean> {
+    error.value = null;
+    await ipc.login(insz, pin);
+    try {
+      return await registerPresence(insz, false);
+    } finally {
+      await lock();
     }
   }
 
@@ -73,7 +98,8 @@ export const useAuthStore = defineStore("auth", () => {
     error,
     loginWithInsz,
     loginWithNewPin,
-    logout,
+    lock,
+    endShift,
     canTakePayment,
     isManager,
   };

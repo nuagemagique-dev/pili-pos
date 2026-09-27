@@ -14,6 +14,9 @@
     "captures": "PW_CAPTURES=1 playwright test --project=captures"
   },
   "dependencies": {
+    "@fontsource/archivo": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/noto-sans": "^5.3.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-shell": "^2.3.6",
     "pinia": "^4.0.3",

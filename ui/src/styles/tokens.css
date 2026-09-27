@@ -1,44 +1,54 @@
+/* Pili design tokens (Pili brand guide, UX guide §5).
+ *
+ * One accent only: Volt, reserved for the screen's main action
+ * (PAYER, VALIDER, Se connecter, Enregistrer). A selection is shown
+ * in Brume on dark (--selected-*). Every other colour has one fixed
+ * meaning: amber = waiting / not sent yet, red = delete / error,
+ * green = OK / paid / change, cyan = information / online orders,
+ * violet = training mode only. */
 :root {
-  /* Backgrounds - UX Guide §5.2 */
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-surface: #0f3460;
-  --bg-pressed: #533483;
+  /* Surfaces */
+  --bg-primary: #0b0d0e;   /* Encre: screen background */
+  --bg-secondary: #15181a; /* Graphite: header, cart, cards */
+  --bg-surface: #1f2327;   /* Ardoise: secondary buttons */
+  --bg-pressed: #2b3035;
+  --border: #2b3035;
 
-  /* Text - UX Guide §5.3 (ratio ≥14:1 sur bg-primary) */
-  --text-primary: #e8e8e8;
-  --text-secondary: #a0a0b0;
-  --text-on-accent: #ffffff;
+  /* Text */
+  --text-primary: #f2f4f2;   /* Brume */
+  --text-secondary: #9aa3a8;
+  --text-on-accent: #0b0d0e; /* on Volt, amber, green, red, cyan */
 
-  /* Accent - UX Guide §5.2 */
-  --accent-primary: #e94560;
-  --accent-success: #2ecc71;
-  --accent-warning: #f39c12;
-  --accent-danger: #e74c3c;
+  /* Selection (active tab, chosen table, chosen method) */
+  --selected-bg: #f2f4f2;
+  --selected-fg: #0b0d0e;
+
+  /* Accent and fixed-meaning colours */
+  --accent-primary: #d7ff3a; /* Volt: the main action, once per screen */
+  --accent-success: #22c55e;
+  --accent-warning: #ffb020;
+  --accent-danger: #ff4d3d;
+  --accent-info: #00d4ff;    /* Nuage Magique cyan */
   --accent-training: #9b59b6;
 
-  /* Category tab colors - UX Guide §5.2 */
-  --cat-sushi: #e94560;
-  --cat-maki: #f39c12;
-  --cat-sashimi: #3498db;
-  --cat-ramen: #2ecc71;
-  --cat-boissons: #9b59b6;
-  --cat-desserts: #e67e22;
-
-  /* Spacing - UX Guide §5.2 */
+  /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
 
-  /* Border radius - UX Guide §5.2 */
-  --radius-sm: 6px;
+  /* Border radius */
+  --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 16px;
 
-  /* Typography - UX Guide §5.2, §10 */
-  --font-family: 'Noto Sans', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  /* Typography (UX guide §10: Noto Sans on screen, Chinese in Noto
+   * Sans CJK from the image; JetBrains Mono for every figure). */
+  --font-family: 'Noto Sans', 'Noto Sans CJK SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-zh: 'Noto Sans CJK SC', 'Noto Sans SC', 'Noto Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+  --font-brand: 'Archivo', 'Noto Sans', sans-serif;
   --font-size-xs: 12px;
   --font-size-sm: 14px;
   --font-size-md: 16px;
@@ -47,9 +57,25 @@
   --font-size-price: 18px;
   --font-weight-normal: 400;
   --font-weight-bold: 700;
+  --font-weight-heavy: 800;
 
-  /* Tap feedback - UX Guide §4.2 */
+  /* Layout (UX guide §3, §12: one 1920×1080 form factor) */
+  --header-height: 64px;
+  --cart-width: 670px;
+
+  /* Tap feedback (UX guide §4.2) */
   --tap-scale: 0.95;
   --tap-duration: 100ms;
   --flash-duration: 200ms;
+}
+
+/* Training mode (UX guide §9): violet background, the surfaces follow.
+ * Set on <html> by App.vue while the mode is on. */
+:root.training {
+  --bg-primary: #2d1b4e;
+  --bg-secondary: #361f5c;
+  --bg-surface: #452a73;
+  --bg-pressed: #5a3d8a;
+  --border: #5a3d8a;
+  --text-secondary: #c4b5db;
 }

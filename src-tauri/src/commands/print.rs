@@ -37,6 +37,23 @@ pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
     }
 }
 
+/// Check if the bar / kitchen printer is reachable. `None` when the
+/// terminal has no separate kitchen printer (slips go to the ticket
+/// printer), so the header can grey out its light.
+#[tauri::command]
+pub async fn check_kitchen_printer(state: State<'_, AppState>) -> Result<Option<bool>, String> {
+    let address = state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .kitchen_printer_address
+        .clone();
+    match address {
+        Some(address) => Ok(Some(transport::TcpPrinter::new(&address).ping().await)),
+        None => Ok(None),
+    }
+}
+
 // ── Webshop (non-fiscal) tickets ──────────────────────────────────
 //
 // Everything below is HubRise/webshop-specific (loads orders from

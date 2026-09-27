@@ -15,7 +15,20 @@ test.describe('Settings View', () => {
   });
 
   test('shows language switcher with 3 options', async ({ page }) => {
-    await expect(page.locator('.lang-btn')).toHaveCount(3);
+    await expect(page.locator('.lang-btn')).toHaveText(['Français', '中文', 'English']);
+    await expect(page.locator('.lang-btn.active')).toHaveText('Français');
+  });
+
+  test('an employee without a PIN is flagged', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER, { ...DEFAULT_USER, insz: '99012345667', name: 'Wei', role: 'cashier', has_pin: false }],
+    });
+    await page.reload();
+    await expect(page.locator('.worker-row', { hasText: 'Bruno Moyse' }).locator('.worker-meta')).toHaveText('Gérant · PIN défini');
+    const meta = page.locator('.worker-row', { hasText: 'Wei' }).locator('.worker-meta');
+    await expect(meta).toHaveText('Serveur · sans PIN');
+    await expect(meta).toHaveClass(/no-pin/);
   });
 
   test('shows worker list with test user', async ({ page }) => {
@@ -32,7 +45,7 @@ test.describe('Settings View', () => {
     await page.getByPlaceholder('Nom').fill('Nouvel apprenti');
     await page.locator('input[inputmode="numeric"]').fill('99012345667');
     await page.getByRole('radio', { name: 'Apprenti' }).click();
-    await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+    await page.getByRole('button', { name: 'Ajouter l’employé' }).click();
     await expect.poll(() => ipcCalls(page, 'create_user')).toEqual([
       { input: { insz: '99012345667', name: 'Nouvel apprenti', role: 'waiter' } },
     ]);
@@ -44,7 +57,8 @@ test.describe('Settings View', () => {
       list_users: () => [DEFAULT_USER, { ...DEFAULT_USER, insz: '99012345667', name: 'Parti', role: 'waiter' }],
       deactivate_user: () => undefined,
     });
-    await page.goto('/#/settings');
+    // beforeEach already opened /#/settings: reload so the new mock installs.
+    await page.reload();
     const row = page.locator('.worker-row', { hasText: 'Parti' });
     await row.getByRole('button', { name: 'Désactiver' }).click();
     expect(await ipcCalls(page, 'deactivate_user')).toEqual([]);
@@ -58,7 +72,7 @@ test.describe('Settings View', () => {
     });
     await page.locator('.toggle').click();
     await expect(page.locator('.toast')).toContainText('Encaissez ou videz les commandes ouvertes');
-    await expect(page.locator('.toggle')).toContainText('INACTIF');
+    await expect(page.locator('.toggle')).toContainText('Inactif');
   });
 
   test('shows POS info section', async ({ page }) => {

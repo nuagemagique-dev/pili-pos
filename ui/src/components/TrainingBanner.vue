@@ -7,41 +7,25 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <!-- UX Guide §9: impossible à confondre avec le mode normal.
-       The banner takes its own row at the top of #app (a flex column),
-       so the screen below starts under it and no control is hidden or
-       blocked; the watermark lies over everything and lets taps through. -->
-  <template v-if="pos.trainingMode">
-    <div class="training-banner" role="status">
-      {{ t('training_banner') }}
-    </div>
-    <div class="training-watermark">TRAINING</div>
-  </template>
+  <!-- UX guide §9: impossible to mistake for the normal mode. The
+       banner takes its own row, so nothing below it is hidden; the
+       watermark (App.vue) lies over everything and lets taps through. -->
+  <div v-if="pos.trainingMode" class="training-banner" role="status">
+    {{ t('training_banner') }}
+  </div>
 </template>
 
 <style scoped>
-.training-watermark {
-  position: fixed;
-  z-index: 9999;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-35deg);
-  font-size: 120px;
-  font-weight: 900;
-  color: rgba(155, 89, 182, 0.08);
-  white-space: nowrap;
-  letter-spacing: 0.1em;
-  pointer-events: none;
-}
-
 .training-banner {
-  flex: none;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--accent-training);
-  color: var(--text-on-accent);
-  text-align: center;
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-sm);
-  padding: 6px;
-  letter-spacing: 0.05em;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.04em;
 }
 </style>

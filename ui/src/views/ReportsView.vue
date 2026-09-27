@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { describeError } from "../utils/errorMessages";
 import { formatDate as formatDay, formatTime, formatTimestamp } from "../utils/datetime";
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
@@ -11,6 +11,7 @@ import type { CheckoutResult, OrderLine } from "../types";
 import type { CopyResult, RefundableEvent, RefundItem } from "../api/ipc";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
+import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 import PriceDialog from "../components/PriceDialog.vue";
@@ -21,8 +22,19 @@ const toast = useToastStore();
 const delivery = useDeliveryStore();
 const { t } = useI18n();
 
+// §2.1: three tabs, never more than 6-8 actions visible at once.
+type Tab = "day" | "cash" | "tickets";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "day", label: "reports_tab_day" },
+  { id: "cash", label: "reports_tab_cash" },
+  { id: "tickets", label: "reports_tab_tickets" },
+];
+const tab = ref<Tab>("day");
+
 const loading = ref(false);
+const loadingKind = ref<"x" | "userx" | "z" | null>(null);
 const zHistory = ref<ipc.ZReportSummary[]>([]);
+const zPending = ref(false);
 
 async function loadHistory() {
   try {
@@ -32,17 +44,30 @@ async function loadHistory() {
   }
 }
 
+async function loadZPending() {
+  try {
+    zPending.value = await ipc.needsZReport();
+  } catch {
+    /* the notice is only a reminder */
+    zPending.value = false;
+  }
+}
+
 onMounted(() => {
   if (!auth.currentUser) {
     router.push({ name: "login" });
     return;
   }
   loadHistory();
+  loadZPending();
 });
+
+const lastZ = computed(() => zHistory.value[0] ?? null);
 
 async function generateX() {
   if (!auth.currentUser || loading.value) return;
   loading.value = true;
+  loadingKind.value = "x";
   try {
     const result = await ipc.generateXReport(auth.currentUser.insz);
     if (result.success) {
@@ -54,12 +79,14 @@ async function generateX() {
     toast.show(describeError(e), "error", 5000);
   } finally {
     loading.value = false;
+    loadingKind.value = null;
   }
 }
 
 async function generateUserX() {
   if (!auth.currentUser || loading.value) return;
   loading.value = true;
+  loadingKind.value = "userx";
   try {
     const result = await ipc.generateUserXReport(auth.currentUser.insz);
     if (result.success) {
@@ -71,6 +98,7 @@ async function generateUserX() {
     toast.show(describeError(e), "error", 5000);
   } finally {
     loading.value = false;
+    loadingKind.value = null;
   }
 }
 
@@ -79,6 +107,12 @@ async function generateUserX() {
 const zArmed = ref(false);
 let zDisarm: ReturnType<typeof setTimeout> | undefined;
 onUnmounted(() => clearTimeout(zDisarm));
+
+// Leaving the day tab disarms the Z: it must be armed where it is seen.
+watch(tab, () => {
+  clearTimeout(zDisarm);
+  zArmed.value = false;
+});
 
 async function generateZ() {
   if (!auth.currentUser || loading.value) return;
@@ -90,6 +124,7 @@ async function generateZ() {
   clearTimeout(zDisarm);
   zArmed.value = false;
   loading.value = true;
+  loadingKind.value = "z";
   try {
     const result = await ipc.generateZReport(auth.currentUser.insz);
     if (result.success) {
@@ -98,6 +133,7 @@ async function generateZ() {
         : `${t('report_generated')} (Z)`;
       toast.show(label, "success", 4000);
       await loadHistory();
+      await loadZPending();
     } else {
       toast.show(describeError(result.error), "error", 5000);
     }
@@ -105,43 +141,40 @@ async function generateZ() {
     toast.show(describeError(e), "error", 5000);
   } finally {
     loading.value = false;
+    loadingKind.value = null;
   }
+}
+
+// ── Z history (reprint list) ─────────────────────────────────────
+const zListOpen = ref(false);
+
+async function openZList() {
+  zListOpen.value = true;
+  await loadHistory();
+}
+
+function reprintZ(report: ipc.ZReportSummary) {
+  zListOpen.value = false;
+  openCopy(report, "z");
 }
 
 // ── Copy flow (event C) - picker shown before signing ──────────────
 const copyOpen = ref(false);
-const copyStep = ref<"pick" | "picker" | "processing" | "result">("picker");
+const copyStep = ref<"picker" | "processing" | "result">("picker");
 const copyTarget = ref<{ fiscalEventId: number | null } | null>(null);
+const copyKindOf = ref<"z" | "ticket">("ticket");
 const copyResult = ref<CopyResult | null>(null);
-const copyTickets = ref<ipc.CopyableTicket[]>([]);
 
-/** Copy of a Z report, from the history. */
-function openCopy(report: { fiscalEventId: number | null }) {
+/** Copy of a Z report (from the history) or of a customer ticket. */
+function openCopy(report: { fiscalEventId: number | null }, kind: "z" | "ticket") {
   if (!report.fiscalEventId) return;
   copyTarget.value = report;
+  copyKindOf.value = kind;
   copyResult.value = null;
   delivery.reset();
   delivery.refreshMailStatus();
   copyStep.value = "picker";
   copyOpen.value = true;
-}
-
-/** Copy of a ticket a customer received: pick it first. */
-async function openTicketCopy() {
-  copyResult.value = null;
-  copyTarget.value = null;
-  try {
-    copyTickets.value = await ipc.listCopyableTickets();
-  } catch (e) {
-    toast.show(describeError(e), "error", 5000);
-    return;
-  }
-  copyStep.value = "pick";
-  copyOpen.value = true;
-}
-
-function selectCopyTicket(ticket: ipc.CopyableTicket) {
-  openCopy({ fiscalEventId: ticket.fiscalEventId });
 }
 
 function copyKind(ticket: ipc.CopyableTicket): string {
@@ -151,10 +184,11 @@ function copyKind(ticket: ipc.CopyableTicket): string {
 }
 
 function closeCopy() {
+  const signed = copyStep.value === "result";
   copyOpen.value = false;
   copyResult.value = null;
-  copyTickets.value = [];
   delivery.reset();
+  if (signed && copyKindOf.value === "ticket") loadTickets();
 }
 
 async function confirmCopy() {
@@ -182,23 +216,49 @@ function formatDate(iso: string): string {
   return iso ? formatTimestamp(iso, formatDay) : "-";
 }
 
-// ── Cash management (Event F) - preset buttons, no keyboard ──────
+// ── Cash management (Event F) - direction, reason, amount ────────
+type CashDirection = "in" | "out";
+const cashDirection = ref<CashDirection>("in");
 const cashAmountCents = ref(0);
 const cashLoading = ref(false);
-const cashPresets = [1000, 2000, 5000, 10000, 20000]; // 10€, 20€, 50€, 100€, 200€
+const cashPresets = [1000, 2000, 5000, 10000]; // 10€, 20€, 50€, 100€ - "Autre" opens the keypad
 
-const cashReasons: { key: string; label: Record<string, string> }[] = [
-  { key: "fond_de_caisse", label: { fr: "Fond de caisse", en: "Cash float", zh: "备用金" } },
-  { key: "retrait", label: { fr: "Retrait", en: "Withdrawal", zh: "提现" } },
-  { key: "pourboire", label: { fr: "Pourboire", en: "Tip", zh: "小费" } },
-];
+// Only the reasons that make sense for the chosen direction.
+const CASH_REASONS: Record<CashDirection, string[]> = {
+  in: ["fond_de_caisse", "pourboire"],
+  out: ["retrait", "pourboire"],
+};
+const cashReasons = computed(() => CASH_REASONS[cashDirection.value]);
+const cashReason = ref<string>(CASH_REASONS.in[0]);
 
-async function handleCashInOut(direction: "in" | "out", reason: string) {
+function setCashDirection(dir: CashDirection) {
+  cashDirection.value = dir;
+  if (!CASH_REASONS[dir].includes(cashReason.value)) cashReason.value = CASH_REASONS[dir][0];
+}
+
+function reasonLabel(key: string): string {
+  return t(`reports_reason_${key}`);
+}
+
+const cashCustom = computed(
+  () => cashAmountCents.value > 0 && !cashPresets.includes(cashAmountCents.value),
+);
+const cashSummary = computed(
+  () => `${t(cashDirection.value === "in" ? "reports_dir_in" : "reports_dir_out")} · ${reasonLabel(cashReason.value)}`,
+);
+
+const otherAmountOpen = ref(false);
+function handleOtherAmount(cents: number) {
+  otherAmountOpen.value = false;
+  cashAmountCents.value = cents;
+}
+
+async function handleCashInOut() {
   const insz = auth.currentUser?.insz;
-  if (!insz || cashAmountCents.value <= 0) return;
+  if (!insz || cashAmountCents.value <= 0 || !cashReason.value) return;
   cashLoading.value = true;
   try {
-    const result = await ipc.moneyInOut(insz, cashAmountCents.value, direction, reason);
+    const result = await ipc.moneyInOut(insz, cashAmountCents.value, cashDirection.value, cashReason.value);
     if (result.success) {
       toast.show(t("cash_success"), "success");
       cashAmountCents.value = 0;
@@ -249,43 +309,105 @@ async function handleOpenDrawer() {
   }
 }
 
+// ── Tickets tab: copy and refund from one list ───────────────────
+interface TicketRow {
+  fiscalEventId: number;
+  ticketNumber: number;
+  tableNumber: number | null;
+  totalCents: number;
+  createdAt: string;
+  kind: string;
+  /** Present when the ticket can be copied (listCopyableTickets). */
+  copyable: ipc.CopyableTicket | null;
+  /** Present when the ticket can be refunded (listRefundableEvents). */
+  refundable: RefundableEvent | null;
+}
+
+const copyTickets = ref<ipc.CopyableTicket[]>([]);
+const refundEvents = ref<RefundableEvent[]>([]);
+const ticketsLoaded = ref(false);
+
+async function loadTickets() {
+  const [copyable, refundable] = await Promise.allSettled([
+    ipc.listCopyableTickets(),
+    ipc.listRefundableEvents(20),
+  ]);
+  if (copyable.status === "fulfilled") {
+    copyTickets.value = copyable.value;
+  } else {
+    copyTickets.value = [];
+    toast.show(describeError(copyable.reason), "error", 5000);
+  }
+  refundEvents.value = refundable.status === "fulfilled" ? refundable.value : [];
+  ticketsLoaded.value = true;
+}
+
+watch(tab, (next) => {
+  if (next === "tickets") loadTickets();
+});
+
+const ticketRows = computed<TicketRow[]>(() => {
+  const rows = new Map<number, TicketRow>();
+  for (const tk of copyTickets.value) {
+    rows.set(tk.fiscalEventId, {
+      fiscalEventId: tk.fiscalEventId,
+      ticketNumber: tk.ticketNumber,
+      tableNumber: tk.tableNumber,
+      totalCents: tk.totalCents,
+      createdAt: tk.createdAt,
+      kind: copyKind(tk),
+      copyable: tk,
+      refundable: null,
+    });
+  }
+  for (const ev of refundEvents.value) {
+    const row = rows.get(ev.fiscalEventId);
+    if (row) {
+      row.refundable = ev;
+    } else {
+      rows.set(ev.fiscalEventId, {
+        fiscalEventId: ev.fiscalEventId,
+        ticketNumber: ev.ticketNumber,
+        tableNumber: ev.tableNumber,
+        totalCents: ev.totalCents,
+        createdAt: ev.createdAt,
+        kind: t("copy_kind_sale"),
+        copyable: null,
+        refundable: ev,
+      });
+    }
+  }
+  // Fiscal event ids grow with time: newest first.
+  return [...rows.values()].sort((a, b) => b.fiscalEventId - a.fiscalEventId);
+});
+
 // ── Refund flow ──────────────────────────────────────────────────
 const refundOpen = ref(false);
-const refundStep = ref<"pick" | "items" | "delivery" | "processing" | "result">("pick");
-const refundEvents = ref<RefundableEvent[]>([]);
+const refundStep = ref<"items" | "delivery" | "processing" | "result">("items");
 const refundSelected = ref<RefundableEvent | null>(null);
 const refundLines = ref<OrderLine[]>([]);
 const refundChecked = ref<Map<number, number>>(new Map());
 const refundResult = ref<CheckoutResult | null>(null);
 
-async function openRefund() {
-  refundOpen.value = true;
-  refundStep.value = "pick";
-  refundSelected.value = null;
-  refundChecked.value = new Map();
-  refundResult.value = null;
-  try {
-    refundEvents.value = await ipc.listRefundableEvents(20);
-  } catch {
-    refundEvents.value = [];
-  }
-}
-
-function closeRefund() {
-  refundOpen.value = false;
-  refundResult.value = null;
-  delivery.reset();
-}
-
-async function selectRefundTicket(ev: RefundableEvent) {
+async function openRefund(ev: RefundableEvent) {
   refundSelected.value = ev;
   refundChecked.value = new Map();
+  refundResult.value = null;
   try {
     refundLines.value = await ipc.listOrderLines(ev.orderId);
   } catch {
     refundLines.value = [];
   }
   refundStep.value = "items";
+  refundOpen.value = true;
+}
+
+function closeRefund() {
+  const signed = refundStep.value === "result";
+  refundOpen.value = false;
+  refundResult.value = null;
+  delivery.reset();
+  if (signed) loadTickets();
 }
 
 function toggleRefundLine(line: OrderLine) {
@@ -364,129 +486,178 @@ function formatRefundTime(iso: string): string {
 
 <template>
   <div class="reports">
-    <header class="header">
-      <h1>{{ t('reports') }}</h1>
-      <button class="nav-btn" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
-    </header>
+    <AppHeader />
     <div class="content">
-      <!-- Reports -->
-      <div class="report-row">
-        <div><h2>{{ t('report_x') }}</h2><p>{{ t('report_x_desc') }}</p></div>
-        <button class="report-btn x-btn" :disabled="loading" @click="generateX">
-          <span v-if="loading" class="spinner" aria-hidden="true"></span>
-          <span v-else>{{ t('generate') }} X</span>
-        </button>
-      </div>
-      <div class="report-row">
-        <div><h2>{{ t('report_user_x') }}</h2><p>{{ t('report_user_x_desc') }}</p></div>
-        <button class="report-btn x-btn" :disabled="loading" @click="generateUserX">
-          <span v-if="loading" class="spinner" aria-hidden="true"></span>
-          <span v-else>{{ t('generate') }} X util.</span>
-        </button>
-      </div>
-      <div class="report-row">
-        <div><h2>{{ t('report_z') }}</h2><p>{{ t('report_z_desc') }}</p></div>
-        <button class="report-btn z-btn" :class="{ armed: zArmed }" :disabled="loading" @click="generateZ">
-          <span v-if="loading" class="spinner" aria-hidden="true"></span>
-          <span v-else>{{ zArmed ? t('confirm_z') : `${t('generate')} Z` }}</span>
-        </button>
+      <div class="tabs" role="tablist">
+        <button
+          v-for="item in TABS"
+          :key="item.id"
+          class="tab"
+          :class="{ active: tab === item.id }"
+          role="tab"
+          :aria-selected="tab === item.id"
+          @click="tab = item.id"
+        >{{ t(item.label) }}</button>
       </div>
 
-      <!-- Z-report history -->
-      <div class="history-section">
-        <h3>{{ t('report_history_title') }}</h3>
-        <p v-if="zHistory.length === 0" class="empty">{{ t('report_no_history') }}</p>
-        <ul v-else class="history-list">
-          <li v-for="z in zHistory" :key="z.id" class="history-row">
-            <span class="history-label">
-              Z #{{ z.sequenceNumber }} · {{ formatDate(z.createdAt) }}
+      <!-- ── Day: X, user X, Z reprint, Z close ─────────────────── -->
+      <section v-if="tab === 'day'" class="tab-body day">
+        <div v-if="zPending" class="z-notice" role="status">{{ t('reports_z_pending') }}</div>
+
+        <div class="report-cards">
+          <button class="report-card x-btn" :disabled="loading" @click="generateX">
+            <span v-if="loadingKind === 'x'" class="spinner card-spinner" aria-hidden="true"></span>
+            <span class="card-title">{{ t('report_x') }}</span>
+            <span class="card-sub">{{ t('report_x_desc') }}</span>
+          </button>
+          <button class="report-card x-btn user-x-btn" :disabled="loading" @click="generateUserX">
+            <span v-if="loadingKind === 'userx'" class="spinner card-spinner" aria-hidden="true"></span>
+            <span class="card-title">{{ t('report_user_x') }}</span>
+            <span class="card-sub">{{ t('report_user_x_desc') }}</span>
+          </button>
+          <button class="report-card z-history-btn" @click="openZList">
+            <span class="card-title">{{ t('reports_reprint_z') }}</span>
+            <span class="card-sub">
+              <template v-if="lastZ">{{ t('reports_last_z', { no: lastZ.sequenceNumber, date: formatDate(lastZ.createdAt) }) }}</template>
+              <template v-else>{{ t('report_no_history') }}</template>
             </span>
+          </button>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="z-bar">
+          <p class="z-explain">{{ t('reports_z_explain') }}</p>
+          <button class="z-btn" :class="{ armed: zArmed }" :disabled="loading" @click="generateZ">
+            <span v-if="loadingKind === 'z'" class="spinner" aria-hidden="true"></span>
+            <span v-else>{{ zArmed ? t('confirm_z') : t('reports_z_close') }}</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ── Cash: direction, reason, amount, summary ───────────── -->
+      <section v-else-if="tab === 'cash'" class="tab-body cash">
+        <div class="panel cash-form">
+          <div class="step-label">{{ t('reports_step_direction') }}</div>
+          <div class="segmented two">
             <button
-              v-if="z.fiscalEventId"
-              class="reprint-btn"
-              @click="openCopy(z)"
-            >
-              {{ t('report_reprint') }}
+              class="seg cash-dir cash-dir-in"
+              :class="{ active: cashDirection === 'in' }"
+              @click="setCashDirection('in')"
+            >{{ t('reports_dir_in') }}</button>
+            <button
+              class="seg cash-dir cash-dir-out"
+              :class="{ active: cashDirection === 'out' }"
+              @click="setCashDirection('out')"
+            >{{ t('reports_dir_out') }}</button>
+          </div>
+
+          <div class="step-label">{{ t('reports_step_reason') }}</div>
+          <div class="reason-grid">
+            <button
+              v-for="key in cashReasons"
+              :key="key"
+              class="choice cash-reason"
+              :class="{ active: cashReason === key }"
+              :data-reason="key"
+              @click="cashReason = key"
+            >{{ reasonLabel(key) }}</button>
+          </div>
+
+          <div class="step-label">{{ t('reports_step_amount') }}</div>
+          <div class="amount-grid">
+            <button
+              v-for="cents in cashPresets"
+              :key="cents"
+              class="choice mono cash-preset"
+              :class="{ active: cashAmountCents === cents }"
+              @click="cashAmountCents = cents"
+            >{{ formatPrice(cents).replace(/,00$/, '') }} €</button>
+            <button
+              class="choice cash-other"
+              :class="{ active: cashCustom }"
+              @click="otherAmountOpen = true"
+            >{{ t('other') }}</button>
+          </div>
+        </div>
+
+        <div class="panel cash-summary">
+          <h2>{{ t('reports_summary') }}</h2>
+          <div class="summary-line">{{ cashSummary }}</div>
+          <div class="summary-amount" :class="{ empty: cashAmountCents <= 0 }">{{ formatPrice(cashAmountCents) }} €</div>
+          <div class="spacer"></div>
+          <div class="drawer-actions">
+            <button class="secondary-btn drawer-btn" @click="handleOpenDrawer">{{ t('reports_open_drawer') }}</button>
+            <button class="secondary-btn declaration-btn" :disabled="cashLoading" @click="declarationOpen = true">
+              {{ t('reports_declare_drawer') }}
             </button>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Cash management (Event F) - §7.3: preset buttons, no keyboard -->
-      <div class="cash-section">
-        <h3>{{ t('cash_section') }}</h3>
-
-        <!-- Amount presets -->
-        <div class="cash-presets">
+          </div>
           <button
-            v-for="cents in cashPresets"
-            :key="cents"
-            class="cash-preset"
-            :class="{ active: cashAmountCents === cents }"
-            @click="cashAmountCents = cents"
-          >{{ formatPrice(cents) }}</button>
+            class="cash-submit"
+            :disabled="cashLoading || cashAmountCents <= 0 || !cashReason"
+            @click="handleCashInOut"
+          >{{ t(cashDirection === 'in' ? 'reports_save_in' : 'reports_save_out') }}</button>
         </div>
+      </section>
 
-        <!-- In / Out with preset reasons -->
-        <div class="cash-actions">
-          <button
-            v-for="reason in cashReasons"
-            :key="reason.key"
-            class="cash-action-btn cash-in"
-            :disabled="cashLoading || cashAmountCents <= 0"
-            @click="handleCashInOut('in', reason.key)"
-          >{{ reason.label.fr }} +</button>
+      <!-- ── Tickets: copy and refund from one list ─────────────── -->
+      <section v-else class="tab-body tickets">
+        <div class="panel tickets-panel">
+          <div class="tickets-head">
+            <h2>{{ t('reports_tickets_title') }}</h2>
+            <p class="tickets-hint">{{ t('reports_tickets_hint') }}</p>
+          </div>
+          <p v-if="ticketsLoaded && ticketRows.length === 0" class="tickets-empty">{{ t('copy_none') }}</p>
+          <ul v-else class="ticket-list">
+            <li v-for="row in ticketRows" :key="row.fiscalEventId" class="ticket-row">
+              <span class="rt-num">#{{ row.ticketNumber }}</span>
+              <span class="rt-kind">{{ row.kind }}</span>
+              <span class="rt-table">{{ row.tableNumber ? `T${row.tableNumber}` : '' }}</span>
+              <span class="rt-time">{{ formatRefundTime(row.createdAt) }}</span>
+              <span class="rt-total" :class="{ negative: row.totalCents < 0 }">{{ formatPrice(row.totalCents) }} €</span>
+              <span class="row-actions">
+                <button
+                  v-if="row.copyable"
+                  class="copy-ticket-btn"
+                  @click="openCopy(row.copyable, 'ticket')"
+                >{{ t('reports_copy') }}</button>
+                <button
+                  v-if="row.refundable"
+                  class="refund-btn"
+                  @click="openRefund(row.refundable)"
+                >{{ t('refund_confirm') }}</button>
+              </span>
+            </li>
+          </ul>
         </div>
-        <div class="cash-actions">
-          <button
-            v-for="reason in cashReasons"
-            :key="reason.key"
-            class="cash-action-btn cash-out"
-            :disabled="cashLoading || cashAmountCents <= 0"
-            @click="handleCashInOut('out', reason.key)"
-          >{{ reason.label.fr }} -</button>
-        </div>
-
-        <button class="drawer-btn" @click="handleOpenDrawer">
-          {{ t('cash_open_drawer') }}
-        </button>
-        <button class="declaration-btn" :disabled="cashLoading" @click="declarationOpen = true">
-          {{ t('cash_declaration') }}
-        </button>
-        <button class="refund-btn" @click="openRefund">
-          {{ t('refund') }}
-        </button>
-        <button class="copy-btn" @click="openTicketCopy">
-          {{ t('copy_ticket') }}
-        </button>
-      </div>
+      </section>
     </div>
+
+    <!-- Z history: pick the report to reprint -->
+    <Teleport to="body">
+      <div v-if="zListOpen" class="refund-overlay" @click.self="zListOpen = false">
+        <div class="refund-modal z-list">
+          <h3>{{ t('report_history_title') }}</h3>
+          <p v-if="zHistory.length === 0" class="empty">{{ t('report_no_history') }}</p>
+          <ul v-else class="history-list">
+            <li v-for="z in zHistory" :key="z.id" class="history-row">
+              <span class="history-label">Z #{{ z.sequenceNumber }} · {{ formatDate(z.createdAt) }}</span>
+              <button v-if="z.fiscalEventId" class="reprint-btn" @click="reprintZ(z)">
+                {{ t('report_reprint') }}
+              </button>
+            </li>
+          </ul>
+          <button class="refund-cancel" @click="zListOpen = false">{{ t('back') }}</button>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Refund modal overlay (§8.2) -->
     <Teleport to="body">
-      <div v-if="refundOpen" class="refund-overlay" @click.self="refundOpen = false">
+      <div v-if="refundOpen" class="refund-overlay" @click.self="closeRefund">
         <div class="refund-modal">
-          <template v-if="refundStep === 'pick'">
-            <h3>{{ t('refund_select_ticket') }}</h3>
-            <div v-if="refundEvents.length === 0" class="refund-empty">{{ t('refund_none') }}</div>
-            <div class="refund-ticket-grid">
-              <button
-                v-for="ev in refundEvents"
-                :key="ev.fiscalEventId"
-                class="refund-ticket-btn"
-                @click="selectRefundTicket(ev)"
-              >
-                <span class="rt-num">#{{ ev.ticketNumber }}</span>
-                <span v-if="ev.tableNumber" class="rt-table">T{{ ev.tableNumber }}</span>
-                <span class="rt-total">{{ formatPrice(ev.totalCents) }}</span>
-                <span class="rt-time">{{ formatRefundTime(ev.createdAt) }}</span>
-              </button>
-            </div>
-            <button class="refund-cancel" @click="refundOpen = false">{{ t('back') }}</button>
-          </template>
-
-          <template v-else-if="refundStep === 'items'">
-            <h3>{{ t('refund_select_items') }}</h3>
+          <template v-if="refundStep === 'items'">
+            <h3>{{ t('refund_select_items') }}<span v-if="refundSelected" class="modal-ticket"> · #{{ refundSelected.ticketNumber }}</span></h3>
             <div class="refund-lines">
               <div
                 v-for="line in refundLines"
@@ -513,7 +684,7 @@ function formatRefundTime(iso: string): string {
               :disabled="refundChecked.size === 0"
               @click="goToRefundDelivery"
             >{{ t('refund_confirm') }} {{ formatPrice(refundTotalCents()) }}</button>
-            <button class="refund-cancel" @click="refundStep = 'pick'">{{ t('back') }}</button>
+            <button class="refund-cancel" @click="closeRefund">{{ t('back') }}</button>
           </template>
 
           <template v-else-if="refundStep === 'delivery'">
@@ -550,29 +721,10 @@ function formatRefundTime(iso: string): string {
     <Teleport to="body">
       <div v-if="copyOpen" class="refund-overlay" @click.self="closeCopy">
         <div class="refund-modal">
-          <template v-if="copyStep === 'pick'">
-            <h3>{{ t('copy_select_ticket') }}</h3>
-            <div v-if="copyTickets.length === 0" class="refund-empty">{{ t('copy_none') }}</div>
-            <div class="refund-ticket-grid">
-              <button
-                v-for="tk in copyTickets"
-                :key="tk.fiscalEventId"
-                class="refund-ticket-btn copy-ticket-btn"
-                @click="selectCopyTicket(tk)"
-              >
-                <span class="rt-num">#{{ tk.ticketNumber }}</span>
-                <span class="rt-kind">{{ copyKind(tk) }}</span>
-                <span v-if="tk.tableNumber" class="rt-table">T{{ tk.tableNumber }}</span>
-                <span class="rt-total">{{ formatPrice(tk.totalCents) }}</span>
-                <span class="rt-time">{{ formatRefundTime(tk.createdAt) }}</span>
-              </button>
-            </div>
-            <button class="refund-cancel" @click="closeCopy">{{ t('back') }}</button>
-          </template>
-          <template v-else-if="copyStep === 'picker'">
-            <h3>{{ copyTickets.length ? t('copy_ticket') : t('report_reprint') }}</h3>
+          <template v-if="copyStep === 'picker'">
+            <h3>{{ copyKindOf === 'ticket' ? t('copy_ticket') : t('report_reprint') }}</h3>
             <TicketMediumPicker />
-            <button class="refund-confirm-btn" @click="confirmCopy">{{ t('validate') }}</button>
+            <button class="refund-confirm-btn copy-confirm-btn" @click="confirmCopy">{{ t('validate') }}</button>
             <button class="refund-cancel" @click="closeCopy">{{ t('back') }}</button>
           </template>
 
@@ -604,165 +756,250 @@ function formatRefundTime(iso: string): string {
       @confirm="handleDeclaration"
       @cancel="declarationOpen = false"
     />
+
+    <PriceDialog
+      v-if="otherAmountOpen"
+      :title="t('reports_other_amount')"
+      :item-name="cashSummary"
+      @confirm="handleOtherAmount"
+      @cancel="otherAmountOpen = false"
+    />
   </div>
 </template>
 
 <style scoped>
 .reports { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg-primary); }
-.header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); background: var(--bg-secondary); border-bottom: 1px solid rgba(160,160,176,0.1); height: 48px; }
-.header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.nav-btn { padding: var(--space-xs) var(--space-md); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); min-height: 36px; transition: transform var(--tap-duration) ease; }
-.nav-btn:active { transform: scale(var(--tap-scale)); }
 
 .content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xl);
-  padding: var(--space-xl);
-  overflow-y: auto;
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 24px;
+  padding: 24px 32px;
+  overflow: hidden;
 }
 
-.report-row { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 600px; gap: var(--space-lg); }
-.report-row h2 { font-size: var(--font-size-lg); }
-.report-row p { font-size: var(--font-size-sm); color: var(--text-secondary); }
-
-.report-btn {
-  min-width: 160px; height: 72px;
-  font-size: var(--font-size-lg); font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md);
+/* ── Tabs (segmented control) ─────────────────────────────── */
+.tabs {
+  width: 900px; max-width: 100%;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+  padding: 4px; background: var(--bg-surface); border-radius: 12px;
+  flex-shrink: 0;
+}
+.tab {
+  height: 64px; border-radius: 8px;
+  font-size: 20px; font-weight: var(--font-weight-bold);
+  color: var(--text-primary); background: transparent;
   transition: transform var(--tap-duration) ease;
-  display: inline-flex; align-items: center; justify-content: center;
 }
-.report-btn:active { transform: scale(var(--tap-scale)); }
-.report-btn:disabled { opacity: 0.6; }
-.x-btn { background: var(--bg-surface); color: var(--text-primary); }
-.z-btn { background: var(--accent-danger); color: var(--text-on-accent); }
-.z-btn.armed { background: var(--accent-warning); }
+.tab.active { background: var(--selected-bg); color: var(--selected-fg); }
+.tab:active { transform: scale(var(--tap-scale)); }
+
+.tab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 24px; }
+.spacer { flex: 1; }
+
+.panel {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+  display: flex; flex-direction: column; gap: 16px; min-height: 0;
+}
+.panel h2 { font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1.2; }
+
+.mono { font-family: var(--font-mono); }
+
+/* ── Day ──────────────────────────────────────────────────── */
+.z-notice {
+  padding: 14px 20px; border-radius: var(--radius-md);
+  background: var(--accent-warning); color: var(--text-on-accent);
+  font-size: 18px; font-weight: var(--font-weight-bold);
+}
+
+.report-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.report-card {
+  position: relative;
+  min-height: 180px; padding: 28px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-primary);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 6px;
+  text-align: left;
+  transition: transform var(--tap-duration) ease;
+}
+.report-card:active { transform: scale(var(--tap-scale)); }
+.report-card:disabled { opacity: 0.6; }
+.card-title { font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1.2; }
+.card-sub { font-size: 17px; color: var(--text-secondary); }
+.card-spinner { position: absolute; top: 24px; right: 24px; }
+
+.z-bar {
+  display: flex; align-items: center; gap: 32px;
+  padding-top: 24px; border-top: 1px solid var(--border);
+}
+.z-explain { flex: 1; font-size: 18px; color: var(--text-secondary); text-wrap: pretty; }
+.z-btn {
+  width: 560px; height: 96px; flex-shrink: 0;
+  border-radius: 12px; border: 2px solid var(--accent-danger);
+  background: transparent; color: var(--text-primary);
+  font-size: 24px; font-weight: var(--font-weight-heavy);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform var(--tap-duration) ease;
+}
+.z-btn:active { transform: scale(var(--tap-scale)); }
+.z-btn:disabled { opacity: 0.6; }
+/* Armed: filled red, the next tap closes the day. */
+.z-btn.armed { background: var(--accent-danger); color: var(--text-on-accent); }
 
 .spinner {
   width: 28px; height: 28px;
-  border: 3px solid rgba(255, 255, 255, 0.25);
+  border: 3px solid var(--border);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: report-spin 800ms linear infinite;
 }
 @keyframes report-spin { to { transform: rotate(360deg); } }
 
-/* ── Z History ────────────────────────────────────────────── */
-.history-section { width: 100%; max-width: 600px; }
-.history-section h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); margin-bottom: var(--space-md); }
-.empty { font-size: var(--font-size-sm); color: var(--text-secondary); }
-.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
-.history-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-sm) var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-md); }
-.history-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
-.reprint-btn { min-height: 48px; padding: 0 var(--space-md); background: var(--bg-surface); color: var(--text-primary); border: none; border-radius: var(--radius-sm); font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); transition: transform var(--tap-duration) ease; }
-.reprint-btn:active { transform: scale(var(--tap-scale)); background: var(--bg-pressed); }
+/* ── Cash ─────────────────────────────────────────────────── */
+.cash { display: grid; grid-template-columns: minmax(0, 1fr) 670px; gap: 24px; }
 
-/* ── Cash management ──────────────────────────────────────── */
-.cash-section { width: 100%; max-width: 600px; padding: var(--space-md); border: 1px solid rgba(160,160,176,0.15); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--space-md); }
-.cash-section h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--text-secondary); }
+.step-label {
+  font-family: var(--font-mono); font-size: 14px; font-weight: var(--font-weight-bold);
+  color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase;
+}
 
-/* §7.3: preset amount buttons - no keyboard */
-.cash-presets { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-.cash-preset {
-  flex: 1; min-width: 80px; height: 56px;
-  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md);
+.segmented {
+  display: grid; gap: 4px; padding: 4px;
+  background: var(--bg-surface); border-radius: 12px;
+}
+.segmented.two { grid-template-columns: repeat(2, 1fr); }
+.seg {
+  height: 64px; border-radius: 8px;
+  font-size: 20px; font-weight: var(--font-weight-bold);
+  color: var(--text-primary); background: transparent;
+  transition: transform var(--tap-duration) ease;
+}
+.seg.active { background: var(--selected-bg); color: var(--selected-fg); }
+.seg:active { transform: scale(var(--tap-scale)); }
+
+.reason-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.amount-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.choice {
+  height: 72px; border-radius: var(--radius-md);
   background: var(--bg-surface); color: var(--text-primary);
-  transition: transform var(--tap-duration) ease;
-  font-variant-numeric: tabular-nums;
-}
-.cash-preset:active { transform: scale(var(--tap-scale)); }
-.cash-preset.active { background: var(--accent-primary); color: var(--text-on-accent); }
-
-/* Reason + direction buttons */
-.cash-actions { display: flex; gap: var(--space-sm); }
-.cash-action-btn {
-  flex: 1; height: 52px;
-  font-size: var(--font-size-sm); font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md); color: var(--text-on-accent);
+  font-size: 20px; font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.cash-action-btn:active { transform: scale(var(--tap-scale)); }
-.cash-action-btn:disabled { opacity: 0.4; }
-.cash-in { background: var(--accent-success); }
-.cash-out { background: var(--accent-warning); }
+.choice.active { background: var(--selected-bg); color: var(--selected-fg); }
+.choice:active { transform: scale(var(--tap-scale)); }
 
-.drawer-btn,
-.declaration-btn {
-  width: 100%; height: 52px;
-  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md);
+.summary-line { font-size: 22px; line-height: 1.5; }
+.summary-amount {
+  font-family: var(--font-mono); font-size: 56px; font-weight: var(--font-weight-bold); line-height: 1;
+}
+.summary-amount.empty { color: var(--text-secondary); }
+
+.drawer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.secondary-btn {
+  height: 64px; padding: 0 20px; border-radius: var(--radius-md);
   background: var(--bg-surface); color: var(--text-primary);
+  font-size: 17px; font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.drawer-btn:active,
-.declaration-btn:active { transform: scale(var(--tap-scale)); }
-.declaration-btn:disabled { opacity: 0.4; }
+.secondary-btn:active { transform: scale(var(--tap-scale)); }
+.secondary-btn:disabled { opacity: 0.4; }
 
+.cash-submit {
+  height: 80px; padding: 0 28px; border-radius: var(--radius-md);
+  background: var(--accent-primary); color: var(--text-on-accent);
+  font-size: 22px; font-weight: var(--font-weight-heavy); letter-spacing: 0.02em;
+  transition: transform var(--tap-duration) ease;
+}
+.cash-submit:active { transform: scale(var(--tap-scale)); }
+.cash-submit:disabled { opacity: 0.4; }
+
+/* ── Tickets ──────────────────────────────────────────────── */
+.tickets-panel { flex: 1; }
+.tickets-head { display: flex; align-items: baseline; gap: 24px; }
+.tickets-hint { font-size: 17px; color: var(--text-secondary); }
+.tickets-empty { font-size: 18px; color: var(--text-secondary); padding: 32px 0; text-align: center; }
+
+.ticket-list {
+  list-style: none; margin: 0; padding: 0;
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+}
+.ticket-row {
+  display: grid;
+  grid-template-columns: 120px 200px 80px 100px minmax(0, 1fr) auto;
+  align-items: center; gap: 16px;
+  min-height: 80px; padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ticket-row:last-child { border-bottom: none; }
+.rt-num { font-family: var(--font-mono); font-size: 22px; font-weight: var(--font-weight-heavy); }
+.rt-kind { font-size: 17px; font-weight: var(--font-weight-bold); color: var(--text-secondary); }
+.rt-table { font-family: var(--font-mono); font-size: 17px; font-weight: var(--font-weight-bold); }
+.rt-time { font-family: var(--font-mono); font-size: 17px; color: var(--text-secondary); }
+.rt-total { font-family: var(--font-mono); font-size: 22px; font-weight: var(--font-weight-bold); text-align: right; }
+.rt-total.negative { color: var(--accent-danger); }
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; min-width: 368px; }
+.copy-ticket-btn,
 .refund-btn {
-  width: 100%; height: 52px;
-  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md);
-  background: var(--accent-danger); color: var(--text-on-accent);
+  height: 64px; min-width: 180px; padding: 0 20px; border-radius: var(--radius-md);
+  font-size: 18px; font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
+.copy-ticket-btn { background: var(--bg-surface); color: var(--text-primary); }
+.refund-btn { background: transparent; color: var(--text-primary); border: 2px solid var(--accent-danger); }
+.copy-ticket-btn:active,
 .refund-btn:active { transform: scale(var(--tap-scale)); }
 
-/* ── Refund modal ─────────────────────────────────────────── */
+/* ── Modals (Z history, refund, copy) ─────────────────────── */
 .refund-overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(0, 0, 0, 0.7);
   display: flex; align-items: center; justify-content: center;
 }
 .refund-modal {
-  background: var(--bg-primary); border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  width: 90vw; max-width: 600px; max-height: 85vh;
-  display: flex; flex-direction: column; gap: var(--space-md);
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 90vw; max-width: 640px; max-height: 85vh;
+  display: flex; flex-direction: column; gap: 16px;
   overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
-.refund-modal h3 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); text-align: center; }
-.refund-empty { text-align: center; color: var(--text-secondary); font-size: var(--font-size-md); padding: var(--space-xl) 0; }
-.refund-error { color: var(--accent-danger); font-size: var(--font-size-sm); text-align: center; }
+.refund-modal h3 { font-size: 28px; font-weight: var(--font-weight-heavy); line-height: 1.2; }
+.modal-ticket { font-family: var(--font-mono); color: var(--text-secondary); }
+.refund-error { color: var(--accent-danger); font-size: var(--font-size-md); text-align: center; }
 
-.refund-ticket-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm); overflow-y: auto; }
-.refund-ticket-btn {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-xs);
-  min-height: 100px; padding: var(--space-sm);
-  background: var(--bg-surface); border-radius: var(--radius-md);
+.empty { font-size: 18px; color: var(--text-secondary); padding: 16px 0; }
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.history-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 8px 8px 8px 20px; background: var(--bg-surface); border-radius: var(--radius-md);
+}
+.history-label { font-family: var(--font-mono); font-size: 18px; font-weight: var(--font-weight-bold); }
+.reprint-btn {
+  height: 56px; padding: 0 24px;
+  background: var(--bg-secondary); color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  font-size: 17px; font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.refund-ticket-btn:active { transform: scale(var(--tap-scale)); }
-.rt-num { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
-.copy-btn {
-  width: 100%; height: 52px;
-  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface); color: var(--text-primary);
-  transition: transform var(--tap-duration) ease;
-}
-.copy-btn:active { transform: scale(var(--tap-scale)); }
-.rt-kind { font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); color: var(--text-secondary); }
-.rt-table { font-size: var(--font-size-xs); color: var(--accent-primary); }
-.rt-total { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--accent-primary); font-variant-numeric: tabular-nums; }
-.rt-time { font-size: var(--font-size-xs); color: var(--text-secondary); }
+.reprint-btn:active { transform: scale(var(--tap-scale)); }
 
 .refund-lines { display: flex; flex-direction: column; }
 .refund-line {
   display: flex; align-items: center; justify-content: space-between;
-  min-height: 64px; padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid rgba(160,160,176,0.1);
-  transition: background var(--tap-duration) ease;
+  min-height: 64px; padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
-.refund-line.selected { background: rgba(231, 76, 60, 0.1); }
+.refund-line.selected { background: var(--selected-bg); color: var(--selected-fg); }
+.refund-line.selected .rl-price,
+.refund-line.selected .rl-max { color: var(--selected-fg); }
 .rl-info { flex: 1; }
-.rl-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); display: block; }
-.rl-price { font-size: var(--font-size-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.rl-orig-qty { font-size: var(--font-size-sm); color: var(--text-secondary); min-width: 40px; text-align: right; }
-.rl-qty { display: flex; align-items: center; gap: var(--space-xs); font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); }
+.rl-name { font-size: 17px; font-weight: var(--font-weight-bold); display: block; }
+.rl-price { font-family: var(--font-mono); font-size: 15px; color: var(--text-secondary); }
+.rl-orig-qty { font-family: var(--font-mono); font-size: 17px; color: var(--text-secondary); min-width: 40px; text-align: right; }
+.rl-qty { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 18px; font-weight: var(--font-weight-bold); }
 .rl-qty-btn {
   width: 48px; height: 48px; border-radius: var(--radius-sm);
   background: var(--bg-surface); color: var(--text-primary);
@@ -771,13 +1008,14 @@ function formatRefundTime(iso: string): string {
   transition: transform var(--tap-duration) ease;
 }
 .rl-qty-btn:active { transform: scale(var(--tap-scale)); }
-.rl-max { font-size: var(--font-size-xs); color: var(--text-secondary); }
+.rl-max { font-size: 14px; color: var(--text-secondary); }
 
+/* The confirming action of each modal. */
 .refund-confirm-btn {
-  width: 100%; height: 72px;
-  font-size: var(--font-size-lg); font-weight: var(--font-weight-bold);
+  width: 100%; height: 72px; flex-shrink: 0;
+  font-size: 22px; font-weight: var(--font-weight-heavy);
   border-radius: var(--radius-md);
-  background: var(--accent-danger); color: var(--text-on-accent);
+  background: var(--accent-primary); color: var(--text-on-accent);
   transition: transform var(--tap-duration) ease;
   font-variant-numeric: tabular-nums;
 }
@@ -785,8 +1023,8 @@ function formatRefundTime(iso: string): string {
 .refund-confirm-btn:disabled { opacity: 0.3; pointer-events: none; }
 
 .refund-cancel {
-  width: 100%; height: 52px;
-  font-size: var(--font-size-md); font-weight: var(--font-weight-bold);
+  width: 100%; height: 56px; flex-shrink: 0;
+  font-size: 17px; font-weight: var(--font-weight-bold);
   border-radius: var(--radius-md);
   background: var(--bg-surface); color: var(--text-secondary);
   transition: transform var(--tap-duration) ease;
@@ -795,12 +1033,11 @@ function formatRefundTime(iso: string): string {
 
 .refund-processing {
   display: flex; flex-direction: column; align-items: center;
-  gap: var(--space-lg); padding: var(--space-xl) 0;
+  gap: 24px; padding: 32px 0;
 }
 .refund-processing .spinner {
   width: 48px; height: 48px;
-  border: 4px solid var(--bg-surface); border-top: 4px solid var(--accent-danger);
-  border-radius: 50%; animation: report-spin 0.8s linear infinite;
+  border: 4px solid var(--bg-surface); border-top: 4px solid var(--accent-primary);
 }
 .refund-processing p { color: var(--text-secondary); font-size: var(--font-size-md); }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../stores/order";
 import { useAuthStore } from "../stores/auth";
@@ -8,22 +8,30 @@ import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useToastStore } from "../stores/toast";
 import { formatPrice } from "../utils/format";
+import { formatTimestamp, formatTime, minutesSince } from "../utils/datetime";
+import AppHeader from "../components/AppHeader.vue";
 
 const router = useRouter();
 const { t } = useI18n();
 const order = useOrderStore();
 const auth = useAuthStore();
-
 const toast = useToastStore();
+
 const tables = ref<ipc.TableInfo[]>([]);
 // Takeaways left unpaid: each one must still end in a sale (FAQ Q205).
 const takeaways = ref<ipc.TakeawayInfo[]>([]);
 
+// Minutes open, refreshed while the screen is shown.
+const now = ref(new Date());
+let nowTimer: ReturnType<typeof setInterval> | undefined;
+
 onMounted(async () => {
   if (!auth.currentUser) { router.push({ name: "login" }); return; }
+  nowTimer = setInterval(() => (now.value = new Date()), 30_000);
   tables.value = await ipc.listTables(20);
   takeaways.value = await ipc.listOpenTakeaways();
 });
+onUnmounted(() => clearInterval(nowTimer));
 
 async function resumeTakeaway(takeaway: ipc.TakeawayInfo) {
   try {
@@ -35,11 +43,14 @@ async function resumeTakeaway(takeaway: ipc.TakeawayInfo) {
   router.push({ name: "order" });
 }
 
-function timeOf(iso: string): string {
-  const d = new Date(iso.includes("T") ? iso : iso.replace(" ", "T") + "Z");
-  return isNaN(d.getTime())
-    ? ""
-    : d.toLocaleTimeString("fr-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" });
+async function newTakeaway() {
+  try {
+    await order.startOrder(null);
+  } catch (e) {
+    toast.show(describeError(e), "error", 5000);
+    return;
+  }
+  router.push({ name: "order" });
 }
 
 async function selectTable(table: ipc.TableInfo) {
@@ -62,76 +73,241 @@ async function selectTable(table: ipc.TableInfo) {
 
 <template>
   <div class="tables-view">
-    <header class="header">
-      <h1>{{ t('tables') }}</h1>
-      <button class="nav-btn" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
-    </header>
+    <AppHeader />
 
-    <section v-if="takeaways.length" class="takeaways">
-      <h2>{{ t('takeaways_open') }}</h2>
-      <div class="takeaway-row">
+    <div class="main">
+      <!-- §5.3: occupied tables filled, total in bold; free ones dashed. -->
+      <div class="grid">
         <button
-          v-for="tk in takeaways"
-          :key="tk.orderId"
-          class="takeaway-card"
-          @click="resumeTakeaway(tk)"
+          v-for="tbl in tables"
+          :key="tbl.tableNumber"
+          class="table-card"
+          :class="{ occupied: tbl.status === 'occupied' }"
+          @click="selectTable(tbl)"
         >
-          <span class="takeaway-time">{{ timeOf(tk.createdAt) }}</span>
-          <span class="table-info">{{ tk.lineCount }} {{ t('items_short') }}</span>
-          <span class="table-total">{{ formatPrice(tk.totalCents) }}</span>
+          <span class="table-top">
+            <span class="table-num">{{ tbl.tableNumber }}</span>
+            <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
+          </span>
+          <span v-if="tbl.status === 'occupied'" class="table-info">
+            <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
+            <span class="table-meta">
+              {{ tbl.lineCount }} {{ t('items_short') }}<template v-if="tbl.openedAt"> · {{ minutesSince(tbl.openedAt, now) }} min</template>
+            </span>
+          </span>
+          <span v-else class="table-free">{{ t('free') }}</span>
         </button>
       </div>
-    </section>
 
-    <div class="grid">
-      <button
-        v-for="tbl in tables"
-        :key="tbl.tableNumber"
-        class="table-card"
-        :class="{ occupied: tbl.status === 'occupied' }"
-        @click="selectTable(tbl)"
-      >
-        <span class="table-num">{{ tbl.tableNumber }}</span>
-        <span v-if="tbl.status === 'occupied'" class="table-info">{{ tbl.lineCount }} {{ t('items_short') }}</span>
-        <span v-if="tbl.status === 'occupied'" class="table-total">{{ formatPrice(tbl.totalCents) }}</span>
-        <span v-else class="table-free">{{ t('free') }}</span>
-      </button>
+      <!-- Open takeaways where the cart usually is; the main action at
+           the bottom right (§2.3). -->
+      <aside class="takeaways">
+        <div class="takeaways-header">
+          <h2>{{ t('takeaways_open') }}</h2>
+          <span class="takeaways-count">{{ takeaways.length }}</span>
+        </div>
+        <div class="takeaway-list scroll-touch">
+          <button
+            v-for="tk in takeaways"
+            :key="tk.orderId"
+            class="takeaway-card"
+            @click="resumeTakeaway(tk)"
+          >
+            <span class="takeaway-text">
+              <span class="takeaway-time">{{ t('takeaway_started_at', { time: formatTimestamp(tk.createdAt, formatTime) }) }}</span>
+              <span class="takeaway-meta">{{ tk.lineCount }} {{ t('items_short') }}</span>
+            </span>
+            <span class="takeaway-total">{{ formatPrice(tk.totalCents) }} €</span>
+          </button>
+        </div>
+        <div class="takeaways-footer">
+          <button class="new-takeaway-btn" @click="newTakeaway">{{ t('takeaway_start') }}</button>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
 
 <style scoped>
-.tables-view { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg-primary); }
-.header { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); background: var(--bg-secondary); border-bottom: 1px solid rgba(160,160,176,0.1); height: 48px; }
-.header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
-.nav-btn { padding: var(--space-xs) var(--space-md); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); min-height: 36px; transition: transform var(--tap-duration) ease; }
-.nav-btn:active { transform: scale(var(--tap-scale)); }
+.tables-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-primary);
+}
 
-.grid { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-md); padding: var(--space-lg); overflow-y: auto; align-content: start; }
+.main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding: 24px;
+}
 
 .table-card {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-xs);
-  padding: var(--space-lg); min-height: 120px; border-radius: var(--radius-lg);
-  background: var(--bg-surface); color: var(--text-primary); border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+  color: var(--text-secondary);
+  text-align: left;
   transition: transform var(--tap-duration) ease;
 }
 .table-card:active { transform: scale(var(--tap-scale)); }
-.table-card.occupied { border-color: var(--accent-primary); }
 
-.table-num { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
-.table-info { font-size: var(--font-size-xs); color: var(--text-secondary); }
-.table-total { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); color: var(--accent-primary); }
-.table-free { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.table-card.occupied {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+/* Brume band on top: taken, at a glance. */
+.table-card.occupied::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 6px;
+  background: var(--text-primary);
+}
 
-.takeaways { padding: var(--space-md) var(--space-lg) 0; }
-.takeaways h2 { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--accent-warning); margin-bottom: var(--space-sm); }
-.takeaway-row { display: flex; gap: var(--space-md); overflow-x: auto; }
+.table-top {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.table-num {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+/* A provisional bill is on the table (signPreBill, P). */
+.bill-tag {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-warning);
+  color: var(--text-on-accent);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+}
+
+.table-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.table-total {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: var(--font-weight-bold);
+}
+.table-meta {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+.table-free { font-size: 16px; }
+
+.takeaways {
+  width: var(--cart-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+}
+.takeaways-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.takeaways-header h2 {
+  font-size: 28px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.2;
+}
+.takeaways-count {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+.takeaway-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Amber: a takeaway still waiting for its payment. */
 .takeaway-card {
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);
-  min-width: 140px; padding: var(--space-md); border-radius: var(--radius-lg);
-  background: var(--bg-surface); color: var(--text-primary); border: 2px solid var(--accent-warning);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 80px;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border-left: 4px solid var(--accent-warning);
+  color: var(--text-primary);
+  text-align: left;
   transition: transform var(--tap-duration) ease;
 }
 .takeaway-card:active { transform: scale(var(--tap-scale)); }
-.takeaway-time { font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
+.takeaway-text {
+  display: flex;
+  flex-direction: column;
+}
+.takeaway-time {
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+}
+.takeaway-meta {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+.takeaway-total {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: var(--font-weight-bold);
+}
+
+.takeaways-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.new-takeaway-btn {
+  width: 100%;
+  height: 80px;
+  padding: 0 28px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  font-size: 22px;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.02em;
+  transition: transform var(--tap-duration) ease;
+}
+.new-takeaway-btn:active { transform: scale(var(--tap-scale)); }
 </style>

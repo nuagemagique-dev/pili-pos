@@ -2,6 +2,9 @@
 import { computed } from "vue";
 import type { OrderLine, VatCode } from "../types";
 import { formatPrice as fmt } from "../utils/format";
+import { useI18n } from "../i18n";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   lines: OrderLine[];
@@ -34,40 +37,21 @@ const vatRows = computed<VatRow[]>(() => {
 </script>
 
 <template>
+  <!-- The VAT included in the total, per rate, on one line. -->
   <div v-if="vatRows.length > 0" class="vat-summary">
-    <div class="vat-row vat-header">
-      <span>TVA</span><span>Taux</span><span>Base</span><span>TVA</span>
-    </div>
-    <div v-for="row in vatRows" :key="row.code" class="vat-row">
-      <span class="vat-code">{{ row.code }}</span>
-      <span>{{ row.rate }}%</span>
-      <span>{{ fmt(row.totalInclCents - row.vatCents) }}</span>
-      <span>{{ fmt(row.vatCents) }}</span>
-    </div>
+    {{ t('vat') }}
+    <template v-for="(row, i) in vatRows" :key="row.code">
+      <span v-if="i > 0"> · </span>{{ row.rate }}% {{ fmt(row.vatCents) }}
+    </template>
   </div>
 </template>
 
 <style scoped>
 .vat-summary {
-  padding: var(--space-sm) var(--space-md);
-  border-top: 1px solid rgba(160, 160, 176, 0.1);
-  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  font-size: 14px;
   color: var(--text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
-
-.vat-row {
-  display: grid;
-  grid-template-columns: 36px 48px 1fr 1fr;
-  gap: var(--space-xs);
-  padding: 2px 0;
-}
-
-.vat-header {
-  font-weight: var(--font-weight-bold);
-  border-bottom: 1px solid rgba(160, 160, 176, 0.1);
-  padding-bottom: var(--space-xs);
-  margin-bottom: var(--space-xs);
-}
-
-.vat-code { font-weight: var(--font-weight-bold); }
 </style>

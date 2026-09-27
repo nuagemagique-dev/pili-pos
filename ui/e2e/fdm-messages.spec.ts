@@ -7,8 +7,9 @@ import {
 
 // Certification manual §V: every message code of tb_messages, as the
 // FDM's Status query returns it, against the header indicator.
-// "M" and "O" codes show their French message (fdmMessages.ts); the
-// four blocking errors turn the indicator red. "N" codes come with
+// "M" and "O" codes show their French message (fdmMessages.ts) in the
+// banner under the header; the four blocking errors turn the indicator
+// red and veil the sales screens. "N" codes come with
 // showPos NEVER and must not be shown. One test per code, tagged with
 // its matrix id.
 
@@ -30,9 +31,14 @@ async function orderScreenWithStatus(page: Page, code: string, nature: Nature, s
   await page.goto('/');
   await tapUserTile(page);
   await page.waitForURL(/tables/);
+  // A blocking error veils the sales screens (FdmAlerts): the message is
+  // read there, over the Tables screen. Otherwise, go on to the order.
+  if (nature === 'Error' && BLOCKING.has(code) && showPos !== 'NEVER') return;
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);
 }
+
+const BLOCKING = new Set(['BUFFER_FULL', 'FDM_LOCKED', 'FDM_NOT_OPERATIONAL', 'UNKNOWN_POS']);
 
 /** A displayed code: its message, and the indicator's color. */
 async function shows(
@@ -44,7 +50,7 @@ async function shows(
   state: 'warn' | 'err',
 ) {
   await orderScreenWithStatus(page, code, nature, showPos);
-  await expect(page.locator('.fdm .msg')).toHaveText(message);
+  await expect(page.locator('.fdm-alert .msg')).toHaveText(message);
   await expect(page.locator(`.fdm.${state}`)).toBeVisible();
 }
 
@@ -52,7 +58,7 @@ async function shows(
 async function hidden(page: Page, code: string, nature: Nature) {
   await orderScreenWithStatus(page, code, nature, 'NEVER');
   await expect(page.locator('.fdm.ok')).toBeVisible();
-  await expect(page.locator('.fdm .msg')).toHaveCount(0);
+  await expect(page.locator('.fdm-alert .msg')).toHaveCount(0);
 }
 
 test.describe('§V messages obligatoires (M)', () => {

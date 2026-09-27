@@ -1,0 +1,31 @@
+import { usePosStore } from "../stores/pos";
+
+/** Something with a name in the UI language and, when known, its
+ * French and Chinese names (categories, products, cart lines). */
+export interface Named {
+  name: string;
+  name_fr?: string | null;
+  name_zh?: string | null;
+}
+
+export interface BilingualName {
+  primary: string;
+  /** The other language, smaller underneath; null when it adds nothing. */
+  secondary: string | null;
+}
+
+/**
+ * Product names are shown in two languages (UX guide §10): the UI
+ * language first, then French or Chinese underneath, so French- and
+ * Chinese-speaking staff both read the same button.
+ */
+export function useBilingualName() {
+  const pos = usePosStore();
+
+  return function bilingual(item: Named): BilingualName {
+    const zh = pos.language === "zh";
+    const primary = zh ? (item.name_zh ?? item.name) : item.name;
+    const other = zh ? (item.name_fr ?? null) : (item.name_zh ?? null);
+    return { primary, secondary: other && other !== primary ? other : null };
+  };
+}

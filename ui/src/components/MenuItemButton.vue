@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { MenuItem } from "../types";
 import { formatPrice } from "../utils/format";
 import { useI18n } from "../i18n";
+import { useBilingualName } from "../utils/names";
 
 const props = defineProps<{
   item: MenuItem;
   categoryColor?: string;
+  /** Quantity of this product already in the cart (badge when > 0). */
+  inCart?: number;
 }>();
 
 const emit = defineEmits<{
@@ -14,11 +17,13 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const bilingual = useBilingualName();
+const names = computed(() => bilingual(props.item));
 const btnRef = ref<HTMLElement | null>(null);
 
 function handleTap() {
   emit("add", props.item);
-  // UX Guide §4.2: flash couleur accent 200ms
+  // UX guide §4.2: 200 ms confirmation flash
   const el = btnRef.value;
   if (el) {
     el.classList.remove("flash-added");
@@ -30,64 +35,108 @@ function handleTap() {
 
 <template>
   <!--
-    UX Guide §6: 3 infos par bouton
-    1. Nom produit (ZH principal 16px bold, FR secondaire 12px)
-    2. Prix (18px, accent)
-    3. Couleur catégorie (bordure gauche 4px)
+    UX guide §6: three things per button, centred:
+    1. the name (UI language first, the other language underneath)
+    2. the price (neutral: colour is for actions only)
+    3. the category colour (4 px left border)
   -->
   <button
     ref="btnRef"
     class="item-btn"
-    :style="categoryColor ? `border-left: 4px solid ${categoryColor}` : ''"
+    :style="categoryColor ? { borderLeftColor: categoryColor } : undefined"
     @click="handleTap"
   >
-    <span class="item-name">{{ item.name }}</span>
-    <span class="item-price">{{ item.open_price ? t('open_price_badge') : formatPrice(item.price_cents) }}</span>
+    <span class="item-name">{{ names.primary }}</span>
+    <span v-if="names.secondary" class="item-sub">{{ names.secondary }}</span>
+    <span v-if="item.open_price" class="item-open-price">{{ t('open_price_badge') }}</span>
+    <span v-else class="item-price">{{ formatPrice(item.price_cents) }}</span>
+    <span v-if="inCart" class="item-qty">{{ inCart }}</span>
   </button>
 </template>
 
 <style scoped>
-/* UX Guide §4.1: minimum 140×100px, recommended */
 .item-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-sm);
-  min-height: 100px;
+  gap: 4px;
+  padding: 12px 12px 10px;
+  min-height: 120px;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   text-align: center;
-  border: none;
-  border-left: 4px solid var(--bg-surface);
+  border-left: 4px solid var(--border);
   transition:
     transform var(--tap-duration) ease,
     background-color var(--flash-duration) ease;
 }
 
-/* UX Guide §4.2: NO hover. scale(0.95) + bg change on :active */
+/* UX guide §4.2: no hover. scale(0.95) + darker on :active */
 .item-btn:active {
   transform: scale(var(--tap-scale));
   background-color: var(--bg-pressed);
 }
 
-/* UX Guide §10: nom ZH 16px bold */
 .item-name {
-  font-size: var(--font-size-md);
+  font-size: 17px;
   font-weight: var(--font-weight-bold);
-  line-height: 1.25;
+  line-height: 1.3;
+  padding: 0 4px;
+  text-wrap: balance;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
-/* UX Guide §6: prix 18px accent */
+.item-sub {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .item-price {
-  font-size: var(--font-size-price);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 16px;
   font-weight: var(--font-weight-bold);
-  color: var(--accent-primary);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.item-open-price {
+  margin-top: 2px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+}
+
+/* Already in the cart: bottom right, on the price line, clear of the
+   names. */
+.item-qty {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 15px;
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
