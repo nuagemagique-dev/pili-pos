@@ -151,7 +151,9 @@ async fn the_ticket_fdm_reference_reaches_the_ui_in_camel_case() {
         ]
     );
     assert!(fdm_ref["fdmId"].as_str().is_some_and(|id| !id.is_empty()));
-    let vat = ipc["ticket"]["vat_breakdown"][0].as_object().expect("vat line");
+    let vat = ipc["ticket"]["vat_breakdown"][0]
+        .as_object()
+        .expect("vat line");
     for key in ["taxableAmount", "vatAmount", "totalAmount", "outOfScope"] {
         assert!(vat.contains_key(key), "{key} in {vat:?}");
     }
