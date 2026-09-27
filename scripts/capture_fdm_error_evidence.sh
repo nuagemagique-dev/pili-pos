@@ -4,7 +4,8 @@
 #
 # For each FDM message code required by §V of the certification
 # manual (5 mandatory + selected optional), this script:
-#   1. starts pos-fdm-mock with MOCK_FDM_ERROR / MOCK_FDM_WARNING,
+#   1. switches the code on in pos-fdm-mock (POST /mock/control, one
+#      mock started for all codes),
 #   2. sends the official M110 signSale payload (Basic Set v1.8
 #      fixture) and a Status query,
 #   3. records the JSON request + JSON response pairs under
@@ -34,12 +35,8 @@ cargo build --release --package pos-fdm-mock
 MOCK_BIN="$PROJECT_ROOT/target/release/pos-fdm-mock"
 MOCK_PID=""
 
-start_mock() { # $1 = env spec ("ERROR=CODE" or "WARNING=CODE[,CODE]")
-    local kind="${1%%=*}" codes="${1#*=}"
-    local err="" warn=""
-    [[ "$kind" == "ERROR" ]] && err="$codes" || warn="$codes"
-    MOCK_FDM_ERROR="$err" MOCK_FDM_WARNING="$warn" PORT="$PORT" \
-        "$MOCK_BIN" >/dev/null 2>&1 &
+start_mock() {
+    PORT="$PORT" "$MOCK_BIN" >/dev/null 2>&1 &
     MOCK_PID=$!
     # wait for the socket
     for _ in $(seq 1 50); do
@@ -48,6 +45,15 @@ start_mock() { # $1 = env spec ("ERROR=CODE" or "WARNING=CODE[,CODE]")
         sleep 0.1
     done
     echo "✗ mock did not come up"; exit 1
+}
+
+# Switch the simulated codes (spec "ERROR=CODE" or "WARNING=CODE[,CODE]").
+set_codes() {
+    local kind="${1%%=*}" codes="${1#*=}"
+    local body
+    body=$(python3 -c 'import json,sys; k,c=sys.argv[1],sys.argv[2].split(","); print(json.dumps({"errors" if k=="ERROR" else "warnings": c}))' "$kind" "$codes")
+    curl -s -o /dev/null "http://localhost:${PORT}/mock/control" -X POST \
+        -H 'content-type: application/json' -d "$body"
 }
 
 stop_mock() {
@@ -79,7 +85,7 @@ STATUS_REQUEST='{"query":"query { fdmStatus: Status(language: FR) { device { fdm
 capture() { # $1 = env spec, $2 = code label for filenames
     local spec="$1" code="$2"
     echo "→ $code"
-    start_mock "$spec"
+    set_codes "$spec"
 
     # signSale attempt (what the POS sends at checkout)
     echo "$SALE_REQUEST" > "$OUT/${code}_signSale_request.json"
@@ -90,9 +96,9 @@ capture() { # $1 = env spec, $2 = code label for filenames
     echo "$STATUS_REQUEST" | python3 -m json.tool > "$OUT/${code}_status_request.json"
     curl -s "$URL" -X POST -H 'content-type: application/json' \
         -d "$STATUS_REQUEST" | python3 -m json.tool > "$OUT/${code}_status_response.json"
-
-    stop_mock
 }
+
+start_mock
 
 # §V mandatory errors (affichage M)
 capture "ERROR=BUFFER_FULL"          "BUFFER_FULL"

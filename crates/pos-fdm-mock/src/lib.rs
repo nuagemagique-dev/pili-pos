@@ -1,11 +1,19 @@
-//! Mock FDM (Checkbox-compatible GraphQL) and mock Scaleway TEM, for
-//! development, the admission image and screenshots. Counters are
-//! process-wide, like one physical FDM.
+//! Mock FDM (SCE 2.0 GraphQL) and mock Scaleway TEM, for development,
+//! the admission image, screenshots and the certification evidence.
+//!
+//! Each [`app`] is one FDM: its own counters per POS, its own settings
+//! and request log. Like the module2 cloud simulator, it can require a
+//! bearer token and a list of allowed POS, and its errors and warnings
+//! can be switched at run time (`/mock/control`) as on the simulator's
+//! Developer tab; `/mock/requests` lists the last calls, like its Logs.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
+use std::collections::{HashMap, VecDeque};
+use std::sync::{Arc, Mutex};
 
-use axum::{Json, Router, routing::post};
+use axum::extract::State;
+use axum::http::HeaderMap;
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use sha1::Digest;
@@ -14,94 +22,278 @@ mod tem;
 
 pub use tem::ROUTE as TEM_ROUTE;
 
-/// The FDM's counters (POS spec v2.2 §2.4, arrêté ministériel n° 64):
-/// one per event label, plus the total of every event.
+/// The FDM's counters for one POS (POS spec v2.2 §2.4, arrêté
+/// ministériel n° 64): one per event label, plus the total.
 #[derive(Default)]
 struct Counters {
     per_label: HashMap<&'static str, i64>,
     total: i64,
 }
 
-static COUNTERS: Mutex<Option<Counters>> = Mutex::new(None);
-
-/// Advance the counter of `label` and the total counter, together.
-fn next_counters(label: &'static str) -> (i64, i64) {
-    let mut guard = COUNTERS.lock().unwrap_or_else(|e| e.into_inner());
-    let c = guard.get_or_insert_with(Counters::default);
-    let event = c.per_label.entry(label).or_insert(0);
-    *event += 1;
-    c.total += 1;
-    (*event, c.total)
+impl Counters {
+    /// Advance the counter of `label` and the total counter, together.
+    fn next(&mut self, label: &'static str) -> (i64, i64) {
+        let event = self.per_label.entry(label).or_insert(0);
+        *event += 1;
+        self.total += 1;
+        (*event, self.total)
+    }
 }
 
-/// The mock FDM (GraphQL on `/graphql`) and the mock email API
-/// ([`TEM_ROUTE`]), as served by the `pos-fdm-mock` binary. Tests
-/// mount it on a local port to drive the real POS client against it.
+/// What the mock simulates. Start-up values come from the environment
+/// (`MOCK_FDM_ERROR`, `MOCK_FDM_WARNING`, `MOCK_FDM_BUFFER_PCT`,
+/// `MOCK_FDM_INITIALIZED`, `MOCK_FDM_TOKEN`, `MOCK_FDM_ALLOWED_POS`);
+/// `POST /mock/control` replaces them without a restart.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Control {
+    /// Error codes: shown by Status; the critical ones refuse every
+    /// sign request (BUFFER_FULL, FDM_LOCKED, ...).
+    pub errors: Vec<String>,
+    /// Warning codes: shown by Status and in every sign response.
+    pub warnings: Vec<String>,
+    /// Buffer use in %. Absent: follows the codes (100 when full, 82.53
+    /// when near full, else 1.2).
+    pub buffer_pct: Option<f64>,
+    /// Absent: false when errors are set.
+    pub initialized: Option<bool>,
+    /// Bearer token required on every request. Absent: none.
+    pub token: Option<String>,
+    /// POS allowed to sign. Absent: any.
+    pub allowed_pos: Option<Vec<String>>,
+}
+
+impl Control {
+    fn from_env() -> Self {
+        let codes = |key: &str| parse_codes(key).unwrap_or_default();
+        Self {
+            errors: codes("MOCK_FDM_ERROR"),
+            warnings: codes("MOCK_FDM_WARNING"),
+            buffer_pct: std::env::var("MOCK_FDM_BUFFER_PCT")
+                .ok()
+                .and_then(|v| v.parse().ok()),
+            initialized: std::env::var("MOCK_FDM_INITIALIZED")
+                .ok()
+                .map(|v| v != "false"),
+            token: std::env::var("MOCK_FDM_TOKEN")
+                .ok()
+                .filter(|t| !t.trim().is_empty()),
+            allowed_pos: parse_codes("MOCK_FDM_ALLOWED_POS"),
+        }
+    }
+
+    fn buffer_pct(&self) -> f64 {
+        let has = |code: &str| self.errors.iter().chain(&self.warnings).any(|c| c == code);
+        self.buffer_pct.unwrap_or(if has("BUFFER_FULL") {
+            100.0
+        } else if has("BUFFER_NEAR_FULL") {
+            82.53
+        } else {
+            1.2
+        })
+    }
+
+    fn initialized(&self) -> bool {
+        self.initialized.unwrap_or(self.errors.is_empty())
+    }
+}
+
+/// One call, as `GET /mock/requests` lists it.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LoggedCall {
+    at: String,
+    operation: String,
+    request: serde_json::Value,
+    response: serde_json::Value,
+}
+
+/// Calls kept by the request log.
+const LOG_SIZE: usize = 100;
+
+#[derive(Default)]
+struct FdmState {
+    control: Control,
+    counters: HashMap<String, Counters>,
+    log: VecDeque<LoggedCall>,
+}
+
+type Shared = Arc<Mutex<FdmState>>;
+
+/// The mock FDM (GraphQL on `/graphql`, controls on `/mock/*`) and the
+/// mock email API ([`TEM_ROUTE`]), as served by the `pos-fdm-mock`
+/// binary. Tests mount it on a local port to drive the real POS client
+/// against it. Its settings start from the environment.
 pub fn app() -> Router {
+    app_with(Control::from_env())
+}
+
+/// Same as [`app`], with explicit settings.
+pub fn app_with(control: Control) -> Router {
+    let state: Shared = Arc::new(Mutex::new(FdmState {
+        control,
+        ..Default::default()
+    }));
     Router::new()
         .route("/graphql", post(handle_graphql))
+        .route("/mock/control", get(get_control).post(set_control))
+        .route("/mock/requests", get(get_requests).delete(clear_requests))
+        .with_state(state)
         .merge(tem::router())
 }
 
-#[derive(Deserialize)]
+fn lock(state: &Shared) -> std::sync::MutexGuard<'_, FdmState> {
+    state.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// The settings, the token shown only as set or not.
+async fn get_control(State(state): State<Shared>) -> Json<serde_json::Value> {
+    let mut control = serde_json::to_value(&lock(&state).control).unwrap_or_default();
+    if control["token"].is_string() {
+        control["token"] = serde_json::json!("(set)");
+    }
+    Json(control)
+}
+
+async fn set_control(
+    State(state): State<Shared>,
+    Json(control): Json<Control>,
+) -> Json<serde_json::Value> {
+    println!("[mock] control: {control:?}");
+    lock(&state).control = control;
+    Json(serde_json::json!({ "ok": true }))
+}
+
+async fn get_requests(State(state): State<Shared>) -> Json<Vec<LoggedCall>> {
+    Json(lock(&state).log.iter().cloned().collect())
+}
+
+async fn clear_requests(State(state): State<Shared>) -> Json<serde_json::Value> {
+    lock(&state).log.clear();
+    Json(serde_json::json!({ "ok": true }))
+}
+
+#[derive(Deserialize, Serialize)]
 struct GqlRequest {
     query: String,
     #[serde(default)]
     variables: serde_json::Value,
 }
 
-async fn handle_graphql(Json(req): Json<GqlRequest>) -> Json<serde_json::Value> {
-    let mutation_name = extract_mutation_name(&req.query);
+async fn handle_graphql(
+    State(state): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<GqlRequest>,
+) -> Json<serde_json::Value> {
+    let operation = extract_mutation_name(&req.query);
+    let mut fdm = lock(&state);
+    let response = answer(&mut fdm, &headers, &operation, &req);
+    if fdm.log.len() == LOG_SIZE {
+        fdm.log.pop_front();
+    }
+    fdm.log.push_back(LoggedCall {
+        at: chrono::Utc::now().to_rfc3339(),
+        operation,
+        request: serde_json::to_value(&req).unwrap_or_default(),
+        response: response.clone(),
+    });
+    Json(response)
+}
+
+/// The FDM's answer to one GraphQL request.
+fn answer(
+    fdm: &mut FdmState,
+    headers: &HeaderMap,
+    operation: &str,
+    req: &GqlRequest,
+) -> serde_json::Value {
+    let control = fdm.control.clone();
+    if let Some(token) = &control.token {
+        let sent = headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        if sent != Some(token.as_str()) {
+            return error_response(&["UNAUTHORIZED".to_string()]);
+        }
+    }
+
+    if operation == "Status" {
+        return status_response(&req.query, &control);
+    }
+
+    // A critical error refuses every sign request (as the real FDM).
+    let critical: Vec<String> = control
+        .errors
+        .iter()
+        .filter(|c| is_critical(c))
+        .cloned()
+        .collect();
+    if !critical.is_empty() {
+        return error_response(&control.errors);
+    }
+
     let is_training = req
         .variables
         .get("isTraining")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    // Cert demo: inject FDM warnings/errors via env vars MOCK_FDM_WARNING /
-    // MOCK_FDM_ERROR (comma-separated codes accepted). Allows capturing the
-    // POS UI response for §V of the certification manual without rebuilding.
-    if let Some(payload) = inject_status_error(&mutation_name) {
-        return Json(payload);
-    }
-
-    if mutation_name == "Status" {
-        return Json(status_response(&req.query));
-    }
-
     // M184 - the end-of-day Z carries BOTH Z mutations in one GraphQL
     // document (`$turnover` + `$user` variables). Each gets its own
     // counters, like a real FDM signing two events back to back.
-    if req.query.contains("signReportTurnoverZ") && req.query.contains("signReportUserZ") {
-        let turnover = req.variables.get("turnover").cloned().unwrap_or_default();
-        let user = req.variables.get("user").cloned().unwrap_or_default();
-        let r1 = build_sign_result("signReportTurnoverZ", is_training, &turnover);
-        let r2 = build_sign_result("signReportUserZ", is_training, &user);
-        println!(
-            "[R+R] signReportTurnoverZ+signReportUserZ #{}+#{} (M184)",
-            r1.fdm_ref.event_counter, r2.fdm_ref.event_counter
-        );
-        return Json(serde_json::json!({ "data": {
-            "signReportTurnoverZ": r1,
-            "signReportUserZ": r2,
-        }}));
+    let parts: Vec<(&str, serde_json::Value)> =
+        if req.query.contains("signReportTurnoverZ") && req.query.contains("signReportUserZ") {
+            vec![
+                (
+                    "signReportTurnoverZ",
+                    req.variables.get("turnover").cloned().unwrap_or_default(),
+                ),
+                (
+                    "signReportUserZ",
+                    req.variables.get("user").cloned().unwrap_or_default(),
+                ),
+            ]
+        } else {
+            vec![(
+                operation,
+                req.variables.get("data").cloned().unwrap_or_default(),
+            )]
+        };
+
+    if let Some(allowed) = &control.allowed_pos {
+        let unknown = parts.iter().any(|(_, data)| {
+            let pos_id = data.get("posId").and_then(|v| v.as_str()).unwrap_or("");
+            !allowed.iter().any(|a| a == pos_id)
+        });
+        if unknown {
+            return error_response(&["UNKNOWN_POS".to_string()]);
+        }
     }
 
-    let data = req.variables.get("data").cloned().unwrap_or_default();
-    let result = build_sign_result(&mutation_name, is_training, &data);
-
-    println!(
-        "[{}] {mutation_name} #{} (total: {})",
-        result.fdm_ref.event_label, result.fdm_ref.event_counter, result.fdm_ref.total_counter
-    );
-
     let mut data_map = serde_json::Map::new();
-    data_map.insert(
-        mutation_name.clone(),
-        serde_json::to_value(&result).unwrap(),
-    );
-
-    Json(serde_json::json!({ "data": data_map }))
+    for (mutation, data) in parts {
+        let pos_id = data
+            .get("posId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("CFOD0061234567")
+            .to_string();
+        let counters = fdm.counters.entry(pos_id).or_default();
+        let mut result = build_sign_result(mutation, is_training, &data, counters);
+        result.buffer_capacity_used = control.buffer_pct();
+        if !control.warnings.is_empty() {
+            result.warnings = Some(codes_to_messages(control.warnings.clone(), "FR"));
+        }
+        println!(
+            "[{}] {mutation} #{} (total: {})",
+            result.fdm_ref.event_label, result.fdm_ref.event_counter, result.fdm_ref.total_counter
+        );
+        data_map.insert(
+            mutation.to_string(),
+            serde_json::to_value(&result).unwrap_or_default(),
+        );
+    }
+    serde_json::json!({ "data": data_map })
 }
 
 /// Build one signed result for a mutation, advancing the counters.
@@ -109,6 +301,7 @@ fn build_sign_result(
     mutation_name: &str,
     is_training: bool,
     data: &serde_json::Value,
+    counters: &mut Counters,
 ) -> SignResult {
     // Every event signed in training mode is a T event, whatever the
     // mutation (UC M170 work-in, M171 sale and M172 copy all answer T).
@@ -145,7 +338,7 @@ fn build_sign_result(
         _ => "SALE",
     };
 
-    let (ec, tc) = next_counters(event_label);
+    let (ec, tc) = counters.next(event_label);
 
     let pos_id = data
         .get("posId")
@@ -333,7 +526,7 @@ fn status_occurrences(query: &str) -> Vec<(String, String)> {
     found.into_iter().map(|(_, k, l)| (k, l)).collect()
 }
 
-fn status_response(query: &str) -> serde_json::Value {
+fn status_response(query: &str, control: &Control) -> serde_json::Value {
     let occurrences = status_occurrences(query);
     let occurrences = if occurrences.is_empty() {
         vec![("Status".to_string(), "FR".to_string())]
@@ -341,38 +534,11 @@ fn status_response(query: &str) -> serde_json::Value {
         occurrences
     };
 
-    // Keep the reported buffer usage coherent with injected buffer
-    // codes so §V evidence is self-consistent (a BUFFER_NEAR_FULL
-    // warning alongside a 1.2% buffer reading would contradict the
-    // >70% threshold the message claims).
-    let injected: Vec<String> = parse_codes("MOCK_FDM_WARNING")
-        .into_iter()
-        .chain(parse_codes("MOCK_FDM_ERROR"))
-        .flatten()
-        .collect();
-    let default_buffer_pct = if injected.iter().any(|c| c == "BUFFER_FULL") {
-        100.0
-    } else if injected.iter().any(|c| c == "BUFFER_NEAR_FULL") {
-        82.53
-    } else {
-        1.2
+    let listed = |codes: &[String], lang: &str| {
+        (!codes.is_empty()).then(|| codes_to_messages(codes.to_vec(), lang))
     };
-    let buffer_pct: f64 = std::env::var("MOCK_FDM_BUFFER_PCT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default_buffer_pct);
-    let has_errors = parse_codes("MOCK_FDM_ERROR").is_some();
-    let initialized = !has_errors
-        || std::env::var("MOCK_FDM_INITIALIZED")
-            .ok()
-            .as_deref()
-            .map(|v| v != "false")
-            .unwrap_or(true);
-
     let mut data = serde_json::Map::new();
     for (key, lang) in occurrences {
-        let warnings = parse_codes("MOCK_FDM_WARNING").map(|c| codes_to_messages(c, &lang));
-        let errors = parse_codes("MOCK_FDM_ERROR").map(|c| codes_to_messages(c, &lang));
         data.insert(
             key,
             serde_json::json!({
@@ -380,12 +546,14 @@ fn status_response(query: &str) -> serde_json::Value {
                     "fdmId": "CBX0MOCK0001",
                     "fdmSwVersion": "MOCK-FDM-1.0",
                     "fdmDateTime": chrono::Utc::now().to_rfc3339(),
-                    "bufferCapacityUsed": buffer_pct
+                    // Coherent with the codes, so §V evidence is
+                    // self-consistent (BUFFER_NEAR_FULL means > 70%).
+                    "bufferCapacityUsed": control.buffer_pct()
                 },
-                "initialized": initialized,
+                "initialized": control.initialized(),
                 "informations": null,
-                "warnings": warnings,
-                "errors": errors
+                "warnings": listed(&control.warnings, &lang),
+                "errors": listed(&control.errors, &lang)
             }),
         );
     }
@@ -544,43 +712,38 @@ fn code_to_human_fr(code: &str) -> &'static str {
     }
 }
 
-/// When `MOCK_FDM_ERROR` is set with critical codes, intercept sign mutations
-/// and return a GraphQL error envelope (mirroring real FDM behaviour). Used
-/// for cert evidence captures (§V).
-fn inject_status_error(mutation_name: &str) -> Option<serde_json::Value> {
-    if mutation_name == "Status" {
-        return None;
-    }
-    let errors = parse_codes("MOCK_FDM_ERROR")?;
-    let critical = errors.iter().any(|c| {
-        matches!(
-            c.as_str(),
-            "BUFFER_FULL"
-                | "FDM_LOCKED"
-                | "FDM_NOT_OPERATIONAL"
-                | "UNKNOWN_POS"
-                | "UNAUTHORIZED"
-                | "INVALID_REQUEST"
-                | "INTERNAL_ERROR"
-                | "UNDEFINED_ERROR"
-        )
-    });
-    if !critical {
-        return None;
-    }
-    let messages: Vec<serde_json::Value> = errors
+/// Codes that stop the FDM from signing.
+fn is_critical(code: &str) -> bool {
+    matches!(
+        code,
+        "BUFFER_FULL"
+            | "FDM_LOCKED"
+            | "FDM_NOT_OPERATIONAL"
+            | "UNKNOWN_POS"
+            | "UNAUTHORIZED"
+            | "INVALID_REQUEST"
+            | "INTERNAL_ERROR"
+            | "UNDEFINED_ERROR"
+    )
+}
+
+/// A refusal shaped as the POS description v2.2 error example: free
+/// text in `message`, the code in `extensions`.
+fn error_response(codes: &[String]) -> serde_json::Value {
+    let messages: Vec<serde_json::Value> = codes
         .iter()
         .map(|code| {
             serde_json::json!({
                 "message": code_to_human(code, "FR"),
-                "extensions": { "code": code },
+                "extensions": {
+                    "category": code_category(code),
+                    "code": code,
+                    "showPos": code_show_pos(code),
+                },
             })
         })
         .collect();
-    Some(serde_json::json!({
-        "data": null,
-        "errors": messages,
-    }))
+    serde_json::json!({ "data": null, "errors": messages })
 }
 
 #[derive(Serialize)]
@@ -676,9 +839,9 @@ mod tests {
             ("signReportTurnoverZ", "R"),
             ("signReportUserX", "R"),
         ] {
-            let r = build_sign_result(m, false, &json!({}));
+            let r = build_sign_result(m, false, &json!({}), &mut Counters::default());
             assert_eq!(r.fdm_ref.event_label, label, "{m}");
-            let t = build_sign_result(m, true, &json!({}));
+            let t = build_sign_result(m, true, &json!({}), &mut Counters::default());
             assert_eq!(t.fdm_ref.event_label, "T", "{m} in training");
             assert!(t.short_signature.is_none() && t.verification_url.is_none());
         }
@@ -686,13 +849,13 @@ mod tests {
 
     #[test]
     fn only_n_events_carry_a_short_signature_and_a_verification_url() {
-        let n = build_sign_result("signSale", false, &json!({}));
+        let n = build_sign_result("signSale", false, &json!({}), &mut Counters::default());
         let sig = n.short_signature.expect("N has a short signature");
         assert_eq!(sig.len(), 40);
         assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
         assert!(n.verification_url.unwrap().starts_with("https://"));
         for m in ["signOrder", "signCopy", "signWorkIn", "signReportTurnoverX"] {
-            let r = build_sign_result(m, false, &json!({}));
+            let r = build_sign_result(m, false, &json!({}), &mut Counters::default());
             assert!(r.short_signature.is_none(), "{m}");
             assert!(r.verification_url.is_none(), "{m}");
         }
@@ -700,13 +863,10 @@ mod tests {
 
     #[test]
     fn counters_are_per_label_with_one_total() {
-        // Process-wide, like one FDM: compare increments, not values.
-        let (s1, t1) = next_counters("S");
-        let (n1, t2) = next_counters("N");
-        let (s2, t3) = next_counters("S");
-        assert_eq!(s2, s1 + 1, "the S counter skips the N event");
-        assert!(t2 > t1 && t3 > t2);
-        assert!(n1 >= 1);
+        let mut c = Counters::default();
+        assert_eq!(c.next("S"), (1, 1));
+        assert_eq!(c.next("N"), (1, 2));
+        assert_eq!(c.next("S"), (2, 3), "the S counter skips the N event");
     }
 
     #[test]
@@ -721,6 +881,7 @@ mod tests {
                 "terminalId": "T1",
                 "deviceId": "00:1b:44:11:3a:b7",
             }),
+            &mut Counters::default(),
         );
         assert_eq!(r.pos_id, "CPOS0031234567");
         assert_eq!(r.pos_fiscal_ticket_no, 42);
@@ -799,5 +960,176 @@ mod tests {
         assert_eq!(code_show_pos("DUPLICATE_REQUEST"), "NEVER");
         assert_eq!(code_category("SOMETHING_ELSE"), "OTHER");
         assert_eq!(code_to_human("SOMETHING_ELSE", "DE"), "Erreur FDM");
+    }
+
+    fn fdm(control: Control) -> FdmState {
+        FdmState {
+            control,
+            ..Default::default()
+        }
+    }
+
+    fn sale(pos_id: &str) -> GqlRequest {
+        GqlRequest {
+            query: "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId } }".into(),
+            variables: json!({ "data": { "posId": pos_id }, "isTraining": false }),
+        }
+    }
+
+    fn bearer(token: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {token}").parse().unwrap(),
+        );
+        h
+    }
+
+    fn error_code(response: &serde_json::Value) -> &str {
+        response["errors"][0]["extensions"]["code"]
+            .as_str()
+            .unwrap_or("")
+    }
+
+    #[test]
+    fn a_required_token_must_be_sent() {
+        let mut f = fdm(Control {
+            token: Some("secret".into()),
+            ..Default::default()
+        });
+        let req = sale("CPOS0031234567");
+        let refused = answer(&mut f, &HeaderMap::new(), "signSale", &req);
+        assert_eq!(error_code(&refused), "UNAUTHORIZED");
+        let wrong = answer(&mut f, &bearer("other"), "signSale", &req);
+        assert_eq!(error_code(&wrong), "UNAUTHORIZED");
+        let signed = answer(&mut f, &bearer("secret"), "signSale", &req);
+        assert_eq!(signed["data"]["signSale"]["posId"], "CPOS0031234567");
+    }
+
+    #[test]
+    fn only_allowed_pos_may_sign() {
+        let mut f = fdm(Control {
+            allowed_pos: Some(vec!["CPOS0031234567".into()]),
+            ..Default::default()
+        });
+        let refused = answer(
+            &mut f,
+            &HeaderMap::new(),
+            "signSale",
+            &sale("CFOD0061234567"),
+        );
+        assert_eq!(error_code(&refused), "UNKNOWN_POS");
+        let signed = answer(
+            &mut f,
+            &HeaderMap::new(),
+            "signSale",
+            &sale("CPOS0031234567"),
+        );
+        assert!(signed["data"]["signSale"].is_object());
+    }
+
+    #[test]
+    fn a_critical_error_refuses_signing_in_the_spec_shape() {
+        let mut f = fdm(Control {
+            errors: vec!["BUFFER_FULL".into()],
+            ..Default::default()
+        });
+        let r = answer(
+            &mut f,
+            &HeaderMap::new(),
+            "signSale",
+            &sale("CPOS0031234567"),
+        );
+        assert_eq!(r["data"], serde_json::Value::Null);
+        assert_eq!(r["errors"][0]["message"], "Le buffer du FDM est plein");
+        assert_eq!(
+            r["errors"][0]["extensions"],
+            json!({ "category": "SPF_FOD", "code": "BUFFER_FULL", "showPos": "MANDATORY" })
+        );
+    }
+
+    #[test]
+    fn warnings_ride_along_with_every_signature() {
+        let mut f = fdm(Control {
+            warnings: vec!["BUFFER_NEAR_FULL".into()],
+            ..Default::default()
+        });
+        let r = answer(
+            &mut f,
+            &HeaderMap::new(),
+            "signSale",
+            &sale("CPOS0031234567"),
+        );
+        let result = &r["data"]["signSale"];
+        assert_eq!(
+            result["warnings"][0]["extensions"]["code"],
+            "BUFFER_NEAR_FULL"
+        );
+        assert_eq!(result["bufferCapacityUsed"], 82.53);
+    }
+
+    #[test]
+    fn each_pos_has_its_own_counters() {
+        let mut f = fdm(Control::default());
+        let counter = |f: &mut FdmState, pos: &str| {
+            answer(f, &HeaderMap::new(), "signSale", &sale(pos))["data"]["signSale"]["fdmRef"]
+                ["totalCounter"]
+                .as_i64()
+                .unwrap()
+        };
+        assert_eq!(counter(&mut f, "CPOS0031234567"), 1);
+        assert_eq!(counter(&mut f, "CPOS0031234567"), 2);
+        assert_eq!(counter(&mut f, "CFOD0061234567"), 1);
+    }
+
+    #[tokio::test]
+    async fn the_control_api_switches_errors_without_a_restart() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let app = app_with(Control::default());
+        let post = |uri: &str, body: serde_json::Value| {
+            Request::post(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap()
+        };
+        let sign = || {
+            post(
+                "/graphql",
+                serde_json::to_value(sale("CPOS0031234567")).unwrap(),
+            )
+        };
+        let body = |r: axum::response::Response| async move {
+            let bytes = axum::body::to_bytes(r.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()
+        };
+
+        let ok = body(app.clone().oneshot(sign()).await.unwrap()).await;
+        assert!(ok["data"]["signSale"].is_object());
+        app.clone()
+            .oneshot(post("/mock/control", json!({ "errors": ["FDM_LOCKED"] })))
+            .await
+            .unwrap();
+        let locked = body(app.clone().oneshot(sign()).await.unwrap()).await;
+        assert_eq!(error_code(&locked), "FDM_LOCKED");
+
+        let log = body(
+            app.clone()
+                .oneshot(Request::get("/mock/requests").body(Body::empty()).unwrap())
+                .await
+                .unwrap(),
+        )
+        .await;
+        let ops: Vec<_> = log
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["operation"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(ops, ["signSale", "signSale"]);
     }
 }

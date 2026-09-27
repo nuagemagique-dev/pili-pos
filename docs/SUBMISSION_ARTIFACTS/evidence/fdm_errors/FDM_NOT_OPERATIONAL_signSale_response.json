@@ -3,7 +3,9 @@
     "errors": [
         {
             "extensions": {
-                "code": "FDM_NOT_OPERATIONAL"
+                "category": "SPF_FOD",
+                "code": "FDM_NOT_OPERATIONAL",
+                "showPos": "MANDATORY"
             },
             "message": "Le FDM ne fonctionne pas"
         }

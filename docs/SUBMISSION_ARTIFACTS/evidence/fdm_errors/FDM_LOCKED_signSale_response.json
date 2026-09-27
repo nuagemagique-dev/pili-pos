@@ -3,7 +3,9 @@
     "errors": [
         {
             "extensions": {
-                "code": "FDM_LOCKED"
+                "category": "SPF_FOD",
+                "code": "FDM_LOCKED",
+                "showPos": "MANDATORY"
             },
             "message": "Le FDM est verrouill\u00e9"
         }

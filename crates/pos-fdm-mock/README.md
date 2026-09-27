@@ -18,100 +18,95 @@ retourne :
 - `signSale` / `signOrder` / etc. : `SignResult` valide avec
   compteurs incrémentés, signature mock et URL de vérification.
 
-## Variables d'environnement pour les captures cert
+## Comportement
 
-Pour produire les preuves §V du manuel de certification (Comportement
-du POS aux réponses du FDM), le mock accepte trois variables
-d'environnement qui injectent des warnings et erreurs dans la réponse
-de `Status`. Quand un code "critique" est injecté, les mutations sign*
-retournent également une enveloppe GraphQL d'erreur (`data: null,
-errors: [...]`) pour que le POS soit forcé d'afficher le message à
-l'utilisateur.
+Le mock suit le format d'erreur de la spec POS v2.2 (et du simulateur
+module2) :
 
-### `MOCK_FDM_WARNING`
-
-Liste de codes de warning, séparés par virgules. Codes acceptés
-(extraits du §V du manuel) :
-
-- `CLIENT_CERT_NEAR_EXPIRATION`
-- `CLIENT_CERT_EXPIRED`
-- `RTC_SYNC_FAILED`
-- `UPDATE_URLS_FAILED`
-- `UPDATE_TRUST_CERT_FAILED`
-- `UPDATE_TASK_LIST_FAILED`
-- `TASK_FEEDBACK_FAILED`
-- `NOP_FAILED`
-- `BUFFER_NEAR_FULL`
-- `SERVER_CERT_RESOLVE_FAILED`
-- `TRANSACTION_UPLOAD_FAILED`
-- `INITIALIZATION_FAILED`
-
-Exemple :
-```bash
-MOCK_FDM_WARNING=BUFFER_NEAR_FULL cargo run --package pos-fdm-mock
-```
-
-Le `Status` retourne alors :
-```json
-{
-  "data": {
-    "Status": {
-      "warnings": [{"code": "BUFFER_NEAR_FULL", "message": "..."}],
-      "errors": null,
-      ...
-    }
-  }
-}
-```
-
-### `MOCK_FDM_ERROR`
-
-Liste de codes d'erreur, séparés par virgules. Codes acceptés :
-
-- `BUFFER_FULL`
-- `FDM_LOCKED`
-- `FDM_NOT_OPERATIONAL`
-- `UNKNOWN_POS`
-- `UNAUTHORIZED`
-- `INVALID_REQUEST`
-- `INTERNAL_ERROR`
-- `UNDEFINED_ERROR`
-- `UNDEFINED_OTHER`
-
-Exemple :
-```bash
-MOCK_FDM_ERROR=FDM_LOCKED cargo run --package pos-fdm-mock
-```
-
-Quand un code "critique" est présent, les mutations `sign*` retournent :
 ```json
 {
   "data": null,
-  "errors": [{"message": "Le FDM est verrouillé", "extensions": {"code": "FDM_LOCKED"}}]
+  "errors": [{
+    "message": "Le buffer du FDM est plein",
+    "extensions": {"category": "SPF_FOD", "code": "BUFFER_FULL", "showPos": "MANDATORY"}
+  }]
 }
 ```
 
-Le POS doit alors :
-1. Afficher la modale bloquante de checkout.
-2. Mettre à jour la pilule `FdmStatus` à rouge.
-3. Refuser toute nouvelle transaction tant que la condition n'est pas levée.
+- **Compteurs par `posId`** : chaque POS a ses propres compteurs
+  (`totalCounter` et compteur par label), comme un vrai FDM partagé.
+- **Jeton** : si `MOCK_FDM_TOKEN` est défini, une requête sans
+  `Authorization: Bearer <jeton>` (ou avec un autre jeton) reçoit
+  `UNAUTHORIZED`.
+- **POS autorisés** : si `MOCK_FDM_ALLOWED_POS` est défini (liste
+  séparée par virgules), tout autre `posId` reçoit `UNKNOWN_POS` sur
+  les mutations `sign*`.
+- **Warnings** : les codes de `warnings` apparaissent dans `Status` et
+  dans chaque réponse `sign*` signée ; `bufferCapacityUsed` suit le
+  réglage du buffer.
+- **Erreurs critiques** : `Status` les liste, `initialized` passe à
+  `false`, et les mutations `sign*` renvoient l'enveloppe d'erreur
+  ci-dessus. Le POS doit alors afficher la modale bloquante, passer la
+  pilule `FdmStatus` au rouge et refuser toute transaction tant que la
+  condition n'est pas levée.
 
-### `MOCK_FDM_BUFFER_PCT`
+## API de contrôle (comme l'onglet Developer de module2)
 
-Pourcentage d'utilisation du buffer FDM à reporter dans la réponse
-`Status.device.bufferCapacityUsed`. Par défaut 1.2 (~1%).
+Les réglages changent sans redémarrer le mock :
 
-Exemple pour démontrer `BUFFER_NEAR_FULL` (>70%) :
 ```bash
-MOCK_FDM_WARNING=BUFFER_NEAR_FULL MOCK_FDM_BUFFER_PCT=72.5 cargo run --package pos-fdm-mock
+# lire les réglages (le jeton est masqué)
+curl -s localhost:8081/mock/control
+# FDM verrouillé
+curl -s localhost:8081/mock/control -H 'content-type: application/json' \
+  -d '{"errors":["FDM_LOCKED"]}'
+# buffer presque plein
+curl -s localhost:8081/mock/control -H 'content-type: application/json' \
+  -d '{"warnings":["BUFFER_NEAR_FULL"],"bufferPct":72.5}'
+# retour à la normale
+curl -s localhost:8081/mock/control -H 'content-type: application/json' -d '{}'
 ```
 
-### `MOCK_FDM_INITIALIZED`
+Un `POST` remplace tous les réglages. Champs : `errors`, `warnings`,
+`bufferPct`, `initialized`, `token`, `allowedPos`.
 
-Si défini à `false`, retourne `initialized: false` dans la réponse
-`Status`. Sinon ou par défaut, retourne `true`. Quand des erreurs
-critiques sont injectées via `MOCK_FDM_ERROR`, `initialized` passe
-automatiquement à `false`.
+Journal des appels (les 100 derniers, comme l'onglet Logs de module2) :
+
+```bash
+curl -s localhost:8081/mock/requests      # requête + réponse de chaque appel
+curl -s -X DELETE localhost:8081/mock/requests
+```
+
+## Variables d'environnement
+
+Elles fixent les réglages au démarrage (l'API de contrôle les remplace
+ensuite).
+
+| Variable | Effet |
+|---|---|
+| `PORT` | port d'écoute (8081 par défaut) |
+| `MOCK_FDM_ERROR` | codes d'erreur, séparés par virgules |
+| `MOCK_FDM_WARNING` | codes de warning, séparés par virgules |
+| `MOCK_FDM_BUFFER_PCT` | `bufferCapacityUsed` (100 si `BUFFER_FULL`, 82.53 si `BUFFER_NEAR_FULL`, sinon 1.2) |
+| `MOCK_FDM_INITIALIZED` | `false` pour un FDM non initialisé (automatique avec une erreur) |
+| `MOCK_FDM_TOKEN` | jeton Bearer exigé |
+| `MOCK_FDM_ALLOWED_POS` | `posId` acceptés, séparés par virgules |
+
+Warnings (§V du manuel) : `CLIENT_CERT_NEAR_EXPIRATION`,
+`CLIENT_CERT_EXPIRED`, `RTC_SYNC_FAILED`, `UPDATE_URLS_FAILED`,
+`UPDATE_TRUST_CERT_FAILED`, `UPDATE_TASK_LIST_FAILED`,
+`TASK_FEEDBACK_FAILED`, `NOP_FAILED`, `BUFFER_NEAR_FULL`,
+`SERVER_CERT_RESOLVE_FAILED`, `TRANSACTION_UPLOAD_FAILED`,
+`INITIALIZATION_FAILED`, `UPDATE_POS_VATNO`, `UPDATE_POS_ESTNO`.
+
+Erreurs : `BUFFER_FULL`, `FDM_LOCKED`, `FDM_NOT_OPERATIONAL`,
+`UNKNOWN_POS`, `UNAUTHORIZED`, `INVALID_REQUEST`, `INTERNAL_ERROR`,
+`UNDEFINED_ERROR`, `UNDEFINED_OTHER`.
+
+Exemple :
+```bash
+MOCK_FDM_TOKEN=dev MOCK_FDM_ALLOWED_POS=CPOS0031234567 cargo run --package pos-fdm-mock
+```
 
 ## Email API (Scaleway TEM)
 
@@ -143,31 +138,16 @@ MOCK_TEM_OUTBOX=/tmp/tem ./pos-fdm-mock        # emails land in /tmp/tem
 MOCK_TEM_FAIL=1 ./pos-fdm-mock                 # → capture: paper fallback
 ```
 
-## Recipes pour les captures cert §V
+## Captures cert §V
 
-Pour produire un screenshot par code :
+Les paires requête/réponse de chaque code sont produites par
+`scripts/capture_fdm_error_evidence.sh` (un seul démarrage du mock,
+un `POST /mock/control` par code) dans
+`docs/SUBMISSION_ARTIFACTS/evidence/fdm_errors/`.
 
-```bash
-# 1. Mandatoires (M dans la spec)
-MOCK_FDM_ERROR=BUFFER_FULL ./pos-fdm-mock                            # → capture: BUFFER_FULL
-MOCK_FDM_ERROR=FDM_LOCKED ./pos-fdm-mock                             # → capture: FDM_LOCKED
-MOCK_FDM_ERROR=FDM_NOT_OPERATIONAL ./pos-fdm-mock                    # → capture: FDM_NOT_OPERATIONAL
-MOCK_FDM_ERROR=UNKNOWN_POS ./pos-fdm-mock                            # → capture: UNKNOWN_POS
-MOCK_FDM_WARNING=BUFFER_NEAR_FULL MOCK_FDM_BUFFER_PCT=72.5 ./pos-fdm-mock  # → capture: BUFFER_NEAR_FULL
-MOCK_FDM_WARNING=CLIENT_CERT_EXPIRED ./pos-fdm-mock                  # → capture: CLIENT_CERT_EXPIRED
-
-# 2. Optionnels (O dans la spec)
-MOCK_FDM_ERROR=UNAUTHORIZED ./pos-fdm-mock                            # → capture: UNAUTHORIZED
-MOCK_FDM_ERROR=INVALID_REQUEST ./pos-fdm-mock                         # → capture: INVALID_REQUEST
-MOCK_FDM_ERROR=INTERNAL_ERROR ./pos-fdm-mock                          # → capture: INTERNAL_ERROR
-MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION ./pos-fdm-mock           # → capture
-```
-
-Pour chaque exécution :
-1. Démarrer le mock avec la variable d'environnement.
-2. Démarrer le POS (`cargo tauri dev`) qui appelle le mock.
-3. Naviguer dans l'UI et capturer la pilule `FdmStatus` rouge/jaune
-   et la modale bloquante (si applicable au checkout).
-4. Sauvegarder les captures dans `docs/SUBMISSION_ARTIFACTS/screenshots/`.
-5. Stopper le mock.
-6. Passer au code suivant.
+Pour les captures d'écran, un code à la fois :
+1. Démarrer le mock, puis le POS (`cargo tauri dev`) qui l'appelle.
+2. Activer le code via `POST /mock/control`.
+3. Capturer la pilule `FdmStatus` rouge/jaune et la modale bloquante
+   (si applicable au checkout) dans `docs/SUBMISSION_ARTIFACTS/screenshots/`.
+4. Passer au code suivant (`POST /mock/control` suivant).

@@ -3,24 +3,24 @@
         "signSale": {
             "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMS0xLTE3ODMwNzc0MDU=",
+            "digitalSignature": "bW9jay1zaWctMy0zLTE3OTA1MjI1OTY=",
             "eventOperation": "SALE",
             "fdmRef": {
-                "eventCounter": 1,
+                "eventCounter": 3,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-07-03T11:16:45.175134+00:00",
+                "fdmDateTime": "2026-09-27T15:23:16.111799+00:00",
                 "fdmId": "CBX0MOCK0001",
-                "totalCounter": 1
+                "totalCounter": 3
             },
             "fdmSwVersion": "MOCK-FDM-1.0",
             "footer": [
                 "www.systemedecaisseenregistreuse.be"
             ],
             "informations": null,
-            "posDateTime": "2024-07-29T13:00:00+02:00",
+            "posDateTime": "2024-07-29T13:00:00.000+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "c7d0d3e9faf6ea9ab2ea246618774689bb377da6",
+            "shortSignature": "eb17b1c73c8ec0488a3f2c845f6a9146d68f44e9",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
                 {
@@ -40,8 +40,17 @@
                     "vatAmount": 3.0
                 }
             ],
-            "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
-            "warnings": null
+            "verificationUrl": "https://www.gs2.be/M0000300003AbCdEfGhI",
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "RTC_SYNC_FAILED",
+                        "showPos": "OPTIONAL"
+                    },
+                    "message": "Le FDM n'a pas pu synchroniser l'horloge en temps r\u00e9el"
+                }
+            ]
         }
     }
 }

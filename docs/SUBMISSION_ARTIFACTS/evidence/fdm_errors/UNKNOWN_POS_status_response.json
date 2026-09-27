@@ -3,7 +3,7 @@
         "fdmStatus": {
             "device": {
                 "bufferCapacityUsed": 1.2,
-                "fdmDateTime": "2026-07-03T11:16:44.513369+00:00",
+                "fdmDateTime": "2026-09-27T15:23:15.577781+00:00",
                 "fdmId": "CBX0MOCK0001",
                 "fdmSwVersion": "MOCK-FDM-1.0"
             },
@@ -18,7 +18,7 @@
                 }
             ],
             "informations": null,
-            "initialized": true,
+            "initialized": false,
             "warnings": null
         }
     }

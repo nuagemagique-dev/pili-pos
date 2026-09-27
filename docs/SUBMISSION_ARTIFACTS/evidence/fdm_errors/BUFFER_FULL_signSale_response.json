@@ -3,7 +3,9 @@
     "errors": [
         {
             "extensions": {
-                "code": "BUFFER_FULL"
+                "category": "SPF_FOD",
+                "code": "BUFFER_FULL",
+                "showPos": "MANDATORY"
             },
             "message": "Le buffer du FDM est plein"
         }

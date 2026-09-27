@@ -3,12 +3,12 @@
         "signSale": {
             "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMS0xLTE3ODMwNzc0MDQ=",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTA1MjI1OTU=",
             "eventOperation": "SALE",
             "fdmRef": {
                 "eventCounter": 1,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-07-03T11:16:44.590132+00:00",
+                "fdmDateTime": "2026-09-27T15:23:15.652731+00:00",
                 "fdmId": "CBX0MOCK0001",
                 "totalCounter": 1
             },
@@ -17,10 +17,10 @@
                 "www.systemedecaisseenregistreuse.be"
             ],
             "informations": null,
-            "posDateTime": "2024-07-29T13:00:00+02:00",
+            "posDateTime": "2024-07-29T13:00:00.000+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "8f6ae88ab28cd5d9306b6332dfdc781559dce663",
+            "shortSignature": "006a9a15b410c1702cb97fd72f2e9da55ec27cbf",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
                 {
@@ -41,7 +41,16 @@
                 }
             ],
             "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
-            "warnings": null
+            "warnings": [
+                {
+                    "extensions": {
+                        "category": "SPF_FOD",
+                        "code": "CLIENT_CERT_EXPIRED",
+                        "showPos": "MANDATORY"
+                    },
+                    "message": "Le certificat du client a expir\u00e9"
+                }
+            ]
         }
     }
 }

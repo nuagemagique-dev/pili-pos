@@ -3,7 +3,9 @@
     "errors": [
         {
             "extensions": {
-                "code": "UNAUTHORIZED"
+                "category": "SPF_FOD",
+                "code": "UNAUTHORIZED",
+                "showPos": "OPTIONAL"
             },
             "message": "Le FDM a re\u00e7u des requ\u00eates non-autoris\u00e9es"
         }

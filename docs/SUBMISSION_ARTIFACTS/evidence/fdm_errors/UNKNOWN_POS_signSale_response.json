@@ -3,7 +3,9 @@
     "errors": [
         {
             "extensions": {
-                "code": "UNKNOWN_POS"
+                "category": "SPF_FOD",
+                "code": "UNKNOWN_POS",
+                "showPos": "MANDATORY"
             },
             "message": "Le FDM a re\u00e7u un message d'un POS non repris dans la liste d'autorisation"
         }

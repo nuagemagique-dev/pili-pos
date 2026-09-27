@@ -7,7 +7,7 @@
       "estNo": "2000000042",
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1000,
-      "posDateTime": "2024-07-29T13:00:00+02:00",
+      "posDateTime": "2024-07-29T13:00:00.000+02:00",
       "posSwVersion": "1.8.3",
       "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
       "terminalId": "TER-2-DIN",
