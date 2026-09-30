@@ -352,6 +352,8 @@ fn main() {
         commands::hubrise::hubrise_sync_catalog,
         commands::hubrise::hubrise_adoption_preview,
         commands::hubrise::hubrise_adopt_catalog,
+        commands::hubrise::hubrise_list_channels,
+        commands::hubrise::hubrise_set_channel,
         // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,

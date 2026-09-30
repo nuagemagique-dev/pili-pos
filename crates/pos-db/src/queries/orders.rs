@@ -363,10 +363,12 @@ pub fn get_order_lines(
     rows.collect()
 }
 
+/// Open POS orders. Online orders (`hubrise_order_id`) have their own
+/// board and never show among tables and takeaways.
 pub fn list_open_orders(conn: &Connection) -> Result<Vec<Order>, rusqlite::Error> {
     let mut stmt = conn.prepare(
         "SELECT id, table_number, order_type, status, user_insz, created_at, closed_at, subtotal_cents, total_cents
-         FROM orders WHERE status = 'open' ORDER BY created_at DESC",
+         FROM orders WHERE status = 'open' AND hubrise_order_id IS NULL ORDER BY created_at DESC",
     )?;
 
     let rows = stmt.query_map([], map_order)?;

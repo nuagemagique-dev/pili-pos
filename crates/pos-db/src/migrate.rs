@@ -100,11 +100,18 @@ const MIGRATIONS: &[Migration] = &[
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20: the certification build never creates these tables.
 #[cfg(feature = "hubrise")]
-const HUBRISE_MIGRATIONS: &[Migration] = &[Migration {
-    version: 20,
-    name: "hubrise-transport",
-    sql: crate::schema_hubrise::MIGRATION_020_HUBRISE_TRANSPORT,
-}];
+const HUBRISE_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 20,
+        name: "hubrise-transport",
+        sql: crate::schema_hubrise::MIGRATION_020_HUBRISE_TRANSPORT,
+    },
+    Migration {
+        version: 22,
+        name: "webshop-orders",
+        sql: crate::schema_hubrise::MIGRATION_022_WEBSHOP_ORDERS,
+    },
+];
 
 /// Migrations of the menu mirrored from an external catalog (feature
 /// `catalog-sync`, which `hubrise` turns on).

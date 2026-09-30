@@ -292,7 +292,7 @@ fn vat_category(custom_fields: &Option<serde_json::Value>) -> Option<&str> {
     custom_fields.as_ref()?.get("vat_category")?.as_str()
 }
 
-fn code_of_rate(rate: &str) -> Option<VatCode> {
+pub(crate) fn code_of_rate(rate: &str) -> Option<VatCode> {
     match parse_rate_hundredths(rate)? {
         2100 => Some(VatCode::A),
         1200 => Some(VatCode::B),

@@ -18,6 +18,7 @@ pub mod outbox;
 pub mod poller;
 pub mod push;
 pub mod token_store;
+pub mod webshop;
 
 pub use catalog_map::SOURCE as CATALOG_SOURCE;
 pub use client::Client;

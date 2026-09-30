@@ -116,6 +116,7 @@ pub fn do_list_open_takeaways(state: &AppState) -> Result<Vec<TakeawayInfo>, Str
              FROM orders o
              JOIN order_lines ol ON ol.order_id = o.id
              WHERE o.order_type = 'takeaway' AND o.status = 'open'
+               AND o.hubrise_order_id IS NULL
              GROUP BY o.id
              ORDER BY o.id",
         )

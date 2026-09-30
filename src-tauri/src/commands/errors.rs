@@ -190,6 +190,9 @@ pub mod hubrise {
     pub const OPEN_ORDERS: &str = "hubrise_open_orders";
     /// No catalog is waiting for the manager's adoption.
     pub const NOTHING_PENDING: &str = "hubrise_nothing_pending";
+    /// A channel setting outside platform/webshop, APP/ONLINE,
+    /// include/exclude, or without a name.
+    pub const CHANNEL_INVALID: &str = "hubrise_channel_invalid";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -199,6 +202,7 @@ pub mod hubrise {
         MENU_MANAGED,
         OPEN_ORDERS,
         NOTHING_PENDING,
+        CHANNEL_INVALID,
     ];
 }
 

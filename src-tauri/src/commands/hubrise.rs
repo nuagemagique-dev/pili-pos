@@ -222,6 +222,9 @@ pub struct WebshopOrderSummary {
     pub customer_address_2: Option<String>,
     pub customer_postal_code: Option<String>,
     pub customer_city: Option<String>,
+    /// How the order resolved against the menu and where it stands
+    /// fiscally; `None` for rows stored before migration 22.
+    pub webshop: Option<pos_hubrise::webshop::WebshopState>,
 }
 
 /// Parse a HubRise money string such as "12.50 EUR" into cents.
@@ -355,12 +358,16 @@ fn summary_from_raw(
 pub fn hubrise_list_webshop_orders(
     state: State<'_, AppState>,
 ) -> Result<Vec<WebshopOrderSummary>, String> {
+    do_list_webshop_orders(state.inner())
+}
+
+pub fn do_list_webshop_orders(state: &AppState) -> Result<Vec<WebshopOrderSummary>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db
         .prepare(
             "SELECT id, hubrise_order_id, status, hubrise_status, source, service_type, total_cents, created_at, raw_hubrise_json
              FROM orders
-             WHERE is_fiscal = 0
+             WHERE hubrise_order_id IS NOT NULL
              ORDER BY created_at DESC
              LIMIT 200",
         )
@@ -387,12 +394,16 @@ pub fn hubrise_list_webshop_orders(
                 customer_address_2: address.address_2,
                 customer_postal_code: address.postal_code,
                 customer_city: address.city,
+                webshop: None,
             })
         })
         .map_err(|e| e.to_string())?;
     let mut out = Vec::new();
     for r in rows {
         out.push(r.map_err(|e| e.to_string())?);
+    }
+    for order in out.iter_mut() {
+        order.webshop = pos_hubrise::webshop::load(&db, order.id).map_err(errors::internal)?;
     }
     let chinese = chinese_names_by_french_name(&db).map_err(|e| e.to_string())?;
     for item in out.iter_mut().flat_map(|o| o.items.iter_mut()) {
@@ -673,4 +684,44 @@ pub fn do_adopt_catalog(
     pos_catalog::adopt_and_apply(&mut db, pos_hubrise::CATALOG_SOURCE, adoptions)
         .map_err(errors::internal)?
         .ok_or_else(|| errors::hubrise::NOTHING_PENDING.to_string())
+}
+
+/// How each HubRise channel is signed (Settings).
+#[tauri::command]
+pub fn hubrise_list_channels(
+    state: State<'_, AppState>,
+) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
+    do_list_channels(state.inner())
+}
+
+pub fn do_list_channels(state: &AppState) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
+    access::operator(state, Access::Admin)?;
+    let db = state.db.lock().map_err(errors::internal)?;
+    pos_hubrise::webshop::list_channels(&db).map_err(errors::internal)
+}
+
+/// Add or change a channel; pending orders resolve again. Returns how
+/// many of them now resolve cleanly.
+#[tauri::command]
+pub fn hubrise_set_channel(
+    state: State<'_, AppState>,
+    channel: pos_hubrise::webshop::Channel,
+) -> Result<usize, String> {
+    do_set_channel(state.inner(), &channel)
+}
+
+pub fn do_set_channel(
+    state: &AppState,
+    channel: &pos_hubrise::webshop::Channel,
+) -> Result<usize, String> {
+    access::operator(state, Access::Admin)?;
+    let valid = !channel.channel.trim().is_empty()
+        && ["platform", "webshop"].contains(&channel.kind.as_str())
+        && ["APP", "ONLINE"].contains(&channel.payment_type.as_str())
+        && ["include", "exclude"].contains(&channel.charge_policy.as_str());
+    if !valid {
+        return Err(errors::hubrise::CHANNEL_INVALID.to_string());
+    }
+    let db = state.db.lock().map_err(errors::internal)?;
+    pos_hubrise::webshop::set_channel(&db, channel).map_err(errors::internal)
 }

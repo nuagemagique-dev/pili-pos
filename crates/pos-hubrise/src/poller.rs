@@ -65,8 +65,8 @@ pub struct DefaultHandlers;
 
 impl Handlers for DefaultHandlers {
     fn on_order(&self, conn: &Connection, order: &Order) -> Result<bool> {
-        upsert_webshop_order(conn, order)?;
-        Ok(order.status == OrderStatus::New)
+        let ingested = crate::webshop::ingest(conn, order)?;
+        Ok(ingested.pending && order.status == OrderStatus::New)
     }
 
     fn on_catalog(&self, conn: &mut Connection, catalog: &Catalog) -> Result<ApplyOutcome> {
@@ -309,6 +309,9 @@ pub async fn poll_once(ctx: &PollerCtx) -> Result<PollReport> {
             }
         }
     }
+    if let Err(e) = refresh_on_catalog_miss(ctx, &client, &stored).await {
+        tracing::warn!(%e, "hubrise catalog refresh for unresolved orders");
+    }
     Ok(report)
 }
 
@@ -481,60 +484,44 @@ pub async fn sync_catalog(
         .get_json(&format!("/catalogs/{}", stored.catalog_id))
         .await?;
     let mut db = ctx.db.lock().expect("poller db poisoned");
-    ctx.handlers.on_catalog(&mut db, &catalog)
+    let outcome = ctx.handlers.on_catalog(&mut db, &catalog)?;
+    if matches!(outcome, ApplyOutcome::Applied { .. }) {
+        let fixed = crate::webshop::re_resolve_pending(&db)?;
+        if fixed > 0 {
+            tracing::info!(fixed, "hubrise orders resolved after a catalog change");
+        }
+    }
+    Ok(outcome)
 }
 
-/// Insert or refresh a HubRise order as a local, not yet fiscal row
-/// (is_fiscal = 0). The first event inserts; later ones refresh the
-/// stored order and its HubRise status.
-pub fn upsert_webshop_order(conn: &Connection, order: &Order) -> Result<()> {
-    use pos_hubrise_types::ServiceType;
-    // Map HubRise service_type -> POS order_type. The orders table
-    // CHECK constraint only allows 'dine_in' or 'takeaway', so both
-    // delivery and collection get bucketed as 'takeaway'.
-    let order_type = match order.service_type {
-        Some(ServiceType::EatIn) => "dine_in",
-        _ => "takeaway",
+/// Pending orders that name products, options or charges the menu
+/// does not have may be ahead of the catalog: fetch it again, at most
+/// once a minute (the catalog endpoint allows 10 calls a minute).
+pub async fn refresh_on_catalog_miss(
+    ctx: &PollerCtx,
+    client: &Client,
+    stored: &StoredConnection,
+) -> Result<Option<ApplyOutcome>> {
+    let due: bool = {
+        let db = ctx.db.lock().expect("poller db poisoned");
+        db.query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM webshop_orders
+                WHERE fiscal_state = 'pending' AND resolution = 'needs_review'
+                  AND (attention_json LIKE '%\"unknown_product\"%'
+                       OR attention_json LIKE '%\"unknown_option\"%'
+                       OR attention_json LIKE '%\"unknown_charge\"%'))
+             AND COALESCE(
+                (SELECT last_catalog_sync_at <= datetime('now', '-60 seconds')
+                 FROM hubrise_connection WHERE id = 1), 1)",
+            [],
+            |r| r.get(0),
+        )?
     };
-    let service_type_str: Option<&'static str> = order.service_type.map(|s| match s {
-        ServiceType::Delivery => "delivery",
-        ServiceType::Collection => "collection",
-        ServiceType::EatIn => "eat_in",
-    });
-    let total_cents = order
-        .total
-        .as_deref()
-        .and_then(|t| pos_hubrise_types::money::parse_cents(t).ok())
-        .unwrap_or(0);
-    // The HubRise `channel` (e.g. "Deliveroo", "Uber Eats") tells the
-    // platforms apart; "webshop" when absent.
-    let source = order
-        .channel
-        .clone()
-        .unwrap_or_else(|| "webshop".to_string());
-    let raw_json = serde_json::to_string(order)?;
-
-    conn.execute(
-        "INSERT INTO orders
-            (order_type, status, user_insz, subtotal_cents, total_cents,
-             hubrise_order_id, is_fiscal, source, hubrise_status, service_type,
-             raw_hubrise_json)
-         VALUES (?1, 'open', ?2, ?3, ?3, ?4, 0, ?5, ?6, ?7, ?8)
-         ON CONFLICT(hubrise_order_id) WHERE hubrise_order_id IS NOT NULL DO UPDATE SET
-            hubrise_status = excluded.hubrise_status,
-            raw_hubrise_json = excluded.raw_hubrise_json",
-        params![
-            order_type,
-            pos_core::user::SYSTEM_INSZ,
-            total_cents,
-            order.id,
-            source,
-            order.status.as_wire(),
-            service_type_str,
-            raw_json,
-        ],
-    )?;
-    Ok(())
+    if !due {
+        return Ok(None);
+    }
+    sync_catalog(ctx, client, stored).await.map(Some)
 }
 
 #[cfg(test)]
@@ -560,8 +547,8 @@ mod tests {
     #[test]
     fn an_order_is_inserted_once_then_refreshed() {
         let c = conn();
-        upsert_webshop_order(&c, &order("new")).unwrap();
-        upsert_webshop_order(&c, &order("cancelled")).unwrap();
+        crate::webshop::ingest(&c, &order("new")).unwrap();
+        crate::webshop::ingest(&c, &order("cancelled")).unwrap();
         let (n, status, total, source): (i64, String, i64, String) = c
             .query_row(
                 "SELECT COUNT(*), MAX(hubrise_status), MAX(total_cents), MAX(source) FROM orders",

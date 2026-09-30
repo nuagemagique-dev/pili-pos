@@ -101,5 +101,6 @@ export const webshopMessages: Messages = {
   "err_hubrise_time_invalid": { fr: "Heure non valable.", en: "Invalid time.", zh: "时间无效。" },
   "err_hubrise_menu_managed": { fr: "Le menu est géré par HubRise : modifiez-le là.", en: "The menu is managed in HubRise: edit it there.", zh: "菜单由HubRise管理，请在那里修改。" },
   "err_hubrise_open_orders": { fr: "Clôturez d'abord toutes les commandes ouvertes.", en: "Close every open order first.", zh: "请先结清所有未结订单。" },
+  "err_hubrise_channel_invalid": { fr: "Réglage de canal non valable.", en: "Invalid channel setting.", zh: "渠道设置无效。" },
   "err_hubrise_nothing_pending": { fr: "Aucun catalogue en attente.", en: "No catalog is waiting.", zh: "没有待处理的菜单。" },
 };
