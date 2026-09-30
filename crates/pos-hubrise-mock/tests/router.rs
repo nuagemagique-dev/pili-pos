@@ -213,8 +213,46 @@ async fn events_are_paginated() {
 }
 
 #[tokio::test]
-async fn a_final_status_cannot_change() {
+async fn transitions_are_permissive_when_strict_mode_is_off() {
     let m = Mock::new();
+    // The default is `strict_transitions: true` (the mock's original
+    // policy, see `README.md` "Toggles"); this test opts into the
+    // docs-permissive behaviour instead.
+    m.send(
+        "PUT",
+        "/mock/settings",
+        None,
+        Some(json!({ "strict_transitions": false })),
+    )
+    .await;
+    let order = m.inject("eat_in").await;
+    let id = order["id"].as_str().unwrap();
+    m.send("POST", &format!("/mock/orders/{id}/cancel"), None, None)
+        .await;
+    // The docs define no transition graph: with strict mode off, even
+    // a "final" status accepts a further change.
+    let r = m
+        .send(
+            "PATCH",
+            &format!("/v1/location/orders/{id}"),
+            Some(POS_TOKEN),
+            Some(json!({ "status": "accepted" })),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert_eq!(r.json["status"], "accepted");
+}
+
+#[tokio::test]
+async fn a_final_status_cannot_change_under_strict_transitions() {
+    let m = Mock::new();
+    m.send(
+        "PUT",
+        "/mock/settings",
+        None,
+        Some(json!({ "strict_transitions": true })),
+    )
+    .await;
     let order = m.inject("eat_in").await;
     let id = order["id"].as_str().unwrap();
     m.send("POST", &format!("/mock/orders/{id}/cancel"), None, None)
@@ -229,6 +267,7 @@ async fn a_final_status_cannot_change() {
         .await;
     assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(r.json["error_type"], "unprocessable_entity");
+    assert_eq!(r.json["errors"][0]["field"], "status");
 }
 
 #[tokio::test]
@@ -271,10 +310,57 @@ async fn orders_are_listed_by_status_and_private_ref() {
         )
         .await;
     assert_eq!(found.json.as_array().unwrap().len(), 1);
+
+    // `private_ref` is a per-client lookup convenience by default,
+    // not a location-wide uniqueness constraint: a duplicate is fine.
     let dup = m
+        .send(
+            "POST",
+            "/v1/location/orders",
+            Some(POS_TOKEN),
+            Some(sale.clone()),
+        )
+        .await;
+    assert_eq!(dup.status, StatusCode::OK);
+
+    // Another client's private_ref of the same value never shows up
+    // in this client's lookup.
+    let other = m
+        .send(
+            "POST",
+            "/v1/location/orders",
+            Some(WEBSHOP_TOKEN),
+            Some(sale.clone()),
+        )
+        .await;
+    assert_eq!(other.status, StatusCode::OK);
+    let found = m
+        .send(
+            "GET",
+            "/v1/location/orders?private_ref=pili-sale-7",
+            Some(POS_TOKEN),
+            None,
+        )
+        .await;
+    assert_eq!(
+        found.json.as_array().unwrap().len(),
+        2,
+        "both of this client's own orders, not the webshop's"
+    );
+
+    // Strict mode restores the old location-wide uniqueness 422.
+    m.send(
+        "PUT",
+        "/mock/settings",
+        None,
+        Some(json!({ "strict_private_ref": true })),
+    )
+    .await;
+    let strict_dup = m
         .send("POST", "/v1/location/orders", Some(POS_TOKEN), Some(sale))
         .await;
-    assert_eq!(dup.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(strict_dup.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(strict_dup.json["errors"][0]["field"], "private_ref");
 }
 
 #[tokio::test]
@@ -420,4 +506,194 @@ async fn reset_brings_back_the_seed() {
         .send("GET", "/v1/location/orders", Some(POS_TOKEN), None)
         .await;
     assert_eq!(r.json, json!([]));
+}
+
+#[tokio::test]
+async fn an_unmatched_route_is_a_routing_error() {
+    let m = Mock::new();
+    let r = m
+        .send("GET", "/v1/not-a-real-route", Some(POS_TOKEN), None)
+        .await;
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
+    assert_eq!(r.json["error_type"], "routing_error");
+}
+
+#[tokio::test]
+async fn a_write_with_the_wrong_content_type_is_refused() {
+    let m = Mock::new();
+    let req = Request::builder()
+        .method("POST")
+        .uri("/v1/location/orders")
+        .header("X-Access-Token", POS_TOKEN)
+        .header("Content-Type", "text/plain")
+        .body(Body::from(json!({ "status": "new" }).to_string()))
+        .unwrap();
+    let resp = m.router.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let json: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json["error_type"], "unsupported_media_type");
+}
+
+#[tokio::test]
+async fn a_money_error_carries_a_field_level_detail() {
+    let m = Mock::new();
+    let r = m
+        .send(
+            "POST",
+            "/v1/location/orders",
+            Some(POS_TOKEN),
+            Some(json!({ "items": [{ "product_name": "X", "price": "abc", "quantity": "1" }] })),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(r.json["errors"][0]["field"], "items.price");
+}
+
+#[tokio::test]
+async fn a_revoked_token_is_unauthorized_until_reset() {
+    let m = Mock::new();
+    let ok = m.send("GET", "/v1/location", Some(POS_TOKEN), None).await;
+    assert_eq!(ok.status, StatusCode::OK);
+    let revoke = m
+        .send("POST", "/oauth2/v1/revoke", Some(POS_TOKEN), None)
+        .await;
+    assert_eq!(revoke.status, StatusCode::OK);
+    let after = m.send("GET", "/v1/location", Some(POS_TOKEN), None).await;
+    assert_eq!(after.status, StatusCode::UNAUTHORIZED);
+    m.send("POST", "/mock/reset", None, None).await;
+    let restored = m.send("GET", "/v1/location", Some(POS_TOKEN), None).await;
+    assert_eq!(restored.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn registering_an_active_callback_is_refused() {
+    let m = Mock::new();
+    let r = m
+        .send(
+            "POST",
+            "/v1/callback",
+            Some(POS_TOKEN),
+            Some(json!({ "url": "https://example.com/hook", "events": {} })),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(r.json["error_type"], "unprocessable_entity");
+}
+
+#[tokio::test]
+async fn inventory_is_scoped_by_catalog_and_validated() {
+    let m = Mock::new();
+    let catalog_id = m.state.inner.lock().unwrap().default_catalog_id.clone();
+
+    let set = m
+        .send(
+            "PUT",
+            &format!("/v1/catalogs/{catalog_id}/location/inventory"),
+            Some(WEBSHOP_TOKEN),
+            Some(json!([
+                { "sku_ref": "MAKI-SAUMON-6", "stock": "5" },
+                { "sku_ref": "COCA-33", "stock": "0", "expires_at": "2026-12-01T00:00:00Z" },
+            ])),
+        )
+        .await;
+    assert_eq!(set.status, StatusCode::OK);
+
+    let get = m
+        .send("GET", "/v1/location/inventory", Some(POS_TOKEN), None)
+        .await;
+    assert_eq!(get.json.as_array().unwrap().len(), 2);
+
+    // A dangling ref refuses the whole write.
+    let bad = m
+        .send(
+            "PUT",
+            "/v1/location/inventory",
+            Some(WEBSHOP_TOKEN),
+            Some(json!([{ "sku_ref": "NO-SUCH-SKU", "stock": "1" }])),
+        )
+        .await;
+    assert_eq!(bad.status, StatusCode::UNPROCESSABLE_ENTITY);
+
+    // `expires_at` only makes sense when stock is exactly 0.
+    let bad_expiry = m
+        .send(
+            "PUT",
+            "/v1/location/inventory",
+            Some(WEBSHOP_TOKEN),
+            Some(json!([{
+                "sku_ref": "MAKI-SAUMON-6", "stock": "1", "expires_at": "2026-12-01T00:00:00Z"
+            }])),
+        )
+        .await;
+    assert_eq!(bad_expiry.status, StatusCode::UNPROCESSABLE_ENTITY);
+
+    // PATCH with `stock: null` removes an entry and returns only the
+    // modified ones.
+    let patch = m
+        .send(
+            "PATCH",
+            "/v1/location/inventory",
+            Some(WEBSHOP_TOKEN),
+            Some(json!([{ "sku_ref": "MAKI-SAUMON-6" }])),
+        )
+        .await;
+    assert_eq!(patch.status, StatusCode::OK);
+    assert_eq!(patch.json.as_array().unwrap().len(), 1);
+    let get = m
+        .send("GET", "/v1/location/inventory", Some(POS_TOKEN), None)
+        .await;
+    assert_eq!(get.json.as_array().unwrap().len(), 1, "one entry left");
+}
+
+#[tokio::test]
+async fn inventory_updates_announce_the_other_registered_client() {
+    let m = Mock::new();
+    // Register for inventory events (the default `register_pos`
+    // helper only asks for order/catalog).
+    m.send(
+        "POST",
+        "/v1/callback",
+        Some(POS_TOKEN),
+        Some(json!({ "url": null, "events": {
+            "order": ["create", "update"], "catalog": ["create", "update"],
+            "inventory": ["update", "patch"],
+        }})),
+    )
+    .await;
+    let r = m
+        .send(
+            "PUT",
+            "/mock/inventory",
+            None,
+            Some(json!({ "entries": [{ "sku_ref": "MISO-1", "stock": "4" }] })),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::OK);
+    let events = m
+        .send("GET", "/v1/callback/events", Some(POS_TOKEN), None)
+        .await;
+    let events = events.json.as_array().unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| e["resource_type"] == "inventory" && e["event_type"] == "update")
+    );
+}
+
+#[tokio::test]
+async fn connection_wide_rate_limit_answers_429() {
+    let m = Mock::new();
+    m.send(
+        "PUT",
+        "/mock/settings",
+        None,
+        Some(json!({ "rate_limit_per_minute": 2 })),
+    )
+    .await;
+    m.send("GET", "/v1/location", Some(POS_TOKEN), None).await;
+    m.send("GET", "/v1/location", Some(POS_TOKEN), None).await;
+    let limited = m.send("GET", "/v1/location", Some(POS_TOKEN), None).await;
+    assert_eq!(limited.status, StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(limited.json["error_type"], "too_many_requests");
 }

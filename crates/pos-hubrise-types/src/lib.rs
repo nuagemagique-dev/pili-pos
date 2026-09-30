@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod common;
 pub mod custom_fields;
 pub mod error;
+pub mod inventory;
 pub mod money;
 pub mod oauth;
 pub mod order;
@@ -27,7 +28,8 @@ pub use custom_fields::{
     CategoryDescriptionPayload, CategoryTranslations, ProductTranslation, ProductTranslations,
     SkuCustomFields, VatCategory,
 };
-pub use error::{ErrorResponse, ErrorType};
+pub use error::{ErrorResponse, ErrorType, ValidationError};
+pub use inventory::InventoryEntry;
 pub use oauth::{AuthorizeParams, OAuthTokenResponse, RevokeRequest};
 pub use order::{
     Customer, Order, OrderCharge, OrderDealEntry, OrderDiscount, OrderItem, OrderOption,

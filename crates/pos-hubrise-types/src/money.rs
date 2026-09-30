@@ -84,6 +84,32 @@ pub fn parse_quantity(quantity: &str) -> Option<i64> {
     (hundredths % 100 == 0).then_some(hundredths / 100)
 }
 
+/// An inventory `stock` decimal string (0 to 3 decimals,
+/// non-negative) as thousandths of a unit (`"2.5"` -> 2500,
+/// `"0"` -> 0). `None` when malformed, negative, or more than 3
+/// decimals.
+pub fn parse_stock_thousandths(stock: &str) -> Option<i64> {
+    let stock = stock.trim();
+    if stock.starts_with('-') {
+        return None;
+    }
+    let (whole, frac) = match stock.split_once('.') {
+        Some((w, f)) => (w, f),
+        None => (stock, ""),
+    };
+    if whole.is_empty()
+        || frac.len() > 3
+        || !whole.bytes().all(|b| b.is_ascii_digit())
+        || !frac.bytes().all(|b| b.is_ascii_digit())
+    {
+        return None;
+    }
+    let whole: i64 = whole.parse().ok()?;
+    let frac_padded = format!("{frac:0<3}");
+    let frac: i64 = frac_padded.parse().ok()?;
+    whole.checked_mul(1000)?.checked_add(frac)
+}
+
 /// A tax rate (`"12.0"`, `"6"`, `"21.00"`) in hundredths of a
 /// percent (1200), or `None` when not a decimal with at most two
 /// decimals.
@@ -162,6 +188,18 @@ mod tests {
         assert_eq!(parse_quantity("1.00"), Some(1));
         assert_eq!(parse_quantity("1.5"), None);
         assert_eq!(parse_quantity("x"), None);
+    }
+
+    #[test]
+    fn stock_decimals_up_to_three_places() {
+        assert_eq!(parse_stock_thousandths("0"), Some(0));
+        assert_eq!(parse_stock_thousandths("2"), Some(2000));
+        assert_eq!(parse_stock_thousandths("2.5"), Some(2500));
+        assert_eq!(parse_stock_thousandths("2.500"), Some(2500));
+        assert_eq!(parse_stock_thousandths("0.001"), Some(1));
+        assert_eq!(parse_stock_thousandths("-1"), None, "non-negative only");
+        assert_eq!(parse_stock_thousandths("1.2345"), None, "max 3 decimals");
+        assert_eq!(parse_stock_thousandths("x"), None);
     }
 
     #[test]
