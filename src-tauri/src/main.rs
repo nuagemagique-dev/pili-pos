@@ -358,6 +358,7 @@ fn main() {
         commands::webshop::webshop_handover_order,
         commands::webshop::webshop_reject_order,
         commands::webshop::webshop_refund_order,
+        commands::webshop::webshop_complete_order,
         commands::webshop::webshop_close_cancelled_order,
         // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,

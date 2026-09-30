@@ -45,7 +45,24 @@ function statusOf(order: WebshopOrderSummary): string {
   return order.hubrise_status ?? 'new'
 }
 
+/** The order's fiscal state, `pending` before acceptance. */
+function fiscalOf(order: WebshopOrderSummary): string {
+  return order.webshop?.fiscal_state ?? 'pending'
+}
+
 function stageOf(order: WebshopOrderSummary): Stage {
+  // A signed order HubRise cancelled waits for staff where they look
+  // first; refunded and closed ones are done.
+  switch (fiscalOf(order)) {
+    case 'refund_pending':
+    case 'cancel_pending':
+      return 'new'
+    case 'refunded':
+    case 'closed':
+    case 'voided':
+    case 'rejected':
+      return 'done'
+  }
   switch (statusOf(order)) {
     case 'accepted':
     case 'in_preparation':
@@ -111,6 +128,7 @@ function metaLine(order: WebshopOrderSummary): string {
 }
 
 function doneLabel(order: WebshopOrderSummary): string {
+  if (fiscalOf(order) === 'refunded') return t('webshop_status_refunded')
   switch (statusOf(order)) {
     case 'rejected':
       return t('webshop_status_rejected')
@@ -210,10 +228,20 @@ function nextAction(
 ): { label: string; run: () => Promise<void> } | null {
   const id = order.hubrise_order_id
   if (!id) return null
+  switch (fiscalOf(order)) {
+    case 'refund_pending':
+      return auth.isManager
+        ? { label: t('webshop_action_refund'), run: () => store.refundOrder(order, auth.currentUser!.insz) }
+        : null
+    case 'cancel_pending':
+      return { label: t('webshop_action_close_cancelled'), run: () => store.closeCancelledOrder(order) }
+  }
   switch (statusOf(order)) {
     case 'new':
     case 'received':
-      return { label: t('webshop_action_accept'), run: () => store.acceptOrder(id) }
+      // An order to check is never signed: only Refuser or Resynchroniser.
+      if (needsReview(order)) return null
+      return { label: t('webshop_action_accept'), run: () => store.acceptOrder(order) }
     case 'accepted':
       return { label: t('webshop_action_prepare'), run: () => store.startPreparation(id) }
     case 'in_preparation':
@@ -222,9 +250,62 @@ function nextAction(
       if (isOwnWebshop(order) && order.service_type === 'delivery') {
         return { label: t('webshop_action_out_for_delivery'), run: () => store.markOutForDelivery(id) }
       }
-      return { label: t('webshop_action_complete'), run: () => store.completeDelivery(id) }
+      return finishAction(order)
     case 'in_delivery':
-      return { label: t('webshop_action_complete'), run: () => store.completeDelivery(id) }
+      return finishAction(order)
+    default:
+      return null
+  }
+}
+
+/** Handing over: an unpaid order is collected (its sale N), a prepaid one completed. */
+function finishAction(order: WebshopOrderSummary): { label: string; run: () => Promise<void> } | null {
+  if (isUnpaid(order)) {
+    return { label: t('webshop_action_collect_cash'), run: () => store.collectOrder(order, 'cash') }
+  }
+  return { label: t('webshop_action_complete'), run: () => store.completeOrder(order) }
+}
+
+/** Waiting for its money: registered (P), not sold yet. */
+function isUnpaid(order: WebshopOrderSummary): boolean {
+  return fiscalOf(order) === 'signed_p'
+}
+
+/** Card payment, offered next to cash when collecting. */
+function canCollectByCard(order: WebshopOrderSummary): boolean {
+  return isUnpaid(order) && stageOf(order) === 'ready'
+}
+
+function needsReview(order: WebshopOrderSummary): boolean {
+  return fiscalOf(order) === 'pending' && order.webshop?.resolution !== 'ok'
+}
+
+function reviewReasons(order: WebshopOrderSummary): string[] {
+  const codes = new Set((order.webshop?.attention ?? []).map((a) => a.code))
+  if (codes.size === 0) return [t('webshop_attention_unknown_product')]
+  return [...codes].map((c) => t(`webshop_attention_${c}`))
+}
+
+function changedAfterSigning(order: WebshopOrderSummary): boolean {
+  return fiscalOf(order) !== 'pending' &&
+    (order.webshop?.attention ?? []).some((a) => a.code === 'changed_after_signing')
+}
+
+/** "Payée" / "À encaisser", once the payment is known. */
+function paymentBadge(order: WebshopOrderSummary): { text: string; tone: 'paid' | 'due' } | null {
+  const mode = order.webshop?.payment_mode
+  if (fiscalOf(order) === 'signed_n' || mode === 'prepaid') return { text: t('webshop_badge_prepaid'), tone: 'paid' }
+  if (mode === 'unpaid') return { text: t('webshop_badge_unpaid'), tone: 'due' }
+  return null
+}
+
+/** The banner of a signed order HubRise cancelled. */
+function cancelledBanner(order: WebshopOrderSummary): string | null {
+  switch (fiscalOf(order)) {
+    case 'refund_pending':
+      return auth.isManager ? t('webshop_cancelled_refund') : t('webshop_manager_needed')
+    case 'cancel_pending':
+      return t('webshop_cancelled_close')
     default:
       return null
   }
@@ -232,7 +313,7 @@ function nextAction(
 
 function canReject(order: WebshopOrderSummary): boolean {
   const s = statusOf(order)
-  return s === 'new' || s === 'received'
+  return fiscalOf(order) === 'pending' && (s === 'new' || s === 'received')
 }
 
 /** Delaying the ready time only makes sense while the kitchen works on it. */
@@ -260,12 +341,34 @@ function toggleReprint(order: WebshopOrderSummary) {
 
 async function handlePrimary(order: WebshopOrderSummary) {
   const action = nextAction(order)
-  if (action) await action.run()
+  if (action) await guarded(order, action.run)
+}
+
+// One action at a time per card: a sale is signed once.
+const busyId = ref<number | null>(null)
+
+async function guarded(order: WebshopOrderSummary, action: () => Promise<void>) {
+  if (busyId.value !== null) return
+  busyId.value = order.id
+  try {
+    await action()
+  } catch {
+    // The store showed the error.
+  } finally {
+    busyId.value = null
+  }
 }
 
 async function handleReject(order: WebshopOrderSummary) {
-  if (!order.hubrise_order_id) return
-  await store.rejectOrder(order.hubrise_order_id)
+  await guarded(order, () => store.rejectOrder(order))
+}
+
+async function handleCollectCard(order: WebshopOrderSummary) {
+  await guarded(order, () => store.collectOrder(order, 'card'))
+}
+
+async function handleResync(order: WebshopOrderSummary) {
+  await guarded(order, () => store.resync())
 }
 
 async function handleDelay(order: WebshopOrderSummary, minutes: number) {
@@ -355,7 +458,29 @@ onUnmounted(() => clearInterval(nowTimer))
               >{{ keyTime(order)!.text }}</span>
             </header>
 
-            <div v-if="metaLine(order)" class="card-meta">{{ metaLine(order) }}</div>
+            <div v-if="metaLine(order) || paymentBadge(order)" class="card-meta">
+              <span>{{ metaLine(order) }}</span>
+              <span
+                v-if="paymentBadge(order)"
+                class="pay-badge"
+                :class="`pay-badge-${paymentBadge(order)!.tone}`"
+                data-testid="pay-badge"
+              >{{ paymentBadge(order)!.text }}</span>
+            </div>
+
+            <div v-if="cancelledBanner(order)" class="fiscal-banner" data-testid="cancelled-banner">
+              {{ cancelledBanner(order) }}
+            </div>
+            <div v-if="changedAfterSigning(order)" class="fiscal-banner" data-testid="changed-banner">
+              {{ t('webshop_changed_after_signing') }}
+            </div>
+
+            <div v-if="needsReview(order)" class="review" data-testid="review">
+              <span class="review-title">{{ t('webshop_review_title') }}</span>
+              <ul class="review-reasons">
+                <li v-for="reason in reviewReasons(order)" :key="reason">{{ reason }}</li>
+              </ul>
+            </div>
 
             <div v-if="deliveryAddress(order)" class="delivery-address">
               {{ deliveryAddress(order) }}
@@ -397,8 +522,29 @@ onUnmounted(() => clearInterval(nowTimer))
 
             <footer class="card-actions">
               <span class="total-value">{{ formatEuros(order.total_cents) }}</span>
-              <button v-if="canReject(order)" class="btn btn-secondary" @click="handleReject(order)">
+              <button
+                v-if="canReject(order)"
+                class="btn btn-secondary"
+                :disabled="busyId === order.id"
+                @click="handleReject(order)"
+              >
                 {{ t('webshop_action_reject') }}
+              </button>
+              <button
+                v-if="needsReview(order)"
+                class="btn btn-secondary"
+                :disabled="busyId === order.id"
+                @click="handleResync(order)"
+              >
+                {{ t('webshop_action_resync') }}
+              </button>
+              <button
+                v-if="canCollectByCard(order)"
+                class="btn btn-secondary"
+                :disabled="busyId === order.id"
+                @click="handleCollectCard(order)"
+              >
+                {{ t('webshop_action_collect_card') }}
               </button>
               <button
                 v-if="canReprint(order)"
@@ -408,7 +554,12 @@ onUnmounted(() => clearInterval(nowTimer))
               >
                 {{ t('webshop_action_reprint') }}
               </button>
-              <button v-if="nextAction(order)" class="btn btn-primary" @click="handlePrimary(order)">
+              <button
+                v-if="nextAction(order)"
+                class="btn btn-primary"
+                :disabled="busyId === order.id"
+                @click="handlePrimary(order)"
+              >
                 {{ nextAction(order)!.label }}
               </button>
             </footer>
@@ -447,6 +598,47 @@ onUnmounted(() => clearInterval(nowTimer))
 
 .mono {
   font-family: var(--font-mono);
+}
+
+.pay-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+.pay-badge-paid {
+  background: color-mix(in srgb, var(--accent-success) 15%, transparent);
+  color: var(--accent-success);
+}
+.pay-badge-due {
+  background: color-mix(in srgb, var(--accent-warning) 18%, transparent);
+  color: var(--text-primary);
+}
+
+.fiscal-banner {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-warning) 18%, transparent);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.review {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-danger);
+  font-size: 14px;
+}
+.review-title {
+  font-weight: 700;
+  color: var(--accent-danger);
+}
+.review-reasons {
+  margin: 4px 0 0;
+  padding-left: 18px;
 }
 
 .state-msg {

@@ -13,8 +13,8 @@ use common::{PrinterSink, TestApp};
 use pili_pos::commands::checkout::{CheckoutPaymentMethod, PaymentPart, do_checkout_split};
 use pili_pos::commands::errors;
 use pili_pos::commands::webshop::{
-    do_accept_webshop_order, do_handover_webshop_order, do_reject_webshop_order,
-    recover_webshop_orders,
+    do_accept_webshop_order, do_complete_webshop_order, do_handover_webshop_order,
+    do_reject_webshop_order, recover_webshop_orders,
 };
 use pos_hubrise::poller::{poll_once, start};
 use serde_json::Value;
@@ -515,4 +515,30 @@ async fn a_crash_while_signing_is_repaired_at_boot() {
     drain_outbox(&w.app).await;
     assert_eq!(w.mock.order(&signed_hr)["status"], "accepted");
     assert_eq!(w.events().len(), 1);
+}
+
+#[tokio::test]
+async fn a_prepaid_order_is_completed_once_without_signing_again() {
+    let w = world().await;
+    let (prepaid, prepaid_hr) = w.order("deliveroo_prepaid").await;
+    let (unpaid, _) = w.order("webshop_cash_collection").await;
+    for id in [prepaid, unpaid] {
+        do_accept_webshop_order(&w.app.state, id, None)
+            .await
+            .unwrap();
+    }
+    drain_outbox(&w.app).await;
+    // The unpaid order is completed by its handover sale, not here.
+    assert_eq!(
+        do_complete_webshop_order(&w.app.state, unpaid).unwrap_err(),
+        errors::hubrise::NOT_AWAITING_PAYMENT
+    );
+    do_complete_webshop_order(&w.app.state, prepaid).unwrap();
+    assert_eq!(
+        do_complete_webshop_order(&w.app.state, prepaid).unwrap_err(),
+        errors::hubrise::ALREADY_HANDLED
+    );
+    drain_outbox(&w.app).await;
+    assert_eq!(w.mock.order(&prepaid_hr)["status"], "completed");
+    assert_eq!(w.events().len(), 2, "the N and the P, nothing more");
 }

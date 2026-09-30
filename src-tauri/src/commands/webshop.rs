@@ -497,6 +497,44 @@ pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), St
     Ok(())
 }
 
+#[tauri::command]
+pub fn webshop_complete_order(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
+    do_complete_webshop_order(state.inner(), order_id)
+}
+
+/// Hand over a prepaid order whose sale is signed: HubRise hears
+/// `completed`. An unpaid order is completed by its handover sale.
+pub fn do_complete_webshop_order(state: &AppState, order_id: i64) -> Result<(), String> {
+    access::operator(state, Access::Cashier)?;
+    let ws = load(state, order_id)?;
+    if ws.fiscal_state != "signed_n" || ws.payment_mode.as_deref() != Some("prepaid") {
+        return Err(errors::hubrise::NOT_AWAITING_PAYMENT.to_string());
+    }
+    let db = state.db.lock().map_err(errors::internal)?;
+    let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    let n = tx
+        .execute(
+            "UPDATE orders SET hubrise_status = 'completed', status = 'closed',
+                closed_at = COALESCE(closed_at, datetime('now'))
+             WHERE id = ?1 AND hubrise_status IS NOT 'completed'",
+            params![order_id],
+        )
+        .map_err(errors::internal)?;
+    if n == 0 {
+        return Err(errors::hubrise::ALREADY_HANDLED.to_string());
+    }
+    pos_hubrise::outbox::enqueue_patch(
+        &tx,
+        order_id,
+        &ws.hubrise_order_id,
+        &json!({ "status": "completed" }),
+    )
+    .map_err(errors::internal)?;
+    tx.commit().map_err(errors::internal)?;
+    state.hubrise_outbox_wake.notify_one();
+    Ok(())
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RefundRequest {
     pub order_id: i64,

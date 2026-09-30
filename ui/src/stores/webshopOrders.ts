@@ -4,12 +4,20 @@ import {
   hubriseListWebshopOrders,
   hubrisePatchOrderStatus,
   hubriseSetConfirmedTime,
+  hubriseSyncCatalog,
   printWebshopCustomer,
   printWebshopKitchen,
+  webshopAcceptOrder,
+  webshopCloseCancelledOrder,
+  webshopCompleteOrder,
+  webshopHandoverOrder,
+  webshopRefundOrder,
+  webshopRejectOrder,
   type WebshopOrderSummary,
 } from '../api/ipc'
 import { useI18n } from '../i18n'
 import { useToastStore } from './toast'
+import type { CheckoutResult, CheckoutPaymentMethod } from '../types'
 import { describeError, errorCode } from '../utils/errorMessages'
 
 /**
@@ -95,30 +103,79 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
       }
     },
 
-    async acceptOrder(hubriseOrderId: string) {
-      // Step 1 - status transition as before.
-      await this.patchStatus(hubriseOrderId, 'accepted')
+    /**
+     * Accepter: the backend signs the order (N if prepaid, P if
+     * unpaid) and tells HubRise `accepted` with the target time: the
+     * restaurant default unless HubRise already set one.
+     */
+    async acceptOrder(order: WebshopOrderSummary) {
+      const minutes = defaultPrepMinutes(order)
+      const confirmed =
+        order.confirmed_time ?? new Date(Date.now() + minutes * 60_000).toISOString()
+      await this.run(async () => {
+        const result = await webshopAcceptOrder(order.id, confirmed)
+        if (!result.kitchen_printed) this.warnKitchen()
+      })
+    },
 
-      // Step 2 - seed confirmed_time with the restaurant default so
-      // aggregator drivers and the customer get a target ETA the
-      // moment we accept. Respect any value already set upstream
-      // (e.g. HubRise pre-populated it) and never overwrite it.
-      const target = this.orders.find(
-        (o) => o.hubrise_order_id === hubriseOrderId,
-      )
-      if (target && !target.confirmed_time) {
-        const minutes = defaultPrepMinutes(target)
-        const iso = new Date(Date.now() + minutes * 60_000).toISOString()
-        try {
-          await hubriseSetConfirmedTime(hubriseOrderId, iso)
-          target.confirmed_time = iso
-        } catch (err) {
-          // Best-effort: Accepter stays green even if this secondary
-          // PATCH fails; the operator can still tap the delay chips.
-          console.error('auto-set confirmed_time failed:', err)
-        }
+    async rejectOrder(order: WebshopOrderSummary) {
+      await this.run(() => webshopRejectOrder(order.id))
+    },
+
+    /** Encaisser an unpaid order, cash or card for its total. */
+    async collectOrder(order: WebshopOrderSummary, method: CheckoutPaymentMethod) {
+      const payments =
+        method === 'cash' ? [{ method }] : [{ method, amount_cents: order.total_cents }]
+      await this.runSale(() => webshopHandoverOrder(order.id, payments))
+    },
+
+    /** A prepaid order leaves: its sale is already signed. */
+    async completeOrder(order: WebshopOrderSummary) {
+      await this.run(() => webshopCompleteOrder(order.id))
+    },
+
+    /** Rembourser: the logged-in manager confirms the refund. */
+    async refundOrder(order: WebshopOrderSummary, managerInsz: string) {
+      await this.runSale(() => webshopRefundOrder(order.id, managerInsz))
+    },
+
+    /** Clôturer an unpaid order cancelled after its P. */
+    async closeCancelledOrder(order: WebshopOrderSummary) {
+      await this.runSale(() => webshopCloseCancelledOrder(order.id))
+    },
+
+    /** Resynchroniser: fetch the catalog, then the orders it resolves. */
+    async resync() {
+      await this.run(() => hubriseSyncCatalog())
+    },
+
+    /** Run a board action, show its error, reload the board. */
+    async run(action: () => Promise<unknown>) {
+      const toast = useToastStore()
+      try {
+        await action()
+      } catch (err) {
+        toast.show(describeError(err), 'error')
+        throw err
+      } finally {
+        await this.fetchOrders()
       }
     },
+
+    /** [`run`] for an action that signs a sale and answers with it. */
+    async runSale(action: () => Promise<CheckoutResult>) {
+      await this.run(async () => {
+        const result = await action()
+        if (!result.success) throw result.error ?? 'internal'
+      })
+    },
+
+    warnKitchen() {
+      const toast = useToastStore()
+      const { t } = useI18n()
+      toast.show(t('webshop_toast_printer_missing'), 'warning')
+    },
+
     async startPreparation(hubriseOrderId: string) {
       return this.patchStatus(hubriseOrderId, 'in_preparation')
     },
@@ -127,12 +184,6 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     },
     async markOutForDelivery(hubriseOrderId: string) {
       return this.patchStatus(hubriseOrderId, 'in_delivery')
-    },
-    async completeDelivery(hubriseOrderId: string) {
-      return this.patchStatus(hubriseOrderId, 'completed')
-    },
-    async rejectOrder(hubriseOrderId: string) {
-      return this.patchStatus(hubriseOrderId, 'rejected')
     },
 
     /**

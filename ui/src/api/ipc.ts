@@ -414,6 +414,88 @@ export interface WebshopOrderSummary {
   customer_address_2: string | null;
   customer_postal_code: string | null;
   customer_city: string | null;
+  /** The fiscal side of the order, once resolved against the menu. */
+  webshop?: WebshopState | null;
+}
+
+/** Why an order cannot be accepted as it is (`code` plus details). */
+export interface WebshopAttention {
+  code: string;
+  [detail: string]: unknown;
+}
+
+export interface WebshopState {
+  order_id: number;
+  hubrise_order_id: string;
+  channel: string;
+  channel_kind: "platform" | "webshop" | null;
+  service_type: string | null;
+  payment_mode: "prepaid" | "unpaid" | null;
+  payment_type: "APP" | "ONLINE" | null;
+  /** pending, signing, signed_p, signed_n, voided, rejected,
+   * refund_pending, cancel_pending, refunded, closed */
+  fiscal_state: string;
+  resolution: "ok" | "needs_review";
+  attention: WebshopAttention[];
+  warnings: WebshopAttention[];
+}
+
+export interface WebshopAcceptResult {
+  fiscal_state: string;
+  fiscal_event_id: number;
+  sale: CheckoutResult | null;
+  kitchen_printed: boolean;
+}
+
+/** Sign an online order: N if prepaid, P if unpaid. */
+export function webshopAcceptOrder(
+  orderId: number,
+  confirmedTime?: string
+): Promise<WebshopAcceptResult> {
+  return invoke("webshop_accept_order", {
+    req: { order_id: orderId, confirmed_time: confirmedTime ?? null },
+  });
+}
+
+export function webshopRejectOrder(orderId: number): Promise<void> {
+  return invoke("webshop_reject_order", { orderId });
+}
+
+/** Collect an unpaid order: the sale N closes its P. */
+export function webshopHandoverOrder(
+  orderId: number,
+  payments: PaymentPart[]
+): Promise<CheckoutResult> {
+  return invoke("webshop_handover_order", {
+    req: { order_id: orderId, payments },
+  });
+}
+
+/** Hand over a prepaid order (its sale is already signed). */
+export function webshopCompleteOrder(orderId: number): Promise<void> {
+  return invoke("webshop_complete_order", { orderId });
+}
+
+/** A manager refunds an order cancelled after its sale. */
+export function webshopRefundOrder(
+  orderId: number,
+  employeeInsz: string
+): Promise<CheckoutResult> {
+  return invoke("webshop_refund_order", {
+    req: { order_id: orderId, employee_insz: employeeInsz },
+  });
+}
+
+/** Close an unpaid order cancelled after its P (N at 0,00 EUR). */
+export function webshopCloseCancelledOrder(
+  orderId: number
+): Promise<CheckoutResult> {
+  return invoke("webshop_close_cancelled_order", { orderId });
+}
+
+/** Fetch the HubRise catalog now (after an order to check). */
+export function hubriseSyncCatalog(): Promise<unknown> {
+  return invoke("hubrise_sync_catalog");
 }
 
 export function hubriseGetConnectionStatus(): Promise<HubriseConnectionInfo> {
