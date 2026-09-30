@@ -203,6 +203,8 @@ pub mod hubrise {
     pub const NOT_AWAITING_PAYMENT: &str = "webshop_not_awaiting_payment";
     /// App and online payments are not taken at the till.
     pub const PAYMENT_NOT_AT_TILL: &str = "webshop_payment_not_at_till";
+    /// Only a signed order HubRise cancelled is refunded or closed.
+    pub const NOT_CANCELLED: &str = "webshop_not_cancelled";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -218,6 +220,7 @@ pub mod hubrise {
         NEEDS_REVIEW,
         NOT_AWAITING_PAYMENT,
         PAYMENT_NOT_AT_TILL,
+        NOT_CANCELLED,
     ];
 }
 

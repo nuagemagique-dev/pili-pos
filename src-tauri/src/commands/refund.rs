@@ -102,6 +102,59 @@ pub async fn do_refund_checkout_with(
             kitchen_slip: None,
         });
     }
+    refund_sale(
+        state,
+        original_fiscal_event_id,
+        &employee_insz,
+        delivery_request,
+        RefundSpec::cash(RefundLines::Products(&items)),
+    )
+    .await
+}
+
+/// What a refund gives back.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum RefundLines<'a> {
+    /// The products the operator picked, at the price they were sold.
+    Products(&'a [RefundItem]),
+    /// Every line of the sale, each at its own price, charges included
+    /// (the whole sale of a cancelled online order). Refused once any
+    /// part of the sale was refunded.
+    #[cfg(feature = "hubrise")]
+    Everything,
+}
+
+/// How a refund is made: which lines, and how the money goes back.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RefundSpec<'a> {
+    pub lines: RefundLines<'a>,
+    /// Cash at the till; APP or ONLINE when the platform or the
+    /// webshop's payment provider pays the customer back.
+    pub payment_type: PaymentType,
+    /// Cash leaves the drawer: open it.
+    pub open_drawer: bool,
+}
+
+impl<'a> RefundSpec<'a> {
+    pub fn cash(lines: RefundLines<'a>) -> Self {
+        Self {
+            lines,
+            payment_type: PaymentType::Cash,
+            open_drawer: true,
+        }
+    }
+}
+
+/// Sign the refund of the sale `original_fiscal_event_id` in
+/// `employee_insz`'s name (already checked by the caller).
+pub(crate) async fn refund_sale(
+    state: &AppState,
+    original_fiscal_event_id: i64,
+    employee_insz: &str,
+    delivery_request: Option<&TicketDeliveryRequest>,
+    spec: RefundSpec<'_>,
+) -> Result<CheckoutResult, String> {
+    let employee_insz = employee_insz.to_owned();
 
     // 1. Load original fiscal event → extract FdmReference
     let (original_ref, original_signature, original_lines, config, bp_id) = {
@@ -189,19 +242,59 @@ pub async fn do_refund_checkout_with(
         let already_refunded =
             already_refunded_quantities(&db, &original_ref).map_err(|e| e.to_string())?;
 
-        let mut requested: std::collections::HashMap<i64, i32> = std::collections::HashMap::new();
-        for item in &items {
-            if item.quantity <= 0 {
-                return Err(errors::coded(
-                    errors::REFUND_QUANTITY_POSITIVE,
-                    &[("product", &item.menu_item_id)],
-                ));
+        // (quantity refunded, the original line it comes from)
+        let mut refunded: Vec<(i32, &pos_core::order::OrderLine)> = Vec::new();
+        match spec.lines {
+            RefundLines::Products(items) => {
+                let mut requested: std::collections::HashMap<i64, i32> =
+                    std::collections::HashMap::new();
+                for item in items {
+                    if item.quantity <= 0 {
+                        return Err(errors::coded(
+                            errors::REFUND_QUANTITY_POSITIVE,
+                            &[("product", &item.menu_item_id)],
+                        ));
+                    }
+                    *requested.entry(item.menu_item_id).or_default() += item.quantity;
+                }
+                for (&menu_item_id, &quantity) in &requested {
+                    let prior = already_refunded.get(&menu_item_id).copied().unwrap_or(0);
+                    refunded_line(&original_lines, menu_item_id, quantity, prior)?;
+                }
+                for item in items {
+                    let prior = already_refunded
+                        .get(&item.menu_item_id)
+                        .copied()
+                        .unwrap_or(0);
+                    let original = refunded_line(
+                        &original_lines,
+                        item.menu_item_id,
+                        requested[&item.menu_item_id],
+                        prior,
+                    )?;
+                    refunded.push((item.quantity, original));
+                }
             }
-            *requested.entry(item.menu_item_id).or_default() += item.quantity;
-        }
-        for (&menu_item_id, &quantity) in &requested {
-            let prior = already_refunded.get(&menu_item_id).copied().unwrap_or(0);
-            refunded_line(&original_lines, menu_item_id, quantity, prior)?;
+            #[cfg(feature = "hubrise")]
+            RefundLines::Everything => {
+                if let Some((&product, &prior)) = already_refunded.iter().next() {
+                    return Err(errors::coded(
+                        errors::REFUND_EXCEEDS_SOLD,
+                        &[
+                            ("product", &product),
+                            ("requested", &0),
+                            ("sold", &0),
+                            ("refunded", &prior),
+                        ],
+                    ));
+                }
+                for line in original_lines.iter().filter(|l| l.quantity > 0) {
+                    refunded.push((line.quantity, line));
+                }
+                if refunded.is_empty() {
+                    return Err(errors::NOTHING_TO_REFUND.to_string());
+                }
+            }
         }
         let order = pos_db::queries::orders::create_order(
             &db,
@@ -210,23 +303,13 @@ pub async fn do_refund_checkout_with(
             &employee_insz,
         )
         .map_err(|e| e.to_string())?;
-        for item in &items {
-            let prior = already_refunded
-                .get(&item.menu_item_id)
-                .copied()
-                .unwrap_or(0);
-            let original = refunded_line(
-                &original_lines,
-                item.menu_item_id,
-                requested[&item.menu_item_id],
-                prior,
-            )?;
+        for (quantity, original) in refunded {
             pos_db::queries::orders::add_order_line(
                 &db,
                 pos_db::queries::orders::NewOrderLine {
                     order_id: order.id,
-                    menu_item_id: item.menu_item_id,
-                    quantity: -(item.quantity), // NEGATE for refund
+                    menu_item_id: original.menu_item_id,
+                    quantity: -quantity, // NEGATE for refund
                     unit_price_cents: original.unit_price_cents,
                     vat_code: original.vat_code,
                     name: &original.name,
@@ -270,7 +353,7 @@ pub async fn do_refund_checkout_with(
             &refund_lines,
             ticket_number,
             &bp_id,
-            PaymentType::Cash,
+            spec.payment_type,
             refund_order.total_cents, // negative
             0,                        // refunds are not rounded
             Some(&original_ref),
@@ -327,7 +410,9 @@ pub async fn do_refund_checkout_with(
                 .collect();
 
             let payments = vec![TicketPayment {
-                method: "Cash".to_string(),
+                method: pos_fiscal::payment::payment_line_identity(spec.payment_type)
+                    .1
+                    .to_string(),
                 amount: refund_order.total_cents as f64 / 100.0,
             }];
 
@@ -404,9 +489,14 @@ pub async fn do_refund_checkout_with(
             // refund still records no row, for the same reason a training
             // sale doesn't.
             if label != EventLabel::T {
+                let method = if spec.payment_type == PaymentType::Cash {
+                    "cash"
+                } else {
+                    "other"
+                };
                 tx.execute(
-                    "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'cash', ?2)",
-                    rusqlite::params![refund_order.id, refund_order.total_cents],
+                    "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
+                    rusqlite::params![refund_order.id, method, refund_order.total_cents],
                 )
                 .map_err(|e| e.to_string())?;
             }
@@ -427,7 +517,8 @@ pub async fn do_refund_checkout_with(
             ticket.as_ref(),
         )
         .await;
-        if ticket.is_some()
+        if spec.open_drawer
+            && ticket.is_some()
             && let Some(ref addr) = config.printer_address
         {
             let drawer_data = pos_print::drawer::kick_drawer_bytes();

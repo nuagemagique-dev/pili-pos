@@ -105,6 +105,7 @@ export const webshopMessages: Messages = {
   "err_webshop_already_handled": { fr: "Cette commande a déjà été traitée.", en: "This order was already handled.", zh: "该订单已处理。" },
   "err_webshop_needs_review": { fr: "Commande à vérifier : elle ne correspond pas au menu.", en: "Order to check: it does not match the menu.", zh: "订单需核对：与菜单不符。" },
   "err_webshop_not_awaiting_payment": { fr: "Cette commande n'attend pas de paiement.", en: "This order is not awaiting payment.", zh: "该订单无需收款。" },
+  "err_webshop_not_cancelled": { fr: "Seule une commande signée puis annulée se rembourse ou se clôture.", en: "Only a signed order that was then cancelled is refunded or closed.", zh: "只有已签署后被取消的订单才能退款或结清。" },
   "err_webshop_payment_not_at_till": { fr: "Ce moyen de paiement n'est pas accepté en caisse.", en: "This payment method is not taken at the till.", zh: "收银台不接受此支付方式。" },
   "err_hubrise_channel_invalid": { fr: "Réglage de canal non valable.", en: "Invalid channel setting.", zh: "渠道设置无效。" },
   "err_hubrise_nothing_pending": { fr: "Aucun catalogue en attente.", en: "No catalog is waiting.", zh: "没有待处理的菜单。" },

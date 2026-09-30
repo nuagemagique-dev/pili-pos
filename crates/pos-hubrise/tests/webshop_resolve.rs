@@ -358,7 +358,11 @@ fn a_signed_order_is_not_resolved_again() {
     changed.items.clear();
     let again = ingest(&conn, &changed).unwrap();
     assert!(!again.pending);
-    assert_eq!(load(&conn, first.order_id).unwrap().unwrap(), before);
+    // The signed lines stand; the change is flagged for staff.
+    let after = load(&conn, first.order_id).unwrap().unwrap();
+    assert_eq!(after.lines, before.lines);
+    assert_eq!(after.resolution, before.resolution);
+    assert_eq!(after.attention, vec![Attention::ChangedAfterSigning]);
 }
 
 #[test]

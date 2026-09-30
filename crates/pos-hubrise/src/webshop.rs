@@ -81,6 +81,9 @@ pub enum Attention {
         paid_cents: i64,
         total_cents: i64,
     },
+    /// HubRise changed what was sold after the POS signed it: the
+    /// signed sale stands, staff settle the difference.
+    ChangedAfterSigning,
 }
 
 impl Attention {
@@ -545,6 +548,14 @@ pub fn ingest(conn: &Connection, order: &Order) -> Result<Ingested> {
         .clone()
         .unwrap_or_else(|| "webshop".to_string());
     let raw_json = serde_json::to_string(order)?;
+    let previous: Option<String> = conn
+        .query_row(
+            "SELECT raw_hubrise_json FROM orders WHERE hubrise_order_id = ?1",
+            params![order.id],
+            |r| r.get(0),
+        )
+        .optional()?
+        .flatten();
 
     let order_id: i64 = conn.query_row(
         "INSERT INTO orders
@@ -577,6 +588,13 @@ pub fn ingest(conn: &Connection, order: &Order) -> Result<Ingested> {
         )
         .optional()?;
     if state.as_deref().is_some_and(|s| s != "pending") {
+        if previous
+            .as_deref()
+            .is_some_and(|prev| content_changed(prev, &raw_json))
+        {
+            flag_changed_after_signing(conn, order_id)?;
+        }
+        follow_cancellation(conn, order_id)?;
         return Ok(Ingested {
             order_id,
             pending: false,
@@ -611,6 +629,70 @@ pub fn ingest(conn: &Connection, order: &Order) -> Result<Ingested> {
         pending: true,
         catalog_miss: resolution.attention.iter().any(Attention::is_catalog_miss),
     })
+}
+
+/// What HubRise last said of an order ends it without the food being
+/// handed over.
+const CANCELLED_UPSTREAM: &str = "json_extract(o.raw_hubrise_json, '$.status')
+    IN ('cancelled', 'rejected', 'delivery_failed')";
+
+/// A signed order HubRise cancelled waits for staff: a prepaid sale
+/// (N) for its refund, an unpaid order (P) for its closing. Nothing is
+/// signed here. Returns the new state, if it changed.
+pub fn follow_cancellation(conn: &Connection, order_id: i64) -> Result<Option<String>> {
+    let state = conn
+        .query_row(
+            &format!(
+                "UPDATE webshop_orders SET fiscal_state = CASE fiscal_state
+                    WHEN 'signed_n' THEN 'refund_pending' ELSE 'cancel_pending' END
+                 WHERE order_id = ?1 AND fiscal_state IN ('signed_n', 'signed_p')
+                   AND EXISTS (SELECT 1 FROM orders o WHERE o.id = ?1 AND {CANCELLED_UPSTREAM})
+                 RETURNING fiscal_state"
+            ),
+            params![order_id],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(state)
+}
+
+/// Whether HubRise cancelled the order.
+pub fn cancelled_upstream(conn: &Connection, order_id: i64) -> Result<bool> {
+    Ok(conn.query_row(
+        &format!("SELECT EXISTS (SELECT 1 FROM orders o WHERE o.id = ?1 AND {CANCELLED_UPSTREAM})"),
+        params![order_id],
+        |r| r.get(0),
+    )?)
+}
+
+/// What was sold: a change after signing is not signed again.
+fn content_changed(previous: &str, current: &str) -> bool {
+    let (Ok(a), Ok(b)) = (
+        serde_json::from_str::<serde_json::Value>(previous),
+        serde_json::from_str::<serde_json::Value>(current),
+    ) else {
+        return false;
+    };
+    ["items", "charges", "discounts", "total"]
+        .iter()
+        .any(|k| a.get(k) != b.get(k))
+}
+
+fn flag_changed_after_signing(conn: &Connection, order_id: i64) -> Result<()> {
+    let raw: String = conn.query_row(
+        "SELECT attention_json FROM webshop_orders WHERE order_id = ?1",
+        params![order_id],
+        |r| r.get(0),
+    )?;
+    let mut attention: Vec<Attention> = serde_json::from_str(&raw)?;
+    if !attention.contains(&Attention::ChangedAfterSigning) {
+        attention.push(Attention::ChangedAfterSigning);
+        conn.execute(
+            "UPDATE webshop_orders SET attention_json = ?2 WHERE order_id = ?1",
+            params![order_id, serde_json::to_string(&attention)?],
+        )?;
+    }
+    Ok(())
 }
 
 fn void_pending(conn: &Connection, order_id: i64, order: &Order) -> Result<()> {

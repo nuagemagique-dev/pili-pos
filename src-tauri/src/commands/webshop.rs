@@ -23,7 +23,7 @@ use pos_fiscal::event::build_order_input;
 use pos_fiscal::fdm_client::FdmClient;
 use pos_fiscal::inputs::CostCenterInput;
 use pos_fiscal::payment::{PaymentMethod, PaymentPart};
-use pos_fiscal::types::{CostCenterType, EventLabel};
+use pos_fiscal::types::{CostCenterType, EventLabel, PaymentType};
 use pos_hubrise::webshop::{self, WebshopState};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,7 @@ use crate::commands::access::{self, Access};
 use crate::commands::checkout::{CheckoutResult, Payment, SaleOptions, sell};
 use crate::commands::delivery::TicketDeliveryRequest;
 use crate::commands::errors;
+use crate::commands::refund::{RefundLines, RefundSpec, refund_sale};
 use crate::state::AppState;
 
 /// What acceptance did.
@@ -172,6 +173,14 @@ fn record_signed(
         params![ws.order_id],
     )
     .map_err(errors::internal)?;
+    // HubRise cancelled the order while it was being signed: the
+    // signature stands and waits for its refund or closing; HubRise is
+    // not told anything it already refused.
+    if webshop::cancelled_upstream(&tx, ws.order_id).map_err(errors::internal)? {
+        webshop::follow_cancellation(&tx, ws.order_id).map_err(errors::internal)?;
+        tx.commit().map_err(errors::internal)?;
+        return Ok(());
+    }
     pos_hubrise::outbox::enqueue_patch(&tx, ws.order_id, &ws.hubrise_order_id, &patch)
         .map_err(errors::internal)?;
     if let Some(status) = patch.get("status").and_then(|s| s.as_str()) {
@@ -305,6 +314,7 @@ async fn sign_prepaid(
         SaleOptions {
             cost_center: Some(cost_center(ws)),
             online: true,
+            ..SaleOptions::default()
         },
     )
     .await?;
@@ -422,6 +432,7 @@ pub async fn do_handover_webshop_order(
         SaleOptions {
             cost_center: Some(cost_center(&ws)),
             online: true,
+            ..SaleOptions::default()
         },
     )
     .await;
@@ -486,21 +497,212 @@ pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), St
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct RefundRequest {
+    pub order_id: i64,
+    /// The manager confirming the refund.
+    pub employee_insz: String,
+    #[serde(default)]
+    pub delivery: Option<TicketDeliveryRequest>,
+}
+
+#[tauri::command]
+pub async fn webshop_refund_order(
+    state: State<'_, AppState>,
+    req: RefundRequest,
+) -> Result<CheckoutResult, String> {
+    do_refund_webshop_order(
+        state.inner(),
+        req.order_id,
+        &req.employee_insz,
+        req.delivery.as_ref(),
+    )
+    .await
+}
+
+/// The sale an order's refund cites, and whether it is still to be
+/// refunded or closed.
+fn signed_events(state: &AppState, order_id: i64) -> Result<(Option<i64>, Option<i64>), String> {
+    let db = state.db.lock().map_err(errors::internal)?;
+    db.query_row(
+        "SELECT n_event_id, p_event_id FROM webshop_orders WHERE order_id = ?1",
+        params![order_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )
+    .map_err(errors::internal)
+}
+
+/// Refund an order HubRise cancelled after its sale was signed: every
+/// line at its price, charges included, citing the sale. A manager
+/// confirms it; nothing refunds on its own. The platform or the payment
+/// provider pays a prepaid order back (APP / ONLINE, the drawer stays
+/// shut); an order paid at the till is refunded in cash.
+pub async fn do_refund_webshop_order(
+    state: &AppState,
+    order_id: i64,
+    employee_insz: &str,
+    delivery: Option<&TicketDeliveryRequest>,
+) -> Result<CheckoutResult, String> {
+    if let Err(e) = access::operator_named(state, employee_insz, Access::Admin) {
+        return Ok(CheckoutResult::refused(e));
+    }
+    if state.config.lock().map_err(errors::internal)?.training_mode {
+        return Ok(CheckoutResult::refused(errors::hubrise::TRAINING));
+    }
+    let ws = load(state, order_id)?;
+    let (Some(sale), _) = signed_events(state, order_id)? else {
+        return Ok(CheckoutResult::refused(errors::hubrise::NOT_CANCELLED));
+    };
+    if ws.fiscal_state != "refund_pending" {
+        return Ok(CheckoutResult::refused(errors::hubrise::NOT_CANCELLED));
+    }
+    if !transition(state, order_id, "refund_pending", "signing")? {
+        return Ok(CheckoutResult::refused(errors::hubrise::ALREADY_HANDLED));
+    }
+    let spec = match ws.payment_type.as_deref() {
+        Some(t) if ws.payment_mode.as_deref() == Some("prepaid") => RefundSpec {
+            lines: RefundLines::Everything,
+            payment_type: if t == "APP" {
+                PaymentType::App
+            } else {
+                PaymentType::Online
+            },
+            open_drawer: false,
+        },
+        _ => RefundSpec::cash(RefundLines::Everything),
+    };
+    let result = refund_sale(state, sale, employee_insz, delivery, spec).await;
+    match result {
+        Ok(r) if r.success => {
+            let db = state.db.lock().map_err(errors::internal)?;
+            db.execute(
+                "UPDATE webshop_orders SET fiscal_state = 'refunded', refund_event_id = ?2
+                 WHERE order_id = ?1",
+                params![order_id, r.fiscal_event_id],
+            )
+            .map_err(errors::internal)?;
+            Ok(r)
+        }
+        other => {
+            transition(state, order_id, "signing", "refund_pending")?;
+            other
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn webshop_close_cancelled_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<CheckoutResult, String> {
+    do_close_cancelled_webshop_order(state.inner(), order_id).await
+}
+
+/// Close an unpaid order HubRise cancelled after its P: every line is
+/// corrected, and the sale N at 0,00 EUR (payment 0, FAQ Q206 / Q209)
+/// closes the P with the same cost center. Its ticket is printed.
+pub async fn do_close_cancelled_webshop_order(
+    state: &AppState,
+    order_id: i64,
+) -> Result<CheckoutResult, String> {
+    let cashier = match access::operator(state, Access::Cashier) {
+        Ok(user) => user,
+        Err(e) => return Ok(CheckoutResult::refused(e)),
+    };
+    if state.config.lock().map_err(errors::internal)?.training_mode {
+        return Ok(CheckoutResult::refused(errors::hubrise::TRAINING));
+    }
+    let ws = load(state, order_id)?;
+    if ws.fiscal_state != "cancel_pending" {
+        return Ok(CheckoutResult::refused(errors::hubrise::NOT_CANCELLED));
+    }
+    if !transition(state, order_id, "cancel_pending", "signing")? {
+        return Ok(CheckoutResult::refused(errors::hubrise::ALREADY_HANDLED));
+    }
+    let closed = async {
+        {
+            // Corrections, journalled once: a retry finds no line left.
+            let db = state.db.lock().map_err(errors::internal)?;
+            let tx = db.unchecked_transaction().map_err(errors::internal)?;
+            let lines = pos_db::queries::orders::get_order_lines(&tx, order_id)
+                .map_err(errors::internal)?;
+            for line in lines {
+                pos_db::queries::orders::remove_order_line(&tx, line.id)
+                    .map_err(errors::internal)?;
+            }
+            tx.commit().map_err(errors::internal)?;
+        }
+        sell(
+            state,
+            cashier,
+            order_id,
+            Payment::Parts(&[]),
+            None,
+            SaleOptions {
+                cost_center: Some(cost_center(&ws)),
+                online: true,
+                closes_cancelled: true,
+            },
+        )
+        .await
+    }
+    .await;
+    match closed {
+        Ok(r) if r.success => {
+            let db = state.db.lock().map_err(errors::internal)?;
+            db.execute(
+                "UPDATE webshop_orders SET fiscal_state = 'closed', n_event_id = ?2
+                 WHERE order_id = ?1",
+                params![order_id, r.fiscal_event_id],
+            )
+            .map_err(errors::internal)?;
+            Ok(r)
+        }
+        other => {
+            transition(state, order_id, "signing", "cancel_pending")?;
+            other
+        }
+    }
+}
+
 /// Boot recovery for orders a crash left in `signing`: signed if the
 /// archive holds its event (and the missing HubRise status is queued),
-/// otherwise back to where it was. Returns how many were repaired.
+/// otherwise back to where it was. A refund or a closing interrupted
+/// the same way is finished or offered again. Returns how many were
+/// repaired.
 pub fn recover_webshop_orders(conn: &rusqlite::Connection) -> rusqlite::Result<usize> {
-    let stuck: Vec<(i64, String, Option<i64>)> = {
+    type Stuck = (i64, String, Option<i64>, Option<i64>);
+    let stuck: Vec<Stuck> = {
         let mut stmt = conn.prepare(
-            "SELECT order_id, hubrise_order_id, p_event_id FROM webshop_orders
+            "SELECT order_id, hubrise_order_id, p_event_id, n_event_id FROM webshop_orders
              WHERE fiscal_state = 'signing'",
         )?;
-        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
             .collect::<rusqlite::Result<_>>()?
     };
+    let to_sql =
+        |e: pos_hubrise::errors::HubriseError| rusqlite::Error::ToSqlConversionFailure(Box::new(e));
     let mut repaired = 0;
-    for (order_id, hubrise_order_id, p_event_id) in stuck {
+    for (order_id, hubrise_order_id, p_event_id, n_event_id) in stuck {
         let tx = conn.unchecked_transaction()?;
+        let cancelled = webshop::cancelled_upstream(&tx, order_id).map_err(to_sql)?;
+        let set = |state: &str, column: Option<&str>, id: Option<i64>| -> rusqlite::Result<()> {
+            match (column, id) {
+                (Some(column), Some(id)) => tx.execute(
+                    &format!(
+                        "UPDATE webshop_orders SET fiscal_state = ?2, {column} = ?3,
+                            accepted_at = COALESCE(accepted_at, datetime('now'))
+                         WHERE order_id = ?1"
+                    ),
+                    params![order_id, state, id],
+                )?,
+                _ => tx.execute(
+                    "UPDATE webshop_orders SET fiscal_state = ?2 WHERE order_id = ?1",
+                    params![order_id, state],
+                )?,
+            };
+            Ok(())
+        };
         let event = |label: &str| -> rusqlite::Result<Option<i64>> {
             tx.query_row(
                 "SELECT id FROM fiscal_events WHERE order_id = ?1 AND event_type = ?2
@@ -510,8 +712,41 @@ pub fn recover_webshop_orders(conn: &rusqlite::Connection) -> rusqlite::Result<u
             )
             .optional()
         };
+
+        // A refund of the signed sale, interrupted.
+        if cancelled && let Some(sale) = n_event_id {
+            match refund_citing(&tx, sale)? {
+                Some(refund) => set("refunded", Some("refund_event_id"), Some(refund))?,
+                None => set("refund_pending", None, None)?,
+            }
+            tx.commit()?;
+            repaired += 1;
+            continue;
+        }
+
         let n = event("N")?;
         let p = event("P")?;
+        // The closing of a cancelled P, interrupted: its sale at 0,00
+        // EUR has no line left.
+        if cancelled && p_event_id.is_some() {
+            let lines_left: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM order_lines WHERE order_id = ?1)",
+                params![order_id],
+                |r| r.get(0),
+            )?;
+            match n {
+                Some(n) if !lines_left => set("closed", Some("n_event_id"), Some(n))?,
+                Some(n) => {
+                    set("signed_n", Some("n_event_id"), Some(n))?;
+                    webshop::follow_cancellation(&tx, order_id).map_err(to_sql)?;
+                }
+                None => set("cancel_pending", None, None)?,
+            }
+            tx.commit()?;
+            repaired += 1;
+            continue;
+        }
+
         let (to, event_id, status) = match (n, p_event_id, p) {
             // Handover of an unpaid order signed: completed.
             (Some(n), Some(_), _) => ("signed_n", Some(n), Some("completed")),
@@ -528,23 +763,19 @@ pub fn recover_webshop_orders(conn: &rusqlite::Connection) -> rusqlite::Result<u
         } else {
             "n_event_id"
         };
-        match event_id {
-            Some(id) => tx.execute(
-                &format!(
-                    "UPDATE webshop_orders SET fiscal_state = ?2, {column} = ?3,
-                        accepted_at = COALESCE(accepted_at, datetime('now'))
-                     WHERE order_id = ?1"
-                ),
-                params![order_id, to, id],
-            )?,
-            None => tx.execute(
-                "UPDATE webshop_orders SET fiscal_state = ?2 WHERE order_id = ?1",
-                params![order_id, to],
-            )?,
-        };
-        if let Some(status) = status {
+        set(to, Some(column), event_id)?;
+        if event_id.is_some() {
             tx.execute(
-                "UPDATE orders SET is_fiscal = 1, hubrise_status = ?2 WHERE id = ?1",
+                "UPDATE orders SET is_fiscal = 1 WHERE id = ?1",
+                params![order_id],
+            )?;
+        }
+        if cancelled {
+            // Signed while HubRise cancelled it: nothing to tell HubRise.
+            webshop::follow_cancellation(&tx, order_id).map_err(to_sql)?;
+        } else if let Some(status) = status {
+            tx.execute(
+                "UPDATE orders SET hubrise_status = ?2 WHERE id = ?1",
                 params![order_id, status],
             )?;
             let queued: bool = tx.query_row(
@@ -560,11 +791,31 @@ pub fn recover_webshop_orders(conn: &rusqlite::Connection) -> rusqlite::Result<u
                     &hubrise_order_id,
                     &json!({ "status": status }),
                 )
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                .map_err(to_sql)?;
             }
         }
         tx.commit()?;
         repaired += 1;
     }
     Ok(repaired)
+}
+
+/// The refund archived against the sale `sale`: the N whose `fdmRef`
+/// is that sale's FDM identity.
+fn refund_citing(conn: &rusqlite::Connection, sale: i64) -> rusqlite::Result<Option<i64>> {
+    conn.query_row(
+        "SELECT r.id FROM fiscal_events r, fiscal_events o
+         WHERE o.id = ?1 AND r.id > o.id
+           AND json_extract(r.event_data_json, '$.fdmRef.fdmId') = o.fdm_id
+           AND json_extract(r.event_data_json, '$.fdmRef.fdmDateTime') = o.fdm_datetime
+           AND json_extract(r.event_data_json, '$.fdmRef.eventLabel') = o.event_label
+           AND json_extract(r.event_data_json, '$.fdmRef.eventCounter')
+               = json_extract(o.fdm_response_json, '$.fdmRef.eventCounter')
+           AND json_extract(r.event_data_json, '$.fdmRef.totalCounter')
+               = json_extract(o.fdm_response_json, '$.fdmRef.totalCounter')
+         ORDER BY r.id LIMIT 1",
+        params![sale],
+        |r| r.get(0),
+    )
+    .optional()
 }

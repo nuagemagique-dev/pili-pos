@@ -141,6 +141,11 @@ pub(crate) struct SaleOptions {
     /// An online order: no echo to HubRise (it came from there), no
     /// bar slip (the caller prints the online kitchen ticket).
     pub online: bool,
+    /// The closing of an online order cancelled after its P: every line
+    /// was corrected, so the sale comes to 0,00 EUR with its journal
+    /// (additions and corrections) as its only lines.
+    #[cfg(feature = "hubrise")]
+    pub closes_cancelled: bool,
 }
 
 /// How a sale is paid.
@@ -184,7 +189,15 @@ pub(crate) async fn sell(
     let mut order = order;
     order.user_insz = cashier.insz;
 
-    if lines.is_empty() {
+    #[cfg(feature = "hubrise")]
+    let nothing_to_sign = if options.closes_cancelled {
+        entries.is_empty() || order.total_cents != 0
+    } else {
+        lines.is_empty()
+    };
+    #[cfg(not(feature = "hubrise"))]
+    let nothing_to_sign = lines.is_empty();
+    if nothing_to_sign {
         return Ok(CheckoutResult {
             success: false,
             ticket: None,
