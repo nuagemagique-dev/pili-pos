@@ -358,6 +358,10 @@ enum PaymentKind {
     Cash,
     Card,
     MealVoucher,
+    /// Paid in an ordering platform's app (online orders).
+    App,
+    /// Paid online on the restaurant's webshop (online orders).
+    Online,
     Other,
 }
 
@@ -375,6 +379,10 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
         Some(PaymentKind::Cash)
     } else if lower.contains("card") {
         Some(PaymentKind::Card)
+    } else if lower == "app" {
+        Some(PaymentKind::App)
+    } else if lower == "online" {
+        Some(PaymentKind::Online)
     } else if lower == "other" || lower == "payment" {
         Some(PaymentKind::Other)
     } else {
@@ -383,7 +391,7 @@ fn payment_kind_from_name(name: &str) -> Option<PaymentKind> {
 }
 
 fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str {
-    use PaymentKind::{Card, Cash, MealVoucher, Other};
+    use PaymentKind::{App, Card, Cash, MealVoucher, Online, Other};
     use ReceiptLanguage::{De, Fr, Nl};
     match (kind, lang) {
         (Cash, Fr) => "Especes",
@@ -395,6 +403,12 @@ fn payment_kind_label(kind: PaymentKind, lang: ReceiptLanguage) -> &'static str 
         (MealVoucher, Fr) => "Cheques-repas",
         (MealVoucher, Nl) => "Maaltijdcheques",
         (MealVoucher, De) => "Essensgutscheine",
+        (App, Fr) => "Application",
+        (App, Nl) => "App",
+        (App, De) => "App",
+        (Online, Fr) => "Paiement en ligne",
+        (Online, Nl) => "Online betaling",
+        (Online, De) => "Online-Zahlung",
         (Other, Fr) => "Autre",
         (Other, Nl) => "Overige",
         (Other, De) => "Sonstige",
@@ -414,6 +428,28 @@ pub(crate) fn payment_label(name: &str, lang: ReceiptLanguage) -> String {
     match payment_kind_from_name(name) {
         Some(kind) => payment_kind_label(kind, lang).to_string(),
         None => name.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod online_payment_label_tests {
+    use super::*;
+
+    #[test]
+    fn app_and_online_payments_have_printed_names() {
+        assert_eq!(payment_label("App", ReceiptLanguage::Fr), "Application");
+        assert_eq!(
+            payment_label("Online", ReceiptLanguage::Fr),
+            "Paiement en ligne"
+        );
+        assert_eq!(
+            payment_label("Online", ReceiptLanguage::Nl),
+            "Online betaling"
+        );
+        assert_eq!(
+            payment_label("Online", ReceiptLanguage::De),
+            "Online-Zahlung"
+        );
     }
 }
 

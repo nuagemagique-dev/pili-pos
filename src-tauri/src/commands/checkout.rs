@@ -113,14 +113,34 @@ pub async fn do_checkout_split(
         Ok(user) => user,
         Err(e) => return Ok(CheckoutResult::refused(e)),
     };
+    // App and online payments come with online orders only, never
+    // from the till.
+    if parts.iter().any(|p| !p.method.is_offered_at_till()) {
+        return Ok(CheckoutResult::refused(payment_error(
+            PaymentError::Invalid,
+        )));
+    }
     sell(
         state,
         cashier,
         order_id,
         Payment::Parts(parts),
         delivery_request,
+        SaleOptions::default(),
     )
     .await
+}
+
+/// How a sale differs from a sale at the till. The default is the
+/// till's; only online orders (feature `hubrise`) set anything.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SaleOptions {
+    /// The online order's cost center (platform or webshop), in place
+    /// of the table's.
+    pub cost_center: Option<pos_fiscal::inputs::CostCenterInput>,
+    /// An online order: no echo to HubRise (it came from there), no
+    /// bar slip (the caller prints the online kitchen ticket).
+    pub online: bool,
 }
 
 /// How a sale is paid.
@@ -140,6 +160,7 @@ pub(crate) async fn sell(
     order_id: i64,
     payment: Payment<'_>,
     delivery_request: Option<&TicketDeliveryRequest>,
+    options: SaleOptions,
 ) -> Result<CheckoutResult, String> {
     let cashier = operator;
     // 1. Read order + lines from DB
@@ -207,6 +228,23 @@ pub(crate) async fn sell(
         });
     }
 
+    // An online order is signed by its own commands (acceptance,
+    // handover), with its cost center: never as a till sale.
+    #[cfg(feature = "hubrise")]
+    if !options.online {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let online: bool = db
+            .query_row(
+                "SELECT hubrise_order_id IS NOT NULL FROM orders WHERE id = ?1",
+                rusqlite::params![order_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if online {
+            return Ok(CheckoutResult::refused(errors::ORDER_NOT_OPEN));
+        }
+    }
+
     // Ticket medium: refused choices stop here, before any signing.
     let resolved = match delivery::resolve(delivery_request, &config, &state.mail) {
         Ok(r) => r,
@@ -263,6 +301,9 @@ pub(crate) async fn sell(
         &settlement,
     );
     sale_input.common.ticket_medium = resolved.medium;
+    if let Some(cost_center) = options.cost_center.clone() {
+        sale_input.cost_center = Some(cost_center);
+    }
 
     // 4. Serialize request for archival
     let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
@@ -410,6 +451,10 @@ pub(crate) async fn sell(
                     }
                     CheckoutPaymentMethod::Card => ("card", p.amount_cents),
                     CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
+                    // Paid to the platform or the webshop's provider.
+                    CheckoutPaymentMethod::App | CheckoutPaymentMethod::Online => {
+                        ("other", p.amount_cents)
+                    }
                 };
                 tx.execute(
                     "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
@@ -441,14 +486,18 @@ pub(crate) async fn sell(
         let drawer_data = pos_print::drawer::kick_drawer_bytes();
         let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
     }
-    let kitchen_slip = bar_slip::print_bar_slip(
-        state,
-        &config,
-        &order.user_insz,
-        order.table_number,
-        &unsent,
-    )
-    .await;
+    let kitchen_slip = if options.online {
+        SlipOutcome::NothingToPrint
+    } else {
+        bar_slip::print_bar_slip(
+            state,
+            &config,
+            &order.user_insz,
+            order.table_number,
+            &unsent,
+        )
+        .await
+    };
 
     // 10. Enqueue the completed order for async push to HubRise.
     // This is a pure SQLite write - zero network, zero latency, never
@@ -458,7 +507,7 @@ pub(crate) async fn sell(
     // on transient failures. Gated behind the `hubrise` feature so the
     // certification build (no HubRise) skips this entirely.
     #[cfg(feature = "hubrise")]
-    if !unpaid {
+    if !unpaid && !options.online {
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()

@@ -651,7 +651,10 @@ fn store_resolution(conn: &Connection, order_id: i64, order: &Order, r: &Resolut
             payment_type = excluded.payment_type, resolution = excluded.resolution,
             attention_json = excluded.attention_json, warnings_json = excluded.warnings_json,
             lines_json = excluded.lines_json, resolved_at = excluded.resolved_at
-         WHERE webshop_orders.fiscal_state = 'pending'",
+         WHERE webshop_orders.fiscal_state = 'pending'
+           -- Lines written by an acceptance whose signature failed are
+           -- what a retry signs: they are not resolved again.
+           AND NOT EXISTS (SELECT 1 FROM order_lines l WHERE l.order_id = webshop_orders.order_id)",
         params![
             order_id,
             order.id,

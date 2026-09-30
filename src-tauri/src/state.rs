@@ -62,6 +62,13 @@ impl AppState {
         if recovered > 0 {
             tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
         }
+        // Online orders a crash left half-signed.
+        #[cfg(feature = "hubrise")]
+        match crate::commands::webshop::recover_webshop_orders(&conn) {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(n, "boot: recovered online order(s) left signing"),
+            Err(e) => tracing::error!(%e, "boot: online order recovery failed"),
+        }
 
         // Dedicated background-poller connection to the same WAL-mode
         // SQLite file (pos-db enables WAL in run_migrations). HubRise only.

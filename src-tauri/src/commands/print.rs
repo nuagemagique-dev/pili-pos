@@ -71,11 +71,11 @@ const ERR_PRINTER_NOT_CONFIGURED: &str = crate::commands::errors::PRINTER_NOT_CO
 /// `orders.id`. Returns the printer-ready payload or a user-facing
 /// error message on failure.
 #[cfg(feature = "hubrise")]
-fn load_webshop_order(state: &State<'_, AppState>, order_id: i64) -> Result<Order, String> {
+fn load_webshop_order(state: &AppState, order_id: i64) -> Result<Order, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let raw: Option<String> = db
         .query_row(
-            "SELECT raw_hubrise_json FROM orders WHERE id = ?1 AND is_fiscal = 0",
+            "SELECT raw_hubrise_json FROM orders WHERE id = ?1 AND hubrise_order_id IS NOT NULL",
             params![order_id],
             |row| row.get(0),
         )
@@ -87,7 +87,7 @@ fn load_webshop_order(state: &State<'_, AppState>, order_id: i64) -> Result<Orde
 /// Pull the configured printer address from `AppState.config` or
 /// return the canonical not-configured error.
 #[cfg(feature = "hubrise")]
-fn printer_address(state: &State<'_, AppState>) -> Result<String, String> {
+fn printer_address(state: &AppState) -> Result<String, String> {
     state
         .config
         .lock()
@@ -119,9 +119,7 @@ fn short_ref(order: &Order) -> String {
 /// Parse a HubRise money string like `"12.50 EUR"` into eurocents.
 #[cfg(feature = "hubrise")]
 fn money_cents(money: &str) -> i64 {
-    let n = money.split_whitespace().next().unwrap_or("0");
-    let parsed: f64 = n.parse().unwrap_or(0.0);
-    (parsed * 100.0).round() as i64
+    pos_hubrise_types::money::parse_cents(money).unwrap_or(0)
 }
 
 /// Extract "HH:MM" from an RFC3339 timestamp, or None on failure.
@@ -142,8 +140,18 @@ pub async fn print_webshop_kitchen(
     state: State<'_, AppState>,
     order_id: i64,
 ) -> Result<(), String> {
-    let order = load_webshop_order(&state, order_id)?;
-    let address = printer_address(&state)?;
+    print_webshop_kitchen_ticket(state.inner(), order_id).await
+}
+
+/// The kitchen ticket of an online order (also printed when it is
+/// accepted).
+#[cfg(feature = "hubrise")]
+pub(crate) async fn print_webshop_kitchen_ticket(
+    state: &AppState,
+    order_id: i64,
+) -> Result<(), String> {
+    let order = load_webshop_order(state, order_id)?;
+    let address = printer_address(state)?;
 
     let items: Vec<KitchenItem> = order
         .items
@@ -179,8 +187,8 @@ pub async fn print_webshop_customer(
     state: State<'_, AppState>,
     order_id: i64,
 ) -> Result<(), String> {
-    let order = load_webshop_order(&state, order_id)?;
-    let address = printer_address(&state)?;
+    let order = load_webshop_order(state.inner(), order_id)?;
+    let address = printer_address(state.inner())?;
 
     // Restaurant header pulled from AppState.config (configured in
     // `state.rs` at POS boot).

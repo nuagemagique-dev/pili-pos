@@ -22,6 +22,8 @@ pub mod social;
 pub mod support;
 pub mod tables;
 pub mod unpaid;
+#[cfg(feature = "hubrise")]
+pub mod webshop;
 
 use crate::state::AppState;
 

@@ -193,6 +193,16 @@ pub mod hubrise {
     /// A channel setting outside platform/webshop, APP/ONLINE,
     /// include/exclude, or without a name.
     pub const CHANNEL_INVALID: &str = "hubrise_channel_invalid";
+    /// Online orders are real sales: not in training mode.
+    pub const TRAINING: &str = "webshop_training";
+    /// Accepted, rejected or being signed already.
+    pub const ALREADY_HANDLED: &str = "webshop_already_handled";
+    /// The order does not match the menu, or its payment is unclear.
+    pub const NEEDS_REVIEW: &str = "webshop_needs_review";
+    /// Only an accepted unpaid order is collected.
+    pub const NOT_AWAITING_PAYMENT: &str = "webshop_not_awaiting_payment";
+    /// App and online payments are not taken at the till.
+    pub const PAYMENT_NOT_AT_TILL: &str = "webshop_payment_not_at_till";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -203,6 +213,11 @@ pub mod hubrise {
         OPEN_ORDERS,
         NOTHING_PENDING,
         CHANNEL_INVALID,
+        TRAINING,
+        ALREADY_HANDLED,
+        NEEDS_REVIEW,
+        NOT_AWAITING_PAYMENT,
+        PAYMENT_NOT_AT_TILL,
     ];
 }
 

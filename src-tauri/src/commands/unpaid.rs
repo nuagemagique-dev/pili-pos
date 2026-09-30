@@ -35,5 +35,13 @@ pub async fn do_close_unpaid(
         Err(e) => return Ok(CheckoutResult::refused(e)),
     };
     tracing::warn!(order_id, operator = %manager.insz, "sale closed unpaid");
-    checkout::sell(state, manager, order_id, Payment::Unpaid, None).await
+    checkout::sell(
+        state,
+        manager,
+        order_id,
+        Payment::Unpaid,
+        None,
+        checkout::SaleOptions::default(),
+    )
+    .await
 }

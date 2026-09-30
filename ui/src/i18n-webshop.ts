@@ -101,6 +101,11 @@ export const webshopMessages: Messages = {
   "err_hubrise_time_invalid": { fr: "Heure non valable.", en: "Invalid time.", zh: "时间无效。" },
   "err_hubrise_menu_managed": { fr: "Le menu est géré par HubRise : modifiez-le là.", en: "The menu is managed in HubRise: edit it there.", zh: "菜单由HubRise管理，请在那里修改。" },
   "err_hubrise_open_orders": { fr: "Clôturez d'abord toutes les commandes ouvertes.", en: "Close every open order first.", zh: "请先结清所有未结订单。" },
+  "err_webshop_training": { fr: "Pas de commande en ligne en mode formation.", en: "No online orders in training mode.", zh: "培训模式下不能处理在线订单。" },
+  "err_webshop_already_handled": { fr: "Cette commande a déjà été traitée.", en: "This order was already handled.", zh: "该订单已处理。" },
+  "err_webshop_needs_review": { fr: "Commande à vérifier : elle ne correspond pas au menu.", en: "Order to check: it does not match the menu.", zh: "订单需核对：与菜单不符。" },
+  "err_webshop_not_awaiting_payment": { fr: "Cette commande n'attend pas de paiement.", en: "This order is not awaiting payment.", zh: "该订单无需收款。" },
+  "err_webshop_payment_not_at_till": { fr: "Ce moyen de paiement n'est pas accepté en caisse.", en: "This payment method is not taken at the till.", zh: "收银台不接受此支付方式。" },
   "err_hubrise_channel_invalid": { fr: "Réglage de canal non valable.", en: "Invalid channel setting.", zh: "渠道设置无效。" },
   "err_hubrise_nothing_pending": { fr: "Aucun catalogue en attente.", en: "No catalog is waiting.", zh: "没有待处理的菜单。" },
 };

@@ -24,6 +24,12 @@ pub enum PaymentMethod {
     Card,
     /// Electronic meal vouchers, paid on the card terminal.
     MealVoucher,
+    /// Paid in an ordering platform's app (an online order signed at
+    /// acceptance). Never offered at the till.
+    App,
+    /// Paid online on the restaurant's own webshop. Never offered at
+    /// the till.
+    Online,
 }
 
 impl PaymentMethod {
@@ -32,7 +38,18 @@ impl PaymentMethod {
             PaymentMethod::Cash => PaymentType::Cash,
             PaymentMethod::Card => PaymentType::CardDebit,
             PaymentMethod::MealVoucher => PaymentType::ChequeMeal,
+            PaymentMethod::App => PaymentType::App,
+            PaymentMethod::Online => PaymentType::Online,
         }
+    }
+
+    /// Whether the operator can take it at the till. App and online
+    /// payments only come with online orders.
+    pub fn is_offered_at_till(self) -> bool {
+        matches!(
+            self,
+            PaymentMethod::Cash | PaymentMethod::Card | PaymentMethod::MealVoucher
+        )
     }
 }
 
@@ -44,6 +61,8 @@ pub fn payment_line_identity(payment_type: PaymentType) -> (&'static str, &'stat
         PaymentType::Cash => ("1", "Cash"),
         PaymentType::CardDebit => ("2", "Card"),
         PaymentType::ChequeMeal => ("3", "Meal voucher"),
+        PaymentType::App => ("4", "App"),
+        PaymentType::Online => ("5", "Online"),
         _ => ("9", "Payment"),
     }
 }
