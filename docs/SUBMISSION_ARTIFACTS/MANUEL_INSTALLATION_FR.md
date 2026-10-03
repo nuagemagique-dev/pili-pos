@@ -307,6 +307,44 @@ et reste en papier seul. Si le service ne répond pas, le choix
 tout de suite et l'e-mail dès le retour du service
 (`TICKET_NUMERIQUE_FR.md`).
 
+**Commandes en ligne (HubRise).** Sans bloc `hubrise`, la caisse ne
+peut pas se connecter à HubRise (« HubRise n'est pas configuré sur
+cette caisse »). Pour un établissement qui reçoit des commandes en
+ligne (`COMMANDES_EN_LIGNE_FR.md`), ajouter à `pos.json` le client
+OAuth HubRise fourni par le distributeur :
+
+```json
+"hubrise_enabled": true,
+"hubrise": {
+  "client_id": "<identifiant>.clients.hubrise.com",
+  "client_secret_file": "/etc/pili-pos/secrets/hubrise.secret"
+}
+```
+
+| Champ | Description |
+|---|---|
+| `client_id` | Identifiant du client OAuth HubRise de la caisse. |
+| `client_secret_file` | Fichier contenant le seul secret du client, jamais le secret lui-même dans `pos.json`. |
+| `oauth_base_url` | Facultatif, `https://manager.hubrise.com/oauth2/v1` par défaut. |
+| `api_base_url` | Facultatif, `https://api.hubrise.com/v1` par défaut. |
+| `redirect_uri` | Facultatif, `urn:ietf:wg:oauth:2.0:oob` par défaut : HubRise affiche un code à recopier dans la caisse. |
+| `scope` | Facultatif, `location[orders.write,customer_list.read,catalog.read]` par défaut. |
+
+Installer le secret comme la clé du ticket numérique :
+
+```bash
+(umask 027; cat > /etc/pili-pos/secrets/hubrise.secret)   # coller le secret, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/hubrise.secret
+pili-pos --check-config        # signale un secret absent ou vide
+systemctl restart pili-pos
+```
+
+Puis, connecté en Gérant : Réglages, section HubRise, « Ouvrir l'URL
+d'autorisation HubRise » ; se connecter à HubRise, choisir
+l'établissement, recopier dans la caisse le code affiché et toucher
+« Valider la connexion ». Le trafic sortant ajouté est HTTPS (443) vers
+`manager.hubrise.com` et `api.hubrise.com`.
+
 ### 4.3 Configuration réseau LAN
 
 Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :

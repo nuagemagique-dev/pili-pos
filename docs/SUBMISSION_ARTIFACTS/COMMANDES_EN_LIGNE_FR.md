@@ -28,6 +28,7 @@ build.
 | Changement | Un Gérant (rôle `admin`), connecté avec son PIN, dans Réglages > Intégrations. Un Serveur ou un Apprenti ne peut pas. |
 | Priorité | Le dernier changement l'emporte. Une nouvelle valeur de `pos.json`, lue au démarrage, compte comme un changement. |
 | Journal | Chaque changement est inscrit dans `integration_switch_log` (date, valeur, source `config` ou `admin`, INSZ du Gérant). Table en ajout seul : des déclencheurs SQLite refusent toute modification ou suppression. Le journal est affiché dans Réglages. |
+| Client HubRise | Section `hubrise` de `pos.json` : identifiant du client OAuth et fichier de son secret (`MANUEL_INSTALLATION_FR.md` §4.2). Sans elle, la connexion à HubRise est refusée. |
 | Coupure refusée | Tant qu'une commande en ligne n'est pas soldée (en attente, en signature, enregistrée P, remboursement ou clôture à faire), la coupure est refusée avec le nombre de commandes concernées. |
 
 Intégration coupée :

@@ -78,6 +78,10 @@ pub struct PosConfig {
     /// logged). Off by default.
     #[serde(default)]
     pub hubrise_enabled: bool,
+    /// How this installation connects to HubRise (its OAuth client).
+    /// Absent: HubRise cannot be connected (release builds).
+    #[serde(default)]
+    pub hubrise: Option<HubriseConfig>,
     /// Display language (fr, nl, de, en, zh). Printed fiscal mentions
     /// follow this key restricted to national languages (fr/nl/de);
     /// any other value prints FR.
@@ -117,8 +121,8 @@ impl PosConfig {
     /// Identity fields (pos_id, restaurant_vat, fdm_url, …) are
     /// required - a fiscal terminal must not boot with a partial
     /// identity. Only printer_address, kitchen_printer_address,
-    /// training_mode, language, day_end_hour, backup_dir and
-    /// digital_ticket may be omitted.
+    /// training_mode, language, day_end_hour, backup_dir,
+    /// digital_ticket, hubrise_enabled and hubrise may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
             path: path.display().to_string(),
@@ -220,6 +224,9 @@ impl PosConfig {
                 self.day_end_hour
             ));
         }
+        if let Some(h) = &self.hubrise {
+            out.extend(h.problems());
+        }
         if let Some(d) = &self.digital_ticket {
             if d.project_id.trim().is_empty() {
                 out.push("digital_ticket.project_id: must not be empty".to_string());
@@ -283,11 +290,83 @@ impl Default for PosConfig {
             restaurant_legal_name: None,
             training_mode: false,
             hubrise_enabled: false,
+            hubrise: None,
             language: "fr".to_string(),
             day_end_hour: default_day_end_hour(),
             backup_dir: None,
             digital_ticket: None,
         }
+    }
+}
+
+fn default_hubrise_oauth_base_url() -> String {
+    "https://manager.hubrise.com/oauth2/v1".to_string()
+}
+
+fn default_hubrise_api_base_url() -> String {
+    "https://api.hubrise.com/v1".to_string()
+}
+
+fn default_hubrise_redirect_uri() -> String {
+    // The installed-app flow: HubRise shows the code to paste back.
+    "urn:ietf:wg:oauth:2.0:oob".to_string()
+}
+
+fn default_hubrise_scope() -> String {
+    "location[orders.write,customer_list.read,catalog.read]".to_string()
+}
+
+/// The installation's HubRise OAuth client, from `pos.json` as
+/// `hubrise`. Only the client id and the secret's file are required;
+/// the rest defaults to the real HubRise.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HubriseConfig {
+    /// OAuth client id (`<id>.clients.hubrise.com`).
+    pub client_id: String,
+    /// Path to a file holding the client secret and nothing else
+    /// (trailing whitespace trimmed); never the secret itself in
+    /// `pos.json`.
+    pub client_secret_file: String,
+    #[serde(default = "default_hubrise_oauth_base_url")]
+    pub oauth_base_url: String,
+    #[serde(default = "default_hubrise_api_base_url")]
+    pub api_base_url: String,
+    #[serde(default = "default_hubrise_redirect_uri")]
+    pub redirect_uri: String,
+    #[serde(default = "default_hubrise_scope")]
+    pub scope: String,
+}
+
+impl HubriseConfig {
+    /// The client secret, read from `client_secret_file`.
+    pub fn client_secret(&self) -> Result<String, String> {
+        let path = &self.client_secret_file;
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(s.trim().to_string()),
+            Ok(_) => Err(format!("hubrise.client_secret_file: {path:?} is empty")),
+            Err(e) => Err(format!(
+                "hubrise.client_secret_file: cannot read {path:?}: {e}"
+            )),
+        }
+    }
+
+    fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.client_id.trim().is_empty() {
+            out.push("hubrise.client_id: must not be empty".to_string());
+        }
+        if let Err(e) = self.client_secret() {
+            out.push(e);
+        }
+        for (key, url) in [
+            ("hubrise.oauth_base_url", &self.oauth_base_url),
+            ("hubrise.api_base_url", &self.api_base_url),
+        ] {
+            if !(url.starts_with("https://") || url.starts_with("http://")) {
+                out.push(format!("{key}: http(s) URL expected, got {url:?}"));
+            }
+        }
+        out
     }
 }
 
@@ -589,6 +668,65 @@ mod tests {
     fn missing_required_field_fails_to_parse() {
         let json = r#"{ "from_email": "a@b.com" }"#;
         assert!(serde_json::from_str::<DigitalTicketConfig>(json).is_err());
+    }
+
+    #[test]
+    fn hubrise_needs_only_its_client_id_and_secret_file() {
+        let json = r#"{ "client_id": "123.clients.hubrise.com", "client_secret_file": "/etc/pili-pos/hubrise.secret" }"#;
+        let h: HubriseConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(h.oauth_base_url, "https://manager.hubrise.com/oauth2/v1");
+        assert_eq!(h.api_base_url, "https://api.hubrise.com/v1");
+        assert_eq!(h.redirect_uri, "urn:ietf:wg:oauth:2.0:oob");
+        assert!(h.scope.starts_with("location["));
+        // Without its secret file, the section does not parse.
+        assert!(serde_json::from_str::<HubriseConfig>(r#"{ "client_id": "x" }"#).is_err());
+        assert!(PosConfig::default().hubrise.is_none());
+    }
+
+    #[test]
+    fn a_hubrise_section_is_checked_with_its_secret() {
+        let dir = tempfile_dir("hubrise");
+        let secret = dir.join("hubrise.secret");
+        let config = |file: &std::path::Path| PosConfig {
+            hubrise: Some(HubriseConfig {
+                client_id: "123.clients.hubrise.com".into(),
+                client_secret_file: file.display().to_string(),
+                oauth_base_url: default_hubrise_oauth_base_url(),
+                api_base_url: default_hubrise_api_base_url(),
+                redirect_uri: default_hubrise_redirect_uri(),
+                scope: default_hubrise_scope(),
+            }),
+            ..valid()
+        };
+
+        let missing = config(&secret).problems();
+        assert_eq!(missing.len(), 1, "{missing:?}");
+        assert!(missing[0].starts_with("hubrise.client_secret_file"));
+
+        std::fs::write(&secret, "  \n").unwrap();
+        let empty = config(&secret).problems();
+        assert!(empty[0].contains("is empty"), "{empty:?}");
+
+        std::fs::write(&secret, "s3cret\n").unwrap();
+        let ok = config(&secret);
+        assert!(ok.problems().is_empty(), "{:?}", ok.problems());
+        assert_eq!(ok.hubrise.unwrap().client_secret().unwrap(), "s3cret");
+
+        let mut bad = config(&secret);
+        let h = bad.hubrise.as_mut().unwrap();
+        h.client_id = " ".into();
+        h.api_base_url = "api.hubrise.com".into();
+        let problems = bad.problems();
+        assert_eq!(problems.len(), 2, "{problems:?}");
+        // A problem never shows the secret.
+        assert!(problems.iter().all(|p| !p.contains("s3cret")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn tempfile_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("pos-core-{tag}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
     }
 
     #[test]

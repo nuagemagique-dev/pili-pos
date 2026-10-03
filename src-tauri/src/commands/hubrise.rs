@@ -64,25 +64,51 @@ impl HubriseConnectionInfo {
     }
 }
 
-/// Configuration defaults for the HubRise OAuth flow on the POS.
-/// In production these come from an env file or a Settings screen -
-/// for now we ship the dev mock defaults so the flow can be exercised
-/// out of the box.
-fn default_oauth_config() -> OAuthConfig {
-    OAuthConfig {
-        oauth_base_url: std::env::var("HUBRISE_OAUTH_BASE_URL")
-            .unwrap_or_else(|_| "http://localhost:3001/oauth2/v1".to_string()),
-        base_url: std::env::var("HUBRISE_BASE_URL")
-            .unwrap_or_else(|_| "http://localhost:3001/v1".to_string()),
-        client_id: std::env::var("HUBRISE_POS_CLIENT_ID")
-            .unwrap_or_else(|_| "pili-pos".to_string()),
-        client_secret: std::env::var("HUBRISE_POS_CLIENT_SECRET").unwrap_or_else(|_| String::new()),
-        redirect_uri: std::env::var("HUBRISE_POS_REDIRECT_URI")
-            .unwrap_or_else(|_| "urn:ietf:wg:oauth:2.0:oob".to_string()),
-        scope: std::env::var("HUBRISE_POS_SCOPE").unwrap_or_else(|_| {
-            "location[orders.write,customer_list.read,catalog.read]".to_string()
-        }),
+/// The installation's HubRise OAuth client: the `hubrise` section of
+/// `pos.json`, its secret read from `client_secret_file`. Without the
+/// section, a development build (`dev_fallback`) takes the
+/// `HUBRISE_*` variables (from `.env`), else the local mock; a release
+/// build refuses (`hubrise_not_configured`).
+pub fn oauth_config(
+    config: &pos_core::config::PosConfig,
+    dev_fallback: bool,
+) -> Result<OAuthConfig, String> {
+    if let Some(h) = &config.hubrise {
+        let client_secret = h.client_secret().map_err(|problem| {
+            tracing::error!(%problem, "pos.json: HubRise client secret");
+            errors::hubrise::SECRET_UNREADABLE.to_string()
+        })?;
+        return Ok(OAuthConfig {
+            oauth_base_url: h.oauth_base_url.clone(),
+            base_url: h.api_base_url.clone(),
+            client_id: h.client_id.clone(),
+            client_secret,
+            redirect_uri: h.redirect_uri.clone(),
+            scope: h.scope.clone(),
+        });
     }
+    if !dev_fallback {
+        return Err(errors::hubrise::NOT_CONFIGURED.to_string());
+    }
+    let env = |key: &str, default: &str| std::env::var(key).unwrap_or_else(|_| default.to_string());
+    Ok(OAuthConfig {
+        oauth_base_url: env("HUBRISE_OAUTH_BASE_URL", "http://localhost:3001/oauth2/v1"),
+        base_url: env("HUBRISE_BASE_URL", "http://localhost:3001/v1"),
+        client_id: env("HUBRISE_POS_CLIENT_ID", "pili-pos"),
+        client_secret: env("HUBRISE_POS_CLIENT_SECRET", ""),
+        redirect_uri: env("HUBRISE_POS_REDIRECT_URI", "urn:ietf:wg:oauth:2.0:oob"),
+        scope: env(
+            "HUBRISE_POS_SCOPE",
+            "location[orders.write,customer_list.read,catalog.read]",
+        ),
+    })
+}
+
+/// [`oauth_config`] for this build: the development fallback only in
+/// debug builds.
+fn installation_oauth_config(state: &AppState) -> Result<OAuthConfig, String> {
+    let config = state.config.lock().map_err(errors::internal)?;
+    oauth_config(&config, cfg!(debug_assertions))
 }
 
 #[tauri::command]
@@ -107,8 +133,14 @@ pub fn hubrise_get_connection_status(
 }
 
 #[tauri::command]
-pub fn hubrise_start_oauth_flow() -> Result<String, String> {
-    let cfg = default_oauth_config();
+pub fn hubrise_start_oauth_flow(state: State<'_, AppState>) -> Result<String, String> {
+    do_hubrise_start_oauth_flow(state.inner())
+}
+
+/// The HubRise page where the installer logs in and grants access.
+pub fn do_hubrise_start_oauth_flow(state: &AppState) -> Result<String, String> {
+    crate::commands::integrations::require_hubrise(state)?;
+    let cfg = installation_oauth_config(state)?;
     build_authorize_url(&cfg, None).map_err(|e| e.to_string())
 }
 
@@ -117,9 +149,18 @@ pub async fn hubrise_complete_oauth(
     state: State<'_, AppState>,
     code: String,
 ) -> Result<HubriseConnectionInfo, String> {
-    crate::commands::integrations::require_hubrise(&state)?;
-    let cfg = default_oauth_config();
-    let tok = exchange_code(&state.shared_http, &cfg, &code)
+    do_hubrise_complete_oauth(state.inner(), &code).await
+}
+
+/// Exchange the code HubRise showed for this location's token, store
+/// the connection, and start the integration.
+pub async fn do_hubrise_complete_oauth(
+    state: &AppState,
+    code: &str,
+) -> Result<HubriseConnectionInfo, String> {
+    crate::commands::integrations::require_hubrise(state)?;
+    let cfg = installation_oauth_config(state)?;
+    let tok = exchange_code(&state.shared_http, &cfg, code)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -153,7 +194,7 @@ pub async fn hubrise_complete_oauth(
     // Register the passive callback and fetch what HubRise holds now,
     // without waiting for the poller's next tick. A failure here is
     // retried by the poller; the connection itself is kept.
-    if let Err(e) = poller::start(&poller_ctx(&state)).await {
+    if let Err(e) = poller::start(&poller_ctx(state)).await {
         tracing::warn!(%e, "hubrise: first start after connecting failed");
     }
     state.hubrise_poll_now.notify_one();

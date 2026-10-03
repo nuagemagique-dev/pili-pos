@@ -128,6 +128,7 @@ impl TestApp {
             printer_address: None,
             training_mode: false,
             hubrise_enabled: false,
+            hubrise: None,
             language: "fr".to_string(),
             backup_dir: None,
             kitchen_printer_address: None,

@@ -215,6 +215,12 @@ pub mod hubrise {
     pub const REFUND_DISCOUNTED_LINE: &str = "refund_discounted_line";
     /// The integration is switched off on this installation.
     pub const DISABLED: &str = "hubrise_disabled";
+    /// `pos.json` has no `hubrise` section: this installation has no
+    /// HubRise client to connect with.
+    pub const NOT_CONFIGURED: &str = "hubrise_not_configured";
+    /// The `hubrise.client_secret_file` of `pos.json` is missing or
+    /// empty.
+    pub const SECRET_UNREADABLE: &str = "hubrise_secret_unreadable";
     /// Switching off waits until every online order is settled
     /// ({count}).
     pub const ONLINE_ORDERS_OPEN: &str = "hubrise_online_orders_open";
@@ -240,6 +246,8 @@ pub mod hubrise {
         REFUND_DISCOUNTED_LINE,
         DISABLED,
         ONLINE_ORDERS_OPEN,
+        NOT_CONFIGURED,
+        SECRET_UNREADABLE,
     ];
 }
 
