@@ -8,6 +8,7 @@ pub mod fdm_client;
 pub mod fdm_tls;
 pub mod inputs;
 pub mod payment;
+pub mod price_change;
 pub mod qr;
 pub mod report_totals;
 pub mod response;

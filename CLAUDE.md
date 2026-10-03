@@ -543,7 +543,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 ### HubRise integration (feature `hubrise`, not certified yet)
 - Every online order (Deliveroo, Uber Eats, own webshop) must end in an N event signed by the FDM (SPF FAQ Q203). Prepaid: N at acceptance (APP for platforms, ONLINE for the webshop). Unpaid: P at acceptance, N at handover. Rejected orders are never signed; a cancellation after N is a manager-confirmed refund N.
 - The POS menu mirrors the HubRise catalog (`crates/pos-catalog`, source-neutral; HubRise mapping in `pos-hubrise/src/catalog_map.rs`). Stable ids by `external_id`, deactivate never delete, invalid catalogs refused whole. Local menu editing is locked while a source manages the menu.
-- Migrations: 1 to 9 certified, 10 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`).
+- Migrations: 1 to 9 certified, 10 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`).
 - Tests run against `pos-hubrise-mock` in-process (`src-tauri/tests/hubrise_*.rs`).
 
 ---

@@ -133,7 +133,7 @@ export const webshopMessages: Messages = {
   "webshop_attention_fractional_quantity": { fr: "Quantité non entière.", en: "Quantity not a whole number.", zh: "数量不是整数。" },
   "webshop_attention_bad_price": { fr: "Prix illisible.", en: "Unreadable price.", zh: "价格无法识别。" },
   "webshop_attention_vat_mismatch": { fr: "TVA différente du menu.", en: "VAT differs from the menu.", zh: "增值税与菜单不符。" },
-  "webshop_attention_discount": { fr: "Remise à traiter à la main.", en: "Discount to handle by hand.", zh: "折扣需手动处理。" },
+  "webshop_attention_discount": { fr: "Remise plus grande que les produits.", en: "Discount larger than the products.", zh: "折扣超过商品金额。" },
   "webshop_attention_total_mismatch": { fr: "Les lignes ne font pas le total.", en: "Lines do not add up to the total.", zh: "明细与总额不符。" },
   "webshop_attention_payment_unclear": { fr: "Paiement incertain.", en: "Payment unclear.", zh: "付款情况不明。" },
   // Settings: the HubRise catalog and channels.
@@ -183,5 +183,6 @@ export const webshopMessages: Messages = {
   "modifier_add": { fr: "Ajouter", en: "Add", zh: "添加" },
   "err_modifier_unknown": { fr: "Option inconnue pour ce produit.", en: "Unknown option for this product.", zh: "该产品没有此选项。" },
   "err_modifier_count": { fr: "« {group} » : choisir entre {min} et {max}.", en: "\"{group}\": pick between {min} and {max}.", zh: "「{group}」：请选 {min} 至 {max} 项。" },
+  "err_refund_discounted_line": { fr: "Ligne vendue avec une remise : remboursez la commande entière.", en: "Line sold with a discount: refund the whole order.", zh: "此行有折扣：请退整单。" },
   "err_modifier_open_price": { fr: "Un produit à prix libre n'a pas d'options.", en: "A free-price product has no options.", zh: "自定价产品没有选项。" },
 };

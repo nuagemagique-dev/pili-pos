@@ -88,3 +88,35 @@ CREATE TABLE IF NOT EXISTS webshop_orders (
 CREATE INDEX IF NOT EXISTS idx_webshop_orders_state
     ON webshop_orders(fiscal_state, resolution);
 "#;
+
+/// v23 - price changes on order lines (POS spec v2.2 `priceChange`):
+/// the discounts of an online order, spread over its lines. One row per
+/// change on one journal entry; a correction of the line carries the
+/// change negated. Append-only, like the journal.
+pub(crate) const MIGRATION_023_PRICE_CHANGES: &str = r#"
+CREATE TABLE IF NOT EXISTS order_price_changes (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    entry_id INTEGER NOT NULL REFERENCES order_entries(id),
+    line_id INTEGER NOT NULL,
+    grouping_id INTEGER NOT NULL CHECK(grouping_id > 0),
+    change_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK(scope IN ('LINE','EVENT')),
+    change_type TEXT NOT NULL CHECK(change_type IN ('PUBLIC','INTERNAL')),
+    amount_cents INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_order_price_changes_order
+    ON order_price_changes(order_id, entry_id);
+CREATE TRIGGER IF NOT EXISTS order_price_changes_no_delete
+BEFORE DELETE ON order_price_changes
+BEGIN
+    SELECT RAISE(ABORT, 'order price changes are append-only');
+END;
+CREATE TRIGGER IF NOT EXISTS order_price_changes_no_update
+BEFORE UPDATE ON order_price_changes
+BEGIN
+    SELECT RAISE(ABORT, 'order price changes are append-only');
+END;
+"#;

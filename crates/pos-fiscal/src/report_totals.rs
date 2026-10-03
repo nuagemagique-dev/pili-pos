@@ -10,8 +10,9 @@
 //!
 //! Rules, per the spec:
 //! - `transactions`: every eventLabel used with a `transaction` object,
-//!   with its number of events and Σ(VatInput.price).
-//! - `departments`: Σ(VatInput.price) of label N lines, per department.
+//!   with its number of events and Σ(VatInput.price) +
+//!   Σ(VatInput.priceChanges.amount).
+//! - `departments`: the same sum of label N lines, per department.
 //! - `vats`: Σ of the FDM's `vatCalc` of label N events, per VAT label.
 //! - `payments`: the financials of label N events, per payment method.
 //! - `negQuantities`: negative lines, per reason, counted once, on the
@@ -24,8 +25,11 @@
 //! - `users[].totalAmount`: Σ transactionTotal of the user's N events;
 //!   the activity range covers every event but the reports themselves.
 //!
-//! Price changes, invoices and foreign currencies are not supported in
-//! v1.0.0, so their totals are always empty.
+//! - `priceChanges`: the PUBLIC price changes of label N lines, per
+//!   change id and VAT label, negative and positive apart.
+//!
+//! Invoices and foreign currencies are not supported in v1.0.0, so
+//! their totals are always empty.
 
 use std::collections::BTreeMap;
 
@@ -35,10 +39,12 @@ use serde_json::Value;
 use crate::archive::ArchivedEvent;
 use crate::inputs::{
     DepartmentTotalInput, EventTotalInput, FdmDeviceInput, InOutItemInput, NegQuantityTotalInput,
-    PaymentTotalAmountInput, PaymentTotalInput, PosDeviceInput, TurnoverInput, UserItemInput,
-    VatTotalInput,
+    PaymentTotalAmountInput, PaymentTotalInput, PosDeviceInput, PriceChangeTotalInput,
+    PriceChangeVatTotalInput, TurnoverInput, UserItemInput, VatTotalInput,
 };
-use crate::types::{EventLabel, InOut, NegQuantityReason, PaymentLineType, PaymentType, VatLabel};
+use crate::types::{
+    EventLabel, InOut, NegQuantityReason, PaymentLineType, PaymentType, PriceChangeType, VatLabel,
+};
 
 /// One archived event, as signed by the FDM.
 #[derive(Debug, Clone)]
@@ -123,11 +129,22 @@ fn eur(cents: i64) -> f64 {
     cents as f64 / 100.0
 }
 
-/// Σ(VatInput.price) of one transaction line.
+/// Σ(VatInput.price) + Σ(VatInput.priceChanges.amount) of one
+/// transaction line: its amount after price changes.
 fn line_amount(line: &Value) -> i64 {
     line["mainProduct"]["vats"]
         .as_array()
-        .map(|vats| vats.iter().map(|v| cents(&v["price"])).sum())
+        .map(|vats| {
+            vats.iter()
+                .map(|v| {
+                    let changes: i64 = v["priceChanges"]
+                        .as_array()
+                        .map(|c| c.iter().map(|c| cents(&c["amount"])).sum())
+                        .unwrap_or(0);
+                    cents(&v["price"]) + changes
+                })
+                .sum()
+        })
         .unwrap_or(0)
 }
 
@@ -172,10 +189,60 @@ pub fn turnover(events: &[ReportEvent]) -> TurnoverInput {
             .filter(|e| e.label == EventLabel::F && e.operation() == Some("DRAWER_OPEN"))
             .count() as i64,
         neg_quantities: neg_quantities(events),
-        price_changes: vec![],
+        price_changes: price_changes(events.iter().filter(|e| is_sale(e))),
         // Invoices (event I) are not part of v1.0.0: always none.
         invoices: Some(vec![]),
     }
+}
+
+/// The public price changes of the sales, per change and VAT label.
+fn price_changes<'a>(sales: impl Iterator<Item = &'a ReportEvent>) -> Vec<PriceChangeTotalInput> {
+    // (id, name) -> label -> (negative, positive)
+    let mut totals: BTreeMap<(String, String), BTreeMap<String, (i64, i64)>> = BTreeMap::new();
+    for line in sales.flat_map(|e| e.lines()) {
+        for vat in line["mainProduct"]["vats"].as_array().into_iter().flatten() {
+            let label = vat["label"].as_str().unwrap_or_default().to_string();
+            for change in vat["priceChanges"].as_array().into_iter().flatten() {
+                if change["type"].as_str() != Some("PUBLIC") {
+                    continue;
+                }
+                let key = (
+                    change["id"].as_str().unwrap_or_default().to_string(),
+                    change["name"].as_str().unwrap_or_default().to_string(),
+                );
+                let amount = cents(&change["amount"]);
+                let entry = totals
+                    .entry(key)
+                    .or_default()
+                    .entry(label.clone())
+                    .or_default();
+                if amount < 0 {
+                    entry.0 += amount;
+                } else {
+                    entry.1 += amount;
+                }
+            }
+        }
+    }
+    totals
+        .into_iter()
+        .map(|((id, name), labels)| PriceChangeTotalInput {
+            id,
+            name,
+            price_change_type: PriceChangeType::Public,
+            amount: labels
+                .into_iter()
+                .filter_map(|(label, (negative, positive))| {
+                    let label: VatLabel = serde_json::from_value(Value::String(label)).ok()?;
+                    Some(PriceChangeVatTotalInput {
+                        label,
+                        negative: eur(negative),
+                        positive: eur(positive),
+                    })
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 fn transactions(events: &[ReportEvent]) -> Vec<EventTotalInput> {
@@ -1232,5 +1299,69 @@ mod tests {
         };
         let parsed = ReportEvent::from_archive(&ok).unwrap();
         assert!(parsed.response.is_null());
+    }
+
+    /// The UC223 sale (50 % ticket discount over a B and an A line),
+    /// then a P carrying the same discount: only the sale counts in
+    /// `priceChanges` and `departments`; both count in `transactions`.
+    #[test]
+    fn price_changes_net_the_amounts_and_are_summed_per_label() {
+        let discounted = |product: &str, dept: (&str, &str), label: &str, price: f64, off: f64| {
+            let mut l = line(product, dept, 1, &[(label, price)]);
+            l["mainProduct"]["vats"][0]["priceChanges"] = json!([
+                {"id": "10", "name": "Discount50P", "scope": "EVENT", "type": "PUBLIC", "amount": off, "groupingId": 1},
+                {"id": "99", "name": "Recalc", "scope": "LINE", "type": "INTERNAL", "amount": 0.0, "groupingId": 2},
+            ]);
+            l
+        };
+        let lines = vec![
+            discounted("20001", ("20", "Starters"), "B", 40.0, -20.0),
+            discounted("10006", ("10", "Aperitifs"), "A", 12.0, -6.0),
+        ];
+        let tx = json!({ "transaction": { "transactionLines": lines, "transactionTotal": 26.0 } });
+        let events = vec![
+            event(EventLabel::N, tx.clone(), json!({})),
+            event(EventLabel::P, tx, json!({})),
+        ];
+        let totals = turnover(&events);
+
+        let n = totals
+            .transactions
+            .iter()
+            .find(|t| t.event_label == EventLabel::N)
+            .unwrap();
+        assert_eq!(n.amount, 26.0);
+        let p = totals
+            .transactions
+            .iter()
+            .find(|t| t.event_label == EventLabel::P)
+            .unwrap();
+        assert_eq!(p.amount, 26.0);
+        let starters = totals
+            .departments
+            .iter()
+            .find(|d| d.department_id == "20")
+            .unwrap();
+        assert_eq!(starters.amount, 20.0);
+
+        assert_eq!(
+            totals.price_changes.len(),
+            1,
+            "internal changes are left out"
+        );
+        let change = &totals.price_changes[0];
+        assert_eq!(
+            (change.id.as_str(), change.name.as_str()),
+            ("10", "Discount50P")
+        );
+        let by_label: Vec<_> = change
+            .amount
+            .iter()
+            .map(|a| (a.label, a.negative, a.positive))
+            .collect();
+        assert_eq!(
+            by_label,
+            vec![(VatLabel::A, -6.0, 0.0), (VatLabel::B, -20.0, 0.0)]
+        );
     }
 }

@@ -3,8 +3,8 @@
 
 use pos_core::vat::VatCode;
 use pos_hubrise::webshop::{
-    Attention, Channel, LineKind, PaymentMode, Warning, ingest, load, re_resolve_pending, resolve,
-    set_channel,
+    Attention, Channel, LineKind, PaymentMode, Warning, ingest, load, net_total_cents,
+    re_resolve_pending, resolve, set_channel,
 };
 use pos_hubrise_mock::builders::{OrderBuilder, order_total_cents, seed_catalog, template};
 use pos_hubrise_types::{Catalog, CatalogData, Order};
@@ -255,15 +255,73 @@ fn lines_that_do_not_add_up_are_held() {
 }
 
 #[test]
-fn a_discount_is_held_for_now() {
+fn a_discount_is_spread_over_the_products() {
     let conn = seeded();
+    // 2 x 3,50 + 1 x 10,00 = 17,00; 1,00 off then 0,50 off.
     let body = OrderBuilder::new("Deliveroo", "delivery")
         .item("MISO-1", "Soupe miso", 350, 2)
+        .item("MAKI-SAUMON-12", "Maki saumon", 1000, 1)
         .discount("PROMO", "Promo", 100)
+        .discount("", "Fidélité", 50)
         .paid_by("DELIVEROO", "Deliveroo")
         .build();
     let r = resolve(&conn, &as_order(body)).unwrap();
-    assert_eq!(codes(&r.attention), vec!["discount"]);
+    assert!(r.attention.is_empty(), "{:?}", r.attention);
+    let products: Vec<_> = r
+        .lines
+        .iter()
+        .filter(|l| l.kind == LineKind::Product)
+        .collect();
+    let promo: Vec<i64> = products
+        .iter()
+        .map(|l| {
+            l.discounts
+                .iter()
+                .filter(|d| d.grouping_id == 1)
+                .map(|d| d.amount_cents)
+                .sum()
+        })
+        .collect();
+    assert_eq!(promo, vec![-41, -59], "in proportion to 700 and 1000");
+    assert!(products.iter().all(|l| {
+        l.discounts
+            .iter()
+            .all(|d| d.grouping_id != 1 || d.id == "PROMO")
+    }));
+    let second = &products[1]
+        .discounts
+        .iter()
+        .find(|d| d.grouping_id == 2)
+        .unwrap();
+    assert_eq!(
+        (second.id.as_str(), second.name.as_str()),
+        ("discount:2", "Fidélité")
+    );
+    let gross: i64 = r.lines.iter().map(|l| l.total_cents()).sum();
+    assert_eq!(net_total_cents(&r.lines), gross - 150);
+    // Charges are not discounted.
+    assert!(
+        r.lines
+            .iter()
+            .filter(|l| l.kind == LineKind::Charge)
+            .all(|l| l.discounts.is_empty())
+    );
+}
+
+#[test]
+fn a_discount_larger_than_the_products_is_held() {
+    let conn = seeded();
+    let body = OrderBuilder::new("Deliveroo", "delivery")
+        .item("MISO-1", "Soupe miso", 350, 2)
+        .discount("PROMO", "Promo", 800)
+        .paid_by("DELIVEROO", "Deliveroo")
+        .build();
+    let r = resolve(&conn, &as_order(body)).unwrap();
+    assert!(
+        codes(&r.attention).iter().any(|c| c == "discount"),
+        "{:?}",
+        r.attention
+    );
 }
 
 #[test]

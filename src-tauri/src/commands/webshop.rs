@@ -121,7 +121,7 @@ fn write_lines(state: &AppState, ws: &WebshopState) -> Result<(), String> {
     let tx = db.unchecked_transaction().map_err(errors::internal)?;
     for line in &ws.lines {
         let quantity = i32::try_from(line.quantity).map_err(errors::internal)?;
-        pos_db::queries::orders::add_order_line(
+        let written = pos_db::queries::orders::add_order_line(
             &tx,
             pos_db::queries::orders::NewOrderLine {
                 order_id: ws.order_id,
@@ -136,6 +136,20 @@ fn write_lines(state: &AppState, ws: &WebshopState) -> Result<(), String> {
             },
         )
         .map_err(errors::internal)?;
+        let discounts: Vec<_> = line
+            .discounts
+            .iter()
+            .map(|d| pos_db::queries::price_changes::NewPriceChange {
+                grouping_id: d.grouping_id,
+                change_id: &d.id,
+                name: &d.name,
+                scope: "EVENT",
+                change_type: "PUBLIC",
+                amount_cents: d.amount_cents,
+            })
+            .collect();
+        pos_db::queries::price_changes::add_to_line(&tx, written.id, &discounts)
+            .map_err(errors::internal)?;
     }
     tx.commit().map_err(errors::internal)?;
     Ok(())
@@ -303,7 +317,7 @@ async fn sign_prepaid(
         _ => return Err(errors::hubrise::NEEDS_REVIEW.to_string()),
     };
     write_lines(state, ws)?;
-    let total: i64 = ws.lines.iter().map(|l| l.total_cents()).sum();
+    let total = pos_hubrise::webshop::net_total_cents(&ws.lines);
     let parts = [PaymentPart::of(method, total)];
     let result = sell(
         state,
@@ -333,14 +347,15 @@ async fn sign_order_p(
     ws: &WebshopState,
 ) -> Result<Signed, String> {
     write_lines(state, ws)?;
-    let (mut order, entries, booking) = {
+    let (mut order, entries, booking, changes) = {
         let db = state.db.lock().map_err(errors::internal)?;
         let order =
             pos_db::queries::orders::get_order(&db, ws.order_id).map_err(errors::internal)?;
         let entries = pos_db::queries::orders::get_order_entries(&db, ws.order_id, true)
             .map_err(errors::internal)?;
         let booking = super::booking(&db, config)?;
-        (order, entries, booking)
+        let (changes, _) = super::price_changes::load(&db, ws.order_id)?;
+        (order, entries, booking, changes)
     };
     let Some(last_entry) = entries.last() else {
         return Err(errors::ORDER_NO_LINES.to_string());
@@ -351,6 +366,7 @@ async fn sign_order_p(
     let ticket_number = super::peek_ticket_number(state, label)?;
     let mut input = build_order_input(config, &order, &entries, ticket_number, &booking);
     input.cost_center = cost_center(ws);
+    pos_fiscal::price_change::apply(&mut input.transaction, &entries, &changes);
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
     let sign_result = FdmClient::from_config(config)
         .sign_order(input, false)

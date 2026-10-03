@@ -111,6 +111,11 @@ const HUBRISE_MIGRATIONS: &[Migration] = &[
         name: "webshop-orders",
         sql: crate::schema_hubrise::MIGRATION_022_WEBSHOP_ORDERS,
     },
+    Migration {
+        version: 23,
+        name: "price-changes",
+        sql: crate::schema_hubrise::MIGRATION_023_PRICE_CHANGES,
+    },
 ];
 
 /// Migrations of the menu mirrored from an external catalog (feature

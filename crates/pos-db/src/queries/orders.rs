@@ -144,6 +144,9 @@ pub fn remove_order_line(conn: &Connection, line_id: i64) -> Result<(), rusqlite
         ensure_open(conn, order_id)?;
         if quantity != 0 {
             insert_entry(conn, line_id, -quantity, "correction")?;
+            // The line's discounts are corrected with it.
+            #[cfg(feature = "hubrise")]
+            super::price_changes::negate_on_correction(conn, line_id)?;
         }
         conn.execute("DELETE FROM order_lines WHERE id = ?1", params![line_id])?;
         recalculate_order_totals(conn, order_id)
@@ -164,6 +167,14 @@ pub fn update_order_line_quantity(
             |row| Ok((row.get(0)?, row.get(1)?)),
         )?;
         ensure_open(conn, order_id)?;
+        // A discount was spread over the whole line: it is removed
+        // whole or not at all.
+        #[cfg(feature = "hubrise")]
+        if quantity != previous && super::price_changes::line_has_changes(conn, line_id)? {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "line_has_price_changes".into(),
+            ));
+        }
         let delta = quantity - previous;
         if delta != 0 {
             let kind = if delta > 0 { "entry" } else { "correction" };
@@ -375,12 +386,21 @@ pub fn list_open_orders(conn: &Connection) -> Result<Vec<Order>, rusqlite::Error
     rows.collect()
 }
 
+/// Bring the order's totals up to date (after a price change).
+#[cfg(feature = "hubrise")]
+pub(crate) fn recalculate_totals(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> {
+    recalculate_order_totals(conn, order_id)
+}
+
 fn recalculate_order_totals(conn: &Connection, order_id: i64) -> Result<(), rusqlite::Error> {
     let total: i64 = conn.query_row(
         "SELECT COALESCE(SUM(unit_price_cents * quantity), 0) FROM order_lines WHERE order_id = ?1",
         params![order_id],
         |row| row.get(0),
     )?;
+    // The total is after the order's discounts.
+    #[cfg(feature = "hubrise")]
+    let total = total + super::price_changes::order_total_cents(conn, order_id)?;
 
     conn.execute(
         "UPDATE orders SET subtotal_cents = ?1, total_cents = ?1 WHERE id = ?2",

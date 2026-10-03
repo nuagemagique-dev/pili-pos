@@ -2,6 +2,7 @@
 
 pub mod config;
 pub mod menu;
+pub mod money;
 pub mod order;
 pub mod table;
 pub mod user;

@@ -3,6 +3,8 @@ pub mod deliveries;
 pub mod fiscal;
 pub mod menu;
 pub mod orders;
+#[cfg(feature = "hubrise")]
+pub mod price_changes;
 pub mod prints;
 pub mod reports;
 pub mod shifts;

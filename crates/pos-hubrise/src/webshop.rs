@@ -67,7 +67,7 @@ pub enum Attention {
         order: String,
         menu: VatCode,
     },
-    /// Discounts are not folded into the lines yet.
+    /// A discount larger than the products it applies to.
     Discount {
         name: String,
     },
@@ -129,12 +129,40 @@ pub struct ResolvedLine {
     pub vat_code: VatCode,
     pub department_id: String,
     pub department_name: String,
+    /// The order's discounts, each spread over the product lines in
+    /// proportion to their totals (a priceChange of scope EVENT).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub discounts: Vec<LineDiscount>,
+}
+
+/// A line's share of an order discount.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LineDiscount {
+    /// The discount's rank in the order, from 1 (FAQ Q304: successive
+    /// changes increment the grouping).
+    pub grouping_id: i32,
+    /// The discount's `ref`, or `discount:{rank}` without one.
+    pub id: String,
+    pub name: String,
+    /// Negative.
+    pub amount_cents: i64,
 }
 
 impl ResolvedLine {
+    /// Before discounts.
     pub fn total_cents(&self) -> i64 {
         self.unit_price_cents * self.quantity
     }
+
+    /// After discounts: what the customer pays for the line.
+    pub fn net_cents(&self) -> i64 {
+        self.total_cents() + self.discounts.iter().map(|d| d.amount_cents).sum::<i64>()
+    }
+}
+
+/// What the customer pays for `lines`.
+pub fn net_total_cents(lines: &[ResolvedLine]) -> i64 {
+    lines.iter().map(ResolvedLine::net_cents).sum()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -393,6 +421,7 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             vat_code: menu.vat_code,
             department_id: menu.department_id,
             department_name: menu.department_name,
+            discounts: Vec::new(),
         });
     }
 
@@ -428,15 +457,15 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             vat_code: menu.vat_code,
             department_id: menu.department_id,
             department_name: menu.department_name,
+            discounts: Vec::new(),
         });
     }
 
     let mut discount_cents = 0;
-    for discount in order.discounts.iter().filter(|d| !d.deleted) {
-        discount_cents += cents(&discount.price_off, &discount.name, &mut attention);
-        attention.push(Attention::Discount {
-            name: discount.name.clone(),
-        });
+    for (rank, discount) in order.discounts.iter().filter(|d| !d.deleted).enumerate() {
+        let off = cents(&discount.price_off, &discount.name, &mut attention);
+        discount_cents += off;
+        spread_discount(&mut lines, rank + 1, discount, off, &mut attention);
     }
 
     let total_cents = order
@@ -478,6 +507,50 @@ fn check_vat(rate: Option<&str>, menu: VatCode, at: &str, attention: &mut Vec<At
             order: rate.to_owned(),
             menu,
         });
+    }
+}
+
+/// Spread a discount of `off` cents over the product lines, by their
+/// totals after the discounts already spread, to the cent. A discount
+/// larger than those lines is held for staff.
+fn spread_discount(
+    lines: &mut [ResolvedLine],
+    rank: usize,
+    discount: &pos_hubrise_types::order::OrderDiscount,
+    off: i64,
+    attention: &mut Vec<Attention>,
+) {
+    if off <= 0 {
+        return;
+    }
+    let products: Vec<usize> = (0..lines.len())
+        .filter(|&i| lines[i].kind == LineKind::Product)
+        .collect();
+    let weights: Vec<i64> = products.iter().map(|&i| lines[i].net_cents()).collect();
+    if off > weights.iter().sum::<i64>() {
+        attention.push(Attention::Discount {
+            name: discount.name.clone(),
+        });
+        return;
+    }
+    let grouping_id = i32::try_from(rank).unwrap_or(i32::MAX);
+    let id = discount
+        .ref_
+        .clone()
+        .filter(|r| !r.is_empty())
+        .unwrap_or_else(|| format!("discount:{rank}"));
+    for (&i, share) in products
+        .iter()
+        .zip(pos_core::money::distribute(&weights, -off))
+    {
+        if share != 0 {
+            lines[i].discounts.push(LineDiscount {
+                grouping_id,
+                id: id.clone(),
+                name: discount.name.clone(),
+                amount_cents: share,
+            });
+        }
     }
 }
 
@@ -618,7 +691,7 @@ pub fn ingest(conn: &Connection, order: &Order) -> Result<Ingested> {
     store_resolution(conn, order_id, order, &resolution)?;
     // A total the POS does not know yet shows as the order's own.
     if total_cents == 0 {
-        let lines: i64 = resolution.lines.iter().map(ResolvedLine::total_cents).sum();
+        let lines = net_total_cents(&resolution.lines);
         conn.execute(
             "UPDATE orders SET subtotal_cents = ?1, total_cents = ?1 WHERE id = ?2",
             params![lines, order_id],

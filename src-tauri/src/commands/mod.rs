@@ -16,6 +16,8 @@ pub mod menu;
 #[cfg(feature = "hubrise")]
 pub mod modifiers;
 pub mod order;
+#[cfg(feature = "hubrise")]
+pub(crate) mod price_changes;
 pub mod print;
 pub mod refund;
 pub mod report;

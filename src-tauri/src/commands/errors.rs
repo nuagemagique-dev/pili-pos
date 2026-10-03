@@ -211,6 +211,8 @@ pub mod hubrise {
     pub const MODIFIER_COUNT: &str = "modifier_count";
     /// A free-price product takes no options.
     pub const MODIFIER_OPEN_PRICE: &str = "modifier_open_price";
+    /// A line sold with a discount is refunded whole, never by product.
+    pub const REFUND_DISCOUNTED_LINE: &str = "refund_discounted_line";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -230,6 +232,7 @@ pub mod hubrise {
         MODIFIER_UNKNOWN,
         MODIFIER_COUNT,
         MODIFIER_OPEN_PRICE,
+        REFUND_DISCOUNTED_LINE,
     ];
 }
 

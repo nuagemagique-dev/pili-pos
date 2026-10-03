@@ -186,6 +186,18 @@ pub(crate) async fn sell(
         let bp = super::booking(&db, &config)?;
         (order, lines, entries, unsent, config, bp)
     };
+    // The lines' discounts (an online order's), by journal entry and by
+    // line. Only the HubRise build records any.
+    #[cfg(feature = "hubrise")]
+    let (entry_changes, line_changes) = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        super::price_changes::load(&db, order_id)?
+    };
+    #[cfg(not(feature = "hubrise"))]
+    let (entry_changes, line_changes) = (
+        pos_fiscal::price_change::LineChanges::new(),
+        pos_fiscal::price_change::LineChanges::new(),
+    );
     let mut order = order;
     order.user_insz = cashier.insz;
 
@@ -313,6 +325,7 @@ pub(crate) async fn sell(
         &booking_period_id,
         &settlement,
     );
+    pos_fiscal::price_change::apply(&mut sale_input.transaction, &entries, &entry_changes);
     sale_input.common.ticket_medium = resolved.medium;
     if let Some(cost_center) = options.cost_center.clone() {
         sale_input.cost_center = Some(cost_center);
@@ -357,16 +370,9 @@ pub(crate) async fn sell(
     // commit: its email is queued in the same transaction.
     let operator = super::operator_name(state, &order.user_insz);
     let mut ticket = sign_result.as_ref().map(|result| {
-        let ticket_lines: Vec<TicketLine> = lines
-            .iter()
-            .map(|l| TicketLine {
-                quantity: l.quantity as f64,
-                description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                vat_code: l.vat_code.as_str().to_string(),
-            })
-            .collect();
+        // Each line, then its discounts (none at the till).
+        let ticket_lines: Vec<TicketLine> =
+            pos_fiscal::price_change::ticket_lines(&lines, &line_changes);
 
         // One row per payment, the sale amount it pays; the cash
         // rounding is its own line (FAQ Q403, SPF example VAT ticket).

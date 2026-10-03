@@ -157,7 +157,9 @@ pub(crate) async fn refund_sale(
     let employee_insz = employee_insz.to_owned();
 
     // 1. Load original fiscal event → extract FdmReference
-    let (original_ref, original_signature, original_lines, config, bp_id) = {
+    // Without HubRise no sale has discounts to check.
+    #[cfg_attr(not(feature = "hubrise"), allow(unused_variables))]
+    let (original_ref, original_signature, original_lines, original_changes, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let event = fiscal::get_fiscal_event(&db, original_fiscal_event_id)
             .map_err(|e| e.to_string())?
@@ -165,6 +167,11 @@ pub(crate) async fn refund_sale(
         let original_order_id = event.order_id.ok_or_else(|| incomplete("order"))?;
         let original_lines = pos_db::queries::orders::get_order_lines(&db, original_order_id)
             .map_err(|e| e.to_string())?;
+        // The discounts of each original line (an online order's).
+        #[cfg(feature = "hubrise")]
+        let original_changes = super::price_changes::load(&db, original_order_id)?.1;
+        #[cfg(not(feature = "hubrise"))]
+        let original_changes = pos_fiscal::price_change::LineChanges::new();
 
         // A sale closed unpaid took no money: none goes back.
         let request: serde_json::Value =
@@ -203,7 +210,14 @@ pub(crate) async fn refund_sale(
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let bp = super::booking(&db, &config)?;
-        (fdm_ref, original_signature, original_lines, config, bp)
+        (
+            fdm_ref,
+            original_signature,
+            original_lines,
+            original_changes,
+            config,
+            bp,
+        )
     };
     // Training never touches real sales: a training refund would count
     // against what the real sale may still refund.
@@ -229,7 +243,7 @@ pub(crate) async fn refund_sale(
 
     // 2. Create a refund order with negative-quantity lines - once
     // every item is checked, so a refused refund leaves nothing behind.
-    let (refund_order, refund_lines) = {
+    let (refund_order, refund_lines, refund_changes) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
 
         // Every refund of this sale - this one included - carries the
@@ -272,6 +286,15 @@ pub(crate) async fn refund_sale(
                         requested[&item.menu_item_id],
                         prior,
                     )?;
+                    // A discount is spread over its lines: a part of
+                    // one would refund a share nobody can tell.
+                    #[cfg(feature = "hubrise")]
+                    if original_changes.contains_key(&original.id) {
+                        return Err(errors::coded(
+                            errors::hubrise::REFUND_DISCOUNTED_LINE,
+                            &[("product", &item.menu_item_id)],
+                        ));
+                    }
                     refunded.push((item.quantity, original));
                 }
             }
@@ -304,7 +327,7 @@ pub(crate) async fn refund_sale(
         )
         .map_err(|e| e.to_string())?;
         for (quantity, original) in refunded {
-            pos_db::queries::orders::add_order_line(
+            let _written = pos_db::queries::orders::add_order_line(
                 &db,
                 pos_db::queries::orders::NewOrderLine {
                     order_id: order.id,
@@ -319,13 +342,24 @@ pub(crate) async fn refund_sale(
                 },
             )
             .map_err(|e| e.to_string())?;
+            // The whole line goes back: its discounts too, negated.
+            #[cfg(feature = "hubrise")]
+            if let Some(changes) = original_changes.get(&original.id) {
+                let negated: Vec<_> = changes.iter().map(|c| c.negated()).collect();
+                super::price_changes::record(&db, _written.id, &negated)?;
+            }
         }
 
         let updated_order =
             pos_db::queries::orders::get_order(&db, order.id).map_err(|e| e.to_string())?;
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order.id).map_err(|e| e.to_string())?;
-        (updated_order, lines)
+        // One entry per refund line: by line is what the FDM receives.
+        #[cfg(feature = "hubrise")]
+        let changes = super::price_changes::load(&db, order.id)?.1;
+        #[cfg(not(feature = "hubrise"))]
+        let changes = pos_fiscal::price_change::LineChanges::new();
+        (updated_order, lines, changes)
     };
 
     // From here on the refund order exists: whatever stops the refund
@@ -357,6 +391,11 @@ pub(crate) async fn refund_sale(
             refund_order.total_cents, // negative
             0,                        // refunds are not rounded
             Some(&original_ref),
+        );
+        pos_fiscal::price_change::apply(
+            &mut sale_input.transaction,
+            &refund_lines,
+            &refund_changes,
         );
         sale_input.common.ticket_medium = resolved.medium;
 
@@ -398,16 +437,8 @@ pub(crate) async fn refund_sale(
         // queued in the same transaction.
         let operator = super::operator_name(state, &refund_order.user_insz);
         let ticket = sign_result.as_ref().map(|result| {
-            let ticket_lines: Vec<TicketLine> = refund_lines
-                .iter()
-                .map(|l| TicketLine {
-                    quantity: l.quantity as f64,
-                    description: l.name.clone(),
-                    unit_price: l.unit_price_cents as f64 / 100.0,
-                    total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                    vat_code: l.vat_code.as_str().to_string(),
-                })
-                .collect();
+            let ticket_lines: Vec<TicketLine> =
+                pos_fiscal::price_change::ticket_lines(&refund_lines, &refund_changes);
 
             let payments = vec![TicketPayment {
                 method: pos_fiscal::payment::payment_line_identity(spec.payment_type)
