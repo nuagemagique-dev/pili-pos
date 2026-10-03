@@ -28,8 +28,11 @@
 //! - `priceChanges`: the PUBLIC price changes of label N lines, per
 //!   change id and VAT label, negative and positive apart.
 //!
-//! Invoices and foreign currencies are not supported in v1.0.0, so
-//! their totals are always empty.
+//! - `invoices`: one entry per I event, amount from
+//!   [`ReportEvent::invoice_amount`].
+//!
+//! Foreign currencies are not supported in v1.0.0, so their totals are
+//! always empty.
 
 use std::collections::BTreeMap;
 
@@ -38,9 +41,9 @@ use serde_json::Value;
 
 use crate::archive::ArchivedEvent;
 use crate::inputs::{
-    DepartmentTotalInput, EventTotalInput, FdmDeviceInput, InOutItemInput, NegQuantityTotalInput,
-    PaymentTotalAmountInput, PaymentTotalInput, PosDeviceInput, PriceChangeTotalInput,
-    PriceChangeVatTotalInput, TurnoverInput, UserItemInput, VatTotalInput,
+    DepartmentTotalInput, EventTotalInput, FdmDeviceInput, InOutItemInput, InvoiceTotalInput,
+    NegQuantityTotalInput, PaymentTotalAmountInput, PaymentTotalInput, PosDeviceInput,
+    PriceChangeTotalInput, PriceChangeVatTotalInput, TurnoverInput, UserItemInput, VatTotalInput,
 };
 use crate::types::{
     EventLabel, InOut, NegQuantityReason, PaymentLineType, PaymentType, PriceChangeType, VatLabel,
@@ -58,6 +61,8 @@ pub struct ReportEvent {
     /// period. They were counted there, so the sale does not count them
     /// again.
     pub registered_negatives: Vec<Value>,
+    /// For an invoice: Σ transactionTotal of the sales in its `fdmRefs`.
+    pub invoice_amount: Option<f64>,
 }
 
 impl ReportEvent {
@@ -75,6 +80,7 @@ impl ReportEvent {
             request,
             response,
             registered_negatives: Vec::new(),
+            invoice_amount: None,
         })
     }
 
@@ -190,9 +196,23 @@ pub fn turnover(events: &[ReportEvent]) -> TurnoverInput {
             .count() as i64,
         neg_quantities: neg_quantities(events),
         price_changes: price_changes(events.iter().filter(|e| is_sale(e))),
-        // Invoices (event I) are not part of v1.0.0: always none.
-        invoices: Some(vec![]),
+        invoices: Some(invoices(events)),
     }
+}
+
+/// One entry per invoice of the period, in signing order.
+fn invoices(events: &[ReportEvent]) -> Vec<InvoiceTotalInput> {
+    events
+        .iter()
+        .filter(|e| e.label == EventLabel::I)
+        .map(|e| InvoiceTotalInput {
+            invoice_no: e.request["invoiceNo"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            amount: e.invoice_amount.unwrap_or(0.0),
+        })
+        .collect()
 }
 
 /// The public price changes of the sales, per change and VAT label.
@@ -651,6 +671,7 @@ mod tests {
             request,
             response,
             registered_negatives: Vec::new(),
+            invoice_amount: None,
         }
     }
 
@@ -1363,5 +1384,27 @@ mod tests {
             by_label,
             vec![(VatLabel::A, -6.0, 0.0), (VatLabel::B, -20.0, 0.0)]
         );
+    }
+
+    #[test]
+    fn invoices_of_the_period_are_listed() {
+        let none = turnover(&[]);
+        assert_eq!(none.invoices.as_deref().map(<[_]>::len), Some(0));
+
+        let invoice = ReportEvent {
+            invoice_amount: Some(54.5),
+            ..event(
+                EventLabel::I,
+                json!({"invoiceNo": "20240005", "fdmRefs": []}),
+                Value::Null,
+            )
+        };
+        let report = turnover(&[invoice]);
+        let invoices = report.invoices.unwrap();
+        assert_eq!(invoices.len(), 1);
+        assert_eq!(invoices[0].invoice_no, "20240005");
+        assert_eq!(invoices[0].amount, 54.5);
+        // An I event has no transaction: never counted as a sale.
+        assert!(report.transactions.is_empty());
     }
 }

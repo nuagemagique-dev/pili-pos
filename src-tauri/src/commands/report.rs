@@ -741,6 +741,16 @@ fn period_events(
         .iter()
         .map(|e| {
             let mut event = ReportEvent::from_archive(e).ok_or_else(|| unreadable(e.id))?;
+            if e.event_type == EventLabel::I {
+                // An invoice's amount is the sum of the sales it names.
+                let mut amount = 0.0;
+                for fdm_ref in event.request["fdmRefs"].as_array().into_iter().flatten() {
+                    amount += archive::transaction_total_by_fdm_ref(db, fdm_ref)
+                        .map_err(|e| e.to_string())?
+                        .unwrap_or(0.0);
+                }
+                event.invoice_amount = Some((amount * 100.0).round() / 100.0);
+            }
             if let (EventLabel::N, Some(order_id)) = (e.event_type, e.order_id) {
                 for earlier in
                     archive::order_events_before(db, order_id, e.id).map_err(|e| e.to_string())?

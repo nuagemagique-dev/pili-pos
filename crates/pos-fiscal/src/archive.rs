@@ -236,6 +236,33 @@ pub fn order_events_before(
     rows.collect()
 }
 
+/// `transactionTotal` of the archived event an FDM reference names.
+pub fn transaction_total_by_fdm_ref(
+    conn: &rusqlite::Connection,
+    fdm_ref: &serde_json::Value,
+) -> Result<Option<f64>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT json_extract(event_data_json, '$.transaction.transactionTotal')
+         FROM fiscal_events
+         WHERE json_extract(fdm_response_json, '$.fdmRef.fdmId') = ?1
+           AND json_extract(fdm_response_json, '$.fdmRef.fdmDateTime') = ?2
+           AND json_extract(fdm_response_json, '$.fdmRef.eventLabel') = ?3
+           AND json_extract(fdm_response_json, '$.fdmRef.eventCounter') = ?4
+           AND json_extract(fdm_response_json, '$.fdmRef.totalCounter') = ?5",
+    )?;
+    let mut rows = stmt.query(rusqlite::params![
+        fdm_ref["fdmId"].as_str(),
+        fdm_ref["fdmDateTime"].as_str(),
+        fdm_ref["eventLabel"].as_str(),
+        fdm_ref["eventCounter"].as_i64(),
+        fdm_ref["totalCounter"].as_i64(),
+    ])?;
+    match rows.next()? {
+        Some(row) => row.get(0),
+        None => Ok(None),
+    }
+}
+
 /// Retrieve an archived event by its sequence number and event type.
 pub fn get_archived_event(
     conn: &rusqlite::Connection,
@@ -355,6 +382,34 @@ mod tests {
         assert!(event.fdm_id.is_none());
         assert!(event.fdm_response_json.is_none());
         assert!(event.qr_data.is_none());
+    }
+
+    #[test]
+    fn a_sale_total_is_found_by_its_fdm_reference() {
+        let conn = setup();
+        let sr = sign_result();
+        archive_event(
+            &conn,
+            ArchiveParams {
+                event_type: EventLabel::N,
+                sequence_number: 1,
+                order_id: None,
+                pos_id: "CFOD0061234567",
+                terminal_id: "POS1",
+                user_insz: "00000000029",
+                request_json: r#"{"transaction": {"transactionTotal": 27.5}}"#,
+                sign_result: Some(&sr),
+            },
+        )
+        .unwrap();
+        let fdm_ref = serde_json::to_value(&sr.fdm_ref).unwrap();
+        assert_eq!(
+            transaction_total_by_fdm_ref(&conn, &fdm_ref).unwrap(),
+            Some(27.5)
+        );
+        let mut other = fdm_ref.clone();
+        other["eventCounter"] = serde_json::json!(2);
+        assert_eq!(transaction_total_by_fdm_ref(&conn, &other).unwrap(), None);
     }
 
     #[test]

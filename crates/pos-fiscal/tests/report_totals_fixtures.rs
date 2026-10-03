@@ -71,6 +71,7 @@ fn scenario() -> Vec<ReportEvent> {
             request,
             response,
             registered_negatives: Vec::new(),
+            invoice_amount: None,
         }
     })
     .collect()
