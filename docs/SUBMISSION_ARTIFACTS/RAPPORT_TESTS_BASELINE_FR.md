@@ -15,15 +15,18 @@ attribué à des modifications futures.
 | Par défaut (dev) | `cargo check --package pili-pos` | OK vert |
 | Certification | `cargo check --package pili-pos --no-default-features --features cert` | OK vert |
 
-**Vérification au niveau symboles** que le binaire cert n'embarque aucun
-code d'intégrations tierces désactivées :
+**Vérification du périmètre du binaire cert** (`scripts/build_and_hash.sh`) :
 
 ```
-nm target/debug/pili-pos | grep -c pos_hubrise
+strings target/release/pili-pos | grep -c integration_switch_log   # > 0 : commandes en ligne présentes
+nm target/release/pili-pos | grep -c pos_peppol                    # 0 : facturation B2B absente
 ```
 
-| Configuration | Symboles d'intégrations tierces |
-|---|---|
+Les commandes en ligne font partie du binaire certifié et s'activent
+par installation (`COMMANDES_EN_LIGNE_FR.md`) ; la facturation B2B
+(feature `peppol`) en est absente.
+
+---|---|
 | Par défaut | **493** |
 | Cert (`--no-default-features --features cert`) | **0** |
 
@@ -180,18 +183,18 @@ champs/arguments optionnels. Aucun changement de sémantique de test.
 
 | Fichier | Changement |
 |---|---|
-| `src-tauri/Cargo.toml` | Intégrations tierces marquées `optional = true` ; feature `cert` (default-off) exclut ces intégrations du binaire cert. |
-| `src-tauri/src/main.rs` | Commandes Tauri des intégrations tierces gardées derrière `#[cfg(feature = "hubrise")]`. |
+| `src-tauri/Cargo.toml` | Feature `cert` = `custom-protocol` + `hubrise` ; la facturation B2B (`peppol`) reste hors du binaire cert. |
+| `src-tauri/src/main.rs` | Commandes Tauri de la facturation B2B gardées derrière `#[cfg(feature = "peppol")]`. |
 | `src-tauri/src/commands/checkout.rs` | **Bug fix** : passait `restaurant_est_no: ""` à `TicketParams`, passe désormais `&config.restaurant_est_no`. |
-| `ui/src/router/index.ts` | Vue de gestion webshop exclue du bundle cert via variable d'environnement Vite. |
+| `ui/src/router/index.ts` | Écran des commandes en ligne accessible seulement si l'intégration est activée pour l'installation. |
 
 ---
 
 ## Limitations connues / suivis
 
-- **Composants UI webshop** : la vue de gestion webshop est exclue du
-  bundle cert via Vite. Le côté IPC est désactivé dans la build cert
-  (aucune commande webshop enregistrée).
+- **Commandes en ligne** : présentes dans le binaire cert, coupées par
+  défaut (`hubrise_enabled: false`) ; un Gérant les active dans
+  Réglages, chaque changement est journalisé.
 - **Endpoint healthcheck** (`127.0.0.1:9999`) : une variante
   liveness-only cert-friendly est planifiée pour un futur polissage UI.
 - **Playwright** : hors du tableau ci-dessus (généré depuis `cargo
@@ -210,8 +213,8 @@ cargo test --workspace --no-fail-fast
 
 # Build certification
 cargo build --package pili-pos --no-default-features --features cert
-nm target/debug/pili-pos | grep -c pos_hubrise   # → 0
+nm target/debug/pili-pos | grep -c pos_peppol   # → 0
 
-# Build UI certification (tree-shake WebshopOrdersView)
-VITE_FEATURE_HUBRISE=false npm --prefix ui run build
+# Build UI (un seul bundle, commandes en ligne activées à l'exécution)
+npm --prefix ui run build
 ```

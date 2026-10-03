@@ -194,6 +194,20 @@ ajoute à `fiscal_events`, de sorte que :
   exponentiel (`commands::delivery::run_outbox_once`, toutes les
   30 s). Détail complet : `TICKET_NUMERIQUE_FR.md`.
 
+## 6ter. Commandes en ligne
+
+- Crates : `crates/pos-hubrise` (réception, file d'envoi, menu reflet),
+  `crates/pos-catalog` (validation et application du catalogue),
+  commandes Tauri `src-tauri/src/commands/webshop.rs`.
+- Interrupteur par installation : `hubrise_enabled` dans `pos.json`,
+  puis un Gérant dans Réglages ; journal en ajout seul
+  `integration_switch_log` (migration 25). Coupé : aucune boucle ne
+  contacte HubRise et aucune commande n'est acceptée ; une commande
+  déjà signée reste soldable.
+- Chaque commande en ligne se termine par un N signé sur ce terminal,
+  au nom de l'employé qui l'accepte (P puis N si elle est payée à la
+  remise). Détail : `COMMANDES_EN_LIGNE_FR.md`.
+
 ## 7. Persistance
 
 - Moteur : **SQLite** (DB en un seul fichier dans
@@ -214,12 +228,13 @@ ajoute à `fiscal_events`, de sorte que :
 
 | Build | Features Cargo | Produit |
 |---|---|---|
-| Dev | (par défaut) `peppol` + intégrations tierces | App complète avec toutes les intégrations |
-| Cert | `--no-default-features --features cert` | Binaire sans intégrations tierces ni facturation Peppol (hors v1.0.0), interface embarquée |
+| Dev | (par défaut) `hubrise` + `peppol` | App complète, facturation B2B comprise |
+| Cert | `--no-default-features --features cert` (`hubrise` + interface embarquée) | Binaire certifié : commandes en ligne présentes, activées par installation (`COMMANDES_EN_LIGNE_FR.md`) ; sans facturation Peppol (hors v1.0.0) |
 
-Vérification `nm` sur le binaire cert :
+Vérification sur le binaire cert (`scripts/build_and_hash.sh`) :
 ```
-$ nm target/release/pili-pos | grep -c pos_hubrise
+$ strings target/release/pili-pos | grep -c integration_switch_log   # commandes en ligne présentes
+$ nm target/release/pili-pos | grep -c pos_peppol                    # facturation B2B absente
 0
 ```
 

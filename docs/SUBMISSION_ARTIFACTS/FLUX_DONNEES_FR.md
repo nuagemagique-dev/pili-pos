@@ -237,6 +237,40 @@ Aucune de ces étapes ne touche à `fiscal_events` : le ticket fiscal a
 déjà été signé et archivé à l'encaissement (§3) ; cette tâche de fond
 ne fait que rattraper la remise numérique promise.
 
+## 9 bis. Commande en ligne (plateforme ou webshop)
+
+Seulement si les commandes en ligne sont activées pour l'installation
+(`COMMANDES_EN_LIGNE_FR.md` §2).
+
+**Déclencheur.** `pos_hubrise::poller::run_loop` lit les événements
+HubRise toutes les 30 secondes (`POLL_INTERVAL`), et au démarrage
+`pos_hubrise::poller::start` reprend les commandes nouvelles et relit
+celles signées depuis deux jours.
+
+**Circulation des données.**
+
+1. Réception : ligne `orders` (`source` = canal, `is_fiscal = 0`, ouverte par l'identité système)
+   et ligne `webshop_orders` (`fiscal_state = 'pending'`), lignes
+   rapprochées du menu dans `lines_json`. Statut `received` mis en
+   file pour HubRise (`hubrise_outbox`). Rien n'est envoyé au FDM.
+2. Acceptation par un employé (`do_accept_webshop_order`) : réservation
+   `pending` → `signing`, écriture des lignes dans le journal
+   `order_entries`, puis :
+   - commande payée : `signSale` (N), paiement `APP` ou `ONLINE`,
+     `costCenter` `PLATFORM` ou `WEBSHOP`, remises en `priceChanges` ;
+     ticket de caisse TVA imprimé ;
+   - commande à payer : `signOrder` (P) avec le même `costCenter`.
+3. Dans la transaction qui archive l'événement (`fiscal_events`) :
+   `webshop_orders.fiscal_state` = `signed_n` ou `signed_p`,
+   `orders.is_fiscal = 1`, statut `accepted` mis en file pour HubRise.
+4. Commande à payer, à la remise : `signSale` (N) avec le même
+   `costCenter`, paiement encaissé à la caisse ; statut `completed`.
+5. `pos_hubrise::outbox::run_loop` envoie les statuts en file, dans
+   l'ordre par commande, avec nouvelles tentatives.
+
+Si le FDM échoue à l'étape 2, la commande revient à `pending` et rien
+n'est mis en file.
+
 ## 10. Récapitulatif de persistance
 
 | Action | Tables touchées |

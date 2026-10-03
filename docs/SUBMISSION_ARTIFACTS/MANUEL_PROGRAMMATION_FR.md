@@ -377,7 +377,8 @@ cargo clippy --workspace -- -D warnings
 cargo fmt --all --check
 
 # 2. Build de certification de référence (conteneur épinglé), qui
-#    vérifie aussi l'absence de symboles d'intégrations tierces et
+#    vérifie aussi le périmètre du binaire (commandes en ligne
+#    présentes, facturation B2B absente) et
 #    produit le rapport build_info_*.txt (SHA-1, SHA-256, MD5)
 ./deploy/build-release.sh --docker
 

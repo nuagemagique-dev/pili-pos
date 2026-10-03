@@ -45,6 +45,7 @@ pdf_out/JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf
 pdf_out/CHECKLIST_DEPLOIEMENT_KIOSK_FR.pdf
 pdf_out/GARANTIE_MAJ_LANGUES_FR.pdf
 pdf_out/TICKET_NUMERIQUE_FR.pdf
+pdf_out/COMMANDES_EN_LIGNE_FR.pdf
 
 # Preuves brutes
 evidence/uc

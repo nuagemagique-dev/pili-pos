@@ -331,13 +331,17 @@ Des indexes additionnels peuvent être ajoutés en post-cert si des problèmes d
 
 ---
 
-## 6. Tables hors périmètre cert
+## 6. Tables des commandes en ligne
 
-Certaines tables existent dans le schéma mais sont **inutilisées dans la build cert** (intégrations tierces exclues par feature Cargo) :
-
-- `hubrise_outbox` - queue d'événements webshop. Le schéma est préservé pour rétro-compatibilité de lecture, mais aucun chemin de code vivant ne l'écrit dans la build cert.
-
-Ces tables apparaissent dans le SQL de seed mais ne reçoivent aucune écriture en production cert. *Voir : RAPPORT_TESTS_BASELINE_FR.md* §"Vérification de build" pour la preuve par `nm pili-pos | grep -c pos_hubrise == 0`.
+Les tables des commandes en ligne (`webshop_orders`, `hubrise_channels`,
+`hubrise_outbox`, `order_price_changes`, `integration_switches`,
+`integration_switch_log`, migrations 20 à 25) sont décrites dans
+`SCHEMA_BD_FR.md` §5. Elles ne sont écrites que si l'intégration est
+activée pour l'installation (`COMMANDES_EN_LIGNE_FR.md` §2), sauf le
+journal de l'interrupteur, qui reçoit au moins la valeur de départ.
+`webshop_orders.order_id` référence `orders.id` ; ses colonnes
+`p_event_id`, `n_event_id` et `refund_event_id` référencent
+`fiscal_events.id`.
 
 ---
 

@@ -158,18 +158,30 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   Nederlands (nl), Deutsch (de, migration `007`), English (en).
 - Sélection de la langue d'affichage par utilisateur.
 
-## 3. Fonctionnalités exclues (hors scope cert)
+## 3. Commandes en ligne (plateformes et webshop)
 
-Pour la build de certification (`--features cert`), les
-fonctionnalités suivantes sont **physiquement absentes du binaire** :
+Présentes dans le binaire certifié, activées par installation
+(`hubrise_enabled` dans `pos.json`, puis un Gérant dans Réglages, chaque
+changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 
-- **Intégration webshop / agrégateurs de livraison** (Uber Eats,
-  Deliveroo, etc.) - exclue par le système de features Cargo.
-  Vérification : `nm pili-pos | grep -c pos_hubrise` → **0**.
-- **Vue de gestion webshop** (`WebshopOrdersView.vue`) - exclue du
-  bundle via la variable d'environnement build Vite.
+- Réception des commandes Deliveroo, Uber Eats et du webshop par
+  HubRise ; contrôle contre le menu de la caisse.
+- Commande payée : N à l'acceptation, paiement `APP` ou `ONLINE`,
+  ticket de caisse TVA papier.
+- Commande à payer : P à l'acceptation, N à la remise avec le même
+  `costCenter` (FAQ Q203 b).
+- Commande refusée : jamais signée. Annulation après le N :
+  remboursement confirmé par un Gérant, avec `fdmRef`. Annulation après
+  le P : corrections et N à 0,00 EUR.
+- Remises en `priceChanges` ; frais des plateformes exclus par défaut.
+- Menu de la caisse reflet du catalogue HubRise, verrouillé pendant la
+  connexion.
 
-Voir `BASELINE_TEST_REPORT.md` pour les preuves binaires.
+## 3 bis. Fonctionnalités exclues (hors scope cert)
+
+- **Facturation B2B (événement I, Peppol)** : absente du binaire
+  certifié (feature Cargo `peppol` hors de `cert`), livrée dans une
+  mise à jour certifiée ultérieure. Voir §4.
 
 ## 4. Intégration Peppol (B2B)
 

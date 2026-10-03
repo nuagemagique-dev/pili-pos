@@ -137,9 +137,10 @@ cd ~/pili-pos                          # le dépôt source
 ./deploy/build-release.sh --docker
 # → deploy/dist/pili-pos, deploy/dist/build_info_*.txt
 
-# 2) Confirmer que le binaire cert ne contient aucune intégration
-#    tierce désactivée (symboles résiduels attendus = 0).
-nm target/linux-amd64/release/pili-pos | grep -c pos_hubrise   # → 0
+# 2) Confirmer le périmètre du binaire cert : commandes en ligne
+#    présentes (activées par installation), facturation B2B absente.
+strings target/linux-amd64/release/pili-pos | grep -c integration_switch_log   # → > 0
+nm target/linux-amd64/release/pili-pos | grep -c pos_peppol                    # → 0
 
 # 3) Confirmer que fiscal_events est append-only (pas de DELETE/UPDATE
 #    dans le code).

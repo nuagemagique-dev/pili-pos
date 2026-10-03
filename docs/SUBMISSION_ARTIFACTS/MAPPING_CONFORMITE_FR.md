@@ -90,7 +90,7 @@ implémentés dans `crates/pos-peppol` ; IPC dans
 
 | Préoccupation | Preuve |
 |---|---|
-| Binaire cert sans intégrations tierces | `cargo build --release --no-default-features --features cert` ; `nm pili-pos | grep -c pos_hubrise → 0` |
+| Périmètre du binaire cert | `cargo build --release --no-default-features --features cert` : commandes en ligne présentes (activées par installation, `COMMANDES_EN_LIGNE_FR.md`), facturation B2B absente (`nm pili-pos | grep -c pos_peppol` → 0) ; vérifié par `scripts/build_and_hash.sh` |
 | Tous les tests verts | `cargo test --workspace` et la build cert : 0 échec (totaux dans RAPPORT_TESTS_BASELINE_FR.md) |
 | Lint propre | `cargo clippy --workspace -- -D warnings` (à exécuter avant soumission) |
 | Format cohérent | `cargo fmt --all` |

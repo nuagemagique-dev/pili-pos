@@ -120,12 +120,12 @@ Commandes (dine-in et takeaway). Une commande peut être ouverte
 | `closed_at` | TEXT (nullable) | Date / heure d'encaissement |
 | `subtotal_cents` | INTEGER | Sous-total TVA incluse |
 | `total_cents` | INTEGER | Total payé en centimes |
-| `hubrise_order_id` | TEXT (nullable) | ID commande externe (NULL dans le build cert) |
-| `is_fiscal` | INTEGER | 1 = dine-in soumis au FDM, 0 = webshop hors FDM (irrelevant en cert) |
-| `source` | TEXT | `pos_local` ou `webshop` |
-| `hubrise_status` | TEXT (nullable) | Statut webshop |
-| `service_type` | TEXT (nullable) | Type de service webshop |
-| `raw_hubrise_json` | TEXT (nullable) | Payload commande externe brut |
+| `hubrise_order_id` | TEXT (nullable) | Identifiant HubRise d'une commande en ligne ; NULL pour une commande de la caisse |
+| `is_fiscal` | INTEGER | 1 = commande soumise au FDM ; une commande en ligne passe à 1 dès sa signature (P ou N) |
+| `source` | TEXT | `pos_local` (caisse), ou canal de la commande en ligne (par exemple `deliveroo` ; `webshop` sans canal) |
+| `hubrise_status` | TEXT (nullable) | Statut HubRise de la commande en ligne |
+| `service_type` | TEXT (nullable) | Livraison, enlèvement ou sur place (commande en ligne) |
+| `raw_hubrise_json` | TEXT (nullable) | Commande en ligne telle que reçue de HubRise |
 
 ### 2.2 `order_lines`
 
@@ -370,21 +370,76 @@ Audit trail des factures B2B livrées via Access Point Peppol.
 
 Index : `idx_peppol_deliveries_invoice(invoice_no)`.
 
-## 5. Tables d'intégration webshop (inutilisées dans le build cert)
+## 5. Tables des commandes en ligne (migrations 20 à 25)
 
-Les tables `hubrise_connection`, `hubrise_events`, `hubrise_outbox`
-existent dans le schéma mais sont **inutilisées en build cert** -
-aucun code du binaire cert ne lit ni écrit ces tables (les intégrations
-tierces sont exclues à la compilation via feature Cargo, cf.
-`BASELINE_TEST_REPORT.md`). Elles sont préservées pour permettre
-qu'un déploiement non-cert lise une base créée par un build cert et
-inversement, sans migration de schéma.
+Présentes sur toute installation ; écrites seulement quand les
+commandes en ligne sont activées pour l'installation
+(`COMMANDES_EN_LIGNE_FR.md` §2), sauf le journal de l'interrupteur.
+
+### 5.1 `webshop_orders`
+
+Une ligne par commande en ligne, à côté de sa ligne `orders`.
+
+| Colonne | Type | Description |
+|---|---|---|
+| `order_id` | INTEGER PK | Référence `orders(id)` |
+| `hubrise_order_id` | TEXT UNIQUE | Identifiant HubRise ; `reference` du `costCenter` |
+| `channel` / `channel_kind` | TEXT | Canal (par exemple `deliveroo`) ; `platform` ou `webshop` |
+| `service_type` | TEXT | `delivery`, `collection` ou `eat_in` |
+| `payment_mode` / `payment_type` | TEXT | `prepaid` ou `unpaid` ; `APP` ou `ONLINE` pour une commande payée |
+| `fiscal_state` | TEXT | `pending`, `signing`, `signed_p`, `signed_n`, `voided`, `rejected`, `refund_pending`, `cancel_pending`, `refunded`, `closed` |
+| `resolution` | TEXT | `ok` ou `needs_review` (« à vérifier ») |
+| `attention_json` / `warnings_json` | TEXT (JSON) | Raisons du contrôle, avertissements |
+| `lines_json` | TEXT (JSON) | Lignes à signer, rapprochées du menu |
+| `p_event_id` / `n_event_id` / `refund_event_id` | INTEGER | Référencent `fiscal_events(id)` |
+| `accepted_by` / `accepted_at` | TEXT | INSZ de l'employé qui a accepté, date |
+
+Index : `idx_webshop_orders_state(fiscal_state, resolution)`.
+
+### 5.2 `hubrise_channels`, `hubrise_cash_payment_refs`
+
+`hubrise_channels` associe un canal à son type (`platform` /
+`webshop`), au type de paiement FDM d'une commande payée (`APP` /
+`ONLINE`) et au traitement de ses frais (`charge_policy` : `include`
+ou `exclude`, `exclude` par défaut pour les plateformes depuis la
+migration 24). `hubrise_cash_payment_refs` liste les références de
+paiement HubRise qui désignent des espèces.
+
+### 5.3 `order_price_changes` (ajout seul)
+
+Remises d'une commande en ligne, envoyées au FDM comme `priceChanges`
+(spécification POS v2.2). Une ligne par remise et par ligne du
+journal (`entry_id` référence `order_entries(id)`) : `change_id`,
+`name`, `scope` (`LINE` / `EVENT`), `change_type` (`PUBLIC` /
+`INTERNAL`), `amount_cents`. Déclencheurs refusant `UPDATE` et
+`DELETE`.
+
+### 5.4 `integration_switches`, `integration_switch_log` (ajout seul)
+
+`integration_switches` : état de l'interrupteur (`name` = `hubrise`,
+`enabled`, `config_value` = valeur de `pos.json` au dernier démarrage,
+`changed_at`, `changed_by`). `integration_switch_log` : chaque
+changement (`enabled`, `source` = `config` ou `admin`, `changed_by` =
+INSZ du Gérant, `changed_at`). Déclencheurs refusant `UPDATE` et
+`DELETE`.
+
+### 5.5 Liaison HubRise et menu reflet
+
+`hubrise_connection` (connexion à l'établissement HubRise, état du
+rappel, dernière erreur), `hubrise_events` (événements reçus, nombre
+de tentatives), `hubrise_outbox` (statuts à envoyer à HubRise, dans
+l'ordre par commande) ; `catalog_sync_state` (dernier catalogue
+appliqué ou refusé, verrou du menu). La migration 21 ajoute
+`menu_items.kind` (`product` / `charge`), `menu_items.on_pos`,
+`categories.hidden` et `active` / `sort_order` sur les groupes
+d'options et les options.
 
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **sept
-migrations** existent, appliquées dans l'ordre et consignées dans la
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **quinze
+migrations** existent (1 à 9, puis 20 à 25 ; 10 à 19 sont réservées aux
+correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
 | Version | Nom | Contenu |
@@ -396,6 +451,14 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 5 | `ticket-deliveries` | Ajoute la table `ticket_deliveries` (§3.6, ticket numérique par e-mail). |
 | 6 | `original-prints` | Ajoute la table `original_prints` (§3.7, impression unique de l'original). |
 | 7 | `german-language` | Insère `de` (Deutsch) dans `languages`, pour qu'un catalogue en région de langue allemande puisse porter des désignations en allemand (§1.1). |
+| 8 | `meal-voucher-payments` | Autorise le moyen de paiement `meal_voucher` dans `payments` (table reconstruite avec ses lignes, SQLite ne modifiant pas un CHECK). |
+| 9 | `shifts-and-pre-bill` | Ajoute `staff_shifts` (index local des prestations ouvertes par un S WorkIn) et `orders.pre_bill_at`. |
+| 20 | `hubrise-transport` | Colonnes de nouvelle tentative et d'erreur sur `hubrise_connection`, `hubrise_events`, `hubrise_outbox` (§5.5). |
+| 21 | `catalog-sync` | Menu reflet d'un catalogue externe, `catalog_sync_state` (§5.5). |
+| 22 | `webshop-orders` | `webshop_orders`, `hubrise_channels`, `hubrise_cash_payment_refs` (§5.1, §5.2). |
+| 23 | `price-changes` | `order_price_changes` et ses déclencheurs (§5.3). |
+| 24 | `platform-charges` | Frais des plateformes exclus par défaut (§5.2). |
+| 25 | `integration-switch` | `integration_switches`, `integration_switch_log` et ses déclencheurs (§5.4). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

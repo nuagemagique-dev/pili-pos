@@ -210,12 +210,12 @@ Cette absence de solution d'accès à distance permanente est délibérée : pou
 | Écran utilisateur (client-facing) | ☐ | ☐ | Pas en MVP |
 | Écran pour la cuisine/le bar | ☐ | ☐ | Sortie cuisine via imprimante dédiée (kitchen printer), pas KDS |
 | Balance | ☐ | ☐ | Pas de prix au poids |
-| **Livraison** | ☐ | ☐ | Pas de fonctionnalité livraison fiscalisée |
+| **Livraison** | ☐ | ☑ | Commandes de livraison reçues des plateformes et du webshop, signées par le FDM (N, ou P puis N à la remise). *Voir : COMMANDES_EN_LIGNE_FR.md* |
 | Distributeur de nourriture | ☐ | ☐ | |
 | Robot | ☐ | ☐ | |
 | **Commande à distance** | ☐ | ☐ | |
-| Boutique en ligne | ☐ | ☐ | Webshop existe mais hors périmètre fiscal (build cert - intégrations tierces désactivées) |
-| Commande en ligne | ☐ | ☐ | Idem |
+| Boutique en ligne | ☐ | ☑ | Webshop de l'établissement relié par HubRise : chaque commande se termine par un N (FAQ Q203), paiement `ONLINE` si payée en ligne. Présent dans le binaire certifié, activé par installation (coupé par défaut, donc coupé sur la machine de test). *Voir : COMMANDES_EN_LIGNE_FR.md* |
+| Commande en ligne | ☐ | ☑ | Idem, pour les plateformes de livraison (paiement `APP`) |
 | Scanner de code QR | ☐ | ☐ | |
 | **Facturation/paiement** | | | |
 | App de commande avec facturation | ☐ | ☐ | |
@@ -266,7 +266,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 | POS login - Serveur | INSZ : `84022899837` (test) | PIN : `2222` | Rôle `cashier` (= Serveur) : commandes, addition et encaissement. |
 | POS login - Apprenti | INSZ : `99012345667` (test) | PIN : `3333` | Rôle `waiter` (= Apprenti) : commandes uniquement, sans encaissement. |
 | POS login - Technicien | INSZ : `00000000097` | PIN : `0097` | NISS technicien standard SPF, rôle `admin`. |
-| Identité système (robot) | INSZ : `00000000029` | Aucune connexion possible | NISS robot/automate standard SPF, utilisé comme opérateur des enregistrements automatiques (commandes en ligne). Ce n'est pas un compte de connexion : il n'a pas de tuile et la caisse refuse de l'ouvrir en session. |
+| Identité système (robot) | INSZ : `00000000029` | Aucune connexion possible | NISS robot/automate standard SPF, utilisé comme opérateur du rapport Z automatique (FAQ Q501). Elle ouvre aussi la fiche d'une commande en ligne reçue ; les événements de cette commande sont signés au nom de l'employé qui l'accepte. Ce n'est pas un compte de connexion : il n'a pas de tuile et la caisse refuse de l'ouvrir en session. |
 
 Ces comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des quatre comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN : un Gérant créé sans PIN le choisit à sa première connexion (`MANUEL_UTILISATEUR_FR.md` §2.1).
 
@@ -586,10 +586,10 @@ l'implémentation, la table exigence → code → test, et
 
 | Nom | Statut |
 |---|---|
-| Deliveroo | ☐ Non |
-| TakeAway.com | ☐ Non |
-| Uber Eats | ☐ Non |
-| Autres partenaires | ☐ Non (aucune intégration tierce active dans le build cert) |
+| Deliveroo | ☑ Oui, par HubRise (activé par installation) |
+| TakeAway.com | ☑ Oui, par HubRise (activé par installation) |
+| Uber Eats | ☑ Oui, par HubRise (activé par installation) |
+| Autres partenaires | ☑ Webshop de l'établissement, par HubRise. Chaque commande se termine par un N signé sur ce terminal ; détail, interrupteur par installation et journal : *COMMANDES_EN_LIGNE_FR.md* |
 
 **Remarque :** Scaleway (Transactional Email, §III.H) n'est pas une
 intégration de plateforme de commande - c'est un sous-traitant
@@ -880,6 +880,7 @@ Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pd
 | 30 | CHECKLIST_DEPLOIEMENT_KIOSK_FR.pdf | machine de test |
 | 31 | GARANTIE_MAJ_LANGUES_FR.pdf | §II.E + §VI (langue du ticket) |
 | 32 | TICKET_NUMERIQUE_FR.pdf | §III.H |
+| 33 | COMMANDES_EN_LIGNE_FR.pdf | §III.M + livraison, commandes en ligne |
 
 Plus :
 - `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM_signe.pdf` - formulaire SPF rempli et signé.

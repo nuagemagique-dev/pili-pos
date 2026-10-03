@@ -77,9 +77,8 @@ employé (initiale, nom, profil).
 (11 chiffres) puis "Connexion". Si ce compte a un PIN, le pavé du PIN
 s'affiche ensuite, comme depuis la tuile.
 
-L'identité système `00000000029` (enregistrements automatiques, par
-exemple les commandes en ligne) n'a pas de tuile et ne peut pas se
-connecter.
+L'identité système `00000000029` (rapport Z automatique) n'a pas de
+tuile et ne peut pas se connecter.
 
 **Première connexion d'un Gérant.** Un Gérant doit avoir un PIN. S'il
 n'en a pas encore (première connexion après l'installation), toucher
@@ -512,6 +511,40 @@ personnel. La section indique depuis quand elle dure. Quand le
 technicien a terminé, toucher "Arrêter la session". Une seule session
 à la fois ; si RustDesk n'est pas installé, la section l'indique ("Non
 installée sur cette caisse").
+
+### 12.7 Commandes en ligne
+
+Section "Intégrations". Les commandes des plateformes de livraison et
+du webshop ne sont reçues que si elles sont activées sur cette caisse
+(désactivées à l'installation, sauf demande du client).
+
+- **"Activer" / "Désactiver"** : réservé au Gérant. Chaque changement
+  est inscrit dans "Historique" (date, gérant ou fichier de
+  configuration) et ne peut pas être effacé.
+- Tant qu'une commande en ligne n'est pas terminée, "Désactiver" est
+  refusé et la section indique "<n> commande(s) en ligne à terminer".
+
+Une fois activées, le bouton "En ligne" de l'en-tête ouvre les
+commandes reçues :
+
+- **"Accepter"** (Serveur ou Gérant) : une commande déjà payée sur la
+  plateforme ou le webshop est vendue (événement N) et son ticket de
+  caisse TVA imprimé ; une commande "À encaisser" est enregistrée
+  (événement P) et le bon part en cuisine.
+- **"Encaisser espèces" / "Encaisser carte"** : à la remise d'une
+  commande "À encaisser" ; vente (événement N) et ticket, comme au §7.
+- **"Refuser"** : la commande est refusée, rien n'est signé.
+- **"À vérifier"** : la commande ne correspond pas au menu ; elle ne
+  peut pas être acceptée. "Resynchroniser" relit le menu, sinon la
+  refuser.
+- **"Rembourser"** (Gérant) : une commande annulée par la plateforme
+  après la vente ; le remboursement cite la vente d'origine, le tiroir
+  reste fermé (la plateforme rembourse le client).
+- **"Clôturer"** : une commande à encaisser annulée après son
+  enregistrement ; ticket à 0,00 EUR.
+
+Si le FDM ne répond pas, rien n'est signé et la commande reste à
+accepter (§7.4). Le détail fiscal est dans `COMMANDES_EN_LIGNE_FR.md`.
 
 ## 13. Mode formation (événements T)
 
