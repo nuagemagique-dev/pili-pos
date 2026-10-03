@@ -1,16 +1,16 @@
 {
     "data": {
         "signSale": {
-            "bufferCapacityUsed": 82.53,
+            "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMi0yLTE3OTA1MzEyNjk=",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTEwNTM5Mjc=",
             "eventOperation": "SALE",
             "fdmRef": {
-                "eventCounter": 2,
+                "eventCounter": 1,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-09-27T17:47:49Z",
+                "fdmDateTime": "2026-10-03T18:58:47Z",
                 "fdmId": "MCK00000001",
-                "totalCounter": 2
+                "totalCounter": 1
             },
             "fdmSwVersion": "MOCK-FDM-1.0",
             "footer": [],
@@ -18,17 +18,9 @@
             "posDateTime": "2024-07-29T13:00:00.000+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "0f3a5e41953b71763af36633ebe5dcc8f0bc5267",
+            "shortSignature": "6e6f82b026baefed6d5ea577a659d2d6bac2e0c0",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
-                {
-                    "label": "A",
-                    "outOfScope": false,
-                    "rate": 21.0,
-                    "taxableAmount": 19.83,
-                    "totalAmount": 24.0,
-                    "vatAmount": 4.17
-                },
                 {
                     "label": "B",
                     "outOfScope": false,
@@ -36,17 +28,25 @@
                     "taxableAmount": 25.0,
                     "totalAmount": 28.0,
                     "vatAmount": 3.0
+                },
+                {
+                    "label": "A",
+                    "outOfScope": false,
+                    "rate": 21.0,
+                    "taxableAmount": 19.83,
+                    "totalAmount": 24.0,
+                    "vatAmount": 4.17
                 }
             ],
-            "verificationUrl": "https://www.gs2.be/M0000200002AbCdEfGhI",
+            "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
             "warnings": [
                 {
                     "extensions": {
-                        "category": "SPF_FOD",
-                        "code": "BUFFER_NEAR_FULL",
-                        "showPos": "MANDATORY"
+                        "category": "FDM",
+                        "code": "DUPLICATE_REQUEST",
+                        "showPos": "NEVER"
                     },
-                    "message": "L'utilisation du buffer du FDM d\u00e9passe 70%"
+                    "message": "Erreur FDM"
                 }
             ]
         }

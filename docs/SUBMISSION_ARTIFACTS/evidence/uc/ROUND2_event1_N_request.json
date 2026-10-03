@@ -1,0 +1,57 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "c2b00f9d-3cd9-4c43-8cc4-81542e62d5bc",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 3.34,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.784+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 3.34,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "28007",
+          "productName": "Tapas Variation",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 3.34
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 3.34
+  },
+  "vatNo": "BE0000000097"
+}

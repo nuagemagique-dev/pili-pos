@@ -24,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs/SUBMISSION_ARTIFACTS/RESULTATS_TESTS_UC_FR.md"
 EVIDENCE = ROOT / "docs/SUBMISSION_ARTIFACTS/evidence/uc"
+TICKETS = ROOT / "docs/SUBMISSION_ARTIFACTS/evidence/tickets"
 
 START = "<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->"
 END = "<!-- pili-pos-evidence:end -->"
@@ -39,6 +40,7 @@ BASIC = {
     "M121": ("spf_e2e_fixtures.rs::m121_table_order", ["M121"]),
     "M123": ("spf_e2e_fixtures.rs::m123_pre_bill", ["M123"]),
     "M130": ("spf_e2e_fixtures.rs::m130_money_in", ["M130"]),
+    "M133": ("spf_e2e_fixtures.rs::m133_drawer_declaration", ["M133"]),
     "M131": ("spf_e2e_fixtures.rs::m131_drawer_open", ["M131"]),
     "M140": ("spf_e2e_fixtures.rs::m140_work_in", ["M140"]),
     "M141": ("spf_e2e_fixtures.rs::m141_work_out", ["M141"]),
@@ -46,7 +48,20 @@ BASIC = {
     "M161": ("spf_e2e_fixtures.rs::m161_copy_of_an_order", ["M161"]),
     "M170": ("spf_e2e_fixtures.rs::m170_work_in_in_training", ["M170"]),
     "M171": ("spf_e2e_fixtures.rs::m171_sale_in_training", ["M171"]),
+    "M171B": (
+        "spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields",
+        ["M171B"],
+    ),
     "M172": ("spf_e2e_fixtures.rs::m172_copy_in_training", ["M172"]),
+}
+
+# Manual "Arrondissement des méthodes de paiement": situation -> test.
+ROUND = {
+    "ROUND1": "spf_e2e_rounding.rs::round1_dame_blanche_cash",
+    "ROUND2": "spf_e2e_rounding.rs::round2_tapas_variation_cash",
+    "ROUND3": "spf_e2e_rounding.rs::round3_both_desserts_cash",
+    "ROUND4": "spf_e2e_rounding.rs::round4_meal_vouchers_then_cash",
+    "ROUND5": "spf_e2e_rounding.rs::round5_meal_vouchers_card_and_cash",
 }
 
 REPORTS = {
@@ -202,6 +217,37 @@ def basic_block(uc: str) -> str | None:
     return "\n".join(out)
 
 
+def round_block(uc: str) -> str | None:
+    events = events_of(uc)
+    if not events:
+        return None
+    req = events[-1]
+    resp = EVIDENCE / req.name.replace("_request.json", "_response.json")
+    ticket = TICKETS / f"{uc}_ticket.txt"
+    if not ticket.exists():
+        sys.exit(f"missing {ticket}: run scripts/capture_uc_evidence.sh first")
+    return "\n".join(
+        [
+            START,
+            f"**Preuve pili-pos (build `cert`)** - situation rejouée par "
+            f"`src-tauri/tests/{ROUND[uc]}`, par la commande que l'écran "
+            f"d'encaissement appelle. Requête **construite et archivée par "
+            f"pili-pos** (`evidence/uc/{req.name}`) ; réponse FDM archivée : "
+            f"`evidence/uc/{resp.name}`.",
+            "",
+            json_block(req),
+            "",
+            f"Ticket imprimé (`evidence/tickets/{ticket.name}`, rendu texte "
+            f"du flux ESC/POS) :",
+            "",
+            "```text",
+            ticket.read_text(encoding="utf-8").rstrip(),
+            "```",
+            END,
+        ]
+    )
+
+
 def report_block(uc: str) -> str | None:
     if uc in VIA_M184:
         events = [p for p in events_of("M184") if p.name.endswith("_R_request.json")]
@@ -251,7 +297,10 @@ def report_block(uc: str) -> str | None:
 
 def sections(text: str) -> list[tuple[str, int, int]]:
     """(uc, start, end) of every '## <UC>_…' section."""
-    heads = [(m.group(1), m.start()) for m in re.finditer(r"^## (M\d+[A-Z]?)_", text, re.M)]
+    heads = [
+        (m.group(1), m.start())
+        for m in re.finditer(r"^## (M\d+[A-Z]?|ROUND\d)_", text, re.M)
+    ]
     bounds = [m.start() for m in re.finditer(r"^#{1,2} ", text, re.M)]
     out = []
     for uc, start in heads:
@@ -270,6 +319,8 @@ def main() -> None:
     for uc, start, end in reversed(sections(text)):
         if uc in BASIC:
             block = basic_block(uc)
+        elif uc in ROUND:
+            block = round_block(uc)
         elif uc in REPORTS or uc in VIA_M184:
             block = report_block(uc)
         else:

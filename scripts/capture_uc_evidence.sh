@@ -9,7 +9,12 @@
 #     from the fixture's products; writes <UC>_check.json, the
 #     field-by-field comparison with the fixture;
 #   - spf_e2e_report_fixtures: the Reports v1.3 service day T1–T8
-#     followed by the M180, M182 and M184 reports.
+#     followed by the M180, M182 and M184 reports;
+#   - spf_e2e_rounding: the five situations of the manual's
+#     "Arrondissement des méthodes de paiement" (ROUND1 to ROUND5; only
+#     the cash is rounded, so basic tests 1, 2 and 3 apply). Besides the
+#     request and the response, the printed ticket is written to
+#     evidence/tickets/ROUND<n>_ticket.txt (TICKET_EVIDENCE_DIR).
 # For every fiscal event a test archived, the request pili-pos built
 # and the FDM response it archived are written to
 # docs/SUBMISSION_ARTIFACTS/evidence/uc/, then embedded into
@@ -28,11 +33,15 @@ cd "$PROJECT_ROOT"
 
 OUT="$PROJECT_ROOT/docs/SUBMISSION_ARTIFACTS/evidence/uc"
 mkdir -p "$OUT"
+TICKETS="$PROJECT_ROOT/docs/SUBMISSION_ARTIFACTS/evidence/tickets"
+mkdir -p "$TICKETS"
 rm -f "$OUT"/*.json   # stale evidence from renamed/renumbered UCs
+rm -f "$TICKETS"/ROUND*_ticket.txt
 
-UC_EVIDENCE_DIR="$OUT" cargo test -p pili-pos \
+UC_EVIDENCE_DIR="$OUT" TICKET_EVIDENCE_DIR="$TICKETS" cargo test -p pili-pos \
     --no-default-features --features cert \
-    --test spf_e2e_fixtures --test spf_e2e_report_fixtures
+    --test spf_e2e_fixtures --test spf_e2e_report_fixtures \
+    --test spf_e2e_rounding
 
 python3 "$PROJECT_ROOT/scripts/embed_uc_evidence.py"
 

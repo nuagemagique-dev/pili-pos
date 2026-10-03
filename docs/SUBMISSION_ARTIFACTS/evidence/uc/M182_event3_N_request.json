@@ -1,13 +1,13 @@
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "0779c6d5-9894-4eef-b801-ee4676bb5422",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "3448b1d5-c2b6-4475-9496-b097d79ada7e",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
     "eventCounter": 11,
     "eventLabel": "N",
-    "fdmDateTime": "2024-07-30T06:40:17Z",
+    "fdmDateTime": "2024-07-30T06:40:17.000Z",
     "fdmId": "FOD01000001",
     "totalCounter": 50
   },
@@ -22,7 +22,7 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:16.040045+02:00",
+  "posDateTime": "2026-10-03T21:33:36.094+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",

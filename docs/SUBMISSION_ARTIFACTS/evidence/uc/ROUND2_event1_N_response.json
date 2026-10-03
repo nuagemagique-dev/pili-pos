@@ -1,0 +1,33 @@
+{
+  "bufferCapacityUsed": 1.2,
+  "deviceId": "00:1b:44:11:3a:b7",
+  "digitalSignature": "bW9jay1zaWctMS0xLTE3OTEwNTYwMTY=",
+  "eventOperation": "SALE",
+  "fdmRef": {
+    "eventCounter": 1,
+    "eventLabel": "N",
+    "fdmDateTime": "2026-10-03T19:33:36Z",
+    "fdmId": "MCK00000001",
+    "totalCounter": 1
+  },
+  "fdmSwVersion": "MOCK-FDM-1.0",
+  "footer": [],
+  "informations": [],
+  "posDateTime": "2026-10-03T21:33:36.784+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "shortSignature": "3539c843c1eb258c746863fd3bfdfe12e9ffc33d",
+  "terminalId": "POS1",
+  "vatCalc": [
+    {
+      "label": "B",
+      "outOfScope": false,
+      "rate": 12.0,
+      "taxableAmount": 2.98,
+      "totalAmount": 3.34,
+      "vatAmount": 0.36
+    }
+  ],
+  "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
+  "warnings": []
+}

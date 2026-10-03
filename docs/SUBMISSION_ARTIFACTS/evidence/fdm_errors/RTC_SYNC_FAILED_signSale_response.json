@@ -3,14 +3,14 @@
         "signSale": {
             "bufferCapacityUsed": 1.2,
             "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
-            "digitalSignature": "bW9jay1zaWctMy0zLTE3OTA1MzEyNjk=",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTEwNTM5Mjc=",
             "eventOperation": "SALE",
             "fdmRef": {
-                "eventCounter": 3,
+                "eventCounter": 1,
                 "eventLabel": "N",
-                "fdmDateTime": "2026-09-27T17:47:49Z",
+                "fdmDateTime": "2026-10-03T18:58:47Z",
                 "fdmId": "MCK00000001",
-                "totalCounter": 3
+                "totalCounter": 1
             },
             "fdmSwVersion": "MOCK-FDM-1.0",
             "footer": [],
@@ -18,7 +18,7 @@
             "posDateTime": "2024-07-29T13:00:00.000+02:00",
             "posFiscalTicketNo": 1000,
             "posId": "CPOS0031234567",
-            "shortSignature": "12f61dddd1cb20e9c6b87359f62f9d1a8aec0adf",
+            "shortSignature": "6e6f82b026baefed6d5ea577a659d2d6bac2e0c0",
             "terminalId": "TER-2-DIN",
             "vatCalc": [
                 {
@@ -38,15 +38,15 @@
                     "vatAmount": 4.17
                 }
             ],
-            "verificationUrl": "https://www.gs2.be/M0000300003AbCdEfGhI",
+            "verificationUrl": "https://www.gs2.be/M0000100001AbCdEfGhI",
             "warnings": [
                 {
                     "extensions": {
-                        "category": "SPF_FOD",
-                        "code": "RTC_SYNC_FAILED",
-                        "showPos": "OPTIONAL"
+                        "category": "FDM",
+                        "code": "DUPLICATE_REQUEST",
+                        "showPos": "NEVER"
                     },
-                    "message": "Le FDM n'a pas pu synchroniser l'horloge en temps r\u00e9el"
+                    "message": "Erreur FDM"
                 }
             ]
         }

@@ -1,0 +1,41 @@
+{
+  "bufferCapacityUsed": 0.25,
+  "deviceId": "00:1b:44:11:3a:b7",
+  "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
+  "eventOperation": "SALE",
+  "fdmRef": {
+    "eventCounter": 17,
+    "eventLabel": "N",
+    "fdmDateTime": "2024-05-03T14:30:09.000Z",
+    "fdmId": "FOD01000001",
+    "totalCounter": 64
+  },
+  "fdmSwVersion": "1.2.0",
+  "footer": [],
+  "informations": null,
+  "posDateTime": "2026-10-03T21:33:35.460+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "shortSignature": "e2c43d6bbe9be265f2ecc1578368c224ff980c26",
+  "terminalId": "POS1",
+  "vatCalc": [
+    {
+      "label": "B",
+      "outOfScope": false,
+      "rate": 12.0,
+      "taxableAmount": 35.71,
+      "totalAmount": 40.0,
+      "vatAmount": 4.29
+    },
+    {
+      "label": "A",
+      "outOfScope": false,
+      "rate": 21.0,
+      "taxableAmount": 14.88,
+      "totalAmount": 18.0,
+      "vatAmount": 3.12
+    }
+  ],
+  "verificationUrl": "https://gs2.be/",
+  "warnings": []
+}

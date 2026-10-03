@@ -1,24 +1,24 @@
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "07d43677-cc91-4344-8532-cdeca6224cbc",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "fc0db5fc-4edf-425b-97d1-e21f8abfcea2",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
     {
       "fdmId": "FOD01000001",
-      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstFdmDateTime": "2024-07-30T06:30:19.000Z",
       "firstTotalCounter": 49,
-      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastFdmDateTime": "2024-07-30T10:57:18.000Z",
       "lastTotalCounter": 56
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:16.054221+02:00",
+  "posDateTime": "2026-10-03T21:33:36.129+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.084+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.124+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -26,15 +26,15 @@
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "reportBookingDate": "2026-09-25",
+  "reportBookingDate": "2026-10-03",
   "reportNo": 1,
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.040117+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.084+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.094+02:00",
       "payments": [
         {
           "amount": [
@@ -57,8 +57,8 @@
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-09-25T19:05:16.043197+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.101+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.124+02:00",
       "payments": [
         {
           "amount": [

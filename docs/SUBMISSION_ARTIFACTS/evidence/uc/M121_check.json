@@ -3,8 +3,8 @@
   "deviations": [
     {
       "fixture": "PAPER",
-      "piliPos": "NONE",
       "path": "ticketMedium",
+      "piliPos": "NONE",
       "reason": "orders are not printed in v1.0.0 (no kitchen ticket), so the medium is NONE"
     }
   ],

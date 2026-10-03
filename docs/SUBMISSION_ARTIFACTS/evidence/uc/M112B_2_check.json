@@ -3,14 +3,14 @@
   "deviations": [
     {
       "fixture": null,
+      "path": "fdmRef",
       "piliPos": {
         "eventCounter": 81958,
         "eventLabel": "N",
-        "fdmDateTime": "2024-10-07T11:00:41Z",
+        "fdmDateTime": "2024-10-07T11:00:41.000Z",
         "fdmId": "FOD01000001",
         "totalCounter": 83876
       },
-      "path": "fdmRef",
       "reason": "pili-pos references the refunded ticket on every refund (FLUX_REMBOURSEMENT_FR.md); the fixture's partial refund carries no reference"
     }
   ],

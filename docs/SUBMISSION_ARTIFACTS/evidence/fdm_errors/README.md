@@ -5,7 +5,7 @@ FDM (`crates/pos-fdm-mock`), démarré une fois, chaque code étant
 activé par son API de contrôle (`POST /mock/control`). Les erreurs
 suivent le format de la spec POS v2.2 : message lisible, code dans
 `extensions {category, code, showPos}`. Le payload signSale est la fixture officielle
-M110 (Basic Set v1.7).
+M110 (Basic Set v1.8).
 
 Par code, 4 fichiers :
 

@@ -1,0 +1,76 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "9d94ec97-f202-4ee5-800b-e41929cb82e4",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 14.86,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": -0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.785+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 11.52,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "25003",
+          "productName": "Dame Blanche",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 11.52,
+          "vats": [
+            {
+              "label": "B",
+              "price": 11.52
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 3.34,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "28007",
+          "productName": "Tapas Variation",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 3.34
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 14.86
+  },
+  "vatNo": "BE0000000097"
+}

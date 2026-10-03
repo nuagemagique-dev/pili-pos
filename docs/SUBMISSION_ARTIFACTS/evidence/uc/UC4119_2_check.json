@@ -1,0 +1,12 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": "CARD_CREDIT",
+      "path": "financials[0].type",
+      "piliPos": "CARD_DEBIT",
+      "reason": "the operator does not tell debit from credit cards: CARD_DEBIT"
+    }
+  ],
+  "uc": "UC4119_2"
+}

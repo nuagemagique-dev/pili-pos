@@ -1,0 +1,57 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "44b90f87-cc18-4aaa-863d-6f02a36a8ada",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 11.52,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": -0.02,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.784+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 11.52,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "25003",
+          "productName": "Dame Blanche",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 11.52,
+          "vats": [
+            {
+              "label": "B",
+              "price": 11.52
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 11.52
+  },
+  "vatNo": "BE0000000097"
+}

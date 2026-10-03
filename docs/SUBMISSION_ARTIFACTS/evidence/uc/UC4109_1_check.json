@@ -1,0 +1,23 @@
+{
+  "checked": "business fields equal; identification fields by format; names present",
+  "deviations": [
+    {
+      "fixture": "COMPOSITE_PRODUCT",
+      "path": "transaction.transactionLines[0].lineType",
+      "piliPos": "SINGLE_PRODUCT",
+      "reason": "composite products are not supported: the menu is a single product"
+    },
+    {
+      "fixture": [],
+      "path": "transaction.transactionLines[0].vats",
+      "piliPos": [
+        {
+          "label": "B",
+          "price": 58.0
+        }
+      ],
+      "reason": "a single product carries its own VAT line (B 58,00)"
+    }
+  ],
+  "uc": "UC4109_1"
+}

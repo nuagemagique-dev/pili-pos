@@ -1,0 +1,135 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "6c204744-62c8-4fa0-b216-bdfe0942e369",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 31.04,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    },
+    {
+      "amount": 31.04,
+      "amountType": "PAYMENT",
+      "id": "3",
+      "inputMethod": "MANUAL",
+      "name": "Meal voucher",
+      "type": "CHEQUE_MEAL"
+    },
+    {
+      "amount": 31.04,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:33.676+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 40.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "20",
+          "departmentName": "Entrees",
+          "productId": "20001",
+          "productName": "Carpaccio de boeuf",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 20.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 40.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "productId": "22001",
+          "productName": "Burger du chef",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 28.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 16.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "15",
+          "departmentName": "Vins",
+          "productId": "15003",
+          "productName": "Vin (verre)",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 8.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 16.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 9.12,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "12",
+          "departmentName": "Boissons rafraichissantes",
+          "productId": "12009",
+          "productName": "Coca Cola",
+          "quantity": 3.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.04,
+          "vats": [
+            {
+              "label": "A",
+              "price": 9.12
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 93.12
+  },
+  "vatNo": "BE0000000097"
+}

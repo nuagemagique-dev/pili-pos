@@ -1,0 +1,74 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "0cbc94f8-2054-48af-bc80-058b20b7a9b9",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "84022899837",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 24.0,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:33.671+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 36.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": 3.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": 36.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": -12.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "10",
+          "departmentName": "Aperitifs",
+          "negQuantityReason": "CORRECTION",
+          "productId": "10006",
+          "productName": "Dry Martini",
+          "quantity": -1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 12.0,
+          "vats": [
+            {
+              "label": "A",
+              "price": -12.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 24.0
+  },
+  "vatNo": "BE0000000097"
+}

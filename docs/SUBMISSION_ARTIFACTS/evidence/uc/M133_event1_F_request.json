@@ -1,0 +1,25 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "ddc61dd9-09f0-404c-8f0b-629486973ebd",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 1000.0,
+      "amountType": "DRAWER_DECLARATION",
+      "id": "MOV1",
+      "inputMethod": "MANUAL",
+      "name": "Declaration tiroir",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:33.479+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}

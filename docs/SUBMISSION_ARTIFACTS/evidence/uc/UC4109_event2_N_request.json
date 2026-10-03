@@ -1,0 +1,45 @@
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "d778b7a6-1092-4e41-87fd-a1a2541498b6",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:35.460+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 58.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "30",
+          "departmentName": "Menus",
+          "productId": "30010",
+          "productName": "Menu business all-in",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 58.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 58.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 58.0
+  },
+  "vatNo": "BE0000000097"
+}
