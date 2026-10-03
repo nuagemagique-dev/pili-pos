@@ -16,6 +16,9 @@
 #          existing "pili-data" partition (partition 3, the fiscal
 #          database) is never disturbed. This is why update copies
 #          partition-to-partition rather than disk-to-disk.
+#          The root and spf password hashes set at first boot live in
+#          the old root's /etc/shadow: they are carried over into the
+#          new root, else both accounts would be locked again.
 #
 # Both modes finish with `sgdisk -e` ("fix backup GPT"): a disk-image
 # dd only ever writes a correct PRIMARY GPT (at the start); the
@@ -96,12 +99,48 @@ if [[ "$MODE" == "install" ]]; then
     udevadm settle --timeout=30 || true
 fi
 
+# The password hashes of `user` in the shadow file `file`, if set.
+shadow_hash() {
+    awk -F: -v u="$1" '$1 == u && $2 != "" && $2 !~ /^[!*]/ {print $2}' "$2"
+}
+
+WORK="/run/pili-installer"
+declare -A KEPT=()
+if [[ "$MODE" == "update" ]]; then
+    mkdir -p "$WORK/old"
+    if mount -o ro "$(part "$TARGET_DISK" 2)" "$WORK/old"; then
+        for user in root spf; do
+            hash="$(shadow_hash "$user" "$WORK/old/etc/shadow" || true)"
+            [[ -n "$hash" ]] && KEPT[$user]="$hash"
+        done
+        umount "$WORK/old"
+    fi
+    log "Password hashes kept: ${!KEPT[*]:-none}"
+fi
+
 for n in 1 2; do
     SRC_PART="$(part "$SRC_DISK" "$n")"
     DST_PART="$(part "$TARGET_DISK" "$n")"
     log "Copying partition $n: $SRC_PART -> $DST_PART…"
     dd if="$SRC_PART" of="$DST_PART" bs=4M conv=fsync status=progress
 done
+
+if [[ "$MODE" == "update" ]]; then
+    if [[ "${#KEPT[@]}" -gt 0 ]]; then
+        mkdir -p "$WORK/new"
+        mount "$(part "$TARGET_DISK" 2)" "$WORK/new"
+        for user in "${!KEPT[@]}"; do
+            awk -F: -v OFS=: -v u="$user" -v h="${KEPT[$user]}" \
+                '$1 == u {$2 = h} {print}' "$WORK/new/etc/shadow" > "$WORK/shadow.new"
+            cat "$WORK/shadow.new" > "$WORK/new/etc/shadow"
+        done
+        rm -f "$WORK/shadow.new"
+        sync
+        umount "$WORK/new"
+    else
+        log "WARNING: no password found on the old system; root stays locked."
+    fi
+fi
 
 log "Fixing the backup GPT on ${TARGET_DISK}…"
 sgdisk -e "$TARGET_DISK"
