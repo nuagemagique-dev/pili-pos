@@ -195,9 +195,21 @@ class CheckDossierTestCase(unittest.TestCase):
         write(
             dossier / "MANIFEST.txt",
             "pdf_out/FRESH_FR.pdf\n"
+            "pdf_out/PENDING_FR.pdf\n"
             "pdf_out/DOES_NOT_EXIST.pdf\n"
             "GAP_AUDIT_FR.md\n",
         )
+
+        # --- --final: pending ------------------------------------------------
+        write(dossier / "PENDING_FR.md", "Ligne propre.\nStatut : \u00c0 effectuer avant l'envoi.\n")
+        write(dossier / "pdf_out" / "PENDING_FR.pdf", "pdf bytes")
+        write(dossier / "UNLISTED_FR.md", "\u00c0 effectuer, mais hors manifeste.\n")
+
+        # --- --final: captures-pdf --------------------------------------------
+        shot = dossier / "screenshots" / "01_login.png"
+        os.utime(shot, (now, now))
+        write(dossier / "CAPTURES_ECRAN_FR.pdf", "old pdf bytes")
+        os.utime(dossier / "CAPTURES_ECRAN_FR.pdf", (now - 500, now - 500))  # older than the newest shot
 
     def run_rule(self, rule: str):
         return self.cd.run([rule])
@@ -309,6 +321,27 @@ class CheckDossierTestCase(unittest.TestCase):
         self.assertTrue(any("GAP_AUDIT_FR.md" in m and "internal" in m for m in rendered))
         self.assertFalse(any("FRESH_FR.pdf" in m for m in rendered))
 
+    def test_pending_pass_and_fail(self):
+        findings = self.run_rule("pending")
+        rendered = [f.render() for f in findings]
+        self.assertTrue(any("PENDING_FR.md" in m for m in rendered))
+        self.assertFalse(any("UNLISTED_FR.md" in m for m in rendered))
+        self.assertFalse(any("FRESH_FR.md" in m for m in rendered))
+
+    def test_captures_pdf_pass_and_fail(self):
+        findings = self.run_rule("captures-pdf")
+        self.assertEqual(len(findings), 1)
+        self.assertIn("older than", findings[0].render())
+        pdf = self.root / "docs" / "SUBMISSION_ARTIFACTS" / "CAPTURES_ECRAN_FR.pdf"
+        shot = self.root / "docs" / "SUBMISSION_ARTIFACTS" / "screenshots" / "01_login.png"
+        newer = shot.stat().st_mtime + 100
+        os.utime(pdf, (newer, newer))
+        try:
+            self.assertEqual(self.run_rule("captures-pdf"), [])
+        finally:
+            old = shot.stat().st_mtime - 100
+            os.utime(pdf, (old, old))
+
     def test_a_missing_manifest_is_a_finding(self):
         import tempfile
 
@@ -336,6 +369,8 @@ class CheckDossierTestCase(unittest.TestCase):
         self.assertIn("[manifest]", output)
         self.assertIn("[screenshots]", output)
         self.assertIn("[pdf-freshness]", output)
+        self.assertIn("[pending]", output)
+        self.assertIn("[captures-pdf]", output)
 
     def test_rules_flag_overrides_final(self):
         # --rules is an explicit whitelist: it wins even when --final is
@@ -357,7 +392,7 @@ class CheckDossierTestCase(unittest.TestCase):
     def test_default_rules_exclude_final_only_checks(self):
         findings = self.cd.run(self.cd.DEFAULT_RULES)
         rule_names = {f.rule for f in findings}
-        self.assertFalse(rule_names & {"screenshots", "pdf-freshness", "manifest"})
+        self.assertFalse(rule_names & {"screenshots", "pdf-freshness", "manifest", "pending", "captures-pdf"})
 
 
 if __name__ == "__main__":

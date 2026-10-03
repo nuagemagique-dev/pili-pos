@@ -44,8 +44,10 @@ by = "M184"
 # Advanced Set - fonctionnalités absentes du code (voir le rapport final de
 # l'agent pour les preuves de grep confirmant chaque absence).
 #
-# UC201 (arrondi) et UC230 (correction) sont volontairement absents de ce
-# fichier : ce sont des fonctionnalités existantes, qui ont un vrai test.
+# UC201 (arrondi), UC223 (remise de portée EVENT des commandes en ligne
+# HubRise, test crates/pos-fiscal/tests/price_change_uc.rs) et UC230
+# (correction) sont volontairement absents de ce fichier : ce sont des
+# fonctionnalités existantes, qui ont un vrai test.
 # ---------------------------------------------------------------------------
 
 # -- Scission / fusion de table et changement de centre de coût associé --
@@ -209,27 +211,23 @@ reason = "Le produit composite n'est pas implémenté dans pili-pos v1.0.0."
 kind = "hors_perimetre"
 
 [UC220]
-reason = "La modification de prix sur une ligne de vente (priceChange) n'est pas implémentée dans pili-pos v1.0.0."
+reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
 kind = "hors_perimetre"
 
 [UC221A]
-reason = "La modification de prix sur une ligne de vente (priceChange) n'est pas implémentée dans pili-pos v1.0.0."
+reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
 kind = "hors_perimetre"
 
 [UC221B]
-reason = "La modification de prix sur une ligne de vente (priceChange) n'est pas implémentée dans pili-pos v1.0.0."
+reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
 kind = "hors_perimetre"
 
 [UC222]
 reason = "La modification de prix sur un produit composite n'est pas implémentée dans pili-pos v1.0.0 (ni le produit composite, ni la modification de prix)."
 kind = "hors_perimetre"
 
-[UC223]
-reason = "La modification de prix au niveau de l'event de vente n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
 [UC224]
-reason = "Les modifications de prix multiples sur une vente ne sont pas implémentées dans pili-pos v1.0.0."
+reason = "Le scénario UC224 (remise de ligne combinée à une remise de ticket) n'est pas rejoué dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées, sans modification de prix de ligne."
 kind = "hors_perimetre"
 
 [UC225A]

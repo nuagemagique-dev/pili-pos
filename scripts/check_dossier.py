@@ -23,12 +23,17 @@ Rules (stable names, selectable with --rules a,b):
     placeholder    no leftover "TODO"/"TBD"/"XXX"/"FIXME"/"a produire"/
                    "a reformater" markers, unless allowlisted
 
---final adds three more checks meant for the last pre-submission pass:
+--final adds five more checks meant for the last pre-submission pass:
     screenshots    every screenshot filename referenced in the capture
                    runbook exists on disk
     pdf-freshness  no PDF in pdf_out/ is older than its source .md
     manifest       MANIFEST.txt (if present) only lists files that exist
                    and never lists internal-only working documents
+    pending        no "A effectuer" (to be done) left in a document listed
+                   in MANIFEST.txt (a listed PDF is checked through its
+                   source .md)
+    captures-pdf   CAPTURES_ECRAN_FR.pdf is not older than the newest
+                   screenshot in screenshots/
 
 Usage:
     scripts/check_dossier.py
@@ -59,9 +64,11 @@ ALL_RULES = [
     "screenshots",
     "pdf-freshness",
     "manifest",
+    "pending",
+    "captures-pdf",
 ]
 DEFAULT_RULES = ["rust-ident", "repo-path", "brand", "em-dash", "placeholder"]
-FINAL_EXTRA_RULES = ["screenshots", "pdf-freshness", "manifest"]
+FINAL_EXTRA_RULES = ["screenshots", "pdf-freshness", "manifest", "pending", "captures-pdf"]
 
 ALLOWLIST_PATH = ROOT / "scripts" / "check_dossier_allowlist.txt"
 
@@ -719,6 +726,82 @@ def rule_manifest(root: Path) -> list:
 
 
 # --------------------------------------------------------------------------
+# --final: pending ("A effectuer" left in a listed document)
+# --------------------------------------------------------------------------
+
+PENDING_RE = re.compile(r"[AÀ]\s+effectuer", re.IGNORECASE)
+
+
+def manifest_sources(root: Path) -> list:
+    """Text files behind the manifest's entries: a listed file itself when it
+    is text, the source .md of a listed pdf_out/<name>.pdf."""
+    manifest = root / "docs" / "SUBMISSION_ARTIFACTS" / "MANIFEST.txt"
+    if not manifest.is_file():
+        return []
+    dossier = root / "docs" / "SUBMISSION_ARTIFACTS"
+    sources = []
+    for raw_line in read_text(manifest).splitlines():
+        entry = raw_line.strip()
+        if not entry or entry.startswith("#") or is_manifest_internal(entry):
+            continue
+        path = Path(entry)
+        if path.suffix == ".pdf":
+            source = dossier / f"{path.stem}.md"
+        elif path.suffix in (".txt", ".json", ".csv"):
+            source = dossier / entry
+        else:
+            continue
+        if source.is_file() and source not in sources:
+            sources.append(source)
+    return sources
+
+
+def rule_pending(root: Path) -> list:
+    findings = []
+    for source in manifest_sources(root):
+        for lineno, line in enumerate(read_text(source).splitlines(), 1):
+            if PENDING_RE.search(line):
+                findings.append(
+                    Finding(
+                        rel(source),
+                        lineno,
+                        "pending",
+                        "'A effectuer' left in a document listed in MANIFEST.txt",
+                    )
+                )
+    return findings
+
+
+# --------------------------------------------------------------------------
+# --final: captures-pdf
+# --------------------------------------------------------------------------
+
+
+def rule_captures_pdf(root: Path) -> list:
+    dossier = root / "docs" / "SUBMISSION_ARTIFACTS"
+    pdf = dossier / "CAPTURES_ECRAN_FR.pdf"
+    shots = dossier / "screenshots"
+    if not shots.is_dir():
+        return []
+    images = [p for p in shots.iterdir() if p.suffix in (".png", ".jpg")]
+    if not images:
+        return []
+    if not pdf.is_file():
+        return [Finding(rel(pdf), 1, "captures-pdf", "CAPTURES_ECRAN_FR.pdf is missing: run scripts/make_captures_pdf.sh")]
+    newest = max(images, key=lambda p: p.stat().st_mtime)
+    if pdf.stat().st_mtime < newest.stat().st_mtime:
+        return [
+            Finding(
+                rel(pdf),
+                1,
+                "captures-pdf",
+                f"older than {rel(newest)}; rerun scripts/make_captures_pdf.sh",
+            )
+        ]
+    return []
+
+
+# --------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------
 
@@ -752,6 +835,10 @@ def run(active_rules: list) -> list:
         findings += rule_pdf_freshness(ROOT)
     if "manifest" in active_rules:
         findings += rule_manifest(ROOT)
+    if "pending" in active_rules:
+        findings += rule_pending(ROOT)
+    if "captures-pdf" in active_rules:
+        findings += rule_captures_pdf(ROOT)
 
     findings.sort(key=lambda f: (f.path, f.line, f.rule))
     return findings
@@ -762,7 +849,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--final",
         action="store_true",
-        help="also run the pre-submission-only checks (screenshots, pdf-freshness, manifest)",
+        help="also run the pre-submission-only checks (screenshots, pdf-freshness, manifest, pending, captures-pdf)",
     )
     parser.add_argument(
         "--rules",

@@ -9,7 +9,9 @@
 #    freshness, MANIFEST. Any finding stops here.
 # 3. Zips exactly what docs/SUBMISSION_ARTIFACTS/MANIFEST.txt lists:
 #    the PDFs of pdf_out/ at the root of the ZIP, the listed folders
-#    as they are, never a .md, a script or a .DS_Store.
+#    as they are (evidence/uc, fdm_errors and tickets go under
+#    Report_Testing/ in the ZIP, procedure 3.2), never a .md, a script
+#    or a .DS_Store.
 #
 # Output: target/submission/pili-pos-dossier-v<version>.zip
 # Usage: scripts/make_submission_zip.sh [--skip-pdfs]
@@ -50,9 +52,20 @@ def excluded(path: Path) -> bool:
     return path.suffix == ".md" or path.name == ".DS_Store" or path.suffix in (".sh", ".py")
 
 
+# Procedure 3.2 asks for a "Report_Testing" folder (request JSON, response
+# JSON, ticket photo or PDF per test). Our test evidence lives in
+# evidence/<kind>/ in the repo; in the ZIP it is placed under
+# Report_Testing/<kind>/ (nothing is duplicated on disk).
+REPORT_TESTING_KINDS = {"uc", "fdm_errors", "tickets"}
+
+
 def archive_name(rel: Path) -> str:
     # The annex PDFs sit at the root of the ZIP.
-    return rel.name if rel.parts[0] == "pdf_out" else rel.as_posix()
+    if rel.parts[0] == "pdf_out":
+        return rel.name
+    if rel.parts[0] == "evidence" and len(rel.parts) > 2 and rel.parts[1] in REPORT_TESTING_KINDS:
+        return ("Report_Testing" / Path(*rel.parts[1:])).as_posix()
+    return rel.as_posix()
 
 
 entries = []
