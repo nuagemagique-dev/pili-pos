@@ -466,3 +466,32 @@ async fn an_interrupted_refund_or_closing_is_repaired_at_boot() {
     assert_eq!(w.column(closed, "n_event_id"), closing.fiscal_event_id);
     assert_eq!(w.state_of(unclosed).fiscal_state, "cancel_pending");
 }
+
+#[tokio::test]
+async fn a_cancellation_while_the_pos_was_off_is_found_at_start() {
+    let w = world().await;
+    let (id, hr_id) = w.order("deliveroo_prepaid").await;
+    do_accept_webshop_order(&w.app.state, id, None)
+        .await
+        .unwrap();
+    drain_outbox(&w.app).await;
+    assert_eq!(w.app.order_status(id).as_deref(), Some("closed"));
+    // Cancelled while the POS was off: its event is lost.
+    w.mock.update(&hr_id, json!({ "status": "cancelled" }));
+    w.mock
+        .state
+        .inner
+        .lock()
+        .unwrap()
+        .clients
+        .get_mut(common::hubrise::POS_TOKEN)
+        .unwrap()
+        .events
+        .clear();
+    w.poll().await;
+    assert_eq!(w.state_of(id).fiscal_state, "signed_n");
+
+    start(&poller(&w.app)).await.unwrap();
+    assert_eq!(w.state_of(id).fiscal_state, "refund_pending");
+    assert_eq!(w.labels(), vec!["N"], "nothing signed on its own");
+}

@@ -172,13 +172,18 @@ pub async fn start(ctx: &PollerCtx) -> Result<()> {
             handle_order(ctx, &order)?;
         }
     }
-    // Orders already known and still open may have changed while the
-    // POS was off (a platform cancellation).
+    // Orders already known may have changed while the POS was off (a
+    // platform cancellation): the open ones, and the ones signed in the
+    // last two days, which a cancellation turns into a refund to make.
     let open: Vec<String> = {
         let db = ctx.db.lock().expect("poller db poisoned");
         let mut stmt = db.prepare(
             "SELECT hubrise_order_id FROM orders
-             WHERE hubrise_order_id IS NOT NULL AND status = 'open'",
+             WHERE hubrise_order_id IS NOT NULL
+               AND (status = 'open' OR id IN (
+                    SELECT order_id FROM webshop_orders
+                    WHERE fiscal_state IN ('signed_n', 'signed_p')
+                      AND julianday(accepted_at) >= julianday('now', '-2 days')))",
         )?;
         stmt.query_map([], |r| r.get(0))?
             .collect::<std::result::Result<_, _>>()?

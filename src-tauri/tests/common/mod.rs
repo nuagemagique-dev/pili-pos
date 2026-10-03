@@ -25,6 +25,8 @@ pub mod harness;
 #[cfg(feature = "hubrise")]
 pub mod hubrise;
 pub mod live;
+#[cfg(feature = "hubrise")]
+pub mod live_hubrise;
 
 #[allow(unused_imports)]
 pub use compare::*;

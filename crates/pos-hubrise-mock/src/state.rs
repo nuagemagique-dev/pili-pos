@@ -332,7 +332,7 @@ impl Inner {
                 location_id: Some(default_location_id.clone()),
                 name: "Menu principal".to_string(),
                 created_at: Some(Utc::now().to_rfc3339()),
-                data: Some(seed_catalog()),
+                data: Some(stored(seed_catalog())),
             },
         );
 
@@ -580,7 +580,7 @@ impl Inner {
         if let Some(name) = name {
             catalog.name = name;
         }
-        catalog.data = Some(data);
+        catalog.data = Some(stored(data));
         let catalog = catalog.clone();
         let kind = if existed { "update" } else { "create" };
         let event = catalog_event(&catalog, kind);
@@ -1129,6 +1129,58 @@ fn catalog_event(catalog: &Catalog, kind: &str) -> CallbackEvent {
         new_state: None,
         extra,
     }
+}
+
+/// A catalog as HubRise stores it: every element gets an id, and the
+/// refs an upload links elements with (`category_ref`, `parent_ref`,
+/// `option_list_refs`) become those ids (`category_id`, `parent_id`,
+/// `option_list_ids`); HubRise does not answer with the link refs
+/// (recorded in `fixtures/hubrise`). Ids here are derived from refs.
+fn stored(mut data: CatalogData) -> CatalogData {
+    let id_of = |prefix: &str, r: &str| format!("{prefix}-{}", r.to_lowercase());
+    let category_ids: HashMap<String, String> = data
+        .categories
+        .iter_mut()
+        .map(|c| {
+            let id =
+                c.id.get_or_insert_with(|| id_of("cat", &c.ref_field))
+                    .clone();
+            (c.ref_field.clone(), id)
+        })
+        .collect();
+    for c in &mut data.categories {
+        if let Some(parent) = c.parent_ref.take() {
+            c.parent_id = category_ids.get(&parent).cloned();
+        }
+    }
+    let list_ids: HashMap<String, String> = data
+        .option_lists
+        .iter_mut()
+        .map(|l| {
+            let id =
+                l.id.get_or_insert_with(|| id_of("ol", &l.ref_field))
+                    .clone();
+            (l.ref_field.clone(), id)
+        })
+        .collect();
+    for p in &mut data.products {
+        let r = p.ref_field.clone().unwrap_or_else(|| p.name.clone());
+        p.id.get_or_insert_with(|| id_of("prod", &r));
+        if !p.category_ref.is_empty() {
+            p.category_id = category_ids.get(&p.category_ref).cloned();
+            p.category_ref.clear();
+        }
+        for sku in &mut p.skus {
+            let r = sku.ref_field.clone().unwrap_or_default();
+            sku.id.get_or_insert_with(|| id_of("sku", &r));
+            for list in std::mem::take(&mut sku.option_list_refs) {
+                if let Some(id) = list_ids.get(&list) {
+                    sku.option_list_ids.push(id.clone());
+                }
+            }
+        }
+    }
+    data
 }
 
 #[cfg(test)]

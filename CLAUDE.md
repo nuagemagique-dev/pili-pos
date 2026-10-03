@@ -593,6 +593,10 @@ cargo test --workspace
 # Live FDM (module2 simulator, by hand only, never in CI; reads .env.live)
 scripts/live_fdm.sh
 
+# Live HubRise (test location "Liège TEST" only, by hand, never in CI; free plan = 5 orders/month)
+scripts/live_hubrise_login.sh            # once: authorize URL, then `... CODE` stores target/live-hubrise/token.json
+scripts/live_hubrise.sh <test name>      # see src-tauri/tests/live_hubrise.rs; recordings feed crates/pos-hubrise-mock/fixtures/hubrise
+
 # Mock peripherals: FDM + email API on :8081, printer on :9100 (jobs on :9180)
 cargo run --package pos-fdm-mock
 cargo run --package pos-printer-mock

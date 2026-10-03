@@ -59,8 +59,12 @@ pub struct Category {
     pub id: Option<String>,
     #[serde(rename = "ref")]
     pub ref_field: String,
-    #[serde(default)]
+    /// Upload bodies name the parent by ref; HubRise answers with the
+    /// parent's id (`parent_id`) and no ref.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
     pub name: String,
     /// HubRise doesn't have `custom_fields` on categories, so we repurpose
     /// `description` as a JSON blob carrying translations. See
@@ -81,7 +85,11 @@ pub struct Product {
     pub ref_field: Option<String>,
     /// Upload bodies name the category by ref; retrieval responses by
     /// HubRise id (`category_id`), so both are optional here.
-    #[serde(default, deserialize_with = "null_default")]
+    #[serde(
+        default,
+        deserialize_with = "null_default",
+        skip_serializing_if = "String::is_empty"
+    )]
     pub category_ref: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category_id: Option<String>,
@@ -115,7 +123,11 @@ pub struct Sku {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub price_overrides: Vec<PriceOverride>,
-    #[serde(default, deserialize_with = "null_default")]
+    #[serde(
+        default,
+        deserialize_with = "null_default",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub option_list_refs: Vec<String>,
     /// Retrieval responses name option lists by HubRise id instead of
     /// ref (`docs/hubrise/04-catalogs.md` §4 Retrieve Product).
