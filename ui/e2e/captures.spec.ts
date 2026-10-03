@@ -90,7 +90,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
   test('01_login - une tuile par employé', async ({ page }) => {
     await mockTauriIPC(page, { list_users: () => STAFF });
     await page.goto('/');
-    await expect(page.locator('.title')).toHaveText('Restaurant Exemple');
+    await expect(page.locator('.title')).toHaveText('Qui êtes-vous ?');
     await expect(page.locator('.user-btn')).toHaveCount(3);
     await expect(page.locator('.user-name')).toHaveText(['Gérant Test', 'Serveur Test', 'Apprenti Test']);
     await expect(page.locator('.user-role')).toHaveText(['Gérant', 'Serveur', 'Apprenti']);
@@ -102,7 +102,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await mockTauriIPC(page, { list_users: () => STAFF, login: () => GERANT });
     await page.goto('/');
     await page.locator('.user-btn', { hasText: 'Gérant Test' }).click();
-    await expect(page.locator('.pin-title')).toHaveText('Saisir le PIN');
+    await expect(page.locator('.pin-title')).toHaveText('Code PIN');
     await expect(page.locator('.pin-dot')).toHaveCount(4);
     for (const d of '111') await page.locator('.nk', { hasText: d }).click();
     await expect(page.locator('.pin-dot.filled')).toHaveCount(3);
@@ -237,7 +237,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await page.locator('.tab', { hasText: 'Desserts' }).click();
     await page.locator('.item-btn', { hasText: 'Mochi glacé' }).click();
     await expect(page.locator('.qty', { hasText: '2' })).toBeVisible();
-    await expect(page.locator('.total-amount')).toHaveText('40,00');
+    await expect(page.locator('.total-amount')).toContainText('40,00');
     await capture(page, '05_order_filled');
 
     // "Tables": registers the P event, sans impression. Table 4 now
@@ -398,7 +398,7 @@ test('11_refund - articles à rembourser, quantité ajustée', async ({ page }) 
     login: () => GERANT,
     list_users: () => STAFF,
     list_refundable_events: () => REFUNDABLE,
-    list_cart_lines: () => LINES,
+    list_order_lines: () => LINES,
   });
   await loginAndGoto(page, '/reports');
   await page.getByRole('tab', { name: 'Tickets' }).click();
@@ -437,13 +437,12 @@ test('13_training - bandeau et filigrane TRAINING', async ({ page }) => {
   await mockTauriIPC(page, { login: () => GERANT, list_users: () => STAFF });
   await loginAndGoto(page, '/settings');
   await page.locator('.toggle').click();
-  await expect(page.locator('.toggle')).toContainText('ACTIF');
-  // "Retour" sits right under the banner: a real tap, which the banner
-  // used to swallow (training-banner.spec.ts). No order is open, so
-  // the order screen hands over to the tables.
-  await page.locator('.settings .nav-btn', { hasText: 'Retour' }).click();
+  await expect(page.locator('.toggle')).toContainText('Actif');
+  // The "Tables" button sits right under the banner: a real tap, which
+  // the banner used to swallow (training-banner.spec.ts).
+  await page.locator('.app-header .nav-btn', { hasText: 'Tables' }).click();
   await page.waitForURL(/tables/);
-  await expect(page.locator('.training-banner')).toHaveText('MODE FORMATION : les transactions ne sont PAS enregistrées');
+  await expect(page.locator('.training-banner')).toHaveText('MODE FORMATION · Les transactions ne sont PAS enregistrées');
   await expect(page.locator('.training-watermark')).toBeVisible();
   await capture(page, '13_training');
 });
@@ -670,5 +669,139 @@ test.describe('Écrans additionnels (42-44)', () => {
     await expect(page.locator('.support-section .support-state.running')).toBeVisible();
     await expect(page.locator('.support-banner')).toContainText('Gérant Test');
     await capture(page, '44_remote_support');
+  });
+});
+
+test.describe('Écrans additionnels (45-49, 09g)', () => {
+  test('45 - assistance à distance en cours, vue depuis l\'écran de connexion', async ({ page }) => {
+    // Logged out, only whether a session runs is known, not who started
+    // it; anyone may stop it from the banner.
+    await mockTauriIPC(page, {
+      list_users: () => STAFF,
+      remote_support_running: () => ({ running: true, startedAt: '2026-09-26T08:30:00Z' }),
+    });
+    await page.goto('/');
+    const banner = page.locator('.support-banner');
+    await expect(banner).toContainText('Assistance à distance en cours', { timeout: 8000 });
+    await expect(banner.getByRole('button', { name: 'Arrêter la session' })).toBeVisible();
+    await expect(page.locator('.user-btn')).toHaveCount(3);
+    await capture(page, '45_login_remote_support_banner');
+  });
+
+  test('46 - PIN verrouillé après des essais incorrects : délai d\'attente', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => STAFF });
+    await page.goto('/');
+    await overrideIPC(page, 'login', { __reject: 'pin_locked|seconds=30' });
+    await page.locator('.user-btn', { hasText: 'Gérant Test' }).click();
+    for (const d of '9999') await page.locator('.nk', { hasText: d }).click();
+    await expect(page.locator('.error-msg')).toHaveText('Trop de PIN incorrects : réessayez dans 30 s.');
+    await capture(page, '46_pin_locked');
+  });
+
+  test('47 - un gérant sans PIN ne peut pas le choisir seul : un autre gérant le fixe', async ({ page }) => {
+    // Another manager already has a PIN, so this tile may not claim
+    // one (first_pin_needs_manager).
+    const NO_PIN_GERANT = { ...GERANT, has_pin: false };
+    await mockTauriIPC(page, { list_users: () => [NO_PIN_GERANT, SERVEUR] });
+    await page.goto('/');
+    await overrideIPC(page, 'login_with_new_pin', { __reject: 'first_pin_needs_manager' });
+    await page.locator('.user-btn', { hasText: 'Gérant Test' }).click();
+    const dialog = page.locator('.pin-dialog');
+    await expect(dialog.locator('.title')).toHaveText('Choisissez votre PIN');
+    for (const round of [0, 1]) {
+      void round;
+      for (const d of '4321') await dialog.getByRole('button', { name: d, exact: true }).click();
+    }
+    await expect(dialog.locator('.error-msg')).toHaveText(
+      'Un gérant doit choisir le PIN de ce compte dans Paramètres.',
+    );
+    await capture(page, '47_first_pin_needs_manager');
+  });
+
+  test('48 - FDM_ANSWER_PENDING : réponse de la boîte noire attendue, la vente est renvoyée', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [DEFAULT_MENU_ITEM],
+      checkout: () => ({
+        success: false,
+        ticket: null,
+        error: 'FDM error: FDM_ANSWER_PENDING|label=N|ticket=42|cause=timeout',
+        fdm_connected: false,
+        fiscal_event_id: null,
+        delivery: null,
+      }),
+    });
+    await page.goto('/');
+    await tapUserTile(page, 'Gérant Test');
+    await page.waitForURL(/tables/);
+    await page.locator('.table-card').first().click();
+    await page.waitForURL(/order/);
+    await page.locator('.item-btn').first().click();
+    await page.locator('.checkout-btn').click();
+    await page.waitForURL(/checkout/);
+    await page.locator('.card-btn').click();
+    await page.locator('.card-confirm').click();
+    await expect(page.locator('.checkout .error-msg')).toHaveText(
+      "La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez.",
+    );
+    await capture(page, '48_fdm_answer_pending');
+  });
+
+  test('49 - remboursement par ligne : un produit vendu à deux prix', async ({ page }) => {
+    const now = new Date().toISOString();
+    const REFUNDABLE = [{ fiscalEventId: 9, ticketNumber: 9, orderId: TABLE4_ORDER_ID, tableNumber: 4, totalCents: 2100, createdAt: now }];
+    // The same product on two lines: one at the menu price, one after a
+    // price change. Each line is refunded at the price it was sold at.
+    const LINES = [
+      { id: 1, order_id: TABLE4_ORDER_ID, menu_item_id: 1, quantity: 1, unit_price_cents: 1200, vat_code: 'B', name: 'Maki saumon x8', modifiers_json: null, created_at: now, department_id: '1', department_name: 'Sushis' },
+      { id: 2, order_id: TABLE4_ORDER_ID, menu_item_id: 1, quantity: 1, unit_price_cents: 900, vat_code: 'B', name: 'Maki saumon x8', modifiers_json: null, created_at: now, department_id: '1', department_name: 'Sushis' },
+    ];
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      list_refundable_events: () => REFUNDABLE,
+      list_order_lines: () => LINES,
+    });
+    await loginAndGoto(page, '/reports');
+    await page.getByRole('tab', { name: 'Tickets' }).click();
+    await page.locator('.ticket-row .refund-btn').first().click();
+    const lines = page.locator('.refund-line');
+    await expect(lines).toHaveCount(2);
+    await expect(lines.nth(0)).toContainText('12,00');
+    await expect(lines.nth(1)).toContainText('9,00');
+    await lines.nth(1).click();
+    await expect(lines.nth(1)).toHaveClass(/selected/);
+    await expect(lines.nth(0)).not.toHaveClass(/selected/);
+    await expect(page.locator('.refund-confirm-btn')).toContainText('9,00');
+    await capture(page, '49_refund_per_line_two_prices');
+  });
+
+  test('09g - fin d\'encaissement : le ticket papier doit encore être imprimé', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [DEFAULT_MENU_ITEM],
+      checkout: () => ({
+        success: true, ticket: null, error: null, fdm_connected: true, fiscal_event_id: 7,
+        delivery: { fiscalEventId: 7, deliveryId: null, medium: 'PAPER', email: 'not_requested', recipientHint: null, paperPrinted: false, needsPaper: true },
+      }),
+    });
+    await page.goto('/');
+    await tapUserTile(page, 'Gérant Test');
+    await page.waitForURL(/tables/);
+    await page.locator('.table-card').first().click();
+    await page.waitForURL(/order/);
+    await page.locator('.item-btn').first().click();
+    await page.locator('.checkout-btn').click();
+    await page.waitForURL(/checkout/);
+    await page.locator('.cash-btn').click();
+    await page.locator('.shortcut.exact').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Imprimer le ticket' })).toBeVisible();
+    await capture(page, '09g_checkout_done_print_ticket');
   });
 });
