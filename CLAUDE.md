@@ -598,6 +598,9 @@ scripts/live_hubrise_login.sh            # once: authorize URL, then `... CODE` 
 scripts/live_hubrise.sh <test name>      # see src-tauri/tests/live_hubrise.rs; recordings feed crates/pos-hubrise-mock/fixtures/hubrise
 scripts/live_combined.sh <test name>     # live HubRise + live module2 FDM together (src-tauri/tests/live_combined.rs); PILI_LIVE_HUBRISE_REUSE_ORDER=<id> retakes an order a cut-short run placed
 
+# Online orders end to end, offline: the real cert binary vs the HubRise, FDM and printer mocks over WebDriver (Linux container)
+scripts/e2e_hubrise.sh                   # ui/e2e/real-binary/hubrise.test.mjs; logs and the app's database in target/e2e-hubrise/logs/
+
 # Mock peripherals: FDM + email API on :8081, printer on :9100 (jobs on :9180)
 cargo run --package pos-fdm-mock
 cargo run --package pos-printer-mock

@@ -1,0 +1,21 @@
+{
+  "pos_id": "CFOD0061234567",
+  "terminal_id": "POS1",
+  "device_id": "00:1b:44:11:3a:b7",
+  "restaurant_name": "Restaurant Exemple",
+  "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
+  "restaurant_vat": "BE0499999960",
+  "restaurant_est_no": "2123456791",
+  "fdm_url": "http://127.0.0.1:8081/graphql",
+  "printer_address": "127.0.0.1:9100",
+  "training_mode": false,
+  "day_end_hour": 5,
+  "language": "fr",
+  "hubrise_enabled": true,
+  "hubrise": {
+    "client_id": "pili-pos",
+    "client_secret_file": "/work/hubrise.secret",
+    "oauth_base_url": "http://127.0.0.1:3001/oauth2/v1",
+    "api_base_url": "http://127.0.0.1:3001/v1"
+  }
+}
