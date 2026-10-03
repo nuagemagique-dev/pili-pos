@@ -35,7 +35,10 @@ echo "── 1/5 Certification build ──────────────�
 echo "── 2/5 Integration check ────────────────────────────────"
 # One binary for every installation: the HubRise integration is in it
 # (off unless switched on), invoicing is not.
-if ! strings "$BINARY" | grep -q "integration_switch_log"; then
+# Count, not `grep -q`: with pipefail, grep quitting early kills
+# `strings` with SIGPIPE and the pipeline reads as a failure.
+SWITCH_REFS=$(strings "$BINARY" | grep -c "integration_switch_log" || true)
+if [[ "$SWITCH_REFS" -eq 0 ]]; then
     echo "✗ the HubRise integration switch is missing from the cert binary"
     exit 1
 fi
