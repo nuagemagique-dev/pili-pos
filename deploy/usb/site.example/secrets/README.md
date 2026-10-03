@@ -10,7 +10,6 @@ Put the files the site needs here. Each one is optional.
 | `fdm/client.key` | `/etc/pili-pos/fdm/client.key` | mTLS client key |
 | `hubrise.secret` | `/etc/pili-pos/secrets/hubrise.secret` | HubRise OAuth client secret |
 | `tem.key` | `/etc/pili-pos/secrets/tem.key` | Scaleway TEM API key (digital ticket) |
-| `github.token` | `/etc/pili-pos/secrets/github.token` | Only for a private releases repository (contents:read) |
 
 On the terminal, the files are copied to the encrypted `/var` as `root:pos`
 with mode `0640`. Then they are deleted from the terminal's ESP.

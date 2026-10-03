@@ -19,15 +19,15 @@
 #   deploy/usb/make-key.sh --list            (candidate USB devices)
 #
 #   <device>   macOS: /dev/disk4   Linux: /dev/sdb   (whole disk)
-#   vX.Y.Z     downloads pili-pos-kiosk-vX.Y.Z.img.xz from the releases
-#              repository (PILI_RELEASES_REPO, default
-#              brunomoyse/moyun-pos-releases) with gh
+#   vX.Y.Z     downloads pili-pos-kiosk-vX.Y.Z.img.xz from that GitHub
+#              release of the repository (PILI_REPO, default
+#              brunomoyse/moyun-pos) with gh
 #   --site     a directory shaped like deploy/usb/site.example/
 #   --yes      no confirmation prompt
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-REPO="${PILI_RELEASES_REPO:-brunomoyse/moyun-pos-releases}"
+REPO="${PILI_REPO:-brunomoyse/moyun-pos}"
 OS="$(uname -s)"
 SOURCE=""
 SITE_DIR=""

@@ -7,7 +7,6 @@ pili_secret_map:
   - { key: fdm_client_key, src: fdm/client.key, dest: fdm/client.key }
   - { key: hubrise_secret, src: hubrise.secret, dest: secrets/hubrise.secret }
   - { key: tem_key, src: tem.key, dest: secrets/tem.key }
-  - { key: github_token, src: github.token, dest: secrets/github.token }
 
 # false only for tests that reuse one site directory.
 pili_wipe_site_secrets: true

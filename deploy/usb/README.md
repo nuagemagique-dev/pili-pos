@@ -35,9 +35,10 @@ You can pass a local `.img.xz` in place of `v1.0.0`. The image is built by
    1. LAN address;
    2. `pos.json` and secrets (the secrets are then deleted from the
       terminal's ESP);
-   3. the declared binary from GitHub Releases. It is installed only if
-      the owner's signature and the SHA-1 match. Offline or in any doubt,
-      the binary embedded in the image is kept;
+   3. the declared binary, pulled anonymously from the public package
+      `ghcr.io/brunomoyse/moyun-pos`. It is installed only if the owner's
+      signature and the SHA-1 match. Offline or in any doubt, the binary
+      embedded in the image is kept;
    4. a health check of the FDM and printer.
    - A summary stays on screen for 60 s, then the kiosk starts.
 6. **Manual step:** in the app, check the FDM status, print a test ticket
@@ -57,25 +58,38 @@ You can pass a local `.img.xz` in place of `v1.0.0`. The image is built by
 
 ## Releases
 
-- A `vX.Y.Z` tag runs `.github/workflows/release.yml`. It publishes a
-  **prerelease** on the releases repository:
-  - the tarball;
-  - the kiosk image;
-  - `build_info` with the SHA-1 to declare.
-- No terminal installs a prerelease.
-- After SPF approval, the owner runs on the Mac:
+- **Where things live.**
+  - The code and the GitHub Releases stay **private** in `moyun-pos`.
+  - Terminals only read the **public** package `ghcr.io/brunomoyse/moyun-pos`,
+    with no token.
+- **On a `vX.Y.Z` tag**, `.github/workflows/release.yml`:
+  - opens a **prerelease** with the tarball, the kiosk image and
+    `build_info` (the SHA-1 to declare);
+  - pushes the tarball to the package as tag `vX.Y.Z`.
+- **No terminal installs a pending version.**
+- **After SPF approval**, run on the Mac:
 
   ```bash
   scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1 accepted by SPF>
   ```
 
-  This signs `declared.json` with the offline minisign key. From then on,
-  new terminals install that version. The key is created once, with
-  `scripts/release/declare.sh --init-key`; commit `deploy/release/declared.pub`.
+  It signs `declared.json` with the offline minisign key, then:
+  - pushes the tarball + `declared.json` + signature as the package's
+    `declared` tag;
+  - turns the prerelease into the latest release.
+
+  From then on, new terminals install that version.
+- **One-time setup:**
+  1. `scripts/release/declare.sh --init-key`, then commit
+     `deploy/release/declared.pub`;
+  2. `brew install oras minisign`;
+  3. `gh auth refresh -s write:packages`;
+  4. after the first tag's push, make the package **public** (package
+     settings > Change visibility).
 
 ## Testing
 
 `deploy/ansible/tests/run.sh` tests the playbook in a Debian 13 container
-(Docker). It uses a fake binary, a local releases server and a throwaway
+(Docker). It uses a fake binary, a mock of ghcr.io's anonymous pull API and a throwaway
 key, and covers 8 cases: update, re-run, tampered manifest, wrong SHA-1,
 downgrade, offline, unreachable server, and no site.

@@ -4,7 +4,7 @@ set -euo pipefail
 
 apt-get update -qq >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    ansible-core minisign python3 sqlite3 iproute2 util-linux >/dev/null
+    ansible-core minisign python3 sqlite3 iproute2 util-linux curl ca-certificates >/dev/null
 echo "ansible-core: $(ansible-playbook --version | head -n1)"
 
 PASS=0
@@ -41,25 +41,40 @@ mkdir -p "$KEYS"
 minisign -G -W -p "$KEYS/pub" -s "$KEYS/sec" >/dev/null
 cp "$KEYS/pub" /usr/share/pili-pos/declared.pub
 
-SRV=/srv/releases
-mkdir -p "$SRV/declared"
-publish() { # publish <version> [sha1 override] -> tarball + signed manifest
-    local v="$1" dir="$SRV/v$1" sha1 sha256
+SRV=/srv/registry
+mkdir -p "$SRV/blobs"
+blob() { # blob <file> -> stores it, prints its OCI layer (title = basename)
+    local d
+    d="$(sha256sum "$1" | awk '{print $1}')"
+    cp "$1" "$SRV/blobs/$d"
+    printf '{"mediaType":"application/octet-stream","digest":"sha256:%s","size":%s,"annotations":{"org.opencontainers.image.title":"%s"}}' \
+        "$d" "$(stat -c %s "$1")" "$(basename "$1")"
+}
+publish() { # publish <version> [sha1 override] -> "declared" artifact; prints the binary SHA-1
+    local v="$1" dir="/srv/build/v$1" sha1 sha256 tarball
     mkdir -p "$dir/pkg"
     fake_pos "$v" "$dir/pkg/pili-pos"
     printf 'x' > "$dir/pkg/install.sh"
-    tar -C "$dir/pkg" -czf "$dir/pili-pos-v$v-x86_64.tar.gz" pili-pos install.sh
+    tarball="$dir/pili-pos-v$v-x86_64.tar.gz"
+    tar -C "$dir/pkg" -czf "$tarball" pili-pos install.sh
     sha1="${2:-$(sha1sum "$dir/pkg/pili-pos" | awk '{print $1}')}"
-    sha256="$(sha256sum "$dir/pili-pos-v$v-x86_64.tar.gz" | awk '{print $1}')"
-    cat > "$SRV/declared/declared.json" <<JSON
+    sha256="$(sha256sum "$tarball" | awk '{print $1}')"
+    cat > "$dir/declared.json" <<JSON
 {"version": "$v", "sha1": "$sha1", "sha256": "$sha256",
- "asset_url": "http://127.0.0.1:8000/v$v/pili-pos-v$v-x86_64.tar.gz"}
+ "asset": "pili-pos-v$v-x86_64.tar.gz"}
 JSON
-    rm -f "$SRV/declared/declared.json.minisig"
-    minisign -S -s "$KEYS/sec" -m "$SRV/declared/declared.json" >/dev/null
+    rm -f "$dir/declared.json.minisig"
+    minisign -S -s "$KEYS/sec" -m "$dir/declared.json" >/dev/null
+    write_manifest "$dir"
     sha1sum "$dir/pkg/pili-pos" | awk '{print $1}'
 }
-( cd "$SRV" && exec python3 -m http.server 8000 --bind 127.0.0.1 >/dev/null 2>&1 ) &
+write_manifest() { # write_manifest <dir> (after an edit of its declared.json)
+    local dir="$1"
+    printf '{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","layers":[%s,%s,%s]}' \
+        "$(blob "$dir"/pili-pos-v*-x86_64.tar.gz)" "$(blob "$dir/declared.json")" "$(blob "$dir/declared.json.minisig")" \
+        > "$SRV/declared.json"
+}
+python3 /src/deploy/ansible/tests/registry.py "$SRV" &
 sleep 1
 
 # ── Site directory (as make-key.sh writes it on the ESP) ──────────
@@ -92,7 +107,7 @@ play() { # play [extra -e args...]
     ansible-playbook -i localhost, -c local /opt/pili-pos/deploy/ansible/site.yml \
         -e pili_site_dir=/run/site \
         -e pili_first_boot=true \
-        -e pili_declared_base_url=http://127.0.0.1:8000/declared \
+        -e pili_registry=http://127.0.0.1:8000 \
         -e pili_fetch_timeout=5 \
         "$@" > /tmp/play.log 2>&1
     local rc=$?
@@ -129,7 +144,8 @@ echo "▸ 3. tampered manifest: embedded binary kept"
 fake_pos 1.0.0 /opt/pili-pos/pili-pos
 new_site
 publish 1.2.0 >/dev/null
-sed -i 's/"1.2.0"/"1.2.1"/' "$SRV/declared/declared.json"
+sed -i 's/"1.2.0"/"1.2.1"/' /srv/build/v1.2.0/declared.json
+write_manifest /srv/build/v1.2.0
 if play; then ok "playbook ran"; else bad "playbook failed"; tail -40 /tmp/play.log; fi
 check "binary unchanged" test "$(installed_sha1)" = "$EMBEDDED_SHA1"
 check "report warns about the signature" report_has "Check the owner's signature"
@@ -157,7 +173,7 @@ check "report: embedded" report_has "binaire embarqué"
 
 echo "▸ 7. server unreachable: embedded binary kept, run still succeeds"
 new_site
-if play -e pili_declared_base_url=http://127.0.0.1:1/declared; then ok "playbook ran"; else bad "playbook failed"; tail -40 /tmp/play.log; fi
+if play -e pili_registry=http://127.0.0.1:1; then ok "playbook ran"; else bad "playbook failed"; tail -40 /tmp/play.log; fi
 check "binary unchanged" test "$(installed_sha1)" = "$EMBEDDED_SHA1"
 check "report warns: not fetched" report_has "non récupérée"
 

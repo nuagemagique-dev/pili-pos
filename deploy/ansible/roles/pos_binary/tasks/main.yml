@@ -1,16 +1,23 @@
-# The POS binary the owner DECLARED to SPF Finances, fetched from
-# GitHub Releases (deploy/UPDATE-STRATEGY.md). A terminal may only run
-# a binary whose SHA-1 was declared, so this role never takes "the
-# latest release": it takes what declared.json says, and only if
-#   1. declared.json carries the owner's minisign signature
-#      (scripts/release/declare.sh, public key baked into the image),
-#   2. the tarball matches the manifest's SHA-256,
+# The POS binary the owner DECLARED to SPF Finances
+# (deploy/UPDATE-STRATEGY.md), pulled anonymously from the PUBLIC
+# package ghcr.io/brunomoyse/moyun-pos (the source repository and its
+# GitHub Releases stay private).
+#
+# A vX.Y.Z tag pushes the tarball there as tag vX.Y.Z and opens a
+# prerelease (.github/workflows/release.yml). Once SPF has accepted the
+# SHA-1, scripts/release/declare.sh pushes the artifact tagged
+# "declared": the tarball + declared.json + declared.json.minisig. This
+# role only ever reads "declared", and installs its binary only if
+#   1. declared.json carries the owner's minisign signature (offline
+#      key; public key baked into the image),
+#   2. every blob matches its registry digest, and the tarball the
+#      manifest's SHA-256,
 #   3. the binary in it matches the manifest's SHA-1,
 #   4. it is not older than the binary already installed.
-# Any doubt or no network: the binary embedded in the image stays (it
+# No network or any doubt: the binary embedded in the image stays (it
 # was declared when the image was built) and a warning is shown.
-# Installation itself goes through deploy/update.sh (SHA-1 gate again,
-# .bak copy, DB backup, --init-db migrations).
+# Installation goes through deploy/update.sh (SHA-1 gate again, .bak
+# copy, DB backup, --init-db migrations).
 - name: Installed binary
   ansible.builtin.stat:
     path: "{{ pili_bin }}"
@@ -49,26 +56,54 @@
         mode: "0700"
       loop: [absent, directory]
 
-    - name: Optional GitHub token (private releases repository only)
-      ansible.builtin.set_fact:
-        pili_gh_headers: >-
-          {{ {'Authorization': 'Bearer ' ~ lookup('ansible.builtin.file', pili_etc_dir ~ '/secrets/github.token') | trim}
-             if (pili_etc_dir ~ '/secrets/github.token') is file else {} }}
-      no_log: true
-
-    - name: Download declared.json and its signature
-      ansible.builtin.get_url:
-        url: "{{ pili_declared_base_url }}/{{ item }}"
-        dest: "{{ pili_work_dir }}/{{ item }}"
-        headers: "{{ pili_gh_headers | combine({'Accept': 'application/octet-stream'}) }}"
+    # Anonymous pull token of a public package (OCI distribution auth).
+    - name: Registry pull token
+      ansible.builtin.uri:
+        url: "{{ pili_registry }}/token?scope=repository:{{ pili_registry_repo }}:pull"
         timeout: "{{ pili_fetch_timeout }}"
-        mode: "0600"
-        force: true
-      loop: [declared.json, declared.json.minisig]
-      register: pili_dl
+        return_content: true
+      register: pili_registry_token
       retries: 3
       delay: 5
-      until: pili_dl is succeeded
+      until: pili_registry_token is succeeded
+
+    - name: Manifest of the "declared" artifact
+      ansible.builtin.uri:
+        url: "{{ pili_registry }}/v2/{{ pili_registry_repo }}/manifests/{{ pili_registry_tag }}"
+        headers:
+          Authorization: "Bearer {{ pili_registry_token.json.token }}"
+          Accept: application/vnd.oci.image.manifest.v1+json
+        timeout: "{{ pili_fetch_timeout }}"
+        return_content: true
+      register: pili_oci_manifest
+
+    - name: Files of the artifact by name
+      ansible.builtin.set_fact:
+        # title annotation -> digest ("org.opencontainers.image.title"
+        # has dots, so no map(attribute=...)).
+        pili_blobs: >-
+          {%- set d = {} -%}
+          {%- for l in pili_oci_manifest.json.layers -%}
+            {%- set _ = d.update({(l.annotations | default({}))['org.opencontainers.image.title'] | default(l.digest): l.digest}) -%}
+          {%- endfor -%}
+          {{ d }}
+
+    - name: The artifact must carry a signed manifest
+      ansible.builtin.assert:
+        that:
+          - "'declared.json' in pili_blobs"
+          - "'declared.json.minisig' in pili_blobs"
+          - pili_blobs.values() | select('match', '^sha256:[0-9a-f]{64}$') | list | length == pili_blobs | length
+        fail_msg: "l’artefact {{ pili_registry_tag }} n’a pas de declared.json signé"
+        quiet: true
+
+    - name: Download declared.json and its signature
+      ansible.builtin.command:
+        argv: >-
+          {{ pili_curl_blob + ['-o', pili_work_dir ~ '/' ~ item,
+             pili_registry ~ '/v2/' ~ pili_registry_repo ~ '/blobs/' ~ pili_blobs[item]] }}
+      loop: [declared.json, declared.json.minisig]
+      changed_when: false
 
     - name: Check the owner's signature
       ansible.builtin.command:
@@ -86,10 +121,9 @@
           - pili_declared.version is match('^[0-9]+\.[0-9]+\.[0-9]+$')
           - pili_declared.sha1 is match('^[0-9a-f]{40}$')
           - pili_declared.sha256 is match('^[0-9a-f]{64}$')
-          # http only matters for the local test harness: the tarball
-          # is checked against the signed SHA-256 whatever the scheme.
-          - pili_declared.asset_url is match('^https?://')
-        fail_msg: "declared.json mal formé"
+          - pili_declared.asset in pili_blobs
+          - pili_blobs[pili_declared.asset] == 'sha256:' ~ pili_declared.sha256
+        fail_msg: "declared.json mal formé ou ne correspondant pas à l’artefact"
         quiet: true
 
     - name: Already the declared binary
@@ -111,18 +145,24 @@
         - pili_declared.sha1 != pili_installed_sha1
         - pili_declared.version is version(pili_installed_semver, '>=')
       block:
-        - name: Download the release tarball (SHA-256 from the signed manifest)
-          ansible.builtin.get_url:
-            url: "{{ pili_declared.asset_url }}"
-            dest: "{{ pili_work_dir }}/pili-pos.tar.gz"
-            checksum: "sha256:{{ pili_declared.sha256 }}"
-            headers: "{{ pili_gh_headers | combine({'Accept': 'application/octet-stream'}) }}"
-            timeout: "{{ pili_fetch_timeout }}"
-            mode: "0600"
-          register: pili_dl_tar
-          retries: 3
-          delay: 5
-          until: pili_dl_tar is succeeded
+        - name: Download the tarball
+          ansible.builtin.command:
+            argv: >-
+              {{ pili_curl_blob + ['-o', pili_work_dir ~ '/pili-pos.tar.gz',
+                 pili_registry ~ '/v2/' ~ pili_registry_repo ~ '/blobs/' ~ pili_blobs[pili_declared.asset]] }}
+          changed_when: false
+
+        - name: SHA-256 of the tarball
+          ansible.builtin.stat:
+            path: "{{ pili_work_dir }}/pili-pos.tar.gz"
+            checksum_algorithm: sha256
+          register: pili_tar_stat
+
+        - name: It must be the declared tarball
+          ansible.builtin.assert:
+            that: pili_tar_stat.stat.checksum == pili_declared.sha256
+            fail_msg: "SHA-256 de l’archive différent du manifeste : refusé"
+            quiet: true
 
         - name: Unpack it
           ansible.builtin.unarchive:

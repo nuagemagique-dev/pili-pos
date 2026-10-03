@@ -27,28 +27,33 @@ channel.
    new SHA-1; wait for SPF approval.
 4. Deploy to terminals.
 
-## Publishing and declaring (GitHub Releases)
+## Publishing and declaring
 
-- The `vX.Y.Z` tag runs `.github/workflows/release.yml`. It does the same
-  reproducible build and image as `image.yml`, then creates a **prerelease**
-  on the releases repository. The prerelease holds:
-  - `pili-pos-vX.Y.Z-x86_64.tar.gz`;
-  - `pili-pos-kiosk-vX.Y.Z.img.xz`;
-  - `build_info-vX.Y.Z.txt`;
-  - `SHA256SUMS`.
-- Once SPF has accepted the SHA-1, the owner runs
-  `scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1>`.
-  - It signs `declared.json` (`version`, `sha1`, `sha256`, `asset_url`)
-    with an offline minisign key.
-  - It publishes the manifest on the fixed `declared` release and marks the
-    version as latest.
-- New terminals read that manifest **once**, at the first-boot site
-  bootstrap (`deploy/usb/README.md`, `deploy/ansible/roles/pos_binary`).
-  They install only a signed, SHA-1-matching, not-older binary, through
-  `update.sh`. Otherwise they keep the binary embedded in the image.
-- This is not a self-update. It runs once, with the installer present.
+- **On the `vX.Y.Z` tag**, `.github/workflows/release.yml` does the same
+  reproducible build and image as `image.yml`, then:
+  - opens a **prerelease** in this (private) repository with:
+    - `pili-pos-vX.Y.Z-x86_64.tar.gz`;
+    - `pili-pos-kiosk-vX.Y.Z.img.xz`;
+    - `build_info-vX.Y.Z.txt`;
+    - `SHA256SUMS`;
+  - pushes the tarball to the **public** package
+    `ghcr.io/brunomoyse/moyun-pos` as tag `vX.Y.Z`.
+- **Once SPF has accepted the SHA-1**, the owner runs
+  `scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1>`. It:
+  - signs `declared.json` (`version`, `sha1`, `sha256`, `asset`) with an
+    offline minisign key;
+  - pushes the tarball and the signed manifest as the package's
+    `declared` tag;
+  - turns the prerelease into the latest release.
+- **New terminals** read `declared` **once**, anonymously, at the
+  first-boot site bootstrap (`deploy/usb/README.md`,
+  `deploy/ansible/roles/pos_binary`).
+  - They install only a signed, SHA-1-matching, not-older binary, through
+    `update.sh`.
+  - Otherwise they keep the binary embedded in the image.
+- **This is not a self-update.** It runs once, with the installer present.
   Later updates stay manual: `pili-bootstrap --rerun` on the maintenance
-  console uses the same checks.
+  console applies the same checks.
 
 ## Deploying to a terminal
 

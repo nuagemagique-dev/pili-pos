@@ -1,23 +1,24 @@
 name: Release
 
 # On a vX.Y.Z tag: the same reproducible build, image build and boot
-# smoke test as image.yml (called as a reusable workflow), then a
-# PRERELEASE on the releases repository with:
-#   pili-pos-vX.Y.Z-x86_64.tar.gz   deploy/dist (binary, install.sh, update.sh, ...)
-#   pili-pos-kiosk-vX.Y.Z.img.xz    production kiosk image (deploy/usb/make-key.sh)
-#   build_info-vX.Y.Z.txt           SHA-1 / SHA-256 report (the SHA-1 to declare)
-#   SHA256SUMS
+# smoke test as image.yml (called as a reusable workflow), then:
+#   - a PRERELEASE of this (private) repository, for humans:
+#       pili-pos-vX.Y.Z-x86_64.tar.gz   deploy/dist (binary, install.sh, update.sh, ...)
+#       pili-pos-kiosk-vX.Y.Z.img.xz    production kiosk image (deploy/usb/make-key.sh)
+#       build_info-vX.Y.Z.txt           SHA-1 / SHA-256 report (the SHA-1 to declare)
+#       SHA256SUMS
+#   - the tarball pushed to the PUBLIC package ghcr.io/<owner>/moyun-pos
+#     as tag vX.Y.Z (oras, OCI artifact).
 #
-# A prerelease is NOT installed by any terminal. Once SPF Finances has
-# accepted the SHA-1, the owner runs scripts/release/declare.sh on the
-# Mac: it signs declared.json with the offline minisign key and turns
-# the prerelease into latest (deploy/UPDATE-STRATEGY.md).
+# Nothing here is installed by a terminal: they only read the package's
+# "declared" tag. Once SPF Finances has accepted the SHA-1, the owner
+# runs scripts/release/declare.sh on the Mac: it signs declared.json
+# with the offline minisign key, pushes the "declared" artifact and
+# turns the prerelease into the latest release (deploy/UPDATE-STRATEGY.md).
 #
 # Tag-only on purpose (private repo, Actions minutes are capped).
-#
-# Needs: repository variable RELEASES_REPO (default
-# brunomoyse/moyun-pos-releases) and secret RELEASES_PAT, a
-# fine-grained token with contents:write on that repository only.
+# The package must be made public once, by hand, after its first push
+# (package settings > Change visibility).
 on:
   push:
     tags: ['v*.*.*']
@@ -33,9 +34,11 @@ jobs:
     name: Publish the prerelease
     needs: build
     runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      packages: write
     env:
       VERSION: ${{ github.ref_name }}
-      RELEASES_REPO: ${{ vars.RELEASES_REPO || 'brunomoyse/moyun-pos-releases' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -90,12 +93,26 @@ jobs:
 
       - name: Create the prerelease
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           NOTES="pili-pos ${VERSION} - binary SHA-1 ${SHA1} (to declare to SPF Finances).
-          Prerelease until declared: no terminal installs it before scripts/release/declare.sh ${VERSION} --sha1 ${SHA1}.
-          Source: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-          gh release create "$VERSION" -R "$RELEASES_REPO" \
+          Prerelease until declared: no terminal installs it before scripts/release/declare.sh ${VERSION} --sha1 ${SHA1}."
+          gh release create "$VERSION" -R "$GITHUB_REPOSITORY" \
             --prerelease --title "pili-pos ${VERSION}" --notes "$NOTES" \
             out/*
+
+      - uses: oras-project/setup-oras@v1
+
+      - name: Push the tarball to ghcr.io (tag vX.Y.Z)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          cd out
+          oras push "${IMAGE}:${VERSION}" \
+            --artifact-type application/vnd.pili-pos.release.v1 \
+            --annotation "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            "pili-pos-${VERSION}-x86_64.tar.gz:application/gzip"

@@ -3,11 +3,12 @@
 # pili-pos - declare a released version (owner only, on the Mac)
 #
 # Once SPF Finances has accepted a version (deploy/UPDATE-STRATEGY.md),
-# this publishes the signed manifest terminals trust:
-#   declared.json          { version, sha1, sha256, asset_url, declared_at }
+# this publishes what terminals trust:
+#   declared.json          { version, sha1, sha256, asset, declared_at }
 #   declared.json.minisig  minisign signature with the owner's OFFLINE key
-# on the fixed "declared" release of the releases repository, and turns
-# the version's own release from prerelease into latest.
+# pushed with the release tarball as tag "declared" of the public package
+# ghcr.io/brunomoyse/moyun-pos, attached to the vX.Y.Z GitHub release
+# too, which then turns from prerelease into latest.
 #
 # pili-bootstrap (deploy/ansible/roles/pos_binary) installs nothing
 # else: no valid signature, no SHA-256/SHA-1 match, no install.
@@ -20,14 +21,16 @@
 #       every image built afterwards embeds it.
 #   scripts/release/declare.sh vX.Y.Z --sha1 <SHA-1 accepted by SPF>
 #
-# Environment: PILI_RELEASES_REPO (default brunomoyse/moyun-pos-releases),
+# Environment: PILI_REPO (default brunomoyse/moyun-pos),
 # PILI_MINISIGN_KEY (default ~/.minisign/pili-pos-declared.key).
-# Needs: gh (logged in, write access to the releases repo), minisign.
+# Needs: gh (logged in, with the write:packages scope:
+# `gh auth refresh -s write:packages`), oras, minisign.
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-REPO="${PILI_RELEASES_REPO:-brunomoyse/moyun-pos-releases}"
+REPO="${PILI_REPO:-brunomoyse/moyun-pos}"
+PACKAGE="ghcr.io/$(echo "$REPO" | tr '[:upper:]' '[:lower:]')"
 SECRET_KEY="${PILI_MINISIGN_KEY:-$HOME/.minisign/pili-pos-declared.key}"
 PUBLIC_KEY="$PROJECT_ROOT/deploy/release/declared.pub"
 
@@ -58,17 +61,24 @@ done
 [[ -f "$SECRET_KEY" ]] || die "$SECRET_KEY not found (run --init-key first)"
 [[ -f "$PUBLIC_KEY" ]] || die "$PUBLIC_KEY not found (run --init-key first)"
 command -v gh >/dev/null || die "gh not found"
+command -v oras >/dev/null || die "oras not found (brew install oras)"
 
 TARBALL="pili-pos-${VERSION}-x86_64.tar.gz"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-echo "▸ Downloading $TARBALL from $REPO…"
-gh release download "$VERSION" -R "$REPO" -p "$TARBALL" -D "$WORK"
+echo "▸ Logging oras in to ghcr.io with the gh token…"
+gh auth token | oras login ghcr.io -u "$(gh api user -q .login)" --password-stdin >/dev/null
+
+# Exactly what the terminals will get: the package, not a local file.
+echo "▸ Pulling $PACKAGE:$VERSION…"
+oras pull "$PACKAGE:$VERSION" -o "$WORK"
+[[ -f "$WORK/$TARBALL" ]] || die "$PACKAGE:$VERSION has no $TARBALL"
 
 SHA256="$(shasum -a 256 "$WORK/$TARBALL" | awk '{print $1}')"
-tar -xzf "$WORK/$TARBALL" -C "$WORK" pili-pos
-SHA1="$(shasum -a 1 "$WORK/pili-pos" | awk '{print $1}')"
+mkdir "$WORK/x"
+tar -xzf "$WORK/$TARBALL" -C "$WORK/x" pili-pos
+SHA1="$(shasum -a 1 "$WORK/x/pili-pos" | awk '{print $1}')"
 if [[ "$SHA1" != "$EXPECTED_SHA1" ]]; then
     die "the released binary's SHA-1 is $SHA1, not the declared $EXPECTED_SHA1 - nothing published"
 fi
@@ -81,7 +91,7 @@ cat > "$WORK/declared.json" <<JSON
   "version": "$SEMVER",
   "sha1": "$SHA1",
   "sha256": "$SHA256",
-  "asset_url": "https://github.com/$REPO/releases/download/$VERSION/$TARBALL",
+  "asset": "$TARBALL",
   "declared_at": "$DECLARED_AT"
 }
 JSON
@@ -92,13 +102,15 @@ minisign -S -s "$SECRET_KEY" -m "$WORK/declared.json" \
 minisign -V -q -p "$PUBLIC_KEY" -m "$WORK/declared.json" -x "$WORK/declared.json.minisig" \
     || die "the signature does not verify with $PUBLIC_KEY - wrong key pair?"
 
-echo "▸ Publishing on the 'declared' release of $REPO…"
-if ! gh release view declared -R "$REPO" >/dev/null 2>&1; then
-    gh release create declared -R "$REPO" --latest=false \
-        --title "Declared version" \
-        --notes "Signed manifest of the pili-pos version declared to SPF Finances. Read by the terminals' first-boot bootstrap; overwritten by scripts/release/declare.sh."
-fi
-gh release upload declared -R "$REPO" --clobber \
+echo "▸ Pushing $PACKAGE:declared…"
+( cd "$WORK" && oras push "$PACKAGE:declared" \
+    --artifact-type application/vnd.pili-pos.declared.v1 \
+    "$TARBALL:application/gzip" \
+    declared.json:application/json \
+    declared.json.minisig:text/plain )
+
+echo "▸ $VERSION: prerelease -> latest release…"
+gh release upload "$VERSION" -R "$REPO" --clobber \
     "$WORK/declared.json" "$WORK/declared.json.minisig"
 gh release edit "$VERSION" -R "$REPO" --prerelease=false --latest
 
