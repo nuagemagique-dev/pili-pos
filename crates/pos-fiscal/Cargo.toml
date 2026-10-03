@@ -30,4 +30,5 @@ pos-fdm-mock = { path = "../pos-fdm-mock" }
 pos-db = { path = "../pos-db" }
 pos-print = { path = "../pos-print" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+axum = "0.8"
 wiremock = "0.6"

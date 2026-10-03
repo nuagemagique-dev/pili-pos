@@ -172,12 +172,11 @@ pub struct CommonFields {
     pub employee_id: String,
 }
 
-/// The five-field tuple the FDM uses to detect a duplicate or conflicting
-/// request (FDM spec v1.4 §3 idempotency rules). If the POS retries with
-/// the exact same `IdempotencyKey`, the FDM returns the cached response
-/// and does NOT advance its internal counters. Two requests sharing this
-/// key but differing in *payload* are refused - the FDM treats that as a
-/// conflict.
+/// The five key fields the FDM uses to detect a duplicate request (POS
+/// description v2.2, communication rules). Only a request identical in
+/// every field gets the first answer back, counters unchanged; the same
+/// key with any other content is refused. So a retry must resend the
+/// stored request bytes (`fdm_client::SignRequest`), never rebuild it.
 ///
 /// The key is constructed from `CommonFields` plus the event label
 /// (which lives on the FDM response side, not the request side, so we

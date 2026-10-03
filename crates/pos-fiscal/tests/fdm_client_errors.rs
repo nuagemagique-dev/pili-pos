@@ -110,11 +110,11 @@ async fn graphql_errors_array_yields_err_not_panic() {
 
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::GraphQl(msg) => assert!(
-            msg.contains("duplicate booking period"),
-            "message was: {msg}"
+        FdmError::Refused { message, .. } => assert!(
+            message.contains("duplicate booking period"),
+            "message was: {message}"
         ),
-        other => panic!("expected GraphQl error, got {other:?}"),
+        other => panic!("expected a refusal, got {other:?}"),
     }
 }
 
@@ -227,8 +227,8 @@ async fn http_500_with_valid_graphql_error_body_still_surfaces_the_graphql_error
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::GraphQl(msg) => assert!(msg.contains("internal FDM failure")),
-        other => panic!("expected GraphQl error, got {other:?}"),
+        FdmError::Refused { message, .. } => assert!(message.contains("internal FDM failure")),
+        other => panic!("expected a refusal, got {other:?}"),
     }
 }
 
@@ -283,7 +283,7 @@ async fn response_with_neither_data_nor_errors_yields_err() {
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::GraphQl(msg) => assert!(msg.contains("No data")),
+        FdmError::BadResponse(msg) => assert!(msg.contains("No data")),
         other => panic!("expected GraphQl(\"No data...\"), got {other:?}"),
     }
 }
@@ -305,7 +305,7 @@ async fn response_missing_the_mutation_field_yields_err() {
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::GraphQl(msg) => assert!(msg.contains("Missing signWorkIn")),
+        FdmError::BadResponse(msg) => assert!(msg.contains("Missing signWorkIn")),
         other => panic!("expected GraphQl(\"Missing signWorkIn...\"), got {other:?}"),
     }
 }
@@ -327,7 +327,7 @@ async fn response_with_malformed_sign_result_shape_yields_err() {
     let client = FdmClient::new(&cfg.fdm_url);
     let err = sign_work_in_call(&client, &cfg).await.unwrap_err();
     match err {
-        FdmError::GraphQl(msg) => assert!(msg.contains("Failed to parse signWorkIn")),
+        FdmError::BadResponse(msg) => assert!(msg.contains("Failed to parse signWorkIn")),
         other => panic!("expected GraphQl(\"Failed to parse signWorkIn...\"), got {other:?}"),
     }
 }

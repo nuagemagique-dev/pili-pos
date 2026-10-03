@@ -55,17 +55,11 @@ impl FiscalCounter {
 
     /// What `next()` *would* return without mutating the DB.
     ///
-    /// Used by command handlers to reserve a ticket number for the
-    /// FDM request **before** committing the increment. If the FDM
-    /// call fails, the counter stays untouched and a retry sees the
-    /// same value - which is the only way to honour the SCE 2.0
-    /// "strictly sequential, no gaps" requirement when the network
-    /// is unreliable.
-    ///
-    /// The actual commit (via `next()`) happens inside the same
-    /// transaction as the `fiscal_events` archive - that pair is
-    /// what ensures atomicity. See
-    /// `docs/SUBMISSION_ARTIFACTS/COUNTER_STRATEGY.md`.
+    /// Used by command handlers, under the signing lock, to number the
+    /// FDM request **before** committing the increment: a refused
+    /// request leaves the counter untouched, so there is no gap. The
+    /// commit (`next()`) happens in the transaction that archives the
+    /// event. See `docs/SUBMISSION_ARTIFACTS/STRATEGIE_COMPTEURS_FR.md`.
     pub fn peek_next(
         conn: &rusqlite::Connection,
         event_label: EventLabel,
