@@ -151,7 +151,9 @@ d'attaque réseau côté client au temps d'une intervention.
 |---|---|---|---|
 | Panne disque SSD du kiosque | Moyenne | Élevé | Sauvegarde journalière avant Z (cf. `FEUILLE_ACQUISITION_DONNEES_FR.md`). Procédure de remplacement disque documentée. |
 | Perte d'alimentation pendant une transaction | Élevée | Faible | WAL SQLite + transactions atomiques. Aucun événement à moitié écrit. |
-| Coupure réseau LAN entre POS et FDM | Élevée | Moyen | Mode bloquant en build cert ; opérateur retentemps que le FDM revient. Aucune transaction enregistrée hors FDM. |
+| Coupure réseau LAN entre POS et FDM | Élevée | Moyen | Mode bloquant en build cert ; l'opérateur réessaie quand le FDM revient. Aucune transaction enregistrée hors FDM. Une requête dont la réponse est perdue est conservée et renvoyée à l'identique (jamais perdue ni doublée). Elle bloque la signature tant que le FDM ne répond pas : procédure technicien dans `MANUEL_INSTALLATION_FR.md` §7.5. |
+| FDM qui a perdu sa mémoire des doublons | Faible | Moyen | Le renvoi d'une requête perdue serait signé comme un nouvel événement. Détecté par les compteurs, journalisé, non évitable par le POS. |
+| Action de l'écran en attente derrière un Z automatique ou un renvoi | Faible | Faible | Attente de 30 s au plus, puis message `signing_busy` ; l'opérateur réessaie. |
 | Coupure réseau internet du FDM | Moyenne | Variable | Hors du périmètre POS (responsabilité du FDM). Le POS continue à enregistrer localement et le FDM rejoue ses propres données à reconnexion. |
 | Erreur d'horloge système | Faible | Moyen | NTP `chrony` actif, BIOS battery vérifiée à l'installation. |
 | Vulnérabilité dans une dépendance Rust | Moyenne | Variable | Audit `cargo audit` mensuel. Patch & rebuild & recertification mineure si nécessaire. |

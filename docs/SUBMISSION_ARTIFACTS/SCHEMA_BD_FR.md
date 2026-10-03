@@ -347,6 +347,60 @@ Utilisateurs du POS. INSZ comme clé primaire. Voir
 | `pin_hash` | TEXT (nullable) | Hash bcrypt du PIN optionnel |
 | `active` | INTEGER | 1 = utilisateur actif, 0 = désactivé |
 
+### 3.9 `pending_signs` (migration `010`)
+
+Requête de signature stockée **avant** son envoi au FDM, pour pouvoir
+la renvoyer à l'identique si la réponse est perdue (voir
+*STRATEGIE_COMPTEURS_FR.md* §5). La base est en `synchronous=FULL` : la
+ligne est durable avant l'envoi.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER PK | Identifiant |
+| `event_label` | TEXT | Label de l'événement (N, R, P, ...) |
+| `first_ticket_no` | INTEGER | Premier numéro de ticket de la requête |
+| `ticket_count` | INTEGER | 1, ou 2 pour la paire Z chiffre d'affaires + Z utilisateur (M184) |
+| `mutation` | TEXT | Mutation FDM envoyée |
+| `is_training` | INTEGER | 0 ou 1 |
+| `request_body` | TEXT | Octets exacts de la requête, renvoyés tels quels |
+| `archive_json` | TEXT | Événements à archiver à la réponse |
+| `kind` | TEXT | Opération (`sale`, `refund`, `report_z`, ...) |
+| `subject` | TEXT | Objet de l'opération (commande, vente remboursée, ...) |
+| `order_id` | INTEGER (nullable) | Commande concernée |
+| `context_json` | TEXT | Effets métier à appliquer (commande clôturée, paiements, livraison, rapport) |
+| `user_insz` | TEXT | Opérateur |
+| `status` | TEXT | `open` (défaut), `signed`, `refused`, `not_sent` |
+| `attempts` | INTEGER | Nombre d'envois |
+| `last_error` | TEXT (nullable) | Dernière erreur |
+| `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | Événement archivé (premier événement si `ticket_count = 2`) |
+| `created_at`, `resolved_at` | TEXT | Horodatages |
+
+Index :
+- `idx_pending_signs_one_open` (unique partiel, `WHERE status = 'open'`) :
+  au plus une ligne ouverte à la fois.
+- `idx_pending_signs_order` sur `(order_id, status)` : retrouver une
+  commande dont la vente attend la réponse du FDM.
+
+Triggers :
+- `pending_signs_request_immutable` : ce qui a été envoyé (label,
+  numéros, corps, événements, opération, opérateur, `created_at`) ne
+  change jamais.
+- `pending_signs_context_on_resolution` : `context_json` ne change
+  qu'à la sortie de l'état `open` (l'adresse e-mail d'un ticket
+  numérique y est alors effacée).
+- `pending_signs_no_reopen` : une ligne résolue ne change plus.
+- `pending_signs_no_delete` : suppression interdite. Une ligne ouverte
+  ne se supprime jamais à la main : voir la procédure de dépannage du
+  *MANUEL_INSTALLATION_FR.md*.
+
+### 3.10 Garde de période : `fiscal_events_period_open` (migration `010`)
+
+Déclencheur `BEFORE INSERT` sur `fiscal_events` : refuse (`booking
+period is closed`, code applicatif `period_closed`) l'archivage d'un
+événement dont le `bookingPeriodId` désigne une période d'ouverture
+déjà fermée (`booking_periods.closed_at` non nul). Un événement signé
+ne peut donc pas être rattaché à un jour déjà clôturé.
+
 ## 4. Tables Peppol (build cert)
 
 ### 4.1 `peppol_deliveries`
@@ -437,8 +491,8 @@ d'options et les options.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **quinze
-migrations** existent (1 à 9, puis 20 à 25 ; 10 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **seize
+migrations** existent (1 à 10, puis 20 à 25 ; 11 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -453,6 +507,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 7 | `german-language` | Insère `de` (Deutsch) dans `languages`, pour qu'un catalogue en région de langue allemande puisse porter des désignations en allemand (§1.1). |
 | 8 | `meal-voucher-payments` | Autorise le moyen de paiement `meal_voucher` dans `payments` (table reconstruite avec ses lignes, SQLite ne modifiant pas un CHECK). |
 | 9 | `shifts-and-pre-bill` | Ajoute `staff_shifts` (index local des prestations ouvertes par un S WorkIn) et `orders.pre_bill_at`. |
+| 10 | `pending-signs` | Ajoute `pending_signs` (requêtes de signature stockées avant envoi, §3.9) et le déclencheur `fiscal_events_period_open` (§3.10). |
 | 20 | `hubrise-transport` | Colonnes de nouvelle tentative et d'erreur sur `hubrise_connection`, `hubrise_events`, `hubrise_outbox` (§5.5). |
 | 21 | `catalog-sync` | Menu reflet d'un catalogue externe, `catalog_sync_state` (§5.5). |
 | 22 | `webshop-orders` | `webshop_orders`, `hubrise_channels`, `hubrise_cash_payment_refs` (§5.1, §5.2). |

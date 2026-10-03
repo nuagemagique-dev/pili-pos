@@ -72,11 +72,16 @@ Chaque branche :
 1. Charge les lignes pertinentes depuis SQLite (les requêtes sont
    dans `pos-db/src/queries/`).
 2. Construit la struct d'input SCE-2.0 (`pos-fiscal::inputs::*`).
-3. Calcule la clé d'idempotence (voir §3.4) et le corps JSON canonique
-   (voir §3.3).
-4. Appelle la méthode async `FdmClient::sign_*` correspondante.
-5. Sur succès : ajoute à `fiscal_events` + ferme/marque la commande
-   dans une seule transaction SQLite.
+3. Sous le verrou de signature unique (`commands/signing.rs`), lit le
+   prochain numéro de ticket, choisit la période d'ouverture, calcule
+   la clé de doublon (voir §3.4) et le corps JSON canonique
+   (voir §3.3), puis stocke la requête exacte dans `pending_signs`.
+4. Appelle la méthode async `FdmClient::sign_*` correspondante (une
+   requête restée sans réponse est d'abord renvoyée à l'identique,
+   voir §4).
+5. Sur succès : avance le compteur, ajoute à `fiscal_events`, ferme ou
+   marque la commande et clôt la ligne `pending_signs`, dans une seule
+   transaction SQLite.
 6. Retourne les données de ticket à l'UI ; l'UI déclenche l'impression
    via `pos-print`.
 
@@ -117,30 +122,42 @@ Chaque branche :
 - Test de propriété dans `crates/pos-fiscal/src/canonical.rs::tests`
   (vérification de déterminisme sur 50 itérations).
 
-### 3.4 Clé d'idempotence
+### 3.4 Clé de doublon FDM
 - `pos-fiscal::inputs::IdempotencyKey { pos_id, pos_date_time,
   terminal_id, event_label, pos_fiscal_ticket_no }`.
 - Chaque type d'input implémente `.idempotency_key()`.
-- Permet le retry sûr sur les échecs FDM transitoires : une requête
-  dupliquée avec la même clé est reconnue par le FDM comme une
-  re-soumission et renvoie la signature originale.
+- Règle de doublon du FDM : même clé et contenu identique, le FDM
+  renvoie sa réponse déjà signée avec l'avertissement
+  `DUPLICATE_REQUEST` ; même clé et contenu différent, il répond
+  `INVALID_REQUEST`. Le POS ne reconstruit donc jamais une requête
+  pour un numéro déjà envoyé : il renvoie la requête stockée, octet
+  pour octet (§4).
 - Les tests unitaires dans `crates/pos-fiscal/src/inputs.rs`
-  confirment que deux requêtes sémantiquement différentes au même
-  ticket number déclenchent une erreur de réutilisation de compteur
-  avant l'envoi.
+  couvrent l'égalité de la clé et le mapping de label par type.
 
 ## 4. Stratégie de compteurs
 
 Voir `STRATEGIE_COMPTEURS_FR.md`. **Compteurs par type d'événement**
-stockés dans la table `fiscal_counters` ; alloués sous
-`BEGIN IMMEDIATE` à l'intérieur de la même transaction SQLite qui
-ajoute à `fiscal_events`, de sorte que :
+stockés dans la table `fiscal_counters` ; le numéro est lu sous le
+verrou de signature et le compteur n'avance que dans la transaction
+SQLite qui archive l'événement signé, de sorte que :
 
-- Les compteurs sont strictement monotones par type d'événement.
-- Un appel FDM crashé rollback toute la transaction ; le compteur
-  est libéré - pas de trou.
-- Au retry, le même `(event_type, pos_fiscal_ticket_no)` est présenté
-  au FDM, qui honore l'idempotence.
+- Les compteurs sont strictement monotones par type d'événement et deux
+  opérations ne partagent jamais un numéro (verrou unique, `signing.rs`).
+- Une requête non envoyée ou refusée par le FDM ne consomme pas son
+  numéro - pas de trou.
+- Une requête dont la réponse est perdue reste ouverte dans
+  `pending_signs` ; elle est renvoyée à l'identique (même numéro, même
+  contenu) avant toute autre signature, et le FDM renvoie sa réponse
+  avec `DUPLICATE_REQUEST`. L'événement est archivé une fois, sous son
+  premier numéro.
+- Tant qu'elle n'est pas résolue, les autres signatures sont refusées
+  (`FDM_ANSWER_PENDING`) ; la tâche de fond (60 s) renvoie la requête.
+- Risques résiduels : un FDM qui aurait perdu sa mémoire des doublons
+  signerait le renvoi comme un nouvel événement (détecté par les
+  compteurs et journalisé, non évitable par le POS) ; une action de
+  l'écran peut attendre jusqu'à 30 s derrière un Z automatique ou un
+  renvoi (`signing_busy` ensuite).
 
 ## 5. Comportement hors-ligne / déconnexion
 
@@ -152,6 +169,9 @@ ajoute à `fiscal_events`, de sorte que :
   connected - cannot complete transaction » pour une vente), rien
   n'est archivé, aucun compteur n'avance, la commande reste ouverte et
   le tiroir reste fermé. L'opérateur réessaie une fois le FDM revenu.
+  Si la requête avait été envoyée et que la réponse est perdue, la
+  requête est conservée et renvoyée à l'identique avant toute autre
+  signature (§4) : l'événement n'est ni perdu ni doublé.
 - **Aucun mode hors-ligne**, dans aucune build : le code ne contient
   aucun chemin qui archive ou imprime une vente non signée.
 - L'en-tête affiche en permanence l'état du FDM (`FdmStatus.vue`,

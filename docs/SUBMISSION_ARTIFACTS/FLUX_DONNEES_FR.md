@@ -21,9 +21,10 @@ un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
 4. L'UI redirige vers `TablesView.vue`. Le store appelle
    automatiquement `commands::social::work_in()` - un événement
    fiscal **S** :
-   - Clé d'idempotence construite à partir de `pos_id`,
+   - Clé de doublon FDM construite à partir de `pos_id`,
      `pos_date_time`, `terminal_id`, `"WORK_IN"`, et du prochain
-     compteur séquentiel.
+     compteur séquentiel (lu sous le verrou de signature, voir
+     *STRATEGIE_COMPTEURS_FR.md* §5).
    - Corps JSON canonique POST sur l'endpoint GraphQL du FDM.
    - Sur succès : le FDM renvoie short signature + compteurs ;
      ligne ajoutée à `fiscal_events` en une seule transaction ;
@@ -45,7 +46,8 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
 2. "Envoyer en cuisine" déclenche `commands::tables::sign_table_order` :
    - Construit un `OrderInput` pour **P** (pro forma) - même forme
      qu'une vente mais sans paiement.
-   - Idempotency-keyed et sérialisé en JSON canonique.
+   - Sérialisé en JSON canonique, stocké dans `pending_signs` avant
+     l'envoi (voir §3, étape 5).
    - Le FDM signe ; on archive l'événement P.
    - `pos-print::kitchen_ticket::format_kitchen_ticket` construit un payload ESC/POS et
      l'envoie à l'imprimante cuisine (destination TCP distincte de
@@ -78,13 +80,18 @@ OK. L'opérateur confirme.
    support résolu à l'étape 0 dans `common.ticketMedium`. Ajoute la
    référence FDM vers l'événement P antérieur de la table 12 pour
    que le FDM les relie.
-4. Sérialisation JSON canonique et appel `FdmClient::sign_sale`.
-5. Sur succès FDM, à l'intérieur d'une seule transaction
-   `BEGIN IMMEDIATE` :
-   - Allocation du prochain compteur N (`fiscal_counters`).
+4. Sous le **verrou de signature** unique (une seule opération signe à
+   la fois), lecture du prochain numéro N (`peek_next`), sérialisation
+   JSON canonique, stockage de la requête exacte dans `pending_signs`
+   (statut `open`), puis appel `FdmClient::sign_sale`. Si une requête
+   précédente est restée sans réponse, elle est d'abord renvoyée à
+   l'identique (§8).
+5. Sur succès FDM, dans une seule transaction SQLite :
+   - Avance du compteur N (`fiscal_counters`).
    - Ajout de l'événement fiscal à `fiscal_events`.
    - Marquage de la ligne `orders` `status='closed'`.
    - Écriture de la ligne `payments`.
+   - Ligne `pending_signs` passée à `signed` (avec `fiscal_event_id`).
    - Si un support numérique a été demandé : ajout d'une ligne
      `ticket_deliveries` (`delivery::enqueue_in_tx`) - texte du
      ticket + URL de vérification déjà figés, adresse masquée
@@ -135,13 +142,22 @@ rapports pour voir les totaux en cours.
    - `R-Z-TURNOVER` (`ReportTurnoverZInput`, inclut
      `report_booking_date`).
    - `R-Z-USER` (`ReportUserZInput`).
-3. À l'intérieur d'une seule transaction SQLite :
-   - Allocation de deux compteurs R consécutifs.
-   - POST des deux inputs au FDM (séquentiellement, idempotency-keyed).
-   - Sur succès : ajout des deux lignes `fiscal_events` ; insertion
-     d'une ligne `z_reports` référençant l'événement turnover.
-   - Si l'un ou l'autre appel FDM échoue, toute la tx est rollback -
-     aucun état partiel n'est persisté.
+3. Sous le verrou de signature (une vente en cours est attendue puis
+   comptée dans le Z) :
+   - Lecture de deux numéros R consécutifs.
+   - Les deux inputs forment **une seule requête** (M184,
+     `ticket_count = 2` dans `pending_signs`), stockée avant l'envoi.
+   - Sur succès, dans une seule transaction SQLite : avance des deux
+     compteurs, ajout des deux lignes `fiscal_events`, insertion d'une
+     ligne `z_reports` référençant l'événement turnover, fermeture de
+     la période d'ouverture.
+   - Si la requête n'est pas signée (non envoyée ou refusée), rien n'est
+     archivé et les numéros restent libres. Si la réponse est perdue,
+     la requête reste ouverte et est renvoyée à l'identique : le Z est
+     archivé une seule fois, avec ses effets.
+   - Le Z automatique (`close_overdue_day`, tick de 60 s) saute son
+     tour si la signature est occupée et revérifie sous le verrou que
+     la journée est toujours en retard : pas de second Z vide.
 4. Sauvegarde de la DB SQLite vers
    `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via l'API Online Backup.
 5. Deux tickets de rapport Z sont imprimés.
@@ -153,8 +169,8 @@ rapports pour voir les totaux en cours.
 **Circulation des données.**
 
 1. UI → `commands::social::work_out`.
-2. Événement **S** construit (flag `work_out=true`). Idempotence,
-   JSON canonique, FDM, archivage. `users.social_status` basculé à
+2. Événement **S** construit (flag `work_out=true`). Verrou de
+   signature, JSON canonique, FDM, archivage. `users.social_status` basculé à
    `absent`.
 3. L'UI déconnecte, retour à l'écran de login.
 
@@ -195,14 +211,25 @@ commandes.
    FDM du bandeau passe au rouge et un voile couvre les écrans de vente.
 2. Toute tentative active de "Payer" échoue à la vérification
    préalable (`FdmUnreachable`) ; l'opérateur voit la modale bloquante.
-3. Les commandes pro forma (Événement P) et les ouvertures de tiroir
-   (F-WAR) sont mises en attente dans `fiscal_events` avec
-   `fdm_response_json` à null et le statut `pending`. Elles ré-émettent
-   à la reconnexion, dans l'ordre des compteurs.
-4. Une fois le FDM à nouveau opérationnel, la modale se referme
-   automatiquement et l'opérateur retente le paiement avec le même
-   `pos_fiscal_ticket_no` - le FDM le traite comme un retry idempotent,
-   renvoyant la même signature qu'il aurait renvoyée avant.
+3. Il n'existe aucune file d'attente hors-ligne : une commande pro
+   forma (Événement P), une ouverture de tiroir (F) ou toute autre
+   signature est refusée tant que le FDM ne répond pas, et rien n'est
+   archivé.
+4. Si la coupure survient **après** l'envoi d'une requête (réponse
+   perdue : délai dépassé, connexion coupée, HTTP 500, corps illisible),
+   la requête reste ouverte dans `pending_signs`. Toute opération de
+   signature la renvoie d'abord à l'identique (même corps, même numéro) ;
+   le FDM, s'il l'avait signée, renvoie sa réponse avec
+   `DUPLICATE_REQUEST` et l'événement est archivé une fois, sous son
+   premier numéro, avec ses effets. Si le renvoi est refusé, la ligne
+   passe à `refused` et son numéro est libre. Sans réponse, l'opération
+   en cours est refusée (`FDM_ANSWER_PENDING`) ; la tâche de fond
+   (60 s) renvoie aussi la requête, la caisse se débloque seule.
+5. Une fois le FDM à nouveau opérationnel, la modale se referme
+   automatiquement et l'opérateur retente l'opération. Un nouvel
+   essai est une nouvelle requête (nouveau numéro si la précédente
+   n'a pas été signée) : le POS ne réutilise jamais un numéro avec un
+   contenu différent.
 
 ## 9. Tâche de fond - Envoi différé du ticket numérique
 
@@ -290,7 +317,10 @@ n'est mis en file.
 | Impression d'un original (vente, remboursement, ou rattrapage) | `original_prints` (une ligne, jamais deux, par événement) |
 | Envoi/réessai/purge du ticket numérique (tâche de fond) | `ticket_deliveries` (écriture des colonnes de statut, jamais `fiscal_events`) |
 
-Toute écriture fiscale est encadrée par une seule transaction
-`BEGIN IMMEDIATE` qui englobe l'allocation du compteur, l'archivage
-de l'aller-retour FDM, et tout effet de bord sur la commande. Soit
-tout commit, soit tout rollback.
+Toute signature s'exécute sous un seul verrou. Une transaction SQLite
+unique, ouverte après la réponse du FDM, englobe l'avance du compteur,
+l'archivage de l'aller-retour FDM, la clôture de la ligne
+`pending_signs` et tout effet de bord sur la commande. Soit tout
+commit, soit tout rollback ; si le rollback suit une signature réussie,
+la ligne `pending_signs` reste ouverte et l'opération suivante archive
+l'événement.

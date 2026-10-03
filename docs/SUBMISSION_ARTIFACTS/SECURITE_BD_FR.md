@@ -82,18 +82,24 @@ request (politique organisationnelle, cf. `PROFIL_ENTREPRISE_FR.md`).
 
 ### 2.2 Transaction atomique compteur + archive
 
-Chaque événement fiscal est inséré dans une transaction
-`BEGIN IMMEDIATE` qui inclut :
+Chaque événement fiscal est signé sous un verrou unique, puis inséré
+dans une transaction SQLite qui inclut :
 
 1. L'allocation du compteur (`FiscalCounter::next` -
    incrément persistant).
 2. L'insertion de la ligne `fiscal_events`.
 3. (Le cas échéant) la fermeture de la commande
    (`UPDATE orders SET status = 'closed'`).
+4. La clôture de la ligne `pending_signs` de la requête (statut
+   `signed`).
 
 Si l'une de ces opérations échoue, **toute la transaction est
 rejouée à la racine** : ni le compteur ni l'archive ni le statut
-de commande ne sont modifiés. Voir `COUNTER_STRATEGY.md` §3 et la
+de commande ne sont modifiés, et la ligne `pending_signs` reste
+ouverte : l'opération suivante renvoie la requête à l'identique et
+archive l'événement (aucun événement signé n'est perdu). Le déclencheur
+`fiscal_events_period_open` refuse l'archivage dans une période déjà
+fermée. Voir `COUNTER_STRATEGY.md` §3 et la
 régression `pili-pos::spf_e2e_no_gap`.
 
 ### 2.3 Aucune suppression de compteur

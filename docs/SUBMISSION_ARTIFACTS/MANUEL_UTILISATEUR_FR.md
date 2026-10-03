@@ -327,6 +327,21 @@ Vérifier le câble réseau et l'alimentation du FDM, puis réessayer.
 Appeler le distributeur si le problème persiste. Ne jamais encaisser en
 dehors de la caisse.
 
+Si le message est "La caisse attend la réponse de la boîte noire pour
+l'opération précédente. Vérifiez la connexion et réessayez.", la
+dernière opération a été envoyée au FDM mais sa réponse n'est pas
+revenue. Rien n'est perdu : la caisse la renvoie seule toutes les
+minutes, et toute nouvelle opération la renvoie d'abord. Vérifier le
+câble et l'alimentation du FDM, attendre une minute, puis réessayer. Ne
+pas refaire la vente à la main. Tant que cette réponse est attendue, la
+commande concernée ne peut pas être modifiée. Si le message persiste,
+appeler le distributeur.
+
+Le message "La caisse enregistre une autre opération : réessayez dans un
+instant." apparaît si la caisse a attendu environ 30 secondes derrière
+une autre opération (par exemple la clôture automatique de la
+journée) : réessayer.
+
 ### 7.5 Client parti sans payer
 
 Réservé au Gérant. Quand un client part sans payer, ce qui a été servi
@@ -579,6 +594,7 @@ Pour revenir au mode normal : même bouton, qui repasse à "INACTIF"
 | Imprimante hors ligne | La vente est quand même enregistrée. Toucher "Imprimer le ticket" une fois l'imprimante revenue (§7.3), ou faire plus tard une copie (§8). |
 | "Pointage non enregistré" | Le FDM n'a pas répondu à la connexion ou à la sortie. Prévenir le Gérant. |
 | "Commande non enregistrée par le FDM" | Rester sur la commande et réessayer quand le FDM répond (§6.1). |
+| "La caisse attend la réponse de la boîte noire pour l'opération précédente" | Vérifier câble et alimentation du FDM, attendre une minute (la caisse renvoie seule), puis réessayer. Ne pas refaire l'opération. Appeler le distributeur si le message persiste (§7.4). |
 | Le tiroir ne s'ouvre pas | Vérifier le câble RJ11 entre l'imprimante et le tiroir, et la serrure du tiroir. |
 | L'écran ne réagit plus | Maintenir le bouton marche 5 secondes pour redémarrer. pili-pos redémarre seul ; les commandes non encaissées restent ouvertes. |
 | "PIN incorrect" répété | Le Gérant peut fixer un nouveau PIN (§12.3). |

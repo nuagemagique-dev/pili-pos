@@ -546,3 +546,38 @@ machine de test.
 Bruno Moyse / nuagemagique.dev
 - Email : cloud@nuagemagique.dev
 - Bruxelles, Belgique
+
+### 7.5 Dépannage : réponse du FDM en attente
+
+Symptôme : toute vente, tout rapport ou tout pointage est refusé avec
+"La caisse attend la réponse de la boîte noire pour l'opération
+précédente" (code `FDM_ANSWER_PENDING`, dans les journaux avec le
+label et le numéro de ticket concernés).
+
+Cause : la dernière requête a été envoyée au FDM mais sa réponse n'est
+pas revenue. La requête est conservée telle quelle (table
+`pending_signs`, ligne au statut `open`) et renvoyée à l'identique, par
+la tâche de fond toutes les 60 secondes et avant toute autre
+signature. Le FDM, s'il l'avait signée, renvoie sa réponse
+(`DUPLICATE_REQUEST`) et l'événement est archivé une seule fois. Il n'y
+a pas d'abandon automatique : la signature reste bloquée tant que le
+FDM n'a pas répondu.
+
+Procédure :
+
+1. Vérifier le câble réseau, l'alimentation et le voyant du FDM
+   (bandeau de la caisse, statut du FDM).
+2. Attendre une minute : le renvoi automatique débloque la caisse dès
+   que le FDM répond.
+3. Si le blocage dure, vérifier l'état du FDM (statut, erreurs, zone
+   tampon pleine ou FDM verrouillé) et contacter le distributeur ou le
+   technicien.
+4. **Ne jamais supprimer ni modifier la ligne `pending_signs`** (les
+   déclencheurs l'interdisent) et ne jamais refaire la vente à la main.
+5. Si le FDM répond par un refus, la ligne passe seule à `refused`, son
+   numéro est libre et la caisse repart.
+
+Remarque : un FDM qui aurait perdu sa mémoire des doublons signerait le
+renvoi comme un nouvel événement. Les compteurs le détectent et la
+caisse le journalise ; le technicien le constate à l'écart de
+numérotation.

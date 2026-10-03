@@ -221,9 +221,10 @@ soumise au SPF Finances.
 ## 5. Intégrité
 
 - WAL (Write-Ahead Logging) garantit l'atomicité crash-safe.
-- Chaque opération fiscale est dans une transaction
-  `BEGIN IMMEDIATE` qui inclut compteur + archive + (le cas échéant)
-  fermeture commande. Cf. `COUNTER_STRATEGY.md`.
+- Chaque opération fiscale est signée sous un verrou unique, puis
+  archivée dans une transaction SQLite qui inclut compteur + archive +
+  (le cas échéant) fermeture commande + clôture de la ligne
+  `pending_signs`. Cf. `STRATEGIE_COMPTEURS_FR.md` §5.
 - La signature ECDSA secp256r1 stockée dans
   `fiscal_events.fdm_response_json` est celle que le FDM a calculée et
   transmise au SPF Finances : une ligne modifiée rétroactivement ne

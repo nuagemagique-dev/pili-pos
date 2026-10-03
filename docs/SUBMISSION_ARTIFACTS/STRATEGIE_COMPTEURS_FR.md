@@ -25,7 +25,7 @@ La spec POS v2.2 §385-388 autorise quatre stratégies :
 **Nous utilisons la #1 - distincte par type d'événement.** Le MVP
 étant mono-terminal, le qualificatif "par terminal" est sans objet
 aujourd'hui ; si un mode multi-terminal est ajouté ultérieurement,
-la stratégie est rétro-compatible parce que la clé d'idempotence FDM
+la stratégie est rétro-compatible parce que la clé de doublon FDM
 (cf. §3) discrimine déjà par `terminalId`.
 
 ### Pourquoi cette stratégie
@@ -99,13 +99,13 @@ qu'il retourne. Nous canonicalisons néanmoins parce que :
 1. **Octets de requête déterministes** - deux encaissements avec
    des entrées identiques produisent des corps de requête
    bit-à-bit identiques, ce qui rend les diff de journaux propres.
-2. **Débogage de la clé d'idempotence** - quand un doublon est
+2. **Débogage de la clé de doublon** - quand un doublon est
    détecté, la spec compare champ par champ, mais disposer d'octets
    canoniques reproductibles permet de calculer et journaliser un
    hash de requête stable pour recoupement.
-3. **Pérennité** - si une table locale de retry par hash de requête
-   est introduite plus tard, `canonical::to_canonical` est la
-   primitive correcte.
+3. **Renvoi à l'identique** - la requête stockée dans `pending_signs`
+   (§5) est celle produite par `canonical::to_canonical` : renvoyée
+   telle quelle, elle satisfait la règle de doublon du FDM.
 
 ### Vérification
 
@@ -124,24 +124,34 @@ qu'il retourne. Nous canonicalisons néanmoins parce que :
 
 ---
 
-## 3. Clé d'idempotence
+## 3. Clé de doublon FDM et renvoi à l'identique
 
 **Type :** `crates/pos-fiscal/src/inputs.rs::IdempotencyKey<'a>`.
 
-Selon la spec FDM v1.4 §3, le FDM déduplique sur le quintuplet :
+Selon la spec FDM (règle des requêtes en double), le FDM compare le
+quintuplet :
 
 ```text
 { posId, posDateTime, terminalId, eventLabel, posFiscalTicketNo }
 ```
 
-- **Quintuplet identique, payload identique :** le FDM renvoie la
-  réponse mise en cache et **n'avance pas** ses compteurs internes.
-  Réessai sûr.
-- **Quintuplet identique, payload différent :** le FDM **refuse**
-  (réponse d'erreur). Le POS ne doit PAS écraser silencieusement -
-  c'est la branche "conflit" de la spec.
+- **Quintuplet identique, contenu identique :** le FDM renvoie sa
+  réponse déjà signée avec l'avertissement `DUPLICATE_REQUEST` et
+  **n'avance pas** ses compteurs internes.
+- **Quintuplet identique, contenu différent :** le FDM **refuse**
+  (`INVALID_REQUEST`). Le POS ne construit jamais une nouvelle requête
+  avec un numéro déjà envoyé : c'est pourquoi il renvoie la requête
+  **octet pour octet** (voir ci-dessous).
 - **Quintuplet différent :** le FDM traite comme un nouvel événement
   et signe.
+
+Le POS n'invente donc plus de "réessai avec le même numéro" : une
+requête qui n'a pas reçu de réponse est conservée telle qu'elle a été
+envoyée, puis renvoyée à l'identique (table `pending_signs`, migration
+10, voir *SCHEMA_BD_FR.md*). L'événement est archivé une seule fois,
+sous son premier numéro, avec ses effets (commande clôturée,
+paiements, livraison du ticket numérique, rapport enregistré et période
+fermée pour un Z, etc.).
 
 Nous fournissons une méthode sur chaque input spécifique d'événement
 (`SaleInput::idempotency_key()`, `OrderInput::idempotency_key()`,
@@ -180,61 +190,100 @@ sur déconnexion dure, ce que nous faisons déjà.
 
 ---
 
-## 5. Compteur sans trou - fix d'intégrité (B3)
+## 5. Compteur sans trou et sans doublon
 
-**Problème historique :** dans une version antérieure du code,
-`FiscalCounter::next()` était appelé **avant** la mutation FDM. Si
-l'appel FDM échouait (erreur non-`NotConnected`, timeout, ou crash
-en cours), le compteur local avait déjà avancé et l'encaissement
-suivant utilisait un numéro plus grand - produisant un trou dans la
-séquence locale, en violation de l'exigence "pas de trou".
+**Problème historique (B3, 2026-05-14) :** `FiscalCounter::next()` était
+appelé **avant** la mutation FDM. Si l'appel échouait, le compteur local
+avait déjà avancé et l'encaissement suivant produisait un trou.
+Correctif B3 : `FiscalCounter::peek_next` lit le prochain numéro sans
+écrire, et le compteur n'avance qu'après la signature du FDM.
 
-**Correctif appliqué (B3, 2026-05-14) :**
+**Deuxième durcissement : un seul verrou de signature.** Le correctif B3
+laissait deux risques : deux opérations simultanées pouvaient lire le
+même numéro, et une réponse perdue (le FDM a signé, le POS n'a rien
+reçu) pouvait laisser un événement signé sans archive. Le flux est
+désormais le suivant (`src-tauri/src/commands/signing.rs`) :
 
-1. **Nouvelle méthode `FiscalCounter::peek_next`** : retourne la
-   valeur qu'aurait renvoyée `next()` sans muter la table - pure
-   lecture (`current() + 1` avec gestion du wrap à 999 999 999).
-2. **Refonte du flow de toutes les commandes mutant un événement
-   fiscal** :
-   - Étape 1 : `peek_next` pour réserver le numéro de ticket à
-     envoyer au FDM (aucune mutation DB).
-   - Étape 2 : envoi de la requête au FDM (potentiellement échouante).
-   - Étape 3 : sur succès UNIQUEMENT, à l'intérieur d'une transaction
-     SQLite `BEGIN IMMEDIATE` atomique :
-     - `FiscalCounter::next` (commit de l'incrément),
-     - `archive::archive_event` (écriture de la ligne fiscale),
-     - fermeture de la commande / autre side-effect.
-   - Étape 4 : sur échec, retour immédiat sans aucune mutation -
-     compteur intact, prochain essai utilise la même valeur.
+1. **Verrou global.** Toute opération qui signe un événement FDM
+   (vente N, remboursement, commande de table P, pré-addition P,
+   rapports X, X utilisateur et Z, copie C, entrée/sortie de travail S,
+   mouvements d'argent et tiroir F, facture I) s'exécute sous un seul
+   verrou (`tokio::sync::Mutex`). Le numéro de ticket est lu (`peek_next`)
+   et la période d'ouverture choisie **à l'intérieur** du verrou : deux
+   opérations ne partagent jamais un numéro, et un Z attend une vente en
+   cours puis la compte. Une action de l'écran attend le verrou au plus
+   30 s, puis reçoit le code `signing_busy`.
+2. **Requête stockée avant envoi.** La requête exacte, les événements à
+   archiver et les effets métier sont écrits dans `pending_signs`
+   (SQLite `synchronous=FULL`) avant tout envoi. Une seule ligne peut
+   être ouverte à la fois.
+3. **Envoi au FDM**, puis, sur succès uniquement, dans une seule
+   transaction SQLite : avance du compteur (`FiscalCounter::next`),
+   `archive::archive_event` (ligne fiscale), effets métier (commande
+   clôturée, paiements, livraison, rapport, période fermée), et ligne
+   `pending_signs` passée à `signed`. Un Z de rapport chiffre d'affaires
+   et le Z utilisateur sont une seule requête et deux numéros (M184,
+   `ticket_count = 2`).
+4. **Classement de l'échec** (`FdmError::outcome()`) :
+   - *Non envoyé* (FDM injoignable, certificat client refusé, erreur de
+     sérialisation) : ligne `not_sent`, le numéro est libre.
+   - *Refusé* (erreurs FDM toutes parmi `BUFFER_FULL`, `FDM_LOCKED`,
+     `UNAUTHORIZED`, `INVALID_REQUEST`, `FDM_NOT_OPERATIONAL`,
+     `UNKNOWN_POS`, `CLIENT_CERT_EXPIRED`) : ligne `refused`, le numéro
+     est libre.
+   - *Inconnu* (délai dépassé, connexion coupée, HTTP 500, corps
+     illisible, réponse incohérente `FDM_RESPONSE_MISMATCH`, autre code) :
+     la ligne **reste ouverte**. Le FDM a peut-être signé.
+5. **Renvoi d'une réponse perdue.** Tant qu'une ligne est ouverte,
+   chaque opération de signature commence par renvoyer la requête
+   stockée, octet pour octet. Si le FDM l'avait signée, il renvoie sa
+   réponse avec `DUPLICATE_REQUEST` : l'événement est archivé une fois,
+   sous son premier numéro, avec ses effets. Si le renvoi est refusé, la
+   ligne passe à `refused`, son numéro est libre et l'opération en cours
+   continue. S'il n'y a toujours pas de réponse, l'opération est
+   refusée avec `FDM error: FDM_ANSWER_PENDING|label=X|ticket=N|cause=...`
+   (message à l'écran : "La caisse attend la réponse de la boîte noire
+   pour l'opération précédente. Vérifiez la connexion et réessayez.").
+   La tâche de fond (toutes les 60 s) renvoie aussi la requête : la
+   caisse se débloque seule dès que le FDM répond. Il n'y a pas
+   d'abandon automatique : une requête sans réponse bloque la signature
+   jusqu'à la réponse du FDM (même principe que "pas de FDM, pas de
+   vente"). Une panne de la base locale après une signature réussie
+   laisse aussi la ligne ouverte : l'opération suivante l'archive.
+6. **Z automatique.** `report::close_overdue_day` (tick toutes les 60 s
+   et une fois au démarrage) saute son tour si la signature est
+   occupée, et revérifie sous le verrou que la journée est toujours en
+   retard : un Z manuel suivi du Z automatique ne produit jamais un
+   second Z vide.
+7. **Garde de période.** Le déclencheur `fiscal_events_period_open`
+   refuse d'archiver un événement dont le `bookingPeriodId` désigne une
+   période déjà fermée (code `period_closed`).
 
-   Si l'opérateur retente, le quintuplet d'idempotence est identique
-   (même `posFiscalTicketNo`), le FDM renvoie la réponse mise en
-   cache et la séquence reste sans trou.
+Tant qu'une vente attend la réponse du FDM, sa commande ne peut pas être
+modifiée (`order_sign_pending`) ; une commande web reste à l'état fiscal
+`signing`. Un mouvement d'argent répété, ou une même opération dont la
+première tentative a reçu sa réponse tardivement, n'est pas enregistré
+deux fois.
 
-3. **Tests de régression dédiés** dans
-   `src-tauri/tests/spf_e2e_no_gap.rs` :
-   - `checkout_fdm_failure_does_not_advance_counter` : FDM renvoie
-     500, le compteur N reste à 0, aucune ligne archivée, commande
-     toujours ouverte.
-   - `refund_fdm_failure_does_not_advance_counter` : après une vente
-     réussie (N=1), un remboursement avec FDM 500 ne touche pas le
-     compteur N (reste à 1) et n'archive aucune ligne supplémentaire.
+**Tests :**
+- `src-tauri/tests/spf_e2e_no_gap.rs` : un échec FDM (500) ne fait pas
+  avancer le compteur et n'archive rien d'inconnu (à lire avec les
+  tests ci-dessous pour le cas "réponse perdue").
+- `src-tauri/tests/spf_e2e_signing_serialized.rs` : 14 tests (courses et
+  réponses perdues) contre `pos-fdm-mock` derrière un relais qui perd
+  les réponses (`tests/common/fdm_drop.rs`).
 
-**Généralisé à toutes les commandes fiscales.** Le pattern ci-dessus
-(peek → appel FDM → commit uniquement sur succès) est aujourd'hui le
-**seul** chemin d'écriture fiscale : `commands/mod.rs::commit_signed_event`
-avance le compteur et archive l'événement dans une seule transaction
-SQLite, et prend en paramètre un `SignResult` **non optionnel** - il
-ne peut être appelé qu'avec une signature FDM réellement reçue.
-Chaque commande (`do_checkout`, `do_refund_checkout`,
-`do_sign_table_order`, `do_sign_pre_bill`, `do_money_in_out`,
-`do_open_drawer_fiscal`, `do_work_in`/`do_work_out`,
-`do_copy_ticket`, `do_generate_x_report`, `do_generate_z_report`)
-propage l'erreur FDM (`?` ou `match Err(e) => return Ok(Result{success:
-false, ...})`) avant tout appel à `commit_signed_event` : il n'existe
-aucun chemin de code qui archive un événement avec `sign_result=None`
-ou sans réponse FDM. Voir aussi `DECLARATION_FONCTIONS_INTERDITES_FR.md`
-§4.
+**Risques résiduels :**
+- Un FDM qui aurait perdu sa mémoire des doublons signerait le renvoi
+  comme un nouvel événement. Les compteurs le détectent, le POS le
+  journalise, mais ne peut pas l'empêcher.
+- Une requête qui reste sans réponse bloque la signature jusqu'à la
+  réponse du FDM ou l'intervention d'un technicien (procédure dans
+  *MANUEL_INSTALLATION_FR.md* et *MANUEL_UTILISATEUR_FR.md*).
+- Une action de l'écran peut attendre jusqu'à 30 s derrière un Z
+  automatique ou un renvoi.
+
+Voir aussi `DECLARATION_FONCTIONS_INTERDITES_FR.md` §4.
 
 ---
 

@@ -52,9 +52,16 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
   incohérente n'est jamais archivée.
 - **JSON canonique** (RFC 8785) pour la reproductibilité des
   signatures - `crates/pos-fiscal/src/canonical.rs`.
-- **Clé d'idempotence**
+- **Clé de doublon FDM**
   `{posId, posDateTime, terminalId, eventLabel, posFiscalTicketNo}`
   - `crates/pos-fiscal/src/inputs.rs::IdempotencyKey`.
+- **Verrou de signature unique** : toute opération qui signe un
+  événement FDM s'exécute sous un seul verrou, le numéro de ticket est
+  lu à l'intérieur - `src-tauri/src/commands/signing.rs`.
+- **Renvoi à l'identique d'une réponse perdue** : la requête exacte est
+  stockée avant envoi (`pending_signs`, migration 10) et renvoyée octet
+  pour octet tant que le FDM n'a pas répondu ; l'événement est archivé
+  une fois, sous son premier numéro, avec ses effets.
 
 ### 1.4 Archivage local
 

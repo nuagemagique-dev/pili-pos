@@ -135,13 +135,21 @@ shortSignature :    À effectuer
 ### 9. Répétition déconnexion / reconnexion
 
 Simuler une coupure réseau ; assert que le checkout bloque ;
-reconnexion ; le retry réussit avec le même n° de ticket et le FDM
-renvoie la même signature.
+reconnexion ; l'opération suivante réussit. Si la requête avait été
+envoyée sans réponse, elle est renvoyée à l'identique (même n° de
+ticket, même contenu) et le FDM renvoie sa signature avec
+`DUPLICATE_REQUEST` ; sinon le numéro libre est réutilisé par une
+nouvelle requête.
+
+Automatisé (sans FDM réel) : `src-tauri/tests/spf_e2e_signing_serialized.rs`,
+14 tests (courses entre opérations, réponses perdues, Z manuel puis Z
+automatique, renvoi, ligne ouverte) contre `pos-fdm-mock` placé derrière
+un relais qui perd les réponses (`src-tauri/tests/common/fdm_drop.rs`).
 
 ```
 Durée déconnexion : À effectuer s
 Comportement UI POS : À effectuer modale bloquante affichée ? OUI / NON
-Retry reconnexion :   À effectuer idempotent ? OUI / NON
+Retry reconnexion :   À effectuer doublon reconnu (DUPLICATE_REQUEST) ? OUI / NON
 ```
 
 ### 10. Contrôle des réponses du FDM réel

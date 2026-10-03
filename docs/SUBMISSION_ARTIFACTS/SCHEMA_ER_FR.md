@@ -212,8 +212,8 @@ La base est organisée en 6 domaines logiques :
 | event_label TEXT PK|
 | current_value INT  |
 +--------------------+
-(table autonome, mise à jour atomique par BEGIN IMMEDIATE
- dans la même transaction qui ajoute à fiscal_events)
+(table autonome, mise à jour atomique dans la même transaction
+ SQLite qui ajoute à fiscal_events, sous le verrou de signature)
 
 
 +--------------------------+
@@ -313,7 +313,7 @@ Ces tables sont **append-only** au niveau applicatif (jamais de DELETE, et pas d
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs) les opérations UPDATE/DELETE sont autorisées via la couche commandes (avec audit trail dans les logs systemd-journald). Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées.
 
-La contrainte `fiscal_events.sequence_number UNIQUE` empêche tout doublon de compteur fiscal au niveau base. La table `fiscal_counters` est mise à jour atomiquement dans la même transaction SQLite `BEGIN IMMEDIATE` que l'insert dans `fiscal_events` (cf. *STRATEGIE_COMPTEURS_FR.md* §5 - fix B3).
+La contrainte `fiscal_events.sequence_number UNIQUE` empêche tout doublon de compteur fiscal au niveau base. La table `fiscal_counters` est mise à jour atomiquement dans la même transaction SQLite que l'insert dans `fiscal_events`, sous le verrou de signature unique (cf. *STRATEGIE_COMPTEURS_FR.md* §5). Les requêtes de signature en attente de réponse sont conservées dans `pending_signs` (cf. *SCHEMA_BD_FR.md* §3.9).
 
 ---
 

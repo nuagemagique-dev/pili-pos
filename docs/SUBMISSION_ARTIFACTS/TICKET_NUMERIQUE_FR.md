@@ -97,7 +97,8 @@ décision prise après coup.
    SQLite (compteur + `fiscal_events` + fermeture de commande) ne soit
    validée, une ligne est ajoutée à `ticket_deliveries`
    (`delivery::enqueue_in_tx`, appelé depuis `checkout.rs`,
-   `refund.rs` et `copy.rs`, dans le même `BEGIN IMMEDIATE`). Un
+   `refund.rs` et `copy.rs`, via la transaction d'archivage de
+   `signing.rs`). Un
    ticket signé avec un support numérique a donc **toujours** une ligne
    de suivi, même en cas de plantage juste après le commit - il ne peut
    pas se perdre silencieusement.
@@ -289,7 +290,7 @@ la version suit, parce qu'elle est la seule qui contienne l'URL.
 |---|---|---|
 | Choix du support avant signature, encodé dans la requête signée | `commands/delivery.rs::resolve` / `resolve_with` ; `checkout.rs`/`refund.rs`/`copy.rs` (`sale_input.common.ticket_medium = resolved.medium` avant l'appel FDM) | `delivery.rs::tests::{no_request_is_paper, digital_only_when_allowed_and_reachable, digital_becomes_paper_digital_when_not_allowed, digital_becomes_paper_digital_when_offline, paper_digital_is_kept_even_offline}` |
 | Adresse invalide/manquante refusée avant signature | `delivery::resolve_with` + `pos_mail::address::validate` | `delivery.rs::tests::{a_missing_or_blank_address_is_refused, a_malformed_address_is_refused, the_address_is_trimmed}` ; `address.rs::tests::rejects_*` ; e2e `spf_e2e_digital::{email_without_setup_is_refused_before_signing, a_bad_address_is_refused_before_signing}` |
-| Mise en file dans la même transaction que l'archive fiscale | `delivery::enqueue_in_tx`, appelé dans le `BEGIN IMMEDIATE` de `checkout.rs`/`refund.rs`/`copy.rs` | e2e `spf_e2e_digital::a_failed_outbox_write_rolls_the_whole_sale_back` |
+| Mise en file dans la même transaction que l'archive fiscale | `delivery::enqueue_in_tx`, appelé dans la transaction d'archivage de `signing.rs` (vente, remboursement, copie) | e2e `spf_e2e_digital::a_failed_outbox_write_rolls_the_whole_sale_back` |
 | Envoi immédiat borné à 8 s, repli papier de l'original sinon | `delivery::deliver`, `INLINE_SEND_TIMEOUT` | e2e `spf_e2e_digital::{digital_only_emails_without_printing, a_failed_digital_email_prints_the_original_once, a_rejected_digital_email_also_falls_back_to_paper}` |
 | PAPER_DIGITAL imprime toujours, envoie en bonus | `delivery::deliver` (branche `PaperDigital`) | e2e `spf_e2e_digital::{paper_digital_prints_and_emails_the_same_ticket, paper_digital_keeps_paper_and_retries_the_email_later, paper_digital_is_kept_while_the_email_service_is_down}` |
 | Réessais avec recul exponentiel, abandon après 5 tentatives | `pos_mail::outbox::{DeliveryPolicy, run_once, attempt_send}` | `outbox.rs::tests::{backoff_follows_the_documented_schedule, backoff_gives_up_at_max_attempts, max_attempts_matches_the_backoff_table_plus_one}` |
