@@ -154,6 +154,7 @@ const coreMessages: Messages = {
     en: "Product {product}: {requested} requested, {sold} sold, {refunded} already refunded.",
     zh: "商品{product}：申请{requested}，已售{sold}，已退{refunded}。",
   },
+  "err_print_original_unsupported": { fr: "Seul le ticket d'une vente ou d'une copie peut être imprimé ici.", en: "Only a sale's or a copy's ticket can be printed here.", zh: "此处只能打印销售或副本的票据。" },
   "err_refund_line_ambiguous": { fr: "Le produit {product} a été vendu à plusieurs prix : choisissez la ligne à rembourser.", en: "Product {product} was sold at several prices: pick the line to refund.", zh: "商品{product}以多个价格售出：请选择要退款的行。" },
   "err_refund_in_training": { fr: "Une vente réelle ne se rembourse pas en mode formation.", en: "A real sale cannot be refunded in training mode.", zh: "培训模式下不能退款真实销售。" },
   "err_refund_of_refund": { fr: "Un remboursement ne se rembourse pas.", en: "A refund cannot be refunded.", zh: "退款不能再退款。" },

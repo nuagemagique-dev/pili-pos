@@ -447,10 +447,9 @@ async fn a_printed_original_can_not_be_printed_again() {
     let (app, printer) = app_with_printer().await;
     let result = sell(&app, None).await;
     let event_id = result.fiscal_event_id.unwrap();
-    let ticket = result.ticket.unwrap();
     assert_eq!(printer.settle(1).await.len(), 1);
 
-    let err = delivery::do_print_missing_original(&app.state, event_id, &ticket)
+    let err = delivery::do_print_missing_original(&app.state, event_id)
         .await
         .unwrap_err();
     assert_eq!(err, ERR_ALREADY_PRINTED);
@@ -463,11 +462,10 @@ async fn an_unprinted_original_prints_once() {
     app.set_printer(DEAD_PRINTER);
     let result = sell(&app, None).await;
     let event_id = result.fiscal_event_id.unwrap();
-    let ticket = result.ticket.unwrap();
 
     // Still down: an error, and the original stays unprinted.
     assert!(
-        delivery::do_print_missing_original(&app.state, event_id, &ticket)
+        delivery::do_print_missing_original(&app.state, event_id)
             .await
             .unwrap_err()
             .starts_with("print_failed|detail=")
@@ -477,12 +475,12 @@ async fn an_unprinted_original_prints_once() {
     // Back up: prints once, then refuses.
     let printer = PrinterSink::start().await;
     app.set_printer(&printer.addr);
-    delivery::do_print_missing_original(&app.state, event_id, &ticket)
+    delivery::do_print_missing_original(&app.state, event_id)
         .await
         .unwrap();
     assert!(app.original_printed(event_id));
     assert_eq!(
-        delivery::do_print_missing_original(&app.state, event_id, &ticket)
+        delivery::do_print_missing_original(&app.state, event_id)
             .await
             .unwrap_err(),
         ERR_ALREADY_PRINTED
@@ -503,7 +501,7 @@ async fn printing_the_missing_original_of_a_digital_ticket_stops_its_email() {
 
     let printer = PrinterSink::start().await;
     app.set_printer(&printer.addr);
-    delivery::do_print_missing_original(&app.state, event_id, result.ticket.as_ref().unwrap())
+    delivery::do_print_missing_original(&app.state, event_id)
         .await
         .unwrap();
     let row = &app.deliveries()[0];
@@ -529,10 +527,9 @@ async fn an_emailed_digital_ticket_can_not_be_printed_as_an_original() {
     let result = sell(&app, Some(&email(RequestedMedium::Digital))).await;
     let event_id = result.fiscal_event_id.unwrap();
 
-    let err =
-        delivery::do_print_missing_original(&app.state, event_id, result.ticket.as_ref().unwrap())
-            .await
-            .unwrap_err();
+    let err = delivery::do_print_missing_original(&app.state, event_id)
+        .await
+        .unwrap_err();
     assert_eq!(err, ERR_EMAIL_SENT);
     assert!(printer.settle(0).await.is_empty());
 }
@@ -540,12 +537,132 @@ async fn an_emailed_digital_ticket_can_not_be_printed_as_an_original() {
 #[tokio::test]
 async fn printing_an_unknown_event_is_refused() {
     let (app, _printer) = app_with_printer().await;
-    let result = sell(&app, None).await;
-    let err =
-        delivery::do_print_missing_original(&app.state, 9999, result.ticket.as_ref().unwrap())
-            .await
-            .unwrap_err();
+    sell(&app, None).await;
+    let err = delivery::do_print_missing_original(&app.state, 9999)
+        .await
+        .unwrap_err();
     assert_eq!(err, errors::EVENT_NOT_FOUND);
+}
+
+/// The paper `ticket` gives (what was signed and meant for the
+/// customer).
+fn paper_of(ticket: &pos_fiscal::ticket::FiscalTicket) -> String {
+    pos_print::render::render_plain_text(&pos_print::receipt::format_receipt(ticket))
+}
+
+/// What the printer received, without the status query the transport
+/// sends after the job.
+fn printed(printer: &PrinterSink) -> Vec<String> {
+    printer
+        .rendered()
+        .into_iter()
+        .map(|r| {
+            r.strip_suffix("\u{10}\u{4}\u{2}\u{10}\u{4}\u{4}\n")
+                .map(str::to_string)
+                .unwrap_or(r)
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn a_missing_original_is_printed_from_the_archive() {
+    let app = TestApp::new().await;
+    app.set_printer(DEAD_PRINTER);
+    let result = sell(&app, None).await;
+    let event_id = result.fiscal_event_id.unwrap();
+
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    delivery::do_print_missing_original(&app.state, event_id)
+        .await
+        .unwrap();
+
+    printer.settle(1).await;
+    assert_eq!(
+        printed(&printer),
+        [paper_of(result.ticket.as_ref().unwrap())],
+        "the ticket signed at checkout, nothing the screen sends"
+    );
+}
+
+#[tokio::test]
+async fn a_missing_refund_original_is_printed_with_the_sale_it_refunds() {
+    let (app, _printer) = app_with_printer().await;
+    let sale = sell(&app, None).await;
+    app.set_printer(DEAD_PRINTER);
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M111")).await;
+    let refund = do_refund_checkout_with(
+        &app.state,
+        sale.fiscal_event_id.unwrap(),
+        vec![RefundItem {
+            line_id: None,
+            menu_item_id: 1,
+            quantity: 1,
+        }],
+        TEST_INSZ.to_string(),
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(refund.success, "{:?}", refund.error);
+
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    delivery::do_print_missing_original(&app.state, refund.fiscal_event_id.unwrap())
+        .await
+        .unwrap();
+
+    printer.settle(1).await;
+    let expected = refund.ticket.as_ref().unwrap();
+    assert!(expected.original.is_some());
+    assert_eq!(printed(&printer), [paper_of(expected)]);
+}
+
+#[tokio::test]
+async fn a_missing_copy_is_printed_as_the_copy() {
+    let (app, _printer) = app_with_printer().await;
+    let sale = sell(&app, None).await;
+    app.set_printer(DEAD_PRINTER);
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M160")).await;
+    let copy = do_copy_ticket_with(
+        &app.state,
+        sale.fiscal_event_id.unwrap(),
+        TEST_INSZ.to_string(),
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(copy.success, "{:?}", copy.error);
+
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    delivery::do_print_missing_original(&app.state, copy.fiscal_event_id.unwrap())
+        .await
+        .unwrap();
+
+    printer.settle(1).await;
+    let expected = copy.ticket.as_ref().unwrap();
+    assert!(expected.is_copy());
+    assert_eq!(printed(&printer), [paper_of(expected)]);
+}
+
+#[tokio::test]
+async fn only_a_sale_or_a_copy_has_an_original_to_print() {
+    let (app, _printer) = app_with_printer().await;
+    app.login_as(TEST_INSZ, pos_core::user::UserRole::Admin);
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
+    let work_in = pili_pos::commands::social::do_work_in(&app.state, TEST_INSZ.to_string())
+        .await
+        .unwrap();
+    assert!(work_in.success, "{:?}", work_in.error);
+    let event_id = app.fiscal_events()[0].id;
+
+    assert_eq!(
+        delivery::do_print_missing_original(&app.state, event_id)
+            .await
+            .unwrap_err(),
+        errors::PRINT_ORIGINAL_UNSUPPORTED
+    );
 }
 
 // ── Refunds, copies, training ──────────────────────────────────

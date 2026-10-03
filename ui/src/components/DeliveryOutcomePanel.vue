@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { describeError } from "../utils/errorMessages";
 import { computed, ref } from "vue";
-import type { DeliveryOutcome, FiscalTicket } from "../types";
+import type { DeliveryOutcome } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { useToastStore } from "../stores/toast";
@@ -14,7 +14,6 @@ import { useAuthStore } from "../stores/auth";
 
 const props = defineProps<{
   outcome: DeliveryOutcome | null;
-  ticket: FiscalTicket | null;
   fiscalEventId: number | null;
 }>();
 
@@ -42,10 +41,10 @@ const showNeedsPaper = computed(
 );
 
 async function printMissing() {
-  if (!props.fiscalEventId || !props.ticket || printing.value) return;
+  if (!props.fiscalEventId || printing.value) return;
   printing.value = true;
   try {
-    await ipc.printMissingOriginal(props.fiscalEventId, props.ticket);
+    await ipc.printMissingOriginal(props.fiscalEventId);
     printed.value = true;
   } catch (e) {
     toast.show(describeError(e), "error", 5000);

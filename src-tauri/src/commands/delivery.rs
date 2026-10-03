@@ -540,16 +540,16 @@ pub fn do_list_ticket_deliveries(
 }
 
 /// Print an original that was never printed: the printer failed at
-/// checkout, or a DIGITAL ticket's email didn't go out. Refused once
-/// the original was printed (a second print must be a copy, event C)
-/// and for a DIGITAL ticket whose email was sent.
+/// checkout, or a DIGITAL ticket's email didn't go out. The ticket is
+/// rebuilt from the archive (a sale or a copy only). Refused once the
+/// original was printed (a second print must be a copy, event C) and
+/// for a DIGITAL ticket whose email was sent.
 #[tauri::command]
 pub async fn print_missing_original(
     state: State<'_, AppState>,
     fiscal_event_id: i64,
-    ticket: FiscalTicket,
 ) -> Result<(), String> {
-    do_print_missing_original(state.inner(), fiscal_event_id, &ticket).await
+    do_print_missing_original(state.inner(), fiscal_event_id).await
 }
 
 pub const ERR_ALREADY_PRINTED: &str = errors::ALREADY_PRINTED;
@@ -558,9 +558,9 @@ pub const ERR_EMAIL_SENT: &str = errors::EMAIL_SENT;
 pub async fn do_print_missing_original(
     state: &AppState,
     fiscal_event_id: i64,
-    ticket: &FiscalTicket,
 ) -> Result<(), String> {
     access::operator(state, Access::Cashier)?;
+    let ticket = &super::copy::printable_original(state, fiscal_event_id)?;
     let (printer, digital_delivery) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)

@@ -495,7 +495,6 @@ function finish() {
         </div>
         <DeliveryOutcomePanel
           :outcome="result?.delivery ?? null"
-          :ticket="result?.ticket ?? null"
           :fiscal-event-id="result?.fiscal_event_id ?? null"
         />
         <div class="done-actions">

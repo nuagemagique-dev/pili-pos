@@ -75,6 +75,8 @@ pub const REFUND_PRODUCT_NOT_SOLD: &str = "refund_product_not_sold";
 pub const REFUND_EXCEEDS_SOLD: &str = "refund_exceeds_sold";
 /// `product`: sold at more than one price; the line must be named.
 pub const REFUND_LINE_AMBIGUOUS: &str = "refund_line_ambiguous";
+/// Only a sale or a copy has an original ticket to print.
+pub const PRINT_ORIGINAL_UNSUPPORTED: &str = "print_original_unsupported";
 pub const REFUND_IN_TRAINING: &str = "refund_in_training";
 pub const REFUND_OF_REFUND: &str = "refund_of_refund";
 /// A sale closed unpaid: no money came in, none goes back.
@@ -172,6 +174,7 @@ pub const ALL: &[&str] = &[
     REFUND_PRODUCT_NOT_SOLD,
     REFUND_EXCEEDS_SOLD,
     REFUND_LINE_AMBIGUOUS,
+    PRINT_ORIGINAL_UNSUPPORTED,
     REFUND_IN_TRAINING,
     REFUND_OF_REFUND,
     REFUND_UNPAID_SALE,

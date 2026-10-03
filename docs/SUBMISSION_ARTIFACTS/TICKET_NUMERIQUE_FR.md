@@ -187,7 +187,14 @@ seule fois** ; toute impression ultérieure doit être une **copie**
   affichée quand `needs_paper=true` dans l'issue du checkout - c'est-à-
   dire quand un papier était dû mais que l'impression a échoué, ex.
   imprimante sans papier) sert **exclusivement** à rattraper une
-  impression manquée, jamais à réimprimer un original déjà sorti :
+  impression manquée, jamais à réimprimer un original déjà sorti.
+  L'écran n'envoie que l'identifiant de l'événement : la caisse
+  reconstruit le ticket depuis l'archive (réponse du FDM, requête
+  signée, lignes de la commande et leurs remises, vente d'origine
+  d'un remboursement), à l'identique du ticket produit à la
+  signature. Seuls une vente (N, ou T en formation) et une copie (C)
+  ont un original à imprimer ; tout autre événement est refusé
+  (code `print_original_unsupported`). En outre :
   - Refusée si l'original a déjà été imprimé
     (code `already_printed` : *"Le ticket original est déjà imprimé :
     imprimez une copie."*).
@@ -300,7 +307,7 @@ la version suit, parce qu'elle est la seule qui contienne l'URL.
 | URL/QR uniquement pour les événements N | `pos_mail::render::build_email` | `render.rs::tests::a_ticket_without_url_is_the_text_alone` ; e2e `spf_e2e_digital::a_training_ticket_email_keeps_its_training_marks` |
 | Aucune pièce jointe PDF | `pos_mail::render::build_email` | `render.rs::tests::no_pdf_attachment_is_ever_produced` |
 | Original imprimé une seule fois | `pos_db::queries::prints`, `delivery::print_original_once` | `prints.rs::tests::a_print_is_recorded_once` ; e2e `spf_e2e_digital::{a_printed_original_can_not_be_printed_again, an_unprinted_original_prints_once}` |
-| Rattrapage d'impression refusé si déjà imprimé / e-mail envoyé | `delivery::do_print_missing_original` | e2e `spf_e2e_digital::{printing_the_missing_original_of_a_digital_ticket_stops_its_email, an_emailed_digital_ticket_can_not_be_printed_as_an_original, printing_an_unknown_event_is_refused}` |
+| Rattrapage d'impression refusé si déjà imprimé / e-mail envoyé | `delivery::do_print_missing_original` | e2e `spf_e2e_digital::{printing_the_missing_original_of_a_digital_ticket_stops_its_email, an_emailed_digital_ticket_can_not_be_printed_as_an_original, printing_an_unknown_event_is_refused, a_missing_original_is_printed_from_the_archive, a_missing_refund_original_is_printed_with_the_sale_it_refunds, a_missing_copy_is_printed_as_the_copy, only_a_sale_or_a_copy_has_an_original_to_print}` |
 | Adresse effacée dès envoi/repli réussi, purge 72 h sinon | `pos_db::queries::deliveries::{mark_sent, mark_fallback_printed, purge_recipients_older_than}` | `deliveries.rs::tests::{mark_sent_nulls_recipient_and_sets_status, mark_fallback_printed_clears_the_recipient_and_stops_retries, purge_nulls_old_recipients, purge_flips_a_failed_row_to_purged}` |
 | Adresse jamais exposée en clair dans l'écran de support | `commands::delivery::{DeliveryView, do_list_ticket_deliveries}` (pas de champ `recipient`) | Revue de code : `DeliveryView` ne porte pas de champ `recipient`, seulement `recipient_hint` |
 | Copie (C) et remboursement (N) peuvent aussi être envoyés par e-mail | `commands/copy.rs`, `commands/refund.rs` | e2e `spf_e2e_digital::{a_copy_can_be_emailed_only, a_paper_copy_is_printed_and_recorded, a_refund_ticket_can_be_emailed, a_refund_with_a_bad_address_is_refused_before_signing}` |

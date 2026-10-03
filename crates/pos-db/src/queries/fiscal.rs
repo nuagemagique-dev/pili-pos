@@ -72,6 +72,35 @@ pub fn get_fiscal_event(
     }
 }
 
+/// The archived event the FDM signed as `fdm_id` / `event_label` /
+/// `event_counter` / `total_counter`, if any.
+pub fn find_by_fdm_ref(
+    conn: &Connection,
+    fdm_id: &str,
+    event_label: &str,
+    event_counter: i64,
+    total_counter: i64,
+) -> Result<Option<FiscalEventRef>, rusqlite::Error> {
+    let id: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM fiscal_events
+             WHERE fdm_id = ?1 AND event_label = ?2
+               AND json_extract(fdm_response_json, '$.fdmRef.eventCounter') = ?3
+               AND json_extract(fdm_response_json, '$.fdmRef.totalCounter') = ?4",
+            params![fdm_id, event_label, event_counter, total_counter],
+            |r| r.get(0),
+        )
+        .map(Some)
+        .or_else(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => Ok(None),
+            e => Err(e),
+        })?;
+    match id {
+        Some(id) => get_fiscal_event(conn, id),
+        None => Ok(None),
+    }
+}
+
 /// List recent fiscal events (for copy selection).
 pub fn list_recent_events(
     conn: &Connection,

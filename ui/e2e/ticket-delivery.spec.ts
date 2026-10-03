@@ -338,7 +338,7 @@ test.describe('needsPaper - print the missing original', () => {
     const calls = await ipcCalls(page, 'print_missing_original');
     expect(calls).toHaveLength(1);
     expect(calls[0].fiscalEventId).toBe(7);
-    expect(calls[0].ticket).toBeTruthy();
+    expect(calls[0].ticket).toBeUndefined();
   });
 
   test('shows an error toast on failure and keeps the button', async ({ page }) => {

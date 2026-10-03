@@ -1,14 +1,16 @@
 use serde::Serialize;
 use tauri::State;
 
+use pos_core::config::PosConfig;
+use pos_db::queries::fiscal::FiscalEventRef;
 use pos_fiscal::event::build_copy_input;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::response::{FdmReference, SignResult};
 use pos_fiscal::ticket::{
-    FiscalTicket, ReceiptLanguage, TicketDraft, TicketLine, TicketParams, TicketPayment,
+    FiscalTicket, OriginalControlData, ReceiptLanguage, TicketDraft, TicketParams, TicketPayment,
     is_unpaid_sale, printed_payments,
 };
-use pos_fiscal::types::EventLabel;
+use pos_fiscal::types::{EventLabel, EventOperation};
 
 use crate::commands::access::{self, Access};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
@@ -153,18 +155,6 @@ pub async fn do_copy_ticket_with(
         Err(e) => return Ok(CopyResult::failed(e)),
     };
 
-    // The original order, for the copy's lines. Events without an
-    // order (reports, cash movements) have no ticket body to show.
-    let original_order = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        original_event.order_id.and_then(|oid| {
-            let order = pos_db::queries::orders::get_order(&db, oid).ok()?;
-            let lines = pos_db::queries::orders::get_order_lines(&db, oid).ok()?;
-            Some((order, lines))
-        })
-    };
-    let operator = super::operator_name(state, &employee_insz);
-
     // 2. The copy's number: the C counter advances only when the signed
     // copy is archived, so a refused copy leaves no gap.
     let label = EventLabel::C.in_mode(config.training_mode);
@@ -183,66 +173,9 @@ pub async fn do_copy_ticket_with(
         .map_err(errors::internal)?;
     let request_json = serde_json::to_string(&copy_input).map_err(|e| e.to_string())?;
 
-    // The copy reproduces the original ticket, rebuilt from its
-    // archive (the FDM's response and the signed request), and adds
-    // the copy's own control data (POS description v2.2 §1.8).
-    let lang = ReceiptLanguage::from_code(&config.language);
-    let original_result: Option<SignResult> = original_event
-        .fdm_response_json
-        .as_deref()
-        .and_then(|json| serde_json::from_str(json).ok());
-    let original_operator = super::operator_name(state, &original_event.user_insz);
-    let ticket = original_order.map(|(order, lines)| {
-        let ticket_lines: Vec<TicketLine> = lines
-            .iter()
-            .map(|l| TicketLine {
-                quantity: l.quantity as f64,
-                description: l.name.clone(),
-                unit_price: l.unit_price_cents as f64 / 100.0,
-                total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                vat_code: l.vat_code.as_str().to_string(),
-            })
-            .collect();
-        let total = order.total_cents as f64 / 100.0;
-        match original_result.as_ref() {
-            Some(original) => {
-                let request = serde_json::from_str(&original_event.event_data_json)
-                    .unwrap_or(serde_json::Value::Null);
-                let (payments, rounding) = printed_payments(&request);
-                let mut ticket = FiscalTicket::from_sign_result(TicketParams {
-                    result: original,
-                    restaurant_name: &config.restaurant_name,
-                    restaurant_address: &config.restaurant_address,
-                    restaurant_vat: &config.restaurant_vat,
-                    restaurant_est_no: &config.restaurant_est_no,
-                    restaurant_legal_name: config.legal_name(),
-                    lines: ticket_lines,
-                    payments,
-                    total,
-                    is_training: original.fdm_ref.event_label == EventLabel::T,
-                    rounding,
-                    lang,
-                    operator: &original_operator,
-                });
-                // A sale closed unpaid reprints as unpaid.
-                ticket.unpaid = is_unpaid_sale(&request);
-                CopyTicket::Original(Box::new(ticket))
-            }
-            // No readable archive of the original (never expected: the
-            // FDM response is archived with every signed event): the
-            // copy's own data, as a last resort.
-            None => CopyTicket::Draft(Box::new(TicketDraft::new(
-                &config,
-                ticket_lines,
-                vec![TicketPayment {
-                    method: "-".to_string(),
-                    amount: total,
-                }],
-                total,
-                &operator,
-            ))),
-        }
-    });
+    // The copy reproduces the original ticket and adds the copy's own
+    // control data (POS description v2.2 §1.8).
+    let ticket = original_ticket(state, &config, &original_event)?;
 
     let context = PendingContext::Copy {
         delivery: StoredDelivery::of(&resolved),
@@ -278,6 +211,159 @@ pub async fn do_copy_ticket_with(
         ticket: committed.ticket,
         delivery: done.delivery,
     })
+}
+
+/// Signed event `event`'s ticket as it was printed, rebuilt from its
+/// archive: the FDM's answer, the signed request, the order's lines
+/// and their discounts, the sale a refund refunds. `None` for an event
+/// without an order (reports, cash movements); a draft when the FDM's
+/// answer is unreadable (never expected).
+pub(crate) fn original_ticket(
+    state: &AppState,
+    config: &PosConfig,
+    event: &FiscalEventRef,
+) -> Result<Option<CopyTicket>, String> {
+    let Some(order_id) = event.order_id else {
+        return Ok(None);
+    };
+    let request: serde_json::Value =
+        serde_json::from_str(&event.event_data_json).unwrap_or(serde_json::Value::Null);
+    let (order, lines, changes, refunded) = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        let order = pos_db::queries::orders::get_order(&db, order_id).map_err(errors::internal)?;
+        let lines =
+            pos_db::queries::orders::get_order_lines(&db, order_id).map_err(errors::internal)?;
+        #[cfg(feature = "hubrise")]
+        let changes = super::price_changes::load(&db, order_id)?.1;
+        #[cfg(not(feature = "hubrise"))]
+        let changes = pos_fiscal::price_change::LineChanges::new();
+        // A refund names the sale it refunds.
+        let refunded = serde_json::from_value::<FdmReference>(request["fdmRef"].clone())
+            .ok()
+            .map(|fdm_ref| {
+                let label = serde_json::to_value(fdm_ref.event_label)
+                    .ok()
+                    .and_then(|v| v.as_str().map(str::to_string))
+                    .unwrap_or_default();
+                let short_signature = pos_db::queries::fiscal::find_by_fdm_ref(
+                    &db,
+                    &fdm_ref.fdm_id,
+                    &label,
+                    fdm_ref.event_counter,
+                    fdm_ref.total_counter,
+                )
+                .ok()
+                .flatten()
+                .and_then(|e| e.short_signature);
+                OriginalControlData {
+                    fdm_ref,
+                    short_signature,
+                }
+            });
+        (order, lines, changes, refunded)
+    };
+    let ticket_lines = pos_fiscal::price_change::ticket_lines(&lines, &changes);
+    let total = order.total_cents as f64 / 100.0;
+    let operator = super::operator_name(state, &event.user_insz);
+    let result: Option<SignResult> = event
+        .fdm_response_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str(json).ok());
+    Ok(Some(match result {
+        Some(result) => {
+            let (payments, rounding) = printed_payments(&request);
+            let mut ticket = FiscalTicket::from_sign_result(TicketParams {
+                result: &result,
+                restaurant_name: &config.restaurant_name,
+                restaurant_address: &config.restaurant_address,
+                restaurant_vat: &config.restaurant_vat,
+                restaurant_est_no: &config.restaurant_est_no,
+                restaurant_legal_name: config.legal_name(),
+                lines: ticket_lines,
+                payments,
+                total,
+                is_training: result.fdm_ref.event_label == EventLabel::T,
+                rounding,
+                lang: ReceiptLanguage::from_code(&config.language),
+                operator: &operator,
+            });
+            // A sale closed unpaid reprints as unpaid.
+            ticket.unpaid = is_unpaid_sale(&request);
+            if let Some(refunded) = refunded {
+                ticket = ticket.with_original(refunded);
+            }
+            CopyTicket::Original(Box::new(ticket))
+        }
+        None => {
+            let mut draft = TicketDraft::new(
+                config,
+                ticket_lines,
+                vec![TicketPayment {
+                    method: "-".to_string(),
+                    amount: total,
+                }],
+                total,
+                &operator,
+            );
+            draft.original = refunded;
+            CopyTicket::Draft(Box::new(draft))
+        }
+    }))
+}
+
+/// The ticket of signed sale or copy `fiscal_event_id`, exactly as it
+/// was printed: an original that never was is printed from this, never
+/// from what the screen sends.
+pub(crate) fn printable_original(
+    state: &AppState,
+    fiscal_event_id: i64,
+) -> Result<FiscalTicket, String> {
+    let config = state.config.lock().map_err(errors::internal)?.clone();
+    let event = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        pos_db::queries::fiscal::get_fiscal_event(&db, fiscal_event_id)
+            .map_err(errors::internal)?
+            .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?
+    };
+    let result: SignResult = event
+        .fdm_response_json
+        .as_deref()
+        .and_then(|json| serde_json::from_str(json).ok())
+        .ok_or_else(|| incomplete("fdmResponse"))?;
+    let unsupported = || errors::PRINT_ORIGINAL_UNSUPPORTED.to_string();
+    let sale_ticket = |event: &FiscalEventRef| match original_ticket(state, &config, event)? {
+        Some(CopyTicket::Original(ticket)) => Ok(*ticket),
+        Some(CopyTicket::Draft(_)) => Err(incomplete("fdmResponse")),
+        None => Err(unsupported()),
+    };
+    match result.event_operation {
+        EventOperation::Sale => sale_ticket(&event),
+        // A copy: the ticket it copies, with the copy's control data.
+        EventOperation::Copy => {
+            let request: serde_json::Value =
+                serde_json::from_str(&event.event_data_json).map_err(errors::internal)?;
+            let fdm_ref: FdmReference = serde_json::from_value(request["fdmRef"].clone())
+                .map_err(|_| incomplete("fdmRef"))?;
+            let label = serde_json::to_value(fdm_ref.event_label)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_default();
+            let copied = {
+                let db = state.db.lock().map_err(errors::internal)?;
+                pos_db::queries::fiscal::find_by_fdm_ref(
+                    &db,
+                    &fdm_ref.fdm_id,
+                    &label,
+                    fdm_ref.event_counter,
+                    fdm_ref.total_counter,
+                )
+                .map_err(errors::internal)?
+                .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?
+            };
+            Ok(sale_ticket(&copied)?.into_copy(&result))
+        }
+        _ => Err(unsupported()),
+    }
 }
 
 /// Recent tickets a customer received, for the copy picker: managers

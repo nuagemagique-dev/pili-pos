@@ -708,7 +708,6 @@ function formatRefundTime(iso: string): string {
           <template v-else>
             <DeliveryOutcomePanel
               :outcome="refundResult?.delivery ?? null"
-              :ticket="refundResult?.ticket ?? null"
               :fiscal-event-id="refundResult?.fiscal_event_id ?? null"
             />
             <p v-if="refundResult && !refundResult.success" class="refund-error">{{ describeError(refundResult.error) }}</p>
@@ -739,7 +738,6 @@ function formatRefundTime(iso: string): string {
           <template v-else>
             <DeliveryOutcomePanel
               :outcome="copyResult?.delivery ?? null"
-              :ticket="copyResult?.ticket ?? null"
               :fiscal-event-id="copyResult?.fiscalEventId ?? null"
             />
             <p v-if="copyResult && !copyResult.success" class="refund-error">{{ describeError(copyResult.error) }}</p>

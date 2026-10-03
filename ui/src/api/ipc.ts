@@ -154,11 +154,9 @@ export function listTicketDeliveries(limit?: number): Promise<DeliveryView[]> {
   return invoke("list_ticket_deliveries", { limit });
 }
 
-export function printMissingOriginal(
-  fiscalEventId: number,
-  ticket: FiscalTicket
-): Promise<void> {
-  return invoke("print_missing_original", { fiscalEventId, ticket });
+/** The backend rebuilds the ticket from the archive. */
+export function printMissingOriginal(fiscalEventId: number): Promise<void> {
+  return invoke("print_missing_original", { fiscalEventId });
 }
 
 // Settings
