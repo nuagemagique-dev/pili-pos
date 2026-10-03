@@ -44,6 +44,9 @@ on:
       - 'ui/**'
       - '.github/workflows/image.yml'
   workflow_dispatch: {}
+  # .github/workflows/release.yml (v* tags) runs these same jobs, then
+  # publishes their artifacts.
+  workflow_call: {}
 
 env:
   CARGO_TERM_COLOR: always

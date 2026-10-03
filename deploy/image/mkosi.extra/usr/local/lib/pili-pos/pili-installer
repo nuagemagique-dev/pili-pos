@@ -20,6 +20,18 @@
 #          the old root's /etc/shadow: they are carried over into the
 #          new root, else both accounts would be locked again.
 #
+# Unattended install (deploy/usb/make-key.sh makes "Install" the USB
+# key's default boot entry): on a disk WITHOUT a "pili-data" partition
+# (a new terminal, whatever it shipped with) the install starts after a
+# short countdown that any key cancels. A disk that already holds
+# "pili-data" (fiscal data) always needs OUI typed, as does update.
+#
+# After the copy, the internal ESP is cleaned of the USB-only bits
+# (Install/Update UKIs, the key's loader.conf), and a "pili-pos" UEFI
+# boot entry for the internal disk is put first in BootOrder: the next
+# boot, and every later one, starts from the internal disk even if the
+# key is left plugged in.
+#
 # Both modes finish with `sgdisk -e` ("fix backup GPT"): a disk-image
 # dd only ever writes a correct PRIMARY GPT (at the start); the
 # SECONDARY/backup GPT belongs at the true end of the target disk,
@@ -84,10 +96,29 @@ cat <<BANNER
   ${WARN_LINE}
 ════════════════════════════════════════════════════════════════
 BANNER
-read -r -p "Tapez OUI en majuscules pour confirmer : " CONFIRM
-if [[ "$CONFIRM" != "OUI" ]]; then
-    log "Annulé (confirmation refusée)."
-    exit 1
+HAS_PILI_DATA=0
+if lsblk -lno PARTLABEL "$TARGET_DISK" 2>/dev/null | grep -qx pili-data; then
+    HAS_PILI_DATA=1
+fi
+
+if [[ "$MODE" == "install" && "$HAS_PILI_DATA" -eq 0 ]]; then
+    # New terminal: nothing fiscal to lose, go on by itself.
+    COUNTDOWN=15
+    echo "Installation automatique dans ${COUNTDOWN} s - appuyez sur une touche pour ANNULER."
+    if read -r -s -n 1 -t "$COUNTDOWN" _; then
+        log "Annulé (touche pressée)."
+        exit 1
+    fi
+else
+    if [[ "$MODE" == "install" ]]; then
+        echo "ATTENTION : ce disque contient déjà une partition pili-data (base fiscale)."
+        echo "Pour garder les données, redémarrez et choisissez « Update »."
+    fi
+    read -r -p "Tapez OUI en majuscules pour confirmer : " CONFIRM
+    if [[ "$CONFIRM" != "OUI" ]]; then
+        log "Annulé (confirmation refusée)."
+        exit 1
+    fi
 fi
 
 if [[ "$MODE" == "install" ]]; then
@@ -145,7 +176,56 @@ fi
 log "Fixing the backup GPT on ${TARGET_DISK}…"
 sgdisk -e "$TARGET_DISK"
 partprobe "$TARGET_DISK" || true
+udevadm settle --timeout=30 || true
+
+# ── The internal ESP is a copy of the key's: drop what only makes
+#    sense on the key. Left in place, "Install" would stay the default
+#    entry of the internal disk and the terminal would never reach its
+#    kiosk. The site directory (pili/site/) stays: pili-bootstrap reads
+#    it on the first boot, then deletes its secrets. ─────────────────
+ESP_DST="$(part "$TARGET_DISK" 1)"
+ESP_MNT="$(mktemp -d)"
+mount -t vfat "$ESP_DST" "$ESP_MNT"
+rm -f "$ESP_MNT"/EFI/Linux/pili-pos-install.efi "$ESP_MNT"/EFI/Linux/pili-pos-update.efi
+if [[ "$MODE" == "update" ]]; then
+    # An installed terminal never re-runs its bootstrap on its own: a
+    # site directory copied from the key would only leave its secrets
+    # on the unencrypted ESP. Re-applying a site is a deliberate
+    # `pili-bootstrap --rerun --site <dir>` from the console.
+    rm -rf "$ESP_MNT/pili"
+fi
+# deploy/usb/make-key.sh kept the image's own loader.conf (editor
+# setting and the like) as loader.conf.pili-orig: put it back. Without
+# it, drop just the key's default/timeout lines.
+if [[ -f "$ESP_MNT/loader/loader.conf.pili-orig" ]]; then
+    mv -f "$ESP_MNT/loader/loader.conf.pili-orig" "$ESP_MNT/loader/loader.conf"
+elif [[ -f "$ESP_MNT/loader/loader.conf" ]]; then
+    sed -i -E '/^[[:space:]]*(default|timeout)[[:space:]]/d' "$ESP_MNT/loader/loader.conf"
+fi
+sync
+umount "$ESP_MNT"
+rmdir "$ESP_MNT"
+log "Internal ESP: installer entries removed, kiosk entry is the default"
+
+# ── Boot from the internal disk from now on (key may stay plugged) ──
+BOOT_ENTRY_OK=0
+if [[ -d /sys/firmware/efi/efivars ]] && command -v efibootmgr >/dev/null 2>&1; then
+    while read -r num; do
+        efibootmgr -q -b "$num" -B || true
+    # Earlier "pili-pos" entries (a reinstall): "Boot0003* pili-pos<TAB>HD(...)".
+    done < <(efibootmgr | awk 'match($0, /^Boot[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]\*? pili-pos([[:space:]]|$)/) {print substr($0, 5, 4)}')
+    if efibootmgr -q --create --disk "$TARGET_DISK" --part 1 \
+        --label "pili-pos" --loader '\EFI\systemd\systemd-bootx64.efi'; then
+        BOOT_ENTRY_OK=1
+        log "UEFI boot entry 'pili-pos' created on ${TARGET_DISK}, first in BootOrder"
+    fi
+fi
 
 log "${MODE} complete."
-read -r -p "Retirez la clé USB puis appuyez sur Entrée pour redémarrer… " _ || true
+if [[ "$BOOT_ENTRY_OK" -eq 1 ]]; then
+    echo "Redémarrage sur le disque interne dans 10 s (la clé peut rester branchée)…"
+    sleep 10
+else
+    read -r -p "Retirez la clé USB puis appuyez sur Entrée pour redémarrer… " _ || true
+fi
 systemctl reboot

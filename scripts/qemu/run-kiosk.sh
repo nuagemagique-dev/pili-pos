@@ -22,7 +22,15 @@
 #
 # Usage:
 #   run-kiosk.sh <image.raw|image.img.xz> [--name NAME] [--pos-json FILE]
-#                [--ram MB] [--clean]
+#                [--ram MB] [--clean] [--usb-install]
+#
+# --usb-install: the image is a USB INSTALLATION KEY (as written by
+#   deploy/usb/make-key.sh; scripts/qemu/make-test-key.sh builds one
+#   from an image + site directory). It is attached as a removable USB
+#   disk next to a BLANK 32G internal virtio disk, as on a new terminal:
+#   OVMF boots the key, pili-installer copies it to the internal disk,
+#   creates the "pili-pos" UEFI entry and reboots onto it (the key
+#   stays plugged in), then pili-provision and pili-bootstrap run.
 #
 # --pos-json FILE: injected via -fw_cfg name=opt/pili/pos.json - read
 #   by pili-provision.service on FIRST boot only (i.e. only while no
@@ -44,6 +52,7 @@ NAME=""
 POS_JSON=""
 RAM_MB=4096
 CLEAN=0
+USB_INSTALL=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -51,6 +60,7 @@ while [[ $# -gt 0 ]]; do
         --pos-json) POS_JSON="$2"; shift 2 ;;
         --ram)      RAM_MB="$2"; shift 2 ;;
         --clean)    CLEAN=1; shift ;;
+        --usb-install) USB_INSTALL=1; shift ;;
         -h|--help)
             sed -n '2,40p' "$0"; exit 0 ;;
         *)
@@ -73,7 +83,28 @@ fi
 mkdir -p "$WORK_DIR"
 
 DISK="$WORK_DIR/disk.raw"
-if [[ ! -f "$DISK" ]]; then
+USB_ARGS=()
+if [[ "$USB_INSTALL" -eq 1 ]]; then
+    KEY="$WORK_DIR/usb-key.raw"
+    if [[ ! -f "$KEY" ]]; then
+        echo "▸ Preparing the USB key and a blank 32G internal disk…"
+        case "$IMAGE" in
+            *.img.xz) xz -dc "$IMAGE" > "$KEY" ;;
+            *.raw)    cp "$IMAGE" "$KEY" ;;
+            *) echo "ERROR: expected a .raw or .img.xz image" >&2; exit 1 ;;
+        esac
+        # A real key is larger than the image: room for the backup GPT
+        # fix-up, as on an 8G stick.
+        truncate -s +1G "$KEY"
+    fi
+    [[ -f "$DISK" ]] || truncate -s 32G "$DISK"
+    # No bootindex: a QEMU bootindex rewrites OVMF's BootOrder on every
+    # boot and would hide whether the "pili-pos" entry the installer
+    # creates really puts the internal disk first.
+    USB_ARGS=(-device qemu-xhci,id=xhci
+              -drive "if=none,id=usbkey,format=raw,file=$KEY"
+              -device usb-storage,bus=xhci.0,drive=usbkey,removable=on)
+elif [[ ! -f "$DISK" ]]; then
     echo "▸ Preparing disk (source + 8G free space for pili-data)…"
     case "$IMAGE" in
         *.img.xz) xz -dc "$IMAGE" > "$DISK" ;;
@@ -190,6 +221,7 @@ exec qemu-system-x86_64 \
     -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" \
     -drive "if=pflash,format=raw,file=$OVMF_VARS" \
     -drive "if=virtio,format=raw,file=$DISK" \
+    "${USB_ARGS[@]}" \
     -device virtio-vga,xres=1920,yres=1080 \
     "${TOUCH_ARGS[@]}" \
     -netdev user,id=net0 \

@@ -96,6 +96,13 @@ fait le travail :
 
 1. Détection du disque interne (le premier disque autre que la clé
    USB elle-même).
+   Confirmation avant toute écriture :
+   - **Install** sur un disque sans partition `pili-data` (terminal
+     neuf) : l'installation démarre seule après un compte à rebours de
+     15 secondes ; une touche quelconque l'annule.
+   - **Install** sur un disque qui contient déjà une partition
+     `pili-data` (base fiscale), et **Update** dans tous les cas : il
+     faut taper `OUI` en majuscules.
 2. **Install** : réplication complète de la table de partitions de la
    clé (`sgdisk --replicate` + `-G` pour de nouveaux UUID) puis copie
    partition par partition (ESP + racine ; la partition `pili-data`
@@ -111,6 +118,13 @@ fait le travail :
    seule pour la racine - mais rien n'est encore déchiffré ni
    configuré : cette étape ne fait que poser les partitions ESP/racine
    sur le disque interne.
+4. Les entrées "Install" et "Update" sont retirées de l'ESP du disque
+   interne, qui démarre donc toujours sur pili-pos. Une entrée de
+   démarrage UEFI "pili-pos" pointant vers le disque interne est créée
+   et placée en tête de l'ordre de démarrage, puis le terminal
+   redémarre seul après 10 secondes : la clé USB peut rester branchée.
+   Si le firmware refuse cette entrée, le programme demande de retirer
+   la clé puis d'appuyer sur Entrée.
 
 Durée approximative : 3 à 6 minutes (copie de partitions brutes,
 beaucoup plus rapide que l'ancienne installation "à chaud" sur un
@@ -118,7 +132,7 @@ Debian nu).
 
 ### 3.4 Premier démarrage - chiffrement, mots de passe, clé de récupération
 
-Retirer la clé USB et redémarrer. Le terminal doit :
+Au redémarrage (§3.3, point 4), le terminal doit :
 
 1. Démarrer sur le disque interne (systemd-boot → UKI).
 2. `systemd-repart` finalise la partition `pili-data` (taille = tout

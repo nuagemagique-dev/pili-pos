@@ -1,0 +1,6 @@
+# The roles share one namespace on purpose (pili_*): pili_warnings and
+# the results are collected across roles for the bootstrap report.
+skip_list:
+  - var-naming[no-role-prefix]
+exclude_paths:
+  - tests/

@@ -1,0 +1,101 @@
+name: Release
+
+# On a vX.Y.Z tag: the same reproducible build, image build and boot
+# smoke test as image.yml (called as a reusable workflow), then a
+# PRERELEASE on the releases repository with:
+#   pili-pos-vX.Y.Z-x86_64.tar.gz   deploy/dist (binary, install.sh, update.sh, ...)
+#   pili-pos-kiosk-vX.Y.Z.img.xz    production kiosk image (deploy/usb/make-key.sh)
+#   build_info-vX.Y.Z.txt           SHA-1 / SHA-256 report (the SHA-1 to declare)
+#   SHA256SUMS
+#
+# A prerelease is NOT installed by any terminal. Once SPF Finances has
+# accepted the SHA-1, the owner runs scripts/release/declare.sh on the
+# Mac: it signs declared.json with the offline minisign key and turns
+# the prerelease into latest (deploy/UPDATE-STRATEGY.md).
+#
+# Tag-only on purpose (private repo, Actions minutes are capped).
+#
+# Needs: repository variable RELEASES_REPO (default
+# brunomoyse/moyun-pos-releases) and secret RELEASES_PAT, a
+# fine-grained token with contents:write on that repository only.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/image.yml
+
+  publish:
+    name: Publish the prerelease
+    needs: build
+    runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ github.ref_name }}
+      RELEASES_REPO: ${{ vars.RELEASES_REPO || 'brunomoyse/moyun-pos-releases' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches the crate version
+        run: |
+          set -euo pipefail
+          CRATE="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          if [[ "v$CRATE" != "$VERSION" ]]; then
+            echo "::error::tag $VERSION but Cargo.toml says $CRATE"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: deploy-dist
+          path: deploy/dist
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: repro-build-info
+          path: repro
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: kiosk-image-production
+          path: image
+
+      - name: Assemble the release files
+        run: |
+          set -euo pipefail
+          chmod +x deploy/dist/pili-pos deploy/dist/install.sh deploy/dist/update.sh
+          [[ -f deploy/dist/pos-fdm-mock ]] && chmod +x deploy/dist/pos-fdm-mock
+          mkdir out
+          # Flat tarball (members without "./"): deploy/ansible/roles/
+          # pos_binary extracts the member "pili-pos" by that name.
+          ( cd deploy/dist && tar --sort=name --owner=0 --group=0 --numeric-owner \
+              --mtime='@0' -czf "../../out/pili-pos-${VERSION}-x86_64.tar.gz" -- * )
+          cp image/*.img.xz "out/pili-pos-kiosk-${VERSION}.img.xz"
+          INFO="$(find repro -path '*run2*' -name 'build_info_*.txt' | head -n1)"
+          [[ -n "$INFO" ]] || INFO="$(find repro -name 'build_info_*.txt' | head -n1)"
+          cp "$INFO" "out/build_info-${VERSION}.txt"
+          # The image must embed the binary of the tarball.
+          EMBEDDED="$(cat image/pili-pos-embedded-binary.sha1)"
+          TARBALL_SHA1="$(sha1sum deploy/dist/pili-pos | awk '{print $1}')"
+          if [[ "$EMBEDDED" != "$TARBALL_SHA1" ]]; then
+            echo "::error::image embeds $EMBEDDED, tarball has $TARBALL_SHA1"
+            exit 1
+          fi
+          ( cd out && sha256sum -- * > SHA256SUMS )
+          echo "SHA1=$TARBALL_SHA1" >> "$GITHUB_ENV"
+          ls -l out
+
+      - name: Create the prerelease
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_PAT }}
+        run: |
+          set -euo pipefail
+          NOTES="pili-pos ${VERSION} - binary SHA-1 ${SHA1} (to declare to SPF Finances).
+          Prerelease until declared: no terminal installs it before scripts/release/declare.sh ${VERSION} --sha1 ${SHA1}.
+          Source: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          gh release create "$VERSION" -R "$RELEASES_REPO" \
+            --prerelease --title "pili-pos ${VERSION}" --notes "$NOTES" \
+            out/*

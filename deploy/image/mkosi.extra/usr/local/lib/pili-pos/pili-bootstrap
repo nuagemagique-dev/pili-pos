@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────
+# pili-bootstrap - site bootstrap, run by pili-bootstrap.service once,
+# on the first real boot, right after pili-provision (LUKS2/TPM2, /var)
+# and before the kiosk. Runs deploy/ansible/site.yml locally:
+# network, pos.json + secrets from the site directory that
+# deploy/usb/make-key.sh put on the USB key's ESP (pili-installer copied
+# it to the internal ESP), then the binary the owner declared to SPF
+# Finances, fetched from GitHub Releases when the network allows.
+#
+# Success writes /var/lib/pili-pos/.bootstrapped: the unit never runs
+# again (ConditionPathExists=). Failure leaves no stamp: the next boot
+# retries, and the kiosk still starts (Before=, no Requires=).
+#
+# Maintenance console (Ctrl+Alt+F2, root):
+#   pili-bootstrap --rerun              apply site + declared version again
+#   pili-bootstrap --rerun --offline    site config only, no download
+#   pili-bootstrap --rerun --site DIR   another site directory (USB stick)
+# ─────────────────────────────────────────────────────────────────
+set -Eeuo pipefail
+
+PLAYBOOK_DIR="/opt/pili-pos/deploy/ansible"
+STAMP="/var/lib/pili-pos/.bootstrapped"
+LOG="/var/log/pili-bootstrap.log"
+RUN_DIR="/run/pili-bootstrap"
+ESP_MNT="/run/pili-esp"
+ESP_GUID="c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+
+RERUN=0
+OFFLINE=0
+SITE_DIR=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --rerun)   RERUN=1; shift ;;
+        --offline) OFFLINE=1; shift ;;
+        --site)    SITE_DIR="$2"; shift 2 ;;
+        -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+log() {
+    echo "[pili-bootstrap] $*"
+    printf '%s\n' "$*" | systemd-cat -t pili-bootstrap 2>/dev/null || true
+}
+trap 'log "ERROR: line $LINENO: \"$BASH_COMMAND\" exited $?"' ERR
+
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: run as root." >&2
+    exit 1
+fi
+if [[ -e "$STAMP" && "$RERUN" -eq 0 ]]; then
+    log "already done ($STAMP) - use --rerun to apply again"
+    exit 0
+fi
+FIRST_BOOT=false
+[[ "$RERUN" -eq 0 ]] && FIRST_BOOT=true
+
+# ── The ESP of the disk we booted from (site directory lives there) ──
+mount_esp() {
+    local root_src disk esp
+    root_src="$(findmnt -no SOURCE /)"
+    disk="$(lsblk -no PKNAME "$root_src" 2>/dev/null | head -n1)"
+    [[ -n "$disk" ]] || return 1
+    esp="$(lsblk -lnpo NAME,PARTTYPE "/dev/$disk" \
+        | awk -v g="$ESP_GUID" 'tolower($2) == g {print $1; exit}')"
+    [[ -n "$esp" ]] || return 1
+    mkdir -p "$ESP_MNT"
+    if ! mountpoint -q "$ESP_MNT"; then
+        mount -t vfat -o rw,nosuid,nodev,noexec,umask=0077 "$esp" "$ESP_MNT"
+    fi
+}
+
+if [[ -z "$SITE_DIR" ]]; then
+    if mount_esp && [[ -f "$ESP_MNT/pili/site/site.yml" ]]; then
+        SITE_DIR="$ESP_MNT/pili/site"
+    elif [[ -f /etc/pili-pos/site.yml ]]; then
+        # A re-run after the first one: the ESP copy may be gone, the
+        # copy kept next to pos.json is the same file.
+        SITE_DIR="/etc/pili-pos"
+    else
+        SITE_DIR="$ESP_MNT/pili/site"
+    fi
+fi
+# shellcheck disable=SC2329  # invoked by the EXIT trap
+cleanup() {
+    mountpoint -q "$ESP_MNT" && umount "$ESP_MNT" 2>/dev/null || true
+    rm -rf "$RUN_DIR"
+}
+trap cleanup EXIT
+
+# / is read-only: everything Ansible writes for itself goes to /run.
+mkdir -p "$RUN_DIR/tmp" "$RUN_DIR/home"
+export ANSIBLE_CONFIG="$PLAYBOOK_DIR/ansible.cfg"
+export ANSIBLE_HOME="$RUN_DIR/home"
+export ANSIBLE_LOCAL_TEMP="$RUN_DIR/tmp"
+export ANSIBLE_REMOTE_TEMP="$RUN_DIR/tmp"
+export ANSIBLE_FORCE_COLOR=0
+export ANSIBLE_NOCOLOR=1
+export HOME="$RUN_DIR/home"
+
+clear || true
+cat <<BANNER
+════════════════════════════════════════════════════════════════
+  pili-pos - configuration du site
+  Site : ${SITE_DIR}
+  Journal : ${LOG}
+════════════════════════════════════════════════════════════════
+BANNER
+
+set +e
+ansible-playbook -i localhost, -c local "$PLAYBOOK_DIR/site.yml" \
+    -e "pili_site_dir=$SITE_DIR" \
+    -e "pili_offline=$([[ "$OFFLINE" -eq 1 ]] && echo true || echo false)" \
+    -e "pili_first_boot=$FIRST_BOOT" \
+    2>&1 | tee -a "$LOG"
+RC=${PIPESTATUS[0]}
+set -e
+
+echo
+if [[ "$RC" -eq 0 ]]; then
+    touch "$STAMP"
+    cat <<'OK'
+════════════════════════════════════════════════════════════════
+  Configuration terminée.
+OK
+    [[ -f /var/lib/pili-pos/bootstrap-report.txt ]] && sed 's/^/  /' /var/lib/pili-pos/bootstrap-report.txt
+    cat <<'OK'
+════════════════════════════════════════════════════════════════
+OK
+    log "done"
+else
+    cat <<FAIL
+════════════════════════════════════════════════════════════════
+  ÉCHEC de la configuration (code ${RC}).
+  Détails : ${LOG}
+  La caisse démarre quand même ; corriger puis, sur la console de
+  maintenance (Ctrl+Alt+F2) : pili-bootstrap --rerun
+════════════════════════════════════════════════════════════════
+FAIL
+    log "failed with $RC"
+fi
+
+if [[ "$FIRST_BOOT" == true && -t 0 ]]; then
+    read -r -t 60 -p "Entrée pour démarrer la caisse (automatique dans 60 s)… " _ || true
+    echo
+fi
+exit "$RC"

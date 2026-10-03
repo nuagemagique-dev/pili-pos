@@ -1,0 +1,68 @@
+# pili-pos - site bootstrap, run ON the terminal (connection: local).
+#
+# Started once by pili-bootstrap.service on the first real boot of a
+# kiosk image (deploy/image/mkosi.extra/usr/local/lib/pili-pos/
+# pili-bootstrap), after pili-provision has set up the encrypted /var.
+# Re-runnable by hand from the maintenance console:
+#   pili-bootstrap --rerun
+# or, on a plain Debian 13 box (deploy/install.sh path):
+#   ansible-playbook -i localhost, -c local deploy/ansible/site.yml \
+#       -e pili_site_dir=/path/to/site
+#
+# What it does, in order:
+#   network      static LAN address from site.yml (DHCP otherwise)
+#   site_config  pos.json from site.yml + secrets into /etc/pili-pos,
+#                then the secrets are deleted from the (unencrypted) ESP
+#   pos_binary   the binary the owner DECLARED to SPF Finances (signed
+#                manifest on GitHub Releases), SHA-1 checked, installed
+#                through deploy/update.sh; offline or any doubt: the
+#                binary embedded in the image stays
+#   healthcheck  --check-config, FDM and printer reachability (warnings)
+#
+# Never fails on a network problem: a terminal without internet still
+# ends up usable with the embedded binary. It fails (no stamp written,
+# the wrapper says so) only when something local is wrong.
+- name: Pili-pos site bootstrap
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Look for the site directory's site.yml
+      ansible.builtin.stat:
+        path: "{{ pili_site_dir }}/site.yml"
+      register: pili_site_file
+
+    - name: Load site.yml
+      ansible.builtin.include_vars:
+        file: "{{ pili_site_dir }}/site.yml"
+        name: pili_site
+      when: pili_site_file.stat.exists
+
+    - name: No site.yml, nothing site-specific to apply
+      ansible.builtin.set_fact:
+        pili_site: {}
+        pili_warnings: "{{ pili_warnings + ['pas de site.yml dans ' ~ pili_site_dir ~ ' : pos.json reste le modèle d’usine'] }}"
+      when: not pili_site_file.stat.exists
+
+  roles:
+    - network
+    - site_config
+    - pos_binary
+    - healthcheck
+  post_tasks:
+    - name: Write the bootstrap report
+      ansible.builtin.copy:
+        dest: "{{ pili_report_file }}"
+        mode: "0644"
+        content: |
+          pili-pos bootstrap - {{ ansible_date_time.iso8601 }}
+          site config : {{ pili_site_result | default('n/a') }}
+          binary      : {{ pili_binary_result | default('n/a') }}
+          version     : {{ pili_version_line | default('n/a') }}
+          {% for w in pili_warnings %}
+          ATTENTION   : {{ w }}
+          {% endfor %}
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: "{{ lookup('ansible.builtin.file', pili_report_file).splitlines() }}"
