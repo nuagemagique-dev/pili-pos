@@ -24,12 +24,15 @@ session **RustDesk** ouverte à la demande, le temps de l'intervention.
   `admin` et PIN obligatoires). RustDesk s'ouvre et affiche un
   identifiant et un mot de passe à usage unique, que le Gérant lit au
   technicien par téléphone.
-- Pendant la session, **chaque écran** de la caisse affiche le bandeau
-  "Assistance à distance en cours (démarrée par <nom>)" : le personnel
-  sait que quelqu'un peut voir ou agir sur le terminal.
-- Fin : "Arrêter la session" dans la même section, la fermeture de
-  RustDesk, ou le redémarrage du terminal. Une seule session à la
-  fois. Le démarrage et l'arrêt (qui, quand) sont écrits dans le
+- Pendant la session, **chaque écran** de la caisse, écran de
+  connexion compris, affiche le bandeau "Assistance à distance en
+  cours" (avec le nom du Gérant qui l'a démarrée une fois connecté) :
+  le personnel sait que quelqu'un peut voir ou agir sur le terminal.
+  La session continue après une déconnexion ou un verrouillage.
+- Fin : "Arrêter la session" dans la même section, ou sur le bandeau
+  de l'écran de connexion (sans connexion, n'importe qui), la
+  fermeture de RustDesk, le redémarrage du terminal, ou au plus tard
+  2 heures après le démarrage. Une seule session à la fois. Le démarrage et l'arrêt (qui, quand) sont écrits dans le
   journal applicatif (`pos.log`).
 - RustDesk reçoit un `HOME` privé sous le répertoire d'exécution du
   service (`RuntimeDirectory=pili-pos`, effacé à l'arrêt) : rien de ce

@@ -138,6 +138,7 @@ function defaultHandlers(): Record<string, Handler> {
     login: () => DEFAULT_USER,
     login_with_new_pin: () => DEFAULT_USER,
     remote_support_status: () => ({ available: true, running: false, startedBy: null, startedAt: null }),
+    remote_support_running: () => ({ running: false, startedAt: null }),
     start_remote_support: () => ({
       available: true, running: true, startedBy: 'Bruno Moyse', startedAt: '2026-09-26T08:30:00Z',
     }),

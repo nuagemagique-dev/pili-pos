@@ -38,7 +38,7 @@ useIdleTimer(5 * 60 * 1000, () => {
   }
 });
 
-// Remote support banner: polled while someone is logged in.
+// Remote support banner: polled on every screen, logged in or not.
 const support = useSupportStore();
 let supportPoll: ReturnType<typeof setInterval> | undefined;
 
@@ -47,10 +47,9 @@ const fdm = useFdmStore();
 onMounted(() => {
   pos.loadSettings();
   void fdm.listenSignMessages();
-  supportPoll = setInterval(() => {
-    if (auth.currentUser) void support.refresh();
-    else support.status = null;
-  }, 5000);
+  const pollSupport = () => void (auth.currentUser ? support.refresh() : support.refreshRunning());
+  pollSupport();
+  supportPoll = setInterval(pollSupport, 5000);
 });
 
 onUnmounted(() => clearInterval(supportPoll));

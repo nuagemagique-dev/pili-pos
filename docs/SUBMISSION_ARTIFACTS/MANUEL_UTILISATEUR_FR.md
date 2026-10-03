@@ -41,7 +41,7 @@ refuse de toute façon une action interdite au profil
 | Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir | - | - | ☑ |
 | Clôturer une vente sans paiement (client parti sans payer, §7.5) | - | - | ☑ |
 | Mode formation, employés, PIN des autres, configuration | - | - | ☑ |
-| Démarrer / arrêter l'assistance à distance (§12.6) | - | - | ☑ |
+| Démarrer l'assistance à distance (§12.6) | - | - | ☑ |
 
 ## 2. Démarrage, connexion et PIN
 
@@ -508,9 +508,12 @@ Quand le technicien doit voir la caisse à distance :
 Tant que la session dure, un bandeau "Assistance à distance en cours
 (démarrée par <nom>)" s'affiche en bas de chaque écran, pour tout le
 personnel. La section indique depuis quand elle dure. Quand le
-technicien a terminé, toucher "Arrêter la session". Une seule session
-à la fois ; si RustDesk n'est pas installé, la section l'indique ("Non
-installée sur cette caisse").
+technicien a terminé, toucher "Arrêter la session". La session
+continue après une déconnexion : l'écran de connexion garde le bandeau,
+avec un bouton "Arrêter la session" que tout le monde peut toucher.
+Elle s'arrête d'elle-même 2 heures après le démarrage. Une seule
+session à la fois ; si RustDesk n'est pas installé, la section
+l'indique ("Non installée sur cette caisse").
 
 ### 12.7 Commandes en ligne
 

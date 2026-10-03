@@ -6,11 +6,12 @@ import {
   ipcCalls,
   tapUserTile,
   DEFAULT_USER,
+  live,
 } from './fixtures/mock-ipc';
 
 // Remote support (commands/support.rs): a manager starts RustDesk from
 // Settings with their PIN, stops it there, and every screen shows a
-// banner while it runs.
+// banner while it runs. At the login screen anyone may stop it.
 
 const RUNNING = {
   available: true,
@@ -107,4 +108,27 @@ test('no banner without a session', async ({ page }) => {
   await loginAndGoto(page, '/tables');
   await page.waitForTimeout(5500);
   await expect(page.locator('.support-banner')).toHaveCount(0);
+});
+
+test('the login screen shows a running session, and anyone stops it', async ({ page }) => {
+  await mockTauriIPC(page, {
+    remote_support_running: live(() => ({
+      running: !(window as any).__supportStopped,
+      startedAt: '2026-09-26T08:30:00Z',
+    })),
+    stop_remote_support: live(() => {
+      (window as any).__supportStopped = true;
+      return { available: true, running: false, startedBy: null, startedAt: null };
+    }),
+  });
+  await page.goto('/');
+  const banner = page.locator('.support-banner');
+  await expect(banner).toContainText('Assistance à distance en cours', { timeout: 8000 });
+  await expect(banner).not.toContainText('Bruno Moyse');
+
+  await banner.getByRole('button', { name: 'Arrêter la session' }).click();
+  expect(await ipcCalls(page, 'stop_remote_support')).toHaveLength(1);
+  await expect(banner).toHaveCount(0);
+  await page.waitForTimeout(5500);
+  await expect(banner).toHaveCount(0);
 });

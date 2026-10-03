@@ -649,6 +649,18 @@ export function startRemoteSupport(insz: string, pin: string): Promise<SupportSt
   return invoke("start_remote_support", { insz, pin });
 }
 
+/** Whether a session runs, for the login screen (no login needed). */
+export interface SupportRunning {
+  running: boolean;
+  /** RFC 3339, UTC. */
+  startedAt: string | null;
+}
+
+export function remoteSupportRunning(): Promise<SupportRunning> {
+  return invoke("remote_support_running");
+}
+
+/** Anyone may stop a session, logged in or not. */
 export function stopRemoteSupport(): Promise<SupportStatus> {
   return invoke("stop_remote_support");
 }

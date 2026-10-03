@@ -5,9 +5,12 @@
 //! again, RustDesk is started (`/opt/pili-pos/rustdesk/AppRun`,
 //! installed by `deploy/provision/provision.sh`), and its window shows
 //! the ID and one-time password the manager reads to the technician by
-//! phone. The session ends when the manager stops it (or RustDesk
-//! exits). Every screen shows a banner while it runs, so the staff know
-//! someone is connected. Who started and stopped it is logged.
+//! phone. The session outlives a logout, so the technician can keep
+//! working at the login screen. It ends when anyone stops it (no login
+//! needed), when RustDesk exits, or after [`MAX_SESSION`]. Every screen,
+//! the login screen included, shows a banner while it runs, so the
+//! staff know someone is connected. Who started and stopped it is
+//! logged.
 //!
 //! Only one session at a time. The program is started with a private
 //! `HOME` under the service's runtime directory, so nothing it writes
@@ -17,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::Serialize;
 use tauri::State;
 
@@ -28,10 +31,26 @@ use crate::state::AppState;
 /// Where the image installs RustDesk (`deploy/provision/provision.sh`).
 pub const REMOTE_SUPPORT_PROGRAM: &str = "/opt/pili-pos/rustdesk/AppRun";
 
+/// A session is ended this long after it started.
+pub const MAX_SESSION: TimeDelta = TimeDelta::hours(2);
+
 struct Session {
     child: Child,
     started_by: String,
     started_at: DateTime<Utc>,
+}
+
+impl Session {
+    fn end(mut self, reason: &str, by: Option<&str>) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        tracing::warn!(
+            reason,
+            by = by.unwrap_or("-"),
+            started_by = %self.started_by,
+            "remote support session stopped"
+        );
+    }
 }
 
 /// The remote support program and its running session, if any.
@@ -65,15 +84,23 @@ impl SupportState {
             *current = program;
         }
     }
+
+    /// Move the running session's start back by `by` (tests).
+    pub fn age_session(&self, by: TimeDelta) {
+        if let Ok(mut session) = self.session.lock()
+            && let Some(s) = session.as_mut()
+        {
+            s.started_at -= by;
+        }
+    }
 }
 
 impl Drop for SupportState {
     fn drop(&mut self) {
         if let Ok(session) = self.session.get_mut()
-            && let Some(mut session) = session.take()
+            && let Some(session) = session.take()
         {
-            let _ = session.child.kill();
-            let _ = session.child.wait();
+            session.end("shutdown", None);
         }
     }
 }
@@ -100,13 +127,21 @@ fn support_home() -> PathBuf {
         .join("pili-pos-support")
 }
 
-/// Forget a session whose program has exited.
+/// Forget a session whose program has exited; end one past
+/// [`MAX_SESSION`].
 fn reap(session: &mut Option<Session>) {
-    let exited = session
-        .as_mut()
-        .is_some_and(|s| !matches!(s.child.try_wait(), Ok(None)));
-    if exited && let Some(s) = session.take() {
-        tracing::info!(started_by = %s.started_by, "remote support ended by the program");
+    let Some(s) = session.as_mut() else { return };
+    let exited = !matches!(s.child.try_wait(), Ok(None));
+    let expired = Utc::now() - s.started_at >= MAX_SESSION;
+    if !(exited || expired) {
+        return;
+    }
+    if let Some(s) = session.take() {
+        if exited {
+            tracing::info!(started_by = %s.started_by, "remote support ended by the program");
+        } else {
+            s.end("time limit", None);
+        }
     }
 }
 
@@ -131,6 +166,30 @@ pub fn do_remote_support_status(state: &AppState) -> Result<SupportStatus, Strin
     let mut session = state.support.session.lock().map_err(errors::internal)?;
     reap(&mut session);
     Ok(status_of(&state.support, &session))
+}
+
+/// Whether a session runs, without who started it: for the login
+/// screen, where nobody is logged in.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SupportRunning {
+    pub running: bool,
+    /// RFC 3339, UTC.
+    pub started_at: Option<String>,
+}
+
+#[tauri::command]
+pub fn remote_support_running(state: State<'_, AppState>) -> Result<SupportRunning, String> {
+    do_remote_support_running(state.inner())
+}
+
+pub fn do_remote_support_running(state: &AppState) -> Result<SupportRunning, String> {
+    let mut session = state.support.session.lock().map_err(errors::internal)?;
+    reap(&mut session);
+    Ok(SupportRunning {
+        running: session.is_some(),
+        started_at: session.as_ref().map(|s| s.started_at.to_rfc3339()),
+    })
 }
 
 #[tauri::command]
@@ -194,18 +253,13 @@ pub fn stop_remote_support(state: State<'_, AppState>) -> Result<SupportStatus, 
     do_stop_remote_support(state.inner())
 }
 
-/// End the session (managers). Stopping when none runs is not an error.
+/// End the session. Anyone may, logged in or not: stopping is always
+/// safe. Stopping when none runs is not an error.
 pub fn do_stop_remote_support(state: &AppState) -> Result<SupportStatus, String> {
-    let operator = access::operator(state, Access::Admin)?;
+    let operator = access::operator(state, Access::Staff).ok();
     let mut session = state.support.session.lock().map_err(errors::internal)?;
-    if let Some(mut s) = session.take() {
-        let _ = s.child.kill();
-        let _ = s.child.wait();
-        tracing::warn!(
-            operator = %operator.insz,
-            started_by = %s.started_by,
-            "remote support session stopped"
-        );
+    if let Some(s) = session.take() {
+        s.end("stopped", operator.as_ref().map(|o| o.insz.as_str()));
     }
     Ok(status_of(&state.support, &session))
 }

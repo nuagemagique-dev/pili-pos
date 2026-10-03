@@ -81,6 +81,11 @@ const coreMessages: Messages = {
   "support_stop": { fr: "Arrêter la session", en: "Stop the session", zh: "结束会话" },
   "support_running_since": { fr: "En cours depuis {time} ({name})", en: "Running since {time} ({name})", zh: "自{time}起进行中（{name}）" },
   "support_not_installed": { fr: "Non installée sur cette caisse", en: "Not installed on this terminal", zh: "此收银机未安装" },
+  "support_banner_anonymous": {
+    fr: "Assistance à distance en cours",
+    en: "Remote support in progress",
+    zh: "远程协助进行中",
+  },
   "support_banner": {
     fr: "Assistance à distance en cours (démarrée par {name})",
     en: "Remote support in progress (started by {name})",

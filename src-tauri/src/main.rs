@@ -334,6 +334,7 @@ fn main() {
         commands::copy::list_fiscal_events,
         commands::copy::list_copyable_tickets,
         commands::support::remote_support_status,
+        commands::support::remote_support_running,
         commands::support::start_remote_support,
         commands::support::stop_remote_support,
         // Refund
@@ -429,6 +430,7 @@ fn main() {
         commands::copy::list_fiscal_events,
         commands::copy::list_copyable_tickets,
         commands::support::remote_support_status,
+        commands::support::remote_support_running,
         commands::support::start_remote_support,
         commands::support::stop_remote_support,
         // Refund

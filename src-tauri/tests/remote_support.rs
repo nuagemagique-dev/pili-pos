@@ -1,7 +1,8 @@
 //! Remote support (RustDesk) is started from the POS by the logged-in
-//! manager, confirmed by their PIN, one session at a time, and stopped
-//! by a manager (`commands/support.rs`). A shell script stands in for
-//! RustDesk.
+//! manager, confirmed by their PIN, one session at a time. It survives
+//! a logout, shows at the login screen, may be stopped by anyone and
+//! ends after two hours (`commands/support.rs`). A shell script stands
+//! in for RustDesk.
 
 mod common;
 
@@ -12,10 +13,11 @@ use std::time::Duration;
 use common::*;
 
 use pili_pos::commands::access::{ERR_FORBIDDEN, ERR_NOT_LOGGED_IN, ERR_NOT_THE_OPERATOR};
-use pili_pos::commands::auth::do_set_pin;
+use pili_pos::commands::auth::{do_logout, do_set_pin};
 use pili_pos::commands::errors;
 use pili_pos::commands::support::{
-    do_remote_support_status, do_start_remote_support, do_stop_remote_support,
+    MAX_SESSION, do_remote_support_running, do_remote_support_status, do_start_remote_support,
+    do_stop_remote_support,
 };
 use pos_core::user::UserRole;
 
@@ -94,10 +96,6 @@ async fn only_the_logged_in_manager_starts_it() {
             do_start_remote_support(&app.state, SERVER.into(), PIN.into()).unwrap_err(),
             ERR_FORBIDDEN,
             "{role:?}"
-        );
-        assert_eq!(
-            do_stop_remote_support(&app.state).unwrap_err(),
-            ERR_FORBIDDEN
         );
     }
     app.login_as(MANAGER, UserRole::Admin);
@@ -218,4 +216,43 @@ async fn a_program_that_cannot_run_is_reported() {
 async fn stopping_when_nothing_runs_is_harmless() {
     let (app, _dir) = app_with("sleep 30").await;
     assert!(!do_stop_remote_support(&app.state).unwrap().running);
+}
+
+#[tokio::test]
+async fn a_session_outlives_a_logout_and_shows_at_the_login_screen() {
+    let (app, _dir) = app_with("sleep 30").await;
+    do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    do_logout(&app.state).unwrap();
+
+    let seen = do_remote_support_running(&app.state).unwrap();
+    assert!(seen.running);
+    assert!(seen.started_at.is_some());
+}
+
+#[tokio::test]
+async fn anyone_stops_a_session_even_logged_out() {
+    let (app, _dir) = app_with("sleep 30").await;
+    do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    app.login_as(SERVER, UserRole::Waiter);
+    assert!(!do_stop_remote_support(&app.state).unwrap().running);
+
+    app.login_as(MANAGER, UserRole::Admin);
+    do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    app.logout();
+    assert!(!do_stop_remote_support(&app.state).unwrap().running);
+    assert!(!do_remote_support_running(&app.state).unwrap().running);
+}
+
+#[tokio::test]
+async fn a_session_ends_after_the_time_limit() {
+    let (app, _dir) = app_with("sleep 30").await;
+    do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    app.state
+        .support
+        .age_session(MAX_SESSION - chrono::TimeDelta::minutes(1));
+    assert!(do_remote_support_running(&app.state).unwrap().running);
+
+    app.state.support.age_session(chrono::TimeDelta::minutes(1));
+    assert!(!do_remote_support_running(&app.state).unwrap().running);
+    assert!(!do_remote_support_status(&app.state).unwrap().running);
 }
