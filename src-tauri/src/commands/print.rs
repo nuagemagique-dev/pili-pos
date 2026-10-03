@@ -58,8 +58,8 @@ pub async fn check_kitchen_printer(state: State<'_, AppState>) -> Result<Option<
 //
 // Everything below is HubRise/webshop-specific (loads orders from
 // `raw_hubrise_json` and emits non-fiscal kitchen/customer slips).
-// The certification build excludes the `hubrise` feature, so this
-// whole section disappears from that binary.
+// The certification build includes the `hubrise` feature; these
+// commands are refused while the installation's switch is off.
 
 #[cfg(feature = "hubrise")]
 /// Canonical "Printer not configured" error string. The UI maps
@@ -125,12 +125,11 @@ fn money_cents(money: &str) -> i64 {
 /// Extract "HH:MM" from an RFC3339 timestamp, or None on failure.
 #[cfg(feature = "hubrise")]
 fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
-    // Expected shape: YYYY-MM-DDTHH:MM:SS(Z|+HH:MM)
-    if rfc3339.len() < 16 {
-        return None;
-    }
-    // "HH:MM" lives at [11..16]
-    Some(rfc3339[11..16].to_string())
+    // Expected shape: YYYY-MM-DDTHH:MM:SS(Z|+HH:MM). Parsed, not
+    // byte-sliced: a multibyte HubRise value must not panic.
+    chrono::DateTime::parse_from_rfc3339(rfc3339)
+        .ok()
+        .map(|t| t.format("%H:%M").to_string())
 }
 
 /// Print a kitchen ticket (items + options + notes, non-fiscal).
@@ -140,7 +139,15 @@ pub async fn print_webshop_kitchen(
     state: State<'_, AppState>,
     order_id: i64,
 ) -> Result<(), String> {
-    print_webshop_kitchen_ticket(state.inner(), order_id).await
+    do_print_webshop_kitchen(state.inner(), order_id).await
+}
+
+/// Reprint a kitchen ticket: a logged-in staff member, integration on.
+#[cfg(feature = "hubrise")]
+pub async fn do_print_webshop_kitchen(state: &AppState, order_id: i64) -> Result<(), String> {
+    crate::commands::integrations::require_hubrise(state)?;
+    crate::commands::access::operator(state, crate::commands::access::Access::Staff)?;
+    print_webshop_kitchen_ticket(state, order_id).await
 }
 
 /// The kitchen ticket of an online order (also printed when it is
@@ -187,8 +194,16 @@ pub async fn print_webshop_customer(
     state: State<'_, AppState>,
     order_id: i64,
 ) -> Result<(), String> {
-    let order = load_webshop_order(state.inner(), order_id)?;
-    let address = printer_address(state.inner())?;
+    do_print_webshop_customer(state.inner(), order_id).await
+}
+
+/// Print a customer slip: a logged-in staff member, integration on.
+#[cfg(feature = "hubrise")]
+pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Result<(), String> {
+    crate::commands::integrations::require_hubrise(state)?;
+    crate::commands::access::operator(state, crate::commands::access::Access::Staff)?;
+    let order = load_webshop_order(state, order_id)?;
+    let address = printer_address(state)?;
 
     // Restaurant header pulled from AppState.config (configured in
     // `state.rs` at POS boot).
@@ -206,16 +221,17 @@ pub async fn print_webshop_customer(
             CustomerLine {
                 quantity: qty,
                 product_name: it.product_name.clone(),
-                line_total_cents: unit * qty,
+                // HubRise strings: saturate rather than wrap on absurd values.
+                line_total_cents: unit.saturating_mul(qty),
             }
         })
         .collect();
 
-    let total_cents = order
-        .total
-        .as_deref()
-        .map(money_cents)
-        .unwrap_or_else(|| lines.iter().map(|l| l.line_total_cents).sum());
+    let total_cents = order.total.as_deref().map(money_cents).unwrap_or_else(|| {
+        lines
+            .iter()
+            .fold(0_i64, |sum, l| sum.saturating_add(l.line_total_cents))
+    });
 
     let customer = order
         .customer

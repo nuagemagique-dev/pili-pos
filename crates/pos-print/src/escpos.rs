@@ -172,6 +172,10 @@ impl EscPosBuilder {
     /// Print QR code using GS ( k - QR Code commands (Function 180+).
     /// This uses the Epson QR code function which is cleaner than raster.
     pub fn qr_code(&mut self, data: &str, module_size: u8) -> &mut Self {
+        // pL pH is 16-bit: past the QR capacity, print the data as text.
+        if data.len() > QR_MAX_BYTES {
+            return self.textln_wrapped(data);
+        }
         // Function 165: Select the model (Model 2)
         // GS ( k pL pH cn fn n1 n2
         self.buf
@@ -429,12 +433,19 @@ pub fn wrap(s: &str, width: usize) -> Vec<String> {
     lines
 }
 
+/// Byte capacity of a QR Code Model 2 (version 40, level L), the most
+/// the printer's store function can hold.
+pub const QR_MAX_BYTES: usize = 7089;
+
 /// Replace what CP858 cannot print with its usual stand-in, so a
 /// product typed on a phone or a Mac never prints `?`: `œ` → `oe`
 /// (bœuf), typographic quotes and apostrophes → `'` and `"`, dashes →
 /// `-`, `…` → `...`, special spaces → a space. Combining accents
 /// (decomposed text) are dropped, keeping the base letter. Anything
 /// else is left for [`encode_cp858`] (which prints `?`).
+///
+/// Control characters are dropped (a tab becomes a space): in external
+/// text an ESC or GS byte would be a printer command.
 pub fn printable(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {
@@ -450,6 +461,8 @@ pub fn printable(s: &str) -> String {
             '\u{00A0}' | '\u{2000}'..='\u{200A}' | '\u{202F}' | '\u{205F}' => out.push(' '),
             '\u{200B}'..='\u{200D}' | '\u{FEFF}' | '\u{00AD}' => {}
             '\u{0300}'..='\u{036F}' => {}
+            '\t' => out.push(' '),
+            '\u{0000}'..='\u{001F}' | '\u{007F}' => {}
             _ => out.push(ch),
         }
     }
@@ -567,6 +580,51 @@ mod tests {
         let bytes = b.build();
         // Should contain the URL bytes somewhere in the buffer
         assert!(bytes.windows(5).any(|w| w == b"https"));
+    }
+
+    #[test]
+    fn control_characters_never_reach_the_printer() {
+        let hostile = "Sans wasabi\x1bp\x00\x01\x01 merci\x1d(k\x1bi\x07\x7f";
+        let mut b = EscPosBuilder::new();
+        b.textln(hostile);
+        b.textln_wrapped(hostile);
+        b.text_columns(hostile, hostile);
+        let bytes = b.build();
+        let body = &bytes[5..]; // after ESC @ + ESC t 19
+        assert!(
+            !body
+                .iter()
+                .any(|&c| c == 0x1B || c == 0x1D || c == 0x07 || c == 0x7F || c == 0x00),
+            "{body:?}"
+        );
+        assert!(body.windows(11).any(|w| w == b"Sans wasabi"));
+        assert_eq!(printable("a\tb\r\nc"), "a bc");
+    }
+
+    #[test]
+    fn an_oversize_qr_payload_prints_as_text_not_as_a_wrapped_store() {
+        let data = "A".repeat(QR_MAX_BYTES + 1);
+        let mut b = EscPosBuilder::new();
+        b.qr_code(&data, 6);
+        let bytes = b.build();
+        assert!(!bytes.windows(3).any(|w| w == [GS, b'(', b'k']));
+        assert!(bytes.windows(10).any(|w| w == b"AAAAAAAAAA"));
+
+        let mut b = EscPosBuilder::new();
+        b.qr_code(&"A".repeat(QR_MAX_BYTES), 6);
+        let bytes = b.build();
+        let store_len = QR_MAX_BYTES + 3;
+        let store = [
+            GS,
+            b'(',
+            b'k',
+            (store_len & 0xFF) as u8,
+            (store_len >> 8) as u8,
+            49,
+            80,
+            48,
+        ];
+        assert!(bytes.windows(8).any(|w| w == store));
     }
 
     // ── text_columns width invariant (receipt must never overflow
