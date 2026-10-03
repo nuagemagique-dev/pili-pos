@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC, live } from './fixtures/mock-ipc';
 
 test.describe('Settings View', () => {
   test.beforeEach(async ({ page }) => {
@@ -103,7 +103,17 @@ test.describe('Settings View', () => {
         url: 'https://manager.hubrise.com/oauth2/v1/authorize?client_id=test',
         qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" data-qr="1" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>',
       }),
-      hubrise_complete_oauth: () => ({
+      // The catalog comes with the connection: the panel shows it at once.
+      hubrise_status: live(() => ({
+        connected: !!(window as any).__hubriseConnected,
+        outbox: { pending: 0, parked: 0 },
+        parked_events: 0,
+        catalog: (window as any).__hubriseConnected
+          ? { source: 'hubrise', manages_menu: true, applied_at: '2026-10-03 09:30:00', rejected_at: null, issues: [] }
+          : null,
+        catalog_awaiting_adoption: false,
+      })),
+      hubrise_complete_oauth: live(() => ((window as any).__hubriseConnected = true) && {
         connected: true,
         account_id: 'acc-1',
         account_name: 'Restaurant Exemple',
@@ -137,6 +147,7 @@ test.describe('Settings View', () => {
     // 4. Connected: the dialog closes, the status shows.
     await expect(dialog).toBeHidden();
     await expect(page.locator('.status-ok')).toBeVisible();
+    await expect(page.getByTestId('menu-managed')).toContainText('Menu géré par HubRise');
   });
 
   test('a refused HubRise code keeps the dialog open with its error', async ({ page }) => {

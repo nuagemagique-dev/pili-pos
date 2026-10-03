@@ -60,6 +60,9 @@ async function completeHubrise(code: string) {
   try {
     hubriseStatus.value = await ipc.hubriseCompleteOauth(code);
     authorizeLink.value = null;
+    // Connecting fetched the catalog: the take-over, the channels and
+    // the managed-menu banner show now, not on the next visit.
+    await loadHealth();
   } catch (e) {
     hubriseError.value = describeError(e);
   } finally {
