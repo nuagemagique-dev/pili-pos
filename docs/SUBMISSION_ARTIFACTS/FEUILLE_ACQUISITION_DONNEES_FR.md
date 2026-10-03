@@ -19,7 +19,7 @@ Finances.
 | Chemin (développement Linux) | `~/.local/share/pili-pos/pos.db` |
 | Encodage | UTF-8 |
 | Fichiers annexes WAL | `pos.db-wal`, `pos.db-shm` (mêmes répertoire et permissions) |
-| Propriétaire | `pili-pos:pili-pos` (UID/GID dédiés sur le kiosque) |
+| Propriétaire | `pos:pos` (UID/GID dédiés sur le kiosque) |
 | Permissions | `0640` (lecture restreinte au service) |
 
 **Schéma complet** : voir `SCHEMA_BD_FR.md`.
@@ -28,7 +28,7 @@ Finances.
 
 | Élément | Valeur |
 |---|---|
-| Déclencheur | Chaque rapport Z (clôture journalière fiscale) |
+| Déclencheur | Après chaque rapport Z, juste après son archivage (clôture journalière fiscale) |
 | Mécanisme | API SQLite Online Backup (cohérent en WAL) |
 | Répertoire | `<data_dir>/pili-pos/backups/` ou chemin configuré dans `PosConfig.backup_dir` |
 | Format de nom | `pos-YYYYMMDD-HHMMSS.db` |
@@ -43,15 +43,16 @@ Implémentation : `src-tauri/src/commands/report.rs::backup_database_impl`.
 | Élément | Valeur |
 |---|---|
 | Bibliothèque | `tracing` + `tracing-appender` |
-| Format | JSON ligne (production) / texte humain (développement) |
+| Format | Texte (une ligne par message, sans couleurs ; `tracing_subscriber::fmt`, `src-tauri/src/main.rs`) |
 | Chemin (production) | `/var/lib/pili-pos/logs/pos.log.YYYY-MM-DD` |
 | Rotation | Quotidienne, sans purge automatique |
 | Niveaux | TRACE, DEBUG, INFO (défaut), WARN, ERROR |
-| Configuration runtime | Variable d'environnement `RUST_LOG` ou `LOG_LEVEL` |
+| Configuration runtime | Variable d'environnement `RUST_LOG` uniquement (fixée à `info` par `deploy/pili-pos.service`) |
 
 Les logs ne sont **pas une source d'information fiscale** - ils ne
 contiennent pas d'événements N/P/T/C/I/F/S/R, uniquement des
-événements applicatifs (démarrage, erreurs, alertes imprimante). Les
+événements applicatifs (démarrage, erreurs, alertes imprimante). Aucun
+INSZ n'y est écrit (§6). Les
 données fiscales authoritatives sont dans `pos.db::fiscal_events`.
 
 ### 1.4 Réponses brutes du FDM (audit)
@@ -111,7 +112,7 @@ complet.
 
 ### 2.2 Accès pour audit / contrôle SPF Finances
 
-Quatre méthodes sont fournies :
+Quatre méthodes sont fournies (A, A bis, B, C) :
 
 #### Méthode A - `pos-db-ro` sur le compte `spf` (recommandée, image d'admission)
 
@@ -162,12 +163,12 @@ cohérent (Online Backup API) dans le répertoire `backups/`. Un
 contrôleur peut demander à l'opérateur de déclencher un export juste
 avant inspection.
 
-#### Méthode C - Export ad hoc en CSV/JSON (à développer)
+#### Méthode C - Requêtes SQL sur la copie
 
-Une commande d'export filtrable par plage de dates et type
-d'événement est planifiée (sortie format CSV ou JSON) pour faciliter
-un audit ciblé sans copier toute la base. Indication de scope
-post-cert.
+Le POS ne fournit pas de commande d'export dédiée en CSV ou JSON.
+L'export est la base elle-même (méthodes A, A bis ou B), interrogée en
+SQL standard ; le contrôleur filtre par plage de dates et par type
+d'événement avec les requêtes du §2.3, sans rien modifier.
 
 ### 2.3 Format de sortie de l'export
 
@@ -179,7 +180,7 @@ SELECT id, sequence_number, order_id, user_insz, created_at,
        fdm_id, event_label, short_signature
 FROM fiscal_events
 WHERE event_type = 'N'
-  AND DATE(created_at) = '2026-05-14'
+  AND DATE(created_at) = '2026-10-03'
 ORDER BY sequence_number;
 
 -- Détail d'un événement spécifique (request + response complets)
@@ -190,7 +191,7 @@ WHERE id = 42;
 -- Récap caisse d'une journée (totaux par mode de paiement)
 SELECT method, SUM(amount_cents) / 100.0 AS total_eur, COUNT(*) AS nb
 FROM payments
-WHERE DATE(created_at) = '2026-05-14'
+WHERE DATE(created_at) = '2026-10-03'
 GROUP BY method;
 ```
 
@@ -202,7 +203,8 @@ GROUP BY method;
 | Sauvegardes quotidiennes (`pos-*.db`) | Indéfinie | Idem - chaque jour est un instantané indépendant |
 | Logs applicatifs | Indéfinie (rotation quotidienne sans purge) | Permettre un audit de comportement applicatif a posteriori |
 | `payments`, `orders`, `order_lines` | Indéfinie | Données de support nécessaires à la reconstruction d'un ticket |
-| Translations, menu_items, modifier_groups, modifiers | Indéfinie | Données de référence ; modifications historisées via une nouvelle ligne, jamais par mutation |
+| Translations, menu_items, modifier_groups, modifiers | Indéfinie | Données de référence. Le menu est mis à jour en place (y compris par la synchronisation du catalogue, qui désactive sans supprimer) ; l'historique fiscal n'en dépend pas : nom, prix et TVA sont figés dans `order_lines` et `order_entries` |
+| `orders.raw_hubrise_json`, `hubrise_events` (commandes en ligne) | Indéfinie, sans purge automatique | Contiennent des données de clients (§6) |
 
 **Aucune purge automatique n'est implémentée.** Le passage à un
 modèle de purge légalement nécessitera une modification certifiée
@@ -212,7 +214,12 @@ soumise au SPF Finances.
 
 - Cf. `DECLARATION_FONCTIONS_INTERDITES_FR.md` §1 et §2.
 - La table `fiscal_events` ne fait l'objet d'aucun
-  `DELETE`/`UPDATE` dans le code applicatif (vérifié par grep).
+  `DELETE`/`UPDATE` dans le code applicatif (vérifié par grep), et des
+  triggers SQLite refusent toute suppression ou réécriture, même par un
+  accès direct à la base (`fiscal_events_no_delete`,
+  `fiscal_events_no_rewrite` ; idem `z_reports_*`, `order_entries_*`,
+  `pending_signs_*`, `booking_periods_*` ; liste dans `SCHEMA_ER_FR.md`
+  §4).
 - Les sauvegardes journalières sont stockées en fichiers indépendants,
   jamais écrasés (le nom inclut le timestamp à la seconde).
 - L'opérateur ne peut pas accéder au shell pour `rm` un fichier de
@@ -237,14 +244,21 @@ soumise au SPF Finances.
 
 - INSZ du personnel : numéro national, donnée personnelle
   identifiante.
-- INSZ stocké uniquement dans les colonnes `users.insz`,
-  `orders.user_insz`, `fiscal_events.user_insz` et dans le payload
-  envoyé au FDM (obligation fiscale).
-- Pas d'INSZ dans les logs applicatifs (`tracing` est configuré
-  pour ne pas journaliser de payload contenant l'INSZ ; les rares
-  champs `user_insz` figurant dans des logs sont remplacés par
-  `***` via filtre `tracing_subscriber`).
-- Pas de transmission INSZ hors du périmètre POS+FDM. Voir
+- INSZ stocké dans les colonnes `users.insz`, `orders.user_insz`,
+  `fiscal_events.user_insz`, `pending_signs.user_insz`,
+  `staff_shifts.user_insz`, `webshop_orders.accepted_by`,
+  `integration_switches.changed_by` et `integration_switch_log.changed_by`,
+  ainsi que dans les JSON `fiscal_events.event_data_json` (payload
+  envoyé au FDM, obligation fiscale), `pending_signs.request_body`,
+  `pending_signs.archive_json` et `pending_signs.context_json`, et
+  `z_reports.data_json` (rapport par utilisateur). Les rapports
+  imprimés par utilisateur (X/Z) portent aussi l'INSZ.
+- Aucun INSZ n'est écrit dans les journaux applicatifs : les messages
+  qui concernaient un opérateur (vente soldée sans encaissement,
+  session d'assistance à distance) n'enregistrent que son rôle, et
+  aucun filtre de masquage n'est nécessaire.
+- Pas de transmission de l'INSZ hors du périmètre POS+FDM (la
+  synchronisation HubRise n'envoie ni INSZ ni nom d'employé). Voir
   `PROFIL_ENTREPRISE_FR.md` §GDPR pour le détail des bases légales
   (article 6.1.c GDPR - obligation légale).
 - Adresse e-mail du ticket numérique (§1.5) : donnée personnelle
@@ -257,6 +271,17 @@ soumise au SPF Finances.
   (`list_ticket_deliveries` n'expose que l'indice masqué). Sous-traité
   à Scaleway (Transactional Email, UE, région `fr-par`) pour l'envoi
   uniquement - aucun usage marketing.
+- Données de clients des commandes en ligne (si l'intégration HubRise
+  est activée pour l'installation, désactivée par défaut) :
+  `orders.raw_hubrise_json` et `hubrise_events.payload_json` conservent
+  la commande telle que reçue, avec nom, téléphone et adresse ; le
+  ticket client non fiscal les imprime ; les ventes de la caisse sont
+  renvoyées à HubRise par `hubrise_outbox` (lignes, totaux, paiements,
+  sans données de client). Aucune purge automatique. Le jeton d'accès
+  HubRise (`hubrise_connection.access_token`) est stocké en clair dans
+  `pos.db` : il est lisible par le compte `spf` de l'image d'admission
+  (`pos-db-ro`) et présent dans les sauvegardes. Détail dans
+  `SECURITE_BD_FR.md` §6.
 
 ## 7. Procédure d'export à fournir au contrôleur
 

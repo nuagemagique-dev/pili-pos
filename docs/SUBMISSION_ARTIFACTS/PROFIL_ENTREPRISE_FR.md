@@ -17,7 +17,7 @@ décrit :
 | Nom commercial | nuagemagique.dev |
 | Forme juridique | Personne physique (entreprise individuelle, régime franchise TVA art. 56 §2 CTVA) |
 | Adresse | Rue Joseph Claes 4/1, 1060 Saint-Gilles, Belgique |
-| Numéro d'entreprise (BCE) | 0783.544.917 |
+| Numéro d'identification à la TVA / d'entreprise | BE 0783.544.917 (numéro d'entreprise BCE ; régime de franchise de TVA, art. 56 §2 CTVA) |
 | Site web | https://nuagemagique.dev |
 | Email de contact | cloud@nuagemagique.dev |
 | Téléphone | +32 494 46 50 26 |
@@ -51,8 +51,10 @@ l'unique développeur.
 
 - **Contrôle de version** : git, dépôt privé sur GitHub
   (`github.com/nuagemagique/pili-pos` ou équivalent).
-- **Suivi des modifications** : commits signés GPG, tags de version
-  signés (`git tag -s vX.Y.Z`).
+- **Suivi des modifications** : historique git (chaque commit porte
+  son auteur et sa date) ; la build soumise est identifiée par un tag
+  de version (`vX.Y.Z`) et par le SHA-1 du binaire (§I.D du
+  formulaire). Les commits et les tags ne sont pas signés GPG.
 - **CI/CD** : GitHub Actions pour les tests et la construction
   reproductible des binaires.
 - **Toolchain Rust** : épinglée à une version stable spécifique
@@ -89,10 +91,10 @@ ou release.
 ### 4.2 Versioning et changelog
 
 Chaque release est tagged en `vX.Y.Z` avec un changelog Markdown
-décrivant les modifications. Le tag est **signé GPG**.
+décrivant les modifications.
 
 Une release post-certification déclenchera :
-1. Création d'un changelog signé documentant les modifications.
+1. Création d'un changelog documentant les modifications.
 2. Recalcul du SHA-1 du nouveau binaire.
 3. Soumission au SPF Finances (procédure post-cert décrite dans
    `MANUEL_INTRO_FR §C` du manuel SCE 2.0, traitement sous 15 jours).
@@ -157,23 +159,23 @@ d'attaque réseau côté client au temps d'une intervention.
 | Coupure réseau internet du FDM | Moyenne | Variable | Hors du périmètre POS (responsabilité du FDM). Le POS continue à enregistrer localement et le FDM rejoue ses propres données à reconnexion. |
 | Erreur d'horloge système | Faible | Moyen | NTP `chrony` actif, BIOS battery vérifiée à l'installation. |
 | Vulnérabilité dans une dépendance Rust | Moyenne | Variable | Audit `cargo audit` mensuel. Patch & rebuild & recertification mineure si nécessaire. |
-| Bug dans le code applicatif | Faible | Variable | Couverture de tests 190 cas, dont 17 e2e applicatifs. Régressions attrapées en CI. |
+| Bug dans le code applicatif | Faible | Variable | Tests automatisés unitaires, d'intégration et e2e applicatifs (totaux dans `RAPPORT_TESTS_BASELINE_FR.md`). Régressions attrapées en CI. |
 
 ### 5.2 Risques humains
 
 | Risque | Probabilité | Impact | Mitigation |
 |---|---|---|---|
 | Erreur de saisie d'INSZ | Élevée | Faible | Validation mod-97 ; rejet immédiat avec message d'erreur clair. |
-| Tentative de manipulation des compteurs | Faible | Élevé | Image scellée, pas d'accès shell, pas d'outils SQLite. Signature FDM détecte toute falsification a posteriori. |
+| Tentative de manipulation des compteurs | Faible | Élevé | Image scellée, pas d'accès shell ; la base n'est ouverte qu'en lecture seule (`pos-db-ro`) et `fiscal_events` est protégée par des déclencheurs SQLite. Signature FDM détecte toute falsification a posteriori. |
 | Apprenti effectuant un encaissement | Faible | Faible | Profil Apprenti bloqué au niveau commande ; tentative renvoyée à un Serveur. |
-| Distributeur compromis (clé GPG volée) | Faible | Élevé | Clé GPG stockée sur YubiKey hardware, jamais sur disque. Tag git signé requis pour tout release. |
+| Distributeur compromis (accès au dépôt ou au poste de développement) | Faible | Élevé | Le SHA-1 déclaré au SPF Finances identifie la build certifiée ; `deploy/update.sh --sha1` refuse tout binaire dont le SHA-1 diffère ; la build en conteneur est reproductible, vérifiée par deux builds en CI. |
 
 ### 5.3 Risques réglementaires
 
 | Risque | Probabilité | Impact | Mitigation |
 |---|---|---|---|
 | Modification spec SCE 2.0 (Addendum) | Élevée | Variable | Veille mensuelle sur `systemedecaisseenregistreuse.be`. Délai 90 j minimum entre publication et mise en conformité. |
-| Refus de certification | Moyenne | Élevé | Répétition pré-soumission contre FDM virtuel (cf. `JOURNAL_TESTS_PRE_SOUMISSION_FR.md`). Préparation soignée des 16 documents du dossier. |
+| Refus de certification | Moyenne | Élevé | Répétition pré-soumission contre FDM virtuel (cf. `JOURNAL_TESTS_PRE_SOUMISSION_FR.md`). Préparation soignée des documents du dossier. |
 | Cooldown 3 mois en cas de refus | - | Élevé | Idem - pré-soumission rehearsal sérieuse. |
 
 ## 6. Conformité GDPR (RGPD)
@@ -187,12 +189,15 @@ d'attaque réseau côté client au temps d'une intervention.
 | Code PIN (haché bcrypt) | Employé | Art. 6.1.f - Intérêt légitime (sécurité opérationnelle) | `users.pin_hash` |
 | TVA client B2B | Client professionnel | Art. 6.1.c - Obligation légale facturation | `peppol_deliveries.customer_endpoint_id`, payload UBL |
 | Nom et adresse client B2B | Client professionnel | Idem | Payload UBL stocké dans `peppol_deliveries.ubl_xml` |
+| Nom, téléphone et adresse de livraison du client d'une commande en ligne (HubRise, activé par installation, coupé par défaut) | Client B2C | Art. 6.1.b - Exécution de la commande passée par le client auprès du webshop ou de la plateforme | `orders.raw_hubrise_json`, `hubrise_events.payload_json` (JSON reçu de HubRise) ; bon client non fiscal imprimé |
 | Adresse e-mail (ticket numérique, §III.H) | Client B2C | Art. 6.1.a - Consentement/demande explicite du client à la caisse (le support "E-mail" n'est jamais activé par défaut ; l'opérateur ne le choisit qu'à la demande du client) | `ticket_deliveries.recipient` (en clair, 72 h max) puis `recipient_hint` (masqué, indéfiniment) |
 
-La seule **donnée client B2C** collectée est l'adresse e-mail du
-ticket numérique, sur demande explicite et ponctuelle du client à la
-caisse - pas de programme de fidélité, pas de tracking, pas de WiFi
-guest, pas de base clients.
+Les **données client B2C** traitées sont : l'adresse e-mail du ticket
+numérique, sur demande explicite et ponctuelle du client à la caisse ;
+et, seulement quand les commandes en ligne sont activées, le nom, le
+téléphone et l'adresse de livraison que HubRise transmet avec la commande
+(`COMMANDES_EN_LIGNE_FR.md` §3 bis). Pas de programme de fidélité, pas
+de tracking, pas de WiFi guest, pas de base clients.
 
 ### 6.2 Bases légales détaillées
 
@@ -222,6 +227,9 @@ guest, pas de base clients.
 - **PIN haché** : durée du contrat de travail. À la fin du contrat,
   l'utilisateur est marqué `active = 0` mais NON supprimé (pour ne
   pas casser la FK depuis `fiscal_events`).
+- **Données client d'une commande en ligne** : conservées avec la
+  commande (`orders.raw_hubrise_json`, `hubrise_events.payload_json`) ;
+  aucune purge automatique n'est implémentée à ce jour.
 - **Adresse e-mail (ticket numérique)** : 72 heures maximum en clair,
   effacée immédiatement dès l'envoi réussi ou le repli papier
   (`ticket_deliveries.recipient`, purge automatique -
@@ -248,12 +256,19 @@ guest, pas de base clients.
   données concernées (cf. `FEUILLE_ACQUISITION_DONNEES_FR.md`).
 - **Droit d'opposition** : INAPPLICABLE pour les obligations légales.
 
-### 6.5 Sous-traitant (envoi du ticket numérique)
+### 6.5 Sous-traitants
+
+**HubRise** (concentrateur de commandes en ligne ; connexion HTTPS
+sortante vers `api.hubrise.com`, seulement quand `hubrise_enabled` est
+activé) est la source des données client des commandes en ligne (§6.1) et
+leur intermédiaire technique entre le webshop ou la plateforme de
+livraison et la caisse. La caisse lui renvoie les statuts de commande et
+les ventes (lignes, totaux, paiements), sans données de client
+(`COMMANDES_EN_LIGNE_FR.md` §3 bis).
 
 **Scaleway** (SAS de droit français, hébergement/traitement dans la
-région `fr-par`, Union européenne) est le seul sous-traitant de
-données personnelles utilisé par `pili-pos`, via son API
-Transactional Email :
+région `fr-par`, Union européenne) est le sous-traitant de l'envoi du
+ticket numérique, via son API Transactional Email :
 
 | Élément | Valeur |
 |---|---|
@@ -265,7 +280,7 @@ Transactional Email :
 | Usage marketing | Aucun - API transactionnelle uniquement, pas de liste de diffusion |
 
 Aucun autre service tiers ne reçoit de donnée personnelle issue de
-`pili-pos` (le FDM reçoit l'INSZ de l'opérateur, obligation légale,
+`pili-pos` ni ne lui en transmet (le FDM reçoit l'INSZ de l'opérateur, obligation légale,
 mais n'est pas un sous-traitant du producteur - c'est l'organe de
 contrôle SPF Finances).
 

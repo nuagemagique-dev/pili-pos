@@ -55,9 +55,9 @@ The official example (`20260924_bar_ticket_example_FR`) is an order slip for the
 
 ### 2.4 Webshop (Q203, Q204)
 
-Every webshop order must end in an N event in the register. The certified build has no webshop integration (`hubrise` is a Cargo feature the `cert` build leaves out), so the product is fine. Two consequences:
+Every webshop order must end in an N event in the register. Update 2026-10-03: the certified build now includes the HubRise integration (`cert = ["custom-protocol", "hubrise"]`), switched on or off per installation (`hubrise_enabled` in `pos.json`, every change logged in `integration_switch_log`); only invoicing (`peppol`) stays out. Online orders therefore end in an N event through HubRise (CLAUDE.md, section HubRise). Two consequences, still to settle in the dossier wording:
 
-- `REPONSES_MANUEL_CERT_FR.md:217` "Webshop existe mais hors périmètre fiscal" must become "the certified product has no webshop integration".
+- `REPONSES_MANUEL_CERT_FR.md:217` "Webshop existe mais hors périmètre fiscal" must be aligned with the HubRise integration present in the certified binary (not "no webshop integration").
 - A restaurant running the certified build must still register its webshop sales. Decision for you (section 6).
 
 ### 2.5 Split payment and unpaid table (asked 2026-09-26: plan them; built 2026-09-26 as B10 and B11)
@@ -143,7 +143,7 @@ T4 note: our replay rings T4 up as a takeaway (label C) and declares that deviat
 
 Most of the machinery exists. `spf_e2e_fixtures.rs` and `spf_e2e_report_fixtures.rs` already build each Basic Set and Reports request with our real commands and compare it field by field with the official file, with a declared list of deviations. What is missing is coverage of the other documents, a matrix that proves it, and tests that reach the real binary.
 
-**Step 0, move to the new sets.** Repoint `common/fixtures.rs:57-67`, `uc_fixtures.rs:35`, `advanced_set_fixtures.rs:30`, `reports_fixtures.rs:37`, `report_totals_fixtures.rs:28` and `scripts/capture_fdm_error_evidence.sh:27`. The deep diff found no assertion that breaks; run it locally to confirm. Then remove the superseded folders.
+**Step 0, move to the new sets (repointing done: no test file or script refers to the 2025 folders any more, `common/fixtures.rs` uses `20260821_UC_BasicSet_POS_FDM_1.8`, `20260821_UC_Reports_1.3`, `20260821_UC_AdvancedSet_POS_FDM_1.6`; the superseded folders are still on disk, removal not done).** Repoint `common/fixtures.rs:57-67`, `uc_fixtures.rs:35`, `advanced_set_fixtures.rs:30`, `reports_fixtures.rs:37`, `report_totals_fixtures.rs:28` and `scripts/capture_fdm_error_evidence.sh:27`. The deep diff found no assertion that breaks; run it locally to confirm. Then remove the superseded folders.
 
 **Step 1, a generated traceability matrix.** `scripts/uc_matrix.py` lists every test ID from the three sets (M1xx, Q1xx, T1-T8, M18x, UC2xx, UC4xxx), the manual's checklist items (rounding cases, section V messages, section VI ticket items) and the FAQ numbers. It finds the tests whose names carry the ID (`m110_`, `uc201_`, `faq_q206_`, Playwright titles tagged `[M110]`), reads the declared exclusions from `scripts/uc_scope.toml` (ID plus reason, for example M122, M132, M150, M112A and the Advanced Set features we do not have), and writes `docs/SUBMISSION_ARTIFACTS/MATRICE_TRACABILITE_FR.md`. It fails when an ID has neither a test nor a declared exclusion. It replaces the hand-written `COUVERTURE_*` files, which went stale three times.
 
@@ -163,7 +163,7 @@ Effort: step 0 half a day, step 1 one day, step 2 three to five days, step 3 two
 
 ## 6. Decisions (2026-09-26)
 
-1. Webshop: webshop sales stay in the webshop and never go through the POS. The dossier says the certified product has no webshop integration. Known risk, the owner's call: FAQ Q203 expects the establishment's webshop sales to end in an N event in an SCE.
+1. Webshop (2026-09-26, superseded 2026-10-03): the first decision kept webshop sales out of the POS. Since 2026-10-03 the HubRise integration is in the cert binary, switched per installation, and every online order ends in an N event (FAQ Q203).
 2. M133 cash count declaration: implement.
 3. Client test sites: use as many as allowed (up to 5).
 4. Automatic Z (item 9): build now, as proposed.

@@ -1,6 +1,6 @@
 # Stratégie de compteurs et durcissement du contrat FDM
 
-**Date :** 2026-05-14
+**Date :** 2026-10-03
 **Périmètre :** Stratégie de numérotation séquentielle utilisée par le
 POS, mécanisme de déduplication par le FDM, et forme du payload sur
 le câble.
@@ -64,10 +64,13 @@ DO UPDATE SET current_value =
     END;
 ```
 
-Huit tests unitaires dans `counter.rs` couvrent : démarrage à 1,
+Onze tests unitaires dans `counter.rs` couvrent : démarrage à 1,
 incrément monotone, indépendance par type d'événement,
 `current()` reflète le dernier `next()`, sémantique table vide,
-et - depuis le fix B3 - l'invariant peek/next.
+l'invariant peek/next (`peek_next` ne modifie rien et annonce le
+prochain `next`), séquence stricte sans trou, rebouclage à
+999 999 999, séquences indépendantes pour chaque label, et persistance
+entre deux connexions au même fichier.
 
 **Cette stratégie est verrouillée et NE DOIT PAS changer
 post-certification.** Au titre de l'article 109 de la procédure de
@@ -156,37 +159,49 @@ fermée pour un Z, etc.).
 Nous fournissons une méthode sur chaque input spécifique d'événement
 (`SaleInput::idempotency_key()`, `OrderInput::idempotency_key()`,
 ...) pour que les appelants n'aient pas à se souvenir du mapping label
-correspond à input. Cinq tests unitaires (`inputs.rs::idempotency_tests`)
+correspond à input. Six tests unitaires (`inputs.rs::idempotency_tests`)
 couvrent le contrat d'égalité et le mapping de label par type.
 
 La clé expose aussi `render()` pour des lignes de log grep-friendly :
-`posId=CPOS01,posDt=2026-05-14T10:00:00+02:00,terminalId=T1,label=N,ticketNo=42`.
+`posId=CPOS01,posDt=2026-10-03T10:00:00+02:00,terminalId=T1,label=N,ticketNo=42`.
 
 ---
 
 ## 4. Blocage opérationnel sur déconnexion
 
-**Implémenté dans** `src-tauri/src/commands/checkout.rs::do_checkout` :
-quand `FdmClient::sign_sale` retourne `FdmError::NotConnected`,
-la commande d'encaissement renvoie `success: false` avec un message
-d'erreur côté utilisateur et **ne valide pas la commande** (la
-transaction SQLite est avortée, aucun compteur n'avance - voir §5).
+**Implémenté dans** `src-tauri/src/commands/checkout.rs` : la vente
+(`do_checkout`, `do_checkout_split`) passe par `checkout::sell`, qui
+signe par `signing::sign`. Quand le FDM n'est pas joignable,
+`FdmError::outcome()` renvoie `SignOutcome::NotSent` : la ligne
+`pending_signs` passe à `not_sent`, la commande d'encaissement renvoie
+`success: false` avec l'erreur « FDM not connected - cannot complete
+transaction » et **ne valide pas la commande** (aucune écriture
+métier, aucun compteur n'avance - voir §5). Il n'y a pas de
+pré-contrôle de statut avant la vente : c'est la signature elle-même
+qui échoue.
 
 Il n'existe aucun mode hors-ligne, dans aucune build : le développement
 et les tests utilisent le FDM simulé (`pos-fdm-mock`), jamais un
 contournement du FDM.
 
-### Reporté : sondage des statuts dégradés
+### Statuts dégradés du FDM
 
-Aujourd'hui, nous ne bloquons que sur les échecs de connexion
-TCP-niveau du FDM. Le FDM expose aussi des drapeaux de dégradation
-opérationnelle via la query `status` (`errors[]`, `warnings[]`,
-`bufferCapacityUsed`). Un travail futur consistera à lancer un
-poller tokio en arrière-plan qui miroire ces flags dans un
-`Arc<RwLock<FdmOperationalStatus>>`, et à faire bloquer également
-la commande d'encaissement quand le FDM est joignable mais signale
-des erreurs critiques. La spec n'exige strictement le blocage que
-sur déconnexion dure, ce que nous faisons déjà.
+Le FDM expose aussi des drapeaux de dégradation opérationnelle via la
+query `status` (`errors[]`, `warnings[]`, `bufferCapacityUsed`). Ils
+sont pris en charge à deux niveaux :
+
+- **Interface.** Le store `ui/src/stores/fdm.ts` interroge le statut
+  toutes les 30 s (recul jusqu'à 5 min si le FDM ne répond pas). Un
+  FDM injoignable, ou un code bloquant (`BUFFER_FULL`, `FDM_LOCKED`,
+  `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`), passe l'état à
+  `connected = false` avec la gravité « bloquante » : voyant rouge et
+  voile qui couvre les écrans de vente. Les autres codes donnent un
+  avertissement affiché (message FR de `ui/src/utils/fdmMessages.ts`).
+- **Signature.** Même si l'interface ne bloquait pas, le FDM refuse
+  lui-même de signer dans ces états (`BUFFER_FULL`, `FDM_LOCKED`,
+  `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS` sont dans la liste des refus de
+  `FdmError::outcome()`, §5 point 4) : la vente échoue, rien n'est
+  archivé, le numéro reste libre.
 
 ---
 
@@ -207,7 +222,8 @@ désormais le suivant (`src-tauri/src/commands/signing.rs`) :
 1. **Verrou global.** Toute opération qui signe un événement FDM
    (vente N, remboursement, commande de table P, pré-addition P,
    rapports X, X utilisateur et Z, copie C, entrée/sortie de travail S,
-   mouvements d'argent et tiroir F, facture I) s'exécute sous un seul
+   mouvements d'argent et tiroir F ; la facture I, hors binaire certifié
+   v1.0.0, passerait par le même verrou) s'exécute sous un seul
    verrou (`tokio::sync::Mutex`). Le numéro de ticket est lu (`peek_next`)
    et la période d'ouverture choisie **à l'intérieur** du verrou : deux
    opérations ne partagent jamais un numéro, et un Z attend une vente en

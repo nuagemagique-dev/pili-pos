@@ -37,8 +37,15 @@ harnais ont été validés à blanc contre le mock FDM local
 - [ ] `PILI_LIVE_FDM_URL=http://fdm.module2.be/graphql/` et
       `PILI_LIVE_FDM_TOKEN` (jeton du simulateur) placés dans
       `.env.live` (exclu de git).
-- [ ] Build cert en place :
-      `cargo build --release --no-default-features --features cert`.
+- [ ] Build cert en place (binaire final, tag `v1.0.0`) :
+      `cargo build --release --no-default-features --features cert`
+      (la feature `cert` inclut `hubrise`, désactivée par défaut à
+      l'installation ; seule la facturation Peppol est absente).
+- [ ] Jeux de tests de référence : Basic Set 1.8, Reports 1.3, Advanced
+      Set 1.6 (`docs/20260821_*`), configuration de test
+      `UC_TestSetup_20240806` (procédure 20260903, point 3.1).
+- [ ] Depuis le réseau où aura lieu l'intake (ou un réseau extérieur
+      équivalent) : le posId et le jeton du simulateur répondent.
 
 ## Commande de répétition
 
@@ -48,8 +55,9 @@ scripts/live_fdm.sh live_fdm_status_and_one_sale   # statut + une vente (2 appel
 ```
 
 Chaque paire requête/réponse signée est écrite dans le dossier
-Report_Testing (sous-dossier module2, créé à la première exécution),
-et la sortie
+Report_Testing (sous-dossier module2, créé à la première exécution ; la
+sortie de cette répétition finale remplace celle du 2026-09-27, qui
+précède le binaire final), et la sortie
 complète dans `target/live-fdm.log`. Procédure détaillée et liste des
 erreurs à provoquer depuis l'onglet « Developer » du portail module2 :
 `docs/internal/LIVE_FDM_MODULE2.md`.

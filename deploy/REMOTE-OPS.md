@@ -1,7 +1,8 @@
 # Opérations à distance - pili-pos
 
-Guide de dépannage et de mise à jour d'un terminal pili-pos sans être
-sur place. Le terminal est une appliance scellée : **pas de serveur
+Guide de dépannage d'un terminal pili-pos sans être sur place (la mise
+à jour du binaire, elle, se fait toujours sur place, voir plus bas). Le
+terminal est une appliance scellée : **pas de serveur
 SSH, aucun port en écoute, aucun accès distant permanent**
 (`GARANTIE_MAJ_LANGUES_FR.md` §2.2). Le seul canal distant est une
 session **RustDesk** ouverte à la demande, le temps de l'intervention.
@@ -46,7 +47,9 @@ Gérant (ou agir sur l'écran si la saisie distante fonctionne, voir
 ci-dessous). Elle ne donne **pas** de shell : la console de maintenance
 (`Ctrl+Alt+F2`, login `root`) n'est accessible que sur place, au
 clavier. Une mise à jour du binaire (`deploy/update.sh --sha1`) se fait
-donc toujours sur place, depuis une clé USB.
+donc toujours sur place, depuis une clé USB. RustDesk ne sert qu'à
+l'assistance (voir l'écran, guider le Gérant) : il n'est jamais utilisé
+pour transférer ni installer un binaire.
 
 > **Point restant à vérifier sur le terminal (image d'admission sous
 > QEMU puis matériel J6412) :** la capture d'écran sous Cage via
@@ -136,28 +139,48 @@ Toute modification du POS fait l'objet d'une demande de certification
 de mise à jour auprès du SPF Finances (manuel §II.E) ; seul un binaire
 dont le SHA-1 correspond à la valeur déclarée peut être installé.
 
-1. Transférer le nouveau binaire sur le terminal (transfert de fichiers
-   RustDesk, ou clé USB sur place) dans `/root/`.
-2. Sur la console de maintenance :
+**Un seul chemin : sur place, depuis une clé USB** (jamais par RustDesk,
+jamais à distance). Le détail est dans `MANUEL_INSTALLATION_FR.md` §6.1
+(binaire seul) et §6.2 (réinstallation par l'entrée "Update" de l'image).
+En résumé, pour le binaire seul :
+
+1. Brancher la clé USB (qui contient le fichier `pili-pos`) et un
+   clavier USB, ouvrir la console de maintenance (`Ctrl+Alt+F2`, login
+   `root`).
+2. Monter la clé (la racine est en lecture seule : ne rien copier dans
+   `/root`) et lancer le script, puis démonter :
    ```bash
-   /opt/pili-pos/deploy/update.sh /root/pili-pos --sha1 <SHA-1 déclaré>
+   mount -o ro /dev/sda1 /mnt      # repérer la clé avec lsblk
+   /opt/pili-pos/deploy/update.sh /mnt/pili-pos --sha1 <SHA-1 déclaré>
+   umount /mnt
    ```
-   Le script vérifie le SHA-1, sauvegarde le binaire et la base,
-   applique les migrations puis redémarre le service.
+   Pour une copie de travail, utiliser `/tmp` (en mémoire) ou `/var/tmp`
+   (volume chiffré).
+   Le script vérifie le SHA-1, remonte la racine en écriture le temps de
+   l'installation, sauvegarde le binaire et la base, applique les
+   migrations puis redémarre le service.
 3. Vérifier : `sha1sum /opt/pili-pos/pili-pos` et un ticket de test.
 
 ### Rollback
 
+La racine est en lecture seule : la remonter en écriture le temps de la
+copie.
+
 ```bash
 systemctl stop pili-pos
+mount -o remount,rw /
 cp /opt/pili-pos/pili-pos.bak /opt/pili-pos/pili-pos
+mount -o remount,ro /
 systemctl start pili-pos
 ```
 
 Un rollback ne réinstalle que le binaire précédent (version déjà
 certifiée). **Ne jamais restaurer une sauvegarde de base par-dessus
 `pos.db`** : les événements fiscaux enregistrés depuis la sauvegarde
-seraient perdus, ce qui est interdit.
+seraient perdus, ce qui est interdit. En cas de panne ou de corruption
+de la base : arrêter le service, ne rien supprimer ni remplacer,
+conserver `pos.db`, `pos.db-wal` et `pos.db-shm` tels quels et contacter
+le distributeur (`MANUEL_PROGRAMMATION_FR.md` §10.2).
 
 ## Sauvegarde manuelle
 
@@ -191,8 +214,14 @@ Le POS bloque toute transaction tant que le FDM est injoignable
 
 ```bash
 FDM_URL=$(sed -n 's/.*"fdm_url": *"\([^"]*\)".*/\1/p' /etc/pili-pos/pos.json)
-curl -sf "$FDM_URL" -X POST \
+# module2 en HTTPS : certificat client, clé et jeton de pos.json
+# (fdm_client_cert_file, fdm_client_key_file, fdm_token_file). -k car le
+# certificat du FDM ne porte pas de nom d'hôte ; pour ce test seulement.
+curl -sfk "$FDM_URL" -X POST \
+  --cert /etc/pili-pos/fdm/client.crt \
+  --key /etc/pili-pos/fdm/client.key \
+  -H "Authorization: Bearer $(cat /etc/pili-pos/secrets/fdm.token)" \
   -H "Content-Type: application/json" \
-  -d '{"query":"{ Status(language: FR) { device { fdmId } } }"}'
+  -d '{"query":"query { status(language: FR) { device { fdmId } } }"}'
 # Timeout ou erreur → vérifier le câble réseau / l'alimentation du FDM
 ```

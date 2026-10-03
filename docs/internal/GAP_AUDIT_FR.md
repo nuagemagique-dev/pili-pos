@@ -1,5 +1,7 @@
 # Audit de conformité - écarts entre exigences cert et dossier
 
+> **Obsolète (remplacé).** Audit du 2026-05-14, conservé pour mémoire. Il est remplacé par `docs/internal/ASSEMBLAGE_FINAL_FR.md` (runbook de soumission, procédure 2026) et `docs/internal/DOSSIER_SOUMISSION_FR.md` (checklist maîtresse et déclarations). Ne plus s'y fier : versions de spec, captures FDM et périmètre ont changé depuis.
+
 **Date :** 2026-05-14
 **Auditeur :** rescan exhaustif après remarque utilisateur sur les screenshots manqués.
 

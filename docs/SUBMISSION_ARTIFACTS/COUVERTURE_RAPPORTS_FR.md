@@ -2,7 +2,12 @@
 
 **Date :** 2026-05-14
 **Test pilote :** `crates/pos-fiscal/tests/reports_fixtures.rs`
-**Fixtures source :** `docs/20250916_UC_Reports_1.3/`
+**Fixtures source :** `docs/20260821_UC_Reports_1.3/`
+
+**Révision du jeu publié :** le dossier `docs/20260821_UC_Reports_1.3/`
+reprend la version 1.3 (le changelog ne change pas) ; les fichiers de
+fixtures ont été republiés avec des horodatages portant les
+millisecondes (`2024-07-30T13:00:35.000+02:00`).
 
 Reports v1.3 ajoute la suite de rapports X/Z au corpus de
 certification. Cette phase valide que chaque réponse publiée se
@@ -152,7 +157,7 @@ distinguant pas débit et crédit à l'encaissement.
 En complément des fixtures M180-M184 ci-dessus (chacune un scénario
 isolé de désérialisation de réponse, `reports_fixtures.rs`), le
 service complet du scénario officiel `InputReport` (T1-T8,
-`docs/20250916_UC_Reports_1.3/InputReport/`) est rejoué deux fois pour
+`docs/20260821_UC_Reports_1.3/InputReport/`) est rejoué deux fois pour
 valider le calcul des totaux lui-même :
 
 - **Calcul pur** - `crates/pos-fiscal/tests/report_totals_fixtures.rs`

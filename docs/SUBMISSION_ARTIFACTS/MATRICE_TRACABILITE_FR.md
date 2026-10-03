@@ -4,7 +4,7 @@ Ce document liste chaque identifiant de test décrit par le SPF Finances (Basic 
 
 Généré automatiquement par `scripts/uc_matrix.py` à partir des dossiers sous `docs/`, des sources de test (`crates/*/tests`, `crates/*/src`, `src-tauri/tests`, `src-tauri/src`, `ui/e2e/`) et des exclusions déclarées dans `scripts/uc_scope.toml`. Une réexécution sans changement de code ou de documentation produit un fichier identique.
 
-Date de génération (date du dernier commit git) : 2026-09-26
+Date de génération (date du dernier commit git) : 2026-10-03
 
 Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périmètre (fonctionnalité absente de pili-pos v1.0.0, exclusion documentée), Non applicable (ce cas précis ne peut pas se produire avec le comportement actuel), Couvert par X (les tests de l'identifiant X couvrent aussi ce cas), MANQUANT (aucun test automatisé trouvé et aucune exclusion déclarée).
 
@@ -63,7 +63,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC221A | Modification de prix sur une ligne (cas A) | - | - | Hors périmètre |
 | UC221B | Modification de prix sur une ligne (cas B) | - | - | Hors périmètre |
 | UC222 | Modification de prix sur un produit composite | - | - | Hors périmètre |
-| UC223 | Modification de prix au niveau de l'event de vente | - | - | Hors périmètre |
+| UC223 | Modification de prix au niveau de l'event de vente | `uc223_event_discount_matches_the_published_transaction` | - | Couvert |
 | UC224 | Modifications de prix multiples sur une vente | - | - | Hors périmètre |
 | UC225A | Modification de prix en vente indirecte (cas A) | - | - | Hors périmètre |
 | UC225B | Modification de prix en vente indirecte (cas B) | - | - | Hors périmètre |
@@ -99,7 +99,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | UC4106 | Modification de prix sur un menu tout compris | - | - | Hors périmètre |
 | UC4107 | Libellés de TVA A/B/C | - | - | Hors périmètre |
 | UC4108 | Libellé de TVA X (acompte) | - | - | Hors périmètre |
-| UC4109 | Vente sans paiement | `a_manager_closes_a_table_the_customer_left_unpaid`, `uc4109_unpaid_table` | - | Couvert |
+| UC4109 | Vente sans paiement | `a_manager_closes_a_table_the_customer_left_unpaid`, `uc4109_unpaid_table` | `[UC4109] a manager closes the table unpaid with their PIN` | Couvert |
 | UC4110 | Paiement anticipé (acompte) | - | - | Hors périmètre |
 | UC4111 | Paiement anticipé (pourcentage du prix) | - | - | Hors périmètre |
 | UC4112 | Produit vendu au poids | - | - | Hors périmètre |
@@ -120,12 +120,12 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
-| ROUND1 | Arrondi cash, vente directe simple 11,52 EUR (situation 1, arrondi -0,02 EUR) | `round1_11_52_is_paid_11_50` | - | Couvert |
-| ROUND2 | Arrondi cash, vente directe simple 3,34 EUR (situation 2, arrondi +0,01 EUR) | `round2_3_34_is_paid_3_35` | - | Couvert |
-| ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | `round3_14_86_is_paid_14_85` | - | Couvert |
+| ROUND1 | Arrondi cash, vente directe simple 11,52 EUR (situation 1, arrondi -0,02 EUR) | `round1_11_52_is_paid_11_50`, `round1_dame_blanche_cash` | - | Couvert |
+| ROUND2 | Arrondi cash, vente directe simple 3,34 EUR (situation 2, arrondi +0,01 EUR) | `round2_3_34_is_paid_3_35`, `round2_tapas_variation_cash` | - | Couvert |
+| ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | `round3_14_86_is_paid_14_85`, `round3_both_desserts_cash` | - | Couvert |
 | ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | `round4_meal_vouchers_then_cash`, `round4_meal_vouchers_then_cash_rounds_the_cash_rest_only` | `[ROUND4] meal vouchers 11,52 then the rest in cash, rounded to 3,35` | Couvert |
 | ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | `round5_meal_vouchers_card_and_cash` | `[ROUND5] meal vouchers, card, then 10 € cash for the 7,75 left` | Couvert |
-| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +15 | `[VI_BAR] a pre-bill whose slip failed says so next to its confirmation`, `[VI_BAR] a printed slip needs no message`, `[VI_BAR] a sale whose slip failed is still paid, with the warning`, `[VI_BAR] a slip that did not print is told, the order stays registered` | Couvert |
+| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +16 | `[VI_BAR] a pre-bill whose slip failed says so next to its confirmation`, `[VI_BAR] a printed slip needs no message`, `[VI_BAR] a sale whose slip failed is still paid, with the warning`, `[VI_BAR] a slip that did not print is told, the order stays registered` | Couvert |
 | VI_COPY | Contenu du ticket copie (réimpression) | `vi_copy_m160_a_copy_reproduces_the_original_sale`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket`, `vi_copy_the_copy_mark_and_the_original_block_follow_the_language`, `vi_copy_the_official_copy_example` +1 | - | Couvert |
 | VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | `vi_n_a_sale_ticket_has_no_original_block`, `vi_n_the_issuer_legal_name_is_printed`, `vi_n_the_official_vat_ticket_example`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | - | Couvert |
 | VI_PROFORMA | Contenu du ticket pro forma (aperçu d'addition) | `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat`, `vi_proforma_the_official_pre_bill_example` | - | Couvert |
@@ -167,14 +167,14 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | ID | Intitulé | Tests Rust | Tests UI | Statut |
 |---|---|---|---|---|
 | FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order` | - | Couvert |
-| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `faq_q205_a_takeaway_closed_unpaid_is_a_direct_sale`, `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | `[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes`, `[FAQ_Q205] leaving an unpaid takeaway registers nothing`, `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] logging out registers it` +1 | Couvert |
+| FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `faq_q205_a_takeaway_closed_unpaid_is_a_direct_sale`, `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | `[FAQ_Q205] an unpaid takeaway is listed on the tables and resumes`, `[FAQ_Q205] leaving an unpaid takeaway registers nothing`, `[FAQ_Q205] leaving the order for the tables registers it`, `[FAQ_Q205] locking the screen registers it` +1 | Couvert |
 | FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
 | FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | `faq_q207_a_second_order_carries_only_the_new_lines` | - | Couvert |
 | FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | - | Couvert |
 | FAQ_Q211 | Unicité de la référence de costCenter | `faq_q211_each_table_session_has_its_own_reference` | - | Couvert |
 | FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | Hors périmètre |
 | FAQ_Q301 | Distinction entre motifs REFUND et CORRECTION (negQuantityReason) | `m111_full_refund`, `negative_quantity_reason_depends_on_the_sale`, `uc230_a_line_corrected_before_payment` | - | Couvert |
-| FAQ_Q303 | Base de comptage des negQuantityReason dans le rapport X/Z | `negative_lines_are_counted_per_reason` | - | Couvert |
+| FAQ_Q303 | Base de comptage des negQuantityReason dans le rapport X/Z | `a_table_correction_counts_on_its_order_registration`, `negative_lines_are_counted_per_reason` | - | Couvert |
 | FAQ_Q401 | Money In/Out obligatoire dès que la caisse encaisse du cash, même sans tiroir | `m130_money_in`, `m130_money_in_out_archives_f_event` | - | Couvert |
 | FAQ_Q402 | Enregistrement du rendu de monnaie et du cashback dans les objets payment | `uc201_cash_rounding_is_its_own_payment_line` | - | Couvert |
 | FAQ_Q403 | Encodage des pourboires (TIP) et des arrondis (ROUNDING) vers le FDM | `faq_q403_a_card_payment_has_no_rounding_line`, `faq_q403_rounding_is_reported_apart_and_left_out_of_the_turnover` | - | Couvert |
@@ -185,5 +185,5 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | FAQ_Q504 | Le rapport de chiffre d'affaires n'inclut pas les events de type Copy | `faq_q504_a_copy_is_not_turnover` | - | Couvert |
 | FAQ_Q505 | Identification du deviceId (adresse MAC ou identifiant matériel unique) | `m110_sale` | - | Couvert |
 | FAQ_Q506 | La query Status du FDM est facultative | `faq_q506_a_sale_is_signed_without_a_status_query` | - | Couvert |
-| FAQ_Q507 | La mention TICKET DE CAISSE TVA est réservée au ticket de caisse fiscal | `every_ticket_carries_its_type_label_and_identification`, `vi_training_a_training_sale_prints_its_training_marks` | - | Couvert |
+| FAQ_Q507 | La mention TICKET DE CAISSE T.V.A. est réservée au ticket de caisse fiscal | `every_ticket_carries_its_type_label_and_identification`, `vi_training_a_training_sale_prints_its_training_marks` | - | Couvert |
 | FAQ_Q509 | Champ totalAmount du rapport Z (objet users): somme des transactionTotal | `faq_q509_the_user_total_leaves_the_rounding_out` | - | Couvert |

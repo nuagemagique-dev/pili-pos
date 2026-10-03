@@ -4,8 +4,8 @@
 **Nom du produit :** pili-pos
 **Version :** 1.0.0 (build de soumission cert)
 **Clients cibles :** établissements HoReCa en Belgique (restaurants avec service en salle)
-**Date de soumission :** 2026-05-14
-**Specs implémentées :** POS v2.2 + FDM v1.4 + Addendum 1 + Basic Set v1.7 + Reports v1.3 + Advanced Set v1.5
+**Date de soumission :** 2026-10-03
+**Specs implémentées :** POS v2.2 + FDM v1.4 + Addendum 1 + Basic Set v1.8 + Reports v1.3 + Advanced Set v1.6
 
 ## 1. Vue d'ensemble du système
 
@@ -58,11 +58,11 @@ une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque
 
 | Événement | Déclencheur | Chemin de code POS | Notes |
 |---|---|---|---|
-| **N** (Vente normale) | L'opérateur tape "Payer" avec `order_type=dine_in` | `commands/checkout::checkout` → `fdm_client::sign_sale` → `archive` + close dans une seule tx SQLite | Blocage-sur-déconnexion-FDM imposé |
+| **N** (Vente normale) | L'opérateur tape "Payer" (sur place `dine_in` ou à emporter `takeaway`) | `commands/checkout::checkout` → `do_checkout` / `do_checkout_split` → `sell` → `signing::sign` : archive + clôture dans une seule tx SQLite | Blocage-sur-déconnexion-FDM imposé |
 | **P** (Pro forma) | L'opérateur envoie la commande en cuisine | `commands/tables::sign_table_order` | Table ouverte ; pas d'incrément du compteur N |
 | **T** (Formation) | L'opérateur est en mode formation | Comme N mais `is_training=true` dans l'input ; watermark UI |
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::copy_ticket` | Porte un `fdmRef` vers l'original |
-| **I** (Facture) | Mode de paiement "Facture" choisi | `commands/checkout` → `sign_invoice` | Si `customer_vat_no` renseigné + Peppol activé → `commands/invoice::issue_b2b_invoice` |
+| **I** (Facture) | Hors binaire certifié v1.0.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build cert (§8) ; événement optionnel dans SCE 2.0 |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::money_in_out` / `open_drawer_fiscal` | F-WAR pour ouverture tiroir |
 | **S** (Social) | Pointage entrée / sortie de l'opérateur | `commands/social::work_in` / `work_out` | INSZ + n° employeur |
 | **R** (Rapport) | Rapports Z et X | `commands/report::generate_x_report` / `generate_z_report` | Z est Turnover-Z + User-Z atomique |
@@ -90,8 +90,11 @@ Chaque branche :
 ### 3.1 Transport
 - **Protocole :** GraphQL sur HTTP/HTTPS.
 - **Endpoint :** configuré via `pos.json` (`fdm_url`).
-- **Sondage de statut :** `FdmClient::status` est appelé au démarrage
-  de l'app et à chaque entrée de checkout.
+- **Sondage de statut :** l'interface interroge `FdmClient::status`
+  (`ui/src/stores/fdm.ts`) dès qu'un écran affiche l'indicateur FDM,
+  puis toutes les 30 s tant que le FDM répond, avec un recul jusqu'à
+  5 min tant qu'il ne répond pas. Le checkout n'appelle pas le
+  statut : chaque vente part directement vers `signing::sign` (§5).
 
 ### 3.2 Signature de réponse
 - Algorithme : **ECDSA secp256r1**, calculé par le FDM avec sa propre
@@ -164,9 +167,13 @@ SQLite qui archive l'événement signé, de sorte que :
 - **Pas de FDM, pas d'événement.** Chaque commande fiscale (vente,
   remboursement, commande, addition, copie, pointage, mouvement de
   caisse, ouverture de tiroir, rapport) fait signer son événement par
-  le FDM *avant* d'écrire quoi que ce soit : si le FDM ne répond pas,
-  la commande renvoie une erreur (`success: false`, « FDM not
-  connected - cannot complete transaction » pour une vente), rien
+  le FDM *avant* d'écrire quoi que ce soit : il n'y a pas de
+  pré-contrôle de statut, la vente passe directement par
+  `signing::sign`. Si le FDM n'est pas joignable, `FdmError::outcome()`
+  donne `NotSent` (la ligne `pending_signs` passe à `not_sent`) et la
+  commande renvoie une erreur (`success: false`, « FDM not connected -
+  cannot complete transaction » pour une vente, transmise à
+  l'interface), rien
   n'est archivé, aucun compteur n'avance, la commande reste ouverte et
   le tiroir reste fermé. L'opérateur réessaie une fois le FDM revenu.
   Si la requête avait été envoyée et que la réponse est perdue, la
@@ -174,9 +181,12 @@ SQLite qui archive l'événement signé, de sorte que :
   signature (§4) : l'événement n'est ni perdu ni doublé.
 - **Aucun mode hors-ligne**, dans aucune build : le code ne contient
   aucun chemin qui archive ou imprime une vente non signée.
-- L'en-tête affiche en permanence l'état du FDM (`FdmStatus.vue`,
-  interrogé toutes les 30 s), avec un message lisible pour chaque code
-  d'erreur du FDM.
+- L'interface affiche en permanence l'état du FDM (store
+  `ui/src/stores/fdm.ts`, voyants `StatusLights.vue`, alertes
+  `FdmAlerts.vue`), interrogé toutes les 30 s avec recul jusqu'à
+  5 min, avec un message lisible pour chaque code d'erreur du FDM.
+  Sans réponse du FDM, l'état passe à `connected = false`, gravité
+  « bloquante ».
 - Seule exception : les entrées de commande (P) non encore envoyées
   restent en attente dans `order_entries` et partent à
   l'enregistrement suivant (commande, addition ou vente) ; ce ne sont
@@ -185,17 +195,24 @@ SQLite qui archive l'événement signé, de sorte que :
 ## 6. Pipeline d'impression
 
 - Crate : `crates/pos-print`.
-- Transport : `pos-print::transport` supporte TCP, USB et série. La
-  configuration de référence utilise TCP vers la TM-m30III à une IP
-  LAN statique.
+- Transport : `pos-print::transport` n'implémente que TCP brut
+  (port 9100) vers la TM-m30III à une IP LAN statique. Pas de
+  transport USB ni série.
 - Layout : `pos-print::receipt` formate le ticket fiscal SCE-2.0
   selon la spec POS v2.2 §III.3 - en-tête (nom restaurant, adresse,
   TVA), corps (lignes avec label TVA), table de répartition TVA,
   bloc de données de contrôle issu de la réponse FDM, QR Code
   (Model 2, ECC M, URL 38 caractères ; version 3, 29×29 modules - voir
   `TICKET_NUMERIQUE_FR.md` §11).
-- Tickets cuisine : layout séparé
-  (`crates/pos-print/src/kitchen_ticket.rs::format_kitchen_ticket`).
+- Tickets de commande P (bar / cuisine) : layout séparé
+  (`crates/pos-print/src/bar_ticket.rs::format_bar_ticket`, envoyé par
+  `commands/bar_slip.rs`). Le ticket cuisine
+  `kitchen_ticket::format_kitchen_ticket` ne sert qu'aux commandes en
+  ligne.
+- Texte externe (noms de produits, notes, adresses) : passé par
+  `escpos::printable`, qui supprime les octets de contrôle (un ESC ou
+  GS serait une commande d'imprimante) et translittère les
+  caractères hors CP858.
 - Ouverture tiroir : séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA`
   émise dès qu'un paiement `cash` clôture une vente.
 
@@ -239,10 +256,15 @@ SQLite qui archive l'événement signé, de sorte que :
   Le chemin de rétro-compatibilité pour la migration one-shot
   d'origine est dans `migrate::backfill_legacy_db`.
 - Log fiscal append-only : table `fiscal_events`. Le schéma impose
-  la contrainte CHECK sur `event_type`, et le code applicatif
-  n'émet jamais `DELETE` ni `UPDATE` à son encontre.
-- Sauvegarde : snapshot nocturne via l'API SQLite Online Backup
-  (`commands::report::backup_database`) avant chaque rapport Z.
+  la contrainte CHECK sur `event_type` et des triggers SQLite
+  refusent tout `DELETE` et toute réécriture
+  (`fiscal_events_no_delete`, `fiscal_events_no_rewrite`) ; le code
+  applicatif n'en émet d'ailleurs jamais. Voir `SECURITE_BD_FR.md`.
+- Sauvegarde : après chaque rapport Z, juste après son archivage
+  (`signing::follow_up` pour `ReportZ`, qui appelle
+  `commands::report::backup_database_impl`), snapshot via l'API
+  SQLite Online Backup. Un échec de sauvegarde est journalisé et
+  n'annule pas le Z.
 
 ## 8. Configurations de build
 

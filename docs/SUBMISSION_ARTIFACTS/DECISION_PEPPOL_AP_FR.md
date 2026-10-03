@@ -1,6 +1,6 @@
 # E-facturation B2B Peppol - Décision d'Access Point et déploiement
 
-**État à la date de soumission (2026-05-14) :** Sérialiseur UBL +
+**État à la date de soumission (2026-10-03) :** Sérialiseur UBL +
 abstraction AccessPoint implémentés et couverts par tests unitaires,
 mais **non activés dans la build de certification v1.0.0**
 (`cargo build --release --no-default-features --features cert`
@@ -87,9 +87,10 @@ rétention que `fiscal_events`). Colonnes : `fiscal_event_id`,
 `error_msg`, `created_at`, `accepted_at`.
 
 Feature flag : `peppol` (existe dans le workspace, **non activé** dans
-la build `cert` v1.0.0 - `cert = ["custom-protocol"]` dans
-`src-tauri/Cargo.toml`. Sera activé pour la mise à jour certifiée
-v1.1).
+la build `cert` v1.0.0 - `cert = ["custom-protocol", "hubrise"]` dans
+`src-tauri/Cargo.toml` : HubRise (commandes en ligne) est dans la build
+cert, seul `peppol` en est absent. Sera activé pour la mise à jour
+certifiée v1.1).
 
 ## Plan de déploiement (côté opérateur, pour la mise à jour v1.1)
 

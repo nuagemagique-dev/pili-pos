@@ -8,8 +8,9 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Encodage** : UTF-8.
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
 **Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
-**Source de vérité du schéma** : `crates/pos-db/src/schema.rs` (lecture
-machine via `sqlite3 pos.db ".schema"`).
+**Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
+`schema_hubrise.rs` et `schema_catalog.rs` (lecture machine via
+`sqlite3 pos.db ".schema"`).
 
 ## 1. Tables de référence
 
@@ -53,10 +54,11 @@ Catégories de menu (ex. "Sushi", "Boissons").
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
-| `external_id` | TEXT (unique) | Référence externe (NULL en build cert) |
+| `external_id` | TEXT (unique) | Référence de la catégorie dans le catalogue externe (HubRise) ; NULL pour une catégorie créée à la caisse |
 | `sort_order` | INTEGER | Ordre d'affichage |
 | `color` | TEXT | Couleur hexadécimale optionnelle |
 | `active` | INTEGER | Drapeau actif (0/1) |
+| `hidden` | INTEGER (migration `021`) | 1 = catégorie masquée de la grille de la caisse (ex. frais, articles réservés aux commandes en ligne), 0 par défaut |
 
 ### 1.4 `menu_items`
 
@@ -66,7 +68,7 @@ catégorie et porte UN code TVA SCE 2.0 (A/B/C/D/X).
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
-| `external_id` | TEXT (unique) | Référence externe (NULL en build cert) |
+| `external_id` | TEXT (unique) | Référence de l'article dans le catalogue externe (HubRise) ; NULL pour un article créé à la caisse |
 | `category_id` | INTEGER (FK → `categories.id`) | Catégorie parente |
 | `price_cents` | INTEGER | Prix unitaire TVA incluse en centimes d'euro |
 | `vat_code` | TEXT | Code TVA SCE en salle : `A`, `B`, `C`, `D`, `X` |
@@ -76,6 +78,8 @@ catégorie et porte UN code TVA SCE 2.0 (A/B/C/D/X).
 | `kitchen_printer` | INTEGER | 1 = à envoyer en cuisine, 0 = imprimante caisse seulement |
 | `sort_order` | INTEGER | Ordre d'affichage dans la grille |
 | `active` | INTEGER | 1 = article disponible, 0 = retiré du menu |
+| `kind` | TEXT (migration `021`) | `product` (défaut) ou `charge` (frais d'une commande en ligne : livraison, service) ; contraint |
+| `on_pos` | INTEGER (migration `021`) | 1 (défaut) = affiché dans la grille de la caisse, 0 = réservé aux commandes en ligne |
 
 ### 1.5 `modifier_groups`
 
@@ -85,10 +89,12 @@ sushi).
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
-| `external_id` | TEXT (unique) | Référence externe |
-| `min_select` | INTEGER | Nombre minimum de modificateurs à sélectionner |
-| `max_select` | INTEGER | Nombre maximum |
+| `external_id` | TEXT (unique) | Référence dans le catalogue externe ; NULL pour un groupe créé à la caisse |
+| `min_select` | INTEGER | Nombre minimum de modificateurs à sélectionner (défaut 0) |
+| `max_select` | INTEGER | Nombre maximum (défaut 1) |
 | `menu_item_id` | INTEGER (FK → `menu_items.id`) | Article parent |
+| `active` | INTEGER (migration `021`) | 1 (défaut) = groupe en vente, 0 = retiré de la vente |
+| `sort_order` | INTEGER (migration `021`) | Ordre d'affichage |
 
 ### 1.6 `modifiers`
 
@@ -97,10 +103,14 @@ Options individuelles d'un groupe (ex. "Sauce soja").
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
-| `external_id` | TEXT (unique) | Référence externe |
+| `external_id` | TEXT (unique) | Référence dans le catalogue externe ; NULL pour une option créée à la caisse |
 | `group_id` | INTEGER (FK → `modifier_groups.id`) | Groupe parent |
 | `price_cents` | INTEGER | Supplément de prix (peut être 0) |
 | `sort_order` | INTEGER | Ordre dans le groupe |
+| `active` | INTEGER (migration `021`) | 1 (défaut) = option en vente, 0 = retirée de la vente |
+
+Les noms des modificateurs sont dans `translations` (`entity_type` =
+`modifier`), pas dans cette table.
 
 ## 2. Tables transactionnelles
 
@@ -125,7 +135,8 @@ Commandes (dine-in et takeaway). Une commande peut être ouverte
 | `source` | TEXT | `pos_local` (caisse), ou canal de la commande en ligne (par exemple `deliveroo` ; `webshop` sans canal) |
 | `hubrise_status` | TEXT (nullable) | Statut HubRise de la commande en ligne |
 | `service_type` | TEXT (nullable) | Livraison, enlèvement ou sur place (commande en ligne) |
-| `raw_hubrise_json` | TEXT (nullable) | Commande en ligne telle que reçue de HubRise |
+| `raw_hubrise_json` | TEXT (nullable) | Commande en ligne telle que reçue de HubRise, **y compris les données du client** (nom, téléphone, adresse) ; NULL pour une commande de la caisse |
+| `pre_bill_at` | TEXT (nullable, migration `009`) | Horodatage de la dernière addition provisoire signée et imprimée (pre-bill), pour que l'écran des tables signale la table dont l'addition est posée ; remis à NULL dès qu'une ligne de la commande change |
 
 ### 2.2 `order_lines`
 
@@ -154,14 +165,16 @@ chronologique des ajouts/corrections/remboursements est `order_entries`
 ### 2.3 `payments`
 
 Paiements enregistrés pour une commande. Plusieurs paiements
-possibles par commande (espèces + carte sur un partage). Modes
-limités à `cash`, `card`, `other` (extensible - vouchers).
+possibles par commande (espèces + carte sur un partage, titres-repas).
+Modes limités à `cash`, `card`, `meal_voucher` (migration `008`) et
+`other`. Un mouvement de caisse (événement F) n'écrit aucune ligne
+`payments`.
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
 | `order_id` | INTEGER (FK → `orders.id`) | Commande payée |
-| `method` | TEXT | `cash`, `card` ou `other` |
+| `method` | TEXT | `cash`, `card`, `meal_voucher` ou `other` (contraint) |
 | `amount_cents` | INTEGER | Montant en centimes (positif) |
 | `created_at` | TEXT | Date / heure du paiement |
 
@@ -176,7 +189,7 @@ envoyé au FDM, jamais modifiée ni supprimée après insertion.
 |---|---|---|
 | `id` | INTEGER | Clé primaire auto-incrémentée |
 | `event_type` | TEXT | `N`, `P`, `T`, `C`, `I`, `F`, `S`, ou `R` (contraint par CHECK) |
-| `sequence_number` | INTEGER | Compteur local POS (cf. `COUNTER_STRATEGY.md`) |
+| `sequence_number` | INTEGER | Compteur local POS (cf. `STRATEGIE_COMPTEURS_FR.md`) |
 | `order_id` | INTEGER (FK → `orders.id`, nullable) | Commande associée pour N/P/I/C ; NULL pour F/S/R |
 | `pos_id` | TEXT | Identifiant POS 14 caractères (cf. spec POS v2.2) |
 | `terminal_id` | TEXT | ID du terminal physique |
@@ -205,7 +218,7 @@ Compteurs persistants par label d'événement.
 
 Modification exclusive via
 `pos_fiscal::counter::FiscalCounter::next` (atomique avec l'archive,
-cf. `COUNTER_STRATEGY.md`).
+cf. `STRATEGIE_COMPTEURS_FR.md`).
 
 ### 3.3 `z_reports`
 
@@ -347,6 +360,27 @@ Utilisateurs du POS. INSZ comme clé primaire. Voir
 | `pin_hash` | TEXT (nullable) | Hash bcrypt du PIN optionnel |
 | `active` | INTEGER | 1 = utilisateur actif, 0 = désactivé |
 
+### 3.8 bis `staff_shifts` (migration `009`)
+
+Index local des postes de travail : une ligne par prestation, ouverte
+par un événement S `WorkIn` signé et close par un S `WorkOut` signé,
+dans la même transaction que l'événement. Verrouiller l'écran laisse le
+poste ouvert, ce qui permet à l'écran de connexion d'afficher qui est en
+service et depuis quand. Le registre fiscal reste l'événement S ; cette
+table n'en est qu'un index. Elle n'est pas append-only (`ended_at` est
+mis à jour).
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `user_insz` | TEXT | INSZ de l'employé (pas de clé étrangère) |
+| `started_at` | TEXT (ISO 8601, UTC) | Début du poste |
+| `ended_at` | TEXT (nullable) | Fin du poste ; NULL = poste ouvert |
+
+Index : `idx_staff_shifts_open(user_insz, ended_at)`. Au plus un poste
+ouvert par employé (la requête d'ouverture ne crée rien s'il en existe
+un).
+
 ### 3.9 `pending_signs` (migration `010`)
 
 Requête de signature stockée **avant** son envoi au FDM, pour pouvoir
@@ -401,11 +435,14 @@ period is closed`, code applicatif `period_closed`) l'archivage d'un
 déjà fermée (`booking_periods.closed_at` non nul). Un événement signé
 ne peut donc pas être rattaché à un jour déjà clôturé.
 
-## 4. Tables Peppol (build cert)
+## 4. Tables Peppol (hors binaire certifié v1.0.0)
 
 ### 4.1 `peppol_deliveries`
 
-Audit trail des factures B2B livrées via Access Point Peppol.
+Audit trail des factures B2B livrées via Access Point Peppol. La table
+est créée par la migration 1 dans toute build, mais le code Peppol
+(`#[cfg(feature = "peppol")]`) n'est pas dans le binaire certifié de la
+v1.0.0 : aucune ligne n'y est jamais écrite.
 
 | Champ | Type | Description |
 |---|---|---|
@@ -447,6 +484,7 @@ Une ligne par commande en ligne, à côté de sa ligne `orders`.
 | `lines_json` | TEXT (JSON) | Lignes à signer, rapprochées du menu |
 | `p_event_id` / `n_event_id` / `refund_event_id` | INTEGER | Référencent `fiscal_events(id)` |
 | `accepted_by` / `accepted_at` | TEXT | INSZ de l'employé qui a accepté, date |
+| `resolved_at` | TEXT (défaut `datetime('now')`) | Date du dernier rapprochement de la commande avec le menu de la caisse ; réécrit à chaque nouveau rapprochement tant que `fiscal_state` = `pending` |
 
 Index : `idx_webshop_orders_state(fiscal_state, resolution)`.
 
@@ -465,8 +503,12 @@ Remises d'une commande en ligne, envoyées au FDM comme `priceChanges`
 (spécification POS v2.2). Une ligne par remise et par ligne du
 journal (`entry_id` référence `order_entries(id)`) : `change_id`,
 `name`, `scope` (`LINE` / `EVENT`), `change_type` (`PUBLIC` /
-`INTERNAL`), `amount_cents`. Déclencheurs refusant `UPDATE` et
-`DELETE`.
+`INTERNAL`), `amount_cents`. `line_id` est l'identifiant de la ligne
+d'`order_lines` concernée (sans clé étrangère) ; `grouping_id` (> 0)
+regroupe une remise appliquée à plusieurs lignes à la fois, les remises
+successives l'incrémentant (FAQ producteurs Q304). Index
+`idx_order_price_changes_order(order_id, entry_id)`. Déclencheurs
+refusant `UPDATE` et `DELETE`.
 
 ### 5.4 `integration_switches`, `integration_switch_log` (ajout seul)
 
@@ -477,16 +519,85 @@ changement (`enabled`, `source` = `config` ou `admin`, `changed_by` =
 INSZ du Gérant, `changed_at`). Déclencheurs refusant `UPDATE` et
 `DELETE`.
 
-### 5.5 Liaison HubRise et menu reflet
+### 5.5 Liaison HubRise
 
-`hubrise_connection` (connexion à l'établissement HubRise, état du
-rappel, dernière erreur), `hubrise_events` (événements reçus, nombre
-de tentatives), `hubrise_outbox` (statuts à envoyer à HubRise, dans
-l'ordre par commande) ; `catalog_sync_state` (dernier catalogue
-appliqué ou refusé, verrou du menu). La migration 21 ajoute
-`menu_items.kind` (`product` / `charge`), `menu_items.on_pos`,
-`categories.hidden` et `active` / `sort_order` sur les groupes
-d'options et les options.
+**`hubrise_connection`** (une seule ligne, `id` = 1) : connexion de
+l'installation à son établissement HubRise.
+
+| Colonne | Type | Description |
+|---|---|---|
+| `access_token` | TEXT | Jeton d'accès OAuth HubRise, **en clair** (voir `SECURITE_BD_FR.md` §5) |
+| `account_id` / `account_name` | TEXT | Compte HubRise |
+| `location_id` / `location_name` | TEXT | Établissement HubRise |
+| `catalog_id` / `catalog_name` | TEXT | Catalogue lié |
+| `customer_list_id` / `customer_list_name` | TEXT (nullable) | Liste de clients liée |
+| `scope` | TEXT | Portée OAuth accordée |
+| `base_url` | TEXT | URL de l'API HubRise |
+| `connected_at` | TEXT | Date de connexion |
+| `last_poll_at` | TEXT (nullable) | Dernière lecture des événements |
+| `last_event_cursor` | TEXT (nullable) | Curseur des événements |
+| `last_catalog_sync_at` | TEXT (nullable) | Dernière synchronisation du catalogue |
+| `auth_error_at` | TEXT (nullable, migration `020`) | Date du dernier refus d'autorisation |
+| `last_error` | TEXT (nullable, migration `020`) | Dernière erreur de transport |
+| `callback_registered_at` | TEXT (nullable, migration `020`) | Date d'enregistrement du rappel |
+
+**`hubrise_events`** : événements reçus (idempotence par l'identifiant
+HubRise).
+
+| Colonne | Type | Description |
+|---|---|---|
+| `id` | TEXT PK | Identifiant de l'événement HubRise |
+| `resource_type` / `event_type` | TEXT | Ressource et type d'événement |
+| `payload_json` | TEXT | Contenu reçu |
+| `received_at` / `processed_at` | TEXT | Réception ; traitement (NULL = à traiter) |
+| `error_msg` | TEXT (nullable) | Dernière erreur de traitement |
+| `attempts` | INTEGER (migration `020`) | Nombre de tentatives de traitement |
+| `parked_at` | TEXT (nullable, migration `020`) | Mis de côté après échecs répétés |
+
+Index : `idx_hubrise_events_pending(received_at) WHERE processed_at IS NULL`.
+
+**`hubrise_outbox`** : messages à envoyer à HubRise (création d'une
+vente de la caisse, changement de statut), dans l'ordre par commande.
+
+| Colonne | Type | Description |
+|---|---|---|
+| `id` | INTEGER PK | Identifiant |
+| `order_id` | INTEGER | Commande de la caisse |
+| `body_json` | TEXT | Corps du message |
+| `created_at` | TEXT | Mise en file |
+| `attempts` / `last_attempt_at` | INTEGER / TEXT | Tentatives d'envoi |
+| `sent_at` | TEXT (nullable) | Envoi réussi (NULL = en file) |
+| `error_msg` | TEXT (nullable) | Dernière erreur |
+| `kind` | TEXT (migration `020`) | `create_order` (défaut) ou `patch_order` ; contraint |
+| `hubrise_order_id` | TEXT (nullable, migration `020`) | Commande HubRise visée par un `patch_order` |
+| `private_ref` | TEXT (nullable, migration `020`) | Référence privée dédoublonnant les créations |
+| `next_attempt_at` / `parked_at` | TEXT (nullable, migration `020`) | Prochaine tentative ; mis de côté |
+
+Index : `idx_hubrise_outbox_pending(created_at) WHERE sent_at IS NULL` ;
+`idx_hubrise_outbox_private_ref(private_ref)` (unique, partiel) ;
+`idx_hubrise_outbox_order(hubrise_order_id, id) WHERE sent_at IS NULL`.
+
+Les ventes de la caisse ne sont mises en file (`create_order`) que si
+l'intégration est activée pour l'installation.
+
+### 5.6 Menu reflet : `catalog_sync_state` (migration `021`)
+
+Une ligne par source de catalogue.
+
+| Colonne | Type | Description |
+|---|---|---|
+| `source` | TEXT PK | Source du catalogue (ex. `hubrise`) |
+| `manages_menu` | INTEGER | 1 = cette source gère le menu, l'édition locale est verrouillée |
+| `hash` | TEXT (nullable) | Empreinte du dernier catalogue |
+| `applied_at` / `rejected_at` | TEXT (nullable) | Dernier catalogue appliqué ; dernier refusé |
+| `issues_json` | TEXT (nullable) | Problèmes relevés au dernier refus |
+| `catalog_json` | TEXT (nullable) | Dernier catalogue brut reçu |
+
+La migration 21 ajoute aussi `categories.hidden`, `menu_items.kind`,
+`menu_items.on_pos`, `modifier_groups.active` / `sort_order` et
+`modifiers.active` (§1.3 à 1.6). La synchronisation met à jour ces
+lignes en place (jamais de suppression) ; l'historique fiscal est figé
+dans `order_lines` et `order_entries`.
 
 ## 6. Migrations
 

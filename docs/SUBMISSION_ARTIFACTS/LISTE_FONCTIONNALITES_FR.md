@@ -10,14 +10,14 @@ build `--no-default-features --features cert`).
 
 | Code | Type | Mutation FDM | Implémentation |
 |---|---|---|---|
-| N | Vente normale | `signSale` | `src-tauri/src/commands/checkout.rs::do_checkout` |
+| N | Vente normale | `signSale` | `src-tauri/src/commands/checkout.rs::do_checkout` (ou `do_checkout_split` pour plusieurs moyens de paiement), qui passent par `sell` puis `signing::sign` |
 | N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `src-tauri/src/commands/refund.rs::do_refund_checkout` |
 | P | Commande en cuisine (pro-forma) | `signOrder` | `src-tauri/src/commands/tables.rs::do_sign_table_order` |
 | P | Addition (pré-ticket) | `signPreBill` | `src-tauri/src/commands/tables.rs::do_sign_pre_bill` |
-| T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` avec `training_mode=true` |
-| T | Présence en formation | `signWorkIn` (isTraining=true) | `do_work_in` avec `training_mode=true` |
+| T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
+| T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
 | C | Copie de ticket | `signCopy` | `src-tauri/src/commands/copy.rs::do_copy_ticket` |
-| I | Facture B2B | `signInvoice` | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`) |
+| I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
 | F | Mouvement de fonds | `signMoneyInOut` | `src-tauri/src/commands/financial.rs::do_money_in_out` |
 | F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `src-tauri/src/commands/financial.rs::do_open_drawer_fiscal` |
 | S | Pointage entrée | `signWorkIn` | `src-tauri/src/commands/social.rs::do_work_in` |
@@ -41,10 +41,10 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
 ### 1.3 Mécanismes de signature et compteurs
 
 - **Compteurs séquentiels par type d'événement** - voir
-  `COUNTER_STRATEGY.md`.
+  `STRATEGIE_COMPTEURS_FR.md`.
 - **Allocation en transaction atomique** (peek-then-commit) qui
   garantit qu'un échec FDM ne crée jamais de trou dans la séquence
-  - voir `COUNTER_STRATEGY.md` §3 et le test de régression
+  - voir `STRATEGIE_COMPTEURS_FR.md` §5 et le test de régression
   `pili-pos::spf_e2e_no_gap`.
 - **Contrôle de chaque réponse FDM avant archivage** (écho de la
   requête, opération et label, shortSignature dérivée de la signature
@@ -65,9 +65,10 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
 
 ### 1.4 Archivage local
 
-- Table `fiscal_events` (append-only, jamais de DELETE ni UPDATE).
-- Sauvegarde automatique de la base SQLite avant chaque rapport Z
-  via l'API Online Backup.
+- Table `fiscal_events` (append-only, jamais de DELETE ni UPDATE ;
+  des triggers SQLite le font respecter).
+- Sauvegarde automatique de la base SQLite après chaque rapport Z,
+  juste après son archivage, via l'API Online Backup.
 - Rétention : indéfinie (au moins 7 ans, durée légale belge).
 
 ### 1.5 Ticket fiscal imprimé
@@ -111,7 +112,7 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 
 ### 2.1 Prise de commande
 
-- Plan de table jusqu'à 50 tables (`TablesView.vue`) avec statut
+- Plan de 20 tables (`TablesView.vue`) avec statut
   "libre" / "occupée".
 - Grille catégories + items (`OrderView.vue`) optimisée tactile (boutons
   ≥ 48 × 48 px).
@@ -147,7 +148,14 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Bannière d'avertissement "Z non encore généré" affichée à partir
   de 22 h si aucun Z du jour
   (`commands::report::do_needs_z_report`).
-- Sauvegarde automatique de la base avant chaque Z.
+- **Z automatique d'une journée en retard** : si la période d'ouverture
+  appartient à une journée terminée (heure de fin de journée
+  `day_end_hour`, 5 h par défaut) et n'a pas de Z, le POS le génère
+  lui-même au nom de l'identité système
+  (`commands::report::close_overdue_day`, au démarrage puis toutes les
+  60 s ; FAQ producteurs Q501c). Une journée sans activité n'a pas de Z.
+- Sauvegarde automatique de la base après chaque Z, juste après son
+  archivage.
 
 ### 2.4 Mode formation
 
@@ -163,7 +171,7 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Langues supportées : 中文 (zh, principale pour le personnel),
   Français (fr, principale pour les clients et obligation légale),
   Nederlands (nl), Deutsch (de, migration `007`), English (en).
-- Sélection de la langue d'affichage par utilisateur.
+- Langue d'affichage et langue des tickets fixées par installation (`pos.json::language`) ; pas de choix par utilisateur.
 
 ## 3. Commandes en ligne (plateformes et webshop)
 
@@ -192,7 +200,7 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 
 ## 4. Intégration Peppol (B2B)
 
-Voir `PEPPOL_AP_DECISION.md` pour le détail.
+Hors binaire certifié v1.0.0 (voir §3 bis). Voir `DECISION_PEPPOL_AP_FR.md` pour le détail.
 
 Implémentation présente :
 - Sérialiseur UBL 2.1 BIS Billing 3.0 (`crates/pos-peppol/src/ubl.rs`).
@@ -213,17 +221,17 @@ contractuelle indépendante de la certification SCE 2.0.
 | Description détaillée POS | v2.2 | 2026-04-17 |
 | Description détaillée FDM | v1.4 | 2026-04-17 |
 | Addendum 1 (POS/FDM) | v2.1 ES | 2026-02-09 |
-| Use cases Basic Set | v1.7 | 2025-09-16 |
-| Use cases Reports | v1.3 | 2025-09-16 |
-| Use cases Advanced Set | v1.5 | 2025-09-23 |
+| Use cases Basic Set | v1.8 | 2026-08-21 |
+| Use cases Reports | v1.3 | 2026-08-21 |
+| Use cases Advanced Set | v1.6 | 2026-08-21 |
 | Peppol BIS Billing | 3.0 | - |
-| FPSFIN API Protocol FDM-FinCloud | 1.09 | 2025-10-17 |
+| FPSFIN API Protocol FDM-FinCloud | 1.10 | 2026-04-14 |
 
 ## 6. Périphériques pris en charge
 
 - **Terminal POS** : Penetek A3216 M82 ou Advantech USC-360J (Intel
   J6412, x86_64, 8 Go RAM, 128 Go SSD, écran 15,6" tactile PCAP
-  1920×1080, IP65). Cf. `KIOSK_DEPLOYMENT_CHECKLIST.md`.
+  1920×1080, IP65). Cf. `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`.
 - **Imprimante thermique** : Epson TM-m30III, raccordée en LAN
   (TCP 9100). Protocole ESC/POS.
 - **Tiroir-caisse** : standard RJ11 connecté à l'imprimante.

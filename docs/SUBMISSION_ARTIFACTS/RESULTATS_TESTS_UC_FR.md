@@ -3,8 +3,8 @@
 **Date :** 2026-09-25
 **Reference :** §IV du manuel de certification (Procedure de communication GraphQL).
 
-Ce document parcourt les UC obligatoires du Basic Set v1.7 (22 UC
-spec) + les 5 UC Reports v1.3. Sont hors périmètre v1.0.0, chacun
+Ce document parcourt les UC obligatoires du Basic Set v1.8 (22 UC
+spec) + les 5 UC Reports v1.3 + les cinq situations d'arrondi du manuel (ROUND1 a ROUND5). Sont hors périmètre v1.0.0, chacun
 dans sa section : **M150_signInvoice** (event I, voir
 *DECISION_PEPPOL_AP_FR.md*), **M122** (changement de centre de coût)
 et **M132** (correction de paiement) ; **M112A** n'est pas un parcours
@@ -18,13 +18,15 @@ ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 - Pour chaque UC rejoue : la requete **construite par pili-pos** et sa comparaison avec la fixture (bloc « Preuve pili-pos »).
 - Les tickets correspondants sont transcrits dans *TICKETS_EXEMPLES_FR.md*.
 
-**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20250916_UC_BasicSet_POS_FDM_1.7/` et `docs/20250916_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que pili-pos lit chaque fixture ; les rejeux applicatifs `src-tauri/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que pili-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
+**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20260821_UC_BasicSet_POS_FDM_1.8/` et `docs/20260821_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que pili-pos lit chaque fixture ; les rejeux applicatifs `src-tauri/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que pili-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
+
+**Revision des jeux de tests :** Basic Set v1.8 (changelog : M121, reponse sans espace final dans `terminalId`), Advanced Set v1.6 (UC226, UC243, UC4119bis_2, UC4121 corriges, voir *COUVERTURE_ADVANCED_SET_FR.md*) et Reports v1.3 republie ; tous les horodatages des fixtures portent les millisecondes. Les JSON de reference ci-dessous sont ceux de ces dossiers.
 
 **Preuves generees par l'implementation :** chaque UC rejoue se termine par un bloc « Preuve pili-pos (build `cert`) ». Le rejeu construit la commande a partir des produits, quantites et paiements de la fixture, la fait passer par les vraies commandes du binaire de certification (`--no-default-features --features cert`) et compare champ par champ la requete archivee a celle de la fixture : champs metier egaux, champs d'identification (posId, deviceId, numero de ticket, dates, periode de booking) controles sur leur format, ecarts assumes listes et motives. Le bloc reprend la requete **reellement construite par pili-pos** (colonne `event_data_json` de l'archive fiscale) et le resultat de la comparaison ; les fichiers sont dans `evidence/uc/` (`<UC>_event<N>_<label>_request.json`, `_response.json`, `<UC>_check.json`). Regeneration : `scripts/capture_uc_evidence.sh`. Le FDM y est un mock qui rejoue la reponse de la fixture ; une journee d'exploitation est signee par le simulateur en ligne module2 lors de la repetition (*JOURNAL_TESTS_PRE_SOUMISSION_FR.md*).
 
 ---
 
-# Basic Set v1.7 (22 UC)
+# Basic Set v1.8 (22 UC)
 
 ## M110_signSale
 
@@ -47,7 +49,7 @@ Payment by CASH (52 EUR)
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1000` | OK |
-| `posDateTime` | `2024-07-29T13:00:00+02:00` | OK |
+| `posDateTime` | `2024-07-29T13:00:00.000+02:00` | OK |
 | `terminalId` | `TER-2-DIN` | OK |
 | `deviceId` | `1631678d-7a85-4ac3-b296-bb4565e873fe` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -74,7 +76,7 @@ Payment by CASH (52 EUR)
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1000,
-    "posDateTime": "2024-07-29T13:00:00+02:00",
+    "posDateTime": "2024-07-29T13:00:00.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
     "terminalId": "TER-2-DIN",
@@ -151,7 +153,7 @@ Payment by CASH (52 EUR)
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1000,
-      "posDateTime": "2024-07-29T13:00:00+02:00",
+      "posDateTime": "2024-07-29T13:00:00.000+02:00",
       "terminalId": "TER-2-DIN",
       "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
       "vatCalc": [
@@ -175,7 +177,7 @@ Payment by CASH (52 EUR)
       "eventOperation": "SALE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T11:00:08Z",
+        "fdmDateTime": "2024-07-29T11:00:08.000Z",
         "eventLabel": "N",
         "eventCounter": 15,
         "totalCounter": 59
@@ -200,8 +202,8 @@ Payment by CASH (52 EUR)
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "6c706ddb-35ff-4e8d-8d3a-c4843fbed0b3",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "78eb00e7-1c0b-4ce3-a210-2b9ec772e256",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -221,7 +223,7 @@ Payment by CASH (52 EUR)
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.738761+02:00",
+  "posDateTime": "2026-10-03T21:33:33.142+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -305,7 +307,7 @@ Products on original ticket N 1000/1200:
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1001` | OK |
-| `posDateTime` | `2024-07-29T13:15:00+02:00` | OK |
+| `posDateTime` | `2024-07-29T13:15:00.000+02:00` | OK |
 | `terminalId` | `TER-2-DIN` | OK |
 | `deviceId` | `1631678d-7a85-4ac3-b296-bb4565e873fe` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -332,7 +334,7 @@ Products on original ticket N 1000/1200:
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1001,
-    "posDateTime": "2024-07-29T13:15:00+02:00",
+    "posDateTime": "2024-07-29T13:15:00.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
     "terminalId": "TER-2-DIN",
@@ -342,7 +344,7 @@ Products on original ticket N 1000/1200:
     "employeeId": "84022899837",
     "fdmRef": {
       "fdmId": "FOD01000001",
-      "fdmDateTime": "2024-07-29T11:00:08Z",
+      "fdmDateTime": "2024-07-29T11:00:08.000Z",
       "eventLabel": "N",
       "eventCounter": 15,
       "totalCounter": 59
@@ -418,7 +420,7 @@ Products on original ticket N 1000/1200:
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1001,
-      "posDateTime": "2024-07-29T13:15:00+02:00",
+      "posDateTime": "2024-07-29T13:15:00.000+02:00",
       "terminalId": "TER-2-DIN",
       "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
       "vatCalc": [
@@ -442,7 +444,7 @@ Products on original ticket N 1000/1200:
       "eventOperation": "SALE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T11:15:00Z",
+        "fdmDateTime": "2024-07-29T11:15:00.000Z",
         "eventLabel": "N",
         "eventCounter": 16,
         "totalCounter": 60
@@ -466,15 +468,15 @@ Products on original ticket N 1000/1200:
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "755e2ee6-77c2-42b1-8662-184975109e07",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "3c7de44a-b6d9-417f-be4a-01dc7320e622",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "fdmRef": {
     "eventCounter": 15,
     "eventLabel": "N",
-    "fdmDateTime": "2024-07-29T11:00:08Z",
+    "fdmDateTime": "2024-07-29T11:00:08.000Z",
     "fdmId": "FOD01000001",
     "totalCounter": 59
   },
@@ -489,7 +491,7 @@ Products on original ticket N 1000/1200:
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.829507+02:00",
+  "posDateTime": "2026-10-03T21:33:33.153+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -586,7 +588,7 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `6587` | OK |
-| `posDateTime` | `2024-10-07T13:00:00+02:00` | OK |
+| `posDateTime` | `2024-10-07T13:00:00.000+02:00` | OK |
 | `terminalId` | `TER-2-DIN` | OK |
 | `deviceId` | `1631678d-7a85-4ac3-b296-bb4565e873fe` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -613,7 +615,7 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 6587,
-    "posDateTime": "2024-10-07T13:00:00+02:00",
+    "posDateTime": "2024-10-07T13:00:00.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
     "terminalId": "TER-2-DIN",
@@ -690,13 +692,13 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 6587,
-      "posDateTime": "2024-10-07T13:00:00+02:00",
+      "posDateTime": "2024-10-07T13:00:00.000+02:00",
       "terminalId": "TER-2-DIN",
       "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
       "eventOperation": "SALE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-10-07T11:00:41Z",
+        "fdmDateTime": "2024-10-07T11:00:41.000Z",
         "eventLabel": "N",
         "eventCounter": 81958,
         "totalCounter": 83876
@@ -745,7 +747,7 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `6603` | OK |
-| `posDateTime` | `2024-10-07T13:48:00+02:00` | OK |
+| `posDateTime` | `2024-10-07T13:48:00.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -772,7 +774,7 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 6603,
-    "posDateTime": "2024-10-07T13:48:00+02:00",
+    "posDateTime": "2024-10-07T13:48:00.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
     "terminalId": "TER-1-BAR",
@@ -881,13 +883,13 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 6603,
-      "posDateTime": "2024-10-07T13:48:00+02:00",
+      "posDateTime": "2024-10-07T13:48:00.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "SALE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-10-07T11:48:41Z",
+        "fdmDateTime": "2024-10-07T11:48:41.000Z",
         "eventLabel": "N",
         "eventCounter": 81959,
         "totalCounter": 83877
@@ -961,7 +963,7 @@ section).
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `6587` | OK |
-| `posDateTime` | `2024-10-07T13:00:00+02:00` | OK |
+| `posDateTime` | `2024-10-07T13:00:00.000+02:00` | OK |
 | `terminalId` | `TER-2-DIN` | OK |
 | `deviceId` | `1631678d-7a85-4ac3-b296-bb4565e873fe` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -988,7 +990,7 @@ section).
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 6587,
-    "posDateTime": "2024-10-07T13:00:00+02:00",
+    "posDateTime": "2024-10-07T13:00:00.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
     "terminalId": "TER-2-DIN",
@@ -1065,13 +1067,13 @@ section).
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 6587,
-      "posDateTime": "2024-10-07T13:00:00+02:00",
+      "posDateTime": "2024-10-07T13:00:00.000+02:00",
       "terminalId": "TER-2-DIN",
       "deviceId": "1631678d-7a85-4ac3-b296-bb4565e873fe",
       "eventOperation": "SALE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-10-07T11:00:41Z",
+        "fdmDateTime": "2024-10-07T11:00:41.000Z",
         "eventLabel": "N",
         "eventCounter": 81958,
         "totalCounter": 83876
@@ -1120,7 +1122,7 @@ section).
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `6603` | OK |
-| `posDateTime` | `2024-10-07T13:48:00+02:00` | OK |
+| `posDateTime` | `2024-10-07T13:48:00.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -1147,7 +1149,7 @@ section).
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 6603,
-    "posDateTime": "2024-10-07T13:48:00+02:00",
+    "posDateTime": "2024-10-07T13:48:00.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
     "terminalId": "TER-1-BAR",
@@ -1206,13 +1208,13 @@ section).
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 6603,
-      "posDateTime": "2024-10-07T13:48:00+02:00",
+      "posDateTime": "2024-10-07T13:48:00.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "SALE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-10-07T11:48:27Z",
+        "fdmDateTime": "2024-10-07T11:48:27.000Z",
         "eventLabel": "N",
         "eventCounter": 76,
         "totalCounter": 83885
@@ -1247,15 +1249,15 @@ section).
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "945d6686-e3a3-455b-b0ec-b92189d411b6",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "b6ba61e8-71f4-4da2-9828-4c6133238ce9",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "fdmRef": {
     "eventCounter": 81958,
     "eventLabel": "N",
-    "fdmDateTime": "2024-10-07T11:00:41Z",
+    "fdmDateTime": "2024-10-07T11:00:41.000Z",
     "fdmId": "FOD01000001",
     "totalCounter": 83876
   },
@@ -1270,7 +1272,7 @@ section).
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.830462+02:00",
+  "posDateTime": "2026-10-03T21:33:33.151+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -1321,7 +1323,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M112B_event1_
 
 | Champ | Fixture | pili-pos | Motif |
 |---|---|---|---|
-| `fdmRef` | - | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | pili-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
+| `fdmRef` | - | `{"eventCounter": 81958, "eventLabel": "N", "fdmDateTime": "2024-10-07T11:00:41.000Z", "fdmId": "FOD01000001", "totalCounter": 83876}` | pili-pos référence le ticket remboursé sur chaque remboursement (*FLUX_REMBOURSEMENT_FR.md*) ; le remboursement partiel de la fixture n'en porte pas |
 
 <!-- pili-pos-evidence:end -->
 
@@ -1345,7 +1347,7 @@ on table 1.
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1003` | OK |
-| `posDateTime` | `2024-07-29T13:57:03+02:00` | OK |
+| `posDateTime` | `2024-07-29T13:57:03.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -1370,7 +1372,7 @@ on table 1.
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1003,
-    "posDateTime": "2024-07-29T13:57:03+02:00",
+    "posDateTime": "2024-07-29T13:57:03.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
     "terminalId": "TER-1-BAR",
@@ -1438,13 +1440,13 @@ on table 1.
     "signOrder": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1003,
-      "posDateTime": "2024-07-29T13:57:03+02:00",
-      "terminalId": "TER-1-BAR ",
+      "posDateTime": "2024-07-29T13:57:03.000+02:00",
+      "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "ORDER",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T11:57:12Z",
+        "fdmDateTime": "2024-07-29T11:57:12.000Z",
         "eventLabel": "P",
         "eventCounter": 22,
         "totalCounter": 53
@@ -1466,8 +1468,8 @@ on table 1.
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "71b87c68-ac2e-452c-9892-53b9debabf01",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "217e759f-1f9b-413b-b044-3d3276560bd0",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -1477,7 +1479,7 @@ on table 1.
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.740140+02:00",
+  "posDateTime": "2026-10-03T21:33:33.143+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -1562,7 +1564,7 @@ is moved to T5 (Dining Room)
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1004` | OK |
-| `posDateTime` | `2024-07-29T14:21:23+02:00` | OK |
+| `posDateTime` | `2024-07-29T14:21:23.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -1587,7 +1589,7 @@ is moved to T5 (Dining Room)
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1004,
-    "posDateTime": "2024-07-29T14:21:23+02:00",
+    "posDateTime": "2024-07-29T14:21:23.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
     "terminalId": "TER-1-BAR",
@@ -1715,13 +1717,13 @@ is moved to T5 (Dining Room)
     "signCostCenterChange": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1004,
-      "posDateTime": "2024-07-29T14:21:23+02:00",
+      "posDateTime": "2024-07-29T14:21:23.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "COST_CENTER_CHANGE",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T12:21:25Z",
+        "fdmDateTime": "2024-07-29T12:21:25.000Z",
         "eventLabel": "P",
         "eventCounter": 23,
         "totalCounter": 54
@@ -1759,7 +1761,7 @@ on table 1 (BAR)  is printed
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1005` | OK |
-| `posDateTime` | `2024-07-29T14:48:03+02:00` | OK |
+| `posDateTime` | `2024-07-29T14:48:03.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -1782,7 +1784,7 @@ on table 1 (BAR)  is printed
     "language": "NL",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1005,
-    "posDateTime": "2024-07-29T14:48:03+02:00",
+    "posDateTime": "2024-07-29T14:48:03.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
     "terminalId": "TER-1-BAR",
@@ -1852,13 +1854,13 @@ on table 1 (BAR)  is printed
     "signPreBill": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1005,
-      "posDateTime": "2024-07-29T14:48:03+02:00",
+      "posDateTime": "2024-07-29T14:48:03.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "PRE_BILL",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T12:48:12Z",
+        "fdmDateTime": "2024-07-29T12:48:12.000Z",
         "eventLabel": "P",
         "eventCounter": 24,
         "totalCounter": 55
@@ -1880,8 +1882,8 @@ on table 1 (BAR)  is printed
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "d5a834af-7277-4b39-b85f-54ddafa853c0",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "3c40553e-b65a-4408-897c-770a57fc2cb5",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -1891,7 +1893,7 @@ on table 1 (BAR)  is printed
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.828681+02:00",
+  "posDateTime": "2026-10-03T21:33:33.148+02:00",
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -1969,7 +1971,7 @@ Aucun écart.
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1006` | OK |
-| `posDateTime` | `2024-07-29T15:07:09+02:00` | OK |
+| `posDateTime` | `2024-07-29T15:07:09.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -1994,7 +1996,7 @@ Aucun écart.
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1006,
-    "posDateTime": "2024-07-29T15:07:09+02:00",
+    "posDateTime": "2024-07-29T15:07:09.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2028,13 +2030,13 @@ Aucun écart.
     "signMoneyInOut": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1006,
-      "posDateTime": "2024-07-29T15:07:09+02:00",
+      "posDateTime": "2024-07-29T15:07:09.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "MONEY_IN_OUT",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T13:07:12Z",
+        "fdmDateTime": "2024-07-29T13:07:12.000Z",
         "eventLabel": "F",
         "eventCounter": 6,
         "totalCounter": 56
@@ -2056,8 +2058,8 @@ Aucun écart.
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "a9d4e473-3e42-4135-9330-fd4d4d1bbeec",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "faaf1638-c040-4446-a8a3-9d9a8d431dce",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
@@ -2072,7 +2074,7 @@ Aucun écart.
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.734851+02:00",
+  "posDateTime": "2026-10-03T21:33:33.137+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2105,7 +2107,7 @@ Drawer 1 is opened without any action
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1007` | OK |
-| `posDateTime` | `2024-07-29T15:12:04+02:00` | OK |
+| `posDateTime` | `2024-07-29T15:12:04.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2130,7 +2132,7 @@ Drawer 1 is opened without any action
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1007,
-    "posDateTime": "2024-07-29T15:12:04+02:00",
+    "posDateTime": "2024-07-29T15:12:04.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2154,13 +2156,13 @@ Drawer 1 is opened without any action
     "signDrawerOpen": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1007,
-      "posDateTime": "2024-07-29T15:12:04+02:00",
+      "posDateTime": "2024-07-29T15:12:04.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "DRAWER_OPEN",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T13:12:05Z",
+        "fdmDateTime": "2024-07-29T13:12:05.000Z",
         "eventLabel": "F",
         "eventCounter": 7,
         "totalCounter": 57
@@ -2182,8 +2184,8 @@ Drawer 1 is opened without any action
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "c089bb40-8b1f-4db3-bdc9-4df871023244",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "bcb62f1f-9a18-4fa7-9c72-82d33af011f2",
   "deviceId": "00:1b:44:11:3a:b7",
   "drawer": {
     "id": "DRAWER1",
@@ -2192,7 +2194,7 @@ Drawer 1 is opened without any action
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.730835+02:00",
+  "posDateTime": "2026-10-03T21:33:33.137+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2229,7 +2231,7 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1008` | OK |
-| `posDateTime` | `2024-07-29T15:22:06+02:00` | OK |
+| `posDateTime` | `2024-07-29T15:22:06.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2254,7 +2256,7 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1008,
-    "posDateTime": "2024-07-29T15:22:06+02:00",
+    "posDateTime": "2024-07-29T15:22:06.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2264,7 +2266,7 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
     "employeeId": "75061189702",
     "fdmRef": {
       "fdmId": "FOD01000001",
-      "fdmDateTime": "2024-07-29T11:35:09Z",
+      "fdmDateTime": "2024-07-29T11:35:09.000Z",
       "eventLabel": "N",
       "eventCounter": 14,
       "totalCounter": 50
@@ -2303,13 +2305,13 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
     "signPaymentCorrection": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1008,
-      "posDateTime": "2024-07-29T15:22:06+02:00",
+      "posDateTime": "2024-07-29T15:22:06.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "PAYMENT_CORRECTION",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T13:22:06Z",
+        "fdmDateTime": "2024-07-29T13:22:06.000Z",
         "eventLabel": "F",
         "eventCounter": 8,
         "totalCounter": 58
@@ -2344,7 +2346,7 @@ Declaration of 1000 EUR cash in drawer 1
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1009` | OK |
-| `posDateTime` | `2024-07-29T15:39:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T15:39:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2369,7 +2371,7 @@ Declaration of 1000 EUR cash in drawer 1
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1009,
-    "posDateTime": "2024-07-29T15:39:39+02:00",
+    "posDateTime": "2024-07-29T15:39:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2403,13 +2405,13 @@ Declaration of 1000 EUR cash in drawer 1
     "signMoneyInOut": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1009,
-      "posDateTime": "2024-07-29T15:39:39+02:00",
+      "posDateTime": "2024-07-29T15:39:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "MONEY_IN_OUT",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T13:39:45Z",
+        "fdmDateTime": "2024-07-29T13:39:45.000Z",
         "eventLabel": "F",
         "eventCounter": 9,
         "totalCounter": 59
@@ -2424,8 +2426,44 @@ Declaration of 1000 EUR cash in drawer 1
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) ; le flux applicatif est celui de M130 (`src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture)  et `src-tauri/tests/spf_e2e_fixtures.rs::m133_drawer_declaration` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m133_drawer_declaration`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M133_event1_F_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "ddc61dd9-09f0-404c-8f0b-629486973ebd",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 1000.0,
+      "amountType": "DRAWER_DECLARATION",
+      "id": "MOV1",
+      "inputMethod": "MANUAL",
+      "name": "Declaration tiroir",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:33.479+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "NONE",
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M133_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Aucun écart.
+
+<!-- pili-pos-evidence:end -->
 
 ## M140_signWorkIn
 
@@ -2444,7 +2482,7 @@ Registration of "Work In" of employee (employeeId 80113078968)
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234568` | OK |
 | `posFiscalTicketNo` | `1010` | OK |
-| `posDateTime` | `2024-07-29T15:50:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T15:50:39.000+02:00` | OK |
 | `terminalId` | `POS-2-REC` | OK |
 | `deviceId` | `80:1A:A6:75:66:FC` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2469,7 +2507,7 @@ Registration of "Work In" of employee (employeeId 80113078968)
     "estNo": "2000000042",
     "posId": "CPOS0031234568",
     "posFiscalTicketNo": 1010,
-    "posDateTime": "2024-07-29T15:50:39+02:00",
+    "posDateTime": "2024-07-29T15:50:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "POS-2-REC",
     "deviceId": "80:1A:A6:75:66:FC",
@@ -2489,13 +2527,13 @@ Registration of "Work In" of employee (employeeId 80113078968)
     "signWorkIn": {
       "posId": "CPOS0031234568",
       "posFiscalTicketNo": 1010,
-      "posDateTime": "2024-07-29T15:50:39+02:00",
+      "posDateTime": "2024-07-29T15:50:39.000+02:00",
       "terminalId": "POS-2-REC",
       "deviceId": "80:1A:A6:75:66:FC",
       "eventOperation": "WORK_IN",
       "fdmRef": {
         "fdmId": "FOD01000002",
-        "fdmDateTime": "2024-07-29T13:50:39Z",
+        "fdmDateTime": "2024-07-29T13:50:39.000Z",
         "eventLabel": "S",
         "eventCounter": 7,
         "totalCounter": 30
@@ -2517,13 +2555,13 @@ Registration of "Work In" of employee (employeeId 80113078968)
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "c2c9f150-8e64-40c3-b3c5-b04da3f9f8e9",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "6e0a62b7-364e-49f3-876d-e03e0ff28076",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "80113078968",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.744386+02:00",
+  "posDateTime": "2026-10-03T21:33:33.508+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2556,7 +2594,7 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1011` | OK |
-| `posDateTime` | `2024-07-29T15:59:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T15:59:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2581,7 +2619,7 @@ Registration of "Work Out" of employee (employeeId 84022899837)
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1011,
-    "posDateTime": "2024-07-29T15:59:39+02:00",
+    "posDateTime": "2024-07-29T15:59:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2601,13 +2639,13 @@ Registration of "Work Out" of employee (employeeId 84022899837)
     "signWorkOut": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1011,
-      "posDateTime": "2024-07-29T15:59:39+02:00",
+      "posDateTime": "2024-07-29T15:59:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "WORK_OUT",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T13:59:43Z",
+        "fdmDateTime": "2024-07-29T13:59:43.000Z",
         "eventLabel": "S",
         "eventCounter": 8,
         "totalCounter": 61
@@ -2629,13 +2667,13 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "92c6f343-dfdb-42a2-872a-ba168e37d4da",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "dbd5145f-b449-4741-bd00-e9e78965bf51",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.887585+02:00",
+  "posDateTime": "2026-10-03T21:33:33.513+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2686,7 +2724,7 @@ Print of a copy of ticket (sale) N 16/52
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1013` | OK |
-| `posDateTime` | `2024-07-29T16:25:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T16:25:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2711,7 +2749,7 @@ Print of a copy of ticket (sale) N 16/52
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1013,
-    "posDateTime": "2024-07-29T16:25:39+02:00",
+    "posDateTime": "2024-07-29T16:25:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2721,7 +2759,7 @@ Print of a copy of ticket (sale) N 16/52
     "employeeId": "75061189702",
     "fdmRef": {
       "fdmId": "FOD01000001",
-      "fdmDateTime": "2024-07-29T11:48:04Z",
+      "fdmDateTime": "2024-07-29T11:48:04.000Z",
       "eventLabel": "N",
       "eventCounter": 16,
       "totalCounter": 52
@@ -2738,13 +2776,13 @@ Print of a copy of ticket (sale) N 16/52
     "signCopy": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1013,
-      "posDateTime": "2024-07-29T16:25:39+02:00",
+      "posDateTime": "2024-07-29T16:25:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "COPY",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T14:25:45Z",
+        "fdmDateTime": "2024-07-29T14:25:45.000Z",
         "eventLabel": "C",
         "eventCounter": 2,
         "totalCounter": 63
@@ -2766,20 +2804,20 @@ Print of a copy of ticket (sale) N 16/52
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "5e7c8ecd-94ca-4a29-a435-abdb6a4ed423",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "4535594e-f3e2-4d7f-9b38-ed43fb555724",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
     "eventCounter": 16,
     "eventLabel": "N",
-    "fdmDateTime": "2024-07-29T11:48:04Z",
+    "fdmDateTime": "2024-07-29T11:48:04.000Z",
     "fdmId": "FOD01000001",
     "totalCounter": 52
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.895102+02:00",
+  "posDateTime": "2026-10-03T21:33:33.523+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2814,7 +2852,7 @@ Print of a copy of order P 22/53
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1014` | OK |
-| `posDateTime` | `2024-07-29T16:30:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T16:30:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2839,7 +2877,7 @@ Print of a copy of order P 22/53
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1014,
-    "posDateTime": "2024-07-29T16:30:39+02:00",
+    "posDateTime": "2024-07-29T16:30:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2849,7 +2887,7 @@ Print of a copy of order P 22/53
     "employeeId": "75061189702",
     "fdmRef": {
       "fdmId": "FOD01000001",
-      "fdmDateTime": "2024-07-29T12:57:12Z",
+      "fdmDateTime": "2024-07-29T12:57:12.000Z",
       "eventLabel": "P",
       "eventCounter": 22,
       "totalCounter": 53
@@ -2866,13 +2904,13 @@ Print of a copy of order P 22/53
     "signCopy": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1014,
-      "posDateTime": "2024-07-29T16:30:39+02:00",
+      "posDateTime": "2024-07-29T16:30:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "COPY",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T14:30:42Z",
+        "fdmDateTime": "2024-07-29T14:30:42.000Z",
         "eventLabel": "C",
         "eventCounter": 3,
         "totalCounter": 64
@@ -2894,20 +2932,20 @@ Print of a copy of order P 22/53
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "dcea71b5-db11-4758-8c46-fb542df0cfb8",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "aa2e1cc6-2aef-4dbc-b92b-0724b853a0bf",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
     "eventCounter": 22,
     "eventLabel": "P",
-    "fdmDateTime": "2024-07-29T12:57:12Z",
+    "fdmDateTime": "2024-07-29T12:57:12.000Z",
     "fdmId": "FOD01000001",
     "totalCounter": 53
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.895936+02:00",
+  "posDateTime": "2026-10-03T21:33:33.519+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -2942,7 +2980,7 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1014` | OK |
-| `posDateTime` | `2024-07-29T17:00:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T17:00:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -2967,7 +3005,7 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1014,
-    "posDateTime": "2024-07-29T17:00:39+02:00",
+    "posDateTime": "2024-07-29T17:00:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -2988,13 +3026,13 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
     "signWorkIn": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1014,
-      "posDateTime": "2024-07-29T17:00:39+02:00",
+      "posDateTime": "2024-07-29T17:00:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "WORK_IN",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T15:00:41Z",
+        "fdmDateTime": "2024-07-29T15:00:41.000Z",
         "eventLabel": "T",
         "eventCounter": 3,
         "totalCounter": 65
@@ -3016,13 +3054,13 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "410fcca7-c7e2-4768-84e8-3d52950c2dc0",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "a6b8c0a9-f119-4fbd-b2ec-f3eab970766d",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.888047+02:00",
+  "posDateTime": "2026-10-03T21:33:33.521+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3049,7 +3087,7 @@ Aucun écart.
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1015` | OK |
-| `posDateTime` | `2024-07-29T17:10:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T17:10:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -3074,7 +3112,7 @@ Aucun écart.
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1015,
-    "posDateTime": "2024-07-29T17:10:39+02:00",
+    "posDateTime": "2024-07-29T17:10:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -3152,7 +3190,7 @@ Aucun écart.
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1015,
-      "posDateTime": "2024-07-29T17:10:39+02:00",
+      "posDateTime": "2024-07-29T17:10:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "fdmSwVersion": "1.2.0",
@@ -3161,7 +3199,7 @@ Aucun écart.
       "bufferCapacityUsed": 0.25,
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T15:10:41Z",
+        "fdmDateTime": "2024-07-29T15:10:41.000Z",
         "eventLabel": "T",
         "eventCounter": 4,
         "totalCounter": 64
@@ -3173,8 +3211,96 @@ Aucun écart.
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) ; le flux applicatif est celui de M171 (`src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M171B_event1_T_request.json`) :
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "12a774fd-e0ae-4f3e-8b5d-94d6e0ca40c4",
+  "costCenter": {
+    "id": "T01",
+    "reference": "O1",
+    "type": "TABLE"
+  },
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "75061189702",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 33.0,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:33.525+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 5.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "12",
+          "departmentName": "Boissons rafraichissantes",
+          "productId": "12007",
+          "productName": "Perrier",
+          "quantity": 2.0,
+          "quantityType": "PIECE",
+          "unitPrice": 2.5,
+          "vats": [
+            {
+              "label": "A",
+              "price": 5.0
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 28.0,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "22",
+          "departmentName": "Plats principaux",
+          "productId": "22001",
+          "productName": "Burger du chef",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 28.0,
+          "vats": [
+            {
+              "label": "B",
+              "price": 28.0
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 33.0
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+**Comparaison avec la fixture** (`evidence/uc/M171B_check.json`) : champs métier identiques à la fixture ; champs d'identification (posId, deviceId, numéro de ticket, dates, période de booking) contrôlés sur leur format ; libellés présents.
+
+Écarts assumés :
+
+| Champ | Fixture | pili-pos | Motif |
+|---|---|---|---|
+| `costCenter.type` | - | `TABLE` | une vente en salle est encaissée depuis sa table et porte le centre de coût TABLE |
+
+<!-- pili-pos-evidence:end -->
 
 ## M171_signSale_Training
 
@@ -3196,7 +3322,7 @@ in training mode. Paymentmethod: CASH
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1015` | OK |
-| `posDateTime` | `2024-07-29T17:10:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T17:10:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -3221,7 +3347,7 @@ in training mode. Paymentmethod: CASH
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1015,
-    "posDateTime": "2024-07-29T17:10:39+02:00",
+    "posDateTime": "2024-07-29T17:10:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -3299,7 +3425,7 @@ in training mode. Paymentmethod: CASH
     "signSale": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1015,
-      "posDateTime": "2024-07-29T17:10:39+02:00",
+      "posDateTime": "2024-07-29T17:10:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "fdmSwVersion": "1.2.0",
@@ -3310,7 +3436,7 @@ in training mode. Paymentmethod: CASH
       "bufferCapacityUsed": 0.25,
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T15:10:41Z",
+        "fdmDateTime": "2024-07-29T15:10:41.000Z",
         "eventLabel": "T",
         "eventCounter": 4,
         "totalCounter": 64
@@ -3330,8 +3456,8 @@ in training mode. Paymentmethod: CASH
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "1d3eb1dd-e018-4ff9-a60f-1d72b92eff51",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "d79a1528-4e36-4d4e-bcdf-c8376232b5c3",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
@@ -3351,7 +3477,7 @@ in training mode. Paymentmethod: CASH
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.892951+02:00",
+  "posDateTime": "2026-10-03T21:33:33.530+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3431,7 +3557,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `1016` | OK |
-| `posDateTime` | `2024-07-29T17:10:39+02:00` | OK |
+| `posDateTime` | `2024-07-29T17:10:39.000+02:00` | OK |
 | `terminalId` | `TER-1-BAR` | OK |
 | `deviceId` | `b54a614f-39cc-4a7b-bd9f-aa6b693d769c` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -3456,7 +3582,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 1016,
-    "posDateTime": "2024-07-29T17:10:39+02:00",
+    "posDateTime": "2024-07-29T17:10:39.000+02:00",
     "posSwVersion": "1.8.3",
     "terminalId": "TER-1-BAR",
     "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
@@ -3466,7 +3592,7 @@ In training mode: print of a copy of ticket (sale) N 35/73
     "employeeId": "75061189702",
     "fdmRef": {
       "fdmId": "FOD01000002",
-      "fdmDateTime": "2024-07-03T16:40:39Z",
+      "fdmDateTime": "2024-07-03T16:40:39.000Z",
       "eventLabel": "N",
       "eventCounter": 35,
       "totalCounter": 73
@@ -3484,13 +3610,13 @@ In training mode: print of a copy of ticket (sale) N 35/73
     "signCopy": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 1016,
-      "posDateTime": "2024-07-29T17:10:39+02:00",
+      "posDateTime": "2024-07-29T17:10:39.000+02:00",
       "terminalId": "TER-1-BAR",
       "deviceId": "b54a614f-39cc-4a7b-bd9f-aa6b693d769c",
       "eventOperation": "COPY",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-29T15:10:45Z",
+        "fdmDateTime": "2024-07-29T15:10:45.000Z",
         "eventLabel": "T",
         "eventCounter": 7,
         "totalCounter": 67
@@ -3512,20 +3638,20 @@ In training mode: print of a copy of ticket (sale) N 35/73
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "5507525f-1e96-4c49-abb6-e93a168cd0be",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "954e7a1d-d9d4-4425-ac1e-82a926d82f04",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmRef": {
     "eventCounter": 35,
     "eventLabel": "N",
-    "fdmDateTime": "2024-07-03T16:40:39Z",
+    "fdmDateTime": "2024-07-03T16:40:39.000Z",
     "fdmId": "FOD01000002",
     "totalCounter": 73
   },
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:15.895743+02:00",
+  "posDateTime": "2026-10-03T21:33:33.662+02:00",
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
@@ -3565,7 +3691,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
       "initialized": true,
       "device": {
         "bufferCapacityUsed": 10.02,
-        "fdmDateTime": "2025-08-10T10:00:39.514Z",
+        "fdmDateTime": "2025-08-10T10:00:39.000Z",
         "fdmId": "FOD01000001",
         "fdmSwVersion": "1.2.0"
       },
@@ -3599,7 +3725,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
       "device": {
         "__typename": "Device",
         "bufferCapacityUsed": 10.02,
-        "fdmDateTime": "2025-08-10T10:00:39.514Z",
+        "fdmDateTime": "2025-08-10T10:00:39.000Z",
         "fdmId": "FOD01000001",
         "fdmSwVersion": "1.2.0"
       },
@@ -3644,7 +3770,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `208` | OK |
-| `posDateTime` | `2024-07-30T13:00:35+02:00` | OK |
+| `posDateTime` | `2024-07-30T13:00:35.000+02:00` | OK |
 | `terminalId` | `POS-1-BAR` | OK |
 | `deviceId` | `F0:1D:3D:CC:13:C8` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -3669,7 +3795,7 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 208,
-    "posDateTime": "2024-07-30T13:00:35+02:00",
+    "posDateTime": "2024-07-30T13:00:35.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "F0:1D:3D:CC:13:C8",
     "terminalId": "POS-1-BAR",
@@ -3681,28 +3807,28 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-1-BAR",
-        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
-        "lastPosDateTime": "2024-07-30T08:40:12+02:00"
+        "firstPosDateTime": "2024-07-30T08:30:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T08:40:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-2-DIN",
-        "firstPosDateTime": "2024-07-30T11:45:12+02:00",
-        "lastPosDateTime": "2024-07-30T12:57:12+02:00"
+        "firstPosDateTime": "2024-07-30T11:45:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12.000+02:00"
       },
       {
         "posId": "CPOS0031234568",
         "terminalId": "POS-2-REC",
-        "firstPosDateTime": "2024-07-30T09:40:12+02:00",
-        "lastPosDateTime": "2024-07-30T09:45:12+02:00"
+        "firstPosDateTime": "2024-07-30T09:40:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T09:45:12.000+02:00"
       }
     ],
     "fdmDevices": [
       {
         "fdmId": "FOD01000001",
-        "firstFdmDateTime": "2024-07-30T06:30:12Z",
+        "firstFdmDateTime": "2024-07-30T06:30:12.000Z",
         "firstTotalCounter": 49,
-        "lastFdmDateTime": "2024-07-30T10:57:18Z",
+        "lastFdmDateTime": "2024-07-30T10:57:18.000Z",
         "lastTotalCounter": 56
       }
     ],
@@ -3815,13 +3941,13 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
     "signReportTurnoverX": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 208,
-      "posDateTime": "2024-07-30T13:00:35+02:00",
+      "posDateTime": "2024-07-30T13:00:35.000+02:00",
       "terminalId": "POS-1-BAR",
       "deviceId": "F0:1D:3D:CC:13:C8",
       "eventOperation": "REPORT_TURNOVER_X",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-30T11:00:38Z",
+        "fdmDateTime": "2024-07-30T11:00:38.000Z",
         "eventLabel": "R",
         "eventCounter": 3,
         "totalCounter": 57
@@ -3845,26 +3971,26 @@ Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "026357d1-2462-4b6b-b804-e2477d845697",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "1dd948f7-2508-4835-a3a5-a1450bf1ff36",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
     {
       "fdmId": "FOD01000001",
-      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstFdmDateTime": "2024-07-30T06:30:19.000Z",
       "firstTotalCounter": 49,
-      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastFdmDateTime": "2024-07-30T10:57:18.000Z",
       "lastTotalCounter": 56
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:16.054257+02:00",
+  "posDateTime": "2026-10-03T21:33:36.124+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T19:05:15.942737+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.051985+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.084+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.117+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -4009,7 +4135,7 @@ comparée à la fixture) et `m184_*` dans
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `209` | OK |
-| `posDateTime` | `2024-07-30T13:05:35+02:00` | OK |
+| `posDateTime` | `2024-07-30T13:05:35.000+02:00` | OK |
 | `terminalId` | `POS-1-BAR` | OK |
 | `deviceId` | `F0:1D:3D:CC:13:C8` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -4034,7 +4160,7 @@ comparée à la fixture) et `m184_*` dans
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 209,
-    "posDateTime": "2024-07-30T13:05:35+02:00",
+    "posDateTime": "2024-07-30T13:05:35.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "F0:1D:3D:CC:13:C8",
     "terminalId": "POS-1-BAR",
@@ -4048,34 +4174,34 @@ comparée à la fixture) et `m184_*` dans
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-1-BAR",
-        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
-        "lastPosDateTime": "2024-07-30T08:40:12+02:00"
+        "firstPosDateTime": "2024-07-30T08:30:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T08:40:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-2-DIN",
-        "firstPosDateTime": "2024-07-30T11:45:12+02:00",
-        "lastPosDateTime": "2024-07-30T12:57:12+02:00"
+        "firstPosDateTime": "2024-07-30T11:45:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "POS-1-BAR",
-        "firstPosDateTime": "2024-07-30T13:00:35+02:00",
-        "lastPosDateTime": "2024-07-30T13:00:35+02:00"
+        "firstPosDateTime": "2024-07-30T13:00:35.000+02:00",
+        "lastPosDateTime": "2024-07-30T13:00:35.000+02:00"
       },
       {
         "posId": "CPOS0031234568",
         "terminalId": "POS-2-REC",
-        "firstPosDateTime": "2024-07-30T09:40:12+02:00",
-        "lastPosDateTime": "2024-07-30T09:45:12+02:00"
+        "firstPosDateTime": "2024-07-30T09:40:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T09:45:12.000+02:00"
       }
     ],
     "fdmDevices": [
       {
         "fdmId": "FOD01000001",
-        "firstFdmDateTime": "2024-07-30T06:30:12Z",
+        "firstFdmDateTime": "2024-07-30T06:30:12.000Z",
         "firstTotalCounter": 49,
-        "lastFdmDateTime": "2024-07-30T11:00:38Z",
+        "lastFdmDateTime": "2024-07-30T11:00:38.000Z",
         "lastTotalCounter": 57
       }
     ],
@@ -4188,13 +4314,13 @@ comparée à la fixture) et `m184_*` dans
     "signReportTurnoverZ": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 209,
-      "posDateTime": "2024-07-30T13:05:35+02:00",
+      "posDateTime": "2024-07-30T13:05:35.000+02:00",
       "terminalId": "POS-1-BAR",
       "deviceId": "F0:1D:3D:CC:13:C8",
       "eventOperation": "REPORT_TURNOVER_Z",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-30T11:05:41Z",
+        "fdmDateTime": "2024-07-30T11:05:41.000Z",
         "eventLabel": "R",
         "eventCounter": 4,
         "totalCounter": 58
@@ -4236,7 +4362,7 @@ comparée à la fixture) et
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `210` | OK |
-| `posDateTime` | `2024-07-30T13:10:35+02:00` | OK |
+| `posDateTime` | `2024-07-30T13:10:35.000+02:00` | OK |
 | `terminalId` | `POS-1-BAR` | OK |
 | `deviceId` | `F0:1D:3D:CC:13:C8` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -4261,7 +4387,7 @@ comparée à la fixture) et
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 210,
-    "posDateTime": "2024-07-30T13:10:35+02:00",
+    "posDateTime": "2024-07-30T13:10:35.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "F0:1D:3D:CC:13:C8",
     "terminalId": "POS-1-BAR",
@@ -4273,34 +4399,34 @@ comparée à la fixture) et
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-1-BAR",
-        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
-        "lastPosDateTime": "2024-07-30T08:40:12+02:00"
+        "firstPosDateTime": "2024-07-30T08:30:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T08:40:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-2-DIN",
-        "firstPosDateTime": "2024-07-30T11:45:12+02:00",
-        "lastPosDateTime": "2024-07-30T12:57:12+02:00"
+        "firstPosDateTime": "2024-07-30T11:45:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "POS-1-BAR",
-        "firstPosDateTime": "2024-07-30T13:00:35+02:00",
-        "lastPosDateTime": "2024-07-30T13:05:35+02:00"
+        "firstPosDateTime": "2024-07-30T13:00:35.000+02:00",
+        "lastPosDateTime": "2024-07-30T13:05:35.000+02:00"
       },
       {
         "posId": "CPOS0031234568",
         "terminalId": "POS-2-REC",
-        "firstPosDateTime": "2024-07-30T09:40:12+02:00",
-        "lastPosDateTime": "2024-07-30T09:45:12+02:00"
+        "firstPosDateTime": "2024-07-30T09:40:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T09:45:12.000+02:00"
       }
     ],
     "fdmDevices": [
       {
         "fdmId": "FOD01000001",
-        "firstFdmDateTime": "2024-04-22T06:30:12Z",
+        "firstFdmDateTime": "2024-04-22T06:30:12.000Z",
         "firstTotalCounter": 49,
-        "lastFdmDateTime": "2024-07-30T11:05:41Z",
+        "lastFdmDateTime": "2024-07-30T11:05:41.000Z",
         "lastTotalCounter": 58
       }
     ],
@@ -4308,8 +4434,8 @@ comparée à la fixture) et
       {
         "employeeId": "75061189702",
         "totalAmount": 0,
-        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
-        "lastPosDateTime": "2024-07-30T09:40:12+02:00",
+        "firstPosDateTime": "2024-07-30T08:30:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T09:40:12.000+02:00",
         "socialEvents": [],
         "payments": [
           {
@@ -4332,8 +4458,8 @@ comparée à la fixture) et
       {
         "employeeId": "84022899837",
         "totalAmount": 102.04,
-        "firstPosDateTime": "2024-07-30T09:45:12+02:00",
-        "lastPosDateTime": "2024-07-30T12:57:12+02:00",
+        "firstPosDateTime": "2024-07-30T09:45:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12.000+02:00",
         "socialEvents": [],
         "payments": [
           {
@@ -4381,13 +4507,13 @@ comparée à la fixture) et
     "signReportUserX": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 210,
-      "posDateTime": "2024-07-30T13:10:35+02:00",
+      "posDateTime": "2024-07-30T13:10:35.000+02:00",
       "terminalId": "POS-1-BAR",
       "deviceId": "F0:1D:3D:CC:13:C8",
       "eventOperation": "REPORT_USER_X",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-30T11:10:42Z",
+        "fdmDateTime": "2024-07-30T11:10:42.000Z",
         "eventLabel": "R",
         "eventCounter": 5,
         "totalCounter": 59
@@ -4411,26 +4537,26 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "0779c6d5-9894-4eef-b801-ee4676bb5422",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "3448b1d5-c2b6-4475-9496-b097d79ada7e",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
     {
       "fdmId": "FOD01000001",
-      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstFdmDateTime": "2024-07-30T06:30:19.000Z",
       "firstTotalCounter": 49,
-      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastFdmDateTime": "2024-07-30T10:57:18.000Z",
       "lastTotalCounter": 56
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:16.055363+02:00",
+  "posDateTime": "2026-10-03T21:33:36.126+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T19:05:15.943119+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.052108+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.083+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.120+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -4443,8 +4569,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-09-25T19:05:15.943119+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.040045+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.083+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.094+02:00",
       "payments": [
         {
           "amount": [
@@ -4467,8 +4593,8 @@ Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-09-25T19:05:16.043350+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.052108+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.101+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.120+02:00",
       "payments": [
         {
           "amount": [
@@ -4539,7 +4665,7 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
 | `language` | `NL` | OK |
 | `posId` | `CPOS0031234567` | OK |
 | `posFiscalTicketNo` | `211` | OK |
-| `posDateTime` | `2024-07-30T13:15:35+02:00` | OK |
+| `posDateTime` | `2024-07-30T13:15:35.000+02:00` | OK |
 | `terminalId` | `POS-1-BAR` | OK |
 | `deviceId` | `F0:1D:3D:CC:13:C8` | OK |
 | `vatNo` | `BE0000000097` | OK |
@@ -4564,7 +4690,7 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
     "estNo": "2000000042",
     "posId": "CPOS0031234567",
     "posFiscalTicketNo": 211,
-    "posDateTime": "2024-07-30T13:15:35+02:00",
+    "posDateTime": "2024-07-30T13:15:35.000+02:00",
     "posSwVersion": "1.8.3",
     "deviceId": "F0:1D:3D:CC:13:C8",
     "terminalId": "POS-1-BAR",
@@ -4578,34 +4704,34 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-1-BAR",
-        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
-        "lastPosDateTime": "2024-07-30T08:40:12+02:00"
+        "firstPosDateTime": "2024-07-30T08:30:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T08:40:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "TER-2-DIN",
-        "firstPosDateTime": "2024-07-30T11:45:12+02:00",
-        "lastPosDateTime": "2024-07-30T12:57:12+02:00"
+        "firstPosDateTime": "2024-07-30T11:45:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12.000+02:00"
       },
       {
         "posId": "CPOS0031234567",
         "terminalId": "POS-1-BAR",
-        "firstPosDateTime": "2024-07-30T13:00:35+02:00",
-        "lastPosDateTime": "2024-07-30T13:10:35+02:00"
+        "firstPosDateTime": "2024-07-30T13:00:35.000+02:00",
+        "lastPosDateTime": "2024-07-30T13:10:35.000+02:00"
       },
       {
         "posId": "CPOS0031234568",
         "terminalId": "POS-2-REC",
-        "firstPosDateTime": "2024-07-30T09:40:12+02:00",
-        "lastPosDateTime": "2024-07-30T09:45:12+02:00"
+        "firstPosDateTime": "2024-07-30T09:40:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T09:45:12.000+02:00"
       }
     ],
     "fdmDevices": [
       {
         "fdmId": "FOD01000001",
-        "firstFdmDateTime": "2024-04-22T06:30:12Z",
+        "firstFdmDateTime": "2024-04-22T06:30:12.000Z",
         "firstTotalCounter": 49,
-        "lastFdmDateTime": "2024-07-30T11:10:42Z",
+        "lastFdmDateTime": "2024-07-30T11:10:42.000Z",
         "lastTotalCounter": 59
       }
     ],
@@ -4613,8 +4739,8 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
       {
         "employeeId": "75061189702",
         "totalAmount": 0,
-        "firstPosDateTime": "2024-07-30T08:30:12+02:00",
-        "lastPosDateTime": "2024-07-30T09:40:12+02:00",
+        "firstPosDateTime": "2024-07-30T08:30:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T09:40:12.000+02:00",
         "socialEvents": [],
         "payments": [
           {
@@ -4637,8 +4763,8 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
       {
         "employeeId": "84022899837",
         "totalAmount": 102.04,
-        "firstPosDateTime": "2024-07-30T09:45:12+02:00",
-        "lastPosDateTime": "2024-07-30T12:57:12+02:00",
+        "firstPosDateTime": "2024-07-30T09:45:12.000+02:00",
+        "lastPosDateTime": "2024-07-30T12:57:12.000+02:00",
         "socialEvents": [],
         "payments": [
           {
@@ -4686,13 +4812,13 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
     "signReportUserZ": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 211,
-      "posDateTime": "2024-07-30T13:15:35+02:00",
+      "posDateTime": "2024-07-30T13:15:35.000+02:00",
       "terminalId": "POS-1-BAR",
       "deviceId": "F0:1D:3D:CC:13:C8",
       "eventOperation": "REPORT_USER_Z",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-30T11:15:41Z",
+        "fdmDateTime": "2024-07-30T11:15:41.000Z",
         "eventLabel": "R",
         "eventCounter": 6,
         "totalCounter": 60
@@ -4912,13 +5038,13 @@ comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
     "signReportTurnoverZ": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 209,
-      "posDateTime": "2024-07-30T13:05:35.152+02:00",
+      "posDateTime": "2024-07-30T13:05:35.000+02:00",
       "terminalId": "POS-1-BAR",
       "deviceId": "F0:1D:3D:CC:13:C8",
       "eventOperation": "REPORT_TURNOVER_Z",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-30T11:05:43.231Z",
+        "fdmDateTime": "2024-07-30T11:05:43.000Z",
         "eventLabel": "R",
         "eventCounter": 3,
         "totalCounter": 47
@@ -4932,13 +5058,13 @@ comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
     "signReportUserZ": {
       "posId": "CPOS0031234567",
       "posFiscalTicketNo": 210,
-      "posDateTime": "2024-07-30T13:05:35.233+02:00",
+      "posDateTime": "2024-07-30T13:05:35.000+02:00",
       "terminalId": "POS-1-BAR",
       "deviceId": "F0:1D:3D:CC:13:C8",
       "eventOperation": "REPORT_USER_Z",
       "fdmRef": {
         "fdmId": "FOD01000001",
-        "fdmDateTime": "2024-07-30T11:05:43.242Z",
+        "fdmDateTime": "2024-07-30T11:05:43.000Z",
         "eventLabel": "R",
         "eventCounter": 4,
         "totalCounter": 48
@@ -4962,26 +5088,26 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "07d43677-cc91-4344-8532-cdeca6224cbc",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "fc0db5fc-4edf-425b-97d1-e21f8abfcea2",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
     {
       "fdmId": "FOD01000001",
-      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstFdmDateTime": "2024-07-30T06:30:19.000Z",
       "firstTotalCounter": 49,
-      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastFdmDateTime": "2024-07-30T10:57:18.000Z",
       "lastTotalCounter": 56
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:16.054219+02:00",
+  "posDateTime": "2026-10-03T21:33:36.129+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.084+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.124+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -4989,7 +5115,7 @@ Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
   "posFiscalTicketNo": 1,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "reportBookingDate": "2026-09-25",
+  "reportBookingDate": "2026-10-03",
   "reportNo": 1,
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
@@ -5096,26 +5222,26 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
 
 ```json
 {
-  "bookingDate": "2026-09-25",
-  "bookingPeriodId": "07d43677-cc91-4344-8532-cdeca6224cbc",
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "fc0db5fc-4edf-425b-97d1-e21f8abfcea2",
   "deviceId": "00:1b:44:11:3a:b7",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "fdmDevices": [
     {
       "fdmId": "FOD01000001",
-      "firstFdmDateTime": "2024-07-30T06:30:19Z",
+      "firstFdmDateTime": "2024-07-30T06:30:19.000Z",
       "firstTotalCounter": 49,
-      "lastFdmDateTime": "2024-07-30T10:57:18.863866Z",
+      "lastFdmDateTime": "2024-07-30T10:57:18.000Z",
       "lastTotalCounter": 56
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-09-25T19:05:16.054221+02:00",
+  "posDateTime": "2026-10-03T21:33:36.129+02:00",
   "posDevices": [
     {
-      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.084+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.124+02:00",
       "posId": "CFOD0061234567",
       "terminalId": "POS1"
     }
@@ -5123,15 +5249,15 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
   "posFiscalTicketNo": 2,
   "posId": "CFOD0061234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "reportBookingDate": "2026-09-25",
+  "reportBookingDate": "2026-10-03",
   "reportNo": 1,
   "terminalId": "POS1",
   "ticketMedium": "PAPER",
   "users": [
     {
       "employeeId": "75061189702",
-      "firstPosDateTime": "2026-09-25T19:05:15.942535+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.040117+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.084+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.094+02:00",
       "payments": [
         {
           "amount": [
@@ -5154,8 +5280,8 @@ Requête du rapport (`evidence/uc/M184_event10_R_request.json`) :
     },
     {
       "employeeId": "84022899837",
-      "firstPosDateTime": "2026-09-25T19:05:16.043197+02:00",
-      "lastPosDateTime": "2026-09-25T19:05:16.051614+02:00",
+      "firstPosDateTime": "2026-10-03T21:33:36.101+02:00",
+      "lastPosDateTime": "2026-10-03T21:33:36.124+02:00",
       "payments": [
         {
           "amount": [
@@ -5212,18 +5338,703 @@ Comparés exactement : nombre d'events et montants par label, départements, TVA
 
 ---
 
+# Arrondissement des methodes de paiement (manuel §IV)
+
+Le manuel demande les tests de base 1 et 2 dans tous les cas, le test 3
+si le POS n'arrondit que les paiements en especes, les tests 4 et 5 si
+tous les moyens de paiement sont arrondis. pili-pos n'arrondit **que
+les especes** (`crates/pos-fiscal/src/payment.rs` : un paiement par
+carte ou par cheque-repas est toujours exact, l'arrondi au 0,05 EUR
+porte sur le solde paye en especes, sur sa propre ligne `ROUNDING`).
+Sont donc presentees les cinq situations des tests de base 1 a 3 (les
+tests 4 et 5 ne s'appliquent pas). Produits du manuel : Dame Blanche
+11,52 EUR et Tapas Variation 3,34 EUR, TVA B (12 %). Les situations
+sont rejouees par `src-tauri/tests/spf_e2e_rounding.rs`, par les
+commandes d'encaissement, contre le FDM simule ; le test compare les
+lignes `financials` de la requete et le ticket imprime au tableau du
+manuel.
+
+## ROUND1_Arrondi_cash_Dame_Blanche
+
+**Test de base 1, situation 1.** Vente directe de 1x Dame Blanche
+(11,52 EUR), payee uniquement en especes. Attendu : a payer 11,50 EUR,
+arrondi -0,02 EUR.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round1_dame_blanche_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND1_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND1_event1_N_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "44b90f87-cc18-4aaa-863d-6f02a36a8ada",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 11.52,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": -0.02,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.784+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 11.52,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "25003",
+          "productName": "Dame Blanche",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 11.52,
+          "vats": [
+            {
+              "label": "B",
+              "price": 11.52
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 11.52
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Ticket imprimé (`evidence/tickets/ROUND1_ticket.txt`, rendu texte du flux ESC/POS) :
+
+```text
+            TICKET DE CAISSE T.V.A.
+The FPS Finances Experience
+Unite d'etablissement 2000000042
+03.10.2026                                 21:33
+Utilisateur: Test 12345678958
+Terminal: POS1
+Ticketnr.: 000001
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+1 Dame Blanche                          11,52  B
+TOTAL :                                   €11,52
+................................................
+Mode de paiement :
+Especes                                    11,52
+Arrondi                                    -0,02
+% TVA   CODE          HT       TVA      Brut
+12,00%  B          10,29      1,23     11,52
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-03T19:33:36Z;
+Event: N; eventCounter: 1;
+totalCounter: 1; shortSignature:
+3539c843c1eb258c746863fd3bfdfe12e9ffc33d;
+
+ [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
+
+
+Denomination legale : The FPS Finances
+Experience
+Boulevard Albert II 33, 1030 Brussels
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------
+```
+<!-- pili-pos-evidence:end -->
+
+## ROUND2_Arrondi_cash_Tapas_Variation
+
+**Test de base 1, situation 2.** Vente directe de 1x Tapas Variation
+(3,34 EUR), payee uniquement en especes. Attendu : a payer 3,35 EUR,
+arrondi +0,01 EUR.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round2_tapas_variation_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND2_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND2_event1_N_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "c2b00f9d-3cd9-4c43-8cc4-81542e62d5bc",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 3.34,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.784+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 3.34,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "28007",
+          "productName": "Tapas Variation",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 3.34
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 3.34
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Ticket imprimé (`evidence/tickets/ROUND2_ticket.txt`, rendu texte du flux ESC/POS) :
+
+```text
+            TICKET DE CAISSE T.V.A.
+The FPS Finances Experience
+Unite d'etablissement 2000000042
+03.10.2026                                 21:33
+Utilisateur: Test 12345678958
+Terminal: POS1
+Ticketnr.: 000001
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+1 Tapas Variation                        3,34  B
+TOTAL :                                    €3,34
+................................................
+Mode de paiement :
+Especes                                     3,34
+Arrondi                                     0,01
+% TVA   CODE          HT       TVA      Brut
+12,00%  B           2,98      0,36      3,34
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-03T19:33:36Z;
+Event: N; eventCounter: 1;
+totalCounter: 1; shortSignature:
+3539c843c1eb258c746863fd3bfdfe12e9ffc33d;
+
+ [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
+
+
+Denomination legale : The FPS Finances
+Experience
+Boulevard Albert II 33, 1030 Brussels
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------
+```
+<!-- pili-pos-evidence:end -->
+
+## ROUND3_Arrondi_cash_vente_combinee
+
+**Test de base 1, situation 3.** Vente directe de 1x Dame Blanche et
+1x Tapas Variation (14,86 EUR), payee uniquement en especes. Attendu :
+a payer 14,85 EUR, arrondi -0,01 EUR.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round3_both_desserts_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND3_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND3_event1_N_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "9d94ec97-f202-4ee5-800b-e41929cb82e4",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 14.86,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": -0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.785+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 11.52,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "25003",
+          "productName": "Dame Blanche",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 11.52,
+          "vats": [
+            {
+              "label": "B",
+              "price": 11.52
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 3.34,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "28007",
+          "productName": "Tapas Variation",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 3.34
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 14.86
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Ticket imprimé (`evidence/tickets/ROUND3_ticket.txt`, rendu texte du flux ESC/POS) :
+
+```text
+            TICKET DE CAISSE T.V.A.
+The FPS Finances Experience
+Unite d'etablissement 2000000042
+03.10.2026                                 21:33
+Utilisateur: Test 12345678958
+Terminal: POS1
+Ticketnr.: 000001
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+1 Dame Blanche                          11,52  B
+1 Tapas Variation                        3,34  B
+TOTAL :                                   €14,86
+................................................
+Mode de paiement :
+Especes                                    14,86
+Arrondi                                    -0,01
+% TVA   CODE          HT       TVA      Brut
+12,00%  B          13,27      1,59     14,86
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-03T19:33:36Z;
+Event: N; eventCounter: 1;
+totalCounter: 1; shortSignature:
+3539c843c1eb258c746863fd3bfdfe12e9ffc33d;
+
+ [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
+
+
+Denomination legale : The FPS Finances
+Experience
+Boulevard Albert II 33, 1030 Brussels
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------
+```
+<!-- pili-pos-evidence:end -->
+
+## ROUND4_Cheques_repas_puis_cash
+
+**Test de base 2, situation 4.** Memes produits (14,86 EUR) ; 11,52 EUR
+en cheques-repas (jamais arrondis), le solde 3,34 EUR en especes.
+Attendu : a payer 3,35 EUR en especes, arrondi +0,01 EUR.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round4_meal_vouchers_then_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND4_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND4_event1_N_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "b37f8936-e3a7-439b-aa9d-3e48de1366c3",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 11.52,
+      "amountType": "PAYMENT",
+      "id": "3",
+      "inputMethod": "MANUAL",
+      "name": "Meal voucher",
+      "type": "CHEQUE_MEAL"
+    },
+    {
+      "amount": 3.34,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": 0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.785+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 11.52,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "25003",
+          "productName": "Dame Blanche",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 11.52,
+          "vats": [
+            {
+              "label": "B",
+              "price": 11.52
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 3.34,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "28007",
+          "productName": "Tapas Variation",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 3.34
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 14.86
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Ticket imprimé (`evidence/tickets/ROUND4_ticket.txt`, rendu texte du flux ESC/POS) :
+
+```text
+            TICKET DE CAISSE T.V.A.
+The FPS Finances Experience
+Unite d'etablissement 2000000042
+03.10.2026                                 21:33
+Utilisateur: Test 12345678958
+Terminal: POS1
+Ticketnr.: 000001
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+1 Dame Blanche                          11,52  B
+1 Tapas Variation                        3,34  B
+TOTAL :                                   €14,86
+................................................
+Mode de paiement :
+Cheques-repas                              11,52
+Especes                                     3,34
+Arrondi                                     0,01
+% TVA   CODE          HT       TVA      Brut
+12,00%  B          13,27      1,59     14,86
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-03T19:33:36Z;
+Event: N; eventCounter: 1;
+totalCounter: 1; shortSignature:
+3539c843c1eb258c746863fd3bfdfe12e9ffc33d;
+
+ [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
+
+
+Denomination legale : The FPS Finances
+Experience
+Boulevard Albert II 33, 1030 Brussels
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------
+```
+<!-- pili-pos-evidence:end -->
+
+## ROUND5_Multi_paiements
+
+**Test de base 3, situation 5.** Memes produits (14,86 EUR) ; 3,13 EUR
+en cheques-repas, 3,97 EUR par carte de debit, le solde 7,76 EUR en
+especes. Attendu : 7,75 EUR en especes, arrondi -0,01 EUR ; seul le
+paiement en especes est arrondi.
+
+<!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
+**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round5_meal_vouchers_card_and_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND5_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND5_event1_N_response.json`.
+
+```json
+{
+  "bookingDate": "2026-10-03",
+  "bookingPeriodId": "aa3fee13-8df4-4079-83be-807c5256300b",
+  "deviceId": "00:1b:44:11:3a:b7",
+  "employeeId": "12345678958",
+  "estNo": "2000000042",
+  "financials": [
+    {
+      "amount": 3.13,
+      "amountType": "PAYMENT",
+      "id": "3",
+      "inputMethod": "MANUAL",
+      "name": "Meal voucher",
+      "type": "CHEQUE_MEAL"
+    },
+    {
+      "amount": 3.97,
+      "amountType": "PAYMENT",
+      "id": "2",
+      "inputMethod": "MANUAL",
+      "name": "Card",
+      "type": "CARD_DEBIT"
+    },
+    {
+      "amount": 7.76,
+      "amountType": "PAYMENT",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "amount": -0.01,
+      "amountType": "ROUNDING",
+      "id": "1",
+      "inputMethod": "MANUAL",
+      "name": "Cash",
+      "type": "CASH"
+    }
+  ],
+  "language": "FR",
+  "posDateTime": "2026-10-03T21:33:36.785+02:00",
+  "posFiscalTicketNo": 1,
+  "posId": "CFOD0061234567",
+  "posSwVersion": "pili-pos/1.0.0",
+  "terminalId": "POS1",
+  "ticketMedium": "PAPER",
+  "transaction": {
+    "transactionLines": [
+      {
+        "lineTotal": 11.52,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "25003",
+          "productName": "Dame Blanche",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 11.52,
+          "vats": [
+            {
+              "label": "B",
+              "price": 11.52
+            }
+          ]
+        }
+      },
+      {
+        "lineTotal": 3.34,
+        "lineType": "SINGLE_PRODUCT",
+        "mainProduct": {
+          "departmentId": "1",
+          "departmentName": "Desserts",
+          "productId": "28007",
+          "productName": "Tapas Variation",
+          "quantity": 1.0,
+          "quantityType": "PIECE",
+          "unitPrice": 3.34,
+          "vats": [
+            {
+              "label": "B",
+              "price": 3.34
+            }
+          ]
+        }
+      }
+    ],
+    "transactionTotal": 14.86
+  },
+  "vatNo": "BE0000000097"
+}
+```
+
+Ticket imprimé (`evidence/tickets/ROUND5_ticket.txt`, rendu texte du flux ESC/POS) :
+
+```text
+            TICKET DE CAISSE T.V.A.
+The FPS Finances Experience
+Unite d'etablissement 2000000042
+03.10.2026                                 21:33
+Utilisateur: Test 12345678958
+Terminal: POS1
+Ticketnr.: 000001
+POS Serial: CFOD0061234567
+Input device MAC: 00:1b:44:11:3a:b7
+Logiciel de caisse v.: pili-pos/1.0.0
+................................................
+1 Dame Blanche                          11,52  B
+1 Tapas Variation                        3,34  B
+TOTAL :                                   €14,86
+................................................
+Mode de paiement :
+Cheques-repas                               3,13
+Carte                                       3,97
+Especes                                     7,76
+Arrondi                                    -0,01
+% TVA   CODE          HT       TVA      Brut
+12,00%  B          13,27      1,59     14,86
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-03T19:33:36Z;
+Event: N; eventCounter: 1;
+totalCounter: 1; shortSignature:
+3539c843c1eb258c746863fd3bfdfe12e9ffc33d;
+
+ [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
+
+
+Denomination legale : The FPS Finances
+Experience
+Boulevard Albert II 33, 1030 Brussels
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------
+```
+<!-- pili-pos-evidence:end -->
+
+---
+
 # Recapitulatif
 
 | Famille | UC (spec) | UC dans le perimetre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.7 | 22 | 18 (hors M112A, M122, M132 et M150/event I) | OK (22/22) | OK : 14 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172) ; M133 et M171B suivent les flux de M130 et M171 ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
+| Basic Set v1.8 | 22 | 18 (hors M112A, M122, M132 et M150/event I) | OK (22/22) | OK : 16 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M123, M130, M131, M133, M140, M141, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
 | Reports v1.3 | 5 | 5 | OK (5/5) | OK : journee T1–T8 jouee puis M180, M182 et M184 compares a la fixture dans `spf_e2e_report_fixtures.rs` ; M181/M183 signes par le Z combine de M184 |
 | **Total** | **27** | **23** | **OK** | **OK** |
 
-Preuves d'annexe : **48 paires requete/reponse** construites et
-archivees par la build `cert` (`docs/SUBMISSION_ARTIFACTS/evidence/uc/`),
-plus un fichier `<UC>_check.json` par UC du Basic Set rejoue
-(comparaison champ par champ avec la fixture). M150 n'y figure pas :
-la build `cert` ne peut pas emettre d'event I.
+Preuves d'annexe : **50 paires requete/reponse** construites et
+archivees par la build `cert` pour le Basic Set et les rapports
+(`docs/SUBMISSION_ARTIFACTS/evidence/uc/`), plus un fichier
+`<UC>_check.json` par UC du Basic Set rejoue (comparaison champ par
+champ avec la fixture), **5 paires** pour les situations d'arrondi
+(`ROUND1` a `ROUND5`, avec leur ticket dans `evidence/tickets/`) et 5
+paires pour trois UC de l'Advanced Set rejoues par le meme harnais
+(UC230, UC4109, UC4119 ; voir *COUVERTURE_ADVANCED_SET_FR.md*). M150 n'y
+figure pas : la build `cert` ne peut pas emettre d'event I.
 
 Pour le detail des couvertures, voir *COUVERTURE_FIXTURES_FR.md* et *COUVERTURE_RAPPORTS_FR.md*.

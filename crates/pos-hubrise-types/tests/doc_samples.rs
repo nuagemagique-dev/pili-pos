@@ -1,4 +1,4 @@
-//! The JSON samples of the HubRise documentation (`docs/hubrise/`)
+//! The JSON samples of the HubRise API documentation (copied to `tests/fixtures/`)
 //! parse into the wire types, keep their `ref` fields, and survive a
 //! round trip.
 

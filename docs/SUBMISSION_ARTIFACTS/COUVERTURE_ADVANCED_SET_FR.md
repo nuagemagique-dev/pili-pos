@@ -1,10 +1,20 @@
-# Matrice de couverture des fixtures - SCE 2.0 Advanced Set v1.5
+# Matrice de couverture des fixtures - SCE 2.0 Advanced Set v1.6
 
 **Date :** 2026-05-14
 **Test pilote :** `crates/pos-fiscal/tests/advanced_set_fixtures.rs`
-**Fixtures source :** `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/`
+**Fixtures source :** `docs/20260821_UC_AdvancedSet_POS_FDM_1.6/`
 
-Advanced Set v1.5 est le jeu de flux optionnels-mais-réalistes du
+**Révision du jeu publié :** le dossier `docs/20260821_UC_AdvancedSet_POS_FDM_1.6/`
+remplace `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/`. Changements de la
+v1.6 (changelog `CHANGELOG-UC_AdvancedSet_1.6.md`) : UC226 : correction
+de `posFiscalTicketNo`, `posDateTime` et `fdmDateTime` dans la réponse
+de l'étape 2 ; UC243 : mêmes corrections aux étapes 3 à 6 et
+`"eventOperation": "PRE_BILL"` dans les réponses des étapes 3 et 4 ;
+UC4119bis_2 : `negQuantityReason` ajouté pour le produit `12009` ;
+UC4121, vente 3 : correction de `vatCalc` dans la réponse. En outre,
+tous les horodatages portent désormais les millisecondes.
+
+Advanced Set v1.6 est le jeu de flux optionnels-mais-réalistes du
 corpus de certification - produits composites, changements de prix,
 split/merge de tables, vouchers (MPV/SPV), devise étrangère + tips,
 comptes clients, acomptes, suppléments, notes de crédit, GTIN,
@@ -13,7 +23,7 @@ produits pondérés, et flux composés variés.
 Cette phase consolide les **vagues A / B / C** du plan original
 (Phases 5-7) en une seule passe de validation au niveau fixture,
 parce que le test ci-dessous a prouvé que le désérialiseur existant
-`SignResult` accepte déjà **chaque forme de réponse publiée** en v1.5
+`SignResult` accepte déjà **chaque forme de réponse publiée** en v1.6
 sans aucune modification de code.
 
 ---
@@ -39,7 +49,7 @@ sans aucune modification de code.
   multi-étapes profondément imbriqués (`UC4104` a 11 sous-étapes,
   `UC4119bis_SplitBill` en a 5, etc.).
 - Aucun `#[serde(default)]` ni wrapping `Option<...>` additionnel
-  n'est requis pour v1.5 - la dérive de schéma détectée en Phase 2
+  n'est requis pour v1.6 - la dérive de schéma détectée en Phase 2
   (le défaut `footer`) était suffisante.
 
 ---

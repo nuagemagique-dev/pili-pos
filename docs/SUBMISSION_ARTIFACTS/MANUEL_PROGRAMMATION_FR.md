@@ -7,7 +7,10 @@ codes TVA) et la **gestion des utilisateurs**.
 
 Attention : **Ces opérations ne sont PAS accessibles à l'opérateur du
 restaurant.** Elles requièrent l'accès maintenance au kiosque
-(combinaison de touches cachée, mot de passe `root`).
+(console locale `tty2`, combinaison de touches cachée, mot de passe
+`root`). Le menu et les employés peuvent aussi être gérés depuis
+l'écran par un Gérant : les employés dans "Config" (§6), le menu par
+HubRise quand celui-ci gère le catalogue (§4.5).
 
 ## 1. Accès en mode programmation
 
@@ -94,7 +97,7 @@ VALUES
     (5, 850, 'B', 'food', 1, 0, 1);
 -- 850 centimes = 8,50 €
 -- vat_code B = 12% (service salle)
--- kitchen_printer 1 = à envoyer en cuisine
+-- kitchen_printer 1 = ligne reprise sur le bon de commande (bar ou cuisine)
 
 SELECT last_insert_rowid();   -- supposons 42
 
@@ -107,13 +110,28 @@ VALUES
     ('menu_item', 42, 'name', 'en', 'Salmon roll x8');
 ```
 
+Deux colonnes facultatives complètent l'article :
+
+- `vat_code_takeaway` : code TVA appliqué quand l'article est vendu à
+  emporter. `NULL` (valeur par défaut) : le code `vat_code` ("Sur place")
+  s'applique aussi à emporter.
+- `open_price` : `1` pour un article à prix libre. Le prix est alors
+  saisi à la caisse ("Prix libre") et `price_cents` ne sert pas.
+
+```sql
+-- Plat vendu 12 % sur place et 6 % à emporter
+UPDATE menu_items SET vat_code_takeaway = 'C' WHERE id = 42;
+-- Article à prix libre (plat du jour)
+UPDATE menu_items SET open_price = 1 WHERE id = 43;
+```
+
 ### 4.2 Codes TVA (rappel)
 
 | `vat_code` | Taux | `vat_category` | Usage |
 |---|---|---|---|
 | `A` | 21 % | `beverage` | Boissons, alcools |
 | `B` | 12 % | `food` | Cuisine consommée en salle |
-| `C` | 6 % | `food` | À emporter (cuisine) |
+| `C` | 6 % | `food` | À emporter (cuisine) : à renseigner dans `vat_code_takeaway` d'un article dont `vat_code` est `B`, il s'applique aux commandes à emporter. Ce n'est pas une catégorie à part : le code `vat_code` reste celui de la vente sur place. |
 | `D` | 0 % | `zero_rated` | Produits exonérés |
 | `X` | - | `out_of_scope` | Hors champ TVA |
 
@@ -137,7 +155,22 @@ UPDATE menu_items SET active = 0 WHERE id = 42;
 Il disparaît de la grille de menu pour les nouvelles commandes mais
 reste consultable dans l'historique fiscal.
 
+### 4.5 Menu géré par HubRise
+
+Quand HubRise gère le menu (une fois le catalogue repris par le Gérant
+dans "Config", panneau "HubRise", `MANUEL_UTILISATEUR_FR.md` §12.7), le
+catalogue de la caisse est le miroir de celui de HubRise. Chaque
+synchronisation **écrase** les modifications faites directement en SQL
+sur les articles, catégories et options gérés, et l'écran refuse de
+modifier le menu ("Le menu est géré par HubRise : modifiez-le là.").
+Les articles se modifient donc dans HubRise ; ne pas utiliser les
+requêtes de ce chapitre pour un menu géré par HubRise.
+
 ## 5. Gestion des modificateurs
+
+Les groupes d'options sont proposés à l'écran de commande (fenêtre
+"Options") quand HubRise est activé sur l'installation. Quand HubRise
+est désactivé, un article s'ajoute directement, sans fenêtre d'options.
 
 ### 5.1 Créer un groupe de modificateurs
 
@@ -238,33 +271,52 @@ UPDATE users SET pin_hash = NULL WHERE insz = '85073003328';
 ```
 
 Un Serveur ou un Apprenti peut alors se connecter sans PIN, puis en
-fixe un nouveau en touchant son nom sur l'écran de commande. Un Gérant
-choisit un nouveau PIN dès sa connexion suivante ("Choisissez votre
-PIN") : il ne peut pas se connecter sans.
+fixe un nouveau en touchant son nom sur l'écran de commande. Pour un
+Gérant sans PIN, la caisse refuse la connexion. S'il est le seul Gérant
+(aucun Gérant n'a de PIN), il choisit un nouveau PIN à sa connexion
+suivante ("Choisissez votre PIN"). Si un autre Gérant a un PIN, c'est ce
+Gérant qui fixe celui du premier dans "Config", bouton "Code PIN",
+confirmé par son propre PIN.
 
-## 7. Configuration de la période de réservation
+Le compteur de PIN erronés (5 essais, puis 30 s doublées jusqu'à 15
+min) est tenu en mémoire : redémarrer le service le remet à zéro
+(`systemctl restart pili-pos.service`).
 
-La `booking_period_id` est une UUID régénérée automatiquement à
-chaque rapport Z. Pour la **réinitialiser manuellement** (cas
-exceptionnel - uniquement à l'installation initiale) :
+## 7. Période de réservation
 
-Cette UUID vit dans `AppState.booking_period_id` en mémoire et est
-régénérée au prochain Z. Pas de modification SQL nécessaire en
-exploitation normale.
+Une période de réservation (`booking_period`) court du premier
+événement fiscal qui suit un rapport Z jusqu'au Z suivant. Elle est
+enregistrée dans la table `booking_periods` (un identifiant, la date
+de réservation de son ouverture et, une fois close, le Z qui la
+ferme). Une seule période est ouverte à la fois ; une période close ne
+se rouvre pas et ne se supprime pas (déclencheurs SQL). Redémarrer la
+caisse ne coupe donc jamais une journée.
+
+La date de réservation est le jour commercial belge à l'ouverture : un
+service qui dépasse minuit reste sur sa journée jusqu'à l'heure
+`day_end_hour` de `pos.json` (5 h par défaut). Une période restée
+ouverte au-delà est clôturée par un Z automatique. Aucune modification
+SQL n'est nécessaire ni permise.
 
 ## 8. Désactiver / activer le mode formation
 
-Le mode formation est un drapeau dans `pos.json` :
+Le mode formation est un drapeau dans `pos.json`, qui donne la valeur de
+départ au démarrage :
 
 ```bash
 vi /etc/pili-pos/pos.json
 ```
 
-Modifier `"training_mode": false` correspond à `true`. Puis :
+Modifier `"training_mode": false` en `true`. Puis :
 
 ```bash
 systemctl restart pili-pos.service
 ```
+
+Un Gérant peut aussi le basculer dans "Config" (panneau "Mode
+Formation"), sans redémarrage et seulement quand aucune commande n'est
+ouverte avec des lignes. Ce réglage reste en mémoire : un redémarrage
+revient à la valeur du fichier.
 
 Attention : Ne JAMAIS laisser `training_mode: true` à la livraison au
 client - toutes les ventes deviendraient des événements T (formation)
@@ -285,28 +337,29 @@ re-certification.
 ### 10.1 Sauvegarde manuelle
 
 ```bash
-sqlite3 /var/lib/pili-pos/pos.db ".backup /tmp/pos-snapshot.db"
+sqlite3 /var/lib/pili-pos/pos.db \
+  ".backup /var/lib/pili-pos/backups/manual-$(date +%Y%m%d-%H%M%S).db"
 ```
 
-### 10.2 Restauration
+La caisse écrit aussi une sauvegarde dans `/var/lib/pili-pos/backups/`
+après chaque rapport Z, et `deploy/update.sh` une avant chaque mise à
+jour. `/tmp` est en mémoire : ne pas y laisser une sauvegarde.
 
-Attention : Opération **DESTRUCTIVE** - la base courante est remplacée.
-À effectuer uniquement après arrêt du service et en cas de
-nécessité (panne disque, corruption avérée).
+### 10.2 Restauration : jamais par-dessus `pos.db`
 
-```bash
-systemctl stop pili-pos.service
-cp /tmp/pos-snapshot.db /var/lib/pili-pos/pos.db
-chown pili-pos:pili-pos /var/lib/pili-pos/pos.db
-chmod 0640 /var/lib/pili-pos/pos.db
-systemctl start pili-pos.service
-```
+**Ne jamais restaurer une sauvegarde par-dessus `pos.db`.** Les
+événements fiscaux enregistrés depuis la sauvegarde seraient perdus, ce
+qui est interdit ; et les fichiers `pos.db-wal` et `pos.db-shm` qui
+accompagnent la base ne correspondraient plus. Les sauvegardes servent à
+consulter une situation passée (`sqlite3 -readonly`) et à archiver, pas
+à revenir en arrière. La position est la même dans `deploy/REMOTE-OPS.md`.
 
-**Toute restauration doit être déclarée** :
-1. Au commerçant (qui devra vérifier la cohérence de ses
-   sauvegardes papier).
-2. Le cas échéant au SPF Finances si la perte couvre une période où
-   des ventes ont été effectuées et non remontées.
+En cas de panne du disque ou de corruption avérée : arrêter le service
+(`systemctl stop pili-pos.service`), ne rien supprimer ni remplacer,
+conserver `pos.db` avec ses fichiers `pos.db-wal` et `pos.db-shm` tels
+quels, et contacter le distributeur, qui décide de la suite avec le SPF
+Finances. Seul le binaire précédent peut être remis en place (retour
+arrière de `deploy/REMOTE-OPS.md`, version déjà certifiée).
 
 ## 11. Migrations de schéma
 
@@ -348,22 +401,35 @@ tail -f /var/lib/pili-pos/logs/pos.log.YYYY-MM-DD
 
 ```bash
 # Test brut de la connexion HTTP
-curl -X POST http://192.168.1.20:8080/graphql \
+# FDM module2 (configuration retenue) : HTTPS 443, certificat client mTLS
+# et jeton Bearer, les fichiers désignés par pos.json
+# (fdm_client_cert_file, fdm_client_key_file, fdm_token_file).
+# -k : le certificat du FDM ne porte pas de nom d'hôte (la caisse le
+# vérifie par l'autorité fdm_ca_file) ; à n'utiliser que pour ce test.
+curl -k -X POST https://192.168.1.20/graphql/ \
+  --cert /etc/pili-pos/fdm/client.crt \
+  --key /etc/pili-pos/fdm/client.key \
+  -H "Authorization: Bearer $(cat /etc/pili-pos/secrets/fdm.token)" \
   -H "Content-Type: application/json" \
-  -d '{"query": "query { Status(language: FR) { device { fdmId fdmDateTime } } }"}'
+  -d '{"query": "query { status(language: FR) { device { fdmId fdmDateTime } } }"}'
 ```
 
 Réponse attendue : JSON contenant l'identité du FDM. Si pas de
-réponse : problème réseau ou FDM hors-ligne.
+réponse : problème réseau ou FDM hors-ligne. La caisse interroge d'abord
+`status` en minuscules, puis `Status` si le FDM refuse cette
+orthographe ; essayer l'autre si l'un est refusé. Un FDM sur le LAN en
+HTTP (port 80) se teste avec une URL `http://` et sans `--cert` ni
+`--key`. Une réponse "Not a valid Token" indique un jeton absent ou
+erroné.
 
 ### 12.3 Diagnostic imprimante
 
 ```bash
 # Si TCP
-nc -zv 192.168.1.10 9100
+nc -zv 192.168.1.30 9100
 
 # Test d'impression caractères ESC/POS minimal
-echo -e "Test impression\n\n\n\x1bm" | nc -w 1 192.168.1.10 9100
+echo -e "Test impression\n\n\n\x1bm" | nc -w 1 192.168.1.30 9100
 ```
 
 ## 13. Procédure de release par le distributeur
@@ -413,4 +479,6 @@ sudo deploy/image/build.sh admission
 | Bypass de FDM en production | Bloquer la vente - exigence cert |
 | `training_mode: true` en production | Toujours `false` après installation |
 | Suppression d'une catégorie ayant des items | `UPDATE ... SET active = 0` |
+| Modifier en SQL un menu géré par HubRise | Modifier le produit dans HubRise (la synchronisation écrase le SQL, §4.5) |
+| Restaurer une sauvegarde par-dessus `pos.db` | Ne jamais restaurer ; contacter le distributeur (§10.2) |
 | Changement de `pos_id` ou `restaurant_vat` sans déclaration SPF | Procédure post-cert obligatoire |

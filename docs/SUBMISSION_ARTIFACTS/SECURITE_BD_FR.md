@@ -14,12 +14,17 @@ PRAGMA journal_mode = WAL;
 ```
 
 Activé au démarrage par `pos_db::migrate::run_migrations`
-(`crates/pos-db/src/migrate.rs:62`).
+(`crates/pos-db/src/migrate.rs`, lignes 162 à 166 : `journal_mode=WAL`,
+`synchronous=FULL`, `foreign_keys=ON`).
 
 Le mode WAL garantit :
 - **Atomicité crash-safe** : un événement fiscal n'est commité que
   lorsque toute la transaction (compteur + archive + clôture
   commande) a été inscrite dans le WAL et synchronisée sur disque.
+  Le même démarrage fixe `PRAGMA synchronous = FULL` (test
+  `commits_are_synchronous_full` dans `migrate.rs`) : chaque commit
+  atteint le disque avant de retourner, y compris en mode WAL. La
+  requête de signature est donc durable avant d'être envoyée au FDM.
 - **Cohérence en cas de coupure de courant** : SQLite rejoue ou
   abandonne automatiquement les transactions partielles au prochain
   démarrage. Aucun événement n'est jamais à moitié écrit.
@@ -45,8 +50,8 @@ Au niveau colonne :
   type inconnu.
 - `menu_items.vat_code IN ('A','B','C','D','X')` - rejette tout
   code TVA invalide.
-- `payments.method IN ('cash','card','other')` - restreint les
-  modes de paiement.
+- `payments.method IN ('cash','card','meal_voucher','other')`
+  (migration 8) - restreint les modes de paiement.
 - `users.role IN ('admin','cashier','waiter')` - restreint les
   rôles à ceux mappés sur les profils SCE 2.0.
 - `peppol_deliveries.status IN ('queued','accepted','failed')` -
@@ -67,18 +72,41 @@ Au niveau colonne :
 
 ### 2.1 Append-only pour `fiscal_events`
 
-Le code applicatif ne contient AUCUNE instruction `DELETE FROM
-fiscal_events` ni `UPDATE fiscal_events SET ...` (vérification grep -
-cf. `DECLARATION_FONCTIONS_INTERDITES_FR.md` §1 et §2). Les seules
-opérations possibles sont :
+Deux protections indépendantes, la seconde ne dépendant pas du code.
+
+**Triggers SQLite (niveau base).** Le schéma refuse la modification et
+la suppression, même par un accès direct à la base :
+
+- `fiscal_events_no_delete` et `fiscal_events_no_rewrite` (migration 4) :
+  tout `DELETE` et tout `UPDATE` sur `fiscal_events` avorte
+  (`fiscal events are append-only`) ;
+- `z_reports_no_delete` et `z_reports_no_rewrite` (migration 4), même
+  règle pour les rapports Z ;
+- `fiscal_events_period_open` (migration 10) : un `INSERT` dont le
+  `bookingPeriodId` désigne une période déjà close avorte ;
+- `order_entries_no_delete` et `order_entries_no_rewrite` (migration 2),
+  seul `sent_event_id` reste modifiable ;
+- `booking_periods_no_reopen` et `booking_periods_no_delete`
+  (migration 3) ;
+- `pending_signs_request_immutable`, `pending_signs_context_on_resolution`,
+  `pending_signs_no_reopen` et `pending_signs_no_delete` (migration 10) ;
+- `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*` et
+  `integration_switch_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
+
+**Revue de code (niveau applicatif).** Le code applicatif ne contient
+AUCUNE instruction `DELETE FROM fiscal_events` ni `UPDATE fiscal_events
+SET ...` (vérification grep - cf. `DECLARATION_FONCTIONS_INTERDITES_FR.md`
+§1 et §2). Les seules opérations possibles sont :
 
 - `INSERT` via `pos_fiscal::archive::archive_event`
   (`crates/pos-fiscal/src/archive.rs:38`).
 - `SELECT` via les fonctions de `pos_db::queries::fiscal`.
 
-Cette discipline est garantie par revue de code : tout patch
-introduisant un DELETE/UPDATE sur `fiscal_events` est rejeté en pull
-request (politique organisationnelle, cf. `PROFIL_ENTREPRISE_FR.md`).
+Tout patch introduisant un DELETE/UPDATE sur `fiscal_events` est rejeté
+en pull request (politique organisationnelle, cf. `PROFIL_ENTREPRISE_FR.md`).
+Les tests `archived_event_cannot_be_deleted` et
+`archived_event_cannot_be_rewritten` (`crates/pos-fiscal/src/archive.rs`)
+vérifient les triggers.
 
 ### 2.2 Transaction atomique compteur + archive
 
@@ -94,12 +122,12 @@ dans une transaction SQLite qui inclut :
    `signed`).
 
 Si l'une de ces opérations échoue, **toute la transaction est
-rejouée à la racine** : ni le compteur ni l'archive ni le statut
+annulée** (rollback) : ni le compteur ni l'archive ni le statut
 de commande ne sont modifiés, et la ligne `pending_signs` reste
 ouverte : l'opération suivante renvoie la requête à l'identique et
 archive l'événement (aucun événement signé n'est perdu). Le déclencheur
 `fiscal_events_period_open` refuse l'archivage dans une période déjà
-fermée. Voir `COUNTER_STRATEGY.md` §3 et la
+fermée. Voir `STRATEGIE_COMPTEURS_FR.md` §5 et la
 régression `pili-pos::spf_e2e_no_gap`.
 
 ### 2.3 Aucune suppression de compteur
@@ -227,6 +255,30 @@ L'image kiosque livrée est **scellée**, avec les précisions suivantes
   (§4.2 du manuel d'installation) ; `nano`/`less` restent absents.
 - Cage Wayland compositor démarre directement sur pili-pos en
   plein écran, sans gestionnaire de fenêtres ni écran de connexion.
+
+**Assistance à distance (RustDesk).** L'image n'exécute aucun service
+d'accès distant en permanence : RustDesk (version épinglée, installée
+dans `/opt/pili-pos/rustdesk/` par `provision.sh`) n'est lancé que sur
+demande, par `src-tauri/src/commands/support.rs` :
+
+- seul un Gérant connecté peut démarrer une session, et son PIN est
+  redemandé à ce moment (`confirmed_operator`, accès `Admin`) ;
+- une bannière est affichée sur chaque écran, écran de connexion
+  compris, tant que la session dure : le personnel sait qu'une personne
+  est connectée ;
+- n'importe qui, connecté ou non, peut arrêter la session depuis la
+  bannière ;
+- la session se termine seule après 2 heures (`MAX_SESSION`), à la
+  sortie du programme ou à l'arrêt de l'application ;
+- une seule session à la fois ; le programme tourne avec un `HOME`
+  privé sous le répertoire d'exécution du service : rien de ce qu'il
+  écrit ne survit à un redémarrage ;
+- le démarrage et l'arrêt sont journalisés (avec le rôle de la personne,
+  sans nom ni INSZ).
+
+Ce mécanisme ne donne pas d'accès à la base par lui-même : la
+protection de `pos.db` (triggers append-only, §2.1) s'applique à toute
+session.
 
 Cf. `MANUEL_INSTALLATION_FR.md` pour les détails de construction
 d'image et `deploy/image/` (mkosi) pour la configuration source.
@@ -365,8 +417,10 @@ modifications post-certification.
 Voir `FEUILLE_ACQUISITION_DONNEES_FR.md` §1.2.
 
 Politique :
-- Sauvegarde automatique avant chaque Z-report (via SQLite Online
-  Backup API).
+- Sauvegarde automatique après chaque Z-report, juste après son
+  archivage (`signing::follow_up` pour un Z, qui appelle
+  `commands::report::backup_database_impl`, via SQLite Online Backup
+  API). Un échec de sauvegarde est journalisé et n'annule pas le Z.
 - Fichier daté à la seconde, **jamais écrasé**.
 - Stockage local - pas de sauvegarde cloud automatisée (le
   distributeur peut configurer une copie distante si demandé par le
@@ -378,11 +432,46 @@ Politique :
 Voir `FEUILLE_ACQUISITION_DONNEES_FR.md` §6 et
 `PROFIL_ENTREPRISE_FR.md` §GDPR.
 
+Données de l'équipe :
+
 - INSZ stocké en clair (donnée personnelle obligatoire fiscalement).
 - PIN stocké en hash bcrypt (jamais en clair).
-- Pas de données client identifiantes côté POS sauf VAT number du
-  client B2B pour les factures Peppol.
-- Pas d'export automatique de données hors POS+FDM.
+- Aucun INSZ n'est écrit dans les journaux applicatifs.
+
+Données de clients. Le binaire certifié contient l'intégration HubRise
+(désactivée par défaut, activée par installation :
+`COMMANDES_EN_LIGNE_FR.md` §2). Dès qu'elle est activée, le POS traite
+des données de clients, ce qu'il ne faisait pas sans elle :
+
+- **Commandes en ligne.** Chaque commande reçue est conservée telle que
+  HubRise l'envoie dans `orders.raw_hubrise_json`, avec les données du
+  client (nom, téléphone, adresse de livraison, notes), et dans
+  `hubrise_events.payload_json`. Le ticket client non fiscal imprime le
+  nom, le téléphone et l'adresse. Aucune purge automatique de ces
+  colonnes n'existe : elles suivent la conservation de la base.
+- **Ventes de la caisse renvoyées à HubRise.** Quand l'intégration est
+  activée, chaque vente de la caisse est mise en file dans
+  `hubrise_outbox` puis envoyée à HubRise (lignes, totaux, paiements ;
+  pas de données de client).
+- **Ticket numérique par e-mail.** L'adresse saisie est conservée en
+  clair dans `ticket_deliveries.recipient` le temps de l'envoi, puis
+  effacée (envoi réussi, repli papier, ou au plus tard 72 h après) ; une
+  forme masquée reste. Le ticket et l'adresse du destinataire sont
+  transmis à Scaleway Transactional Email pour l'envoi.
+- **Facture B2B** : hors binaire certifié v1.0.0 (aucune donnée de
+  client B2B n'est donc traitée).
+
+Jeton HubRise. `hubrise_connection.access_token` (jeton d'accès OAuth au
+compte HubRise de l'établissement) est stocké **en clair** dans
+`pos.db`. Il est donc lisible par le compte `spf` de l'image
+d'admission (lecture seule via `pos-db-ro`, §3.2) et présent dans
+chaque sauvegarde de la base. Il est protégé comme le reste de la base :
+permissions `0640` du groupe `pos`, chiffrement LUKS2 de `/var` (§3.6).
+Il est supprimé à la déconnexion de HubRise.
+
+Export : le POS n'exporte automatiquement aucune donnée fiscale ; les
+seuls flux sortants sont ceux ci-dessus (HubRise et Scaleway, selon
+la configuration de l'installation) et la communication avec le FDM.
 
 ## 7. Audit trail croisé
 
@@ -392,7 +481,7 @@ Chaque événement fiscal est tracé à TROIS endroits indépendants :
 2. **Côté FDM** : journal interne du FDM (signe et stocke
    indépendamment).
 3. **Côté SPF Finances** : remontée cloud quotidienne du FDM via le
-   protocole `FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.09`.
+   protocole `FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.10`.
 
 Le contrôleur peut croiser ces trois sources pour repérer toute
 divergence. Une suppression locale de `fiscal_events` serait

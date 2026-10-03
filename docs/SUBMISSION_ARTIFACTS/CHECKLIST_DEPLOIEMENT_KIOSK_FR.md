@@ -6,6 +6,10 @@ kiosque mkosi (`deploy/image/`) et le flux de provisioning en trois
 phases (`deploy/provision/provision.sh`), pas l'ancien installeur
 monolithique.
 
+Les cases à cocher sont un **modèle** : elles se remplissent à
+l'installation de chaque terminal (et lors de la visite d'admission pour
+la machine de test), pas dans ce document.
+
 ## Couche matériel
 
 - [ ] Penetek A3216 M82 ou Advantech USC-360J (ou terminal x86_64
@@ -86,14 +90,17 @@ monolithique.
         Burger of the Chef, …) avec leurs productId et codes TVA,
         requises pour rejouer les UC tels que définis.
       - Utilisateurs de test correspondant à la liste INSZ dans
-        `docs/20250916_UC_BasicSet_POS_FDM_1.7/UC_TestSetup_20240806.md`.
+        `docs/20260821_UC_Reports_1.3/UC_TestSetup_20240806.md`
+      (le dossier du Basic Set 1.8 ne contient plus ce fichier).
       - L'image de production (restaurant) utilise à la place
         le catalogue propre à l'établissement ; le binaire
         `pili-pos` est identique dans les deux images.
 - [ ] `pos.json::device_id` renseigné automatiquement par
       `pili-provision` (adresse MAC du terminal, pas
       `CHANGE_ME_MAC`) - voir `MANUEL_INSTALLATION_FR.md` §4.2.
-- [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`.
+- [ ] IP LAN de l'imprimante configurée dans `pos.json::printer_address`
+      (et, si le bar ou la cuisine a sa propre imprimante,
+      `pos.json::kitchen_printer_address` : voyant "Cuisine" vert).
 - [ ] Sur l'image d'admission : compte `spf` (groupe `pos`, `tty2`,
       mot de passe affiché une seule fois au premier démarrage) peut
       exécuter `pos-db-ro` pour une lecture seule de `pos.db` sans
@@ -102,23 +109,33 @@ monolithique.
 
 ## Documentation dans la clé USB du dossier
 
-- [ ] `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`
-- [ ] `FLUX_DONNEES_FR.md`
-- [ ] `MAPPING_CONFORMITE_FR.md`
-- [ ] `STRATEGIE_COMPTEURS_FR.md`
-- [ ] `COUVERTURE_FIXTURES_FR.md` + `COUVERTURE_RAPPORTS_FR.md`
-      + `COUVERTURE_ADVANCED_SET_FR.md`
-- [ ] `FLUX_REMBOURSEMENT_FR.md`
-- [ ] `DECISION_PEPPOL_AP_FR.md`
-- [ ] `LIGNES_PRODUITS_FR.md`
-- [ ] `LISTE_DISTRIBUTEURS_FR.md`
-- [ ] `RAPPORT_TESTS_BASELINE_FR.md`
-- [ ] `MANUEL_INSTALLATION_FR.md`, `SECURITE_BD_FR.md`,
-      `FEUILLE_ACQUISITION_DONNEES_FR.md` (à jour de l'image mkosi)
+Les documents ci-dessous sont ceux du dossier de soumission
+(`MANIFEST.txt`) ; chacun est fourni en PDF.
+
+- [ ] Réponses au manuel de certification : `REPONSES_MANUEL_CERT_FR`,
+      `PROFIL_ENTREPRISE_FR`, `LISTE_DISTRIBUTEURS_FR`,
+      `DECLARATION_FONCTIONS_INTERDITES_FR`, `LISTE_FONCTIONNALITES_FR`
+- [ ] Manuels : `MANUEL_UTILISATEUR_FR`, `MANUEL_INSTALLATION_FR`,
+      `MANUEL_PROGRAMMATION_FR`, `PROFILS_UTILISATEURS_FR`,
+      `CAPTURES_ECRAN_FR`
+- [ ] Architecture et données : `DOCUMENT_PROCESSUS_TECHNIQUE_FR`,
+      `FLUX_DONNEES_FR`, `SCHEMA_BD_FR`, `SCHEMA_ER_FR`,
+      `SECURITE_BD_FR`, `FEUILLE_ACQUISITION_DONNEES_FR`,
+      `SCHEMA_ASSEMBLAGE_FR`, `CHECKLIST_DEPLOIEMENT_KIOSK_FR`,
+      `GARANTIE_MAJ_LANGUES_FR`
+- [ ] Fiscalité et conformité : `MAPPING_CONFORMITE_FR`,
+      `STRATEGIE_COMPTEURS_FR`, `FLUX_REMBOURSEMENT_FR`,
+      `LIGNES_PRODUITS_FR`, `TICKETS_EXEMPLES_FR`,
+      `DECISION_PEPPOL_AP_FR`, `TICKET_NUMERIQUE_FR`,
+      `COMMANDES_EN_LIGNE_FR`
+- [ ] Tests : `RAPPORT_TESTS_BASELINE_FR`, `COUVERTURE_FIXTURES_FR`,
+      `COUVERTURE_RAPPORTS_FR`, `COUVERTURE_ADVANCED_SET_FR`,
+      `RESULTATS_TESTS_UC_FR`, `JOURNAL_TESTS_PRE_SOUMISSION_FR`
+      (rempli après la répétition de Phase 11)
+- [ ] Preuves : dossier `Report_Testing` (requêtes et réponses JSON,
+      photos ou PDF des tickets) et captures d'écran (`screenshots`)
 - [ ] Formulaire de demande de certification signé (PDF + copie
       scannée signée).
-- [ ] `JOURNAL_TESTS_PRE_SOUMISSION_FR.md` (rempli après la répétition
-      de Phase 11).
 
 ## Commandes de vérification (sur la machine de test)
 
@@ -190,16 +207,20 @@ série ; capture d'écran finale et journal publiés en artefact CI `boot-smoke-
    ne doit pas être le moment où l'assistant découvre l'écran de mots
    de passe à usage unique.
 1. Boot du kiosk ; montrer Cage qui lance pili-pos en plein écran.
-2. Login avec INSZ ; montrer l'événement fiscal **S** work-in archivé.
-3. Ouvrir Table 4 ; ajouter trois articles ; envoyer en cuisine -
-   événement **P** + ticket cuisine.
-4. Split de la table 2/1 ; payer un côté en espèces, l'autre en
-   carte - **N** ×2.
-5. Réimprimer le ticket espèces - événement **C** avec `fdmRef`.
-6. Déclencher un rapport X - événement **R**.
-7. Déclencher la clôture journalière Z - événements **R**+**R**,
-   tiroir ouvert.
-8. Pointage sortie - événement **S**.
+2. Login (tuile + PIN) ; montrer l'événement fiscal **S** work-in
+   archivé.
+3. Ouvrir Table 4 ; ajouter trois articles ; "Envoyer en cuisine" -
+   événement **P** et bon de commande imprimé (sans prix).
+4. Payer la table en deux parts égales ("Partager en" 2) : une part en
+   espèces, l'autre par carte - **un seul** événement **N** (un ticket,
+   deux paiements).
+5. Rapports, onglet "Tickets" : "Copie" du ticket de la vente - événement
+   **C** avec `fdmRef`.
+6. Rapports, onglet "Journée" : "Rapport X" - événement **R**.
+7. "Clôturer la journée (Z)", puis "Confirmer la clôture ?" -
+   événements **R**+**R**.
+8. Écran de connexion : tuile, "Fin de service", PIN - pointage sortie,
+   événement **S**.
 9. Inspecter `fiscal_events` en lecture seule (`pos-db-ro` sur le
    compte `spf`, ou `sqlite3 -readonly` sur la console `root`) -
    compteurs strictement monotones par label ; chaque ligne a un

@@ -1,10 +1,11 @@
 # Flux de remboursement, correction et note de crédit
 
-**Date :** 2026-05-14
+**Date :** 2026-10-03
 **Code :** `src-tauri/src/commands/refund.rs`
 **Périmètre cert :** M111 (remboursement complet), M112B
-(remboursement partiel - ticket séparé), UC4118 (correction de
-paiement), couverture partielle de UC4122 (note de crédit - voir §3).
+(remboursement partiel - ticket séparé). La correction de paiement
+(M132, UC4118) et la note de crédit (UC4122) ne sont pas dans le
+périmètre de la v1.0.0 (voir §2 et §3).
 
 ---
 
@@ -26,36 +27,51 @@ Le flux reflète l'encaissement standard de
 1. **Chargement de l'original.** Résolution de `fdm_id`,
    `fdmDateTime`, `eventLabel`, `eventCounter`, `totalCounter` depuis
    la ligne `fiscal_events` locale. Seuls les événements `N` sont
-   remboursables ; tout autre label retourne
-   `"Cannot refund event type <X>"`. Sont aussi refusés : un
-   remboursement (un remboursement ne se rembourse pas : on revend),
-   et tout remboursement en mode formation (un événement T ne peut
-   pas consommer la quantité encore remboursable d'une vente réelle).
+   remboursables ; tout autre label retourne l'erreur codée
+   `not_refundable|label=X`. Sont aussi refusés, avant toute création :
+   - `refund_unpaid_sale` : une vente soldée sans encaissement
+     (« impayée ») n'a pas pris d'argent, il n'y en a pas à rendre ;
+   - `refund_of_refund` : un remboursement ne se rembourse pas (on
+     revend) ;
+   - `refund_in_training` : tout remboursement en mode formation (un
+     événement T ne pourrait pas consommer la quantité encore
+     remboursable d'une vente réelle) ;
+   - `refund_discounted_line` : une ligne de commande en ligne portant
+     une remise (la remise est répartie sur ses lignes : une partie
+     rembourserait une part que personne ne peut établir) ; la
+     commande entière se rembourse, remises comprises.
 2. **Contrôles, puis construction de la commande de remboursement.**
    Chaque article est d'abord contrôlé (présent sur le ticket
    original, quantité positive, total remboursé sur l'ensemble des
    remboursements de la vente au plus égal à la quantité vendue), et
    le support du ticket choisi : un refus ne crée rien. Le compte se
-   fait par produit, prix unitaire et taux de TVA : l'écran envoie la
-   ligne d'origine choisie (`lineId`), et l'article est remboursé au
-   prix de cette ligne. Un produit vendu à plusieurs prix sans ligne
-   désignée est refusé (`refund_line_ambiguous`). Ensuite
-   seulement, création d'une nouvelle `Order` (takeaway) avec des
-   lignes de quantités négatives pour chaque `RefundItem`.
+   fait par seau (`Bucket` dans `refund.rs` : produit, prix unitaire
+   et label de TVA) : l'écran envoie la ligne d'origine choisie
+   (`lineId`), et l'article est remboursé au prix de cette ligne,
+   chaque ligne d'origine étant reprise avec son propre prix. Un
+   produit vendu à plusieurs prix sans ligne désignée est refusé
+   (`refund_line_ambiguous`). Ensuite seulement, création d'une
+   nouvelle `Order` (takeaway) avec des lignes de quantités négatives
+   pour chaque `RefundItem`.
 3. **Réservation du prochain numéro de ticket** (peek-then-commit,
    cf. `STRATEGIE_COMPTEURS_FR.md` §5). Label `N`.
-4. **Construction du `SaleInput`** avec le builder 8-arguments, en
-   passant la `FdmReference` originale comme 8e argument
-   (`Some(&original_ref)`). Le FDM utilise cette référence pour
+4. **Construction du `SaleInput`** avec `build_sale_input`
+   (9 paramètres), en passant la `FdmReference` originale comme
+   dernier paramètre (`Some(&original_ref)`) ; l'arrondi est fixé à 0
+   (un remboursement n'est pas arrondi). Le FDM utilise cette référence pour
    relier le remboursement à sa source - spec POS v2.2 §313 "fdmRef".
-5. **Envoi au FDM.** Même appel `FdmClient::sign_sale` qu'un
-   encaissement normal. Le blocage sur déconnexion s'applique à
-   l'identique : sans FDM, le remboursement est refusé et la commande
-   de remboursement est annulée (`voided`).
+5. **Envoi au FDM.** Même chemin `signing::sign` qu'un encaissement
+   normal. Le blocage sur déconnexion s'applique à l'identique : sans
+   FDM, le remboursement est refusé (« FDM not connected - cannot
+   process refund ») et la commande de remboursement est annulée
+   (`voided`). Le remboursement saisi à la caisse se fait en espèces
+   uniquement (`RefundSpec::cash`) ; seuls les remboursements d'une
+   commande en ligne annulée peuvent repartir par la plateforme
+   (`APP` ou `ONLINE`, voir `COMMANDES_EN_LIGNE_FR.md`).
 6. **Archive + clôture atomiques.** Même pattern transaction SQLite
-   unique que checkout : `FiscalCounter::next` + `archive_event` +
-   `UPDATE orders SET status='closed'` dans une tx, rollback si
-   l'un échoue. Cf. fix B3 dans `STRATEGIE_COMPTEURS_FR.md` §5.
+   unique que checkout (`signing::commit`) : `FiscalCounter::next` +
+   `archive_event` + clôture de la commande + ligne `payments` dans une
+   tx, rollback si l'un échoue. Cf. `STRATEGIE_COMPTEURS_FR.md` §5.
 7. **Impression ticket de remboursement + ouverture tiroir.**
    Best-effort - non-fatal si imprimante injoignable. Chaque ligne
    remboursée est imprimée avec sa quantité et son montant négatifs
@@ -65,8 +81,18 @@ Le flux reflète l'encaissement standard de
 Si le remboursement s'arrête après la création de sa commande (refus
 ou indisponibilité du FDM, échec de l'archivage), la commande est
 annulée (`status = 'voided'`) : elle ne reste jamais ouverte, et ne
-peut donc pas être complétée puis encaissée comme une vente. Ces
-règles sont couvertes par `src-tauri/tests/refund_guards.rs`.
+peut donc pas être complétée puis encaissée comme une vente.
+
+**Réponse perdue.** Si la requête est partie et que la réponse du FDM
+est perdue, la commande de remboursement est annulée comme ci-dessus,
+mais la requête reste ouverte dans `pending_signs` et est renvoyée à
+l'identique avant toute autre signature (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`
+§4). À la réponse tardive, `signing::apply` clôt la commande de
+remboursement, même annulée entre-temps, écrit son paiement et archive
+l'événement une seule fois. Une nouvelle demande de remboursement de la
+même vente retrouve ce résultat au lieu de rembourser deux fois.
+
+Ces règles sont couvertes par `src-tauri/tests/refund_guards.rs`.
 
 ### M112A vs M112B (remboursement partiel combiné à une nouvelle vente)
 
@@ -89,67 +115,34 @@ flux UI.
 
 ---
 
-## 2. Correction de paiement (M132, UC4118)
+## 2. Correction de paiement (hors périmètre v1.0.0)
 
-`signPaymentCorrection` est câblé dans
-`FdmClient::sign_payment_correction` avec la bonne forme
-`PaymentCorrectionInput`. La fixture se désérialise proprement
-(M132 dans Basic Set, sous-étapes UC4118 dans Advanced Set). Une
-commande Tauri dédiée est actuellement absente - les opérateurs
-doivent utiliser le flux de remboursement à la place. **L'ajout d'une
-commande de correction de paiement de premier ordre est reporté à
-une release ultérieure** alongside des autres polissages UI. Le
-protocole fiscal est satisfait ; le manque est de l'ergonomie
-opérateur.
+La correction de paiement (M132, UC4118) n'est pas déclarée dans le
+périmètre de la v1.0.0. `FdmClient::sign_payment_correction` existe
+avec la forme `PaymentCorrectionInput`, mais aucune commande Tauri ni
+écran ne l'appelle : pour une erreur de moyen de paiement, l'opérateur
+utilise le remboursement puis une nouvelle vente.
 
 ---
 
-## 3. Note de crédit (UC4122)
+## 3. Note de crédit (hors périmètre v1.0.0)
 
 Selon la spec, une note de crédit est une mutation `signInvoice`
-avec des montants **négatifs** et un `fdmRef` vers la facture
-originale. C'est un flux distinct du remboursement - le
-remboursement utilise `signSale`, la note de crédit utilise
-`signInvoice`.
-
-**Statut actuel :**
-
-- `FdmClient::sign_invoice` existe et accepte `InvoiceInput` avec
-  le champ requis `fdm_refs: Vec<FdmReferenceInput>`.
-- La fixture UC4122 en quatre sous-étapes se désérialise proprement
-  (vérifié par le test `advanced_set_fixtures`).
-- Pas de commande Tauri ni d'UI pour émettre des notes de crédit.
-
-**Reporté à la phase Peppol B2B** : les factures B2B et notes de
-crédit partagent le canal Peppol à partir du 2026-01-01, nous
-construirons la commande note-de-crédit en même temps que la
-commande facture plutôt que d'étaler le travail.
+avec des montants négatifs et un `fdmRef` vers la facture originale.
+La facture (événement I) n'est pas dans le binaire certifié de la
+v1.0.0 (code sous `#[cfg(feature = "peppol")]`) : il n'y a donc ni
+facture ni note de crédit émise. `FdmClient::sign_invoice` existe, sans
+commande ni écran pour l'appeler dans la build cert. La note de crédit
+sera livrée avec la facture dans une mise à jour certifiée ultérieure.
 
 ---
 
-## 4. Correctifs de bug appliqués
+## 4. Compteur sans trou
 
-### 4.1 `restaurant_est_no` vide
-
-`commands/refund.rs:223` - `restaurant_est_no` était hardcodé à `""`
-sur le `TicketParams` de remboursement, identique au bug de Phase 1
-corrigé dans `checkout.rs:205`. Passe désormais
-`&config.restaurant_est_no`. C'était une vraie régression
-d'impression - les tickets de remboursement auraient montré un
-numéro d'établissement vide, ce que le manuel de certification
-mentionne comme un champ obligatoire du ticket.
-
-### 4.2 Compteur sans trou (fix B3)
-
-Voir `STRATEGIE_COMPTEURS_FR.md` §5. Le flux de remboursement
-profite du même refactor peek-then-commit que checkout -
-test de régression dédié dans
+Voir `STRATEGIE_COMPTEURS_FR.md` §5. Le flux de remboursement passe
+par le même chemin que l'encaissement (numéro lu sous le verrou,
+compteur avancé dans la transaction qui archive) ; test de régression :
 `src-tauri/tests/spf_e2e_no_gap.rs::refund_fdm_failure_does_not_advance_counter`.
-
-### 4.3 `restaurant_est_no` vide dans `copy.rs`
-
-`commands/copy.rs:119` - même bug que ci-dessus, à un troisième
-endroit (les copies de tickets). Corrigé lors du refactor B1.
 
 ---
 

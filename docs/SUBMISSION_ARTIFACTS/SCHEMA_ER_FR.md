@@ -1,79 +1,93 @@
 # Diagramme entité-relation de la base de données
 
-**Date :** 2026-05-14
+**Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs` et `schema_catalog.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 10, puis 20 à 25).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
 *voir : SCHEMA_BD_FR.md*. Pour la sécurité et les contraintes,
 *voir : SECURITE_BD_FR.md*.
 
+Une note sur les clés : les colonnes `user_insz` (dans `orders`,
+`fiscal_events`, `pending_signs`, `staff_shifts`) contiennent l'INSZ de
+l'opérateur mais ne portent **aucune clé étrangère** vers `users` : un
+événement fiscal garde son INSZ même si l'utilisateur est désactivé ou
+retiré. Le lien est applicatif.
+
 ---
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 6 domaines logiques :
+La base est organisée en 10 domaines logiques :
 
 ```
 +-----------------+   +---------------+   +----------------+
 |     CATALOG     |   |    ORDERS     |   |    PAYMENTS    |
-| (menu, prix)    |   | (commandes en |   | (encaissements,|
-|                 |   |  cours)       |   |  modes paiement)
+| categories,     |   | orders,       |   | payments       |
+| menu_items,     |   | order_lines   |   | (cash, card,   |
+| modifier_groups,|   | (commandes)   |   |  meal_voucher, |
+| modifiers,      |   |               |   |  other)        |
+| catalog_sync_   |   |               |   |                |
+| state           |   |               |   |                |
 +--------+--------+   +-------+-------+   +-------+--------+
-         |                    |                   |
          |                    |                   |
          +---------+----------+-------------------+
                    |
-                   |
 +------------------v-------------------+
 |        FISCAL (append-only)          |
-|  (events FDM, compteurs, archive)    |
+| fiscal_events, fiscal_counters,      |
+| order_entries (journal),             |
+| booking_periods, pending_signs       |
 +-------------+------------------------+
               |
-              |
 +-------------v-----------+   +---------------------+
-|        USERS            |   |   REPORTS (Z)       |
-| (opérateurs INSZ)       |   | (archive rapports Z)|
+|  USERS & PRESTATIONS    |   |   REPORTS (Z)       |
+| users (opérateurs INSZ),|   | z_reports           |
+| staff_shifts            |   | (archive rapports Z)|
 +-------------------------+   +---------------------+
 
++-----------------------+   +-----------------------------+
+|   I18N                |   |  TICKET NUMÉRIQUE (§III.H)  |
+|  languages,           |   |  ticket_deliveries (file    |
+|  translations         |   |  d'envoi e-mail, partiel)   |
+|  (polymorphe vers     |   |  original_prints            |
+|   catalog)            |   |  (append-only strict)       |
++-----------------------+   +-----------------------------+
 
-+-----------------------+
-|   I18N (translations) |
-|  (polymorphe vers     |
-|   catalog)            |
-+-----------------------+
-
-
-+-----------------------+
-|  PEPPOL (livraisons   |
-|   B2B append-only)    |
-+-----------------------+
-
-
-+-----------------------------+
-|  TICKET NUMÉRIQUE (§III.H)  |
-|  ticket_deliveries (file    |
-|  d'envoi e-mail, partiel)   |
-|  original_prints            |
-|  (append-only strict)       |
-+-----------------------------+
++-------------------------------+   +--------------------------+
+|  COMMANDES EN LIGNE (HubRise, |   |  PEPPOL (livraisons B2B) |
+|  migrations 20 à 25)          |   |  peppol_deliveries :     |
+|  webshop_orders,              |   |  table présente, jamais  |
+|  hubrise_channels,            |   |  écrite par la build     |
+|  hubrise_cash_payment_refs,   |   |  cert (hors v1.0.0)      |
+|  hubrise_connection/events/   |   +--------------------------+
+|  outbox, order_price_changes, |
+|  integration_switches/_log    |
++-------------------------------+
 ```
+
+`_migrations_applied` (suivi des migrations) est hors domaine.
 
 ---
 
-## 2. Diagramme ER détaillé
+## 2. Diagrammes ER détaillés
+
+### 2.1 Catalogue et traductions
 
 ```
 +----------------------+         +----------------------+
 |     languages        |         |     translations     |
 |----------------------|         |----------------------|
 | code         TEXT PK |<--------| lang         TEXT FK |
-| name         TEXT    |    1..N | entity_type  TEXT    |
-| active       INT     |         | entity_id    INT     |
-+----------------------+         | field        TEXT    |
-                                 | value        TEXT    |
-                                 | (PK composite)        |
+| name         TEXT    |    1..N | id           INT PK  |
+| active       INT     |         | entity_type  TEXT    |
++----------------------+         | entity_id    INT     |
+ fr, nl, en, zh (mig. 1)         | field        TEXT    |
+ de (migration 7)                | value        TEXT    |
+                                 | UNIQUE(entity_type,   |
+                                 |  entity_id, field,    |
+                                 |  lang)                |
                                  +----------+-----------+
                                             |
                   polymorphe entity_type ∈  |
@@ -84,127 +98,171 @@ La base est organisée en 6 domaines logiques :
 |     categories       |<-------------------+
 |----------------------|
 | id           INT PK  |
+| external_id  TEXT UK |
 | sort_order   INT     |
 | color        TEXT    |
+| active       INT     |
+| hidden       INT (21)|
++----------+-----------+
+           |
+           | 1..N
+           |
++----------v-----------+
+|     menu_items       |
+|----------------------|
+| id           INT PK  |
+| external_id  TEXT UK |
+| category_id  INT FK  |
+| price_cents  INT     |
+| vat_code     TEXT    |
+| vat_category TEXT    |
+| vat_code_takeaway    |
+|    TEXT (mig. 2)     |
+| open_price   INT (2) |
+| kind         TEXT(21)|
+| on_pos       INT (21)|
+| kitchen_printer INT  |
+| sort_order   INT     |
 | active       INT     |
 +----------+-----------+
            |
            | 1..N
            |
-+----------v-----------+      1   N         +----------------------+
-|     menu_items       |<-------------------|     translations     |
-|----------------------|                    +----------------------+
-| id           INT PK  |
-| category_id  INT FK  |--+
-| price_cents  INT     |  |
-| vat_code     TEXT    |  |
-| kitchen_     INT     |  |
-|    printer           |  |  1..N
-| sort_order   INT     |  |
-| active       INT     |  |
-+----------------------+  |
-           ^              |
-           |              v
-           | 1..N    +----+------------------+
-           |         |   modifier_groups     |
-           |         |-----------------------|
-           |         | id          INT PK    |
-           |         | menu_item_id INT FK   |
-           |         | min_select  INT       |
-           |         | max_select  INT       |
-           |         +-----------+-----------+
-           |                     |
-           |                     | 1..N
-           |                     |
-           |                +----v-----------+
-           |                |   modifiers    |
-           |                |----------------|
-           |                | id    INT PK   |
-           |                | group_id INT FK|
-           |                | price_cents INT|
-           |                | sort_order INT |
-           |                +----------------+
-           |
-           |
-+----------+-----------+
-|     order_lines      |
++----------v-----------+
+|   modifier_groups    |
 |----------------------|
 | id           INT PK  |
-| order_id     INT FK  |--+
-| menu_item_id INT FK  |  |
-| quantity     INT     |  |
-| unit_price_  INT     |  |
-|     cents            |  |
-| vat_code     TEXT    |  |
-| name         TEXT    |  | dénormalisé pour archive
-| modifiers_   TEXT    |  |
-|     json             |  |
-| created_at   TEXT    |  |
-+----------------------+  |
-                          |
-                          | N..1
-                          v
-+----------------------+----+
-|       orders             |
-|--------------------------|
-| id           INT PK      |<--------------+
-| table_number INT         |               |
-| order_type   TEXT        |               |  N..1
-| status       TEXT        |               |
-| user_insz    TEXT FK     |---+           |
-| created_at   TEXT        |   |           |
-| closed_at    TEXT        |   |           |
-| subtotal_    INT         |   |       +---+--+
-|     cents                |   |       | payments |
-| total_cents  INT         |   |       |----------|
-+--------------------------+   |       | id   INT PK
-            ^                  |       | order_id INT FK
-            |                  |       | method   TEXT
-            | 0..1             |       | amount_cents INT
-            |                  |       | created_at TEXT
-            |                  |       +----------+
-+-----------+----------+       |
-|    fiscal_events     |       |
-|----------------------|       |
-| id           INT PK  |       |
-| event_type   TEXT    |  N..1 |
-| sequence_    INT UK  +-------+
-|     number           |       |
-| order_id     INT FK  +-------+
-| pos_id       TEXT    |
-| terminal_id  TEXT    |
-| user_insz    TEXT FK +---+
-| event_data_  TEXT    |   |
-|     json             |   |
-| fdm_response_TEXT    |   |
-|     json             |   |
-| fdm_id       TEXT    |   |
-| fdm_         TEXT    |   |
-|     datetime         |   |
-| event_label  TEXT    |   |
-| short_       TEXT    |   |
-|     signature        |   |
-| qr_data      TEXT    |   |
-| created_at   TEXT    |   |
-| archived     INT     |   |
-+----------+-----------+   |
-           ^               |
-           |               |
-           | 0..1          |
-           |               |
-+----------+----------+    |       +---------------------+
-|      z_reports     |    |       |       users         |
-|--------------------|    |       |---------------------|
-| id        INT PK   |    +------>| insz   TEXT PK (11d)|
-| report_date TEXT   |            | name   TEXT         |
-| sequence_  INT UK  |            | role   TEXT         |
-|    number          |            | pin_hash TEXT       |
-| data_json  TEXT    |            | active   INT        |
-| fiscal_evt INT FK  |            +---------------------+
-|     _id            |
-| created_at TEXT    |
-+--------------------+
+| external_id  TEXT UK |
+| menu_item_id INT FK  |
+| min_select   INT     |
+| max_select   INT     |
+| active       INT (21)|
+| sort_order   INT (21)|
++----------+-----------+
+           |
+           | 1..N
+           |
++----------v-----------+      +--------------------------+
+|      modifiers       |      |   catalog_sync_state     |
+|----------------------|      |--------------------------|
+| id           INT PK  |      | source        TEXT PK    |
+| external_id  TEXT UK |      | manages_menu  INT        |
+| group_id     INT FK  |      | hash          TEXT       |
+| price_cents  INT     |      | applied_at    TEXT       |
+| sort_order   INT     |      | rejected_at   TEXT       |
+| active       INT (21)|      | issues_json   TEXT       |
++----------------------+      | catalog_json  TEXT       |
+                              +--------------------------+
+                              (table autonome, migration 21)
+```
 
+### 2.2 Commandes, lignes, paiements, journal
+
+```
++----------------------+
+|       orders         |
+|----------------------|
+| id           INT PK  |<---------------------------+
+| table_number INT     |                            |
+| order_type   TEXT    |   (dine_in | takeaway)     |
+| status       TEXT    |   (open | closed | voided)|
+| user_insz    TEXT    |   (pas de FK)              |
+| created_at   TEXT    |                            |
+| closed_at    TEXT    |                            |
+| subtotal_cents INT   |                            |
+| total_cents  INT     |                            |
+| hubrise_order_id TEXT|  (UNIQUE partiel)          |
+| is_fiscal    INT     |                            |
+| source       TEXT    |                            |
+| hubrise_status TEXT  |                            |
+| service_type TEXT    |                            |
+| raw_hubrise_json TEXT|                            |
+| pre_bill_at  TEXT (9)|                            |
++---+---------+--------+                            |
+    | 1..N    | 1..N                                | N..1
+    |         |                                     |
++---v-------+ +--v-------------------+     +--------+--------+
+|order_lines| |    order_entries     |     |    payments     |
+|-----------| |----------------------|     |-----------------|
+| id   PK   | | id           INT PK  |     | id        INT PK|
+| order_id  | | order_id     INT FK  |     | order_id  INT FK|
+|   FK      | | line_id      INT     |     | method    TEXT  |
+| menu_item_| | menu_item_id INT     |     |  cash | card |  |
+|  id   FK  | | quantity     INT <>0 |     |  meal_voucher | |
+| quantity  | | unit_price_  INT     |     |  other (mig. 8) |
+| unit_price| |    cents             |     | amount_cents INT|
+|  _cents   | | vat_code     TEXT    |     | created_at TEXT |
+| vat_code  | | name         TEXT    |     +-----------------+
+| name      | | department_id TEXT   |
+| modifiers_| | department_name TEXT |
+|  json     | | kind         TEXT    |
+| department| |  entry|correction|   |
+|  _id,_name| |  refund              |
+| created_at| | sent_event_id INT FK |---> fiscal_events (nullable)
++-----------+ | created_at   TEXT    |
+ vue           +----------------------+
+ consolidée    journal append-only
+ (dénormalisée) (triggers, voir §4)
+```
+
+### 2.3 Fiscal, périodes, signatures en attente, rapports Z
+
+```
++----------------------+
+|    booking_periods   |
+|----------------------|
+| id           TEXT PK |  (UUID)
+| booking_date TEXT    |
+| opened_at    TEXT    |
+| closed_at    TEXT    |
+| closing_event_id INT |---+
+| FK (nullable)        |   | CHECK((closed_at IS NULL) =
++----------------------+   |       (closing_event_id IS NULL))
+                           v
++----------------------+  +----------------------+
+|    fiscal_events     |<-+                      |
+|----------------------|                         |
+| id           INT PK  |                         |
+| event_type   TEXT    |  CHECK N,P,T,C,I,F,S,R  |
+| sequence_number INT  |  UNIQUE(event_type,     |
+|                      |         sequence_number)|
+| order_id     INT FK  |---> orders (nullable)   |
+| pos_id       TEXT    |                         |
+| terminal_id  TEXT    |                         |
+| user_insz    TEXT    |  (pas de FK)            |
+| event_data_json TEXT |                         |
+| fdm_response_json    |                         |
+| fdm_id       TEXT    |                         |
+| fdm_datetime TEXT    |                         |
+| event_label  TEXT    |                         |
+| short_signature TEXT |                         |
+| qr_data      TEXT    |                         |
+| created_at   TEXT    |                         |
+| archived     INT     |                         |
++----+-----------+-----+                         |
+     ^           ^                               |
+     | 0..1      | 0..1                          |
++----+--------+ +-+----------------------+       |
+|  z_reports  | |     pending_signs      |       |
+|-------------| |------------------------|       |
+| id     PK   | | id            INT PK   |       |
+| report_date | | event_label   TEXT     |       |
+| sequence_   | | first_ticket_no INT    |       |
+|  number INT | | ticket_count  INT 1|2  |       |
+|  (non       | | mutation      TEXT     |       |
+|  unique)    | | is_training   INT      |       |
+| data_json   | | request_body  TEXT     |       |
+| fiscal_     | | archive_json  TEXT     |       |
+|  event_id FK| | kind, subject TEXT     |       |
+| created_at  | | order_id      INT      |       |
++-------------+ | context_json  TEXT     |       |
+                | user_insz     TEXT     |       |
+                | status  open|signed|   |       |
+                |   refused|not_sent     |       |
+                | attempts, last_error   |       |
+                | fiscal_event_id INT FK |-------+
+                | created_at, resolved_at|
+                +------------------------+
 
 +--------------------+
 |  fiscal_counters   |
@@ -214,28 +272,27 @@ La base est organisée en 6 domaines logiques :
 +--------------------+
 (table autonome, mise à jour atomique dans la même transaction
  SQLite qui ajoute à fiscal_events, sous le verrou de signature)
+```
 
+### 2.4 Utilisateurs et prestations
 
-+--------------------------+
-|   peppol_deliveries      |
-|--------------------------|
-| id              INT PK   |
-| fiscal_event_id INT FK   |---+
-| invoice_no      TEXT     |   |
-| customer_       TEXT     |   |
-|     endpoint_id          |   |
-| ap_vendor       TEXT     |   | 1..1
-| ap_message_id   TEXT     |   v
-| ubl_xml         TEXT     |  fiscal_events
-| ap_response_    TEXT     |  (event_type='I')
-|     json                 |
-| status          TEXT     |
-| error_msg       TEXT     |
-| created_at      TEXT     |
-| accepted_at     TEXT     |
-+--------------------------+
+```
++---------------------+       +---------------------+
+|       users         |       |    staff_shifts     |
+|---------------------|       |---------------------|
+| insz   TEXT PK (11d)|       | id         INT PK   |
+| name   TEXT         |  - - -| user_insz  TEXT     |
+| role   TEXT         | lien  | started_at TEXT     |
+| pin_hash TEXT       | appli-| ended_at   TEXT     |
+| active   INT        | catif +---------------------+
++---------------------+       (migration 9 ; index local des postes
+ role : admin|cashier|waiter   ouverts par un S WorkIn, clos par un
+                               S WorkOut ; sans FK)
+```
 
+### 2.5 Ticket numérique et impressions d'original
 
+```
 +--------------------------+
 |   ticket_deliveries      |
 |--------------------------|
@@ -264,7 +321,6 @@ La base est organisée en 6 domaines logiques :
  les autres colonnes suivent le cycle de vie pending → sending →
  sent | failed | fallback_printed | purged)
 
-
 +--------------------------+
 |   original_prints        |
 |--------------------------|
@@ -273,6 +329,114 @@ La base est organisée en 6 domaines logiques :
 +--------------------------+   v
                               fiscal_events
 (append-only strict : ni DELETE ni UPDATE, même sur printed_at)
+```
+
+### 2.6 Commandes en ligne (HubRise, migrations 20 à 25)
+
+```
++---------------------------+      +---------------------------+
+|     hubrise_channels      |      | hubrise_cash_payment_refs |
+|---------------------------|      |---------------------------|
+| channel        TEXT PK    |      | ref            TEXT PK    |
+| kind           TEXT       |      +---------------------------+
+| payment_type   TEXT       |
+| charge_policy  TEXT       |
++---------------------------+
+ (tables de paramétrage, sans FK ; liées à webshop_orders par la valeur
+  de `channel` / de la référence de paiement)
+
++---------------------------+  1..1  +-----------------------+
+|      webshop_orders       |------->|        orders         |
+|---------------------------| order_id (PK = FK)             |
+| order_id        INT PK,FK |        +-----------------------+
+| hubrise_order_id TEXT UK  |
+| channel, channel_kind     |
+| service_type              |
+| payment_mode, payment_type|
+| fiscal_state              |  p_event_id, n_event_id,
+| resolution                |  refund_event_id  FK (nullable)
+| attention_json,           |-----------------------> fiscal_events
+|  warnings_json, lines_json|
+| p_event_id, n_event_id,   |
+|  refund_event_id          |
+| accepted_by, accepted_at  |
+| resolved_at               |
++---------------------------+
+
++---------------------------+  N..1  +-----------------------+
+|   order_price_changes     |------->|        orders         |
+|---------------------------| order_id FK                    |
+| id              INT PK    |        +-----------------------+
+| order_id        INT FK    |  N..1  +-----------------------+
+| entry_id        INT FK    |------->|     order_entries     |
+| line_id         INT       |        +-----------------------+
+| grouping_id     INT >0    |
+| change_id, name  TEXT     |
+| scope  LINE|EVENT         |
+| change_type PUBLIC|INTERNAL
+| amount_cents    INT       |
+| created_at      TEXT      |
++---------------------------+
+
++---------------------------+  +---------------------------+
+|    hubrise_connection     |  |      hubrise_events       |
+|---------------------------|  |---------------------------|
+| id INT PK (= 1, singleton)|  | id            TEXT PK     |
+| access_token, account_*,  |  | resource_type, event_type |
+| location_*, catalog_*,    |  | payload_json              |
+| customer_list_*, scope,   |  | received_at, processed_at |
+| base_url, connected_at,   |  | error_msg, attempts,      |
+| last_poll_at,             |  | parked_at                 |
+| last_event_cursor,        |  +---------------------------+
+| last_catalog_sync_at,     |
+| auth_error_at, last_error,|  +---------------------------+
+| callback_registered_at    |  |      hubrise_outbox       |
++---------------------------+  |---------------------------|
+                               | id INT PK, order_id INT   |
+                               | kind create_order|        |
+                               |   patch_order             |
+                               | body_json, hubrise_order_id|
+                               | private_ref (UNIQUE part.)|
+                               | created_at, attempts,     |
+                               | last_attempt_at, sent_at, |
+                               | next_attempt_at, parked_at|
+                               | error_msg                 |
+                               +---------------------------+
+
++---------------------------+  +---------------------------+
+|   integration_switches    |  |   integration_switch_log  |
+|---------------------------|  |---------------------------|
+| name TEXT PK ('hubrise')  |  | id INT PK                 |
+| enabled, config_value INT |  | name TEXT, enabled INT    |
+| changed_at, changed_by    |  | source config|admin       |
++---------------------------+  | changed_by, changed_at    |
+                               +---------------------------+
+                               (append-only par triggers)
+```
+
+### 2.7 Peppol (hors binaire certifié v1.0.0)
+
+```
++--------------------------+
+|   peppol_deliveries      |
+|--------------------------|
+| id              INT PK   |
+| fiscal_event_id INT FK   |---+
+| invoice_no      TEXT     |   |
+| customer_       TEXT     |   |
+|     endpoint_id          |   |
+| ap_vendor       TEXT     |   | 0..1
+| ap_message_id   TEXT     |   v
+| ubl_xml         TEXT     |  fiscal_events
+| ap_response_    TEXT     |  (event_type='I')
+|     json                 |
+| status          TEXT     |
+| error_msg       TEXT     |
+| created_at      TEXT     |
+| accepted_at     TEXT     |
++--------------------------+
+(créée par la migration 1 dans toute build, jamais écrite par la
+ build cert : l'événement I est hors périmètre de la v1.0.0)
 ```
 
 ---
@@ -285,17 +449,23 @@ La base est organisée en 6 domaines logiques :
 | `menu_items` → `modifier_groups` | 1 → N | Un article peut avoir N groupes de modificateurs (sauce, cuisson, ...) |
 | `modifier_groups` → `modifiers` | 1 → N | Chaque groupe contient N options (Soja, Wasabi, ...) |
 | `orders` → `order_lines` | 1 → N | Une commande contient N lignes |
-| `order_lines` → `menu_items` | N → 1 | Référence dénormalisée vers l'article (nom + prix copiés) |
-| `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split) |
+| `order_lines` → `menu_items` | N → 1 | Référence vers l'article (nom + prix copiés, figés) |
+| `orders` → `order_entries` | 1 → N | Le journal chronologique de la commande (ajouts, corrections, remboursements) |
+| `order_entries` → `fiscal_events` | N → 0..1 | `sent_event_id` : l'événement P ou N qui a transmis l'entrée |
+| `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, titres-repas) |
 | `orders` → `fiscal_events` | 1 → 0..N | Une commande peut générer 0 (open) à plusieurs events fiscaux (P → N, ou N + C copie, etc.) |
 | `fiscal_events` → `orders` | N → 0..1 | Un event fiscal référence 0 (events système comme S, F-WAR) ou 1 commande |
-| `users` → `orders` | 1 → N | Un opérateur ouvre N commandes |
-| `users` → `fiscal_events` | 1 → N | Un opérateur émet N events (via `user_insz`) |
-| `z_reports` → `fiscal_events` | 1 → 1 | Chaque Z archive un event R correspondant |
-| `peppol_deliveries` → `fiscal_events` | 1 → 1 | Chaque livraison Peppol est liée à un event I |
+| `users` → `orders` / `fiscal_events` / `pending_signs` / `staff_shifts` | 1 → N | Par la valeur de `user_insz` ; **aucune clé étrangère** (lien applicatif) |
+| `booking_periods` → `fiscal_events` | 0..1 → 1 | `closing_event_id` : l'événement R qui clôt la période ; un événement ne peut être archivé dans une période close |
+| `pending_signs` → `fiscal_events` | 0..1 → 1 | `fiscal_event_id` : l'événement archivé (premier événement si `ticket_count = 2`) |
+| `z_reports` → `fiscal_events` | 0..1 → 1 | Chaque Z archive un event R correspondant. `sequence_number` n'est pas unique (la contrainte d'unicité est portée par `fiscal_events`) |
+| `peppol_deliveries` → `fiscal_events` | 0..1 → 1 | Liée à un event I ; table jamais écrite par la build cert |
 | `ticket_deliveries` → `fiscal_events` | 0..N → 1 | Une ligne par ticket dont le support demandé inclut l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) ; ajoutée dans la même transaction que l'event N/T/C correspondant |
 | `original_prints` → `fiscal_events` | 0..1 → 1 | Au plus une ligne par événement dont l'original a été imprimé (contrainte de clé primaire = garde applicative contre une seconde impression) |
-| `translations` → (polymorphe) | N → 1 | Traduction d'un champ d'une entité (category / menu_item / modifier_group / modifier) dans une langue (FR / NL / EN / ZH) |
+| `webshop_orders` → `orders` | 1 → 1 | Une ligne par commande en ligne, à côté de sa ligne `orders` |
+| `webshop_orders` → `fiscal_events` | N → 0..1 | `p_event_id`, `n_event_id`, `refund_event_id` |
+| `order_price_changes` → `orders`, `order_entries` | N → 1 | Remises d'une commande en ligne, par ligne du journal ; `line_id` désigne la ligne d'`order_lines` |
+| `translations` → (polymorphe) | N → 1 | Traduction d'un champ d'une entité (category / menu_item / modifier_group / modifier) dans une langue (FR / NL / DE / EN / ZH) |
 | `translations` → `languages` | N → 1 | Référence le code langue |
 | `fiscal_counters` (autonome) | - | Pas de FK ; clé `event_label` ∈ {N, P, T, C, I, F, S, R} |
 
@@ -303,29 +473,52 @@ La base est organisée en 6 domaines logiques :
 
 ## 4. Append-only et intégrité
 
-Ces tables sont **append-only** au niveau applicatif (jamais de DELETE, et pas d'UPDATE hors exceptions ciblées) :
+Les tables ci-dessous sont protégées **au niveau de la base** par des triggers SQLite (`RAISE(ABORT, ...)`), en plus de la discipline applicative :
 
-- `fiscal_events` - archive des events fiscaux signés par le FDM
-- `z_reports` - archive des rapports de clôture
-- `peppol_deliveries` - archive des livraisons B2B Peppol
-- `original_prints` - un original n'est jamais réimprimé silencieusement (§8.1) ; ni DELETE ni UPDATE, aucune exception
-- `ticket_deliveries` - append-only **partiel** : `fiscal_event_id`, `ticket_text` et `medium` sont immuables par trigger, mais les autres colonnes (`status`, `attempts`, `recipient`...) évoluent volontairement pour suivre le cycle de vie de l'envoi (file d'attente, pas une archive figée)
+| Table | Triggers | Effet |
+|---|---|---|
+| `fiscal_events` | `fiscal_events_no_delete`, `fiscal_events_no_rewrite` | Ni DELETE, ni UPDATE |
+| `fiscal_events` | `fiscal_events_period_open` (BEFORE INSERT) | Refuse un événement dont le `bookingPeriodId` désigne une période close |
+| `z_reports` | `z_reports_no_delete`, `z_reports_no_rewrite` | Ni DELETE, ni UPDATE |
+| `order_entries` | `order_entries_no_delete`, `order_entries_no_rewrite` | Pas de DELETE ; UPDATE interdit sauf `sent_event_id` |
+| `booking_periods` | `booking_periods_no_reopen`, `booking_periods_no_delete` | Une période close ne change plus ; pas de DELETE |
+| `ticket_deliveries` | `ticket_deliveries_no_delete`, `ticket_deliveries_no_rewrite` | Pas de DELETE ; `fiscal_event_id`, `ticket_text`, `medium` immuables (les autres colonnes suivent le cycle de vie de l'envoi : append-only **partiel**) |
+| `original_prints` | `original_prints_no_delete`, `original_prints_no_update` | Ni DELETE, ni UPDATE, aucune exception |
+| `pending_signs` | `pending_signs_request_immutable`, `pending_signs_context_on_resolution`, `pending_signs_no_reopen`, `pending_signs_no_delete` | Ce qui a été envoyé est immuable ; une ligne résolue ne change plus ; pas de DELETE |
+| `order_price_changes` | `order_price_changes_no_delete`, `order_price_changes_no_update` | Ni DELETE, ni UPDATE |
+| `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
 
-Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs) les opérations UPDATE/DELETE sont autorisées via la couche commandes (avec audit trail dans les logs systemd-journald). Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées.
+Soit 21 triggers.
 
-La contrainte `fiscal_events.sequence_number UNIQUE` empêche tout doublon de compteur fiscal au niveau base. La table `fiscal_counters` est mise à jour atomiquement dans la même transaction SQLite que l'insert dans `fiscal_events`, sous le verrou de signature unique (cf. *STRATEGIE_COMPTEURS_FR.md* §5). Les requêtes de signature en attente de réponse sont conservées dans `pending_signs` (cf. *SCHEMA_BD_FR.md* §3.9).
+Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
+
+La contrainte `UNIQUE(event_type, sequence_number)` de `fiscal_events` empêche tout doublon de compteur fiscal au niveau base, par type d'événement. La table `fiscal_counters` est mise à jour atomiquement dans la même transaction SQLite que l'insert dans `fiscal_events`, sous le verrou de signature unique (cf. *STRATEGIE_COMPTEURS_FR.md* §5). Les requêtes de signature en attente de réponse sont conservées dans `pending_signs` (cf. *SCHEMA_BD_FR.md* §3.9).
 
 ---
 
 ## 5. Indexes
 
+Index explicites (hors index implicites des clés primaires et des contraintes UNIQUE) :
+
 | Table | Index | Colonnes | Raison |
 |---|---|---|---|
 | `translations` | `idx_translations_lookup` | `entity_type, entity_id, lang` | Lookup rapide pour le rendu UI multilingue |
-| `fiscal_events` | (implicite via PK + UNIQUE) | `id`, `sequence_number` | Lookup par ID et garantie d'unicité du compteur |
-| `orders` | (implicite via PK) | `id` | Lookup par ID |
-| `users` | (implicite via PK) | `insz` | Auth login |
+| `orders` | `idx_orders_hubrise_order_id` (unique partiel, `WHERE hubrise_order_id IS NOT NULL`) | `hubrise_order_id` | Ingestion idempotente des commandes en ligne |
+| `order_entries` | `idx_order_entries_order` | `order_id, id` | Relire le journal d'une commande dans l'ordre |
+| `booking_periods` | `idx_booking_periods_one_open` (unique partiel, `WHERE closed_at IS NULL`) | `(closed_at IS NULL)` | Au plus une période ouverte |
 | `ticket_deliveries` | `idx_ticket_deliveries_due` | `status, next_attempt_at` | Sélection rapide des envois dus par le worker de réessai (§III.H) |
+| `staff_shifts` | `idx_staff_shifts_open` | `user_insz, ended_at` | Retrouver le poste ouvert d'un employé |
+| `pending_signs` | `idx_pending_signs_one_open` (unique partiel, `WHERE status = 'open'`) | `(status)` | Au plus une requête de signature ouverte |
+| `pending_signs` | `idx_pending_signs_order` | `order_id, status` | Retrouver la requête en attente d'une commande |
+| `peppol_deliveries` | `idx_peppol_deliveries_invoice` | `invoice_no` | Recherche par numéro de facture (table inutilisée en v1.0.0) |
+| `hubrise_events` | `idx_hubrise_events_pending` (partiel, `WHERE processed_at IS NULL`) | `received_at` | Événements HubRise restant à traiter |
+| `hubrise_outbox` | `idx_hubrise_outbox_pending` (partiel, `WHERE sent_at IS NULL`) | `created_at` | Statuts restant à envoyer |
+| `hubrise_outbox` | `idx_hubrise_outbox_private_ref` (unique partiel, `WHERE private_ref IS NOT NULL`) | `private_ref` | Une création de commande n'est mise en file qu'une fois |
+| `hubrise_outbox` | `idx_hubrise_outbox_order` (partiel, `WHERE sent_at IS NULL`) | `hubrise_order_id, id` | Envoi dans l'ordre, par commande |
+| `webshop_orders` | `idx_webshop_orders_state` | `fiscal_state, resolution` | Liste des commandes en ligne par état |
+| `order_price_changes` | `idx_order_price_changes_order` | `order_id, entry_id` | Remises d'une commande |
+
+Index implicites utiles : `fiscal_events` (`id`, `UNIQUE(event_type, sequence_number)`), `users` (`insz`), `translations` (`UNIQUE(entity_type, entity_id, field, lang)`), `webshop_orders` (`order_id`, `hubrise_order_id`).
 
 Des indexes additionnels peuvent être ajoutés en post-cert si des problèmes de performance apparaissent à plus grande échelle (multi-restaurant). Pour le périmètre mono-terminal (~150 tickets/jour pour un restaurant type), aucun index supplémentaire n'est nécessaire.
 
@@ -334,11 +527,13 @@ Des indexes additionnels peuvent être ajoutés en post-cert si des problèmes d
 ## 6. Tables des commandes en ligne
 
 Les tables des commandes en ligne (`webshop_orders`, `hubrise_channels`,
-`hubrise_outbox`, `order_price_changes`, `integration_switches`,
-`integration_switch_log`, migrations 20 à 25) sont décrites dans
-`SCHEMA_BD_FR.md` §5. Elles ne sont écrites que si l'intégration est
-activée pour l'installation (`COMMANDES_EN_LIGNE_FR.md` §2), sauf le
-journal de l'interrupteur, qui reçoit au moins la valeur de départ.
+`hubrise_cash_payment_refs`, `hubrise_outbox`, `hubrise_events`,
+`hubrise_connection`, `order_price_changes`, `integration_switches`,
+`integration_switch_log`, `catalog_sync_state`, migrations 20 à 25 et
+colonnes de la migration 21) sont décrites dans `SCHEMA_BD_FR.md` §5.
+Elles ne sont écrites que si l'intégration est activée pour
+l'installation (`COMMANDES_EN_LIGNE_FR.md` §2), sauf le journal de
+l'interrupteur, qui reçoit au moins la valeur de départ.
 `webshop_orders.order_id` référence `orders.id` ; ses colonnes
 `p_event_id`, `n_event_id` et `refund_event_id` référencent
 `fiscal_events.id`.
@@ -349,8 +544,14 @@ journal de l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : `v7` (`initial-schema`,
-`catalogue-fiscal-fields`, `booking-periods`,
-`fiscal-archive-append-only`, `ticket-deliveries`,
-`original-prints`, `german-language`) - liste exacte dans
-`SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs::MIGRATIONS`.
+Version actuelle du schéma : migrations `1` à `10`, puis `20` à `25`
+(seize migrations ; 11 à 19 sont réservées aux correctifs du binaire
+certifié) : `initial-schema`, `catalogue-fiscal-fields`,
+`booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
+`original-prints`, `german-language`, `meal-voucher-payments`,
+`shifts-and-pre-bill`, `pending-signs`, `hubrise-transport`,
+`catalog-sync`, `webshop-orders`, `price-changes`,
+`platform-charges`, `integration-switch` - liste exacte dans
+`SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
+(`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
+migrations 20 à 25 font partie du binaire certifié.

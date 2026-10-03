@@ -1,10 +1,18 @@
-# Matrice de couverture des fixtures - SCE 2.0 Basic Set v1.7
+# Matrice de couverture des fixtures - SCE 2.0 Basic Set v1.8
 
 **Date :** 2026-05-14
 **Test pilote :** `crates/pos-fiscal/tests/uc_fixtures.rs`
-**Fixtures source :** `docs/20250916_UC_BasicSet_POS_FDM_1.7/`
+**Fixtures source :** `docs/20260821_UC_BasicSet_POS_FDM_1.8/`
 
-Chaque dossier UC du Basic Set v1.7 publié par SPF Finances est
+**Révision du jeu publié :** le dossier `docs/20260821_UC_BasicSet_POS_FDM_1.8/`
+remplace `docs/20250916_UC_BasicSet_POS_FDM_1.7/`. Changements de la
+v1.8 (changelog `CHANGELOG-UC_BasicSet1.8.md`, comparé aux fichiers de
+la v1.7) : M121, réponse : suppression de l'espace final dans
+`terminalId` ; tous les horodatages des fixtures portent désormais les
+millisecondes (`2024-07-29T13:00:00.000+02:00`). Les tests lisent les
+fixtures de la v1.8 sans autre adaptation.
+
+Chaque dossier UC du Basic Set v1.8 publié par SPF Finances est
 chargé par le walker de découverte et validé. Le `*_Response.json`
 (ou `status_response.json`) de chaque fixture est parsé via
 `serde_json::from_value::<SignResult>` / `FdmStatus` - autrement dit
@@ -18,7 +26,7 @@ Invariants imposés par UC :
 - **Tout événement non-N** ne doit PAS porter `shortSignature` ni
   `verificationUrl`.
 - Les **événements de formation** (label `T`) doivent omettre
-  `vatCalc` (changelog v1.7 "M171 : correction dans la réponse FDM
+  `vatCalc` (changelog v1.6 "M171 : correction dans la réponse FDM
   (pas de vatCalc)").
 - Chaque mutation `Variables.json` porte les champs communs SCE 2.0
   (`posId`, `posFiscalTicketNo`, `posDateTime`, `deviceId`, `vatNo`,
@@ -96,11 +104,11 @@ M182, M184) en complément du parsing `crates/pos-fiscal/tests/reports_fixtures.
 
 ---
 
-## Dérive de schéma v1.7 corrigée dans cette phase
+## Dérive de schéma (v1.7, reconduite en v1.8) corrigée dans cette phase
 
 | Problème | Fixture qui l'a exposé | Correctif |
 |---|---|---|
-| `SignResult.footer: Vec<String>` était non-optionnel, causant l'échec de désérialisation des réponses M121/M171 parce que v1.7 omet le champ de ces réponses entièrement. | M121_signOrder, M171_signSale_Training | Ajout de `#[serde(default)]` à `footer` dans `crates/pos-fiscal/src/response.rs`. Le champ manquant désérialise désormais en `vec![]`. |
+| `SignResult.footer: Vec<String>` était non-optionnel, causant l'échec de désérialisation des réponses M121/M171 parce que le set (v1.7 puis v1.8) omet le champ de ces réponses entièrement. | M121_signOrder, M171_signSale_Training | Ajout de `#[serde(default)]` à `footer` dans `crates/pos-fiscal/src/response.rs`. Le champ manquant désérialise désormais en `vec![]`. |
 
 Aucune dérive trouvée côté requête - chaque Variables.json dans le
 set contient tous les `CommonFields` et les champs spécifiques à
@@ -120,7 +128,7 @@ spécifiques, afin que toute dérive future de l'API échoue bruyamment :
 - `m121_sign_order_response_omits_n_only_fields` - prouve que
   `footer` défaille à `vec![]` quand le wire l'omet.
 - `m171_training_sale_has_no_vat_calc` - épinglé selon le changelog
-  v1.7.
+  (v1.6 du Basic Set).
 - `q100_status_response_shape` - épinglé pour garder le désérialiseur
   de statut FDM honnête.
 
@@ -133,7 +141,7 @@ cd pili-pos
 cargo test --package pos-fiscal --test uc_fixtures -- --nocapture
 ```
 
-Le test roll-up (`basic_set_v1_7_fixtures_deserialize_and_match_schema`)
+Le test roll-up (`basic_set_v1_8_fixtures_deserialize_and_match_schema`)
 imprime la matrice complète pass/fail sur stderr à chaque exécution ;
 les quatre tests ciblés épinglent des UC spécifiques par nom.
 
@@ -142,7 +150,7 @@ les quatre tests ciblés épinglent des UC spécifiques par nom.
 ## Hors périmètre ici (reporté aux phases ultérieures)
 
 - Fixtures Reports v1.3 (M180-M184) → Phase 3.
-- Fixtures Advanced Set v1.5 (UC200-UC4123) → Phases 5/6/7.
+- Fixtures Advanced Set v1.6 (UC200-UC4123) → Phases 5/6/7.
 - Sérialisation **requête** octet-équivalente (nous vérifions
   actuellement `Variables.json` pour l'ensemble de champs requis,
   pas pour l'égalité octet à octet). La Phase 4 introduit la

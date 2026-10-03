@@ -17,7 +17,7 @@ rejoués tels que définis (les fixtures référencent ces `productId`).
 
 ## Liste chargée
 
-9 des 24 produits du manuel exercent des fonctionnalités **déclarées
+9 des 25 produits du manuel exercent des fonctionnalités **déclarées
 non supportées en v1.0.0** (prix au poids, produits composés, vouchers
 multi/mono-usage - cf. REPONSES_MANUEL_CERT_FR.md §III.F
 "Fonctionnalités avancées"). Ils restent en base (`active = 0`) pour la

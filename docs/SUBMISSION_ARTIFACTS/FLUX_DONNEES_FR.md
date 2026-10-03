@@ -19,8 +19,9 @@ un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
    est comparé à son hash bcrypt.
 3. Le store Pinia auth enregistre `(insz, name, role)`.
 4. L'UI redirige vers `TablesView.vue`. Le store appelle
-   automatiquement `commands::social::work_in()` - un événement
-   fiscal **S** :
+   `commands::social::work_in()` - un événement fiscal **S** - sauf
+   si l'employé a déjà un poste ouvert (`clockInIfOffShift` dans
+   `ui/src/stores/auth.ts`, cas d'un écran simplement verrouillé) :
    - Clé de doublon FDM construite à partir de `pos_id`,
      `pos_date_time`, `terminal_id`, `"WORK_IN"`, et du prochain
      compteur séquentiel (lu sous le verrou de signature, voir
@@ -28,7 +29,8 @@ un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
    - Corps JSON canonique POST sur l'endpoint GraphQL du FDM.
    - Sur succès : le FDM renvoie short signature + compteurs ;
      ligne ajoutée à `fiscal_events` en une seule transaction ;
-     ligne `social_status` dans `users` basculée à `present`.
+     une ligne `staff_shifts` ouverte (migration 9) dans la même
+     transaction.
    - Le ticket n'est **pas** imprimé pour les événements S.
 
 ## 2. Ouverture d'une table - Commande (Événement P)
@@ -49,9 +51,12 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
    - Sérialisé en JSON canonique, stocké dans `pending_signs` avant
      l'envoi (voir §3, étape 5).
    - Le FDM signe ; on archive l'événement P.
-   - `pos-print::kitchen_ticket::format_kitchen_ticket` construit un payload ESC/POS et
-     l'envoie à l'imprimante cuisine (destination TCP distincte de
-     l'imprimante du ticket client principal).
+   - `pos-print::bar_ticket::format_bar_ticket` (via
+     `commands/bar_slip.rs`) construit le ticket de commande des seules
+     lignes qui viennent d'être signées, pour les produits marqués
+     `kitchen_printer`, et l'envoie à l'imprimante cuisine si elle est
+     configurée (destination TCP distincte de l'imprimante du ticket
+     client principal), sinon à l'imprimante principale.
 
 Le compteur fiscal **P** avance de 1. Le compteur **N** reste intact
 jusqu'à ce que le client paie effectivement.
@@ -72,14 +77,21 @@ OK. L'opérateur confirme.
    FDM.
 1. UI (`CheckoutView.vue`) → `commands::checkout::checkout` avec
    `{order_id, payment_method: "card", amount_cents, delivery}`.
-2. **Vérification du statut FDM.** `FdmClient::status` s'exécute en
-   premier. Si non-opérationnel, la commande retourne `FdmUnreachable`
-   et l'UI affiche une modale bloquante. Aucun compteur n'est
-   consommé, aucune ligne DB n'est écrite.
+2. **Pas de pré-contrôle du statut FDM.** La vente passe par
+   `checkout::sell` puis `signing::sign`. Si le FDM n'est pas joignable,
+   `FdmError::outcome()` donne `NotSent` : la ligne `pending_signs`
+   passe à `not_sent`, la commande renvoie « FDM not connected - cannot
+   complete transaction », aucun compteur n'est consommé, aucune ligne
+   métier n'est écrite. En parallèle, l'interface sonde le statut du
+   FDM (`ui/src/stores/fdm.ts`, §8) et affiche l'indicateur et le voile
+   bloquant.
 3. Construit `SaleInput` à partir des lignes de commande, avec le
-   support résolu à l'étape 0 dans `common.ticketMedium`. Ajoute la
-   référence FDM vers l'événement P antérieur de la table 12 pour
-   que le FDM les relie.
+   support résolu à l'étape 0 dans `common.ticketMedium`. Le N ne porte
+   pas de `fdmRef` vers l'événement P : le lien entre les P et le N de
+   la table 12 est la référence du centre de coût, `O{id}` de la
+   commande (`pos-fiscal::event::order_reference`), identique pour
+   tous les événements de la commande (sur place ; une vente à
+   emporter n'a pas de centre de coût).
 4. Sous le **verrou de signature** unique (une seule opération signe à
    la fois), lecture du prochain numéro N (`peek_next`), sérialisation
    JSON canonique, stockage de la requête exacte dans `pending_signs`
@@ -96,7 +108,7 @@ OK. L'opérateur confirme.
      `ticket_deliveries` (`delivery::enqueue_in_tx`) - texte du
      ticket + URL de vérification déjà figés, adresse masquée
      conservée en clair pour l'envoi à venir.
-6. `pos-print::receipt::sale` construit le ticket client :
+6. `pos-print::receipt::format_receipt` construit le ticket client :
    - En-tête (nom du restaurant, adresse, TVA).
    - Détail ligne par ligne.
    - Récapitulatif TVA (A=21%, B=12%, C=6%).
@@ -126,7 +138,7 @@ rapports pour voir les totaux en cours.
    `pos-fiscal::report_totals::turnover`.
 3. Construit `ReportTurnoverXInput` (pas de champ booking-date dans
    les rapports X selon v1.3).
-4. Le FDM signe un événement **R** labellisé `R-X-TURNOVER`. Archivé
+4. Le FDM signe un événement **R** d'opération `ReportTurnoverX` (label `R`). Archivé
    dans `fiscal_events`.
 5. Ticket imprimé pour le gérant. Les compteurs **ne** sont **pas**
    remis à zéro.
@@ -139,9 +151,9 @@ rapports pour voir les totaux en cours.
 
 1. UI → `commands::report::generate_z_report`.
 2. La commande émet **deux** événements R de manière atomique :
-   - `R-Z-TURNOVER` (`ReportTurnoverZInput`, inclut
+   - `ReportTurnoverZ` (`ReportTurnoverZInput`, inclut
      `report_booking_date`).
-   - `R-Z-USER` (`ReportUserZInput`).
+   - `ReportUserZ` (`ReportUserZInput`).
 3. Sous le verrou de signature (une vente en cours est attendue puis
    comptée dans le Z) :
    - Lecture de deux numéros R consécutifs.
@@ -158,8 +170,10 @@ rapports pour voir les totaux en cours.
    - Le Z automatique (`close_overdue_day`, tick de 60 s) saute son
      tour si la signature est occupée et revérifie sous le verrou que
      la journée est toujours en retard : pas de second Z vide.
-4. Sauvegarde de la DB SQLite vers
-   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via l'API Online Backup.
+4. Une fois le Z archivé, sauvegarde de la DB SQLite vers
+   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via
+   l'API Online Backup (`signing::follow_up` →
+   `backup_database_impl`), avant l'impression.
 5. Deux tickets de rapport Z sont imprimés.
 
 ## 6. Fin de service - Pointage sortie (Événement S)
@@ -170,11 +184,16 @@ rapports pour voir les totaux en cours.
 
 1. UI → `commands::social::work_out`.
 2. Événement **S** construit (flag `work_out=true`). Verrou de
-   signature, JSON canonique, FDM, archivage. `users.social_status` basculé à
-   `absent`.
+   signature, JSON canonique, FDM, archivage. Le poste ouvert de
+   `staff_shifts` est clos dans la même transaction.
 3. L'UI déconnecte, retour à l'écran de login.
 
-## 7. Exception - Facture B2B (Événement I + Peppol)
+## 7. Exception - Facture B2B (Événement I + Peppol) - hors binaire certifié v1.0.0
+
+Ce flux n'existe pas dans le binaire certifié de la v1.0.0 : le code
+est sous `#[cfg(feature = "peppol")]` et la build cert ne l'inclut pas
+(`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §8). L'événement I est optionnel
+dans SCE 2.0 ; il est décrit ici pour une mise à jour ultérieure.
 
 **Action utilisateur.** Pendant le checkout, l'opérateur active
 "Générer facture B2B", saisit le n° TVA, le nom, l'adresse et le
@@ -206,11 +225,14 @@ commandes.
 
 **Circulation des données.**
 
-1. Le sondage de fond `FdmClient::status` attrape la déconnexion en
-   premier ; le store Pinia FDM bascule à `unhealthy` ; le voyant
-   FDM du bandeau passe au rouge et un voile couvre les écrans de vente.
-2. Toute tentative active de "Payer" échoue à la vérification
-   préalable (`FdmUnreachable`) ; l'opérateur voit la modale bloquante.
+1. Le sondage de fond de l'interface (`ui/src/stores/fdm.ts` : toutes
+   les 30 s, recul jusqu'à 5 min tant que le FDM ne répond pas) attrape
+   la déconnexion ; le store passe à `connected = false`, gravité
+   « bloquante » ; le voyant FDM du bandeau passe au rouge et un voile
+   couvre les écrans de vente.
+2. Toute tentative de "Payer" part vers `signing::sign` et échoue sans
+   rien écrire (`NotSent`, ligne `pending_signs` à `not_sent`, erreur
+   « FDM not connected »).
 3. Il n'existe aucune file d'attente hors-ligne : une commande pro
    forma (Événement P), une ouverture de tiroir (F) ou toute autre
    signature est refusée tant que le FDM ne répond pas, et rien n'est
@@ -225,7 +247,7 @@ commandes.
    passe à `refused` et son numéro est libre. Sans réponse, l'opération
    en cours est refusée (`FDM_ANSWER_PENDING`) ; la tâche de fond
    (60 s) renvoie aussi la requête, la caisse se débloque seule.
-5. Une fois le FDM à nouveau opérationnel, la modale se referme
+5. Une fois le FDM à nouveau opérationnel, le voile se referme
    automatiquement et l'opérateur retente l'opération. Un nouvel
    essai est une nouvelle requête (nouveau numéro si la précédente
    n'a pas été signée) : le POS ne réutilise jamais un numéro avec un
@@ -303,16 +325,16 @@ n'est mis en file.
 | Action | Tables touchées |
 |---|---|
 | Login | `users` (lecture) |
-| Pointage entrée/sortie | `users` (écriture), `fiscal_events` (append S) |
+| Pointage entrée/sortie | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S) |
 | Ajout ligne commande | `orders` (insert/update), `order_lines` (insert) |
-| Envoi cuisine | `fiscal_events` (append P) |
+| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées) |
 | Paiement | `fiscal_events` (append N), `payments` (insert), `orders` (close), `fiscal_counters` (advance N) |
-| Rapport X | `fiscal_events` (append R-X) |
-| Rapport Z | `fiscal_events` (append R-Z-TURNOVER + R-Z-USER), `z_reports` (insert), fichier de backup DB |
-| Facture B2B | `fiscal_events` (append I), `peppol_deliveries` (insert) |
+| Rapport X | `fiscal_events` (append R, `ReportTurnoverX`) |
+| Rapport Z | `fiscal_events` (append R, `ReportTurnoverZ` + `ReportUserZ`), `z_reports` (insert), fichier de backup DB |
+| Facture B2B (hors binaire certifié v1.0.0) | `fiscal_events` (append I), `peppol_deliveries` (insert) ; les tables existent mais ne sont jamais écrites par la build cert |
 | Remboursement | `fiscal_events` (append N M111/M112 référençant l'original) |
-| Ouverture tiroir (F-WAR) | `fiscal_events` (append F), `original_prints` (si l'original manquant est rattrapé) |
-| Mouvement caisse | `fiscal_events` (append F), `payments` (écriture) |
+| Ouverture tiroir (F-WAR) | `fiscal_events` (append F) |
+| Mouvement caisse | `fiscal_events` (append F) ; aucune ligne `payments` n'est écrite |
 | Ticket signé avec support numérique | `ticket_deliveries` (append, même tx que `fiscal_events`) |
 | Impression d'un original (vente, remboursement, ou rattrapage) | `original_prints` (une ligne, jamais deux, par événement) |
 | Envoi/réessai/purge du ticket numérique (tâche de fond) | `ticket_deliveries` (écriture des colonnes de statut, jamais `fiscal_events`) |

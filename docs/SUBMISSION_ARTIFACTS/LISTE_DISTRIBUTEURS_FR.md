@@ -13,7 +13,7 @@ la vente et de l'installation vous-même ? »).
 | Nom légal | Bruno Moyse |
 | Nom commercial | nuagemagique.dev |
 | Adresse | Rue Joseph Claes 4/1, 1060 Saint-Gilles, Belgique |
-| Numéro d'entreprise (BCE) | 0783.544.917 (régime franchise TVA art. 56 §2 CTVA) |
+| Numéro d'identification à la TVA / d'entreprise | BE 0783.544.917 (numéro d'entreprise BCE ; régime de franchise de TVA, art. 56 §2 CTVA) |
 | Email de contact | cloud@nuagemagique.dev |
 | Téléphone | +32 494 46 50 26 |
 | Rôle | Développeur unique et intégrateur de la build de certification |

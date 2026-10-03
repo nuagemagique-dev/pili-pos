@@ -1,6 +1,6 @@
 # Schéma d'assemblage physique - pili-pos
 
-**Date :** 2026-05-14
+**Date :** 2026-10-03
 **Référence :** réponse au §I.C "Schéma d'assemblage" et §II.G du manuel de certification.
 
 Le présent document décrit l'assemblage physique du SCE (Système de
@@ -32,7 +32,8 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
        |  module2    |    |   Epson TM-m30III|
        |  (MOD01...) |    |                  |
        | IP : 192.168.1.20|  IP : 192.168.1.30|
-       | TCP 80 GraphQL   |  TCP 9100 ESC/POS|
+       | TCP 443 GraphQL  |  TCP 9100 ESC/POS|
+       | (HTTPS, mTLS)    |                  |
        +------------------+  +-------+--------+
                                      |
                                      | RJ11
@@ -64,9 +65,10 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
               |  M82 (Intel J6412)
               |                 |
               |  IP : 192.168.1.10
-              |  HTTP sortant    |
-              |   vers 192.168.1.20:8080
-              |   (FDM GraphQL)  |
+              |  HTTPS sortant   |
+              |   vers 192.168.1.20:443
+              |   (FDM GraphQL,  |
+              |   mTLS + jeton)  |
               |                 |
               |  TCP sortant vers
               |   192.168.1.30:9100
@@ -75,10 +77,11 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
               |  HTTPS sortant (WAN), le cas
               |   echeant : sessions RustDesk
               |   d'assistance a distance a la
-              |   demande, et (phase ulterieure,
-              |   non active en v1.0.0) service
-              |   d'envoi du ticket numerique par
-              |   email - voir §4 "Pare-feu"|
+              |   demande, service d'envoi du
+              |   ticket numerique par email
+              |   (si configure), et HubRise
+              |   (si active) - voir §4
+              |   "Pare-feu"     |
               |                 |
               | Écran tactile   |
               | PCAP 15.6"      |
@@ -145,7 +148,7 @@ HoReCa). La machine de test livrée à l'Intake SPF Finances est identique, à l
 |---|---|---|---|---|
 | Routeur | `gw` | `192.168.1.1` | - | DHCP, gateway, DNS |
 | POS | `pos-01` | `192.168.1.10` | (à renseigner) | pili-pos (Tauri app, kiosk) |
-| FDM | `fdm` | `192.168.1.20` | (à renseigner) | GraphQL du FDM module2 (TCP 80) |
+| FDM | `fdm` | `192.168.1.20` | (à renseigner) | GraphQL du FDM module2 (HTTPS, TCP 443) |
 | Imprimante | `printer` | `192.168.1.30` | (à renseigner) | ESC/POS raw TCP 9100 |
 
 ### Réservations DHCP
@@ -158,7 +161,7 @@ Sur le routeur : politique par défaut bloquante en LAN <-> LAN. Règles autoris
 - POS (.10) → FDM (.20) port TCP 443 (GraphQL en HTTPS/mTLS ; 80 si HTTP)
 - POS (.10) → Imprimante (.30) port TCP 9100 (ESC/POS)
 - FDM (.20) → Internet (WAN) sur les domaines/IP SPF Finances (gérés par le FDM lui-même via mTLS)
-- POS (.10) → Internet (WAN) en HTTPS sortant uniquement : sessions RustDesk d'assistance à distance démarrées depuis la caisse par un Gérant, avec son PIN (jamais permanent), et - uniquement si `pos.json::digital_ticket` est configuré (§III.H) - l'envoi du ticket numérique par e-mail vers `api.scaleway.com` (port 443, cf. `TICKET_NUMERIQUE_FR.md` §9). Sans cette configuration, aucun trafic sortant n'est initié par le POS en dehors du FDM et de RustDesk.
+- POS (.10) → Internet (WAN) en HTTPS sortant uniquement : sessions RustDesk d'assistance à distance démarrées depuis la caisse par un Gérant, avec son PIN (jamais permanent), - uniquement si `pos.json::digital_ticket` est configuré (§III.H) - l'envoi du ticket numérique par e-mail vers `api.scaleway.com` (port 443, cf. `TICKET_NUMERIQUE_FR.md` §9), et - uniquement si HubRise est activé sur l'installation - `manager.hubrise.com` et `api.hubrise.com` (port 443, cf. `COMMANDES_EN_LIGNE_FR.md`). Sans ces configurations, aucun trafic sortant n'est initié par le POS en dehors du FDM et de RustDesk.
 
 Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port d'administration distante permanent (SSH, RDP, VNC) n'est ouvert sur le POS - pas de serveur SSH installé (cf. `deploy/install.sh`).
 
@@ -166,7 +169,7 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 
 ## 5. Procédure d'installation physique
 
-À effectuer dans cet ordre :
+Étapes, dans cet ordre :
 
 1. Déballer et installer le routeur. Le brancher au modem Internet du restaurant. Vérifier l'accès Internet.
 2. Configurer le routeur (login admin du routeur, IP statique gateway 192.168.1.1, DHCP 100-200, réservations DHCP pour les 3 appareils SCE).
@@ -174,15 +177,8 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 4. Brancher l'imprimante au routeur via RJ45 (port LAN 3). Brancher l'alimentation. Vérifier IP 192.168.1.30. Brancher le RJ11 du tiroir-caisse au DK port de l'imprimante.
 5. Brancher le POS au routeur via RJ45 (port LAN 1). Brancher l'alimentation. Mettre sous tension.
 6. Au démarrage du POS, l'image kiosk lance automatiquement Cage compositor + pili-pos en plein écran après quelques secondes.
-7. Première connexion : INSZ technicien `00000000097` + PIN par défaut `0097`. L'écran "Configuration POS" s'affiche pour saisir/valider :
-   - `fdm_url` : `https://192.168.1.20/graphql/`
-   - `fdm_token_file` : fichier contenant le jeton Bearer du FDM (lu sur la page de paramètres du FDM)
-   - `fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file` : les certificats module2 (`ca.crt`, `client.crt`, `client.key`, publiés sur manual.module2.be), dans `/etc/pili-pos/fdm/`, la clé en droits 600
-   - `printer_address` : `192.168.1.30:9100`
-   - `restaurant_est_no` : (n° d'établissement TVA assigné au restaurant)
-   - `pos_id` : code 14 caractères assigné par SPF Finances au moment de l'enregistrement du POS
-   - `terminal_id` : généré au premier boot et stocké
-8. Le POS effectue un `signWorkIn` du technicien (event S) pour valider la chaîne complète. Si succès, le POS est opérationnel.
+7. Configuration du POS : elle ne se fait pas à l'écran de la caisse. Le technicien ouvre la console de maintenance (`Ctrl+Alt+F2`, login `root`) et complète `/etc/pili-pos/pos.json` (identité fiscale, FDM, imprimantes), y place les fichiers du FDM et le jeton, puis redémarre le service, comme décrit dans `MANUEL_INSTALLATION_FR.md` §4 (§4.1 accès maintenance, §4.2 fichier de configuration, §4.4 premiers comptes). Pour le FDM module2 : `fdm_url` `https://192.168.1.20/graphql/`, `fdm_token_file`, et `fdm_ca_file`, `fdm_client_cert_file`, `fdm_client_key_file` (`ca.crt`, `client.crt`, `client.key`, publiés sur manual.module2.be) dans `/etc/pili-pos/fdm/`, la clé en droits 600. `printer_address` vaut `192.168.1.30:9100`.
+8. Première connexion d'un Gérant sur l'écran de la caisse (`MANUEL_UTILISATEUR_FR.md` §2.1) : le POS signe un `signWorkIn` (événement S), ce qui valide la chaîne complète (FDM, identité, horloge). Si le FDM l'accepte, le POS est opérationnel.
 
 ---
 
@@ -190,9 +186,9 @@ Aucun port n'est ouvert depuis Internet vers le LAN (zone DMZ vide). Aucun port 
 
 En cas d'audit SPF Finances, le SCE peut être réassemblé à l'identique à partir du présent schéma et du manuel d'installation `MANUEL_INSTALLATION_FR.md`. Les éléments à conserver pour ré-installation :
 
-- L'image kiosk de la build cert (fichier .iso).
+- L'image kiosk de la build cert (fichier `pili-pos-kiosk-<profil>.img.xz`).
 - Le fichier `pos.json` de configuration (sauvegardé séparément).
-- La base SQLite `pos.db` (snapshot quotidien dans `/var/lib/pili-pos/backups/`).
+- La base SQLite `pos.db` (sauvegarde écrite après chaque rapport Z dans `/var/lib/pili-pos/backups/`).
 - Le présent schéma + les n° de série des composants (à consigner au formulaire d'Intake).
 
 ---

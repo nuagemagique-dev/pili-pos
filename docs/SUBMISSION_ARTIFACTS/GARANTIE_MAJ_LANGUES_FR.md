@@ -1,6 +1,6 @@
 # Garantie de build, procédure de mise à jour et politique de langue
 
-**Date :** 2026-05-14
+**Date :** 2026-10-03
 **Sections couvertes :** §II.D Garantie du produit, §II.E Mises à jour, §VI Règles de langue du manuel de certification.
 
 ---
@@ -17,7 +17,7 @@ La correspondance exacte entre le build de certification soumis au SPF Finances 
 
 Le dépôt source contient :
 - `Cargo.lock` commité - fige les versions exactes de toutes les dépendances Rust transitives.
-- `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.98.1`).
+- `rust-toolchain.toml` épingle la version exacte du compilateur Rust (canal `1.99.0`).
 - `package-lock.json` (UI Vue) - fige les versions exactes des dépendances Node.
 
 La build cert est produite par une commande unique et figée, exécutée dans un conteneur Debian 13 `linux/amd64` :
@@ -28,7 +28,7 @@ La build cert est produite par une commande unique et figée, exécutée dans un
 ```
 
 Le conteneur fixe l'environnement de compilation :
-- l'image Rust est désignée par son empreinte (`rust:1.98.1-trixie@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
+- l'image Rust est désignée par son empreinte (`rust:1.99.0-trixie@sha256:…`), pas par un tag qui évolue ; sa toolchain est celle de `rust-toolchain.toml` ;
 - Node.js vient de l'archive officielle nodejs.org, dont l'empreinte SHA-256 est vérifiée avant usage ;
 - les chemins de l'hôte (dépôt, registre Cargo) sont remplacés dans le binaire par des noms fixes (`--remap-path-prefix`) ;
 - l'UI embarquée est construite depuis `package-lock.json`.
@@ -52,7 +52,7 @@ sha1sum /opt/pili-pos/pili-pos
 
 ### 1.3 Environnement kiosk scellé
 
-Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite par `deploy/image/build.sh` (mkosi, qui installe le binaire certifié via `deploy/provision/provision.sh` et vérifie son SHA-1 dans l'image finie) ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1). Le binaire arrive sur la machine par clé USB, sur place - jamais par `scp`, aucun serveur SSH n'étant installé (une session RustDesk donne accès à l'écran de la caisse, pas à un shell, cf. §2.2).
+Le premier déploiement se fait par l'image kiosque (clé USB, cf. *MANUEL_INSTALLATION_FR.md* §2-3), construite par `deploy/image/build.sh` (mkosi, qui installe le binaire certifié via `deploy/provision/provision.sh` et vérifie son SHA-1 dans l'image finie) ; les mises à jour remplacent le seul binaire via `deploy/update.sh --sha1` (cf. §2.1), ou le système par l'entrée "Update" de la clé image (*MANUEL_INSTALLATION_FR.md* §6). **La clé USB, sur place, est le seul chemin d'arrivée du binaire fiscal** : jamais par `scp` (aucun serveur SSH n'est installé), jamais pendant une session RustDesk (qui donne accès à l'écran de la caisse, pas à un shell, et ne sert qu'à l'assistance, cf. §2.2).
 
 L'OS hôte (Debian 13 minimal) est configuré lors de l'installation initiale pour constituer un environnement scellé :
 
@@ -63,8 +63,8 @@ L'OS hôte (Debian 13 minimal) est configuré lors de l'installation initiale po
 - Aucune mise à jour automatique de paquets (`apt-daily.timer`,
   `apt-daily-upgrade.timer` et `unattended-upgrades` masqués,
   `deploy/provision/provision.sh`).
-- Seul `/var/lib/pili-pos` est en lecture/écriture (pour la DB et les backups).
-- Cage Wayland compositor lance directement `pili-pos` en plein écran ; pas de bureau, pas de terminal accessible.
+- Seuls le volume `/var` (chiffré LUKS2 : base de données, sauvegardes, journaux et configuration `/etc/pili-pos`) et `/tmp` (en mémoire) sont en écriture.
+- Cage Wayland compositor lance directement `pili-pos` en plein écran ; pas de bureau, aucun terminal accessible à l'opérateur : l'écran ne montre que pili-pos. Une console de maintenance locale protégée par le mot de passe `root` existe sur `tty2` (`Ctrl+Alt+F2`, clavier USB branché) ; seul le distributeur s'en sert, sur place.
 
 Une fois l'installation initiale effectuée, toute modification du binaire passe obligatoirement par `deploy/update.sh` avec les droits root.
 
@@ -101,13 +101,13 @@ La procédure de mise à jour est la suivante :
    - Soumission d'une nouvelle demande de certification (mise à jour) au SPF Finances.
 
 2. **Sur la machine de test SPF (pendant le cycle de mise à jour) :**
-   - Le producteur remet le nouveau binaire `pili-pos` pour la machine de test sur clé USB (cf. §2.2).
-   - Le binaire est installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>` : le script refuse tout binaire dont le SHA-1 diffère de la valeur déclarée, sauvegarde binaire et base, applique les migrations puis redémarre le service. Cf. *MANUEL_INSTALLATION_FR.md* §6.
+   - Le producteur remet le nouveau binaire `pili-pos` pour la machine de test sur clé USB, sur place (cf. §2.2).
+   - Le binaire est installé via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>` : le script refuse tout binaire dont le SHA-1 diffère de la valeur déclarée, sauvegarde binaire et base, applique les migrations puis redémarre le service. Cf. *MANUEL_INSTALLATION_FR.md* §6.1.
    - Tests de validation effectués par l'agent SPF.
 
 3. **Côté client (après acceptation SPF de la mise à jour) :**
    - Mise à jour du binaire client par le distributeur via `deploy/update.sh --sha1`, sur site (jamais par SSH : aucun serveur SSH n'est installé).
-   - Sauvegarde préalable de la DB `pos.db` (cf. backups automatiques nocturnes).
+   - Sauvegarde préalable de la DB `pos.db` : `deploy/update.sh` en écrit une avant d'installer le binaire (la caisse en écrit aussi une après chaque rapport Z).
    - Vérification post-update du SHA-1.
 
 ### 2.2 Accès à distance
@@ -119,12 +119,12 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 - **Raison principale :** ouvrir un canal d'administration distante sur un terminal de caisse fiscale augmente la surface d'attaque sans bénéfice opérationnel suffisant. Un attaquant qui compromet l'accès distant peut potentiellement contourner les protections fiscales.
 - **Raison secondaire :** la spec SCE 2.0 demande un appliance scellé. Un agent SSH ou un client TeamViewer permanent contredit l'esprit du scellement.
 
-**Compromis pratique :** pour les interventions techniques planifiées (mise à jour, debug d'un problème reporté par le client) :
+**Compromis pratique :** pour l'assistance et le diagnostic d'un problème reporté par le client (jamais pour installer ou remplacer un binaire, qui arrive toujours sur place par clé USB) :
 - Client : RustDesk portable (open source, AppImage autonome), version épinglée et vérifiée par SHA-256 à la construction de l'image, extrait dans `/opt/pili-pos/rustdesk/` (lancé via `/opt/pili-pos/rustdesk/AppRun`). Il fait partie de l'image scellée (donc couvert par la garantie d'identité machine de test / production, §1) mais **n'est jamais lancé au boot** et n'installe aucun service.
 - Ouverture : depuis la caisse, par un Gérant connecté qui confirme avec son PIN ("Config" > "Assistance à distance" > "Démarrer", `src-tauri/src/commands/support.rs`). RustDesk affiche un identifiant et un mot de passe à usage unique, communiqués au producteur par téléphone.
 - Pendant la session, chaque écran de la caisse, écran de connexion compris, affiche le bandeau "Assistance à distance en cours" ; la session continue après une déconnexion. Démarrage et arrêt sont journalisés (qui, quand).
 - La session prend fin par "Arrêter la session" (dans "Config", ou sur le bandeau de l'écran de connexion, par n'importe qui), à la fermeture de RustDesk, au redémarrage du terminal, ou au plus tard 2 heures après le démarrage. Une seule session à la fois. Aucun accès permanent, aucun port en écoute hors session.
-- La session donne accès à l'écran de la caisse, pas à un shell : les mises à jour du binaire se font sur place (clé USB, `deploy/update.sh --sha1`). La saisie distante sous le compositeur kiosque (Cage) reste à confirmer sur le terminal ; à défaut, la session est en lecture seule et le producteur guide le Gérant par téléphone.
+- La session donne accès à l'écran de la caisse, pas à un shell : les mises à jour du binaire se font sur place (clé USB, `deploy/update.sh --sha1`). La saisie à distance (clavier, tactile) sous le compositeur kiosque (Cage) n'est pas garantie : à défaut, la session reste en lecture seule et le producteur guide le Gérant par téléphone.
 - Pour la machine de test, le SPF Finances peut demander qu'une session de test soit ouverte de la même façon et ses identifiants fournis (manuel §II.E).
 
 **Au rendez-vous d'admission SPF Finances :**
@@ -151,7 +151,7 @@ Le code de `pili-pos` supporte le rendu multilingue des tickets via deux mécani
 Langues des mentions fiscales supportées par le code :
 - `fr` (français) - **complète** (libellés issus de la description détaillée POS v2.2 et du manuel §VI)
 - `nl` (néerlandais) - **complète** (libellés issus des circulaires GKS)
-- `de` (allemand) - **complète** (traduction de style officiel, translittération ASCII, à confirmer sur la version DE de la spec)
+- `de` (allemand) - **complète** (traduction de style officiel, en ASCII ; les libellés allemands ne sont pas tirés d'une version allemande de la spécification, qui ne fait pas partie des documents de référence)
 
 Langues d'affichage de l'interface (indépendantes du ticket) : `fr`, `en`, `zh`.
 

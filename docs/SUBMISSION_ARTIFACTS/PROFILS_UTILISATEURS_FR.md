@@ -22,7 +22,7 @@ dans `crates/pos-core/src/user.rs`.
 Chaque utilisateur du POS est stocké dans la table `users`
 (`crates/pos-db/src/schema.rs`) avec :
 - son numéro INSZ à 11 chiffres (clé primaire, validé par
-  `validate_insz` dans `crates/pos-core/src/user.rs:46`) ;
+  `validate_insz` dans `crates/pos-core/src/user.rs:51`) ;
 - son rôle (`admin` / `cashier` / `waiter`) ;
 - un hash bcrypt de son code PIN (facultatif) ;
 - un drapeau `active` pour désactiver un utilisateur sans le supprimer
@@ -43,47 +43,73 @@ Accès complet. Concrètement, peut :
 - Ouvrir le tiroir-caisse hors-vente (Événement F-WAR - drawer-open).
 - Émettre une copie de ticket (Événement C).
 - Effectuer un remboursement complet (Événement N, M111) ou partiel
-  (M112B - événement séparé, voir `REFUND_FLOW.md`).
+  (M112B - événement séparé, voir `FLUX_REMBOURSEMENT_FR.md`).
 - Activer / désactiver le mode formation (Événements T), uniquement
   lorsqu'aucune commande avec des lignes n'est ouverte : une table
   réelle ne peut ainsi jamais être encaissée en formation, ni une
   commande de formation encaissée comme une vente réelle.
-- Accéder à la vue Paramètres (`SettingsView.vue`) et à la vue
-  Rapports.
+- Clôturer une vente sans paiement (client parti sans payer, événement
+  N sans paiement), en confirmant avec son PIN.
+- Démarrer l'assistance à distance (session RustDesk), en confirmant
+  avec son PIN.
+- Activer ou couper HubRise (les commandes en ligne), connecter HubRise,
+  reprendre le catalogue et régler les canaux ; rembourser une commande
+  en ligne annulée. Chaque changement de l'interrupteur HubRise est
+  journalisé.
+- Accéder à la page Paramètres (bouton "Config", `SettingsView.vue`) et
+  à la vue Rapports.
 - Créer des utilisateurs (Gérant, Serveur ou Apprenti), en désactiver
-  (jamais soi-même ; jamais de suppression : l'INSZ reste sur les
-  événements signés) et réinitialiser leur PIN. Créer un Gérant ou
+  ("Désactiver" ; jamais soi-même ; jamais de suppression : l'INSZ reste
+  sur les événements signés) et fixer leur PIN. Créer un Gérant ou
   changer le PIN d'un autre employé demande le PIN du Gérant connecté.
 
 ### 2.2 Serveur (`Cashier`)
 
 Profil d'opérateur de caisse standard. Peut :
 
-- Se connecter avec INSZ + code PIN (Événement S - `signWorkIn`).
-- Se déconnecter (Événement S - `signWorkOut`).
+- Se connecter avec sa tuile (ou son INSZ) + code PIN (Événement S -
+  `signWorkIn`, sauf s'il est déjà en service).
+- Verrouiller l'écran, sans pointer son départ ; pointer son départ
+  ("Fin de service" sur l'écran de connexion, Événement S -
+  `signWorkOut`).
 - Ouvrir / réutiliser une table en cours.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte.
-- Enregistrer la commande (Événement P - `signOrder`).
+- Enregistrer la commande et l'envoyer en cuisine (Événement P -
+  `signOrder`, bon de commande imprimé).
 - Imprimer un pré-ticket (Événement P - `signPreBill`).
 - Encaisser : encaissement comptant ou carte (Événement N -
   `signSale`). Tiroir s'ouvre automatiquement pour les paiements
   comptant.
+- Réimprimer une seule fois l'original manquant d'un ticket (bouton
+  "Imprimer le ticket" de l'écran de fin).
+- Traiter les commandes en ligne : accepter, refuser, terminer,
+  encaisser en espèces ou par carte à la remise, clôturer une commande
+  annulée avant paiement.
 - Modifier son propre PIN.
 
 ### 2.3 Apprenti (`Waiter`)
 
 Profil restreint. Peut :
 
-- Se connecter / se déconnecter.
+- Se connecter, verrouiller l'écran et pointer son départ.
 - Ouvrir / réutiliser une table.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte
   (chaque correction est journalisée et transmise au FDM).
-- Enregistrer la commande (Événement P - `signOrder`).
+- Enregistrer la commande et l'envoyer en cuisine (Événement P -
+  `signOrder`).
+- Faire avancer une commande en ligne : "Préparer", "Prête" et
+  "Retarder".
 - **NE peut PAS** imprimer l'addition ni encaisser : les boutons
   « Addition » et « Payer » ne lui sont pas présentés, et le backend
   refuse la commande (code `forbidden`) ; un Serveur ou un Gérant encaisse.
 - **NE peut PAS** générer de rapport, copier un ticket, rembourser,
   ouvrir le tiroir, ni modifier les paramètres.
+
+**Mode formation.** Seul un Gérant l'active (§2.1). Il vaut pour toute
+la caisse : il n'existe pas de profil "formation". Quand il est actif,
+un Apprenti prend les commandes comme d'habitude mais ne peut toujours
+pas encaisser ; ce qu'un Serveur ou un Gérant encaisse est alors un
+événement de formation (T).
 
 ## 3. Mécanismes d'enforcement
 
@@ -98,9 +124,10 @@ L'enforcement vit à deux niveaux :
 
    | Accès | Rôles | Commandes |
    |---|---|---|
-   | Personnel | Gérant, Serveur, Apprenti | pointage (S), commandes et lignes, enregistrement de commande (P) |
-   | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant |
-   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs, sauvegarde |
+   | Personnel | Gérant, Serveur, Apprenti | pointage (S), commandes et lignes, enregistrement de commande (P), commandes en ligne : préparation, "Prête" et retard |
+   | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant, commandes en ligne : acceptation, refus, remise, encaissement et clôture |
+   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
+   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | vente clôturée sans paiement, démarrage de l'assistance à distance, création d'un Gérant, PIN d'un autre employé |
 
    Une commande refusée renvoie le code `not_logged_in` (aucune
    session) ou `forbidden` (rôle insuffisant) avant tout appel au FDM :
@@ -126,8 +153,9 @@ Ces règles sont couvertes par `src-tauri/tests/access_control.rs`
 
 ## 4. Journal des accès
 
-Chaque connexion (Événement S - `signWorkIn`) et chaque déconnexion
-(Événement S - `signWorkOut`) est consignée dans la table
+Chaque connexion d'un employé qui n'est pas encore en service
+(Événement S - `signWorkIn`) et chaque fin de service (Événement S -
+`signWorkOut`) est consignée dans la table
 `fiscal_events` avec :
 - `event_type = 'S'`
 - `user_insz` = INSZ de l'opérateur

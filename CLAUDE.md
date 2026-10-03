@@ -80,7 +80,7 @@ Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corres
 - `docs/20260417_DESCRIPTIONDETAILLEES_POS_FR_2.2.md` - **POS detailed description v2.2** (FR). Complete POS technical spec: GraphQL schema, mutations, types, enums, input objects, event types, VAT codes, ticket requirements, communication rules, digital signature.
 - `docs/20260417_DESCRIPTION DETAILLEE FDM_am_29_04_2024_FR_1.4.md` - **FDM detailed description v1.4** (FR). FDM spec: hardware requirements, QR code encoding algorithm, enriched JSON structure, behaviour on POS↔FDM link.
 - `docs/20260209_ADDENDUM_1_DESCRIPTIONS DETAILLEES POS_FDM FR_2.1 ES.md` - **Addendum 1** to the POS/FDM detailed descriptions (ES = events/signatures). Always cross-check this when reading the two specs above.
-- `docs/FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.09_20251017_FINAL.md` - **FPS Finance ↔ FDM cloud API protocol v1.09**. Describes the mTLS communication between the FDM and the SPF Finances cloud. The POS does NOT speak this protocol directly, but understand the lifecycle (provisioning, daily sync, status reporting) before designing FDM error handling.
+- `docs/FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.10_20260414.md` - **FPS Finance ↔ FDM cloud API protocol v1.10** (current; v1.09, `docs/FPSFIN_API_PROTOCOL_FDM_FINCLOUD_1.09_20251017_FINAL.md`, is superseded). Describes the mTLS communication between the FDM and the SPF Finances cloud. The POS does NOT speak this protocol directly, but understand the lifecycle (provisioning, daily sync, status reporting) before designing FDM error handling.
 
 **Certification manual & application form** (in `docs/20250307_POS_CERTIFICATION_MANUEAL_FRV1.1/`):
 - `20250307_FR - Manuel de certification_POS_V11.md` - main manual (110 p).
@@ -90,7 +90,7 @@ Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corres
 - Embedded copies of earlier UC sets: `20241223_UC_BasicSet_POS_FDM_1.4 (1)/`, `20041223_UC_AdvancedSet_POS_FDM_1.2/` - superseded by the newer UC folders below; kept for reference.
 
 **Test scenarios (use cases the implementation must pass to obtain certification):**
-- `docs/20250916_UC_BasicSet_POS_FDM_1.7/` - **Basic Set v1.7** - minimum mandatory flows.
+- `docs/20260821_UC_BasicSet_POS_FDM_1.8/` - **Basic Set v1.8** (current; the older `docs/20250916_UC_BasicSet_POS_FDM_1.7/` is superseded, kept for reference) - minimum mandatory flows.
   - Sales: `M110_signSale`, `M111_signSale_Refund`, `M112A/B_signSale_RefundPartial`
   - Orders / pro forma: `M121_signOrder`, `M122_signCostCenterChange`, `M123_signPrebill`
   - Cash drawer: `M130_signMoneyInOut`, `M131_signDrawerOpen`, `M132_signPaymentCorrection`, `M133_signMoneyInOut_DrawerDeclaration`
@@ -98,17 +98,19 @@ Each `.md` file is a 1:1 text extraction (via `pdftotext -layout`) of the corres
   - Invoicing & copies: `M150_signInvoice`, `M160_signCopy_Sale`, `M161_signCopy_Order`
   - Training mode: `M170_signWorkIn_Training`, `M171/171B_signSale_Training`, `M172_signCopy_Training`
   - FDM queries: `Q100_Status`, `Q110_Status_multi_lang_messages`
-  - Test setup: `UC_TestSetup_20240806.md`, changelog: `CHANGELOG-UC_BasicSet1.7.md`
-- `docs/20250916_UC_Reports_1.3/` - **Reports v1.3** - X/Z report scenarios.
+  - Test setup: `UC_TestSetup_20240806.md` is no longer in the Basic Set 1.8 folder; use the copy in `docs/20260821_UC_Reports_1.3/` (identical content). Changelog: `CHANGELOG-UC_BasicSet1.8.md`
+- `docs/20260821_UC_Reports_1.3/` - **Reports v1.3** (repackaged 2026-08-21; the older `docs/20250916_UC_Reports_1.3/` is superseded) - X/Z report scenarios.
   - `M180_signReportTurnoverX`, `M181_signReportTurnoverZ`, `M182_signReportUserX`, `M183_signReportUserZ`, `M184_signReportTurnoverZUserZ`
   - `InputReport/` - input fixtures, `Scenario Reports.md` - full scenario doc (⚠️ source PDF is diagram-only - open the PDF for the flow charts), changelog: `CHANGELOG-UC_ReportsBasicSet1.3.md`
-- `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` - **Advanced Set v1.5** - optional/advanced flows (out of MVP scope, but the data model must not preclude them). Covers: composite products, price changes, rounding, table split/merge, MPV/SPV vouchers, foreign currency & tips, customer accounts, cost-center changes, advance payments / deposits, weighted products, GTIN, supplements, credit notes, etc. `UC200…UC4123`. Changelog: `CHANGELOG-UC_AdvancedSet_1.5.md`. Bundle: `20250916_AdvancedSet_1.5.zip`.
+- `docs/20260821_UC_AdvancedSet_POS_FDM_1.6/` - **Advanced Set v1.6** (current; the older `docs/20250923_UC_AdvancedSet_POS_FDM_1.5/` is superseded, kept for reference) - optional/advanced flows (out of MVP scope, but the data model must not preclude them). Covers: composite products, price changes, rounding, table split/merge, MPV/SPV vouchers, foreign currency & tips, customer accounts, cost-center changes, advance payments / deposits, weighted products, GTIN, supplements, credit notes, etc. `UC200…UC4123`. Changelog: `CHANGELOG-UC_AdvancedSet_1.6.md`.
 
 **Legislation** (in `docs/legislation/`, French text from Justel and the Moniteur belge): the AM of 29 April 2024 on the technical aspects of certification (authoritative for ticket wording, report contents and the automatic Z), the AR of 30 December 2009 on the cash register system (consolidated), and the AR of 25 May 2026 amending it (in force 1 July 2026).
 
 **Design guide:**
 - `docs/UX-DESIGN-GUIDE.md` - **Read before implementing Vue components.** Touch POS UX principles, layout specs, color tokens, button sizes, feedback patterns, anti-patterns, payment flow design.
 - `docs/BRAND.md` - the Pili brand (logo, colours and their meaning, typography, tone). Colours are CSS tokens in `ui/src/styles/tokens.css`; every staff screen starts with `AppHeader.vue`.
+
+**Certification procedure (2026):** `docs/20260903_Intro_certification_procédure.md` (7 steps, required documents, `Report_Testing` folder). Submission runbook: `docs/internal/ASSEMBLAGE_FINAL_FR.md`.
 
 **Original PDFs:** all SPF Finances PDFs are preserved under `docs/original_pdfs/` (mirroring the subfolder structure above). Every `.md` links back to its source PDF in its header.
 
@@ -532,7 +534,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ## What This POS Does NOT Do (Out of Scope for MVP)
 
-- **Online ordering / webshop** - separate project (tsb-customer, Nuxt 3 SSR)
+- **Own webshop frontend** - separate project (tsb-customer, Nuxt 3 SSR); its orders reach the POS only through the HubRise integration (see below)
 - **Payment terminal integration** - cash + manual card entry for MVP
 - **Multi-terminal sync** - single terminal for MVP
 - **Inventory management** - not in MVP

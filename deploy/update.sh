@@ -8,9 +8,9 @@
 # SHA-1 matches the value declared for that update: the --sha1 check
 # below refuses anything else.
 #
-# Run on the terminal's maintenance console (Ctrl+Alt+F2) - on site
-# from a USB stick, or remotely during an on-demand RustDesk session
-# (deploy/REMOTE-OPS.md).
+# Run on site on the terminal's maintenance console (Ctrl+Alt+F2),
+# from a USB stick. RustDesk is for support only, never to install a
+# binary (deploy/REMOTE-OPS.md).
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 

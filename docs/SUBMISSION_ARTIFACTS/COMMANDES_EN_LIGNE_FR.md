@@ -74,6 +74,24 @@ les ventes à emporter de la caisse, et la caisse ne peut ni les
 encaisser comme une vente directe ni proposer les types de paiement
 APP ou ONLINE.
 
+## 3 bis. Données de clients
+
+Intégration activée, le POS traite des données de clients (voir
+`SECURITE_BD_FR.md` §6) :
+
+- chaque commande reçue est conservée telle que HubRise l'envoie
+  (`orders.raw_hubrise_json`, `hubrise_events.payload_json`), avec le nom,
+  le téléphone et l'adresse du client ; aucune purge automatique ;
+- le ticket client non fiscal (`pos_print::customer_slip`) imprime le
+  nom, le téléphone et l'adresse ; le ticket cuisine
+  (`pos_print::kitchen_ticket`) imprime les lignes et les notes ;
+- les ventes de la caisse sont mises en file dans `hubrise_outbox` et
+  envoyées à HubRise (lignes, totaux, paiements, sans données de
+  client) ;
+- le jeton d'accès HubRise (`hubrise_connection.access_token`) est
+  stocké en clair dans `pos.db`, donc lisible par le compte `spf` de
+  l'image d'admission et présent dans les sauvegardes.
+
 ## 4. Événements signés
 
 | Situation | Moment | Événement | Paiement | Ticket |

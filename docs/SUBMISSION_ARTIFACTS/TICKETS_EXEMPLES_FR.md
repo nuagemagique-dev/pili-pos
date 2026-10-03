@@ -33,12 +33,12 @@ colonne par type de ticket émis par pili-pos.
 | IX. Date et heure de délivrance | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
 | X. N° de ticket continu (série ininterrompue) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XI.1. Lignes produits : qté, désignation, prix, code TVA | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | ☑ (désignation seule, pas de prix) |
-| XI.2. Modifications de prix sur la ligne | N/A (MVP) | N/A | N/A | N/A | N/A | - |
+| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
 | XI.3. GTIN (optionnel) | N/A | N/A | N/A | N/A | N/A | - |
 | XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | - |
 | XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (jamais sur une addition) | ☑ | ☑ | - |
 | XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications de prix hors lignes produits | N/A (MVP) | N/A | N/A | N/A | N/A | - |
+| XV. Modifications de prix hors lignes produits | N/A (les remises d'une commande en ligne sont réparties sur les lignes et imprimées sous chacune, voir XI.2) | N/A | N/A | N/A | N/A | - |
 | XVI.I. Pied de page configuré par SPF Finances | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.II. fdmId | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.III. fdmDateTime | ☑ | ☑ | ☑ | ☑ | ☑ | - |
@@ -62,7 +62,7 @@ colonne par type de ticket émis par pili-pos.
 
 Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) et l'impriment sous « Informations FDM d'origine », comme les tickets d'exemple du SPF du 24/09/2026. La copie reproduit le ticket original (tous les champs, données de contrôle comprises) et réimprime le QR code de l'événement N original (spec POS v2.2 §1.8, §6.5). La mise en page suit les tickets d'exemple du SPF ; `crates/pos-print/tests/official_examples.rs` imprime les données de chacun des six exemples et vérifie chaque mention, dans l'ordre de l'exemple.
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). Le code source supporte par ailleurs le rendu multilingue des libellés produits (table `translations` + paramètre opérateur `users.language_preference`), à activer client par client.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). La langue des tickets et celle de l'interface sont toutes deux fixées par installation, par le paramètre `pos.json::language` (`fr`, `nl`, `de`, `en` ou `zh` pour l'écran ; les tickets suivent cette clé restreinte à FR/NL/DE, toute autre valeur imprime en FR) : il n'y a pas de langue par utilisateur. Les désignations de produits sont rendues dans cette langue à partir de la table `translations`.
 
 ---
 
@@ -856,6 +856,28 @@ TVA: BE0499999960
 
 ✂-----------------------------------------------
 ```
+
+## 11 bis. Autres documents imprimés (sans transcription ici)
+
+Trois autres documents sortent de l'imprimante des tickets. Leur
+transcription n'est pas produite par la suite
+`crates/pos-print/tests/ticket_examples.rs` et n'est donc pas
+reproduite dans ce fichier :
+
+- **Ticket cuisine d'une commande en ligne** :
+  `pos_print::kitchen_ticket::format_kitchen_ticket`, envoyé par
+  `commands::print::print_webshop_kitchen_ticket` (à l'acceptation de
+  la commande). Il n'est utilisé que pour les commandes en ligne ; les
+  lignes envoyées d'une table ou d'une vente directe sortent sur le bon
+  du §8 (`bar_ticket::format_bar_ticket`).
+- **Ticket client d'une commande en ligne** (non fiscal, avec la
+  mention « Ce ticket n'est pas un recu TVA valide ») :
+  `pos_print::customer_slip::format_customer_slip`, envoyé par
+  `commands::print::do_print_webshop_customer`. Il porte le nom, le
+  téléphone et l'adresse du client (voir `SECURITE_BD_FR.md` §6).
+- **Rapports X et Z par utilisateur** (M182, M183, M184) :
+  `pos_print::report::format_user_report`, imprimés avec le rapport
+  chiffre d'affaires correspondant (`commands::report::print_user_report`).
 
 ## 12. Note sur la reproduction
 

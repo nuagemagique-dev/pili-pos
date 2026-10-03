@@ -13,7 +13,7 @@ produire. Les fichiers vont dans
 
 ## Méthode
 
-Les sections 1 et 2 (captures `01` à `44`) sont produites
+Les sections 1 et 2 (captures `01` à `49`, `09a` à `09g`) sont produites
 automatiquement par une visite Playwright de l'interface, la couche
 IPC Tauri étant simulée (comme le reste de la suite e2e de `ui/`) :
 pas de FDM simulé, pas de base SQLite, pas de `cargo tauri dev`.
@@ -45,9 +45,9 @@ l'écran via le socket QMP de l'instance en cours.
 
 La section 3 (tickets imprimés) reste manuelle - voir plus bas.
 
-**Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09f_` :
-ticket numérique ; `20_` à `44_` : messages du FDM (§V) et écrans
-additionnels ; `50_` à `56_` : tickets imprimés.
+**Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09g_` :
+ticket numérique ; `20_` à `49_` : messages du FDM (§V) et écrans
+additionnels (`45_` à `49_` : assistance à distance, PIN, FDM_ANSWER_PENDING, remboursement par ligne) ; `50_` à `56_` : tickets imprimés.
 
 ---
 
@@ -137,6 +137,12 @@ capture.
 - **Écran attendu :** "Configuré", "Joignable" ou "Injoignable", et la liste des envois : support, adresse masquée (ex. `j***@e***.be`), statut, "Tentatives", "Dernière erreur". Jamais l'adresse en clair.
 - **Capture :** plein écran.
 
+### `09g_checkout_done_print_ticket.png`
+- **Mock :** une vente dont le ticket papier n'est pas encore sorti (`needsPaper`, ex. imprimante hors ligne au moment de l'encaissement).
+- **Action :** payer en espèces.
+- **Écran attendu :** écran de fin d'encaissement avec le bouton « Imprimer le ticket » (une seule action d'impression : l'original manquant, jamais un second original) et « Terminer ».
+- **Capture :** plein écran.
+
 ### `10_pre_bill.png`
 - **Action :** sur une autre table avec des articles, toucher "Addition".
 - **Écran attendu :** "Addition provisoire imprimée" ; l'addition sort marquée "PRO FORMA".
@@ -154,7 +160,7 @@ capture.
 
 ### `13_training.png`
 - **Action :** encaisser ou vider les tables ouvertes, puis "Config", "Mode Formation" (passe à "ACTIF"), puis revenir à la commande.
-- **Écran attendu :** bandeau violet "MODE FORMATION : les transactions ne sont PAS enregistrées" et filigrane "TRAINING".
+- **Écran attendu :** bandeau violet "MODE FORMATION · Les transactions ne sont PAS enregistrées" et filigrane "TRAINING".
 - **Capture :** plein écran. Désactiver ensuite le mode formation.
 
 ### `14_reports_x.png`
@@ -347,7 +353,7 @@ puis vérifie le texte exact avant de capturer.
 - **Écran attendu :** pastille "Caisse" rouge, « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » dans l'en-tête et au-dessus des modes de paiement ; la vente est refusée.
 - **Capture :** plein écran.
 
-### Écrans additionnels (42-44)
+### Écrans additionnels (42-49)
 
 #### `42_fdm_response_mismatch.png`
 - **Mock :** la réponse du FDM à la vente ne correspond pas à la requête (le contrôle de cohérence de `pos-fiscal::response_check` échoue), ex. `FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41`.
@@ -364,6 +370,32 @@ puis vérifie le texte exact avant de capturer.
 - **Action :** "Config", section "Assistance à distance", pendant qu'une session est en cours.
 - **Écran attendu :** état "en cours" avec l'employé qui l'a démarrée et l'heure de début, plus le bandeau d'alerte affiché en permanence tant que la session tourne.
 - **Capture :** plein écran, section assistance visible (faire défiler si besoin).
+
+#### `45_login_remote_support_banner.png`
+- **Action :** sur l'écran de connexion (personne n'est connecté), pendant qu'une session d'assistance à distance est en cours.
+- **Écran attendu :** bandeau « Assistance à distance en cours » en bas de l'écran, sans le nom de l'employé qui l'a démarrée, avec le bouton « Arrêter la session » : n'importe qui peut l'arrêter depuis cet écran.
+- **Capture :** plein écran.
+
+#### `46_pin_locked.png`
+- **Action :** toucher la tuile d'un employé et saisir plusieurs PIN incorrects de suite.
+- **Écran attendu :** « Trop de PIN incorrects : réessayez dans 30 s. » (le délai affiché est le délai restant) ; les points du PIN sont vides.
+- **Capture :** plein écran.
+
+#### `47_first_pin_needs_manager.png`
+- **Action :** toucher la tuile d'un Gérant qui n'a pas encore de PIN alors qu'un autre Gérant en a déjà un, saisir un PIN deux fois.
+- **Écran attendu :** « Un gérant doit choisir le PIN de ce compte dans Paramètres. » : le compte ne peut pas choisir son premier PIN lui-même.
+- **Capture :** plein écran.
+
+#### `48_fdm_answer_pending.png`
+- **Mock :** la réponse du FDM à la vente a été perdue (`FDM_ANSWER_PENDING`) : la caisse renverra la même requête avant d'enregistrer autre chose.
+- **Action :** payer par carte.
+- **Écran attendu :** « La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. » au-dessus des modes de paiement ; rien n'est enregistré.
+- **Capture :** plein écran.
+
+#### `49_refund_per_line_two_prices.png`
+- **Action :** "Rapports", "Tickets", "Rembourser" sur une vente où le même produit figure sur deux lignes à deux prix (12,00 et 9,00 après un changement de prix) ; toucher la ligne à 9,00.
+- **Écran attendu :** les deux lignes sont distinctes ; seule la ligne choisie est sélectionnée, et le bouton « Rembourser 9,00 » reprend son prix : chaque ligne est remboursée au prix auquel elle a été vendue.
+- **Capture :** plein écran.
 
 ---
 
@@ -417,7 +449,7 @@ Puis vérifier que `CAPTURES_ECRAN_FR.pdf` figure dans les annexes de
 
 ## Estimation de temps
 
-- Sections 1 et 2 (44 écrans) : quelques secondes, `npm run captures`.
+- Sections 1 et 2 (50 écrans) : quelques secondes, `npm run captures`.
 - `00_boot_admission` (QEMU, CI) : automatique, aucune action manuelle.
 - Section 3 (7 tickets) : 20 à 30 minutes (impression et photo).
 - Compilation (`scripts/make_captures_pdf.sh`) : quelques secondes.

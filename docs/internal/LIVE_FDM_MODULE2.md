@@ -36,7 +36,7 @@ dashboard). What it says about the simulator:
 ## Identity
 
 The simulator allows the posId of the official test setup
-(`UC_TestSetup_20240806.md`), so the live suite uses its identity:
+(`UC_TestSetup_20240806.md`, now only shipped in `docs/20260821_UC_Reports_1.3/`), so the live suite uses its identity:
 
 | Field | Value |
 |---|---|

@@ -104,7 +104,8 @@ fait le travail :
    (`dd` partition à partition) ; la partition `pili-data` déjà
    présente sur le disque interne (avec son contenu chiffré) n'est
    **jamais touchée** - c'est ce qui préserve `pos.db` d'une mise à
-   jour à l'autre.
+   jour à l'autre. Les mots de passe `root` et `spf` de l'ancienne
+   racine sont reportés sur la nouvelle.
 3. Le disque interne contient maintenant Debian 13 minimal + pili-pos
    + Cage + RustDesk (extrait) + les outils de provisioning, en lecture
    seule pour la racine - mais rien n'est encore déchiffré ni
@@ -143,31 +144,38 @@ Retirer la clé USB et redémarrer. Le terminal doit :
    disque après cet écran.
 5. Une fois Entrée pressée, le terminal poursuit son démarrage : Cage
    Wayland en plein écran, puis pili-pos en mode kiosque.
-6. Écran de connexion affiché (avec un message rouge "POS NON
-   CONFIGURÉ" tant que les champs propres à l'établissement de
-   `pos.json` - §4.2 - n'ont pas été renseignés).
+6. Écran de connexion affiché. Tant que les champs propres à
+   l'établissement de `pos.json` (§4.2) ont encore la valeur du gabarit
+   d'usine (`pos_id`, `restaurant_vat`, `restaurant_est_no`), un bandeau
+   rouge s'affiche en bas de l'écran : "Configuration invalide : le FDM
+   refusera les tickets. Appelez l'installateur.", suivi de la liste des
+   champs en cause. Il disparaît quand `pos.json` est valide et que le
+   service a redémarré (§4.2, "Vérification").
 
 Durée approximative de cette étape : 1 à 3 minutes (l'enrôlement TPM2
 est l'opération la plus lente).
 
-**Reprise après coupure de courant pendant cette étape** : si le
-terminal est mis hors tension entre l'enrôlement TPM2 et le montage de
-`/var`, `pili-provision` détecte au redémarrage suivant un volume
-LUKS2 déjà enrôlé TPM2 mais non monté, et se contente de le
-déverrouiller/monter (aucune re-génération de mots de passe - ils
-n'auraient de toute façon plus la même valeur que ceux déjà notés).
-Si le volume est LUKS2 mais **sans** jeton TPM2 (coupure encore plus
-tôt), le script s'arrête et affiche qu'une intervention manuelle est
-nécessaire depuis la console de maintenance (§4.1) - ce cas n'a pas
-été exercé sur matériel réel au moment de la rédaction de ce document
-(voir le rapport final Phase 4).
+**Coupure de courant pendant cette étape** : si le terminal est mis hors
+tension entre l'enrôlement TPM2 et le montage de `/var`, `pili-provision`
+détecte au redémarrage suivant un volume LUKS2 déjà enrôlé TPM2 mais non
+monté, et laisse le système le déverrouiller et le monter. Il ne
+génère pas de nouveaux mots de passe et n'affiche plus l'écran des mots
+de passe. Si le volume est LUKS2 mais **sans** jeton TPM2 (coupure
+encore plus tôt), le script s'arrête, affiche qu'une reprise manuelle
+est nécessaire depuis la console de maintenance (§4.1) et ne reprend
+pas seul. Aucune reprise automatique n'existe dans ces deux cas pour les
+mots de passe et la clé de récupération : si l'écran des mots de passe
+n'a pas été validé, refaire une installation complète (entrée "Install",
+§3.3) avant toute mise en service.
 
 ## 4. Configuration initiale
 
 ### 4.1 Accès maintenance
 
-Le terminal n'a **pas de TTY accessible** par défaut. Pour la
-maintenance initiale, le distributeur :
+Le terminal n'a ni serveur SSH ni clavier branché : l'écran tactile
+n'affiche que pili-pos (console `tty1`). La seule console de
+maintenance est une console locale sur `tty2`, protégée par le mot de
+passe `root`. Pour la maintenance, le distributeur, sur place :
 
 1. Branche un clavier USB sur le terminal.
 2. Presse `Ctrl + Alt + F2` (séquence cachée non accessible à
@@ -197,7 +205,11 @@ installé sur l'image précisément pour cette étape) :
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
   "restaurant_vat": "BE0499999960",
   "restaurant_est_no": "2123456791",
-  "fdm_url": "http://192.168.1.20:8080/graphql",
+  "fdm_url": "https://192.168.1.20/graphql/",
+  "fdm_token_file": "/etc/pili-pos/secrets/fdm.token",
+  "fdm_ca_file": "/etc/pili-pos/fdm/ca.crt",
+  "fdm_client_cert_file": "/etc/pili-pos/fdm/client.crt",
+  "fdm_client_key_file": "/etc/pili-pos/fdm/client.key",
   "printer_address": "192.168.1.30:9100",
   "kitchen_printer_address": "192.168.1.31:9100",
   "training_mode": false,
@@ -219,14 +231,14 @@ Champs :
 | `restaurant_address` | Adresse complète | Client |
 | `restaurant_vat` | Numéro de TVA belge : `BE` suivi de 10 chiffres commençant par 0 ou 1, valide modulo 97 (ex. `BE0499999960`) | Client |
 | `restaurant_est_no` | Numéro d'unité d'établissement : 10 chiffres commençant par 2 à 8, valide modulo 97 (ex. `2123456791`) | BCE / client |
-| `fdm_url` | URL GraphQL du FDM sur le LAN. FDM module2 : `http://<IP du FDM>/graphql/` (port 80) | Configuration FDM |
-| `fdm_token_file` | Facultatif. Fichier contenant le seul jeton d'accès (Bearer) d'un FDM qui en exige un (certains modèles, y compris sur le LAN : le jeton se lit sur la page de paramètres du FDM) ; jamais le jeton lui-même dans `pos.json`. Absent si le FDM n'en demande pas. | Configuration FDM |
+| `fdm_url` | URL GraphQL du FDM sur le LAN. FDM module2, configuration retenue : `https://<IP du FDM>/graphql/` (port 443, mTLS, voir §7.3) ; `http://<IP du FDM>/graphql/` (port 80) reste possible. Le gabarit d'usine contient `http://192.168.1.20/graphql` : à remplacer. | Configuration FDM |
+| `fdm_token_file` | Fichier contenant le seul jeton d'accès (Bearer) du FDM (le jeton se lit sur la page de paramètres du FDM ou dans le portail module2) ; jamais le jeton lui-même dans `pos.json`. Un FDM module2 l'exige ; absent seulement pour un FDM qui n'en demande pas. | Configuration FDM |
 | `fdm_ca_file` | Requis si `fdm_url` est en `https://`. Autorité qui signe le certificat du FDM (PEM ; `ca.crt` de module2). | Configuration FDM |
 | `fdm_client_cert_file`, `fdm_client_key_file` | Ensemble ou pas du tout. Certificat client et sa clé (PEM ; `client.crt` et `client.key` de module2) pour un FDM en mTLS. Un fichier illisible s'affiche dans le bandeau des problèmes de configuration. | Configuration FDM |
 | `printer_address` | IP:port de l'imprimante sur le LAN (port 9100 par défaut) | Configuration imprimante |
-| `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le bon de commande (sans prix, « ceci n'est pas un ticket de caisse TVA valable ») des lignes envoyées. Absent : le bon sort sur `printer_address`. | Configuration imprimante |
-| `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. | Distributeur |
-| `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans Réglages ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
+| `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le « BON DE COMMANDE » (sans prix, avec la mention « ceci n'est pas un ticket de caisse TVA valable ») des lignes que l'écran de commande envoie en cuisine (§4.6, `MANUEL_UTILISATEUR_FR.md` §6.1). Absent : le bon sort sur `printer_address`. Le voyant "Cuisine" de l'en-tête reste gris tant qu'il est absent. | Configuration imprimante |
+| `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. C'est la valeur de départ : un Gérant peut changer le mode dans "Config" (§4.7). | Distributeur |
+| `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans "Config", panneau "Intégrations" ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) - toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/pili-pos/backups`) | Distributeur |
@@ -339,12 +351,15 @@ pili-pos --check-config        # signale un secret absent ou vide
 systemctl restart pili-pos
 ```
 
-Puis, connecté en Gérant : Réglages, section HubRise, « Se connecter à
-HubRise ». La caisse n'a pas de navigateur : elle affiche un QR code
-(et le lien en clair). Le scanner avec un téléphone, se connecter à
-HubRise, choisir l'établissement, puis taper dans la caisse le code
-affiché par HubRise et toucher « Valider la connexion ». Le trafic sortant ajouté est HTTPS (443) vers
-`manager.hubrise.com` et `api.hubrise.com`.
+Puis, connecté en Gérant : bouton "Config", panneau "Intégrations"
+(HubRise est "Activé" si `hubrise_enabled` vaut `true`, sinon "Activer"),
+puis le panneau "HubRise" : « Se connecter à HubRise ». La caisse n'a
+pas de navigateur : elle affiche un QR code (et le lien en clair). Le
+scanner avec un téléphone, se connecter à HubRise, choisir
+l'établissement, puis taper dans la caisse le code affiché par HubRise
+("Code d'autorisation") et toucher « Valider la connexion ». Le trafic
+sortant ajouté est HTTPS (443) vers `manager.hubrise.com` et
+`api.hubrise.com`.
 
 ### 4.3 Configuration réseau LAN
 
@@ -370,7 +385,7 @@ Le POS et le FDM doivent être sur le **même LAN privé**. Schéma type :
 
 Adresses IP statiques recommandées (subnet `192.168.1.0/24`) :
 - POS : `192.168.1.10`
-- FDM : `192.168.1.20:8080` (port §4.2 ci-dessus)
+- FDM : `192.168.1.20`, HTTPS port 443 (§4.2 et §7.3)
 - Imprimante : `192.168.1.30:9100`
 
 (Réservations DHCP sur le routeur, cf. `SCHEMA_ASSEMBLAGE_FR.md` §4.)
@@ -404,7 +419,7 @@ pas se connecter sans PIN). Le technicien reste présent jusqu'à ce
 choix : tant qu'aucun Gérant n'a de PIN, la première personne qui
 touche la tuile le choisit. Ce choix à l'écran de connexion n'existe
 que pour le premier Gérant ; un deuxième Gérant reçoit son PIN du
-premier, dans Paramètres, confirmé par le PIN de ce dernier. Le
+premier, dans "Config", confirmé par le PIN de ce dernier. Le
 Serveur et l'Apprenti fixent le leur en touchant leur nom sur l'écran
 de commande. Ne pas créer l'INSZ
 `00000000029` : c'est l'identité système, qui ne se connecte jamais.
@@ -442,9 +457,50 @@ FROM fiscal_events ORDER BY id DESC LIMIT 5;
 ```
 
 Trois lignes minimum : un S (work-in), un N (la vente), idéalement
-un P si la commande a été envoyée en cuisine.
+un P si la commande de table a été envoyée en cuisine ("Envoyer en
+cuisine" : le bon de commande s'imprime sur l'imprimante de la cuisine,
+ou sur celle des tickets si `kitchen_printer_address` est absent).
 
-7. Générer un rapport X pour validation finale.
+7. Tirer un rapport X pour validation finale ("Rapports", onglet "Journée", "Rapport X").
+
+### 4.7 Paramètres de l'installation, journaux, réseau et comptes
+
+**Qui peut modifier quoi.**
+
+| Paramètre | Valeur d'origine | Qui le modifie | Où |
+|---|---|---|---|
+| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
+| `device_id` | Adresse MAC, inscrite au premier démarrage | Personne (sauf changement de la carte réseau) | `/etc/pili-pos/pos.json` |
+| `training_mode` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Mode Formation" | Le réglage de "Config" est en mémoire : il vaut jusqu'au redémarrage, qui revient à la valeur du fichier |
+| `hubrise_enabled` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Intégrations" | Chaque changement est journalisé, ne s'efface pas, et le dernier l'emporte |
+| Langue d'affichage de l'interface | Clé `language` | Le Gérant, dans "Config", panneau "Langue" | Sans effet sur la langue des mentions imprimées |
+| Employés et PIN | Aucun employé à l'origine (§4.4) | Le technicien (premiers comptes) puis le Gérant, dans "Config" | Table `users` de `pos.db` |
+| Catalogue (catégories, articles, TVA) | Vide en production | Le technicien (`MANUEL_PROGRAMMATION_FR.md`), ou HubRise si celui-ci gère le menu | `pos.db` |
+
+**Journaux.** Le POS écrit un fichier par jour,
+`/var/lib/pili-pos/logs/pos.log.AAAA-MM-JJ`. Le journal du système
+(`journalctl -u pili-pos`) reçoit les messages de Cage et de
+l'interface. L'archive fiscale, la table `fiscal_events` de `pos.db`,
+n'est pas un journal : la base refuse toute modification ou suppression
+de ses lignes (déclencheurs SQL), elle est donc en ajout seul. Des
+sauvegardes de `pos.db` sont écrites dans `/var/lib/pili-pos/backups/`
+après chaque rapport Z et avant chaque mise à jour.
+
+**Réseau.** Le terminal est raccordé en Ethernet (RJ45) ; NetworkManager
+gère la connexion et son adresse (DHCP, ou adresse fixe réservée sur
+le routeur, §4.3). Le trafic **sortant** est le suivant : le FDM sur le
+LAN (HTTPS 443, ou HTTP 80), l'imprimante sur le LAN (TCP 9100),
+HTTPS 443 vers `api.scaleway.com` si `digital_ticket` est configuré,
+HTTPS 443 vers `manager.hubrise.com` et `api.hubrise.com` si HubRise est
+activé, et une session RustDesk, à la demande d'un Gérant. Aucun port
+n'est ouvert en entrée.
+
+**Comptes du système.** `root` (mot de passe aléatoire noté au premier
+démarrage, console `tty2` seulement), `pos` (compte du service pili-pos,
+sans connexion possible) et, sur l'image d'admission seulement, `spf`
+(console `tty2`, lecture seule de la base par `pos-db-ro`). Les
+employés du restaurant ne sont pas des comptes du système : ce sont les
+lignes de la table `users`, avec leur INSZ et leur PIN.
 
 ## 5. Vérification de l'intégrité du binaire
 
@@ -472,29 +528,84 @@ Une mise à jour suit la procédure officielle SPF Finances
 3. Après accord, le distributeur peut déployer sur les sites
    clients.
 
-Procédure technique de déploiement :
+Le binaire d'une mise à jour n'est **jamais** installé à distance : ni
+par SSH (aucun serveur SSH), ni pendant une session RustDesk (qui donne
+accès à l'écran de la caisse, pas à un shell, et ne sert qu'à l'assistance,
+`deploy/REMOTE-OPS.md`). Il arrive sur place, sur une clé USB, par l'une
+des deux variantes ci-dessous. Dans les deux cas, le SHA-1 du binaire
+installé doit ensuite correspondre à la valeur déclarée (§5).
 
-1. Remettre le binaire `vX.Y.Z+1` sur le terminal : clé USB sur site,
-   ou transfert de fichiers pendant une session RustDesk ouverte à la
-   demande par un responsable sur place (`deploy/REMOTE-OPS.md`).
-2. Accès maintenance (`Ctrl+Alt+F2`, login `root`), puis :
+### 6.1 Variante A : remplacer le binaire seul (`update.sh`)
+
+C'est la voie normale. La racine du système est en lecture seule : le
+script la remonte en écriture le temps de l'installation, puis la remet
+en lecture seule.
+
+1. Préparer, sur le poste du distributeur, une clé USB (FAT32 ou ext4)
+   qui contient le fichier `pili-pos` de la version déclarée. Noter le
+   SHA-1 déclaré pour cette version.
+2. Sur place, brancher la clé sur un port USB-A du terminal et un
+   clavier USB sur l'autre. Ouvrir la console de maintenance
+   (`Ctrl+Alt+F2`, login `root`, §4.1).
+3. Repérer la clé, la monter en lecture seule et lancer le script
+   (`/mnt` ne sert que de point de montage ; ne rien copier dans
+   `/root`, qui est en lecture seule) :
    ```bash
-   /opt/pili-pos/deploy/update.sh /root/pili-pos --sha1 <SHA-1 déclaré>
+   lsblk                                  # repérer la clé, par ex. sda1
+   mount -o ro /dev/sda1 /mnt
+   /opt/pili-pos/deploy/update.sh /mnt/pili-pos --sha1 <SHA-1 déclaré>
+   umount /mnt
    ```
-   Le script refuse tout binaire dont le SHA-1 diffère de la valeur
-   déclarée. Les étapes 3 à 7 ci-dessous décrivent la variante
-   « réinstallation complète de l'image » depuis une clé USB.
-3. Sauvegarder la base courante :
+   Pour travailler sur une copie plutôt que sur la clé, la copier dans
+   `/tmp` (en mémoire) ou `/var/tmp` (sur le volume chiffré) et passer ce
+   chemin au script.
+4. Le script refuse tout binaire dont le SHA-1 diffère de la valeur
+   déclarée. Sinon il arrête le service, garde l'ancien binaire
+   (`/opt/pili-pos/pili-pos.bak`), sauvegarde la base
+   (`/var/lib/pili-pos/backups/pre-update-AAAAMMJJ-HHMMSS.db`), installe le
+   nouveau binaire, applique les migrations de la base (`--init-db`,
+   service arrêté), redémarre le service et affiche sa version.
+5. Retirer la clé. Vérifier `sha1sum /opt/pili-pos/pili-pos`, puis faire
+   un test de bout en bout abrégé (§4.6 : connexion, une vente, un
+   rapport X) et contrôler que `fiscal_events` est intacte.
+
+En cas de problème, `deploy/REMOTE-OPS.md` décrit le retour au binaire
+précédent (le binaire sauvegardé).
+
+### 6.2 Variante B : réinstaller le système depuis l'image (entrée "Update")
+
+À utiliser quand le système lui-même change, pas seulement le binaire :
+l'image kiosque complète de la version déclarée est écrite sur la clé
+(§2). Elle remplace l'ESP et la racine du terminal et **conserve** la
+partition de données (`/var` : base, sauvegardes, journaux,
+configuration).
+
+1. Sauvegarder la base courante dans un dossier qui survit au
+   redémarrage (pas `/tmp`, qui est en mémoire) :
    ```bash
-   sqlite3 /var/lib/pili-pos/pos.db ".backup /tmp/pos-before-update.db"
+   sqlite3 /var/lib/pili-pos/pos.db ".backup /var/lib/pili-pos/backups/avant-maj.db"
    ```
-4. Booter sur la clé USB en mode "Update" (sélection menu).
-5. L'updater **conserve** le contenu de `/var/lib/pili-pos/` (base +
-   sauvegardes + logs) et remplace uniquement le binaire et les
-   ressources.
-6. Redémarrer.
-7. Vérifier le nouveau hash SHA-1 et que `fiscal_events` est
-   intacte.
+2. Brancher la clé et redémarrer le terminal ; au menu `systemd-boot`,
+   choisir l'entrée **"Update"** (§3.2).
+3. L'installateur affiche à l'écran (console `tty1`) un cadre qui
+   nomme le disque cible et rappelle : "Le système sera remplacé ; les
+   données (/var, base fiscale) sont CONSERVÉES.". Il demande :
+   `Tapez OUI en majuscules pour confirmer :`. Taper `OUI` puis
+   Entrée ; toute autre réponse annule.
+4. L'installateur relève les mots de passe `root` et `spf` de
+   l'ancien système, copie l'ESP, puis la racine, y réinscrit ces deux
+   mots de passe (ils restent donc ceux du carnet du distributeur),
+   répare la table de partitions et affiche : `Retirez la clé USB puis appuyez sur Entrée
+   pour redémarrer…`. Retirer la clé, puis appuyer sur Entrée.
+5. Au redémarrage, `pili-provision` ne s'exécute pas (`/var` est déjà
+   monté) et la configuration est celle de la partition de données. Les
+   migrations de la base s'appliquent au démarrage de pili-pos.
+6. Vérifier `sha1sum /opt/pili-pos/pili-pos` (§5), faire le test abrégé
+   de la variante A et contrôler que `fiscal_events` est intacte.
+
+Le choix **"Install"** du même menu efface au contraire le disque
+interne : il ne sert qu'à une installation neuve (§3.3), jamais à une
+mise à jour.
 
 ## 7. Annexes
 
