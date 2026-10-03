@@ -12,12 +12,12 @@
 //! lets the FDM sign for real (`assert_fdm_was_called` proves the sign
 //! genuinely happened) before the local `INSERT` fails.
 //!
-//! `commit_signed_event` (and the equivalent inline blocks in
-//! `checkout.rs`/`report.rs`) do the counter advance, the archive
-//! insert, and any order/report bookkeeping inside ONE SQLite
-//! transaction specifically so that a failure at ANY point rolls back
-//! ALL of it - this file proves that holds even when the failure comes
-//! from the database itself, not from the FDM.
+//! `signing::commit` does the counter advance, the archive insert, and
+//! any order/report bookkeeping inside ONE SQLite transaction, so a
+//! failure at ANY point rolls back ALL of it - this file proves that
+//! holds even when the failure comes from the database itself. The
+//! signed request stays open, and the next operation sends it again
+//! and archives it under the same number.
 
 mod common;
 
@@ -98,7 +98,7 @@ async fn checkout_local_commit_failure_after_a_successful_sign_leaves_no_partial
 
     let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash).await;
     assert!(
-        result.is_err(),
+        result.as_ref().is_ok_and(|r| !r.success) || result.is_err(),
         "a local commit failure after a successful sign must surface as an error"
     );
 
@@ -126,6 +126,34 @@ async fn checkout_local_commit_failure_after_a_successful_sign_leaves_no_partial
         Some("open"),
         "the order-close UPDATE must roll back too - same transaction"
     );
+    let pending = app.open_pending().expect("the signed request stays open");
+    assert_eq!(
+        (pending.event_label.as_str(), pending.first_ticket_no),
+        ("N", 1)
+    );
+
+    // Repaired, the next checkout sends it again and archives it.
+    unpoison(&app);
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
+    let retried = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(retried.success, "{:?}", retried.error);
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].sequence_number, 1);
+    assert_eq!(app.order_status(order_id).as_deref(), Some("closed"));
+    assert!(app.open_pending().is_none());
+}
+
+/// Lift the append-only guard to remove this test's own poison row.
+fn unpoison(app: &TestApp) {
+    let conn = app.state.db.lock().unwrap();
+    conn.execute_batch(
+        "DROP TRIGGER fiscal_events_no_delete;
+         DELETE FROM fiscal_events WHERE pos_id = 'PRESEEDED';",
+    )
+    .unwrap();
 }
 
 #[tokio::test]
@@ -142,7 +170,7 @@ async fn z_report_local_commit_failure_on_the_second_archive_rolls_back_the_firs
 
     let result = do_generate_z_report(&app.state, TEST_INSZ.to_string()).await;
     assert!(
-        result.is_err(),
+        result.as_ref().is_ok_and(|r| !r.success) || result.is_err(),
         "a local commit failure on the second (user) archive must surface as an error"
     );
     assert_fdm_was_called(&app).await;
@@ -169,19 +197,11 @@ async fn z_report_local_commit_failure_on_the_second_archive_rolls_back_the_firs
         "the z_reports row (written after both archives) must not survive either"
     );
 
-    // And a retry against a healthy DB (drop the poison) must succeed
-    // cleanly, from ticket 1 - no gap was ever observable outside this
-    // process.
-    {
-        let conn = app.state.db.lock().unwrap();
-        // The archive is append-only (migration v4); only this test,
-        // repairing its own poisoned fixture, lifts the guard.
-        conn.execute_batch(
-            "DROP TRIGGER fiscal_events_no_delete;
-             DELETE FROM fiscal_events WHERE pos_id = 'PRESEEDED';",
-        )
-        .unwrap();
-    }
+    assert!(app.open_pending().is_some(), "the signed pair stays open");
+
+    // And a retry against a healthy DB (drop the poison) sends the
+    // same pair again and archives it from ticket 1.
+    unpoison(&app);
     mock_from_fixture(&app, &load_uc(&reports_root(), "M184")).await;
     let retried = do_generate_z_report(&app.state, TEST_INSZ.to_string())
         .await

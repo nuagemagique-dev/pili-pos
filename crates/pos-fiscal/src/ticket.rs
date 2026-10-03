@@ -163,7 +163,80 @@ pub struct TicketParams<'a> {
     pub operator: &'a str,
 }
 
+/// A ticket without the FDM's answer: stored with a sign request, so the
+/// ticket is the same whenever the answer comes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TicketDraft {
+    pub restaurant_name: String,
+    pub restaurant_address: String,
+    pub restaurant_vat: String,
+    pub restaurant_est_no: String,
+    pub restaurant_legal_name: String,
+    pub lines: Vec<TicketLine>,
+    pub payments: Vec<TicketPayment>,
+    pub total: f64,
+    pub is_training: bool,
+    pub rounding: Option<f64>,
+    pub lang: ReceiptLanguage,
+    pub operator: String,
+    #[serde(default)]
+    pub unpaid: bool,
+    /// The event it refers to (the sale a refund reverses).
+    #[serde(default)]
+    pub original: Option<OriginalControlData>,
+}
+
+impl TicketDraft {
+    /// The terminal's identity and mode, `lines` and `payments`.
+    pub fn new(
+        config: &pos_core::config::PosConfig,
+        lines: Vec<TicketLine>,
+        payments: Vec<TicketPayment>,
+        total: f64,
+        operator: &str,
+    ) -> Self {
+        Self {
+            restaurant_name: config.restaurant_name.clone(),
+            restaurant_address: config.restaurant_address.clone(),
+            restaurant_vat: config.restaurant_vat.clone(),
+            restaurant_est_no: config.restaurant_est_no.clone(),
+            restaurant_legal_name: config.legal_name().to_string(),
+            lines,
+            payments,
+            total,
+            is_training: config.training_mode,
+            rounding: None,
+            lang: ReceiptLanguage::from_code(&config.language),
+            operator: operator.to_string(),
+            unpaid: false,
+            original: None,
+        }
+    }
+}
+
 impl FiscalTicket {
+    /// The ticket of `draft`, signed as `result`.
+    pub fn from_draft(draft: &TicketDraft, result: &SignResult) -> Self {
+        let mut ticket = Self::from_sign_result(TicketParams {
+            result,
+            restaurant_name: &draft.restaurant_name,
+            restaurant_address: &draft.restaurant_address,
+            restaurant_vat: &draft.restaurant_vat,
+            restaurant_est_no: &draft.restaurant_est_no,
+            restaurant_legal_name: &draft.restaurant_legal_name,
+            lines: draft.lines.clone(),
+            payments: draft.payments.clone(),
+            total: draft.total,
+            is_training: draft.is_training,
+            rounding: draft.rounding,
+            lang: draft.lang,
+            operator: &draft.operator,
+        });
+        ticket.unpaid = draft.unpaid;
+        ticket.original = draft.original.clone();
+        ticket
+    }
+
     /// Create a fiscal ticket from a SignResult and order data.
     pub fn from_sign_result(params: TicketParams<'_>) -> Self {
         let result = params.result;

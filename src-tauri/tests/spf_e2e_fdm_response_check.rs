@@ -11,9 +11,9 @@
 //! Each case replays an official response, echoed like a real FDM
 //! does, then breaks one field. In every case: nothing is archived, the
 //! counter does not move, the order stays open, nothing is printed, and
-//! the error carries `FDM_RESPONSE_MISMATCH` for the screen. A retry
-//! against a consistent answer then succeeds with the same ticket
-//! number.
+//! the error carries `FDM_RESPONSE_MISMATCH` for the screen. The
+//! request stays open: the next operation sends it again unchanged,
+//! and a consistent answer archives it under the same ticket number.
 
 mod common;
 

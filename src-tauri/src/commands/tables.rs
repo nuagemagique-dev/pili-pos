@@ -3,12 +3,16 @@ use tauri::State;
 
 use pos_core::order::{OrderStatus, OrderType};
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
+use pos_fiscal::ticket::{TicketDraft, TicketLine};
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
-use crate::commands::bar_slip::{self, SlipOutcome};
+use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::errors;
+use crate::commands::signing::{
+    self, ArchiveSpec, BarSlip, Begin, Kind, Op, PendingContext, Prepared, SignGuard,
+};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -149,26 +153,42 @@ pub async fn sign_table_order(
 }
 
 pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<SlipOutcome, String> {
-    sign_table_order_as(state, order_id, Access::Staff).await
+    let operator = access::operator(state, Access::Staff)?;
+    let op = Op::new(Kind::TableOrder, order_id);
+    let guard = match signing::begin(state, &op).await? {
+        Begin::Fresh(guard) => guard,
+        Begin::AlreadyDone(recovered) => {
+            return Ok(recovered
+                .follow_up
+                .slip
+                .unwrap_or(SlipOutcome::NothingToPrint));
+        }
+    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let registered = sign_table_order_locked(state, &guard, &config, order_id, &operator).await?;
+    drop(guard);
+    Ok(print_registered(state, &config, registered).await)
 }
 
-/// Register the order's unsent entries (event P) in the name of the
-/// logged-in operator, if their role allows `access`, then print them
-/// on the bar / kitchen slip.
-async fn sign_table_order_as(
+/// An order's entries registered by a P, to print on the bar slip.
+type Registered = Option<(PendingContext, signing::Committed)>;
+
+/// Register the order's unsent entries (event P) in `operator`'s name.
+/// `None` when nothing changed since the last registration.
+async fn sign_table_order_locked(
     state: &AppState,
+    guard: &SignGuard<'_>,
+    config: &pos_core::config::PosConfig,
     order_id: i64,
-    access: Access,
-) -> Result<SlipOutcome, String> {
-    let operator = access::operator(state, access)?;
-    let (mut order, entries, config, bp_id) = {
+    operator: &pos_core::user::User,
+) -> Result<Registered, String> {
+    let (mut order, entries, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, true)
             .map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db, &config)?;
-        (order, entries, config, bp)
+        let bp = super::booking(&db, guard, config)?;
+        (order, entries, bp)
     };
 
     // A takeaway is a direct sale: it stays a draft until it is paid
@@ -177,45 +197,60 @@ async fn sign_table_order_as(
         return Err(errors::TAKEAWAY_NOT_REGISTERED.into());
     }
     let Some(last_entry) = entries.last() else {
-        return Ok(SlipOutcome::NothingToPrint);
+        return Ok(None);
     };
-    order.user_insz = operator.insz;
+    order.user_insz = operator.insz.clone();
     if order.status != OrderStatus::Open {
         return Err(errors::ORDER_NOT_OPEN.into());
     }
 
     let label = EventLabel::P.in_mode(config.training_mode);
-    let ticket_number = super::peek_ticket_number(state, label)?;
-    let order_input = build_order_input(&config, &order, &entries, ticket_number, &bp_id);
-    let request_json = serde_json::to_string(&order_input).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let sign_result = fdm
-        .sign_order(order_input, config.training_mode)
-        .await
-        .map_err(|e| format!("FDM error: {e}"))?;
-
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label,
-            ticket_number,
-            order_id: Some(order_id),
-            user_insz: &order.user_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
-            sent_entries: Some((order_id, last_entry.id)),
+    let ticket_number = super::peek_ticket_number(state, guard, label)?;
+    let order_input = build_order_input(config, &order, &entries, ticket_number, &bp_id);
+    let request = SignRequest::new(SignMutation::Order, &order_input, config.training_mode)
+        .map_err(errors::internal)?;
+    let context = PendingContext::TableOrder {
+        bar_slip: BarSlip {
+            operator_insz: order.user_insz.clone(),
+            table_number: order.table_number,
         },
-    )?;
-    Ok(bar_slip::print_bar_slip(
-        state,
-        &config,
-        &order.user_insz,
-        order.table_number,
-        &entries,
-    )
-    .await)
+    };
+    let prepared = Prepared {
+        op: Op::new(Kind::TableOrder, order_id),
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
+            order_id: Some(order_id),
+            user_insz: order.user_insz.clone(),
+            request_json: serde_json::to_string(&order_input).map_err(|e| e.to_string())?,
+            sent_entries: Some((order_id, last_entry.id)),
+        }],
+        order_id: Some(order_id),
+        user_insz: order.user_insz.clone(),
+        context: context.clone(),
+    };
+    let committed = signing::sign(state, guard, config, prepared)
+        .await
+        .map_err(|f| f.error)?;
+    Ok(Some((context, committed)))
+}
+
+/// The bar / kitchen slip of what a P registered.
+async fn print_registered(
+    state: &AppState,
+    config: &pos_core::config::PosConfig,
+    registered: Registered,
+) -> SlipOutcome {
+    match registered {
+        Some((context, committed)) => {
+            signing::follow_up(state, config, &context, &committed, false)
+                .await
+                .slip
+                .unwrap_or(SlipOutcome::NothingToPrint)
+        }
+        None => SlipOutcome::NothingToPrint,
+    }
 }
 
 /// Send a signPreBill (provisional bill P event).
@@ -230,85 +265,92 @@ pub async fn sign_pre_bill(
 /// Provisional bill ("addition provisoire", §1.4): the consolidated
 /// order, printed PRO FORMA. Entries not yet registered are sent as an
 /// order first, since a pre-bill may not add or change lines; the
-/// result is the bar / kitchen slip of those entries.
+/// result is the bar / kitchen slip of those entries. Both are signed
+/// under one lock, so no line slips in between.
 pub async fn do_sign_pre_bill(state: &AppState, order_id: i64) -> Result<SlipOutcome, String> {
     let operator = access::operator(state, Access::Cashier)?;
-    let slip = sign_table_order_as(state, order_id, Access::Cashier).await?;
+    let op = Op::new(Kind::PreBill, order_id);
+    let guard = match signing::begin(state, &op).await? {
+        Begin::Fresh(guard) => guard,
+        // Answered late: its follow-up printed it.
+        Begin::AlreadyDone(_) => return Ok(SlipOutcome::NothingToPrint),
+    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let registered = sign_table_order_locked(state, &guard, &config, order_id, &operator).await?;
+    let pre_bill = sign_pre_bill_locked(state, &guard, &config, order_id, &operator, op).await;
+    drop(guard);
 
-    let (mut order, lines, config, bp_id) = {
+    let slip = print_registered(state, &config, registered).await;
+    let (context, committed) = pre_bill?;
+    signing::follow_up(state, &config, &context, &committed, false).await;
+    Ok(slip)
+}
+
+async fn sign_pre_bill_locked(
+    state: &AppState,
+    guard: &SignGuard<'_>,
+    config: &pos_core::config::PosConfig,
+    order_id: i64,
+    operator: &pos_core::user::User,
+    op: Op,
+) -> Result<(PendingContext, signing::Committed), String> {
+    let (mut order, lines, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db, &config)?;
-        (order, lines, config, bp)
+        let bp = super::booking(&db, guard, config)?;
+        (order, lines, bp)
     };
-    order.user_insz = operator.insz;
+    order.user_insz = operator.insz.clone();
     if lines.is_empty() {
         return Err(errors::ORDER_NO_LINES.into());
     }
 
     let label = EventLabel::P.in_mode(config.training_mode);
-    let ticket_number = super::peek_ticket_number(state, label)?;
-    let pre_bill = build_pre_bill_input(&config, &order, &lines, ticket_number, &bp_id);
-    let request_json = serde_json::to_string(&pre_bill).map_err(|e| e.to_string())?;
+    let ticket_number = super::peek_ticket_number(state, guard, label)?;
+    let pre_bill = build_pre_bill_input(config, &order, &lines, ticket_number, &bp_id);
+    let request = SignRequest::new(SignMutation::PreBill, &pre_bill, config.training_mode)
+        .map_err(errors::internal)?;
 
-    let fdm = FdmClient::from_config(&config);
-    let result = fdm
-        .sign_pre_bill(pre_bill, config.training_mode)
-        .await
-        .map_err(|e| format!("FDM error: {e}"))?;
-
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label,
-            ticket_number,
+    let operator_name = super::operator_name(state, &order.user_insz);
+    let ticket_lines = lines
+        .iter()
+        .map(|l| TicketLine {
+            quantity: l.quantity as f64,
+            description: l.name.clone(),
+            unit_price: l.unit_price_cents as f64 / 100.0,
+            total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
+            vat_code: l.vat_code.as_str().to_string(),
+        })
+        .collect();
+    let context = PendingContext::PreBill {
+        order_id,
+        ticket: TicketDraft::new(
+            config,
+            ticket_lines,
+            vec![],
+            order.total_cents as f64 / 100.0,
+            &operator_name,
+        ),
+    };
+    let prepared = Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
             order_id: Some(order_id),
-            user_insz: &order.user_insz,
-            request_json: &request_json,
-            sign_result: &result,
+            user_insz: order.user_insz.clone(),
+            request_json: serde_json::to_string(&pre_bill).map_err(|e| e.to_string())?,
             sent_entries: None,
-        },
-    )?;
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        pos_db::queries::orders::mark_pre_bill_printed(&db, order_id).map_err(|e| e.to_string())?;
-    }
-
-    // Print pro forma receipt
-    if let Some(addr) = config.printer_address.as_ref() {
-        let operator = super::operator_name(state, &order.user_insz);
-        let ticket =
-            pos_fiscal::ticket::FiscalTicket::from_sign_result(pos_fiscal::ticket::TicketParams {
-                result: &result,
-                restaurant_name: &config.restaurant_name,
-                restaurant_address: &config.restaurant_address,
-                restaurant_vat: &config.restaurant_vat,
-                restaurant_est_no: &config.restaurant_est_no,
-                restaurant_legal_name: config.legal_name(),
-                lines: lines
-                    .iter()
-                    .map(|l| pos_fiscal::ticket::TicketLine {
-                        quantity: l.quantity as f64,
-                        description: l.name.clone(),
-                        unit_price: l.unit_price_cents as f64 / 100.0,
-                        total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-                        vat_code: l.vat_code.as_str().to_string(),
-                    })
-                    .collect(),
-                payments: vec![],
-                total: order.total_cents as f64 / 100.0,
-                is_training: config.training_mode,
-                rounding: None,
-                lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-                operator: &operator,
-            });
-        let data = pos_print::receipt::format_receipt(&ticket);
-        let _ = pos_print::transport::send_to_printer(addr, &data).await;
-    }
-
-    Ok(slip)
+        }],
+        order_id: Some(order_id),
+        user_insz: order.user_insz.clone(),
+        context: context.clone(),
+    };
+    let committed = signing::sign(state, guard, config, prepared)
+        .await
+        .map_err(|f| f.error)?;
+    Ok((context, committed))
 }

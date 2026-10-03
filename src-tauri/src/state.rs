@@ -51,6 +51,8 @@ pub struct AppState {
     pub support: crate::commands::support::SupportState,
     /// Wrong PIN attempts (`commands::access::verify_pin`).
     pub pin_throttle: crate::commands::access::PinThrottle,
+    /// Held while a fiscal event is signed (`commands::signing`).
+    pub signing: crate::commands::signing::SigningLock,
 }
 
 impl AppState {
@@ -114,6 +116,7 @@ impl AppState {
             session: Mutex::new(None),
             support: crate::commands::support::SupportState::installed(),
             pin_throttle: Default::default(),
+            signing: Default::default(),
         })
     }
 

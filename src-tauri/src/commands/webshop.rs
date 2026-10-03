@@ -20,7 +20,7 @@
 //! HubRise in the transaction that records the signature.
 
 use pos_fiscal::event::build_order_input;
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::inputs::CostCenterInput;
 use pos_fiscal::payment::{PaymentMethod, PaymentPart};
 use pos_fiscal::types::{CostCenterType, EventLabel, PaymentType};
@@ -35,6 +35,7 @@ use crate::commands::checkout::{CheckoutResult, Payment, SaleOptions, sell};
 use crate::commands::delivery::TicketDeliveryRequest;
 use crate::commands::errors;
 use crate::commands::refund::{RefundLines, RefundSpec, refund_sale};
+use crate::commands::signing::{self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared};
 use crate::state::AppState;
 
 /// What acceptance did.
@@ -257,7 +258,9 @@ pub async fn do_accept_webshop_order(
         Err(e) => {
             // Nothing signed: the order waits again, HubRise hears
             // nothing.
-            transition(state, order_id, "signing", "pending")?;
+            if !answer_pending(&e) {
+                transition(state, order_id, "signing", "pending")?;
+            }
             return Err(e);
         }
     };
@@ -347,6 +350,13 @@ async fn sign_order_p(
     operator: &pos_core::user::User,
     ws: &WebshopState,
 ) -> Result<Signed, String> {
+    let op = Op::new(Kind::WebshopOrder, ws.order_id);
+    let guard = match signing::begin(state, &op).await? {
+        Begin::Fresh(guard) => guard,
+        Begin::AlreadyDone(recovered) => {
+            return Ok(("signed_p", recovered.committed.event_ids[0], None));
+        }
+    };
     write_lines(state, ws)?;
     let (mut order, entries, booking, changes) = {
         let db = state.db.lock().map_err(errors::internal)?;
@@ -354,7 +364,7 @@ async fn sign_order_p(
             pos_db::queries::orders::get_order(&db, ws.order_id).map_err(errors::internal)?;
         let entries = pos_db::queries::orders::get_order_entries(&db, ws.order_id, true)
             .map_err(errors::internal)?;
-        let booking = super::booking(&db, config)?;
+        let booking = super::booking(&db, &guard, config)?;
         let (changes, _) = super::price_changes::load(&db, ws.order_id)?;
         (order, entries, booking, changes)
     };
@@ -364,29 +374,45 @@ async fn sign_order_p(
     order.user_insz = operator.insz.clone();
 
     let label = EventLabel::P;
-    let ticket_number = super::peek_ticket_number(state, label)?;
+    let ticket_number = super::peek_ticket_number(state, &guard, label)?;
     let mut input = build_order_input(config, &order, &entries, ticket_number, &booking);
     input.cost_center = cost_center(ws);
     pos_fiscal::price_change::apply(&mut input.transaction, &entries, &changes);
-    let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
-    let sign_result = FdmClient::from_config(config)
-        .sign_order(input, false)
-        .await
-        .map_err(|e| format!("FDM error: {e}"))?;
-    let event_id = super::commit_signed_event(
-        state,
-        config,
-        super::SignedEvent {
-            label,
-            ticket_number,
+    let request = SignRequest::new(SignMutation::Order, &input, false).map_err(errors::internal)?;
+    let prepared = Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
             order_id: Some(ws.order_id),
-            user_insz: &order.user_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
+            user_insz: order.user_insz.clone(),
+            request_json: serde_json::to_string(&input).map_err(|e| e.to_string())?,
             sent_entries: Some((ws.order_id, last_entry.id)),
+        }],
+        order_id: Some(ws.order_id),
+        user_insz: order.user_insz.clone(),
+        context: PendingContext::WebshopOrder {
+            order_id: ws.order_id,
         },
-    )?;
-    Ok(("signed_p", event_id, None))
+    };
+    let committed = signing::sign(state, &guard, config, prepared)
+        .await
+        .map_err(|f| f.error)?;
+    Ok(("signed_p", committed.event_ids[0], None))
+}
+
+/// The FDM may have signed the order's event: it stays `signing` until
+/// the answer comes (`commands::signing`), then follows it.
+fn answer_pending(error: &str) -> bool {
+    error.contains(errors::FDM_ANSWER_PENDING)
+}
+
+fn other_pending(result: &Result<CheckoutResult, String>) -> bool {
+    match result {
+        Ok(r) => r.error.as_deref().is_some_and(answer_pending),
+        Err(e) => answer_pending(e),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -467,7 +493,9 @@ pub async fn do_handover_webshop_order(
             Ok(r)
         }
         other => {
-            transition(state, order_id, "signing", "signed_p")?;
+            if !other_pending(&other) {
+                transition(state, order_id, "signing", "signed_p")?;
+            }
             other
         }
     }
@@ -640,7 +668,9 @@ pub async fn do_refund_webshop_order(
             Ok(r)
         }
         other => {
-            transition(state, order_id, "signing", "refund_pending")?;
+            if !other_pending(&other) {
+                transition(state, order_id, "signing", "refund_pending")?;
+            }
             other
         }
     }
@@ -715,7 +745,9 @@ pub async fn do_close_cancelled_webshop_order(
             Ok(r)
         }
         other => {
-            transition(state, order_id, "signing", "cancel_pending")?;
+            if !other_pending(&other) {
+                transition(state, order_id, "signing", "cancel_pending")?;
+            }
             other
         }
     }
@@ -726,14 +758,30 @@ pub async fn do_close_cancelled_webshop_order(
 /// otherwise back to where it was. A refund or a closing interrupted
 /// the same way is finished or offered again. Returns how many were
 /// repaired.
+/// Orders whose event still waits for the FDM's answer stay
+/// `signing` (`commands::signing`).
 pub fn recover_webshop_orders(conn: &rusqlite::Connection) -> rusqlite::Result<usize> {
+    recover(conn, None)
+}
+
+/// [`recover_webshop_orders`] for one order, once its event was
+/// archived on a later send of its request (or refused).
+pub fn reconcile_order(conn: &rusqlite::Connection, order_id: i64) -> rusqlite::Result<usize> {
+    recover(conn, Some(order_id))
+}
+
+fn recover(conn: &rusqlite::Connection, only: Option<i64>) -> rusqlite::Result<usize> {
     type Stuck = (i64, String, Option<i64>, Option<i64>);
     let stuck: Vec<Stuck> = {
         let mut stmt = conn.prepare(
-            "SELECT order_id, hubrise_order_id, p_event_id, n_event_id FROM webshop_orders
-             WHERE fiscal_state = 'signing'",
+            "SELECT order_id, hubrise_order_id, p_event_id, n_event_id FROM webshop_orders w
+             WHERE fiscal_state = 'signing' AND (?1 IS NULL OR order_id = ?1)
+               AND NOT EXISTS (
+                 SELECT 1 FROM pending_signs p WHERE p.status = 'open'
+                   AND (p.order_id = w.order_id
+                        OR json_extract(p.context_json, '$.webshop_order_id') = w.order_id))",
         )?;
-        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+        stmt.query_map([only], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
             .collect::<rusqlite::Result<_>>()?
     };
     let to_sql =

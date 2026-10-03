@@ -1,28 +1,12 @@
 //! Two sign calls firing at once on the same order/label.
 //!
-//! pili-pos is a single-terminal POS (CLAUDE.md: "Multi-terminal
-//! sync - single terminal for MVP"), so this is a narrow scenario in
-//! practice - a UI double-tap slipping past its loading guard, a
-//! stuck request the operator retries while the first is still
-//! in-flight - but the task asks for it explicitly, and getting it
-//! wrong would be bad in a very specific way: `commit_signed_event`
-//! (and the equivalent inline blocks in `checkout.rs`/`refund.rs`/
-//! `report.rs`/`invoice.rs`) commit the counter and the archive in one
-//! transaction, but TWO callers can both *peek* the same ticket number
-//! before either commits.
-//!
-//! What we found and fixed: those five sites used to assert the
-//! invariant with `debug_assert_eq!`. Under this exact race the loser
-//! would panic *while still holding the `state.db` MutexGuard* -
-//! poisoning that mutex for the rest of the process's life, meaning
-//! every subsequent command (not just the racing one) would start
-//! failing. That's a `fix(...)` commit alongside this test, converting
-//! every occurrence to a graceful `Err` return. This file is the
-//! regression test for it: it proves (1) neither call panics, (2)
-//! exactly one wins, (3) nothing is double-archived, (4) the counter
-//! never sits ahead of what's archived (a "phantom" advance would be a
-//! silent permanent gap), and (5) - the part `debug_assert_eq!` could
-//! never guarantee - the app is still alive afterwards.
+//! pili-pos is a single-terminal POS, so this is a narrow scenario in
+//! practice (a UI double-tap slipping past its loading guard, a stuck
+//! request the operator retries while the first is still in flight).
+//! Every signing operation runs under one lock (`commands::signing`):
+//! the second caller waits, then reads the state the first left. So
+//! nothing is ever double-archived, the counter always matches the
+//! archive, and the app stays alive afterwards.
 
 mod common;
 
@@ -98,15 +82,11 @@ fn describe_social(r: &Result<pili_pos::commands::social::SocialResult, String>)
 async fn concurrent_checkouts_of_the_same_order_do_not_double_archive_or_create_a_gap() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
-    // Both racers need a successful FDM response available.
-    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
+    // Only the first racer signs: the second finds the order closed.
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
 
     // `tokio::join!` runs both futures on the current task, interleaved
-    // at their `.await` points - no `tokio::spawn`/`Send` needed, and
-    // (unlike `spawn`) a panic in either branch would abort this test
-    // function normally rather than being silently swallowed, so this
-    // also would have caught the pre-fix `debug_assert_eq!` panic.
+    // at their `.await` points; a panic in either branch fails the test.
     let (r1, r2) = tokio::join!(
         do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash),
         do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash),
@@ -123,13 +103,16 @@ async fn concurrent_checkouts_of_the_same_order_do_not_double_archive_or_create_
         describe_checkout(&r1),
         describe_checkout(&r2)
     );
-    // The loser must be a clean error, not a hang or a silent
-    // "succeeded" that actually didn't archive anything.
-    let losers = [&r1, &r2]
-        .iter()
-        .filter(|r| !matches!(r, Ok(res) if res.success))
-        .count();
-    assert_eq!(losers, 1);
+    // The second waits for the first, then finds the order closed.
+    let loser = [&r1, &r2]
+        .into_iter()
+        .find(|r| !matches!(r, Ok(res) if res.success))
+        .unwrap();
+    assert!(
+        matches!(loser, Ok(res) if res.error.as_deref() == Some(errors::ORDER_ALREADY_CLOSED)),
+        "{}",
+        describe_checkout(loser)
+    );
 
     let n_events: Vec<_> = app
         .fiscal_events()
@@ -145,11 +128,7 @@ async fn concurrent_checkouts_of_the_same_order_do_not_double_archive_or_create_
     );
     assert_eq!(app.order_status(order_id).as_deref(), Some("closed"));
 
-    // The critical assertion `debug_assert_eq!` could never give us:
-    // `state.db` must not be poisoned by the loser's (now-graceful)
-    // failure. If it were, every command below would itself return an
-    // Err from `state.db.lock()`, not the specific "already closed"
-    // domain error we're asserting for.
+    // `state.db` is not poisoned: a later command gets the domain error.
     let post_race = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
         .await
         .expect("state.db must not be poisoned by the loser's graceful error");
@@ -171,17 +150,19 @@ async fn concurrent_table_order_signs_do_not_double_archive_or_create_a_gap() {
     let app = TestApp::new().await;
     let order_id = seed_minimal_open_order(&app);
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
-    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M121")).await;
 
     let (r1, r2) = tokio::join!(
         do_sign_table_order(&app.state, order_id),
         do_sign_table_order(&app.state, order_id),
     );
 
-    let successes = [&r1, &r2].iter().filter(|r| r.is_ok()).count();
-    assert_eq!(
-        successes, 1,
-        "exactly one concurrent table-order sign must win: {r1:?} / {r2:?}"
+    // Both succeed: the second waits, then has nothing left to send.
+    assert!(r1.is_ok() && r2.is_ok(), "{r1:?} / {r2:?}");
+    assert!(
+        [&r1, &r2]
+            .iter()
+            .any(|r| format!("{r:?}").contains("NothingToPrint")),
+        "{r1:?} / {r2:?}"
     );
 
     let p_events: Vec<_> = app
@@ -216,7 +197,7 @@ async fn concurrent_table_order_signs_do_not_double_archive_or_create_a_gap() {
 }
 
 #[tokio::test]
-async fn concurrent_work_in_for_the_same_employee_does_not_double_archive_or_create_a_gap() {
+async fn concurrent_work_ins_are_signed_one_after_the_other() {
     let app = TestApp::new().await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M140")).await;
@@ -225,28 +206,21 @@ async fn concurrent_work_in_for_the_same_employee_does_not_double_archive_or_cre
         do_work_in(&app.state, TEST_INSZ.to_string()),
         do_work_in(&app.state, TEST_INSZ.to_string()),
     );
-    // The counter-drift check returns its `Err(String)` straight from
-    // `do_work_in` (via `?` inside `do_work_event`), the same as
-    // `do_sign_table_order` above - unlike `do_checkout`, which wraps
-    // most failures in `Ok(CheckoutResult{success:false,..})`.
-    let successes = [&r1, &r2]
-        .iter()
-        .filter(|r| matches!(r, Ok(res) if res.success))
-        .count();
-    assert_eq!(
-        successes,
-        1,
-        "exactly one concurrent work-in must win: {} / {}",
-        describe_social(&r1),
-        describe_social(&r2)
-    );
-
-    assert_eq!(
-        app.fiscal_events()
-            .into_iter()
-            .filter(|e| e.event_type == "S")
-            .count(),
-        1
-    );
-    assert_eq!(app.counter_for(EventLabel::S), 1);
+    // Clocking in twice is allowed: both are signed, one after the
+    // other, with consecutive numbers.
+    for r in [&r1, &r2] {
+        assert!(
+            matches!(r, Ok(res) if res.success),
+            "{}",
+            describe_social(r)
+        );
+    }
+    let numbers: Vec<i64> = app
+        .fiscal_events()
+        .into_iter()
+        .filter(|e| e.event_type == "S")
+        .map(|e| e.sequence_number)
+        .collect();
+    assert_eq!(numbers, vec![1, 2]);
+    assert_eq!(app.counter_for(EventLabel::S), 2);
 }

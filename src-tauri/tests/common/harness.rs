@@ -159,6 +159,7 @@ impl TestApp {
             session: Mutex::new(None),
             support: pili_pos::commands::support::SupportState::disabled(),
             pin_throttle: Default::default(),
+            signing: Default::default(),
         };
 
         let app = Self {
@@ -251,6 +252,26 @@ impl TestApp {
     pub fn counter_for(&self, label: EventLabel) -> i64 {
         let conn = self.state.db.lock().expect("db lock");
         pos_fiscal::counter::FiscalCounter::current(&conn, label).expect("counter")
+    }
+
+    /// The request whose answer is still awaited, if any.
+    #[allow(dead_code)]
+    pub fn open_pending(&self) -> Option<pos_db::queries::pending_signs::PendingSign> {
+        let conn = self.state.db.lock().expect("db lock");
+        pos_db::queries::pending_signs::open(&conn).expect("pending signs")
+    }
+
+    /// Every stored request, oldest first.
+    #[allow(dead_code)]
+    pub fn pending_statuses(&self) -> Vec<(String, i64, String)> {
+        let conn = self.state.db.lock().expect("db lock");
+        let mut stmt = conn
+            .prepare("SELECT event_label, first_ticket_no, status FROM pending_signs ORDER BY id")
+            .expect("prepare");
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .expect("query")
+            .collect::<Result<_, _>>()
+            .expect("rows")
     }
 
     /// Order status from the `orders` table.

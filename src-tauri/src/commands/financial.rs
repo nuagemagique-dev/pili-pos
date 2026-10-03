@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::inputs::*;
 use pos_fiscal::types::*;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
+use crate::commands::signing::{self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -16,7 +17,7 @@ pub struct FinancialResult {
     pub error: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MoneyDirection {
     In,
@@ -54,10 +55,20 @@ pub async fn do_money_in_out(
     reason: String,
 ) -> Result<FinancialResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
+    // A retry of the same movement, answered late, is not made twice.
+    let op = Op::new(
+        Kind::Money,
+        format!("{employee_insz}|{direction:?}|{amount_cents}|{reason}"),
+    );
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        Ok(Begin::AlreadyDone(_)) => return Ok(FinancialResult::done()),
+        Err(e) => return Ok(FinancialResult::failed(e)),
+    };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let bp_id = super::current_booking(state)?;
+    let bp_id = super::current_booking(state, &guard)?;
     let label = EventLabel::F.in_mode(config.training_mode);
-    let ticket_number = super::peek_ticket_number(state, label)?;
+    let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     let common = pos_fiscal::event::build_common_fields(
         &config,
@@ -102,36 +113,59 @@ pub async fn do_money_in_out(
         }],
     };
 
-    let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let sign_result = match fdm.sign_money_in_out(input, config.training_mode).await {
-        Ok(result) => result,
-        Err(e) => {
-            return Ok(FinancialResult {
-                success: false,
-                error: Some(format!("FDM error: {e}")),
-            });
-        }
-    };
-
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label,
-            ticket_number,
-            order_id: None,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
-            sent_entries: None,
+    let request = SignRequest::new(SignMutation::MoneyInOut, &input, config.training_mode)
+        .map_err(errors::internal)?;
+    let prepared = prepared(op, request, label, ticket_number, &employee_insz, &input)?;
+    Ok(
+        match signing::sign(state, &guard, &config, prepared).await {
+            Ok(_) => FinancialResult::done(),
+            Err(failure) => FinancialResult::failed(failure.error),
         },
-    )?;
+    )
+}
 
-    Ok(FinancialResult {
-        success: true,
-        error: None,
+impl FinancialResult {
+    fn done() -> Self {
+        Self {
+            success: true,
+            error: None,
+        }
+    }
+
+    fn failed(error: String) -> Self {
+        Self {
+            success: false,
+            error: Some(error),
+        }
+    }
+}
+
+fn prepared(
+    op: Op,
+    request: SignRequest,
+    label: EventLabel,
+    ticket_number: i64,
+    employee_insz: &str,
+    input: &impl Serialize,
+) -> Result<Prepared, String> {
+    let context = match op.kind {
+        Kind::Drawer => PendingContext::Drawer,
+        _ => PendingContext::Money,
+    };
+    Ok(Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
+            order_id: None,
+            user_insz: employee_insz.to_string(),
+            request_json: serde_json::to_string(input).map_err(|e| e.to_string())?,
+            sent_entries: None,
+        }],
+        order_id: None,
+        user_insz: employee_insz.to_string(),
+        context,
     })
 }
 
@@ -150,10 +184,17 @@ pub async fn do_open_drawer_fiscal(
     employee_insz: String,
 ) -> Result<FinancialResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
+    let op = Op::new(Kind::Drawer, &employee_insz);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // Answered late: its follow-up opened the drawer.
+        Ok(Begin::AlreadyDone(_)) => return Ok(FinancialResult::done()),
+        Err(e) => return Ok(FinancialResult::failed(e)),
+    };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let bp_id = super::current_booking(state)?;
+    let bp_id = super::current_booking(state, &guard)?;
     let label = EventLabel::F.in_mode(config.training_mode);
-    let ticket_number = super::peek_ticket_number(state, label)?;
+    let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     let common = pos_fiscal::event::build_common_fields(
         &config,
@@ -172,41 +213,16 @@ pub async fn do_open_drawer_fiscal(
         }),
     };
 
-    let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let sign_result = match fdm.sign_drawer_open(input, config.training_mode).await {
-        Ok(result) => result,
-        Err(e) => {
-            return Ok(FinancialResult {
-                success: false,
-                error: Some(format!("FDM error: {e}")),
-            });
-        }
+    let request = SignRequest::new(SignMutation::DrawerOpen, &input, config.training_mode)
+        .map_err(errors::internal)?;
+    let prepared = prepared(op, request, label, ticket_number, &employee_insz, &input)?;
+    let context = prepared.context.clone();
+    let committed = match signing::sign(state, &guard, &config, prepared).await {
+        Ok(committed) => committed,
+        Err(failure) => return Ok(FinancialResult::failed(failure.error)),
     };
-
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label,
-            ticket_number,
-            order_id: None,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
-            sent_entries: None,
-        },
-    )?;
-
-    // Kick the physical drawer open
-    if let Some(ref addr) = config.printer_address {
-        let drawer_data = pos_print::drawer::kick_drawer_bytes();
-        let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
-    }
-
-    Ok(FinancialResult {
-        success: true,
-        error: None,
-    })
+    drop(guard);
+    // Kick the physical drawer open.
+    signing::follow_up(state, &config, &context, &committed, true).await;
+    Ok(FinancialResult::done())
 }

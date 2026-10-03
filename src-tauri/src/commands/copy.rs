@@ -2,17 +2,20 @@ use serde::Serialize;
 use tauri::State;
 
 use pos_fiscal::event::build_copy_input;
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::response::{FdmReference, SignResult};
 use pos_fiscal::ticket::{
-    FiscalTicket, ReceiptLanguage, TicketLine, TicketParams, TicketPayment, is_unpaid_sale,
-    printed_payments,
+    FiscalTicket, ReceiptLanguage, TicketDraft, TicketLine, TicketParams, TicketPayment,
+    is_unpaid_sale, printed_payments,
 };
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 use crate::commands::errors::{self, incomplete};
+use crate::commands::signing::{
+    self, ArchiveSpec, Begin, CopyTicket, Kind, Op, PendingContext, Prepared, StoredDelivery,
+};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -76,6 +79,21 @@ pub async fn do_copy_ticket_with(
     if let Err(e) = access::operator_named(state, &employee_insz, Access::Admin) {
         return Ok(CopyResult::failed(e));
     }
+    let op = Op::new(Kind::Copy, fiscal_event_id);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // This copy, sent earlier, was signed and has been printed.
+        Ok(Begin::AlreadyDone(recovered)) => {
+            return Ok(CopyResult {
+                success: true,
+                error: None,
+                ticket: recovered.committed.ticket,
+                fiscal_event_id: Some(recovered.committed.event_ids[0]),
+                delivery: recovered.follow_up.delivery,
+            });
+        }
+        Err(e) => return Ok(CopyResult::failed(e)),
+    };
     // 1. Load the original event
     let (original_ref, original_event, config, bp_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
@@ -125,7 +143,7 @@ pub async fn do_copy_ticket_with(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db, &config)?;
+        let bp = super::booking(&db, &guard, &config)?;
         (fdm_ref, event, config, bp)
     };
 
@@ -147,15 +165,12 @@ pub async fn do_copy_ticket_with(
     };
     let operator = super::operator_name(state, &employee_insz);
 
-    // 2. RESERVE (peek, don't commit) the sequence number for the copy
-    // event. Same sign-then-commit pattern as every other fiscal
-    // command (see `commands/mod.rs::commit_signed_event`): the C
-    // counter only advances once the FDM has signed, so a refused or
-    // unreachable FDM leaves no gap in the C sequence.
+    // 2. The copy's number: the C counter advances only when the signed
+    // copy is archived, so a refused copy leaves no gap.
     let label = EventLabel::C.in_mode(config.training_mode);
-    let ticket_number = super::peek_ticket_number(state, label)?;
+    let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
-    // 3. Build and send copy event
+    // 3. Build the copy event
     let mut copy_input = build_copy_input(
         &config,
         ticket_number,
@@ -164,13 +179,9 @@ pub async fn do_copy_ticket_with(
         &original_ref,
     );
     copy_input.common.ticket_medium = resolved.medium;
+    let request = SignRequest::new(SignMutation::Copy, &copy_input, config.training_mode)
+        .map_err(errors::internal)?;
     let request_json = serde_json::to_string(&copy_input).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let result = match fdm.sign_copy(copy_input, config.training_mode).await {
-        Ok(result) => result,
-        Err(e) => return Ok(CopyResult::failed(format!("FDM error: {e}"))),
-    };
 
     // The copy reproduces the original ticket, rebuilt from its
     // archive (the FDM's response and the signed request), and adds
@@ -198,7 +209,7 @@ pub async fn do_copy_ticket_with(
                 let request = serde_json::from_str(&original_event.event_data_json)
                     .unwrap_or(serde_json::Value::Null);
                 let (payments, rounding) = printed_payments(&request);
-                let mut copy = FiscalTicket::from_sign_result(TicketParams {
+                let mut ticket = FiscalTicket::from_sign_result(TicketParams {
                     result: original,
                     restaurant_name: &config.restaurant_name,
                     restaurant_address: &config.restaurant_address,
@@ -212,69 +223,60 @@ pub async fn do_copy_ticket_with(
                     rounding,
                     lang,
                     operator: &original_operator,
-                })
-                .into_copy(&result);
+                });
                 // A sale closed unpaid reprints as unpaid.
-                copy.unpaid = is_unpaid_sale(&request);
-                copy
+                ticket.unpaid = is_unpaid_sale(&request);
+                CopyTicket::Original(Box::new(ticket))
             }
             // No readable archive of the original (never expected: the
             // FDM response is archived with every signed event): the
             // copy's own data, as a last resort.
-            None => FiscalTicket::from_sign_result(TicketParams {
-                result: &result,
-                restaurant_name: &config.restaurant_name,
-                restaurant_address: &config.restaurant_address,
-                restaurant_vat: &config.restaurant_vat,
-                restaurant_est_no: &config.restaurant_est_no,
-                restaurant_legal_name: config.legal_name(),
-                lines: ticket_lines,
-                payments: vec![TicketPayment {
+            None => CopyTicket::Draft(Box::new(TicketDraft::new(
+                &config,
+                ticket_lines,
+                vec![TicketPayment {
                     method: "-".to_string(),
                     amount: total,
                 }],
                 total,
-                is_training: config.training_mode,
-                rounding: None,
-                lang,
-                operator: &operator,
-            }),
+                &operator,
+            ))),
         }
     });
 
-    // Commit the counter + archive + the email row atomically, then
-    // print/send with no lock held.
-    let (event_id, delivery_id) = super::commit_signed_event_then(
-        state,
-        &config,
-        super::SignedEvent {
-            label,
-            ticket_number,
+    let context = PendingContext::Copy {
+        delivery: StoredDelivery::of(&resolved),
+        ticket,
+    };
+    let prepared = Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
             order_id: None,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: &result,
+            user_insz: employee_insz.clone(),
+            request_json,
             sent_entries: None,
-        },
-        |tx, event_id| delivery::enqueue_in_tx(tx, event_id, &resolved, ticket.as_ref()),
-    )?;
+        }],
+        order_id: None,
+        user_insz: employee_insz.clone(),
+        context: context.clone(),
+    };
+    let committed = match signing::sign(state, &guard, &config, prepared).await {
+        Ok(committed) => committed,
+        Err(failure) => return Ok(CopyResult::failed(failure.error)),
+    };
+    drop(guard);
 
-    let outcome = delivery::deliver(
-        state,
-        &config,
-        event_id,
-        &resolved,
-        delivery_id,
-        ticket.as_ref(),
-    )
-    .await;
-
+    // Print and/or send with no lock held.
+    let done = signing::follow_up(state, &config, &context, &committed, false).await;
     Ok(CopyResult {
         success: true,
         error: None,
-        ticket,
-        fiscal_event_id: Some(event_id),
-        delivery: Some(outcome),
+        fiscal_event_id: Some(committed.event_ids[0]),
+        ticket: committed.ticket,
+        delivery: done.delivery,
     })
 }
 

@@ -2,10 +2,12 @@ use serde::Serialize;
 use tauri::State;
 
 use pos_fiscal::event::build_work_in_out;
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
+use crate::commands::errors;
+use crate::commands::signing::{self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -49,59 +51,67 @@ async fn do_work_event(
     is_in: bool,
 ) -> Result<SocialResult, String> {
     access::operator_named(state, &employee_insz, Access::Staff)?;
+    let kind = if is_in { Kind::WorkIn } else { Kind::WorkOut };
+    let op = Op::new(kind, &employee_insz);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // The same clock-in or out, answered late: done.
+        Ok(Begin::AlreadyDone(_)) => return Ok(SocialResult::done()),
+        Err(e) => return Ok(SocialResult::failed(e)),
+    };
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-    let bp_id = super::current_booking(state)?;
+    let bp_id = super::current_booking(state, &guard)?;
     let label = EventLabel::S.in_mode(config.training_mode);
-    let ticket_number = super::peek_ticket_number(state, label)?;
+    let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
     let input = build_work_in_out(&config, ticket_number, &employee_insz, &bp_id);
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let signed = if is_in {
-        fdm.sign_work_in(input, config.training_mode).await
+    let mutation = if is_in {
+        SignMutation::WorkIn
     } else {
-        fdm.sign_work_out(input, config.training_mode).await
+        SignMutation::WorkOut
     };
-    let sign_result = match signed {
-        Ok(result) => result,
-        Err(e) => {
-            return Ok(SocialResult {
-                success: false,
-                error: Some(format!("FDM error: {e}")),
-            });
-        }
-    };
+    let request =
+        SignRequest::new(mutation, &input, config.training_mode).map_err(errors::internal)?;
 
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label,
-            ticket_number,
+    let prepared = Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
             order_id: None,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
+            user_insz: employee_insz.clone(),
+            request_json,
             sent_entries: None,
+        }],
+        order_id: None,
+        user_insz: employee_insz.clone(),
+        context: PendingContext::Work {
+            insz: employee_insz,
+            is_in,
         },
-    )?;
+    };
+    match signing::sign(state, &guard, &config, prepared).await {
+        Ok(_) => Ok(SocialResult::done()),
+        Err(failure) => Ok(SocialResult::failed(failure.error)),
+    }
+}
 
-    // The screen lock keeps a shift open; only a signed clock-out ends it.
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        let recorded = if is_in {
-            pos_db::queries::shifts::open_shift(&db, &employee_insz)
-        } else {
-            pos_db::queries::shifts::close_shift(&db, &employee_insz)
-        };
-        recorded.map_err(|e| e.to_string())?;
+impl SocialResult {
+    fn done() -> Self {
+        Self {
+            success: true,
+            error: None,
+        }
     }
 
-    Ok(SocialResult {
-        success: true,
-        error: None,
-    })
+    fn failed(error: String) -> Self {
+        Self {
+            success: false,
+            error: Some(error),
+        }
+    }
 }
 
 /// Employees currently on shift (clocked in, not yet clocked out),

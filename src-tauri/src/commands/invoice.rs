@@ -38,13 +38,12 @@ use pos_peppol::{AccessPoint, LoggingAccessPoint};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::build_invoice_input;
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::response::FdmReference;
 use pos_fiscal::types::EventLabel;
 
+use crate::commands::signing::{self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared};
 use crate::state::AppState;
 
 /// One line on the B2B invoice as supplied by the UI. Quantities are
@@ -290,11 +289,29 @@ pub async fn do_sign_invoice_fiscal(
     if sale_fiscal_event_ids.is_empty() {
         return Err("invoice must reference at least one sale".to_string());
     }
+    let mut sales = sale_fiscal_event_ids.clone();
+    sales.sort_unstable();
+    let op = Op::new(Kind::Invoice, format!("{sales:?}|{customer_vat_no}"));
+    let guard = match signing::begin(state, &op).await? {
+        Begin::Fresh(guard) => guard,
+        Begin::AlreadyDone(recovered) => {
+            let invoice_no = match &recovered.context {
+                PendingContext::Invoice { invoice_no } => Some(invoice_no.clone()),
+                _ => None,
+            };
+            return Ok(InvoiceSignResult {
+                success: true,
+                fiscal_event_id: Some(recovered.committed.event_ids[0]),
+                invoice_no,
+                error: None,
+            });
+        }
+    };
 
     let (config, bp_id, fdm_refs, invoice_no, ticket_number) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db, &config)?;
+        let bp = super::booking(&db, &guard, &config)?;
 
         // Rebuild the FDM reference of every underlying sale from its
         // archived response.
@@ -342,9 +359,9 @@ pub async fn do_sign_invoice_fiscal(
             .map_err(|e| e.to_string())?;
         let invoice_no = format!("{}{:04}", chrono::Utc::now().format("%Y"), issued + 1);
 
-        // Peek - the counter only commits together with the archive,
-        // so an FDM failure never creates a sequence gap.
-        let tn = FiscalCounter::peek_next(&db, EventLabel::I).map_err(|e| e.to_string())?;
+        // The counter only commits together with the archive, so an
+        // FDM failure never creates a sequence gap.
+        let tn = signing::peek(&db, &guard, EventLabel::I)?;
         (config, bp, refs, invoice_no, tn)
     };
 
@@ -357,56 +374,39 @@ pub async fn do_sign_invoice_fiscal(
         &customer_vat_no,
         &fdm_refs,
     );
-    let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let sign_result = match fdm.sign_invoice(input, config.training_mode).await {
-        Ok(r) => r,
-        Err(e) => {
-            return Ok(InvoiceSignResult {
-                success: false,
-                fiscal_event_id: None,
-                invoice_no: None,
-                error: Some(format!("FDM refused signInvoice: {e}")),
-            });
-        }
-    };
-
-    let fiscal_event_id = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
-        let committed = FiscalCounter::next(&tx, EventLabel::I).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
-        if committed != ticket_number {
-            return Err(format!(
-                "counter drifted between peek and commit for I (peeked {ticket_number}, \
-                 committed {committed}) - likely a concurrent invoice sign; retry"
-            ));
-        }
-        let id = archive::archive_event(
-            &tx,
-            ArchiveParams {
-                event_type: EventLabel::I,
-                sequence_number: ticket_number,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &request_json,
-                sign_result: Some(&sign_result),
-            },
-        )
+    let request = SignRequest::new(SignMutation::Invoice, &input, config.training_mode)
         .map_err(|e| e.to_string())?;
-        tx.commit().map_err(|e| e.to_string())?;
-        id
+    let prepared = Prepared {
+        op,
+        request,
+        label: EventLabel::I,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
+            order_id: None,
+            user_insz: employee_insz.clone(),
+            request_json: serde_json::to_string(&input).map_err(|e| e.to_string())?,
+            sent_entries: None,
+        }],
+        order_id: None,
+        user_insz: employee_insz.clone(),
+        context: PendingContext::Invoice {
+            invoice_no: invoice_no.clone(),
+        },
     };
-
-    Ok(InvoiceSignResult {
-        success: true,
-        fiscal_event_id: Some(fiscal_event_id),
-        invoice_no: Some(invoice_no),
-        error: None,
-    })
+    match signing::sign(state, &guard, &config, prepared).await {
+        Ok(committed) => Ok(InvoiceSignResult {
+            success: true,
+            fiscal_event_id: Some(committed.event_ids[0]),
+            invoice_no: Some(invoice_no),
+            error: None,
+        }),
+        Err(failure) => Ok(InvoiceSignResult {
+            success: false,
+            fiscal_event_id: None,
+            invoice_no: None,
+            error: Some(failure.error),
+        }),
+    }
 }
 
 /// Issue a B2B invoice via Peppol. The caller is expected to have

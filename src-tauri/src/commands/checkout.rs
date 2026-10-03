@@ -1,21 +1,22 @@
 use serde::Serialize;
 use tauri::State;
 
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::build_sale_input_split;
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{FdmClient, SignMutation, SignRequest};
 use pos_fiscal::payment::{PaymentError, Settlement, payment_line_identity};
-use pos_fiscal::response::SignResult;
-use pos_fiscal::ticket::{FiscalTicket, TicketLine, TicketParams, TicketPayment};
+use pos_fiscal::ticket::{FiscalTicket, TicketDraft, TicketPayment};
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
-use crate::commands::bar_slip::{self, SlipOutcome};
+use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 use crate::commands::errors;
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
+use crate::commands::signing::{
+    self, ArchiveSpec, BarSlip, Begin, Kind, Op, PendingContext, Prepared, SignGuard,
+    StoredDelivery, StoredPayment,
+};
 use crate::state::AppState;
 
 /// A payment method the operator takes: cash, card or meal vouchers.
@@ -167,24 +168,86 @@ pub(crate) async fn sell(
     delivery_request: Option<&TicketDeliveryRequest>,
     options: SaleOptions,
 ) -> Result<CheckoutResult, String> {
-    let cashier = operator;
-    // 1. Read order + lines from DB
+    let op = Op::new(Kind::Sale, order_id);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // This sale, sent earlier, was signed: its ticket is printed.
+        Ok(Begin::AlreadyDone(recovered)) => return Ok(recovered_sale(*recovered)),
+        Err(e) => return Ok(CheckoutResult::refused(e)),
+    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let signed = sell_locked(
+        state,
+        &guard,
+        &config,
+        operator,
+        order_id,
+        payment,
+        delivery_request,
+        &options,
+        op,
+    )
+    .await?;
+    drop(guard);
+    let (context, committed) = match signed {
+        Ok(signed) => signed,
+        Err(refused) => return Ok(refused),
+    };
+
+    // Print and/or email the ticket, open the drawer for cash, print
+    // the bar / kitchen slip of the lines not yet sent.
+    let done = signing::follow_up(state, &config, &context, &committed, true).await;
+    Ok(CheckoutResult {
+        success: true,
+        ticket: committed.ticket,
+        error: None,
+        fdm_connected: true,
+        fiscal_event_id: Some(committed.event_ids[0]),
+        delivery: done.delivery,
+        kitchen_slip: done.slip,
+    })
+}
+
+/// A sale signed on a later send of its request.
+fn recovered_sale(recovered: signing::Recovered) -> CheckoutResult {
+    CheckoutResult {
+        success: true,
+        ticket: recovered.committed.ticket,
+        error: None,
+        fdm_connected: true,
+        fiscal_event_id: Some(recovered.committed.event_ids[0]),
+        delivery: recovered.follow_up.delivery,
+        kitchen_slip: recovered.follow_up.slip,
+    }
+}
+
+type SaleSigned = Result<(PendingContext, signing::Committed), CheckoutResult>;
+
+/// Read, check and sign the sale, under the signing lock. `Err` inside
+/// `Ok`: refused, nothing signed.
+#[allow(clippy::too_many_arguments)]
+async fn sell_locked(
+    state: &AppState,
+    guard: &SignGuard<'_>,
+    config: &pos_core::config::PosConfig,
+    cashier: pos_core::user::User,
+    order_id: i64,
+    payment: Payment<'_>,
+    delivery_request: Option<&TicketDeliveryRequest>,
+    options: &SaleOptions,
+    op: Op,
+) -> Result<SaleSigned, String> {
     // `lines` is the consolidated order (printed); `entries` the journal
     // of every addition and correction, sent to the FDM (§2).
-    // `unsent` are the entries no table order has registered yet: the
-    // bar / kitchen slip prints them once the sale is signed.
-    let (order, lines, entries, unsent, config, booking_period_id) = {
+    let (order, lines, entries, booking_period_id) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let order = pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?;
         let lines =
             pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())?;
         let entries = pos_db::queries::orders::get_order_entries(&db, order_id, false)
             .map_err(|e| e.to_string())?;
-        let unsent = pos_db::queries::orders::get_order_entries(&db, order_id, true)
-            .map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db, &config)?;
-        (order, lines, entries, unsent, config, bp)
+        let bp = super::booking(&db, guard, config)?;
+        (order, lines, entries, bp)
     };
     // The lines' discounts (an online order's), by journal entry and by
     // line. Only the HubRise build records any.
@@ -210,15 +273,7 @@ pub(crate) async fn sell(
     #[cfg(not(feature = "hubrise"))]
     let nothing_to_sign = lines.is_empty();
     if nothing_to_sign {
-        return Ok(CheckoutResult {
-            success: false,
-            ticket: None,
-            error: Some(errors::ORDER_NO_LINES.into()),
-            fdm_connected: false,
-            fiscal_event_id: None,
-            delivery: None,
-            kitchen_slip: None,
-        });
+        return Ok(Err(CheckoutResult::refused(errors::ORDER_NO_LINES)));
     }
 
     // Guard: no negative sale (a refund goes through `refund.rs`). A
@@ -227,36 +282,19 @@ pub(crate) async fn sell(
     // empty-order check above, no record without a product line can
     // be made (manual §III.D).
     if order.total_cents < 0 {
-        return Ok(CheckoutResult {
-            success: false,
-            ticket: None,
-            error: Some(errors::ORDER_TOTAL_NEGATIVE.into()),
-            fdm_connected: false,
-            fiscal_event_id: None,
-            delivery: None,
-            kitchen_slip: None,
-        });
+        return Ok(Err(CheckoutResult::refused(errors::ORDER_TOTAL_NEGATIVE)));
     }
 
-    // Guard: reject if order is already closed (prevents double
-    // fiscal events when the operator taps "Payer" twice before
-    // the Vue loading guard kicks in).
+    // Guard: an order is sold once. Read under the signing lock, so a
+    // second tap waits for the first sale and then finds it closed.
     if order.status != pos_core::order::OrderStatus::Open {
-        return Ok(CheckoutResult {
-            success: false,
-            ticket: None,
-            error: Some(errors::ORDER_ALREADY_CLOSED.into()),
-            fdm_connected: false,
-            fiscal_event_id: None,
-            delivery: None,
-            kitchen_slip: None,
-        });
+        return Ok(Err(CheckoutResult::refused(errors::ORDER_ALREADY_CLOSED)));
     }
 
     // An online order is signed by its own commands (acceptance,
     // handover), with its cost center: never as a till sale.
     #[cfg(feature = "hubrise")]
-    if !options.online {
+    let webshop_order_id = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let online: bool = db
             .query_row(
@@ -265,15 +303,18 @@ pub(crate) async fn sell(
                 |r| r.get(0),
             )
             .map_err(|e| e.to_string())?;
-        if online {
-            return Ok(CheckoutResult::refused(errors::ORDER_NOT_OPEN));
+        if online && !options.online {
+            return Ok(Err(CheckoutResult::refused(errors::ORDER_NOT_OPEN)));
         }
-    }
+        online.then_some(order_id)
+    };
+    #[cfg(not(feature = "hubrise"))]
+    let webshop_order_id = None;
 
     // Ticket medium: refused choices stop here, before any signing.
-    let resolved = match delivery::resolve(delivery_request, &config, &state.mail) {
+    let resolved = match delivery::resolve(delivery_request, config, &state.mail) {
         Ok(r) => r,
-        Err(e) => return Ok(CheckoutResult::refused(e)),
+        Err(e) => return Ok(Err(CheckoutResult::refused(e))),
     };
 
     // The payment: card and meal voucher parts are exact, cash pays the
@@ -282,7 +323,7 @@ pub(crate) async fn sell(
     let settlement = match payment {
         Payment::Parts(parts) => match pos_fiscal::payment::settle(order.total_cents, parts) {
             Ok(s) => s,
-            Err(e) => return Ok(CheckoutResult::refused(payment_error(e))),
+            Err(e) => return Ok(Err(CheckoutResult::refused(payment_error(e)))),
         },
         // Nothing paid: no payment line at all (UC4109 sends
         // `financials: []`). A sale of 0,00 EUR is paid normally.
@@ -290,35 +331,24 @@ pub(crate) async fn sell(
             payments: Vec::new(),
             rounding_cents: 0,
         },
-        Payment::Unpaid => return Ok(CheckoutResult::refused(errors::UNPAID_NOTHING_DUE)),
+        Payment::Unpaid => return Ok(Err(CheckoutResult::refused(errors::UNPAID_NOTHING_DUE))),
     };
     let unpaid = matches!(payment, Payment::Unpaid);
 
-    // 2. RESERVE (peek, don't commit) the next sequence number.
-    //
-    // We deliberately do NOT call `FiscalCounter::next` here yet.
-    // Allocating before the FDM round-trip would create a gap in
-    // the sequence whenever the FDM call fails - a direct violation
-    // of the SCE 2.0 "strictly sequential, no gaps" requirement.
-    //
-    // Instead we peek (read-only) to obtain the value we'll send to
-    // the FDM, then commit the increment inside the same SQLite
-    // transaction that writes the archive (step 6-8 below). If the
-    // FDM fails, the counter stays untouched and the next attempt
-    // sees the same value - combined with the FDM's idempotency on
-    // `posFiscalTicketNo`, this is safe to retry indefinitely.
+    // The number this sale takes; the counter advances only when the
+    // signed sale is archived, so a refused sale leaves no gap.
+    let label = if config.training_mode {
+        EventLabel::T
+    } else {
+        EventLabel::N
+    };
     let ticket_number = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let label = if config.training_mode {
-            EventLabel::T
-        } else {
-            EventLabel::N
-        };
-        FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
+        signing::peek(&db, guard, label)?
     };
 
     let mut sale_input = build_sale_input_split(
-        &config,
+        config,
         &order,
         &entries,
         ticket_number,
@@ -330,203 +360,50 @@ pub(crate) async fn sell(
     if let Some(cost_center) = options.cost_center.clone() {
         sale_input.cost_center = Some(cost_center);
     }
-
-    // 4. Serialize request for archival
+    let request = SignRequest::new(SignMutation::Sale, &sale_input, config.training_mode)
+        .map_err(errors::internal)?;
     let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
-    // 5. Send to FDM
-    let fdm = FdmClient::from_config(&config);
-    let fdm_result: Result<SignResult, _> = fdm.sign_sale(sale_input, config.training_mode).await;
-
-    let (sign_result, fdm_connected) = match fdm_result {
-        Ok(result) => (Some(result), true),
-        Err(pos_fiscal::fdm_client::FdmError::NotConnected) => {
-            // No FDM, no sale: the POS blocks (SCE 2.0). There is no
-            // offline mode, in any build.
-            return Ok(CheckoutResult {
-                success: false,
-                ticket: None,
-                error: Some("FDM not connected - cannot complete transaction".into()),
-                fdm_connected: false,
-                fiscal_event_id: None,
-                delivery: None,
-                kitchen_slip: None,
-            });
-        }
-        Err(e) => {
-            return Ok(CheckoutResult {
-                success: false,
-                ticket: None,
-                error: Some(format!("FDM error: {e}")),
-                fdm_connected: true,
-                fiscal_event_id: None,
-                delivery: None,
-                kitchen_slip: None,
-            });
-        }
-    };
-
-    // 6. Build the fiscal ticket (display, print, email) before the
-    // commit: its email is queued in the same transaction.
+    // The ticket: each line, then its discounts (none at the till); one
+    // row per payment, the cash rounding its own line (FAQ Q403).
     let operator = super::operator_name(state, &order.user_insz);
-    let mut ticket = sign_result.as_ref().map(|result| {
-        // Each line, then its discounts (none at the till).
-        let ticket_lines: Vec<TicketLine> =
-            pos_fiscal::price_change::ticket_lines(&lines, &line_changes);
+    let mut ticket = TicketDraft::new(
+        config,
+        pos_fiscal::price_change::ticket_lines(&lines, &line_changes),
+        ticket_payments(&settlement),
+        order.total_cents as f64 / 100.0,
+        &operator,
+    );
+    ticket.rounding =
+        (settlement.rounding_cents != 0).then(|| settlement.rounding_cents as f64 / 100.0);
+    ticket.unpaid = unpaid;
 
-        // One row per payment, the sale amount it pays; the cash
-        // rounding is its own line (FAQ Q403, SPF example VAT ticket).
-        let payments = ticket_payments(&settlement);
-        let rounding_eur =
-            (settlement.rounding_cents != 0).then(|| settlement.rounding_cents as f64 / 100.0);
-
-        FiscalTicket::from_sign_result(TicketParams {
-            result,
-            restaurant_name: &config.restaurant_name,
-            restaurant_address: &config.restaurant_address,
-            restaurant_vat: &config.restaurant_vat,
-            restaurant_est_no: &config.restaurant_est_no,
-            restaurant_legal_name: config.legal_name(),
-            lines: ticket_lines,
-            payments,
-            total: order.total_cents as f64 / 100.0,
-            is_training: config.training_mode,
-            rounding: rounding_eur,
-            lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-            operator: &operator,
-        })
-    });
-    if let Some(t) = ticket.as_mut() {
-        t.unpaid = unpaid;
-    }
-
-    // 6-8. COMMIT counter + archive fiscal event + close order
-    // ATOMICALLY in a single SQLite transaction.
-    //
-    // Now that the FDM has returned (or returned a non-fatal error
-    // we've decided to record), we commit the counter increment via
-    // `FiscalCounter::next` inside the same tx that archives the
-    // event. Three rows of state are kept consistent:
-    //   - `fiscal_counters.current_value` advances by 1
-    //   - `fiscal_events` gets the new row
-    //   - `orders.status` flips to closed
-    // If any of the three fails the whole tx rolls back, including
-    // the counter advance - so no gap is ever observable.
-    let (event_id, delivery_id) = {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
-
-        let label = if config.training_mode {
-            EventLabel::T
-        } else {
-            EventLabel::N
-        };
-        let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic: see the identical comment in
-        // `commands/mod.rs::commit_signed_event` - a panic here would
-        // unwind while the `state.db` MutexGuard is still held and
-        // poison it for the whole process. Concurrent checkouts of the
-        // same order are exactly the scenario this guards against; the
-        // transaction rolls back, so the loser sees a clean error and
-        // can retry.
-        if committed_no != ticket_number {
-            return Err(errors::concurrent(format_args!(
-                "checkout {label:?}: peeked {ticket_number}, committed {committed_no}"
-            )));
-        }
-
-        let event_id = archive::archive_event(
-            &tx,
-            ArchiveParams {
-                event_type: label,
-                sequence_number: ticket_number,
-                order_id: Some(order_id),
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &order.user_insz,
-                request_json: &request_json,
-                sign_result: sign_result.as_ref(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-        pos_db::queries::orders::mark_order_entries_sent(&tx, order_id, i64::MAX, event_id)
-            .map_err(|e| e.to_string())?;
-
-        tx.execute(
-            "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
-            rusqlite::params![order_id],
-        )
-        .map_err(|e| e.to_string())?;
-
-        // Record the payment in the order's payment history. (The X/Z
-        // reports total the financials of the signed events instead.)
-        // Training-mode "sales" move no real money, so they are not
-        // recorded here (mirrors the FDM's T-vs-N counter split).
-        if label != EventLabel::T {
-            for p in &settlement.payments {
-                let (method, amount) = match p.method {
-                    CheckoutPaymentMethod::Cash => {
-                        ("cash", p.amount_cents + settlement.rounding_cents)
-                    }
-                    CheckoutPaymentMethod::Card => ("card", p.amount_cents),
-                    CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
-                    // Paid to the platform or the webshop's provider.
-                    CheckoutPaymentMethod::App | CheckoutPaymentMethod::Online => {
-                        ("other", p.amount_cents)
-                    }
-                };
-                tx.execute(
-                    "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
-                    rusqlite::params![order_id, method, amount],
-                )
-                .map_err(|e| e.to_string())?;
+    // The order's payment history (the reports total the signed events'
+    // financials instead).
+    let payments = settlement
+        .payments
+        .iter()
+        .map(|p| {
+            let (method, amount_cents) = match p.method {
+                CheckoutPaymentMethod::Cash => ("cash", p.amount_cents + settlement.rounding_cents),
+                CheckoutPaymentMethod::Card => ("card", p.amount_cents),
+                CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
+                // Paid to the platform or the webshop's provider.
+                CheckoutPaymentMethod::App | CheckoutPaymentMethod::Online => {
+                    ("other", p.amount_cents)
+                }
+            };
+            StoredPayment {
+                method: method.to_string(),
+                amount_cents,
             }
-        }
+        })
+        .collect();
 
-        let delivery_id = delivery::enqueue_in_tx(&tx, event_id, &resolved, ticket.as_ref())?;
-
-        tx.commit().map_err(|e| e.to_string())?;
-        (event_id, delivery_id)
-    };
-
-    // 9. Print and/or email the ticket, then open the drawer for cash.
-    let delivery_outcome = delivery::deliver(
-        state,
-        &config,
-        event_id,
-        &resolved,
-        delivery_id,
-        ticket.as_ref(),
-    )
-    .await;
-    if settlement.has_cash()
-        && let Some(ref addr) = config.printer_address
-    {
-        let drawer_data = pos_print::drawer::kick_drawer_bytes();
-        let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
-    }
-    let kitchen_slip = if options.online {
-        SlipOutcome::NothingToPrint
-    } else {
-        bar_slip::print_bar_slip(
-            state,
-            &config,
-            &order.user_insz,
-            order.table_number,
-            &unsent,
-        )
-        .await
-    };
-
-    // 10. Enqueue the completed order for async push to HubRise.
-    // This is a pure SQLite write - zero network, zero latency, never
-    // blocked by a HubRise or internet outage. The background outbox
-    // worker (started in main.rs alongside the poller) drains the
-    // queue when connectivity is available, with exponential backoff
-    // on transient failures. Gated behind the `hubrise` feature so the
-    // certification build (no HubRise) skips this entirely.
+    // A till sale is echoed to HubRise through the outbox, queued with
+    // the sale.
     #[cfg(feature = "hubrise")]
-    if !unpaid && !options.online && state.hubrise_switch.is_on() {
+    let hubrise_echo = (!unpaid && !options.online && state.hubrise_switch.is_on()).then(|| {
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()
@@ -538,24 +415,64 @@ pub(crate) async fn sell(
             })
             .collect();
         let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments);
-        let body_json = serde_json::to_string(&body).unwrap_or_default();
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        if let Err(e) = pos_hubrise::outbox::enqueue(&db, order_id, &body_json) {
-            // Enqueue failure is non-fatal - the order is already
-            // committed locally, just won't appear in tsb-dashboard.
-            tracing::warn!(%e, "outbox enqueue failed (non-fatal)");
-        }
-    }
+        serde_json::to_string(&body).unwrap_or_default()
+    });
+    #[cfg(not(feature = "hubrise"))]
+    let hubrise_echo = None;
 
-    Ok(CheckoutResult {
-        success: true,
+    let context = PendingContext::Sale {
+        order_id,
+        training: label == EventLabel::T,
+        payments,
+        cash: settlement.has_cash(),
+        delivery: StoredDelivery::of(&resolved),
         ticket,
-        error: None,
-        fdm_connected,
-        fiscal_event_id: Some(event_id),
-        delivery: Some(delivery_outcome),
-        kitchen_slip: Some(kitchen_slip),
-    })
+        // An online order's kitchen ticket is printed by its caller.
+        bar_slip: (!options.online).then(|| BarSlip {
+            operator_insz: order.user_insz.clone(),
+            table_number: order.table_number,
+        }),
+        webshop_order_id,
+        hubrise_echo,
+    };
+    let prepared = Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: vec![ArchiveSpec {
+            order_id: Some(order_id),
+            user_insz: order.user_insz.clone(),
+            request_json,
+            sent_entries: Some((order_id, i64::MAX)),
+        }],
+        order_id: Some(order_id),
+        user_insz: order.user_insz.clone(),
+        context: context.clone(),
+    };
+    match signing::sign(state, guard, config, prepared).await {
+        Ok(committed) => Ok(Ok((context, committed))),
+        // No FDM, no sale: the POS blocks (SCE 2.0). There is no
+        // offline mode, in any build.
+        Err(failure) if failure.not_connected => Ok(Err(CheckoutResult {
+            success: false,
+            ticket: None,
+            error: Some("FDM not connected - cannot complete transaction".into()),
+            fdm_connected: false,
+            fiscal_event_id: None,
+            delivery: None,
+            kitchen_slip: None,
+        })),
+        Err(failure) => Ok(Err(CheckoutResult {
+            success: false,
+            ticket: None,
+            error: Some(failure.error),
+            fdm_connected: true,
+            fiscal_event_id: None,
+            delivery: None,
+            kitchen_slip: None,
+        })),
+    }
 }
 
 /// The payment rows of a sale's ticket: the name the printer

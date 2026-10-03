@@ -223,6 +223,19 @@ pub fn get_order_entries(
     Ok(entries)
 }
 
+/// The entries fiscal event `event_id` transmitted.
+pub fn get_entries_sent_in(
+    conn: &Connection,
+    event_id: i64,
+) -> Result<Vec<OrderLine>, rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT id, order_id, menu_item_id, quantity, unit_price_cents, vat_code, name,
+                NULL, created_at, department_id, department_name
+         FROM order_entries WHERE sent_event_id = ?1 ORDER BY id",
+    )?;
+    stmt.query_map(params![event_id], map_order_line)?.collect()
+}
+
 /// Record that the order's entries up to `last_entry_id` were
 /// transmitted in fiscal event `event_id`.
 pub fn mark_order_entries_sent(

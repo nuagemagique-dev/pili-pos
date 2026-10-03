@@ -1,10 +1,13 @@
 use pos_fiscal::ticket::{ReceiptLanguage, invalid_disclaimer, ticket_type_label};
 use pos_fiscal::types::EventLabel;
 
+use serde::{Deserialize, Serialize};
+
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
 use crate::labels::{event_label_name, labels, payment_label, report_labels};
 
 /// Data needed to print an X or Z report on the thermal printer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportPrintData {
     /// "X" or "Z"
     pub report_type: String,
@@ -48,7 +51,7 @@ pub struct ReportPrintData {
 
 /// Report content required by art. 29 beyond the totals above (SPF
 /// example Z report of 2026-09-24).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ReportDetails {
     /// Establishment unit number (art. 29 c).
     pub restaurant_est_no: String,
@@ -76,12 +79,14 @@ pub struct ReportDetails {
     pub rounding_cents: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportEventTotal {
     pub label: String,
     pub count: i64,
     pub amount_cents: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportVatTotal {
     pub code: String,
     pub rate: f64,
@@ -89,6 +94,7 @@ pub struct ReportVatTotal {
     pub vat_cents: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportPaymentTotal {
     pub method: String,
     pub count: i64,
@@ -355,6 +361,7 @@ fn fmt_rate(rate: f64) -> String {
 // ── User report (M182 X / M183 Z / M184 combined Z) ────────────
 
 /// Data needed to print a user report on the thermal printer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserReportPrintData {
     /// "X" or "Z"
     pub report_type: String,
@@ -377,6 +384,7 @@ pub struct UserReportPrintData {
 }
 
 /// Per-operator block of the user report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserReportUser {
     pub insz: String,
     pub first_datetime: String,

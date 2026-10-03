@@ -41,6 +41,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
 // Refusals detected by the POS itself, not codes of the FDM (so not
 // part of the §V table).
 export const POS_CHECK_MESSAGES: Record<string, string> = {
+  // A request was sent and its answer lost or inconsistent: the till
+  // sends it again, unchanged, before recording anything else
+  // (commands/signing.rs). First, as its cause may name another code.
+  FDM_ANSWER_PENDING:
+    "La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez.",
   // The FDM answered, but not to the request sent: nothing was
   // recorded (pos_fiscal::response_check).
   FDM_RESPONSE_MISMATCH:
@@ -81,6 +86,7 @@ export function translateFdmError(raw: string | null): string | null {
 // Chinese line shown under the French §V message when the interface
 // is in Chinese. The French text stays: it is the certified wording.
 const MESSAGES_ZH: Record<string, string> = {
+  FDM_ANSWER_PENDING: "收银机正在等待黑匣子对上一操作的回应。请检查连接后重试。",
   FDM_RESPONSE_MISMATCH: "黑匣子回应不一致，销售未登记。请联系技术人员。",
   FDM_NOT_INITIALIZED: "黑匣子尚未初始化。",
   FDM_CERTIFICATE_REFUSED: "与黑匣子的安全连接被拒绝（证书）。请联系技术人员。",

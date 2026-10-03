@@ -103,6 +103,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
     if order.status != OrderStatus::Open {
         return Err(errors::ORDER_NOT_OPEN.into());
     }
+    unchanged_while_pending(&db, input.order_id)?;
     let product = pos_db::queries::menu::resolve_catalogue_line(
         &db,
         input.menu_item_id,
@@ -153,6 +154,7 @@ pub fn remove_order_line(state: State<'_, AppState>, line_id: i64) -> Result<(),
 pub fn do_remove_order_line(state: &AppState, line_id: i64) -> Result<(), String> {
     access::operator(state, Access::Staff)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    unchanged_while_pending(&db, order_of_line(&db, line_id)?)?;
     pos_db::queries::orders::remove_order_line(&db, line_id).map_err(line_error)
 }
 
@@ -178,7 +180,26 @@ pub fn do_update_order_line_quantity(
         return Err(errors::QUANTITY_POSITIVE.into());
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    unchanged_while_pending(&db, order_of_line(&db, line_id)?)?;
     pos_db::queries::orders::update_order_line_quantity(&db, line_id, quantity).map_err(line_error)
+}
+
+/// An order whose event waits for the FDM's answer keeps what was sent
+/// (`commands::signing`).
+fn unchanged_while_pending(db: &rusqlite::Connection, order_id: i64) -> Result<(), String> {
+    if pos_db::queries::pending_signs::order_has_open(db, order_id).map_err(errors::internal)? {
+        return Err(errors::ORDER_SIGN_PENDING.into());
+    }
+    Ok(())
+}
+
+fn order_of_line(db: &rusqlite::Connection, line_id: i64) -> Result<i64, String> {
+    db.query_row(
+        "SELECT order_id FROM order_lines WHERE id = ?1",
+        [line_id],
+        |r| r.get(0),
+    )
+    .map_err(line_error)
 }
 
 fn line_error(e: rusqlite::Error) -> String {

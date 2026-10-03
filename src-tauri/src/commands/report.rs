@@ -8,19 +8,21 @@ use serde::Serialize;
 use tauri::State;
 
 use pos_db::queries::booking::BookingPeriod;
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
+use pos_fiscal::archive;
 use pos_fiscal::event::{
     TurnoverReportData, UserReportData, build_report_turnover_x, build_report_turnover_z,
     build_report_user_x, build_report_user_z,
 };
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::inputs::*;
 use pos_fiscal::report_totals::{self, ReportEvent};
 use pos_fiscal::types::*;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
+use crate::commands::signing::{
+    self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared, SignGuard,
+};
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -46,14 +48,21 @@ pub async fn do_generate_x_report(
     employee_insz: String,
 ) -> Result<ReportResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
+    let op = Op::new(Kind::ReportX, &employee_insz);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // Answered late: its follow-up printed it.
+        Ok(Begin::AlreadyDone(_)) => return Ok(ReportResult::done("X", None)),
+        Err(e) => return Ok(ReportResult::failed("X", None, e)),
+    };
+    let label = EventLabel::R;
     let (config, period, turnover_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let period = super::booking_period(&db, &config)?;
+        let period = super::booking_period(&db, &guard, &config)?;
         let events = period_events(&db, &period.id)?;
         let data = turnover_data(&config, &events);
-        let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
+        let tn = signing::peek(&db, &guard, label.in_mode(config.training_mode))?;
         let pd = build_print_data(
             &config,
             &period,
@@ -74,47 +83,80 @@ pub async fn do_generate_x_report(
         &as_booking(&period),
         turnover_data,
     );
-    let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let sign_result = match fdm
-        .sign_report_turnover_x(report, config.training_mode)
-        .await
-    {
-        Ok(result) => result,
-        Err(e) => {
-            return Ok(ReportResult {
-                success: false,
-                report_type: "X".to_string(),
-                report_no: None,
-                error: Some(format!("FDM error: {e}")),
-            });
-        }
+    let request = SignRequest::new(SignMutation::ReportTurnoverX, &report, config.training_mode)
+        .map_err(errors::internal)?;
+    let context = PendingContext::ReportX {
+        print: Box::new(print_data),
     };
-
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label: EventLabel::R.in_mode(config.training_mode),
-            ticket_number,
-            order_id: None,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
-            sent_entries: None,
-        },
-    )?;
+    let prepared = report_prepared(
+        op,
+        request,
+        label.in_mode(config.training_mode),
+        ticket_number,
+        &employee_insz,
+        vec![serde_json::to_string(&report).map_err(|e| e.to_string())?],
+        context.clone(),
+    );
+    let committed = match signing::sign(state, &guard, &config, prepared).await {
+        Ok(committed) => committed,
+        Err(failure) => return Ok(ReportResult::failed("X", None, failure.error)),
+    };
+    drop(guard);
 
     // Auto-print report on thermal printer
-    print_report(&config, print_data, Some(&sign_result)).await;
+    signing::follow_up(state, &config, &context, &committed, false).await;
+    Ok(ReportResult::done("X", None))
+}
 
-    Ok(ReportResult {
-        success: true,
-        report_type: "X".to_string(),
-        report_no: None,
-        error: None,
-    })
+impl ReportResult {
+    fn done(report_type: &str, report_no: Option<i64>) -> Self {
+        Self {
+            success: true,
+            report_type: report_type.to_string(),
+            report_no,
+            error: None,
+        }
+    }
+
+    fn failed(report_type: &str, report_no: Option<i64>, error: String) -> Self {
+        Self {
+            success: false,
+            report_type: report_type.to_string(),
+            report_no,
+            error: Some(error),
+        }
+    }
+}
+
+/// A report's request: one R event per input, numbered from
+/// `ticket_number`.
+fn report_prepared(
+    op: Op,
+    request: SignRequest,
+    label: EventLabel,
+    ticket_number: i64,
+    employee_insz: &str,
+    request_jsons: Vec<String>,
+    context: PendingContext,
+) -> Prepared {
+    Prepared {
+        op,
+        request,
+        label,
+        first_ticket_no: ticket_number,
+        events: request_jsons
+            .into_iter()
+            .map(|request_json| ArchiveSpec {
+                order_id: None,
+                user_insz: employee_insz.to_string(),
+                request_json,
+                sent_entries: None,
+            })
+            .collect(),
+        order_id: None,
+        user_insz: employee_insz.to_string(),
+        context,
+    }
 }
 
 /// Returns true if no Z-report exists for today AND the local time
@@ -170,7 +212,27 @@ pub async fn do_generate_z_report(
     employee_insz: String,
 ) -> Result<ReportResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
-    generate_z_report_as(state, employee_insz).await
+    let op = Op::new(Kind::ReportZ, "z");
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // A Z sent earlier was signed: the day is closed and printed.
+        Ok(Begin::AlreadyDone(recovered)) => {
+            let report_no = match &recovered.context {
+                PendingContext::ReportZ {
+                    report_no,
+                    training,
+                    ..
+                } => (!training).then_some(*report_no),
+                _ => None,
+            };
+            return Ok(ReportResult::done("Z", report_no));
+        }
+        Err(e) => return Ok(ReportResult::failed("Z", None, e)),
+    };
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let signed = z_report_locked(state, &guard, &config, employee_insz, op).await?;
+    drop(guard);
+    Ok(after_z(state, &config, signed).await)
 }
 
 /// Close a business day left without its Z (producers FAQ Q501c): when
@@ -180,11 +242,20 @@ pub async fn do_generate_z_report(
 /// minute; new events wait for it (`commands::booking`). Nothing to do
 /// in training mode, whose Z closes no period.
 ///
+/// A sign request still awaiting its answer is sent again first (also
+/// at start-up). While another event is being signed, the tick is
+/// skipped: the next one checks again, inside the lock, so a Z made by
+/// hand in between is never followed by an empty one.
+///
 /// A day without any event has no open period, so it gets no Z: only a
 /// day with recorded activity is closed.
 pub async fn close_overdue_day(state: &AppState) -> Result<bool, String> {
+    let Some(guard) = signing::try_acquire(state) else {
+        return Ok(false);
+    };
+    signing::resolve_open(state, &guard, None).await?;
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let overdue = {
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let open = pos_db::queries::booking::open_period(&db).map_err(|e| e.to_string())?;
         !config.training_mode
@@ -199,7 +270,16 @@ pub async fn close_overdue_day(state: &AppState) -> Result<bool, String> {
     if !overdue {
         return Ok(false);
     }
-    let result = generate_z_report_as(state, pos_core::user::SYSTEM_INSZ.to_string()).await?;
+    let signed = z_report_locked(
+        state,
+        &guard,
+        &config,
+        pos_core::user::SYSTEM_INSZ.to_string(),
+        Op::new(Kind::ReportZ, "z"),
+    )
+    .await?;
+    drop(guard);
+    let result = after_z(state, &config, signed).await;
     if result.success {
         tracing::info!(report_no = ?result.report_no, "automatic Z of a day left open");
         Ok(true)
@@ -208,13 +288,36 @@ pub async fn close_overdue_day(state: &AppState) -> Result<bool, String> {
     }
 }
 
-/// The Z in the name of `employee_insz`, who is allowed to make it.
-async fn generate_z_report_as(
+type ZSigned = Result<(PendingContext, signing::Committed, Option<i64>), ReportResult>;
+
+/// The Z's backup and printouts, once signed.
+async fn after_z(
     state: &AppState,
+    config: &pos_core::config::PosConfig,
+    signed: ZSigned,
+) -> ReportResult {
+    match signed {
+        Ok((context, committed, report_no)) => {
+            signing::follow_up(state, config, &context, &committed, false).await;
+            ReportResult::done("Z", report_no)
+        }
+        Err(refused) => refused,
+    }
+}
+
+/// The end-of-day Z (M184) in the name of `employee_insz`, who is
+/// allowed to make it: the financial Z and the user Z, built together,
+/// signed in ONE GraphQL operation and archived atomically with the
+/// period's closing (both R events or none).
+async fn z_report_locked(
+    state: &AppState,
+    guard: &SignGuard<'_>,
+    config: &pos_core::config::PosConfig,
     employee_insz: String,
-) -> Result<ReportResult, String> {
+    op: Op,
+) -> Result<ZSigned, String> {
+    let label = EventLabel::R.in_mode(config.training_mode);
     let (
-        config,
         period,
         turnover_data,
         user_data,
@@ -225,21 +328,17 @@ async fn generate_z_report_as(
         user_print_data,
     ) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
-        let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let period = super::booking_period(&db, &config)?;
+        let period = super::booking_period(&db, guard, config)?;
         let events = period_events(&db, &period.id)?;
-        let data = turnover_data(&config, &events);
-        let users = user_data(&config, &events);
+        let data = turnover_data(config, &events);
+        let users = user_data(config, &events);
         // Two sequential ticket numbers - the M184 fixture shows the
         // user Z carrying posFiscalTicketNo = turnover Z + 1.
-        // Peeked, not consumed: both numbers are committed with the
-        // archive once the FDM has signed (see commit_signed_event).
-        let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
+        let tn = signing::peek(&db, guard, label)?;
         let un = tn + 1;
         let rn = report_queries::next_z_report_number(&db).map_err(|e| e.to_string())?;
         let pd = build_print_data(
-            &config,
+            config,
             &period,
             &events,
             &data,
@@ -249,7 +348,7 @@ async fn generate_z_report_as(
             &employee_insz,
         );
         let upd = build_user_print_data(
-            &config,
+            config,
             &period,
             &events,
             &users,
@@ -258,11 +357,11 @@ async fn generate_z_report_as(
             un,
             &employee_insz,
         );
-        (config, period, data, users, tn, un, rn, pd, upd)
+        (period, data, users, tn, un, rn, pd, upd)
     };
 
     let turnover_report = build_report_turnover_z(
-        &config,
+        config,
         turnover_ticket,
         &employee_insz,
         &as_booking(&period),
@@ -271,7 +370,7 @@ async fn generate_z_report_as(
         turnover_data,
     );
     let user_report = build_report_user_z(
-        &config,
+        config,
         user_ticket,
         &employee_insz,
         &as_booking(&period),
@@ -279,110 +378,37 @@ async fn generate_z_report_as(
         &period.booking_date,
         user_data,
     );
-    let turnover_json = serde_json::to_string(&turnover_report).map_err(|e| e.to_string())?;
-    let user_json = serde_json::to_string(&user_report).map_err(|e| e.to_string())?;
-
     // M184 - one GraphQL operation signs both reports.
-    let fdm = FdmClient::from_config(&config);
-    let (turnover_result, user_result) = match fdm
-        .sign_report_turnover_z_user_z(turnover_report, user_report, config.training_mode)
-        .await
-    {
-        Ok(signed) => signed,
-        Err(e) => {
-            return Ok(ReportResult {
-                success: false,
-                report_type: "Z".to_string(),
-                report_no: Some(report_no),
-                error: Some(format!("FDM error: {e}")),
-            });
-        }
+    let request =
+        SignRequest::turnover_z_user_z(&turnover_report, &user_report, config.training_mode)
+            .map_err(errors::internal)?;
+    let context = PendingContext::ReportZ {
+        period_id: period.id.clone(),
+        booking_date: period.booking_date.clone(),
+        report_no,
+        training: config.training_mode,
+        print: Box::new(print_data),
+        user_print: Box::new(user_print_data),
     };
-    let label = EventLabel::R.in_mode(config.training_mode);
-
-    {
-        let db = state.db.lock().map_err(|e| e.to_string())?;
-        // Both R events + the z_reports row commit atomically: a crash
-        // between the two archives can never leave a half-recorded Z.
-        let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
-        let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
-        if committed != turnover_ticket {
-            return Err(errors::concurrent(format_args!(
-                "Z turnover {label:?}: peeked {turnover_ticket}, committed {committed}"
-            )));
-        }
-        let fiscal_event_id = archive::archive_event(
-            &tx,
-            ArchiveParams {
-                event_type: label,
-                sequence_number: turnover_ticket,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &turnover_json,
-                sign_result: Some(&turnover_result),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-        let committed = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-        // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
-        if committed != user_ticket {
-            return Err(errors::concurrent(format_args!(
-                "Z user {label:?}: peeked {user_ticket}, committed {committed}"
-            )));
-        }
-        archive::archive_event(
-            &tx,
-            ArchiveParams {
-                event_type: label,
-                sequence_number: user_ticket,
-                order_id: None,
-                pos_id: &config.pos_id,
-                terminal_id: &config.terminal_id,
-                user_insz: &employee_insz,
-                request_json: &user_json,
-                sign_result: Some(&user_result),
-            },
-        )
-        .map_err(|e| e.to_string())?;
-        // A training Z is an exercise: it neither takes a Z number nor
-        // closes the real booking period.
-        if !config.training_mode {
-            report_queries::save_z_report(
-                &tx,
-                &period.booking_date,
-                report_no,
-                &turnover_json,
-                Some(fiscal_event_id),
-            )
-            .map_err(|e| e.to_string())?;
-            pos_db::queries::booking::close_period(&tx, &period.id, fiscal_event_id)
-                .map_err(|e| e.to_string())?;
-        }
-        tx.commit().map_err(|e| e.to_string())?;
-
-        // Auto-backup after Z-report - best-effort, failure never blocks
-        // the Z itself. Uses SQLite's built-in backup API which is safe
-        // for WAL-mode databases.
-        if let Err(e) = backup_database_impl(&db, &config) {
-            tracing::warn!(%e, "post-Z backup failed (non-fatal)");
-        }
-    }
-
-    // Auto-print: financial Z first, then the user Z as a second
-    // sequential ticket.
-    print_report(&config, print_data, Some(&turnover_result)).await;
-    print_user_report(&config, user_print_data, Some(&user_result)).await;
-
-    Ok(ReportResult {
-        success: true,
-        report_type: "Z".to_string(),
-        // A training Z takes no Z number: the next real Z carries the
-        // same `reportNo` (art. 27 continuity is that of real Zs).
-        report_no: (!config.training_mode).then_some(report_no),
-        error: None,
+    let prepared = report_prepared(
+        op,
+        request,
+        label,
+        turnover_ticket,
+        &employee_insz,
+        vec![
+            serde_json::to_string(&turnover_report).map_err(|e| e.to_string())?,
+            serde_json::to_string(&user_report).map_err(|e| e.to_string())?,
+        ],
+        context.clone(),
+    );
+    debug_assert_eq!(user_ticket, turnover_ticket + 1);
+    // A training Z takes no Z number: the next real Z carries the
+    // same `reportNo` (art. 27 continuity is that of real Zs).
+    let shown_no = (!config.training_mode).then_some(report_no);
+    Ok(match signing::sign(state, guard, config, prepared).await {
+        Ok(committed) => Ok((context, committed, shown_no)),
+        Err(failure) => Err(ReportResult::failed("Z", Some(report_no), failure.error)),
     })
 }
 
@@ -401,14 +427,20 @@ pub async fn do_generate_user_x_report(
     employee_insz: String,
 ) -> Result<ReportResult, String> {
     access::operator_named(state, &employee_insz, Access::Admin)?;
+    let op = Op::new(Kind::ReportUserX, &employee_insz);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        // Answered late: its follow-up printed it.
+        Ok(Begin::AlreadyDone(_)) => return Ok(ReportResult::done("X-USER", None)),
+        Err(e) => return Ok(ReportResult::failed("X-USER", None, e)),
+    };
     let (config, period, user_data, ticket_number, print_data) = {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let period = super::booking_period(&db, &config)?;
+        let period = super::booking_period(&db, &guard, &config)?;
         let events = period_events(&db, &period.id)?;
         let users = user_data(&config, &events);
-        let tn = FiscalCounter::peek_next(&db, EventLabel::R.in_mode(config.training_mode))
-            .map_err(|e| e.to_string())?;
+        let tn = signing::peek(&db, &guard, EventLabel::R.in_mode(config.training_mode))?;
         let pd = build_user_print_data(
             &config,
             &period,
@@ -429,43 +461,28 @@ pub async fn do_generate_user_x_report(
         &as_booking(&period),
         user_data,
     );
-    let request_json = serde_json::to_string(&report).map_err(|e| e.to_string())?;
-
-    let fdm = FdmClient::from_config(&config);
-    let sign_result = match fdm.sign_report_user_x(report, config.training_mode).await {
-        Ok(result) => result,
-        Err(e) => {
-            return Ok(ReportResult {
-                success: false,
-                report_type: "X-USER".to_string(),
-                report_no: None,
-                error: Some(format!("FDM error: {e}")),
-            });
-        }
+    let request = SignRequest::new(SignMutation::ReportUserX, &report, config.training_mode)
+        .map_err(errors::internal)?;
+    let context = PendingContext::ReportUserX {
+        print: Box::new(print_data),
     };
+    let prepared = report_prepared(
+        op,
+        request,
+        EventLabel::R.in_mode(config.training_mode),
+        ticket_number,
+        &employee_insz,
+        vec![serde_json::to_string(&report).map_err(|e| e.to_string())?],
+        context.clone(),
+    );
+    let committed = match signing::sign(state, &guard, &config, prepared).await {
+        Ok(committed) => committed,
+        Err(failure) => return Ok(ReportResult::failed("X-USER", None, failure.error)),
+    };
+    drop(guard);
 
-    super::commit_signed_event(
-        state,
-        &config,
-        super::SignedEvent {
-            label: EventLabel::R.in_mode(config.training_mode),
-            ticket_number,
-            order_id: None,
-            user_insz: &employee_insz,
-            request_json: &request_json,
-            sign_result: &sign_result,
-            sent_entries: None,
-        },
-    )?;
-
-    print_user_report(&config, print_data, Some(&sign_result)).await;
-
-    Ok(ReportResult {
-        success: true,
-        report_type: "X-USER".to_string(),
-        report_no: None,
-        error: None,
-    })
+    signing::follow_up(state, &config, &context, &committed, false).await;
+    Ok(ReportResult::done("X-USER", None))
 }
 
 /// Create a timestamped backup of the live database.
@@ -481,7 +498,7 @@ pub fn do_backup_database(state: &AppState) -> Result<String, String> {
     backup_database_impl(&db, &config)
 }
 
-fn backup_database_impl(
+pub(crate) fn backup_database_impl(
     conn: &rusqlite::Connection,
     config: &pos_core::config::PosConfig,
 ) -> Result<String, String> {
@@ -700,7 +717,7 @@ fn enum_name<T: Serialize>(value: &T) -> String {
 }
 
 /// Send the formatted report to the thermal printer (best-effort).
-async fn print_report(
+pub(crate) async fn print_report(
     config: &pos_core::config::PosConfig,
     mut data: ReportPrintData,
     sign_result: Option<&pos_fiscal::response::SignResult>,
@@ -876,7 +893,7 @@ fn build_user_print_data(
 }
 
 /// Send the formatted user report to the thermal printer (best-effort).
-async fn print_user_report(
+pub(crate) async fn print_user_report(
     config: &pos_core::config::PosConfig,
     mut data: UserReportPrintData,
     sign_result: Option<&pos_fiscal::response::SignResult>,

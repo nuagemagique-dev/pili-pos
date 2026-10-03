@@ -1,0 +1,950 @@
+//! Every fiscal event is signed under one lock, from the choice of its
+//! ticket number to its archive, so two events never share a number and
+//! a Z never misses an event signed while it was made.
+//!
+//! A sign request is stored, byte for byte, before it is sent
+//! (`pending_signs`, migration 10). When the FDM's answer is lost
+//! (timeout, cut connection, unreadable answer) the request stays open:
+//! before anything else is signed it is sent again unchanged, and the
+//! FDM, which may have signed it, returns its first answer (POS
+//! description v2.2, duplicate requests). The event is then archived
+//! with the effects stored with it, so nothing signed is ever lost and
+//! no number is used twice. Until the answer comes, nothing is signed.
+
+use std::time::Duration;
+
+use pos_core::config::PosConfig;
+use pos_db::queries::pending_signs::{self, NewPendingSign, PendingSign, Unsigned};
+use pos_fiscal::archive::{self, ArchiveParams};
+use pos_fiscal::counter::FiscalCounter;
+use pos_fiscal::fdm_client::{FdmClient, FdmError, SignOutcome, SignRequest};
+use pos_fiscal::response::SignResult;
+use pos_fiscal::ticket::{FiscalTicket, TicketDraft};
+use pos_fiscal::types::{EventLabel, TicketMedium};
+use pos_print::report::{ReportPrintData, UserReportPrintData};
+use serde::{Deserialize, Serialize};
+
+use crate::commands::bar_slip::{self, SlipOutcome};
+use crate::commands::delivery::{self, DeliveryOutcome, ResolvedDelivery};
+use crate::commands::errors;
+use crate::state::AppState;
+
+/// How long a command waits for another event to be signed.
+pub const LOCK_WAIT: Duration = Duration::from_secs(30);
+
+/// The one lock every signature holds.
+#[derive(Default)]
+pub struct SigningLock(tokio::sync::Mutex<()>);
+
+/// Proof the signing lock is held: needed to number or sign an event.
+pub struct SignGuard<'a>(#[allow(dead_code)] tokio::sync::MutexGuard<'a, ()>);
+
+/// Wait for the signing lock, at most [`LOCK_WAIT`].
+pub async fn acquire(state: &AppState) -> Result<SignGuard<'_>, String> {
+    tokio::time::timeout(LOCK_WAIT, state.signing.0.lock())
+        .await
+        .map(SignGuard)
+        .map_err(|_| errors::SIGNING_BUSY.to_string())
+}
+
+/// The signing lock if it is free now.
+pub fn try_acquire(state: &AppState) -> Option<SignGuard<'_>> {
+    state.signing.0.try_lock().ok().map(SignGuard)
+}
+
+/// The ticket number the next event of `label` takes.
+pub(crate) fn peek(
+    db: &rusqlite::Connection,
+    _guard: &SignGuard<'_>,
+    label: EventLabel,
+) -> Result<i64, String> {
+    FiscalCounter::peek_next(db, label).map_err(errors::internal)
+}
+
+// ── Operations ─────────────────────────────────────────────────
+
+/// What a command signs, to recognise its retry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Sale,
+    Refund,
+    TableOrder,
+    PreBill,
+    WebshopOrder,
+    ReportX,
+    ReportUserX,
+    ReportZ,
+    Copy,
+    WorkIn,
+    WorkOut,
+    Money,
+    Drawer,
+    Invoice,
+}
+
+impl Kind {
+    const ALL: [Kind; 14] = [
+        Kind::Sale,
+        Kind::Refund,
+        Kind::TableOrder,
+        Kind::PreBill,
+        Kind::WebshopOrder,
+        Kind::ReportX,
+        Kind::ReportUserX,
+        Kind::ReportZ,
+        Kind::Copy,
+        Kind::WorkIn,
+        Kind::WorkOut,
+        Kind::Money,
+        Kind::Drawer,
+        Kind::Invoice,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Kind::Sale => "sale",
+            Kind::Refund => "refund",
+            Kind::TableOrder => "table_order",
+            Kind::PreBill => "pre_bill",
+            Kind::WebshopOrder => "webshop_order",
+            Kind::ReportX => "report_x",
+            Kind::ReportUserX => "report_user_x",
+            Kind::ReportZ => "report_z",
+            Kind::Copy => "copy",
+            Kind::WorkIn => "work_in",
+            Kind::WorkOut => "work_out",
+            Kind::Money => "money",
+            Kind::Drawer => "drawer",
+            Kind::Invoice => "invoice",
+        }
+    }
+
+    fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.name() == name)
+    }
+}
+
+/// One operation: its kind and what it is about (an order, the sale a
+/// refund reverses, the arguments of a cash movement...).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Op {
+    pub kind: Kind,
+    pub subject: String,
+}
+
+impl Op {
+    pub fn new(kind: Kind, subject: impl ToString) -> Self {
+        Self {
+            kind,
+            subject: subject.to_string(),
+        }
+    }
+}
+
+// ── What is stored with a request ─────────────────────────────
+
+/// One event to archive once signed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ArchiveSpec {
+    pub order_id: Option<i64>,
+    pub user_insz: String,
+    /// The request as archived (`fiscal_events.event_data_json`).
+    pub request_json: String,
+    /// `(order_id, last_entry_id)`: the order entries it transmits.
+    pub sent_entries: Option<(i64, i64)>,
+}
+
+/// The ticket's medium and address.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct StoredDelivery {
+    pub medium: TicketMedium,
+    pub email: Option<String>,
+}
+
+impl StoredDelivery {
+    pub fn of(resolved: &ResolvedDelivery) -> Self {
+        Self {
+            medium: resolved.medium,
+            email: resolved.email.clone(),
+        }
+    }
+
+    pub fn resolved(&self) -> ResolvedDelivery {
+        ResolvedDelivery {
+            medium: self.medium,
+            email: self.email.clone(),
+        }
+    }
+}
+
+/// A payment row of a sale (`payments` table).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct StoredPayment {
+    pub method: String,
+    pub amount_cents: i64,
+}
+
+/// The bar / kitchen slip of the entries an event registers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct BarSlip {
+    pub operator_insz: String,
+    pub table_number: Option<i32>,
+}
+
+/// The copy's ticket: the original rebuilt from its archive, or, when
+/// it cannot be read, the copy's own data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) enum CopyTicket {
+    Original(Box<FiscalTicket>),
+    Draft(Box<TicketDraft>),
+}
+
+/// What an event does besides its archive, stored with its request so
+/// the same happens whenever the answer comes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum PendingContext {
+    Sale {
+        order_id: i64,
+        /// No payment row (training).
+        training: bool,
+        payments: Vec<StoredPayment>,
+        cash: bool,
+        delivery: StoredDelivery,
+        ticket: TicketDraft,
+        bar_slip: Option<BarSlip>,
+        webshop_order_id: Option<i64>,
+        /// The till sale echoed to HubRise.
+        hubrise_echo: Option<String>,
+    },
+    Refund {
+        refund_order_id: i64,
+        training: bool,
+        method: String,
+        total_cents: i64,
+        open_drawer: bool,
+        delivery: StoredDelivery,
+        ticket: TicketDraft,
+        webshop_order_id: Option<i64>,
+    },
+    TableOrder {
+        bar_slip: BarSlip,
+    },
+    PreBill {
+        order_id: i64,
+        ticket: TicketDraft,
+    },
+    WebshopOrder {
+        order_id: i64,
+    },
+    ReportX {
+        print: Box<ReportPrintData>,
+    },
+    ReportUserX {
+        print: Box<UserReportPrintData>,
+    },
+    ReportZ {
+        period_id: String,
+        booking_date: String,
+        report_no: i64,
+        training: bool,
+        print: Box<ReportPrintData>,
+        user_print: Box<UserReportPrintData>,
+    },
+    Copy {
+        delivery: StoredDelivery,
+        ticket: Option<CopyTicket>,
+    },
+    Work {
+        insz: String,
+        is_in: bool,
+    },
+    Money,
+    Drawer,
+    Invoice {
+        invoice_no: String,
+    },
+}
+
+impl PendingContext {
+    /// The context once resolved: a customer's address is not kept.
+    fn resolved(&self) -> Self {
+        let mut context = self.clone();
+        match &mut context {
+            PendingContext::Sale { delivery, .. }
+            | PendingContext::Refund { delivery, .. }
+            | PendingContext::Copy { delivery, .. } => delivery.email = None,
+            _ => {}
+        }
+        context
+    }
+}
+
+/// A signed and archived event.
+pub(crate) struct Committed {
+    pub event_ids: Vec<i64>,
+    pub results: Vec<SignResult>,
+    pub ticket: Option<FiscalTicket>,
+    pub delivery_id: Option<i64>,
+}
+
+impl Committed {
+    pub fn event_id(&self) -> i64 {
+        self.event_ids[0]
+    }
+
+    pub fn result(&self) -> &SignResult {
+        &self.results[0]
+    }
+}
+
+/// What a command prepared to sign.
+pub(crate) struct Prepared {
+    pub op: Op,
+    pub request: SignRequest,
+    pub label: EventLabel,
+    pub first_ticket_no: i64,
+    pub events: Vec<ArchiveSpec>,
+    pub order_id: Option<i64>,
+    pub user_insz: String,
+    pub context: PendingContext,
+}
+
+/// A signature that did not happen.
+#[derive(Debug, Clone)]
+pub(crate) struct SignFailure {
+    pub error: String,
+    /// The FDM could not be reached at all.
+    pub not_connected: bool,
+}
+
+impl From<String> for SignFailure {
+    fn from(error: String) -> Self {
+        Self {
+            error,
+            not_connected: false,
+        }
+    }
+}
+
+fn answer_pending(label: &str, ticket_no: i64, cause: &dyn std::fmt::Display) -> String {
+    format!(
+        "FDM error: {}",
+        errors::coded(
+            errors::FDM_ANSWER_PENDING,
+            &[("label", &label), ("ticket", &ticket_no), ("cause", cause)]
+        )
+    )
+}
+
+// ── Signing ────────────────────────────────────────────────────
+
+/// Store `prepared`'s request, send it, and archive the event with its
+/// effects. A request the FDM may have signed stays open, to be sent
+/// again before anything else.
+pub(crate) async fn sign(
+    state: &AppState,
+    guard: &SignGuard<'_>,
+    config: &PosConfig,
+    prepared: Prepared,
+) -> Result<Committed, SignFailure> {
+    let label = format!("{:?}", prepared.label);
+    let archive_json = serde_json::to_string(&prepared.events).map_err(errors::internal)?;
+    let context_json = serde_json::to_string(&prepared.context).map_err(errors::internal)?;
+    let pending_id = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        pending_signs::insert_open(
+            &db,
+            &NewPendingSign {
+                event_label: &label,
+                first_ticket_no: prepared.first_ticket_no,
+                ticket_count: prepared.events.len() as i64,
+                mutation: prepared.request.mutation().name(),
+                is_training: prepared.request.is_training(),
+                request_body: prepared.request.body(),
+                archive_json: &archive_json,
+                kind: prepared.op.kind.name(),
+                subject: &prepared.op.subject,
+                order_id: prepared.order_id,
+                context_json: &context_json,
+                user_insz: &prepared.user_insz,
+            },
+        )
+        .map_err(errors::internal)?
+    };
+
+    let sent = FdmClient::from_config(config).send(&prepared.request).await;
+    match sent {
+        Ok(results) => commit(
+            state,
+            guard,
+            config,
+            pending_id,
+            prepared.label,
+            prepared.first_ticket_no,
+            &prepared.events,
+            &prepared.context,
+            results,
+        )
+        .map_err(SignFailure::from),
+        Err(e) => Err(failed(
+            state,
+            pending_id,
+            &label,
+            prepared.first_ticket_no,
+            &e,
+        )),
+    }
+}
+
+/// Record a failed send and say what the operator sees.
+fn failed(
+    state: &AppState,
+    pending_id: i64,
+    label: &str,
+    ticket_no: i64,
+    e: &FdmError,
+) -> SignFailure {
+    let detail = e.to_string();
+    let recorded = state.db.lock().map_err(errors::internal).and_then(|db| {
+        match e.outcome() {
+            SignOutcome::NotSent => {
+                pending_signs::mark_unsigned(&db, pending_id, Unsigned::NotSent, &detail)
+            }
+            SignOutcome::Refused => {
+                pending_signs::mark_unsigned(&db, pending_id, Unsigned::Refused, &detail)
+            }
+            SignOutcome::Unknown => pending_signs::record_attempt(&db, pending_id, Some(&detail)),
+        }
+        .map_err(errors::internal)
+    });
+    if let Err(e) = recorded {
+        return e.into();
+    }
+    match e.outcome() {
+        SignOutcome::Unknown => {
+            tracing::error!(%detail, label, ticket_no, "FDM answer lost: request kept to send again");
+            answer_pending(label, ticket_no, &detail).into()
+        }
+        _ => SignFailure {
+            error: format!("FDM error: {e}"),
+            not_connected: matches!(e, FdmError::NotConnected),
+        },
+    }
+}
+
+/// Advance the counter, archive each signed event, apply its effects
+/// and close the request, in one transaction.
+#[allow(clippy::too_many_arguments)]
+fn commit(
+    state: &AppState,
+    _guard: &SignGuard<'_>,
+    config: &PosConfig,
+    pending_id: i64,
+    label: EventLabel,
+    first_ticket_no: i64,
+    events: &[ArchiveSpec],
+    context: &PendingContext,
+    results: Vec<SignResult>,
+) -> Result<Committed, String> {
+    if results.len() != events.len() {
+        return Err(errors::internal(format!(
+            "{} result(s) for {} event(s)",
+            results.len(),
+            events.len()
+        )));
+    }
+    let db = state.db.lock().map_err(errors::internal)?;
+    let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    let mut event_ids = Vec::with_capacity(events.len());
+    for (i, (spec, result)) in events.iter().zip(&results).enumerate() {
+        let ticket_no = first_ticket_no + i as i64;
+        let committed = FiscalCounter::next(&tx, label).map_err(errors::internal)?;
+        if committed != ticket_no {
+            return Err(errors::concurrent(format_args!(
+                "{label:?}: numbered {ticket_no}, counter at {committed}"
+            )));
+        }
+        let id = archive::archive_event(
+            &tx,
+            ArchiveParams {
+                event_type: label,
+                sequence_number: ticket_no,
+                order_id: spec.order_id,
+                pos_id: &config.pos_id,
+                terminal_id: &config.terminal_id,
+                user_insz: &spec.user_insz,
+                request_json: &spec.request_json,
+                sign_result: Some(result),
+            },
+        )
+        .map_err(archive_error)?;
+        if let Some((order_id, last_entry_id)) = spec.sent_entries {
+            pos_db::queries::orders::mark_order_entries_sent(&tx, order_id, last_entry_id, id)
+                .map_err(errors::internal)?;
+        }
+        event_ids.push(id);
+    }
+    let (ticket, delivery_id) = apply(&tx, events, context, &event_ids, &results)?;
+    let resolved = serde_json::to_string(&context.resolved()).map_err(errors::internal)?;
+    pending_signs::mark_signed(&tx, pending_id, event_ids[0], &resolved)
+        .map_err(errors::internal)?;
+    tx.commit().map_err(errors::internal)?;
+    Ok(Committed {
+        event_ids,
+        results,
+        ticket,
+        delivery_id,
+    })
+}
+
+fn archive_error(e: rusqlite::Error) -> String {
+    if e.to_string().contains("booking period is closed") {
+        errors::PERIOD_CLOSED.to_string()
+    } else {
+        errors::internal(e)
+    }
+}
+
+/// The effects of the event, in its archive transaction: the ticket
+/// built and its email queued, the order closed, the payments recorded.
+fn apply(
+    tx: &rusqlite::Connection,
+    events: &[ArchiveSpec],
+    context: &PendingContext,
+    event_ids: &[i64],
+    results: &[SignResult],
+) -> Result<(Option<FiscalTicket>, Option<i64>), String> {
+    let close_order = |order_id: i64| {
+        tx.execute(
+            "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
+            rusqlite::params![order_id],
+        )
+        .map_err(errors::internal)
+    };
+    let pay = |order_id: i64, method: &str, amount: i64| {
+        tx.execute(
+            "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
+            rusqlite::params![order_id, method, amount],
+        )
+        .map_err(errors::internal)
+    };
+    match context {
+        PendingContext::Sale {
+            order_id,
+            training,
+            payments,
+            delivery,
+            ticket,
+            hubrise_echo,
+            ..
+        } => {
+            close_order(*order_id)?;
+            // Training moves no real money: no payment row.
+            if !training {
+                for p in payments {
+                    pay(*order_id, &p.method, p.amount_cents)?;
+                }
+            }
+            let ticket = FiscalTicket::from_draft(ticket, &results[0]);
+            let delivery_id =
+                delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), Some(&ticket))?;
+            #[cfg(feature = "hubrise")]
+            if let Some(body) = hubrise_echo
+                && let Err(e) = pos_hubrise::outbox::enqueue(tx, *order_id, body)
+            {
+                // Non-fatal: the sale stands, it only misses the echo.
+                tracing::warn!(%e, "outbox enqueue failed (non-fatal)");
+            }
+            #[cfg(not(feature = "hubrise"))]
+            let _ = hubrise_echo;
+            Ok((Some(ticket), delivery_id))
+        }
+        PendingContext::Refund {
+            refund_order_id,
+            training,
+            method,
+            total_cents,
+            delivery,
+            ticket,
+            ..
+        } => {
+            // Closed even if it was voided while its answer was awaited.
+            close_order(*refund_order_id)?;
+            if !training {
+                pay(*refund_order_id, method, *total_cents)?;
+            }
+            let ticket = FiscalTicket::from_draft(ticket, &results[0]);
+            let delivery_id =
+                delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), Some(&ticket))?;
+            Ok((Some(ticket), delivery_id))
+        }
+        PendingContext::PreBill { order_id, .. } => {
+            pos_db::queries::orders::mark_pre_bill_printed(tx, *order_id)
+                .map_err(errors::internal)?;
+            Ok((None, None))
+        }
+        PendingContext::ReportZ {
+            period_id,
+            booking_date,
+            report_no,
+            training,
+            ..
+        } => {
+            // A training Z neither takes a Z number nor closes the period.
+            if !training {
+                pos_db::queries::reports::save_z_report(
+                    tx,
+                    booking_date,
+                    *report_no,
+                    &events[0].request_json,
+                    Some(event_ids[0]),
+                )
+                .map_err(errors::internal)?;
+                pos_db::queries::booking::close_period(tx, period_id, event_ids[0])
+                    .map_err(errors::internal)?;
+            }
+            Ok((None, None))
+        }
+        PendingContext::Copy { delivery, ticket } => {
+            let ticket = ticket.as_ref().map(|t| match t {
+                CopyTicket::Original(original) => (**original).clone().into_copy(&results[0]),
+                CopyTicket::Draft(draft) => FiscalTicket::from_draft(draft, &results[0]),
+            });
+            let delivery_id =
+                delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), ticket.as_ref())?;
+            Ok((ticket, delivery_id))
+        }
+        PendingContext::Work { insz, is_in } => {
+            // The screen lock keeps a shift open; only a signed
+            // clock-out ends it.
+            if *is_in {
+                pos_db::queries::shifts::open_shift(tx, insz)
+            } else {
+                pos_db::queries::shifts::close_shift(tx, insz)
+            }
+            .map_err(errors::internal)?;
+            Ok((None, None))
+        }
+        PendingContext::TableOrder { .. }
+        | PendingContext::WebshopOrder { .. }
+        | PendingContext::ReportX { .. }
+        | PendingContext::ReportUserX { .. }
+        | PendingContext::Money
+        | PendingContext::Drawer
+        | PendingContext::Invoice { .. } => Ok((None, None)),
+    }
+}
+
+// ── After the archive ──────────────────────────────────────────
+
+/// What the follow-up of an event did.
+#[derive(Default)]
+pub(crate) struct FollowUp {
+    pub delivery: Option<DeliveryOutcome>,
+    pub slip: Option<SlipOutcome>,
+}
+
+/// Print and send what an archived event gives: its ticket, its bar
+/// slip, its report. The drawer opens only for `with_drawer`: the
+/// operator is there to take or give the money.
+pub(crate) async fn follow_up(
+    state: &AppState,
+    config: &PosConfig,
+    context: &PendingContext,
+    committed: &Committed,
+    with_drawer: bool,
+) -> FollowUp {
+    let mut done = FollowUp::default();
+    let kick = |open: bool| async move {
+        if open && let Some(addr) = config.printer_address.as_deref() {
+            let _ = pos_print::transport::send_to_printer(
+                addr,
+                &pos_print::drawer::kick_drawer_bytes(),
+            )
+            .await;
+        }
+    };
+    match context {
+        PendingContext::Sale {
+            cash,
+            delivery,
+            bar_slip,
+            ..
+        } => {
+            done.delivery = Some(
+                delivery::deliver(
+                    state,
+                    config,
+                    committed.event_id(),
+                    &delivery.resolved(),
+                    committed.delivery_id,
+                    committed.ticket.as_ref(),
+                )
+                .await,
+            );
+            kick(with_drawer && *cash).await;
+            done.slip = Some(match bar_slip {
+                Some(slip) => print_slip_of(state, config, slip, committed.event_id()).await,
+                None => SlipOutcome::NothingToPrint,
+            });
+        }
+        PendingContext::Refund {
+            open_drawer,
+            delivery,
+            ..
+        } => {
+            done.delivery = Some(
+                delivery::deliver(
+                    state,
+                    config,
+                    committed.event_id(),
+                    &delivery.resolved(),
+                    committed.delivery_id,
+                    committed.ticket.as_ref(),
+                )
+                .await,
+            );
+            kick(with_drawer && *open_drawer).await;
+        }
+        PendingContext::Copy { delivery, .. } => {
+            done.delivery = Some(
+                delivery::deliver(
+                    state,
+                    config,
+                    committed.event_id(),
+                    &delivery.resolved(),
+                    committed.delivery_id,
+                    committed.ticket.as_ref(),
+                )
+                .await,
+            );
+        }
+        PendingContext::TableOrder { bar_slip } => {
+            done.slip = Some(print_slip_of(state, config, bar_slip, committed.event_id()).await);
+        }
+        PendingContext::PreBill { ticket, .. } => {
+            if let Some(addr) = config.printer_address.as_deref() {
+                let ticket = FiscalTicket::from_draft(ticket, committed.result());
+                let data = pos_print::receipt::format_receipt(&ticket);
+                let _ = pos_print::transport::send_to_printer(addr, &data).await;
+            }
+        }
+        PendingContext::ReportX { print } => {
+            crate::commands::report::print_report(
+                config,
+                (**print).clone(),
+                Some(committed.result()),
+            )
+            .await;
+        }
+        PendingContext::ReportUserX { print } => {
+            crate::commands::report::print_user_report(
+                config,
+                (**print).clone(),
+                Some(committed.result()),
+            )
+            .await;
+        }
+        PendingContext::ReportZ {
+            print, user_print, ..
+        } => {
+            // Best effort: a failed backup never undoes the Z.
+            if let Ok(db) = state.db.lock()
+                && let Err(e) = crate::commands::report::backup_database_impl(&db, config)
+            {
+                tracing::warn!(%e, "post-Z backup failed (non-fatal)");
+            }
+            crate::commands::report::print_report(
+                config,
+                (**print).clone(),
+                Some(committed.result()),
+            )
+            .await;
+            crate::commands::report::print_user_report(
+                config,
+                (**user_print).clone(),
+                committed.results.get(1),
+            )
+            .await;
+        }
+        PendingContext::Drawer => kick(with_drawer).await,
+        #[cfg(feature = "hubrise")]
+        PendingContext::WebshopOrder { .. } => {}
+        #[cfg(not(feature = "hubrise"))]
+        PendingContext::WebshopOrder { .. } => {}
+        PendingContext::Work { .. } | PendingContext::Money | PendingContext::Invoice { .. } => {}
+    }
+    done
+}
+
+/// The bar / kitchen slip of the entries event `event_id` registered.
+async fn print_slip_of(
+    state: &AppState,
+    config: &PosConfig,
+    slip: &BarSlip,
+    event_id: i64,
+) -> SlipOutcome {
+    let entries = match state.db.lock() {
+        Ok(db) => pos_db::queries::orders::get_entries_sent_in(&db, event_id).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    bar_slip::print_bar_slip(
+        state,
+        config,
+        &slip.operator_insz,
+        slip.table_number,
+        &entries,
+    )
+    .await
+}
+
+// ── Recovery ───────────────────────────────────────────────────
+
+/// An event whose answer came on a later send.
+pub(crate) struct Recovered {
+    pub op: Op,
+    pub context: PendingContext,
+    pub committed: Committed,
+    pub follow_up: FollowUp,
+}
+
+/// How a command starts signing.
+pub(crate) enum Begin<'a> {
+    Fresh(SignGuard<'a>),
+    /// The command's own event, sent earlier, has been signed (and
+    /// followed up): nothing left to sign.
+    AlreadyDone(Box<Recovered>),
+}
+
+/// Take the signing lock for `op`, after the open request, if any, is
+/// resolved: nothing is signed while an answer is awaited.
+pub(crate) async fn begin<'a>(state: &'a AppState, op: &Op) -> Result<Begin<'a>, String> {
+    let guard = acquire(state).await?;
+    match resolve_open(state, &guard, Some(op)).await? {
+        Some(recovered) if recovered.op == *op => Ok(Begin::AlreadyDone(Box::new(recovered))),
+        _ => Ok(Begin::Fresh(guard)),
+    }
+}
+
+/// Send the open request again, if any, and archive its event. `None`
+/// when nothing was open or the FDM refused it (its number was never
+/// used); an error while the answer is still awaited.
+pub(crate) async fn resolve_open(
+    state: &AppState,
+    guard: &SignGuard<'_>,
+    current: Option<&Op>,
+) -> Result<Option<Recovered>, String> {
+    let row = {
+        let db = state.db.lock().map_err(errors::internal)?;
+        pending_signs::open(&db).map_err(errors::internal)?
+    };
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let config = state.config.lock().map_err(errors::internal)?.clone();
+    let stored = Stored::read(&row)?;
+    let request =
+        SignRequest::from_stored(&row.mutation, row.is_training, row.request_body.clone())
+            .map_err(errors::internal)?;
+
+    let results = match FdmClient::from_config(&config).send(&request).await {
+        Ok(results) => results,
+        Err(e) if e.outcome() == SignOutcome::Refused => {
+            {
+                let db = state.db.lock().map_err(errors::internal)?;
+                pending_signs::mark_unsigned(&db, row.id, Unsigned::Refused, &e.to_string())
+                    .map_err(errors::internal)?;
+            }
+            tracing::warn!(%e, label = %row.event_label, ticket = row.first_ticket_no, "pending request refused: its number is free");
+            #[cfg(feature = "hubrise")]
+            reconcile_webshop(state, &stored.context);
+            return Ok(None);
+        }
+        Err(e) => {
+            let db = state.db.lock().map_err(errors::internal)?;
+            pending_signs::record_attempt(&db, row.id, Some(&e.to_string()))
+                .map_err(errors::internal)?;
+            tracing::warn!(%e, label = %row.event_label, ticket = row.first_ticket_no, "pending request still unanswered");
+            return Err(answer_pending(&row.event_label, row.first_ticket_no, &e));
+        }
+    };
+
+    let committed = commit(
+        state,
+        guard,
+        &config,
+        row.id,
+        stored.label,
+        row.first_ticket_no,
+        &stored.events,
+        &stored.context,
+        results,
+    )?;
+    tracing::warn!(
+        label = %row.event_label,
+        ticket = row.first_ticket_no,
+        kind = %row.kind,
+        "pending request answered and archived"
+    );
+    #[cfg(feature = "hubrise")]
+    reconcile_webshop(state, &stored.context);
+
+    let op = Op {
+        kind: stored.kind,
+        subject: row.subject.clone(),
+    };
+    let same = current == Some(&op);
+    let follow_up = follow_up(state, &config, &stored.context, &committed, same).await;
+    Ok(Some(Recovered {
+        op,
+        context: stored.context,
+        committed,
+        follow_up,
+    }))
+}
+
+/// An online order whose event was archived late: its state follows.
+#[cfg(feature = "hubrise")]
+fn reconcile_webshop(state: &AppState, context: &PendingContext) {
+    let order_id = match context {
+        PendingContext::Sale {
+            webshop_order_id, ..
+        }
+        | PendingContext::Refund {
+            webshop_order_id, ..
+        } => *webshop_order_id,
+        PendingContext::WebshopOrder { order_id } => Some(*order_id),
+        _ => None,
+    };
+    if let Some(order_id) = order_id
+        && let Ok(db) = state.db.lock()
+        && let Err(e) = crate::commands::webshop::reconcile_order(&db, order_id)
+    {
+        tracing::error!(%e, order_id, "online order state not repaired");
+    }
+    state.hubrise_outbox_wake.notify_one();
+}
+
+/// A stored request, read back.
+struct Stored {
+    label: EventLabel,
+    kind: Kind,
+    events: Vec<ArchiveSpec>,
+    context: PendingContext,
+}
+
+impl Stored {
+    fn read(row: &PendingSign) -> Result<Self, String> {
+        let label = serde_json::from_value(serde_json::Value::String(row.event_label.clone()))
+            .map_err(errors::internal)?;
+        let kind = Kind::from_name(&row.kind)
+            .ok_or_else(|| errors::internal(format!("unknown kind {}", row.kind)))?;
+        Ok(Self {
+            label,
+            kind,
+            events: serde_json::from_str(&row.archive_json).map_err(errors::internal)?,
+            context: serde_json::from_str(&row.context_json).map_err(errors::internal)?,
+        })
+    }
+}

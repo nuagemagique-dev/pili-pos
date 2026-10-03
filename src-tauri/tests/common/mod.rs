@@ -20,6 +20,7 @@
 
 pub mod compare;
 pub mod devices;
+pub mod fdm_drop;
 pub mod fixtures;
 pub mod harness;
 #[cfg(feature = "hubrise")]
@@ -32,6 +33,8 @@ pub mod live_hubrise;
 pub use compare::*;
 #[allow(unused_imports)]
 pub use devices::*;
+#[allow(unused_imports)]
+pub use fdm_drop::*;
 #[allow(unused_imports)]
 pub use fixtures::*;
 #[allow(unused_imports)]

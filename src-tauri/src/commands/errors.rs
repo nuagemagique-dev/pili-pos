@@ -108,9 +108,22 @@ pub const SUPPORT_RUNNING: &str = "support_running";
 /// `detail`: why the program did not start.
 pub const SUPPORT_START_FAILED: &str = "support_start_failed";
 
+// Signing.
+/// Another event was being signed for longer than the wait allows.
+pub const SIGNING_BUSY: &str = "signing_busy";
+/// The order's event waits for the FDM's answer: it cannot change.
+pub const ORDER_SIGN_PENDING: &str = "order_sign_pending";
+/// The event names a booking period its Z closed.
+pub const PERIOD_CLOSED: &str = "period_closed";
+/// A sign request waits for the FDM's answer (`label`, `ticket`): no
+/// other event is signed until it comes. Starts with "FDM", so the
+/// screen shows it as an FDM message.
+pub const FDM_ANSWER_PENDING: &str = "FDM_ANSWER_PENDING";
+
 // Integrity.
-/// Two terminals (or two taps) signed at the same time: nothing was
-/// recorded, the operator retries.
+/// The ticket counter moved between number and archive: nothing was
+/// recorded, the operator retries. Signing holds one lock, so this
+/// only reports a broken invariant.
 pub const CONCURRENT_OPERATION: &str = "concurrent_operation";
 /// `detail`: what went wrong, for the technician. Also logged.
 pub const INTERNAL_ERROR: &str = "internal_error";
@@ -173,6 +186,9 @@ pub const ALL: &[&str] = &[
     SUPPORT_UNAVAILABLE,
     SUPPORT_RUNNING,
     SUPPORT_START_FAILED,
+    SIGNING_BUSY,
+    ORDER_SIGN_PENDING,
+    PERIOD_CLOSED,
     CONCURRENT_OPERATION,
     INTERNAL_ERROR,
 ];
@@ -282,11 +298,10 @@ pub fn incomplete(field: &str) -> String {
     coded(ORIGINAL_INCOMPLETE, &[("field", &field)])
 }
 
-/// The ticket counter moved between peek and commit: another terminal
-/// or a double tap signed at the same time. The transaction rolled
-/// back; nothing was recorded.
+/// The ticket counter moved between peek and commit. The transaction
+/// rolled back; nothing was recorded.
 pub fn concurrent(what: impl Display) -> String {
-    tracing::warn!(%what, "counter drifted between peek and commit");
+    tracing::error!(%what, "counter drifted between peek and commit");
     CONCURRENT_OPERATION.to_string()
 }
 

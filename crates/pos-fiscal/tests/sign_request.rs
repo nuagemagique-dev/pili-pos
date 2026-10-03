@@ -100,7 +100,8 @@ fn mutation_names_round_trip() {
 #[tokio::test]
 async fn a_stored_request_is_sent_as_is() {
     let server = MockServer::start().await;
-    let request = SignRequest::new(SignMutation::WorkIn, &work_in(), false).unwrap();
+    let input = work_in();
+    let request = SignRequest::new(SignMutation::WorkIn, &input, false).unwrap();
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .and(body_string(request.body()))
@@ -109,7 +110,7 @@ async fn a_stored_request_is_sent_as_is() {
                 "signWorkIn": {
                     "posId": "CPOS0031234567",
                     "posFiscalTicketNo": 1,
-                    "posDateTime": serde_json::to_value(work_in()).unwrap()["posDateTime"],
+                    "posDateTime": serde_json::to_value(&input).unwrap()["posDateTime"],
                     "terminalId": "POS1",
                     "deviceId": "DEV001",
                     "eventOperation": "WORK_IN",

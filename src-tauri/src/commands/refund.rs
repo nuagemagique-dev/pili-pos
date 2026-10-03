@@ -2,20 +2,19 @@ use serde::Deserialize;
 use tauri::State;
 
 use pos_db::queries::fiscal::{self, RefundableEvent};
-use pos_fiscal::archive::{self, ArchiveParams};
-use pos_fiscal::counter::FiscalCounter;
 use pos_fiscal::event::build_sale_input;
-use pos_fiscal::fdm_client::FdmClient;
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::response::FdmReference;
-use pos_fiscal::ticket::{
-    FiscalTicket, OriginalControlData, TicketLine, TicketParams, TicketPayment,
-};
+use pos_fiscal::ticket::{OriginalControlData, TicketDraft, TicketPayment};
 use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::checkout::CheckoutResult;
 use crate::commands::delivery::{self, TicketDeliveryRequest};
 use crate::commands::errors::{self, incomplete};
+use crate::commands::signing::{
+    self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared, StoredDelivery,
+};
 use crate::state::AppState;
 
 /// One item to refund (sent from the frontend). Price, VAT label,
@@ -155,6 +154,25 @@ pub(crate) async fn refund_sale(
     spec: RefundSpec<'_>,
 ) -> Result<CheckoutResult, String> {
     let employee_insz = employee_insz.to_owned();
+    // A retry for the same sale, answered late, returns that refund:
+    // the sale is never refunded twice by one request.
+    let op = Op::new(Kind::Refund, original_fiscal_event_id);
+    let guard = match signing::begin(state, &op).await {
+        Ok(Begin::Fresh(guard)) => guard,
+        Ok(Begin::AlreadyDone(recovered)) => {
+            let committed = recovered.committed;
+            return Ok(CheckoutResult {
+                success: true,
+                ticket: committed.ticket,
+                error: None,
+                fdm_connected: true,
+                fiscal_event_id: Some(committed.event_ids[0]),
+                delivery: recovered.follow_up.delivery,
+                kitchen_slip: None,
+            });
+        }
+        Err(e) => return Ok(CheckoutResult::refused(e)),
+    };
 
     // 1. Load original fiscal event → extract FdmReference
     // Without HubRise no sale has discounts to check.
@@ -209,7 +227,7 @@ pub(crate) async fn refund_sale(
         };
 
         let config = state.config.lock().map_err(|e| e.to_string())?.clone();
-        let bp = super::booking(&db, &config)?;
+        let bp = super::booking(&db, &guard, &config)?;
         (
             fdm_ref,
             original_signature,
@@ -365,23 +383,22 @@ pub(crate) async fn refund_sale(
 
     // From here on the refund order exists: whatever stops the refund
     // (FDM refusal, archive failure) voids it, so it never lingers as
-    // an open order that could be completed and paid as a sale.
-    let outcome: Result<CheckoutResult, String> = async {
-        // 3. RESERVE the next ticket number (peek, no commit). See the
-        // identical pattern in `checkout.rs` - the counter is committed
-        // inside the archive transaction below, after the FDM accepts
-        // the refund.
+    // an open order that could be completed and paid as a sale. A
+    // refund signed on a later send closes it all the same.
+    let signed: Result<Result<_, CheckoutResult>, String> = async {
+        // The number this refund takes; the counter advances only when
+        // the signed refund is archived.
+        let label = if config.training_mode {
+            EventLabel::T
+        } else {
+            EventLabel::N
+        };
         let ticket_number = {
             let db = state.db.lock().map_err(|e| e.to_string())?;
-            let label = if config.training_mode {
-                EventLabel::T
-            } else {
-                EventLabel::N
-            };
-            FiscalCounter::peek_next(&db, label).map_err(|e| e.to_string())?
+            signing::peek(&db, &guard, label)?
         };
 
-        // 4. Build SaleInput with negative lines + original fdm_ref
+        // SaleInput with negative lines + original fdm_ref
         let mut sale_input = build_sale_input(
             &config,
             &refund_order,
@@ -399,19 +416,65 @@ pub(crate) async fn refund_sale(
             &refund_changes,
         );
         sale_input.common.ticket_medium = resolved.medium;
-
+        let request = SignRequest::new(SignMutation::Sale, &sale_input, config.training_mode)
+            .map_err(errors::internal)?;
         let request_json = serde_json::to_string(&sale_input).map_err(|e| e.to_string())?;
 
-        // 5. Send to FDM
-        let fdm = FdmClient::from_config(&config);
-        let fdm_result = fdm.sign_sale(sale_input, config.training_mode).await;
+        let operator = super::operator_name(state, &refund_order.user_insz);
+        let mut ticket = TicketDraft::new(
+            &config,
+            pos_fiscal::price_change::ticket_lines(&refund_lines, &refund_changes),
+            vec![TicketPayment {
+                method: pos_fiscal::payment::payment_line_identity(spec.payment_type)
+                    .1
+                    .to_string(),
+                amount: refund_order.total_cents as f64 / 100.0,
+            }],
+            refund_order.total_cents as f64 / 100.0,
+            &operator,
+        );
+        ticket.original = Some(OriginalControlData {
+            fdm_ref: original_ref.clone(),
+            short_signature: original_signature.clone(),
+        });
 
-        let (sign_result, fdm_connected) = match fdm_result {
-            Ok(result) => (Some(result), true),
-            Err(pos_fiscal::fdm_client::FdmError::NotConnected) => {
+        let context = PendingContext::Refund {
+            refund_order_id: refund_order.id,
+            training: label == EventLabel::T,
+            // Refunds go back in cash, or through the platform.
+            method: if spec.payment_type == PaymentType::Cash {
+                "cash"
+            } else {
+                "other"
+            }
+            .to_string(),
+            total_cents: refund_order.total_cents,
+            open_drawer: spec.open_drawer,
+            delivery: StoredDelivery::of(&resolved),
+            ticket,
+            webshop_order_id: original_order_id_if_online(state, original_fiscal_event_id),
+        };
+        let prepared = Prepared {
+            op,
+            request,
+            label,
+            first_ticket_no: ticket_number,
+            events: vec![ArchiveSpec {
+                order_id: Some(refund_order.id),
+                user_insz: employee_insz.clone(),
+                request_json,
+                sent_entries: Some((refund_order.id, i64::MAX)),
+            }],
+            order_id: Some(refund_order.id),
+            user_insz: employee_insz.clone(),
+            context: context.clone(),
+        };
+        Ok(
+            match signing::sign(state, &guard, &config, prepared).await {
+                Ok(committed) => Ok((context, committed)),
                 // No FDM, no sale: the POS blocks (SCE 2.0). There is no
                 // offline mode, in any build.
-                return Ok(CheckoutResult {
+                Err(failure) if failure.not_connected => Err(CheckoutResult {
                     success: false,
                     ticket: None,
                     error: Some("FDM not connected - cannot process refund".into()),
@@ -419,159 +482,64 @@ pub(crate) async fn refund_sale(
                     fiscal_event_id: None,
                     delivery: None,
                     kitchen_slip: None,
-                });
-            }
-            Err(e) => {
-                return Ok(CheckoutResult {
+                }),
+                Err(failure) => Err(CheckoutResult {
                     success: false,
                     ticket: None,
-                    error: Some(format!("FDM error: {e}")),
+                    error: Some(failure.error),
                     fdm_connected: true,
                     fiscal_event_id: None,
                     delivery: None,
                     kitchen_slip: None,
-                });
-            }
-        };
-
-        // 5b. Build the fiscal ticket before the commit: its email is
-        // queued in the same transaction.
-        let operator = super::operator_name(state, &refund_order.user_insz);
-        let ticket = sign_result.as_ref().map(|result| {
-            let ticket_lines: Vec<TicketLine> =
-                pos_fiscal::price_change::ticket_lines(&refund_lines, &refund_changes);
-
-            let payments = vec![TicketPayment {
-                method: pos_fiscal::payment::payment_line_identity(spec.payment_type)
-                    .1
-                    .to_string(),
-                amount: refund_order.total_cents as f64 / 100.0,
-            }];
-
-            FiscalTicket::from_sign_result(TicketParams {
-                result,
-                restaurant_name: &config.restaurant_name,
-                restaurant_address: &config.restaurant_address,
-                restaurant_vat: &config.restaurant_vat,
-                restaurant_est_no: &config.restaurant_est_no,
-                restaurant_legal_name: config.legal_name(),
-                lines: ticket_lines,
-                payments,
-                total: refund_order.total_cents as f64 / 100.0,
-                is_training: config.training_mode,
-                rounding: None,
-                lang: pos_fiscal::ticket::ReceiptLanguage::from_code(&config.language),
-                operator: &operator,
-            })
-            .with_original(OriginalControlData {
-                fdm_ref: original_ref.clone(),
-                short_signature: original_signature.clone(),
-            })
-        });
-
-        // 6. COMMIT counter + archive + close refund order atomically.
-        let (event_id, delivery_id) = {
-            let db = state.db.lock().map_err(|e| e.to_string())?;
-            let tx = db.unchecked_transaction().map_err(|e| e.to_string())?;
-
-            let label = if config.training_mode {
-                EventLabel::T
-            } else {
-                EventLabel::N
-            };
-            let committed_no = FiscalCounter::next(&tx, label).map_err(|e| e.to_string())?;
-            // Graceful error, not a panic - see `commands/mod.rs::commit_signed_event`.
-            if committed_no != ticket_number {
-                return Err(errors::concurrent(format_args!(
-                    "refund {label:?}: peeked {ticket_number}, committed {committed_no}"
-                )));
-            }
-            let event_id = archive::archive_event(
-                &tx,
-                ArchiveParams {
-                    event_type: label,
-                    sequence_number: ticket_number,
-                    order_id: Some(refund_order.id),
-                    pos_id: &config.pos_id,
-                    terminal_id: &config.terminal_id,
-                    user_insz: &employee_insz,
-                    request_json: &request_json,
-                    sign_result: sign_result.as_ref(),
-                },
-            )
-            .map_err(|e| e.to_string())?;
-            pos_db::queries::orders::mark_order_entries_sent(
-                &tx,
-                refund_order.id,
-                i64::MAX,
-                event_id,
-            )
-            .map_err(|e| e.to_string())?;
-
-            tx.execute(
-                "UPDATE orders SET status = 'closed', closed_at = datetime('now') WHERE id = ?1",
-                rusqlite::params![refund_order.id],
-            )
-            .map_err(|e| e.to_string())?;
-
-            // Record the (negative) cash payment so it nets against the
-            // day's takings in the X/Z reports - see the identical fix in
-            // `checkout.rs`. Refunds are always cash (§7 above) and never
-            // happen in training mode's fake-money sense, but a training
-            // refund still records no row, for the same reason a training
-            // sale doesn't.
-            if label != EventLabel::T {
-                let method = if spec.payment_type == PaymentType::Cash {
-                    "cash"
-                } else {
-                    "other"
-                };
-                tx.execute(
-                    "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, ?2, ?3)",
-                    rusqlite::params![refund_order.id, method, refund_order.total_cents],
-                )
-                .map_err(|e| e.to_string())?;
-            }
-
-            let delivery_id = delivery::enqueue_in_tx(&tx, event_id, &resolved, ticket.as_ref())?;
-
-            tx.commit().map_err(|e| e.to_string())?;
-            (event_id, delivery_id)
-        };
-
-        // 8. Print and/or email the REFUND ticket, then open the drawer.
-        let delivery_outcome = delivery::deliver(
-            state,
-            &config,
-            event_id,
-            &resolved,
-            delivery_id,
-            ticket.as_ref(),
+                }),
+            },
         )
-        .await;
-        if spec.open_drawer
-            && ticket.is_some()
-            && let Some(ref addr) = config.printer_address
-        {
-            let drawer_data = pos_print::drawer::kick_drawer_bytes();
-            let _ = pos_print::transport::send_to_printer(addr, &drawer_data).await;
-        }
-
-        Ok(CheckoutResult {
-            success: true,
-            ticket,
-            error: None,
-            fdm_connected,
-            fiscal_event_id: Some(event_id),
-            delivery: Some(delivery_outcome),
-            kitchen_slip: None,
-        })
     }
     .await;
-    if !matches!(&outcome, Ok(r) if r.success) {
-        void_order(state, refund_order.id);
+    drop(guard);
+    let (context, committed) = match signed {
+        Ok(Ok(signed)) => signed,
+        Ok(Err(refused)) => {
+            void_order(state, refund_order.id);
+            return Ok(refused);
+        }
+        Err(e) => {
+            void_order(state, refund_order.id);
+            return Err(e);
+        }
+    };
+
+    // Print and/or email the REFUND ticket, then open the drawer.
+    let done = signing::follow_up(state, &config, &context, &committed, true).await;
+    Ok(CheckoutResult {
+        success: true,
+        ticket: committed.ticket,
+        error: None,
+        fdm_connected: true,
+        fiscal_event_id: Some(committed.event_ids[0]),
+        delivery: done.delivery,
+        kitchen_slip: None,
+    })
+}
+
+/// The online order a sale belongs to, if any.
+fn original_order_id_if_online(state: &AppState, sale_event_id: i64) -> Option<i64> {
+    #[cfg(feature = "hubrise")]
+    {
+        let db = state.db.lock().ok()?;
+        db.query_row(
+            "SELECT w.order_id FROM fiscal_events e JOIN webshop_orders w ON w.order_id = e.order_id
+             WHERE e.id = ?1",
+            rusqlite::params![sale_event_id],
+            |r| r.get(0),
+        )
+        .ok()
     }
-    outcome
+    #[cfg(not(feature = "hubrise"))]
+    {
+        let _ = (state, sale_event_id);
+        None
+    }
 }
 
 /// Void a refund order that was not signed.

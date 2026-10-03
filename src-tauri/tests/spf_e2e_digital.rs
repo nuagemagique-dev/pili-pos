@@ -708,22 +708,28 @@ async fn a_failed_outbox_write_rolls_the_whole_sale_back() {
 
     let order_id = seed_open_order(&app);
     mock_from_fixture(&app, &load_uc(&basic_set_root(), "M110")).await;
-    let err = do_checkout_with(
+    let failed = do_checkout_with(
         &app.state,
         order_id,
         CheckoutPaymentMethod::Cash,
         Some(&email(RequestedMedium::PaperDigital)),
     )
     .await
-    .expect_err("the commit fails");
+    .unwrap();
+    assert!(!failed.success, "the commit fails");
+    let err = failed.error.unwrap_or_default();
     assert!(err.contains("disk full"), "{err}");
+    assert!(
+        app.open_pending().is_some(),
+        "the signed request stays open"
+    );
     assert!(app.fiscal_events().is_empty(), "nothing archived");
     assert_eq!(app.counter_for(EventLabel::N), 0, "no gap");
     assert_eq!(app.order_status(order_id).as_deref(), Some("open"));
     assert!(printer.settle(0).await.is_empty());
     assert!(tem_sent(&tem).await.is_empty());
 
-    // Once the fault is gone the retry signs the same ticket number.
+    // Once the fault is gone the retry archives the same request.
     app.state
         .db
         .lock()
@@ -739,9 +745,10 @@ async fn a_failed_outbox_write_rolls_the_whole_sale_back() {
     )
     .await
     .unwrap();
-    assert!(result.success);
+    assert!(result.success, "{:?}", result.error);
     assert_eq!(app.counter_for(EventLabel::N), 1);
     assert_eq!(app.deliveries().len(), 1);
+    assert!(app.open_pending().is_none());
 }
 
 // ── Mail status and listing ────────────────────────────────────
