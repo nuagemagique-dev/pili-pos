@@ -50,16 +50,20 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     }
 
     // PIN verification: only when the user has a stored hash.
-    if user.has_pin {
-        let stored_hash = pos_db::queries::users::get_pin_hash(&db, &insz)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| errors::internal("PIN hash missing"))?;
-        let provided = pin.ok_or_else(|| errors::PIN_REQUIRED.to_string())?;
-        if !bcrypt::verify(&provided, &stored_hash).unwrap_or(false) {
-            return Err(errors::PIN_WRONG.to_string());
-        }
-    }
+    let stored_hash = if user.has_pin {
+        Some(
+            pos_db::queries::users::get_pin_hash(&db, &insz)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| errors::internal("PIN hash missing"))?,
+        )
+    } else {
+        None
+    };
     drop(db);
+    if let Some(hash) = stored_hash {
+        let provided = pin.ok_or_else(|| errors::PIN_REQUIRED.to_string())?;
+        access::verify_pin(state, &insz, &hash, &provided)?;
+    }
 
     access::open_session(state, &user)?;
     Ok(user)

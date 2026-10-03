@@ -49,6 +49,8 @@ pub struct AppState {
     /// Remote support program and its running session
     /// (`commands::support`).
     pub support: crate::commands::support::SupportState,
+    /// Wrong PIN attempts (`commands::access::verify_pin`).
+    pub pin_throttle: crate::commands::access::PinThrottle,
 }
 
 impl AppState {
@@ -111,6 +113,7 @@ impl AppState {
             mail,
             session: Mutex::new(None),
             support: crate::commands::support::SupportState::installed(),
+            pin_throttle: Default::default(),
         })
     }
 

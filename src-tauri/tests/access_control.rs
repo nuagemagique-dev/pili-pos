@@ -910,3 +910,51 @@ async fn a_manager_deactivates_a_departed_employee_but_never_themselves() {
         UserRole::Cashier
     );
 }
+
+#[tokio::test]
+async fn wrong_pins_lock_the_user_out_even_for_the_right_pin() {
+    let app = app().await;
+    insert_user(&app, MANAGER, "admin");
+    insert_user(&app, SERVER, "cashier");
+    app.logout();
+    do_login_with_new_pin(&app.state, MANAGER.into(), MANAGER_PIN.into()).unwrap();
+    do_set_pin(
+        &app.state,
+        SERVER.into(),
+        "0040".into(),
+        Some(MANAGER_PIN.into()),
+    )
+    .unwrap();
+    do_logout(&app.state).unwrap();
+
+    let login = |pin: &str| do_login(&app.state, SERVER.into(), Some(pin.into()));
+    for n in 0..4 {
+        assert_eq!(login(&format!("{n:04}")).unwrap_err(), errors::PIN_WRONG);
+    }
+    assert_eq!(login("0004").unwrap_err(), "pin_locked|seconds=30");
+    assert!(login("0040").unwrap_err().starts_with("pin_locked|"));
+    assert!(app.state.session.lock().unwrap().is_none());
+
+    // Per user: the manager still logs in, and their PIN confirmations
+    // count on their own attempts.
+    do_login(&app.state, MANAGER.into(), Some(MANAGER_PIN.into())).unwrap();
+    for _ in 0..5 {
+        do_set_pin(
+            &app.state,
+            SERVER.into(),
+            "1111".into(),
+            Some("0000".into()),
+        )
+        .unwrap_err();
+    }
+    assert!(
+        do_set_pin(
+            &app.state,
+            SERVER.into(),
+            "1111".into(),
+            Some(MANAGER_PIN.into())
+        )
+        .unwrap_err()
+        .starts_with("pin_locked|")
+    );
+}

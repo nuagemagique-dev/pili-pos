@@ -119,6 +119,19 @@ test.describe('Login View', () => {
     await expect(page.locator('.pin-dot.filled')).toHaveCount(0);
   });
 
+  test('a locked-out user is told how long to wait', async ({ page }) => {
+    await mockTauriIPC(page, {
+      list_users: () => [DEFAULT_USER_WITH_PIN],
+    });
+    await page.goto('/');
+    await overrideIPC(page, 'login', { __reject: 'pin_locked|seconds=30' });
+    await page.click('.user-btn');
+    for (const d of ['9', '9', '9', '9']) {
+      await page.click(`.nk:has-text("${d}")`);
+    }
+    await expect(page.locator('.error-msg')).toContainText('30 s');
+  });
+
   test('INSZ numpad shows on "Autre" tap', async ({ page }) => {
     await page.click('.other-btn');
     await expect(page.locator('.numpad-section')).toBeVisible();

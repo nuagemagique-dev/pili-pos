@@ -154,6 +154,12 @@ présence du personnel.
   (`first_pin_needs_manager` à l'écran de connexion), et un nouveau
   Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le
   crée.
+- Après 5 PIN incorrects de suite pour un même employé (connexion ou
+  confirmation par PIN), la caisse refuse tout essai, même le bon PIN,
+  pendant 30 secondes, puis le double à chaque nouvel échec, jusqu'à
+  15 minutes (`pin_locked`, avec le temps restant à l'écran). Un PIN
+  correct remet le compteur à zéro ; un redémarrage aussi
+  (`commands/access.rs::verify_pin`).
 - Pour un Serveur ou un Apprenti, le PIN n'est pas obligatoire (utile
   pour un apprenti en période d'essai) ; un avertissement s'affiche à
   chaque connexion sans PIN. Le drapeau `has_pin` (calculé) informe le

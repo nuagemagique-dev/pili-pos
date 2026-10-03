@@ -104,6 +104,7 @@ const coreMessages: Messages = {
   "err_user_unknown": { fr: "Utilisateur inconnu", en: "Unknown user", zh: "未知用户" },
   "err_pin_required": { fr: "PIN requis", en: "PIN required", zh: "需要PIN" },
   "err_pin_wrong": { fr: "PIN incorrect", en: "Wrong PIN", zh: "PIN错误" },
+  "err_pin_locked": { fr: "Trop de PIN incorrects : réessayez dans {seconds} s.", en: "Too many wrong PINs: try again in {seconds} s.", zh: "PIN错误次数过多：请{seconds}秒后重试。" },
   "err_pin_format": { fr: "Le PIN doit compter exactement 4 chiffres.", en: "The PIN must be exactly 4 digits.", zh: "PIN必须为4位数字。" },
   "err_pin_setup_required": { fr: "Un gérant doit choisir un PIN.", en: "A manager must choose a PIN.", zh: "经理必须设置PIN。" },
   "err_pin_already_set": { fr: "Ce compte a déjà un PIN.", en: "This account already has a PIN.", zh: "该账户已有PIN。" },

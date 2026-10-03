@@ -158,6 +158,7 @@ impl TestApp {
             mail: pili_pos::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),
             support: pili_pos::commands::support::SupportState::disabled(),
+            pin_throttle: Default::default(),
         };
 
         let app = Self {

@@ -24,6 +24,8 @@ pub const INSZ_INVALID: &str = "insz_invalid";
 pub const USER_UNKNOWN: &str = "user_unknown";
 pub const PIN_REQUIRED: &str = "pin_required";
 pub const PIN_WRONG: &str = "pin_wrong";
+/// Too many wrong PINs: `pin_locked|seconds=N`.
+pub const PIN_LOCKED: &str = "pin_locked";
 pub const PIN_FORMAT: &str = "pin_format";
 pub const PIN_SETUP_REQUIRED: &str = "pin_setup_required";
 pub const PIN_ALREADY_SET: &str = "pin_already_set";
@@ -122,6 +124,7 @@ pub const ALL: &[&str] = &[
     USER_UNKNOWN,
     PIN_REQUIRED,
     PIN_WRONG,
+    PIN_LOCKED,
     PIN_FORMAT,
     PIN_SETUP_REQUIRED,
     PIN_ALREADY_SET,
