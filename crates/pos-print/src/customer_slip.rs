@@ -2,8 +2,9 @@
 //!
 //! Non-fiscal counterpart to `receipt.rs`. Used by the POS to print
 //! the slip handed to the driver / pickup customer. Always carries
-//! a "not a valid VAT receipt" disclaimer because online webshop
-//! orders bypass the FDM (only dine-in goes through SCE 2.0).
+//! a "not a valid VAT receipt" disclaimer: the slip is not the fiscal
+//! ticket, which is the receipt printed by `receipt.rs` when the
+//! order is signed by the FDM.
 
 use crate::escpos::{Alignment, EscPosBuilder, TextStyle};
 

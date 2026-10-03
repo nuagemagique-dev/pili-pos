@@ -9,8 +9,8 @@
 //! working at the login screen. It ends when anyone stops it (no login
 //! needed), when RustDesk exits, or after [`MAX_SESSION`]. Every screen,
 //! the login screen included, shows a banner while it runs, so the
-//! staff know someone is connected. Who started and stopped it is
-//! logged.
+//! staff know someone is connected. The log records the role of who
+//! stopped it, never a name or an INSZ.
 //!
 //! Only one session at a time. The program is started with a private
 //! `HOME` under the service's runtime directory, so nothing it writes
@@ -23,6 +23,8 @@ use std::sync::Mutex;
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::Serialize;
 use tauri::State;
+
+use pos_core::user::UserRole;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
@@ -41,15 +43,10 @@ struct Session {
 }
 
 impl Session {
-    fn end(mut self, reason: &str, by: Option<&str>) {
+    fn end(mut self, reason: &str, by: Option<UserRole>) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        tracing::warn!(
-            reason,
-            by = by.unwrap_or("-"),
-            started_by = %self.started_by,
-            "remote support session stopped"
-        );
+        tracing::warn!(reason, by = ?by, "remote support session stopped");
     }
 }
 
@@ -138,7 +135,7 @@ fn reap(session: &mut Option<Session>) {
     }
     if let Some(s) = session.take() {
         if exited {
-            tracing::info!(started_by = %s.started_by, "remote support ended by the program");
+            tracing::info!("remote support ended by the program");
         } else {
             s.end("time limit", None);
         }
@@ -235,8 +232,7 @@ pub fn do_start_remote_support(
             errors::coded(errors::SUPPORT_START_FAILED, &[("detail", &e)])
         })?;
     tracing::warn!(
-        operator = %operator.insz,
-        name = %operator.name,
+        role = ?operator.role,
         pid = child.id(),
         "remote support session started"
     );
@@ -259,7 +255,7 @@ pub fn do_stop_remote_support(state: &AppState) -> Result<SupportStatus, String>
     let operator = access::operator(state, Access::Staff).ok();
     let mut session = state.support.session.lock().map_err(errors::internal)?;
     if let Some(s) = session.take() {
-        s.end("stopped", operator.as_ref().map(|o| o.insz.as_str()));
+        s.end("stopped", operator.as_ref().map(|o| o.role));
     }
     Ok(status_of(&state.support, &session))
 }

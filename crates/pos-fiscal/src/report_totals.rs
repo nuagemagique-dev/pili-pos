@@ -68,7 +68,7 @@ pub struct ReportEvent {
 impl ReportEvent {
     /// `None` for an archive row whose JSON can't be read; callers
     /// decide whether that is fatal (it never happens for rows written
-    /// by `commit_signed_event`).
+    /// by `commit` in `commands/signing.rs`).
     pub fn from_archive(event: &ArchivedEvent) -> Option<Self> {
         let request = serde_json::from_str(&event.event_data_json).ok()?;
         let response = match event.fdm_response_json.as_deref() {

@@ -21,8 +21,9 @@ use tokio_util::sync::CancellationToken;
 /// poller task observes it via `tokio::select!` to exit gracefully.
 ///
 /// `poller_db` and `shared_http` are gated behind the `hubrise` feature
-/// because they only exist to serve the webshop integration; the
-/// certification build (which excludes hubrise) doesn't need them.
+/// because they only exist to serve the webshop integration. The
+/// certification build includes the feature; each installation
+/// switches the integration on or off at run time.
 pub struct AppState {
     pub db: Mutex<Connection>,
     #[cfg(feature = "hubrise")]
