@@ -72,6 +72,7 @@ async fn login_succeeds_without_a_pin_when_none_is_set() {
             insz: VALID_INSZ_1.to_string(),
             name: "No Pin".to_string(),
             role: "waiter".to_string(),
+            ..Default::default()
         },
     )
     .unwrap();
@@ -90,10 +91,25 @@ async fn login_requires_the_pin_once_one_is_set() {
             insz: VALID_INSZ_1.to_string(),
             name: "Pinned".to_string(),
             role: "cashier".to_string(),
+            ..Default::default()
         },
     )
     .unwrap();
-    do_set_pin(&app.state, VALID_INSZ_1.to_string(), "1234".to_string()).unwrap();
+    // The manager confirms another user's PIN with their own.
+    do_set_pin(
+        &app.state,
+        TEST_OPERATOR.to_string(),
+        "9876".to_string(),
+        None,
+    )
+    .unwrap();
+    do_set_pin(
+        &app.state,
+        VALID_INSZ_1.to_string(),
+        "1234".to_string(),
+        Some("9876".to_string()),
+    )
+    .unwrap();
 
     let no_pin = do_login(&app.state, VALID_INSZ_1.to_string(), None);
     assert!(no_pin.is_err(), "PIN required but not supplied");
@@ -123,14 +139,47 @@ async fn set_pin_rejects_non_4_digit_values() {
             insz: VALID_INSZ_1.to_string(),
             name: "Test".to_string(),
             role: "waiter".to_string(),
+            ..Default::default()
         },
     )
     .unwrap();
 
-    assert!(do_set_pin(&app.state, VALID_INSZ_1.to_string(), "123".to_string()).is_err());
-    assert!(do_set_pin(&app.state, VALID_INSZ_1.to_string(), "12345".to_string()).is_err());
-    assert!(do_set_pin(&app.state, VALID_INSZ_1.to_string(), "abcd".to_string()).is_err());
-    assert!(do_set_pin(&app.state, VALID_INSZ_1.to_string(), "12a4".to_string()).is_err());
+    assert!(
+        do_set_pin(
+            &app.state,
+            VALID_INSZ_1.to_string(),
+            "123".to_string(),
+            None
+        )
+        .is_err()
+    );
+    assert!(
+        do_set_pin(
+            &app.state,
+            VALID_INSZ_1.to_string(),
+            "12345".to_string(),
+            None
+        )
+        .is_err()
+    );
+    assert!(
+        do_set_pin(
+            &app.state,
+            VALID_INSZ_1.to_string(),
+            "abcd".to_string(),
+            None
+        )
+        .is_err()
+    );
+    assert!(
+        do_set_pin(
+            &app.state,
+            VALID_INSZ_1.to_string(),
+            "12a4".to_string(),
+            None
+        )
+        .is_err()
+    );
 }
 
 #[tokio::test]
@@ -142,6 +191,7 @@ async fn create_user_rejects_a_malformed_insz_and_an_unknown_role() {
             insz: "123".to_string(),
             name: "Test".to_string(),
             role: "waiter".to_string(),
+            ..Default::default()
         },
     );
     assert!(bad_insz.is_err());
@@ -151,7 +201,8 @@ async fn create_user_rejects_a_malformed_insz_and_an_unknown_role() {
         CreateUserInput {
             insz: VALID_INSZ_2.to_string(),
             name: "Test".to_string(),
-            role: "manager".to_string(), // not a real UserRole
+            role: "manager".to_string(), // not a real UserRole,
+            ..Default::default()
         },
     );
     assert!(bad_role.is_err());

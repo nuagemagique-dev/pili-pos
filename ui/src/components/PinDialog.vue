@@ -23,6 +23,8 @@ const props = defineProps<{
   verify?: (pin: string) => Promise<void>;
   /** What the PIN confirms, shown under the name. */
   hint?: string;
+  /** Hand the chosen PIN to the caller instead of saving it. */
+  save?: (pin: string) => Promise<void> | void;
 }>();
 
 const emit = defineEmits<{
@@ -76,6 +78,11 @@ async function onKey(key: string) {
   }
   saving.value = true;
   try {
+    if (props.save) {
+      await props.save(pin.value);
+      emit("done");
+      return;
+    }
     if (props.firstLogin) {
       await useAuthStore().loginWithNewPin(props.insz, pin.value);
     } else {

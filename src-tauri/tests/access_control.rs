@@ -106,7 +106,7 @@ const LEFT_UNPAID: i32 = 21;
 /// unpaid-sale command.
 async fn paid_sale(app: &TestApp) -> i64 {
     as_(app, MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, MANAGER.into(), MANAGER_PIN.into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), MANAGER_PIN.into(), None).unwrap();
     table(app, MANAGER, LEFT_UNPAID);
     let id = table(app, MANAGER, 20);
     let r = do_checkout(&app.state, id, CheckoutPaymentMethod::Card)
@@ -474,7 +474,7 @@ async fn a_failed_login_keeps_the_previous_session_closed() {
     }
     // Give the manager a PIN (as themselves), then log out.
     as_(&app, MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, MANAGER.into(), "4321".into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), "4321".into(), None).unwrap();
     do_logout(&app.state).unwrap();
 
     for pin in [None, Some("0000".to_string())] {
@@ -500,6 +500,7 @@ async fn only_a_manager_creates_users() {
         insz: insz.into(),
         name: name.into(),
         role: role.into(),
+        ..Default::default()
     };
     for role in [UserRole::Waiter, UserRole::Cashier] {
         as_(&app, SERVER, role);
@@ -524,18 +525,40 @@ async fn a_pin_is_changed_by_its_owner_or_a_manager() {
     as_(&app, APPRENTICE, UserRole::Waiter);
     as_(&app, SERVER, UserRole::Cashier);
     // The server sets their own PIN, not the apprentice's.
-    do_set_pin(&app.state, SERVER.into(), "1234".into()).unwrap();
+    do_set_pin(&app.state, SERVER.into(), "1234".into(), None).unwrap();
     assert_eq!(
-        do_set_pin(&app.state, APPRENTICE.into(), "1234".into()).unwrap_err(),
+        do_set_pin(&app.state, APPRENTICE.into(), "1234".into(), None).unwrap_err(),
         ERR_FORBIDDEN
     );
-    // A manager resets anyone's.
+    // A manager resets anyone's, confirming with their own PIN.
     as_(&app, MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, APPRENTICE.into(), "5678".into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), "4321".into(), None).unwrap();
+    assert_eq!(
+        do_set_pin(&app.state, APPRENTICE.into(), "5678".into(), None).unwrap_err(),
+        "pin_required",
+        "a manager session left open does not reset another PIN on its own"
+    );
+    assert_eq!(
+        do_set_pin(
+            &app.state,
+            APPRENTICE.into(),
+            "5678".into(),
+            Some("0000".into())
+        )
+        .unwrap_err(),
+        "pin_wrong"
+    );
+    do_set_pin(
+        &app.state,
+        APPRENTICE.into(),
+        "5678".into(),
+        Some("4321".into()),
+    )
+    .unwrap();
     app.logout();
     assert!(do_login(&app.state, APPRENTICE.into(), Some("5678".into())).is_ok());
     assert_eq!(
-        do_set_pin(&app.state, MANAGER.into(), "0000".into()).unwrap_err(),
+        do_set_pin(&app.state, MANAGER.into(), "0000".into(), None).unwrap_err(),
         ERR_FORBIDDEN,
         "the apprentice, now logged in, cannot change the manager's PIN"
     );
@@ -682,7 +705,7 @@ async fn the_system_identity_never_logs_in_nor_gets_a_pin() {
     );
     as_(&app, MANAGER, UserRole::Admin);
     assert_eq!(
-        do_set_pin(&app.state, ROBOT.into(), "1234".into()).unwrap_err(),
+        do_set_pin(&app.state, ROBOT.into(), "1234".into(), None).unwrap_err(),
         ERR_SYSTEM_USER
     );
     assert_eq!(
@@ -692,6 +715,7 @@ async fn the_system_identity_never_logs_in_nor_gets_a_pin() {
                 insz: ROBOT.into(),
                 name: "Robot".into(),
                 role: "admin".into(),
+                ..Default::default()
             },
         )
         .unwrap_err(),
@@ -741,6 +765,75 @@ async fn a_manager_without_pin_must_choose_one_to_log_in() {
         "pin_required"
     );
     assert!(do_login(&app.state, MANAGER.into(), Some("4321".into())).is_ok());
+}
+
+/// Once a manager has a PIN, another manager tile without one is not
+/// claimable at the login screen.
+#[tokio::test]
+async fn a_second_manager_tile_is_not_claimed_at_the_login_screen() {
+    let app = app().await;
+    insert_user(&app, MANAGER, "admin");
+    insert_user(&app, SERVER, "admin");
+    app.logout();
+    do_login_with_new_pin(&app.state, MANAGER.into(), "4321".into()).unwrap();
+    do_logout(&app.state).unwrap();
+
+    assert_eq!(
+        do_login(&app.state, SERVER.into(), None).unwrap_err(),
+        errors::FIRST_PIN_NEEDS_MANAGER
+    );
+    assert_eq!(
+        do_login_with_new_pin(&app.state, SERVER.into(), "9999".into()).unwrap_err(),
+        errors::FIRST_PIN_NEEDS_MANAGER
+    );
+    assert!(
+        app.state.session.lock().unwrap().is_none(),
+        "no session opened"
+    );
+
+    // The manager sets it, confirming with their own PIN.
+    do_login(&app.state, MANAGER.into(), Some("4321".into())).unwrap();
+    do_set_pin(
+        &app.state,
+        SERVER.into(),
+        "2468".into(),
+        Some("4321".into()),
+    )
+    .unwrap();
+    do_logout(&app.state).unwrap();
+    assert!(do_login(&app.state, SERVER.into(), Some("2468".into())).is_ok());
+}
+
+#[tokio::test]
+async fn a_new_manager_gets_a_pin_confirmed_by_the_creating_manager() {
+    let app = app().await;
+    insert_user(&app, MANAGER, "admin");
+    app.logout();
+    do_login_with_new_pin(&app.state, MANAGER.into(), "4321".into()).unwrap();
+    let new_manager = |initial: Option<&str>, operator: Option<&str>| CreateUserInput {
+        insz: SERVER.into(),
+        name: "Gerant 2".into(),
+        role: "admin".into(),
+        initial_pin: initial.map(Into::into),
+        operator_pin: operator.map(Into::into),
+    };
+
+    assert_eq!(
+        do_create_user(&app.state, new_manager(None, Some("4321"))).unwrap_err(),
+        ERR_PIN_FORMAT
+    );
+    assert_eq!(
+        do_create_user(&app.state, new_manager(Some("2468"), None)).unwrap_err(),
+        "pin_required"
+    );
+    assert_eq!(
+        do_create_user(&app.state, new_manager(Some("2468"), Some("0000"))).unwrap_err(),
+        "pin_wrong"
+    );
+    let user = do_create_user(&app.state, new_manager(Some("2468"), Some("4321"))).unwrap();
+    assert!(user.has_pin);
+    do_logout(&app.state).unwrap();
+    assert!(do_login(&app.state, SERVER.into(), Some("2468".into())).is_ok());
 }
 
 #[tokio::test]
@@ -807,6 +900,7 @@ async fn a_manager_deactivates_a_departed_employee_but_never_themselves() {
             insz: APPRENTICE.into(),
             name: "De retour".into(),
             role: "cashier".into(),
+            ..Default::default()
         },
     )
     .unwrap();

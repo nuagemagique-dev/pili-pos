@@ -52,7 +52,8 @@ Accès complet. Concrètement, peut :
   Rapports.
 - Créer des utilisateurs (Gérant, Serveur ou Apprenti), en désactiver
   (jamais soi-même ; jamais de suppression : l'INSZ reste sur les
-  événements signés) et réinitialiser leur PIN.
+  événements signés) et réinitialiser leur PIN. Créer un Gérant ou
+  changer le PIN d'un autre employé demande le PIN du Gérant connecté.
 
 ### 2.2 Serveur (`Cashier`)
 
@@ -147,7 +148,12 @@ présence du personnel.
   en même temps que la session s'ouvre
   (`commands/auth.rs::do_login_with_new_pin`). Une fois choisi, ce
   chemin est refusé : personne ne peut s'approprier une tuile qui a
-  déjà un PIN.
+  déjà un PIN. Ce choix à l'écran de connexion n'existe que tant
+  qu'aucun Gérant n'a de PIN (première mise en service) : ensuite, un
+  Gérant sans PIN reçoit le sien d'un autre Gérant dans Paramètres
+  (`first_pin_needs_manager` à l'écran de connexion), et un nouveau
+  Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le
+  crée.
 - Pour un Serveur ou un Apprenti, le PIN n'est pas obligatoire (utile
   pour un apprenti en période d'essai) ; un avertissement s'affiche à
   chaque connexion sans PIN. Le drapeau `has_pin` (calculé) informe le

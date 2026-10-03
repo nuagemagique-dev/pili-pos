@@ -51,6 +51,31 @@ test.describe('Settings View', () => {
     ]);
   });
 
+  test('a new manager gets a PIN, confirmed by the manager', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    await page.getByPlaceholder('Nom').fill('Gérant 2');
+    await page.locator('input[inputmode="numeric"]').fill('99012345667');
+    await page.getByRole('radio', { name: 'Gérant' }).click();
+    await page.getByRole('button', { name: 'Ajouter l’employé' }).click();
+    await expect(page.locator('.pin-dialog .who')).toHaveText('Gérant 2');
+    for (const pin of ['2468', '2468']) {
+      for (const d of pin) await page.locator('.pin-dialog').getByRole('button', { name: d, exact: true }).click();
+    }
+    await expect(page.locator('.pin-dialog .who')).toHaveText('Bruno Moyse');
+    for (const d of '4321') await page.locator('.pin-dialog').getByRole('button', { name: d, exact: true }).click();
+    await expect.poll(() => ipcCalls(page, 'create_user')).toEqual([
+      {
+        input: {
+          insz: '99012345667',
+          name: 'Gérant 2',
+          role: 'admin',
+          initialPin: '2468',
+          operatorPin: '4321',
+        },
+      },
+    ]);
+  });
+
   test('deactivating a user takes two taps', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,

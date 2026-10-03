@@ -400,8 +400,13 @@ VALUES ('ZZZZZZZZZZZ', 'Pierre Tran', 'waiter', 1);
 
 Aucun PIN n'est saisi ici. Le Gérant choisit le sien à sa première
 connexion : sa tuile ouvre "Choisissez votre PIN" (un Gérant ne peut
-pas se connecter sans PIN). Le Serveur et l'Apprenti fixent le leur en
-touchant leur nom sur l'écran de commande. Ne pas créer l'INSZ
+pas se connecter sans PIN). Le technicien reste présent jusqu'à ce
+choix : tant qu'aucun Gérant n'a de PIN, la première personne qui
+touche la tuile le choisit. Ce choix à l'écran de connexion n'existe
+que pour le premier Gérant ; un deuxième Gérant reçoit son PIN du
+premier, dans Paramètres, confirmé par le PIN de ce dernier. Le
+Serveur et l'Apprenti fixent le leur en touchant leur nom sur l'écran
+de commande. Ne pas créer l'INSZ
 `00000000029` : c'est l'identité système, qui ne se connecte jamais.
 
 (Voir `MANUEL_PROGRAMMATION_FR.md` pour la création/modification

@@ -39,7 +39,7 @@ async fn app_with(script: &str) -> (TestApp, tempfile::TempDir) {
         .support
         .set_program(Some(fake_program(&dir, script)));
     app.login_as(MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), PIN.into(), None).unwrap();
     (app, dir)
 }
 
@@ -192,7 +192,7 @@ async fn the_session_gets_a_private_home() {
 async fn without_the_program_the_feature_says_so() {
     let app = TestApp::new().await;
     app.login_as(MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), PIN.into(), None).unwrap();
     let status = do_remote_support_status(&app.state).unwrap();
     assert!(!status.available);
     assert_eq!(
@@ -208,7 +208,7 @@ async fn a_program_that_cannot_run_is_reported() {
         .support
         .set_program(Some(PathBuf::from("/nonexistent/AppRun")));
     app.login_as(MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), PIN.into(), None).unwrap();
     let err = do_start_remote_support(&app.state, MANAGER.into(), PIN.into()).unwrap_err();
     assert!(err.starts_with("support_start_failed|detail="), "{err}");
     assert!(!do_remote_support_status(&app.state).unwrap().running);

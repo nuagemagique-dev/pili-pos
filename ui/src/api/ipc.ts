@@ -89,18 +89,22 @@ export function loginWithNewPin(insz: string, newPin: string): Promise<User> {
   return invoke("login_with_new_pin", { insz, newPin });
 }
 
-export function setPin(insz: string, newPin: string): Promise<void> {
-  return invoke("set_pin", { insz, newPin });
+/** Another user's PIN needs the manager's own (`operatorPin`). */
+export function setPin(insz: string, newPin: string, operatorPin?: string): Promise<void> {
+  return invoke("set_pin", { insz, newPin, operatorPin });
 }
 
 export function listUsers(): Promise<User[]> {
   return invoke("list_users");
 }
 
+/** A new manager needs `initialPin` and the creating manager's `operatorPin`. */
 export function createUser(input: {
   insz: string;
   name: string;
   role: string;
+  initialPin?: string;
+  operatorPin?: string;
 }): Promise<User> {
   return invoke("create_user", { input });
 }

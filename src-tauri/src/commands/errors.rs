@@ -27,6 +27,8 @@ pub const PIN_WRONG: &str = "pin_wrong";
 pub const PIN_FORMAT: &str = "pin_format";
 pub const PIN_SETUP_REQUIRED: &str = "pin_setup_required";
 pub const PIN_ALREADY_SET: &str = "pin_already_set";
+/// A manager tile without a PIN once a manager has one.
+pub const FIRST_PIN_NEEDS_MANAGER: &str = "first_pin_needs_manager";
 pub const SYSTEM_USER: &str = "system_user";
 pub const NAME_REQUIRED: &str = "name_required";
 pub const ROLE_INVALID: &str = "role_invalid";
@@ -123,6 +125,7 @@ pub const ALL: &[&str] = &[
     PIN_FORMAT,
     PIN_SETUP_REQUIRED,
     PIN_ALREADY_SET,
+    FIRST_PIN_NEEDS_MANAGER,
     SYSTEM_USER,
     NAME_REQUIRED,
     ROLE_INVALID,

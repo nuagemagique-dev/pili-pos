@@ -46,7 +46,7 @@ async fn setup(admission: bool) -> (TestApp, PrinterSink) {
         app.use_admission_mock().await;
     }
     app.login_as(MANAGER, UserRole::Admin);
-    do_set_pin(&app.state, MANAGER.into(), PIN.into()).unwrap();
+    do_set_pin(&app.state, MANAGER.into(), PIN.into(), None).unwrap();
     app.state
         .db
         .lock()
@@ -207,7 +207,7 @@ async fn a_refused_close_signs_nothing() {
 
     // A cashier cannot, even with their own PIN.
     app.login_as(SERVER, UserRole::Cashier);
-    do_set_pin(&app.state, SERVER.into(), "1234".into()).unwrap();
+    do_set_pin(&app.state, SERVER.into(), "1234".into(), None).unwrap();
     assert_eq!(refused(table, SERVER, "1234").await, ERR_FORBIDDEN);
 
     assert_eq!(app.fiscal_events().len(), before);

@@ -77,8 +77,13 @@ test.describe('Employee PIN - set by a manager in Settings', () => {
     await expect(page.locator('.pin-dialog .who')).toHaveText('Apprenti');
     await typePin(page, '9876');
     await typePin(page, '9876');
+    // The manager confirms with their own PIN.
+    await expect(page.locator('.pin-dialog .who')).toHaveText(DEFAULT_USER.name);
+    await typePin(page, '4321');
     await expect(page.locator('.pin-dialog')).toHaveCount(0);
-    expect(await ipcCalls(page, 'set_pin')).toEqual([{ insz: WAITER.insz, newPin: '9876' }]);
+    expect(await ipcCalls(page, 'set_pin')).toEqual([
+      { insz: WAITER.insz, newPin: '9876', operatorPin: '4321' },
+    ]);
   });
 });
 

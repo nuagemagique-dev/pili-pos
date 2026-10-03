@@ -2,7 +2,7 @@
 import { formatDayTime, formatTimestamp } from "../utils/datetime";
 import { useIntegrationsStore } from "../stores/integrations";
 import IntegrationSwitch from "../components/IntegrationSwitch.vue";
-import { defineAsyncComponent, onMounted, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref } from "vue";
 import { usePosStore } from "../stores/pos";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
@@ -71,6 +71,40 @@ function supportSince(): string {
 const workers = ref<User[]>([]);
 // The employee whose PIN the manager is setting (PinDialog open).
 const pinFor = ref<User | null>(null);
+// Another employee's PIN, or a new manager's first PIN: chosen first,
+// then confirmed with the manager's own PIN.
+const chosenPin = ref<string | null>(null);
+const newManager = ref(false);
+
+function openPin(w: User) {
+  chosenPin.value = null;
+  pinFor.value = w;
+}
+
+function closePin() {
+  pinFor.value = null;
+  newManager.value = false;
+  chosenPin.value = null;
+}
+
+async function confirmWithManagerPin(operatorPin: string) {
+  const pin = chosenPin.value ?? "";
+  if (newManager.value) {
+    await ipc.createUser({
+      insz: newInsz.value,
+      name: newName.value,
+      role: "admin",
+      initialPin: pin,
+      operatorPin,
+    });
+    newName.value = "";
+    newInsz.value = "";
+  } else if (pinFor.value) {
+    await ipc.setPin(pinFor.value.insz, pin, operatorPin);
+  }
+}
+
+const ownPin = computed(() => pinFor.value?.insz === auth.currentUser?.insz);
 const newName = ref("");
 const newInsz = ref("");
 const newRole = ref<"admin" | "cashier" | "waiter">("cashier");
@@ -103,6 +137,11 @@ async function addWorker() {
   addError.value = null;
   if (!newName.value || !newInsz.value) {
     addError.value = t("settings_err_name_insz_required");
+    return;
+  }
+  if (newRole.value === "admin") {
+    chosenPin.value = null;
+    newManager.value = true;
     return;
   }
   try {
@@ -232,7 +271,7 @@ onMounted(() => {
               </span>
             </span>
             <span class="worker-actions">
-              <button class="pin-btn" @click="pinFor = w">{{ t('settings_pin_button') }}</button>
+              <button class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
               <button
                 v-if="w.insz !== auth.currentUser?.insz"
                 class="deactivate-btn"
@@ -332,11 +371,27 @@ onMounted(() => {
     />
 
     <PinDialog
-      v-if="pinFor"
+      v-if="pinFor && ownPin"
       :insz="pinFor.insz"
       :user-name="pinFor.name"
-      @done="pinFor = null; loadWorkers()"
-      @cancel="pinFor = null"
+      @done="closePin(); loadWorkers()"
+      @cancel="closePin"
+    />
+    <PinDialog
+      v-else-if="(pinFor || newManager) && chosenPin === null"
+      :insz="pinFor?.insz ?? newInsz"
+      :user-name="pinFor?.name ?? newName"
+      :save="(pin: string) => { chosenPin = pin; }"
+      @cancel="closePin"
+    />
+    <PinDialog
+      v-else-if="(pinFor || newManager) && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      :hint="t('pin_confirm_manager')"
+      :verify="confirmWithManagerPin"
+      @done="closePin(); loadWorkers()"
+      @cancel="closePin"
     />
   </div>
 </template>

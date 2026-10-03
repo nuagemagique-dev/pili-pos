@@ -755,7 +755,7 @@ async fn uc4109_unpaid_table() {
 
     let manager = operator(&sale_vars);
     app.login_as(&manager, pos_core::user::UserRole::Admin);
-    do_set_pin(&app.state, manager.clone(), "4321".into()).unwrap();
+    do_set_pin(&app.state, manager.clone(), "4321".into(), None).unwrap();
     mock_from_fixture(&app, &sale_uc).await;
     let result = do_close_unpaid(&app.state, order_id, &manager, "4321")
         .await

@@ -113,6 +113,10 @@ pub fn set_pin_hash(conn: &Connection, insz: &str, hash: &str) -> Result<(), rus
 /// Store the first PIN of an active user who has none yet. Returns
 /// false when the user already has a PIN (or is unknown/inactive), so
 /// two terminals racing on the same tile cannot both choose it.
+///
+/// A manager's first PIN only on first boot (no manager has a PIN
+/// yet); later managers get theirs from a manager. Checked in the
+/// UPDATE itself, so two claims cannot both pass.
 pub fn set_first_pin_hash(
     conn: &Connection,
     insz: &str,
@@ -120,10 +124,23 @@ pub fn set_first_pin_hash(
 ) -> Result<bool, rusqlite::Error> {
     let updated = conn.execute(
         "UPDATE users SET pin_hash = ?1
-         WHERE insz = ?2 AND active = 1 AND pin_hash IS NULL",
+         WHERE insz = ?2 AND active = 1 AND pin_hash IS NULL
+           AND (role <> 'admin' OR NOT EXISTS (
+                SELECT 1 FROM users
+                WHERE role = 'admin' AND active = 1 AND pin_hash IS NOT NULL))",
         params![hash, insz],
     )?;
     Ok(updated == 1)
+}
+
+/// Whether an active manager has a PIN (see [`set_first_pin_hash`]).
+pub fn any_admin_has_pin(conn: &Connection) -> Result<bool, rusqlite::Error> {
+    conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM users
+                        WHERE role = 'admin' AND active = 1 AND pin_hash IS NOT NULL)",
+        [],
+        |row| row.get(0),
+    )
 }
 
 /// Deactivate a user: they can no longer log in, and leave the lists.
@@ -304,6 +321,22 @@ mod tests {
             .map(|u| u.insz)
             .collect();
         assert_eq!(listed, vec!["12345678958".to_string()]);
+    }
+
+    /// Once a manager has a PIN, another manager tile is not claimable.
+    #[test]
+    fn a_manager_first_pin_is_a_first_boot_only_claim() {
+        let conn = db();
+        create_user(&conn, "12345678958", "Anna", UserRole::Admin).unwrap();
+        create_user(&conn, "85073003328", "Ben", UserRole::Admin).unwrap();
+        create_user(&conn, "90010100183", "Chloe", UserRole::Cashier).unwrap();
+        assert!(!any_admin_has_pin(&conn).unwrap());
+
+        assert!(set_first_pin_hash(&conn, "12345678958", "anna").unwrap());
+        assert!(any_admin_has_pin(&conn).unwrap());
+        assert!(!set_first_pin_hash(&conn, "85073003328", "stranger").unwrap());
+        assert_eq!(get_pin_hash(&conn, "85073003328").unwrap(), None);
+        assert!(set_first_pin_hash(&conn, "90010100183", "chloe").unwrap());
     }
 
     #[test]

@@ -68,6 +68,7 @@ const coreMessages: Messages = {
   "pin_enter": { fr: "Saisir le PIN", en: "Enter PIN", zh: "输入PIN" },
   "pin_change": { fr: "Changer le PIN", en: "Change PIN", zh: "修改PIN" },
   "pin_changed": { fr: "PIN modifié", en: "PIN changed", zh: "PIN已修改" },
+  "pin_confirm_manager": { fr: "Confirmez avec votre PIN de gérant", en: "Confirm with your manager PIN", zh: "请输入您的经理PIN确认" },
 
   // Remote support (commands/support.rs)
   "support_title": { fr: "Assistance à distance", en: "Remote support", zh: "远程协助" },
@@ -106,6 +107,7 @@ const coreMessages: Messages = {
   "err_pin_format": { fr: "Le PIN doit compter exactement 4 chiffres.", en: "The PIN must be exactly 4 digits.", zh: "PIN必须为4位数字。" },
   "err_pin_setup_required": { fr: "Un gérant doit choisir un PIN.", en: "A manager must choose a PIN.", zh: "经理必须设置PIN。" },
   "err_pin_already_set": { fr: "Ce compte a déjà un PIN.", en: "This account already has a PIN.", zh: "该账户已有PIN。" },
+  "err_first_pin_needs_manager": { fr: "Un gérant doit choisir le PIN de ce compte dans Paramètres.", en: "A manager must set this account's PIN in Settings.", zh: "此账户的PIN须由经理在设置中设定。" },
   "err_system_user": { fr: "L'identité système ne peut pas se connecter.", en: "The system identity cannot log in.", zh: "系统身份无法登录。" },
   "err_name_required": { fr: "Nom requis", en: "Name required", zh: "需要姓名" },
   "err_role_invalid": { fr: "Profil inconnu", en: "Unknown role", zh: "未知角色" },
