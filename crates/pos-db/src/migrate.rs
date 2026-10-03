@@ -35,7 +35,8 @@ use crate::schema::{
     MIGRATION_002_CATALOGUE_FISCAL_FIELDS, MIGRATION_003_BOOKING_PERIODS,
     MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY, MIGRATION_005_TICKET_DELIVERIES,
     MIGRATION_006_ORIGINAL_PRINTS, MIGRATION_007_GERMAN_LANGUAGE,
-    MIGRATION_008_MEAL_VOUCHER_PAYMENTS, MIGRATION_009_SHIFTS_AND_PRE_BILL, SCHEMA_SQL,
+    MIGRATION_008_MEAL_VOUCHER_PAYMENTS, MIGRATION_009_SHIFTS_AND_PRE_BILL,
+    MIGRATION_010_PENDING_SIGNS, SCHEMA_SQL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -92,8 +93,13 @@ const MIGRATIONS: &[Migration] = &[
         name: "shifts-and-pre-bill",
         sql: MIGRATION_009_SHIFTS_AND_PRE_BILL,
     },
+    Migration {
+        version: 10,
+        name: "pending-signs",
+        sql: MIGRATION_010_PENDING_SIGNS,
+    },
     // Future schema diffs go here, as a new entry rather than an edit
-    // of an existing one. Versions 10 to 19 are kept for the certified
+    // of an existing one. Versions 11 to 19 are kept for the certified
     // build; the HubRise integration starts at 20 (`HUBRISE_MIGRATIONS`).
 ];
 
@@ -154,6 +160,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     // PRAGMAs must run outside of transactions and must run before the
     // migration tracker query (WAL changes journal mode).
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+    // Every commit reaches the disk before it returns, in WAL mode too:
+    // a sign request is stored before it is sent.
+    conn.execute_batch("PRAGMA synchronous=FULL;")?;
     conn.execute_batch("PRAGMA foreign_keys=ON;")?;
 
     conn.execute(
@@ -268,9 +277,24 @@ mod tests {
     }
 
     #[test]
-    fn the_certified_migrations_are_1_to_9() {
+    fn the_certified_migrations_are_1_to_10() {
         let certified: Vec<i64> = MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(certified, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(certified, (1..=10).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn commits_are_synchronous_full() {
+        let path = std::env::temp_dir().join(format!("pos-db-sync-{}.db", std::process::id()));
+        let conn = Connection::open(&path).unwrap();
+        run_migrations(&conn).unwrap();
+        let mode: i64 = conn
+            .query_row("PRAGMA synchronous", [], |r| r.get(0))
+            .unwrap();
+        drop(conn);
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
+        }
+        assert_eq!(mode, 2, "FULL");
     }
 
     #[cfg(feature = "hubrise")]

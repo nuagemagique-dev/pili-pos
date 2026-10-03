@@ -492,6 +492,79 @@ CREATE INDEX IF NOT EXISTS idx_staff_shifts_open ON staff_shifts(user_insz, ende
 ALTER TABLE orders ADD COLUMN pre_bill_at TEXT;
 "#;
 
+/// v10 - Sign requests sent and not yet resolved. A request is stored,
+/// byte for byte, before it is sent; when its answer is lost it is sent
+/// again identically, so the FDM returns its first answer (POS
+/// description v2.2, duplicate requests) and the event is archived.
+/// At most one request is open. Rows are never deleted, and only their
+/// outcome changes.
+///
+/// Also: no event joins a booking period once its Z closed it.
+pub(crate) const MIGRATION_010_PENDING_SIGNS: &str = r#"
+CREATE TABLE IF NOT EXISTS pending_signs (
+    id INTEGER PRIMARY KEY,
+    event_label TEXT NOT NULL,
+    first_ticket_no INTEGER NOT NULL,
+    ticket_count INTEGER NOT NULL CHECK (ticket_count IN (1, 2)),
+    mutation TEXT NOT NULL,
+    is_training INTEGER NOT NULL CHECK (is_training IN (0, 1)),
+    request_body TEXT NOT NULL,
+    archive_json TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    order_id INTEGER,
+    context_json TEXT NOT NULL,
+    user_insz TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open'
+        CHECK (status IN ('open', 'signed', 'refused', 'not_sent')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    fiscal_event_id INTEGER REFERENCES fiscal_events(id),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    resolved_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_signs_one_open
+    ON pending_signs ((status)) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_pending_signs_order ON pending_signs(order_id, status);
+-- What was sent never changes.
+CREATE TRIGGER IF NOT EXISTS pending_signs_request_immutable
+BEFORE UPDATE OF event_label, first_ticket_no, ticket_count, mutation, is_training,
+    request_body, archive_json, kind, subject, order_id, user_insz, created_at
+ON pending_signs
+BEGIN
+    SELECT RAISE(ABORT, 'a pending sign request is immutable');
+END;
+-- The context changes only as the request is resolved.
+CREATE TRIGGER IF NOT EXISTS pending_signs_context_on_resolution
+BEFORE UPDATE OF context_json ON pending_signs
+WHEN NEW.status = 'open'
+BEGIN
+    SELECT RAISE(ABORT, 'a pending sign context changes only on resolution');
+END;
+-- A resolved request stays resolved.
+CREATE TRIGGER IF NOT EXISTS pending_signs_no_reopen
+BEFORE UPDATE OF status, attempts, last_error, fiscal_event_id, resolved_at ON pending_signs
+WHEN OLD.status <> 'open'
+BEGIN
+    SELECT RAISE(ABORT, 'a resolved sign request cannot change');
+END;
+CREATE TRIGGER IF NOT EXISTS pending_signs_no_delete
+BEFORE DELETE ON pending_signs
+BEGIN
+    SELECT RAISE(ABORT, 'pending sign requests cannot be deleted');
+END;
+CREATE TRIGGER IF NOT EXISTS fiscal_events_period_open
+BEFORE INSERT ON fiscal_events
+WHEN EXISTS (
+    SELECT 1 FROM booking_periods
+    WHERE id = json_extract(NEW.event_data_json, '$.bookingPeriodId')
+      AND closed_at IS NOT NULL
+)
+BEGIN
+    SELECT RAISE(ABORT, 'booking period is closed');
+END;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
