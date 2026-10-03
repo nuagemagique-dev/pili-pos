@@ -13,6 +13,8 @@ pub mod hubrise_push;
 #[cfg(feature = "peppol")]
 pub mod invoice;
 pub mod menu;
+#[cfg(feature = "hubrise")]
+pub mod modifiers;
 pub mod order;
 pub mod print;
 pub mod refund;

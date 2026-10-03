@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { Order, CartLine, MenuItem } from "../types";
+import type { Order, OrderLine, CartLine, MenuItem } from "../types";
 import * as ipc from "../api/ipc";
 import { useAuthStore } from "./auth";
 import { useToastStore } from "./toast";
@@ -86,9 +86,10 @@ export const useOrderStore = defineStore("order", () => {
     // If item already in cart, increment quantity instead of adding a
     // duplicate line - except free-price products, whose lines can
     // carry different prices.
+    // A line with options is never merged into: its options differ.
     const existing = item.open_price
       ? undefined
-      : lines.value.find((l) => l.menu_item_id === item.id);
+      : lines.value.find((l) => l.menu_item_id === item.id && !l.modifiers_json);
     if (existing) {
       await updateQuantityUnreported(existing.id, existing.quantity + quantity);
       return;
@@ -101,6 +102,19 @@ export const useOrderStore = defineStore("order", () => {
       modifiers_json: null,
       ...(item.open_price ? { unit_price_cents: unitPriceCents } : {}),
     });
+    await lineAdded(item, line, quantity);
+  }
+
+  /** A line another command added (a product with options): show it. */
+  function addLineWith(item: MenuItem, quantity: number, create: (orderId: number) => Promise<OrderLine>) {
+    return reported(async () => {
+      if (!currentOrder.value) throw new Error("No active order");
+      await lineAdded(item, await create(currentOrder.value.id), quantity);
+    });
+  }
+
+  async function lineAdded(item: MenuItem, line: OrderLine, quantity: number) {
+    if (!currentOrder.value) return;
     lines.value.push({
       ...line,
       name_fr: item.name_fr ?? null,
@@ -213,6 +227,7 @@ export const useOrderStore = defineStore("order", () => {
     startOrder,
     loadOrder,
     addItem,
+    addLineWith,
     removeLine,
     updateQuantity,
     loadOpenOrders,

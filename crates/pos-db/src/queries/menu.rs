@@ -412,3 +412,84 @@ mod tests {
         assert!(all.iter().all(|i| i.active));
     }
 }
+
+/// An option group of a product, as the order screen offers it.
+#[cfg(feature = "catalog-sync")]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ModifierGroup {
+    pub id: i64,
+    pub name: String,
+    pub min: i64,
+    /// `None`: no maximum.
+    pub max: Option<i64>,
+    pub options: Vec<Modifier>,
+}
+
+#[cfg(feature = "catalog-sync")]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Modifier {
+    pub id: i64,
+    pub name: String,
+    pub price_cents: i64,
+}
+
+/// The active option groups of `menu_item_id`, names in `lang` (then
+/// French, then English), each with its active options.
+#[cfg(feature = "catalog-sync")]
+pub fn get_modifier_groups(
+    conn: &Connection,
+    menu_item_id: i64,
+    lang: &str,
+) -> Result<Vec<ModifierGroup>, rusqlite::Error> {
+    let name = |entity: &str, alias: &str| {
+        format!(
+            "COALESCE(
+                (SELECT value FROM translations WHERE entity_type = '{entity}'
+                    AND entity_id = {alias}.id AND field = 'name' AND lang = ?2),
+                (SELECT value FROM translations WHERE entity_type = '{entity}'
+                    AND entity_id = {alias}.id AND field = 'name' AND lang = 'fr'),
+                (SELECT value FROM translations WHERE entity_type = '{entity}'
+                    AND entity_id = {alias}.id AND field = 'name' AND lang = 'en'),
+                CAST({alias}.id AS TEXT))"
+        )
+    };
+    let mut groups: Vec<ModifierGroup> = {
+        let mut stmt = conn.prepare(&format!(
+            "SELECT g.id, {}, g.min_select, g.max_select FROM modifier_groups g
+             WHERE g.menu_item_id = ?1 AND g.active = 1
+             ORDER BY g.sort_order, g.id",
+            name("modifier_group", "g")
+        ))?;
+        stmt.query_map(params![menu_item_id, lang], |r| {
+            let max: i64 = r.get(3)?;
+            Ok(ModifierGroup {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                min: r.get(2)?,
+                max: (max >= 0).then_some(max),
+                options: Vec::new(),
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?
+    };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT m.id, {}, m.price_cents FROM modifiers m
+         WHERE m.group_id = ?1 AND m.active = 1
+         ORDER BY m.sort_order, m.id",
+        name("modifier", "m")
+    ))?;
+    for group in &mut groups {
+        group.options = stmt
+            .query_map(params![group.id, lang], |r| {
+                Ok(Modifier {
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    price_cents: r.get(2)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+    }
+    // A group with nothing to pick is not offered.
+    groups.retain(|g| !g.options.is_empty());
+    Ok(groups)
+}

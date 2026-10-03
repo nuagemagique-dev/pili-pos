@@ -329,6 +329,7 @@ function defaultHandlers(): Record<string, Handler> {
       stale_orders: 0, catalog: null, catalog_awaiting_adoption: false,
     }),
     hubrise_list_channels: () => [],
+    get_item_modifiers: () => [],
     hubrise_start_oauth_flow: () => 'http://localhost:3001/oauth2/v1/authorize',
     hubrise_complete_oauth: () => ({ connected: true }),
     hubrise_disconnect: () => undefined,

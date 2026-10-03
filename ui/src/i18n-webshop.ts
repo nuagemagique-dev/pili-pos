@@ -174,4 +174,14 @@ export const webshopMessages: Messages = {
   "catalog_issue_vat_mismatch": { fr: "TVA livraison et emporter différentes", en: "Delivery and collection VAT differ", zh: "外送与自取增值税不同" },
   "catalog_issue_missing_vat": { fr: "TVA manquante", en: "Missing VAT", zh: "缺少增值税" },
   "catalog_issue_unknown_option_list": { fr: "Liste d'options inconnue", en: "Unknown option list", zh: "未知选项列表" },
+  // Option picker on the order screen.
+  "modifier_title": { fr: "Options", en: "Options", zh: "选项" },
+  "modifier_required": { fr: "Choisir {min}", en: "Pick {min}", zh: "请选 {min} 项" },
+  "modifier_range": { fr: "{min} à {max}", en: "{min} to {max}", zh: "{min} 至 {max} 项" },
+  "modifier_up_to": { fr: "Jusqu'à {max}", en: "Up to {max}", zh: "最多 {max} 项" },
+  "modifier_optional": { fr: "Facultatif", en: "Optional", zh: "可选" },
+  "modifier_add": { fr: "Ajouter", en: "Add", zh: "添加" },
+  "err_modifier_unknown": { fr: "Option inconnue pour ce produit.", en: "Unknown option for this product.", zh: "该产品没有此选项。" },
+  "err_modifier_count": { fr: "« {group} » : choisir entre {min} et {max}.", en: "\"{group}\": pick between {min} and {max}.", zh: "「{group}」：请选 {min} 至 {max} 项。" },
+  "err_modifier_open_price": { fr: "Un produit à prix libre n'a pas d'options.", en: "A free-price product has no options.", zh: "自定价产品没有选项。" },
 };

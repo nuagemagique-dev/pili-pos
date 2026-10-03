@@ -205,6 +205,12 @@ pub mod hubrise {
     pub const PAYMENT_NOT_AT_TILL: &str = "webshop_payment_not_at_till";
     /// Only a signed order HubRise cancelled is refunded or closed.
     pub const NOT_CANCELLED: &str = "webshop_not_cancelled";
+    /// An option that is not one of the product's (or is inactive).
+    pub const MODIFIER_UNKNOWN: &str = "modifier_unknown";
+    /// Too few or too many options in a group ({group}, {min}, {max}).
+    pub const MODIFIER_COUNT: &str = "modifier_count";
+    /// A free-price product takes no options.
+    pub const MODIFIER_OPEN_PRICE: &str = "modifier_open_price";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -221,6 +227,9 @@ pub mod hubrise {
         NOT_AWAITING_PAYMENT,
         PAYMENT_NOT_AT_TILL,
         NOT_CANCELLED,
+        MODIFIER_UNKNOWN,
+        MODIFIER_COUNT,
+        MODIFIER_OPEN_PRICE,
     ];
 }
 

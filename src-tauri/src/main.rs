@@ -354,6 +354,8 @@ fn main() {
         commands::hubrise::hubrise_adopt_catalog,
         commands::hubrise::hubrise_list_channels,
         commands::hubrise::hubrise_set_channel,
+        commands::modifiers::get_item_modifiers,
+        commands::modifiers::add_order_line_with_modifiers,
         commands::webshop::webshop_accept_order,
         commands::webshop::webshop_handover_order,
         commands::webshop::webshop_reject_order,
