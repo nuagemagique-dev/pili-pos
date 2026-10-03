@@ -100,10 +100,8 @@ export const webshopMessages: Messages = {
   "hubrise_disconnect_action": { fr: "Déconnecter", en: "Disconnect", zh: "断开" },
   "hubrise_open_authorize_url": { fr: "Se connecter à HubRise", en: "Connect to HubRise", zh: "连接 HubRise" },
   "hubrise_authorize_scan": { fr: "Scannez ce code avec un téléphone, connectez-vous à HubRise et choisissez l'établissement, puis tapez ci-dessous le code affiché.", en: "Scan this code with a phone, log in to HubRise and pick the location, then type the code it shows below.", zh: "用手机扫描此二维码，登录 HubRise 并选择门店，然后在下方输入显示的代码。" },
-  "hubrise_paste_code_title": { fr: "Coller le code d'autorisation", en: "Paste authorization code", zh: "粘贴授权码" },
   "hubrise_code_placeholder": { fr: "Code d'autorisation", en: "Authorization code", zh: "授权码" },
   "hubrise_complete_connection": { fr: "Valider la connexion", en: "Complete connection", zh: "完成连接" },
-  "hubrise_err_code_required": { fr: "Code requis", en: "Code required", zh: "授权码必填" },
   // Backend error codes of the HubRise integration (commands/errors.rs,
   // module `hubrise`).
   "err_hubrise_not_connected": { fr: "HubRise n'est pas connecté.", en: "HubRise is not connected.", zh: "HubRise未连接。" },

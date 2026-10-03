@@ -122,19 +122,46 @@ test.describe('Settings View', () => {
     const authorizeBtn = page.getByText('Se connecter à HubRise');
     await authorizeBtn.scrollIntoViewIfNeeded();
     await authorizeBtn.click();
-    const panel = page.getByTestId('hubrise-authorize');
-    await expect(panel.locator('svg[data-qr]')).toBeVisible();
-    await expect(panel).toContainText('Scannez ce code avec un téléphone');
-    await expect(panel).toContainText('https://manager.hubrise.com/oauth2/v1/authorize?client_id=test');
+    // A dialog over the screen: the HubRise card is too short for it.
+    const dialog = page.getByRole('dialog', { name: 'Se connecter à HubRise' });
+    await expect(dialog.locator('svg[data-qr]')).toBeVisible();
+    await expect(dialog).toContainText('Scannez ce code avec un téléphone');
+    await expect(dialog).toContainText('https://manager.hubrise.com/oauth2/v1/authorize?client_id=test');
 
-    // 3. Paste a code and complete
-    const codeInput = page.locator('input[placeholder]').last();
-    await codeInput.fill('test-auth-code');
-    const completeBtn = page.getByText('Valider la connexion');
+    // 3. No code, no connection; type the code HubRise shows.
+    const completeBtn = dialog.getByRole('button', { name: 'Valider la connexion' });
+    await expect(completeBtn).toBeDisabled();
+    await dialog.getByPlaceholder("Code d'autorisation").fill('test-auth-code');
     await completeBtn.click();
 
-    // 4. Verify status transitions to connected
+    // 4. Connected: the dialog closes, the status shows.
+    await expect(dialog).toBeHidden();
     await expect(page.locator('.status-ok')).toBeVisible();
+  });
+
+  test('a refused HubRise code keeps the dialog open with its error', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      hubrise_get_connection_status: () => ({ connected: false }),
+      hubrise_start_oauth_flow: () => ({
+        url: 'https://manager.hubrise.com/oauth2/v1/authorize?client_id=test',
+        qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>',
+      }),
+    });
+    await page.goto('/#/settings');
+    await overrideIPC(page, 'hubrise_complete_oauth', { __reject: 'hubrise_secret_unreadable' });
+    const btn = page.getByText('Se connecter à HubRise');
+    await btn.scrollIntoViewIfNeeded();
+    await btn.click();
+    const dialog = page.getByRole('dialog', { name: 'Se connecter à HubRise' });
+    await dialog.getByPlaceholder("Code d'autorisation").fill('bad-code');
+    await dialog.getByRole('button', { name: 'Valider la connexion' }).click();
+    await expect(dialog).toContainText('Le secret HubRise est illisible');
+    // "Retour" closes it; nothing is connected.
+    await dialog.getByRole('button', { name: 'Retour' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('.status-ok')).toHaveCount(0);
   });
 
   test('HubRise connected shows account info', async ({ page }) => {

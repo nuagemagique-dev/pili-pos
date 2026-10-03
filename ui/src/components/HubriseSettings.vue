@@ -17,6 +17,7 @@ import { formatPrice } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useWebshopOrdersStore } from "../stores/webshopOrders";
 import { describeError } from "../utils/errorMessages";
+import HubriseConnectDialog from "./HubriseConnectDialog.vue";
 const { t } = useI18n();
 // Pending count kept live by the header's "En ligne" button.
 const webshop = useWebshopOrdersStore();
@@ -25,7 +26,6 @@ const toast = useToastStore();
 
 // ── HubRise connection ─────────────────────────────────────────────
 const hubriseStatus = ref<HubriseConnectionInfo | null>(null);
-const hubriseCode = ref("");
 const hubriseError = ref<string | null>(null);
 const hubriseLoading = ref(false);
 // The login link, shown as a QR code to open on a phone.
@@ -54,21 +54,22 @@ async function connectHubrise() {
   }
 }
 
-async function completeHubrise() {
-  if (!hubriseCode.value.trim()) {
-    hubriseError.value = t("hubrise_err_code_required");
-    return;
-  }
+async function completeHubrise(code: string) {
   hubriseLoading.value = true;
   hubriseError.value = null;
   try {
-    hubriseStatus.value = await ipc.hubriseCompleteOauth(hubriseCode.value.trim());
-    hubriseCode.value = "";
+    hubriseStatus.value = await ipc.hubriseCompleteOauth(code);
+    authorizeLink.value = null;
   } catch (e) {
     hubriseError.value = describeError(e);
   } finally {
     hubriseLoading.value = false;
   }
+}
+
+function cancelConnect() {
+  authorizeLink.value = null;
+  hubriseError.value = null;
 }
 
 async function disconnectHubrise() {
@@ -315,24 +316,17 @@ onMounted(async () => {
       <button class="action-btn" :disabled="hubriseLoading" @click="connectHubrise">
         {{ t('hubrise_open_authorize_url') }}
       </button>
-      <div v-if="authorizeLink" class="authorize" data-testid="hubrise-authorize">
-        <!-- SVG rendered by the backend from the URL alone. -->
-        <div class="authorize-qr" v-html="authorizeLink.qr_svg"></div>
-        <div class="authorize-text">
-          <p class="hubrise-help">{{ t('hubrise_authorize_scan') }}</p>
-          <p class="authorize-url">{{ authorizeLink.url }}</p>
-        </div>
-      </div>
-      <div class="section-label">{{ t('hubrise_paste_code_title') }}</div>
-      <div class="code-row">
-        <input v-model="hubriseCode" class="field" :placeholder="t('hubrise_code_placeholder')" />
-        <button class="action-btn" :disabled="hubriseLoading" @click="completeHubrise">
-          {{ t('hubrise_complete_connection') }}
-        </button>
-      </div>
+      <HubriseConnectDialog
+        v-if="authorizeLink"
+        :link="authorizeLink"
+        :loading="hubriseLoading"
+        :error="hubriseError"
+        @submit="completeHubrise"
+        @cancel="cancelConnect"
+      />
     </template>
 
-    <p v-if="hubriseError" class="add-error">{{ hubriseError }}</p>
+    <p v-if="hubriseError && !authorizeLink" class="add-error">{{ hubriseError }}</p>
   </section>
 </template>
 
@@ -364,17 +358,6 @@ onMounted(async () => {
 .info-row span:first-child { color: var(--text-secondary); flex-shrink: 0; }
 .info-value { font-family: var(--font-mono); text-align: right; overflow-wrap: anywhere; }
 
-.authorize { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-.authorize-qr {
-  flex-shrink: 0; width: 240px; height: 240px; padding: 8px;
-  border-radius: var(--radius-md); background: #ffffff;
-}
-.authorize-qr :deep(svg) { display: block; width: 100%; height: 100%; }
-.authorize-text { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 12px; }
-.authorize-url {
-  font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary);
-  overflow-wrap: anywhere; user-select: all;
-}
 .code-row { display: flex; gap: 8px; }
 .field {
   flex: 1; min-width: 0; height: 56px; padding: 0 16px;
