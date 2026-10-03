@@ -28,140 +28,23 @@
 
 mod common;
 
-use common::TestApp;
-use common::hubrise::{drain_outbox, poller};
-use common::live_hubrise::{LiveToken, live_client, live_hubrise_app, live_hubrise_requests};
+use common::live_hubrise::{Live, LiveFdm, finish};
 use pili_pos::commands::checkout::PaymentPart;
 use pili_pos::commands::webshop::{
     do_accept_webshop_order, do_handover_webshop_order, do_refund_webshop_order,
 };
 use pos_core::user::UserRole;
-use pos_hubrise::poller::start;
-use pos_hubrise_mock::builders::{seed_catalog_builder, template};
-use serde_json::{Value, json};
+use pos_hubrise_mock::builders::template;
+use serde_json::json;
 
 const CASHIER: &str = "12345678958";
 const MANAGER: &str = "85073003328";
 
-struct Live {
-    app: TestApp,
-    _db: tempfile::TempDir,
-    token: LiveToken,
-    hubrise: pos_hubrise::client::Client,
-}
-
+/// The live location, signed by the FDM mock, as the cashier.
 async fn live() -> Option<Live> {
-    let (app, db, token, proxy) = live_hubrise_app().await?;
-    eprintln!(
-        "live HubRise: {} / {} (location {})",
-        token.account_name, token.location_name, token.location_id
-    );
-    // Never the real restaurant: the test location's name says so.
-    assert!(
-        token.location_name.to_uppercase().contains("TEST"),
-        "refusing to run on location {:?}: not a test location",
-        token.location_name
-    );
-    app.use_admission_mock().await;
-    app.login_as(CASHIER, UserRole::Cashier);
-    let hubrise = live_client(&app, &token, &proxy);
-    Some(Live {
-        app,
-        _db: db,
-        token,
-        hubrise,
-    })
-}
-
-impl Live {
-    /// Load the test menu (the mock's seed catalog) into the location's
-    /// catalog, whole.
-    async fn load_test_menu(&self) {
-        let catalog = self.token.catalog_id.as_deref().unwrap();
-        let body =
-            json!({ "name": self.token.catalog_name, "data": seed_catalog_builder().build_json() });
-        let _: Value = self
-            .hubrise
-            .put_json(&format!("/catalogs/{catalog}"), &body)
-            .await
-            .expect("load the test menu");
-    }
-
-    /// What the POS does at start: callback, catalog, backfill.
-    async fn start(&self) {
-        start(&poller(&self.app)).await.expect("poller start");
-    }
-
-    async fn place(&self, body: Value) -> String {
-        let order: Value = self
-            .hubrise
-            .post_json(
-                &format!("/locations/{}/orders", self.token.location_id),
-                &body,
-            )
-            .await
-            .expect("place the order");
-        order["id"].as_str().unwrap().to_owned()
-    }
-
-    async fn hubrise_status(&self, id: &str) -> String {
-        let order: Value = self
-            .hubrise
-            .get_json(&format!(
-                "/locations/{}/orders/{id}",
-                self.token.location_id
-            ))
-            .await
-            .unwrap();
-        order["status"].as_str().unwrap().to_owned()
-    }
-
-    async fn set_status(&self, id: &str, status: &str) {
-        let _: Value = self
-            .hubrise
-            .patch_json(
-                &format!("/locations/{}/orders/{id}", self.token.location_id),
-                &json!({ "status": status }),
-            )
-            .await
-            .unwrap();
-    }
-
-    fn local(&self, hubrise_id: &str) -> i64 {
-        self.app
-            .state
-            .db
-            .lock()
-            .unwrap()
-            .query_row(
-                "SELECT id FROM orders WHERE hubrise_order_id = ?1",
-                [hubrise_id],
-                |r| r.get(0),
-            )
-            .expect("the POS has the order")
-    }
-
-    fn state_of(&self, order_id: i64) -> pos_hubrise::webshop::WebshopState {
-        let db = self.app.state.db.lock().unwrap();
-        pos_hubrise::webshop::load(&db, order_id).unwrap().unwrap()
-    }
-
-    fn labels(&self) -> Vec<String> {
-        self.app
-            .fiscal_events()
-            .into_iter()
-            .map(|e| e.event_type)
-            .collect()
-    }
-
-    async fn drain(&self) {
-        let report = drain_outbox(&self.app).await;
-        eprintln!("outbox pass: {report:?}");
-    }
-}
-
-fn finish() {
-    eprintln!("{} live HubRise calls", live_hubrise_requests());
+    let w = common::live_hubrise::live(LiveFdm::Mock).await?;
+    w.app.login_as(CASHIER, UserRole::Cashier);
+    Some(w)
 }
 
 #[tokio::test]

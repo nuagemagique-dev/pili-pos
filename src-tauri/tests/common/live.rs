@@ -273,7 +273,16 @@ impl TestApp {
     /// previous live run.
     pub async fn live(target: String) -> Self {
         let mut app = TestApp::new().await;
-        app.live = true;
+        app.sign_on_live_fdm(target).await;
+        app
+    }
+
+    /// Sign this app's events on the live FDM `target` from now on,
+    /// through the pacing proxy, with the identity module2 allows and
+    /// the ticket numbers of the previous live runs.
+    pub async fn sign_on_live_fdm(&mut self, target: String) {
+        self.live = true;
+        let app = &*self;
         let url = start_proxy(target).await;
         {
             let mut config = app.state.config.lock().unwrap();
@@ -292,7 +301,6 @@ impl TestApp {
             }
         }
         app.restore_ticket_numbers();
-        app
     }
 
     /// Seed `fiscal_counters` from the previous live runs.

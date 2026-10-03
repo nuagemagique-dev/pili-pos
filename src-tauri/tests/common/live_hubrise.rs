@@ -36,6 +36,10 @@ use serde_json::Value;
 
 use super::fixtures::workspace_root;
 use super::harness::TestApp;
+use super::hubrise::{drain_outbox, poller};
+use pos_hubrise::poller::start;
+use pos_hubrise_mock::builders::seed_catalog_builder;
+use serde_json::json;
 
 /// Calls forwarded to HubRise by this test binary.
 static FORWARDED: AtomicUsize = AtomicUsize::new(0);
@@ -287,4 +291,149 @@ pub fn live_client(app: &TestApp, token: &LiveToken, proxy: &str) -> pos_hubrise
         format!("{proxy}/v1"),
         token.access_token.clone(),
     )
+}
+
+/// A TestApp on the live HubRise test location, with the HubRise
+/// client the suite places orders through.
+pub struct Live {
+    pub app: TestApp,
+    _db: tempfile::TempDir,
+    pub token: LiveToken,
+    pub hubrise: pos_hubrise::client::Client,
+}
+
+/// Who signs the live suite's events.
+pub enum LiveFdm {
+    /// The in-process FDM mock.
+    Mock,
+    /// The live FDM at this URL (the module2 simulator), through the
+    /// pacing proxy of `common::live`.
+    Live(String),
+}
+
+/// `None` without a stored token.
+pub async fn live(fdm: LiveFdm) -> Option<Live> {
+    let (mut app, db, token, proxy) = live_hubrise_app().await?;
+    eprintln!(
+        "live HubRise: {} / {} (location {})",
+        token.account_name, token.location_name, token.location_id
+    );
+    // Never the real restaurant: the test location's name says so.
+    assert!(
+        token.location_name.to_uppercase().contains("TEST"),
+        "refusing to run on location {:?}: not a test location",
+        token.location_name
+    );
+    match fdm {
+        LiveFdm::Mock => app.use_admission_mock().await,
+        LiveFdm::Live(url) => app.sign_on_live_fdm(url).await,
+    }
+    let hubrise = live_client(&app, &token, &proxy);
+    Some(Live {
+        app,
+        _db: db,
+        token,
+        hubrise,
+    })
+}
+
+impl Live {
+    /// Load the test menu (the mock's seed catalog) into the location's
+    /// catalog, whole.
+    pub async fn load_test_menu(&self) {
+        let catalog = self.token.catalog_id.as_deref().unwrap();
+        let body =
+            json!({ "name": self.token.catalog_name, "data": seed_catalog_builder().build_json() });
+        let _: Value = self
+            .hubrise
+            .put_json(&format!("/catalogs/{catalog}"), &body)
+            .await
+            .expect("load the test menu");
+    }
+
+    /// What the POS does at start: callback, catalog, backfill.
+    pub async fn start(&self) {
+        start(&poller(&self.app)).await.expect("poller start");
+    }
+
+    /// Places the order, or, with `PILI_LIVE_HUBRISE_REUSE_ORDER` set,
+    /// takes over that order of the test location instead: a run cut
+    /// short after placing its order does not spend another of the free
+    /// plan's orders. The reused order must still be `new` and of the
+    /// test's kind.
+    pub async fn place(&self, body: Value) -> String {
+        if let Ok(id) = std::env::var("PILI_LIVE_HUBRISE_REUSE_ORDER") {
+            assert_eq!(self.hubrise_status(&id).await, "new", "order {id}");
+            eprintln!("live HubRise: reusing order {id}");
+            return id;
+        }
+        let order: Value = self
+            .hubrise
+            .post_json(
+                &format!("/locations/{}/orders", self.token.location_id),
+                &body,
+            )
+            .await
+            .expect("place the order");
+        order["id"].as_str().unwrap().to_owned()
+    }
+
+    pub async fn hubrise_status(&self, id: &str) -> String {
+        let order: Value = self
+            .hubrise
+            .get_json(&format!(
+                "/locations/{}/orders/{id}",
+                self.token.location_id
+            ))
+            .await
+            .unwrap();
+        order["status"].as_str().unwrap().to_owned()
+    }
+
+    pub async fn set_status(&self, id: &str, status: &str) {
+        let _: Value = self
+            .hubrise
+            .patch_json(
+                &format!("/locations/{}/orders/{id}", self.token.location_id),
+                &json!({ "status": status }),
+            )
+            .await
+            .unwrap();
+    }
+
+    pub fn local(&self, hubrise_id: &str) -> i64 {
+        self.app
+            .state
+            .db
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT id FROM orders WHERE hubrise_order_id = ?1",
+                [hubrise_id],
+                |r| r.get(0),
+            )
+            .expect("the POS has the order")
+    }
+
+    pub fn state_of(&self, order_id: i64) -> pos_hubrise::webshop::WebshopState {
+        let db = self.app.state.db.lock().unwrap();
+        pos_hubrise::webshop::load(&db, order_id).unwrap().unwrap()
+    }
+
+    pub fn labels(&self) -> Vec<String> {
+        self.app
+            .fiscal_events()
+            .into_iter()
+            .map(|e| e.event_type)
+            .collect()
+    }
+
+    pub async fn drain(&self) {
+        let report = drain_outbox(&self.app).await;
+        eprintln!("outbox pass: {report:?}");
+    }
+}
+
+pub fn finish() {
+    eprintln!("{} live HubRise calls", live_hubrise_requests());
 }
