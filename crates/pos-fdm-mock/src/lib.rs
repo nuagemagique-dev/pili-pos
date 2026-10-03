@@ -122,11 +122,35 @@ struct LoggedCall {
 /// Calls kept by the request log.
 const LOG_SIZE: usize = 100;
 
+/// The 5 key fields of a mutation (POS description v2.2, communication
+/// rules): posId, posDateTime, terminalId, eventLabel, posFiscalTicketNo.
+type MutationKey = (String, String, String, &'static str, i64);
+
 #[derive(Default)]
 struct FdmState {
     control: Control,
     counters: HashMap<String, Counters>,
+    /// Every signed mutation: its input and its answer, by key fields.
+    signed: HashMap<MutationKey, (serde_json::Value, serde_json::Value)>,
     log: VecDeque<LoggedCall>,
+}
+
+fn mutation_key(mutation: &str, is_training: bool, data: &serde_json::Value) -> MutationKey {
+    let text = |field: &str| {
+        data.get(field)
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
+    (
+        text("posId"),
+        text("posDateTime"),
+        text("terminalId"),
+        event_label(mutation, is_training),
+        data.get("posFiscalTicketNo")
+            .and_then(|v| v.as_i64())
+            .unwrap_or_default(),
+    )
 }
 
 type Shared = Arc<Mutex<FdmState>>;
@@ -583,8 +607,33 @@ fn answer(
         return invalid_request(&problem);
     }
 
+    // Same key fields: the same content gets its first answer back,
+    // other content is refused (POS description v2.2, communication
+    // rules).
+    let keys: Vec<MutationKey> = parts
+        .iter()
+        .map(|(mutation, data)| mutation_key(mutation, is_training, data))
+        .collect();
+    let conflict = parts.iter().zip(&keys).any(|((_, data), key)| {
+        fdm.signed
+            .get(key)
+            .is_some_and(|(signed, _)| signed != data)
+    });
+    if conflict {
+        return invalid_request(
+            "A mutation with the same key fields but other values was already processed.",
+        );
+    }
+
     let mut data_map = serde_json::Map::new();
-    for (mutation, data) in parts {
+    for ((mutation, data), key) in parts.into_iter().zip(keys) {
+        if let Some((_, answer)) = fdm.signed.get(&key) {
+            let mut answer = answer.clone();
+            answer["warnings"] = codes_to_messages(vec!["DUPLICATE_REQUEST".into()], "FR");
+            println!("[dup] {mutation} #{}", key.4);
+            data_map.insert(mutation.to_string(), answer);
+            continue;
+        }
         let pos_id = data
             .get("posId")
             .and_then(|v| v.as_str())
@@ -601,10 +650,9 @@ fn answer(
             "[{}] {mutation} #{} (total: {})",
             result.fdm_ref.event_label, result.fdm_ref.event_counter, result.fdm_ref.total_counter
         );
-        data_map.insert(
-            mutation.to_string(),
-            serde_json::to_value(&result).unwrap_or_default(),
-        );
+        let answer = serde_json::to_value(&result).unwrap_or_default();
+        fdm.signed.insert(key, (data, answer.clone()));
+        data_map.insert(mutation.to_string(), answer);
     }
     with_info(serde_json::json!({ "data": data_map }))
 }
@@ -628,16 +676,11 @@ fn as_simulator_signs(result: &mut SignResult) {
     }
 }
 
-/// Build one signed result for a mutation, advancing the counters.
-fn build_sign_result(
-    mutation_name: &str,
-    is_training: bool,
-    data: &serde_json::Value,
-    counters: &mut Counters,
-) -> SignResult {
-    // Every event signed in training mode is a T event, whatever the
-    // mutation (UC M170 work-in, M171 sale and M172 copy all answer T).
-    let event_label = match mutation_name {
+/// The label of the event a mutation signs. Every event signed in
+/// training mode is a T event, whatever the mutation (UC M170 work-in,
+/// M171 sale and M172 copy all answer T).
+fn event_label(mutation_name: &str, is_training: bool) -> &'static str {
+    match mutation_name {
         _ if is_training => "T",
         "signSale" => "N",
         "signOrder" | "signPreBill" | "signCostCenterChange" => "P",
@@ -649,7 +692,17 @@ fn build_sign_result(
             "R"
         }
         _ => "N",
-    };
+    }
+}
+
+/// Build one signed result for a mutation, advancing the counters.
+fn build_sign_result(
+    mutation_name: &str,
+    is_training: bool,
+    data: &serde_json::Value,
+    counters: &mut Counters,
+) -> SignResult {
+    let event_label = event_label(mutation_name, is_training);
 
     let event_op = match mutation_name {
         "signSale" => "SALE",
@@ -1216,6 +1269,44 @@ mod tests {
         }
     }
 
+    fn work_in(ticket_no: i64, insz: &str) -> GqlRequest {
+        GqlRequest {
+            query: "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId } }".into(),
+            variables: json!({ "isTraining": false, "data": {
+                "posId": "CPOS0031234567",
+                "posFiscalTicketNo": ticket_no,
+                "posDateTime": "2026-07-03T12:34:56+02:00",
+                "terminalId": "T1",
+                "deviceId": "D1",
+                "employeeId": insz,
+            }}),
+        }
+    }
+
+    #[test]
+    fn the_same_request_again_gets_its_first_answer() {
+        let mut fdm = FdmState::default();
+        let first = answer(&mut fdm, &HeaderMap::new(), "signWorkIn", &work_in(1, "1"));
+        let again = answer(&mut fdm, &HeaderMap::new(), "signWorkIn", &work_in(1, "1"));
+        let (a, b) = (&first["data"]["signWorkIn"], &again["data"]["signWorkIn"]);
+        assert_eq!(a["fdmRef"], b["fdmRef"]);
+        assert_eq!(a["digitalSignature"], b["digitalSignature"]);
+        assert_eq!(b["warnings"][0]["extensions"]["code"], "DUPLICATE_REQUEST");
+        assert_eq!(b["warnings"][0]["extensions"]["showPos"], "NEVER");
+
+        let next = answer(&mut fdm, &HeaderMap::new(), "signWorkIn", &work_in(2, "1"));
+        assert_eq!(next["data"]["signWorkIn"]["fdmRef"]["eventCounter"], 2);
+    }
+
+    #[test]
+    fn the_same_key_fields_with_other_content_are_refused() {
+        let mut fdm = FdmState::default();
+        answer(&mut fdm, &HeaderMap::new(), "signWorkIn", &work_in(1, "1"));
+        let other = answer(&mut fdm, &HeaderMap::new(), "signWorkIn", &work_in(1, "2"));
+        assert_eq!(other["errors"][0]["extensions"]["code"], "INVALID_REQUEST");
+        assert!(other.get("data").is_none());
+    }
+
     #[test]
     fn counters_are_per_label_with_one_total() {
         let mut c = Counters::default();
@@ -1557,15 +1648,17 @@ mod tests {
     #[test]
     fn each_pos_has_its_own_counters() {
         let mut f = fdm(Control::default());
-        let counter = |f: &mut FdmState, pos: &str| {
-            answer(f, &HeaderMap::new(), "signSale", &sale(pos))["data"]["signSale"]["fdmRef"]
+        let counter = |f: &mut FdmState, pos: &str, ticket_no: i64| {
+            let mut request = sale(pos);
+            request.variables["data"]["posFiscalTicketNo"] = json!(ticket_no);
+            answer(f, &HeaderMap::new(), "signSale", &request)["data"]["signSale"]["fdmRef"]
                 ["totalCounter"]
                 .as_i64()
                 .unwrap()
         };
-        assert_eq!(counter(&mut f, "CPOS0031234567"), 1);
-        assert_eq!(counter(&mut f, "CPOS0031234567"), 2);
-        assert_eq!(counter(&mut f, "CFOD0061234567"), 1);
+        assert_eq!(counter(&mut f, "CPOS0031234567", 1), 1);
+        assert_eq!(counter(&mut f, "CPOS0031234567", 2), 2);
+        assert_eq!(counter(&mut f, "CFOD0061234567", 1), 1);
     }
 
     #[tokio::test]
