@@ -145,6 +145,7 @@ async fn a_cash_refund_prints_and_opens_the_drawer() {
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

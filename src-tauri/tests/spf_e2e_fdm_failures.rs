@@ -305,6 +305,7 @@ async fn refund_fdm_failure_modes_leave_no_archive_and_counter_unchanged() {
             &app.state,
             original,
             vec![RefundItem {
+                line_id: None,
                 menu_item_id: 1,
                 quantity: 1,
             }],
@@ -340,6 +341,7 @@ async fn refund_retries_after_fdm_failure_with_the_same_ticket_number() {
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],
@@ -354,6 +356,7 @@ async fn refund_retries_after_fdm_failure_with_the_same_ticket_number() {
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

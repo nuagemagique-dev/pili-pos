@@ -563,6 +563,7 @@ async fn a_refund_ticket_can_be_emailed() {
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],
@@ -594,6 +595,7 @@ async fn a_refund_with_a_bad_address_is_refused_before_signing() {
         &app.state,
         sale.fiscal_event_id.unwrap(),
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

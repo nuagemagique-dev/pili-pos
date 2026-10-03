@@ -73,6 +73,8 @@ pub const REFUND_QUANTITY_POSITIVE: &str = "refund_quantity_positive";
 pub const REFUND_PRODUCT_NOT_SOLD: &str = "refund_product_not_sold";
 /// `product`, `requested`, `sold`, `refunded`.
 pub const REFUND_EXCEEDS_SOLD: &str = "refund_exceeds_sold";
+/// `product`: sold at more than one price; the line must be named.
+pub const REFUND_LINE_AMBIGUOUS: &str = "refund_line_ambiguous";
 pub const REFUND_IN_TRAINING: &str = "refund_in_training";
 pub const REFUND_OF_REFUND: &str = "refund_of_refund";
 /// A sale closed unpaid: no money came in, none goes back.
@@ -169,6 +171,7 @@ pub const ALL: &[&str] = &[
     REFUND_QUANTITY_POSITIVE,
     REFUND_PRODUCT_NOT_SOLD,
     REFUND_EXCEEDS_SOLD,
+    REFUND_LINE_AMBIGUOUS,
     REFUND_IN_TRAINING,
     REFUND_OF_REFUND,
     REFUND_UNPAID_SALE,

@@ -347,6 +347,7 @@ async fn an_unpaid_sale_is_never_refunded() {
         &app.state,
         unpaid,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: BURGER,
             quantity: 1,
         }],

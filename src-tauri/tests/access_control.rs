@@ -127,6 +127,7 @@ async fn manager_commands(
         &app.state,
         sale,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

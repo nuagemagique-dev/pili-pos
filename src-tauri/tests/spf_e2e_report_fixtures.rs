@@ -136,10 +136,12 @@ async fn play_service_day(app: &TestApp) {
         t2,
         vec![
             RefundItem {
+                line_id: None,
                 menu_item_id: 10006,
                 quantity: 2,
             },
             RefundItem {
+                line_id: None,
                 menu_item_id: 22001,
                 quantity: 1,
             },

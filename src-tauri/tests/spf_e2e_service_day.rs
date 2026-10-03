@@ -278,6 +278,7 @@ async fn a_full_service_day_reconciles_sequentially_and_excludes_training() {
         &app.state,
         table2_sale_event,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 102,
             quantity: 1,
         }],

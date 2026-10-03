@@ -179,6 +179,7 @@ async fn m111_full_refund_archives_negative_n_with_fdm_ref() {
     let original_event_id = app.fiscal_events()[0].id;
 
     let items = vec![RefundItem {
+        line_id: None,
         menu_item_id: 1,
         quantity: 1,
     }];
@@ -234,6 +235,7 @@ async fn m112b_partial_refund_is_separate_event_chained_to_original() {
     let original_event_id = app.fiscal_events()[0].id;
 
     let items = vec![RefundItem {
+        line_id: None,
         menu_item_id: 1,
         quantity: 1,
     }];

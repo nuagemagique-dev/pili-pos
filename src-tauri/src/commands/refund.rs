@@ -25,6 +25,10 @@ use crate::state::AppState;
 pub struct RefundItem {
     pub menu_item_id: i64,
     pub quantity: i32, // positive - backend negates it
+    /// The original sale's line. Needed when the product was sold at
+    /// more than one price.
+    #[serde(default)]
+    pub line_id: Option<i64>,
 }
 
 /// List recent closed N-events that can be refunded.
@@ -278,9 +282,9 @@ pub(crate) async fn refund_sale(
         let mut refunded: Vec<(i32, &pos_core::order::OrderLine)> = Vec::new();
         match spec.lines {
             RefundLines::Products(items) => {
-                // i64, so i32 quantities cannot wrap past the sold cap.
-                let mut requested: std::collections::HashMap<i64, i64> =
+                let mut requested: std::collections::HashMap<Bucket, i64> =
                     std::collections::HashMap::new();
+                let mut picked = Vec::with_capacity(items.len());
                 for item in items {
                     if item.quantity <= 0 {
                         return Err(errors::coded(
@@ -288,47 +292,35 @@ pub(crate) async fn refund_sale(
                             &[("product", &item.menu_item_id)],
                         ));
                     }
-                    *requested.entry(item.menu_item_id).or_default() += i64::from(item.quantity);
+                    let original = original_line(&original_lines, item)?;
+                    let total = requested.entry(Bucket::of(original)).or_default();
+                    // i64 sums of i32 quantities: past i64, past any sale.
+                    *total = total
+                        .checked_add(i64::from(item.quantity))
+                        .ok_or_else(|| exceeds_sold(item.menu_item_id, i64::MAX, 0, 0))?;
+                    picked.push((item.quantity, original));
                 }
-                for (&menu_item_id, &quantity) in &requested {
-                    let prior = already_refunded.get(&menu_item_id).copied().unwrap_or(0);
-                    refunded_line(&original_lines, menu_item_id, quantity, prior)?;
+                for (bucket, &quantity) in &requested {
+                    let prior = already_refunded.get(bucket).copied().unwrap_or(0);
+                    check_sold(&original_lines, bucket, quantity, prior)?;
                 }
-                for item in items {
-                    let prior = already_refunded
-                        .get(&item.menu_item_id)
-                        .copied()
-                        .unwrap_or(0);
-                    let original = refunded_line(
-                        &original_lines,
-                        item.menu_item_id,
-                        requested[&item.menu_item_id],
-                        prior,
-                    )?;
+                for (quantity, original) in picked {
                     // A discount is spread over its lines: a part of
                     // one would refund a share nobody can tell.
                     #[cfg(feature = "hubrise")]
                     if original_changes.contains_key(&original.id) {
                         return Err(errors::coded(
                             errors::hubrise::REFUND_DISCOUNTED_LINE,
-                            &[("product", &item.menu_item_id)],
+                            &[("product", &original.menu_item_id)],
                         ));
                     }
-                    refunded.push((item.quantity, original));
+                    refunded.push((quantity, original));
                 }
             }
             #[cfg(feature = "hubrise")]
             RefundLines::Everything => {
-                if let Some((&product, &prior)) = already_refunded.iter().next() {
-                    return Err(errors::coded(
-                        errors::REFUND_EXCEEDS_SOLD,
-                        &[
-                            ("product", &product),
-                            ("requested", &0),
-                            ("sold", &0),
-                            ("refunded", &prior),
-                        ],
-                    ));
+                if let Some((bucket, &prior)) = already_refunded.iter().next() {
+                    return Err(exceeds_sold(bucket.product, 0, 0, prior));
                 }
                 for line in original_lines.iter().filter(|l| l.quantity > 0) {
                     refunded.push((line.quantity, line));
@@ -555,47 +547,92 @@ fn void_order(state: &AppState, order_id: i64) {
 pub const ERR_REFUND_IN_TRAINING: &str = errors::REFUND_IN_TRAINING;
 pub const ERR_REFUND_OF_REFUND: &str = errors::REFUND_OF_REFUND;
 
-/// The original sale line a refunded product comes from. The quantity
-/// refunded for a product - summed over THIS request AND every prior
-/// refund of the same sale (`already_refunded`) - may not exceed the
-/// quantity sold for it on the original ticket.
-fn refunded_line(
-    original_lines: &[pos_core::order::OrderLine],
-    menu_item_id: i64,
-    requested: i64,
-    already_refunded: i64,
-) -> Result<&pos_core::order::OrderLine, String> {
-    let line = original_lines
-        .iter()
-        .find(|l| l.menu_item_id == menu_item_id)
-        .ok_or_else(|| {
-            errors::coded(
-                errors::REFUND_PRODUCT_NOT_SOLD,
-                &[("product", &menu_item_id)],
-            )
-        })?;
-    let sold: i64 = original_lines
-        .iter()
-        .filter(|l| l.menu_item_id == menu_item_id)
-        .map(|l| i64::from(l.quantity))
-        .sum();
-    let total_refunded = requested.saturating_add(already_refunded);
-    if total_refunded > sold {
-        return Err(errors::coded(
-            errors::REFUND_EXCEEDS_SOLD,
-            &[
-                ("product", &menu_item_id),
-                ("requested", &requested),
-                ("sold", &sold),
-                ("refunded", &already_refunded),
-            ],
-        ));
-    }
-    Ok(line)
+/// Lines of one product sold at one price and VAT label: what a
+/// refund is counted against.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct Bucket {
+    product: i64,
+    unit_price_cents: i64,
+    vat: String,
 }
 
-/// Sum, per `menu_item_id`, the quantity already refunded against the
-/// sale identified by `original`. Every refund of a sale carries the
+impl Bucket {
+    fn of(line: &pos_core::order::OrderLine) -> Self {
+        Self {
+            product: line.menu_item_id,
+            unit_price_cents: line.unit_price_cents,
+            vat: format!("{:?}", line.vat_code),
+        }
+    }
+}
+
+fn exceeds_sold(product: i64, requested: i64, sold: i64, refunded: i64) -> String {
+    errors::coded(
+        errors::REFUND_EXCEEDS_SOLD,
+        &[
+            ("product", &product),
+            ("requested", &requested),
+            ("sold", &sold),
+            ("refunded", &refunded),
+        ],
+    )
+}
+
+/// The original sale line `item` refunds: the line it names, else the
+/// product's line when it was sold at one price only.
+fn original_line<'a>(
+    original_lines: &'a [pos_core::order::OrderLine],
+    item: &RefundItem,
+) -> Result<&'a pos_core::order::OrderLine, String> {
+    let not_sold = || {
+        errors::coded(
+            errors::REFUND_PRODUCT_NOT_SOLD,
+            &[("product", &item.menu_item_id)],
+        )
+    };
+    let mut lines = original_lines
+        .iter()
+        .filter(|l| l.menu_item_id == item.menu_item_id && l.quantity > 0);
+    if let Some(line_id) = item.line_id {
+        return lines.find(|l| l.id == line_id).ok_or_else(not_sold);
+    }
+    let first = lines.next().ok_or_else(not_sold)?;
+    if lines.any(|l| Bucket::of(l) != Bucket::of(first)) {
+        return Err(errors::coded(
+            errors::REFUND_LINE_AMBIGUOUS,
+            &[("product", &item.menu_item_id)],
+        ));
+    }
+    Ok(first)
+}
+
+/// The quantity refunded from `bucket`, this request and every prior
+/// refund of the same sale together, may not exceed what was sold in
+/// it.
+fn check_sold(
+    original_lines: &[pos_core::order::OrderLine],
+    bucket: &Bucket,
+    requested: i64,
+    already_refunded: i64,
+) -> Result<(), String> {
+    let sold: i64 = original_lines
+        .iter()
+        .filter(|l| Bucket::of(l) == *bucket)
+        .map(|l| i64::from(l.quantity))
+        .sum();
+    match requested.checked_add(already_refunded) {
+        Some(total) if total <= sold => Ok(()),
+        _ => Err(exceeds_sold(
+            bucket.product,
+            requested,
+            sold,
+            already_refunded,
+        )),
+    }
+}
+
+/// Sum, per product, price and VAT label, the quantity already
+/// refunded against the sale identified by `original`. Every refund of a sale carries the
 /// SAME `fdmRef` (the original ticket's FDM identity - see the comment
 /// at the call site), so a prior refund is any archived N/T event whose
 /// request JSON's `fdmRef` matches all four of the original's FDM
@@ -606,7 +643,7 @@ fn refunded_line(
 fn already_refunded_quantities(
     conn: &rusqlite::Connection,
     original: &pos_fiscal::response::FdmReference,
-) -> Result<std::collections::HashMap<i64, i64>, rusqlite::Error> {
+) -> Result<std::collections::HashMap<Bucket, i64>, rusqlite::Error> {
     let event_label = serde_json::to_string(&original.event_label)
         .unwrap_or_default()
         .trim_matches('"')
@@ -630,7 +667,7 @@ fn already_refunded_quantities(
         |row| row.get::<_, String>(0),
     )?;
 
-    let mut totals: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
+    let mut totals: std::collections::HashMap<Bucket, i64> = std::collections::HashMap::new();
     for row in rows {
         let json = row?;
         let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
@@ -651,7 +688,16 @@ fn already_refunded_quantities(
             else {
                 continue;
             };
-            let total = totals.entry(product_id).or_insert(0);
+            let bucket = Bucket {
+                product: product_id,
+                unit_price_cents: (product["unitPrice"].as_f64().unwrap_or(0.0) * 100.0).round()
+                    as i64,
+                vat: product["vats"][0]["label"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string(),
+            };
+            let total = totals.entry(bucket).or_insert(0);
             *total = total.saturating_add((-quantity).round() as i64);
         }
     }

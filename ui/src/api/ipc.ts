@@ -319,6 +319,8 @@ export function listRefundableEvents(limit?: number): Promise<RefundableEvent[]>
 export interface RefundItem {
   menuItemId: number;
   quantity: number;
+  /** The original sale's line (a product may be sold at several prices). */
+  lineId?: number;
 }
 
 export function refundCheckout(

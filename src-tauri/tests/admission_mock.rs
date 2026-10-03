@@ -160,6 +160,7 @@ async fn a_whole_service_day_against_the_admission_mock() {
         &app.state,
         card_sale,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

@@ -343,6 +343,7 @@ async fn refund_of_an_unknown_fiscal_event_errors() {
         &app.state,
         999_999,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

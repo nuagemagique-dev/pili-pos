@@ -105,6 +105,7 @@ async fn the_picker_offers_every_ticket_a_customer_received_and_nothing_else() {
         &app.state,
         sold,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

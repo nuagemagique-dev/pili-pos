@@ -413,6 +413,7 @@ async fn a_split_sale_is_refunded_in_cash() {
         &app.state,
         sale,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: TAPAS_VARIATION,
             quantity: 1,
         }],

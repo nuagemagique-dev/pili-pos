@@ -271,6 +271,7 @@ async fn a_refund_answered_inconsistently_is_refused() {
             &app.state,
             original,
             vec![RefundItem {
+                line_id: None,
                 menu_item_id: 1,
                 quantity: 1,
             }],

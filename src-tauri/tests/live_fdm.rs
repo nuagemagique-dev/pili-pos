@@ -178,6 +178,7 @@ async fn live_fdm_operator_day() {
         &app.state,
         sale,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],
@@ -472,10 +473,12 @@ async fn live_fdm_basic_set_rest() {
         full_sale,
         vec![
             RefundItem {
+                line_id: None,
                 menu_item_id: 1,
                 quantity: 2,
             },
             RefundItem {
+                line_id: None,
                 menu_item_id: 2,
                 quantity: 1,
             },
@@ -499,6 +502,7 @@ async fn live_fdm_basic_set_rest() {
         &app.state,
         partial_sale,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

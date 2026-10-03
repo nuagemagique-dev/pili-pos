@@ -76,6 +76,7 @@ async fn a_day(app: &TestApp) {
         &app.state,
         sale.fiscal_event_id.unwrap(),
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

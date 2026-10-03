@@ -77,6 +77,7 @@ async fn sale(app: &TestApp) -> i64 {
 fn items(list: &[(i64, i32)]) -> Vec<RefundItem> {
     list.iter()
         .map(|&(menu_item_id, quantity)| RefundItem {
+            line_id: None,
             menu_item_id,
             quantity,
         })
@@ -241,4 +242,120 @@ async fn a_real_sale_is_not_refunded_in_training_mode() {
     app.state.config.lock().unwrap().training_mode = false;
     let (ok, err) = refund(&app, original, &[(1, 2), (2, 1)]).await.unwrap();
     assert!(ok, "the whole sale is still refundable: {err:?}");
+}
+
+/// One product sold at 1.00 and at 100.00 on the same ticket (its
+/// price changed between the two lines).
+async fn sale_at_two_prices(app: &TestApp) -> (i64, i64, i64) {
+    let order = do_create_order(
+        &app.state,
+        CreateOrderInput {
+            order_type: OrderType::Takeaway,
+            table_number: None,
+            user_insz: OPERATOR.into(),
+        },
+    )
+    .unwrap()
+    .id;
+    let mut lines = Vec::new();
+    for price in [100, 10_000] {
+        app.state
+            .db
+            .lock()
+            .unwrap()
+            .execute(
+                "UPDATE menu_items SET price_cents = ?1 WHERE id = 1",
+                [price],
+            )
+            .unwrap();
+        lines.push(
+            do_add_order_line(
+                &app.state,
+                AddOrderLineInput {
+                    order_id: order,
+                    menu_item_id: 1,
+                    quantity: 1,
+                    modifiers_json: None,
+                    unit_price_cents: None,
+                },
+            )
+            .unwrap()
+            .id,
+        );
+    }
+    let r = do_checkout(&app.state, order, CheckoutPaymentMethod::Card)
+        .await
+        .unwrap();
+    assert!(r.success, "{:?}", r.error);
+    (r.fiscal_event_id.unwrap(), lines[0], lines[1])
+}
+
+async fn refund_line(
+    app: &TestApp,
+    event: i64,
+    line_id: Option<i64>,
+    quantity: i32,
+) -> Result<(bool, Option<String>), String> {
+    let items = vec![RefundItem {
+        line_id,
+        menu_item_id: 1,
+        quantity,
+    }];
+    do_refund_checkout(&app.state, event, items, OPERATOR.into())
+        .await
+        .map(|r| (r.success, r.error))
+}
+
+fn last_refund_total(app: &TestApp) -> f64 {
+    let event = app.fiscal_events().pop().unwrap();
+    let request: serde_json::Value =
+        serde_json::from_str(event.event_data_json.as_deref().unwrap()).unwrap();
+    request["transaction"]["transactionTotal"].as_f64().unwrap()
+}
+
+#[tokio::test]
+async fn a_refund_is_priced_from_the_line_it_names() {
+    let app = app().await;
+    let (original, cheap, dear) = sale_at_two_prices(&app).await;
+
+    let ambiguous = refund_line(&app, original, None, 1).await.unwrap_err();
+    assert!(
+        ambiguous.starts_with("refund_line_ambiguous"),
+        "{ambiguous}"
+    );
+
+    assert_eq!(
+        refund_line(&app, original, Some(cheap), 1).await,
+        Ok((true, None))
+    );
+    assert_eq!(last_refund_total(&app), -1.0, "the 1.00 line, not 100.00");
+
+    // The cheap line is used up: it cannot be refunded again, at
+    // either price.
+    let again = refund_line(&app, original, Some(cheap), 1)
+        .await
+        .unwrap_err();
+    assert!(again.starts_with("refund_exceeds_sold"), "{again}");
+
+    let twice = refund_line(&app, original, Some(dear), 2)
+        .await
+        .unwrap_err();
+    assert!(twice.starts_with("refund_exceeds_sold"), "{twice}");
+    assert_eq!(
+        refund_line(&app, original, Some(dear), 1).await,
+        Ok((true, None))
+    );
+    assert_eq!(last_refund_total(&app), -100.0);
+}
+
+#[tokio::test]
+async fn a_line_of_another_sale_is_refused() {
+    let app = app().await;
+    let (original, _, _) = sale_at_two_prices(&app).await;
+    let (_, foreign, _) = sale_at_two_prices(&app).await;
+
+    let err = refund_line(&app, original, Some(foreign), 1)
+        .await
+        .unwrap_err();
+    assert!(err.starts_with("refund_product_not_sold"), "{err}");
 }

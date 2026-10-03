@@ -304,6 +304,7 @@ async fn a_refund_gives_back_the_net_amount() {
         &w.app.state,
         sale,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: maki,
             quantity: 1,
         }],

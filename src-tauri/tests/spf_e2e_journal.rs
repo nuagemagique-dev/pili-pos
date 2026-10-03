@@ -263,6 +263,7 @@ async fn refund_quantity_cannot_exceed_the_original_aggregated_across_partial_re
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 2,
         }],
@@ -283,6 +284,7 @@ async fn refund_quantity_cannot_exceed_the_original_aggregated_across_partial_re
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 2,
         }],
@@ -306,6 +308,7 @@ async fn refund_quantity_cannot_exceed_the_original_aggregated_across_partial_re
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],
@@ -321,6 +324,7 @@ async fn refund_quantity_cannot_exceed_the_original_aggregated_across_partial_re
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

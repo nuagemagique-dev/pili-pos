@@ -145,6 +145,7 @@ async fn refund_fdm_failure_does_not_advance_counter() {
         &app.state,
         original_id,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

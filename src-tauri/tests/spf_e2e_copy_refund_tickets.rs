@@ -212,6 +212,7 @@ async fn vi_refund_m111_the_refund_ticket_shows_the_sale_it_reverses() {
         &app.state,
         sale.fiscal_event_id.unwrap(),
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 2,
         }],
@@ -294,6 +295,7 @@ async fn vi_refund_says_remboursement_once() {
         &app.state,
         sale.fiscal_event_id.unwrap(),
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 1,
             quantity: 1,
         }],

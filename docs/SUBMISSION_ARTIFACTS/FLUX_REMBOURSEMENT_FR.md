@@ -35,7 +35,11 @@ Le flux reflète l'encaissement standard de
    Chaque article est d'abord contrôlé (présent sur le ticket
    original, quantité positive, total remboursé sur l'ensemble des
    remboursements de la vente au plus égal à la quantité vendue), et
-   le support du ticket choisi : un refus ne crée rien. Ensuite
+   le support du ticket choisi : un refus ne crée rien. Le compte se
+   fait par produit, prix unitaire et taux de TVA : l'écran envoie la
+   ligne d'origine choisie (`lineId`), et l'article est remboursé au
+   prix de cette ligne. Un produit vendu à plusieurs prix sans ligne
+   désignée est refusé (`refund_line_ambiguous`). Ensuite
    seulement, création d'une nouvelle `Order` (takeaway) avec des
    lignes de quantités négatives pour chaque `RefundItem`.
 3. **Réservation du prochain numéro de ticket** (peek-then-commit,

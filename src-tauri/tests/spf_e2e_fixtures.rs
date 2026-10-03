@@ -321,10 +321,12 @@ async fn m111_full_refund() {
     let original = app.fiscal_events()[0].id;
     let items = vec![
         RefundItem {
+            line_id: None,
             menu_item_id: 10006,
             quantity: 2,
         },
         RefundItem {
+            line_id: None,
             menu_item_id: 22001,
             quantity: 1,
         },
@@ -357,6 +359,7 @@ async fn m112b_partial_refund_as_a_separate_ticket() {
         &app.state,
         original,
         vec![RefundItem {
+            line_id: None,
             menu_item_id: 10006,
             quantity: 1,
         }],
