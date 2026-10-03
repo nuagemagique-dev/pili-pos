@@ -55,10 +55,17 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
     // Local `status === 'open'` is not a useful signal here - every
     // ingested webshop row starts as 'open', so including it would
     // count accepted/in-prep orders too.
+    // Signed orders HubRise cancelled wait for staff too (refund or
+    // closing).
     pendingCount(state): number {
-      return state.orders.filter(
-        (o) => o.hubrise_status === 'new' || o.hubrise_status === 'received',
-      ).length
+      return state.orders.filter((o) => {
+        const fiscal = o.webshop?.fiscal_state ?? 'pending'
+        if (fiscal === 'refund_pending' || fiscal === 'cancel_pending') return true
+        return (
+          fiscal === 'pending' &&
+          (o.hubrise_status === 'new' || o.hubrise_status === 'received')
+        )
+      }).length
     },
     inProgressCount(state): number {
       return state.orders.filter(

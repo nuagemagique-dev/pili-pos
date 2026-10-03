@@ -493,6 +493,74 @@ export function webshopCloseCancelledOrder(
   return invoke("webshop_close_cancelled_order", { orderId });
 }
 
+/** One problem of a refused catalog. */
+export interface CatalogIssue {
+  code: string;
+  key: string;
+}
+
+export interface CatalogSyncState {
+  source: string;
+  manages_menu: boolean;
+  applied_at: string | null;
+  rejected_at: string | null;
+  issues: CatalogIssue[];
+}
+
+/** The health of the HubRise link, for the status light and Settings. */
+export interface HubriseHealth {
+  connected: boolean;
+  last_poll_at: string | null;
+  auth_error_at: string | null;
+  last_error: string | null;
+  callback_registered_at: string | null;
+  last_catalog_sync_at: string | null;
+  outbox: { pending: number; parked: number };
+  outbox_error: string | null;
+  parked_events: number;
+  /** Online orders still waiting for staff after 5 minutes. */
+  stale_orders: number;
+  catalog: CatalogSyncState | null;
+  catalog_awaiting_adoption: boolean;
+}
+
+export function hubriseStatus(): Promise<HubriseHealth> {
+  return invoke("hubrise_status");
+}
+
+/** A local product that keeps its id when HubRise takes over the menu. */
+export interface CatalogAdoption {
+  menu_item_id: number;
+  key: string;
+  name: string;
+  price_cents: number;
+}
+
+export function hubriseAdoptionPreview(): Promise<CatalogAdoption[]> {
+  return invoke("hubrise_adoption_preview");
+}
+
+export function hubriseAdoptCatalog(adoptions: CatalogAdoption[]): Promise<unknown> {
+  return invoke("hubrise_adopt_catalog", { adoptions });
+}
+
+/** How a HubRise channel is signed. */
+export interface HubriseChannel {
+  channel: string;
+  kind: "platform" | "webshop";
+  payment_type: "APP" | "ONLINE";
+  charge_policy: "include" | "exclude";
+}
+
+export function hubriseListChannels(): Promise<HubriseChannel[]> {
+  return invoke("hubrise_list_channels");
+}
+
+/** Returns how many waiting orders now resolve cleanly. */
+export function hubriseSetChannel(channel: HubriseChannel): Promise<number> {
+  return invoke("hubrise_set_channel", { channel });
+}
+
 /** Fetch the HubRise catalog now (after an order to check). */
 export function hubriseSyncCatalog(): Promise<unknown> {
   return invoke("hubrise_sync_catalog");

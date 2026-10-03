@@ -57,10 +57,34 @@ async function checkPrinters() {
 async function checkHubrise() {
   if (!__HUBRISE_ENABLED__) return;
   try {
-    hubrise.value = (await ipc.hubriseGetConnectionStatus()).connected ? "ok" : "warn";
+    hubrise.value = hubriseLight(await ipc.hubriseStatus());
   } catch {
     hubrise.value = "none";
   }
+}
+
+/**
+ * Red: HubRise refuses the token, the last catalog was refused, or
+ * something is parked (an event or an update HubRise refused). Amber:
+ * not connected, online orders waiting over 5 minutes, a menu to take
+ * over, or updates waiting after a failed send.
+ */
+function hubriseLight(h: ipc.HubriseHealth): Light {
+  const catalogRefused =
+    !!h.catalog?.rejected_at &&
+    (!h.catalog.applied_at || h.catalog.rejected_at >= h.catalog.applied_at);
+  if (h.auth_error_at || catalogRefused || h.parked_events > 0 || h.outbox.parked > 0) {
+    return "err";
+  }
+  if (
+    !h.connected ||
+    h.stale_orders > 0 ||
+    h.catalog_awaiting_adoption ||
+    (h.outbox.pending > 0 && h.outbox_error)
+  ) {
+    return "warn";
+  }
+  return "ok";
 }
 
 let printerTimer: ReturnType<typeof setInterval> | undefined;

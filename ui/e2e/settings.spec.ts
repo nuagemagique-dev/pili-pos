@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockTauriIPC, DEFAULT_USER, ipcCalls, overrideIPC } from './fixtures/mock-ipc';
+import { mockTauriIPC, DEFAULT_USER, ipcCalls, loginAndGoto, overrideIPC } from './fixtures/mock-ipc';
 
 test.describe('Settings View', () => {
   test.beforeEach(async ({ page }) => {
@@ -150,5 +150,119 @@ test.describe('Settings View', () => {
     // would not reload the page and the new mock would never install.
     await page.reload();
     await expect(page.locator('.status-ok')).toBeVisible();
+  });
+});
+
+const CONNECTED = {
+  connected: true,
+  account_id: 'acc-1',
+  account_name: 'Restaurant Exemple',
+  location_id: 'loc-1',
+  location_name: 'Liège',
+  catalog_id: 'cat-1',
+  catalog_name: 'Menu principal',
+  customer_list_id: null,
+  customer_list_name: null,
+};
+
+const HEALTHY = {
+  connected: true,
+  last_poll_at: '2026-10-03 10:00:00',
+  auth_error_at: null,
+  last_error: null,
+  callback_registered_at: '2026-10-03 09:00:00',
+  last_catalog_sync_at: '2026-10-03 09:30:00',
+  outbox: { pending: 0, parked: 0 },
+  outbox_error: null,
+  parked_events: 0,
+  stale_orders: 0,
+  catalog: { source: 'hubrise', manages_menu: true, applied_at: '2026-10-03 09:30:00', rejected_at: null, issues: [] },
+  catalog_awaiting_adoption: false,
+};
+
+async function hubriseSettings(page: import('@playwright/test').Page, overrides: Record<string, unknown>) {
+  await mockTauriIPC(page, {
+    login: () => DEFAULT_USER,
+    list_users: () => [DEFAULT_USER],
+    hubrise_get_connection_status: () => CONNECTED,
+    hubrise_status: () => HEALTHY,
+    hubrise_list_channels: () => [
+      { channel: 'deliveroo', kind: 'platform', payment_type: 'APP', charge_policy: 'include' },
+      { channel: 'website', kind: 'webshop', payment_type: 'ONLINE', charge_policy: 'include' },
+    ],
+    ...(overrides as Record<string, never>),
+  });
+  // The manager's sections need a logged-in manager.
+  await loginAndGoto(page, '/settings');
+}
+
+test.describe('Settings - HubRise catalog and channels', () => {
+  test('the menu is shown as managed by HubRise, with its last sync', async ({ page }) => {
+    await hubriseSettings(page, {});
+    await expect(page.getByTestId('menu-managed')).toContainText('Menu géré par HubRise');
+    await expect(page.getByTestId('catalog-synced')).toContainText('Synchronisé');
+  });
+
+  test('a refused catalog lists its issues', async ({ page }) => {
+    await hubriseSettings(page, {
+      hubrise_status: () => ({
+        ...HEALTHY,
+        catalog: {
+          ...HEALTHY.catalog,
+          rejected_at: '2026-10-03 10:00:00',
+          issues: [{ code: 'unknown_vat_rate', key: 'MAKI-6' }, { code: 'missing_name', key: 'COCA' }],
+        },
+      }),
+    });
+    const refused = page.getByTestId('catalog-refused');
+    await expect(refused).toContainText('Catalogue refusé');
+    await expect(refused).toContainText('Taux de TVA inconnu');
+    await expect(refused).toContainText('MAKI-6');
+    await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/);
+  });
+
+  test('Resynchroniser fetches the catalog', async ({ page }) => {
+    await hubriseSettings(page, { hubrise_sync_catalog: () => null });
+    await page.locator('.catalog-row').getByRole('button', { name: 'Resynchroniser' }).click();
+    expect(await ipcCalls(page, 'hubrise_sync_catalog')).toHaveLength(1);
+    await expect(page.getByText('Catalogue synchronisé')).toBeVisible();
+  });
+
+  test('the first catalog waits for the manager to pick the products to keep', async ({ page }) => {
+    await hubriseSettings(page, {
+      hubrise_status: () => ({ ...HEALTHY, catalog: null, catalog_awaiting_adoption: true }),
+      hubrise_adoption_preview: () => [
+        { menu_item_id: 1, key: 'MAKI-6', name: 'Maki saumon', price_cents: 650 },
+        { menu_item_id: 2, key: 'COCA', name: 'Coca-Cola', price_cents: 300 },
+      ],
+      hubrise_adopt_catalog: () => ({ outcome: 'applied', hash: 'h', active_items: 2, deactivated_items: 0 }),
+    });
+    const list = page.getByTestId('adoptions');
+    await expect(list.locator('input[type=checkbox]:checked')).toHaveCount(2);
+    await list.locator('label', { hasText: 'Coca-Cola' }).locator('input').uncheck();
+    await page.getByRole('button', { name: 'Reprendre le menu' }).click();
+    const calls = await ipcCalls(page, 'hubrise_adopt_catalog');
+    expect(calls[0].adoptions).toEqual([{ menu_item_id: 1, key: 'MAKI-6', name: 'Maki saumon', price_cents: 650 }]);
+  });
+
+  test('a channel is added as a platform and its kind changes its payment', async ({ page }) => {
+    await hubriseSettings(page, { hubrise_set_channel: () => 1 });
+    const channels = page.getByTestId('channels');
+    await expect(channels.locator('.channel')).toHaveCount(2);
+    await page.locator('input[placeholder="Nom du canal"]').fill('Table QR');
+    await page.getByRole('button', { name: 'Ajouter un canal' }).click();
+    await channels.locator('.channel', { hasText: 'website' }).locator('select').first().selectOption('platform');
+    const calls = await ipcCalls(page, 'hubrise_set_channel');
+    expect(calls[0].channel).toEqual({ channel: 'Table QR', kind: 'platform', payment_type: 'APP', charge_policy: 'include' });
+    expect(calls[1].channel).toEqual({ channel: 'website', kind: 'platform', payment_type: 'APP', charge_policy: 'include' });
+    await expect(page.getByText('1 commande(s) débloquée(s)').first()).toBeVisible();
+  });
+
+  test('a refused token turns the light red and says so', async ({ page }) => {
+    await hubriseSettings(page, {
+      hubrise_status: () => ({ ...HEALTHY, auth_error_at: '2026-10-03 10:00:00' }),
+    });
+    await expect(page.getByText('HubRise refuse la connexion')).toBeVisible();
+    await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/);
   });
 });

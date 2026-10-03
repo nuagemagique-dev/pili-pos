@@ -99,6 +99,26 @@ const columns = computed(() => [
     : { id: 'ready' as const, title: t('webshop_col_ready'), orders: byStage.value.ready },
 ])
 
+// ── Waiting orders ───────────────────────────────────────────────
+// An order nobody answered for 5 minutes raises the alarm: platforms
+// cancel orders left unanswered.
+const ALARM_MINUTES = 5
+
+function waitingMinutes(order: WebshopOrderSummary): number | null {
+  const created = parseTimestamp(order.created_at)
+  if (!created) return null
+  return Math.max(0, Math.floor((now.value - created.getTime()) / 60_000))
+}
+
+function isLate(order: WebshopOrderSummary): boolean {
+  if (fiscalOf(order) !== 'pending') return false
+  const s = statusOf(order)
+  if (s !== 'new' && s !== 'received') return false
+  return (waitingMinutes(order) ?? 0) >= ALARM_MINUTES
+}
+
+const lateCount = computed(() => store.orders.filter(isLate).length)
+
 // ── Display helpers ──────────────────────────────────────────────
 function formatEuros(cents: number): string {
   return formatPrice(cents) + ' €'
@@ -144,13 +164,12 @@ function doneLabel(order: WebshopOrderSummary): string {
  * age for new orders (amber, they are waiting), target time in the
  * kitchen, ready time once ready.
  */
-function keyTime(order: WebshopOrderSummary): { text: string; tone: 'warn' | 'info' | 'plain' | 'muted' } | null {
+function keyTime(order: WebshopOrderSummary): { text: string; tone: 'alarm' | 'warn' | 'info' | 'plain' | 'muted' } | null {
   switch (stageOf(order)) {
     case 'new': {
-      const created = parseTimestamp(order.created_at)
-      if (!created) return null
-      const minutes = Math.max(0, Math.floor((now.value - created.getTime()) / 60_000))
-      return { text: t('webshop_time_ago', { n: minutes }), tone: 'warn' }
+      const minutes = waitingMinutes(order)
+      if (minutes === null) return null
+      return { text: t('webshop_time_ago', { n: minutes }), tone: isLate(order) ? 'alarm' : 'warn' }
     }
     case 'kitchen': {
       const at = formatClock(order.confirmed_time)
@@ -409,6 +428,10 @@ onUnmounted(() => clearInterval(nowTimer))
     </p>
     <p v-else-if="store.error" class="state-msg state-error">{{ store.error }}</p>
 
+    <p v-if="lateCount > 0" class="alarm" role="alert" data-testid="stale-alarm">
+      {{ t('webshop_stale_alarm', { count: lateCount }) }}
+    </p>
+
     <main class="board">
       <section
         v-for="col in columns"
@@ -650,6 +673,16 @@ onUnmounted(() => clearInterval(nowTimer))
   color: var(--accent-danger);
 }
 
+.alarm {
+  margin: 16px 16px 0;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-danger);
+  color: var(--text-on-accent);
+  font-size: 18px;
+  font-weight: 700;
+}
+
 /* ── Board: one column per stage (§2.1) ───────────────────────── */
 .board {
   flex: 1;
@@ -796,6 +829,7 @@ onUnmounted(() => clearInterval(nowTimer))
   white-space: nowrap;
 }
 .key-time-warn { color: var(--accent-warning); }
+.key-time-alarm { color: var(--accent-danger); font-weight: 800; }
 .key-time-info { color: var(--accent-info); }
 .key-time-plain { color: var(--text-primary); }
 .key-time-muted { color: var(--text-secondary); font-size: 18px; }

@@ -336,4 +336,26 @@ test.describe('Webshop Orders View - signing', () => {
     ]);
     await expect(page.getByTestId('changed-banner')).toContainText('la vente signée reste valable');
   });
+
+  test('an order unanswered for 5 minutes raises the alarm, a fresh one does not', async ({ page }) => {
+    const sqlite = (d: Date) => d.toISOString().slice(0, 19).replace('T', ' ')
+    await board(page, [
+      variant(10, { created_at: sqlite(new Date(Date.now() - 7 * 60_000)) }),
+      variant(11, { created_at: sqlite(new Date()) }),
+    ]);
+    await expect(page.getByTestId('stale-alarm')).toContainText('1 commande(s) en ligne attendent');
+    await expect(page.locator('.key-time-alarm')).toHaveCount(1);
+    await page.locator('.column-new .card').first().locator('.btn-primary').click();
+    await expect(page.getByTestId('stale-alarm')).toHaveCount(0);
+  });
+
+  test('the pending badge counts cancelled orders waiting for staff', async ({ page }) => {
+    await board(page, [
+      SAMPLE_ORDER,
+      variant(12, { hubrise_status: 'cancelled' }, { fiscal_state: 'refund_pending' }),
+      variant(13, { hubrise_status: 'accepted' }, { fiscal_state: 'signed_n' }),
+    ]);
+    await expect(page.locator('.nav-pending-badge')).toContainText('2');
+  });
 });
+

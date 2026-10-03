@@ -2,16 +2,27 @@
 // HubRise (webshop) connection panel for Settings. Only rendered when
 // the build has __HUBRISE_ENABLED__ (see env.d.ts); the certification
 // build leaves this component out of the bundle.
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import * as ipc from "../api/ipc";
-import type { HubriseConnectionInfo } from "../api/ipc";
+import type {
+  CatalogAdoption,
+  HubriseChannel,
+  HubriseConnectionInfo,
+  HubriseHealth,
+} from "../api/ipc";
+import { useAuthStore } from "../stores/auth";
+import { useToastStore } from "../stores/toast";
+import { formatDayTime, formatTimestamp } from "../utils/datetime";
+import { formatPrice } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useWebshopOrdersStore } from "../stores/webshopOrders";
 import { describeError } from "../utils/errorMessages";
 const { t } = useI18n();
 // Pending count kept live by the header's "En ligne" button.
 const webshop = useWebshopOrdersStore();
+const auth = useAuthStore();
+const toast = useToastStore();
 
 // ── HubRise connection ─────────────────────────────────────────────
 const hubriseStatus = ref<HubriseConnectionInfo | null>(null);
@@ -69,8 +80,120 @@ async function disconnectHubrise() {
   }
 }
 
-onMounted(() => {
-  loadHubriseStatus();
+// ── Health, catalog, adoption, channels ────────────────────────────
+const health = ref<HubriseHealth | null>(null);
+const catalogBusy = ref(false);
+const adoptions = ref<CatalogAdoption[]>([]);
+// Ticked by default: every match keeps its id unless the manager says no.
+const adopted = ref<Set<number>>(new Set());
+const channels = ref<HubriseChannel[]>([]);
+const newChannel = ref("");
+
+const catalogRefused = computed(() => {
+  const c = health.value?.catalog;
+  return !!c?.rejected_at && (!c.applied_at || c.rejected_at >= c.applied_at);
+});
+
+const catalogSynced = computed(() => {
+  const at = health.value?.last_catalog_sync_at ?? health.value?.catalog?.applied_at;
+  return at
+    ? t("hubrise_catalog_synced", { time: formatTimestamp(at, formatDayTime) })
+    : t("hubrise_catalog_never");
+});
+
+async function loadHealth() {
+  try {
+    health.value = await ipc.hubriseStatus();
+  } catch (e) {
+    hubriseError.value = describeError(e);
+    return;
+  }
+  if (health.value.catalog_awaiting_adoption && auth.isManager) await loadAdoptions();
+  if (health.value.connected && auth.isManager) await loadChannels();
+}
+
+async function syncCatalog() {
+  catalogBusy.value = true;
+  hubriseError.value = null;
+  try {
+    await ipc.hubriseSyncCatalog();
+    toast.show(t("hubrise_catalog_sync_ok"), "success");
+  } catch (e) {
+    hubriseError.value = describeError(e);
+  } finally {
+    catalogBusy.value = false;
+    await loadHealth();
+  }
+}
+
+async function loadAdoptions() {
+  try {
+    adoptions.value = await ipc.hubriseAdoptionPreview();
+    adopted.value = new Set(adoptions.value.map((a) => a.menu_item_id));
+  } catch (e) {
+    hubriseError.value = describeError(e);
+  }
+}
+
+function toggleAdoption(id: number) {
+  const next = new Set(adopted.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  adopted.value = next;
+}
+
+async function adoptCatalog() {
+  catalogBusy.value = true;
+  hubriseError.value = null;
+  try {
+    await ipc.hubriseAdoptCatalog(adoptions.value.filter((a) => adopted.value.has(a.menu_item_id)));
+    adoptions.value = [];
+    toast.show(t("hubrise_catalog_sync_ok"), "success");
+  } catch (e) {
+    hubriseError.value = describeError(e);
+  } finally {
+    catalogBusy.value = false;
+    await loadHealth();
+  }
+}
+
+async function loadChannels() {
+  try {
+    channels.value = await ipc.hubriseListChannels();
+  } catch (e) {
+    hubriseError.value = describeError(e);
+  }
+}
+
+async function saveChannel(channel: HubriseChannel) {
+  hubriseError.value = null;
+  try {
+    const released = await ipc.hubriseSetChannel(channel);
+    toast.show(t("hubrise_channel_saved", { count: released }), "success");
+    await webshop.fetchOrders();
+  } catch (e) {
+    hubriseError.value = describeError(e);
+  }
+  await loadChannels();
+}
+
+async function addChannel() {
+  const name = newChannel.value.trim();
+  if (!name) return;
+  await saveChannel({ channel: name, kind: "platform", payment_type: "APP", charge_policy: "include" });
+  newChannel.value = "";
+}
+
+/** The same channel with one setting changed; a platform pays APP, a webshop ONLINE. */
+function withChange(c: HubriseChannel, field: keyof HubriseChannel, value: string): HubriseChannel {
+  const next = { ...c, [field]: value } as HubriseChannel;
+  if (field === "kind") next.payment_type = value === "webshop" ? "ONLINE" : "APP";
+  return next;
+}
+
+onMounted(async () => {
+  await loadHubriseStatus();
+  await loadHealth();
 });
 </script>
 
@@ -96,6 +219,89 @@ onMounted(() => {
           <span>{{ t('hubrise_catalog_label') }}</span><span class="info-value">{{ hubriseStatus.catalog_name }}</span>
         </div>
       </div>
+      <p v-if="health?.catalog?.manages_menu" class="banner" data-testid="menu-managed">
+        {{ t('hubrise_menu_managed_banner') }}
+      </p>
+      <p v-if="health?.auth_error_at" class="banner banner-err">{{ t('hubrise_health_auth') }}</p>
+      <p v-if="health && health.parked_events + health.outbox.parked > 0" class="banner banner-err">
+        {{ t('hubrise_health_parked', { count: health.parked_events + health.outbox.parked }) }}
+      </p>
+      <p v-if="health && health.outbox.pending > 0 && health.outbox_error" class="banner">
+        {{ t('hubrise_health_outbox', { count: health.outbox.pending }) }}
+      </p>
+
+      <!-- Catalog: last sync, the issues of a refused one -->
+      <div class="section-label">{{ t('hubrise_catalog_title') }}</div>
+      <div class="catalog-row">
+        <span data-testid="catalog-synced">{{ catalogSynced }}</span>
+        <button class="action-btn" :disabled="catalogBusy" @click="syncCatalog">
+          {{ t('webshop_action_resync') }}
+        </button>
+      </div>
+      <div v-if="catalogRefused" class="banner banner-err" data-testid="catalog-refused">
+        {{ t('hubrise_catalog_rejected') }}
+        <ul class="issues">
+          <li v-for="(issue, i) in health!.catalog!.issues" :key="i">
+            {{ t(`catalog_issue_${issue.code}`) }}<span v-if="issue.key" class="mono"> · {{ issue.key }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- First connect: the manager picks the products that keep their id -->
+      <template v-if="health?.catalog_awaiting_adoption && auth.isManager">
+        <div class="section-label">{{ t('hubrise_adoption_title') }}</div>
+        <p class="hubrise-help">{{ t('hubrise_adoption_help') }}</p>
+        <p v-if="adoptions.length === 0" class="hubrise-help">{{ t('hubrise_adoption_none') }}</p>
+        <ul v-else class="adoptions" data-testid="adoptions">
+          <li v-for="a in adoptions" :key="a.menu_item_id">
+            <label class="adoption">
+              <input
+                type="checkbox"
+                :checked="adopted.has(a.menu_item_id)"
+                @change="toggleAdoption(a.menu_item_id)"
+              />
+              <span>{{ a.name }}</span>
+              <span class="mono">{{ formatPrice(a.price_cents) }} €</span>
+            </label>
+          </li>
+        </ul>
+        <button class="action-btn" :disabled="catalogBusy" @click="adoptCatalog">
+          {{ t('hubrise_adoption_action') }}
+        </button>
+      </template>
+
+      <!-- Channels: how each one is signed -->
+      <template v-if="auth.isManager">
+        <div class="section-label">{{ t('hubrise_channels_title') }}</div>
+        <ul class="channels" data-testid="channels">
+          <li v-for="c in channels" :key="c.channel" class="channel">
+            <span class="mono channel-name">{{ c.channel }}</span>
+            <select
+              class="field select"
+              :value="c.kind"
+              @change="saveChannel(withChange(c, 'kind', ($event.target as HTMLSelectElement).value))"
+            >
+              <option value="platform">{{ t('hubrise_channel_platform') }} · APP</option>
+              <option value="webshop">{{ t('hubrise_channel_webshop') }} · ONLINE</option>
+            </select>
+            <select
+              class="field select"
+              :value="c.charge_policy"
+              @change="saveChannel(withChange(c, 'charge_policy', ($event.target as HTMLSelectElement).value))"
+            >
+              <option value="include">{{ t('hubrise_channel_charges_include') }}</option>
+              <option value="exclude">{{ t('hubrise_channel_charges_exclude') }}</option>
+            </select>
+          </li>
+        </ul>
+        <div class="code-row">
+          <input v-model="newChannel" class="field" :placeholder="t('hubrise_channel_name')" />
+          <button class="action-btn" :disabled="!newChannel.trim()" @click="addChannel">
+            {{ t('hubrise_channel_add') }}
+          </button>
+        </div>
+      </template>
+
       <button class="action-btn danger" :disabled="hubriseLoading" @click="disconnectHubrise">
         {{ t('hubrise_disconnect_action') }}
       </button>
@@ -164,4 +370,21 @@ onMounted(() => {
 .action-btn:active { transform: scale(var(--tap-scale)); }
 .action-btn:disabled { opacity: 0.5; }
 .add-error { color: var(--accent-danger); font-size: 15px; }
+.mono { font-family: var(--font-mono); }
+.banner {
+  padding: 12px 14px; border-radius: var(--radius-sm); font-size: 15px;
+  background: color-mix(in srgb, var(--accent-warning) 18%, transparent);
+}
+.banner-err { background: color-mix(in srgb, var(--accent-danger) 15%, transparent); }
+.issues { margin: 6px 0 0; padding-left: 18px; }
+.catalog-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; font-size: 16px; }
+.adoptions, .channels { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.adoption {
+  display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 12px;
+  min-height: 48px; font-size: 16px;
+}
+.adoption input { width: 28px; height: 28px; }
+.channel { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+.channel-name { overflow-wrap: anywhere; }
+.select { flex: none; min-width: 180px; }
 </style>

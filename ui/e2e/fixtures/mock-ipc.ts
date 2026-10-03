@@ -322,6 +322,13 @@ function defaultHandlers(): Record<string, Handler> {
 
     // HubRise
     hubrise_get_connection_status: () => ({ connected: false }),
+    hubrise_status: () => ({
+      connected: false, last_poll_at: null, auth_error_at: null, last_error: null,
+      callback_registered_at: null, last_catalog_sync_at: null,
+      outbox: { pending: 0, parked: 0 }, outbox_error: null, parked_events: 0,
+      stale_orders: 0, catalog: null, catalog_awaiting_adoption: false,
+    }),
+    hubrise_list_channels: () => [],
     hubrise_start_oauth_flow: () => 'http://localhost:3001/oauth2/v1/authorize',
     hubrise_complete_oauth: () => ({ connected: true }),
     hubrise_disconnect: () => undefined,
