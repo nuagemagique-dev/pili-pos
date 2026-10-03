@@ -116,6 +116,11 @@ const HUBRISE_MIGRATIONS: &[Migration] = &[
         name: "price-changes",
         sql: crate::schema_hubrise::MIGRATION_023_PRICE_CHANGES,
     },
+    Migration {
+        version: 24,
+        name: "platform-charges",
+        sql: crate::schema_hubrise::MIGRATION_024_PLATFORM_CHARGES,
+    },
 ];
 
 /// Migrations of the menu mirrored from an external catalog (feature

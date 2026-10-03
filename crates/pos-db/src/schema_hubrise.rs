@@ -120,3 +120,12 @@ BEGIN
     SELECT RAISE(ABORT, 'order price changes are append-only');
 END;
 "#;
+
+/// Migration 24: a platform's charges (its delivery or service fee)
+/// are its own turnover, not the restaurant's, so the known platforms
+/// leave them out of the sale; a manager can still include them per
+/// channel. The webshop keeps its charges, which follow its food.
+pub(crate) const MIGRATION_024_PLATFORM_CHARGES: &str = r#"
+UPDATE hubrise_channels SET charge_policy = 'exclude'
+WHERE kind = 'platform' AND charge_policy = 'include';
+"#;

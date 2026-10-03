@@ -8,6 +8,11 @@
 //! - the VAT label comes from the menu (eat-in, or takeaway for
 //!   delivery and collection), and must agree with the order's
 //!   `tax_rate` when the order gives one;
+//! - a charge the restaurant keeps (delivery, packaging) follows the
+//!   food it comes with: it is split over the products' VAT labels in
+//!   proportion to their totals (an accessory supply, Circular
+//!   2017/C/70), whatever rate the order gives it;
+//! - a platform's charges are its own turnover: excluded by default;
 //! - the unit price is what the customer was charged; a price other
 //!   than the catalog's is only a warning, since platforms mark up;
 //! - the lines must add up to the order total.
@@ -425,6 +430,15 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
         });
     }
 
+    // Discounts first: only products get them, and the charges are
+    // split by what the products come to after them.
+    let mut discount_cents = 0;
+    for (rank, discount) in order.discounts.iter().filter(|d| !d.deleted).enumerate() {
+        let off = cents(&discount.price_off, &discount.name, &mut attention);
+        discount_cents += off;
+        spread_discount(&mut lines, rank + 1, discount, off, &mut attention);
+    }
+
     let include_charges = channel
         .as_ref()
         .is_none_or(|c| c.charge_policy == "include");
@@ -442,30 +456,19 @@ pub fn resolve(conn: &Connection, order: &Order) -> Result<Resolution> {
             continue;
         };
         let menu = pos_db::queries::menu::resolve_catalogue_line(conn, id, takeaway, FISCAL_LANG)?;
-        check_vat(
-            charge.tax_rate.as_deref(),
-            menu.vat_code,
-            &at,
-            &mut attention,
-        );
-        lines.push(ResolvedLine {
-            kind: LineKind::Charge,
-            menu_item_id: id,
-            name: menu.name,
-            quantity: 1,
-            unit_price_cents: price,
-            vat_code: menu.vat_code,
-            department_id: menu.department_id,
-            department_name: menu.department_name,
-            discounts: Vec::new(),
-        });
-    }
-
-    let mut discount_cents = 0;
-    for (rank, discount) in order.discounts.iter().filter(|d| !d.deleted).enumerate() {
-        let off = cents(&discount.price_off, &discount.name, &mut attention);
-        discount_cents += off;
-        spread_discount(&mut lines, rank + 1, discount, off, &mut attention);
+        for (vat_code, share) in charge_shares(&lines, price, menu.vat_code) {
+            lines.push(ResolvedLine {
+                kind: LineKind::Charge,
+                menu_item_id: id,
+                name: menu.name.clone(),
+                quantity: 1,
+                unit_price_cents: share,
+                vat_code,
+                department_id: menu.department_id.clone(),
+                department_name: menu.department_name.clone(),
+                discounts: Vec::new(),
+            });
+        }
     }
 
     let total_cents = order
@@ -508,6 +511,48 @@ fn check_vat(rate: Option<&str>, menu: VatCode, at: &str, attention: &mut Vec<At
             menu,
         });
     }
+}
+
+/// A charge of `price` cents split over the products' VAT labels, in
+/// proportion to what each label's products come to (after their
+/// discounts), to the cent. With no product to follow, the menu's own
+/// label. A free charge is one line at 0.
+fn charge_shares(lines: &[ResolvedLine], price: i64, fallback: VatCode) -> Vec<(VatCode, i64)> {
+    let mut by_vat: Vec<(VatCode, i64)> = Vec::new();
+    for line in lines.iter().filter(|l| l.kind == LineKind::Product) {
+        match by_vat.iter_mut().find(|(code, _)| *code == line.vat_code) {
+            Some((_, total)) => *total += line.net_cents(),
+            None => by_vat.push((line.vat_code, line.net_cents())),
+        }
+    }
+    by_vat.retain(|(_, total)| *total > 0);
+    if by_vat.is_empty() || price <= 0 {
+        return vec![(fallback, price)];
+    }
+    // The label with the most first, so its line comes first.
+    by_vat.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.as_str().cmp(b.0.as_str())));
+    let weights: Vec<i64> = by_vat.iter().map(|(_, t)| *t).collect();
+    let total: i64 = weights.iter().sum();
+    // `distribute` never gives a label more than its weight: a charge
+    // larger than the products goes round in chunks.
+    let mut shares = vec![0; weights.len()];
+    let mut left = price;
+    while left > 0 {
+        let chunk = left.min(total);
+        for (s, d) in shares
+            .iter_mut()
+            .zip(pos_core::money::distribute(&weights, chunk))
+        {
+            *s += d;
+        }
+        left -= chunk;
+    }
+    by_vat
+        .into_iter()
+        .zip(shares)
+        .filter(|(_, share)| *share != 0)
+        .map(|((code, _), share)| (code, share))
+        .collect()
 }
 
 /// Spread a discount of `off` cents over the product lines, by their

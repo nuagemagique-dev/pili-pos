@@ -114,6 +114,67 @@ fn cash_at_the_door_is_unpaid_and_the_delivery_charge_is_a_line() {
     assert_eq!((fee.unit_price_cents, fee.vat_code), (250, VatCode::C));
 }
 
+fn charge_lines(r: &pos_hubrise::webshop::Resolution) -> Vec<(VatCode, i64)> {
+    r.lines
+        .iter()
+        .filter(|l| l.kind == LineKind::Charge)
+        .map(|l| (l.vat_code, l.unit_price_cents))
+        .collect()
+}
+
+#[test]
+fn a_delivery_charge_follows_the_food_and_drinks_pro_rata() {
+    let conn = seeded();
+    // 10,00 of food (C) and 9,00 of beer (A): 2,50 split 1000 : 900.
+    let body = OrderBuilder::new("Website", "delivery")
+        .item("MAKI-SAUMON-12", "Maki saumon", 1000, 1)
+        .item("ASAHI-33", "Bière Asahi 33cl", 450, 2)
+        .charge("DELIVERY", "Livraison", 250)
+        .build();
+    let r = resolve(&conn, &as_order(body)).unwrap();
+    assert!(r.is_ok(), "{:?}", r.attention);
+    assert_eq!(
+        charge_lines(&r),
+        vec![(VatCode::C, 132), (VatCode::A, 118)],
+        "the label with the most first, to the cent"
+    );
+}
+
+#[test]
+fn a_charge_larger_than_the_products_is_split_whole() {
+    let conn = seeded();
+    let body = OrderBuilder::new("Website", "delivery")
+        .item("MISO-1", "Soupe miso", 350, 1)
+        .item("ASAHI-33", "Bière Asahi 33cl", 450, 1)
+        .charge("DELIVERY", "Livraison", 2000)
+        .build();
+    let r = resolve(&conn, &as_order(body)).unwrap();
+    let shares = charge_lines(&r);
+    assert_eq!(
+        shares,
+        vec![(VatCode::A, 1125), (VatCode::C, 875)],
+        "450 : 350"
+    );
+}
+
+#[test]
+fn platforms_keep_their_charges_by_default() {
+    let conn = seeded();
+    let body = OrderBuilder::new("Deliveroo", "delivery")
+        .item("MAKI-SAUMON-12", "Maki saumon", 1000, 1)
+        .charge("DELIVERY", "Livraison", 250)
+        .paid_by("DELIVEROO", "Deliveroo")
+        .build();
+    let r = resolve(&conn, &as_order(body)).unwrap();
+    assert!(r.is_ok(), "{:?}", r.attention);
+    assert!(charge_lines(&r).is_empty(), "the platform's turnover");
+    assert_eq!(r.channel.unwrap().charge_policy, "exclude");
+    let website = pos_hubrise::webshop::channel(&conn, "website")
+        .unwrap()
+        .unwrap();
+    assert_eq!(website.charge_policy, "include", "the webshop's own fee");
+}
+
 #[test]
 fn an_unknown_channel_is_held_and_a_mapping_releases_it() {
     let conn = seeded();

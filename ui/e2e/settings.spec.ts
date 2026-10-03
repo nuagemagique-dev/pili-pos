@@ -253,7 +253,7 @@ test.describe('Settings - HubRise catalog and channels', () => {
     await page.getByRole('button', { name: 'Ajouter un canal' }).click();
     await channels.locator('.channel', { hasText: 'website' }).locator('select').first().selectOption('platform');
     const calls = await ipcCalls(page, 'hubrise_set_channel');
-    expect(calls[0].channel).toEqual({ channel: 'Table QR', kind: 'platform', payment_type: 'APP', charge_policy: 'include' });
+    expect(calls[0].channel).toEqual({ channel: 'Table QR', kind: 'platform', payment_type: 'APP', charge_policy: 'exclude' });
     expect(calls[1].channel).toEqual({ channel: 'website', kind: 'platform', payment_type: 'APP', charge_policy: 'include' });
     await expect(page.getByText('1 commande(s) débloquée(s)').first()).toBeVisible();
   });

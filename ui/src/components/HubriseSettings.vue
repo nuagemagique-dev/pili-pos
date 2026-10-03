@@ -180,7 +180,7 @@ async function saveChannel(channel: HubriseChannel) {
 async function addChannel() {
   const name = newChannel.value.trim();
   if (!name) return;
-  await saveChannel({ channel: name, kind: "platform", payment_type: "APP", charge_policy: "include" });
+  await saveChannel({ channel: name, kind: "platform", payment_type: "APP", charge_policy: "exclude" });
   newChannel.value = "";
 }
 

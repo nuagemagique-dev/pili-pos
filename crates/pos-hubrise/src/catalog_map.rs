@@ -134,9 +134,10 @@ pub fn to_neutral(data: &CatalogData) -> (Catalog, Vec<Issue>) {
             kind: ItemKind::Charge,
             names: fr_name(&charge.name),
             price_cents,
-            // The VAT of charges follows the food it is charged with
-            // (taken away or delivered); how platform fees count is
-            // decided per channel when an order is signed.
+            // Only the label of a charge with no product to follow:
+            // on an order, a charge is split over its products' labels
+            // (`webshop::resolve`), and a platform's are excluded per
+            // channel.
             vat_eat_in: VatCode::C,
             vat_takeaway: VatCode::C,
             open_price,
