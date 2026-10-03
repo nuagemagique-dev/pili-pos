@@ -260,7 +260,8 @@ pub(crate) async fn refund_sale(
         let mut refunded: Vec<(i32, &pos_core::order::OrderLine)> = Vec::new();
         match spec.lines {
             RefundLines::Products(items) => {
-                let mut requested: std::collections::HashMap<i64, i32> =
+                // i64, so i32 quantities cannot wrap past the sold cap.
+                let mut requested: std::collections::HashMap<i64, i64> =
                     std::collections::HashMap::new();
                 for item in items {
                     if item.quantity <= 0 {
@@ -269,7 +270,7 @@ pub(crate) async fn refund_sale(
                             &[("product", &item.menu_item_id)],
                         ));
                     }
-                    *requested.entry(item.menu_item_id).or_default() += item.quantity;
+                    *requested.entry(item.menu_item_id).or_default() += i64::from(item.quantity);
                 }
                 for (&menu_item_id, &quantity) in &requested {
                     let prior = already_refunded.get(&menu_item_id).copied().unwrap_or(0);
@@ -593,8 +594,8 @@ pub const ERR_REFUND_OF_REFUND: &str = errors::REFUND_OF_REFUND;
 fn refunded_line(
     original_lines: &[pos_core::order::OrderLine],
     menu_item_id: i64,
-    requested: i32,
-    already_refunded: i32,
+    requested: i64,
+    already_refunded: i64,
 ) -> Result<&pos_core::order::OrderLine, String> {
     let line = original_lines
         .iter()
@@ -605,12 +606,12 @@ fn refunded_line(
                 &[("product", &menu_item_id)],
             )
         })?;
-    let sold: i32 = original_lines
+    let sold: i64 = original_lines
         .iter()
         .filter(|l| l.menu_item_id == menu_item_id)
-        .map(|l| l.quantity)
+        .map(|l| i64::from(l.quantity))
         .sum();
-    let total_refunded = requested + already_refunded;
+    let total_refunded = requested.saturating_add(already_refunded);
     if total_refunded > sold {
         return Err(errors::coded(
             errors::REFUND_EXCEEDS_SOLD,
@@ -637,7 +638,7 @@ fn refunded_line(
 fn already_refunded_quantities(
     conn: &rusqlite::Connection,
     original: &pos_fiscal::response::FdmReference,
-) -> Result<std::collections::HashMap<i64, i32>, rusqlite::Error> {
+) -> Result<std::collections::HashMap<i64, i64>, rusqlite::Error> {
     let event_label = serde_json::to_string(&original.event_label)
         .unwrap_or_default()
         .trim_matches('"')
@@ -661,7 +662,7 @@ fn already_refunded_quantities(
         |row| row.get::<_, String>(0),
     )?;
 
-    let mut totals: std::collections::HashMap<i64, i32> = std::collections::HashMap::new();
+    let mut totals: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
     for row in rows {
         let json = row?;
         let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
@@ -682,7 +683,8 @@ fn already_refunded_quantities(
             else {
                 continue;
             };
-            *totals.entry(product_id).or_insert(0) += (-quantity).round() as i32;
+            let total = totals.entry(product_id).or_insert(0);
+            *total = total.saturating_add((-quantity).round() as i64);
         }
     }
     Ok(totals)

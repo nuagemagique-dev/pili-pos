@@ -126,6 +126,9 @@ async fn a_refused_item_creates_no_refund_order() {
         vec![(1, 2), (1, 1)],  // same item twice, together more than sold
         vec![(2, 1), (1, 0)],  // zero
         vec![(2, 1), (1, -1)], // negative
+        // Would wrap an i32 sum below the sold cap.
+        vec![(1, i32::MAX), (1, i32::MAX)],
+        vec![(1, i32::MAX)],
     ] {
         assert!(refund(&app, original, &list).await.is_err(), "{list:?}");
     }

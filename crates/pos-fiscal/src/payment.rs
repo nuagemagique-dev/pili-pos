@@ -180,7 +180,11 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
             (PaymentMethod::Cash, None) if !cash => cash = true,
             (PaymentMethod::Cash, _) => return Err(PaymentError::Invalid),
             (method, Some(amount)) if amount > 0 => {
-                non_cash += amount;
+                // Checked per part so the sum cannot wrap past the total.
+                non_cash = non_cash
+                    .checked_add(amount)
+                    .filter(|sum| *sum <= total_cents)
+                    .ok_or(PaymentError::ExceedsTotal)?;
                 payments.push(SettledPayment {
                     method,
                     amount_cents: amount,
@@ -189,10 +193,6 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
             _ => return Err(PaymentError::Invalid),
         }
     }
-    if non_cash > total_cents {
-        return Err(PaymentError::ExceedsTotal);
-    }
-
     let rest = total_cents - non_cash;
     let mut rounding_cents = 0;
     if rest > 0 {
@@ -335,6 +335,15 @@ mod tests {
             Err(Invalid)
         );
         assert_eq!(settle(-100, &[PaymentPart::cash()]), Err(Invalid));
+        // Parts that would wrap an i64 sum are refused, not settled.
+        assert_eq!(
+            settle(1000, &[card(i64::MAX), card(i64::MAX), PaymentPart::cash()]),
+            Err(ExceedsTotal)
+        );
+        assert_eq!(
+            settle(1000, &[card(i64::MAX), PaymentPart::of(MealVoucher, 2)]),
+            Err(ExceedsTotal)
+        );
     }
 
     #[test]
