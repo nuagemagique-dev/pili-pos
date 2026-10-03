@@ -570,7 +570,14 @@ export function hubriseGetConnectionStatus(): Promise<HubriseConnectionInfo> {
   return invoke("hubrise_get_connection_status");
 }
 
-export function hubriseStartOauthFlow(): Promise<string> {
+/** HubRise's login page, and the same link as a QR code (SVG built by
+ * the backend from the URL only): the kiosk has no browser. */
+export interface HubriseAuthorizeLink {
+  url: string;
+  qr_svg: string;
+}
+
+export function hubriseStartOauthFlow(): Promise<HubriseAuthorizeLink> {
   return invoke("hubrise_start_oauth_flow");
 }
 

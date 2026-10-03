@@ -99,7 +99,10 @@ test.describe('Settings View', () => {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
       hubrise_get_connection_status: () => ({ connected: false }),
-      hubrise_start_oauth_flow: () => 'https://manager.hubrise.com/oauth2/v1/authorize?client_id=test',
+      hubrise_start_oauth_flow: () => ({
+        url: 'https://manager.hubrise.com/oauth2/v1/authorize?client_id=test',
+        qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" data-qr="1" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>',
+      }),
       hubrise_complete_oauth: () => ({
         connected: true,
         account_id: 'acc-1',
@@ -114,11 +117,15 @@ test.describe('Settings View', () => {
     });
     await page.goto('/#/settings');
 
-    // 2. Click "Ouvrir l'URL d'autorisation HubRise"
-    const authorizeBtn = page.getByText("Ouvrir l'URL d'autorisation HubRise");
+    // 2. "Se connecter à HubRise": the kiosk has no browser, so the
+    // login link shows as a QR code, with the URL spelled out.
+    const authorizeBtn = page.getByText('Se connecter à HubRise');
     await authorizeBtn.scrollIntoViewIfNeeded();
-    await expect(authorizeBtn).toBeVisible();
-    // Note: clicking opens a browser tab via Tauri shell - mocked, so no real navigation
+    await authorizeBtn.click();
+    const panel = page.getByTestId('hubrise-authorize');
+    await expect(panel.locator('svg[data-qr]')).toBeVisible();
+    await expect(panel).toContainText('Scannez ce code avec un téléphone');
+    await expect(panel).toContainText('https://manager.hubrise.com/oauth2/v1/authorize?client_id=test');
 
     // 3. Paste a code and complete
     const codeInput = page.locator('input[placeholder]').last();

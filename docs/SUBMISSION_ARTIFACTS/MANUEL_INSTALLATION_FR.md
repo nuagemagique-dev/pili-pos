@@ -339,10 +339,11 @@ pili-pos --check-config        # signale un secret absent ou vide
 systemctl restart pili-pos
 ```
 
-Puis, connecté en Gérant : Réglages, section HubRise, « Ouvrir l'URL
-d'autorisation HubRise » ; se connecter à HubRise, choisir
-l'établissement, recopier dans la caisse le code affiché et toucher
-« Valider la connexion ». Le trafic sortant ajouté est HTTPS (443) vers
+Puis, connecté en Gérant : Réglages, section HubRise, « Se connecter à
+HubRise ». La caisse n'a pas de navigateur : elle affiche un QR code
+(et le lien en clair). Le scanner avec un téléphone, se connecter à
+HubRise, choisir l'établissement, puis taper dans la caisse le code
+affiché par HubRise et toucher « Valider la connexion ». Le trafic sortant ajouté est HTTPS (443) vers
 `manager.hubrise.com` et `api.hubrise.com`.
 
 ### 4.3 Configuration réseau LAN

@@ -18,6 +18,8 @@ pos-hubrise = { path = "../crates/pos-hubrise", optional = true }
 pos-catalog = { path = "../crates/pos-catalog", optional = true }
 pos-hubrise-types = { path = "../crates/pos-hubrise-types", optional = true }
 pos-peppol = { path = "../crates/pos-peppol", optional = true }
+# The HubRise login link as a QR code (Settings), as for tickets.
+qrcode = { version = "0.14", optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
@@ -59,6 +61,7 @@ hubrise = [
     "dep:pos-hubrise",
     "dep:pos-hubrise-types",
     "dep:pos-catalog",
+    "dep:qrcode",
     "pos-db/hubrise",
 ]
 # Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,

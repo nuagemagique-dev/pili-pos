@@ -132,16 +132,45 @@ pub fn hubrise_get_connection_status(
     }
 }
 
+/// The HubRise page where the installer logs in and grants access,
+/// and the same link as a QR code: the kiosk has no browser, so the
+/// installer opens it on a phone and types back the code HubRise shows.
+#[derive(Debug, Clone, Serialize)]
+pub struct AuthorizeLink {
+    pub url: String,
+    /// SVG markup, rendered here from `url` only.
+    pub qr_svg: String,
+}
+
 #[tauri::command]
-pub fn hubrise_start_oauth_flow(state: State<'_, AppState>) -> Result<String, String> {
+pub fn hubrise_start_oauth_flow(state: State<'_, AppState>) -> Result<AuthorizeLink, String> {
     do_hubrise_start_oauth_flow(state.inner())
 }
 
-/// The HubRise page where the installer logs in and grants access.
-pub fn do_hubrise_start_oauth_flow(state: &AppState) -> Result<String, String> {
+pub fn do_hubrise_start_oauth_flow(state: &AppState) -> Result<AuthorizeLink, String> {
     crate::commands::integrations::require_hubrise(state)?;
     let cfg = installation_oauth_config(state)?;
-    build_authorize_url(&cfg, None).map_err(|e| e.to_string())
+    let url = build_authorize_url(&cfg, None).map_err(|e| e.to_string())?;
+    let qr_svg = qr_svg(&url)?;
+    Ok(AuthorizeLink { url, qr_svg })
+}
+
+/// `text` as an SVG QR code (ECC M), black on white with its quiet
+/// zone, without the XML declaration so it can sit inline in the page.
+fn qr_svg(text: &str) -> Result<String, String> {
+    use qrcode::render::svg;
+    let code = qrcode::QrCode::with_error_correction_level(text, qrcode::EcLevel::M)
+        .map_err(errors::internal)?;
+    let svg = code
+        .render::<svg::Color>()
+        .min_dimensions(240, 240)
+        .dark_color(svg::Color("#000000"))
+        .light_color(svg::Color("#ffffff"))
+        .build();
+    Ok(match svg.find("<svg") {
+        Some(start) => svg[start..].to_string(),
+        None => svg,
+    })
 }
 
 #[tauri::command]

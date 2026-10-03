@@ -83,7 +83,11 @@ async fn an_installation_connects_with_its_pos_json_client() {
     );
     app.state.hubrise_switch.set(true);
 
-    let url = do_hubrise_start_oauth_flow(&app.state).unwrap();
+    let link = do_hubrise_start_oauth_flow(&app.state).unwrap();
+    // The kiosk has no browser: the link comes as a QR code too.
+    assert!(link.qr_svg.starts_with("<svg"), "{}", &link.qr_svg[..40]);
+    assert!(!link.qr_svg.contains("s3cret"));
+    let url = link.url;
     assert!(
         url.starts_with(&format!("{}/oauth2/v1/authorize?", mock.url)),
         "{url}"

@@ -336,7 +336,10 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     hubrise_list_channels: () => [],
     get_item_modifiers: () => [],
-    hubrise_start_oauth_flow: () => 'http://localhost:3001/oauth2/v1/authorize',
+    hubrise_start_oauth_flow: () => ({
+      url: 'http://localhost:3001/oauth2/v1/authorize',
+      qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>',
+    }),
     hubrise_complete_oauth: () => ({ connected: true }),
     hubrise_disconnect: () => undefined,
     hubrise_list_webshop_orders: () => [],

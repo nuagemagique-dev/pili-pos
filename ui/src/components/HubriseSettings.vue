@@ -28,6 +28,8 @@ const hubriseStatus = ref<HubriseConnectionInfo | null>(null);
 const hubriseCode = ref("");
 const hubriseError = ref<string | null>(null);
 const hubriseLoading = ref(false);
+// The login link, shown as a QR code to open on a phone.
+const authorizeLink = ref<ipc.HubriseAuthorizeLink | null>(null);
 
 async function loadHubriseStatus() {
   try {
@@ -41,8 +43,10 @@ async function connectHubrise() {
   hubriseError.value = null;
   hubriseLoading.value = true;
   try {
-    const url = await ipc.hubriseStartOauthFlow();
-    await openUrl(url);
+    authorizeLink.value = await ipc.hubriseStartOauthFlow();
+    // A desktop opens it too; the kiosk has no browser, the QR code
+    // is the way there.
+    openUrl(authorizeLink.value.url).catch(() => undefined);
   } catch (e) {
     hubriseError.value = describeError(e);
   } finally {
@@ -311,6 +315,14 @@ onMounted(async () => {
       <button class="action-btn" :disabled="hubriseLoading" @click="connectHubrise">
         {{ t('hubrise_open_authorize_url') }}
       </button>
+      <div v-if="authorizeLink" class="authorize" data-testid="hubrise-authorize">
+        <!-- SVG rendered by the backend from the URL alone. -->
+        <div class="authorize-qr" v-html="authorizeLink.qr_svg"></div>
+        <div class="authorize-text">
+          <p class="hubrise-help">{{ t('hubrise_authorize_scan') }}</p>
+          <p class="authorize-url">{{ authorizeLink.url }}</p>
+        </div>
+      </div>
       <div class="section-label">{{ t('hubrise_paste_code_title') }}</div>
       <div class="code-row">
         <input v-model="hubriseCode" class="field" :placeholder="t('hubrise_code_placeholder')" />
@@ -352,6 +364,17 @@ onMounted(async () => {
 .info-row span:first-child { color: var(--text-secondary); flex-shrink: 0; }
 .info-value { font-family: var(--font-mono); text-align: right; overflow-wrap: anywhere; }
 
+.authorize { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.authorize-qr {
+  flex-shrink: 0; width: 240px; height: 240px; padding: 8px;
+  border-radius: var(--radius-md); background: #ffffff;
+}
+.authorize-qr :deep(svg) { display: block; width: 100%; height: 100%; }
+.authorize-text { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 12px; }
+.authorize-url {
+  font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary);
+  overflow-wrap: anywhere; user-select: all;
+}
 .code-row { display: flex; gap: 8px; }
 .field {
   flex: 1; min-width: 0; height: 56px; padding: 0 16px;

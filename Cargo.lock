@@ -2986,6 +2986,7 @@ dependencies = [
  "pos-peppol",
  "pos-print",
  "pos-printer-mock",
+ "qrcode",
  "reqwest",
  "rusqlite",
  "serde",
