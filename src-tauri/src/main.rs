@@ -11,9 +11,10 @@ use std::sync::Arc;
 use state::AppState;
 use tauri::Emitter;
 
-// The dev handler list registers the invoice commands unconditionally.
-#[cfg(all(feature = "hubrise", not(feature = "peppol")))]
-compile_error!("the dev build (feature `hubrise`) also requires feature `peppol`");
+// Every shipped build has the HubRise integration (switched on or off
+// per installation); the handler lists below assume it.
+#[cfg(not(feature = "hubrise"))]
+compile_error!("pili-pos is built with feature `hubrise` (`cert` and `peppol` include it)");
 
 fn main() {
     // Offline commands (image build, install scripts) run before any
@@ -92,6 +93,8 @@ fn main() {
     let mut poller_ctx = commands::hubrise::poller_ctx(&app_state);
     #[cfg(feature = "hubrise")]
     let outbox_wake = app_state.hubrise_outbox_wake.clone();
+    #[cfg(feature = "hubrise")]
+    let hubrise_switch = app_state.hubrise_switch.clone();
     let shutdown_for_setup = app_state.shutdown_token.clone();
     let shutdown_for_window = app_state.shutdown_token.clone();
 
@@ -209,6 +212,7 @@ fn main() {
                     http: shared_http,
                     db: poller_db,
                     wake: outbox_wake,
+                    enabled: hubrise_switch,
                 };
                 let outbox_cancel = shutdown_for_setup.clone();
                 tauri::async_runtime::spawn(async move {
@@ -268,11 +272,12 @@ fn main() {
             }
         });
 
-    // The invoke_handler list differs between the dev build (with
-    // HubRise and invoicing IPC commands) and the certification build
+    // The invoke_handler list differs between the dev build (with the
+    // invoicing commands, feature `peppol`) and the certification build
     // (without). tauri::generate_handler! doesn't accept `#[cfg]` on
-    // individual commands, so we branch the whole call.
-    #[cfg(feature = "hubrise")]
+    // individual commands, so we branch the whole call. HubRise is in
+    // both: whether it runs is the installation's switch.
+    #[cfg(feature = "peppol")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         // Menu
         commands::menu::get_categories,
@@ -362,12 +367,14 @@ fn main() {
         commands::webshop::webshop_refund_order,
         commands::webshop::webshop_complete_order,
         commands::webshop::webshop_close_cancelled_order,
+        commands::integrations::get_integrations,
+        commands::integrations::set_hubrise_enabled,
         // Peppol B2B invoicing (dev build only - not in the v1.0.0 cert scope)
         commands::invoice::sign_invoice_fiscal,
         commands::invoice::issue_b2b_invoice,
     ]);
 
-    #[cfg(not(feature = "hubrise"))]
+    #[cfg(not(feature = "peppol"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         // Menu
         commands::menu::get_categories,
@@ -397,7 +404,7 @@ fn main() {
         commands::delivery::check_mail_status,
         commands::delivery::list_ticket_deliveries,
         commands::delivery::print_missing_original,
-        // Print (no webshop_* commands in the cert build)
+        // Print
         commands::print::check_printer,
         commands::print::check_kitchen_printer,
         // Settings
@@ -435,6 +442,32 @@ fn main() {
         commands::financial::open_drawer_fiscal,
         // No invoice (I event) commands: invoicing is not part of the
         // v1.0.0 certification scope.
+        // HubRise (switched per installation, commands::integrations)
+        commands::print::print_webshop_kitchen,
+        commands::print::print_webshop_customer,
+        commands::hubrise::hubrise_get_connection_status,
+        commands::hubrise::hubrise_start_oauth_flow,
+        commands::hubrise::hubrise_complete_oauth,
+        commands::hubrise::hubrise_disconnect,
+        commands::hubrise::hubrise_list_webshop_orders,
+        commands::hubrise::hubrise_patch_order_status,
+        commands::hubrise::hubrise_set_confirmed_time,
+        commands::hubrise::hubrise_status,
+        commands::hubrise::hubrise_sync_catalog,
+        commands::hubrise::hubrise_adoption_preview,
+        commands::hubrise::hubrise_adopt_catalog,
+        commands::hubrise::hubrise_list_channels,
+        commands::hubrise::hubrise_set_channel,
+        commands::modifiers::get_item_modifiers,
+        commands::modifiers::add_order_line_with_modifiers,
+        commands::webshop::webshop_accept_order,
+        commands::webshop::webshop_handover_order,
+        commands::webshop::webshop_reject_order,
+        commands::webshop::webshop_refund_order,
+        commands::webshop::webshop_complete_order,
+        commands::webshop::webshop_close_cancelled_order,
+        commands::integrations::get_integrations,
+        commands::integrations::set_hubrise_enabled,
     ]);
 
     builder

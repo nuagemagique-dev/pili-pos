@@ -10,6 +10,8 @@ pub mod financial;
 pub mod hubrise;
 #[cfg(feature = "hubrise")]
 pub mod hubrise_push;
+#[cfg(feature = "hubrise")]
+pub mod integrations;
 #[cfg(feature = "peppol")]
 pub mod invoice;
 pub mod menu;

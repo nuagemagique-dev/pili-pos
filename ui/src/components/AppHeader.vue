@@ -5,6 +5,7 @@
  * 64 px high so its buttons can be 48 px (§4.1, §13).
  */
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
+import { useIntegrationsStore } from "../stores/integrations";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useOrderStore } from "../stores/order";
@@ -18,11 +19,9 @@ import PinDialog from "./PinDialog.vue";
 import FdmAlerts from "./FdmAlerts.vue";
 import TrainingBanner from "./TrainingBanner.vue";
 
-// Chosen here rather than with a template v-if: a folded ternary lets
-// the cert build (VITE_FEATURE_HUBRISE=false) drop the component.
-const OnlineOrdersNavButton = __HUBRISE_ENABLED__
-  ? defineAsyncComponent(() => import("./OnlineOrdersNavButton.vue"))
-  : null;
+// While HubRise runs, or online orders are still to settle.
+const OnlineOrdersNavButton = defineAsyncComponent(() => import("./OnlineOrdersNavButton.vue"));
+const integrations = useIntegrationsStore();
 
 const route = useRoute();
 const router = useRouter();
@@ -111,7 +110,7 @@ async function lock() {
           :class="{ 'nav-btn-active': takeawayActive }"
           @click="startTakeaway"
         >{{ t('takeaway_new') }}</button>
-        <component :is="OnlineOrdersNavButton" v-if="OnlineOrdersNavButton" />
+        <OnlineOrdersNavButton v-if="integrations.hubriseVisible" />
       </div>
       <div v-if="auth.isManager" class="admin-nav">
         <button

@@ -12,8 +12,8 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 
 [features]
-# Schema of the HubRise integration (migrations from version 20). Off
-# in the certification build.
+# Schema of the HubRise integration (migrations from version 20), part
+# of the certified binary.
 hubrise = ["catalog-sync"]
 # Schema of a menu mirrored from an external catalog (migration 21).
 catalog-sync = []

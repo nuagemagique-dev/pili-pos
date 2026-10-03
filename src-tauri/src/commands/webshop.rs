@@ -223,6 +223,7 @@ pub async fn do_accept_webshop_order(
     order_id: i64,
     confirmed_time: Option<&str>,
 ) -> Result<AcceptResult, String> {
+    crate::commands::integrations::require_hubrise(state)?;
     let operator = access::operator(state, Access::Cashier)?;
     if let Some(t) = confirmed_time
         && chrono::DateTime::parse_from_rfc3339(t).is_err()
@@ -480,6 +481,7 @@ pub fn webshop_reject_order(state: State<'_, AppState>, order_id: i64) -> Result
 /// Refuse an order not yet accepted: voided here, `rejected` for
 /// HubRise, nothing signed.
 pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), String> {
+    crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Cashier)?;
     let ws = load(state, order_id)?;
     let db = state.db.lock().map_err(errors::internal)?;

@@ -1,8 +1,18 @@
-// Webshop (HubRise) UI strings. Merged into the dictionary by i18n.ts
-// only when __HUBRISE_ENABLED__, so the certification build drops them.
+// Webshop (HubRise) UI strings, merged into the dictionary by i18n.ts.
 import type { Messages } from "./i18n";
 
 export const webshopMessages: Messages = {
+  // Settings, the integration switch.
+  "integrations_title": { fr: "Intégrations", en: "Integrations", zh: "集成" },
+  "integrations_hubrise_text": { fr: "Commandes en ligne (Deliveroo, Uber Eats, webshop) signées par la caisse, menu repris du catalogue.", en: "Online orders (Deliveroo, Uber Eats, webshop) signed by the till, menu taken from the catalog.", zh: "线上订单（Deliveroo、Uber Eats、网店）由收银机签署，菜单取自目录。" },
+  "integrations_on": { fr: "Activé", en: "On", zh: "已开启" },
+  "integrations_off": { fr: "Désactivé", en: "Off", zh: "已关闭" },
+  "integrations_turn_on": { fr: "Activer", en: "Switch on", zh: "开启" },
+  "integrations_turn_off": { fr: "Désactiver", en: "Switch off", zh: "关闭" },
+  "integrations_log": { fr: "Historique", en: "History", zh: "记录" },
+  "integrations_source_config": { fr: "fichier de configuration", en: "configuration file", zh: "配置文件" },
+  "integrations_source_admin": { fr: "gérant {who}", en: "manager {who}", zh: "经理 {who}" },
+  "integrations_settle_first": { fr: "{count} commande(s) en ligne à terminer.", en: "{count} online order(s) to settle.", zh: "{count} 个线上订单待处理。" },
   // Settings, HubRise panel.
   "settings_hubrise_pending": { fr: "{count} en attente", en: "{count} pending", zh: "{count} 待处理" },
   "online_orders": { fr: "En ligne", en: "Online", zh: "在线" },
@@ -183,6 +193,8 @@ export const webshopMessages: Messages = {
   "modifier_add": { fr: "Ajouter", en: "Add", zh: "添加" },
   "err_modifier_unknown": { fr: "Option inconnue pour ce produit.", en: "Unknown option for this product.", zh: "该产品没有此选项。" },
   "err_modifier_count": { fr: "« {group} » : choisir entre {min} et {max}.", en: "\"{group}\": pick between {min} and {max}.", zh: "「{group}」：请选 {min} 至 {max} 项。" },
+  "err_hubrise_disabled": { fr: "HubRise est désactivé sur cette caisse.", en: "HubRise is switched off on this till.", zh: "此收银机已关闭 HubRise。" },
+  "err_hubrise_online_orders_open": { fr: "Terminez d'abord les {count} commande(s) en ligne en cours.", en: "First settle the {count} online order(s) in progress.", zh: "请先处理 {count} 个进行中的线上订单。" },
   "err_refund_discounted_line": { fr: "Ligne vendue avec une remise : remboursez la commande entière.", en: "Line sold with a discount: refund the whole order.", zh: "此行有折扣：请退整单。" },
   "err_modifier_open_price": { fr: "Un produit à prix libre n'a pas d'options.", en: "A free-price product has no options.", zh: "自定价产品没有选项。" },
 };

@@ -641,3 +641,29 @@ export function startRemoteSupport(insz: string, pin: string): Promise<SupportSt
 export function stopRemoteSupport(): Promise<SupportStatus> {
   return invoke("stop_remote_support");
 }
+
+/** One change of the HubRise switch (`integration_switch_log`). */
+export interface SwitchChange {
+  enabled: boolean;
+  /** `config`: pos.json; `admin`: Settings. */
+  source: "config" | "admin";
+  changed_by: string | null;
+  changed_at: string;
+}
+
+/** Whether the HubRise integration runs on this installation. */
+export interface Integrations {
+  hubrise_enabled: boolean;
+  /** Online orders still to settle (the board stays reachable). */
+  online_orders_open: number;
+  hubrise_log: SwitchChange[];
+}
+
+export function getIntegrations(): Promise<Integrations> {
+  return invoke("get_integrations");
+}
+
+/** Admins only; switching off waits until every online order is settled. */
+export function setHubriseEnabled(enabled: boolean): Promise<Integrations> {
+  return invoke("set_hubrise_enabled", { enabled });
+}

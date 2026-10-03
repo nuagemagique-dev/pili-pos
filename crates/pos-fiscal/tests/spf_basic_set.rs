@@ -60,6 +60,7 @@ fn test_config(fdm_url: &str) -> PosConfig {
         fdm_url: fdm_url.to_string(),
         printer_address: None,
         training_mode: false,
+        hubrise_enabled: false,
         language: "fr".to_string(),
         backup_dir: None,
         kitchen_printer_address: None,

@@ -374,9 +374,7 @@ const screenMessages: Messages = {
   ...reportsMessages,
   ...settingsMessages,
 };
-const messages: Messages = __HUBRISE_ENABLED__
-  ? { ...screenMessages, ...webshopMessages }
-  : screenMessages;
+const messages: Messages = { ...screenMessages, ...webshopMessages };
 
 /** Whether `key` has a text (used to tell a known error code). */
 export function hasMessage(key: string): boolean {

@@ -114,6 +114,8 @@ pub struct OutboxCtx {
     pub db: Arc<Mutex<Connection>>,
     /// Wakes the worker before its next tick (a status change to send).
     pub wake: Arc<tokio::sync::Notify>,
+    /// Off: the queue waits, nothing is sent.
+    pub enabled: crate::switch::Switch,
 }
 
 /// Run the outbox drain loop until `cancel` is triggered.
@@ -127,6 +129,9 @@ pub async fn run_loop(ctx: OutboxCtx, cancel: CancellationToken) {
             _ = cancel.cancelled() => return,
             _ = ticker.tick() => {}
             _ = ctx.wake.notified() => {}
+        }
+        if !ctx.enabled.is_on() {
+            continue;
         }
         if let Err(e) = process_pending(&ctx.http, &ctx.db).await {
             tracing::warn!(?e, "hubrise outbox pass error");

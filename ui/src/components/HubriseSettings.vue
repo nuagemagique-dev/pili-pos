@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// HubRise (webshop) connection panel for Settings. Only rendered when
-// the build has __HUBRISE_ENABLED__ (see env.d.ts); the certification
-// build leaves this component out of the bundle.
+// HubRise (webshop) connection panel for Settings, shown while the
+// integration is switched on (stores/integrations.ts).
 import { computed, onMounted, ref } from "vue";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import * as ipc from "../api/ipc";

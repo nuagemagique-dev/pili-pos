@@ -213,6 +213,11 @@ pub mod hubrise {
     pub const MODIFIER_OPEN_PRICE: &str = "modifier_open_price";
     /// A line sold with a discount is refunded whole, never by product.
     pub const REFUND_DISCOUNTED_LINE: &str = "refund_discounted_line";
+    /// The integration is switched off on this installation.
+    pub const DISABLED: &str = "hubrise_disabled";
+    /// Switching off waits until every online order is settled
+    /// ({count}).
+    pub const ONLINE_ORDERS_OPEN: &str = "hubrise_online_orders_open";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -233,6 +238,8 @@ pub mod hubrise {
         MODIFIER_COUNT,
         MODIFIER_OPEN_PRICE,
         REFUND_DISCOUNTED_LINE,
+        DISABLED,
+        ONLINE_ORDERS_OPEN,
     ];
 }
 

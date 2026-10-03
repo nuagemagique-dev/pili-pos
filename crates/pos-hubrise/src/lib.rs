@@ -17,6 +17,7 @@ pub mod oauth;
 pub mod outbox;
 pub mod poller;
 pub mod push;
+pub mod switch;
 pub mod token_store;
 pub mod webshop;
 

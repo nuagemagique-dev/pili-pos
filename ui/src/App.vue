@@ -22,8 +22,9 @@ watchEffect(() => {
   document.documentElement.classList.toggle("training", pos.trainingMode);
 });
 
-// Two-tone chime when a new webshop order arrives (C5 → E5).
-if (__HUBRISE_ENABLED__) useOrderChime();
+// Two-tone chime when a new webshop order arrives (C5 → E5); none
+// arrives with HubRise switched off.
+useOrderChime();
 
 // Auto-lock after 5 minutes of inactivity - redirects to login
 // silently. Prevents unauthorized POS use when the operator walks

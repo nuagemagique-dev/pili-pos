@@ -162,5 +162,7 @@ pub fn connect(app: &TestApp, mock: &HubriseMock) -> StoredConnection {
     };
     let db = app.state.poller_db.lock().unwrap();
     token_store::save(&db, &stored).unwrap();
+    // A connected installation has the integration switched on.
+    app.state.hubrise_switch.set(true);
     stored
 }

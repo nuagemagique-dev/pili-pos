@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useIntegrationsStore } from "../stores/integrations";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { usePosStore } from "../stores/pos";
@@ -14,6 +15,7 @@ import PinDialog from "../components/PinDialog.vue";
 import PiliLogo from "../components/PiliLogo.vue";
 
 const router = useRouter();
+const integrations = useIntegrationsStore();
 const auth = useAuthStore();
 const pos = usePosStore();
 const fdm = useFdmStore();
@@ -99,7 +101,7 @@ async function runChecks() {
     text: kitchen == null ? t("check_not_configured") : kitchen ? t("check_ready") : t("check_unreachable"),
   });
 
-  if (__HUBRISE_ENABLED__) {
+  if (integrations.hubriseEnabled) {
     const hub = await ipc.hubriseGetConnectionStatus().catch(() => null);
     list.push({
       key: "hubrise",

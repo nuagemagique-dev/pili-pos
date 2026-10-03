@@ -533,17 +533,17 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 ## What This POS Does NOT Do (Out of Scope for MVP)
 
 - **Online ordering / webshop** - separate project (tsb-customer, Nuxt 3 SSR)
-- **Delivery platform integration in the certified build** - HubRise lives behind the `hubrise` Cargo feature and `__HUBRISE_ENABLED__`; the cert build (`--no-default-features --features cert`, branch `cert/v1.0`) has none of it
 - **Payment terminal integration** - cash + manual card entry for MVP
 - **Multi-terminal sync** - single terminal for MVP
 - **Inventory management** - not in MVP
 - **Customer loyalty** - not in MVP
 - **Kitchen Display System (KDS)** - kitchen printer only for MVP
 
-### HubRise integration (feature `hubrise`, not certified yet)
+### HubRise integration (in the certified binary, switched per installation)
+- One binary for every installation (decided 2026-10-03): the `cert` feature includes `hubrise`; only invoicing (`peppol`) stays out. Whether HubRise runs is the installation's switch: `hubrise_enabled` in `pos.json` (default off), then an admin in Settings; every change in the append-only `integration_switch_log` (migration 25, `commands/integrations.rs`). Off: no poller pass, no outbox pass, no till sale echoed, accept/reject/sync/connect refused (`hubrise_disabled`); settling an already signed order (handover, refund, closing) always works. Switching off is refused while online orders are unsettled. The UI reads the switch at runtime (`stores/integrations.ts`), no build-time flag.
 - Every online order (Deliveroo, Uber Eats, own webshop) must end in an N event signed by the FDM (SPF FAQ Q203). Prepaid: N at acceptance (APP for platforms, ONLINE for the webshop). Unpaid: P at acceptance, N at handover. Rejected orders are never signed; a cancellation after N is a manager-confirmed refund N.
 - The POS menu mirrors the HubRise catalog (`crates/pos-catalog`, source-neutral; HubRise mapping in `pos-hubrise/src/catalog_map.rs`). Stable ids by `external_id`, deactivate never delete, invalid catalogs refused whole. Local menu editing is locked while a source manages the menu.
-- Migrations: 1 to 9 certified, 10 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`).
+- Migrations: 1 to 9 base, 10 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`, 25 the integration switch), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`).
 - Tests run against `pos-hubrise-mock` in-process (`src-tauri/tests/hubrise_*.rs`).
 
 ---

@@ -86,6 +86,8 @@ pub struct PollerCtx {
     pub poll_now: Arc<tokio::sync::Notify>,
     /// Wakes the outbox after queuing an acknowledgement.
     pub outbox_wake: Option<Arc<tokio::sync::Notify>>,
+    /// Off: no connection is loaded, so nothing reaches HubRise.
+    pub enabled: crate::switch::Switch,
 }
 
 /// Run the polling loop until `cancel` is triggered.
@@ -107,6 +109,12 @@ pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
                     continue;
                 }
             }
+        }
+        // Off: nothing reaches HubRise; switched on again, the start-up
+        // runs again (callback, catalog, what arrived meanwhile).
+        if !ctx.enabled.is_on() {
+            started = false;
+            continue;
         }
         if !started {
             match start(&ctx).await {
@@ -131,6 +139,9 @@ pub async fn run_loop(ctx: PollerCtx, cancel: CancellationToken) {
 }
 
 fn load_client(ctx: &PollerCtx) -> Result<Option<(StoredConnection, Client)>> {
+    if !ctx.enabled.is_on() {
+        return Ok(None);
+    }
     let db = ctx.db.lock().expect("poller db poisoned");
     Ok(token_store::load(&db)?.map(|stored| {
         let client = Client::new(ctx.http.clone(), &stored.base_url, &stored.access_token);

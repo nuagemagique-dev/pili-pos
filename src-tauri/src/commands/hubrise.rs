@@ -30,6 +30,7 @@ pub fn poller_ctx(state: &AppState) -> PollerCtx {
         handlers: Arc::new(poller::DefaultHandlers),
         poll_now: state.hubrise_poll_now.clone(),
         outbox_wake: Some(state.hubrise_outbox_wake.clone()),
+        enabled: state.hubrise_switch.clone(),
     }
 }
 
@@ -116,6 +117,7 @@ pub async fn hubrise_complete_oauth(
     state: State<'_, AppState>,
     code: String,
 ) -> Result<HubriseConnectionInfo, String> {
+    crate::commands::integrations::require_hubrise(&state)?;
     let cfg = default_oauth_config();
     let tok = exchange_code(&state.shared_http, &cfg, &code)
         .await
@@ -463,6 +465,7 @@ pub fn do_patch_order_status(
     hubrise_order_id: &str,
     new_status: &str,
 ) -> Result<(), String> {
+    crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Staff)?;
     if !STAFF_STATUSES.contains(&new_status) {
         return Err(errors::hubrise::STATUS_NOT_ALLOWED.to_string());
@@ -540,6 +543,7 @@ pub fn do_set_confirmed_time(
     hubrise_order_id: &str,
     confirmed_time: &str,
 ) -> Result<(), String> {
+    crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Staff)?;
     if chrono::DateTime::parse_from_rfc3339(confirmed_time).is_err() {
         return Err(errors::hubrise::TIME_INVALID.to_string());
@@ -622,6 +626,7 @@ pub async fn hubrise_sync_catalog(
 pub async fn do_sync_catalog(
     state: &AppState,
 ) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
+    crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Staff)?;
     let ctx = poller_ctx(state);
     let outcome = poller::check_catalog(&ctx)
@@ -669,6 +674,7 @@ pub fn do_adopt_catalog(
     state: &AppState,
     adoptions: &[pos_catalog::Adoption],
 ) -> Result<pos_catalog::ApplyOutcome, String> {
+    crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Admin)?;
     let mut db = state.db.lock().map_err(errors::internal)?;
     let open: i64 = db
@@ -714,6 +720,7 @@ pub fn do_set_channel(
     state: &AppState,
     channel: &pos_hubrise::webshop::Channel,
 ) -> Result<usize, String> {
+    crate::commands::integrations::require_hubrise(state)?;
     access::operator(state, Access::Admin)?;
     let valid = !channel.channel.trim().is_empty()
         && ["platform", "webshop"].contains(&channel.kind.as_str())

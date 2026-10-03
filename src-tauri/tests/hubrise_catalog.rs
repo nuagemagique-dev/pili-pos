@@ -426,6 +426,12 @@ async fn resyncing_without_a_connection_is_refused() {
     let (app, _db) = TestApp::with_shared_db().await;
     assert_eq!(
         cmd::do_sync_catalog(&app.state).await.unwrap_err(),
+        pili_pos::commands::errors::hubrise::DISABLED,
+        "switched off first"
+    );
+    app.state.hubrise_switch.set(true);
+    assert_eq!(
+        cmd::do_sync_catalog(&app.state).await.unwrap_err(),
         pili_pos::commands::errors::hubrise::NOT_CONNECTED
     );
 }

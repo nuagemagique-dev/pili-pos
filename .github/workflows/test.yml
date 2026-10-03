@@ -65,7 +65,7 @@ jobs:
         working-directory: ui
         run: |
           npm ci
-          VITE_FEATURE_HUBRISE=false npm run build
+          npm run build
 
       - name: Format
         if: matrix.features.name == 'default'
@@ -107,10 +107,8 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Type-check and build (dev and cert bundles)
-        run: |
-          npm run build
-          VITE_FEATURE_HUBRISE=false npm run build
+      - name: Type-check and build
+        run: npm run build
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps webkit

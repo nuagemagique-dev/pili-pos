@@ -17,7 +17,15 @@ import "@fontsource/jetbrains-mono/latin-500.css";
 import "@fontsource/jetbrains-mono/latin-700.css";
 import "@fontsource/archivo/latin-900.css";
 
+import { useIntegrationsStore } from "./stores/integrations";
+
 const app = createApp(App);
 app.use(createPinia());
-app.use(router);
-app.mount("#app");
+// Which integrations run decides which screens exist: known before the
+// first route.
+void useIntegrationsStore()
+  .load()
+  .finally(() => {
+    app.use(router);
+    app.mount("#app");
+  });

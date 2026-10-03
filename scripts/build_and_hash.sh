@@ -4,9 +4,9 @@
 #
 # Implements the five steps declared in
 # docs/SUBMISSION_ARTIFACTS/GARANTIE_MAJ_LANGUES_FR.md §1.2:
-#   1. Compile the certification build (no hubrise, no peppol; UI
-#      bundle built with VITE_FEATURE_HUBRISE=false).
-#   2. Verify the binary contains no third-party-integration symbols.
+#   1. Compile the certification build (HubRise in, switched per
+#      installation; no peppol).
+#   2. Verify the binary has the HubRise integration and no invoicing.
 #   3. Verify the source contains no DELETE/UPDATE on fiscal_events.
 #   4. Compute SHA-1, SHA-256 and MD5 of the binary.
 #   5. Emit a build_info_YYYYMMDD-HHMMSS.txt report.
@@ -26,20 +26,17 @@ REPORT="$PROJECT_ROOT/build_info_${STAMP}.txt"
 echo "── 1/5 Certification build ──────────────────────────────"
 # A plain `cargo build` does not run tauri.conf.json's beforeBuildCommand:
 # build the UI bundle first so it gets embedded (`custom-protocol`,
-# pulled in by the `cert` feature). VITE_FEATURE_HUBRISE=false drops the
-# webshop views, strings and assets from the bundle.
-(cd ui && npm ci && VITE_FEATURE_HUBRISE=false npm run build)
-if grep -rliE "hubrise|webshop" ui/dist; then
-    echo "✗ UI bundle still contains webshop code (files above)"
-    exit 1
-fi
+# pulled in by the `cert` feature). The bundle has the HubRise screens;
+# the installation's switch decides whether they show.
+(cd ui && npm ci && npm run build)
 (cd src-tauri && cargo build --release --no-default-features --features cert)
 [[ -f "$BINARY" ]] || { echo "✗ binary not found: $BINARY"; exit 1; }
 
-echo "── 2/5 Third-party symbol check ─────────────────────────"
-HUBRISE_SYMS=$(nm "$BINARY" 2>/dev/null | grep -c pos_hubrise || true)
-if [[ "$HUBRISE_SYMS" != "0" ]]; then
-    echo "✗ found $HUBRISE_SYMS pos_hubrise symbol(s) in cert binary"
+echo "── 2/5 Integration check ────────────────────────────────"
+# One binary for every installation: the HubRise integration is in it
+# (off unless switched on), invoicing is not.
+if ! strings "$BINARY" | grep -q "integration_switch_log"; then
+    echo "✗ the HubRise integration switch is missing from the cert binary"
     exit 1
 fi
 PEPPOL_SYMS=$(nm "$BINARY" 2>/dev/null | grep -c pos_peppol || true)
@@ -47,11 +44,7 @@ if [[ "$PEPPOL_SYMS" != "0" ]]; then
     echo "✗ found $PEPPOL_SYMS pos_peppol symbol(s): invoicing is not in the v1.0.0 cert scope"
     exit 1
 fi
-if strings "$BINARY" | grep -q "api.hubrise.com"; then
-    echo "✗ found HubRise API endpoint string in cert binary"
-    exit 1
-fi
-echo "✓ no third-party integration symbols"
+echo "✓ HubRise integration present (switched per installation), no invoicing"
 # devUrl (localhost:1420) is part of the config Tauri always embeds, so
 # its presence proves nothing. Without custom-protocol the bundle is not
 # embedded at all: check that every built asset's path is in the binary.
@@ -122,10 +115,8 @@ SHA-256       : ${SHA256}
 MD5           : ${MD5}
 
 Checks
-  pos_hubrise symbols ............ 0
+  HubRise integration ............ present (installation switch, off by default)
   pos_peppol symbols ............. 0
-  hubrise endpoint strings ....... none
-  webshop code in UI bundle ...... none
   fiscal_events DELETE/UPDATE .... none in source
 REPORT_EOF
 

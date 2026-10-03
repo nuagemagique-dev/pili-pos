@@ -1,6 +1,7 @@
-//! Schema of the HubRise integration (feature `hubrise`), from
-//! migration 20. The certification build never creates these columns
-//! and tables.
+//! Schema of the HubRise integration (feature `hubrise`, in the
+//! certified binary), from migration 20. The tables exist on every
+//! installation; they are written only once the installation switches
+//! HubRise on (migration 25), except the switch's own log.
 
 /// v20 - HubRise transport: event retries, error reporting, a general
 /// outbox (order creations and order PATCHes, sent in order per
@@ -128,4 +129,44 @@ END;
 pub(crate) const MIGRATION_024_PLATFORM_CHARGES: &str = r#"
 UPDATE hubrise_channels SET charge_policy = 'exclude'
 WHERE kind = 'platform' AND charge_policy = 'include';
+"#;
+
+/// Migration 25: the installation's switch for the HubRise
+/// integration, and the log of every change to it. The switch starts
+/// from `hubrise_enabled` in `pos.json`; an admin can change it in
+/// Settings. The latest change wins, whichever side made it: a new
+/// value in `pos.json` (seen at start-up, `config_value` keeps the
+/// last one seen) counts as a change too.
+pub(crate) const MIGRATION_025_INTEGRATION_SWITCH: &str = r#"
+CREATE TABLE IF NOT EXISTS integration_switches (
+    name TEXT PRIMARY KEY CHECK(name IN ('hubrise')),
+    enabled INTEGER NOT NULL CHECK(enabled IN (0, 1)),
+    -- The value pos.json had at the last start-up.
+    config_value INTEGER NOT NULL CHECK(config_value IN (0, 1)),
+    changed_at TEXT NOT NULL,
+    -- INSZ of the admin, NULL for a pos.json change.
+    changed_by TEXT
+);
+
+-- Append-only, like the fiscal archive.
+CREATE TABLE IF NOT EXISTS integration_switch_log (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    enabled INTEGER NOT NULL CHECK(enabled IN (0, 1)),
+    source TEXT NOT NULL CHECK(source IN ('config', 'admin')),
+    changed_by TEXT,
+    changed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS integration_switch_log_no_update
+BEFORE UPDATE ON integration_switch_log
+BEGIN
+    SELECT RAISE(ABORT, 'integration_switch_log is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS integration_switch_log_no_delete
+BEFORE DELETE ON integration_switch_log
+BEGIN
+    SELECT RAISE(ABORT, 'integration_switch_log is append-only');
+END;
 "#;

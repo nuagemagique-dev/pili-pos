@@ -1,6 +1,8 @@
 pub mod booking;
 pub mod deliveries;
 pub mod fiscal;
+#[cfg(feature = "hubrise")]
+pub mod integrations;
 pub mod menu;
 pub mod orders;
 #[cfg(feature = "hubrise")]

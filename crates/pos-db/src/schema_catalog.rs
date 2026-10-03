@@ -1,6 +1,5 @@
 //! Schema of the menu mirrored from an external catalog (feature
-//! `catalog-sync`), migration 21. The certification build never
-//! creates these columns and tables.
+//! `catalog-sync`, part of `hubrise`), migration 21.
 
 /// v21 - catalog sync: charges and online-only items stay out of the
 /// POS grid, option groups and options can be taken off sale, and the

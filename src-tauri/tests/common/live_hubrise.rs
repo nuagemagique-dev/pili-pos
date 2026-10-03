@@ -276,6 +276,7 @@ pub async fn live_hubrise_app() -> Option<(TestApp, tempfile::TempDir, LiveToken
         let db = app.state.poller_db.lock().unwrap();
         token_store::save(&db, &stored).unwrap();
     }
+    app.state.hubrise_switch.set(true);
     Some((app, dir, token, proxy))
 }
 

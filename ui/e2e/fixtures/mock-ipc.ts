@@ -320,7 +320,13 @@ function defaultHandlers(): Record<string, Handler> {
     set_training_mode: () => undefined,
     new_booking_period: () => undefined,
 
-    // HubRise
+    // HubRise: switched on by default (the webshop specs use it).
+    get_integrations: () => ({ hubrise_enabled: true, online_orders_open: 0, hubrise_log: [] }),
+    set_hubrise_enabled: (args: any) => ({
+      hubrise_enabled: args.enabled,
+      online_orders_open: 0,
+      hubrise_log: [{ enabled: args.enabled, source: 'admin', changed_by: '85073003328', changed_at: '2026-10-03 10:00:00' }],
+    }),
     hubrise_get_connection_status: () => ({ connected: false }),
     hubrise_status: () => ({
       connected: false, last_poll_at: null, auth_error_at: null, last_error: null,

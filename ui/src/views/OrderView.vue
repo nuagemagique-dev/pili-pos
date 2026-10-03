@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
+import { useIntegrationsStore } from "../stores/integrations";
 import { useRouter } from "vue-router";
 import { useMenuStore } from "../stores/menu";
 import { useOrderStore } from "../stores/order";
@@ -72,11 +73,10 @@ async function checkZReport() {
 // Free-price product waiting for its price (PriceDialog open).
 const pricing = ref<MenuItem | null>(null);
 
-// Option picker, HubRise builds only: folded at build time (not a
-// template v-if) so the certification bundle drops it and its IPC.
-const ModifierDialog = __HUBRISE_ENABLED__
-  ? defineAsyncComponent(() => import("../components/ModifierDialog.vue"))
-  : null;
+// Option picker for a product with option groups (from a mirrored
+// catalog); its own chunk. With HubRise off the menu is plain.
+const integrations = useIntegrationsStore();
+const ModifierDialog = defineAsyncComponent(() => import("../components/ModifierDialog.vue"));
 // Product whose options are being picked; the dialog adds it plainly
 // when it has none.
 const choosing = ref<MenuItem | null>(null);
@@ -86,7 +86,7 @@ async function handleAddItem(item: MenuItem) {
     pricing.value = item;
     return;
   }
-  if (ModifierDialog) {
+  if (integrations.hubriseEnabled) {
     choosing.value = item;
     return;
   }
@@ -132,7 +132,7 @@ async function handlePriceConfirmed(priceCents: number) {
 
     <component
       :is="ModifierDialog"
-      v-if="ModifierDialog && choosing"
+      v-if="integrations.hubriseEnabled && choosing"
       :key="choosing.id"
       :item="choosing"
       @done="choosing = null"

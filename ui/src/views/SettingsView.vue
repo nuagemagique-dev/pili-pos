@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { formatDayTime, formatTimestamp } from "../utils/datetime";
+import { useIntegrationsStore } from "../stores/integrations";
+import IntegrationSwitch from "../components/IntegrationSwitch.vue";
 import { defineAsyncComponent, onMounted, ref } from "vue";
 import { usePosStore } from "../stores/pos";
 import { useAuthStore } from "../stores/auth";
@@ -15,11 +17,9 @@ import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
 
-// Folded at build time so the cert build drops the HubRise panel (see
-// OrderView for why this is not a template v-if).
-const HubriseSettings = __HUBRISE_ENABLED__
-  ? defineAsyncComponent(() => import("../components/HubriseSettings.vue"))
-  : null;
+// The HubRise panel, while the integration is shown (its own chunk).
+const HubriseSettings = defineAsyncComponent(() => import("../components/HubriseSettings.vue"));
+const integrations = useIntegrationsStore();
 const { t } = useI18n();
 
 const pos = usePosStore();
@@ -279,7 +279,9 @@ onMounted(() => {
         </section>
 
         <!-- Digital tickets (admin) - never shows the address itself -->
-        <section class="panel deliveries-section" :class="{ 'panel-grow': !HubriseSettings }">
+        <IntegrationSwitch class="panel" />
+
+        <section class="panel deliveries-section" :class="{ 'panel-grow': !integrations.hubriseVisible }">
           <div class="panel-head">
             <h2>{{ t('settings_email_title') }}</h2>
             <button class="refresh-btn" :disabled="deliveriesLoading" @click="loadDeliveries">
@@ -316,7 +318,7 @@ onMounted(() => {
           </ul>
         </section>
 
-        <component :is="HubriseSettings" v-if="HubriseSettings" class="panel panel-grow" />
+        <HubriseSettings v-if="integrations.hubriseVisible" class="panel panel-grow" />
       </div>
     </div>
 

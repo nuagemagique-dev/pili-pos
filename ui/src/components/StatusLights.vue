@@ -8,6 +8,7 @@
  * it does not answer), which also keeps FdmAlerts current.
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useIntegrationsStore } from "../stores/integrations";
 import * as ipc from "../api/ipc";
 import { useFdmStore } from "../stores/fdm";
 import { useI18n } from "../i18n";
@@ -25,10 +26,10 @@ const fdmLight = computed<Light>(() => {
 const ticket = ref<Light>("none");
 const kitchen = ref<Light>("none");
 const hubrise = ref<Light>("none");
-// Built in script, not a template `v-if`: with HubRise off the branch
-// folds to [] and the certification bundle drops it.
+// Only while the integration runs.
+const integrations = useIntegrationsStore();
 const hubriseLights = computed(() =>
-  __HUBRISE_ENABLED__ ? [{ label: "HubRise", state: hubrise.value }] : [],
+  integrations.hubriseEnabled ? [{ label: "HubRise", state: hubrise.value }] : [],
 );
 
 // §4.2: no continuous loops. Pulse once when the FDM degrades.
@@ -55,7 +56,7 @@ async function checkPrinters() {
 }
 
 async function checkHubrise() {
-  if (!__HUBRISE_ENABLED__) return;
+  if (!integrations.hubriseEnabled) return;
   try {
     hubrise.value = hubriseLight(await ipc.hubriseStatus());
   } catch {
@@ -95,7 +96,7 @@ onMounted(() => {
   void checkPrinters();
   void checkHubrise();
   printerTimer = setInterval(() => void checkPrinters(), 30_000);
-  if (__HUBRISE_ENABLED__) hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
+  hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
 });
 onUnmounted(() => {
   fdm.stopPolling();

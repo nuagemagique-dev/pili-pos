@@ -127,6 +127,7 @@ impl TestApp {
             fdm_url: format!("{}/graphql", fdm.uri()),
             printer_address: None,
             training_mode: false,
+            hubrise_enabled: false,
             language: "fr".to_string(),
             backup_dir: None,
             kitchen_printer_address: None,
@@ -150,6 +151,8 @@ impl TestApp {
             hubrise_poll_now: Arc::new(tokio::sync::Notify::new()),
             #[cfg(feature = "hubrise")]
             hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),
+            #[cfg(feature = "hubrise")]
+            hubrise_switch: pos_hubrise::switch::Switch::default(),
             shutdown_token: CancellationToken::new(),
             mail: pili_pos::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),

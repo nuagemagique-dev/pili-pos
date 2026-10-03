@@ -27,7 +27,7 @@ done
 
 docker build -q -t "$NAME" "$HERE" >/dev/null
 # The UI bundle the certification build embeds.
-(cd "$ROOT/ui" && VITE_FEATURE_HUBRISE=false npm run build >/dev/null)
+(cd "$ROOT/ui" && npm run build >/dev/null)
 
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d --name "$NAME" -p 127.0.0.1:9180:9180 \

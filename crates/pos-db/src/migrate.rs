@@ -98,7 +98,7 @@ const MIGRATIONS: &[Migration] = &[
 ];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
-/// version 20: the certification build never creates these tables.
+/// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
 const HUBRISE_MIGRATIONS: &[Migration] = &[
     Migration {
@@ -120,6 +120,11 @@ const HUBRISE_MIGRATIONS: &[Migration] = &[
         version: 24,
         name: "platform-charges",
         sql: crate::schema_hubrise::MIGRATION_024_PLATFORM_CHARGES,
+    },
+    Migration {
+        version: 25,
+        name: "integration-switch",
+        sql: crate::schema_hubrise::MIGRATION_025_INTEGRATION_SWITCH,
     },
 ];
 

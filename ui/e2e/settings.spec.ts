@@ -266,3 +266,52 @@ test.describe('Settings - HubRise catalog and channels', () => {
     await expect(page.locator('.lights .light', { hasText: 'HubRise' })).toHaveClass(/err/);
   });
 });
+
+test.describe('Settings - the HubRise switch', () => {
+  test('a manager switches HubRise off: the panel and the board go, the change is logged', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+    await loginAndGoto(page, '/settings');
+    const panel = page.getByTestId('integrations');
+    await expect(panel.locator('.pill')).toHaveText('Activé');
+    await expect(page.locator('.hubrise-section')).toBeVisible();
+    await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible();
+
+    await panel.getByRole('button', { name: 'Désactiver' }).click();
+    await expect(panel.locator('.pill')).toHaveText('Désactivé');
+    expect((await ipcCalls(page, 'set_hubrise_enabled'))[0]).toMatchObject({ enabled: false });
+    await expect(panel.locator('.log li').first()).toContainText('gérant 85073003328');
+    await expect(page.locator('.hubrise-section')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /En ligne/ })).toHaveCount(0);
+  });
+
+  test('switching off waits for the online orders: the refusal says how many', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] });
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'set_hubrise_enabled', { __reject: 'hubrise_online_orders_open|count=2' });
+    await page.getByTestId('integrations').getByRole('button', { name: 'Désactiver' }).click();
+    await expect(page.getByText('Terminez d\'abord les 2 commande(s) en ligne en cours.')).toBeVisible();
+    await expect(page.getByTestId('integrations').locator('.pill')).toHaveText('Activé');
+  });
+
+  test('with HubRise off the online board is out of reach', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_integrations: () => ({ hubrise_enabled: false, online_orders_open: 0, hubrise_log: [] }),
+    });
+    await loginAndGoto(page, '/webshop-orders');
+    await expect(page).toHaveURL(/#\/tables/);
+    await expect(page.getByRole('button', { name: /En ligne/ })).toHaveCount(0);
+  });
+
+  test('off with online orders still to settle, the board stays reachable', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_integrations: () => ({ hubrise_enabled: false, online_orders_open: 1, hubrise_log: [] }),
+    });
+    await loginAndGoto(page, '/settings');
+    await expect(page.getByTestId('integrations')).toContainText('1 commande(s) en ligne à terminer.');
+    await expect(page.getByRole('button', { name: /En ligne/ })).toBeVisible();
+  });
+});

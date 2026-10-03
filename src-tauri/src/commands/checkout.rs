@@ -526,7 +526,7 @@ pub(crate) async fn sell(
     // on transient failures. Gated behind the `hubrise` feature so the
     // certification build (no HubRise) skips this entirely.
     #[cfg(feature = "hubrise")]
-    if !unpaid && !options.online {
+    if !unpaid && !options.online && state.hubrise_switch.is_on() {
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()

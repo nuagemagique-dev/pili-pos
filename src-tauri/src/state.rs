@@ -37,6 +37,9 @@ pub struct AppState {
     /// Wakes the HubRise outbox: a change to send now (HubRise only).
     #[cfg(feature = "hubrise")]
     pub hubrise_outbox_wake: Arc<tokio::sync::Notify>,
+    /// Whether the HubRise integration runs (`commands::integrations`).
+    #[cfg(feature = "hubrise")]
+    pub hubrise_switch: pos_hubrise::switch::Switch,
     pub shutdown_token: CancellationToken,
     /// Digital ticket email client (disabled when not configured).
     pub mail: crate::commands::delivery::MailState,
@@ -80,6 +83,11 @@ impl AppState {
             tracing::error!(%problem, "pos.json: the FDM will refuse this setting");
         }
         let mail = crate::commands::delivery::MailState::from_config(&config);
+        #[cfg(feature = "hubrise")]
+        let hubrise_on =
+            pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;
+        #[cfg(feature = "hubrise")]
+        tracing::info!(enabled = hubrise_on, "hubrise integration switch");
 
         #[cfg(feature = "hubrise")]
         let shared_http = reqwest::Client::builder()
@@ -97,6 +105,8 @@ impl AppState {
             hubrise_poll_now: Arc::new(tokio::sync::Notify::new()),
             #[cfg(feature = "hubrise")]
             hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),
+            #[cfg(feature = "hubrise")]
+            hubrise_switch: pos_hubrise::switch::Switch::new(hubrise_on),
             shutdown_token: CancellationToken::new(),
             mail,
             session: Mutex::new(None),

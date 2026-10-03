@@ -73,6 +73,11 @@ pub struct PosConfig {
     /// Training mode flag
     #[serde(default)]
     pub training_mode: bool,
+    /// Whether the HubRise integration runs on this installation (its
+    /// starting value: an admin can change it in Settings, every change
+    /// logged). Off by default.
+    #[serde(default)]
+    pub hubrise_enabled: bool,
     /// Display language (fr, nl, de, en, zh). Printed fiscal mentions
     /// follow this key restricted to national languages (fr/nl/de);
     /// any other value prints FR.
@@ -277,6 +282,7 @@ impl Default for PosConfig {
             fdm_client_key_file: None,
             restaurant_legal_name: None,
             training_mode: false,
+            hubrise_enabled: false,
             language: "fr".to_string(),
             day_end_hour: default_day_end_hour(),
             backup_dir: None,

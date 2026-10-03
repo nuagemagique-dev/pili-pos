@@ -9,6 +9,7 @@ import { useOrderStore } from "../stores/order";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
+import { useIntegrationsStore } from "../stores/integrations";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", name: "login", component: LoginView },
@@ -19,16 +20,14 @@ const routes: RouteRecordRaw[] = [
   { path: "/settings", name: "settings", component: SettingsView },
 ];
 
-if (__HUBRISE_ENABLED__) {
-  // Lazy import keeps WebshopOrdersView out of the main chunk and
-  // (with the build-time `if (__HUBRISE_ENABLED__)` literal) lets Vite
-  // eliminate the file from the cert build entirely.
-  routes.push({
-    path: "/webshop-orders",
-    name: "webshop-orders",
-    component: () => import("../views/WebshopOrdersView.vue"),
-  });
-}
+// Online orders, while HubRise runs or orders taken before a
+// switch-off are still to settle. Lazy: out of the main chunk.
+routes.push({
+  path: "/webshop-orders",
+  name: "webshop-orders",
+  component: () => import("../views/WebshopOrdersView.vue"),
+  beforeEnter: () => useIntegrationsStore().hubriseVisible || { name: "tables" },
+});
 
 const router = createRouter({
   history: createWebHashHistory(),

@@ -48,12 +48,13 @@ axum = "0.8"
 base64 = "0.23"
 
 [features]
-# Default dev build: includes the HubRise webshop integration so we can
-# keep iterating on it. The certification build excludes hubrise entirely
-# (`cargo build --release --no-default-features --features cert`).
+# Default dev build: the certified scope plus invoicing (peppol).
 default = ["hubrise", "peppol"]
-# Enables the optional HubRise (webshop) integration: poller, outbox,
-# /health endpoint that reports outbox depth, and the IPC commands.
+# The HubRise integration (online orders signed by the FDM, the menu
+# mirrored from the catalog): poller, outbox, the IPC commands. Part of
+# the certified binary; whether it runs is the installation's switch
+# (`hubrise_enabled` in pos.json, then Settings, every change logged),
+# not a build choice. Every shipped build has it.
 hubrise = [
     "dep:pos-hubrise",
     "dep:pos-hubrise-types",
@@ -64,11 +65,11 @@ hubrise = [
 # the AccessPoint trait, and the invoice (I event) commands. Not part of
 # pili-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in
 # a later certified update, so the cert build leaves it out.
-peppol = ["dep:pos-peppol"]
-# Marker feature for the certification build: no third-party
-# integrations (hubrise), no invoicing (peppol), UI bundle embedded.
+peppol = ["dep:pos-peppol", "hubrise"]
+# The certification build: HubRise in, invoicing (peppol) out, UI
+# bundle embedded.
 # Build command: `cargo build --release --no-default-features --features cert`.
-cert = ["custom-protocol"]
+cert = ["custom-protocol", "hubrise"]
 # Serve the embedded `ui/dist` bundle instead of the Vite dev server
 # (`devUrl`). `cargo tauri build` turns it on by itself; a plain
 # `cargo build` - the certification build above - must enable it, or
