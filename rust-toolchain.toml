@@ -2,5 +2,5 @@
 # Pinned compiler for the reproducible certification build
 # (GARANTIE_MAJ_LANGUES_FR.md §1.1). Bump deliberately, never
 # implicitly: a toolchain change means a new cert build + SHA-1.
-channel = "1.98.1"
+channel = "1.99.0"
 components = ["rustfmt", "clippy"]

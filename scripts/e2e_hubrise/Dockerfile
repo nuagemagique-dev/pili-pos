@@ -10,5 +10,5 @@ ARG NODE_VERSION=24.21.0
 RUN arch=$(dpkg --print-architecture | sed 's/amd64/x64/') && \
     curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${arch}.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1 && node --version
-RUN rustup toolchain install 1.98.1 --profile minimal && \
-    cargo +1.98.1 install tauri-driver --version 2.0.6 --locked
+RUN rustup toolchain install 1.99.0 --profile minimal && \
+    cargo +1.99.0 install tauri-driver --version 2.0.6 --locked

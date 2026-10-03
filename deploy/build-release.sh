@@ -21,7 +21,7 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 
 # Build inputs of the reference (container) build, pinned so that a
 # rebuild from the same commit gives the same binary:
-# - the Rust image by digest, not tag (`rust:1.98.1-trixie` is rebuilt
+# - the Rust image by digest, not tag (`rust:1.99.0-trixie` is rebuilt
 #   whenever Debian ships security updates); its toolchain is the one
 #   rust-toolchain.toml pins. Digest of the linux/amd64 image, resolved
 #   from the Docker Hub registry API.
@@ -31,7 +31,7 @@ LINUX_TARGET_DIR="$PROJECT_ROOT/target/linux-amd64"
 # build time; the binary links them dynamically.
 # .github/workflows/image.yml's `repro` job builds twice and compares
 # (scripts/check_repro.sh).
-RUST_BUILD_IMAGE="rust:1.98.1-trixie@sha256:f31fa9eaac4e417505e10009786ec0c636558e02dff3fa662cc92c10894ba065"
+RUST_BUILD_IMAGE="rust:1.99.0-trixie@sha256:9d5e02aa6c7e9c112ed7a4c438900b41f519a792959cd5445c25de42bfb8388b"
 NODE_VERSION="v24.21.0"
 NODE_TARBALL="node-${NODE_VERSION}-linux-x64.tar.xz"
 NODE_SHA256="fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6"
