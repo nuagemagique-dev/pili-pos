@@ -70,6 +70,9 @@ pub struct PosConfig {
     /// automatic Z (producers FAQ Q501c).
     #[serde(default = "default_day_end_hour")]
     pub day_end_hour: u32,
+    /// Number of tables on the table plan, numbered from 1.
+    #[serde(default = "default_table_count")]
+    pub table_count: u32,
     /// Training mode flag
     #[serde(default)]
     pub training_mode: bool,
@@ -103,6 +106,10 @@ fn default_language() -> String {
 
 fn default_day_end_hour() -> u32 {
     5
+}
+
+fn default_table_count() -> u32 {
+    20
 }
 
 impl PosConfig {
@@ -273,6 +280,7 @@ pub fn valid_est_no(s: &str) -> bool {
 impl Default for PosConfig {
     fn default() -> Self {
         Self {
+            table_count: default_table_count(),
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),

@@ -10,9 +10,9 @@ test.beforeEach(async ({ page }) => {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_settings: () => ({
-      posId: 'CFOD0061234567',
-      terminalId: 'POS1',
-      restaurantName: 'Restaurant Exemple',
+      posId: 'CPOS0031234567',
+      terminalId: 'POS-1-BAR',
+      restaurantName: 'The FPS Finances Experience',
       fdmUrl: 'http://localhost:8081/graphql',
       printerAddress: null,
       trainingMode: true,

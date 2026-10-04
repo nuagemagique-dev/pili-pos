@@ -638,6 +638,9 @@ async fn the_admission_seed_logs_in_every_documented_profile() {
         ("94060242576", Some("1111"), UserRole::Admin),
         ("84022899837", Some("2222"), UserRole::Cashier),
         ("99012345667", Some("3333"), UserRole::Waiter),
+        // The SPF test setup's staff: John, Elisa (above) and Sammy.
+        ("75061189702", Some("4444"), UserRole::Cashier),
+        ("80113078968", Some("5555"), UserRole::Cashier),
     ] {
         assert!(
             pos_core::user::validate_insz(insz),
@@ -663,7 +666,14 @@ async fn the_admission_seed_logs_in_every_documented_profile() {
     );
     let listed = pili_pos::commands::auth::do_list_users(&app.state).unwrap();
     assert!(listed.iter().all(|u| u.insz != "00000000029"));
-    for insz in ["00000000097", "94060242576", "84022899837", "99012345667"] {
+    for insz in [
+        "00000000097",
+        "94060242576",
+        "84022899837",
+        "99012345667",
+        "75061189702",
+        "80113078968",
+    ] {
         assert!(
             listed.iter().any(|u| u.insz == insz),
             "{insz} has a login tile"

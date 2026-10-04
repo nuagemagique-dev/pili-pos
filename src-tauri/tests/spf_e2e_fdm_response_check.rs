@@ -101,7 +101,7 @@ fn set(result: &mut Value, key: &str, value: Value) {
     result[key] = value;
 }
 
-const WRONG_POS: Breakage = |r| set(r, "posId", "CPOS0031234567".into());
+const WRONG_POS: Breakage = |r| set(r, "posId", "CPOS0031234568".into());
 const WRONG_TICKET: Breakage = |r| {
     let n = r["posFiscalTicketNo"].as_i64().unwrap();
     set(r, "posFiscalTicketNo", (n + 1).into());

@@ -193,8 +193,8 @@ export interface TableInfo {
   preBillPrinted: boolean;
 }
 
-export function listTables(tableCount: number): Promise<TableInfo[]> {
-  return invoke("list_tables", { tableCount });
+export function listTables(): Promise<TableInfo[]> {
+  return invoke("list_tables");
 }
 
 /** An open takeaway with lines: a direct sale not paid yet (FAQ Q205). */

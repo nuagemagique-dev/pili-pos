@@ -28,7 +28,7 @@ let nowTimer: ReturnType<typeof setInterval> | undefined;
 onMounted(async () => {
   if (!auth.currentUser) { router.push({ name: "login" }); return; }
   nowTimer = setInterval(() => (now.value = new Date()), 30_000);
-  tables.value = await ipc.listTables(20);
+  tables.value = await ipc.listTables();
   takeaways.value = await ipc.listOpenTakeaways();
 });
 onUnmounted(() => clearInterval(nowTimer));

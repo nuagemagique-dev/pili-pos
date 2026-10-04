@@ -25,8 +25,8 @@ const LINES = [
 const SALE = {
   success: true,
   ticket: {
-    restaurant_name: 'Restaurant Exemple', restaurant_address: 'Liège', restaurant_vat: 'BE0499999960',
-    pos_id: 'CFOD0061234567', terminal_id: 'POS1', pos_datetime: new Date().toISOString(),
+    restaurant_name: 'The FPS Finances Experience', restaurant_address: 'Boulevard Albert II 33, 1030 Brussels', restaurant_vat: 'BE0000000097',
+    pos_id: 'CPOS0031234567', terminal_id: 'POS-1-BAR', pos_datetime: new Date().toISOString(),
     ticket_number: 1, event_label: 'N', is_training: false, lines: [], subtotal: 14.86, total: 14.86,
     vat_breakdown: [], payments: [], rounding: null, fdm_ref: null, short_signature: null,
     verification_url: null, footer: [], ticket_type_label: 'TICKET DE CAISSE T.V.A.', is_refund: false, lang: 'fr',

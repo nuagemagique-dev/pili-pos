@@ -22,7 +22,7 @@ import {
 // "Écran attendu") before taking the screenshot, so a broken screen
 // fails the test instead of producing a wrong picture.
 //
-// All data is fictional and brand-neutral: "Restaurant Exemple" (the
+// All data is fictional and brand-neutral: the SPF test setup (the
 // default in mock-ipc.ts's get_settings), and three test employees
 // distinct from the suite's default fixture user (who is named after
 // a real person - never used here).
@@ -44,7 +44,7 @@ async function capture(page: Page, name: string) {
 
 // ── Test employees (PROFILS_UTILISATEURS_FR.md §1) ─────────────────
 const GERANT = { insz: '94060242576', name: 'Gérant Test', role: 'admin' as const, active: true, has_pin: true };
-const SERVEUR = { insz: '84022899837', name: 'Serveur Test', role: 'cashier' as const, active: true, has_pin: false };
+const SERVEUR = { insz: '84022899837', name: 'Elisa', role: 'cashier' as const, active: true, has_pin: false };
 const APPRENTI = { insz: '99012345667', name: 'Apprenti Test', role: 'waiter' as const, active: true, has_pin: false };
 const STAFF = [GERANT, SERVEUR, APPRENTI];
 
@@ -92,7 +92,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await page.goto('/');
     await expect(page.locator('.title')).toHaveText('Qui êtes-vous ?');
     await expect(page.locator('.user-btn')).toHaveCount(3);
-    await expect(page.locator('.user-name')).toHaveText(['Gérant Test', 'Serveur Test', 'Apprenti Test']);
+    await expect(page.locator('.user-name')).toHaveText(['Gérant Test', 'Elisa', 'Apprenti Test']);
     await expect(page.locator('.user-role')).toHaveText(['Gérant', 'Serveur', 'Apprenti']);
     await expect(page.locator('.other-btn')).toBeVisible();
     await capture(page, '01_login');
@@ -185,11 +185,11 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
       checkout: () => ({
         success: true,
         ticket: {
-          restaurant_name: 'Restaurant Exemple',
-          restaurant_address: 'Liège',
-          restaurant_vat: 'BE0499999960',
-          pos_id: 'CFOD0061234567',
-          terminal_id: 'POS1',
+          restaurant_name: 'The FPS Finances Experience',
+          restaurant_address: 'Boulevard Albert II 33, 1030 Brussels',
+          restaurant_vat: 'BE0000000097',
+          pos_id: 'CPOS0031234567',
+          terminal_id: 'POS-1-BAR',
           pos_datetime: new Date().toISOString(),
           ticket_number: 9,
           event_label: 'N',
@@ -487,7 +487,7 @@ test('18_logout - retour à l\'écran de connexion', async ({ page }) => {
     get_menu_items: () => [DEFAULT_MENU_ITEM],
   });
   await page.goto('/');
-  await tapUserTile(page, 'Serveur Test');
+  await tapUserTile(page, 'Elisa');
   await page.waitForURL(/tables/);
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);

@@ -75,10 +75,10 @@ impl DynamicFdm {
             (Value::Null, Value::Null)
         };
         json!({
-            "posId": "CFOD0061234567",
+            "posId": "CPOS0031234567",
             "posFiscalTicketNo": ticket_number,
             "posDateTime": "2026-07-03T12:00:00+02:00",
-            "terminalId": "POS1",
+            "terminalId": "POS-1-BAR",
             "deviceId": "DEV001",
             "eventOperation": operation,
             "fdmRef": {

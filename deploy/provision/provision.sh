@@ -274,14 +274,15 @@ phase_image() {
 
     echo "▸ [image:$VARIANT] Writing the pos.json template…"
     if [[ "$VARIANT" == "admission" ]]; then
-        POS_ID_TEMPLATE="CFOD0061234567"
-        RESTAURANT_NAME_TEMPLATE="SPF Admission Test"
-        # The dossier's example identity (MANUEL_INSTALLATION_FR.md §4,
-        # TICKETS_EXEMPLES_FR.md): valid modulo 97, so the admission
-        # image opens without the invalid-configuration banner.
-        RESTAURANT_ADDRESS_TEMPLATE="Rue de l'Exemple 1, 4000 Liège"
-        RESTAURANT_VAT_TEMPLATE="BE0499999960"
-        RESTAURANT_EST_NO_TEMPLATE="2123456791"
+        # The SPF test setup (UC_TestSetup_20240806): POS xx567 on the
+        # BAR, the FPS Finances Experience, its 25 tables.
+        POS_ID_TEMPLATE="CPOS0031234567"
+        TERMINAL_ID_TEMPLATE="POS-1-BAR"
+        TABLE_COUNT_TEMPLATE=25
+        RESTAURANT_NAME_TEMPLATE="The FPS Finances Experience"
+        RESTAURANT_ADDRESS_TEMPLATE="Boulevard Albert II 33, 1030 Brussels"
+        RESTAURANT_VAT_TEMPLATE="BE0000000097"
+        RESTAURANT_EST_NO_TEMPLATE="2000000042"
         # Digital ticket through the local mock (pos-fdm-mock serves
         # the Scaleway TEM API too), so email works without internet.
         DIGITAL_TICKET_TEMPLATE='
@@ -298,6 +299,8 @@ phase_image() {
         chmod 640 "$FACTORY_DIR/secrets/tem.key"
     else
         POS_ID_TEMPLATE="CHANGE_ME_14CH"
+        TERMINAL_ID_TEMPLATE="POS1"
+        TABLE_COUNT_TEMPLATE=20
         RESTAURANT_NAME_TEMPLATE="CHANGE ME"
         # Invalid on purpose: the POS shows the invalid-configuration
         # banner until the installer enters the client's real numbers.
@@ -311,7 +314,7 @@ phase_image() {
     cat > "$FACTORY_DIR/pos.json" <<POSCONF
 {
   "pos_id": "$POS_ID_TEMPLATE",
-  "terminal_id": "POS1",
+  "terminal_id": "$TERMINAL_ID_TEMPLATE",
   "device_id": "$DEVICE_ID_PLACEHOLDER",
   "restaurant_name": "$RESTAURANT_NAME_TEMPLATE",
   "restaurant_address": "$RESTAURANT_ADDRESS_TEMPLATE",
@@ -321,6 +324,7 @@ phase_image() {
   "printer_address": "192.168.1.30:9100",
   "training_mode": false,
   "day_end_hour": 5,
+  "table_count": $TABLE_COUNT_TEMPLATE,
   "language": "fr",$DIGITAL_TICKET_TEMPLATE
   "backup_dir": "/var/lib/pili-pos/backups"
 }

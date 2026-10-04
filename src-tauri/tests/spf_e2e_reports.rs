@@ -49,16 +49,16 @@ fn seed_service_day(app: &TestApp) {
             event_type, sequence_number, pos_id, terminal_id, user_insz,
             event_data_json, fdm_response_json
         ) VALUES (
-            'S', 900, 'CFOD0061234567', 'POS1', '12345678901',
-            '{"posId":"CFOD0061234567","terminalId":"POS1","employeeId":"12345678901","bookingPeriodId":"0b0e7c1e-0000-4000-8000-000000000001","posDateTime":"2026-07-03T09:00:00+02:00"}',
+            'S', 900, 'CPOS0031234567', 'POS-1-BAR', '12345678901',
+            '{"posId":"CPOS0031234567","terminalId":"POS-1-BAR","employeeId":"12345678901","bookingPeriodId":"0b0e7c1e-0000-4000-8000-000000000001","posDateTime":"2026-07-03T09:00:00+02:00"}',
             '{"eventOperation":"WORK_IN","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T09:00:01+02:00","eventLabel":"S","eventCounter":1,"totalCounter":41}}'
         );
         INSERT INTO fiscal_events (
             event_type, sequence_number, pos_id, terminal_id, user_insz,
             event_data_json, fdm_response_json
         ) VALUES (
-            'N', 901, 'CFOD0061234567', 'POS1', '12345678901',
-            '{"posId":"CFOD0061234567","terminalId":"POS1","employeeId":"12345678901","bookingPeriodId":"0b0e7c1e-0000-4000-8000-000000000001","posDateTime":"2026-07-03T12:00:00+02:00","transaction":{"transactionLines":[{"lineType":"SINGLE_PRODUCT","mainProduct":{"productId":"1","productName":"Menu","departmentId":"1","departmentName":"Plats","quantity":1,"vats":[{"label":"B","price":12.0}]},"lineTotal":12.0}],"transactionTotal":12.0},"financials":[{"id":"1","name":"Cash","type":"CASH","inputMethod":"MANUAL","amount":12.0,"amountType":"PAYMENT"}]}',
+            'N', 901, 'CPOS0031234567', 'POS-1-BAR', '12345678901',
+            '{"posId":"CPOS0031234567","terminalId":"POS-1-BAR","employeeId":"12345678901","bookingPeriodId":"0b0e7c1e-0000-4000-8000-000000000001","posDateTime":"2026-07-03T12:00:00+02:00","transaction":{"transactionLines":[{"lineType":"SINGLE_PRODUCT","mainProduct":{"productId":"1","productName":"Menu","departmentId":"1","departmentName":"Plats","quantity":1,"vats":[{"label":"B","price":12.0}]},"lineTotal":12.0}],"transactionTotal":12.0},"financials":[{"id":"1","name":"Cash","type":"CASH","inputMethod":"MANUAL","amount":12.0,"amountType":"PAYMENT"}]}',
             '{"eventOperation":"SALE","fdmRef":{"fdmId":"CBX0MOCK0001","fdmDateTime":"2026-07-03T12:00:01+02:00","eventLabel":"N","eventCounter":2,"totalCounter":42},"vatCalc":[{"label":"B","rate":12,"taxableAmount":10.71,"vatAmount":1.29,"totalAmount":12.0,"outOfScope":false}]}'
         );
         "#,

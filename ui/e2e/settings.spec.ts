@@ -101,8 +101,8 @@ test.describe('Settings View', () => {
   });
 
   test('shows POS info section', async ({ page }) => {
-    await expect(page.getByText('CFOD0061234567')).toBeVisible();
-    await expect(page.getByText('POS1')).toBeVisible();
+    await expect(page.getByText('CPOS0031234567')).toBeVisible();
+    await expect(page.getByText('POS-1-BAR')).toBeVisible();
   });
 
   test('shows HubRise section', async ({ page }) => {

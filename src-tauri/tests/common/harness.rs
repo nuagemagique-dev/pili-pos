@@ -67,9 +67,9 @@ pub struct TestApp {
 
 impl TestApp {
     /// Build a fresh `TestApp`. The SQLite DB is in-memory and the
-    /// PosConfig points at the wiremock URL. Pos identification
-    /// matches the SPF test setup (`UC_TestSetup_20240806.md` uses
-    /// `pos_id=CFOD0061234567`).
+    /// PosConfig points at the wiremock URL. The identity is the SPF
+    /// test setup's (`UC_TestSetup_20240806.md`): POS xx567 on the
+    /// BAR, the FPS Finances Experience, 25 tables.
     pub async fn new() -> Self {
         let fdm = MockServer::start().await;
         Self::with_fdm(fdm).await
@@ -112,10 +112,11 @@ impl TestApp {
         pos_db::schema::run_migrations(&conn).expect("migrate");
 
         let config = PosConfig {
-            pos_id: "CFOD0061234567".to_string(),
-            terminal_id: "POS1".to_string(),
+            table_count: 25,
+            pos_id: "CPOS0031234567".to_string(),
+            terminal_id: "POS-1-BAR".to_string(),
             // The terminal's MAC address, as install fills it (§VI row VII).
-            device_id: "00:1b:44:11:3a:b7".to_string(),
+            device_id: "F0:1D:3D:CC:13:C8".to_string(),
             // Identity from the official SPF test setup
             // (UC_TestSetup_20240806: "THE FPS FINANCES EXPERIENCE",
             // VAT BE0000000097, establishment 2000000042) so exported

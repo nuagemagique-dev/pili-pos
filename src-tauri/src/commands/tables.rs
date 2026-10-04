@@ -37,8 +37,9 @@ pub struct TableInfo {
 /// surface ghost "0.00 €" cards that add cognitive load for zero
 /// informational value (UX Guide §2.1).
 #[tauri::command]
-pub fn list_tables(state: State<'_, AppState>, table_count: i32) -> Result<Vec<TableInfo>, String> {
-    do_list_tables(state.inner(), table_count)
+pub fn list_tables(state: State<'_, AppState>) -> Result<Vec<TableInfo>, String> {
+    let table_count = state.config.lock().map_err(|e| e.to_string())?.table_count;
+    do_list_tables(state.inner(), table_count as i32)
 }
 
 pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInfo>, String> {
