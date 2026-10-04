@@ -89,9 +89,13 @@ la machine de test), pas dans ce document.
       - Lignes de produits prédéfinies du manuel §III.N (Dry Martini,
         Burger of the Chef, …) avec leurs productId et codes TVA,
         requises pour rejouer les UC tels que définis.
-      - Utilisateurs de test correspondant à la liste INSZ dans
+      - Le personnel du jeu de test (John, Elisa, Sammy, avec leurs
+        employeeId) de
         `docs/20260821_UC_Reports_1.3/UC_TestSetup_20240806.md`
-      (le dossier du Basic Set 1.8 ne contient plus ce fichier).
+        (le dossier du Basic Set 1.8 ne contient plus ce fichier),
+        plus un compte par rôle.
+      - `pos.json` à l'identité du jeu de test (The FPS Finances
+        Experience, `CPOS0031234567`, `POS-1-BAR`, 25 tables).
       - L'image de production (restaurant) utilise à la place
         le catalogue propre à l'établissement ; le binaire
         `pili-pos` est identique dans les deux images.

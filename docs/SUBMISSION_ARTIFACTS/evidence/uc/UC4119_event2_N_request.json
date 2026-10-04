@@ -1,12 +1,12 @@
 {
-  "bookingDate": "2026-10-03",
-  "bookingPeriodId": "6c204744-62c8-4fa0-b216-bdfe0942e369",
+  "bookingDate": "2026-10-04",
+  "bookingPeriodId": "1d3d6457-9ae4-4013-b000-23004bf627f1",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
     "type": "TABLE"
   },
-  "deviceId": "00:1b:44:11:3a:b7",
+  "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "financials": [
@@ -44,11 +44,11 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-03T21:33:33.676+02:00",
+  "posDateTime": "2026-10-04T11:01:41.992+02:00",
   "posFiscalTicketNo": 1,
-  "posId": "CFOD0061234567",
+  "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "terminalId": "POS1",
+  "terminalId": "POS-1-BAR",
   "ticketMedium": "PAPER",
   "transaction": {
     "transactionLines": [
@@ -57,9 +57,9 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "20",
-          "departmentName": "Entrees",
+          "departmentName": "Starters",
           "productId": "20001",
-          "productName": "Carpaccio de boeuf",
+          "productName": "Carpaccio Beef",
           "quantity": 2.0,
           "quantityType": "PIECE",
           "unitPrice": 20.0,
@@ -76,9 +76,9 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "22",
-          "departmentName": "Plats principaux",
+          "departmentName": "Main Dishes",
           "productId": "22001",
-          "productName": "Burger du chef",
+          "productName": "Burger of the CHEF",
           "quantity": 1.0,
           "quantityType": "PIECE",
           "unitPrice": 28.0,
@@ -95,9 +95,9 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "15",
-          "departmentName": "Vins",
+          "departmentName": "Wines",
           "productId": "15003",
-          "productName": "Vin (verre)",
+          "productName": "Wine (glass)",
           "quantity": 2.0,
           "quantityType": "PIECE",
           "unitPrice": 8.0,
@@ -114,7 +114,7 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "12",
-          "departmentName": "Boissons rafraichissantes",
+          "departmentName": "Soft Drinks",
           "productId": "12009",
           "productName": "Coca Cola",
           "quantity": 3.0,

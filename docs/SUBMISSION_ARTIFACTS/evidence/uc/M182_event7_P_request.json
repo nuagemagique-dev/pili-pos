@@ -1,20 +1,20 @@
 {
-  "bookingDate": "2026-10-03",
-  "bookingPeriodId": "3448b1d5-c2b6-4475-9496-b097d79ada7e",
+  "bookingDate": "2026-10-04",
+  "bookingPeriodId": "147d7c32-2def-4a6e-8a8d-aa9a3c1f5c03",
   "costCenter": {
     "id": "T10",
     "reference": "O4",
     "type": "TABLE"
   },
-  "deviceId": "00:1b:44:11:3a:b7",
+  "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "84022899837",
   "estNo": "2000000042",
   "language": "FR",
-  "posDateTime": "2026-10-03T21:33:36.117+02:00",
+  "posDateTime": "2026-10-04T11:01:44.637+02:00",
   "posFiscalTicketNo": 4,
-  "posId": "CFOD0061234567",
+  "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "terminalId": "POS1",
+  "terminalId": "POS-1-BAR",
   "ticketMedium": "PAPER",
   "transaction": {
     "transactionLines": [
@@ -42,9 +42,9 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "22",
-          "departmentName": "Plats principaux",
+          "departmentName": "Main Dishes",
           "productId": "22010",
-          "productName": "Plat du jour",
+          "productName": "Dish of the day",
           "quantity": 2.0,
           "quantityType": "PIECE",
           "unitPrice": 20.0,
@@ -61,9 +61,9 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "15",
-          "departmentName": "Vins",
+          "departmentName": "Wines",
           "productId": "15001",
-          "productName": "Bourgogne rouge",
+          "productName": "Bourgogne Red",
           "quantity": 1.0,
           "quantityType": "PIECE",
           "unitPrice": 35.0,

@@ -1,12 +1,12 @@
 {
-  "bookingDate": "2026-10-03",
-  "bookingPeriodId": "d79a1528-4e36-4d4e-bcdf-c8376232b5c3",
+  "bookingDate": "2026-10-04",
+  "bookingPeriodId": "b796c2e8-5232-4dbc-961d-915445cc1c56",
   "costCenter": {
     "id": "T01",
     "reference": "O1",
     "type": "TABLE"
   },
-  "deviceId": "00:1b:44:11:3a:b7",
+  "deviceId": "F0:1D:3D:CC:13:C8",
   "employeeId": "75061189702",
   "estNo": "2000000042",
   "financials": [
@@ -20,11 +20,11 @@
     }
   ],
   "language": "FR",
-  "posDateTime": "2026-10-03T21:33:33.530+02:00",
+  "posDateTime": "2026-10-04T11:01:41.874+02:00",
   "posFiscalTicketNo": 1,
-  "posId": "CFOD0061234567",
+  "posId": "CPOS0031234567",
   "posSwVersion": "pili-pos/1.0.0",
-  "terminalId": "POS1",
+  "terminalId": "POS-1-BAR",
   "ticketMedium": "PAPER",
   "transaction": {
     "transactionLines": [
@@ -33,7 +33,7 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "12",
-          "departmentName": "Boissons rafraichissantes",
+          "departmentName": "Soft Drinks",
           "productId": "12007",
           "productName": "Perrier",
           "quantity": 2.0,
@@ -52,9 +52,9 @@
         "lineType": "SINGLE_PRODUCT",
         "mainProduct": {
           "departmentId": "22",
-          "departmentName": "Plats principaux",
+          "departmentName": "Main Dishes",
           "productId": "22001",
-          "productName": "Burger du chef",
+          "productName": "Burger of the CHEF",
           "quantity": 1.0,
           "quantityType": "PIECE",
           "unitPrice": 28.0,

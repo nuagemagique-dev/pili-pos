@@ -214,6 +214,7 @@ installé sur l'image précisément pour cette étape) :
   "kitchen_printer_address": "192.168.1.31:9100",
   "training_mode": false,
   "day_end_hour": 5,
+  "table_count": 20,
   "language": "fr",
   "backup_dir": "/var/lib/pili-pos/backups"
 }
@@ -239,6 +240,7 @@ Champs :
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le « BON DE COMMANDE » (sans prix, avec la mention « ceci n'est pas un ticket de caisse TVA valable ») des lignes que l'écran de commande envoie en cuisine (§4.6, `MANUEL_UTILISATEUR_FR.md` §6.1). Absent : le bon sort sur `printer_address`. Le voyant "Cuisine" de l'en-tête reste gris tant qu'il est absent. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. C'est la valeur de départ : un Gérant peut changer le mode dans "Config" (§4.7). | Distributeur |
 | `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans "Config", panneau "Intégrations" ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
+| `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. | Client |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) - toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/pili-pos/backups`) | Distributeur |
@@ -469,7 +471,7 @@ ou sur celle des tickets si `kitchen_printer_address` est absent).
 
 | Paramètre | Valeur d'origine | Qui le modifie | Où |
 |---|---|---|---|
-| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
+| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
 | `device_id` | Adresse MAC, inscrite au premier démarrage | Personne (sauf changement de la carte réseau) | `/etc/pili-pos/pos.json` |
 | `training_mode` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Mode Formation" | Le réglage de "Config" est en mémoire : il vaut jusqu'au redémarrage, qui revient à la valeur du fichier |
 | `hubrise_enabled` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Intégrations" | Chaque changement est journalisé, ne s'efface pas, et le dernier l'emporte |
@@ -611,14 +613,19 @@ mise à jour.
 
 ### 7.1 Liste des numéros INSZ de test
 
-Les INSZ de test SPF (depuis `UC_TestSetup_20240806.md`) :
+Les comptes de l'image d'admission (`src-tauri/seed_spf_test.sql`) :
+le personnel du jeu de test SPF (`UC_TestSetup_20240806.md`) et un
+compte par rôle.
 
-| Rôle | INSZ |
-|---|---|
-| Gérant | 00000000196 |
-| Serveur | 00000000295 |
-| Apprenti | 00000000394 |
-| Robot (automate, identité système, sans connexion) | 00000000029 |
+| Rôle | Nom | INSZ | PIN |
+|---|---|---|---|
+| Serveur | John (barman) | 75061189702 | 4444 |
+| Serveur | Elisa (chef de salle) | 84022899837 | 2222 |
+| Serveur | Sammy (sommelier) | 80113078968 | 5555 |
+| Gérant | Gerant Test | 94060242576 | 1111 |
+| Gérant | Technicien SPF | 00000000097 | 0097 |
+| Apprenti | Apprenti Test | 99012345667 | 3333 |
+| Robot (automate, identité système, sans connexion) | Robot / Kiosk | 00000000029 | - |
 
 À utiliser exclusivement lors de la phase de test pré-soumission.
 

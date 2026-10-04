@@ -31,9 +31,10 @@ Playwright (`--project=captures`) et n'est jamais inclus dans la
 passe de test habituelle.
 
 Données de test utilisées par la visite (fictives, sans lien avec un
-client réel) : établissement « Restaurant Exemple », employés
-« Gérant Test » (INSZ `94060242576`), « Serveur Test » (INSZ
-`84022899837`) et « Apprenti Test » (INSZ `99012345667`) - les rôles
+client réel) : l'établissement du jeu de test SPF (« The FPS Finances
+Experience », `CPOS0031234567`, `POS-1-BAR`), employés « Gérant Test »
+(INSZ `94060242576`), « Elisa » (INSZ `84022899837`, chef de salle du
+jeu de test) et « Apprenti Test » (INSZ `99012345667`) - les rôles
 du §1 de `PROFILS_UTILISATEURS_FR.md`.
 
 **Image d'admission (QEMU).** La capture `00_boot_admission.png` (le

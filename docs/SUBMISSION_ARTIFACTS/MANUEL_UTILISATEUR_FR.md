@@ -517,8 +517,9 @@ déjà signée ; c'est la seule façon d'annuler une vente après coup.
    d'origine**. Toucher chaque ligne concernée, et ajuster la quantité
    avec "-" / "+" (jamais plus que la quantité vendue). Tout cocher
    rembourse le ticket entier ; une partie seulement fait un
-   remboursement partiel. Le bouton "Rembourser" affiche le montant
-   ("Rembourser 12,00").
+   remboursement partiel. Le bouton "Rembourser" affiche le montant à
+   rendre en espèces, arrondi aux 5 centimes ("Rembourser 3,05" pour un
+   Coca Cola de 3,04).
 3. Étape du support du ticket (§7.1) : choisir Papier / E-mail / Les
    deux, puis "Rembourser" avec le montant de nouveau. "Retour" revient
    à la sélection des articles.
@@ -532,7 +533,10 @@ d'origine sous « Informations FDM d'origine ». Le ticket d'origine
 n'est jamais modifié. Le tiroir s'ouvre pour rendre les espèces.
 
 Le remboursement est toujours rendu en espèces, quel que soit le moyen
-de paiement de la vente (carte, chèques-repas, plusieurs moyens).
+de paiement de la vente (carte, chèques-repas, plusieurs moyens). Comme
+pour une vente en espèces, le montant rendu est arrondi aux 5 centimes :
+le ticket imprime le montant exact puis une ligne "Arrondi" (3,04
+remboursés : "Espèces -3,04", "Arrondi -0,01", 3,05 rendus).
 
 La caisse refuse :
 

@@ -1,6 +1,6 @@
 {
   "bufferCapacityUsed": 0.25,
-  "deviceId": "00:1b:44:11:3a:b7",
+  "deviceId": "F0:1D:3D:CC:13:C8",
   "digitalSignature": "c7uwqjLZ+Wk+R8swA/KHilWp4qCPK4u1L6TGxuCOJbf7bY32Ra2G8NiI+TO9lFGNFTfU1UA/8HGiccVzMQrUcA==",
   "eventOperation": "PRE_BILL",
   "fdmRef": {
@@ -13,11 +13,11 @@
   "fdmSwVersion": "1.2.0",
   "footer": [],
   "informations": [],
-  "posDateTime": "2026-10-03T21:33:36.114+02:00",
+  "posDateTime": "2026-10-04T11:01:44.636+02:00",
   "posFiscalTicketNo": 4,
-  "posId": "CFOD0061234567",
+  "posId": "CPOS0031234567",
   "shortSignature": null,
-  "terminalId": "POS1",
+  "terminalId": "POS-1-BAR",
   "vatCalc": null,
   "verificationUrl": null,
   "warnings": []

@@ -57,8 +57,11 @@ Le flux reflète l'encaissement standard de
    cf. `STRATEGIE_COMPTEURS_FR.md` §5). Label `N`.
 4. **Construction du `SaleInput`** avec `build_sale_input`
    (9 paramètres), en passant la `FdmReference` originale comme
-   dernier paramètre (`Some(&original_ref)`) ; l'arrondi est fixé à 0
-   (un remboursement n'est pas arrondi). Le FDM utilise cette référence pour
+   dernier paramètre (`Some(&original_ref)`). Un remboursement en
+   espèces est arrondi aux 5 centimes comme une vente en espèces :
+   ligne `PAYMENT` du montant exact, puis ligne `ROUNDING` (exemple de
+   ticket de remboursement du SPF : -3,04 rendus -3,05, arrondi -0,01).
+   Le tiroir enregistre le montant rendu, arrondi compris. Le FDM utilise cette référence pour
    relier le remboursement à sa source - spec POS v2.2 §313 "fdmRef".
 5. **Envoi au FDM.** Même chemin `signing::sign` qu'un encaissement
    normal. Le blocage sur déconnexion s'applique à l'identique : sans

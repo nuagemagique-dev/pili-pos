@@ -280,12 +280,14 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 |---|---|---|---|
 | OS login (kiosk Linux) | `spf` (compte agent SPF) | Fourni à l'Intake (mot de passe simple) | Idéalement aucun login OS visible (Cage compositor lance directement pili-pos en plein écran) |
 | POS login - Gérant | INSZ : `94060242576` (test) | PIN : `1111` | Rôle `admin` (= Gérant) : accès complet, dont rapports, copies, remboursements, mouvements de caisse et mode formation. Voir `PROFILS_UTILISATEURS_FR.md`. |
-| POS login - Serveur | INSZ : `84022899837` (test) | PIN : `2222` | Rôle `cashier` (= Serveur) : commandes, addition et encaissement. |
+| POS login - Serveur (Elisa) | INSZ : `84022899837` (test) | PIN : `2222` | Rôle `cashier` (= Serveur) : commandes, addition et encaissement. Elisa, chef de salle du jeu de test SPF (UC_TestSetup). |
+| POS login - Serveur (John) | INSZ : `75061189702` (test) | PIN : `4444` | Rôle `cashier` : John, barman du jeu de test SPF. |
+| POS login - Serveur (Sammy) | INSZ : `80113078968` (test) | PIN : `5555` | Rôle `cashier` : Sammy, sommelier du jeu de test SPF. |
 | POS login - Apprenti | INSZ : `99012345667` (test) | PIN : `3333` | Rôle `waiter` (= Apprenti) : commandes uniquement, sans encaissement. |
 | POS login - Technicien | INSZ : `00000000097` | PIN : `0097` | NISS technicien standard SPF, rôle `admin`. |
 | Identité système (robot) | INSZ : `00000000029` | Aucune connexion possible | NISS robot/automate standard SPF, utilisé comme opérateur du rapport Z automatique (FAQ Q501). Elle ouvre aussi la fiche d'une commande en ligne reçue ; les événements de cette commande sont signés au nom de l'employé qui l'accepte. Ce n'est pas un compte de connexion : il n'a pas de tuile et la caisse refuse de l'ouvrir en session. |
 
-Ces comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des quatre comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN. Au tout premier démarrage seulement (aucun Gérant n'a encore de PIN), un Gérant sans PIN choisit le sien à sa première connexion (`commands/auth.rs::do_login_with_new_pin`, `MANUEL_UTILISATEUR_FR.md` §2.1). Ensuite, un nouveau Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le crée (`commands/auth.rs::do_create_user`) ; un Gérant sans PIN ne peut plus choisir lui-même le sien (code `first_pin_needs_manager`).
+Ces comptes sont créés par la base de test de l'image d'admission (`src-tauri/seed_spf_test.sql`) ; le test `access_control.rs::the_admission_seed_logs_in_every_documented_profile` se connecte avec chacun des six comptes de connexion, vérifie son rôle, et vérifie que l'identité système est refusée. Un Gérant doit toujours avoir un PIN. Au tout premier démarrage seulement (aucun Gérant n'a encore de PIN), un Gérant sans PIN choisit le sien à sa première connexion (`commands/auth.rs::do_login_with_new_pin`, `MANUEL_UTILISATEUR_FR.md` §2.1). Ensuite, un nouveau Gérant est créé avec son PIN, confirmé par le PIN du Gérant qui le crée (`commands/auth.rs::do_create_user`) ; un Gérant sans PIN ne peut plus choisir lui-même le sien (code `first_pin_needs_manager`).
 
 ### Gestion des utilisateurs et rôles
 
@@ -703,6 +705,8 @@ Le manuel demande les tests de base 1 et 2 dans tous les cas, le test de base 3 
 | Base 2 : chèque-repas | 4 | Dame Blanche + Tapas Variation ; 11,52 EUR en chèques-repas, le solde en cash | 3,35 EUR en cash / +0,01 EUR | `round4_meal_vouchers_then_cash` | `evidence/uc/ROUND4*` |
 | Base 3 : multi-paiements 1 | 5 | Dame Blanche + Tapas Variation ; 3,13 EUR chèques-repas, 3,97 EUR carte de débit, le solde avec 10 EUR en cash | 7,75 EUR en cash, rendu 2,25 EUR / -0,01 EUR | `round5_meal_vouchers_card_and_cash` | `evidence/uc/ROUND5*` |
 | Base 4 : multi-paiements 2 | 5 | (POS qui arrondit tous les moyens de paiement) | ☐ Non applicable | - | - |
+
+Un remboursement en espèces est arrondi de la même façon, comme dans l'exemple de ticket de remboursement du SPF (`docs/20260904_Example_tickets/`) : un Coca Cola de 3,04 EUR remboursé est rendu 3,05 EUR, ligne `PAYMENT` de -3,04 puis ligne `ROUNDING` de -0,01, "Arrondi -0,01" sur le ticket, 3,05 EUR sortis du tiroir (test `a_cash_refund_is_rounded_like_the_spf_example`, `src-tauri/tests/spf_e2e_rounding.rs`).
 
 Les tickets correspondants figurent dans *TICKETS_EXEMPLES_FR.md*.
 

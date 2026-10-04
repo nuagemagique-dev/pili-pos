@@ -10,7 +10,10 @@ rejoués tels que définis (les fixtures référencent ces `productId`).
   l'image d'admission (cf. `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md`).
 - Tables : `menu_items` (`id` = `productId`, `category_id` =
   `departmentId`, `price_cents`, `vat_code` sur place, `active`,
-  `open_price`) + `categories` + `translations` (libellés FR/EN/NL/DE).
+  `open_price`) + `categories` + `translations`. Les noms des produits
+  et des départements sont ceux du jeu de test SPF, à l'identique, dans
+  les quatre langues de l'écran (FR/EN/NL/DE) : ce sont les
+  `productName` et `departmentName` envoyés au FDM.
 - En exploitation, chaque établissement charge son propre catalogue ;
   le binaire `pili-pos` est identique (le catalogue est de la
   donnée, pas du code).
@@ -42,22 +45,22 @@ v1.0.0 - le prix libre est implémenté (cf. REPONSES_MANUEL_CERT_FR.md
 | ☑ | 15003 | Wine (glass) | 15 Wines | 8,00 | PIECE | A | A | |
 | ☑ | 15023 | Matching Wines | 15 Wines | 24,00 | PIECE | A | A | |
 | ☑ | 20001 | Carpaccio Beef | 20 Starters | 20,00 | PIECE | B | C | |
-| ☑ | 22001 | Burger of the Chef | 22 Main Dishes | 28,00 | PIECE | B | C | |
+| ☑ | 22001 | Burger of the CHEF | 22 Main Dishes | 28,00 | PIECE | B | C | |
 | ☐ | 22005 | Catch of the day | 22 Main Dishes | 45,00 | KG | B | C | Prix au poids : non supporté en v1.0.0 (pas de balance intégrée, cf. §III.F "Prix au poids") |
 | ☑ | 22010 | Dish of the day | 22 Main Dishes | prix libre (`open_price`) | PIECE | B | C | |
 | ☑ | 25003 | Dame Blanche | 25 Desserts | 11,52 | PIECE | B | C | |
-| ☑ | 25008 | Crème brûlée | 25 Desserts | 10,00 | PIECE | B | C | |
+| ☑ | 25008 | crème brûlée | 25 Desserts | 10,00 | PIECE | B | C | |
 | ☑ | 28007 | Tapas variation | 28 Tapas | 3,34 | PIECE | B | C | |
 | ☐ | 30001 | Business menu | 30 Menus | 38,00 | PIECE | B | C | Produit composé : non supporté en v1.0.0 (fixtures parsent, UI non implémentée, cf. §III.F "Produits composés" / Advanced Set UC280) |
-| ☐ | 30010 | Business menu all-in | 30 Menus | 58,00 | PIECE | B | B | Idem (produit composé) |
+| ☐ | 30010 | Business menu all-in | 30 Menus | 58,00 | PIECE | A&B | A&B | Idem (produit composé ; un seul label TVA en base, `B`) |
 | ☐ | 30020 | Menu drink | 30 Menus | 12,00 | PIECE | A | A | Idem (produit composé) |
-| ☐ | 40001 | Gift Voucher General (50 €) | 400 Vouchers | 50,00 | PIECE | X | X | Voucher à but multiple : non supporté en v1.0.0 (cf. §III.F "Vouchers à but multiple", UC260/261) |
-| ☐ | 40002 | Gift Voucher General (100 €) | 400 Vouchers | 100,00 | PIECE | X | X | Idem |
-| ☐ | 40003 | Gift Voucher General (150 €) | 400 Vouchers | 150,00 | PIECE | X | X | Idem |
-| ☐ | 40004 | Gift Voucher General (250 €) | 400 Vouchers | 250,00 | PIECE | X | X | Idem |
+| ☐ | 40001 | Gift Voucher General | 400 Vouchers | 50,00 | PIECE | X | X | Voucher à but multiple : non supporté en v1.0.0 (cf. §III.F "Vouchers à but multiple", UC260/261) |
+| ☐ | 40002 | Gift Voucher General | 400 Vouchers | 100,00 | PIECE | X | X | Idem |
+| ☐ | 40003 | Gift Voucher General | 400 Vouchers | 150,00 | PIECE | X | X | Idem |
+| ☐ | 40004 | Gift Voucher General | 400 Vouchers | 250,00 | PIECE | X | X | Idem |
 | ☐ | 40020 | Voucher Special Diner Offer | 400 Vouchers | 75,00 | PIECE | B | B | Voucher à but unique : non supporté en v1.0.0 (cf. §III.F "Vouchers à but unique", UC270/271) |
-| ☑ | 90001 | Bottle S (consigne) | 90 Bottle Deposits | 0,01 | PIECE | X | X | |
-| ☑ | 90100 | Beer bin / keg beer (consigne) | 90 Bottle Deposits | 4,49 | PIECE | X | X | |
+| ☑ | 90001 | Bottle S | 90 Bottle Deposits | 0,01 | PIECE | X | X | |
+| ☑ | 90100 | Beer bin/ keg beer | 90 Bottle Deposits | 4,49 | PIECE | X | X | |
 | ☑ | 500001 | Cigarettes (20 pcs) | 500 Cigarettes | 8,40 | PIECE | D | D | |
 
 **Consignes (90001/90100) :** restent **disponibles** en v1.0.0 -
@@ -73,6 +76,26 @@ c'est précisément pourquoi ils sont déclarés non supportés en v1.0.0
 (§III.F "Produits composés"). Les codes "à emporter" ci-dessus
 reflètent la table de recalcul `menu_items.vat_code_takeaway` du seed
 (NULL = même code qu'en salle).
+
+## Reste du jeu de test SPF
+
+L'image d'admission reprend aussi le reste de
+`docs/20260821_UC_Reports_1.3/UC_TestSetup_20240806.md` :
+
+| Élément du jeu de test | Sur l'image d'admission |
+|---|---|
+| Établissement | "The FPS Finances Experience", Boulevard Albert II 33, 1030 Brussels, TVA `BE0000000097`, unité d'établissement `2000000042` (`pos.json`, `deploy/provision/provision.sh`) |
+| POS du BAR | `pos_id` `CPOS0031234567`, `terminal_id` `POS-1-BAR` ; `device_id` = adresse MAC réelle de la machine (manuel §VI ligne VII), relevée au premier démarrage |
+| Personnel | John (barman, `75061189702`), Elisa (chef de salle, `84022899837`), Sammy (sommelier, `80113078968`), rôle Serveur, avec les PIN de REPONSES_MANUEL_CERT_FR.md ; s'y ajoutent les comptes Technicien, Gérant et Apprenti |
+| Tables | 25 tables (`table_count`), BAR 1 à 4, DINING ROOM 5 à 15, TERRACE 16 à 25 |
+| Tiroir | un tiroir, sur le POS du BAR |
+| Moyens de paiement | espèces (EUR), carte (un moyen "Card", type `CARD_DEBIT`), chèques-repas électroniques |
+
+Non reproduit, car hors périmètre v1.0.0 (REPONSES_MANUEL_CERT_FR.md
+§III.F) : le second POS `CPOS0031234568` de la réception et son PMS
+hôtel, les terminaux et handhelds (TER-1 à TER-5), la table haute du
+bar (8 chaises, sans numéro), les chaises comme centres de coût, les
+devises GBP/USD, les bons d'achat, la distinction des réseaux de cartes (Visa, Mastercard, Diners, American Express) et Payconiq / Apple Pay.
 
 ## Codes TVA
 

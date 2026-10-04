@@ -112,8 +112,9 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 
 ### 2.1 Prise de commande
 
-- Plan de 20 tables (`TablesView.vue`) avec statut
-  "libre" / "occupée".
+- Plan de tables (`TablesView.vue`) avec statut "libre" / "occupée" ;
+  nombre de tables réglé par `table_count` (20 par défaut, 25 sur
+  l'image d'admission, comme le jeu de test SPF).
 - Grille catégories + items (`OrderView.vue`) optimisée tactile (boutons
   ≥ 48 × 48 px).
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.

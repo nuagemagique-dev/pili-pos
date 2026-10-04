@@ -1,12 +1,12 @@
             TICKET DE CAISSE T.V.A.
 The FPS Finances Experience
 Unite d'etablissement 2000000042
-03.10.2026                                 21:33
+04.10.2026                                 11:01
 Utilisateur: Test 12345678958
-Terminal: POS1
+Terminal: POS-1-BAR
 Ticketnr.: 000001
-POS Serial: CFOD0061234567
-Input device MAC: 00:1b:44:11:3a:b7
+POS Serial: CPOS0031234567
+Input device MAC: F0:1D:3D:CC:13:C8
 Logiciel de caisse v.: pili-pos/1.0.0
 ................................................
 1 Tapas Variation                        3,34  B
@@ -21,10 +21,10 @@ Arrondi                                     0,01
                 INFORMATIONS FDM
 ------------------------------------------------
 fdmId: MCK00000001;
-fdmDateTime: 2026-10-03T19:33:36Z;
+fdmDateTime: 2026-10-04T09:01:45Z;
 Event: N; eventCounter: 1;
 totalCounter: 1; shortSignature:
-3539c843c1eb258c746863fd3bfdfe12e9ffc33d;
+c7474d7a65650e0cb1410ccd3ac08113cfa69212;
 
  [QR: https://www.gs2.be/M0000100001AbCdEfGhI]  
 

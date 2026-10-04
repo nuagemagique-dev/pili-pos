@@ -48,7 +48,7 @@ script est relancé sur la révision soumise, avant l'envoi ; la CI exécute les
 
 <!-- TEST_TOTALS:BEGIN (scripts/generate_test_report.py) -->
 
-Généré le 2026-10-03 21:30 (Europe/Brussels) sur la révision `99e7f17`.
+Généré le 2026-10-04 11:07 (Europe/Brussels) sur la révision `459ae3c`.
 
 ### Workspace, fonctionnalités par défaut (`cargo test --workspace`)
 
@@ -95,7 +95,7 @@ Généré le 2026-10-03 21:30 (Europe/Brussels) sur la révision `99e7f17`.
 | `spf_e2e_report_fixtures` (intégration) | SPF Reports v1.3, replayed end to end through the real commands. | 14 | 0 | 0 |
 | `spf_e2e_report_printout` (intégration) | The printed X and Z turnover reports carry what the AM of 29 April 2024 art. | 2 | 0 | 0 |
 | `spf_e2e_reports` (intégration) | Application-level e2e tests for the SPF Finances Reports v1.3 set. | 4 | 0 | 0 |
-| `spf_e2e_rounding` (intégration) | Certification manual, "Arrondissement des méthodes de paiement": the five situations, with their evidence. | 5 | 0 | 0 |
+| `spf_e2e_rounding` (intégration) | Certification manual, "Arrondissement des méthodes de paiement": the five situations, with their evidence. | 6 | 0 | 0 |
 | `spf_e2e_service_day` (intégration) | A long, realistic service day driven entirely through the Tauri command layer: several tables, interleaved orders/corrections/… | 1 | 0 | 0 |
 | `spf_e2e_signing_serialized` (intégration) | One signing lock, and requests whose answer was lost. | 14 | 0 | 0 |
 | `spf_e2e_split_payment` (intégration) | A sale paid in several parts: card, meal vouchers and cash for the rest, through the command the checkout screen calls. | 9 | 0 | 0 |
@@ -108,7 +108,7 @@ Généré le 2026-10-03 21:30 (Europe/Brussels) sur la révision `99e7f17`.
 | `pos_db` (unit) | SQLite persistence: schema, migrations and typed queries, with the fiscal archive append-only. | 124 | 0 | 0 |
 | `pos_fdm_mock` (unit) | Mock FDM (SCE 2.0 GraphQL) and mock Scaleway TEM, for development, the admission image, screenshots and the certification evidence. | 30 | 0 | 0 |
 | `module2_shape` (intégration) | The mock answers in the shape of module2's simulator. | 1 | 0 | 0 |
-| `pos_fiscal` (unit) | SCE 2.0 protocol: event building, FDM client, counters, archive, tickets and reports. | 166 | 0 | 0 |
+| `pos_fiscal` (unit) | SCE 2.0 protocol: event building, FDM client, counters, archive, tickets and reports. | 167 | 0 | 0 |
 | `advanced_set_fixtures` (intégration) | SCE 2.0 Advanced Set v1.6 fixture validation. | 1 | 0 | 0 |
 | `client_auth` (intégration) | FdmClient bearer token: a cloud FDM (the module2 simulator) needs `Authorization: Bearer <token>`; a LAN FDM gets no such header. | 4 | 0 | 0 |
 | `client_status` (intégration) | FdmClient status-query contract tests (Q100 / Q110). | 5 | 0 | 0 |
@@ -139,7 +139,7 @@ Généré le 2026-10-03 21:30 (Europe/Brussels) sur la révision `99e7f17`.
 | `ticket_examples` (intégration) | §VI ticket-example generator. | 12 | 0 | 0 |
 | `pos_printer_mock` (unit) | A network thermal printer for development, demos and tests, standing in for the Epson TM-m30III the POS prints to (raw TCP, port 9100). | 7 | 0 | 0 |
 | Crates exclues de la build cert (unit) | intégrations hors v1.0.0 | 72 | 0 | 0 |
-| **Total** | | **1337** | **0** | **13** |
+| **Total** | | **1339** | **0** | **13** |
 
 ### Application, build cert (`cargo test -p pili-pos --no-default-features --features cert`)
 
@@ -186,14 +186,14 @@ Généré le 2026-10-03 21:30 (Europe/Brussels) sur la révision `99e7f17`.
 | `spf_e2e_report_fixtures` (intégration) | SPF Reports v1.3, replayed end to end through the real commands. | 14 | 0 | 0 |
 | `spf_e2e_report_printout` (intégration) | The printed X and Z turnover reports carry what the AM of 29 April 2024 art. | 2 | 0 | 0 |
 | `spf_e2e_reports` (intégration) | Application-level e2e tests for the SPF Finances Reports v1.3 set. | 4 | 0 | 0 |
-| `spf_e2e_rounding` (intégration) | Certification manual, "Arrondissement des méthodes de paiement": the five situations, with their evidence. | 5 | 0 | 0 |
+| `spf_e2e_rounding` (intégration) | Certification manual, "Arrondissement des méthodes de paiement": the five situations, with their evidence. | 6 | 0 | 0 |
 | `spf_e2e_service_day` (intégration) | A long, realistic service day driven entirely through the Tauri command layer: several tables, interleaved orders/corrections/… | 1 | 0 | 0 |
 | `spf_e2e_signing_serialized` (intégration) | One signing lock, and requests whose answer was lost. | 14 | 0 | 0 |
 | `spf_e2e_split_payment` (intégration) | A sale paid in several parts: card, meal vouchers and cash for the rest, through the command the checkout screen calls. | 9 | 0 | 0 |
 | `spf_e2e_unpaid` (intégration) | A sale closed without payment: the customer left without paying (Advanced Set UC4109, `commands/unpaid.rs`). | 10 | 0 | 0 |
 | `spf_e2e_validation` (intégration) | Input validation and auth checks across the command layer: unknown or inactive menu items, non-positive quantities, empty/zero-total checkouts, unknown ids… | 16 | 0 | 0 |
 | `ticket_copies` (intégration) | The copy picker lists what a customer can ask a copy of (manual §III, event C): sales, refunds, pre-bills and training tickets the FDM signed. | 4 | 0 | 0 |
-| **Total** | | **479** | **0** | **11** |
+| **Total** | | **480** | **0** | **11** |
 
 <!-- TEST_TOTALS:END -->
 
