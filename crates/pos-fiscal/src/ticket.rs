@@ -437,7 +437,13 @@ pub fn ticket_type_label(label: EventLabel, lang: ReceiptLanguage) -> &'static s
 /// - 3,4 → round up (positive delta)
 /// - 6,7 → round down
 /// - 8,9 → round up
+///
+/// A negative amount (a cash refund) rounds like its opposite: -3,04
+/// is paid out as -3,05, a delta of -1 (SPF refund ticket example).
 pub fn round_to_5_cents(total_cents: i64) -> i64 {
+    if total_cents < 0 {
+        return -round_to_5_cents(-total_cents);
+    }
     let remainder = total_cents % 5;
     if remainder == 0 {
         0
@@ -804,6 +810,16 @@ mod tests {
         for cents in 0..10000 {
             let delta = round_to_5_cents(cents);
             assert!(delta.abs() <= 2, "cents={cents}, delta={delta}");
+        }
+    }
+
+    #[test]
+    fn a_negative_amount_rounds_like_its_opposite() {
+        assert_eq!(round_to_5_cents(-304), -1); // -3.04 → -3.05
+        assert_eq!(round_to_5_cents(-1152), 2); // -11.52 → -11.50
+        assert_eq!(round_to_5_cents(-1500), 0);
+        for cents in 1..10000 {
+            assert_eq!(round_to_5_cents(-cents), -round_to_5_cents(cents));
         }
     }
 }

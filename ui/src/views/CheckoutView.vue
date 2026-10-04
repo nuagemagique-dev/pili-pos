@@ -8,7 +8,7 @@ import { usePosStore } from "../stores/pos";
 import type { CartLine, CheckoutResult, PaymentPart } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
-import { formatPrice } from "../utils/format";
+import { formatPrice, round5 } from "../utils/format";
 import { useBilingualName } from "../utils/names";
 import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
@@ -69,11 +69,6 @@ const totalCents = computed(() => order.totalCents);
 const paidCents = computed(() => parts.value.reduce((sum, p) => sum + p.cents, 0));
 const restCents = computed(() => Math.max(0, totalCents.value - paidCents.value));
 const hasCashPart = computed(() => parts.value.some((p) => p.method === "cash"));
-
-/** UX Guide §7.5: Belgian 5-cent rounding, on cash only. */
-function round5(cents: number): number {
-  return Math.round(cents / 5) * 5;
-}
 
 /** `total` in `n` parts, the remainder cents on the first parts:
  * 6030 / 4 -> 1508 1508 1507 1507. */
@@ -381,7 +376,7 @@ function finish() {
               </div>
               <div class="change-box" :class="{ pending: !canPayCash }">
                 <span class="change-label">{{ t('change') }}</span>
-                <span class="change-value">{{ canPayCash ? `${formatPrice(changeCents)} €` : '—' }}</span>
+                <span class="change-value">{{ canPayCash ? `${formatPrice(changeCents)} €` : '-' }}</span>
               </div>
             </template>
             <template v-else>

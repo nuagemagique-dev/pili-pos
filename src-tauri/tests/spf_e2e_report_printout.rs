@@ -45,7 +45,8 @@ async fn app() -> (TestApp, PrinterSink) {
     (app, printer)
 }
 
-/// 2 x 3,04 paid cash (rounded to 6,10), then one of them refunded.
+/// 2 x 3,04 paid cash (rounded to 6,10), then one of them refunded in
+/// cash (rounded to -3,05).
 async fn a_day(app: &TestApp) {
     let order = do_create_order(
         &app.state,
@@ -152,7 +153,8 @@ async fn m181_the_z_report_prints_the_article_29_content() {
         row(&text, "Total des paiements"),
         "Total des paiements 3,04"
     );
-    assert_eq!(row(&text, "Arrondis"), "Arrondis 0,02");
+    // +0,02 on the sale (6,10), -0,01 on the refund (-3,05).
+    assert_eq!(row(&text, "Arrondis"), "Arrondis 0,01");
 }
 
 #[tokio::test]

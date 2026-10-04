@@ -424,6 +424,10 @@ async fn a_split_sale_is_refunded_in_cash() {
     assert!(refund.success, "{:?}", refund.error);
     assert_eq!(
         financials(&app, refund.fiscal_event_id.unwrap()),
-        [row("CASH", "PAYMENT", -3.34)]
+        // Paid back in cash: -3,35, rounded like a cash sale.
+        [
+            row("CASH", "PAYMENT", -3.34),
+            row("CASH", "ROUNDING", -0.01)
+        ]
     );
 }

@@ -6,7 +6,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useDeliveryStore } from "../stores/delivery";
-import { formatPrice } from "../utils/format";
+import { formatPrice, round5 } from "../utils/format";
 import type { CheckoutResult, OrderLine } from "../types";
 import type { CopyResult, RefundableEvent, RefundItem } from "../api/ipc";
 import * as ipc from "../api/ipc";
@@ -436,7 +436,8 @@ function refundTotalCents(): number {
     const line = refundLines.value.find(l => l.id === lineId);
     if (line) total += line.unit_price_cents * qty;
   }
-  return total;
+  // Paid back in cash: rounded to 5 cents, like the signed refund.
+  return round5(total);
 }
 
 function goToRefundDelivery() {

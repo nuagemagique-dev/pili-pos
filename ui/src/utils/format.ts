@@ -11,6 +11,11 @@ export function formatPrice(cents: number): string {
   })
 }
 
+/** UX Guide §7.5: Belgian 5-cent rounding, on cash only. */
+export function round5(cents: number): number {
+  return Math.round(cents / 5) * 5
+}
+
 /**
  * Format a euro amount (not cents) with comma separator.
  * Used by CheckoutView where amounts are already in euros.

@@ -14,6 +14,10 @@
 //! | ROUND4 | 2 | both, 14,86 | meal vouchers 11,52, cash for the rest | +0,01 |
 //! | ROUND5 | 3 | both, 14,86 | meal vouchers 3,13, debit card 3,97, cash for the rest | -0,01 |
 //!
+//! A cash refund is rounded the same way: the SPF refund ticket example
+//! (`docs/20260904_Example_tickets/`) pays a Cola of -3,04 back as
+//! -3,05, rounding -0,01.
+//!
 //! Each test goes through the command the checkout screen calls, with
 //! the mock FDM of the admission image, and checks the request sent to
 //! the FDM and the printed ticket against the manual's table.
@@ -36,11 +40,13 @@ use pili_pos::commands::checkout::{
 use pili_pos::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
+use pili_pos::commands::refund::{RefundItem, do_refund_checkout};
 use pos_core::order::OrderType;
 
 const MANAGER: &str = "12345678958";
 const DAME_BLANCHE: i64 = 25003;
 const TAPAS_VARIATION: i64 = 28007;
+const COCA_COLA: i64 = 12009;
 
 /// The manual's products, both with VAT B.
 async fn app() -> (TestApp, PrinterSink) {
@@ -55,11 +61,13 @@ async fn app() -> (TestApp, PrinterSink) {
             "INSERT INTO categories (id, sort_order, active) VALUES (1, 0, 1);
              INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order, active) VALUES
                 (25003, 1, 1152, 'B', 0, 1),
-                (28007, 1, 334, 'B', 1, 1);
+                (28007, 1, 334, 'B', 1, 1),
+                (12009, 1, 304, 'A', 2, 1);
              INSERT INTO translations (entity_type, entity_id, field, lang, value) VALUES
                 ('category', 1, 'name', 'fr', 'Desserts'),
                 ('menu_item', 25003, 'name', 'fr', 'Dame Blanche'),
-                ('menu_item', 28007, 'name', 'fr', 'Tapas Variation');",
+                ('menu_item', 28007, 'name', 'fr', 'Tapas Variation'),
+                ('menu_item', 12009, 'name', 'fr', 'Coca Cola');",
         )
         .unwrap();
     let printer = PrinterSink::start().await;
@@ -251,4 +259,73 @@ async fn round5_meal_vouchers_card_and_cash() {
         ]
     );
     assert_eq!(text_row(&ticket, "Arrondi"), "Arrondi -0,01");
+}
+
+/// The SPF refund ticket example: a Cola of 3,04 refunded in cash is
+/// paid back 3,05, rounding -0,01, on the request, the ticket and in
+/// the drawer.
+#[tokio::test]
+async fn a_cash_refund_is_rounded_like_the_spf_example() {
+    let (app, printer) = app().await;
+    let order = direct_sale(&app, &[COCA_COLA]);
+    let sale = do_checkout(&app.state, order, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    let refund = do_refund_checkout(
+        &app.state,
+        sale.fiscal_event_id.unwrap(),
+        vec![RefundItem {
+            line_id: None,
+            menu_item_id: COCA_COLA,
+            quantity: 1,
+        }],
+        MANAGER.into(),
+    )
+    .await
+    .unwrap();
+    assert!(refund.success, "{:?}", refund.error);
+
+    let event = app.fiscal_events().pop().expect("the signed refund");
+    let request: Value = serde_json::from_str(event.event_data_json.as_deref().unwrap()).unwrap();
+    let financials: Vec<_> = request["financials"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| {
+            row(
+                f["type"].as_str().unwrap(),
+                f["amountType"].as_str().unwrap(),
+                f["amount"].as_f64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        financials,
+        [
+            row("CASH", "PAYMENT", -3.04),
+            row("CASH", "ROUNDING", -0.01)
+        ]
+    );
+
+    printer.settle(2).await;
+    let ticket = printer
+        .rendered()
+        .into_iter()
+        .find(|r| r.contains("REMBOURSEMENT"))
+        .expect("the refund ticket");
+    assert_eq!(text_row(&ticket, "Arrondi"), "Arrondi -0,01");
+
+    let paid_back: i64 = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT amount_cents FROM payments ORDER BY id DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(paid_back, -305);
 }

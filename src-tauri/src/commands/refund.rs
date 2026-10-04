@@ -390,6 +390,14 @@ pub(crate) async fn refund_sale(
             signing::peek(&db, &guard, label)?
         };
 
+        // A cash refund is rounded to 5 cents like a cash sale (SPF
+        // refund ticket example: -3,04 paid out as -3,05).
+        let rounding_cents = if spec.payment_type == PaymentType::Cash {
+            pos_fiscal::ticket::round_to_5_cents(refund_order.total_cents)
+        } else {
+            0
+        };
+
         // SaleInput with negative lines + original fdm_ref
         let mut sale_input = build_sale_input(
             &config,
@@ -399,7 +407,7 @@ pub(crate) async fn refund_sale(
             &bp_id,
             spec.payment_type,
             refund_order.total_cents, // negative
-            0,                        // refunds are not rounded
+            rounding_cents,
             Some(&original_ref),
         );
         pos_fiscal::price_change::apply(
@@ -425,6 +433,7 @@ pub(crate) async fn refund_sale(
             refund_order.total_cents as f64 / 100.0,
             &operator,
         );
+        ticket.rounding = (rounding_cents != 0).then(|| rounding_cents as f64 / 100.0);
         ticket.original = Some(OriginalControlData {
             fdm_ref: original_ref.clone(),
             short_signature: original_signature.clone(),
@@ -440,7 +449,8 @@ pub(crate) async fn refund_sale(
                 "other"
             }
             .to_string(),
-            total_cents: refund_order.total_cents,
+            // What leaves the drawer, rounding included.
+            total_cents: refund_order.total_cents + rounding_cents,
             open_drawer: spec.open_drawer,
             delivery: StoredDelivery::of(&resolved),
             ticket,
