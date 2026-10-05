@@ -12,6 +12,8 @@
 //!   (`{sku}|{list}`), its options `{sku}|{list}|{option}`.
 //! - Catalog charges are items of a hidden category (`charge:{ref}`),
 //!   never on the POS grid.
+//! - The SKU's `custom_fields.code` is the product's menu code ("A2"),
+//!   shown on the till in place of the name when it is set to.
 //! - Tags on the product or the SKU: `pos:open_price` (price entered on
 //!   the POS), `pos:no_kitchen` (no bar/kitchen slip), `pos:hidden`
 //!   (sold online only).
@@ -133,6 +135,7 @@ pub fn to_neutral(data: &CatalogData) -> (Catalog, Vec<Issue>) {
             category_key: CHARGES_CATEGORY.into(),
             kind: ItemKind::Charge,
             names: fr_name(&charge.name),
+            code: None,
             price_cents,
             // Only the label of a charge with no product to follow:
             // on an order, a charge is split over its products' labels
@@ -234,6 +237,7 @@ fn map_sku(
         category_key: category_key.to_owned(),
         kind: ItemKind::Product,
         names,
+        code: menu_code(&sku.custom_fields),
         vat_eat_in,
         vat_takeaway,
         open_price: tagged(TAG_OPEN_PRICE),
@@ -286,6 +290,12 @@ fn price(money: &str, key: &str, issues: &mut Vec<Issue>) -> i64 {
         issues.push(Issue::new(IssueCode::BadPrice, key));
         0
     })
+}
+
+/// `custom_fields.code`, trimmed, when the SKU sets one.
+fn menu_code(custom_fields: &Option<serde_json::Value>) -> Option<String> {
+    let code = custom_fields.as_ref()?.get("code")?.as_str()?.trim();
+    (!code.is_empty()).then(|| code.to_owned())
 }
 
 /// `custom_fields.vat_category` when the SKU sets it.
@@ -620,5 +630,18 @@ mod tests {
             !c.categories[0].names.contains_key("nl"),
             "empty names are left out"
         );
+    }
+
+    #[test]
+    fn the_menu_code_comes_from_custom_fields() {
+        let mut v = sample();
+        v["products"][0]["skus"][0]["custom_fields"] =
+            json!({"code": " A2 ", "vat_category": "food"});
+        v["products"][0]["skus"][1]["custom_fields"] = json!({"code": ""});
+        let (c, issues) = to_neutral(&data(v));
+        assert!(issues.is_empty());
+        assert_eq!(c.items[0].code.as_deref(), Some("A2"));
+        assert_eq!(c.items[1].code, None, "an empty code is no code");
+        assert_eq!(c.items[2].code, None);
     }
 }

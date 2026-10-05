@@ -137,11 +137,18 @@ const HUBRISE_MIGRATIONS: &[Migration] = &[
 /// Migrations of the menu mirrored from an external catalog (feature
 /// `catalog-sync`, which `hubrise` turns on).
 #[cfg(feature = "catalog-sync")]
-const CATALOG_MIGRATIONS: &[Migration] = &[Migration {
-    version: 21,
-    name: "catalog-sync",
-    sql: crate::schema_catalog::MIGRATION_021_CATALOG_SYNC,
-}];
+const CATALOG_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 21,
+        name: "catalog-sync",
+        sql: crate::schema_catalog::MIGRATION_021_CATALOG_SYNC,
+    },
+    Migration {
+        version: 26,
+        name: "product-codes",
+        sql: crate::schema_catalog::MIGRATION_026_PRODUCT_CODES,
+    },
+];
 
 /// Every migration this build knows, in ascending version order.
 fn registry() -> Vec<Migration> {
@@ -305,10 +312,11 @@ mod tests {
 
     #[cfg(feature = "catalog-sync")]
     #[test]
-    fn the_catalog_migration_is_21() {
+    fn the_catalog_migrations_are_21_and_26() {
         let versions: Vec<i64> = CATALOG_MIGRATIONS.iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec![21]);
+        assert_eq!(versions, vec![21, 26]);
         assert!(all_versions().contains(&21));
+        assert!(all_versions().contains(&26));
     }
 
     #[test]

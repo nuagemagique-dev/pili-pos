@@ -13,6 +13,11 @@ const GRID_CATEGORY_FILTER: &str = "";
 const GRID_ITEM_FILTER: &str = " AND m.on_pos = 1 AND m.kind = 'product'";
 #[cfg(not(feature = "catalog-sync"))]
 const GRID_ITEM_FILTER: &str = "";
+/// The product's menu code, a column of the mirrored catalog.
+#[cfg(feature = "catalog-sync")]
+const ITEM_CODE: &str = "m.code";
+#[cfg(not(feature = "catalog-sync"))]
+const ITEM_CODE: &str = "NULL";
 
 pub fn get_categories(conn: &Connection, lang: &str) -> Result<Vec<Category>, rusqlite::Error> {
     let mut stmt = conn.prepare(&format!(
@@ -53,7 +58,8 @@ pub fn get_menu_items(
                 m.kitchen_printer, m.sort_order, m.active,
                 COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
-                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh')
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh'),
+                {ITEM_CODE}
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -65,7 +71,8 @@ pub fn get_menu_items(
                 m.kitchen_printer, m.sort_order, m.active,
                 COALESCE(t.value, 'unnamed') as name, m.vat_code_takeaway, m.open_price,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'fr'),
-                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh')
+                (SELECT value FROM translations WHERE entity_type = 'menu_item' AND entity_id = m.id AND field = 'name' AND lang = 'zh'),
+                {ITEM_CODE}
          FROM menu_items m
          LEFT JOIN translations t
            ON t.entity_type = 'menu_item' AND t.entity_id = m.id
@@ -104,6 +111,7 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         open_price: row.get::<_, i32>(9)? != 0,
         name_fr: row.get(10)?,
         name_zh: row.get(11)?,
+        code: row.get(12)?,
     })
 }
 

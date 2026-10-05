@@ -19,6 +19,15 @@ test.describe('Settings View', () => {
     await expect(page.locator('.lang-btn.active')).toHaveText('Français');
   });
 
+  test('products can be shown by their menu code', async ({ page }) => {
+    await expect(page.locator('.label-btn')).toHaveText(['Nom', 'Code']);
+    await expect(page.locator('.label-btn.active')).toHaveText('Nom');
+    await page.locator('.label-btn', { hasText: 'Code' }).click();
+    await expect(page.locator('.label-btn.active')).toHaveText('Code');
+    await page.reload();
+    await expect(page.locator('.label-btn.active')).toHaveText('Code');
+  });
+
   test('an employee without a PIN is flagged', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,

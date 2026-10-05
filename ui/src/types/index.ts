@@ -32,6 +32,8 @@ export interface MenuItem {
   /** French and Chinese names, whatever the UI language. */
   name_fr?: string | null;
   name_zh?: string | null;
+  /** Menu code ("A2") from the catalog, when it gives one. */
+  code?: string | null;
   price_cents: number;
   vat_code: VatCode;
   vat_code_takeaway: VatCode | null;
@@ -73,6 +75,7 @@ export interface OrderLine {
 export interface CartLine extends OrderLine {
   name_fr: string | null;
   name_zh: string | null;
+  code?: string | null;
   unsent_quantity: number;
 }
 

@@ -65,7 +65,7 @@ defineExpose({
       <button class="qty-btn" :aria-label="t('qty_more')" @click="emit('increment', props.line.id)">+</button>
     </div>
     <div class="line-info">
-      <span class="line-name">{{ names.primary }}</span>
+      <span class="line-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
       <span v-if="names.secondary" class="line-sub">{{ names.secondary }}</span>
       <span v-if="notes" class="line-notes">{{ notes }}</span>
     </div>
@@ -147,6 +147,9 @@ defineExpose({
 .line-name {
   font-size: 17px;
   font-weight: var(--font-weight-bold);
+}
+.line-name.code {
+  font-family: var(--font-mono);
 }
 .line-sub {
   font-size: 13px;

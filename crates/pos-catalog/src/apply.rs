@@ -237,14 +237,15 @@ fn upsert_item(tx: &Transaction<'_>, item: &Item, sort: usize) -> Result<i64> {
     let id = tx.query_row(
         "INSERT INTO menu_items
             (external_id, category_id, price_cents, vat_code, vat_code_takeaway, vat_category,
-             kitchen_printer, sort_order, active, open_price, kind, on_pos)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+             kitchen_printer, sort_order, active, open_price, kind, on_pos, code)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
          ON CONFLICT(external_id) DO UPDATE SET
             category_id = excluded.category_id, price_cents = excluded.price_cents,
             vat_code = excluded.vat_code, vat_code_takeaway = excluded.vat_code_takeaway,
             vat_category = excluded.vat_category, kitchen_printer = excluded.kitchen_printer,
             sort_order = excluded.sort_order, active = excluded.active,
-            open_price = excluded.open_price, kind = excluded.kind, on_pos = excluded.on_pos
+            open_price = excluded.open_price, kind = excluded.kind, on_pos = excluded.on_pos,
+            code = excluded.code
          RETURNING id",
         params![
             item.key,
@@ -259,6 +260,7 @@ fn upsert_item(tx: &Transaction<'_>, item: &Item, sort: usize) -> Result<i64> {
             item.open_price,
             kind,
             item.on_pos,
+            item.code,
         ],
         |r| r.get(0),
     )?;

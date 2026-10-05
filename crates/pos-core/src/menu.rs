@@ -28,6 +28,9 @@ pub struct MenuItem {
     pub name_fr: Option<String>,
     #[serde(default)]
     pub name_zh: Option<String>,
+    /// The menu code ("A2") from a mirrored catalog; display only.
+    #[serde(default)]
+    pub code: Option<String>,
     pub price_cents: i64,
     pub vat_code: VatCode,
     /// VAT label for takeaway sales (manual §III product lines, column

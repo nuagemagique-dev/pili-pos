@@ -48,6 +48,12 @@ pub struct Item {
     pub category_key: String,
     pub kind: ItemKind,
     pub names: Names,
+    /// The menu code staff know the product by ("A2", "B14"), shown in
+    /// place of the name when the till is set to. Display only: never
+    /// printed nor sent to the FDM. Left out of the JSON when absent,
+    /// so a catalog without codes keeps its hash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
     pub price_cents: i64,
     /// VAT label eaten in, and taken away or delivered.
     pub vat_eat_in: VatCode,

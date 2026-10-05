@@ -151,3 +151,41 @@ test.describe('Order View - kitchen and cart lines', () => {
     await expect(page.locator('.item-btn .item-qty')).toHaveText('1');
   });
 });
+
+test.describe('Order View - products shown by code', () => {
+  const CODED = { ...DEFAULT_CART_LINE, id: 1, name: 'Edamame', name_fr: 'Edamame', name_zh: '毛豆', code: 'A2' };
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-product-label', 'code'));
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+      list_cart_lines: () => [CODED],
+      get_categories: () => [DEFAULT_CATEGORY],
+      get_menu_items: () => [
+        { ...DEFAULT_MENU_ITEM, code: 'B14' },
+        { ...DEFAULT_MENU_ITEM, id: 2, name: 'Tuna Roll x8', code: null },
+      ],
+    });
+    await page.goto('/');
+    await tapUserTile(page);
+    await page.waitForURL(/tables/);
+    await page.locator('.table-card').first().click();
+    await page.waitForURL(/order/);
+  });
+
+  test('the code leads, the name goes underneath', async ({ page }) => {
+    const coded = page.locator('.item-btn').first();
+    await expect(coded.locator('.item-name')).toHaveText('B14');
+    await expect(coded.locator('.item-name')).toHaveClass(/code/);
+    await expect(coded.locator('.item-sub')).toHaveText(DEFAULT_MENU_ITEM.name);
+    const line = page.locator('.order-line').first();
+    await expect(line.locator('.line-name')).toHaveText('A2');
+    await expect(line.locator('.line-sub')).toHaveText('Edamame');
+  });
+
+  test('a product without a code keeps its name', async ({ page }) => {
+    await expect(page.locator('.item-btn').nth(1).locator('.item-name')).toHaveText('Tuna Roll x8');
+  });
+});

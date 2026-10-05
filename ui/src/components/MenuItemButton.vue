@@ -46,7 +46,7 @@ function handleTap() {
     :style="categoryColor ? { borderLeftColor: categoryColor } : undefined"
     @click="handleTap"
   >
-    <span class="item-name">{{ names.primary }}</span>
+    <span class="item-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
     <span v-if="names.secondary" class="item-sub">{{ names.secondary }}</span>
     <span v-if="item.open_price" class="item-open-price">{{ t('open_price_badge') }}</span>
     <span v-else class="item-price">{{ formatPrice(item.price_cents) }}</span>
@@ -90,6 +90,12 @@ function handleTap() {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* A menu code leads: bigger, in mono like every figure. */
+.item-name.code {
+  font-family: var(--font-mono);
+  font-size: 24px;
 }
 
 .item-sub {

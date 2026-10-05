@@ -301,11 +301,19 @@ pub struct CartLine {
     pub line: OrderLine,
     pub name_fr: Option<String>,
     pub name_zh: Option<String>,
+    /// The product's menu code ("A2"), when the catalog gives one.
+    pub code: Option<String>,
     pub unsent_quantity: i64,
 }
 
+/// The menu code of a line's product, a column of the mirrored catalog.
+#[cfg(feature = "catalog-sync")]
+const LINE_CODE: &str = "(SELECT code FROM menu_items WHERE id = ol.menu_item_id)";
+#[cfg(not(feature = "catalog-sync"))]
+const LINE_CODE: &str = "NULL";
+
 pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>, rusqlite::Error> {
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(&format!(
         "SELECT ol.id, ol.order_id, ol.menu_item_id, ol.quantity, ol.unit_price_cents, ol.vat_code,
                 ol.name, ol.modifiers_json, ol.created_at,
                 COALESCE(ol.department_id, ''), COALESCE(ol.department_name, ''),
@@ -314,15 +322,17 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                 (SELECT value FROM translations WHERE entity_type = 'menu_item'
                     AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'zh'),
                 COALESCE((SELECT SUM(e.quantity) FROM order_entries e
-                          WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0)
+                          WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0),
+                {LINE_CODE}
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
-    )?;
+    ))?;
     let rows = stmt.query_map(params![order_id], |row| {
         Ok(CartLine {
             line: map_order_line(row)?,
             name_fr: row.get(11)?,
             name_zh: row.get(12)?,
             unsent_quantity: row.get(13)?,
+            code: row.get(14)?,
         })
     })?;
     rows.collect()

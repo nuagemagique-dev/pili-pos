@@ -417,7 +417,7 @@ function finish() {
           <div v-for="line in order.lines" :key="line.id" class="sum-line">
             <span class="line-qty">{{ line.quantity }}×</span>
             <div class="line-name">
-              <span class="name-primary" :class="{ zh: pos.language === 'zh' }">{{ bilingual(line).primary }}</span>
+              <span class="name-primary" :class="{ zh: pos.language === 'zh' && !bilingual(line).isCode, code: bilingual(line).isCode }">{{ bilingual(line).primary }}</span>
               <span v-if="bilingual(line).secondary" class="name-secondary">{{ bilingual(line).secondary }}</span>
               <span v-if="lineNotes(line)" class="line-notes">{{ lineNotes(line) }}</span>
             </div>
@@ -732,6 +732,7 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 .line-name { min-width: 0; display: flex; flex-direction: column; }
 .name-primary { font-size: 17px; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .name-primary.zh { font-family: var(--font-zh); }
+.name-primary.code { font-family: var(--font-mono); }
 .name-secondary { font-size: 13px; color: var(--text-secondary); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-notes { font-size: 13px; color: var(--accent-warning); }
 .line-total { font-family: var(--font-mono); font-size: 17px; font-weight: 700; }

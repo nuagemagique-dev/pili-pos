@@ -8,7 +8,7 @@ import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useMenuStore } from "../stores/menu";
 import { useDeliveryStore } from "../stores/delivery";
-import type { AppLanguage } from "../stores/pos";
+import type { AppLanguage, ProductLabel } from "../stores/pos";
 import type { DeliveryView, User } from "../types";
 import * as ipc from "../api/ipc";
 import AppHeader from "../components/AppHeader.vue";
@@ -162,6 +162,8 @@ function initial(name: string): string {
 // French first: it is the default UI language.
 const languages: AppLanguage[] = ["fr", "zh", "en"];
 
+const productLabels: ProductLabel[] = ["name", "code"];
+
 async function switchLanguage(lang: AppLanguage) {
   pos.setLanguage(lang);
   await menu.reloadWithLanguage();
@@ -226,6 +228,20 @@ onMounted(() => {
             >{{ t(`settings_lang_name_${code}`) }}</button>
           </div>
           <p class="panel-note">{{ t('settings_language_note') }}</p>
+        </section>
+
+        <section class="panel">
+          <h2>{{ t('settings_product_label') }}</h2>
+          <div class="segmented label-btns">
+            <button
+              v-for="label in productLabels"
+              :key="label"
+              class="label-btn"
+              :class="{ active: pos.productLabel === label }"
+              @click="pos.setProductLabel(label)"
+            >{{ t(`settings_product_label_${label}`) }}</button>
+          </div>
+          <p class="panel-note">{{ t('settings_product_label_note') }}</p>
         </section>
 
         <!-- Remote support (manager) -->
@@ -454,19 +470,20 @@ onMounted(() => {
 }
 .toggle.on .thumb { transform: translateX(24px); background: var(--text-primary); }
 
-/* ── Segmented controls (language, role) ────────────────────── */
+/* ── Segmented controls (language, product label, role) ─────── */
 .segmented {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px;
   background: var(--bg-surface); border-radius: 12px;
 }
-.lang-btn, .role-btn {
+.label-btns { grid-template-columns: repeat(2, 1fr); }
+.lang-btn, .label-btn, .role-btn {
   border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); color: var(--text-primary);
   transition: transform var(--tap-duration) ease;
 }
-.lang-btn { height: 56px; font-size: 18px; }
+.lang-btn, .label-btn { height: 56px; font-size: 18px; }
 .role-btn { height: 48px; font-size: 16px; }
-.lang-btn.active, .role-btn.active { background: var(--selected-bg); color: var(--selected-fg); }
-.lang-btn:active, .role-btn:active { transform: scale(var(--tap-scale)); }
+.lang-btn.active, .label-btn.active, .role-btn.active { background: var(--selected-bg); color: var(--selected-fg); }
+.lang-btn:active, .label-btn:active, .role-btn:active { transform: scale(var(--tap-scale)); }
 
 /* ── Remote support ─────────────────────────────────────────── */
 .support-state { font-size: 16px; font-weight: var(--font-weight-bold); color: var(--text-secondary); }

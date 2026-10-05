@@ -22,6 +22,16 @@ export const settingsMessages: Messages = {
     zh: "产品名称保持双语显示。",
   },
 
+  // Product label panel: what leads a product button and a cart line
+  "settings_product_label": { fr: "Affichage des produits", en: "Product display", zh: "商品显示" },
+  "settings_product_label_name": { fr: "Nom", en: "Name", zh: "名称" },
+  "settings_product_label_code": { fr: "Code", en: "Code", zh: "编号" },
+  "settings_product_label_note": {
+    fr: "Avec « Code », le code du menu (A2, B14) remplace le nom, affiché en dessous. Un produit sans code garde son nom. Les tickets ne changent pas.",
+    en: "With “Code”, the menu code (A2, B14) replaces the name, shown underneath. A product without a code keeps its name. Tickets do not change.",
+    zh: "选择“编号”后，菜单编号（A2、B14）代替名称显示，名称显示在下方。没有编号的商品仍显示名称。票据不变。",
+  },
+
   // Remote support panel
   "settings_support_idle": { fr: "aucune session", en: "no session", zh: "无会话" },
   "settings_support_running": { fr: "session en cours", en: "session running", zh: "会话进行中" },
