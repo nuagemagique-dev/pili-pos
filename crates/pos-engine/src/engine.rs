@@ -133,6 +133,12 @@ pub struct EngineTimers {
     /// 2 s, where the answer often arrives later. A late answer leaves
     /// `PrinterStatus::status_known` false.
     pub printer_status_read: Duration,
+    /// How long a session may sit without user activity before the
+    /// engine locks it. An unattended terminal must not be used under
+    /// the previous operator's INSZ (AM: every fiscal event carries the
+    /// INSZ of the person who made it). Restarted by `user_activity` and
+    /// by every login (planner decision PD35).
+    pub idle_lock: Duration,
 }
 
 impl Default for EngineTimers {
@@ -141,6 +147,7 @@ impl Default for EngineTimers {
             auto_z: Duration::from_secs(60),
             mail_outbox: crate::commands::delivery::OUTBOX_INTERVAL,
             printer_status_read: pos_print::transport::DEFAULT_STATUS_READ_TIMEOUT,
+            idle_lock: Duration::from_secs(300),
         }
     }
 }
@@ -675,6 +682,7 @@ mod tests {
         let t = EngineTimers::default();
         assert_eq!(t.auto_z, Duration::from_secs(60));
         assert_eq!(t.mail_outbox, crate::commands::delivery::OUTBOX_INTERVAL);
+        assert_eq!(t.idle_lock, Duration::from_secs(300));
     }
 
     #[test]

@@ -17,13 +17,23 @@
 //!   [`PresenceJob`] that the presence worker signs in the background
 //!   (planner decision PD34); the login never waits for the FDM.
 //!
+//! - **The engine owns the idle lock.** The UI used to count five
+//!   minutes without a touch or key press; the engine now does (planner
+//!   decision PD35, `EngineTimers::idle_lock`). The shell forwards the
+//!   operator's activity with [`do_user_activity`], every login restarts
+//!   the time, and the idle loop of `background.rs` runs [`lock`] with
+//!   [`LockReason::Idle`] when it runs out.
+//!
 //! The engine knows the active order through [`do_set_active_order`]:
 //! the shell tells it which order the screen shows, and the lock needs
 //! no help from the UI to register it.
 
 use std::sync::Mutex;
 
+use tokio::sync::Notify;
+use tokio::sync::futures::Notified;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
@@ -87,10 +97,14 @@ pub enum PresenceJob {
     ClockIn(String),
 }
 
-/// The engine's session rules: the order on screen and the presence
-/// queue. Later rules add their own fields here.
+/// The engine's session rules: the order on screen, the presence queue
+/// and the idle clock. Later rules add their own fields here.
 pub struct SessionRules {
     active_order: Mutex<Option<i64>>,
+    /// The last user activity (or login): the idle lock counts from it.
+    last_activity: Mutex<Instant>,
+    /// Woken by every [`SessionRules::touch`], so the idle loop re-arms.
+    activity: Notify,
     presence_tx: UnboundedSender<PresenceJob>,
     presence_rx: Mutex<Option<UnboundedReceiver<PresenceJob>>>,
 }
@@ -100,6 +114,8 @@ impl Default for SessionRules {
         let (presence_tx, presence_rx) = unbounded_channel();
         Self {
             active_order: Mutex::new(None),
+            last_activity: Mutex::new(Instant::now()),
+            activity: Notify::new(),
             presence_tx,
             presence_rx: Mutex::new(Some(presence_rx)),
         }
@@ -110,6 +126,31 @@ impl SessionRules {
     /// The order the screen shows, if the shell told the engine.
     pub fn active_order(&self) -> Option<i64> {
         self.active_order.lock().ok().and_then(|g| *g)
+    }
+
+    /// Record user activity now: the idle time restarts and the idle
+    /// loop is woken to re-arm. Cheap: the shell calls it up to once per
+    /// second.
+    pub fn touch(&self) {
+        if let Ok(mut last) = self.last_activity.lock() {
+            *last = Instant::now();
+        }
+        self.activity.notify_waiters();
+    }
+
+    /// When the last activity happened (the start of the engine, if
+    /// there was none).
+    pub(crate) fn last_activity(&self) -> Instant {
+        self.last_activity
+            .lock()
+            .map(|g| *g)
+            .unwrap_or_else(|e| *e.into_inner())
+    }
+
+    /// Completes at the next [`SessionRules::touch`]. The idle loop
+    /// enables it before it reads the clock, so no touch is missed.
+    pub(crate) fn next_activity(&self) -> Notified<'_> {
+        self.activity.notified()
     }
 
     /// Queue a clock-in for `insz`. Never blocks: the presence worker
@@ -218,6 +259,14 @@ pub(crate) async fn lock(state: &AppState, reason: LockReason) -> Result<LockOut
         order_error: order_error.clone(),
     }));
     Ok(LockOutcome { order_error })
+}
+
+/// The operator is active (a touch, a key press): restart the idle
+/// time (PD35). Needs no session and no database; cheap enough for the
+/// shell to call once per second.
+pub fn do_user_activity(state: &AppState) -> Result<(), String> {
+    state.session_rules.touch();
+    Ok(())
 }
 
 /// The operator locks the screen (replaces the lock button's

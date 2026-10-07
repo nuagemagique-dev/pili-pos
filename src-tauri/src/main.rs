@@ -232,6 +232,7 @@ fn main() {
         ipc::session::set_active_order,
         ipc::session::leave_order,
         ipc::session::lock_session,
+        ipc::session::user_activity,
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
@@ -333,6 +334,7 @@ fn main() {
         ipc::session::set_active_order,
         ipc::session::leave_order,
         ipc::session::lock_session,
+        ipc::session::user_activity,
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
