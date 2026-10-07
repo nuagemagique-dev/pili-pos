@@ -15,7 +15,7 @@ Desktop kiosk POS for Tokyo Sushi Bar.
 ## Workspace layout
 
 - `src-tauri/` - thin Tauri shell: entry point, window, health check, configuration lookup; `src-tauri/src/ipc/` holds the command wrappers (one call each into the engine)
-- `crates/pos-engine` - Tauri-free fiscal engine: commands, state, engine opening (with its lock file), background tasks (automatic Z, mail outbox, HubRise poller and outbox), events; its integration tests are in `crates/pos-engine/tests`
+- `crates/pos-engine` - Tauri-free fiscal engine: commands, state, engine opening (with its lock file), background tasks (automatic Z, mail outbox, HubRise poller and outbox, presence worker, idle lock, FDM status monitor), events; its integration tests are in `crates/pos-engine/tests`
 - `crates/pos-engine-testkit` - test harness of the engine tests (not published, not part of the certified binary)
 - `crates/pos-core` - core business domain
 - `crates/pos-fiscal` - fiscal events, counters, QR/signature flows

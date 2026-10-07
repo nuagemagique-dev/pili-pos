@@ -18,10 +18,15 @@ un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
 2. `pos-db::queries::users::get_user` → ligne SQLite `users` ; le PIN
    est comparé à son hash bcrypt.
 3. Le store Pinia auth enregistre `(insz, name, role)`.
-4. L'UI redirige vers `TablesView.vue`. Le store appelle
+4. L'UI redirige vers `TablesView.vue`. Le pointage d'entrée est fait
+   par le moteur, pas par l'UI : `do_login` (`commands/auth.rs`) met
+   l'entrée en file et un processus de présence
+   (`crates/pos-engine/src/background.rs`) appelle
    `commands::social::do_work_in()` - un événement fiscal **S** - sauf
-   si l'employé a déjà un poste ouvert (`clockInIfOffShift` dans
-   `ui/src/stores/auth.ts`, cas d'un écran simplement verrouillé) :
+   si l'employé a déjà un poste ouvert (cas d'un écran simplement
+   verrouillé). La connexion n'attend pas le FDM ; si l'entrée n'est
+   pas enregistrée, le moteur émet l'événement `presence-failed` que
+   l'UI se contente d'afficher :
    - Clé de doublon FDM construite à partir de `pos_id`,
      `pos_date_time`, `terminal_id`, `"WORK_IN"`, et du prochain
      compteur séquentiel (lu sous le verrou de signature, voir
@@ -82,9 +87,9 @@ OK. L'opérateur confirme.
    `FdmError::outcome()` donne `NotSent` : la ligne `pending_signs`
    passe à `not_sent`, la commande renvoie « FDM not connected - cannot
    complete transaction », aucun compteur n'est consommé, aucune ligne
-   métier n'est écrite. En parallèle, l'interface sonde le statut du
-   FDM (`ui/src/stores/fdm.ts`, §8) et affiche l'indicateur et le voile
-   bloquant.
+   métier n'est écrite. En parallèle, le moteur sonde le statut du
+   FDM (`crates/pos-engine/src/commands/fdm_monitor.rs`, §8) ; l'interface
+   n'affiche que l'indicateur et le voile bloquant qu'il lui communique.
 3. Construit `SaleInput` à partir des lignes de commande, avec le
    support résolu à l'étape 0 dans `common.ticketMedium`. Le N ne porte
    pas de `fdmRef` vers l'événement P : le lien entre les P et le N de
@@ -182,11 +187,13 @@ rapports pour voir les totaux en cours.
 
 **Circulation des données.**
 
-1. UI → `commands::social::do_work_out`.
+1. UI → `commands::social::do_end_shift`, qui contrôle le PIN puis appelle
+   `do_work_out`.
 2. Événement **S** construit (flag `work_out=true`). Verrou de
    signature, JSON canonique, FDM, archivage. Le poste ouvert de
    `staff_shifts` est clos dans la même transaction.
-3. L'UI déconnecte, retour à l'écran de login.
+3. Le moteur ferme la session dans tous les cas ; l'UI revient à l'écran
+   de login.
 
 ## 7. Exception - Facture B2B (Événement I + Peppol) - hors binaire certifié v1.0.0
 
@@ -225,10 +232,12 @@ commandes.
 
 **Circulation des données.**
 
-1. Le sondage de fond de l'interface (`ui/src/stores/fdm.ts` : toutes
-   les 30 s, recul jusqu'à 5 min tant que le FDM ne répond pas) attrape
-   la déconnexion ; le store passe à `connected = false`, gravité
-   « bloquante » ; le voyant FDM du bandeau passe au rouge et un voile
+1. Le sondage de fond du moteur (`crates/pos-engine/src/background.rs` et
+   `commands/fdm_monitor.rs` : toutes les 30 s tant qu'une session est
+   ouverte, recul jusqu'à 5 min tant que le FDM ne répond pas) attrape
+   la déconnexion et classe l'état comme `connected = false`, gravité
+   « bloquante », qu'il communique à l'interface par l'événement
+   `fdm-status` ; le voyant FDM du bandeau passe au rouge et un voile
    couvre les écrans de vente.
 2. Toute tentative de "Payer" part vers `signing::sign` et échoue sans
    rien écrire (`NotSent`, ligne `pending_signs` à `not_sent`, erreur

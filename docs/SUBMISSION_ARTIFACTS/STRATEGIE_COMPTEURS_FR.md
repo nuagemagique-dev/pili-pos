@@ -190,11 +190,14 @@ Le FDM expose aussi des drapeaux de dégradation opérationnelle via la
 query `status` (`errors[]`, `warnings[]`, `bufferCapacityUsed`). Ils
 sont pris en charge à deux niveaux :
 
-- **Interface.** Le store `ui/src/stores/fdm.ts` interroge le statut
-  toutes les 30 s (recul jusqu'à 5 min si le FDM ne répond pas). Un
-  FDM injoignable, ou un code bloquant (`BUFFER_FULL`, `FDM_LOCKED`,
-  `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`), passe l'état à
-  `connected = false` avec la gravité « bloquante » : voyant rouge et
+- **Moteur et interface.** Le moteur
+  (`crates/pos-engine/src/background.rs`, `commands/fdm_monitor.rs`)
+  interroge le statut toutes les 30 s tant qu'une session est ouverte
+  (recul jusqu'à 5 min si le FDM ne répond pas) et classe la réponse.
+  Un FDM injoignable, ou un code bloquant (`BUFFER_FULL`, `FDM_LOCKED`,
+  `FDM_NOT_OPERATIONAL`, `UNKNOWN_POS`), donne `connected = false`
+  avec la gravité « bloquante », que l'interface reçoit par l'événement
+  `fdm-status` : voyant rouge et
   voile qui couvre les écrans de vente. Les autres codes donnent un
   avertissement affiché (message FR de `ui/src/utils/fdmMessages.ts`).
 - **Signature.** Même si l'interface ne bloquait pas, le FDM refuse

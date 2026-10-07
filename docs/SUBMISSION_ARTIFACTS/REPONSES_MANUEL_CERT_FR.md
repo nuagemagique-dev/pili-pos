@@ -411,6 +411,11 @@ Z ; la vente finale qui la renvoie ne la recompte pas (FAQ Q303 ;
 bloquée. Quitter une commande de table, quel que soit l'écran visé,
 enregistre d'abord ses entrées en attente (événement P, vente
 interrompue : arrêté ministériel du 29 avril 2024, art. 6 ; FAQ Q205).
+Cette règle est appliquée par le moteur
+(`crates/pos-engine/src/commands/session.rs` : `do_leave_order`,
+`do_set_active_order`, `do_lock_session`) ; l'interface se contente de
+les appeler lorsque l'opérateur change d'écran ou de commande, et le
+verrouillage automatique du moteur suit le même chemin.
 Si le FDM refuse ou ne répond pas, l'opérateur reste sur la commande ;
 seul le verrouillage de l'écran passe, et les entrées restent en
 attente jusqu'au prochain enregistrement, à l'addition ou à la vente.
@@ -429,13 +434,13 @@ consolidées.
 
 **Description de l'implémentation :**
 
-L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, la commande du moteur `commands::social::do_work_in` est invoquée. Elle :
+L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, le moteur met le pointage d'entrée en file (`commands::auth::do_login`) et un processus de présence du moteur (`crates/pos-engine/src/background.rs`) appelle `commands::social::do_work_in`, sans que la connexion attende le FDM ; l'interface ne fait qu'afficher l'événement `presence-failed` si l'entrée n'est pas enregistrée. `do_work_in` :
 
 1. Construit un `WorkInput` avec `pos_id`, `pos_date_time`, `terminal_id`, `employee_insz`, `device_id`.
 2. Envoie un `signWorkIn` au FDM.
 3. Sur succès, archive l'event S dans `fiscal_events` et bascule `users.social_status='present'`.
 
-Le même mécanisme côté `work_out`, mais à la fin de service seulement : le bouton « Verrouiller » de l'en-tête verrouille la session et l'employé reste en service (aucun S sortant ; à la reconnexion, aucun second `work_in` n'est émis tant que l'employé est en service). Le départ (`signWorkOut`) est signé depuis l'écran de connexion : l'employé en service touche sa tuile, puis « Fin de service » (avec son PIN s'il en a un) ; la session s'ouvre, le départ est signé au nom de l'employé, puis la session se referme (`ui/src/views/LoginView.vue`, `ui/src/stores/auth.ts::endShift`).
+Le même mécanisme côté `work_out`, mais à la fin de service seulement : le bouton « Verrouiller » de l'en-tête appelle `commands::session::do_lock_session` du moteur, qui enregistre la commande en cours puis verrouille la session, et l'employé reste en service (aucun S sortant ; à la reconnexion, aucun second `work_in` n'est émis tant que l'employé est en service). Le départ (`signWorkOut`) est signé depuis l'écran de connexion : l'employé en service touche sa tuile, puis « Fin de service » (avec son PIN s'il en a un) ; le moteur (`commands::social::do_end_shift`) contrôle le PIN, signe le départ au nom de l'employé, puis referme la session ; l'interface (`ui/src/views/LoginView.vue`) ne fait que l'appeler.
 
 **Enregistrement séparé pour les utilisateurs qui n'utilisent pas le POS :**
 

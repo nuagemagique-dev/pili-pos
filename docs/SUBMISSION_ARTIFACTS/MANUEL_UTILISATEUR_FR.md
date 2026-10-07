@@ -61,7 +61,8 @@ L'écran de connexion est coupé en deux.
   et "Imprimante cuisine" ("prête", "injoignable" ou "non configuré"),
   "HubRise" (seulement s'il est activé : "connecté" ou "non connecté")
   et "Email tickets" ("joignable", "injoignable" ou "non configuré"). Le
-  nom de l'établissement et l'identifiant du terminal sont en bas.
+  nom de l'établissement et l'identifiant du terminal sont en bas, avec
+  la version du logiciel ("Version pili-pos/<numéro>").
 - À droite, "Qui êtes-vous ?" affiche une tuile par employé (initiale,
   nom, profil) et son état : "en service · 11:42" ou "hors service".
 
