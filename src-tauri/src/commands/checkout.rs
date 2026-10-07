@@ -1,5 +1,4 @@
 use serde::Serialize;
-use tauri::State;
 
 use pos_fiscal::event::build_sale_input_split;
 use pos_fiscal::fdm_client::{FdmClient, SignMutation, SignRequest};
@@ -52,20 +51,8 @@ impl CheckoutResult {
     }
 }
 
-#[tauri::command]
-pub async fn checkout(
-    state: State<'_, AppState>,
-    order_id: i64,
-    payments: Vec<PaymentPart>,
-    delivery: Option<TicketDeliveryRequest>,
-) -> Result<CheckoutResult, String> {
-    do_checkout_split(state.inner(), order_id, &payments, delivery.as_ref()).await
-}
-
-/// Inner implementation of [`checkout`], decoupled from Tauri's
-/// `State` wrapper so integration tests can drive it directly. The
-/// wrapper above is the production entry point; everything below is
-/// the same code, just reachable from `cargo test`.
+/// Checkout with a single payment method; the `checkout` IPC command
+/// takes several payments and calls [`do_checkout_split`].
 pub async fn do_checkout(
     state: &AppState,
     order_id: i64,
@@ -496,12 +483,6 @@ fn payment_error(e: PaymentError) -> &'static str {
     }
 }
 
-/// Check FDM connection status.
-#[tauri::command]
-pub async fn check_fdm_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
-    do_check_fdm_status(state.inner()).await
-}
-
 /// How long a status answer is reused: two screens polling at once, or
 /// a screen mounting again, cost the FDM one query, not several.
 const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(20);
@@ -512,6 +493,7 @@ const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(20)
 static STATUS_CACHE: std::sync::Mutex<Option<(String, std::time::Instant, serde_json::Value)>> =
     std::sync::Mutex::new(None);
 
+/// Check FDM connection status.
 pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let key = format!(

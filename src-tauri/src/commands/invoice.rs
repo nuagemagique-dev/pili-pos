@@ -36,7 +36,6 @@ use pos_peppol::ubl::{
 };
 use pos_peppol::{AccessPoint, LoggingAccessPoint};
 use serde::{Deserialize, Serialize};
-use tauri::State;
 
 use pos_fiscal::event::build_invoice_input;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
@@ -264,22 +263,6 @@ pub struct InvoiceSignResult {
 /// `fdmRefs` of the invoice, as in the published M150 fixture), sends
 /// `signInvoice` to the FDM and archives the I event. The Peppol/UBL
 /// delivery is a separate step (`issue_b2b_invoice`).
-#[tauri::command]
-pub async fn sign_invoice_fiscal(
-    state: State<'_, AppState>,
-    sale_fiscal_event_ids: Vec<i64>,
-    customer_vat_no: String,
-    employee_insz: String,
-) -> Result<InvoiceSignResult, String> {
-    do_sign_invoice_fiscal(
-        state.inner(),
-        sale_fiscal_event_ids,
-        customer_vat_no,
-        employee_insz,
-    )
-    .await
-}
-
 pub async fn do_sign_invoice_fiscal(
     state: &AppState,
     sale_fiscal_event_ids: Vec<i64>,
@@ -414,28 +397,6 @@ pub async fn do_sign_invoice_fiscal(
 /// `sign_invoice_fiscal` above - this command does NOT re-emit the
 /// fiscal event. It only takes the resulting `fiscal_event_id`
 /// and the buyer's details, builds the UBL, and ships it.
-#[tauri::command]
-pub async fn issue_b2b_invoice(
-    state: State<'_, AppState>,
-    fiscal_event_id: i64,
-    invoice_no: String,
-    issue_date: String,
-    supplier: SupplierInput,
-    buyer: BuyerInput,
-    lines: Vec<B2bLine>,
-) -> Result<B2bInvoiceResult, String> {
-    do_issue_b2b_invoice(
-        state.inner(),
-        fiscal_event_id,
-        invoice_no,
-        issue_date,
-        supplier,
-        buyer,
-        lines,
-    )
-    .await
-}
-
 pub async fn do_issue_b2b_invoice(
     state: &AppState,
     fiscal_event_id: i64,

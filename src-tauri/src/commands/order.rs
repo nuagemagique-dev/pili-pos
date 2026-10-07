@@ -1,7 +1,6 @@
 use pos_core::order::{Order, OrderLine, OrderStatus, OrderType};
 use rusqlite::OptionalExtension;
 use serde::Deserialize;
-use tauri::State;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
@@ -12,11 +11,6 @@ pub struct CreateOrderInput {
     pub order_type: OrderType,
     pub table_number: Option<i32>,
     pub user_insz: String,
-}
-
-#[tauri::command]
-pub fn create_order(state: State<'_, AppState>, input: CreateOrderInput) -> Result<Order, String> {
-    do_create_order(state.inner(), input)
 }
 
 /// Start an order. A dine-in order needs a table and a table has at
@@ -75,14 +69,6 @@ pub struct AddOrderLineInput {
     /// Required for free-price products, refused for the others.
     #[serde(default)]
     pub unit_price_cents: Option<i64>,
-}
-
-#[tauri::command]
-pub fn add_order_line(
-    state: State<'_, AppState>,
-    input: AddOrderLineInput,
-) -> Result<OrderLine, String> {
-    do_add_order_line(state.inner(), input)
 }
 
 pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<OrderLine, String> {
@@ -145,26 +131,12 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
     .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn remove_order_line(state: State<'_, AppState>, line_id: i64) -> Result<(), String> {
-    do_remove_order_line(state.inner(), line_id)
-}
-
 /// Remove a line from an open order (journalled as a correction).
 pub fn do_remove_order_line(state: &AppState, line_id: i64) -> Result<(), String> {
     access::operator(state, Access::Staff)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     unchanged_while_pending(&db, order_of_line(&db, line_id)?)?;
     pos_db::queries::orders::remove_order_line(&db, line_id).map_err(line_error)
-}
-
-#[tauri::command]
-pub fn update_order_line_quantity(
-    state: State<'_, AppState>,
-    line_id: i64,
-    quantity: i32,
-) -> Result<(), String> {
-    do_update_order_line_quantity(state.inner(), line_id, quantity)
 }
 
 /// Set a line's quantity on an open order. Zero or less is refused:
@@ -209,11 +181,6 @@ fn line_error(e: rusqlite::Error) -> String {
     }
 }
 
-#[tauri::command]
-pub fn get_order(state: State<'_, AppState>, order_id: i64) -> Result<Order, String> {
-    do_get_order(state.inner(), order_id)
-}
-
 pub fn do_get_order(state: &AppState, order_id: i64) -> Result<Order, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())
@@ -223,14 +190,6 @@ pub fn do_get_order(state: &AppState, order_id: i64) -> Result<Order, String> {
 /// the operator re-opens a previously-started dine-in order (by
 /// tapping the table again after having switched away) so the
 /// in-memory cart is rehydrated from SQLite.
-#[tauri::command]
-pub fn list_order_lines(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<Vec<OrderLine>, String> {
-    do_list_order_lines(state.inner(), order_id)
-}
-
 pub fn do_list_order_lines(state: &AppState, order_id: i64) -> Result<Vec<OrderLine>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::get_order_lines(&db, order_id).map_err(|e| e.to_string())
@@ -238,25 +197,12 @@ pub fn do_list_order_lines(state: &AppState, order_id: i64) -> Result<Vec<OrderL
 
 /// The order's lines as the cart shows them: names in French and
 /// Chinese, and the quantity not yet sent to the bar / kitchen.
-#[tauri::command]
-pub fn list_cart_lines(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
-    do_list_cart_lines(state.inner(), order_id)
-}
-
 pub fn do_list_cart_lines(
     state: &AppState,
     order_id: i64,
 ) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::orders::get_cart_lines(&db, order_id).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn list_open_orders(state: State<'_, AppState>) -> Result<Vec<Order>, String> {
-    do_list_open_orders(state.inner())
 }
 
 pub fn do_list_open_orders(state: &AppState) -> Result<Vec<Order>, String> {

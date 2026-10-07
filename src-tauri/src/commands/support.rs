@@ -22,7 +22,6 @@ use std::sync::Mutex;
 
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::Serialize;
-use tauri::State;
 
 use pos_core::user::UserRole;
 
@@ -152,11 +151,6 @@ fn status_of(support: &SupportState, session: &Option<Session>) -> SupportStatus
     }
 }
 
-#[tauri::command]
-pub fn remote_support_status(state: State<'_, AppState>) -> Result<SupportStatus, String> {
-    do_remote_support_status(state.inner())
-}
-
 /// Anyone logged in may see whether a session runs (the banner).
 pub fn do_remote_support_status(state: &AppState) -> Result<SupportStatus, String> {
     access::operator(state, Access::Staff)?;
@@ -175,11 +169,6 @@ pub struct SupportRunning {
     pub started_at: Option<String>,
 }
 
-#[tauri::command]
-pub fn remote_support_running(state: State<'_, AppState>) -> Result<SupportRunning, String> {
-    do_remote_support_running(state.inner())
-}
-
 pub fn do_remote_support_running(state: &AppState) -> Result<SupportRunning, String> {
     let mut session = state.support.session.lock().map_err(errors::internal)?;
     reap(&mut session);
@@ -187,15 +176,6 @@ pub fn do_remote_support_running(state: &AppState) -> Result<SupportRunning, Str
         running: session.is_some(),
         started_at: session.as_ref().map(|s| s.started_at.to_rfc3339()),
     })
-}
-
-#[tauri::command]
-pub fn start_remote_support(
-    state: State<'_, AppState>,
-    insz: String,
-    pin: String,
-) -> Result<SupportStatus, String> {
-    do_start_remote_support(state.inner(), insz, pin)
 }
 
 /// Start a session: the logged-in manager, confirmed by their PIN.
@@ -242,11 +222,6 @@ pub fn do_start_remote_support(
         started_at: Utc::now(),
     });
     Ok(status_of(&state.support, &session))
-}
-
-#[tauri::command]
-pub fn stop_remote_support(state: State<'_, AppState>) -> Result<SupportStatus, String> {
-    do_stop_remote_support(state.inner())
 }
 
 /// End the session. Anyone may, logged in or not: stopping is always

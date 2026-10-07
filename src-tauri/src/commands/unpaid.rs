@@ -4,21 +4,9 @@
 //! printed; no money moves: no drawer, no payment row, and it can never
 //! be refunded. A manager confirms it with their PIN.
 
-use tauri::State;
-
 use crate::commands::access::{self, Access};
 use crate::commands::checkout::{self, CheckoutResult, Payment};
 use crate::state::AppState;
-
-#[tauri::command]
-pub async fn close_unpaid(
-    state: State<'_, AppState>,
-    order_id: i64,
-    insz: String,
-    pin: String,
-) -> Result<CheckoutResult, String> {
-    do_close_unpaid(state.inner(), order_id, &insz, &pin).await
-}
 
 /// Close `order_id` unpaid in the name of the logged-in manager
 /// `insz`, confirmed by `pin`. Allowed in training (it signs a T):

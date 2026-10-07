@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use tauri::State;
 
 use pos_db::queries::fiscal::{self, RefundableEvent};
 use pos_fiscal::event::build_sale_input;
@@ -32,46 +31,12 @@ pub struct RefundItem {
 }
 
 /// List recent closed N-events that can be refunded.
-#[tauri::command]
-pub fn list_refundable_events(
-    state: State<'_, AppState>,
-    limit: Option<i64>,
-) -> Result<Vec<RefundableEvent>, String> {
-    do_list_refundable_events(state.inner(), limit)
-}
-
 pub fn do_list_refundable_events(
     state: &AppState,
     limit: Option<i64>,
 ) -> Result<Vec<RefundableEvent>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     fiscal::list_refundable_events(&db, limit.unwrap_or(20)).map_err(|e| e.to_string())
-}
-
-/// Process a full or partial refund for a previously signed ticket.
-///
-/// Creates a new Event N with:
-/// - negative-quantity lines (negQuantityReason = REFUND)
-/// - fdmRef referencing the original ticket
-/// - cash payment (refund handed to customer)
-///
-/// Archives the event, prints a REFUND receipt, opens the drawer.
-#[tauri::command]
-pub async fn refund_checkout(
-    state: State<'_, AppState>,
-    original_fiscal_event_id: i64,
-    items: Vec<RefundItem>,
-    employee_insz: String,
-    delivery: Option<TicketDeliveryRequest>,
-) -> Result<CheckoutResult, String> {
-    do_refund_checkout_with(
-        state.inner(),
-        original_fiscal_event_id,
-        items,
-        employee_insz,
-        delivery.as_ref(),
-    )
-    .await
 }
 
 pub async fn do_refund_checkout(
@@ -83,6 +48,15 @@ pub async fn do_refund_checkout(
     do_refund_checkout_with(state, original_fiscal_event_id, items, employee_insz, None).await
 }
 
+/// Process a full or partial refund for a previously signed ticket.
+///
+/// Creates a new Event N with:
+/// - negative-quantity lines (negQuantityReason = REFUND)
+/// - fdmRef referencing the original ticket
+/// - cash payment (refund handed to customer)
+///
+/// Archives the event, prints a REFUND receipt, opens the drawer.
+///
 /// [`do_refund_checkout`] with the operator's ticket choice.
 pub async fn do_refund_checkout_with(
     state: &AppState,

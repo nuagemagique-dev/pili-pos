@@ -1,5 +1,4 @@
 use serde::Serialize;
-use tauri::State;
 
 use pos_fiscal::event::build_work_in_out;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
@@ -19,28 +18,12 @@ pub struct SocialResult {
 
 /// Register employee clock-in (ONSS presence start).
 /// Sends event S (signWorkIn) to the FDM.
-#[tauri::command]
-pub async fn work_in(
-    state: State<'_, AppState>,
-    employee_insz: String,
-) -> Result<SocialResult, String> {
-    do_work_in(state.inner(), employee_insz).await
-}
-
 pub async fn do_work_in(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
     do_work_event(state, employee_insz, true).await
 }
 
 /// Register employee clock-out (ONSS presence end).
 /// Sends event S (signWorkOut) to the FDM.
-#[tauri::command]
-pub async fn work_out(
-    state: State<'_, AppState>,
-    employee_insz: String,
-) -> Result<SocialResult, String> {
-    do_work_out(state.inner(), employee_insz).await
-}
-
 pub async fn do_work_out(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
     do_work_event(state, employee_insz, false).await
 }
@@ -116,13 +99,6 @@ impl SocialResult {
 
 /// Employees currently on shift (clocked in, not yet clocked out),
 /// shown on the login screen.
-#[tauri::command]
-pub fn list_open_shifts(
-    state: State<'_, AppState>,
-) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {
-    do_list_open_shifts(state.inner())
-}
-
 pub fn do_list_open_shifts(
     state: &AppState,
 ) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {

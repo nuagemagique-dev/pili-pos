@@ -21,7 +21,6 @@ use std::time::{Duration, Instant};
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use tauri::State;
 
 use pos_core::config::{DigitalTicketConfig, PosConfig};
 use pos_db::queries::deliveries::{self, NewTicketDelivery};
@@ -471,11 +470,6 @@ pub struct MailStatus {
     pub allow_digital_only: bool,
 }
 
-#[tauri::command]
-pub async fn check_mail_status(state: State<'_, AppState>) -> Result<MailStatus, String> {
-    do_check_mail_status(state.inner()).await
-}
-
 pub async fn do_check_mail_status(state: &AppState) -> Result<MailStatus, String> {
     let allow_digital_only = state
         .config
@@ -508,14 +502,6 @@ pub struct DeliveryView {
     pub created_at: String,
 }
 
-#[tauri::command]
-pub fn list_ticket_deliveries(
-    state: State<'_, AppState>,
-    limit: Option<i64>,
-) -> Result<Vec<DeliveryView>, String> {
-    do_list_ticket_deliveries(state.inner(), limit)
-}
-
 pub fn do_list_ticket_deliveries(
     state: &AppState,
     limit: Option<i64>,
@@ -539,22 +525,14 @@ pub fn do_list_ticket_deliveries(
         .collect())
 }
 
+pub const ERR_ALREADY_PRINTED: &str = errors::ALREADY_PRINTED;
+pub const ERR_EMAIL_SENT: &str = errors::EMAIL_SENT;
+
 /// Print an original that was never printed: the printer failed at
 /// checkout, or a DIGITAL ticket's email didn't go out. The ticket is
 /// rebuilt from the archive (a sale or a copy only). Refused once the
 /// original was printed (a second print must be a copy, event C) and
 /// for a DIGITAL ticket whose email was sent.
-#[tauri::command]
-pub async fn print_missing_original(
-    state: State<'_, AppState>,
-    fiscal_event_id: i64,
-) -> Result<(), String> {
-    do_print_missing_original(state.inner(), fiscal_event_id).await
-}
-
-pub const ERR_ALREADY_PRINTED: &str = errors::ALREADY_PRINTED;
-pub const ERR_EMAIL_SENT: &str = errors::EMAIL_SENT;
-
 pub async fn do_print_missing_original(
     state: &AppState,
     fiscal_event_id: i64,

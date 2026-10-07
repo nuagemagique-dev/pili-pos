@@ -30,8 +30,8 @@ Format :
 | 13 | Requêtes envoyées au FDM en JSON canonique (clés triées, sans espaces) : mêmes données, mêmes octets, journal de requêtes comparable. Le FDM applique sa propre canonicalisation pour signer | POS v2.2 §III.5 | `crates/pos-fiscal/src/canonical.rs` | `crates/pos-fiscal/src/canonical.rs::tests::canonical_is_deterministic` |
 | 14 | Les événements C portent un `fdmRef` vers l'original | POS v2.2 §II.4.6 | `src-tauri/src/commands/copy.rs` | e2e `spf_e2e_basic::{m160_*, m161_*, m172_*}` + fixture UC_BasicSet M160/M161 |
 | 15 | Événements I avec n° TVA client + cost-center optionnel | POS v2.2 §II.4.5 | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` (existe, `#[cfg(feature = "peppol")]` - **non compilé dans la build cert v1.0.0**, event I hors périmètre v1.0.0, prévu v1.1, cf. *DECISION_PEPPOL_AP_FR.md*) | e2e `spf_e2e_basic::m150_*` + fixture UC_BasicSet M150 (features par défaut, pas la build cert) |
-| 16 | F-WAR ouverture tiroir émis à chaque kick tiroir | POS v2.2 §II.4.7 | `src-tauri/src/commands/financial.rs::open_drawer_fiscal` | e2e `spf_e2e_basic::m131_*` + fixture UC_BasicSet M131 |
-| 17 | S pointage entrée/sortie pour Dimona ONSS | POS v2.2 §II.4.8 | `src-tauri/src/commands/social.rs::{work_in,work_out}` | e2e `spf_e2e_basic::{m140_*, m141_*}` + fixtures UC_BasicSet M140/M141 |
+| 16 | F-WAR ouverture tiroir émis à chaque kick tiroir | POS v2.2 §II.4.7 | `src-tauri/src/commands/financial.rs::do_open_drawer_fiscal` | e2e `spf_e2e_basic::m131_*` + fixture UC_BasicSet M131 |
+| 17 | S pointage entrée/sortie pour Dimona ONSS | POS v2.2 §II.4.8 | `src-tauri/src/commands/social.rs::{do_work_in,do_work_out}` | e2e `spf_e2e_basic::{m140_*, m141_*}` + fixtures UC_BasicSet M140/M141 |
 | 18 | Rapport Z atomique (Turnover + User) | Reports v1.3 §II.3 | `src-tauri/src/commands/report.rs::do_generate_z_report` (mutation M184 combinée + tx unique) | e2e `spf_e2e_reports::m184_*` + `reports_fixtures.rs` |
 
 ## Manuel de certification §III.H - Ticket numérique par e-mail
