@@ -108,10 +108,12 @@ Chaque branche :
 ### 3.1 Transport
 - **Protocole :** GraphQL sur HTTP/HTTPS.
 - **Endpoint :** configuré via `pos.json` (`fdm_url`).
-- **Sondage de statut :** l'interface interroge `FdmClient::status`
-  (`ui/src/stores/fdm.ts`) dès qu'un écran affiche l'indicateur FDM,
+- **Sondage de statut :** le moteur interroge `FdmClient::status`
+  (`crates/pos-engine/src/commands/fdm_monitor.rs`, boucle de
+  `background.rs`) dès qu'une session s'ouvre,
   puis toutes les 30 s tant que le FDM répond, avec un recul jusqu'à
-  5 min tant qu'il ne répond pas. Le checkout n'appelle pas le
+  5 min tant qu'il ne répond pas ; l'interface ne fait que recevoir
+  le résultat (événement `fdm-status`). Le checkout n'appelle pas le
   statut : chaque vente part directement vers `signing::sign` (§5).
 
 ### 3.2 Signature de réponse
@@ -199,9 +201,9 @@ SQLite qui archive l'événement signé, de sorte que :
   signature (§4) : l'événement n'est ni perdu ni doublé.
 - **Aucun mode hors-ligne**, dans aucune build : le code ne contient
   aucun chemin qui archive ou imprime une vente non signée.
-- L'interface affiche en permanence l'état du FDM (store
-  `ui/src/stores/fdm.ts`, voyants `StatusLights.vue`, alertes
-  `FdmAlerts.vue`), interrogé toutes les 30 s avec recul jusqu'à
+- L'interface affiche en permanence l'état du FDM (voyants
+  `StatusLights.vue`, alertes `FdmAlerts.vue`), interrogé par le moteur
+  (`commands/fdm_monitor.rs`) toutes les 30 s avec recul jusqu'à
   5 min, avec un message lisible pour chaque code d'erreur du FDM.
   Sans réponse du FDM, l'état passe à `connected = false`, gravité
   « bloquante ».
