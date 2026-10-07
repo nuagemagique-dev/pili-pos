@@ -159,6 +159,35 @@ export function closeUnpaid(orderId: number, insz: string, pin: string): Promise
   return invoke("close_unpaid", { orderId, insz, pin });
 }
 
+/** The engine's reading of the FDM (event "fdm-status", commands
+ * `fdm_health` and `fdm_check_now`). The engine classifies the FDM
+ * status; the UI only shows it. */
+export interface FdmHealth {
+  /** The FDM answered and is neither blocked nor uninitialised. */
+  connected: boolean;
+  /** The FDM answered at all (false on a transport failure). */
+  answered: boolean;
+  severity: "blocking" | "warning" | "info";
+  code: string | null;
+  /** The FDM asks the POS to keep showing the message. */
+  mandatory: boolean;
+  /** RFC 3339 */
+  checkedAt: string;
+  /** RFC 3339, when the monitor checks next; null when it does not say. */
+  nextCheckAt: string | null;
+}
+
+/** The last reading of the engine's FDM monitor, null before the first. */
+export function fdmHealth(): Promise<FdmHealth | null> {
+  return invoke("fdm_health");
+}
+
+/** Check the FDM at once (also without a session); the monitor is rescheduled. */
+export function fdmCheckNow(): Promise<FdmHealth> {
+  return invoke("fdm_check_now");
+}
+
+/** Still a valid command; the UI no longer calls it (the engine monitors the FDM). */
 export function checkFdmStatus(): Promise<unknown> {
   return invoke("check_fdm_status");
 }
