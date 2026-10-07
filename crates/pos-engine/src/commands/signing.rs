@@ -659,9 +659,10 @@ pub(crate) async fn follow_up(
     let mut done = FollowUp::default();
     let kick = |open: bool| async move {
         if open && let Some(addr) = config.printer_address.as_deref() {
-            let _ = pos_print::transport::send_to_printer(
+            let _ = pos_print::transport::send_to_printer_with(
                 addr,
                 &pos_print::drawer::kick_drawer_bytes(),
+                state.timers.printer_status_read,
             )
             .await;
         }
@@ -728,7 +729,12 @@ pub(crate) async fn follow_up(
             if let Some(addr) = config.printer_address.as_deref() {
                 let ticket = FiscalTicket::from_draft(ticket, committed.result(), &state.identity);
                 let data = pos_print::receipt::format_receipt(&ticket);
-                let _ = pos_print::transport::send_to_printer(addr, &data).await;
+                let _ = pos_print::transport::send_to_printer_with(
+                    addr,
+                    &data,
+                    state.timers.printer_status_read,
+                )
+                .await;
             }
         }
         PendingContext::ReportX { print } => {
@@ -736,6 +742,7 @@ pub(crate) async fn follow_up(
                 config,
                 (**print).clone(),
                 Some(committed.result()),
+                state.timers.printer_status_read,
             )
             .await;
         }
@@ -744,6 +751,7 @@ pub(crate) async fn follow_up(
                 config,
                 (**print).clone(),
                 Some(committed.result()),
+                state.timers.printer_status_read,
             )
             .await;
         }
@@ -761,12 +769,14 @@ pub(crate) async fn follow_up(
                 config,
                 (**print).clone(),
                 Some(committed.result()),
+                state.timers.printer_status_read,
             )
             .await;
             crate::commands::report::print_user_report(
                 config,
                 (**user_print).clone(),
                 committed.results.get(1),
+                state.timers.printer_status_read,
             )
             .await;
         }

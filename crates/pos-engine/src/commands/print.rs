@@ -27,7 +27,8 @@ pub async fn do_check_printer(state: &AppState) -> Result<bool, String> {
 
     match printer_address {
         Some(address) => {
-            let printer = transport::TcpPrinter::new(&address);
+            let printer = transport::TcpPrinter::new(&address)
+                .with_status_timeout(state.timers.printer_status_read);
             Ok(printer.ping().await)
         }
         None => Ok(false),
@@ -169,7 +170,7 @@ pub(crate) async fn print_webshop_kitchen_ticket(
     };
 
     let bytes = format_kitchen_ticket(&ticket);
-    transport::send_to_printer(&address, &bytes)
+    transport::send_to_printer_with(&address, &bytes, state.timers.printer_status_read)
         .await
         .map(|_| ())
         .map_err(|e| e.to_string())
@@ -248,7 +249,7 @@ pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Resul
     };
 
     let bytes = format_customer_slip(&slip);
-    transport::send_to_printer(&address, &bytes)
+    transport::send_to_printer_with(&address, &bytes, state.timers.printer_status_read)
         .await
         .map(|_| ())
         .map_err(|e| e.to_string())

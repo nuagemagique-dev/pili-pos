@@ -128,6 +128,11 @@ pub struct EngineTimers {
     pub auto_z: Duration,
     /// Digital ticket outbox: queued emails retried at this interval.
     pub mail_outbox: Duration,
+    /// How long to wait for each DLE EOT answer of the ticket printer
+    /// after a print (PD37). Linux 500 ms (the default); Android about
+    /// 2 s, where the answer often arrives later. A late answer leaves
+    /// `PrinterStatus::status_known` false.
+    pub printer_status_read: Duration,
 }
 
 impl Default for EngineTimers {
@@ -135,6 +140,7 @@ impl Default for EngineTimers {
         Self {
             auto_z: Duration::from_secs(60),
             mail_outbox: crate::commands::delivery::OUTBOX_INTERVAL,
+            printer_status_read: pos_print::transport::DEFAULT_STATUS_READ_TIMEOUT,
         }
     }
 }

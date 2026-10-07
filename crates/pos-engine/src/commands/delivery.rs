@@ -355,7 +355,9 @@ pub async fn print_original_once(
         return PrintOutcome::NoPrinter;
     };
     let data = pos_print::receipt::format_receipt(ticket);
-    match pos_print::transport::send_to_printer(addr, &data).await {
+    match pos_print::transport::send_to_printer_with(addr, &data, state.timers.printer_status_read)
+        .await
+    {
         Ok(status) => {
             if !status.paper_ok {
                 tracing::warn!(?status.warnings, "printer: paper issue after receipt");
