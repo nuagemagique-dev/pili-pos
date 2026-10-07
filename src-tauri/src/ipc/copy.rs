@@ -1,7 +1,7 @@
 use tauri::State;
 
-use crate::commands::copy::CopyResult;
-use crate::commands::delivery::TicketDeliveryRequest;
+use pos_engine::commands::copy::CopyResult;
+use pos_engine::commands::delivery::TicketDeliveryRequest;
 
 use super::Managed;
 
@@ -14,7 +14,7 @@ pub async fn copy_ticket(
     employee_insz: String,
     delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CopyResult, String> {
-    crate::commands::copy::do_copy_ticket_with(
+    pos_engine::commands::copy::do_copy_ticket_with(
         state.inner(),
         fiscal_event_id,
         employee_insz,
@@ -30,7 +30,7 @@ pub fn list_copyable_tickets(
     state: State<'_, Managed>,
     limit: Option<i64>,
 ) -> Result<Vec<pos_db::queries::fiscal::CopyableTicket>, String> {
-    crate::commands::copy::do_list_copyable_tickets(state.inner(), limit)
+    pos_engine::commands::copy::do_list_copyable_tickets(state.inner(), limit)
 }
 
 /// List recent fiscal events.
@@ -39,5 +39,5 @@ pub fn list_fiscal_events(
     state: State<'_, Managed>,
     limit: Option<i64>,
 ) -> Result<serde_json::Value, String> {
-    crate::commands::copy::do_list_fiscal_events(state.inner(), limit)
+    pos_engine::commands::copy::do_list_fiscal_events(state.inner(), limit)
 }

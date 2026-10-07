@@ -1,8 +1,8 @@
 use pos_fiscal::payment::PaymentPart;
 use tauri::State;
 
-use crate::commands::checkout::CheckoutResult;
-use crate::commands::delivery::TicketDeliveryRequest;
+use pos_engine::commands::checkout::CheckoutResult;
+use pos_engine::commands::delivery::TicketDeliveryRequest;
 
 use super::Managed;
 
@@ -13,7 +13,7 @@ pub async fn checkout(
     payments: Vec<PaymentPart>,
     delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
-    crate::commands::checkout::do_checkout_split(
+    pos_engine::commands::checkout::do_checkout_split(
         state.inner(),
         order_id,
         &payments,
@@ -25,5 +25,5 @@ pub async fn checkout(
 /// Check FDM connection status.
 #[tauri::command]
 pub async fn check_fdm_status(state: State<'_, Managed>) -> Result<serde_json::Value, String> {
-    crate::commands::checkout::do_check_fdm_status(state.inner()).await
+    pos_engine::commands::checkout::do_check_fdm_status(state.inner()).await
 }

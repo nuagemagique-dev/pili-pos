@@ -90,7 +90,7 @@ Les deux écarts identifiés lors de l'audit fixture sont **résolus**
 dans la build de soumission :
 
 1. **Co-émission M184 - implémentée.**
-   `src-tauri/src/commands/report.rs::do_generate_z_report` émet
+   `crates/pos-engine/src/commands/report.rs::do_generate_z_report` émet
    désormais le Z canonique : `signReportTurnoverZ` + `signReportUserZ`
    dans **une seule opération GraphQL**
    (`FdmClient::sign_report_turnover_z_user_z`), avec deux numéros de

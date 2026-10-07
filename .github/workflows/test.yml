@@ -81,6 +81,10 @@ jobs:
         if: matrix.features.name == 'cert'
         run: cargo clippy -p pili-pos --all-targets ${{ matrix.features.flags }} -- -D warnings
 
+      - name: Clippy (engine, cert features)
+        if: matrix.features.name == 'cert'
+        run: cargo clippy -p pos-engine --all-targets ${{ matrix.features.flags }} -- -D warnings
+
       - name: Tests (workspace)
         if: matrix.features.name == 'default'
         run: cargo test --workspace --no-fail-fast
@@ -88,6 +92,10 @@ jobs:
       - name: Tests (app, cert features)
         if: matrix.features.name == 'cert'
         run: cargo test -p pili-pos ${{ matrix.features.flags }} --no-fail-fast
+
+      - name: Tests (engine, cert features)
+        if: matrix.features.name == 'cert'
+        run: cargo test -p pos-engine ${{ matrix.features.flags }} --no-fail-fast
 
   # ── Layer 2: Playwright E2E (mock IPC) ────────────────────────
   playwright-e2e:

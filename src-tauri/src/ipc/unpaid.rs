@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::commands::checkout::CheckoutResult;
+use pos_engine::commands::checkout::CheckoutResult;
 
 use super::Managed;
 
@@ -11,5 +11,5 @@ pub async fn close_unpaid(
     insz: String,
     pin: String,
 ) -> Result<CheckoutResult, String> {
-    crate::commands::unpaid::do_close_unpaid(state.inner(), order_id, &insz, &pin).await
+    pos_engine::commands::unpaid::do_close_unpaid(state.inner(), order_id, &insz, &pin).await
 }

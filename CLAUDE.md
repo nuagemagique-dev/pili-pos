@@ -187,18 +187,13 @@ pili-pos/
 │   ├── Cargo.toml              # Tauri app crate
 │   ├── src/
 │   │   ├── main.rs             # Tauri entry point
-│   │   ├── commands/           # Tauri IPC command handlers
-│   │   │   ├── mod.rs
-│   │   │   ├── order.rs        # Order CRUD commands
-│   │   │   ├── checkout.rs     # Checkout + FDM flow
-│   │   │   ├── menu.rs         # Menu/catalog queries
-│   │   │   ├── auth.rs         # User login (INSZ)
-│   │   │   ├── report.rs       # Z/X reports
-│   │   │   └── print.rs        # Manual print triggers
-│   │   └── state.rs            # Tauri managed state
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each)
+│   │   ├── cli.rs              # --version, --init-db, --check-config
+│   │   └── paths.rs            # Linux install paths
 │   ├── tauri.conf.json
 │   └── icons/
 ├── crates/
+│   ├── pos-engine/             # Tauri-free engine: commands/, engine.rs, state.rs, install.rs
 │   ├── pos-core/
 │   │   ├── Cargo.toml
 │   │   └── src/

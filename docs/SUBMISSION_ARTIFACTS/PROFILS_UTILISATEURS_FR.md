@@ -116,7 +116,7 @@ pas encaisser ; ce qu'un Serveur ou un Gérant encaisse est alors un
 L'enforcement vit à deux niveaux :
 
 1. **Niveau commande Tauri** (couche autoritative,
-   `src-tauri/src/commands/access.rs`). La connexion (`login`, INSZ +
+   `crates/pos-engine/src/commands/access.rs`). La connexion (`login`, INSZ +
    PIN) ouvre une session côté backend ; la déconnexion (`logout`,
    après le pointage de sortie) la ferme. Chaque commande qui signe un
    événement fiscal, modifie un paramètre ou gère les utilisateurs
@@ -134,7 +134,7 @@ L'enforcement vit à deux niveaux :
    aucun compteur ni aucune donnée n'est modifié. L'écran affiche le
    message correspondant dans la langue de l'interface (« Session
    fermée : reconnectez-vous. », « Action réservée à un autre
-   profil. »), voir `src-tauri/src/commands/errors.rs`.
+   profil. »), voir `crates/pos-engine/src/commands/errors.rs`.
 
 2. **Niveau UI** (`ui/src/stores/auth.ts`) : les boutons et écrans
    qu'un rôle ne peut pas utiliser ne lui sont pas présentés (Payer et

@@ -31,7 +31,7 @@ fiscal déjà signé par le FDM.
   les déclencheurs la refusent. Les dossiers `tests/` contiennent le
   même type de preuve.
 - Aucune commande `#[tauri::command]` n'expose une opération de
-  suppression. Cf. `src-tauri/src/commands/mod.rs`.
+  suppression. Cf. `crates/pos-engine/src/commands/mod.rs`.
 
 ## 2. Modification d'enregistrements fiscaux
 
@@ -140,7 +140,7 @@ utilisateur.
   `DELETE` et tout `UPDATE`.
 - L'opérateur n'a pas les droits root sur la machine (image scellée).
 - Une sauvegarde de la base est faite après chaque Z, une fois le Z
-  signé et archivé (`src-tauri/src/commands/signing.rs`, suite
+  signé et archivé (`crates/pos-engine/src/commands/signing.rs`, suite
   `ReportZ`, puis `report.rs::backup_database_impl`) ; elle s'écrit
   dans un nouveau fichier horodaté (`pos-YYYYMMDD-HHMMSS.db`). Un
   échec de sauvegarde n'annule pas le Z.
@@ -153,7 +153,7 @@ sans marquage "COPIE".
 **Preuves :**
 
 - La commande `copy_ticket`
-  (`src-tauri/src/commands/copy.rs::do_copy_ticket`) émet
+  (`crates/pos-engine/src/commands/copy.rs::do_copy_ticket`) émet
   obligatoirement un événement C (`signCopy`) auprès du FDM, qui
   appose son propre `eventLabel = "C"` sur la réponse signée.
 - Le ticket de copie porte en en-tête la dénomination "**COPIE**"

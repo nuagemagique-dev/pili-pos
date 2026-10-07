@@ -76,7 +76,7 @@ Crate : `crates/pos-peppol`
 - `errors.rs` - Enum `PeppolError` (`Xml`, `MissingField`,
   `AccessPoint`, `Http`).
 
-IPC : `src-tauri/src/commands/invoice.rs::do_issue_b2b_invoice`. Construit
+IPC : `crates/pos-engine/src/commands/invoice.rs::do_issue_b2b_invoice`. Construit
 l'UBL à partir des lignes d'articles + détails fournisseur/acheteur,
 soumet via l'`AccessPoint` configuré, persiste dans `peppol_deliveries`.
 

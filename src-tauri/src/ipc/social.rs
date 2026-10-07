@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::commands::social::SocialResult;
+use pos_engine::commands::social::SocialResult;
 
 use super::Managed;
 
@@ -11,7 +11,7 @@ pub async fn work_in(
     state: State<'_, Managed>,
     employee_insz: String,
 ) -> Result<SocialResult, String> {
-    crate::commands::social::do_work_in(state.inner(), employee_insz).await
+    pos_engine::commands::social::do_work_in(state.inner(), employee_insz).await
 }
 
 /// Register employee clock-out (ONSS presence end).
@@ -21,7 +21,7 @@ pub async fn work_out(
     state: State<'_, Managed>,
     employee_insz: String,
 ) -> Result<SocialResult, String> {
-    crate::commands::social::do_work_out(state.inner(), employee_insz).await
+    pos_engine::commands::social::do_work_out(state.inner(), employee_insz).await
 }
 
 /// Employees currently on shift (clocked in, not yet clocked out),
@@ -30,5 +30,5 @@ pub async fn work_out(
 pub fn list_open_shifts(
     state: State<'_, Managed>,
 ) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {
-    crate::commands::social::do_list_open_shifts(state.inner())
+    pos_engine::commands::social::do_list_open_shifts(state.inner())
 }

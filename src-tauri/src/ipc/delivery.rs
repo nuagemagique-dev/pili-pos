@@ -1,12 +1,12 @@
 use tauri::State;
 
-use crate::commands::delivery::{DeliveryView, MailStatus};
+use pos_engine::commands::delivery::{DeliveryView, MailStatus};
 
 use super::Managed;
 
 #[tauri::command]
 pub async fn check_mail_status(state: State<'_, Managed>) -> Result<MailStatus, String> {
-    crate::commands::delivery::do_check_mail_status(state.inner()).await
+    pos_engine::commands::delivery::do_check_mail_status(state.inner()).await
 }
 
 #[tauri::command]
@@ -14,7 +14,7 @@ pub fn list_ticket_deliveries(
     state: State<'_, Managed>,
     limit: Option<i64>,
 ) -> Result<Vec<DeliveryView>, String> {
-    crate::commands::delivery::do_list_ticket_deliveries(state.inner(), limit)
+    pos_engine::commands::delivery::do_list_ticket_deliveries(state.inner(), limit)
 }
 
 /// Print an original that was never printed: the printer failed at
@@ -27,5 +27,5 @@ pub async fn print_missing_original(
     state: State<'_, Managed>,
     fiscal_event_id: i64,
 ) -> Result<(), String> {
-    crate::commands::delivery::do_print_missing_original(state.inner(), fiscal_event_id).await
+    pos_engine::commands::delivery::do_print_missing_original(state.inner(), fiscal_event_id).await
 }

@@ -1,7 +1,7 @@
 use pos_db::queries::reports::ZReportSummary;
 use tauri::State;
 
-use crate::commands::report::ReportResult;
+use pos_engine::commands::report::ReportResult;
 
 use super::Managed;
 
@@ -11,7 +11,7 @@ pub async fn generate_x_report(
     state: State<'_, Managed>,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
-    crate::commands::report::do_generate_x_report(state.inner(), employee_insz).await
+    pos_engine::commands::report::do_generate_x_report(state.inner(), employee_insz).await
 }
 
 /// Returns true if no Z-report exists for today AND the local time
@@ -19,13 +19,13 @@ pub async fn generate_x_report(
 /// reminding the manager to run the end-of-day Z before leaving.
 #[tauri::command]
 pub fn needs_z_report(state: State<'_, Managed>) -> Result<bool, String> {
-    crate::commands::report::do_needs_z_report(state.inner())
+    pos_engine::commands::report::do_needs_z_report(state.inner())
 }
 
 /// List past Z-reports for the history view (newest first).
 #[tauri::command]
 pub fn list_z_reports(state: State<'_, Managed>) -> Result<Vec<ZReportSummary>, String> {
-    crate::commands::report::do_list_z_reports(state.inner())
+    pos_engine::commands::report::do_list_z_reports(state.inner())
 }
 
 /// Generate the end-of-day Z (M184): the financial Z and the user Z
@@ -36,7 +36,7 @@ pub async fn generate_z_report(
     state: State<'_, Managed>,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
-    crate::commands::report::do_generate_z_report(state.inner(), employee_insz).await
+    pos_engine::commands::report::do_generate_z_report(state.inner(), employee_insz).await
 }
 
 /// Generate a user X-report (M182, non-resetting) on demand from the
@@ -46,11 +46,11 @@ pub async fn generate_user_x_report(
     state: State<'_, Managed>,
     employee_insz: String,
 ) -> Result<ReportResult, String> {
-    crate::commands::report::do_generate_user_x_report(state.inner(), employee_insz).await
+    pos_engine::commands::report::do_generate_user_x_report(state.inner(), employee_insz).await
 }
 
 /// Create a timestamped backup of the live database.
 #[tauri::command]
 pub fn backup_database(state: State<'_, Managed>) -> Result<String, String> {
-    crate::commands::report::do_backup_database(state.inner())
+    pos_engine::commands::report::do_backup_database(state.inner())
 }

@@ -14,6 +14,7 @@ members = [
     "crates/pos-hubrise",
     "crates/pos-peppol",
     "crates/pos-mail",
+    "crates/pos-engine",
 ]
 # The Android Rust workspace lives in android/rust (from phase P2): its own
 # workspace, never a member of this one.

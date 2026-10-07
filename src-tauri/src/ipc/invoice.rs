@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::commands::invoice::{
+use pos_engine::commands::invoice::{
     B2bInvoiceResult, B2bLine, BuyerInput, InvoiceSignResult, SupplierInput,
 };
 
@@ -18,7 +18,7 @@ pub async fn sign_invoice_fiscal(
     customer_vat_no: String,
     employee_insz: String,
 ) -> Result<InvoiceSignResult, String> {
-    crate::commands::invoice::do_sign_invoice_fiscal(
+    pos_engine::commands::invoice::do_sign_invoice_fiscal(
         state.inner(),
         sale_fiscal_event_ids,
         customer_vat_no,
@@ -42,7 +42,7 @@ pub async fn issue_b2b_invoice(
     buyer: BuyerInput,
     lines: Vec<B2bLine>,
 ) -> Result<B2bInvoiceResult, String> {
-    crate::commands::invoice::do_issue_b2b_invoice(
+    pos_engine::commands::invoice::do_issue_b2b_invoice(
         state.inner(),
         fiscal_event_id,
         invoice_no,

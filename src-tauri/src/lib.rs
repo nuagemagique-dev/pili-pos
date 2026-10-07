@@ -2,17 +2,14 @@
 //!
 //! Tauri's `#[tauri::command]` lives in a binary crate, but integration
 //! tests under `tests/` only link the library half of a Cargo package.
-//! This file exposes the modules tests need (`commands`, `state`) so
-//! the SPF e2e harness can drive the inner `do_*` functions added in
-//! Phase 1 without spinning up the Tauri runtime.
-//!
-//! Production code (`main.rs`) keeps consuming these modules via the
-//! crate name (`use pili_pos::commands;` / `use pili_pos::state;`),
-//! producing the exact same binary as before.
+//! The fiscal core is the `pos-engine` crate; the Tauri-bound half
+//! (`ipc`, `paths`, `cli`) stays here.
 
 pub mod cli;
-pub mod commands;
-pub mod engine;
 pub mod ipc;
 pub mod paths;
-pub mod state;
+
+// Temporary: the integration tests still reach the engine as
+// `pili_pos::{commands, engine, state}`. P1a-T6 removes these re-exports
+// once the tests have moved to the engine crate.
+pub use pos_engine::{commands, engine, state};
