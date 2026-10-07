@@ -156,6 +156,7 @@ impl TestApp {
             pin_throttle: Default::default(),
             signing: Default::default(),
             fdm_status_cache: Mutex::new(None),
+            session_rules: Default::default(),
         };
 
         let app = Self {

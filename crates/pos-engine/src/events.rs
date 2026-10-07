@@ -17,6 +17,9 @@ pub enum EngineEvent {
     /// The warnings and informations the FDM attached to a signed
     /// event (POS description v2.2, Message).
     FdmSignMessages(pos_fiscal::fdm_client::SignMessages),
+    /// The session was locked (`commands::session`): the UI goes to the
+    /// login screen.
+    SessionLocked(crate::commands::session::SessionLocked),
     /// An online order arrived.
     #[cfg(feature = "hubrise")]
     WebshopOrderReceived(CallbackEvent),
@@ -39,6 +42,7 @@ impl EngineEvent {
     pub fn topic(&self) -> &'static str {
         match self {
             EngineEvent::FdmSignMessages(_) => "fdm-sign-messages",
+            EngineEvent::SessionLocked(_) => "session-locked",
             #[cfg(feature = "hubrise")]
             EngineEvent::WebshopOrderReceived(_) => "webshop-order-received",
             #[cfg(feature = "hubrise")]
@@ -114,6 +118,22 @@ mod tests {
         assert_eq!(
             EngineEvent::FdmSignMessages(sign_messages()).topic(),
             "fdm-sign-messages"
+        );
+    }
+
+    #[test]
+    fn the_session_locked_topic_and_payload() {
+        let event = EngineEvent::SessionLocked(crate::commands::session::SessionLocked {
+            reason: crate::commands::session::LockReason::Idle,
+            order_error: None,
+        });
+        assert_eq!(event.topic(), "session-locked");
+        let EngineEvent::SessionLocked(payload) = event else {
+            panic!("a session locked event");
+        };
+        assert_eq!(
+            serde_json::to_value(&payload).unwrap(),
+            serde_json::json!({ "reason": "idle", "orderError": null })
         );
     }
 

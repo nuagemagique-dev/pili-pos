@@ -1,0 +1,182 @@
+//! The order the operator is working on and the screen lock.
+//!
+//! Two rules used to live in the Vue UI and now belong to the engine:
+//!
+//! - **Leaving an order registers it.** When the operator leaves the
+//!   order or checkout screen, what was ordered is registered with the
+//!   FDM (event P, POS description v2.2 §1.3). The router guard in
+//!   `ui/src/router/index.ts` and `registerPending` in
+//!   `ui/src/stores/order.ts` did it; [`do_leave_order`] replaces them.
+//! - **Locking registers the active order first.** The lock button in
+//!   `ui/src/components/AppHeader.vue` navigated to the login screen
+//!   (so the guard signed the P while the session was still open) and
+//!   then logged out. [`do_lock_session`] does both in that order, and
+//!   the idle lock reaches the same code ([`lock`]).
+//!
+//! The engine knows the active order through [`do_set_active_order`]:
+//! the shell tells it which order the screen shows, and the lock needs
+//! no help from the UI to register it.
+
+use std::sync::Mutex;
+
+use serde::{Deserialize, Serialize};
+
+use pos_core::order::{OrderStatus, OrderType};
+
+use crate::commands::access::{self, Access};
+use crate::commands::bar_slip::SlipOutcome;
+use crate::events::EngineEvent;
+use crate::state::AppState;
+
+/// Why the operator leaves an order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LeaveReason {
+    /// To another screen.
+    Navigate,
+    /// To another order (for instance a takeaway started from a table).
+    SwitchOrder,
+    /// The order is sent to the kitchen and stays on screen.
+    SendToKitchen,
+    /// The operator locks the screen.
+    Lock,
+    /// The screen locks itself after the idle delay.
+    Idle,
+}
+
+/// Why the session was locked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LockReason {
+    /// The operator pressed the lock button.
+    Manual,
+    /// The idle delay ran out.
+    Idle,
+}
+
+/// The `session-locked` event: the screen goes to the login screen.
+/// `order_error` is why the active order could not be registered, if
+/// that failed; the lock happened anyway, and the entries stay pending
+/// until the next registration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionLocked {
+    pub reason: LockReason,
+    pub order_error: Option<String>,
+}
+
+/// What [`do_lock_session`] answers: the same `order_error`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LockOutcome {
+    pub order_error: Option<String>,
+}
+
+/// The engine's session rules: the order on screen. Later rules add
+/// their own fields here.
+#[derive(Default)]
+pub struct SessionRules {
+    active_order: Mutex<Option<i64>>,
+}
+
+impl SessionRules {
+    /// The order the screen shows, if the shell told the engine.
+    pub fn active_order(&self) -> Option<i64> {
+        self.active_order.lock().ok().and_then(|g| *g)
+    }
+
+    fn set(&self, order_id: Option<i64>) -> Result<(), String> {
+        *self.active_order.lock().map_err(|e| e.to_string())? = order_id;
+        Ok(())
+    }
+
+    /// Forget the active order when it is `order_id`.
+    fn clear_if(&self, order_id: i64) -> Result<(), String> {
+        let mut active = self.active_order.lock().map_err(|e| e.to_string())?;
+        if *active == Some(order_id) {
+            *active = None;
+        }
+        Ok(())
+    }
+}
+
+/// Tell the engine which order the screen shows (`None`: none). The
+/// order must exist. Needs a logged-in operator.
+pub fn do_set_active_order(state: &AppState, order_id: Option<i64>) -> Result<(), String> {
+    access::operator(state, Access::Staff)?;
+    if let Some(id) = order_id {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        pos_db::queries::orders::get_order(&db, id).map_err(|e| e.to_string())?;
+    }
+    state.session_rules.set(order_id)
+}
+
+/// The operator leaves an order: register what was ordered (event P,
+/// POS description v2.2 §1.3), as the router guard and `registerPending`
+/// did in the UI.
+///
+/// A takeaway is a direct sale (FAQ Q205) and an order that is not open
+/// has nothing left to register: both answer `NothingToPrint` without
+/// calling the FDM. Otherwise it is `do_sign_table_order`, a no-op when
+/// nothing changed. Once registered (or when there was nothing to
+/// register) the order stops being the active one, unless the reason is
+/// `SendToKitchen`: the order stays on screen. On an error the active
+/// order is kept and the entries stay pending, retried at the next
+/// registration.
+pub async fn do_leave_order(
+    state: &AppState,
+    order_id: i64,
+    reason: LeaveReason,
+) -> Result<SlipOutcome, String> {
+    access::operator(state, Access::Staff)?;
+    let order = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        pos_db::queries::orders::get_order(&db, order_id).map_err(|e| e.to_string())?
+    };
+    tracing::info!(order_id, ?reason, "leaving an order");
+    let outcome = if order.order_type == OrderType::Takeaway || order.status != OrderStatus::Open {
+        SlipOutcome::NothingToPrint
+    } else {
+        crate::commands::tables::do_sign_table_order(state, order_id).await?
+    };
+    if reason != LeaveReason::SendToKitchen {
+        state.session_rules.clear_if(order_id)?;
+    }
+    Ok(outcome)
+}
+
+/// Lock the session: register the active order while the operator is
+/// still logged in, close the session (the operator stays on shift, no
+/// clock-out) and tell the shell with `session-locked`. A failed
+/// registration is reported in `order_error` and never stops the lock.
+/// Nothing happens when no session is open.
+pub(crate) async fn lock(state: &AppState, reason: LockReason) -> Result<LockOutcome, String> {
+    let open = state.session.lock().map_err(|e| e.to_string())?.is_some();
+    if !open {
+        return Ok(LockOutcome { order_error: None });
+    }
+    let mut order_error = None;
+    if let Some(id) = state.session_rules.active_order() {
+        let leave = match reason {
+            LockReason::Manual => LeaveReason::Lock,
+            LockReason::Idle => LeaveReason::Idle,
+        };
+        if let Err(e) = do_leave_order(state, id, leave).await {
+            tracing::warn!(order_id = id, error = %e, "active order not registered at lock");
+            order_error = Some(e);
+        }
+    }
+    state.session_rules.set(None)?;
+    access::close_session(state)?;
+    state.events.emit(EngineEvent::SessionLocked(SessionLocked {
+        reason,
+        order_error: order_error.clone(),
+    }));
+    Ok(LockOutcome { order_error })
+}
+
+/// The operator locks the screen (replaces the lock button's
+/// "navigate to login, then log out" in `AppHeader.vue`).
+pub async fn do_lock_session(state: &AppState) -> Result<LockOutcome, String> {
+    lock(state, LockReason::Manual).await
+}

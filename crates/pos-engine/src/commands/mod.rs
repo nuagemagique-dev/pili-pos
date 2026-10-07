@@ -23,6 +23,7 @@ pub(crate) mod price_changes;
 pub mod print;
 pub mod refund;
 pub mod report;
+pub mod session;
 pub mod settings;
 pub mod signing;
 pub mod social;

@@ -228,6 +228,10 @@ fn main() {
         ipc::print::check_kitchen_printer,
         ipc::print::print_webshop_kitchen,
         ipc::print::print_webshop_customer,
+        // Session
+        ipc::session::set_active_order,
+        ipc::session::leave_order,
+        ipc::session::lock_session,
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
@@ -324,6 +328,10 @@ fn main() {
         // Print
         ipc::print::check_printer,
         ipc::print::check_kitchen_printer,
+        // Session
+        ipc::session::set_active_order,
+        ipc::session::leave_order,
+        ipc::session::lock_session,
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
