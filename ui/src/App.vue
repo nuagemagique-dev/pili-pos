@@ -60,6 +60,7 @@ const { t } = useI18n();
 onMounted(() => {
   pos.loadSettings();
   void fdm.listenSignMessages();
+  void fdm.listenStatus();
   void auth.listenPresenceFailed();
   for (const evt of ACTIVITY_EVENTS) document.addEventListener(evt, forwardActivity, { passive: true });
   // The engine locked the session (the order is already registered

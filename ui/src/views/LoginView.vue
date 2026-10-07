@@ -77,7 +77,7 @@ const checks = ref<Check[]>([]);
 async function runChecks() {
   const list: Check[] = [];
 
-  await fdm.checkStatus();
+  await fdm.checkNow();
   list.push({
     key: "fdm",
     label: "FDM",
