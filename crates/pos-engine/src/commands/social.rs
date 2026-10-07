@@ -1,12 +1,14 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use pos_fiscal::event::build_work_in_out;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
+use crate::commands::auth;
 use crate::commands::errors;
 use crate::commands::signing::{self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared};
+use crate::events::EngineEvent;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -88,14 +90,14 @@ async fn do_work_event(
 }
 
 impl SocialResult {
-    fn done() -> Self {
+    pub(crate) fn done() -> Self {
         Self {
             success: true,
             error: None,
         }
     }
 
-    fn failed(error: String) -> Self {
+    pub(crate) fn failed(error: String) -> Self {
         Self {
             success: false,
             error: Some(error),
@@ -110,4 +112,76 @@ pub fn do_list_open_shifts(
 ) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::shifts::list_open_shifts(&db).map_err(|e| e.to_string())
+}
+
+/// End the shift: check the PIN exactly like a login, sign the
+/// employee's clock-out and close the session in every case.
+///
+/// The login checks are [`auth::authenticate`] (a refused PIN is an
+/// `Err` with the login's code, and nothing is signed or opened). The
+/// clock-out is [`do_work_out`]: a failure (an error, or a result that
+/// is not a success) comes back as `success: false` with the error,
+/// never as `presence-failed`. It queues no clock-in and leaves the
+/// active order alone: the shift ends, the screen goes back to the
+/// login, whatever the FDM answered.
+pub async fn do_end_shift(
+    state: &AppState,
+    insz: String,
+    pin: Option<String>,
+) -> Result<SocialResult, String> {
+    let user = auth::authenticate(state, &insz, pin)?;
+    access::open_session(state, &user)?;
+    let result = match do_work_out(state, insz).await {
+        Ok(result) => result,
+        Err(e) => SocialResult::failed(e),
+    };
+    access::close_session(state)?;
+    Ok(result)
+}
+
+/// The `presence-failed` event: a clock-in the engine tried at login
+/// was not registered (the UI shows the `presence_failed` toast).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PresenceFailed {
+    pub insz: String,
+    /// Always true for now: a clock-out is answered in the result of
+    /// `end_shift`.
+    pub clock_in: bool,
+    pub error: String,
+}
+
+/// Clock `insz` in unless they are already on shift: the rule of the
+/// UI's `clockInIfOffShift`, run by the presence worker after a login.
+///
+/// - when the lookup of open shifts fails, clock in anyway (a second
+///   WorkIn is harmless);
+/// - when the employee is already on shift (the screen was only
+///   locked), do nothing;
+/// - a failure (an error, or a result that is not a success) emits
+///   `presence-failed`; it never reaches the login.
+pub(crate) async fn clock_in_if_off_shift(state: &AppState, insz: &str) {
+    let on_shift = match do_list_open_shifts(state) {
+        Ok(shifts) => shifts.iter().any(|s| s.user_insz == insz),
+        Err(e) => {
+            tracing::warn!(%e, "open shifts unknown: clocking in anyway");
+            false
+        }
+    };
+    if on_shift {
+        return;
+    }
+    let error = match do_work_in(state, insz.to_string()).await {
+        Ok(SocialResult { success: true, .. }) => return,
+        Ok(SocialResult { error, .. }) => error.unwrap_or_else(|| "FDM error".to_string()),
+        Err(e) => e,
+    };
+    tracing::warn!(%error, "clock-in at login not registered");
+    state
+        .events
+        .emit(EngineEvent::PresenceFailed(PresenceFailed {
+            insz: insz.to_string(),
+            clock_in: true,
+            error,
+        }));
 }
