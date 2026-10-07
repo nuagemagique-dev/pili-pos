@@ -6,13 +6,17 @@
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use pos_core::config::PosConfig;
 use pos_db::schema;
 use rusqlite::Connection;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+use crate::events::EventSink;
 use crate::state::{AppState, recover_orphaned_checkouts};
 
 /// Where the engine keeps its data.
@@ -102,24 +106,72 @@ pub fn config_source_from(env_path: Option<&str>, production_path: &Path) -> Con
     ConfigSource::DevelopmentDefaults
 }
 
+/// The intervals of the background loops (`crate::background`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EngineTimers {
+    /// Automatic Z of a business day left open: checked at start-up,
+    /// then at this interval.
+    pub auto_z: Duration,
+    /// Digital ticket outbox: queued emails retried at this interval.
+    pub mail_outbox: Duration,
+}
+
+impl Default for EngineTimers {
+    fn default() -> Self {
+        Self {
+            auto_z: Duration::from_secs(60),
+            mail_outbox: crate::commands::delivery::OUTBOX_INTERVAL,
+        }
+    }
+}
+
 /// Everything [`Engine::open`] needs.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EngineConfig {
     pub paths: EnginePaths,
     pub config: ConfigSource,
+    /// Where the engine sends its events (the shell forwards them).
+    pub events: Arc<dyn EventSink>,
+    pub timers: EngineTimers,
+}
+
+impl std::fmt::Debug for EngineConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EngineConfig")
+            .field("paths", &self.paths)
+            .field("config", &self.config)
+            .field("timers", &self.timers)
+            .finish_non_exhaustive()
+    }
 }
 
 /// The opened engine: the shared [`AppState`] behind a cheap handle.
 /// It derefs to the state, so command bodies take `&AppState` as before.
 pub struct Engine {
     state: Arc<AppState>,
+    /// The background tasks [`Engine::start_background`] spawned.
+    pub(crate) tasks: Mutex<Vec<JoinHandle<()>>>,
+    /// How often each background pass has run (for tests).
+    pub(crate) ticks: Arc<BackgroundTicks>,
+}
+
+/// Passes the background loops have completed since the engine started.
+#[derive(Debug, Default)]
+pub struct BackgroundTicks {
+    pub auto_z: AtomicU64,
+    pub mail_outbox: AtomicU64,
 }
 
 impl Engine {
     /// Open the database, migrate it, repair what a crash left behind
     /// and load the configuration.
     pub fn open(cfg: EngineConfig) -> anyhow::Result<Engine> {
-        let EngineConfig { paths, config } = cfg;
+        let EngineConfig {
+            paths,
+            config,
+            events,
+            timers,
+        } = cfg;
         let db_path = paths.db.clone();
         tracing::info!(path = %db_path.display(), "opening database");
 
@@ -179,12 +231,16 @@ impl Engine {
                 #[cfg(feature = "hubrise")]
                 hubrise_switch: pos_hubrise::switch::Switch::new(hubrise_on),
                 shutdown_token: CancellationToken::new(),
+                events,
+                timers,
                 mail,
                 session: Mutex::new(None),
                 support: crate::commands::support::SupportState::installed(),
                 pin_throttle: Default::default(),
                 signing: Default::default(),
             }),
+            tasks: Mutex::new(Vec::new()),
+            ticks: Arc::new(BackgroundTicks::default()),
         })
     }
 
@@ -212,6 +268,8 @@ mod tests {
         EngineConfig {
             paths: EnginePaths::under(data_dir.to_path_buf()),
             config: ConfigSource::DevelopmentDefaults,
+            events: Arc::new(crate::events::NullSink),
+            timers: EngineTimers::default(),
         }
     }
 
@@ -282,6 +340,13 @@ mod tests {
         let mut cfg = test_config(dir.path());
         cfg.config = ConfigSource::File(write(dir.path(), "pos.json", "not json"));
         assert!(Engine::open(cfg).is_err());
+    }
+
+    #[test]
+    fn default_timers_are_the_historical_intervals() {
+        let t = EngineTimers::default();
+        assert_eq!(t.auto_z, Duration::from_secs(60));
+        assert_eq!(t.mail_outbox, crate::commands::delivery::OUTBOX_INTERVAL);
     }
 
     #[test]

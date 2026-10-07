@@ -2968,7 +2968,6 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "bcrypt",
- "chrono",
  "dirs",
  "dotenvy",
  "pos-catalog",
@@ -2977,22 +2976,14 @@ dependencies = [
  "pos-engine",
  "pos-fiscal",
  "pos-hubrise",
- "pos-hubrise-types",
- "pos-mail",
- "pos-print",
- "reqwest",
- "rusqlite",
- "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

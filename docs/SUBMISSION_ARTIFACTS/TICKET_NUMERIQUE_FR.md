@@ -116,7 +116,7 @@ décision prise après coup.
 3. **Réessais en tâche de fond.** Un e-mail non envoyé dans le budget
    de 8 s (ou tenté hors du flux de caisse) reste `pending` et est
    repris par le worker `run_outbox_once`, exécuté toutes les 30
-   secondes (`OUTBOX_INTERVAL`, câblé dans `src-tauri/src/main.rs`).
+   secondes (`OUTBOX_INTERVAL`, câblé dans `crates/pos-engine/src/background.rs`).
    Backoff exponentiel après chaque échec retryable (réseau, 5xx,
    429) : 1 min, 5 min, 15 min, 60 min, pour un total de 5 tentatives
    avant abandon (`pos_mail::outbox::DeliveryPolicy`). Une erreur
