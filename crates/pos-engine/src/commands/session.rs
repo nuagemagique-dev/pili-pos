@@ -13,11 +13,17 @@
 //!   then logged out. [`do_lock_session`] does both in that order, and
 //!   the idle lock reaches the same code ([`lock`]).
 //!
+//! - **Login queues the clock-in.** A successful login queues a
+//!   [`PresenceJob`] that the presence worker signs in the background
+//!   (planner decision PD34); the login never waits for the FDM.
+//!
 //! The engine knows the active order through [`do_set_active_order`]:
 //! the shell tells it which order the screen shows, and the lock needs
 //! no help from the UI to register it.
 
 use std::sync::Mutex;
+
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use serde::{Deserialize, Serialize};
 
@@ -72,17 +78,56 @@ pub struct LockOutcome {
     pub order_error: Option<String>,
 }
 
-/// The engine's session rules: the order on screen. Later rules add
-/// their own fields here.
-#[derive(Default)]
+/// Work for the presence worker (`background.rs`), queued by the
+/// commands that open a session.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PresenceJob {
+    /// Clock this employee in unless they are already on shift
+    /// ([`crate::commands::social::clock_in_if_off_shift`]).
+    ClockIn(String),
+}
+
+/// The engine's session rules: the order on screen and the presence
+/// queue. Later rules add their own fields here.
 pub struct SessionRules {
     active_order: Mutex<Option<i64>>,
+    presence_tx: UnboundedSender<PresenceJob>,
+    presence_rx: Mutex<Option<UnboundedReceiver<PresenceJob>>>,
+}
+
+impl Default for SessionRules {
+    fn default() -> Self {
+        let (presence_tx, presence_rx) = unbounded_channel();
+        Self {
+            active_order: Mutex::new(None),
+            presence_tx,
+            presence_rx: Mutex::new(Some(presence_rx)),
+        }
+    }
 }
 
 impl SessionRules {
     /// The order the screen shows, if the shell told the engine.
     pub fn active_order(&self) -> Option<i64> {
         self.active_order.lock().ok().and_then(|g| *g)
+    }
+
+    /// Queue a clock-in for `insz`. Never blocks: the presence worker
+    /// signs it later. A closed queue is logged and ignored.
+    pub fn queue_clock_in(&self, insz: &str) {
+        if self
+            .presence_tx
+            .send(PresenceJob::ClockIn(insz.to_string()))
+            .is_err()
+        {
+            tracing::warn!("presence queue closed: clock-in not queued");
+        }
+    }
+
+    /// The receiving end of the presence queue, once: the presence
+    /// worker takes it. `None` when it was already taken.
+    pub(crate) fn take_presence_jobs(&self) -> Option<UnboundedReceiver<PresenceJob>> {
+        self.presence_rx.lock().ok().and_then(|mut rx| rx.take())
     }
 
     fn set(&self, order_id: Option<i64>) -> Result<(), String> {

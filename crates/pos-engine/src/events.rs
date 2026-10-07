@@ -20,6 +20,9 @@ pub enum EngineEvent {
     /// The session was locked (`commands::session`): the UI goes to the
     /// login screen.
     SessionLocked(crate::commands::session::SessionLocked),
+    /// The clock-in queued by a login was not registered
+    /// (`commands::social`): the UI shows the presence toast.
+    PresenceFailed(crate::commands::social::PresenceFailed),
     /// An online order arrived.
     #[cfg(feature = "hubrise")]
     WebshopOrderReceived(CallbackEvent),
@@ -43,6 +46,7 @@ impl EngineEvent {
         match self {
             EngineEvent::FdmSignMessages(_) => "fdm-sign-messages",
             EngineEvent::SessionLocked(_) => "session-locked",
+            EngineEvent::PresenceFailed(_) => "presence-failed",
             #[cfg(feature = "hubrise")]
             EngineEvent::WebshopOrderReceived(_) => "webshop-order-received",
             #[cfg(feature = "hubrise")]
@@ -134,6 +138,27 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&payload).unwrap(),
             serde_json::json!({ "reason": "idle", "orderError": null })
+        );
+    }
+
+    #[test]
+    fn the_presence_failed_topic_and_payload() {
+        let event = EngineEvent::PresenceFailed(crate::commands::social::PresenceFailed {
+            insz: "12345678901".to_string(),
+            clock_in: true,
+            error: "FDM error".to_string(),
+        });
+        assert_eq!(event.topic(), "presence-failed");
+        let EngineEvent::PresenceFailed(payload) = event else {
+            panic!("a presence failed event");
+        };
+        assert_eq!(
+            serde_json::to_value(&payload).unwrap(),
+            serde_json::json!({
+                "insz": "12345678901",
+                "clockIn": true,
+                "error": "FDM error"
+            })
         );
     }
 

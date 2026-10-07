@@ -10,6 +10,7 @@ use std::sync::atomic::Ordering;
 use tokio::task::JoinHandle;
 
 use crate::commands;
+use crate::commands::session::PresenceJob;
 use crate::engine::Engine;
 
 impl Engine {
@@ -57,6 +58,27 @@ impl Engine {
                             commands::delivery::run_outbox_once(&state).await;
                             ticks.mail_outbox.fetch_add(1, Ordering::SeqCst);
                         }
+                    }
+                }
+            }));
+        }
+
+        // Presence worker: signs the clock-ins that logins queue
+        // (`commands::session`), one after another in arrival order, so
+        // a login never waits for the FDM. The receiver is taken once:
+        // a second start spawns nothing.
+        if let Some(mut jobs) = state.session_rules.take_presence_jobs() {
+            let state = state.clone();
+            spawned.push(rt.spawn(async move {
+                loop {
+                    tokio::select! {
+                        _ = state.shutdown_token.cancelled() => return,
+                        job = jobs.recv() => match job {
+                            Some(PresenceJob::ClockIn(insz)) => {
+                                commands::social::clock_in_if_off_shift(&state, &insz).await;
+                            }
+                            None => return,
+                        },
                     }
                 }
             }));

@@ -16,6 +16,7 @@ use crate::state::AppState;
 pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<User, String> {
     let user = authenticate(state, &insz, pin)?;
     access::open_session(state, &user)?;
+    state.session_rules.queue_clock_in(&user.insz);
     Ok(user)
 }
 
@@ -126,6 +127,7 @@ pub fn do_login_with_new_pin(
         ..user
     };
     access::open_session(state, &user)?;
+    state.session_rules.queue_clock_in(&user.insz);
     Ok(user)
 }
 

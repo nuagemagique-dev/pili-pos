@@ -55,8 +55,9 @@ async fn the_loops_tick_and_stop_on_shutdown() {
 
     engine.shutdown();
     let tasks = engine.take_background_tasks();
-    // Automatic Z, mail outbox, HubRise poller, HubRise outbox.
-    assert_eq!(tasks.len(), 4);
+    // Automatic Z, mail outbox, presence worker, HubRise poller, HubRise
+    // outbox.
+    assert_eq!(tasks.len(), 5);
     let finished = tokio::time::timeout(Duration::from_secs(2), async {
         for task in tasks {
             task.await.expect("a loop panicked");

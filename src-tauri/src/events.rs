@@ -40,6 +40,7 @@ impl EventSink for TauriEventSink {
         let _ = match event {
             EngineEvent::FdmSignMessages(messages) => handle.emit(topic, messages),
             EngineEvent::SessionLocked(e) => handle.emit(topic, e),
+            EngineEvent::PresenceFailed(e) => handle.emit(topic, e),
             EngineEvent::WebshopOrderReceived(e)
             | EngineEvent::WebshopOrderUpdated(e)
             | EngineEvent::CatalogUpdated(e)
