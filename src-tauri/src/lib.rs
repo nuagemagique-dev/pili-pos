@@ -5,5 +5,6 @@
 //! `cli`) stays here.
 
 pub mod cli;
+pub mod events;
 pub mod ipc;
 pub mod paths;

@@ -2,14 +2,12 @@
 
 // The Tauri-bound modules live in `lib.rs`; the fiscal core is the
 // `pos-engine` crate.
+use pili_pos::events::TauriEventSink;
 use pili_pos::{cli, ipc, paths};
-use pos_engine::engine::{Engine, EngineConfig, EnginePaths, config_source_from};
-use pos_engine::{commands, install};
+use pos_engine::engine::{Engine, EngineConfig, EnginePaths, EngineTimers, config_source_from};
+use pos_engine::install;
 
-#[cfg(feature = "hubrise")]
 use std::sync::Arc;
-
-use tauri::Emitter;
 
 // Every shipped build has the HubRise integration (switched on or off
 // per installation); the handler lists below assume it.
@@ -80,202 +78,105 @@ fn main() {
         .init();
     tracing::info!("pili-pos starting");
 
+    // The engine's events reach the webview through this sink; the
+    // handle is set in `setup`, before the background loops start.
+    let sink = Arc::new(TauriEventSink::new());
+
     let engine = Engine::open(EngineConfig {
         paths: EnginePaths::under(paths::data_dir()),
         config: config_source_from(
             std::env::var("PILI_POS_CONFIG").ok().as_deref(),
             std::path::Path::new(paths::PRODUCTION_CONFIG),
         ),
+        events: sink.clone(),
+        timers: EngineTimers::default(),
     })
     .expect("Failed to initialize app state");
 
-    // Clone the handles we need for background tasks BEFORE moving
-    // the engine into Tauri's managed state. The poller / outbox / health
-    // handles only exist when the `hubrise` feature is enabled.
-    #[cfg(feature = "hubrise")]
-    let poller_db = engine.poller_db.clone();
-    #[cfg(feature = "hubrise")]
-    let shared_http = engine.shared_http.clone();
-    #[cfg(feature = "hubrise")]
-    let mut poller_ctx = commands::hubrise::poller_ctx(&engine);
-    #[cfg(feature = "hubrise")]
-    let outbox_wake = engine.hubrise_outbox_wake.clone();
-    #[cfg(feature = "hubrise")]
-    let hubrise_switch = engine.hubrise_switch.clone();
-    let shutdown_for_setup = engine.shutdown_token.clone();
-    let shutdown_for_window = engine.shutdown_token.clone();
+    // Handles the health listener and the window need, taken BEFORE the
+    // engine is moved into Tauri's managed state.
+    let health_db = engine.poller_db.clone();
+    let health_cancel = engine.shutdown_token.clone();
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(engine)
-        .setup(move |_app| {
-            // Warnings and informations the FDM attaches to a signed
-            // event go to the screen, whichever command signed
-            // (POS description v2.2, Message).
-            {
-                let handle = _app.handle().clone();
-                pos_fiscal::fdm_client::on_sign_messages(move |messages| {
-                    let _ = handle.emit("fdm-sign-messages", messages);
-                });
-            }
+        .setup(move |app| {
+            use tauri::Manager;
+
+            sink.set_handle(app.handle().clone());
 
             // Kiosk (deploy/pili-pos.service sets PILI_KIOSK=1): no
             // title bar, so no close or minimise button on the
             // touchscreen. tao draws its own header bar, so Cage's
             // server-side decoration flag cannot remove it. Development
             // keeps a normal window.
-            if std::env::var_os("PILI_KIOSK").is_some() {
-                use tauri::Manager;
-                if let Some(window) = _app.get_webview_window("main") {
-                    if let Err(e) = window.set_decorations(false) {
-                        tracing::warn!(%e, "kiosk: could not remove the title bar");
-                    }
-                    if let Err(e) = window.set_fullscreen(true) {
-                        tracing::warn!(%e, "kiosk: could not go fullscreen");
-                    }
+            if std::env::var_os("PILI_KIOSK").is_some()
+                && let Some(window) = app.get_webview_window("main")
+            {
+                if let Err(e) = window.set_decorations(false) {
+                    tracing::warn!(%e, "kiosk: could not remove the title bar");
+                }
+                if let Err(e) = window.set_fullscreen(true) {
+                    tracing::warn!(%e, "kiosk: could not go fullscreen");
                 }
             }
 
-            // Automatic Z of a business day left open (producers FAQ
-            // Q501c): at start-up, then every minute. A failure (FDM
-            // unreachable) is retried on the next tick; meanwhile new
-            // events wait (`commands::booking`).
-            {
-                use tauri::Manager;
-                let handle = _app.handle().clone();
-                let cancel = shutdown_for_setup.clone();
-                tauri::async_runtime::spawn(async move {
-                    let mut tick = tokio::time::interval(std::time::Duration::from_secs(60));
-                    loop {
-                        tokio::select! {
-                            _ = cancel.cancelled() => return,
-                            _ = tick.tick() => {
-                                let state = handle.state::<Engine>();
-                                if let Err(e) = commands::report::close_overdue_day(state.inner()).await {
-                                    tracing::warn!(%e, "automatic Z not made yet");
-                                }
-                            }
-                        }
+            // The automatic Z, the mail outbox and the HubRise workers
+            // run in the engine (`pos_engine::background`), on Tauri's
+            // runtime; their events come back through the sink above.
+            app.state::<Engine>()
+                .start_background(tauri::async_runtime::handle().inner());
+
+            // Healthcheck: tiny HTTP server on localhost:9999 so
+            // tsb-dashboard or a cron can verify the POS is alive.
+            // Returns 200 + JSON with uptime info. Gracefully shuts
+            // down with the same CancellationToken as the other workers.
+            let start_time = std::time::Instant::now();
+            tauri::async_runtime::spawn(async move {
+                use tokio::io::AsyncWriteExt;
+                let listener = match tokio::net::TcpListener::bind("127.0.0.1:9999").await {
+                    Ok(l) => l,
+                    Err(e) => {
+                        tracing::warn!(%e, "healthcheck: failed to bind :9999");
+                        return;
                     }
-                });
-            }
-
-            // Digital ticket outbox: retries queued emails and clears
-            // addresses after 72 h. Runs in every build; it does
-            // nothing when no email client is configured.
-            {
-                use tauri::Manager;
-                let handle = _app.handle().clone();
-                let cancel = shutdown_for_setup.clone();
-                tauri::async_runtime::spawn(async move {
-                    let mut tick =
-                        tokio::time::interval(commands::delivery::OUTBOX_INTERVAL);
-                    loop {
-                        tokio::select! {
-                            _ = cancel.cancelled() => return,
-                            _ = tick.tick() => {
-                                let state = handle.state::<Engine>();
-                                commands::delivery::run_outbox_once(state.inner()).await;
-                            }
-                        }
-                    }
-                });
-            }
-
-            // The HubRise poller, outbox, and healthcheck all live in
-            // this block; the certification build (no `hubrise` feature)
-            // ships a kiosk with no background HTTP workers at all.
-            #[cfg(feature = "hubrise")]
-            {
-                let handle = _app.handle().clone();
-                // Spawn the HubRise poller background task. The crate's
-                // run_loop returns when `shutdown_token` is cancelled.
-                poller_ctx.on_outcome = Some(Arc::new(move |outcome, event| {
-                    use pos_hubrise::dispatcher::DispatchOutcome;
-                    let topic = match outcome {
-                        DispatchOutcome::OrderCreated => "webshop-order-received",
-                        DispatchOutcome::OrderUpdated => "webshop-order-updated",
-                        DispatchOutcome::CatalogUpdated => "catalog-updated",
-                        DispatchOutcome::CatalogRejected => "catalog-rejected",
-                        DispatchOutcome::CatalogAwaitingAdoption => "catalog-awaiting-adoption",
-                        DispatchOutcome::Ignored => return,
-                    };
-                    let _ = handle.emit(topic, event);
-                }));
-                let poller_cancel = shutdown_for_setup.clone();
-                tauri::async_runtime::spawn(async move {
-                    pos_hubrise::poller::run_loop(poller_ctx, poller_cancel).await;
-                });
-
-                // Clone poller_db for the healthcheck BEFORE moving it
-                // into the outbox context.
-                let health_db = poller_db.clone();
-
-                // Outbox worker: drains POS → HubRise order pushes that
-                // were enqueued by checkout. Same pattern as the poller:
-                // background loop, short DB locks, async HTTP, graceful
-                // shutdown via the shared CancellationToken.
-                let outbox_ctx = pos_hubrise::outbox::OutboxCtx {
-                    http: shared_http,
-                    db: poller_db,
-                    wake: outbox_wake,
-                    enabled: hubrise_switch,
                 };
-                let outbox_cancel = shutdown_for_setup.clone();
-                tauri::async_runtime::spawn(async move {
-                    pos_hubrise::outbox::run_loop(outbox_ctx, outbox_cancel).await;
-                });
-
-                // Healthcheck: tiny HTTP server on localhost:9999 so
-                // tsb-dashboard or a cron can verify the POS is alive.
-                // Returns 200 + JSON with uptime info. Gracefully shuts
-                // down with the same CancellationToken as the other workers.
-                let health_cancel = shutdown_for_setup.clone();
-                let start_time = std::time::Instant::now();
-                tauri::async_runtime::spawn(async move {
-                    use tokio::io::AsyncWriteExt;
-                    let listener = match tokio::net::TcpListener::bind("127.0.0.1:9999").await {
-                        Ok(l) => l,
-                        Err(e) => {
-                            tracing::warn!(%e, "healthcheck: failed to bind :9999");
-                            return;
-                        }
-                    };
-                    tracing::info!("healthcheck listening on http://127.0.0.1:9999/health");
-                    loop {
-                        tokio::select! {
-                            _ = health_cancel.cancelled() => return,
-                            accept = listener.accept() => {
-                                if let Ok((mut stream, _)) = accept {
-                                    let uptime_secs = start_time.elapsed().as_secs();
-                                    let outbox_pending: i64 = {
-                                        let db = health_db.lock().expect("health db");
-                                        db.query_row(
-                                            "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL AND parked_at IS NULL",
-                                            [], |r| r.get(0),
-                                        ).unwrap_or(0)
-                                    };
-                                    let body = format!(
-                                        r#"{{"status":"ok","uptime_secs":{uptime_secs},"outbox_pending":{outbox_pending}}}"#
-                                    );
-                                    let resp = format!(
-                                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                                        body.len(), body
-                                    );
-                                    let _ = stream.write_all(resp.as_bytes()).await;
-                                    let _ = stream.shutdown().await;
-                                }
+                tracing::info!("healthcheck listening on http://127.0.0.1:9999/health");
+                loop {
+                    tokio::select! {
+                        _ = health_cancel.cancelled() => return,
+                        accept = listener.accept() => {
+                            if let Ok((mut stream, _)) = accept {
+                                let uptime_secs = start_time.elapsed().as_secs();
+                                let outbox_pending: i64 = {
+                                    let db = health_db.lock().expect("health db");
+                                    db.query_row(
+                                        "SELECT COUNT(*) FROM hubrise_outbox WHERE sent_at IS NULL AND parked_at IS NULL",
+                                        [], |r| r.get(0),
+                                    ).unwrap_or(0)
+                                };
+                                let body = format!(
+                                    r#"{{"status":"ok","uptime_secs":{uptime_secs},"outbox_pending":{outbox_pending}}}"#
+                                );
+                                let resp = format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                                    body.len(), body
+                                );
+                                let _ = stream.write_all(resp.as_bytes()).await;
+                                let _ = stream.shutdown().await;
                             }
                         }
                     }
-                });
-            }
+                }
+            });
 
             Ok(())
         })
-        .on_window_event(move |_window, event| {
+        .on_window_event(move |window, event| {
             if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
-                shutdown_for_window.cancel();
+                use tauri::Manager;
+                window.app_handle().state::<Engine>().shutdown();
             }
         });
 

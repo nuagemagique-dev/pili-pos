@@ -257,7 +257,7 @@ commandes.
 
 **Déclencheur.** `run_outbox_once` (`crates/pos-engine/src/commands/delivery.rs`)
 tourne toutes les 30 secondes (`OUTBOX_INTERVAL`, câblé dans
-`src-tauri/src/main.rs`), tant qu'un `digital_ticket` est configuré.
+`crates/pos-engine/src/background.rs`), tant qu'un `digital_ticket` est configuré.
 
 **Circulation des données.**
 

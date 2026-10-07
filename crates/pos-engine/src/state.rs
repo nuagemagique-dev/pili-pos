@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 /// traffic - cloning it is cheap (internal Arc) and enables HTTP
 /// keep-alive across calls.
 ///
-/// `shutdown_token` is cancelled when the Tauri window closes; the
+/// `shutdown_token` is cancelled by [`crate::engine::Engine::shutdown`]; the
 /// poller task observes it via `tokio::select!` to exit gracefully.
 ///
 /// `poller_db` and `shared_http` are gated behind the `hubrise` feature
@@ -43,6 +43,10 @@ pub struct AppState {
     #[cfg(feature = "hubrise")]
     pub hubrise_switch: pos_hubrise::switch::Switch,
     pub shutdown_token: CancellationToken,
+    /// Where the engine sends its events (`crate::events`).
+    pub events: std::sync::Arc<dyn crate::events::EventSink>,
+    /// The intervals of the background loops (`crate::background`).
+    pub timers: crate::engine::EngineTimers,
     /// Digital ticket email client (disabled when not configured).
     pub mail: crate::commands::delivery::MailState,
     /// The logged-in operator (`commands::access`): set by `login`,

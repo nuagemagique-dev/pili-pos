@@ -146,6 +146,8 @@ impl TestApp {
             hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),
             hubrise_switch: pos_hubrise::switch::Switch::default(),
             shutdown_token: CancellationToken::new(),
+            events: Arc::new(pos_engine::events::NullSink),
+            timers: pos_engine::engine::EngineTimers::default(),
             mail: pos_engine::commands::delivery::MailState::disabled(),
             session: Mutex::new(None),
             support: pos_engine::commands::support::SupportState::disabled(),

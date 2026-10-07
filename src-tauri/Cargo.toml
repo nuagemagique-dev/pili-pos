@@ -11,25 +11,16 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 pos-core = { path = "../crates/pos-core" }
 pos-fiscal = { path = "../crates/pos-fiscal" }
-pos-print = { path = "../crates/pos-print" }
 pos-db = { path = "../crates/pos-db" }
-pos-mail = { path = "../crates/pos-mail" }
 pos-engine = { path = "../crates/pos-engine", default-features = false }
 pos-hubrise = { path = "../crates/pos-hubrise", optional = true }
 pos-catalog = { path = "../crates/pos-catalog", optional = true }
-pos-hubrise-types = { path = "../crates/pos-hubrise-types", optional = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-chrono = { workspace = true }
-rusqlite = { workspace = true }
-reqwest = { workspace = true }
 tokio = { workspace = true }
-tokio-util = { workspace = true }
 bcrypt = "0.19"
 dirs = "7"
 dotenvy = "0.15"
-uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
@@ -44,7 +35,6 @@ default = ["hubrise", "peppol"]
 # not a build choice. Every shipped build has it.
 hubrise = [
     "dep:pos-hubrise",
-    "dep:pos-hubrise-types",
     "dep:pos-catalog",
     "pos-db/hubrise",
     "pos-engine/hubrise",
