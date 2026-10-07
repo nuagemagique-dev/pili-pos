@@ -290,9 +290,9 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     await mockTauriIPC(page, {
       list_users: () => [DEFAULT_USER],
       list_open_shifts: () => ON_SHIFT,
-      end_shift: { __reject: 'pin_locked|seconds=30' },
     });
     await page.goto('/');
+    await overrideIPC(page, 'end_shift', { __reject: 'pin_locked|seconds=30' });
     await page.locator('.user-btn').first().click();
     await page.locator('.end-shift-btn').click();
     for (const d of '0000') await page.locator('.pin-overlay .nk', { hasText: d }).first().click();
@@ -300,7 +300,8 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     await expect(page.locator('.pin-overlay')).toBeVisible();
     await expect(page.locator('.pin-overlay .error-msg')).toContainText('30 s');
     await expect(page.locator('.toast-success')).toHaveCount(0);
-    expect(await ipcCalls(page, 'end_shift')).toHaveLength(1);
+    // The shift is not ended and no session was opened by the UI.
+    expect(await ipcCalls(page, 'login')).toHaveLength(0);
   });
 
   test('an unregistered clock-out is reported by a toast', async ({ page }) => {
