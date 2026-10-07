@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { usePosStore } from "./stores/pos";
 import { useAuthStore } from "./stores/auth";
-import { useIdleTimer } from "./composables/useIdleTimer";
+import * as ipc from "./api/ipc";
 import { useOrderChime } from "./composables/useOrderChime";
 import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
@@ -30,17 +30,23 @@ watchEffect(() => {
 // arrives with HubRise switched off.
 useOrderChime();
 
-// Auto-lock after 5 minutes of inactivity - redirects to login
-// silently. Prevents unauthorized POS use when the operator walks
-// away from the terminal. Only fires if someone is actually logged in.
-// Like the lock button, it keeps the operator on shift.
-useIdleTimer(5 * 60 * 1000, () => {
-  if (auth.currentUser) {
-    // Navigate first: the router guard registers the open order (P)
-    // while the operator's session is still open.
-    void router.push({ name: "login" }).then(() => auth.lock());
+// The 5 minute idle lock belongs to the engine (it registers the open
+// order and emits `session-locked`, handled below). The UI only tells it
+// the operator is active, at most once per second.
+const ACTIVITY_EVENTS = ["touchstart", "mousedown", "keydown"] as const;
+const ACTIVITY_THROTTLE_MS = 1000;
+let lastActivity = Number.NEGATIVE_INFINITY;
+
+function forwardActivity() {
+  const now = Date.now();
+  if (now - lastActivity < ACTIVITY_THROTTLE_MS) return;
+  lastActivity = now;
+  try {
+    ipc.userActivity().catch(() => {});
+  } catch {
+    /* no engine to tell */
   }
-});
+}
 
 // Remote support banner: polled on every screen, logged in or not.
 const support = useSupportStore();
@@ -54,6 +60,8 @@ const { t } = useI18n();
 onMounted(() => {
   pos.loadSettings();
   void fdm.listenSignMessages();
+  void auth.listenPresenceFailed();
+  for (const evt of ACTIVITY_EVENTS) document.addEventListener(evt, forwardActivity, { passive: true });
   // The engine locked the session (the order is already registered
   // there): forget the local order and go back to the login screen.
   void auth.listenSessionLocked((e) => {
@@ -68,7 +76,10 @@ onMounted(() => {
   supportPoll = setInterval(pollSupport, 5000);
 });
 
-onUnmounted(() => clearInterval(supportPoll));
+onUnmounted(() => {
+  clearInterval(supportPoll);
+  for (const evt of ACTIVITY_EVENTS) document.removeEventListener(evt, forwardActivity);
+});
 </script>
 
 <template>
