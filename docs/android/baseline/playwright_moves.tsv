@@ -1,0 +1,16 @@
+# Playwright test moves (phase P1b onwards), read by scripts/android/playwright_inventory.py --diff.
+#
+# A rewritten Vue test keeps its place in the inventory when its rename is declared here.
+# One rule per line: <old title><TAB><new title>
+# Both titles are normalised inventory lines as they appear in playwright_list.txt:
+#   <name>.spec.ts <U+203A> <describe part> <U+203A> <title>
+# (no project prefix, no line:column; the separator is the character U+203A with one space on each side).
+#
+# A rule is stale, and fails the diff, when
+#   - its old title is still present in the current list,
+#   - its new title is absent from the current list,
+#   - its old title is not in the baseline (docs/android/baseline/playwright_list.txt),
+# and two rules with the same old title fail too.
+# Blank lines and lines starting with # are ignored. The baseline itself is never edited.
+#
+# No rule yet.

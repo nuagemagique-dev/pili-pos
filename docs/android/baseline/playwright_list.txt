@@ -1,0 +1,284 @@
+# pili-pos Playwright inventory (npx playwright test --list --project=e2e in ui/)
+# source commit: 7b8a2da
+# total: 280 tests in 22 files
+# one normalised line per test: <spec file> › <describe> › <title>; written once, never edited
+checkout-change.spec.ts › a 30 € payment on a 24 € sale gives 6 € back
+checkout-change.spec.ts › a card payment after a refused cash attempt gives no change
+checkout-change.spec.ts › the exact amount gives no change line
+checkout-change.spec.ts › the success screen names the FDM that signed the sale
+checkout-split.spec.ts › [ROUND4] meal vouchers 11,52 then the rest in cash, rounded to 3,35
+checkout-split.spec.ts › [ROUND5] meal vouchers, card, then 10 € cash for the 7,75 left
+checkout-split.spec.ts › [UC4119] card for part, meal vouchers for the rest: no cash, no change
+checkout-split.spec.ts › an amount over the rest cannot be confirmed
+checkout-split.spec.ts › meal vouchers for the whole sale sign at once
+checkout-split.spec.ts › the number of parts is fixed once a part is taken
+checkout-split.spec.ts › the parts taken can be cancelled before anything is signed
+checkout-split.spec.ts › three parts, the first in cash: the cash part is sent last, as the rest
+checkout-split.spec.ts › two equal parts: card 7,43, then cash for the other 7,43 rounded to 7,45
+checkout.spec.ts › Checkout View › displays total section
+checkout.spec.ts › Checkout View › renders checkout view
+checkout.spec.ts › Checkout View › shows payment buttons, cash selected by default (§7.1)
+errors.spec.ts › a code with a value shows the value
+errors.spec.ts › a failed payment without detail says it failed
+errors.spec.ts › a refused item is explained, in French
+errors.spec.ts › a refused table stays on the tables screen, with the reason
+errors.spec.ts › an unexpected error says so and keeps the detail for the technician
+errors.spec.ts › the text follows the screen language
+fdm-errors.spec.ts › a refused FDM certificate is not reported as a cable problem
+fdm-errors.spec.ts › a refused token is explained, though the FDM sends no code
+fdm-errors.spec.ts › an FDM answer that does not match the sale is explained
+fdm-errors.spec.ts › an FDM error code gets its §V message
+fdm-errors.spec.ts › an error that is not the FDM’s gets its own message
+fdm-errors.spec.ts › an unreachable FDM is explained, not shown as a raw message
+fdm-messages.spec.ts › an FDM that is not initialized says so under the header
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_CLIENT_CERT_NEAR_EXPIRATION] certificat proche de l'expiration
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_INITIALIZATION_FAILED] initialisation
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_INTERNAL_ERROR] problème technique
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_INVALID_REQUEST] requête invalide
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_NOP_FAILED] message NOP
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_RTC_SYNC_FAILED] horloge non synchronisée
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_SERVER_CERT_RESOLVE_FAILED] certificat serveur
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_TASK_FEEDBACK_FAILED] résultat de tâche
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_TRANSACTION_UPLOAD_FAILED] envoi des transactions
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_UNAUTHORIZED] requête non autorisée
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_UNDEFINED_ERROR] erreur indéfinie
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_UNDEFINED_OTHER] autre message
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_UPDATE_TASK_LIST_FAILED] liste de tâches
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_UPDATE_TRUST_CERT_FAILED] certificats de confiance
+fdm-messages.spec.ts › §V messages facultatifs (O), affichés › [V_UPDATE_URLS_FAILED] mise à jour des URLs
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_CORRUPT_RECORD_ENCOUNTERED] transaction corrompue
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_DUPLICATE_REQUEST] requête en doublon
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_RTC_NOT_INITIALIZED] horloge non initialisée
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_TOO_MANY_MEMORY_ERRORS] trop de transactions corrompues
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_UPDATE_CLIENT_CERT_FAILED] mise à jour du certificat client
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_UPDATE_PARAMS_FAILED] mise à jour des paramètres
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_UPDATE_POS_ALLOWLIST_FAILED] mise à jour de la liste d'autorisation
+fdm-messages.spec.ts › §V messages jamais affichés (N) › [V_UPDATE_VAT_RATES_FAILED] mise à jour des taux de TVA
+fdm-messages.spec.ts › §V messages obligatoires (M) › [V_BUFFER_FULL] buffer plein, caisse bloquée
+fdm-messages.spec.ts › §V messages obligatoires (M) › [V_BUFFER_NEAR_FULL] buffer au-delà de 70%
+fdm-messages.spec.ts › §V messages obligatoires (M) › [V_CLIENT_CERT_EXPIRED] certificat expiré
+fdm-messages.spec.ts › §V messages obligatoires (M) › [V_FDM_LOCKED] FDM verrouillé, caisse bloquée
+fdm-messages.spec.ts › §V messages obligatoires (M) › [V_FDM_NOT_OPERATIONAL] FDM non opérationnel, caisse bloquée
+fdm-messages.spec.ts › §V messages obligatoires (M) › [V_UNKNOWN_POS] caisse absente de la liste du FDM, caisse bloquée
+fdm-messages.spec.ts › §V messages obligatoires (M) › numéro d'unité d'établissement différent (UPDATE_POS_ESTNO)
+fdm-messages.spec.ts › §V messages obligatoires (M) › numéro de TVA différent de celui de la boîte noire (UPDATE_POS_VATNO)
+fdm-polling.spec.ts › an FDM that does not answer is polled less and less often
+fdm-polling.spec.ts › changing screens keeps the one poller going, without a second one
+fdm-polling.spec.ts › the FDM status is polled every 30 s while the FDM answers
+fdm-sign-messages.spec.ts › a vendor code without a French text shows the FDM message
+fdm-sign-messages.spec.ts › a warning in a sign response is shown, with its French message
+fdm-sign-messages.spec.ts › the same warning is shown once per bookingDate
+fiscal-flow.spec.ts › Cash events (F) › [M133] an empty drawer is declared as 0
+fiscal-flow.spec.ts › Cash events (F) › [M133] the counted cash is declared with the amount typed
+fiscal-flow.spec.ts › Cash events (F) › a cash out is sent with its direction
+fiscal-flow.spec.ts › Cash events (F) › a recorded cash movement is confirmed and sent once
+fiscal-flow.spec.ts › Cash events (F) › a refused cash movement is shown as an error, never as recorded
+fiscal-flow.spec.ts › Cash events (F) › a refused drawer opening is shown as an error
+fiscal-flow.spec.ts › Cash events (F) › cash buttons stay disabled until an amount is chosen
+fiscal-flow.spec.ts › FDM refusals on presence and cash events › a refused clock-in is reported but does not block the login
+fiscal-flow.spec.ts › FDM refusals on presence and cash events › a successful clock-in shows no error
+fiscal-flow.spec.ts › Pre-bill ("Addition") › an FDM refusal is shown
+fiscal-flow.spec.ts › Pre-bill ("Addition") › is disabled while the table has no lines
+fiscal-flow.spec.ts › Pre-bill ("Addition") › is not offered for takeaways
+fiscal-flow.spec.ts › Pre-bill ("Addition") › signs a pre-bill for the table and confirms it
+fiscal-flow.spec.ts › Table order registration (P) › [FAQ_Q205] leaving the order for the tables registers it
+fiscal-flow.spec.ts › Table order registration (P) › [FAQ_Q205] locking the screen registers it
+fiscal-flow.spec.ts › Table order registration (P) › [FAQ_Q205] switching to a takeaway registers the table first
+fiscal-flow.spec.ts › Table order registration (P) › an FDM refusal does not start the takeaway
+fiscal-flow.spec.ts › Table order registration (P) › an FDM refusal keeps the operator on the order and says so
+fiscal-flow.spec.ts › Table order registration (P) › an FDM refusal never blocks locking the screen
+fiscal-flow.spec.ts › Table order registration (P) › going to the payment does not register it (the sale carries it)
+fiscal-flow.spec.ts › Table order registration (P) › leaving for the reports registers it
+fiscal-flow.spec.ts › Table order registration (P) › leaving for the settings registers it
+fiscal-flow.spec.ts › Table order registration (P) › leaving the payment screen for another screen registers it
+fiscal-flow.spec.ts › Takeaway drafts (direct sale) › [FAQ_Q205] an unpaid takeaway is listed on the tables and resumes
+fiscal-flow.spec.ts › Takeaway drafts (direct sale) › [FAQ_Q205] leaving an unpaid takeaway registers nothing
+fiscal-flow.spec.ts › Takeaway drafts (direct sale) › no takeaway in progress, none listed
+fiscal-flow.spec.ts › [VI_BAR] Bar / kitchen order slip › [VI_BAR] a pre-bill whose slip failed says so next to its confirmation
+fiscal-flow.spec.ts › [VI_BAR] Bar / kitchen order slip › [VI_BAR] a printed slip needs no message
+fiscal-flow.spec.ts › [VI_BAR] Bar / kitchen order slip › [VI_BAR] a sale whose slip failed is still paid, with the warning
+fiscal-flow.spec.ts › [VI_BAR] Bar / kitchen order slip › [VI_BAR] a slip that did not print is told, the order stays registered
+login.spec.ts › First login of a manager without PIN › a manager typed by INSZ is asked to choose a PIN too
+login.spec.ts › First login of a manager without PIN › back closes the dialog and stays on the login screen
+login.spec.ts › First login of a manager without PIN › the tile asks to choose a PIN, typed twice, then logs in
+login.spec.ts › First login of a manager without PIN › two different PINs start over and log nobody in
+login.spec.ts › Login View › INSZ numpad shows on "Autre" tap
+login.spec.ts › Login View › a configuration the FDM would refuse shows a banner
+login.spec.ts › Login View › a locked-out user is told how long to wait
+login.spec.ts › Login View › a manager logs in with their PIN
+login.spec.ts › Login View › a server without PIN logs in directly, with a warning
+login.spec.ts › Login View › correct PIN logs in
+login.spec.ts › Login View › empty user list shows numpad directly
+login.spec.ts › Login View › no configuration banner when pos.json is usable
+login.spec.ts › Login View › shows PIN overlay when user has PIN
+login.spec.ts › Login View › shows user tile with name and role
+login.spec.ts › Login View › wrong PIN shows error and clears dots
+login.spec.ts › Shifts (clock-in / clock-out, event S) › "Fin de service" then the PIN clocks out and stays on the login screen
+login.spec.ts › Shifts (clock-in / clock-out, event S) › a tile shows who is on shift, and since when
+login.spec.ts › Shifts (clock-in / clock-out, event S) › an employee off shift is clocked in at login
+login.spec.ts › Shifts (clock-in / clock-out, event S) › an employee on shift is not clocked in again
+login.spec.ts › Shifts (clock-in / clock-out, event S) › without being on shift, there is no "Fin de service"
+login.spec.ts › a PIN-protected user typed by INSZ gets the PIN overlay
+modifiers.spec.ts › Option picker › Retour leaves the order untouched
+modifiers.spec.ts › Option picker › a product with options opens the picker; the backend gets ids only
+modifiers.spec.ts › Option picker › a product without options is added at once
+order.spec.ts › Order View - busy table › a table that already has an order shows its lines
+order.spec.ts › Order View - kitchen and cart lines › "Envoyer en cuisine" registers the order without leaving the table
+order.spec.ts › Order View - kitchen and cart lines › "−" stops at 1; removing a line is its own button
+order.spec.ts › Order View - kitchen and cart lines › lines not yet sent are grouped under their own label
+order.spec.ts › Order View - kitchen and cart lines › names show in the UI language first, Chinese underneath
+order.spec.ts › Order View - kitchen and cart lines › the menu button shows how many are already in the cart
+order.spec.ts › Order View - products shown by code › a product without a code keeps its name
+order.spec.ts › Order View - products shown by code › the code leads, the name goes underneath
+order.spec.ts › Order View › Tables button is active for dine-in
+order.spec.ts › Order View › cart sidebar is visible
+order.spec.ts › Order View › free-price product asks for its price
+order.spec.ts › Order View › nav has 6 buttons (Tables, À emporter, En ligne, Rapports, Config, Verrouiller)
+order.spec.ts › Order View › shows category tabs
+order.spec.ts › Order View › shows header with table or takeaway badge
+order.spec.ts › Order View › shows menu items in the grid
+pin.spec.ts › Employee PIN - set by a manager in Settings › the PIN button of a row sets that employee’s PIN
+pin.spec.ts › Own PIN - tap your name on the order screen › a digit corrected before the fourth is not kept
+pin.spec.ts › Own PIN - tap your name on the order screen › a refusal from the backend is shown and the dialog stays
+pin.spec.ts › Own PIN - tap your name on the order screen › back closes without saving
+pin.spec.ts › Own PIN - tap your name on the order screen › the PIN is typed twice, then saved for the logged-in user
+pin.spec.ts › Own PIN - tap your name on the order screen › two different PINs are refused and nothing is saved
+pin.spec.ts › the no-PIN warning at login says where to set one
+reports.spec.ts › Reports - cash tab › "Autre" types any amount on the keypad
+reports.spec.ts › Reports - cash tab › offers only the reasons of the chosen direction
+reports.spec.ts › Reports - cash tab › the summary follows the choices
+reports.spec.ts › Reports View › X and user X are generated from their cards
+reports.spec.ts › Reports View › Z generate button is enabled
+reports.spec.ts › Reports View › a Z needs a second tap: the first one only asks to confirm
+reports.spec.ts › Reports View › an unconfirmed Z disarms by itself
+reports.spec.ts › Reports View › empty history shows placeholder
+reports.spec.ts › Reports View › history rows have reprint buttons
+reports.spec.ts › Reports View › leaving the day tab disarms the Z
+reports.spec.ts › Reports View › no warning once the Z is done
+reports.spec.ts › Reports View › opens on the day tab, with X, user X and the Z close
+reports.spec.ts › Reports View › shows Z history with entries
+reports.spec.ts › Reports View › the Z clears the pending notice
+reports.spec.ts › Reports View › the reprint card names the last Z
+reports.spec.ts › Reports View › warns while the Z of the day is not done
+roles.spec.ts › What each role is offered › a manager is offered everything
+roles.spec.ts › What each role is offered › a server bills and takes payment but does not manage
+roles.spec.ts › What each role is offered › an apprentice orders but neither bills, takes payment nor manages
+roles.spec.ts › What each role is offered › locking the screen ends the backend session and keeps the shift
+settings.spec.ts › Settings - HubRise catalog and channels › Resynchroniser fetches the catalog
+settings.spec.ts › Settings - HubRise catalog and channels › a channel is added as a platform and its kind changes its payment
+settings.spec.ts › Settings - HubRise catalog and channels › a refused catalog lists its issues
+settings.spec.ts › Settings - HubRise catalog and channels › a refused token turns the light red and says so
+settings.spec.ts › Settings - HubRise catalog and channels › the first catalog waits for the manager to pick the products to keep
+settings.spec.ts › Settings - HubRise catalog and channels › the menu is shown as managed by HubRise, with its last sync
+settings.spec.ts › Settings - the HubRise switch › a manager switches HubRise off: the panel and the board go, the change is logged
+settings.spec.ts › Settings - the HubRise switch › off with online orders still to settle, the board stays reachable
+settings.spec.ts › Settings - the HubRise switch › switching off waits for the online orders: the refusal says how many
+settings.spec.ts › Settings - the HubRise switch › with HubRise off the online board is out of reach
+settings.spec.ts › Settings View › HubRise OAuth flow - authorize + paste code + connected
+settings.spec.ts › Settings View › HubRise connected shows account info
+settings.spec.ts › Settings View › a new manager gets a PIN, confirmed by the manager
+settings.spec.ts › Settings View › a new user gets the chosen role (Gérant / Serveur / Apprenti)
+settings.spec.ts › Settings View › a refused HubRise code keeps the dialog open with its error
+settings.spec.ts › Settings View › an employee without a PIN is flagged
+settings.spec.ts › Settings View › deactivating a user takes two taps
+settings.spec.ts › Settings View › products can be shown by their menu code
+settings.spec.ts › Settings View › shows HubRise disconnected status
+settings.spec.ts › Settings View › shows HubRise section
+settings.spec.ts › Settings View › shows POS info section
+settings.spec.ts › Settings View › shows add worker form with i18n placeholders
+settings.spec.ts › Settings View › shows language switcher with 3 options
+settings.spec.ts › Settings View › shows training mode toggle
+settings.spec.ts › Settings View › shows worker list with test user
+settings.spec.ts › Settings View › training mode is refused while an order is open, and says so
+support.spec.ts › a manager starts a session with their PIN
+support.spec.ts › a running session is stopped from Settings
+support.spec.ts › a wrong PIN starts nothing and says so
+support.spec.ts › back closes the PIN dialog without starting
+support.spec.ts › every screen shows the banner while a session runs
+support.spec.ts › no banner without a session
+support.spec.ts › the login screen shows a running session, and anyone stops it
+support.spec.ts › without RustDesk the section says it is not installed
+tables.spec.ts › Tables View › free tables show "Libre"
+tables.spec.ts › Tables View › occupied table shows item count and total
+tables.spec.ts › Tables View › renders 20 tables
+tables.spec.ts › Tables View › tapping a free table navigates to order view
+ticket-delivery.spec.ts › Checkout request › sends { medium: "digital", email } for "E-mail"
+ticket-delivery.spec.ts › Checkout request › sends { medium: "paper_digital", email } for "Les deux"
+ticket-delivery.spec.ts › Checkout request › the request resets to Papier after a completed checkout
+ticket-delivery.spec.ts › Copy flow - ticket delivery › offers the picker before signing
+ticket-delivery.spec.ts › Copy flow - ticket delivery › sends the chosen delivery with copy_ticket
+ticket-delivery.spec.ts › Copy flow - ticket delivery › shows the delivery outcome from CopyResult.delivery
+ticket-delivery.spec.ts › Done screen - delivery outcome › shows "Ticket imprimé" for a paper outcome
+ticket-delivery.spec.ts › Done screen - delivery outcome › shows a queued message when the email is still pending
+ticket-delivery.spec.ts › Done screen - delivery outcome › shows the masked address for a sent outcome
+ticket-delivery.spec.ts › Done screen - delivery outcome › the old "reprint original" button no longer exists
+ticket-delivery.spec.ts › Email keypad › "Modifier" returns to typing without losing the address
+ticket-delivery.spec.ts › Email keypad › a complete address enables the confirm step
+ticket-delivery.spec.ts › Email keypad › an incomplete address blocks the confirm step
+ticket-delivery.spec.ts › Email keypad › backspace removes the last character
+ticket-delivery.spec.ts › Email keypad › cancelling from the confirmation screen also returns to Papier
+ticket-delivery.spec.ts › Email keypad › cancelling the keypad returns the picker to Papier
+ticket-delivery.spec.ts › Email keypad › clear empties the buffer
+ticket-delivery.spec.ts › Email keypad › confirmation screen shows the address in large type
+ticket-delivery.spec.ts › Email keypad › quick keys append common domain chunks
+ticket-delivery.spec.ts › Email keypad › typing letters and digits builds the address
+ticket-delivery.spec.ts › Refund flow - ticket delivery › offers the picker before confirming, defaulting to Papier
+ticket-delivery.spec.ts › Refund flow - ticket delivery › sends the chosen delivery with refund_checkout
+ticket-delivery.spec.ts › Refund flow - ticket delivery › shows the delivery outcome after a successful refund
+ticket-delivery.spec.ts › Settings - digital tickets panel › empty state when there are no deliveries
+ticket-delivery.spec.ts › Settings - digital tickets panel › lists deliveries with masked hints and statuses only
+ticket-delivery.spec.ts › Settings - digital tickets panel › refresh button reloads the delivery list
+ticket-delivery.spec.ts › Settings - digital tickets panel › shows "not configured" when the terminal has no mail setup
+ticket-delivery.spec.ts › Settings - digital tickets panel › shows mail configured/reachable status
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › a refused listing is shown, and no copy is offered
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › an empty list says so
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › back from the copy picker signs nothing
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › back from the refund items signs nothing
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › copies the chosen ticket, on paper by default
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › every ticket can be copied, only the refundable sale refunded
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › lists each ticket with its kind, table and own total
+ticket-delivery.spec.ts › Ticket copy (event C) and refund - one list of tickets › the Z history copy keeps its own title
+ticket-delivery.spec.ts › Ticket medium picker - visibility › "E-mail" (digital only) hidden when allowed but unreachable
+ticket-delivery.spec.ts › Ticket medium picker - visibility › "E-mail" (digital only) hidden when not allowed
+ticket-delivery.spec.ts › Ticket medium picker - visibility › "E-mail" (digital only) shown when allowed and reachable
+ticket-delivery.spec.ts › Ticket medium picker - visibility › hidden when the terminal has no mail setup; checkout sends no delivery
+ticket-delivery.spec.ts › Ticket medium picker - visibility › no unreachable note when the mail service answers
+ticket-delivery.spec.ts › Ticket medium picker - visibility › shows an unreachable note; hides it once reachable
+ticket-delivery.spec.ts › Ticket medium picker - visibility › visible when configured, defaulting to Papier
+ticket-delivery.spec.ts › needsPaper - print the missing original › shows "Imprimer le ticket", calls print_missing_original, hides on success
+ticket-delivery.spec.ts › needsPaper - print the missing original › shows an error toast on failure and keeps the button
+ticket-delivery.spec.ts › needsPaper - print the missing original › the button is absent when the ticket does not need paper
+training-banner.spec.ts › the banner sits under the header, not over it
+training-banner.spec.ts › the header buttons still answer a real tap
+training-banner.spec.ts › the watermark lets taps through
+unpaid.spec.ts › [UC4109] a manager closes the table unpaid with their PIN
+unpaid.spec.ts › a cashier does not see the button
+unpaid.spec.ts › a wrong PIN closes nothing and says so
+unpaid.spec.ts › back leaves the order open
+webshop-orders.spec.ts › Webshop Orders View - signing › Accepter signs the order with a target time, never a bare status
+webshop-orders.spec.ts › Webshop Orders View - signing › Refuser rejects through the fiscal command
+webshop-orders.spec.ts › Webshop Orders View - signing › a cashier sees the refund waiting for a manager
+webshop-orders.spec.ts › Webshop Orders View - signing › a change after the sale is shown, the sale stands
+webshop-orders.spec.ts › Webshop Orders View - signing › a manager refunds an order cancelled after its sale
+webshop-orders.spec.ts › Webshop Orders View - signing › a prepaid order ready for collection is completed without a sale
+webshop-orders.spec.ts › Webshop Orders View - signing › a refused signature shows the reason and the order stays new
+webshop-orders.spec.ts › Webshop Orders View - signing › an order to check cannot be accepted until the catalog resolves it
+webshop-orders.spec.ts › Webshop Orders View - signing › an order unanswered for 5 minutes raises the alarm, a fresh one does not
+webshop-orders.spec.ts › Webshop Orders View - signing › an unpaid order cancelled after its P is closed
+webshop-orders.spec.ts › Webshop Orders View - signing › an unpaid order is marked "À encaisser"
+webshop-orders.spec.ts › Webshop Orders View - signing › an unpaid order ready for collection is cashed in at the till
+webshop-orders.spec.ts › Webshop Orders View - signing › the pending badge counts cancelled orders waiting for staff
+webshop-orders.spec.ts › Webshop Orders View - stages › Réimprimer reveals kitchen and customer tickets
+webshop-orders.spec.ts › Webshop Orders View - stages › Terminées toggles finished orders in the third column
+webshop-orders.spec.ts › Webshop Orders View - stages › orders land in their stage column
+webshop-orders.spec.ts › Webshop Orders View - stages › own webshop delivery shows address and "En livraison"
+webshop-orders.spec.ts › Webshop Orders View › Accepter button visible
+webshop-orders.spec.ts › Webshop Orders View › Accepter moves the card to "En cuisine" with delay chips
+webshop-orders.spec.ts › Webshop Orders View › one column per stage, new order in "Nouvelles"
+webshop-orders.spec.ts › Webshop Orders View › pending badge shows count
+webshop-orders.spec.ts › Webshop Orders View › renders order card
+webshop-orders.spec.ts › Webshop Orders View › shows channel logo for Deliveroo
+webshop-orders.spec.ts › Webshop Orders View › shows customer name
+webshop-orders.spec.ts › Webshop Orders View › shows order items
+webshop-orders.spec.ts › Webshop Orders View › shows order notes
+webshop-orders.spec.ts › Webshop Orders View › shows total
