@@ -17,6 +17,9 @@ pub enum EngineEvent {
     /// The warnings and informations the FDM attached to a signed
     /// event (POS description v2.2, Message).
     FdmSignMessages(pos_fiscal::fdm_client::SignMessages),
+    /// The FDM status monitor checked the FDM (`commands::fdm_monitor`,
+    /// planner decision PD36): its classified health.
+    FdmStatus(crate::commands::fdm_monitor::FdmHealth),
     /// The session was locked (`commands::session`): the UI goes to the
     /// login screen.
     SessionLocked(crate::commands::session::SessionLocked),
@@ -45,6 +48,7 @@ impl EngineEvent {
     pub fn topic(&self) -> &'static str {
         match self {
             EngineEvent::FdmSignMessages(_) => "fdm-sign-messages",
+            EngineEvent::FdmStatus(_) => "fdm-status",
             EngineEvent::SessionLocked(_) => "session-locked",
             EngineEvent::PresenceFailed(_) => "presence-failed",
             #[cfg(feature = "hubrise")]
@@ -122,6 +126,35 @@ mod tests {
         assert_eq!(
             EngineEvent::FdmSignMessages(sign_messages()).topic(),
             "fdm-sign-messages"
+        );
+    }
+
+    #[test]
+    fn the_fdm_status_topic_and_payload() {
+        let event = EngineEvent::FdmStatus(crate::commands::fdm_monitor::FdmHealth {
+            connected: false,
+            answered: true,
+            severity: crate::commands::fdm_monitor::FdmSeverity::Blocking,
+            code: Some("BUFFER_FULL".to_string()),
+            mandatory: true,
+            checked_at: "2026-10-07T10:00:00.000Z".to_string(),
+            next_check_at: None,
+        });
+        assert_eq!(event.topic(), "fdm-status");
+        let EngineEvent::FdmStatus(payload) = event else {
+            panic!("an fdm status event");
+        };
+        assert_eq!(
+            serde_json::to_value(&payload).unwrap(),
+            serde_json::json!({
+                "connected": false,
+                "answered": true,
+                "severity": "blocking",
+                "code": "BUFFER_FULL",
+                "mandatory": true,
+                "checkedAt": "2026-10-07T10:00:00.000Z",
+                "nextCheckAt": null
+            })
         );
     }
 

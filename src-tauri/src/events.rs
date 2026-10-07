@@ -39,6 +39,7 @@ impl EventSink for TauriEventSink {
         // The payload types are the ones the UI has always received.
         let _ = match event {
             EngineEvent::FdmSignMessages(messages) => handle.emit(topic, messages),
+            EngineEvent::FdmStatus(health) => handle.emit(topic, health),
             EngineEvent::SessionLocked(e) => handle.emit(topic, e),
             EngineEvent::PresenceFailed(e) => handle.emit(topic, e),
             EngineEvent::WebshopOrderReceived(e)

@@ -69,6 +69,9 @@ pub struct AppState {
     pub fdm_status_cache: Mutex<Option<FdmStatusAnswer>>,
     /// The order on screen and the lock (`commands::session`).
     pub session_rules: crate::commands::session::SessionRules,
+    /// The last FDM health and the monitor's backoff
+    /// (`commands::fdm_monitor`).
+    pub fdm_monitor: crate::commands::fdm_monitor::FdmMonitorState,
 }
 
 /// One cached FDM status answer: the key of everything that reaches the

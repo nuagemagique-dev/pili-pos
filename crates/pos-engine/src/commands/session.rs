@@ -105,6 +105,10 @@ pub struct SessionRules {
     last_activity: Mutex<Instant>,
     /// Woken by every [`SessionRules::touch`], so the idle loop re-arms.
     activity: Notify,
+    /// Notified when a session opens or closes, so the FDM monitor loop
+    /// starts or stops polling at once. A stored permit: a change while
+    /// the loop is busy is not lost.
+    session_changed: Notify,
     presence_tx: UnboundedSender<PresenceJob>,
     presence_rx: Mutex<Option<UnboundedReceiver<PresenceJob>>>,
 }
@@ -116,6 +120,7 @@ impl Default for SessionRules {
             active_order: Mutex::new(None),
             last_activity: Mutex::new(Instant::now()),
             activity: Notify::new(),
+            session_changed: Notify::new(),
             presence_tx,
             presence_rx: Mutex::new(Some(presence_rx)),
         }
@@ -151,6 +156,16 @@ impl SessionRules {
     /// enables it before it reads the clock, so no touch is missed.
     pub(crate) fn next_activity(&self) -> Notified<'_> {
         self.activity.notified()
+    }
+
+    /// Tell the FDM monitor that a session opened or closed.
+    pub(crate) fn notify_session_changed(&self) {
+        self.session_changed.notify_one();
+    }
+
+    /// Completes when a session opens or closes.
+    pub(crate) fn session_changed(&self) -> Notified<'_> {
+        self.session_changed.notified()
     }
 
     /// Queue a clock-in for `insz`. Never blocks: the presence worker

@@ -1,5 +1,6 @@
 //! The background loops of the engine: the automatic Z, the digital
-//! ticket outbox, the presence worker, the idle lock and, with the `hubrise` feature, the HubRise poller and
+//! ticket outbox, the presence worker, the idle lock, the FDM status
+//! monitor and, with the `hubrise` feature, the HubRise poller and
 //! outbox. The shell calls [`Engine::start_background`] once the runtime
 //! is up and [`Engine::shutdown`] when it closes; the loops run on the
 //! runtime the shell gives and report through the engine's
@@ -65,6 +66,70 @@ pub async fn run_idle_lock(state: Arc<AppState>) {
         tokio::select! {
             _ = state.shutdown_token.cancelled() => return,
             _ = &mut touched => {}
+        }
+    }
+}
+
+/// The FDM status monitor (PD36). While no session is open it waits and
+/// sends nothing. A session that opens is checked at once; then it
+/// waits `poll_delay(timers.fdm_poll, failures)` before each check, or
+/// until an explicit check (`fdm_check_now`) or a session change makes it
+/// recompute from now. When the session closes it stops polling.
+/// Returns when the shutdown token is cancelled.
+pub async fn run_fdm_monitor(state: Arc<AppState>) {
+    let monitor = &state.fdm_monitor;
+    let mut polling = false;
+    loop {
+        // Enable the waits before reading the session: a change between
+        // the two would otherwise be lost (the permit would also keep it,
+        // but a spurious pass costs nothing).
+        let mut changed = std::pin::pin!(state.session_rules.session_changed());
+        changed.as_mut().enable();
+        let mut woken = std::pin::pin!(monitor.woken());
+        woken.as_mut().enable();
+
+        let session_open = state.session.lock().map(|s| s.is_some()).unwrap_or(false);
+        if !session_open {
+            if polling {
+                polling = false;
+                monitor.clear_next_check();
+            }
+            tokio::select! {
+                _ = state.shutdown_token.cancelled() => return,
+                _ = &mut changed => continue,
+            }
+        }
+
+        if !polling {
+            // The session just opened: check at once, backoff restarted.
+            polling = true;
+            monitor.reset_failures();
+            tokio::select! {
+                _ = state.shutdown_token.cancelled() => return,
+                result = commands::fdm_monitor::check(&state, false) => {
+                    if let Err(e) = result {
+                        tracing::warn!(%e, "FDM monitor check failed");
+                    }
+                }
+            }
+            continue;
+        }
+
+        let delay = commands::fdm_monitor::poll_delay(state.timers.fdm_poll, monitor.failures());
+        tokio::select! {
+            _ = state.shutdown_token.cancelled() => return,
+            _ = &mut changed => {}
+            _ = &mut woken => {}
+            _ = tokio::time::sleep(delay) => {
+                tokio::select! {
+                    _ = state.shutdown_token.cancelled() => return,
+                    result = commands::fdm_monitor::check(&state, false) => {
+                        if let Err(e) = result {
+                            tracing::warn!(%e, "FDM monitor check failed");
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -143,6 +208,9 @@ impl Engine {
         // The idle lock: waits for the activity clock, locks an
         // unattended session (`commands::session::lock`, reason idle).
         spawned.push(rt.spawn(run_idle_lock(state.clone())));
+
+        // The FDM status monitor: polls while a session is open.
+        spawned.push(rt.spawn(run_fdm_monitor(state.clone())));
 
         // The HubRise poller and outbox; a build without the `hubrise`
         // feature has no background HTTP workers at all.

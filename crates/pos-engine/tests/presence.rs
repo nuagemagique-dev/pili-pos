@@ -164,8 +164,16 @@ impl Rig {
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
 
+    /// How many requests reached the FDM, not counting the status
+    /// queries of the FDM monitor (it checks when a session opens).
     async fn requests(&self) -> usize {
-        self.fdm.received_requests().await.unwrap_or_default().len()
+        self.fdm
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .iter()
+            .filter(|r| !String::from_utf8_lossy(&r.body).contains("status(language"))
+            .count()
     }
 
     fn session_is_open(&self) -> bool {
