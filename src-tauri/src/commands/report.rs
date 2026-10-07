@@ -455,16 +455,17 @@ pub fn do_backup_database(state: &AppState) -> Result<String, String> {
     access::operator(state, Access::Admin)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let config = state.config.lock().map_err(|e| e.to_string())?;
-    backup_database_impl(&db, &config)
+    backup_database_impl(&db, &config, &state.paths.backups)
 }
 
 pub(crate) fn backup_database_impl(
     conn: &rusqlite::Connection,
     config: &pos_core::config::PosConfig,
+    default_backups: &std::path::Path,
 ) -> Result<String, String> {
     let backup_dir = match &config.backup_dir {
         Some(dir) => std::path::PathBuf::from(dir),
-        None => crate::paths::backups_dir(),
+        None => default_backups.to_path_buf(),
     };
     std::fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
 

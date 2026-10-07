@@ -3,11 +3,10 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use pos_core::config::PosConfig;
-use pos_db::schema;
 use rusqlite::Connection;
 use tokio_util::sync::CancellationToken;
 
-/// Shared application state managed by Tauri.
+/// Shared application state, owned by [`crate::engine::Engine`].
 ///
 /// `db` is the connection used by UI command handlers; `poller_db`
 /// is a separate connection dedicated to the background HubRise
@@ -25,6 +24,8 @@ use tokio_util::sync::CancellationToken;
 /// certification build includes the feature; each installation
 /// switches the integration on or off at run time.
 pub struct AppState {
+    /// Where the engine keeps its data (database, backups).
+    pub paths: crate::engine::EnginePaths,
     pub db: Mutex<Connection>,
     #[cfg(feature = "hubrise")]
     pub poller_db: Arc<Mutex<Connection>>,
@@ -56,89 +57,6 @@ pub struct AppState {
     pub signing: crate::commands::signing::SigningLock,
 }
 
-impl AppState {
-    pub fn new() -> anyhow::Result<Self> {
-        let db_path = crate::paths::db_path();
-        tracing::info!(path = %db_path.display(), "opening database");
-
-        std::fs::create_dir_all(db_path.parent().unwrap())?;
-
-        let conn = Connection::open(&db_path)?;
-        schema::run_migrations(&conn)?;
-
-        let recovered = recover_orphaned_checkouts(&conn).unwrap_or(0);
-        if recovered > 0 {
-            tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
-        }
-        // Online orders a crash left half-signed.
-        #[cfg(feature = "hubrise")]
-        match crate::commands::webshop::recover_webshop_orders(&conn) {
-            Ok(0) => {}
-            Ok(n) => tracing::warn!(n, "boot: recovered online order(s) left signing"),
-            Err(e) => tracing::error!(%e, "boot: online order recovery failed"),
-        }
-
-        // Dedicated background-poller connection to the same WAL-mode
-        // SQLite file (pos-db enables WAL in run_migrations). HubRise only.
-        #[cfg(feature = "hubrise")]
-        let poller_conn = Connection::open(&db_path)?;
-
-        let config = Self::load_config()?;
-        for problem in pos_fiscal::fdm_client::FdmClient::config_problems(&config) {
-            tracing::error!(%problem, "pos.json: the FDM will refuse this setting");
-        }
-        let mail = crate::commands::delivery::MailState::from_config(&config);
-        #[cfg(feature = "hubrise")]
-        let hubrise_on =
-            pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;
-        #[cfg(feature = "hubrise")]
-        tracing::info!(enabled = hubrise_on, "hubrise integration switch");
-
-        #[cfg(feature = "hubrise")]
-        let shared_http = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
-            .build()?;
-
-        Ok(Self {
-            db: Mutex::new(conn),
-            #[cfg(feature = "hubrise")]
-            poller_db: Arc::new(Mutex::new(poller_conn)),
-            config: Mutex::new(config),
-            #[cfg(feature = "hubrise")]
-            shared_http,
-            #[cfg(feature = "hubrise")]
-            hubrise_poll_now: Arc::new(tokio::sync::Notify::new()),
-            #[cfg(feature = "hubrise")]
-            hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),
-            #[cfg(feature = "hubrise")]
-            hubrise_switch: pos_hubrise::switch::Switch::new(hubrise_on),
-            shutdown_token: CancellationToken::new(),
-            mail,
-            session: Mutex::new(None),
-            support: crate::commands::support::SupportState::installed(),
-            pin_throttle: Default::default(),
-            signing: Default::default(),
-        })
-    }
-
-    /// Resolve the POS configuration, in priority order:
-    ///
-    /// 1. `PILI_POS_CONFIG` env var - explicit path; any load error
-    ///    is fatal.
-    /// 2. `/etc/pili-pos/pos.json` - the production path documented
-    ///    in the installation manual. If the file exists, a parse
-    ///    error is fatal: a fiscal terminal must never boot with a
-    ///    partial or wrong identity.
-    /// 3. Development fallback - hardcoded test identity, warned
-    ///    loudly so it can't be mistaken for a production setup.
-    fn load_config() -> anyhow::Result<PosConfig> {
-        load_config_from(
-            std::env::var("PILI_POS_CONFIG").ok().as_deref(),
-            std::path::Path::new(crate::paths::PRODUCTION_CONFIG),
-        )
-    }
-}
-
 /// Crash recovery at boot: close orders whose sale (event N) is in the
 /// archive but which are still `open`. Checkout archives the event and
 /// closes the order in one transaction, so this only repairs databases
@@ -156,45 +74,20 @@ pub fn recover_orphaned_checkouts(conn: &Connection) -> rusqlite::Result<usize> 
     )
 }
 
-/// [`AppState::load_config`] with its inputs made explicit, for tests:
+/// The configuration [`crate::engine::config_source_from`] selects, loaded:
 /// `env_path` is `PILI_POS_CONFIG`, `production_path` the file of the
-/// installation manual.
+/// installation manual. Kept for the tests of the selection order.
 pub fn load_config_from(
     env_path: Option<&str>,
     production_path: &std::path::Path,
 ) -> anyhow::Result<PosConfig> {
-    if let Some(path) = env_path {
-        let config = PosConfig::load_from_file(std::path::Path::new(path))?;
-        tracing::info!(%path, "config loaded from PILI_POS_CONFIG");
-        return Ok(config);
-    }
-
-    if production_path.exists() {
-        let config = PosConfig::load_from_file(production_path)?;
-        tracing::info!(path = %production_path.display(), "config loaded");
-        return Ok(config);
-    }
-
-    tracing::warn!(
-        "no config file found (PILI_POS_CONFIG unset, /etc/pili-pos/pos.json absent) - \
-         using development defaults with a TEST identity"
-    );
-    Ok(PosConfig {
-        pos_id: "CFOD0061234567".to_string(),
-        terminal_id: "POS1".to_string(),
-        device_id: "00:1b:44:11:3a:b7".to_string(),
-        restaurant_name: "Restaurant Exemple".to_string(),
-        restaurant_address: "Rue de l'Exemple 1, 4000 Liège".to_string(),
-        restaurant_vat: "BE0499999960".to_string(),
-        restaurant_est_no: "2123456791".to_string(),
-        fdm_url: "http://localhost:8081/graphql".to_string(),
-        ..Default::default()
-    })
+    crate::engine::config_source_from(env_path, production_path).load()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pos_db::schema;
 
     fn db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();

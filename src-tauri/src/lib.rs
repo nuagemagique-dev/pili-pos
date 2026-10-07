@@ -12,6 +12,7 @@
 
 pub mod cli;
 pub mod commands;
+pub mod engine;
 pub mod ipc;
 pub mod paths;
 pub mod state;

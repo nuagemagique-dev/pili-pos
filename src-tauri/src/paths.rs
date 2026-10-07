@@ -99,4 +99,12 @@ mod tests {
         let dir = resolve_data_dir(Some("".into()), Some("".into()), fallback());
         assert_eq!(dir, fallback());
     }
+
+    #[test]
+    fn the_engine_layout_is_the_production_layout() {
+        let paths = crate::engine::EnginePaths::under(data_dir());
+        assert_eq!(paths.db, db_path());
+        assert_eq!(paths.backups, backups_dir());
+        assert_eq!(paths.data_dir, data_dir());
+    }
 }

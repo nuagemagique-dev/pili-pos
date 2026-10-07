@@ -751,7 +751,8 @@ pub(crate) async fn follow_up(
         } => {
             // Best effort: a failed backup never undoes the Z.
             if let Ok(db) = state.db.lock()
-                && let Err(e) = crate::commands::report::backup_database_impl(&db, config)
+                && let Err(e) =
+                    crate::commands::report::backup_database_impl(&db, config, &state.paths.backups)
             {
                 tracing::warn!(%e, "post-Z backup failed (non-fatal)");
             }
