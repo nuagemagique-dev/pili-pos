@@ -1,0 +1,15 @@
+# Test moves: pure moves of tests between packages or modules.
+#
+# Format: old_prefix<TAB>new_prefix, one rule per line. # comments and blank
+# lines are ignored. scripts/android/test_inventory.sh --diff renames every
+# baseline line "<section>:<rest>" whose <rest> starts with an old prefix
+# (longest prefix wins) before comparing it with the current inventory.
+#
+# Only pure moves belong here: the test body and its name stay the same, only
+# its package, target or module path changes. A new, renamed-in-substance or
+# deleted test is never a rule. A rule that matches no baseline line (stale)
+# or two baseline lines mapped to one name (collision) fail the check.
+#
+# Each block starts with a comment naming the card that moved the tests.
+#
+# No rule yet.
