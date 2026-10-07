@@ -13,6 +13,7 @@ MAIN_RS = """\
 fn main() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         // Reports
+        commands::report::generate_x_report,
         commands::report::generate_z_report,
         commands::checkout::checkout,
         ipc::order::create_order,
@@ -222,6 +223,54 @@ class RewriteTests(unittest.TestCase):
             "`crates/pos-engine/src/commands/report.rs:12-30` "
             "`crates/pos-engine/tests/spf_e2e_basic.rs::m171_sale_in_training` "
             "`crates/pos-engine/src/commands/report.rs::{a,b}`\n",
+        )
+
+    def test_brace_list_of_commands_is_a_wrapper_reference(self):
+        self.repo.touch(
+            "src-tauri/src/ipc/report.rs",
+            "crates/pos-engine/src/commands/report.rs",
+        )
+        self.doc(
+            "`src-tauri/src/commands/report.rs::{generate_x_report,generate_z_report}` "
+            "`src-tauri/src/commands/report.rs::{ generate_x_report , generate_z_report }`\n"
+        )
+        code, out = self.repo.run("--plan")
+        self.assertIn("rule a: 2 matches", out)
+        self.assertNotIn("manual review", out)
+        code, out = self.repo.run("--apply")
+        self.assertEqual(code, 0)
+        self.assertNotIn("review by hand", out)
+        self.assertEqual(
+            self.repo.read(IN_SCOPE),
+            "`src-tauri/src/ipc/report.rs::{generate_x_report,generate_z_report}` "
+            "`src-tauri/src/ipc/report.rs::{ generate_x_report , generate_z_report }`\n",
+        )
+
+    def test_brace_list_mixing_commands_and_engine_names_is_reviewed(self):
+        self.repo.touch(
+            "src-tauri/src/ipc/report.rs",
+            "crates/pos-engine/src/commands/report.rs",
+        )
+        text = "`src-tauri/src/commands/report.rs::{generate_z_report, do_generate_z_report}`\n"
+        self.doc(text)
+        code, out = self.repo.run("--plan")
+        self.assertIn("rule c: 1 matches", out)
+        self.assertIn("manual review", out)
+        code, out = self.repo.run("--apply")
+        self.assertEqual(code, 0)
+        self.assertIn("mixed wrapper and engine names to review by hand", out)
+        self.assertEqual(
+            self.repo.read(IN_SCOPE),
+            "`crates/pos-engine/src/commands/report.rs::{generate_z_report, do_generate_z_report}`\n",
+        )
+
+    def test_brace_list_of_a_command_of_another_module_is_not_a_wrapper(self):
+        self.repo.touch("crates/pos-engine/src/commands/report.rs")
+        self.doc("`src-tauri/src/commands/report.rs::{checkout}`\n")
+        self.repo.run("--apply")
+        self.assertEqual(
+            self.repo.read(IN_SCOPE),
+            "`crates/pos-engine/src/commands/report.rs::{checkout}`\n",
         )
 
     def test_out_of_scope_files_untouched(self):

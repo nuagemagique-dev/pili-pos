@@ -16,6 +16,9 @@ Rules, applied most specific first (the first rule that matches wins):
        <m> (read from the generate_handler! lists of src-tauri/src/main.rs,
        entries commands::<m>::<cmd> or ipc::<m>::<cmd>)
          -> src-tauri/src/ipc/<m>.rs::<cmd>
+       The suffix may also be a brace list ::{c1,c2}: when every item is a
+       command of <m> the rule applies; a list that mixes commands and other
+       names follows rule c and is reported for manual review.
     b  src-tauri/src/cli.rs::{init_db,apply_seed,check_config}
          -> crates/pos-engine/src/install.rs::<same>
     c  src-tauri/src/commands/ and the bare directory
@@ -26,9 +29,10 @@ Rules, applied most specific first (the first rule that matches wins):
     f  src-tauri/tests[/...] -> crates/pos-engine/tests[/...]
 
 Matching respects path boundaries (src-tauri/tests2 and
-src-tauri/src/commands.rs are never matched as the directory). A ::item or
-:line suffix is kept unchanged; a :line suffix is reported for manual
-review because line numbers move.
+src-tauri/src/commands.rs are never matched as the directory). A ::item,
+::{items} or :line suffix is kept unchanged; a :line suffix is reported for
+manual review because line numbers move, and so is a brace list that mixes
+wrapper commands with other names (they end up in two different files).
 
 Modes:
     --plan      (default) per rule: matches and whether the target exists
@@ -100,6 +104,7 @@ _MASTER = re.compile(
 
 # Suffix that follows a matched file path.
 _ITEM = re.compile(r"::(?P<item>\w+)")
+_BRACE = re.compile(r"::\{(?P<items>[^{}\n]*)\}")
 _LINE = re.compile(r":(?P<line>\d+)(?![\w])")
 
 # Loose scan for --unmapped: any mention, without boundary care.
@@ -125,6 +130,7 @@ class Match:
     new: str
     target: str  # repo-relative target that must exist to apply
     line_suffix: bool  # followed by :<line>
+    mixed: bool = False  # followed by ::{...} mixing commands and other names
 
 
 def command_names(root: Path):
@@ -158,7 +164,7 @@ def scope_files(root: Path):
 
 
 def classify(m, text, cmds):
-    """Return (rule, new_path, target, line_suffix) for a master match."""
+    """Return (rule, new_path, target, line_suffix, mixed) for a master match."""
     old = m.group(0)
     after = text[m.end():]
     g = m.groupdict()
@@ -169,36 +175,44 @@ def classify(m, text, cmds):
     line_suffix = False
     if not im and _LINE.match(after):
         line_suffix = True
+    brace = None if im else _BRACE.match(after)
+    items = []
+    if brace:
+        items = [x.strip() for x in brace.group("items").split(",") if x.strip()]
 
     if g["cli"]:
-        return "b", f"{ENGINE}/src/install.rs", f"{ENGINE}/src/install.rs", False
+        return "b", f"{ENGINE}/src/install.rs", f"{ENGINE}/src/install.rs", False, False
     if g["state"]:
         t = f"{ENGINE}/src/state.rs"
-        return "d", t, t, line_suffix
+        return "d", t, t, line_suffix, False
     if g["cmdfile"]:
         mod = g["cmdfile"]
         if item is not None and (mod, item) in cmds:
             t = f"src-tauri/src/ipc/{mod}.rs"
-            return "a", t, t, False
+            return "a", t, t, False, False
+        flags = [(mod, x) in cmds for x in items]
+        if flags and all(flags):
+            t = f"src-tauri/src/ipc/{mod}.rs"
+            return "a", t, t, False, False
         t = f"{ENGINE}/src/commands/{mod}.rs"
-        return "c", t, t, line_suffix
+        return "c", t, t, line_suffix, any(flags)
     if g["cmddir"]:
         t = f"{ENGINE}/src/commands"
-        return "c", t, t, False
+        return "c", t, t, False, False
     if g["testsmod"]:
         t = f"{TESTKIT}/src/lib.rs"
-        return "e", t, t, line_suffix
+        return "e", t, t, line_suffix, False
     if g["commonfile"]:
         t = f"{TESTKIT}/src/{g['commonfile']}"
-        return "e", t, t, line_suffix
+        return "e", t, t, line_suffix, False
     if g["commondir"]:
         t = f"{TESTKIT}/src"
-        return "e", t, t, False
+        return "e", t, t, False, False
     if g["testfile"]:
         t = f"{ENGINE}/tests/{g['testfile']}"
-        return "f", t, t, line_suffix
+        return "f", t, t, line_suffix, False
     t = f"{ENGINE}/tests"
-    return "f", t, t, False
+    return "f", t, t, False, False
 
 
 def _new_text(rule, m):
@@ -234,7 +248,7 @@ def find_matches(root: Path, cmds):
         except (OSError, UnicodeDecodeError):
             continue
         for m in _MASTER.finditer(text):
-            rule, _new, target, line_suffix = classify(m, text, cmds)
+            rule, _new, target, line_suffix, mixed = classify(m, text, cmds)
             out.append(
                 Match(
                     path=p,
@@ -247,6 +261,7 @@ def find_matches(root: Path, cmds):
                     new=_new_text(rule, m),
                     target=target,
                     line_suffix=line_suffix,
+                    mixed=mixed,
                 )
             )
     return out
@@ -328,9 +343,16 @@ def main(argv=None):
             print(f"rewrote {changed[rel]:3d} in {rel}")
         total = sum(changed.values())
         left = [mt for mt in matches if not target_exists(root, mt)]
-        review = [mt for mt in matches if mt.line_suffix and target_exists(root, mt)]
-        for mt in review:
-            print(f"{mt.rel}:{mt.line}: line number to review by hand ({mt.old}:<line>)")
+        for mt in matches:
+            if not target_exists(root, mt):
+                continue
+            if mt.line_suffix:
+                print(f"{mt.rel}:{mt.line}: line number to review by hand ({mt.old}:<line>)")
+            if mt.mixed:
+                print(
+                    f"{mt.rel}:{mt.line}: mixed wrapper and engine names to review "
+                    f"by hand ({mt.old}::{{...}}, wrappers are in src-tauri/src/ipc)"
+                )
         print(
             f"applied: {total} references in {len(changed)} files; "
             f"{len(left)} left (target not there yet)"
@@ -363,11 +385,12 @@ def main(argv=None):
         else:
             state = f"partial ({have} of {len(rm)})"
         print(f"rule {r}: {len(rm)} matches, target exists: {state}  [{RULE_TITLES[r]}]")
-    review = [mt for mt in matches if mt.line_suffix]
+    review = [mt for mt in matches if mt.line_suffix or mt.mixed]
     if review:
-        print("manual review (line numbers move):")
+        print("manual review (line numbers move, or wrappers mixed with engine names):")
         for mt in review:
-            print(f"  {mt.rel}:{mt.line}: {mt.old}:<line>")
+            what = ":<line>" if mt.line_suffix else "::{wrappers and engine names}"
+            print(f"  {mt.rel}:{mt.line}: {mt.old}{what}")
     files = len({mt.rel for mt in matches})
     print(f"total: {len(matches)} references in {files} files")
     return 0
