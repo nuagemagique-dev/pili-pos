@@ -132,7 +132,9 @@ test.describe('Order View - kitchen and cart lines', () => {
   test('"Envoyer en cuisine" registers the order without leaving the table', async ({ page }) => {
     await page.locator('.kitchen-btn').click();
     await expect(page.locator('.toast-success')).toContainText('Envoyé en cuisine · 2 articles');
-    expect(await ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    const calls = await ipcCalls(page, 'leave_order');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].reason).toBe('send_to_kitchen');
     await expect(page).toHaveURL(/order/);
     await expect(page.locator('.pending-label')).toHaveCount(0);
     await expect(page.locator('.kitchen-btn')).toBeDisabled();

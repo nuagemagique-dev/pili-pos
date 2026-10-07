@@ -185,6 +185,9 @@ function defaultHandlers(): Record<string, Handler> {
       return tables;
     },
     sign_table_order: () => 'printed',
+    leave_order: () => 'printed',
+    set_active_order: () => undefined,
+    lock_session: () => ({ orderError: null }),
     sign_pre_bill: () => 'printed',
 
     // Social (S) and financial (F) events
@@ -316,6 +319,7 @@ function defaultHandlers(): Record<string, Handler> {
       printerAddress: null,
       trainingMode: false,
       language: 'fr',
+      posSwVersion: 'pili-pos/1.0.0',
       configProblems: [],
     }),
     set_training_mode: () => undefined,
