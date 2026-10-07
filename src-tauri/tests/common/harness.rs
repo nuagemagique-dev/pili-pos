@@ -29,6 +29,7 @@ use tokio_util::sync::CancellationToken;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+use pili_pos::engine::EnginePaths;
 use pili_pos::state::AppState;
 
 use super::fixtures::{ResponseKind, UcFixture, read_response_envelope};
@@ -59,6 +60,10 @@ pub const TEST_OPERATOR: &str = "12345678901";
 /// to be the FDM. Tests drop both at end-of-scope.
 pub struct TestApp {
     pub state: AppState,
+    /// The data directory of `state.paths`: it lives as long as the app,
+    /// so a backup a Z report makes never lands in the developer's own
+    /// data directory.
+    pub data_dir: tempfile::TempDir,
     pub fdm: MockServer,
     /// Signing against a live FDM ([`TestApp::live`]): canned answers
     /// cannot be mounted.
@@ -142,7 +147,9 @@ impl TestApp {
             digital_ticket: None,
         };
 
+        let data_dir = tempfile::tempdir().expect("test data dir");
         let state = AppState {
+            paths: EnginePaths::under(data_dir.path().to_path_buf()),
             db: Mutex::new(conn),
             #[cfg(feature = "hubrise")]
             poller_db: Arc::new(Mutex::new(poller)),
@@ -165,6 +172,7 @@ impl TestApp {
 
         let app = Self {
             state,
+            data_dir,
             fdm,
             live: false,
         };

@@ -1,7 +1,7 @@
 //! The Tauri command wrappers: one call each into `crate::commands`.
 
-/// The state object the wrappers manage (a later step points it at the engine).
-pub type Managed = crate::state::AppState;
+/// The state object the wrappers manage: the engine (it derefs to the state).
+pub type Managed = crate::engine::Engine;
 
 pub mod auth;
 pub mod checkout;

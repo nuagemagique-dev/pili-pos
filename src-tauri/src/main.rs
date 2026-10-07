@@ -3,12 +3,12 @@
 // Modules live in `lib.rs` so integration tests under `tests/` can
 // reach them via `use pili_pos::commands;`. The binary just re-imports
 // them through the crate name - same code, same output.
-use pili_pos::{cli, commands, ipc, paths, state};
+use pili_pos::engine::{Engine, EngineConfig, EnginePaths, config_source_from};
+use pili_pos::{cli, commands, ipc, paths};
 
 #[cfg(feature = "hubrise")]
 use std::sync::Arc;
 
-use state::AppState;
 use tauri::Emitter;
 
 // Every shipped build has the HubRise integration (switched on or off
@@ -80,27 +80,34 @@ fn main() {
         .init();
     tracing::info!("pili-pos starting");
 
-    let app_state = AppState::new().expect("Failed to initialize app state");
+    let engine = Engine::open(EngineConfig {
+        paths: EnginePaths::under(paths::data_dir()),
+        config: config_source_from(
+            std::env::var("PILI_POS_CONFIG").ok().as_deref(),
+            std::path::Path::new(paths::PRODUCTION_CONFIG),
+        ),
+    })
+    .expect("Failed to initialize app state");
 
     // Clone the handles we need for background tasks BEFORE moving
-    // app_state into Tauri's managed state. The poller / outbox / health
+    // the engine into Tauri's managed state. The poller / outbox / health
     // handles only exist when the `hubrise` feature is enabled.
     #[cfg(feature = "hubrise")]
-    let poller_db = app_state.poller_db.clone();
+    let poller_db = engine.poller_db.clone();
     #[cfg(feature = "hubrise")]
-    let shared_http = app_state.shared_http.clone();
+    let shared_http = engine.shared_http.clone();
     #[cfg(feature = "hubrise")]
-    let mut poller_ctx = commands::hubrise::poller_ctx(&app_state);
+    let mut poller_ctx = commands::hubrise::poller_ctx(&engine);
     #[cfg(feature = "hubrise")]
-    let outbox_wake = app_state.hubrise_outbox_wake.clone();
+    let outbox_wake = engine.hubrise_outbox_wake.clone();
     #[cfg(feature = "hubrise")]
-    let hubrise_switch = app_state.hubrise_switch.clone();
-    let shutdown_for_setup = app_state.shutdown_token.clone();
-    let shutdown_for_window = app_state.shutdown_token.clone();
+    let hubrise_switch = engine.hubrise_switch.clone();
+    let shutdown_for_setup = engine.shutdown_token.clone();
+    let shutdown_for_window = engine.shutdown_token.clone();
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .manage(app_state)
+        .manage(engine)
         .setup(move |_app| {
             // Warnings and informations the FDM attaches to a signed
             // event go to the screen, whichever command signed
@@ -143,7 +150,7 @@ fn main() {
                         tokio::select! {
                             _ = cancel.cancelled() => return,
                             _ = tick.tick() => {
-                                let state = handle.state::<AppState>();
+                                let state = handle.state::<Engine>();
                                 if let Err(e) = commands::report::close_overdue_day(state.inner()).await {
                                     tracing::warn!(%e, "automatic Z not made yet");
                                 }
@@ -167,7 +174,7 @@ fn main() {
                         tokio::select! {
                             _ = cancel.cancelled() => return,
                             _ = tick.tick() => {
-                                let state = handle.state::<AppState>();
+                                let state = handle.state::<Engine>();
                                 commands::delivery::run_outbox_once(state.inner()).await;
                             }
                         }
