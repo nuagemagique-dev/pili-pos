@@ -5,6 +5,7 @@ use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
+use crate::commands::auth;
 use crate::commands::errors;
 use crate::commands::signing::{self, ArchiveSpec, Begin, Kind, Op, PendingContext, Prepared};
 use crate::events::EngineEvent;
@@ -111,6 +112,31 @@ pub fn do_list_open_shifts(
 ) -> Result<Vec<pos_db::queries::shifts::OpenShift>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::shifts::list_open_shifts(&db).map_err(|e| e.to_string())
+}
+
+/// End the shift: check the PIN exactly like a login, sign the
+/// employee's clock-out and close the session in every case.
+///
+/// The login checks are [`auth::authenticate`] (a refused PIN is an
+/// `Err` with the login's code, and nothing is signed or opened). The
+/// clock-out is [`do_work_out`]: a failure (an error, or a result that
+/// is not a success) comes back as `success: false` with the error,
+/// never as `presence-failed`. It queues no clock-in and leaves the
+/// active order alone: the shift ends, the screen goes back to the
+/// login, whatever the FDM answered.
+pub async fn do_end_shift(
+    state: &AppState,
+    insz: String,
+    pin: Option<String>,
+) -> Result<SocialResult, String> {
+    let user = auth::authenticate(state, &insz, pin)?;
+    access::open_session(state, &user)?;
+    let result = match do_work_out(state, insz).await {
+        Ok(result) => result,
+        Err(e) => SocialResult::failed(e),
+    };
+    access::close_session(state)?;
+    Ok(result)
 }
 
 /// The `presence-failed` event: a clock-in the engine tried at login
