@@ -91,7 +91,7 @@ complet.
 | Contenu | identifiants POS (posId, terminalId, deviceId), URL FDM, adresse imprimante, infos restaurant, mode formation |
 | Format | JSON |
 | Modifiable par l'opérateur | Non (image scellée, accès root absent) |
-| Source de vérité runtime | Dupliqué dans `AppState.config` au démarrage |
+| Source de vérité runtime | Chargé à l'ouverture du moteur (`Engine::open`) dans `AppState.config` ; le fichier est désigné par `PILI_POS_CONFIG`, sinon `/etc/pili-pos/pos.json` |
 
 ## 2. Accessibilité
 

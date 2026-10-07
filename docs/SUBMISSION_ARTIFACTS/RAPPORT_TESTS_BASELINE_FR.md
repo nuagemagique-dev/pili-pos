@@ -250,7 +250,7 @@ champs/arguments optionnels. Aucun changement de sémantique de test.
 | Fichier | Changement |
 |---|---|
 | `src-tauri/Cargo.toml` | Feature `cert` = `custom-protocol` + `hubrise` ; la facturation B2B (`peppol`) reste hors du binaire cert. |
-| `src-tauri/src/main.rs` | Commandes Tauri de la facturation B2B gardées derrière `#[cfg(feature = "peppol")]`. |
+| `src-tauri/src/main.rs`, `src-tauri/src/ipc/mod.rs` | Commandes Tauri de la facturation B2B gardées derrière `#[cfg(feature = "peppol")]`. |
 | `crates/pos-engine/src/commands/checkout.rs` | **Bug fix** : passait `restaurant_est_no: ""` à `TicketParams`, passe désormais `&config.restaurant_est_no`. |
 | `ui/src/router/index.ts` | Écran des commandes en ligne accessible seulement si l'intégration est activée pour l'installation. |
 

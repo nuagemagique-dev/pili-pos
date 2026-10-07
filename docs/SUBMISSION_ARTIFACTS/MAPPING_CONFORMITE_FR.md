@@ -99,8 +99,9 @@ reporté, hors périmètre, non déclaré.
 ## Peppol B2B (obligation parallèle, hors SCE-2.0)
 
 Voir `DECISION_PEPPOL_AP_FR.md`. Sérialiseur UBL + trait AccessPoint
-implémentés dans `crates/pos-peppol` ; IPC dans
-`crates/pos-engine/src/commands/invoice.rs`. Ce code est derrière le feature
+implémentés dans `crates/pos-peppol` ; commandes dans
+`crates/pos-engine/src/commands/invoice.rs`, enveloppes IPC dans
+`src-tauri/src/ipc/invoice.rs`. Ce code est derrière le feature
 flag `peppol`, absent de la build cert v1.0.0 (event I hors périmètre,
 prévu v1.1).
 
