@@ -372,6 +372,26 @@ export interface SocialResult {
   error: string | null;
 }
 
+/** Raised by the engine when the clock-in it does itself after a login
+ * was not registered (event `presence-failed`). */
+export interface PresenceFailed {
+  insz: string;
+  clockIn: boolean;
+  error: string;
+}
+
+/** End the employee's shift from the login screen: the engine checks the
+ * PIN (a refused PIN is thrown, as for a login), signs the clock-out and
+ * always ends the session. */
+export function endShift(insz: string, pin?: string): Promise<SocialResult> {
+  return invoke("end_shift", { insz, pin: pin ?? null });
+}
+
+/** Tell the engine the operator touched the screen: it owns the idle lock. */
+export function userActivity(): Promise<void> {
+  return invoke("user_activity");
+}
+
 export function workIn(employeeInsz: string): Promise<SocialResult> {
   return invoke("work_in", { employeeInsz });
 }
