@@ -21,3 +21,6 @@ pili-pos::lib:pili_pos::cli::tests::restaurant_seed_applies_on_a_fresh_schema	po
 pili-pos::lib:pili_pos::cli::tests::seeding_is_refused_once_fiscal_events_exist	pos-engine::lib:pos_engine::install::tests::seeding_is_refused_once_fiscal_events_exist
 pili-pos::lib:pili_pos::cli::tests::seeding_is_refused_while_a_catalog_manages_the_menu	pos-engine::lib:pos_engine::install::tests::seeding_is_refused_while_a_catalog_manages_the_menu
 pili-pos::lib:pili_pos::cli::tests::init_db_creates_the_database_file	pos-engine::lib:pos_engine::install::tests::init_db_creates_the_database_file
+#
+# P1a-T6: integration tests moved from src-tauri/tests to crates/pos-engine/tests
+pili-pos::test:	pos-engine::test:

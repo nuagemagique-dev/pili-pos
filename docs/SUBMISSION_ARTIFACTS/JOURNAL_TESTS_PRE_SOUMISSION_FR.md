@@ -11,7 +11,7 @@ comportement de bout en bout avec des signatures non mockées.
 
 Deux harnais, tous deux ignorés par défaut et jamais lancés en CI :
 
-- `src-tauri/tests/live_fdm.rs` : une journée d'exploitation par les
+- `crates/pos-engine/tests/live_fdm.rs` : une journée d'exploitation par les
   vraies commandes du POS (pointage entrée, commande de table,
   pré-addition, vente, remboursement, copie, entrée d'argent,
   ouverture du tiroir, comptage de caisse, vente en formation, rapport
@@ -149,10 +149,10 @@ ticket, même contenu) et le FDM renvoie sa signature avec
 `DUPLICATE_REQUEST` ; sinon le numéro libre est réutilisé par une
 nouvelle requête.
 
-Automatisé (sans FDM réel) : `src-tauri/tests/spf_e2e_signing_serialized.rs`,
+Automatisé (sans FDM réel) : `crates/pos-engine/tests/spf_e2e_signing_serialized.rs`,
 14 tests (courses entre opérations, réponses perdues, Z manuel puis Z
 automatique, renvoi, ligne ouverte) contre `pos-fdm-mock` placé derrière
-un relais qui perd les réponses (`src-tauri/tests/common/fdm_drop.rs`).
+un relais qui perd les réponses (`crates/pos-engine-testkit/src/fdm_drop.rs`).
 
 ```
 Durée déconnexion : À effectuer s

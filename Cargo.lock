@@ -2967,8 +2967,6 @@ name = "pili-pos"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "axum",
- "base64 0.23.1",
  "bcrypt",
  "chrono",
  "dirs",
@@ -2977,14 +2975,11 @@ dependencies = [
  "pos-core",
  "pos-db",
  "pos-engine",
- "pos-fdm-mock",
  "pos-fiscal",
  "pos-hubrise",
- "pos-hubrise-mock",
  "pos-hubrise-types",
  "pos-mail",
  "pos-print",
- "pos-printer-mock",
  "reqwest",
  "rusqlite",
  "serde",
@@ -2992,14 +2987,12 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
- "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
- "wiremock",
 ]
 
 [[package]]
@@ -3109,18 +3102,24 @@ name = "pos-engine"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "axum",
+ "base64 0.23.1",
  "bcrypt",
  "chrono",
  "chrono-tz",
  "pos-catalog",
  "pos-core",
  "pos-db",
+ "pos-engine-testkit",
+ "pos-fdm-mock",
  "pos-fiscal",
  "pos-hubrise",
+ "pos-hubrise-mock",
  "pos-hubrise-types",
  "pos-mail",
  "pos-peppol",
  "pos-print",
+ "pos-printer-mock",
  "qrcode",
  "reqwest",
  "rusqlite",
@@ -3131,6 +3130,33 @@ dependencies = [
  "tokio-util",
  "tracing",
  "uuid",
+ "wiremock",
+]
+
+[[package]]
+name = "pos-engine-testkit"
+version = "1.0.0"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "pos-core",
+ "pos-db",
+ "pos-engine",
+ "pos-fdm-mock",
+ "pos-fiscal",
+ "pos-hubrise",
+ "pos-hubrise-mock",
+ "pos-mail",
+ "pos-print",
+ "pos-printer-mock",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "wiremock",
 ]
 
 [[package]]

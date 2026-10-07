@@ -59,7 +59,7 @@ pour transférer ni installer un binaire.
 > en **lecture seule** : le technicien voit l'écran et guide le Gérant
 > par téléphone. Le déclenchement, le bandeau et l'arrêt décrits
 > ci-dessus sont implémentés et testés
-> (`src-tauri/tests/remote_support.rs`, `ui/e2e/support.spec.ts`).
+> (`crates/pos-engine/tests/remote_support.rs`, `ui/e2e/support.spec.ts`).
 
 ## Emplacements
 

@@ -282,12 +282,12 @@ première tentative a reçu sa réponse tardivement, n'est pas enregistré
 deux fois.
 
 **Tests :**
-- `src-tauri/tests/spf_e2e_no_gap.rs` : un échec FDM (500) ne fait pas
+- `crates/pos-engine/tests/spf_e2e_no_gap.rs` : un échec FDM (500) ne fait pas
   avancer le compteur et n'archive rien d'inconnu (à lire avec les
   tests ci-dessous pour le cas "réponse perdue").
-- `src-tauri/tests/spf_e2e_signing_serialized.rs` : 14 tests (courses et
+- `crates/pos-engine/tests/spf_e2e_signing_serialized.rs` : 14 tests (courses et
   réponses perdues) contre `pos-fdm-mock` derrière un relais qui perd
-  les réponses (`tests/common/fdm_drop.rs`).
+  les réponses (`crates/pos-engine-testkit/src/fdm_drop.rs`).
 
 **Risques résiduels :**
 - Un FDM qui aurait perdu sa mémoire des doublons signerait le renvoi
@@ -355,7 +355,7 @@ cd pili-pos
 cargo test --package pos-fiscal --lib counter
 cargo test --package pos-fiscal --lib canonical
 cargo test --package pos-fiscal --lib idempotency_tests
-cargo test --package pili-pos --test spf_e2e_no_gap
+cargo test --package pos-engine --test spf_e2e_no_gap
 ```
 
 Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.

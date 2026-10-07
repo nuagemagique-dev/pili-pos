@@ -202,16 +202,16 @@ Migrations 20 à 25 (`crates/pos-db/src/schema_hubrise.rs`,
 ## 10. Preuves
 
 Tests d'intégration, exécutés contre un FDM simulé et un HubRise
-simulé dans le processus (`cargo test -p pili-pos --no-default-features --features cert`) :
+simulé dans le processus (`cargo test -p pos-engine --no-default-features --features cert`) :
 
 | Fichier | Couvre |
 |---|---|
-| `src-tauri/tests/hubrise_orders_ingest.rs` | Réception, contrôle, « à vérifier », exclusion des tables et ventes à emporter |
-| `src-tauri/tests/hubrise_orders_signing.rs` | N à l'acceptation (APP, ONLINE), TVA B sur place et C en livraison, P puis N à la remise avec le même `costCenter`, refus jamais signé, double appui, FDM injoignable, arrêt brutal, mode formation et Apprenti refusés |
-| `src-tauri/tests/hubrise_cancellations.rs` | Annulation avant acceptation, remboursement par un Gérant avec `fdmRef`, clôture d'un P par corrections et N à 0,00 EUR, annulation trouvée au démarrage |
-| `src-tauri/tests/hubrise_discounts.rs` | Remises en `priceChanges` sur le N, le P et le remboursement |
-| `src-tauri/tests/hubrise_switch.rs` | Intégration coupée : aucun appel, aucune acceptation ; une commande signée reste soldable ; changements par un Gérant seulement, journalisés ; coupure refusée tant qu'une commande n'est pas soldée |
-| `src-tauri/tests/hubrise_catalog.rs` | Menu reflet du catalogue, identifiants stables, catalogue invalide refusé |
+| `crates/pos-engine/tests/hubrise_orders_ingest.rs` | Réception, contrôle, « à vérifier », exclusion des tables et ventes à emporter |
+| `crates/pos-engine/tests/hubrise_orders_signing.rs` | N à l'acceptation (APP, ONLINE), TVA B sur place et C en livraison, P puis N à la remise avec le même `costCenter`, refus jamais signé, double appui, FDM injoignable, arrêt brutal, mode formation et Apprenti refusés |
+| `crates/pos-engine/tests/hubrise_cancellations.rs` | Annulation avant acceptation, remboursement par un Gérant avec `fdmRef`, clôture d'un P par corrections et N à 0,00 EUR, annulation trouvée au démarrage |
+| `crates/pos-engine/tests/hubrise_discounts.rs` | Remises en `priceChanges` sur le N, le P et le remboursement |
+| `crates/pos-engine/tests/hubrise_switch.rs` | Intégration coupée : aucun appel, aucune acceptation ; une commande signée reste soldable ; changements par un Gérant seulement, journalisés ; coupure refusée tant qu'une commande n'est pas soldée |
+| `crates/pos-engine/tests/hubrise_catalog.rs` | Menu reflet du catalogue, identifiants stables, catalogue invalide refusé |
 
 Les mêmes parcours (catalogue, commande payée annulée puis remboursée,
 commande à payer encaissée à la remise) ont été rejoués contre l'API

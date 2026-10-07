@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// Modules live in `lib.rs` so integration tests under `tests/` can
-// reach them via `use pili_pos::commands;`. The binary just re-imports
-// them through the crate name - same code, same output.
-use pili_pos::engine::{Engine, EngineConfig, EnginePaths, config_source_from};
-use pili_pos::{cli, commands, ipc, paths};
+// The Tauri-bound modules live in `lib.rs`; the fiscal core is the
+// `pos-engine` crate.
+use pili_pos::{cli, ipc, paths};
+use pos_engine::engine::{Engine, EngineConfig, EnginePaths, config_source_from};
+use pos_engine::{commands, install};
 
 #[cfg(feature = "hubrise")]
 use std::sync::Arc;
@@ -27,7 +27,7 @@ fn main() {
             return;
         }
         Ok(cli::Command::CheckConfig) => {
-            let problems = cli::check_config(
+            let problems = install::check_config(
                 std::env::var("PILI_POS_CONFIG").ok().as_deref(),
                 std::path::Path::new(paths::PRODUCTION_CONFIG),
             );
@@ -42,7 +42,7 @@ fn main() {
         }
         Ok(cli::Command::InitDb { seed }) => {
             let db_path = paths::db_path();
-            match cli::init_db(&db_path, seed.as_deref()) {
+            match install::init_db(&db_path, seed.as_deref()) {
                 Ok(()) => {
                     println!("database ready: {}", db_path.display());
                     return;

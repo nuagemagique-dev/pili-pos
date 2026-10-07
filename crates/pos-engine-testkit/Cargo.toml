@@ -1,0 +1,34 @@
+[package]
+name = "pos-engine-testkit"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Shared harness of the pos-engine integration tests (crates/pos-engine/tests):
+# an in-memory AppState with a mock FDM, the HubRise mock, the UC fixture
+# loader and the live-run helpers. A test-support library: never a
+# dependency of a shipped crate (pos-engine dev-depends on it, nothing else).
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-fiscal = { path = "../pos-fiscal" }
+pos-print = { path = "../pos-print" }
+pos-db = { path = "../pos-db" }
+pos-mail = { path = "../pos-mail" }
+# Every shipped build has HubRise, so the harness always builds the
+# AppState with its HubRise fields.
+pos-engine = { path = "../pos-engine", default-features = false, features = ["hubrise"] }
+pos-hubrise = { path = "../pos-hubrise" }
+pos-fdm-mock = { path = "../pos-fdm-mock" }
+pos-printer-mock = { path = "../pos-printer-mock" }
+pos-hubrise-mock = { path = "../pos-hubrise-mock" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+wiremock = "0.6"
+tempfile = "3"
+axum = "0.8"
+base64 = "0.23"

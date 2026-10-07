@@ -8,7 +8,7 @@
 # Reads PILI_LIVE_FDM_URL and PILI_LIVE_FDM_TOKEN from .env.live
 # (git-ignored; the token is never printed). Calls go one at a time,
 # 1 s apart, at most PILI_LIVE_MAX_REQUESTS (60) per run, through the
-# pacing proxy of src-tauri/tests/common/live.rs. Each signed request
+# pacing proxy of crates/pos-engine-testkit/src/live.rs. Each signed request
 # and response is written to UC_EVIDENCE_DIR
 # (docs/SUBMISSION_ARTIFACTS/Report_Testing/module2 by default). With
 # PILI_LIVE_RECORD_DIR set, each call is also recorded raw there (the
@@ -35,7 +35,7 @@ echo "→ live FDM: ${PILI_LIVE_FDM_URL}"
 echo "→ token: $([[ -n "${PILI_LIVE_FDM_TOKEN:-}" ]] && echo set || echo none)"
 echo "→ evidence: ${UC_EVIDENCE_DIR}"
 
-cargo test -p pili-pos --test live_fdm -- --ignored --test-threads=1 --nocapture "$@" 2>&1 \
+cargo test -p pos-engine --test live_fdm -- --ignored --test-threads=1 --nocapture "$@" 2>&1 \
     | tee "$ROOT/target/live-fdm.log" \
     | grep -E "^(live FDM call|[0-9]+ live calls|test |thread|  left|  right|assertion)" || true
 

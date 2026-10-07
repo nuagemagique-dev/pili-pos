@@ -34,18 +34,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-appender = "0.2"
 
-[dev-dependencies]
-wiremock = "0.6"
-tempfile = "3"
-# The admission image's mock FDM, served in-process by tests/admission_mock.rs.
-pos-fdm-mock = { path = "../crates/pos-fdm-mock" }
-# A printer with switchable paper, cover and error states.
-pos-printer-mock = { path = "../crates/pos-printer-mock" }
-# The HubRise API, served in-process by the hubrise_* suites.
-pos-hubrise-mock = { path = "../crates/pos-hubrise-mock" }
-axum = "0.8"
-base64 = "0.23"
-
 [features]
 # Default dev build: the certified scope plus invoicing (peppol).
 default = ["hubrise", "peppol"]

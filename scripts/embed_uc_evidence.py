@@ -172,7 +172,7 @@ def basic_block(uc: str) -> str | None:
     out = [
         START,
         f"**Preuve pili-pos (build `cert`)** - rejeu de la fixture par "
-        f"`src-tauri/tests/{test}`. Requête **construite et archivée par "
+        f"`crates/pos-engine/tests/{test}`. Requête **construite et archivée par "
         f"pili-pos** pour l'event de l'UC (`evidence/uc/{main.name}`) :",
         "",
         json_block(main),
@@ -230,7 +230,7 @@ def round_block(uc: str) -> str | None:
         [
             START,
             f"**Preuve pili-pos (build `cert`)** - situation rejouée par "
-            f"`src-tauri/tests/{ROUND[uc]}`, par la commande que l'écran "
+            f"`crates/pos-engine/tests/{ROUND[uc]}`, par la commande que l'écran "
             f"d'encaissement appelle. Requête **construite et archivée par "
             f"pili-pos** (`evidence/uc/{req.name}`) ; réponse FDM archivée : "
             f"`evidence/uc/{resp.name}`.",
@@ -258,7 +258,7 @@ def report_block(uc: str) -> str | None:
                 START,
                 f"**Preuve pili-pos (build `cert`)** - cet UC est signé par "
                 f"le Z combiné de M184 (mutation `{VIA_M184[uc]}`), rejoué par "
-                f"`src-tauri/tests/{REPORTS['M184']}` : voir {file_list(events)} "
+                f"`crates/pos-engine/tests/{REPORTS['M184']}` : voir {file_list(events)} "
                 f"et la section M184.",
                 END,
             ]
@@ -273,7 +273,7 @@ def report_block(uc: str) -> str | None:
         f"**Preuve pili-pos (build `cert`)** - la journée du scénario "
         f"(InputReport T1–T8) est jouée par les vraies commandes, puis le "
         f"rapport est construit par pili-pos à partir de son archive "
-        f"fiscale et comparé à la fixture par `src-tauri/tests/{REPORTS[uc]}`.",
+        f"fiscale et comparé à la fixture par `crates/pos-engine/tests/{REPORTS[uc]}`.",
         "",
     ]
     for r in reports:
