@@ -67,7 +67,21 @@ trap 'rm -rf "$TMP"' EXIT
 n_checks=0
 n_failed=0
 
-clean_detail() { tr '\n|' ' /' | sed 's/  */ /g; s/^ //; s/ $//' | cut -c1-160; }
+clean_detail() {
+    local d
+    d="$(tr '\n|' ' /' | sed 's/  */ /g; s/^ //; s/ $//' | cut -c1-160)"
+    printf '%s' "${d:-ok}"
+}
+
+# run_tests <cargo test args...>: the failure tail first, then one summary line.
+run_tests() {
+    local out="$TMP/tests.out" rc
+    cargo test "$@" >"$out" 2>&1
+    rc=$?
+    [[ $rc -eq 0 ]] || tail -n 40 "$out"
+    awk '/^test result:/ { p += $4; f += $6 } END { printf "%d passed, %d failed\n", p, f }' "$out"
+    return $rc
+}
 
 # gate <check> <command...>: PASS when the command exits 0.
 gate() {
@@ -222,12 +236,12 @@ gate engine-globals e_globals
 # ── cargo checks ────────────────────────────────────────────────
 gate fmt cargo fmt --all --check
 gate clippy cargo clippy --workspace --all-targets -- -D warnings
-gate tests cargo test --workspace --no-fail-fast
+gate tests run_tests --workspace --no-fail-fast
 
 if [[ "$fast" -eq 0 ]]; then
     for pkg in $(cert_pkgs); do
         gate "clippy-cert-$pkg" cargo clippy -p "$pkg" --all-targets --no-default-features --features cert -- -D warnings
-        gate "tests-cert-$pkg" cargo test -p "$pkg" --no-default-features --features cert --no-fail-fast
+        gate "tests-cert-$pkg" run_tests -p "$pkg" --no-default-features --features cert --no-fail-fast
     done
     gate test-inventory bash scripts/android/test_inventory.sh --diff
     gate test-inventory-selftest bash scripts/android/test_test_inventory.sh
