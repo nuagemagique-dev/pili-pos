@@ -14,8 +14,8 @@
 //!    on `crates/pos-fiscal/tests/uc_fixtures.rs::discover_fixtures` but
 //!    parameterised on the root directory so it serves both UC sets.
 
-// Each integration-test binary compiles this module but uses a
-// different subset of it, so per-binary dead-code analysis misfires.
+// Each integration-test binary links this library but uses a
+// different subset of it, so dead-code analysis misfires.
 #![allow(dead_code)]
 
 pub mod compare;

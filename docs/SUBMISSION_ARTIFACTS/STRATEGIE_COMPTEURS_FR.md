@@ -355,7 +355,7 @@ cd pili-pos
 cargo test --package pos-fiscal --lib counter
 cargo test --package pos-fiscal --lib canonical
 cargo test --package pos-fiscal --lib idempotency_tests
-cargo test --package pili-pos --test spf_e2e_no_gap
+cargo test --package pos-engine --test spf_e2e_no_gap
 ```
 
 Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.

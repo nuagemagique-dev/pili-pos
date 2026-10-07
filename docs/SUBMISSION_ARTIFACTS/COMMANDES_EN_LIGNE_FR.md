@@ -202,7 +202,7 @@ Migrations 20 à 25 (`crates/pos-db/src/schema_hubrise.rs`,
 ## 10. Preuves
 
 Tests d'intégration, exécutés contre un FDM simulé et un HubRise
-simulé dans le processus (`cargo test -p pili-pos --no-default-features --features cert`) :
+simulé dans le processus (`cargo test -p pos-engine --no-default-features --features cert`) :
 
 | Fichier | Couvre |
 |---|---|

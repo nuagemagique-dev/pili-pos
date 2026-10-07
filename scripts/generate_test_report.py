@@ -119,7 +119,7 @@ def table(rows) -> list[str]:
 
 def main() -> int:
     workspace = run(["--workspace"])
-    cert = run(["-p", "pili-pos", "--no-default-features", "--features", "cert"])
+    cert = run(["-p", "pili-pos", "-p", "pos-engine", "--no-default-features", "--features", "cert"])
     now = datetime.now(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M")
     rev = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
                          capture_output=True, text=True).stdout.strip()
@@ -133,7 +133,7 @@ def main() -> int:
         "",
         *table(workspace),
         "",
-        "### Application, build cert (`cargo test -p pili-pos --no-default-features --features cert`)",
+        "### Application, build cert (`cargo test -p pili-pos -p pos-engine --no-default-features --features cert`)",
         "",
         *table(cert),
         "",

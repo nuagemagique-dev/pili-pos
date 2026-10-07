@@ -157,11 +157,11 @@ cargo test --package pos-fiscal --test uc_fixtures
 cargo test --package pos-fiscal --test advanced_set_fixtures
 
 # Côté e2e applicatif : remboursement complet, partiel et fdmRef
-cargo test --package pili-pos --test spf_e2e_basic m111_
-cargo test --package pili-pos --test spf_e2e_basic m112b_
+cargo test --package pos-engine --test spf_e2e_basic m111_
+cargo test --package pos-engine --test spf_e2e_basic m112b_
 
 # Côté no-gap : compteur intact si FDM échoue pendant remboursement
-cargo test --package pili-pos --test spf_e2e_no_gap refund_fdm
+cargo test --package pos-engine --test spf_e2e_no_gap refund_fdm
 ```
 
 Totaux : totaux par binaire de test dans *RAPPORT_TESTS_BASELINE_FR.md*, régénérés par `scripts/generate_test_report.py`.
