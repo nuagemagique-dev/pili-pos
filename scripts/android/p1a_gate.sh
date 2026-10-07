@@ -9,8 +9,11 @@
 #     GATE | total | PASS|FAIL | <n> failed
 # and exits 1 on any FAIL. The output of a failed check is printed on stderr.
 #
-# Usage: scripts/android/p1a_gate.sh [--fast] [--base REF]
+# Usage: scripts/android/p1a_gate.sh [--fast] [--allow-ui] [--base REF]
 #   --fast       only the fast checks (fmt, clippy, tests, hygiene, engine)
+#   --allow-ui   phase P1b: ui/ is no longer untouchable, so `ui` is removed from
+#                the hygiene-untouchable path list (every other check, including
+#                ui-dist, is unchanged)
 #   --base REF   branch the hygiene checks compare with (default android/int)
 #
 # Fast checks
@@ -43,10 +46,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT" || exit 2
 
 fast=0
+allow_ui=0
 base="android/int"
 while [[ $# -gt 0 ]]; do
     case "$1" in
     --fast) fast=1 ;;
+    --allow-ui) allow_ui=1 ;;
     --base)
         base="${2:?--base needs a ref}"
         shift
@@ -160,6 +165,7 @@ h_subjects() {
 
 h_untouchable() {
     local paths=(ui rust-toolchain.toml deploy/build-release.sh scripts/build_and_hash.sh scripts/check_repro.sh docs/android/baseline/test_inventory.txt)
+    [[ "$allow_ui" -eq 0 ]] || paths=("${paths[@]:1}")
     if git diff --quiet "$base...HEAD" -- "${paths[@]}"; then
         echo "untouchable files unchanged"
     else
