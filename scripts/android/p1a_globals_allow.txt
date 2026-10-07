@@ -1,0 +1,6 @@
+# Globals allowed in the engine sources by scripts/android/p1a_gate.sh.
+# One identifier per line. A static, thread_local! or lazy_static! line of the
+# engine sources or crates/pos-fiscal/src that contains none of these
+# identifiers fails the gate. P1a-T8 removes both lines below.
+STATUS_CACHE
+SIGN_MESSAGE_SINK

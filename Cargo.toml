@@ -15,6 +15,9 @@ members = [
     "crates/pos-peppol",
     "crates/pos-mail",
 ]
+# The Android Rust workspace lives in android/rust (from phase P2): its own
+# workspace, never a member of this one.
+exclude = ["android"]
 
 [workspace.package]
 version = "1.0.0"
