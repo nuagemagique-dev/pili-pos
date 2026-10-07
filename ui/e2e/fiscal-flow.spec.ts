@@ -387,20 +387,24 @@ test.describe('[VI_BAR] Bar / kitchen order slip', () => {
 });
 
 test.describe('FDM refusals on presence and cash events', () => {
-  test('a refused clock-in is reported but does not block the login', async ({ page }) => {
+  test('a presence-failed event is reported but does not block the login', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
-      work_in: () => ({ success: false, error: 'FDM error: offline' }),
     });
     await page.goto('/');
     await tapUserTile(page);
     await page.waitForURL(/tables/);
+    await emitTauriEvent(page, 'presence-failed', {
+      insz: DEFAULT_USER.insz,
+      clockIn: true,
+      error: 'FDM error: offline',
+    });
     await expect(page.locator('.toast-error')).toContainText('Pointage non enregistré');
     await expect(page.locator('.toast-error')).toContainText('Erreur boîte noire. Contactez votre technicien.');
   });
 
-  test('a successful clock-in shows no error', async ({ page }) => {
+  test('a successful login shows no clock-in error and the UI sends no work_in', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,
       list_users: () => [DEFAULT_USER],
@@ -408,7 +412,8 @@ test.describe('FDM refusals on presence and cash events', () => {
     await page.goto('/');
     await tapUserTile(page);
     await page.waitForURL(/tables/);
-    expect(await ipcCalls(page, 'work_in')).toHaveLength(1);
+    await page.waitForTimeout(300);
+    expect(await ipcCalls(page, 'work_in')).toHaveLength(0);
     await expect(page.locator('.toast-error')).toHaveCount(0);
   });
 });

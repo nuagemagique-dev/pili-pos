@@ -194,6 +194,8 @@ function defaultHandlers(): Record<string, Handler> {
     work_in: () => ({ success: true, error: null }),
     work_out: () => ({ success: true, error: null }),
     list_open_shifts: () => [],
+    end_shift: () => ({ success: true, error: null }),
+    user_activity: () => null,
     money_in_out: () => ({ success: true, error: null }),
     open_drawer_fiscal: () => ({ success: true, error: null }),
 
