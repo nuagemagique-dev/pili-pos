@@ -24,6 +24,18 @@ pub async fn work_out(
     pos_engine::commands::social::do_work_out(state.inner(), employee_insz).await
 }
 
+/// End the employee's shift: the PIN is checked like a login (a refusal
+/// is an error, nothing is signed), the clock-out is signed (event S)
+/// and the session is closed in every case.
+#[tauri::command]
+pub async fn end_shift(
+    state: State<'_, Managed>,
+    insz: String,
+    pin: Option<String>,
+) -> Result<SocialResult, String> {
+    pos_engine::commands::social::do_end_shift(state.inner(), insz, pin).await
+}
+
 /// Employees currently on shift (clocked in, not yet clocked out),
 /// shown on the login screen.
 #[tauri::command]
