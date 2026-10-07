@@ -26,7 +26,6 @@ async function orderScreen(page: Page) {
     list_users: () => [DEFAULT_USER],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
-    check_fdm_status: () => ({ initialized: true, errors: [], warnings: [] }),
   });
   await page.goto('/');
   await tapUserTile(page);

@@ -4,8 +4,8 @@
  * printer, the kitchen printer and HubRise. Green = OK, amber =
  * warning, red = error, grey = not configured.
  *
- * The FDM is polled by the store's one poller (30 s, backing off while
- * it does not answer), which also keeps FdmAlerts current.
+ * The FDM light follows the engine's monitor (store fdm, event
+ * "fdm-status"), which also keeps FdmAlerts current.
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useIntegrationsStore } from "../stores/integrations";
@@ -92,14 +92,12 @@ let printerTimer: ReturnType<typeof setInterval> | undefined;
 let hubriseTimer: ReturnType<typeof setInterval> | undefined;
 
 onMounted(() => {
-  fdm.startPolling();
   void checkPrinters();
   void checkHubrise();
   printerTimer = setInterval(() => void checkPrinters(), 30_000);
   hubriseTimer = setInterval(() => void checkHubrise(), 60_000);
 });
 onUnmounted(() => {
-  fdm.stopPolling();
   clearInterval(printerTimer);
   clearInterval(hubriseTimer);
 });

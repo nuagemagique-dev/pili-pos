@@ -10,6 +10,8 @@ import {
   live,
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
+  fdmHealth,
+  fdmMocks,
 } from './fixtures/mock-ipc';
 
 // Certification dossier screenshot tour (docs/SUBMISSION_ARTIFACTS/
@@ -114,9 +116,6 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
       login: () => GERANT,
       list_users: () => STAFF,
       list_tables: () => TABLES_BEFORE,
-      // A healthy FDM, not the suite-wide default (disconnected) - this
-      // flow depicts a normal working sale, not an FDM incident.
-      check_fdm_status: () => ({ connected: true }),
       get_categories: () => CATEGORIES,
       // Live: the real backend resolves name/price/VAT/category from
       // the menu_item_id, so this must react to the actual argument
@@ -372,9 +371,6 @@ test('10_pre_bill - addition provisoire imprimée pour une table', async ({ page
     list_users: () => STAFF,
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
-    // A healthy FDM, not the suite-wide default (disconnected) - this
-    // flow depicts a normal working sale, not an FDM incident.
-    check_fdm_status: () => ({ connected: true }),
   });
   await page.goto('/');
   await tapUserTile(page, 'Gérant Test');
@@ -540,11 +536,12 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
       list_users: () => STAFF,
       get_categories: () => [DEFAULT_CATEGORY],
       get_menu_items: () => [DEFAULT_MENU_ITEM],
-      check_fdm_status: () => ({
-        initialized: true,
-        errors: [],
-        warnings: [{ message: code, extensions: { category: 'FDM', code, showPos } }],
-      }),
+      // The health the engine reports for such a warning.
+      ...fdmMocks(
+        showPos === 'NEVER'
+          ? fdmHealth()
+          : fdmHealth({ severity: 'warning', code, mandatory: showPos === 'MANDATORY' }),
+      ),
     });
     await page.goto('/');
     await tapUserTile(page, 'Gérant Test');
