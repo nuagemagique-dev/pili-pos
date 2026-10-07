@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use pos_fiscal::event::build_sale_input_split;
-use pos_fiscal::fdm_client::{FdmClient, SignMutation, SignRequest};
+use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::payment::{PaymentError, Settlement, payment_line_identity};
 use pos_fiscal::ticket::{FiscalTicket, TicketDraft, TicketPayment};
 use pos_fiscal::types::EventLabel;
@@ -487,12 +487,6 @@ fn payment_error(e: PaymentError) -> &'static str {
 /// a screen mounting again, cost the FDM one query, not several.
 const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(20);
 
-/// The last status answer, keyed by everything that reaches the FDM:
-/// its URL, the token and TLS files, the message language. A changed
-/// setting queries the FDM again at once.
-static STATUS_CACHE: std::sync::Mutex<Option<(String, std::time::Instant, serde_json::Value)>> =
-    std::sync::Mutex::new(None);
-
 /// Check FDM connection status.
 pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
@@ -505,24 +499,25 @@ pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, 
         config.fdm_client_key_file,
         config.language
     );
-    if let Ok(cache) = STATUS_CACHE.lock()
+    if let Ok(cache) = state.fdm_status_cache.lock()
         && let Some((cached_key, at, value)) = cache.as_ref()
         && *cached_key == key
         && at.elapsed() < STATUS_CACHE_TTL
     {
         return Ok(value.clone());
     }
-    let value = query_fdm_status(&config).await?;
-    if let Ok(mut cache) = STATUS_CACHE.lock() {
+    let value = query_fdm_status(state, &config).await?;
+    if let Ok(mut cache) = state.fdm_status_cache.lock() {
         *cache = Some((key, std::time::Instant::now(), value.clone()));
     }
     Ok(value)
 }
 
 async fn query_fdm_status(
+    state: &AppState,
     config: &pos_core::config::PosConfig,
 ) -> Result<serde_json::Value, String> {
-    let fdm = FdmClient::from_config(config);
+    let fdm = state.fdm_client(config);
 
     // FDM messages come back localized to the operator's UI language
     // (Q100/Q110). The FDM only speaks FR/NL/DE/EN, so unsupported UI

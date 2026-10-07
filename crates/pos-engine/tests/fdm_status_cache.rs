@@ -1,6 +1,7 @@
 //! The header polls the FDM status from every screen that shows it.
 //! Answers are reused for 20 s, so two screens polling at once, or a
-//! screen mounting again, cost the FDM one query.
+//! screen mounting again, cost the FDM one query. The cache belongs to the
+//! app state, so each test app starts with an empty one.
 
 use pos_engine_testkit as common;
 
@@ -9,12 +10,6 @@ use pos_engine::commands::checkout::do_check_fdm_status;
 use serde_json::json;
 use wiremock::matchers::{body_string_contains, method};
 use wiremock::{Mock, ResponseTemplate};
-
-/// The cache is process-wide and holds one answer: the tests of this
-/// file take turns, or one would evict the other's answer mid-test.
-/// They also ask in different languages: a mock FDM may get the port
-/// (so the URL, the cache key) the other test's FDM just released.
-static CACHE_TURN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn status(fdm_id: &str) -> serde_json::Value {
     json!({ "data": { "fdmStatus": {
@@ -33,7 +28,6 @@ fn status(fdm_id: &str) -> serde_json::Value {
 
 #[tokio::test]
 async fn a_status_answer_is_reused_for_twenty_seconds() {
-    let _turn = CACHE_TURN.lock().await;
     let app = TestApp::new().await;
     app.state.config.lock().unwrap().language = "de".into();
     Mock::given(method("POST"))
@@ -51,7 +45,6 @@ async fn a_status_answer_is_reused_for_twenty_seconds() {
 
 #[tokio::test]
 async fn another_language_is_queried_again() {
-    let _turn = CACHE_TURN.lock().await;
     let app = TestApp::new().await;
     for (lang, fdm_id) in [("FR", "FDM-FR"), ("NL", "FDM-NL")] {
         Mock::given(method("POST"))
@@ -71,7 +64,6 @@ async fn another_language_is_queried_again() {
 
 #[tokio::test]
 async fn a_changed_connection_setting_is_queried_again() {
-    let _turn = CACHE_TURN.lock().await;
     let app = TestApp::new().await;
     app.state.config.lock().unwrap().language = "en".into();
     Mock::given(method("POST"))

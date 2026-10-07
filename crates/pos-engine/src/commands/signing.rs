@@ -17,7 +17,7 @@ use pos_core::config::PosConfig;
 use pos_db::queries::pending_signs::{self, NewPendingSign, PendingSign, Unsigned};
 use pos_fiscal::archive::{self, ArchiveParams};
 use pos_fiscal::counter::FiscalCounter;
-use pos_fiscal::fdm_client::{FdmClient, FdmError, SignOutcome, SignRequest};
+use pos_fiscal::fdm_client::{FdmError, SignOutcome, SignRequest};
 use pos_fiscal::response::SignResult;
 use pos_fiscal::ticket::{FiscalTicket, TicketDraft};
 use pos_fiscal::types::{EventLabel, TicketMedium};
@@ -373,7 +373,7 @@ pub(crate) async fn sign(
         .map_err(errors::internal)?
     };
 
-    let sent = FdmClient::from_config(config).send(&prepared.request).await;
+    let sent = state.fdm_client(config).send(&prepared.request).await;
     match sent {
         Ok(results) => commit(
             state,
@@ -849,7 +849,7 @@ pub(crate) async fn resolve_open(
         SignRequest::from_stored(&row.mutation, row.is_training, row.request_body.clone())
             .map_err(errors::internal)?;
 
-    let results = match FdmClient::from_config(&config).send(&request).await {
+    let results = match state.fdm_client(&config).send(&request).await {
         Ok(results) => results,
         Err(e) if e.outcome() == SignOutcome::Refused => {
             {
