@@ -31,3 +31,10 @@ pub async fn leave_order(
 pub async fn lock_session(state: State<'_, Managed>) -> Result<LockOutcome, String> {
     pos_engine::commands::session::do_lock_session(state.inner()).await
 }
+
+/// The operator touched the screen or a key: restart the engine's idle
+/// lock time. The UI sends it at most once per second.
+#[tauri::command]
+pub fn user_activity(state: State<'_, Managed>) -> Result<(), String> {
+    pos_engine::commands::session::do_user_activity(state.inner())
+}
