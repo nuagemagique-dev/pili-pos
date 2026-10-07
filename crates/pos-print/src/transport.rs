@@ -13,8 +13,11 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// Write timeout for printer data.
 const WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Timeout for reading DLE EOT status response.
-const STATUS_READ_TIMEOUT: Duration = Duration::from_millis(500);
+/// Default wait for one DLE EOT status answer (Linux). A shell whose
+/// network path answers late (the Android emulator, a slow Wi-Fi hop)
+/// passes a longer wait through [`TcpPrinter::with_status_timeout`] or
+/// [`send_to_printer_with`].
+pub const DEFAULT_STATUS_READ_TIMEOUT: Duration = Duration::from_millis(500);
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
@@ -30,9 +33,15 @@ pub enum TransportError {
 
 /// Post-print health status queried via DLE EOT. If the printer
 /// doesn't support status queries (or the read times out), all
-/// fields default to `true` / empty (optimistic).
+/// fields default to `true` / empty (optimistic) and `status_known`
+/// is `false`.
 #[derive(Debug, Clone, Serialize)]
 pub struct PrinterStatus {
+    /// `true` only when the printer answered both DLE EOT queries.
+    /// `false` means the other fields are the optimistic default, not
+    /// something the printer said (no answer, or an answer after the
+    /// read timeout).
+    pub status_known: bool,
     pub paper_ok: bool,
     pub cover_closed: bool,
     /// No error stops the printer (cutter jam, head too hot, ...).
@@ -47,6 +56,7 @@ impl Default for PrinterStatus {
             cover_closed: true,
             error_free: true,
             warnings: Vec::new(),
+            status_known: false,
         }
     }
 }
@@ -109,6 +119,7 @@ pub const STATUS_FIXED: u8 = 0x12;
 /// Data sent to this port is printed directly with no protocol overhead.
 pub struct TcpPrinter {
     address: String,
+    status_timeout: Duration,
 }
 
 impl TcpPrinter {
@@ -120,7 +131,17 @@ impl TcpPrinter {
         } else {
             format!("{address}:{DEFAULT_PRINTER_PORT}")
         };
-        Self { address }
+        Self {
+            address,
+            status_timeout: DEFAULT_STATUS_READ_TIMEOUT,
+        }
+    }
+
+    /// Wait `timeout` for each DLE EOT answer instead of
+    /// [`DEFAULT_STATUS_READ_TIMEOUT`].
+    pub fn with_status_timeout(mut self, timeout: Duration) -> Self {
+        self.status_timeout = timeout;
+        self
     }
 
     /// Send raw ESC/POS bytes to the printer and query its health
@@ -148,7 +169,7 @@ impl TcpPrinter {
         // DLE EOT status query - best-effort. If the printer doesn't
         // respond (older models, unidirectional TCP) we return a
         // default "everything OK" status so the checkout isn't blocked.
-        let status = query_printer_status(&mut stream).await;
+        let status = query_printer_status(&mut stream, self.status_timeout).await;
 
         // Shutdown the write half gracefully
         let _ = stream.shutdown().await;
@@ -176,10 +197,23 @@ pub async fn send_to_printer(address: &str, data: &[u8]) -> Result<PrinterStatus
     printer.send(data).await
 }
 
+/// [`send_to_printer`] waiting `status_timeout` for each DLE EOT answer.
+pub async fn send_to_printer_with(
+    address: &str,
+    data: &[u8],
+    status_timeout: Duration,
+) -> Result<PrinterStatus, TransportError> {
+    TcpPrinter::new(address)
+        .with_status_timeout(status_timeout)
+        .send(data)
+        .await
+}
+
 /// Query the printer's real-time status via ESC/POS DLE EOT: the
 /// offline cause (n = 2) and the roll paper sensor (n = 4).
-/// Returns a default (optimistic) status on timeout or read error.
-async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
+/// Returns a default (optimistic) status, `status_known` false, on
+/// timeout or read error; `status_known` is set only after both answers.
+async fn query_printer_status(stream: &mut TcpStream, read_timeout: Duration) -> PrinterStatus {
     let mut status = PrinterStatus::default();
 
     for n in [2u8, 4] {
@@ -193,7 +227,7 @@ async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
         let _ = stream.flush().await;
 
         let mut buf = [0u8; 1];
-        match tokio::time::timeout(STATUS_READ_TIMEOUT, stream.read_exact(&mut buf)).await {
+        match tokio::time::timeout(read_timeout, stream.read_exact(&mut buf)).await {
             Ok(Ok(_)) if n == 2 => status.read_offline_cause(buf[0]),
             Ok(Ok(_)) => status.read_paper_sensor(buf[0]),
             // Timeout or read error - printer may not support
@@ -202,6 +236,7 @@ async fn query_printer_status(stream: &mut TcpStream) -> PrinterStatus {
         }
     }
 
+    status.status_known = true;
     status
 }
 
@@ -228,6 +263,7 @@ mod tests {
         assert!(status.cover_closed);
         assert!(status.warnings.is_empty());
         assert!(status.ready());
+        assert!(!status.status_known);
     }
 
     #[test]
@@ -349,11 +385,117 @@ mod tests {
         // optimistic default must be preserved.
         assert!(status.paper_ok);
         assert!(status.cover_closed);
+        assert!(!status.status_known);
 
         let received = server.await.unwrap();
         assert!(
             received.starts_with(&data),
             "printer must receive the exact ESC/POS bytes, got {received:?}"
         );
+    }
+
+    /// A fake printer: reads the print data (up to the first DLE EOT),
+    /// then answers each DLE EOT n query after `delay` with the bytes
+    /// of `answers` (`None`: never answers). Returns its address.
+    async fn fake_printer(delay: Duration, answers: Option<[u8; 2]>) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut seen = Vec::new();
+            let mut answered = 0;
+            let mut buf = [0u8; 256];
+            loop {
+                let Ok(n) = stream.read(&mut buf).await else {
+                    return;
+                };
+                if n == 0 {
+                    return;
+                }
+                seen.extend_from_slice(&buf[..n]);
+                while seen.len() >= 3 && seen.windows(3).any(|w| w[..2] == DLE_EOT) {
+                    let at = seen.windows(3).position(|w| w[..2] == DLE_EOT).unwrap();
+                    seen.drain(..at + 3);
+                    if let Some(a) = answers {
+                        tokio::time::sleep(delay).await;
+                        if stream.write_all(&[a[answered.min(1)]]).await.is_err() {
+                            return;
+                        }
+                        answered += 1;
+                    }
+                }
+            }
+        });
+        addr.to_string()
+    }
+
+    const FINE: [u8; 2] = [STATUS_FIXED, STATUS_FIXED];
+    const COVER_OPEN: [u8; 2] = [STATUS_FIXED | OFFLINE_COVER_OPEN, STATUS_FIXED];
+
+    #[tokio::test]
+    async fn a_printer_answering_both_queries_gives_a_known_status() {
+        let addr = fake_printer(Duration::ZERO, Some(FINE)).await;
+        let status = send_to_printer(&addr, b"\x1B@x").await.unwrap();
+        assert!(status.status_known);
+        assert!(status.ready());
+        assert!(status.warnings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_silent_printer_is_unknown_yet_ready_within_the_default_wait() {
+        let addr = fake_printer(Duration::ZERO, None).await;
+        let start = std::time::Instant::now();
+        let status = send_to_printer(&addr, b"\x1B@x").await.unwrap();
+        assert!(!status.status_known);
+        assert!(status.ready());
+        assert!(
+            start.elapsed() < Duration::from_millis(1500),
+            "took {:?}",
+            start.elapsed()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_late_answer_is_lost_at_the_default_wait() {
+        let addr = fake_printer(Duration::from_millis(800), Some(COVER_OPEN)).await;
+        let status = send_to_printer(&addr, b"\x1B@x").await.unwrap();
+        assert!(!status.status_known);
+        assert!(status.cover_closed, "the optimistic default is kept");
+        assert!(status.ready());
+    }
+
+    #[tokio::test]
+    async fn a_late_answer_is_read_with_a_two_second_wait() {
+        let addr = fake_printer(Duration::from_millis(800), Some(COVER_OPEN)).await;
+        let status = TcpPrinter::new(&addr)
+            .with_status_timeout(Duration::from_secs(2))
+            .send(b"\x1B@x")
+            .await
+            .unwrap();
+        assert!(status.status_known);
+        assert!(!status.cover_closed);
+        assert!(!status.ready());
+        assert_eq!(status.warnings, ["cover_open"]);
+    }
+
+    #[tokio::test]
+    async fn send_to_printer_with_uses_its_timeout() {
+        let addr = fake_printer(Duration::from_millis(800), Some(COVER_OPEN)).await;
+        let late = send_to_printer_with(&addr, b"\x1B@x", Duration::from_millis(100))
+            .await
+            .unwrap();
+        assert!(!late.status_known);
+
+        let addr = fake_printer(Duration::from_millis(800), Some(COVER_OPEN)).await;
+        let patient = send_to_printer_with(&addr, b"\x1B@x", Duration::from_secs(2))
+            .await
+            .unwrap();
+        assert!(patient.status_known);
+        assert!(!patient.cover_closed);
+    }
+
+    #[test]
+    fn the_default_status_wait_is_500_ms() {
+        assert_eq!(DEFAULT_STATUS_READ_TIMEOUT, Duration::from_millis(500));
     }
 }

@@ -686,6 +686,7 @@ pub(crate) async fn print_report(
     config: &pos_core::config::PosConfig,
     mut data: ReportPrintData,
     sign_result: Option<&pos_fiscal::response::SignResult>,
+    status_timeout: std::time::Duration,
 ) {
     // Enrich with FDM signature data if available
     if let Some(sr) = sign_result {
@@ -696,7 +697,8 @@ pub(crate) async fn print_report(
 
     if let Some(ref addr) = config.printer_address {
         let report_bytes = pos_print::report::format_report(&data);
-        match pos_print::transport::send_to_printer(addr, &report_bytes).await {
+        match pos_print::transport::send_to_printer_with(addr, &report_bytes, status_timeout).await
+        {
             Ok(status) => {
                 if !status.paper_ok {
                     tracing::warn!(?status.warnings, "printer: paper issue after report print");
@@ -862,6 +864,7 @@ pub(crate) async fn print_user_report(
     config: &pos_core::config::PosConfig,
     mut data: UserReportPrintData,
     sign_result: Option<&pos_fiscal::response::SignResult>,
+    status_timeout: std::time::Duration,
 ) {
     if let Some(sr) = sign_result {
         data.fdm_id = Some(sr.fdm_ref.fdm_id.clone());
@@ -871,7 +874,7 @@ pub(crate) async fn print_user_report(
 
     if let Some(ref addr) = config.printer_address {
         let bytes = pos_print::report::format_user_report(&data);
-        match pos_print::transport::send_to_printer(addr, &bytes).await {
+        match pos_print::transport::send_to_printer_with(addr, &bytes, status_timeout).await {
             Ok(status) => {
                 if !status.paper_ok {
                     tracing::warn!(?status.warnings, "printer: paper issue after user report");

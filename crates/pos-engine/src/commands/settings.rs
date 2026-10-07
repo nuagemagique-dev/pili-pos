@@ -18,6 +18,9 @@ pub struct PosSettings {
     ///
     /// [`PosConfig::problems`]: pos_core::config::PosConfig::problems
     pub config_problems: Vec<String>,
+    /// The software version (`posSwVersion`, for example
+    /// `pili-pos/1.0.0`): shown on the login screen, AM Art. 47.
+    pub pos_sw_version: String,
 }
 
 pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
@@ -31,6 +34,7 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         restaurant_name: config.restaurant_name.clone(),
         language: config.language.clone(),
         config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config),
+        pos_sw_version: state.identity.as_str().to_string(),
     })
 }
 

@@ -80,7 +80,13 @@ pub(crate) async fn print_bar_slip(
         lang: ReceiptLanguage::from_code(&config.language),
         is_training: config.training_mode,
     };
-    match pos_print::transport::send_to_printer(addr, &format_bar_ticket(&ticket)).await {
+    match pos_print::transport::send_to_printer_with(
+        addr,
+        &format_bar_ticket(&ticket),
+        state.timers.printer_status_read,
+    )
+    .await
+    {
         Ok(status) if status.ready() => SlipOutcome::Printed,
         Ok(status) => {
             tracing::warn!(?status.warnings, addr, "bar slip printer not ready");
