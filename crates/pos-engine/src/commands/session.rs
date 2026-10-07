@@ -225,3 +225,34 @@ pub(crate) async fn lock(state: &AppState, reason: LockReason) -> Result<LockOut
 pub async fn do_lock_session(state: &AppState) -> Result<LockOutcome, String> {
     lock(state, LockReason::Manual).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clock_ins_come_out_in_arrival_order_and_the_queue_is_taken_once() {
+        let rules = SessionRules::default();
+        rules.queue_clock_in("12345678901");
+        rules.queue_clock_in("98765432109");
+
+        let mut jobs = rules.take_presence_jobs().expect("first take");
+        assert_eq!(
+            jobs.try_recv().unwrap(),
+            PresenceJob::ClockIn("12345678901".to_string())
+        );
+        assert_eq!(
+            jobs.try_recv().unwrap(),
+            PresenceJob::ClockIn("98765432109".to_string())
+        );
+        assert!(jobs.try_recv().is_err());
+        assert!(rules.take_presence_jobs().is_none(), "taken once");
+    }
+
+    #[test]
+    fn queueing_into_a_closed_queue_is_ignored() {
+        let rules = SessionRules::default();
+        drop(rules.take_presence_jobs());
+        rules.queue_clock_in("12345678901");
+    }
+}
