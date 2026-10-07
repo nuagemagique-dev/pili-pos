@@ -145,8 +145,11 @@ build_inventory() {
     inventory_pass() {
         local section="$1"
         shift
-        local lines="$TMP/$section.txt" reported_total=0
-        : >"$lines"
+        # Appends to $TMP/<section>.txt and adds to $TMP/<section>.reported: the
+        # caller initialises both (the cert section runs once per package).
+        # PASS_DOC_PKGS (when set) names the packages whose doctests are listed.
+        local lines="$TMP/$section.txt" reported_total
+        reported_total="$(cat "$TMP/$section.reported")"
 
         echo "== $section: building test binaries (cargo test --no-run $*)" >&2
         if ! cargo test "$@" --no-run --message-format=json >"$TMP/$section.json" 2>"$TMP/$section.err"; then
@@ -181,8 +184,8 @@ build_inventory() {
 
         # Doctests, per library of the passes' packages.
         local doc_pkgs
-        if [[ "$section" == cert ]]; then
-            doc_pkgs="$(cat "$TMP/cert_pkgs.txt")"
+        if [[ -n "${PASS_DOC_PKGS:-}" ]]; then
+            doc_pkgs="$PASS_DOC_PKGS"
         else
             doc_pkgs="$(awk -F'\t' '$4 == "true" { print $2 }' "$TMP/packages.tsv" | LC_ALL=C sort)"
         fi
@@ -218,10 +221,17 @@ build_inventory() {
         echo "$reported_total" >"$TMP/$section.reported"
     }
 
+    : >"$TMP/ws.txt"
+    echo 0 >"$TMP/ws.reported"
     inventory_pass ws --workspace
-    cert_args=()
-    while IFS= read -r pkg; do cert_args+=(-p "$pkg"); done <"$TMP/cert_pkgs.txt"
-    inventory_pass cert "${cert_args[@]}" --no-default-features --features cert
+    # One invocation per cert package (as the gate runs them): a combined
+    # `-p a -p b` would unify features across the packages and list tests the
+    # per-package cert build does not contain.
+    : >"$TMP/cert.txt"
+    echo 0 >"$TMP/cert.reported"
+    while IFS= read -r pkg; do
+        PASS_DOC_PKGS="$pkg" inventory_pass cert -p "$pkg" --no-default-features --features cert
+    done <"$TMP/cert_pkgs.txt"
 
     result="$TMP/inventory.txt"
     cat "$TMP/ws.txt" "$TMP/cert.txt" | LC_ALL=C sort -u >"$result"

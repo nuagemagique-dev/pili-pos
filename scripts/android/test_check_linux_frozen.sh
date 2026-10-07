@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# Self-test of scripts/android/check_linux_frozen.sh. Works in a temporary
-# clone of the current commit (the real repository is never tagged):
+# Self-test of scripts/android/check_linux_frozen.sh. Works in temporary
+# clones of the current commit (the real repository is never tagged):
 #   clean                         -> 0
 #   edit of Cargo.toml            -> 1
 #   untracked file in src-tauri   -> 1
 #   no tag                        -> 2
+# The suite runs twice: once against the real repository as the clone source,
+# and once against a throwaway source repository that already carries the real
+# freeze tags (linux-v1.1.0-rc1 and linux-v1.1.0), the state after the soft
+# freeze. The clone copies those tags; the suite removes them before tagging.
+# The real repository's tag list must be identical before and after the run.
 # Needs cargo (cargo tree --offline) and the vendored/cached dependencies.
 set -uo pipefail
 export LC_ALL=C
@@ -13,16 +18,10 @@ export PATH="$HOME/.cargo/bin:$PATH"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-CLONE="$TMP/clone"
 
-git clone -q --no-hardlinks "$ROOT" "$CLONE" || { echo "FAIL: clone"; exit 1; }
-cd "$CLONE" || exit 1
-# The clone is of the committed HEAD: the script under test comes from there.
-# Use the working copy of the scripts instead, so uncommitted edits are tested.
-cp "$ROOT/scripts/android/check_linux_frozen.sh" scripts/android/check_linux_frozen.sh
-git tag linux-v1.1.0-rc1 HEAD
-
+tags_before="$(git -C "$ROOT" tag -l)"
 fails=0
+
 run() { # <name> <want exit> [regex]
     local name="$1" want="$2" re="${3:-}" got out
     out="$(bash scripts/android/check_linux_frozen.sh 2>&1)"
@@ -36,24 +35,55 @@ run() { # <name> <want exit> [regex]
     fi
 }
 
-run clean 0 'frozen against linux-v1.1.0-rc1 \([0-9a-f]+\): [0-9]+ paths, clean'
+# suite <label> <source repository>
+suite() {
+    local label="$1" src="$2" clone="$TMP/clone.$1" t
+    echo "== $label"
+    git clone -q --no-hardlinks "$src" "$clone" || { echo "FAIL $label: clone"; fails=$((fails + 1)); return; }
+    (
+        cd "$clone" || exit 1
+        # The clone is of the committed HEAD: the script under test comes from
+        # there. Use the working copy of the script, so uncommitted edits are tested.
+        cp "$ROOT/scripts/android/check_linux_frozen.sh" scripts/android/check_linux_frozen.sh
+        # Whatever freeze tags the source carried were copied: drop them all,
+        # then tag HEAD (so the clone is checked against HEAD, never a real tag).
+        for t in $(git tag -l 'linux-v*'); do git tag -d "$t" >/dev/null; done
+        git tag -f linux-v1.1.0-rc1 HEAD >/dev/null || { echo "FAIL $label: tag"; exit 1; }
+        fails=0
 
-echo '# edit' >>Cargo.toml
-run edit-Cargo.toml 1 'differ'
-git checkout -q -- Cargo.toml
+        run "$label/clean" 0 'frozen against linux-v1.1.0-rc1 \([0-9a-f]+\): [0-9]+ paths, clean'
 
-echo x >src-tauri/untracked_probe.txt
-run untracked-in-src-tauri 1 'untracked'
-rm -f src-tauri/untracked_probe.txt
+        echo '# edit' >>Cargo.toml
+        run "$label/edit-Cargo.toml" 1 'differ'
+        git checkout -q -- Cargo.toml
 
-run clean-again 0
+        echo x >src-tauri/untracked_probe.txt
+        run "$label/untracked-in-src-tauri" 1 'untracked'
+        rm -f src-tauri/untracked_probe.txt
 
-git tag -d linux-v1.1.0-rc1 >/dev/null
-run no-tag 2 'no freeze tag yet'
+        run "$label/clean-again" 0
 
-cd "$ROOT" || true
-if [[ -n "$(git -C "$ROOT" tag -l 'linux-v*')" ]]; then
-    echo "FAIL: the real repository has a linux-v* tag"
+        git tag -d linux-v1.1.0-rc1 >/dev/null
+        run "$label/no-tag" 2 'no freeze tag yet'
+        exit "$fails"
+    ) >"$TMP/suite.$1.out" 2>&1
+    local rc=$?
+    cat "$TMP/suite.$1.out"
+    fails=$((fails + rc))
+}
+
+suite real "$ROOT"
+
+# Throwaway source that already has the real freeze tags.
+SRC="$TMP/tagged-source"
+git clone -q --no-hardlinks --no-tags "$ROOT" "$SRC" || { echo "FAIL: source clone"; exit 1; }
+git -C "$SRC" tag linux-v1.1.0-rc1 HEAD
+git -C "$SRC" tag linux-v1.1.0 HEAD
+suite tagged-source "$SRC"
+
+tags_after="$(git -C "$ROOT" tag -l)"
+if [[ "$tags_before" != "$tags_after" ]]; then
+    echo "FAIL: the tag list of the real repository changed during the run"
     fails=$((fails + 1))
 fi
 

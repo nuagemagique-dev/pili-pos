@@ -20,8 +20,9 @@
 #              untouchable files unchanged, no source/checksum change in Cargo.lock
 #   engine-*   ENGINE_SRC = crates/pos-engine/src when it exists, else
 #              src-tauri/src/commands + state.rs + engine.rs (when present):
-#              no Tauri in the engine (checked once crates/pos-engine exists,
-#              before the move src-tauri still holds Tauri code), no Tauri
+#              no Tauri in the engine (checked once crates/pos-engine or
+#              src-tauri/src/ipc exists; before that src-tauri/src/commands
+#              still holds the Tauri wrappers and the check would fail), no Tauri
 #              package in its dependency tree, no unlisted global (static,
 #              thread_local!, lazy_static!) in ENGINE_SRC or crates/pos-fiscal/src
 #              (allow list: scripts/android/p1a_globals_allow.txt)
@@ -113,10 +114,17 @@ need_ui() {
 }
 gate ui-dist need_ui
 
-# cert members: workspace packages that declare a cert feature.
-cert_pkgs() {
-    cargo metadata --format-version 1 --no-deps 2>/dev/null |
-        jq -r '.packages[] | select(.features | has("cert")) | .name' | LC_ALL=C sort
+# cert members: workspace packages that declare a cert feature. Fails closed:
+# a missing jq, a cargo metadata error or an empty list is a FAIL, never a
+# silent zero-iteration loop (same refusal as test_inventory.sh).
+cert_members() {
+    command -v jq >/dev/null || { echo "jq is not installed (needed to list the cert members)"; return 1; }
+    cargo metadata --format-version 1 --no-deps >"$TMP/metadata.json" 2>"$TMP/metadata.err" ||
+        { tail -n 10 "$TMP/metadata.err"; echo "cargo metadata failed"; return 1; }
+    jq -r '.packages[] | select(.features | has("cert")) | .name' "$TMP/metadata.json" | LC_ALL=C sort >"$TMP/cert_pkgs.txt" ||
+        { echo "jq failed on the cargo metadata output"; return 1; }
+    [[ -s "$TMP/cert_pkgs.txt" ]] || { echo "no workspace member with a cert feature"; return 1; }
+    echo "cert members: $(tr '\n' ' ' <"$TMP/cert_pkgs.txt" | sed 's/ $//')"
 }
 
 # ── hygiene against the base ref ────────────────────────────────
@@ -179,12 +187,19 @@ else
 fi
 
 # ── engine hygiene ──────────────────────────────────────────────
+# engine-tauri-free runs once the Tauri wrappers have left the engine sources:
+# crates/pos-engine exists (after the move), or src-tauri/src/ipc exists (the
+# wrapper split of P1a step 2, before the move). Before that the sources still
+# hold Tauri code (99 matches on android/int) and the check would only fail.
 ENGINE_SRC=()
+ENGINE_MOVED=0
+ENGINE_TAURI_CHECK=0
 if [[ -d crates/pos-engine/src ]]; then
     ENGINE_SRC=(crates/pos-engine/src)
     ENGINE_MOVED=1
+    ENGINE_TAURI_CHECK=1
 else
-    ENGINE_MOVED=0
+    [[ -d src-tauri/src/ipc ]] && ENGINE_TAURI_CHECK=1
     [[ -d src-tauri/src/commands ]] && ENGINE_SRC+=(src-tauri/src/commands)
     [[ -f src-tauri/src/state.rs ]] && ENGINE_SRC+=(src-tauri/src/state.rs)
     [[ -f src-tauri/src/engine.rs ]] && ENGINE_SRC+=(src-tauri/src/engine.rs)
@@ -224,11 +239,14 @@ e_globals() {
     echo "$seen global(s), all listed in p1a_globals_allow.txt"
 }
 
-if [[ "$ENGINE_MOVED" -eq 1 ]]; then
+if [[ "$ENGINE_TAURI_CHECK" -eq 1 ]]; then
     gate engine-tauri-free e_tauri_free
+else
+    skip engine-tauri-free "no src-tauri/src/ipc yet: the wrappers have not left the engine sources"
+fi
+if [[ "$ENGINE_MOVED" -eq 1 ]]; then
     gate engine-tree e_tree
 else
-    skip engine-tauri-free "engine not moved yet: src-tauri still holds Tauri code"
     skip engine-tree "no crates/pos-engine yet"
 fi
 gate engine-globals e_globals
@@ -239,7 +257,8 @@ gate clippy cargo clippy --workspace --all-targets -- -D warnings
 gate tests run_tests --workspace --no-fail-fast
 
 if [[ "$fast" -eq 0 ]]; then
-    for pkg in $(cert_pkgs); do
+    gate cert-members cert_members
+    for pkg in $(cat "$TMP/cert_pkgs.txt" 2>/dev/null); do
         gate "clippy-cert-$pkg" cargo clippy -p "$pkg" --all-targets --no-default-features --features cert -- -D warnings
         gate "tests-cert-$pkg" run_tests -p "$pkg" --no-default-features --features cert --no-fail-fast
     done
