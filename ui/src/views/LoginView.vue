@@ -292,6 +292,9 @@ async function submitInsz() {
           <span>{{ footerPlace }}</span>
           <span>{{ t('by_nuage_magique') }}</span>
         </div>
+        <div v-if="pos.settings?.posSwVersion" class="sw-version">
+          {{ t('sw_version') }} {{ pos.settings.posSwVersion }}
+        </div>
       </div>
     </section>
 
@@ -425,6 +428,13 @@ async function submitInsz() {
   display: flex;
   flex-direction: column;
   gap: 28px;
+}
+.sw-version {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  opacity: 0.8;
 }
 .hanzi {
   font-family: var(--font-zh);
