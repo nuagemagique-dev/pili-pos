@@ -28,7 +28,6 @@ use pos_hubrise::webshop::{self, WebshopState};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tauri::State;
 
 use crate::commands::access::{self, Access};
 use crate::commands::checkout::{CheckoutResult, Payment, SaleOptions, sell};
@@ -57,14 +56,6 @@ pub struct AcceptRequest {
     /// `accepted`.
     #[serde(default)]
     pub confirmed_time: Option<String>,
-}
-
-#[tauri::command]
-pub async fn webshop_accept_order(
-    state: State<'_, AppState>,
-    req: AcceptRequest,
-) -> Result<AcceptResult, String> {
-    do_accept_webshop_order(state.inner(), req.order_id, req.confirmed_time.as_deref()).await
 }
 
 /// The order's cost center: PLATFORM for a platform's order, WEBSHOP
@@ -425,20 +416,6 @@ pub struct HandoverRequest {
     pub delivery: Option<TicketDeliveryRequest>,
 }
 
-#[tauri::command]
-pub async fn webshop_handover_order(
-    state: State<'_, AppState>,
-    req: HandoverRequest,
-) -> Result<CheckoutResult, String> {
-    do_handover_webshop_order(
-        state.inner(),
-        req.order_id,
-        &req.payments,
-        req.delivery.as_ref(),
-    )
-    .await
-}
-
 /// Collect an unpaid online order ("Encaisser"): the sale N, with the
 /// order's cost center, closes its P; HubRise hears `completed`.
 pub async fn do_handover_webshop_order(
@@ -501,11 +478,6 @@ pub async fn do_handover_webshop_order(
     }
 }
 
-#[tauri::command]
-pub fn webshop_reject_order(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
-    do_reject_webshop_order(state.inner(), order_id)
-}
-
 /// Refuse an order not yet accepted: voided here, `rejected` for
 /// HubRise, nothing signed.
 pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), String> {
@@ -541,11 +513,6 @@ pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), St
     tx.commit().map_err(errors::internal)?;
     state.hubrise_outbox_wake.notify_one();
     Ok(())
-}
-
-#[tauri::command]
-pub fn webshop_complete_order(state: State<'_, AppState>, order_id: i64) -> Result<(), String> {
-    do_complete_webshop_order(state.inner(), order_id)
 }
 
 /// Hand over a prepaid order whose sale is signed: HubRise hears
@@ -588,20 +555,6 @@ pub struct RefundRequest {
     pub employee_insz: String,
     #[serde(default)]
     pub delivery: Option<TicketDeliveryRequest>,
-}
-
-#[tauri::command]
-pub async fn webshop_refund_order(
-    state: State<'_, AppState>,
-    req: RefundRequest,
-) -> Result<CheckoutResult, String> {
-    do_refund_webshop_order(
-        state.inner(),
-        req.order_id,
-        &req.employee_insz,
-        req.delivery.as_ref(),
-    )
-    .await
 }
 
 /// The sale an order's refund cites, and whether it is still to be
@@ -674,14 +627,6 @@ pub async fn do_refund_webshop_order(
             other
         }
     }
-}
-
-#[tauri::command]
-pub async fn webshop_close_cancelled_order(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<CheckoutResult, String> {
-    do_close_cancelled_webshop_order(state.inner(), order_id).await
 }
 
 /// Close an unpaid order HubRise cancelled after its P: every line is

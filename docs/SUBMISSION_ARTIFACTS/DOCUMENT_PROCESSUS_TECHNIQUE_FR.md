@@ -58,14 +58,14 @@ une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque
 
 | Événement | Déclencheur | Chemin de code POS | Notes |
 |---|---|---|---|
-| **N** (Vente normale) | L'opérateur tape "Payer" (sur place `dine_in` ou à emporter `takeaway`) | `commands/checkout::checkout` → `do_checkout` / `do_checkout_split` → `sell` → `signing::sign` : archive + clôture dans une seule tx SQLite | Blocage-sur-déconnexion-FDM imposé |
-| **P** (Pro forma) | L'opérateur envoie la commande en cuisine | `commands/tables::sign_table_order` | Table ouverte ; pas d'incrément du compteur N |
+| **N** (Vente normale) | L'opérateur tape "Payer" (sur place `dine_in` ou à emporter `takeaway`) | `ipc/checkout::checkout` → `commands/checkout::do_checkout` / `do_checkout_split` → `sell` → `signing::sign` : archive + clôture dans une seule tx SQLite | Blocage-sur-déconnexion-FDM imposé |
+| **P** (Pro forma) | L'opérateur envoie la commande en cuisine | `commands/tables::do_sign_table_order` | Table ouverte ; pas d'incrément du compteur N |
 | **T** (Formation) | L'opérateur est en mode formation | Comme N mais `is_training=true` dans l'input ; watermark UI |
-| **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::copy_ticket` | Porte un `fdmRef` vers l'original |
+| **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
 | **I** (Facture) | Hors binaire certifié v1.0.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build cert (§8) ; événement optionnel dans SCE 2.0 |
-| **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::money_in_out` / `open_drawer_fiscal` | F-WAR pour ouverture tiroir |
-| **S** (Social) | Pointage entrée / sortie de l'opérateur | `commands/social::work_in` / `work_out` | INSZ + n° employeur |
-| **R** (Rapport) | Rapports Z et X | `commands/report::generate_x_report` / `generate_z_report` | Z est Turnover-Z + User-Z atomique |
+| **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
+| **S** (Social) | Pointage entrée / sortie de l'opérateur | `commands/social::do_work_in` / `do_work_out` | INSZ + n° employeur |
+| **R** (Rapport) | Rapports Z et X | `commands/report::do_generate_x_report` / `do_generate_z_report` | Z est Turnover-Z + User-Z atomique |
 
 Chaque branche :
 

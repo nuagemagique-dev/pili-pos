@@ -1,5 +1,4 @@
 use serde::Serialize;
-use tauri::State;
 
 use crate::commands::access::{self, Access};
 use crate::state::AppState;
@@ -21,11 +20,6 @@ pub struct PosSettings {
     pub config_problems: Vec<String>,
 }
 
-#[tauri::command]
-pub fn get_settings(state: State<'_, AppState>) -> Result<PosSettings, String> {
-    do_get_settings(state.inner())
-}
-
 pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     Ok(PosSettings {
@@ -38,11 +32,6 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         language: config.language.clone(),
         config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config),
     })
-}
-
-#[tauri::command]
-pub fn set_training_mode(state: State<'_, AppState>, enabled: bool) -> Result<bool, String> {
-    do_set_training_mode(state.inner(), enabled)
 }
 
 pub const ERR_OPEN_ORDERS: &str = crate::commands::errors::OPEN_ORDERS_TRAINING;

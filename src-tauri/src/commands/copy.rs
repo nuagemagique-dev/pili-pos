@@ -1,5 +1,4 @@
 use serde::Serialize;
-use tauri::State;
 
 use pos_core::config::PosConfig;
 use pos_db::queries::fiscal::FiscalEventRef;
@@ -45,24 +44,6 @@ impl CopyResult {
     }
 }
 
-/// Create a copy (event C) of a previous fiscal event.
-/// Per SCE 2.0 spec: references the original via fdmId + eventLabel + counters.
-#[tauri::command]
-pub async fn copy_ticket(
-    state: State<'_, AppState>,
-    fiscal_event_id: i64,
-    employee_insz: String,
-    delivery: Option<TicketDeliveryRequest>,
-) -> Result<CopyResult, String> {
-    do_copy_ticket_with(
-        state.inner(),
-        fiscal_event_id,
-        employee_insz,
-        delivery.as_ref(),
-    )
-    .await
-}
-
 pub async fn do_copy_ticket(
     state: &AppState,
     fiscal_event_id: i64,
@@ -71,6 +52,9 @@ pub async fn do_copy_ticket(
     do_copy_ticket_with(state, fiscal_event_id, employee_insz, None).await
 }
 
+/// Create a copy (event C) of a previous fiscal event.
+/// Per SCE 2.0 spec: references the original via fdmId + eventLabel + counters.
+///
 /// [`do_copy_ticket`] with the operator's ticket choice.
 pub async fn do_copy_ticket_with(
     state: &AppState,
@@ -368,14 +352,6 @@ pub(crate) fn printable_original(
 
 /// Recent tickets a customer received, for the copy picker: managers
 /// only, like the copy itself.
-#[tauri::command]
-pub fn list_copyable_tickets(
-    state: State<'_, AppState>,
-    limit: Option<i64>,
-) -> Result<Vec<pos_db::queries::fiscal::CopyableTicket>, String> {
-    do_list_copyable_tickets(state.inner(), limit)
-}
-
 pub fn do_list_copyable_tickets(
     state: &AppState,
     limit: Option<i64>,
@@ -387,14 +363,6 @@ pub fn do_list_copyable_tickets(
 }
 
 /// List recent fiscal events.
-#[tauri::command]
-pub fn list_fiscal_events(
-    state: State<'_, AppState>,
-    limit: Option<i64>,
-) -> Result<serde_json::Value, String> {
-    do_list_fiscal_events(state.inner(), limit)
-}
-
 pub fn do_list_fiscal_events(
     state: &AppState,
     limit: Option<i64>,

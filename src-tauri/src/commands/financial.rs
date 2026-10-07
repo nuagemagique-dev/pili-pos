@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tauri::State;
 
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::inputs::*;
@@ -29,24 +28,6 @@ pub enum MoneyDirection {
 
 /// Record a cash financial event (Event F): money put in or taken
 /// out (cash float, withdrawal, ...), or the count of the drawer.
-#[tauri::command]
-pub async fn money_in_out(
-    state: State<'_, AppState>,
-    employee_insz: String,
-    amount_cents: i64,
-    direction: MoneyDirection,
-    reason: String,
-) -> Result<FinancialResult, String> {
-    do_money_in_out(
-        state.inner(),
-        employee_insz,
-        amount_cents,
-        direction,
-        reason,
-    )
-    .await
-}
-
 pub async fn do_money_in_out(
     state: &AppState,
     employee_insz: String,
@@ -171,14 +152,6 @@ fn prepared(
 
 /// Record a fiscal drawer open event (Event F).
 /// Tracks when the cash drawer is opened outside of a sale.
-#[tauri::command]
-pub async fn open_drawer_fiscal(
-    state: State<'_, AppState>,
-    employee_insz: String,
-) -> Result<FinancialResult, String> {
-    do_open_drawer_fiscal(state.inner(), employee_insz).await
-}
-
 pub async fn do_open_drawer_fiscal(
     state: &AppState,
     employee_insz: String,

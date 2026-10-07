@@ -5,7 +5,6 @@ use pos_print::report::{
     UserReportPrintData, UserReportUser,
 };
 use serde::Serialize;
-use tauri::State;
 
 use pos_db::queries::booking::BookingPeriod;
 use pos_fiscal::archive;
@@ -35,14 +34,6 @@ pub struct ReportResult {
 }
 
 /// Generate an X-report (mid-day, non-resetting).
-#[tauri::command]
-pub async fn generate_x_report(
-    state: State<'_, AppState>,
-    employee_insz: String,
-) -> Result<ReportResult, String> {
-    do_generate_x_report(state.inner(), employee_insz).await
-}
-
 pub async fn do_generate_x_report(
     state: &AppState,
     employee_insz: String,
@@ -162,11 +153,6 @@ fn report_prepared(
 /// Returns true if no Z-report exists for today AND the local time
 /// is past 22:00 - used by the Vue header to show a warning banner
 /// reminding the manager to run the end-of-day Z before leaving.
-#[tauri::command]
-pub fn needs_z_report(state: State<'_, AppState>) -> Result<bool, String> {
-    do_needs_z_report(state.inner())
-}
-
 pub fn do_needs_z_report(state: &AppState) -> Result<bool, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let open = pos_db::queries::booking::open_period(&db).map_err(|e| e.to_string())?;
@@ -186,11 +172,6 @@ fn z_reminder_due(open: Option<&BookingPeriod>, now: chrono::DateTime<chrono_tz:
 }
 
 /// List past Z-reports for the history view (newest first).
-#[tauri::command]
-pub fn list_z_reports(state: State<'_, AppState>) -> Result<Vec<ZReportSummary>, String> {
-    do_list_z_reports(state.inner())
-}
-
 pub fn do_list_z_reports(state: &AppState) -> Result<Vec<ZReportSummary>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     pos_db::queries::reports::list_z_reports(&db).map_err(|e| e.to_string())
@@ -199,14 +180,6 @@ pub fn do_list_z_reports(state: &AppState) -> Result<Vec<ZReportSummary>, String
 /// Generate the end-of-day Z (M184): the financial Z and the user Z
 /// are built together, signed by the FDM in ONE GraphQL operation,
 /// and archived atomically (both R events or none).
-#[tauri::command]
-pub async fn generate_z_report(
-    state: State<'_, AppState>,
-    employee_insz: String,
-) -> Result<ReportResult, String> {
-    do_generate_z_report(state.inner(), employee_insz).await
-}
-
 pub async fn do_generate_z_report(
     state: &AppState,
     employee_insz: String,
@@ -414,14 +387,6 @@ async fn z_report_locked(
 
 /// Generate a user X-report (M182, non-resetting) on demand from the
 /// Reports menu.
-#[tauri::command]
-pub async fn generate_user_x_report(
-    state: State<'_, AppState>,
-    employee_insz: String,
-) -> Result<ReportResult, String> {
-    do_generate_user_x_report(state.inner(), employee_insz).await
-}
-
 pub async fn do_generate_user_x_report(
     state: &AppState,
     employee_insz: String,
@@ -486,11 +451,6 @@ pub async fn do_generate_user_x_report(
 }
 
 /// Create a timestamped backup of the live database.
-#[tauri::command]
-pub fn backup_database(state: State<'_, AppState>) -> Result<String, String> {
-    do_backup_database(state.inner())
-}
-
 pub fn do_backup_database(state: &AppState) -> Result<String, String> {
     access::operator(state, Access::Admin)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;

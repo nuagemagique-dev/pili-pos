@@ -7,19 +7,18 @@
 use pos_core::order::{OrderLine, OrderStatus, OrderType};
 use pos_db::queries::menu::{ModifierGroup, get_modifier_groups};
 use serde::{Deserialize, Serialize};
-use tauri::State;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
 use crate::state::AppState;
 
-#[tauri::command]
-pub fn get_item_modifiers(
-    state: State<'_, AppState>,
+/// `do_get_item_modifiers` in the given language (`fr` by default).
+pub fn do_get_item_modifiers_localized(
+    state: &AppState,
     menu_item_id: i64,
-    lang: Option<String>,
+    lang: Option<&str>,
 ) -> Result<Vec<ModifierGroup>, String> {
-    do_get_item_modifiers(state.inner(), menu_item_id, lang.as_deref().unwrap_or("fr"))
+    do_get_item_modifiers(state, menu_item_id, lang.unwrap_or("fr"))
 }
 
 pub fn do_get_item_modifiers(
@@ -45,14 +44,6 @@ struct Picked<'a> {
     id: i64,
     name: &'a str,
     price_cents: i64,
-}
-
-#[tauri::command]
-pub fn add_order_line_with_modifiers(
-    state: State<'_, AppState>,
-    input: AddWithModifiersInput,
-) -> Result<OrderLine, String> {
-    do_add_order_line_with_modifiers(state.inner(), &input)
 }
 
 /// Add a product with its options: each group's choice count within

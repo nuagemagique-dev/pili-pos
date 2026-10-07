@@ -1,5 +1,4 @@
 use serde::Serialize;
-use tauri::State;
 
 use pos_core::order::{OrderStatus, OrderType};
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
@@ -27,18 +26,6 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
-}
-
-/// List tables with their current order status.
-///
-/// A table is only reported as **occupied** when its open order
-/// contains at least one line. Empty open orders (typical after a
-/// tap-and-walk-away) are treated as free so the TablesView doesn't
-/// surface ghost "0.00 €" cards that add cognitive load for zero
-/// informational value (UX Guide §2.1).
-#[tauri::command]
-pub fn list_tables(state: State<'_, AppState>) -> Result<Vec<TableInfo>, String> {
-    do_list_configured_tables(state.inner())
 }
 
 /// List tables with their current order status.
@@ -119,11 +106,6 @@ pub struct TakeawayInfo {
 /// The takeaways left open (nothing is registered for them until they
 /// are paid): the Tables screen lists them so each one ends in a sale
 /// or is closed unpaid (FAQ Q205). Empty drafts are left out.
-#[tauri::command]
-pub fn list_open_takeaways(state: State<'_, AppState>) -> Result<Vec<TakeawayInfo>, String> {
-    do_list_open_takeaways(state.inner())
-}
-
 pub fn do_list_open_takeaways(state: &AppState) -> Result<Vec<TakeawayInfo>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db
@@ -156,14 +138,6 @@ pub fn do_list_open_takeaways(state: &AppState) -> Result<Vec<TakeawayInfo>, Str
 /// in chronological order. A no-op when nothing changed. The UI calls
 /// it when the operator leaves a table. Once signed, the new lines go
 /// to the bar / kitchen slip; the result says what became of it.
-#[tauri::command]
-pub async fn sign_table_order(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<SlipOutcome, String> {
-    do_sign_table_order(state.inner(), order_id).await
-}
-
 pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<SlipOutcome, String> {
     let operator = access::operator(state, Access::Staff)?;
     let op = Op::new(Kind::TableOrder, order_id);
@@ -266,14 +240,7 @@ async fn print_registered(
 }
 
 /// Send a signPreBill (provisional bill P event).
-#[tauri::command]
-pub async fn sign_pre_bill(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<SlipOutcome, String> {
-    do_sign_pre_bill(state.inner(), order_id).await
-}
-
+///
 /// Provisional bill ("addition provisoire", §1.4): the consolidated
 /// order, printed PRO FORMA. Entries not yet registered are sent as an
 /// order first, since a pre-bill may not add or change lines; the

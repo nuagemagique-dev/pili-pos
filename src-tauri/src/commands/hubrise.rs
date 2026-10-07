@@ -1,8 +1,8 @@
-//! Tauri command handlers for HubRise integration.
+//! Engine functions behind the HubRise integration commands.
 //!
-//! These are the typed wrappers invoked by the Vue frontend via
-//! `@tauri-apps/api/core`. All methods return `Result<_, String>`
-//! for consistent JSON-serialized error display.
+//! The IPC wrappers in `crate::ipc::hubrise` call these on behalf of
+//! the Vue frontend. All methods return `Result<_, String>` for
+//! consistent JSON-serialized error display.
 
 use std::sync::Arc;
 
@@ -14,7 +14,6 @@ use pos_hubrise::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tauri::State;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
@@ -111,13 +110,6 @@ fn installation_oauth_config(state: &AppState) -> Result<OAuthConfig, String> {
     oauth_config(&config, cfg!(debug_assertions))
 }
 
-#[tauri::command]
-pub fn hubrise_get_connection_status(
-    state: State<'_, AppState>,
-) -> Result<HubriseConnectionInfo, String> {
-    do_hubrise_get_connection_status(state.inner())
-}
-
 pub fn do_hubrise_get_connection_status(state: &AppState) -> Result<HubriseConnectionInfo, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     match token_store::load(&db).map_err(|e| e.to_string())? {
@@ -146,11 +138,6 @@ pub struct AuthorizeLink {
     pub qr_svg: String,
 }
 
-#[tauri::command]
-pub fn hubrise_start_oauth_flow(state: State<'_, AppState>) -> Result<AuthorizeLink, String> {
-    do_hubrise_start_oauth_flow(state.inner())
-}
-
 pub fn do_hubrise_start_oauth_flow(state: &AppState) -> Result<AuthorizeLink, String> {
     crate::commands::integrations::require_hubrise(state)?;
     let cfg = installation_oauth_config(state)?;
@@ -175,14 +162,6 @@ fn qr_svg(text: &str) -> Result<String, String> {
         Some(start) => svg[start..].to_string(),
         None => svg,
     })
-}
-
-#[tauri::command]
-pub async fn hubrise_complete_oauth(
-    state: State<'_, AppState>,
-    code: String,
-) -> Result<HubriseConnectionInfo, String> {
-    do_hubrise_complete_oauth(state.inner(), &code).await
 }
 
 /// Exchange the code HubRise showed for this location's token, store
@@ -233,11 +212,6 @@ pub async fn do_hubrise_complete_oauth(
     state.hubrise_poll_now.notify_one();
 
     Ok(HubriseConnectionInfo::from_stored(&stored))
-}
-
-#[tauri::command]
-pub fn hubrise_disconnect(state: State<'_, AppState>) -> Result<(), String> {
-    do_hubrise_disconnect(state.inner())
 }
 
 pub fn do_hubrise_disconnect(state: &AppState) -> Result<(), String> {
@@ -434,13 +408,6 @@ fn summary_from_raw(
     )
 }
 
-#[tauri::command]
-pub fn hubrise_list_webshop_orders(
-    state: State<'_, AppState>,
-) -> Result<Vec<WebshopOrderSummary>, String> {
-    do_list_webshop_orders(state.inner())
-}
-
 pub fn do_list_webshop_orders(state: &AppState) -> Result<Vec<WebshopOrderSummary>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db
@@ -529,14 +496,6 @@ pub const STAFF_STATUSES: &[&str] = &[
     "in_delivery",
 ];
 
-#[tauri::command]
-pub async fn hubrise_patch_order_status(
-    state: State<'_, AppState>,
-    req: PatchStatusRequest,
-) -> Result<(), String> {
-    do_patch_order_status(state.inner(), &req.hubrise_order_id, &req.new_status)
-}
-
 /// Queue a status change for HubRise and show it at once on the POS.
 pub fn do_patch_order_status(
     state: &AppState,
@@ -608,14 +567,6 @@ pub struct SetConfirmedTimeRequest {
 }
 
 /// Queue a new `confirmed_time` for HubRise and show it at once.
-#[tauri::command]
-pub async fn hubrise_set_confirmed_time(
-    state: State<'_, AppState>,
-    req: SetConfirmedTimeRequest,
-) -> Result<(), String> {
-    do_set_confirmed_time(state.inner(), &req.hubrise_order_id, &req.confirmed_time)
-}
-
 pub fn do_set_confirmed_time(
     state: &AppState,
     hubrise_order_id: &str,
@@ -649,11 +600,6 @@ pub struct HubriseStatus {
     pub catalog: Option<pos_catalog::SyncState>,
     /// A first catalog waits for the manager to adopt local products.
     pub catalog_awaiting_adoption: bool,
-}
-
-#[tauri::command]
-pub fn hubrise_status(state: State<'_, AppState>) -> Result<HubriseStatus, String> {
-    do_hubrise_status(state.inner())
 }
 
 pub fn do_hubrise_status(state: &AppState) -> Result<HubriseStatus, String> {
@@ -694,13 +640,6 @@ pub fn do_hubrise_status(state: &AppState) -> Result<HubriseStatus, String> {
 }
 
 /// Fetch and apply the HubRise catalog now (Settings, "Resynchroniser").
-#[tauri::command]
-pub async fn hubrise_sync_catalog(
-    state: State<'_, AppState>,
-) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
-    do_sync_catalog(state.inner()).await
-}
-
 pub async fn do_sync_catalog(
     state: &AppState,
 ) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
@@ -718,13 +657,6 @@ pub async fn do_sync_catalog(
 
 /// The local products that can keep their id when HubRise takes over
 /// the menu (same French name and price as a catalog product).
-#[tauri::command]
-pub fn hubrise_adoption_preview(
-    state: State<'_, AppState>,
-) -> Result<Vec<pos_catalog::Adoption>, String> {
-    do_adoption_preview(state.inner())
-}
-
 pub fn do_adoption_preview(state: &AppState) -> Result<Vec<pos_catalog::Adoption>, String> {
     access::operator(state, Access::Admin)?;
     let db = state.db.lock().map_err(errors::internal)?;
@@ -740,14 +672,6 @@ pub fn do_adoption_preview(state: &AppState) -> Result<Vec<pos_catalog::Adoption
 /// id, every other hand-entered product is deactivated, and the menu
 /// mirrors HubRise. Refused while a POS order is open, since its
 /// products could vanish from the menu.
-#[tauri::command]
-pub fn hubrise_adopt_catalog(
-    state: State<'_, AppState>,
-    adoptions: Vec<pos_catalog::Adoption>,
-) -> Result<pos_catalog::ApplyOutcome, String> {
-    do_adopt_catalog(state.inner(), &adoptions)
-}
-
 pub fn do_adopt_catalog(
     state: &AppState,
     adoptions: &[pos_catalog::Adoption],
@@ -771,13 +695,6 @@ pub fn do_adopt_catalog(
 }
 
 /// How each HubRise channel is signed (Settings).
-#[tauri::command]
-pub fn hubrise_list_channels(
-    state: State<'_, AppState>,
-) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
-    do_list_channels(state.inner())
-}
-
 pub fn do_list_channels(state: &AppState) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
     access::operator(state, Access::Admin)?;
     let db = state.db.lock().map_err(errors::internal)?;
@@ -786,14 +703,6 @@ pub fn do_list_channels(state: &AppState) -> Result<Vec<pos_hubrise::webshop::Ch
 
 /// Add or change a channel; pending orders resolve again. Returns how
 /// many of them now resolve cleanly.
-#[tauri::command]
-pub fn hubrise_set_channel(
-    state: State<'_, AppState>,
-    channel: pos_hubrise::webshop::Channel,
-) -> Result<usize, String> {
-    do_set_channel(state.inner(), &channel)
-}
-
 pub fn do_set_channel(
     state: &AppState,
     channel: &pos_hubrise::webshop::Channel,

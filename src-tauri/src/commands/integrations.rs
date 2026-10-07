@@ -13,7 +13,6 @@
 
 use pos_db::queries::integrations::{self, SwitchChange};
 use serde::Serialize;
-use tauri::State;
 
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
@@ -51,11 +50,6 @@ pub struct Integrations {
     pub hubrise_log: Vec<SwitchChange>,
 }
 
-#[tauri::command]
-pub fn get_integrations(state: State<'_, AppState>) -> Result<Integrations, String> {
-    do_get_integrations(state.inner())
-}
-
 pub fn do_get_integrations(state: &AppState) -> Result<Integrations, String> {
     let online_orders_open = unsettled(state)?;
     let db = state.db.lock().map_err(errors::internal)?;
@@ -64,14 +58,6 @@ pub fn do_get_integrations(state: &AppState) -> Result<Integrations, String> {
         online_orders_open,
         hubrise_log: integrations::hubrise_log(&db, 20).map_err(errors::internal)?,
     })
-}
-
-#[tauri::command]
-pub fn set_hubrise_enabled(
-    state: State<'_, AppState>,
-    enabled: bool,
-) -> Result<Integrations, String> {
-    do_set_hubrise_enabled(state.inner(), enabled)
 }
 
 /// Switch the integration on or off. Admins only; off waits until every

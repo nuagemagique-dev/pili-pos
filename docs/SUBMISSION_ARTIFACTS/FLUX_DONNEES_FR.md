@@ -14,12 +14,12 @@ un INSZ. L'opérateur entre 11 chiffres sur le pavé numérique.
 
 **Circulation des données.**
 
-1. UI (`LoginView.vue`) → IPC `commands::auth::login(insz, pin)`.
+1. UI (`LoginView.vue`) → IPC `commands::auth::do_login(insz, pin)`.
 2. `pos-db::queries::users::get_user` → ligne SQLite `users` ; le PIN
    est comparé à son hash bcrypt.
 3. Le store Pinia auth enregistre `(insz, name, role)`.
 4. L'UI redirige vers `TablesView.vue`. Le store appelle
-   `commands::social::work_in()` - un événement fiscal **S** - sauf
+   `commands::social::do_work_in()` - un événement fiscal **S** - sauf
    si l'employé a déjà un poste ouvert (`clockInIfOffShift` dans
    `ui/src/stores/auth.ts`, cas d'un écran simplement verrouillé) :
    - Clé de doublon FDM construite à partir de `pos_id`,
@@ -41,11 +41,11 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
 
 **Circulation des données.**
 
-1. UI (`OrderView.vue`) appelle `commands::order::add_order_line` une
+1. UI (`OrderView.vue`) appelle `commands::order::do_add_order_line` une
    fois par plat. Chaque appel écrit une ligne `order_lines` avec le
    nom dénormalisé, le label TVA, le prix unitaire (depuis
    `menu_items`), et les éventuels modificateurs.
-2. "Envoyer en cuisine" déclenche `commands::tables::sign_table_order` :
+2. "Envoyer en cuisine" déclenche `commands::tables::do_sign_table_order` :
    - Construit un `OrderInput` pour **P** (pro forma) - même forme
      qu'une vente mais sans paiement.
    - Sérialisé en JSON canonique, stocké dans `pending_signs` avant
@@ -75,7 +75,7 @@ OK. L'opérateur confirme.
    validée à l'écran (`delivery::resolve`). Un choix refusé (adresse
    invalide, terminal non configuré) s'arrête ici, avant tout appel
    FDM.
-1. UI (`CheckoutView.vue`) → `commands::checkout::checkout` avec
+1. UI (`CheckoutView.vue`) → `commands::checkout::do_checkout_split` avec
    `{order_id, payment_method: "card", amount_cents, delivery}`.
 2. **Pas de pré-contrôle du statut FDM.** La vente passe par
    `checkout::sell` puis `signing::sign`. Si le FDM n'est pas joignable,
@@ -132,7 +132,7 @@ rapports pour voir les totaux en cours.
 
 **Circulation des données.**
 
-1. UI → `commands::report::generate_x_report`.
+1. UI → `commands::report::do_generate_x_report`.
 2. Les événements de la période de réservation ouverte sont relus
    dans `fiscal_events` et agrégés par
    `pos-fiscal::report_totals::turnover`.
@@ -149,7 +149,7 @@ rapports pour voir les totaux en cours.
 
 **Circulation des données.**
 
-1. UI → `commands::report::generate_z_report`.
+1. UI → `commands::report::do_generate_z_report`.
 2. La commande émet **deux** événements R de manière atomique :
    - `ReportTurnoverZ` (`ReportTurnoverZInput`, inclut
      `report_booking_date`).
@@ -182,7 +182,7 @@ rapports pour voir les totaux en cours.
 
 **Circulation des données.**
 
-1. UI → `commands::social::work_out`.
+1. UI → `commands::social::do_work_out`.
 2. Événement **S** construit (flag `work_out=true`). Verrou de
    signature, JSON canonique, FDM, archivage. Le poste ouvert de
    `staff_shifts` est clos dans la même transaction.
@@ -207,7 +207,7 @@ pays de l'acheteur.
    pour émettre un événement **I** référençant la vente sous-jacente
    (via `fdmRefs`).
 3. Après l'archivage de l'événement fiscal,
-   `commands::invoice::issue_b2b_invoice` est appelé avec les détails
+   `commands::invoice::do_issue_b2b_invoice` est appelé avec les détails
    du fournisseur + de l'acheteur et les lignes de vente :
    - `pos-peppol::ubl::to_ubl_xml` construit un UBL BIS Billing 3.0.
    - `AccessPoint::submit` envoie l'UBL à l'AP configuré

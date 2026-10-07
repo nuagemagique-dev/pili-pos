@@ -429,7 +429,7 @@ consolidées.
 
 **Description de l'implémentation :**
 
-L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, la commande Tauri `commands::social::work_in` est invoquée. Elle :
+L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, la commande Tauri `commands::social::do_work_in` est invoquée. Elle :
 
 1. Construit un `WorkInput` avec `pos_id`, `pos_date_time`, `terminal_id`, `employee_insz`, `device_id`.
 2. Envoie un `signWorkIn` au FDM.
@@ -600,7 +600,7 @@ l'implémentation, la table exigence → code → test, et
 | Est-il possible d'avoir plusieurs tiroirs par POS ou par utilisateur ? | ☐ Non (1 seul tiroir physique par POS) |
 | S'agit-il d'un tiroir-caisse virtuel ? | ☐ Non |
 | Aucun (tiroir-caisse par défaut "hardcodé" pour les mutations GraphQL) | ☐ Non |
-| Implémentation | Le tiroir est ouvert par séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA` envoyée à l'imprimante au moment d'un paiement cash (close de vente) ou via la commande manuelle `commands::financial::open_drawer_fiscal` (event F-WAR émis et archivé). Les rapports utilisateur (M183) ventilent les paiements par mode (cash / card / autre). |
+| Implémentation | Le tiroir est ouvert par séquence ESC/POS `0x1B 0x70 0x00 0x19 0xFA` envoyée à l'imprimante au moment d'un paiement cash (close de vente) ou via la commande manuelle `commands::financial::do_open_drawer_fiscal` (event F-WAR émis et archivé). Les rapports utilisateur (M183) ventilent les paiements par mode (cash / card / autre). |
 
 ## §III.L Rapports
 
@@ -882,7 +882,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 **Comment les rapports financiers X/Z sont-ils visibles/imprimables ?**
 
 L'opérateur (rôle Admin ou Cashier) accède au menu "Rapports" depuis la barre de navigation principale. Deux boutons distincts "Rapport X (intermédiaire)" et "Rapport Z (clôture)". Le Z est normalement fait par le Gérant ; si une journée reste ouverte sans Z, la caisse fait elle-même le Z, en filet de sécurité (§III.L, FAQ Q501c). Le clic déclenche :
-1. La commande Tauri `commands::report::generate_x_report` ou `generate_z_report`.
+1. La commande Tauri `commands::report::do_generate_x_report` ou `do_generate_z_report`.
 2. L'envoi au FDM via `signReportTurnoverX/Z` (et `signReportUserX/Z` pour Z atomique).
 3. Sur succès : impression automatique du ticket de rapport sur l'imprimante thermique.
 4. Affichage UI d'un récapitulatif lisible (montants par TVA, par moyen de paiement, par utilisateur).

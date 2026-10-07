@@ -1,5 +1,3 @@
-use tauri::State;
-
 #[cfg(feature = "hubrise")]
 use pos_hubrise_types::{Order, ServiceType};
 #[cfg(feature = "hubrise")]
@@ -19,12 +17,6 @@ use crate::state::AppState;
 // sale or refund, or the F event of `financial::open_drawer_fiscal`).
 
 /// Check if the printer is reachable.
-#[tauri::command]
-pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
-    do_check_printer(state.inner()).await
-}
-
-/// Check if the printer is reachable.
 pub async fn do_check_printer(state: &AppState) -> Result<bool, String> {
     let printer_address = state
         .config
@@ -40,14 +32,6 @@ pub async fn do_check_printer(state: &AppState) -> Result<bool, String> {
         }
         None => Ok(false),
     }
-}
-
-/// Check if the bar / kitchen printer is reachable. `None` when the
-/// terminal has no separate kitchen printer (slips go to the ticket
-/// printer), so the header can grey out its light.
-#[tauri::command]
-pub async fn check_kitchen_printer(state: State<'_, AppState>) -> Result<Option<bool>, String> {
-    do_check_kitchen_printer(state.inner()).await
 }
 
 /// Check if the bar / kitchen printer is reachable. `None` when the
@@ -145,15 +129,7 @@ fn hhmm_from_rfc3339(rfc3339: &str) -> Option<String> {
 }
 
 /// Print a kitchen ticket (items + options + notes, non-fiscal).
-#[cfg(feature = "hubrise")]
-#[tauri::command]
-pub async fn print_webshop_kitchen(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<(), String> {
-    do_print_webshop_kitchen(state.inner(), order_id).await
-}
-
+///
 /// Reprint a kitchen ticket: a logged-in staff member, integration on.
 #[cfg(feature = "hubrise")]
 pub async fn do_print_webshop_kitchen(state: &AppState, order_id: i64) -> Result<(), String> {
@@ -200,15 +176,7 @@ pub(crate) async fn print_webshop_kitchen_ticket(
 }
 
 /// Print a customer slip (items + total + customer, non-fiscal).
-#[cfg(feature = "hubrise")]
-#[tauri::command]
-pub async fn print_webshop_customer(
-    state: State<'_, AppState>,
-    order_id: i64,
-) -> Result<(), String> {
-    do_print_webshop_customer(state.inner(), order_id).await
-}
-
+///
 /// Print a customer slip: a logged-in staff member, integration on.
 #[cfg(feature = "hubrise")]
 pub async fn do_print_webshop_customer(state: &AppState, order_id: i64) -> Result<(), String> {
