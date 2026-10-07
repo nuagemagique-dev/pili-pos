@@ -332,10 +332,14 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
 
 test.describe('Idle lock (owned by the engine)', () => {
   test('a tap is forwarded to the engine as user_activity, at most once per second', async ({ page }) => {
-    await page.clock.install();
+    // Freeze time once the page is loaded: only runFor moves Date.now, so the
+    // "same second" window cannot be overrun by slow round trips under load.
+    const t0 = new Date('2030-01-01T10:00:00Z');
+    await page.clock.install({ time: t0 });
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER] });
     await page.goto('/');
     await expect(page.locator('.user-btn')).toBeVisible();
+    await page.clock.pauseAt(new Date(t0.getTime() + 10_000));
     const before = (await ipcCalls(page, 'user_activity')).length;
 
     await page.mouse.click(5, 5);
