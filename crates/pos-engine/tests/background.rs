@@ -28,6 +28,8 @@ fn open(dir: &std::path::Path, sink: Arc<Recorder>) -> Engine {
         },
         identity: pos_engine::SoftwareIdentity::new("pili-pos/1.0.0").unwrap(),
         http_tls: pos_engine::HttpTls::Platform,
+        device_id_override: None,
+        support_program: None,
     })
     .expect("open the engine")
 }

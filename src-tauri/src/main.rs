@@ -95,6 +95,9 @@ fn main() {
         identity: SoftwareIdentity::new(concat!("pili-pos/", env!("CARGO_PKG_VERSION")))
             .expect("software identity"),
         http_tls: HttpTls::Platform,
+        // The pos.json value: the Linux kiosk has no override.
+        device_id_override: None,
+        support_program: paths::support_program(),
     })
     .expect("Failed to initialize app state");
 

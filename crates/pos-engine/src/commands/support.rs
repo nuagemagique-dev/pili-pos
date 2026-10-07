@@ -2,8 +2,10 @@
 //!
 //! The kiosk runs no remote-access service. When the manager needs the
 //! technician, they start a session from Settings: their PIN is asked
-//! again, RustDesk is started (`/opt/pili-pos/rustdesk/AppRun`,
-//! installed by `deploy/provision/provision.sh`), and its window shows
+//! again, RustDesk is started (the program the shell hands to the engine as
+//! `EngineConfig::support_program`; on Linux
+//! `/opt/pili-pos/rustdesk/AppRun`, installed by
+//! `deploy/provision/provision.sh`), and its window shows
 //! the ID and one-time password the manager reads to the technician by
 //! phone. The session outlives a logout, so the technician can keep
 //! working at the login screen. It ends when anyone stops it (no login
@@ -16,7 +18,7 @@
 //! `HOME` under the service's runtime directory, so nothing it writes
 //! survives a restart.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
@@ -28,9 +30,6 @@ use pos_core::user::UserRole;
 use crate::commands::access::{self, Access};
 use crate::commands::errors;
 use crate::state::AppState;
-
-/// Where the image installs RustDesk (`deploy/provision/provision.sh`).
-pub const REMOTE_SUPPORT_PROGRAM: &str = "/opt/pili-pos/rustdesk/AppRun";
 
 /// A session is ended this long after it started.
 pub const MAX_SESSION: TimeDelta = TimeDelta::hours(2);
@@ -56,22 +55,23 @@ pub struct SupportState {
 }
 
 impl SupportState {
-    /// RustDesk as installed on the kiosk, when it is there.
-    pub fn installed() -> Self {
-        let program = Path::new(REMOTE_SUPPORT_PROGRAM);
-        Self::with_program(program.exists().then(|| program.to_path_buf()))
-    }
-
     /// No remote support on this terminal.
     pub fn disabled() -> Self {
         Self::with_program(None)
     }
 
+    /// The given program, when the shell found one (`None`: no remote
+    /// support on this terminal).
     pub fn with_program(program: Option<PathBuf>) -> Self {
         Self {
             program: Mutex::new(program),
             session: Mutex::new(None),
         }
+    }
+
+    /// The program a session would start, when there is one.
+    pub fn program(&self) -> Option<PathBuf> {
+        self.program.lock().ok().and_then(|p| p.clone())
     }
 
     /// Replace the program (tests).
