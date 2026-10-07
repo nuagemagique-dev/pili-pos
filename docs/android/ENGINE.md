@@ -19,13 +19,13 @@ The fiscal behaviour is the certified one: P1a is a pure move, guarded by the te
 | `paths` | `EnginePaths` (`data_dir`, `db`, `backups`) | `EnginePaths::under(paths::data_dir())`: `pos.db` and `backups/` under `paths::data_dir()`: `PILI_POS_DATA_DIR`, else `STATE_DIRECTORY` (systemd, `/var/lib/pili-pos` in production), else `<user data dir>/pili-pos` | `EnginePaths::under(<app files dir>)` |
 | `config` | `ConfigSource` | `config_source_from(PILI_POS_CONFIG, /etc/pili-pos/pos.json)`: `File(path)` from the variable, else `File("/etc/pili-pos/pos.json")` when it exists, else `DevelopmentDefaults` (warned, TEST identity) | `ConfigSource::Bundle(<path of pos.json in the provisioning bundle>)`: loaded like `File`, then every relative file or directory path is resolved against the bundle directory |
 | `events` | `Arc<dyn EventSink>` | `TauriEventSink` (forwards each event to the webview under its topic; the app handle is set in Tauri's `setup`, events before it are dropped) | A sink that queues events for the app to pull through the FFI (`NullSink` exists for tests and headless runs) |
-| `timers` | `EngineTimers` (`auto_z`, `mail_outbox`, `printer_status_read`, `idle_lock`) | `EngineTimers::default()`: automatic Z checked every 60 s, mail outbox every 30 s (`delivery::OUTBOX_INTERVAL`), printer status read 500 ms (`DEFAULT_STATUS_READ_TIMEOUT`), idle lock 300 s (an unattended terminal must not be used under the previous operator's INSZ; PD35) | `auto_z`, `mail_outbox` and `idle_lock` default; `printer_status_read` about 2 s (PD37): on the Android network path the DLE EOT answer often arrives after 500 ms (spike S4) |
+| `timers` | `EngineTimers` (`auto_z`, `mail_outbox`, `printer_status_read`, `idle_lock`, `fdm_poll`) | `EngineTimers::default()`: automatic Z checked every 60 s, mail outbox every 30 s (`delivery::OUTBOX_INTERVAL`), printer status read 500 ms (`DEFAULT_STATUS_READ_TIMEOUT`), idle lock 300 s (an unattended terminal must not be used under the previous operator's INSZ; PD35), FDM status poll 30 s (PD36) | `auto_z`, `mail_outbox`, `idle_lock` and `fdm_poll` default; `printer_status_read` about 2 s (PD37): on the Android network path the DLE EOT answer often arrives after 500 ms (spike S4) |
 | `identity` | `SoftwareIdentity` (the `posSwVersion` of every event and ticket) | `SoftwareIdentity::new(concat!("pili-pos/", env!("CARGO_PKG_VERSION")))`, so `pili-pos/1.0.0` during P1a | `pili-pos-android/X.Y.Z` (the Android app version). Required: there is no default; never read from `pos.json` |
 | `http_tls` | `HttpTls` (`Platform` or `RootsOnly(Vec<DER>)`) | `HttpTls::Platform` (system trust store) | `HttpTls::RootsOnly(<bundled webpki roots, DER>)`. The engine never infers the mode from the OS; an empty `RootsOnly` is refused by `Engine::open`. The FDM mTLS client (`pos-fiscal::fdm_tls`, module2 X.509 v1 certificates) is configured separately by `pos.json` |
 | `device_id_override` | `Option<String>` | `None` (the `device_id` of `pos.json` is kept) | `Some(<Sunmi serial>)`; replaces `device_id` after the configuration is loaded; trimmed, 1 to 600 characters, else `Engine::open` fails |
 | `support_program` | `Option<PathBuf>` | `paths::support_program()` (the RustDesk binary when installed) | `None`: the support commands answer "not available" and a start is refused |
 
-`printer_status_read` is the wait for each DLE EOT answer after a print (PD37); every engine print path passes it to `pos-print`. `PrinterStatus.status_known` is false when the printer did not answer both queries in time (the other fields are then the optimistic default, not a printer report). `get_settings` carries `posSwVersion` (the identity string, AM Art. 47) for the login screen.
+`fdm_poll` is the interval of the FDM status monitor while a session is open and the FDM answers (PD36); while it does not answer the wait doubles with each failed check, up to 10 times the value (30 s, 60, 120, 240, then 300 s with the default). `printer_status_read` is the wait for each DLE EOT answer after a print (PD37); every engine print path passes it to `pos-print`. `PrinterStatus.status_known` is false when the printer did not answer both queries in time (the other fields are then the optimistic default, not a printer report). `get_settings` carries `posSwVersion` (the identity string, AM Art. 47) for the login screen.
 
 Related types, all re-exported at the crate root: `EnginePaths::under(data_dir)`, `ConfigSource::{File, Bundle, DevelopmentDefaults}`, `EngineTimers`, `HttpTls`, `HttpTlsError`, `SoftwareIdentity`, `IdentityError` (the last four live in `pos-fiscal`).
 
@@ -44,8 +44,9 @@ Cargo features: `hubrise` and `peppol` (both default). Every shipped build has `
    - digital ticket mail outbox (every `timers.mail_outbox`; idle when no mail client is configured);
    - presence worker: signs the clock-ins that logins queue (`SessionRules` presence queue), one after another in arrival order; an employee already on shift is skipped, a failure raises `presence-failed`. The queue's receiver is taken once, so a second `start_background` spawns no second worker;
    - idle lock (PD35, `background::run_idle_lock`): waits until the last activity plus `timers.idle_lock`, re-arming at every `user_activity` and every login; when the time has really run out and a session is open it runs the lock path (`session::lock`, reason `idle`: the active order is registered, the session closes, `session-locked` is emitted). Without a session, and after a lock, it waits for the next touch instead of polling; a failed registration never prevents the lock;
+   - FDM status monitor (PD36, `background::run_fdm_monitor`): polls the FDM Status only while a session is open (`access::open_session` and `close_session` notify `SessionRules::session_changed`). Without a session it waits and sends nothing. A session that opens is checked at once (the backoff starts again); then it waits `poll_delay(timers.fdm_poll, failures)` (`fdm_poll` while the FDM answers, `fdm_poll * 2^n` up to `fdm_poll * 10` after `n` consecutive unanswered checks) before each check, or until an explicit `fdm_check_now` or a session change makes it recompute from now. When the session closes it stops, and the stored health loses its `nextCheckAt`. Every check goes through `checkout::do_check_fdm_status` (its 20 s cache is kept), is classified (below), stored, and emitted as `fdm-status`;
    - HubRise poller and HubRise outbox (`hubrise` feature; idle while the installation switch is off).
-3. Commands: `commands::<module>::do_*(&AppState, ...)`. `Engine` derefs to `AppState`, so a shell passes `&engine` (Tauri manages the `Engine`; the wrappers call `do_*(state.inner(), ...)`). Commands are plain functions: no runtime is needed for the sync ones; the async ones need a Tokio runtime. `lock_session` registers the active order (event P, see `set_active_order` and `leave_order`), then closes the session without clocking the operator out, and emits `session-locked`. `user_activity` (sync, needs no session, cheap: the UI forwards activity at most once per second) restarts the idle time; every login restarts it too. A successful `login` or `login_with_new_pin` queues the clock-in (PD34): the presence worker signs it, the login never waits for the FDM. `end_shift` replaces the UI's login, `work_out`, logout sequence: it checks the PIN like `login`, signs the clock-out and always closes the session.
+3. Commands: `commands::<module>::do_*(&AppState, ...)`. `Engine` derefs to `AppState`, so a shell passes `&engine` (Tauri manages the `Engine`; the wrappers call `do_*(state.inner(), ...)`). Commands are plain functions: no runtime is needed for the sync ones; the async ones need a Tokio runtime. `lock_session` registers the active order (event P, see `set_active_order` and `leave_order`), then closes the session without clocking the operator out, and emits `session-locked`. `user_activity` (sync, needs no session, cheap: the UI forwards activity at most once per second) restarts the idle time; every login restarts it too. A successful `login` or `login_with_new_pin` queues the clock-in (PD34): the presence worker signs it, the login never waits for the FDM. `end_shift` replaces the UI's login, `work_out`, logout sequence: it checks the PIN like `login`, signs the clock-out and always closes the session. `fdm_check_now` (async, needs no session: the login screen and the retry button) checks the FDM now, stores and emits the health and makes the monitor schedule from now; `fdm_health` (sync) returns the last known health, `null` before the first check. Both replace the explicit checks of `ui/src/stores/fdm.ts`.
 4. `engine.shutdown()`: cancels the shutdown token; the loops finish on their own. `engine.take_background_tasks()` hands out the join handles for a shell (or test) that wants to await them.
 5. Drop: dropping the `Engine` closes `engine.lock` and releases the lock. The background tasks hold an `Arc<AppState>` (database connections), not the `Engine`: for a restart in the same process, call `shutdown()`, await `take_background_tasks()`, then drop, before opening again on the same data directory.
 
@@ -59,6 +60,7 @@ The engine tells its shell about things that happen outside a command call throu
 |---|---|---|---|---|
 | `fdm-sign-messages` | `FdmSignMessages` | `pos_fiscal::fdm_client::SignMessages` (`mutation`, `booking_date`, `warnings`, `informations`) | after any signed event, when the FDM attached warnings or informations (`state.rs`) | always |
 | `session-locked` | `SessionLocked` | `commands::session::SessionLocked` (`reason` `manual` or `idle`, `orderError`) | `lock_session`, or the idle loop after `timers.idle_lock` without activity (reason `idle`): the active order is registered, then the session closes | always |
+| `fdm-status` | `FdmStatus` | `commands::fdm_monitor::FdmHealth` (`connected`, `answered`, `severity` `blocking`, `warning` or `info`, `code`, `mandatory`, `checkedAt`, `nextCheckAt`, the times RFC 3339 UTC) | the FDM monitor after each check, and `fdm_check_now` (PD36); `nextCheckAt` is `null` without a session | always |
 | `presence-failed` | `PresenceFailed` | `commands::social::PresenceFailed` (`insz`, `clockIn`, `error`) | the presence worker, when the clock-in queued by a login was not registered (FDM error or refusal); the login itself is unaffected | always |
 | `webshop-order-received` | `WebshopOrderReceived` | `pos_hubrise_types::CallbackEvent` | HubRise poller, order created | `hubrise` |
 | `webshop-order-updated` | `WebshopOrderUpdated` | `CallbackEvent` | HubRise poller, order changed | `hubrise` |
@@ -66,7 +68,24 @@ The engine tells its shell about things that happen outside a command call throu
 | `catalog-rejected` | `CatalogRejected` | `CallbackEvent` | catalog has issues, menu unchanged | `hubrise` |
 | `catalog-awaiting-adoption` | `CatalogAwaitingAdoption` | `CallbackEvent` | first sync over a hand-entered menu, waits for a manager | `hubrise` |
 
-`events::event_for_outcome` maps a poller `DispatchOutcome` to an event (`Ignored` raises none). Payloads are serde types (the Tauri sink serialises them as before); `CallbackEvent` carries `id`, `resource_type`, `event_type`, `created_at`, `previous_state`, `new_state` and the flattened remaining fields.
+`events::event_for_outcome` maps a poller `DispatchOutcome` to an event (`Ignored` raises none).
+
+### FDM status classification
+
+`commands::fdm_monitor::classify` turns the status JSON of `do_check_fdm_status` into an `FdmHealth`, with the rules of `checkStatus` and `pickPrimaryMessage` of the former Vue store. A message with `showPos` MANDATORY must not auto-dismiss (certification manual section V), hence `mandatory`. The search follows JavaScript `find()`: it takes the first matching item and then needs its `extensions.code`; an item without a code is not skipped for the next one.
+
+| Vue branch | Engine result (`severity`, `code`, `mandatory`, `connected`, `answered`) |
+|---|---|
+| `connected === false` or a truthy `error` (transport failure), or an `Err` of the check | `blocking`, the error text (`FDM_NOT_OPERATIONAL` without one), `true`, not connected, not answered |
+| first MANDATORY error with a code | `blocking` if the code is `BUFFER_FULL`, `FDM_LOCKED`, `FDM_NOT_OPERATIONAL` or `UNKNOWN_POS`, else `warning`; that code; `true` |
+| else first error whose `showPos` is not NEVER, with a code | same severity rule; that code; `false` |
+| else first MANDATORY warning with a code | `warning`, that code, `true` |
+| else first warning whose `showPos` is not NEVER, with a code | `warning`, that code, `false` |
+| nothing above (errors that are all NEVER are ignored) | `info`, no code, `false` |
+| `initialized === false` | not connected; with no code from above the code is `FDM_NOT_INITIALIZED` (severity as above, so `info`) |
+| any answer | answered; connected unless `initialized === false` or the severity is `blocking` |
+
+The poll delay is `poll_delay(base, failures)`: `base` for 0, else `min(base * 2^failures, base * 10)` (30, 60, 120, 240, 300, 300 s for failures 0 to 5), where `failures` counts consecutive unanswered checks (an answer, even with an error, resets it). Payloads are serde types (the Tauri sink serialises them as before); `CallbackEvent` carries `id`, `resource_type`, `event_type`, `created_at`, `previous_state`, `new_state` and the flattened remaining fields.
 
 ## 5. Remaining environment reads (PD13)
 
@@ -81,7 +100,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 
 ## 6. Command map
 
-84 wrappers (82 in the cert build; the two `peppol only` rows are absent from it). Generated by `python3 scripts/android/check_ipc_wrappers.py --map` (command name as the UI invokes it, module and function in `pos_engine::commands`, async or sync). `python3 scripts/android/check_ipc_wrappers.py` (no option) fails when a wrapper is not a single engine call or when a command is missing from or extra in a `generate_handler!` list of `src-tauri/src/main.rs`.
+86 wrappers (84 in the cert build; the two `peppol only` rows are absent from it). Generated by `python3 scripts/android/check_ipc_wrappers.py --map` (command name as the UI invokes it, module and function in `pos_engine::commands`, async or sync). `python3 scripts/android/check_ipc_wrappers.py` (no option) fails when a wrapper is not a single engine call or when a command is missing from or extra in a `generate_handler!` list of `src-tauri/src/main.rs`.
 
 | Command | Module | Engine function | Call | Build |
 |---|---|---|---|---|
@@ -99,6 +118,8 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `create_user` | `auth` | `commands::auth::do_create_user` | sync | cert |
 | `deactivate_user` | `auth` | `commands::auth::do_deactivate_user` | sync | cert |
 | `end_shift` | `social` | `commands::social::do_end_shift` | async | cert |
+| `fdm_check_now` | `fdm_monitor` | `commands::fdm_monitor::do_fdm_check_now` | async | cert |
+| `fdm_health` | `fdm_monitor` | `commands::fdm_monitor::do_fdm_health` | sync | cert |
 | `generate_user_x_report` | `report` | `commands::report::do_generate_user_x_report` | async | cert |
 | `generate_x_report` | `report` | `commands::report::do_generate_x_report` | async | cert |
 | `generate_z_report` | `report` | `commands::report::do_generate_z_report` | async | cert |

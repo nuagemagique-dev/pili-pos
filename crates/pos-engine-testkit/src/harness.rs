@@ -157,6 +157,7 @@ impl TestApp {
             signing: Default::default(),
             fdm_status_cache: Mutex::new(None),
             session_rules: Default::default(),
+            fdm_monitor: Default::default(),
         };
 
         let app = Self {

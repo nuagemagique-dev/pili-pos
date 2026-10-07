@@ -139,6 +139,12 @@ pub struct EngineTimers {
     /// INSZ of the person who made it). Restarted by `user_activity` and
     /// by every login (planner decision PD35).
     pub idle_lock: Duration,
+    /// How often the FDM monitor checks the FDM status while a session
+    /// is open and the FDM answers (planner decision PD36). While it does
+    /// not answer the wait doubles with each failed check up to 10 times
+    /// this value (30 s, 60, 120, 240, then 300 s). A session that opens
+    /// is checked at once, and no check is made without a session.
+    pub fdm_poll: Duration,
 }
 
 impl Default for EngineTimers {
@@ -148,6 +154,7 @@ impl Default for EngineTimers {
             mail_outbox: crate::commands::delivery::OUTBOX_INTERVAL,
             printer_status_read: pos_print::transport::DEFAULT_STATUS_READ_TIMEOUT,
             idle_lock: Duration::from_secs(300),
+            fdm_poll: Duration::from_secs(30),
         }
     }
 }
@@ -325,6 +332,7 @@ impl Engine {
                 signing: Default::default(),
                 fdm_status_cache: Mutex::new(None),
                 session_rules: Default::default(),
+                fdm_monitor: Default::default(),
             }),
             tasks: Mutex::new(Vec::new()),
             ticks: Arc::new(BackgroundTicks::default()),
@@ -683,6 +691,7 @@ mod tests {
         assert_eq!(t.auto_z, Duration::from_secs(60));
         assert_eq!(t.mail_outbox, crate::commands::delivery::OUTBOX_INTERVAL);
         assert_eq!(t.idle_lock, Duration::from_secs(300));
+        assert_eq!(t.fdm_poll, Duration::from_secs(30));
     }
 
     #[test]
