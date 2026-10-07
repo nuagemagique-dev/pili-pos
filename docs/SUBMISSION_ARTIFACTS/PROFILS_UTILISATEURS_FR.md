@@ -115,7 +115,7 @@ pas encaisser ; ce qu'un Serveur ou un Gérant encaisse est alors un
 
 L'enforcement vit à deux niveaux :
 
-1. **Niveau commande Tauri** (couche autoritative,
+1. **Niveau commandes du moteur** (couche autoritative,
    `crates/pos-engine/src/commands/access.rs`). La connexion (`login`, INSZ +
    PIN) ouvre une session côté backend ; la déconnexion (`logout`,
    après le pointage de sortie) la ferme. Chaque commande qui signe un

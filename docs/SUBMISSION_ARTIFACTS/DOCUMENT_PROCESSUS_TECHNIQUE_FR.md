@@ -54,6 +54,24 @@ une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque
 └────────────────────────────────────────────────────────────────┘
 ```
 
+**Structure du code.** Le noyau fiscal est le moteur `crates/pos-engine`,
+sans dépendance à Tauri : les fonctions de commande
+(`crates/pos-engine/src/commands`), l'état partagé (`state.rs`),
+l'ouverture du moteur (`engine.rs` : base SQLite, migrations, reprise
+après arrêt brutal, chargement de la configuration, verrou exclusif sur
+le fichier `engine.lock` du répertoire de données) et les tâches de
+fond (`background.rs` : Z automatique, file d'envoi des e-mails,
+scrutation et file d'envoi HubRise). Le binaire `pili-pos`
+(`src-tauri`) est une enveloppe mince : une enveloppe IPC par commande
+(`src-tauri/src/ipc`, un seul appel vers le moteur), la fenêtre, le
+contrôle de santé sur `127.0.0.1:9999` et la résolution de la
+configuration (variable `PILI_POS_CONFIG`, sinon
+`/etc/pili-pos/pos.json`). Le `posSwVersion` des événements et des
+tickets est une valeur que l'enveloppe transmet au démarrage ; sur
+Linux elle reste `pili-pos/` suivi de la version du workspace. Le
+harnais de tests `crates/pos-engine-testkit` ne fait pas partie du
+binaire certifié.
+
 ## 2. Comportement par événement
 
 | Événement | Déclencheur | Chemin de code POS | Notes |
@@ -235,7 +253,8 @@ SQLite qui archive l'événement signé, de sorte que :
 
 - Crates : `crates/pos-hubrise` (réception, file d'envoi, menu reflet),
   `crates/pos-catalog` (validation et application du catalogue),
-  commandes Tauri `crates/pos-engine/src/commands/webshop.rs`.
+  commandes du moteur `crates/pos-engine/src/commands/webshop.rs`
+  (enveloppes IPC : `src-tauri/src/ipc/webshop.rs`).
 - Interrupteur par installation : `hubrise_enabled` dans `pos.json`,
   puis un Gérant dans Réglages ; journal en ajout seul
   `integration_switch_log` (migration 25). Coupé : aucune boucle ne
@@ -295,6 +314,10 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | Runner de migrations | `crates/pos-db/src/migrate.rs` |
 | CRUD commandes | `crates/pos-db/src/queries/orders.rs` |
 | Helpers requêtes rapport Z | `crates/pos-db/src/queries/reports.rs` |
+| Moteur fiscal (ouverture, verrou, tâches de fond) | `crates/pos-engine/src/{engine,background,state}.rs` |
+| Enveloppe Tauri (fenêtre, contrôle de santé, configuration) | `src-tauri/src/main.rs` |
+| Enveloppes IPC des commandes | `src-tauri/src/ipc/` |
+| Harnais de tests (hors binaire certifié) | `crates/pos-engine-testkit/` |
 | Flux checkout | `crates/pos-engine/src/commands/checkout.rs` |
 | Tables / split / merge | `crates/pos-engine/src/commands/tables.rs` |
 | Remboursement + note de crédit | `crates/pos-engine/src/commands/refund.rs` |
@@ -304,8 +327,8 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | Copie (événements C) | `crates/pos-engine/src/commands/copy.rs` |
 | Sérialiseur UBL Peppol | `crates/pos-peppol/src/ubl.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
-| IPC Peppol | `crates/pos-engine/src/commands/invoice.rs` |
-| Résolution du support + IPC ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |
+| Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |
+| Résolution du support + commandes ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |
 | Rendu e-mail (texte/HTML/QR) | `crates/pos-mail/src/render.rs` |
 | Client Scaleway TEM | `crates/pos-mail/src/tem.rs` |
 | File d'attente + réessais | `crates/pos-mail/src/outbox.rs` |

@@ -24,11 +24,12 @@ This is a **Tauri v2 desktop application** running on Linux (Debian minimal + Ca
 │  └──────────────┬────────────────────────────┘  │
 │                 │ Tauri IPC (invoke)             │
 │  ┌──────────────▼────────────────────────────┐  │
-│  │          Rust Backend (4 crates)           │  │
-│  │  pos-core    → business logic, state      │  │
-│  │  pos-fiscal  → SCE 2.0 protocol, FDM comm │  │
-│  │  pos-print   → ESC/POS thermal printing   │  │
-│  │  pos-db      → SQLite persistence         │  │
+│  │  Rust (src-tauri shell + 5 core crates)    │  │
+│  │  pos-engine   → fiscal engine, no Tauri    │  │
+│  │  pos-core     → business logic, state      │  │
+│  │  pos-fiscal   → SCE 2.0 protocol, FDM comm │  │
+│  │  pos-print    → ESC/POS thermal printing   │  │
+│  │  pos-db       → SQLite persistence         │  │
 │  └──────┬──────────┬──────────┬──────────────┘  │
 │         │          │          │                   │
 │    ┌────▼───┐ ┌────▼───┐ ┌───▼────┐            │
@@ -38,6 +39,16 @@ This is a **Tauri v2 desktop application** running on Linux (Debian minimal + Ca
 │    └────────┘ └────────┘ └────────┘            │
 └─────────────────────────────────────────────────┘
 ```
+
+### Engine and shell
+
+The fiscal core is Tauri-free and lives in `crates/pos-engine`; `src-tauri` is a thin shell around it.
+
+- **`crates/pos-engine`** - the engine: `commands/` (every `do_*` function: checkout, signing, refund, reports, HubRise, settings), `state.rs` (`AppState`), `engine.rs` (`Engine::open(EngineConfig)`: opens the database under an exclusive `engine.lock`, migrates, recovers, loads the configuration), `background.rs` (`start_background`: automatic Z, mail outbox, HubRise poller and outbox; `shutdown`), `events.rs` (`EngineEvent`, `EventSink`), `install.rs` (`init_db`, `check_config`). It has no platform conditional compilation: platform differences are `EngineConfig` inputs (paths, configuration source, `SoftwareIdentity`, `HttpTls`, optional device id and support program).
+- **`src-tauri`** - the shell: `main.rs` (CLI, logging, window, health check on `127.0.0.1:9999`, builds the `EngineConfig`), `ipc/` (one `#[tauri::command]` wrapper per command, a single call into `pos_engine::commands`), `events.rs` (`TauriEventSink`), `cli.rs`, `paths.rs`. The configuration is resolved from `PILI_POS_CONFIG`, else `/etc/pili-pos/pos.json`, else the development defaults.
+- **`posSwVersion`** is a value the shell passes at start (`EngineConfig.identity`); on Linux it is `pili-pos/` plus the workspace version, unchanged.
+- **`crates/pos-engine-testkit`** - the test harness (`publish = false`): in-memory state, FDM and HubRise mocks, UC fixture loader. It is a dev-dependency of `pos-engine` only and is not part of the certified binary.
+- Integration tests live in `crates/pos-engine/tests` (the `spf_e2e_*`, `hubrise_*`, `access_control` targets, ...). `scripts/android/check_ipc_wrappers.py` checks that every wrapper stays a single engine call; `docs/android/ENGINE.md` documents the engine for the Android port.
 
 ---
 
@@ -186,14 +197,19 @@ pili-pos/
 ├── src-tauri/
 │   ├── Cargo.toml              # Tauri app crate
 │   ├── src/
-│   │   ├── main.rs             # Tauri entry point
-│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each)
+│   │   ├── main.rs             # Tauri entry point: CLI, logging, window, health check, EngineConfig
+│   │   ├── lib.rs              # Library facade (cli, events, ipc, paths)
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 79 in all)
+│   │   ├── events.rs           # TauriEventSink (engine events to the webview)
 │   │   ├── cli.rs              # --version, --init-db, --check-config
 │   │   └── paths.rs            # Linux install paths
 │   ├── tauri.conf.json
 │   └── icons/
 ├── crates/
-│   ├── pos-engine/             # Tauri-free engine: commands/, engine.rs, state.rs, install.rs
+│   ├── pos-engine/             # Tauri-free engine
+│   │   ├── src/                # commands/, engine.rs, state.rs, background.rs, events.rs, install.rs
+│   │   └── tests/              # integration tests (spf_e2e_*, hubrise_*, access_control, ...)
+│   ├── pos-engine-testkit/     # Test harness (publish = false, outside the certified binary)
 │   ├── pos-core/
 │   │   ├── Cargo.toml
 │   │   └── src/
@@ -437,11 +453,11 @@ CREATE TABLE z_reports (
 The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with fiscal compliance.
 
 ### Phase 1: Foundation (build this first)
-1. **Cargo workspace** with 4 crates + Tauri app
+1. **Cargo workspace** with the core crates, the `pos-engine` engine and the Tauri shell
 2. **SQLite schema** - create tables, migration runner
 3. **pos-core** - `MenuItem`, `Order`, `OrderLine`, `VatCode` types
 4. **pos-db** - CRUD for menu items and orders
-5. **Tauri commands** - wire up IPC for menu queries and order management
+5. **Engine commands + Tauri wrappers** - `pos-engine` commands, wired up through `src-tauri/src/ipc` for menu queries and order management
 6. **UI: Login screen** - INSZ input (numeric keypad, touch-friendly)
 7. **UI: Menu grid** - category tabs + item grid + order cart sidebar
 8. **UI: Order builder** - add items, adjust quantities, show running total with VAT
@@ -474,7 +490,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ### Rust
 - Follow the Google Go Style Guide philosophy adapted for Rust: clarity over cleverness
-- Use `thiserror` for error types, `anyhow` only in the Tauri command layer
+- Use `thiserror` for error types, `anyhow` only in the command layer (`pos-engine` commands and the `src-tauri` wrappers)
 - All monetary values in **eurocents as i64** - NEVER use floats for money
 - All timestamps as `chrono::DateTime<Utc>` in Rust, stored as ISO 8601 strings in SQLite
 - Use `#[cfg(test)]` modules with unit tests for every crate
@@ -584,8 +600,16 @@ cargo tauri dev
 # Build release
 cargo tauri build --target x86_64-unknown-linux-gnu
 
-# Run tests
+# Run tests (the integration tests are in crates/pos-engine/tests)
 cargo test --workspace
+
+# Certification build tests (cert feature set, HubRise in, Peppol out)
+cargo test -p pili-pos --no-default-features --features cert
+cargo test -p pos-engine --no-default-features --features cert
+
+# IPC wrappers: each one a single engine call, command map
+python3 scripts/android/check_ipc_wrappers.py
+python3 scripts/android/check_ipc_wrappers.py --map
 
 # Live FDM (module2 simulator, by hand only, never in CI; reads .env.live)
 scripts/live_fdm.sh

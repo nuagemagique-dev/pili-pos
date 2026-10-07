@@ -429,7 +429,7 @@ consolidées.
 
 **Description de l'implémentation :**
 
-L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, la commande Tauri `commands::social::do_work_in` est invoquée. Elle :
+L'enregistrement du temps de présence est implémenté via l'event **S** (Work In / Work Out) du SCE 2.0. À la connexion d'un opérateur sur le POS, après saisie INSZ + PIN, la commande du moteur `commands::social::do_work_in` est invoquée. Elle :
 
 1. Construit un `WorkInput` avec `pos_id`, `pos_date_time`, `terminal_id`, `employee_insz`, `device_id`.
 2. Envoie un `signWorkIn` au FDM.
@@ -467,7 +467,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Division de table | ☐ | - | Idem |
 | Division d'addition (parts égales) | ☐ | - | Idem |
 | Division d'addition (montants égaux) | ☐ | - | Idem |
-| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol", "hubrise"]` : HubRise est dans le binaire, seul `peppol` en est absent, voir `src-tauri/Cargo.toml`). Mise à jour certifiée prévue v1.1 *Voir : DECISION_PEPPOL_AP_FR.md* |
+| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` : HubRise est dans le binaire, seul `peppol` en est absent, voir `src-tauri/Cargo.toml`). Mise à jour certifiée prévue v1.1 *Voir : DECISION_PEPPOL_AP_FR.md* |
 | Note de crédit | ☐ | - | Reporté avec Peppol / event I (cf. *FLUX_REMBOURSEMENT_FR.md* §3) |
 | Copy (C) | ☑ | M160 | OK |
 | Training (T) | ☑ | M171 | OK |
@@ -509,7 +509,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 
 À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Cette obligation est **hors périmètre de la build cert v1.0.0** de `pili-pos` :
 
-- **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active pas `peppol`, mais active `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol", "hubrise"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
+- **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active pas `peppol`, mais active `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
 - **Table d'audit** `peppol_deliveries` existe dans le schéma pour une activation future, mais n'est alimentée par aucun flux en v1.0.0.
 - **Mise à jour certifiée prévue v1.1** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
 
@@ -830,7 +830,7 @@ Les libellés FR sont ceux de la loi : arrêté royal du 30 décembre 2009, art.
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol", "hubrise"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
+*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
 
 Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de mise à jour v1.1, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
 
@@ -882,7 +882,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 **Comment les rapports financiers X/Z sont-ils visibles/imprimables ?**
 
 L'opérateur (rôle Admin ou Cashier) accède au menu "Rapports" depuis la barre de navigation principale. Deux boutons distincts "Rapport X (intermédiaire)" et "Rapport Z (clôture)". Le Z est normalement fait par le Gérant ; si une journée reste ouverte sans Z, la caisse fait elle-même le Z, en filet de sécurité (§III.L, FAQ Q501c). Le clic déclenche :
-1. La commande Tauri `commands::report::do_generate_x_report` ou `do_generate_z_report`.
+1. La commande du moteur `commands::report::do_generate_x_report` ou `do_generate_z_report`.
 2. L'envoi au FDM via `signReportTurnoverX/Z` (et `signReportUserX/Z` pour Z atomique).
 3. Sur succès : impression automatique du ticket de rapport sur l'imprimante thermique.
 4. Affichage UI d'un récapitulatif lisible (montants par TVA, par moyen de paiement, par utilisateur).

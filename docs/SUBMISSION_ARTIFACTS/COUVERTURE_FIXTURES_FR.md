@@ -43,7 +43,7 @@ Deux colonnes :
   le `*_Response.json` publié et le désérialise via les types
   production `SignResult` / `FdmStatus`.
 - **E2e applicatif** - `crates/pos-engine/tests/spf_e2e_basic.rs` pilote la
-  fonction de commande Tauri `do_*` correspondante contre un wiremock
+  fonction de commande du moteur `do_*` correspondante contre un wiremock
   FDM amorcé avec cette fixture, puis assert sur l'archive SQLite +
   les compteurs + l'état de la commande.
 
