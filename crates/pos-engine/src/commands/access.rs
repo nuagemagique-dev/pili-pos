@@ -144,9 +144,11 @@ pub fn verify_pin(state: &AppState, insz: &str, hash: &str, pin: &str) -> Result
     })
 }
 
-/// Open a session for `user` (after `login` checked them).
+/// Open a session for `user` (after `login` checked them). A login
+/// restarts the idle time (PD35).
 pub fn open_session(state: &AppState, user: &User) -> Result<(), String> {
     *state.session.lock().map_err(|e| e.to_string())? = Some(user.clone());
+    state.session_rules.touch();
     Ok(())
 }
 
