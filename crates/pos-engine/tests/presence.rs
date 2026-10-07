@@ -214,12 +214,23 @@ async fn a_refused_login_queues_nothing() {
     assert_eq!(refused, errors::INSZ_INVALID);
     assert!(!rig.session_is_open());
 
-    // The worker is in order: had a refused login queued something, its
-    // clock-in would come before this one.
+    // A job queued by a refused login would run with no session (or with
+    // the wrong one) and raise presence-failed before any FDM request.
+    rig.settle().await;
+    assert!(
+        rig.events.presence_failed().is_empty(),
+        "a refused login queued a clock-in"
+    );
+    assert_eq!(rig.requests().await, 0, "nothing reached the FDM");
+
+    // The worker is in order: the first clock-in is the accepted login's.
     do_login(&rig.engine, SECOND.into(), None).expect("login");
     let sent = rig.wait_for("signWorkIn", 1).await;
     assert_eq!(sent.len(), 1);
     assert!(sent[0].contains(SECOND));
+    rig.settle().await;
+    assert_eq!(rig.requests().await, 1);
+    assert!(rig.events.presence_failed().is_empty());
     rig.stop().await;
 }
 
