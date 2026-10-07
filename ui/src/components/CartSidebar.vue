@@ -68,7 +68,7 @@ async function sendToKitchen() {
   sending.value = true;
   const count = order.unsentCount;
   try {
-    await order.registerPending();
+    await order.leave("send_to_kitchen");
     toast.show(t("sent_to_kitchen", { n: count }), "success");
   } catch (e) {
     toast.show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);

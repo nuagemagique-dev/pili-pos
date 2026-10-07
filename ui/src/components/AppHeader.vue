@@ -55,10 +55,10 @@ const pinOpen = ref(false);
 async function startTakeaway() {
   if (route.name === "order" && takeawayActive.value) return;
   if (route.name === "order") {
-    // Staying on the order screen: register the table order (P) here,
-    // since the router guard only does it when leaving the screen.
+    // Staying on the order screen: the engine registers the table order
+    // (P) here, since the router guard only runs when leaving the screen.
     try {
-      await order.registerPending();
+      await order.leave("switch_order");
     } catch (e) {
       toast.show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);
       return;
@@ -76,11 +76,14 @@ async function startTakeaway() {
 /** Lock the screen. The operator stays on shift: clocking out is done
  * from the login screen ("Fin de service"). */
 async function lock() {
-  // Navigate first: the router guard registers the open order (P)
-  // while the operator's session is still open.
+  // The engine registers the open order (P) while the session is open,
+  // then closes the session; a failed registration never blocks the lock.
+  const outcome = await auth.lock();
+  if (outcome.orderError) {
+    toast.show(`${t("order_register_failed")} : ${describeError(outcome.orderError)}`, "error", 6000);
+  }
+  order.resetLocal();
   await router.push({ name: "login" });
-  order.clearOrder();
-  void auth.lock();
 }
 </script>
 

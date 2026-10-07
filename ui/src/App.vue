@@ -11,6 +11,10 @@ import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
 import SupportBanner from "./components/SupportBanner.vue";
 import { useSupportStore } from "./stores/support";
 import { useFdmStore } from "./stores/fdm";
+import { useOrderStore } from "./stores/order";
+import { useToastStore } from "./stores/toast";
+import { useI18n } from "./i18n";
+import { describeError } from "./utils/errorMessages";
 
 const pos = usePosStore();
 const auth = useAuthStore();
@@ -43,10 +47,22 @@ const support = useSupportStore();
 let supportPoll: ReturnType<typeof setInterval> | undefined;
 
 const fdm = useFdmStore();
+const order = useOrderStore();
+const toast = useToastStore();
+const { t } = useI18n();
 
 onMounted(() => {
   pos.loadSettings();
   void fdm.listenSignMessages();
+  // The engine locked the session (the order is already registered
+  // there): forget the local order and go back to the login screen.
+  void auth.listenSessionLocked((e) => {
+    order.resetLocal();
+    if (e.orderError) {
+      toast.show(`${t("order_register_failed")} : ${describeError(e.orderError)}`, "error", 6000);
+    }
+    void router.push({ name: "login" });
+  });
   const pollSupport = () => void (auth.currentUser ? support.refresh() : support.refreshRunning());
   pollSupport();
   supportPoll = setInterval(pollSupport, 5000);

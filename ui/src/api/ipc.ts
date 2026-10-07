@@ -83,6 +83,25 @@ export function logout(): Promise<void> {
   return invoke("logout");
 }
 
+/** What locking the screen reports: a failed registration of the open
+ * order never blocks the lock, its error code comes back here. */
+export interface LockOutcome {
+  orderError: string | null;
+}
+
+/** Lock the screen through the engine: it registers the active order,
+ * closes the session (the operator stays on shift) and emits
+ * `session-locked`. */
+export function lockSession(): Promise<LockOutcome> {
+  return invoke("lock_session");
+}
+
+/** Payload of the `session-locked` event. */
+export interface SessionLocked {
+  reason: "manual" | "idle";
+  orderError: string | null;
+}
+
 /** First login of a user without a PIN (required for a manager):
  * stores the chosen PIN and opens the session in one step. */
 export function loginWithNewPin(insz: string, newPin: string): Promise<User> {
@@ -168,6 +187,8 @@ export interface PosSettings {
   terminalId: string;
   restaurantName: string;
   language: string;
+  /** Software version declared to the FDM (AM Art. 47), e.g. pili-pos/1.0.0. */
+  posSwVersion: string;
   /** What the FDM would refuse in pos.json; empty when usable. */
   configProblems: string[];
 }
@@ -207,6 +228,20 @@ export interface TakeawayInfo {
 
 export function listOpenTakeaways(): Promise<TakeawayInfo[]> {
   return invoke("list_open_takeaways");
+}
+
+export type LeaveReason = "navigate" | "switch_order" | "send_to_kitchen";
+
+/** The operator leaves the order: the engine registers what was ordered
+ * (event P) for an open dine-in order and does nothing otherwise. Throws
+ * the error code on failure. */
+export function leaveOrder(orderId: number, reason: LeaveReason): Promise<SlipOutcome> {
+  return invoke("leave_order", { orderId, reason });
+}
+
+/** Tell the engine which order the operator is working on (null: none). */
+export function setActiveOrder(orderId: number | null): Promise<void> {
+  return invoke("set_active_order", { orderId });
 }
 
 /** Register (event P) what was ordered at a table since the last
