@@ -402,11 +402,12 @@ def collect_abs_allowed_paths(root: Path) -> set:
     literal_re = re.compile(r'"((?:/etc|/var/lib|/opt|/usr|/run)/[^"]*)"')
     token_re = re.compile(r"(?:/etc|/var/lib|/opt|/usr|/run)(?:/[^\s\"'`)]*)?")
 
-    src_tauri_src = root / "src-tauri" / "src"
-    if src_tauri_src.is_dir():
-        for rs_file in src_tauri_src.rglob("*.rs"):
-            for m in literal_re.finditer(read_text(rs_file)):
-                allowed.add(m.group(1).rstrip("/"))
+    # The program: the Tauri shell and the Tauri-free engine it calls.
+    for rs_root in (root / "src-tauri" / "src", root / "crates" / "pos-engine" / "src"):
+        if rs_root.is_dir():
+            for rs_file in rs_root.rglob("*.rs"):
+                for m in literal_re.finditer(read_text(rs_file)):
+                    allowed.add(m.group(1).rstrip("/"))
 
     deploy_dir = root / "deploy"
     if deploy_dir.is_dir():
@@ -528,7 +529,7 @@ def rule_repo_path(md_files: list, abs_allowed: set, external_crates: frozenset)
                                 rel(path),
                                 lineno,
                                 "repo-path",
-                                f"absolute path `{norm}` not found in deploy/ or src-tauri/src",
+                                f"absolute path `{norm}` not found in deploy/, src-tauri/src or crates/pos-engine/src",
                             )
                         )
                 else:

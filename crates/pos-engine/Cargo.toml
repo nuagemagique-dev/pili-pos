@@ -1,0 +1,50 @@
+[package]
+name = "pos-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-fiscal = { path = "../pos-fiscal" }
+pos-print = { path = "../pos-print" }
+pos-db = { path = "../pos-db" }
+pos-mail = { path = "../pos-mail" }
+pos-hubrise = { path = "../pos-hubrise", optional = true }
+pos-catalog = { path = "../pos-catalog", optional = true }
+pos-hubrise-types = { path = "../pos-hubrise-types", optional = true }
+pos-peppol = { path = "../pos-peppol", optional = true }
+# The HubRise login link as a QR code (Settings), as for tickets.
+qrcode = { version = "0.14", optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+bcrypt = "0.19"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+# Same feature set as the pili-pos shell, which forwards its own to these.
+default = ["hubrise", "peppol"]
+# The HubRise integration (online orders signed by the FDM, the menu
+# mirrored from the catalog): outbox, the engine commands.
+hubrise = [
+    "dep:pos-hubrise",
+    "dep:pos-hubrise-types",
+    "dep:pos-catalog",
+    "dep:qrcode",
+    "pos-db/hubrise",
+]
+# Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer, the
+# AccessPoint trait and the invoice (I event) commands.
+peppol = ["dep:pos-peppol", "hubrise"]
+# The certification build: HubRise in, invoicing (peppol) out.
+cert = ["hubrise"]

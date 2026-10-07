@@ -1,9 +1,9 @@
 use pos_db::queries::fiscal::RefundableEvent;
 use tauri::State;
 
-use crate::commands::checkout::CheckoutResult;
-use crate::commands::delivery::TicketDeliveryRequest;
-use crate::commands::refund::RefundItem;
+use pos_engine::commands::checkout::CheckoutResult;
+use pos_engine::commands::delivery::TicketDeliveryRequest;
+use pos_engine::commands::refund::RefundItem;
 
 use super::Managed;
 
@@ -13,7 +13,7 @@ pub fn list_refundable_events(
     state: State<'_, Managed>,
     limit: Option<i64>,
 ) -> Result<Vec<RefundableEvent>, String> {
-    crate::commands::refund::do_list_refundable_events(state.inner(), limit)
+    pos_engine::commands::refund::do_list_refundable_events(state.inner(), limit)
 }
 
 /// Process a full or partial refund for a previously signed ticket.
@@ -32,7 +32,7 @@ pub async fn refund_checkout(
     employee_insz: String,
     delivery: Option<TicketDeliveryRequest>,
 ) -> Result<CheckoutResult, String> {
-    crate::commands::refund::do_refund_checkout_with(
+    pos_engine::commands::refund::do_refund_checkout_with(
         state.inner(),
         original_fiscal_event_id,
         items,

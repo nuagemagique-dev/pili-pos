@@ -10,21 +10,21 @@ build `--no-default-features --features cert`).
 
 | Code | Type | Mutation FDM | Implémentation |
 |---|---|---|---|
-| N | Vente normale | `signSale` | `src-tauri/src/commands/checkout.rs::do_checkout` (ou `do_checkout_split` pour plusieurs moyens de paiement), qui passent par `sell` puis `signing::sign` |
-| N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `src-tauri/src/commands/refund.rs::do_refund_checkout` |
-| P | Commande en cuisine (pro-forma) | `signOrder` | `src-tauri/src/commands/tables.rs::do_sign_table_order` |
-| P | Addition (pré-ticket) | `signPreBill` | `src-tauri/src/commands/tables.rs::do_sign_pre_bill` |
+| N | Vente normale | `signSale` | `crates/pos-engine/src/commands/checkout.rs::do_checkout` (ou `do_checkout_split` pour plusieurs moyens de paiement), qui passent par `sell` puis `signing::sign` |
+| N (rembours.) | Remboursement complet ou partiel (M111, M112B) | `signSale` avec lignes négatives + `fdmRef` | `crates/pos-engine/src/commands/refund.rs::do_refund_checkout` |
+| P | Commande en cuisine (pro-forma) | `signOrder` | `crates/pos-engine/src/commands/tables.rs::do_sign_table_order` |
+| P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
-| C | Copie de ticket | `signCopy` | `src-tauri/src/commands/copy.rs::do_copy_ticket` |
-| I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `src-tauri/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
-| F | Mouvement de fonds | `signMoneyInOut` | `src-tauri/src/commands/financial.rs::do_money_in_out` |
-| F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `src-tauri/src/commands/financial.rs::do_open_drawer_fiscal` |
-| S | Pointage entrée | `signWorkIn` | `src-tauri/src/commands/social.rs::do_work_in` |
-| S | Pointage sortie | `signWorkOut` | `src-tauri/src/commands/social.rs::do_work_out` |
-| R | Rapport X (intermédiaire) | `signReportTurnoverX` | `src-tauri/src/commands/report.rs::do_generate_x_report` |
-| R | Rapport utilisateurs X | `signReportUserX` | `src-tauri/src/commands/report.rs::do_generate_user_x_report` |
-| R | Rapport Z (clôture, M184) | `signReportTurnoverZ` + `signReportUserZ` (une seule opération GraphQL) | `src-tauri/src/commands/report.rs::do_generate_z_report` |
+| C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
+| I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
+| F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |
+| F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `crates/pos-engine/src/commands/financial.rs::do_open_drawer_fiscal` |
+| S | Pointage entrée | `signWorkIn` | `crates/pos-engine/src/commands/social.rs::do_work_in` |
+| S | Pointage sortie | `signWorkOut` | `crates/pos-engine/src/commands/social.rs::do_work_out` |
+| R | Rapport X (intermédiaire) | `signReportTurnoverX` | `crates/pos-engine/src/commands/report.rs::do_generate_x_report` |
+| R | Rapport utilisateurs X | `signReportUserX` | `crates/pos-engine/src/commands/report.rs::do_generate_user_x_report` |
+| R | Rapport Z (clôture, M184) | `signReportTurnoverZ` + `signReportUserZ` (une seule opération GraphQL) | `crates/pos-engine/src/commands/report.rs::do_generate_z_report` |
 
 ### 1.2 Codes TVA gérés
 
@@ -57,7 +57,7 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
   - `crates/pos-fiscal/src/inputs.rs::IdempotencyKey`.
 - **Verrou de signature unique** : toute opération qui signe un
   événement FDM s'exécute sous un seul verrou, le numéro de ticket est
-  lu à l'intérieur - `src-tauri/src/commands/signing.rs`.
+  lu à l'intérieur - `crates/pos-engine/src/commands/signing.rs`.
 - **Renvoi à l'identique d'une réponse perdue** : la requête exacte est
   stockée avant envoi (`pending_signs`, migration 10) et renvoyée octet
   pour octet tant que le FDM n'a pas répondu ; l'événement est archivé
@@ -134,7 +134,7 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   `0x1B 0x70 0x00 0x19 0xFA` quand une partie est payée en espèces.
 - Vente sans paiement (client parti sans payer) : Gérant avec PIN,
   N signé sans ligne de paiement, ticket "Non paye", jamais
-  remboursable (`src-tauri/src/commands/unpaid.rs`).
+  remboursable (`crates/pos-engine/src/commands/unpaid.rs`).
 - Ventes à emporter en cours listées sur l'écran des tables, jamais
   enregistrées en P (FAQ Q205).
 - Impression du ticket fiscal après acceptation FDM (automatique pour
@@ -209,7 +209,7 @@ Implémentation présente :
   implémentation `LoggingAccessPoint` (no-op pour développement) et
   stub `StorecoveAccessPoint` (intégration commerciale à finaliser).
 - Commande Tauri `issue_b2b_invoice`
-  (`src-tauri/src/commands/invoice.rs`).
+  (`crates/pos-engine/src/commands/invoice.rs`).
 - Table `peppol_deliveries` pour la traçabilité.
 
 Le déploiement avec un Access Point en production est une étape

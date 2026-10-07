@@ -1,7 +1,7 @@
 use pos_core::user::User;
 use tauri::State;
 
-use crate::commands::auth::CreateUserInput;
+use pos_engine::commands::auth::CreateUserInput;
 
 use super::Managed;
 
@@ -15,7 +15,7 @@ use super::Managed;
 /// one. The system identity never logs in.
 #[tauri::command]
 pub fn login(state: State<'_, Managed>, insz: String, pin: Option<String>) -> Result<User, String> {
-    crate::commands::auth::do_login(state.inner(), insz, pin)
+    pos_engine::commands::auth::do_login(state.inner(), insz, pin)
 }
 
 /// First login of a user who has no PIN yet (required for a manager):
@@ -29,24 +29,24 @@ pub fn login_with_new_pin(
     insz: String,
     new_pin: String,
 ) -> Result<User, String> {
-    crate::commands::auth::do_login_with_new_pin(state.inner(), insz, new_pin)
+    pos_engine::commands::auth::do_login_with_new_pin(state.inner(), insz, new_pin)
 }
 
 /// End the operator's session (after their clock-out): every command
 /// needing an operator is refused until the next login.
 #[tauri::command]
 pub fn logout(state: State<'_, Managed>) -> Result<(), String> {
-    crate::commands::auth::do_logout(state.inner())
+    pos_engine::commands::auth::do_logout(state.inner())
 }
 
 #[tauri::command]
 pub fn list_users(state: State<'_, Managed>) -> Result<Vec<User>, String> {
-    crate::commands::auth::do_list_users(state.inner())
+    pos_engine::commands::auth::do_list_users(state.inner())
 }
 
 #[tauri::command]
 pub fn create_user(state: State<'_, Managed>, input: CreateUserInput) -> Result<User, String> {
-    crate::commands::auth::do_create_user(state.inner(), input)
+    pos_engine::commands::auth::do_create_user(state.inner(), input)
 }
 
 /// Set or change a user's 4-digit PIN. The PIN is bcrypt-hashed
@@ -58,18 +58,18 @@ pub fn set_pin(
     new_pin: String,
     operator_pin: Option<String>,
 ) -> Result<(), String> {
-    crate::commands::auth::do_set_pin(state.inner(), insz, new_pin, operator_pin)
+    pos_engine::commands::auth::do_set_pin(state.inner(), insz, new_pin, operator_pin)
 }
 
 /// Deactivate a user (an employee who left). Managers only, never
 /// themselves: the terminal always keeps the manager who did it.
 #[tauri::command]
 pub fn deactivate_user(state: State<'_, Managed>, insz: String) -> Result<(), String> {
-    crate::commands::auth::do_deactivate_user(state.inner(), insz)
+    pos_engine::commands::auth::do_deactivate_user(state.inner(), insz)
 }
 
 /// The logged-in operator, if any.
 #[tauri::command]
 pub fn get_current_user(state: State<'_, Managed>) -> Result<Option<User>, String> {
-    crate::commands::auth::do_get_current_user(state.inner())
+    pos_engine::commands::auth::do_get_current_user(state.inner())
 }

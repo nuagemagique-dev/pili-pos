@@ -255,7 +255,7 @@ commandes.
 
 ## 9. Tâche de fond - Envoi différé du ticket numérique
 
-**Déclencheur.** `run_outbox_once` (`src-tauri/src/commands/delivery.rs`)
+**Déclencheur.** `run_outbox_once` (`crates/pos-engine/src/commands/delivery.rs`)
 tourne toutes les 30 secondes (`OUTBOX_INTERVAL`, câblé dans
 `src-tauri/src/main.rs`), tant qu'un `digital_ticket` est configuré.
 

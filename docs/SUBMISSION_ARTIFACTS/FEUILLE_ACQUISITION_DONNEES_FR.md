@@ -36,7 +36,7 @@ Finances.
 | Permissions | `0640` (lecture restreinte) |
 | Rétention | Indéfinie (au moins 7 ans, durée légale belge) |
 
-Implémentation : `src-tauri/src/commands/report.rs::backup_database_impl`.
+Implémentation : `crates/pos-engine/src/commands/report.rs::backup_database_impl`.
 
 ### 1.3 Journaux applicatifs (logs structurés)
 
@@ -158,7 +158,7 @@ disponible dans le dossier remis à l'admission.
 #### Méthode B - Export via commande dédiée
 
 La commande Tauri `backup_database`
-(`src-tauri/src/commands/report.rs`) produit à la demande un instantané
+(`crates/pos-engine/src/commands/report.rs`) produit à la demande un instantané
 cohérent (Online Backup API) dans le répertoire `backups/`. Un
 contrôleur peut demander à l'opérateur de déclencher un export juste
 avant inspection.

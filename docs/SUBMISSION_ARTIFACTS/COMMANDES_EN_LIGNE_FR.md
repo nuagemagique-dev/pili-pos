@@ -1,7 +1,7 @@
 # Commandes en ligne (plateformes de livraison et webshop)
 
 **Date :** 2026-10-03
-**Code :** `src-tauri/src/commands/webshop.rs`, `src-tauri/src/commands/integrations.rs`, `crates/pos-hubrise/src/webshop.rs`
+**Code :** `crates/pos-engine/src/commands/webshop.rs`, `crates/pos-engine/src/commands/integrations.rs`, `crates/pos-hubrise/src/webshop.rs`
 **Références SPF :** FAQ producteurs Q203, Q204 a/b, Q206, Q209, Q211, Q212, Q213, Q301
 
 ---
@@ -44,7 +44,7 @@ encaissement d'une commande enregistrée (P puis N), remboursement
 d'une commande annulée, clôture à 0,00 EUR. Aucune vente signée ne
 peut donc rester sans suite.
 
-Code : `src-tauri/src/commands/integrations.rs` (`require_hubrise`,
+Code : `crates/pos-engine/src/commands/integrations.rs` (`require_hubrise`,
 `do_set_hubrise_enabled`), `crates/pos-db/src/queries/integrations.rs`,
 `crates/pos-hubrise/src/switch.rs`.
 

@@ -169,7 +169,7 @@ La clé expose aussi `render()` pour des lignes de log grep-friendly :
 
 ## 4. Blocage opérationnel sur déconnexion
 
-**Implémenté dans** `src-tauri/src/commands/checkout.rs` : la vente
+**Implémenté dans** `crates/pos-engine/src/commands/checkout.rs` : la vente
 (`do_checkout`, `do_checkout_split`) passe par `checkout::sell`, qui
 signe par `signing::sign`. Quand le FDM n'est pas joignable,
 `FdmError::outcome()` renvoie `SignOutcome::NotSent` : la ligne
@@ -217,7 +217,7 @@ Correctif B3 : `FiscalCounter::peek_next` lit le prochain numéro sans
 laissait deux risques : deux opérations simultanées pouvaient lire le
 même numéro, et une réponse perdue (le FDM a signé, le POS n'a rien
 reçu) pouvait laisser un événement signé sans archive. Le flux est
-désormais le suivant (`src-tauri/src/commands/signing.rs`) :
+désormais le suivant (`crates/pos-engine/src/commands/signing.rs`) :
 
 1. **Verrou global.** Toute opération qui signe un événement FDM
    (vente N, remboursement, commande de table P, pré-addition P,

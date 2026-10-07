@@ -1,7 +1,7 @@
 # Flux de remboursement, correction et note de crédit
 
 **Date :** 2026-10-03
-**Code :** `src-tauri/src/commands/refund.rs`
+**Code :** `crates/pos-engine/src/commands/refund.rs`
 **Périmètre cert :** M111 (remboursement complet), M112B
 (remboursement partiel - ticket séparé). La correction de paiement
 (M132, UC4118) et la note de crédit (UC4122) ne sont pas dans le
@@ -22,7 +22,7 @@ La commande Tauri `refund_checkout` prend :
   connecté (`PROFILS_UTILISATEURS_FR.md` §3).
 
 Le flux reflète l'encaissement standard de
-`src-tauri/src/commands/checkout.rs` :
+`crates/pos-engine/src/commands/checkout.rs` :
 
 1. **Chargement de l'original.** Résolution de `fdm_id`,
    `fdmDateTime`, `eventLabel`, `eventCounter`, `totalCounter` depuis

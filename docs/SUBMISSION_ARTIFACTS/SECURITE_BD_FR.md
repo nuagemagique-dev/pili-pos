@@ -259,7 +259,7 @@ L'image kiosque livrée est **scellée**, avec les précisions suivantes
 **Assistance à distance (RustDesk).** L'image n'exécute aucun service
 d'accès distant en permanence : RustDesk (version épinglée, installée
 dans `/opt/pili-pos/rustdesk/` par `provision.sh`) n'est lancé que sur
-demande, par `src-tauri/src/commands/support.rs` :
+demande, par `crates/pos-engine/src/commands/support.rs` :
 
 - seul un Gérant connecté peut démarrer une session, et son PIN est
   redemandé à ce moment (`confirmed_operator`, accès `Admin`) ;

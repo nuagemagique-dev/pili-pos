@@ -24,7 +24,7 @@ une imprimante thermique ESC/POS Epson TM-m30III, et persiste chaque
 │  └───────────────────────────┬───────────────────────────────┘ │
 │                              │ tauri::invoke (IPC)              │
 │  ┌───────────────────────────▼───────────────────────────────┐ │
-│  │  Couche commandes Rust (src-tauri/src/commands)            │ │
+│  │  Couche commandes Rust (crates/pos-engine/src/commands)            │ │
 │  │  checkout / order / refund / report / tables / social /...   │ │
 │  └──┬──────────────────┬──────────────────┬──────────────────┘ │
 │     │                  │                  │                     │
@@ -235,7 +235,7 @@ SQLite qui archive l'événement signé, de sorte que :
 
 - Crates : `crates/pos-hubrise` (réception, file d'envoi, menu reflet),
   `crates/pos-catalog` (validation et application du catalogue),
-  commandes Tauri `src-tauri/src/commands/webshop.rs`.
+  commandes Tauri `crates/pos-engine/src/commands/webshop.rs`.
 - Interrupteur par installation : `hubrise_enabled` dans `pos.json`,
   puis un Gérant dans Réglages ; journal en ajout seul
   `integration_switch_log` (migration 25). Coupé : aucune boucle ne
@@ -295,17 +295,17 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | Runner de migrations | `crates/pos-db/src/migrate.rs` |
 | CRUD commandes | `crates/pos-db/src/queries/orders.rs` |
 | Helpers requêtes rapport Z | `crates/pos-db/src/queries/reports.rs` |
-| Flux checkout | `src-tauri/src/commands/checkout.rs` |
-| Tables / split / merge | `src-tauri/src/commands/tables.rs` |
-| Remboursement + note de crédit | `src-tauri/src/commands/refund.rs` |
-| Rapports (X/Z) | `src-tauri/src/commands/report.rs` |
-| Social (événements S) | `src-tauri/src/commands/social.rs` |
-| Financier (événements F) | `src-tauri/src/commands/financial.rs` |
-| Copie (événements C) | `src-tauri/src/commands/copy.rs` |
+| Flux checkout | `crates/pos-engine/src/commands/checkout.rs` |
+| Tables / split / merge | `crates/pos-engine/src/commands/tables.rs` |
+| Remboursement + note de crédit | `crates/pos-engine/src/commands/refund.rs` |
+| Rapports (X/Z) | `crates/pos-engine/src/commands/report.rs` |
+| Social (événements S) | `crates/pos-engine/src/commands/social.rs` |
+| Financier (événements F) | `crates/pos-engine/src/commands/financial.rs` |
+| Copie (événements C) | `crates/pos-engine/src/commands/copy.rs` |
 | Sérialiseur UBL Peppol | `crates/pos-peppol/src/ubl.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
-| IPC Peppol | `src-tauri/src/commands/invoice.rs` |
-| Résolution du support + IPC ticket numérique | `src-tauri/src/commands/delivery.rs` |
+| IPC Peppol | `crates/pos-engine/src/commands/invoice.rs` |
+| Résolution du support + IPC ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |
 | Rendu e-mail (texte/HTML/QR) | `crates/pos-mail/src/render.rs` |
 | Client Scaleway TEM | `crates/pos-mail/src/tem.rs` |
 | File d'attente + réessais | `crates/pos-mail/src/outbox.rs` |

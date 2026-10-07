@@ -2695,7 +2695,7 @@ L'événement fiscal **I (Invoice)** n'est **pas disponible en
 v1.0.0** : le feature flag `peppol` n'est pas activé dans la build
 de certification (`cert = ["custom-protocol"]`,
 `src-tauri/Cargo.toml`), donc le code d'émission de facture B2B
-(`crates/pos-peppol`, `src-tauri/src/commands/invoice.rs`,
+(`crates/pos-peppol`, `crates/pos-engine/src/commands/invoice.rs`,
 `#[cfg(feature = "peppol")]`) n'est pas compilé dans le binaire
 soumis. La fixture M150 continue d'être **parsée** par
 `crates/pos-fiscal/tests/uc_fixtures.rs` (validation du format JSON
@@ -4344,7 +4344,7 @@ comparée à la fixture) et `m184_*` dans
 ## M182_signReportUserX
 
 **Note de déclaration :** implémenté par la commande
-`generate_user_x_report` (`src-tauri/src/commands/report.rs`,
+`generate_user_x_report` (`crates/pos-engine/src/commands/report.rs`,
 `do_generate_user_x_report`). Couverture e2e applicative :
 `m182_user_x_of_the_scenario_day` dans
 `src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
@@ -4843,7 +4843,7 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
 
 **Note de déclaration :** c'est CE mode d'émission du Z que le POS
 implémente et déclare : `do_generate_z_report`
-(`src-tauri/src/commands/report.rs`) envoie `signReportTurnoverZ` +
+(`crates/pos-engine/src/commands/report.rs`) envoie `signReportTurnoverZ` +
 `signReportUserZ` dans **un seul document GraphQL**
 (`FdmClient::sign_report_turnover_z_user_z`), alloue deux
 `posFiscalTicketNo` séquentiels et archive les deux événements R dans

@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn the_engine_layout_is_the_production_layout() {
-        let paths = crate::engine::EnginePaths::under(data_dir());
+        let paths = pos_engine::engine::EnginePaths::under(data_dir());
         assert_eq!(paths.db, db_path());
         assert_eq!(paths.backups, backups_dir());
         assert_eq!(paths.data_dir, data_dir());

@@ -14,17 +14,14 @@ pos-fiscal = { path = "../crates/pos-fiscal" }
 pos-print = { path = "../crates/pos-print" }
 pos-db = { path = "../crates/pos-db" }
 pos-mail = { path = "../crates/pos-mail" }
+pos-engine = { path = "../crates/pos-engine", default-features = false }
 pos-hubrise = { path = "../crates/pos-hubrise", optional = true }
 pos-catalog = { path = "../crates/pos-catalog", optional = true }
 pos-hubrise-types = { path = "../crates/pos-hubrise-types", optional = true }
-pos-peppol = { path = "../crates/pos-peppol", optional = true }
-# The HubRise login link as a QR code (Settings), as for tickets.
-qrcode = { version = "0.14", optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
-chrono-tz = { workspace = true }
 rusqlite = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
@@ -61,18 +58,18 @@ hubrise = [
     "dep:pos-hubrise",
     "dep:pos-hubrise-types",
     "dep:pos-catalog",
-    "dep:qrcode",
     "pos-db/hubrise",
+    "pos-engine/hubrise",
 ]
 # Enables Peppol BIS Billing 3.0 B2B e-invoicing: the UBL serializer,
 # the AccessPoint trait, and the invoice (I event) commands. Not part of
 # pili-pos v1.0.0: the invoice event is optional in SCE 2.0 and ships in
 # a later certified update, so the cert build leaves it out.
-peppol = ["dep:pos-peppol", "hubrise"]
+peppol = ["hubrise", "pos-engine/peppol"]
 # The certification build: HubRise in, invoicing (peppol) out, UI
 # bundle embedded.
 # Build command: `cargo build --release --no-default-features --features cert`.
-cert = ["custom-protocol", "hubrise"]
+cert = ["custom-protocol", "hubrise", "pos-engine/cert"]
 # Serve the embedded `ui/dist` bundle instead of the Vite dev server
 # (`devUrl`). `cargo tauri build` turns it on by itself; a plain
 # `cargo build` - the certification build above - must enable it, or

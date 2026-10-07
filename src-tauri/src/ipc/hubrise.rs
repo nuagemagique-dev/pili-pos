@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::commands::hubrise::{
+use pos_engine::commands::hubrise::{
     AuthorizeLink, HubriseConnectionInfo, HubriseStatus, PatchStatusRequest,
     SetConfirmedTimeRequest, WebshopOrderSummary,
 };
@@ -11,12 +11,12 @@ use super::Managed;
 pub fn hubrise_get_connection_status(
     state: State<'_, Managed>,
 ) -> Result<HubriseConnectionInfo, String> {
-    crate::commands::hubrise::do_hubrise_get_connection_status(state.inner())
+    pos_engine::commands::hubrise::do_hubrise_get_connection_status(state.inner())
 }
 
 #[tauri::command]
 pub fn hubrise_start_oauth_flow(state: State<'_, Managed>) -> Result<AuthorizeLink, String> {
-    crate::commands::hubrise::do_hubrise_start_oauth_flow(state.inner())
+    pos_engine::commands::hubrise::do_hubrise_start_oauth_flow(state.inner())
 }
 
 #[tauri::command]
@@ -24,19 +24,19 @@ pub async fn hubrise_complete_oauth(
     state: State<'_, Managed>,
     code: String,
 ) -> Result<HubriseConnectionInfo, String> {
-    crate::commands::hubrise::do_hubrise_complete_oauth(state.inner(), &code).await
+    pos_engine::commands::hubrise::do_hubrise_complete_oauth(state.inner(), &code).await
 }
 
 #[tauri::command]
 pub fn hubrise_disconnect(state: State<'_, Managed>) -> Result<(), String> {
-    crate::commands::hubrise::do_hubrise_disconnect(state.inner())
+    pos_engine::commands::hubrise::do_hubrise_disconnect(state.inner())
 }
 
 #[tauri::command]
 pub fn hubrise_list_webshop_orders(
     state: State<'_, Managed>,
 ) -> Result<Vec<WebshopOrderSummary>, String> {
-    crate::commands::hubrise::do_list_webshop_orders(state.inner())
+    pos_engine::commands::hubrise::do_list_webshop_orders(state.inner())
 }
 
 #[tauri::command]
@@ -44,7 +44,7 @@ pub async fn hubrise_patch_order_status(
     state: State<'_, Managed>,
     req: PatchStatusRequest,
 ) -> Result<(), String> {
-    crate::commands::hubrise::do_patch_order_status(
+    pos_engine::commands::hubrise::do_patch_order_status(
         state.inner(),
         &req.hubrise_order_id,
         &req.new_status,
@@ -57,7 +57,7 @@ pub async fn hubrise_set_confirmed_time(
     state: State<'_, Managed>,
     req: SetConfirmedTimeRequest,
 ) -> Result<(), String> {
-    crate::commands::hubrise::do_set_confirmed_time(
+    pos_engine::commands::hubrise::do_set_confirmed_time(
         state.inner(),
         &req.hubrise_order_id,
         &req.confirmed_time,
@@ -66,7 +66,7 @@ pub async fn hubrise_set_confirmed_time(
 
 #[tauri::command]
 pub fn hubrise_status(state: State<'_, Managed>) -> Result<HubriseStatus, String> {
-    crate::commands::hubrise::do_hubrise_status(state.inner())
+    pos_engine::commands::hubrise::do_hubrise_status(state.inner())
 }
 
 /// Fetch and apply the HubRise catalog now (Settings, "Resynchroniser").
@@ -74,7 +74,7 @@ pub fn hubrise_status(state: State<'_, Managed>) -> Result<HubriseStatus, String
 pub async fn hubrise_sync_catalog(
     state: State<'_, Managed>,
 ) -> Result<Option<pos_catalog::ApplyOutcome>, String> {
-    crate::commands::hubrise::do_sync_catalog(state.inner()).await
+    pos_engine::commands::hubrise::do_sync_catalog(state.inner()).await
 }
 
 /// The local products that can keep their id when HubRise takes over
@@ -83,7 +83,7 @@ pub async fn hubrise_sync_catalog(
 pub fn hubrise_adoption_preview(
     state: State<'_, Managed>,
 ) -> Result<Vec<pos_catalog::Adoption>, String> {
-    crate::commands::hubrise::do_adoption_preview(state.inner())
+    pos_engine::commands::hubrise::do_adoption_preview(state.inner())
 }
 
 /// The manager confirms the take-over: the chosen products keep their
@@ -95,7 +95,7 @@ pub fn hubrise_adopt_catalog(
     state: State<'_, Managed>,
     adoptions: Vec<pos_catalog::Adoption>,
 ) -> Result<pos_catalog::ApplyOutcome, String> {
-    crate::commands::hubrise::do_adopt_catalog(state.inner(), &adoptions)
+    pos_engine::commands::hubrise::do_adopt_catalog(state.inner(), &adoptions)
 }
 
 /// How each HubRise channel is signed (Settings).
@@ -103,7 +103,7 @@ pub fn hubrise_adopt_catalog(
 pub fn hubrise_list_channels(
     state: State<'_, Managed>,
 ) -> Result<Vec<pos_hubrise::webshop::Channel>, String> {
-    crate::commands::hubrise::do_list_channels(state.inner())
+    pos_engine::commands::hubrise::do_list_channels(state.inner())
 }
 
 /// Add or change a channel; pending orders resolve again. Returns how
@@ -113,5 +113,5 @@ pub fn hubrise_set_channel(
     state: State<'_, Managed>,
     channel: pos_hubrise::webshop::Channel,
 ) -> Result<usize, String> {
-    crate::commands::hubrise::do_set_channel(state.inner(), &channel)
+    pos_engine::commands::hubrise::do_set_channel(state.inner(), &channel)
 }

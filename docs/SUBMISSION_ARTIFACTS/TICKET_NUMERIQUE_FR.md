@@ -33,7 +33,7 @@ proposée et le POS se comporte comme en v0.x (papier uniquement) - voir
 `MANUEL_INSTALLATION_FR.md` §4.2 "Ticket numérique par e-mail
 (optionnel)" pour la configuration.
 
-Code source : `src-tauri/src/commands/delivery.rs` (résolution du
+Code source : `crates/pos-engine/src/commands/delivery.rs` (résolution du
 support, mise en file, impression/envoi), `crates/pos-mail` (rendu de
 l'e-mail, client Scaleway TEM, file d'attente avec réessais),
 `crates/pos-db/src/schema.rs` migrations v5 (`ticket_deliveries`) et v6
@@ -65,7 +65,7 @@ fonctionnalité.
 ## 3. Résolution du support (avant signature)
 
 La fonction pure `delivery::resolve_with` (testée unitairement,
-`src-tauri/src/commands/delivery.rs::tests`) applique ces règles, dans
+`crates/pos-engine/src/commands/delivery.rs::tests`) applique ces règles, dans
 l'ordre :
 
 | Cas | Résultat |

@@ -69,7 +69,7 @@ l'unique développeur.
 
 Toute modification du code source passe par une **pull request** sur
 git. Les modifications affectant le code fiscal (`crates/pos-fiscal`,
-`crates/pos-db/src/schema.rs`, `src-tauri/src/commands/`) sont
+`crates/pos-db/src/schema.rs`, `crates/pos-engine/src/commands/`) sont
 revues avec une attention particulière :
 
 - Vérification mécanique de l'absence de `DELETE FROM fiscal_events`

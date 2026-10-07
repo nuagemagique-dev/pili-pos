@@ -1,7 +1,7 @@
 use tauri::State;
 
-use crate::commands::bar_slip::SlipOutcome;
-use crate::commands::tables::{TableInfo, TakeawayInfo};
+use pos_engine::commands::bar_slip::SlipOutcome;
+use pos_engine::commands::tables::{TableInfo, TakeawayInfo};
 
 use super::Managed;
 
@@ -14,7 +14,7 @@ use super::Managed;
 /// informational value (UX Guide §2.1).
 #[tauri::command]
 pub fn list_tables(state: State<'_, Managed>) -> Result<Vec<TableInfo>, String> {
-    crate::commands::tables::do_list_configured_tables(state.inner())
+    pos_engine::commands::tables::do_list_configured_tables(state.inner())
 }
 
 /// The takeaways left open (nothing is registered for them until they
@@ -22,7 +22,7 @@ pub fn list_tables(state: State<'_, Managed>) -> Result<Vec<TableInfo>, String> 
 /// or is closed unpaid (FAQ Q205). Empty drafts are left out.
 #[tauri::command]
 pub fn list_open_takeaways(state: State<'_, Managed>) -> Result<Vec<TakeawayInfo>, String> {
-    crate::commands::tables::do_list_open_takeaways(state.inner())
+    pos_engine::commands::tables::do_list_open_takeaways(state.inner())
 }
 
 /// Register what was ordered at a table since the last registration
@@ -36,7 +36,7 @@ pub async fn sign_table_order(
     state: State<'_, Managed>,
     order_id: i64,
 ) -> Result<SlipOutcome, String> {
-    crate::commands::tables::do_sign_table_order(state.inner(), order_id).await
+    pos_engine::commands::tables::do_sign_table_order(state.inner(), order_id).await
 }
 
 /// Send a signPreBill (provisional bill P event).
@@ -45,5 +45,5 @@ pub async fn sign_pre_bill(
     state: State<'_, Managed>,
     order_id: i64,
 ) -> Result<SlipOutcome, String> {
-    crate::commands::tables::do_sign_pre_bill(state.inner(), order_id).await
+    pos_engine::commands::tables::do_sign_pre_bill(state.inner(), order_id).await
 }

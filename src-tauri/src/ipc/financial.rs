@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::commands::financial::{FinancialResult, MoneyDirection};
+use pos_engine::commands::financial::{FinancialResult, MoneyDirection};
 
 use super::Managed;
 
@@ -14,7 +14,7 @@ pub async fn money_in_out(
     direction: MoneyDirection,
     reason: String,
 ) -> Result<FinancialResult, String> {
-    crate::commands::financial::do_money_in_out(
+    pos_engine::commands::financial::do_money_in_out(
         state.inner(),
         employee_insz,
         amount_cents,
@@ -31,5 +31,5 @@ pub async fn open_drawer_fiscal(
     state: State<'_, Managed>,
     employee_insz: String,
 ) -> Result<FinancialResult, String> {
-    crate::commands::financial::do_open_drawer_fiscal(state.inner(), employee_insz).await
+    pos_engine::commands::financial::do_open_drawer_fiscal(state.inner(), employee_insz).await
 }

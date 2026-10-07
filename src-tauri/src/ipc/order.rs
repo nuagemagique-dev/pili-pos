@@ -1,13 +1,13 @@
 use pos_core::order::{Order, OrderLine};
 use tauri::State;
 
-use crate::commands::order::{AddOrderLineInput, CreateOrderInput};
+use pos_engine::commands::order::{AddOrderLineInput, CreateOrderInput};
 
 use super::Managed;
 
 #[tauri::command]
 pub fn create_order(state: State<'_, Managed>, input: CreateOrderInput) -> Result<Order, String> {
-    crate::commands::order::do_create_order(state.inner(), input)
+    pos_engine::commands::order::do_create_order(state.inner(), input)
 }
 
 #[tauri::command]
@@ -15,12 +15,12 @@ pub fn add_order_line(
     state: State<'_, Managed>,
     input: AddOrderLineInput,
 ) -> Result<OrderLine, String> {
-    crate::commands::order::do_add_order_line(state.inner(), input)
+    pos_engine::commands::order::do_add_order_line(state.inner(), input)
 }
 
 #[tauri::command]
 pub fn remove_order_line(state: State<'_, Managed>, line_id: i64) -> Result<(), String> {
-    crate::commands::order::do_remove_order_line(state.inner(), line_id)
+    pos_engine::commands::order::do_remove_order_line(state.inner(), line_id)
 }
 
 #[tauri::command]
@@ -29,12 +29,12 @@ pub fn update_order_line_quantity(
     line_id: i64,
     quantity: i32,
 ) -> Result<(), String> {
-    crate::commands::order::do_update_order_line_quantity(state.inner(), line_id, quantity)
+    pos_engine::commands::order::do_update_order_line_quantity(state.inner(), line_id, quantity)
 }
 
 #[tauri::command]
 pub fn get_order(state: State<'_, Managed>, order_id: i64) -> Result<Order, String> {
-    crate::commands::order::do_get_order(state.inner(), order_id)
+    pos_engine::commands::order::do_get_order(state.inner(), order_id)
 }
 
 /// Return every line of an existing order, ordered by id. Used when
@@ -46,7 +46,7 @@ pub fn list_order_lines(
     state: State<'_, Managed>,
     order_id: i64,
 ) -> Result<Vec<OrderLine>, String> {
-    crate::commands::order::do_list_order_lines(state.inner(), order_id)
+    pos_engine::commands::order::do_list_order_lines(state.inner(), order_id)
 }
 
 /// The order's lines as the cart shows them: names in French and
@@ -56,10 +56,10 @@ pub fn list_cart_lines(
     state: State<'_, Managed>,
     order_id: i64,
 ) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
-    crate::commands::order::do_list_cart_lines(state.inner(), order_id)
+    pos_engine::commands::order::do_list_cart_lines(state.inner(), order_id)
 }
 
 #[tauri::command]
 pub fn list_open_orders(state: State<'_, Managed>) -> Result<Vec<Order>, String> {
-    crate::commands::order::do_list_open_orders(state.inner())
+    pos_engine::commands::order::do_list_open_orders(state.inner())
 }
