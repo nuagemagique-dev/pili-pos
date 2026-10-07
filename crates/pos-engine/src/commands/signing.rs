@@ -485,7 +485,7 @@ fn commit(
         }
         event_ids.push(id);
     }
-    let (ticket, delivery_id) = apply(&tx, events, context, &event_ids, &results)?;
+    let (ticket, delivery_id) = apply(&tx, &state.identity, events, context, &event_ids, &results)?;
     let resolved = serde_json::to_string(&context.resolved()).map_err(errors::internal)?;
     pending_signs::mark_signed(&tx, pending_id, event_ids[0], &resolved)
         .map_err(errors::internal)?;
@@ -510,6 +510,7 @@ fn archive_error(e: rusqlite::Error) -> String {
 /// built and its email queued, the order closed, the payments recorded.
 fn apply(
     tx: &rusqlite::Connection,
+    identity: &pos_fiscal::identity::SoftwareIdentity,
     events: &[ArchiveSpec],
     context: &PendingContext,
     event_ids: &[i64],
@@ -546,7 +547,7 @@ fn apply(
                     pay(*order_id, &p.method, p.amount_cents)?;
                 }
             }
-            let ticket = FiscalTicket::from_draft(ticket, &results[0]);
+            let ticket = FiscalTicket::from_draft(ticket, &results[0], identity);
             let delivery_id =
                 delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), Some(&ticket))?;
             #[cfg(feature = "hubrise")]
@@ -574,7 +575,7 @@ fn apply(
             if !training {
                 pay(*refund_order_id, method, *total_cents)?;
             }
-            let ticket = FiscalTicket::from_draft(ticket, &results[0]);
+            let ticket = FiscalTicket::from_draft(ticket, &results[0], identity);
             let delivery_id =
                 delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), Some(&ticket))?;
             Ok((Some(ticket), delivery_id))
@@ -609,7 +610,7 @@ fn apply(
         PendingContext::Copy { delivery, ticket } => {
             let ticket = ticket.as_ref().map(|t| match t {
                 CopyTicket::Original(original) => (**original).clone().into_copy(&results[0]),
-                CopyTicket::Draft(draft) => FiscalTicket::from_draft(draft, &results[0]),
+                CopyTicket::Draft(draft) => FiscalTicket::from_draft(draft, &results[0], identity),
             });
             let delivery_id =
                 delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), ticket.as_ref())?;
@@ -725,7 +726,7 @@ pub(crate) async fn follow_up(
         }
         PendingContext::PreBill { ticket, .. } => {
             if let Some(addr) = config.printer_address.as_deref() {
-                let ticket = FiscalTicket::from_draft(ticket, committed.result());
+                let ticket = FiscalTicket::from_draft(ticket, committed.result(), &state.identity);
                 let data = pos_print::receipt::format_receipt(&ticket);
                 let _ = pos_print::transport::send_to_printer(addr, &data).await;
             }

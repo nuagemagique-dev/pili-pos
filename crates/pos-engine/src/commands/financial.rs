@@ -53,6 +53,7 @@ pub async fn do_money_in_out(
 
     let common = pos_fiscal::event::build_common_fields(
         &config,
+        &state.identity,
         ticket_number,
         &employee_insz,
         &bp_id,
@@ -171,6 +172,7 @@ pub async fn do_open_drawer_fiscal(
 
     let common = pos_fiscal::event::build_common_fields(
         &config,
+        &state.identity,
         ticket_number,
         &employee_insz,
         &bp_id,

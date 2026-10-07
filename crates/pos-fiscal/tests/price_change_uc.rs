@@ -113,6 +113,7 @@ fn uc223_event_discount_matches_the_published_transaction() {
     assert_eq!(net, 2600);
     let mut sale = build_sale_input(
         &PosConfig::default(),
+        &ident(),
         &order,
         &lines,
         5000,
@@ -153,6 +154,7 @@ fn without_changes_nothing_changes() {
     };
     let plain = build_sale_input(
         &PosConfig::default(),
+        &ident(),
         &order,
         &lines,
         1,
@@ -168,4 +170,9 @@ fn without_changes_nothing_changes() {
         serde_json::to_value(&plain.transaction).unwrap(),
         serde_json::to_value(&applied.transaction).unwrap()
     );
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

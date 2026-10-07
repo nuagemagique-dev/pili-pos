@@ -16,3 +16,5 @@ pub mod state;
 
 pub use engine::{ConfigSource, Engine, EngineConfig, EnginePaths, EngineTimers};
 pub use events::{EngineEvent, EventSink, NullSink};
+pub use pos_fiscal::http_tls::{HttpTls, HttpTlsError};
+pub use pos_fiscal::identity::{IdentityError, SoftwareIdentity};

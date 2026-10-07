@@ -250,7 +250,7 @@ async fn test_full_service_day_e2e() {
     let s1_ticket = FiscalCounter::next(&db, EventLabel::S).unwrap();
     assert_eq!(s1_ticket, 1, "First S event should be #1");
 
-    let work_in = build_work_in_out(&cfg, s1_ticket, &user.insz, &bk(&bp_id));
+    let work_in = build_work_in_out(&cfg, &ident(), s1_ticket, &user.insz, &bk(&bp_id));
     let wi_result = fdm.sign_work_in(work_in, false).await.unwrap();
     assert_eq!(wi_result.event_operation, EventOperation::WorkIn);
     assert_eq!(wi_result.fdm_ref.event_label, EventLabel::S);
@@ -360,7 +360,8 @@ async fn test_full_service_day_e2e() {
     let lines_r1 = orders::get_order_lines(&db, order.id).unwrap();
     assert_eq!(lines_r1.len(), 3);
 
-    let order_input = build_order_input(&cfg, &order_r1, &lines_r1, p1_ticket, &bk(&bp_id));
+    let order_input =
+        build_order_input(&cfg, &ident(), &order_r1, &lines_r1, p1_ticket, &bk(&bp_id));
     assert_eq!(order_input.cost_center.id, "T07");
     assert_eq!(
         order_input.cost_center.cost_center_type,
@@ -425,7 +426,8 @@ async fn test_full_service_day_e2e() {
     let lines_r2 = orders::get_order_lines(&db, order.id).unwrap();
     assert_eq!(lines_r2.len(), 4);
 
-    let order_input2 = build_order_input(&cfg, &order_r2, &lines_r2, p2_ticket, &bk(&bp_id));
+    let order_input2 =
+        build_order_input(&cfg, &ident(), &order_r2, &lines_r2, p2_ticket, &bk(&bp_id));
     let p2_fdm = fdm.sign_order(order_input2, false).await.unwrap();
 
     archive::archive_event(
@@ -481,7 +483,14 @@ async fn test_full_service_day_e2e() {
     let pb_ticket = FiscalCounter::next(&db, EventLabel::P).unwrap();
     assert_eq!(pb_ticket, 3, "Third P event");
 
-    let pre_bill = build_pre_bill_input(&cfg, &order_mod, &lines_mod, pb_ticket, &bk(&bp_id));
+    let pre_bill = build_pre_bill_input(
+        &cfg,
+        &ident(),
+        &order_mod,
+        &lines_mod,
+        pb_ticket,
+        &bk(&bp_id),
+    );
 
     // Verify pre-bill structure: 4 lines, no financials
     assert_eq!(pre_bill.transaction.transaction_lines.len(), 4);
@@ -520,6 +529,7 @@ async fn test_full_service_day_e2e() {
 
     // Generate pre-bill receipt
     let pb_ticket_data = FiscalTicket::from_sign_result(TicketParams {
+        identity: &ident(),
         result: &pb_fdm,
         restaurant_name: &cfg.restaurant_name,
         restaurant_address: &cfg.restaurant_address,
@@ -622,6 +632,7 @@ async fn test_full_service_day_e2e() {
 
     let sale = build_sale_input(
         &cfg,
+        &ident(),
         &order_mod,
         &lines_mod,
         n1_ticket,
@@ -731,6 +742,7 @@ async fn test_full_service_day_e2e() {
     // ────────────────────────────────────────────────────────────
 
     let ticket = FiscalTicket::from_sign_result(TicketParams {
+        identity: &ident(),
         result: &n1_result,
         restaurant_name: &cfg.restaurant_name,
         restaurant_address: &cfg.restaurant_address,
@@ -864,6 +876,7 @@ async fn test_full_service_day_e2e() {
     let lines2 = orders::get_order_lines(&db, order2.id).unwrap();
     let sale2 = build_sale_input(
         &cfg,
+        &ident(),
         &order2_db,
         &lines2,
         n2_ticket,
@@ -1027,6 +1040,7 @@ async fn test_full_service_day_e2e() {
 
     let z_report = build_report_turnover_z(
         &cfg,
+        &ident(),
         r1_ticket,
         &user.insz,
         &bk(&bp_id),
@@ -1086,7 +1100,7 @@ async fn test_full_service_day_e2e() {
     let s2_ticket = FiscalCounter::next(&db, EventLabel::S).unwrap();
     assert_eq!(s2_ticket, 2, "Second S event (work-out)");
 
-    let work_out = build_work_in_out(&cfg, s2_ticket, &user.insz, &bk(&bp_id));
+    let work_out = build_work_in_out(&cfg, &ident(), s2_ticket, &user.insz, &bk(&bp_id));
     let wo_result = fdm.sign_work_out(work_out, false).await.unwrap();
     assert_eq!(wo_result.event_operation, EventOperation::WorkOut);
 
@@ -1207,4 +1221,9 @@ async fn test_full_service_day_e2e() {
         .query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
         .unwrap();
     assert_eq!(user_count, 1, "1 user in system");
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

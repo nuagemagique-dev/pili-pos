@@ -366,7 +366,14 @@ async fn sign_order_p(
 
     let label = EventLabel::P;
     let ticket_number = super::peek_ticket_number(state, &guard, label)?;
-    let mut input = build_order_input(config, &order, &entries, ticket_number, &booking);
+    let mut input = build_order_input(
+        config,
+        &state.identity,
+        &order,
+        &entries,
+        ticket_number,
+        &booking,
+    );
     input.cost_center = cost_center(ws);
     pos_fiscal::price_change::apply(&mut input.transaction, &entries, &changes);
     let request = SignRequest::new(SignMutation::Order, &input, false).map_err(errors::internal)?;

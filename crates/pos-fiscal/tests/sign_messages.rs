@@ -76,7 +76,7 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         .mount(&server)
         .await;
     fdm.sign_work_in(
-        build_work_in_out(&config, 1, "75061189702", &booking),
+        build_work_in_out(&config, &ident(), 1, "75061189702", &booking),
         false,
     )
     .await
@@ -87,7 +87,7 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         .mount(&server)
         .await;
     fdm.sign_work_in(
-        build_work_in_out(&config, 2, "75061189702", &booking),
+        build_work_in_out(&config, &ident(), 2, "75061189702", &booking),
         false,
     )
     .await
@@ -108,4 +108,9 @@ async fn sign_response_warnings_reach_the_sink_once_per_response() {
         FdmWarningCode::BufferNearFull
     );
     assert!(got.informations.is_empty());
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

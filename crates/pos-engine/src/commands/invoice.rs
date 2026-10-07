@@ -350,6 +350,7 @@ pub async fn do_sign_invoice_fiscal(
 
     let input = build_invoice_input(
         &config,
+        &state.identity,
         ticket_number,
         &employee_insz,
         &bp_id,

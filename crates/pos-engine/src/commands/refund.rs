@@ -375,6 +375,7 @@ pub(crate) async fn refund_sale(
         // SaleInput with negative lines + original fdm_ref
         let mut sale_input = build_sale_input(
             &config,
+            &state.identity,
             &refund_order,
             &refund_lines,
             ticket_number,

@@ -6,6 +6,8 @@ pub mod counter;
 pub mod event;
 pub mod fdm_client;
 pub mod fdm_tls;
+pub mod http_tls;
+pub mod identity;
 pub mod inputs;
 pub mod payment;
 pub mod price_change;
