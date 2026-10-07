@@ -38,8 +38,19 @@ pub struct TableInfo {
 /// informational value (UX Guide §2.1).
 #[tauri::command]
 pub fn list_tables(state: State<'_, AppState>) -> Result<Vec<TableInfo>, String> {
+    do_list_configured_tables(state.inner())
+}
+
+/// List tables with their current order status.
+///
+/// A table is only reported as **occupied** when its open order
+/// contains at least one line. Empty open orders (typical after a
+/// tap-and-walk-away) are treated as free so the TablesView doesn't
+/// surface ghost "0.00 €" cards that add cognitive load for zero
+/// informational value (UX Guide §2.1).
+pub fn do_list_configured_tables(state: &AppState) -> Result<Vec<TableInfo>, String> {
     let table_count = state.config.lock().map_err(|e| e.to_string())?.table_count;
-    do_list_tables(state.inner(), table_count as i32)
+    do_list_tables(state, table_count as i32)
 }
 
 pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInfo>, String> {

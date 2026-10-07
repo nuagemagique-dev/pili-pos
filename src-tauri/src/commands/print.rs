@@ -21,6 +21,11 @@ use crate::state::AppState;
 /// Check if the printer is reachable.
 #[tauri::command]
 pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
+    do_check_printer(state.inner()).await
+}
+
+/// Check if the printer is reachable.
+pub async fn do_check_printer(state: &AppState) -> Result<bool, String> {
     let printer_address = state
         .config
         .lock()
@@ -42,6 +47,13 @@ pub async fn check_printer(state: State<'_, AppState>) -> Result<bool, String> {
 /// printer), so the header can grey out its light.
 #[tauri::command]
 pub async fn check_kitchen_printer(state: State<'_, AppState>) -> Result<Option<bool>, String> {
+    do_check_kitchen_printer(state.inner()).await
+}
+
+/// Check if the bar / kitchen printer is reachable. `None` when the
+/// terminal has no separate kitchen printer (slips go to the ticket
+/// printer), so the header can grey out its light.
+pub async fn do_check_kitchen_printer(state: &AppState) -> Result<Option<bool>, String> {
     let address = state
         .config
         .lock()

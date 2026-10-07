@@ -290,5 +290,10 @@ fn user_error(e: rusqlite::Error) -> String {
 /// The logged-in operator, if any.
 #[tauri::command]
 pub fn get_current_user(state: State<'_, AppState>) -> Result<Option<User>, String> {
+    do_get_current_user(state.inner())
+}
+
+/// The logged-in operator, if any.
+pub fn do_get_current_user(state: &AppState) -> Result<Option<User>, String> {
     Ok(state.session.lock().map_err(|e| e.to_string())?.clone())
 }

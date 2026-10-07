@@ -115,6 +115,10 @@ fn installation_oauth_config(state: &AppState) -> Result<OAuthConfig, String> {
 pub fn hubrise_get_connection_status(
     state: State<'_, AppState>,
 ) -> Result<HubriseConnectionInfo, String> {
+    do_hubrise_get_connection_status(state.inner())
+}
+
+pub fn do_hubrise_get_connection_status(state: &AppState) -> Result<HubriseConnectionInfo, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     match token_store::load(&db).map_err(|e| e.to_string())? {
         Some(stored) => Ok(HubriseConnectionInfo::from_stored(&stored)),
@@ -233,6 +237,10 @@ pub async fn do_hubrise_complete_oauth(
 
 #[tauri::command]
 pub fn hubrise_disconnect(state: State<'_, AppState>) -> Result<(), String> {
+    do_hubrise_disconnect(state.inner())
+}
+
+pub fn do_hubrise_disconnect(state: &AppState) -> Result<(), String> {
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         token_store::clear(&db).map_err(|e| e.to_string())?;
