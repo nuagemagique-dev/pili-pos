@@ -253,7 +253,8 @@ SQLite qui archive l'événement signé, de sorte que :
 
 - Crates : `crates/pos-hubrise` (réception, file d'envoi, menu reflet),
   `crates/pos-catalog` (validation et application du catalogue),
-  commandes Tauri `crates/pos-engine/src/commands/webshop.rs`.
+  commandes du moteur `crates/pos-engine/src/commands/webshop.rs`
+  (enveloppes IPC : `src-tauri/src/ipc/webshop.rs`).
 - Interrupteur par installation : `hubrise_enabled` dans `pos.json`,
   puis un Gérant dans Réglages ; journal en ajout seul
   `integration_switch_log` (migration 25). Coupé : aucune boucle ne

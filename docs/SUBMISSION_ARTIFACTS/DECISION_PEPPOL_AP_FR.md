@@ -76,7 +76,8 @@ Crate : `crates/pos-peppol`
 - `errors.rs` - Enum `PeppolError` (`Xml`, `MissingField`,
   `AccessPoint`, `Http`).
 
-IPC : `crates/pos-engine/src/commands/invoice.rs::do_issue_b2b_invoice`. Construit
+Commande du moteur : `crates/pos-engine/src/commands/invoice.rs::do_issue_b2b_invoice`
+(enveloppe IPC : `src-tauri/src/ipc/invoice.rs`). Construit
 l'UBL à partir des lignes d'articles + détails fournisseur/acheteur,
 soumet via l'`AccessPoint` configuré, persiste dans `peppol_deliveries`.
 
@@ -87,7 +88,7 @@ rétention que `fiscal_events`). Colonnes : `fiscal_event_id`,
 `error_msg`, `created_at`, `accepted_at`.
 
 Feature flag : `peppol` (existe dans le workspace, **non activé** dans
-la build `cert` v1.0.0 - `cert = ["custom-protocol", "hubrise"]` dans
+la build `cert` v1.0.0 - `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` dans
 `src-tauri/Cargo.toml` : HubRise (commandes en ligne) est dans la build
 cert, seul `peppol` en est absent. Sera activé pour la mise à jour
 certifiée v1.1).
