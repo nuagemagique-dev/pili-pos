@@ -219,6 +219,8 @@ fn main() {
         ipc::checkout::checkout,
         ipc::unpaid::close_unpaid,
         ipc::checkout::check_fdm_status,
+        ipc::fdm_monitor::fdm_health,
+        ipc::fdm_monitor::fdm_check_now,
         // Ticket delivery (paper / email)
         ipc::delivery::check_mail_status,
         ipc::delivery::list_ticket_deliveries,
@@ -323,6 +325,8 @@ fn main() {
         ipc::checkout::checkout,
         ipc::unpaid::close_unpaid,
         ipc::checkout::check_fdm_status,
+        ipc::fdm_monitor::fdm_health,
+        ipc::fdm_monitor::fdm_check_now,
         // Ticket delivery (paper / email)
         ipc::delivery::check_mail_status,
         ipc::delivery::list_ticket_deliveries,
