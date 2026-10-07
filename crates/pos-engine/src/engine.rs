@@ -50,6 +50,12 @@ impl EnginePaths {
 pub enum ConfigSource {
     /// A configuration file; any error loading it is fatal.
     File(PathBuf),
+    /// A configuration bundle: the file is loaded like [`ConfigSource::File`],
+    /// then every relative file or directory path in it is resolved
+    /// against the directory holding the file (see
+    /// [`PosConfig::resolve_relative_to`]). The Android provisioning
+    /// bundle uses it; the Linux shell never does.
+    Bundle(PathBuf),
     /// The hardcoded TEST identity of a development machine.
     DevelopmentDefaults,
 }
@@ -61,6 +67,11 @@ impl ConfigSource {
     pub fn load(&self) -> anyhow::Result<PosConfig> {
         match self {
             ConfigSource::File(path) => Ok(PosConfig::load_from_file(path)?),
+            ConfigSource::Bundle(path) => {
+                let mut config = PosConfig::load_from_file(path)?;
+                config.resolve_relative_to(path.parent().unwrap_or(Path::new("")));
+                Ok(config)
+            }
             ConfigSource::DevelopmentDefaults => Ok(development_defaults()),
         }
     }
@@ -144,6 +155,17 @@ pub struct EngineConfig {
     /// engine never infers it from the operating system. An empty
     /// `RootsOnly` is refused by [`Engine::open`].
     pub http_tls: HttpTls,
+    /// Replaces the `device_id` of the configuration after it is loaded
+    /// (the POS spec `deviceId`, 1 to 600 characters once trimmed; an
+    /// empty or longer value is an [`Engine::open`] error). Android
+    /// passes the identifier of the handset; Linux passes `None` and
+    /// keeps the value of `pos.json`.
+    pub device_id_override: Option<String>,
+    /// The remote support program (RustDesk) when this terminal has one;
+    /// the shell decides, the engine never looks for it. `None`: the
+    /// support commands answer as on a terminal without it (not
+    /// available, and a start is refused).
+    pub support_program: Option<PathBuf>,
 }
 
 impl std::fmt::Debug for EngineConfig {
@@ -154,6 +176,8 @@ impl std::fmt::Debug for EngineConfig {
             .field("timers", &self.timers)
             .field("identity", &self.identity)
             .field("http_tls", &HttpTlsKind(&self.http_tls))
+            .field("device_id_override", &self.device_id_override)
+            .field("support_program", &self.support_program)
             .finish_non_exhaustive()
     }
 }
@@ -202,12 +226,17 @@ impl Engine {
             timers,
             identity,
             http_tls,
+            device_id_override,
+            support_program,
         } = cfg;
         // Before anything is created or opened: a trust setting that
         // cannot make a client is a refusal, not a later panic.
         http_tls
             .check()
             .map_err(|e| anyhow::anyhow!("HTTPS trust (http_tls): {e}"))?;
+        let device_id_override = device_id_override
+            .map(|id| validated_device_id(&id))
+            .transpose()?;
         let db_path = paths.db.clone();
         let lock = lock_data_dir(&paths.data_dir)?;
         tracing::info!(path = %db_path.display(), "opening database");
@@ -236,7 +265,10 @@ impl Engine {
         #[cfg(feature = "hubrise")]
         let poller_conn = Connection::open(&db_path)?;
 
-        let config = config.load()?;
+        let mut config = config.load()?;
+        if let Some(device_id) = device_id_override {
+            config.device_id = device_id;
+        }
         for problem in pos_fiscal::fdm_client::FdmClient::config_problems(&config) {
             tracing::error!(%problem, "pos.json: the FDM will refuse this setting");
         }
@@ -275,7 +307,7 @@ impl Engine {
                 timers,
                 mail,
                 session: Mutex::new(None),
-                support: crate::commands::support::SupportState::installed(),
+                support: crate::commands::support::SupportState::with_program(support_program),
                 pin_throttle: Default::default(),
                 signing: Default::default(),
                 fdm_status_cache: Mutex::new(None),
@@ -290,6 +322,20 @@ impl Engine {
     pub fn state(&self) -> &Arc<AppState> {
         &self.state
     }
+}
+
+/// The longest `deviceId` the POS spec accepts.
+const DEVICE_ID_MAX_CHARS: usize = 600;
+
+/// An overriding `deviceId`, trimmed: 1 to 600 characters.
+fn validated_device_id(raw: &str) -> anyhow::Result<String> {
+    let id = raw.trim();
+    anyhow::ensure!(!id.is_empty(), "device_id_override: must not be empty");
+    anyhow::ensure!(
+        id.chars().count() <= DEVICE_ID_MAX_CHARS,
+        "device_id_override: at most {DEVICE_ID_MAX_CHARS} characters expected"
+    );
+    Ok(id.to_string())
 }
 
 /// Name of the lock file in the data directory.
@@ -342,6 +388,8 @@ mod tests {
             timers: EngineTimers::default(),
             identity: SoftwareIdentity::new("pili-pos/1.0.0").unwrap(),
             http_tls: HttpTls::Platform,
+            device_id_override: None,
+            support_program: None,
         }
     }
 
@@ -439,6 +487,139 @@ mod tests {
         assert_eq!(engine.paths, EnginePaths::under(dir.path().to_path_buf()));
         assert_eq!(engine.state().paths, engine.paths);
         assert_eq!(engine.config.lock().unwrap().pos_id, "CFOD0061234567");
+    }
+
+    const GOOD_POS_JSON: &str = r#"{
+        "pos_id": "CFOD0061234567", "terminal_id": "POS1", "device_id": "aa:bb:cc:dd:ee:ff",
+        "restaurant_name": "R", "restaurant_address": "A", "restaurant_vat": "BE0499999960",
+        "restaurant_est_no": "2123456791", "fdm_url": "http://192.168.1.20/graphql"
+    }"#;
+
+    /// The `deviceId` the engine puts in the common fields of an event.
+    fn signed_device_id(engine: &Engine) -> String {
+        let config = engine.config.lock().unwrap().clone();
+        let booking = pos_fiscal::event::Booking {
+            period_id: "bp".into(),
+            date: "2026-01-01".into(),
+        };
+        pos_fiscal::event::build_common_fields(
+            &config,
+            &engine.identity,
+            1,
+            "00000000029",
+            &booking,
+            pos_fiscal::types::TicketMedium::None,
+        )
+        .device_id
+    }
+
+    #[test]
+    fn the_common_fields_carry_the_pos_json_device_id_without_an_override() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = test_config(dir.path());
+        cfg.config = ConfigSource::File(write(dir.path(), "pos.json", GOOD_POS_JSON));
+        let engine = Engine::open(cfg).unwrap();
+        assert_eq!(signed_device_id(&engine), "aa:bb:cc:dd:ee:ff");
+    }
+
+    #[test]
+    fn the_common_fields_carry_the_device_id_override() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = test_config(dir.path());
+        cfg.config = ConfigSource::File(write(dir.path(), "pos.json", GOOD_POS_JSON));
+        cfg.device_id_override = Some("  handset-0042 \n".into());
+        let engine = Engine::open(cfg).unwrap();
+        assert_eq!(signed_device_id(&engine), "handset-0042");
+        assert_eq!(engine.config.lock().unwrap().device_id, "handset-0042");
+    }
+
+    #[test]
+    fn the_override_replaces_the_development_identity_device_id_too() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = test_config(dir.path());
+        cfg.device_id_override = Some("x".repeat(600));
+        let engine = Engine::open(cfg).unwrap();
+        assert_eq!(signed_device_id(&engine), "x".repeat(600));
+    }
+
+    #[test]
+    fn open_refuses_an_empty_or_too_long_device_id_override() {
+        for bad in ["", "   ", "\t\n"] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut cfg = test_config(dir.path());
+            cfg.device_id_override = Some(bad.into());
+            let err = Engine::open(cfg).err().expect("empty override");
+            assert!(err.to_string().contains("device_id_override"), "{err}");
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path().join("fresh");
+        let mut cfg = test_config(&data);
+        cfg.device_id_override = Some("x".repeat(601));
+        let err = Engine::open(cfg).err().expect("601 characters");
+        assert!(err.to_string().contains("600"), "{err}");
+        assert!(!data.exists(), "nothing was created");
+    }
+
+    #[test]
+    fn the_support_program_reaches_the_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let none = Engine::open(test_config(dir.path())).unwrap();
+        assert_eq!(none.support.program(), None);
+        let status = crate::commands::support::do_remote_support_running(&none).unwrap();
+        assert!(!status.running);
+        drop(none);
+
+        let program = dir.path().join("AppRun");
+        let mut cfg = test_config(dir.path());
+        cfg.support_program = Some(program.clone());
+        let engine = Engine::open(cfg).unwrap();
+        assert_eq!(engine.support.program(), Some(program));
+    }
+
+    #[test]
+    fn a_bundle_resolves_its_relative_paths_against_its_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let bundle = dir.path().join("bundle");
+        std::fs::create_dir_all(&bundle).unwrap();
+        let json = GOOD_POS_JSON.replace(
+            "\"fdm_url\": \"http://192.168.1.20/graphql\"",
+            "\"fdm_url\": \"https://192.168.1.20/graphql\", \"fdm_token_file\": \"fdm.token\", \
+             \"fdm_ca_file\": \"tls/ca.pem\", \"backup_dir\": \"/abs/backups\"",
+        );
+        let file = write(&bundle, "pos.json", &json);
+
+        let config = ConfigSource::Bundle(file.clone()).load().unwrap();
+        assert_eq!(
+            config.fdm_token_file.as_deref(),
+            Some(bundle.join("fdm.token").to_str().unwrap())
+        );
+        assert_eq!(
+            config.fdm_ca_file.as_deref(),
+            Some(bundle.join("tls/ca.pem").to_str().unwrap())
+        );
+        assert_eq!(config.backup_dir.as_deref(), Some("/abs/backups"));
+        assert_eq!(config.fdm_url, "https://192.168.1.20/graphql");
+
+        // A plain file keeps the values as written.
+        let plain = ConfigSource::File(file.clone()).load().unwrap();
+        assert_eq!(plain.fdm_token_file.as_deref(), Some("fdm.token"));
+
+        // The engine opens on a bundle, with the resolved paths.
+        let mut cfg = test_config(&dir.path().join("data"));
+        cfg.config = ConfigSource::Bundle(file);
+        let engine = Engine::open(cfg).unwrap();
+        assert_eq!(
+            engine.config.lock().unwrap().fdm_token_file.as_deref(),
+            Some(bundle.join("fdm.token").to_str().unwrap())
+        );
+    }
+
+    #[test]
+    fn a_missing_bundle_is_an_open_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = test_config(dir.path());
+        cfg.config = ConfigSource::Bundle(dir.path().join("absent").join("pos.json"));
+        assert!(Engine::open(cfg).is_err());
     }
 
     #[test]

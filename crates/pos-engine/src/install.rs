@@ -1,15 +1,28 @@
-//! Install-time entry points of the engine: create or migrate the
-//! database, load a catalogue seed, and check a `pos.json`.
+//! Install-time entry points of the engine, for a shell that provisions a
+//! terminal before (or without) opening an [`crate::Engine`]. They touch
+//! no path of their own: the caller names every file.
 //!
-//! The `pili-pos` binary exposes them as `--init-db [--seed <file.sql>]`
-//! and `--check-config` (see `src-tauri/src/cli.rs`); they run without a
-//! display and are used by the image build and `deploy/install.sh`.
+//! - [`init_db`]: create or migrate the database file, optionally loading
+//!   a catalogue seed.
+//! - [`apply_seed`]: load a seed into an open database (refused once the
+//!   terminal holds fiscal events or a catalogue manages the menu).
+//! - [`check_config`]: what the FDM would refuse in the `pos.json` the
+//!   Linux kiosk would load (`PILI_POS_CONFIG`, else the installed file).
+//! - [`check_config_source`]: the same check for any [`ConfigSource`],
+//!   the entry of the Android provisioning check.
+//!
+//! The `pili-pos` binary exposes the first and third as
+//! `--init-db [--seed <file.sql>]` and `--check-config` (see
+//! `src-tauri/src/cli.rs`); they run without a display and are used by
+//! the image build and `deploy/install.sh`.
 
 use std::path::Path;
 
 use anyhow::{Context, ensure};
 use pos_db::schema;
 use rusqlite::Connection;
+
+use crate::engine::{ConfigSource, config_source_from};
 
 /// Create/migrate the database and optionally apply a seed.
 ///
@@ -44,12 +57,35 @@ pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<Strin
             production_path.display()
         )];
     }
-    match crate::state::load_config_from(env_path, production_path) {
+    check_config_source(&config_source_from(env_path, production_path))
+}
+
+/// What the FDM would refuse in the configuration `source` gives, or
+/// why it cannot be loaded; empty when it is usable. The files the
+/// configuration names (token, CA, client certificate) must exist, a
+/// relative path of a [`ConfigSource::Bundle`] being resolved against the
+/// bundle first. [`ConfigSource::DevelopmentDefaults`] is itself a
+/// problem: the development identity is never acceptable on an installed
+/// terminal.
+pub fn check_config_source(source: &ConfigSource) -> Vec<String> {
+    if matches!(source, ConfigSource::DevelopmentDefaults) {
+        return vec![
+            "no configuration: the development identity (TEST) is not acceptable on an \
+             installed terminal"
+                .to_string(),
+        ];
+    }
+    match source.load() {
         Ok(config) => pos_fiscal::fdm_client::FdmClient::config_problems(&config),
         Err(e) => vec![format!("{e:#}")],
     }
 }
 
+/// Load `sql` into an open database as a seed.
+///
+/// Refused (an error naming the reason) when the database already holds
+/// fiscal events, or, with the HubRise feature, when a catalogue manages
+/// the menu. The seed runs in one transaction: all of it or nothing.
 pub fn apply_seed(conn: &Connection, sql: &str) -> anyhow::Result<()> {
     let fiscal_events: i64 =
         conn.query_row("SELECT COUNT(*) FROM fiscal_events", [], |r| r.get(0))?;
@@ -100,6 +136,85 @@ mod tests {
         // PILI_POS_CONFIG wins, and a missing file there is reported.
         let env = dir.path().join("elsewhere.json");
         assert_eq!(check_config(Some(env.to_str().unwrap()), &prod).len(), 1);
+    }
+
+    const GOOD: &str = r#"{
+        "pos_id": "CFOD0061234567", "terminal_id": "POS1", "device_id": "aa:bb:cc:dd:ee:ff",
+        "restaurant_name": "R", "restaurant_address": "A", "restaurant_vat": "BE0499999960",
+        "restaurant_est_no": "2123456791", "fdm_url": "http://192.168.1.20/graphql"
+    }"#;
+
+    #[test]
+    fn check_config_source_reports_a_missing_broken_or_wrong_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("pos.json");
+
+        let missing = check_config_source(&ConfigSource::File(file.clone()));
+        assert_eq!(missing.len(), 1, "{missing:?}");
+        assert!(
+            missing[0].contains("cannot read config file"),
+            "{missing:?}"
+        );
+
+        std::fs::write(&file, "{ not json").unwrap();
+        assert_eq!(
+            check_config_source(&ConfigSource::File(file.clone())).len(),
+            1
+        );
+        assert_eq!(
+            check_config_source(&ConfigSource::Bundle(file.clone())).len(),
+            1
+        );
+
+        std::fs::write(&file, GOOD).unwrap();
+        for source in [
+            ConfigSource::File(file.clone()),
+            ConfigSource::Bundle(file.clone()),
+        ] {
+            assert_eq!(check_config_source(&source), Vec::<String>::new());
+        }
+
+        std::fs::write(&file, GOOD.replace("BE0499999960", "BE0499999961")).unwrap();
+        let typo = check_config_source(&ConfigSource::File(file));
+        assert_eq!(typo.len(), 1);
+        assert!(typo[0].starts_with("restaurant_vat"), "{typo:?}");
+    }
+
+    #[test]
+    fn the_development_identity_is_a_problem() {
+        let problems = check_config_source(&ConfigSource::DevelopmentDefaults);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("development identity"), "{problems:?}");
+    }
+
+    #[test]
+    fn a_bundle_is_checked_with_its_relative_files_resolved() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("pos.json");
+        let json = GOOD.replace(
+            "\"fdm_url\": \"http://192.168.1.20/graphql\"",
+            "\"fdm_url\": \"http://192.168.1.20/graphql\", \"fdm_token_file\": \"secrets/fdm.token\"",
+        );
+        std::fs::write(&file, &json).unwrap();
+
+        // The token is not in the bundle yet: reported, by its resolved path.
+        let missing = check_config_source(&ConfigSource::Bundle(file.clone()));
+        assert!(!missing.is_empty(), "{missing:?}");
+        assert!(missing[0].starts_with("fdm_token_file"), "{missing:?}");
+        assert!(
+            missing[0].contains(dir.path().join("secrets").to_str().unwrap()),
+            "{missing:?}"
+        );
+        // As a plain file the same relative path is read from the working
+        // directory, where it is not either.
+        assert!(!check_config_source(&ConfigSource::File(file.clone())).is_empty());
+
+        std::fs::create_dir_all(dir.path().join("secrets")).unwrap();
+        std::fs::write(dir.path().join("secrets/fdm.token"), "token\n").unwrap();
+        assert_eq!(
+            check_config_source(&ConfigSource::Bundle(file)),
+            Vec::<String>::new()
+        );
     }
 
     fn migrated() -> Connection {

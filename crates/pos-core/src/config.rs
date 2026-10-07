@@ -141,6 +141,34 @@ impl PosConfig {
         })
     }
 
+    /// Make every relative file or directory path of the configuration
+    /// absolute by joining it to `base`: `fdm_token_file`, `fdm_ca_file`,
+    /// `fdm_client_cert_file`, `fdm_client_key_file`, `backup_dir`,
+    /// `hubrise.client_secret_file` and `digital_ticket.api_key_file`.
+    /// An absolute path, an empty value, a URL or any other field is left
+    /// as it is. Used for a configuration bundle that names its files
+    /// relative to its own directory.
+    pub fn resolve_relative_to(&mut self, base: &Path) {
+        for path in [
+            &mut self.fdm_token_file,
+            &mut self.fdm_ca_file,
+            &mut self.fdm_client_cert_file,
+            &mut self.fdm_client_key_file,
+            &mut self.backup_dir,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            resolve_path(path, base);
+        }
+        if let Some(h) = &mut self.hubrise {
+            resolve_path(&mut h.client_secret_file, base);
+        }
+        if let Some(d) = &mut self.digital_ticket {
+            resolve_path(&mut d.api_key_file, base);
+        }
+    }
+
     /// What the FDM would refuse in this identity (POS spec v2.2
     /// §2.2.2), or the ticket could not show. Empty when the
     /// configuration is usable. Checked at start-up and by
@@ -247,6 +275,14 @@ impl PosConfig {
         }
         out
     }
+}
+
+/// Join `path` to `base` when it is a non-empty relative path.
+fn resolve_path(path: &mut String, base: &Path) {
+    if path.is_empty() || !Path::new(path.as_str()).is_relative() {
+        return;
+    }
+    *path = base.join(path.as_str()).to_string_lossy().into_owned();
 }
 
 /// `true` when the last two digits are 97 minus the first eight
@@ -430,6 +466,111 @@ mod tests {
             fdm_url: "http://192.168.1.20:8081/graphql".into(),
             ..Default::default()
         }
+    }
+
+    /// A configuration with every path field set to a relative path.
+    fn with_relative_paths() -> PosConfig {
+        PosConfig {
+            fdm_token_file: Some("secrets/fdm.token".into()),
+            fdm_ca_file: Some("tls/ca.pem".into()),
+            fdm_client_cert_file: Some("tls/client.pem".into()),
+            fdm_client_key_file: Some("tls/client.key".into()),
+            backup_dir: Some("backups".into()),
+            hubrise: Some(HubriseConfig {
+                client_id: "123.clients.hubrise.com".into(),
+                client_secret_file: "secrets/hubrise.secret".into(),
+                oauth_base_url: default_hubrise_oauth_base_url(),
+                api_base_url: default_hubrise_api_base_url(),
+                redirect_uri: default_hubrise_redirect_uri(),
+                scope: default_hubrise_scope(),
+            }),
+            digital_ticket: Some(DigitalTicketConfig {
+                region: "fr-par".into(),
+                project_id: "p".into(),
+                from_email: "tickets@example.com".into(),
+                from_name: "Restaurant".into(),
+                api_base: Some("https://api.example.com".into()),
+                api_key_file: "secrets/tem.key".into(),
+                allow_digital_only: false,
+            }),
+            ..valid()
+        }
+    }
+
+    #[test]
+    fn resolve_relative_to_joins_every_relative_path_field() {
+        let base = Path::new("/bundle/one");
+        let mut c = with_relative_paths();
+        c.resolve_relative_to(base);
+        let join = |p: &str| base.join(p).to_string_lossy().into_owned();
+        assert_eq!(c.fdm_token_file, Some(join("secrets/fdm.token")));
+        assert_eq!(c.fdm_ca_file, Some(join("tls/ca.pem")));
+        assert_eq!(c.fdm_client_cert_file, Some(join("tls/client.pem")));
+        assert_eq!(c.fdm_client_key_file, Some(join("tls/client.key")));
+        assert_eq!(c.backup_dir, Some(join("backups")));
+        assert_eq!(
+            c.hubrise.as_ref().unwrap().client_secret_file,
+            join("secrets/hubrise.secret")
+        );
+        assert_eq!(
+            c.digital_ticket.as_ref().unwrap().api_key_file,
+            join("secrets/tem.key")
+        );
+    }
+
+    #[test]
+    fn resolve_relative_to_leaves_absolute_paths_and_other_fields_alone() {
+        let mut c = with_relative_paths();
+        c.fdm_token_file = Some("/abs/fdm.token".into());
+        c.fdm_ca_file = Some("/abs/ca.pem".into());
+        c.fdm_client_cert_file = Some("/abs/client.pem".into());
+        c.fdm_client_key_file = Some("/abs/client.key".into());
+        c.backup_dir = Some("/abs/backups".into());
+        c.hubrise.as_mut().unwrap().client_secret_file = "/abs/hubrise.secret".into();
+        c.digital_ticket.as_mut().unwrap().api_key_file = "/abs/tem.key".into();
+        c.printer_address = Some("192.168.1.200:9100".into());
+        c.kitchen_printer_address = Some("kitchen.local:9100".into());
+        let before = serde_json::to_value(&c).unwrap();
+        c.resolve_relative_to(Path::new("/bundle"));
+        assert_eq!(serde_json::to_value(&c).unwrap(), before);
+
+        // Relative paths move, nothing else does: URLs, addresses, names.
+        let mut r = with_relative_paths();
+        r.printer_address = Some("192.168.1.200:9100".into());
+        let mut expected = serde_json::to_value(&r).unwrap();
+        r.resolve_relative_to(Path::new("/bundle"));
+        let after = serde_json::to_value(&r).unwrap();
+        for key in [
+            "fdm_token_file",
+            "fdm_ca_file",
+            "fdm_client_cert_file",
+            "fdm_client_key_file",
+            "backup_dir",
+        ] {
+            assert_ne!(after[key], expected[key], "{key} should move");
+            expected[key] = after[key].clone();
+        }
+        expected["hubrise"]["client_secret_file"] = after["hubrise"]["client_secret_file"].clone();
+        expected["digital_ticket"]["api_key_file"] =
+            after["digital_ticket"]["api_key_file"].clone();
+        assert_eq!(after, expected);
+        assert_eq!(r.fdm_url, "http://192.168.1.20:8081/graphql");
+        assert_eq!(
+            r.digital_ticket.as_ref().unwrap().api_base.as_deref(),
+            Some("https://api.example.com")
+        );
+    }
+
+    #[test]
+    fn resolve_relative_to_ignores_absent_and_empty_values() {
+        let mut c = valid();
+        c.resolve_relative_to(Path::new("/bundle"));
+        assert!(c.fdm_token_file.is_none() && c.backup_dir.is_none());
+        assert!(c.hubrise.is_none() && c.digital_ticket.is_none());
+
+        c.backup_dir = Some(String::new());
+        c.resolve_relative_to(Path::new("/bundle"));
+        assert_eq!(c.backup_dir.as_deref(), Some(""));
     }
 
     #[test]
