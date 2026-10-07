@@ -225,10 +225,9 @@ def build_rust_index(root: Path) -> RustIndex:
                 d = crate_dir / sub
                 if d.is_dir():
                     search_dirs.append(d)
-    for extra in ("src-tauri/src", "src-tauri/tests"):
-        p = root / extra
-        if p.is_dir():
-            search_dirs.append(p)
+    p = root / "src-tauri/src"
+    if p.is_dir():
+        search_dirs.append(p)
 
     for d in search_dirs:
         for rs_file in sorted(d.rglob("*.rs")):

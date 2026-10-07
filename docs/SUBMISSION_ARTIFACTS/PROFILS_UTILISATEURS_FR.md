@@ -148,7 +148,7 @@ copie, mouvement de caisse, rapport) est refusée
 du Serveur ou du Gérant qui encaisse, même si la commande a été prise
 par un autre membre du personnel.
 
-Ces règles sont couvertes par `src-tauri/tests/access_control.rs`
+Ces règles sont couvertes par `crates/pos-engine/tests/access_control.rs`
 (chaque rôle, chaque commande, sessions, PIN, formation).
 
 ## 4. Journal des accès

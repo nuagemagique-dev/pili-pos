@@ -14,10 +14,6 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-// The install functions live in the engine; the binary and the
-// integration tests keep reaching them as `pili_pos::cli::...`.
-pub use pos_engine::install::{apply_seed, check_config, init_db};
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     RunUi,

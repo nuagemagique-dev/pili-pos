@@ -313,7 +313,7 @@ la version suit, parce qu'elle est la seule qui contienne l'URL.
 | Copie (C) et remboursement (N) peuvent aussi être envoyés par e-mail | `commands/copy.rs`, `commands/refund.rs` | e2e `spf_e2e_digital::{a_copy_can_be_emailed_only, a_paper_copy_is_printed_and_recorded, a_refund_ticket_can_be_emailed, a_refund_with_a_bad_address_is_refused_before_signing}` |
 | Terminal sans configuration se comporte comme avant (papier seul) | `MailState::disabled` / `from_config` | `delivery.rs::tests::{a_disabled_mail_state_is_never_reachable, a_config_without_digital_ticket_disables_mail, a_missing_key_file_disables_mail}` |
 
-**34 tests** end-to-end couvrent ce fichier (`src-tauri/tests/spf_e2e_digital.rs`),
+**34 tests** end-to-end couvrent ce fichier (`crates/pos-engine/tests/spf_e2e_digital.rs`),
 en plus des tests unitaires cités ci-dessus dans `delivery.rs`,
 `crates/pos-mail` et `crates/pos-db/src/queries/{deliveries,prints}.rs`.
 

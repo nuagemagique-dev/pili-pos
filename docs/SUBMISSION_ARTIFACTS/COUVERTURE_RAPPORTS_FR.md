@@ -163,7 +163,7 @@ valider le calcul des totaux lui-même :
 - **Calcul pur** - `crates/pos-fiscal/tests/report_totals_fixtures.rs`
   construit les 8 `ReportEvent` des fixtures T1-T8 et compare la
   sortie de `report_totals` aux rapports M180/M182/M184 publiés.
-- **Bout en bout** - `src-tauri/tests/spf_e2e_report_fixtures.rs`
+- **Bout en bout** - `crates/pos-engine/tests/spf_e2e_report_fixtures.rs`
   rejoue les 8 tickets via les vraies commandes (`do_add_order_line`,
   `do_sign_table_order`, `do_sign_pre_bill`, `do_checkout`,
   `do_refund_checkout`, `do_generate_x_report`,

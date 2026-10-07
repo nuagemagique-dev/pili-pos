@@ -95,7 +95,7 @@ remboursement, même annulée entre-temps, écrit son paiement et archive
 l'événement une seule fois. Une nouvelle demande de remboursement de la
 même vente retrouve ce résultat au lieu de rembourser deux fois.
 
-Ces règles sont couvertes par `src-tauri/tests/refund_guards.rs`.
+Ces règles sont couvertes par `crates/pos-engine/tests/refund_guards.rs`.
 
 ### M112A vs M112B (remboursement partiel combiné à une nouvelle vente)
 
@@ -145,7 +145,7 @@ sera livrée avec la facture dans une mise à jour certifiée ultérieure.
 Voir `STRATEGIE_COMPTEURS_FR.md` §5. Le flux de remboursement passe
 par le même chemin que l'encaissement (numéro lu sous le verrou,
 compteur avancé dans la transaction qui archive) ; test de régression :
-`src-tauri/tests/spf_e2e_no_gap.rs::refund_fdm_failure_does_not_advance_counter`.
+`crates/pos-engine/tests/spf_e2e_no_gap.rs::refund_fdm_failure_does_not_advance_counter`.
 
 ---
 

@@ -18,7 +18,7 @@ ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 - Pour chaque UC rejoue : la requete **construite par pili-pos** et sa comparaison avec la fixture (bloc « Preuve pili-pos »).
 - Les tickets correspondants sont transcrits dans *TICKETS_EXEMPLES_FR.md*.
 
-**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20260821_UC_BasicSet_POS_FDM_1.8/` et `docs/20260821_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que pili-pos lit chaque fixture ; les rejeux applicatifs `src-tauri/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que pili-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
+**Note importante :** les fixtures SPF Finances etant la source de verite, les tableaux et JSON de reference ci-dessous correspondent exactement a ceux publies par le SPF dans `docs/20260821_UC_BasicSet_POS_FDM_1.8/` et `docs/20260821_UC_Reports_1.3/`. Les tests `crates/pos-fiscal/tests/uc_fixtures.rs` et `reports_fixtures.rs` verifient que pili-pos lit chaque fixture ; les rejeux applicatifs `crates/pos-engine/tests/spf_e2e_fixtures.rs` et `spf_e2e_report_fixtures.rs` verifient que pili-pos **produit** les memes requetes. Tous tournent a chaque commit (CI).
 
 **Revision des jeux de tests :** Basic Set v1.8 (changelog : M121, reponse sans espace final dans `terminalId`), Advanced Set v1.6 (UC226, UC243, UC4119bis_2, UC4121 corriges, voir *COUVERTURE_ADVANCED_SET_FR.md*) et Reports v1.3 republie ; tous les horodatages des fixtures portent les millisecondes. Les JSON de reference ci-dessous sont ceux de ces dossiers.
 
@@ -195,10 +195,10 @@ Payment by CASH (52 EUR)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m110_sale` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m110_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M110_event1_N_request.json`) :
 
 ```json
 {
@@ -461,10 +461,10 @@ Products on original ticket N 1000/1200:
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m111_full_refund` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m111_full_refund`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M111_event2_N_request.json`) :
 
 ```json
 {
@@ -946,9 +946,9 @@ M112B ci-dessous. Les fixtures M112A sont validées en *parsing* uniquement.
 événement séparé, chaîné à la vente d'origine via `fdmReference`) que le
 POS implémente et déclare. Couverture e2e applicative :
 `m112b_partial_refund_as_a_separate_ticket` dans
-`src-tauri/tests/spf_e2e_fixtures.rs` (rejeu de la fixture, build
+`crates/pos-engine/tests/spf_e2e_fixtures.rs` (rejeu de la fixture, build
 `cert`) et `m112b_partial_refund_is_separate_event_chained_to_original`
-dans `src-tauri/tests/spf_e2e_basic.rs` ; preuves générées dans
+dans `crates/pos-engine/tests/spf_e2e_basic.rs` ; preuves générées dans
 `evidence/uc/M112B_*.json` (voir « Preuve pili-pos » en fin de
 section).
 
@@ -1109,7 +1109,7 @@ section).
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 ### M112B_2_PartialRefund
 
@@ -1242,10 +1242,10 @@ section).
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m112b_partial_refund_as_a_separate_ticket`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M112B_event2_N_request.json`) :
 
 ```json
 {
@@ -1461,10 +1461,10 @@ on table 1.
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m121_table_order` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m121_table_order`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M121_event1_P_request.json`) :
 
 ```json
 {
@@ -1875,10 +1875,10 @@ on table 1 (BAR)  is printed
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m123_pre_bill` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m123_pre_bill`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M123_event2_P_request.json`) :
 
 ```json
 {
@@ -2051,10 +2051,10 @@ Aucun écart.
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m130_money_in` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m130_money_in`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M130_event1_F_request.json`) :
 
 ```json
 {
@@ -2177,10 +2177,10 @@ Drawer 1 is opened without any action
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m131_drawer_open` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m131_drawer_open`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M131_event1_F_request.json`) :
 
 ```json
 {
@@ -2426,10 +2426,10 @@ Declaration of 1000 EUR cash in drawer 1
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture)  et `src-tauri/tests/spf_e2e_fixtures.rs::m133_drawer_declaration` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture)  et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m133_drawer_declaration` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m133_drawer_declaration`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M133_event1_F_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m133_drawer_declaration`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M133_event1_F_request.json`) :
 
 ```json
 {
@@ -2548,10 +2548,10 @@ Registration of "Work In" of employee (employeeId 80113078968)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m140_work_in` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m140_work_in`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M140_event1_S_request.json`) :
 
 ```json
 {
@@ -2660,10 +2660,10 @@ Registration of "Work Out" of employee (employeeId 84022899837)
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m141_work_out` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m141_work_out`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M141_event1_S_request.json`) :
 
 ```json
 {
@@ -2699,7 +2699,7 @@ de certification (`cert = ["custom-protocol"]`,
 `#[cfg(feature = "peppol")]`) n'est pas compilé dans le binaire
 soumis. La fixture M150 continue d'être **parsée** par
 `crates/pos-fiscal/tests/uc_fixtures.rs` (validation du format JSON
-uniquement) et **exercée en e2e** par `src-tauri/tests/spf_e2e_basic.rs`
+uniquement) et **exercée en e2e** par `crates/pos-engine/tests/spf_e2e_basic.rs`
 avec les features par défaut (`hubrise` + `peppol`, utilisées pour le
 développement et les tests, pas pour la build cert). Les preuves de
 `evidence/uc/` sont produites par la build cert, qui ne peut pas
@@ -2797,10 +2797,10 @@ Print of a copy of ticket (sale) N 16/52
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m160_copy_of_a_sale`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M160_event2_C_request.json`) :
 
 ```json
 {
@@ -2925,10 +2925,10 @@ Print of a copy of order P 22/53
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m161_copy_of_an_order`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M161_event2_C_request.json`) :
 
 ```json
 {
@@ -3047,10 +3047,10 @@ Registration of "Work In" of an employee (employeeId 75061189702) in training mo
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m170_work_in_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m170_work_in_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M170_event1_T_request.json`) :
 
 ```json
 {
@@ -3211,10 +3211,10 @@ Aucun écart.
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M171B_event1_T_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m171b_sale_in_training_with_skipped_fields`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M171B_event1_T_request.json`) :
 
 ```json
 {
@@ -3449,10 +3449,10 @@ in training mode. Paymentmethod: CASH
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m171_sale_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m171_sale_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M171_event1_T_request.json`) :
 
 ```json
 {
@@ -3631,10 +3631,10 @@ In training mode: print of a copy of ticket (sale) N 35/73
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m172_copy_in_training` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `src-tauri/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
+**Preuve pili-pos (build `cert`)** - rejeu de la fixture par `crates/pos-engine/tests/spf_e2e_fixtures.rs::m172_copy_in_training`. Requête **construite et archivée par pili-pos** pour l'event de l'UC (`evidence/uc/M172_event2_T_request.json`) :
 
 ```json
 {
@@ -3962,10 +3962,10 @@ Events préalables du scénario, archivés de même : `evidence/uc/M172_event1_N
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
+**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m180_turnover_x_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M180_event9_R_request.json`) :
 
@@ -4122,9 +4122,9 @@ deux `posFiscalTicketNo` séquentiels) - voir la section M184 ci-dessous.
 La fixture M181 est validée en *parsing* et sa forme `signReportTurnoverZ`
 est exactement celle émise dans la première moitié du document M184.
 Couverture e2e applicative du Z : `m184_combined_z_of_the_scenario_day`
-dans `src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
+dans `crates/pos-engine/tests/spf_e2e_report_fixtures.rs` (journée du scénario
 comparée à la fixture) et `m184_*` dans
-`src-tauri/tests/spf_e2e_reports.rs`.
+`crates/pos-engine/tests/spf_e2e_reports.rs`.
 
 **Mutation invoquee :** `signReportTurnoverZ`
 
@@ -4335,10 +4335,10 @@ comparée à la fixture) et `m184_*` dans
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+**Preuve pili-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportTurnoverZ`), rejoué par `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
 <!-- pili-pos-evidence:end -->
 
 ## M182_signReportUserX
@@ -4347,10 +4347,10 @@ comparée à la fixture) et `m184_*` dans
 `generate_user_x_report` (`crates/pos-engine/src/commands/report.rs`,
 `do_generate_user_x_report`). Couverture e2e applicative :
 `m182_user_x_of_the_scenario_day` dans
-`src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
+`crates/pos-engine/tests/spf_e2e_report_fixtures.rs` (journée du scénario
 comparée à la fixture) et
 `m182_generate_user_x_report_archives_r_event_with_user_block` dans
-`src-tauri/tests/spf_e2e_reports.rs` ; preuves dans
+`crates/pos-engine/tests/spf_e2e_reports.rs` ; preuves dans
 `evidence/uc/M182_*.json` (journée T1–T8 puis l'événement R).
 
 **Mutation invoquee :** `signReportUserX`
@@ -4528,10 +4528,10 @@ comparée à la fixture) et
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
+**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m182_user_x_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M182_event9_R_request.json`) :
 
@@ -4833,10 +4833,10 @@ utilisateurs seul - il est toujours émis dans le document combiné M184
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
+**Preuve pili-pos (build `cert`)** - cet UC est signé par le Z combiné de M184 (mutation `signReportUserZ`), rejoué par `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` : voir `evidence/uc/M184_event9_R_request.json`, `evidence/uc/M184_event10_R_request.json` et la section M184.
 <!-- pili-pos-evidence:end -->
 
 ## M184_signReportTurnoverZUserZ
@@ -4850,9 +4850,9 @@ implémente et déclare : `do_generate_z_report`
 une même transaction SQLite. Couverture e2e applicative :
 `m184_generate_z_report_signs_both_reports_in_one_operation` et
 `z_report_starts_new_booking_period` dans
-`src-tauri/tests/spf_e2e_reports.rs`, et
+`crates/pos-engine/tests/spf_e2e_reports.rs`, et
 `m184_combined_z_of_the_scenario_day` dans
-`src-tauri/tests/spf_e2e_report_fixtures.rs` (journée du scénario
+`crates/pos-engine/tests/spf_e2e_report_fixtures.rs` (journée du scénario
 comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
 (journée T1–T8 puis les 2 événements R).
 
@@ -5079,10 +5079,10 @@ comparée à la fixture) ; preuves dans `evidence/uc/M184_*.json`
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
+**Validation automatisee :** `crates/pos-fiscal/tests/reports_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day` (rejeu applicatif, build `cert` ; voir « Preuve pili-pos » ci-dessous).
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `src-tauri/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
+**Preuve pili-pos (build `cert`)** - la journée du scénario (InputReport T1–T8) est jouée par les vraies commandes, puis le rapport est construit par pili-pos à partir de son archive fiscale et comparé à la fixture par `crates/pos-engine/tests/spf_e2e_report_fixtures.rs::m184_combined_z_of_the_scenario_day`.
 
 Requête du rapport (`evidence/uc/M184_event9_R_request.json`) :
 
@@ -5349,7 +5349,7 @@ porte sur le solde paye en especes, sur sa propre ligne `ROUNDING`).
 Sont donc presentees les cinq situations des tests de base 1 a 3 (les
 tests 4 et 5 ne s'appliquent pas). Produits du manuel : Dame Blanche
 11,52 EUR et Tapas Variation 3,34 EUR, TVA B (12 %). Les situations
-sont rejouees par `src-tauri/tests/spf_e2e_rounding.rs`, par les
+sont rejouees par `crates/pos-engine/tests/spf_e2e_rounding.rs`, par les
 commandes d'encaissement, contre le FDM simule ; le test compare les
 lignes `financials` de la requete et le ticket imprime au tableau du
 manuel.
@@ -5361,7 +5361,7 @@ manuel.
 arrondi -0,02 EUR.
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round1_dame_blanche_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND1_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND1_event1_N_response.json`.
+**Preuve pili-pos (build `cert`)** - situation rejouée par `crates/pos-engine/tests/spf_e2e_rounding.rs::round1_dame_blanche_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND1_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND1_event1_N_response.json`.
 
 ```json
 {
@@ -5476,7 +5476,7 @@ TVA: BE0000000097
 arrondi +0,01 EUR.
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round2_tapas_variation_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND2_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND2_event1_N_response.json`.
+**Preuve pili-pos (build `cert`)** - situation rejouée par `crates/pos-engine/tests/spf_e2e_rounding.rs::round2_tapas_variation_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND2_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND2_event1_N_response.json`.
 
 ```json
 {
@@ -5591,7 +5591,7 @@ TVA: BE0000000097
 a payer 14,85 EUR, arrondi -0,01 EUR.
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round3_both_desserts_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND3_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND3_event1_N_response.json`.
+**Preuve pili-pos (build `cert`)** - situation rejouée par `crates/pos-engine/tests/spf_e2e_rounding.rs::round3_both_desserts_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND3_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND3_event1_N_response.json`.
 
 ```json
 {
@@ -5726,7 +5726,7 @@ en cheques-repas (jamais arrondis), le solde 3,34 EUR en especes.
 Attendu : a payer 3,35 EUR en especes, arrondi +0,01 EUR.
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round4_meal_vouchers_then_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND4_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND4_event1_N_response.json`.
+**Preuve pili-pos (build `cert`)** - situation rejouée par `crates/pos-engine/tests/spf_e2e_rounding.rs::round4_meal_vouchers_then_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND4_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND4_event1_N_response.json`.
 
 ```json
 {
@@ -5871,7 +5871,7 @@ especes. Attendu : 7,75 EUR en especes, arrondi -0,01 EUR ; seul le
 paiement en especes est arrondi.
 
 <!-- pili-pos-evidence:start (généré par scripts/embed_uc_evidence.py) -->
-**Preuve pili-pos (build `cert`)** - situation rejouée par `src-tauri/tests/spf_e2e_rounding.rs::round5_meal_vouchers_card_and_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND5_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND5_event1_N_response.json`.
+**Preuve pili-pos (build `cert`)** - situation rejouée par `crates/pos-engine/tests/spf_e2e_rounding.rs::round5_meal_vouchers_card_and_cash`, par la commande que l'écran d'encaissement appelle. Requête **construite et archivée par pili-pos** (`evidence/uc/ROUND5_event1_N_request.json`) ; réponse FDM archivée : `evidence/uc/ROUND5_event1_N_response.json`.
 
 ```json
 {

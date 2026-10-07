@@ -2,9 +2,9 @@
 
 Ce document liste chaque identifiant de test décrit par le SPF Finances (Basic Set, Reports, Advanced Set, checklist du manuel de certification, FAQ producteurs) et indique s'il est couvert par un test automatisé (Rust ou interface utilisateur), déclaré hors périmètre, non applicable, ou couvert par les tests d'un autre identifiant.
 
-Généré automatiquement par `scripts/uc_matrix.py` à partir des dossiers sous `docs/`, des sources de test (`crates/*/tests`, `crates/*/src`, `src-tauri/tests`, `src-tauri/src`, `ui/e2e/`) et des exclusions déclarées dans `scripts/uc_scope.toml`. Une réexécution sans changement de code ou de documentation produit un fichier identique.
+Généré automatiquement par `scripts/uc_matrix.py` à partir des dossiers sous `docs/`, des sources de test (`crates/*/tests`, `crates/*/src`, `src-tauri/src`, `ui/e2e/`) et des exclusions déclarées dans `scripts/uc_scope.toml`. Une réexécution sans changement de code ou de documentation produit un fichier identique.
 
-Date de génération (date du dernier commit git) : 2026-10-03
+Date de génération (date du dernier commit git) : 2026-10-07
 
 Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périmètre (fonctionnalité absente de pili-pos v1.0.0, exclusion documentée), Non applicable (ce cas précis ne peut pas se produire avec le comportement actuel), Couvert par X (les tests de l'identifiant X couvrent aussi ce cas), MANQUANT (aucun test automatisé trouvé et aucune exclusion déclarée).
 

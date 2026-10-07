@@ -10,7 +10,7 @@
 # The test location is on HubRise's free plan (5 orders a month); each
 # order test places one. Calls go one at a time, 1 s apart, at most
 # PILI_LIVE_HUBRISE_MAX_REQUESTS (40) per run, through the pacing proxy
-# of src-tauri/tests/common/live_hubrise.rs. With PILI_LIVE_RECORD_DIR
+# of crates/pos-engine-testkit/src/live_hubrise.rs. With PILI_LIVE_RECORD_DIR
 # set, each call is recorded there with customer details and tokens
 # removed.
 set -euo pipefail
@@ -27,7 +27,7 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-cargo test -p pili-pos --features hubrise --test live_hubrise -- --ignored --exact \
+cargo test -p pos-engine --features hubrise --test live_hubrise -- --ignored --exact \
     --test-threads=1 --nocapture "$@" 2>&1 \
     | tee "$ROOT/target/live-hubrise.log" \
     | grep -E "^(live HubRise|outbox pass|[0-9]+ live HubRise calls|test |thread|  left|  right|assertion)" || true

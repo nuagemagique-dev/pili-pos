@@ -3,7 +3,7 @@
 Générées par `scripts/capture_uc_evidence.sh`, qui rejoue les fixtures
 officielles avec la build de certification
 (`--no-default-features --features cert`) et `UC_EVIDENCE_DIR`
-positionné : `src-tauri/tests/spf_e2e_fixtures.rs` (Basic Set v1.7,
+positionné : `crates/pos-engine/tests/spf_e2e_fixtures.rs` (Basic Set v1.7,
 commandes construites à partir des produits de la fixture) et
 `spf_e2e_report_fixtures.rs` (journée T1–T8 des Reports v1.3, puis
 M180, M182 et M184). Le script les intègre ensuite à

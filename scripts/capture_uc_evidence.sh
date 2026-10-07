@@ -38,7 +38,7 @@ mkdir -p "$TICKETS"
 rm -f "$OUT"/*.json   # stale evidence from renamed/renumbered UCs
 rm -f "$TICKETS"/ROUND*_ticket.txt
 
-UC_EVIDENCE_DIR="$OUT" TICKET_EVIDENCE_DIR="$TICKETS" cargo test -p pili-pos \
+UC_EVIDENCE_DIR="$OUT" TICKET_EVIDENCE_DIR="$TICKETS" cargo test -p pos-engine \
     --no-default-features --features cert \
     --test spf_e2e_fixtures --test spf_e2e_report_fixtures \
     --test spf_e2e_rounding

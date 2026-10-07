@@ -29,7 +29,20 @@ uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 
 [dev-dependencies]
+# The integration tests (tests/) share this harness. The cycle with the
+# testkit (which depends on pos-engine) is intended: integration tests
+# only, no pos-engine unit test uses the testkit.
+pos-engine-testkit = { path = "../pos-engine-testkit" }
 tempfile = "3"
+wiremock = "0.6"
+# The admission image's mock FDM, served in-process by tests/admission_mock.rs.
+pos-fdm-mock = { path = "../pos-fdm-mock" }
+# A printer with switchable paper, cover and error states.
+pos-printer-mock = { path = "../pos-printer-mock" }
+# The HubRise API, served in-process by the hubrise_* suites.
+pos-hubrise-mock = { path = "../pos-hubrise-mock" }
+axum = "0.8"
+base64 = "0.23"
 
 [features]
 # Same feature set as the pili-pos shell, which forwards its own to these.
