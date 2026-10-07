@@ -3,8 +3,10 @@
 Draft written at the P0 exit (2026-10-06) from the P0 reports on the branches
 `android/p0-P0.1`, `android/p0-S1`, `android/p0-S2`, `android/p0-S3` and
 `android/p0-S5` (all reviewed APPROVE), the approved plan, and the repo at
-main `96728e1`. Spike S4 (D3 Pro profile on the emulator) has not run yet, so
-everything that rests on it is marked PENDING-S4.
+main `96728e1`. Spike S4 (D3 Pro profile on the emulator) ran on the
+`sunmi_d3_pro_api33` AVD on 2026-10-07 (report `docs/android/spikes/S4.md`);
+what rested on it was marked PENDING-S4 in the draft and is now settled
+(DECIDED, S4 emulator) or recorded as hardware residue.
 
 **Status labels**
 
@@ -22,16 +24,16 @@ everything that rests on it is marked PENDING-S4.
 |---|------|--------|
 | 1 | Application id | PROPOSED |
 | 2 | Version-string scheme (posSwVersion, versionName, versionCode, tags) | PROPOSED |
-| 3 | deviceId source | PROPOSED, mechanism PENDING-S4 |
+| 3 | deviceId source | PROPOSED; mechanism DECIDED (S4 emulator); real serial format HARDWARE RESIDUE |
 | 4 | TLS approach for `HttpTls` | DECIDED (S3 evidence) |
 | 5 | Pinned toolchain and library versions | DECIDED (S1, S2, S3, S5 evidence) |
-| 6 | Updater trigger policy | DECIDED (policy); install mechanics PENDING-S4 |
+| 6 | Updater trigger policy | DECIDED (policy); install mechanics DECIDED (S4 emulator); real image HARDWARE RESIDUE |
 | 7 | No remote support in v1 | DECIDED |
 | 8 | Admission FDM = module2 online simulator | DECIDED; test-machine questions PROPOSED |
 | 9 | Signing-key custody | PROPOSED (technical constraints DECIDED by S5) |
 | 10 | When to file Linux v1.1 | PROPOSED |
 | 11 | Other decisions carried from P0 evidence | DECIDED (technical) |
-| 12 | Items waiting for S4 | PENDING-S4 |
+| 12 | S4 results (was: items waiting for S4) | DECIDED (S4 emulator), HARDWARE RESIDUE or OPEN per item |
 
 ## 1. Application id: PROPOSED
 
@@ -102,7 +104,7 @@ creates the Gradle project.
 **Needs from the user:** approve the product-line name `pili-pos-android` and
 the versionCode formula.
 
-## 3. deviceId source: PROPOSED, mechanism PENDING-S4
+## 3. deviceId source: PROPOSED, mechanism DECIDED (S4 emulator)
 
 **Facts.**
 - Linux: `device_id` is the real MAC address of the default-route interface,
@@ -117,8 +119,10 @@ the versionCode formula.
 
 **Proposal (plan, point 11 and P4.4).**
 1. The deviceId is the Sunmi hardware serial, read during provisioning by the
-   device-owner app with `Build.getSerial()`. If that is unavailable, the
-   fallback is `ro.serialno`.
+   device-owner app with `Build.getSerial()` (READ_PHONE_STATE granted by the
+   owner). If that is unavailable, provisioning fails: S4 measured that
+   `ro.serialno` is empty inside the app process, so there is no in-app
+   fallback (was: fallback `ro.serialno`, see "Measured by S4").
 2. It is read once at provisioning and stored in the engine configuration, as
    Linux does with `pos.json`. At every `Engine::open` the host reads it again
    and compares. A mismatch (for example a restored backup on other hardware)
@@ -130,19 +134,35 @@ the versionCode formula.
    hardware identifier in the Q505 sense).
 4. Format: the serial as the OS returns it, trimmed, with no prefix.
 
-**Alternative for S4 to evaluate.** A device owner can call
-`DevicePolicyManager.getWifiMacAddress(admin)`. That would give the factory
-Wi-Fi MAC, which matches Q505 a) and the Linux practice. This is from
-knowledge, not verified in P0. S4 should record what it returns on the AVD.
+**Alternative evaluated by S4 and not chosen.** A device owner can call
+`DevicePolicyManager.getWifiMacAddress(admin)`. That gives the factory Wi-Fi
+MAC, which matches Q505 a) and the Linux practice.
 
-**PENDING-S4:**
-- whether `Build.getSerial()` works as device owner on API 33;
-- what `ro.serialno` returns to an app process (it may be unreadable for a
-  third-party app);
-- the emulator's fake serial, recorded for the dossier.
+**Measured by S4** (emulator, `docs/android/spikes/S4.md` section 3; this was
+the PENDING-S4 list of the draft):
+- `Build.getSerial()` works as device owner on API 33 (tested with
+  READ_PHONE_STATE granted, not without the grant). It returned
+  `EMULATOR37X2X12X0` (17 characters) with Wi-Fi on, with Wi-Fi off and after a
+  reboot, so it is stable. Before the owner is set it throws
+  `SecurityException`.
+- `ro.serialno` and `ro.boot.serialno` are empty inside the app process
+  (reflection and `exec getprop` both return an empty string, no exception),
+  while `adb shell getprop ro.serialno` shows `EMULATOR37X2X12X0`.
+  `Build.SERIAL` is `unknown`. There is no in-app `ro.serialno` fallback.
+- The emulator's fake serial, recorded for the dossier: `EMULATOR37X2X12X0`.
+- `getWifiMacAddress(admin)` returned `02:15:b2:00:00:00` (a fixed fake) with
+  Wi-Fi on and after a reboot, and `null` with Wi-Fi off.
 
-The real Sunmi serial format stays hardware residue (checked on a real D3 Pro
-if one becomes available).
+**Outcome of the rule (Q13).** `Build.getSerial()` works for the device owner
+and is stable across reboot, so the hardware serial stays the deviceId (Q4
+stands). `getWifiMacAddress` is evaluated and not chosen: it is `null` while
+Wi-Fi is off (a till on Ethernet, or with its radio off, depends on a state the
+installer does not control), the AVD value is a fixed fake, and Q505 b) accepts
+a hardware serial.
+
+The real Sunmi serial format, and whether the D3 Pro firmware returns it to the
+device owner, stay hardware residue (checked on a real D3 Pro if one becomes
+available).
 
 ## 4. TLS approach for `HttpTls`: DECIDED (S3)
 
@@ -253,7 +273,7 @@ and reproduced in a container). The Rust crates shared with Linux match the root
 **Bumps.** Any later change of a pin is a deliberate commit that also updates
 this table. For the APK it means a new declared version.
 
-## 6. Updater trigger policy: DECIDED (policy), mechanics PENDING-S4
+## 6. Updater trigger policy: DECIDED (policy), mechanics DECIDED (S4 emulator)
 
 **Policy (approved plan, P6; same principle as `deploy/UPDATE-STRATEGY.md`:
 "a self-updating terminal ... is ruled out").**
@@ -281,10 +301,38 @@ this table. For the APK it means a new declared version.
 the same signed `declared.json` + APK from a USB stick through SAF. Linux
 deploys from a USB stick on site too, and it covers a till without internet.
 
-**PENDING-S4:**
-- a silent PackageInstaller self-update as device owner while in Lock Task;
-- the process restart afterwards;
-- the `DISALLOW_INSTALL_UNKNOWN_SOURCES` interaction.
+**Measured by S4** (emulator, `docs/android/spikes/S4.md` section 7; this was
+the PENDING-S4 list of the draft):
+- **Silent install.** A PackageInstaller session as device owner, while in Lock
+  Task, returns `STATUS_SUCCESS` with no installer UI: only our activity was on
+  top in 57 of 57 samples over 30.2 s. The app is back on top and LOCKED 0.60 s
+  after the commit. The device owner, the Lock Task packages, the persistent
+  HOME and the database all survive.
+- **Restart path.** The install force-stops the app. The system starts HOME
+  (our persistent preferred activity) and `onResume` re-locks from the persisted
+  kiosk flag: 10 of 10 trials back at +0.67 to +0.75 s with only our task on the
+  device. With a stock launcher task below ours the app never came back by
+  itself (16.6 s observed); the `MY_PACKAGE_REPLACED` receiver that starts the
+  main activity brought it back at +1.35 s, so the receiver stays in P6. The
+  install status arrives in the NEW process, which therefore writes the audit
+  "done" row.
+- **Unknown sources.** `DISALLOW_INSTALL_UNKNOWN_SOURCES` and
+  `DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY` do not stop the owner's session,
+  and do not stop `adb install` either (userdebug image).
+- **OS refusals (second line behind the app checks).** Downgrade:
+  `INSTALL_FAILED_VERSION_DOWNGRADE` (`EXTRA_STATUS=4`, legacy -25). Other
+  signing key: `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (`EXTRA_STATUS=5`, legacy
+  -7). A same-versionCode reinstall is **accepted** by the OS, so "strictly
+  greater" is checked by the app only.
+- **Escape window.** The final run saw nothing but our activity. Earlier runs
+  saw the stock launcher once, a black frame of about 0.5 s and, once, the stock
+  home screen for about 2 s; with a stock launcher task below ours the home
+  screen with a Settings icon stays visible until the receiver fires.
+- **`REQUEST_INSTALL_PACKAGES`.** Not needed: an update installed silently
+  without the permission declared. It stays out of the production manifest.
+
+Hardware residue: whether the Sunmi PackageInstaller behaves as AOSP, the
+install time on the real SoC, and `adb install -d` on a user build.
 
 Rollback is not offered by the app: Android refuses a downgrade without an
 uninstall, and an uninstall deletes the fiscal DB. A faulty declared version is
@@ -301,8 +349,11 @@ RustDesk").
   hides the entry.
 - No listening port and no permanent outbound channel other than FDM, HubRise,
   TEM mail and the operator-started update pull.
-- adb is off on a provisioned till (`DISALLOW_DEBUGGING_FEATURES`, P6). The
-  restriction set itself is PENDING-S4.
+- adb is off on a provisioned till (`DISALLOW_DEBUGGING_FEATURES`, the last
+  provisioning step, P6). The measured restriction set and the adb-off behaviour
+  (adb goes offline within 4 s; only the app can switch it back on, with
+  `dpm.setGlobalSetting(ADB_ENABLED, "1")`, which works on API 33) are in
+  `docs/android/spikes/S4.md` section 8 and Q16.
 - Support is on site:
   - the manager-PIN Settings screens;
   - the signed USB provisioning bundle (configuration, FDM token, mTLS
@@ -508,35 +559,53 @@ copy them into their task cards.
 14. **16 KB pages.** Every LOAD segment is aligned to `0x4000`, and
     `zipalign -c -P 16 -v 4` must pass on every release APK.
 
-## 12. Items waiting for S4 (PENDING-S4)
+## 12. S4 results (was: items waiting for S4, PENDING-S4)
 
-S4 has no branch or report yet. Until it runs on `sunmi_d3_pro_api33`, the
-following stay open. None of them blocks P1a, P1b, P2 or P3. All of them block
-P4 (provisioning) and P6.
+S4 ran on `sunmi_d3_pro_api33` on 2026-10-07 (`docs/android/spikes/S4.md`). None
+of these items blocked P1a, P1b, P2 or P3. The emulator results unblock P4 and
+P6; the hardware residue below is checked on a real D3 Pro before filing.
 
-| Item | Depends on | Blocks |
-|------|-----------|--------|
-| deviceId mechanism (`Build.getSerial` as device owner, `ro.serialno`, emulator fake serial, optional `getWifiMacAddress`) | S4 | §3, P4.4 |
-| Device owner through `adb shell dpm set-device-owner`; refusal when an account exists (reset or QR provisioning) | S4 | P4.4 |
-| Lock Task entry and exit, recovery path | S4 | P4.5 |
-| `DISALLOW_*` set (factory reset, safe boot, debugging, uninstall, unknown sources), time lock, Europe/Brussels | S4 | §6, §7, P6 |
-| Silent PackageInstaller self-update as device owner, restart after install | S4 | §6, P6 |
-| SAF export to the emulated SD card (stand-in for USB) | S4 | P6 SPF export, §6 USB source |
-| Printing to `pos-printer-mock` at `10.0.2.2:9100` with DLE EOT status | S4 | P5, P7 |
-| Layout density at 1920x1080 / 160 dpi, CJK font | S4 | P4.1, P5 |
-| 24 h process survival with the foreground service | S4 | P4.2 |
+| Item | S4 result (emulator) | Status | Blocks |
+|------|----------------------|--------|--------|
+| deviceId mechanism | `Build.getSerial()` works as device owner and is stable (`EMULATOR37X2X12X0`); `ro.serialno` is empty in the app; `getWifiMacAddress` is `null` with Wi-Fi off and was not chosen (S4.md section 3, Q13) | DECIDED (S4 emulator); real serial format HARDWARE RESIDUE | §3, P4.4 (mechanism unblocked) |
+| Device owner through `adb shell dpm set-device-owner`; refusals | set owner works; second user refused with `Not allowed to set the device owner because there are already several users on the device.`; the account refusal was NOT RUN (no account on the image); the adb exit code is 0, the text is the signal (S4.md section 1) | DECIDED (S4 emulator, adb path); account refusal HARDWARE RESIDUE | P4.4 (unblocked) |
+| Lock Task entry and exit, recovery path | entry, exit, HOME, recents, back and Settings launch behave; crash and reboot recovery in 1 to 3 s; features reset to GLOBAL_ACTIONS at every boot; a second crash freezes the app unless `no_system_error_dialogs`; a stock launcher task blocks recovery (S4.md section 2) | DECIDED (S4 emulator); Sunmi launcher HARDWARE RESIDUE | P4.5 (unblocked) |
+| `DISALLOW_*` set, time lock, Europe/Brussels | the 12 restrictions, uninstall block, time policy, stay awake, keyguard, status bar and update policy are accepted and enforced; adb off works and comes back through the app (S4.md section 8, Q16) | DECIDED (S4 emulator); safe-boot volume-key route and recovery menu HARDWARE RESIDUE | §6, §7, P6 (unblocked) |
+| Silent PackageInstaller self-update, restart after install | silent session install in Lock Task, back and LOCKED at +0.60 s; OS refuses downgrade and other key but not a same-versionCode reinstall (S4.md section 7, Q18) | DECIDED (S4 emulator); real image HARDWARE RESIDUE | §6, P6 (unblocked) |
+| SAF export to the emulated SD card (stand-in for USB) | works in Lock Task with a persisted tree grant; the volume root is refused, a sub-folder is needed; survives unmount, remount and reboot; the AVD SD card could not attach, a virtual SD disk stood in (S4.md section 4, Q17) | DECIDED (S4 emulator); real USB stick HARDWARE RESIDUE | P6 SPF export, §6 USB source (unblocked) |
+| Printing to `pos-printer-mock` at `10.0.2.2:9100` with DLE EOT status | six states read correctly, typed error when unplugged, no main-thread call; the 500 ms DLE EOT read is unreliable on the emulator path and hides a late answer; Chinese prints as `?` (S4.md section 5) | DECIDED (S4 emulator); DLE EOT timeout and Chinese ticket OPEN (P6 decisions); real Epson HARDWARE RESIDUE | P5, P7 |
+| Layout density at 1920x1080 / 160 dpi, CJK font | density 1.0, usable height 996 px unless immersive, 439 of 439 code points covered, Han variant follows the locale tag (S4.md section 6, Q19) | DECIDED (S4 emulator); real display facts HARDWARE RESIDUE | P4.1, P5 |
+| 24 h process survival with the foreground service | replaced in S4 by a 30 minute soak, all must-PASS items passed; typed `specialUse` start works on API 33; the 24 h run moves to P7 (S4.md section 9, Q14, Q15) | DECIDED (S4 emulator, 30 minute soak); 24 h run and deep sleep HARDWARE RESIDUE | P4.2 (unblocked), P7 |
+| Power cut recovery | `adb emu kill`: LOCKED 3 s after boot, service and beats back, integrity ok, no committed row lost (S4.md section 10) | DECIDED (S4 emulator); real plug pull HARDWARE RESIDUE | P7 |
+| bcrypt cost 12 | 295 ms on the emulator, 232 ms on the host (S4.md section 11) | HARDWARE RESIDUE | P7 |
 
 **Hardware residue** (needs a real D3 Pro, otherwise the dossier states an
-emulated profile):
-- the real Sunmi serial;
-- the SUNMI kiosk extension;
-- the recovery key combination;
-- USB OTG;
-- bcrypt timing;
-- the real Epson TM-m30III;
+emulated profile). The list of the draft, extended with the S4 findings:
+- the real Sunmi serial, and whether `Build.getSerial()` returns it to the
+  device owner on the firmware;
+- Wi-Fi and Ethernet MAC behaviour (informational, the serial is the deviceId);
+- the SUNMI kiosk extension, and any vendor keep-alive or auto-start whitelist;
+- the recovery key combination, and what the recovery menu can wipe or sideload
+  with the restrictions on (`DISALLOW_FACTORY_RESET` only blocks the Settings
+  entry); `DISALLOW_SAFE_BOOT` through the volume-key route;
+- the setup wizard, QR provisioning, and an account blocking `set-device-owner`;
+- the stock Sunmi launcher and system apps: crash recovery, the update gap with
+  a stock launcher task below ours, crash and ANR dialogs;
+- USB OTG: a real stick (FAT32 and exFAT, the 4 GiB FAT32 file limit, auto-mount,
+  removal during a write, throughput, DocumentsUI on the Sunmi image);
+- bcrypt timing on the Qualcomm CPU;
+- the real Epson TM-m30III: DLE EOT answer latency, real paper, cover and error
+  states, a Chinese line;
 - B1c and the whole stack on the real image (including whether
   `/system/etc/security/cacerts` exists, relevant only to the optional
-  `RootsDir` mode).
+  `RootsDir` mode);
+- system OTA behaviour under the system update policy;
+- display facts (`wm density`, bar sizes in Lock Task, fonts, touch comfort) and
+  the power key behaviour in Lock Task;
+- deep sleep of the SoC, thermal behaviour and the 24 h run, a real plug pull
+  and the boot time to LOCKED, `BOOT_COMPLETED` delivery;
+- adb behaviour on a `user` build (`adb install -d`, `adb root`, developer
+  options).
 
 ## Decided while the user was away (review)
 
@@ -559,3 +628,12 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **S4 spike branch (wave 4 integration):** S4-T5 (silent self-update as device owner in Lock Task) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge 9b9c227, no conflicts), not into `android/int`. A first merge into `android/int` was reverted before any gate run (hard reset to 7b92a9a, nothing pushed). `android/int` still carries docs only. The `docs/android/spikes/S4.md` and S4-T7 evidence gate checks stay red until the remaining waves (T6, T7 and the report) land.
 - **S4 spike branch (wave 5 integration):** S4-T6 (device-owner restrictions, time lock, stay awake, boot into the kiosk, adb off) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge d68a708, no conflicts), not into `android/int`. A first merge into `android/int` was reverted before any gate run (hard reset to 67921ad, nothing pushed). `android/int` still carries docs only. The `docs/android/spikes/S4.md` and S4-T7 evidence gate checks stay red until the remaining waves (T7 and the report) land.
 - **S4 spike branch (wave 6 integration):** S4-T7 (foreground service soak, power cut and teardown scripts) only adds files under `spikes/s4/`, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge e1c1101, no conflicts), not into `android/int`. `android/int` still carries docs only. The S4-T7 notes and the `TEARDOWN | PASS` evidence line now exist on `android/s4-spike`. The `docs/android/spikes/S4.md` gate check stays red until the S4 report lands.
+- **Q13 deviceId outcome (S4.md section 3):** the S4 rule gives case (1). `Build.getSerial()` works for the device owner on API 33 and is stable across reboot and with Wi-Fi off (emulator value `EMULATOR37X2X12X0`, 17 characters), so the hardware serial stays the deviceId and Q4 stands. `getWifiMacAddress` is evaluated and not chosen (`null` with Wi-Fi off, fixed fake `02:15:b2:00:00:00` on the AVD). `ro.serialno` is empty in the app process, so there is no in-app fallback: provisioning fails when `getSerial` throws. The real Sunmi serial format stays hardware residue.
+- **Q14 Survival test (S4.md section 9):** the 24 h process survival test is replaced in S4 by a 30 minute soak, on the user's request during the run. All must-PASS items passed (31 samples, one pid, LOCKED 31 of 31, 179 beats, largest gap 10.0 s, PSS -2.1 percent, integrity ok). The 24 h run moves to the P7 runbook on the real D3 Pro: `SOAK_MINUTES=1440 caffeinate -i spikes/s4/run_t7.sh` (adb serial in place of the emulator, a real plug pull).
+- **Q15 Foreground service start on API 33 (S4.md section 9.1):** P4.2 uses the typed call `ServiceCompat.startForeground(..., FOREGROUND_SERVICE_TYPE_SPECIAL_USE)` with `foregroundServiceType="specialUse"`, the `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` property and the permissions in the manifest, and the plain `startForeground(id, notification)` as the try/catch fallback (both worked, neither threw). `POST_NOTIFICATIONS` is granted by the device owner. The service starts from `onResume` after the Lock Task relock; the `BOOT_COMPLETED` receiver is optional because it was not observed after the power cut.
+- **Q16 P6 restriction set (S4.md section 8):** P6 sets the 12 measured restrictions (`no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`), plus `no_system_error_dialogs`, `setUninstallBlocked`, auto time on, auto time zone off, `Europe/Brussels`, `STAY_ON_WHILE_PLUGGED_IN=7`, keyguard and status bar disabled and the postpone update policy. `DISALLOW_DEBUGGING_FEATURES` is the last provisioning step. `setLockTaskFeatures(NONE)` is called at every start because it reverts to GLOBAL_ACTIONS at every boot. Stays off: `DISALLOW_MOUNT_PHYSICAL_MEDIA` (the USB export needs the volume mounted). `DISALLOW_CONFIG_WIFI` stays open (off): inside Lock Task with features NONE no Settings screen is reachable, and the manager fixes a Wi-Fi password through a PIN-gated screen in the app without reprovisioning. No timed adb in v1 unless the dossier accepts it.
+- **Q17 SAF export flow (S4.md section 4):** the manager picks a folder once per stick from a PIN-gated screen with no open order. Pre-check `StorageManager.storageVolumes` for a mounted removable non-primary volume and show "Insert the USB stick" otherwise. Open the picker with `StorageVolume.createOpenDocumentTreeIntent()` from the locked activity, never with `FLAG_ACTIVITY_NEW_TASK`; DocumentsUI stays off the Lock Task allowlist. The volume root is refused, so the screen tells the manager to create a sub-folder (suggested `PILI-EXPORT`). Persist the tree grant; export without a picker, write the SHA-256 manifest last, delete nothing on error, and report a missing stick from the pre-check.
+- **Q18 Update restart path and prechecks (S4.md section 7):** the app keeps three ways back into Lock Task (persistent preferred HOME, a `MY_PACKAGE_REPLACED` receiver that starts the main activity, relock in `onResume` from the persisted kiosk flag). The updater checks, before any session: Z done, no open order, no sign in flight, minisign, SHA-256 and SHA-1, package name, versionCode strictly greater (the OS accepts a same-versionCode reinstall), same signer; then a DB backup and an fsynced marker, then `commit`. The audit "done" row is written in the new process. `STATUS_PENDING_USER_ACTION` is an error. `REQUEST_INSTALL_PACKAGES` is not declared, and production uses HTTPS only.
+- **Q19 CJK font and dp scale (S4.md sections 5 and 6):** bundle Noto Sans SC (Regular and Bold, subset) as app resources with the system font as fallback, and tag every Chinese run `zh-Hans` and French `fr` per `Text`. 1 dp equals 1 CSS px of the Vue design (the till reports density 1.0 at 160 dpi), with a `LocalDensity` wrapper `Density(widthPx / 1920f, 1f)` and `fontScale` 1.0, and immersive mode on every screen (the usable height is 996 px otherwise). Whether Chinese appears on the printed ticket (it prints as `?` through CP858) stays a P6 product decision.
+- **Q20 AVD state (S4.md, State left and cleanup):** S4 left the `sunmi_d3_pro_api33` AVD without a device owner and without the spike app (`TEARDOWN | PASS`, only user 0, no factory reset). It keeps the virtual SD disk from S4-T4. P4 provisions from that clean state, and the spike code stays on the local tag `android/s4-spike`.
+- **S4 spike branch (wave 7 integration):** S4-T8 (the S4 report and the settled PENDING-S4 decisions) carries the whole S4 spike history, so by the same rule it was merged with `--no-ff` into `android/s4-spike` (merge 80a25eb, no conflicts), not into `android/int`. Only its two documentation files reach `android/int`: `docs/android/spikes/S4.md` as is, and `docs/android/DECISIONS.md` by a three-way merge against 0b68587 that keeps the wave 1 to 6 records above. No `spikes/` path is on `android/int`; the spike code and the S4-T7 evidence stay on `android/s4-spike`.
