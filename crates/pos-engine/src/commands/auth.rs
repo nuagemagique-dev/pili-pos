@@ -14,7 +14,22 @@ use crate::state::AppState;
 /// Other roles without a PIN log in, and the frontend warns them to set
 /// one. The system identity never logs in.
 pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<User, String> {
-    if !pos_core::user::validate_insz(&insz) {
+    let user = authenticate(state, &insz, pin)?;
+    access::open_session(state, &user)?;
+    Ok(user)
+}
+
+/// Every check of a login, without opening the session: the INSZ, the
+/// system identity, the user, the manager without a PIN and the PIN
+/// itself (with its throttle). [`do_login`] and
+/// [`crate::commands::social::do_end_shift`] share it, so a PIN is
+/// checked the same way on both.
+pub(crate) fn authenticate(
+    state: &AppState,
+    insz: &str,
+    pin: Option<String>,
+) -> Result<User, String> {
+    if !pos_core::user::validate_insz(insz) {
         return Err(errors::INSZ_INVALID.to_string());
     }
     if insz == SYSTEM_INSZ {
@@ -22,7 +37,7 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     }
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    let user = pos_db::queries::users::get_user(&db, &insz)
+    let user = pos_db::queries::users::get_user(&db, insz)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| errors::USER_UNKNOWN.to_string())?;
 
@@ -39,7 +54,7 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     // PIN verification: only when the user has a stored hash.
     let stored_hash = if user.has_pin {
         Some(
-            pos_db::queries::users::get_pin_hash(&db, &insz)
+            pos_db::queries::users::get_pin_hash(&db, insz)
                 .map_err(|e| e.to_string())?
                 .ok_or_else(|| errors::internal("PIN hash missing"))?,
         )
@@ -49,10 +64,9 @@ pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<U
     drop(db);
     if let Some(hash) = stored_hash {
         let provided = pin.ok_or_else(|| errors::PIN_REQUIRED.to_string())?;
-        access::verify_pin(state, &insz, &hash, &provided)?;
+        access::verify_pin(state, insz, &hash, &provided)?;
     }
 
-    access::open_session(state, &user)?;
     Ok(user)
 }
 
