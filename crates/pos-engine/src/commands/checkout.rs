@@ -336,6 +336,7 @@ async fn sell_locked(
 
     let mut sale_input = build_sale_input_split(
         config,
+        &state.identity,
         &order,
         &entries,
         ticket_number,

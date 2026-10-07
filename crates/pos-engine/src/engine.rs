@@ -16,6 +16,9 @@ use rusqlite::Connection;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+use pos_fiscal::http_tls::HttpTls;
+use pos_fiscal::identity::SoftwareIdentity;
+
 use crate::events::EventSink;
 use crate::state::{AppState, recover_orphaned_checkouts};
 
@@ -133,6 +136,14 @@ pub struct EngineConfig {
     /// Where the engine sends its events (the shell forwards them).
     pub events: Arc<dyn EventSink>,
     pub timers: EngineTimers,
+    /// The `posSwVersion` of every event and ticket (for example
+    /// `pili-pos/1.0.0`), built by the shell that knows its product and
+    /// version. Required: there is no default.
+    pub identity: SoftwareIdentity,
+    /// Whom the engine's HTTPS clients trust. The shell chooses; the
+    /// engine never infers it from the operating system. An empty
+    /// `RootsOnly` is refused by [`Engine::open`].
+    pub http_tls: HttpTls,
 }
 
 impl std::fmt::Debug for EngineConfig {
@@ -141,7 +152,22 @@ impl std::fmt::Debug for EngineConfig {
             .field("paths", &self.paths)
             .field("config", &self.config)
             .field("timers", &self.timers)
+            .field("identity", &self.identity)
+            .field("http_tls", &HttpTlsKind(&self.http_tls))
             .finish_non_exhaustive()
+    }
+}
+
+/// How an [`HttpTls`] shows in `Debug` output: the mode and the number
+/// of roots, never the certificates.
+struct HttpTlsKind<'a>(&'a HttpTls);
+
+impl std::fmt::Debug for HttpTlsKind<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            HttpTls::Platform => f.write_str("Platform"),
+            HttpTls::RootsOnly(ders) => write!(f, "RootsOnly({} roots)", ders.len()),
+        }
     }
 }
 
@@ -174,7 +200,14 @@ impl Engine {
             config,
             events,
             timers,
+            identity,
+            http_tls,
         } = cfg;
+        // Before anything is created or opened: a trust setting that
+        // cannot make a client is a refusal, not a later panic.
+        http_tls
+            .check()
+            .map_err(|e| anyhow::anyhow!("HTTPS trust (http_tls): {e}"))?;
         let db_path = paths.db.clone();
         let lock = lock_data_dir(&paths.data_dir)?;
         tracing::info!(path = %db_path.display(), "opening database");
@@ -207,7 +240,7 @@ impl Engine {
         for problem in pos_fiscal::fdm_client::FdmClient::config_problems(&config) {
             tracing::error!(%problem, "pos.json: the FDM will refuse this setting");
         }
-        let mail = crate::commands::delivery::MailState::from_config(&config);
+        let mail = crate::commands::delivery::MailState::from_config(&config, &http_tls);
         #[cfg(feature = "hubrise")]
         let hubrise_on =
             pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;
@@ -215,7 +248,8 @@ impl Engine {
         tracing::info!(enabled = hubrise_on, "hubrise integration switch");
 
         #[cfg(feature = "hubrise")]
-        let shared_http = reqwest::Client::builder()
+        let shared_http = http_tls
+            .client_builder()?
             .timeout(std::time::Duration::from_secs(15))
             .build()?;
 
@@ -226,6 +260,8 @@ impl Engine {
                 #[cfg(feature = "hubrise")]
                 poller_db: Arc::new(Mutex::new(poller_conn)),
                 config: Mutex::new(config),
+                identity,
+                http_tls,
                 #[cfg(feature = "hubrise")]
                 shared_http,
                 #[cfg(feature = "hubrise")]
@@ -304,6 +340,8 @@ mod tests {
             config: ConfigSource::DevelopmentDefaults,
             events: Arc::new(crate::events::NullSink),
             timers: EngineTimers::default(),
+            identity: SoftwareIdentity::new("pili-pos/1.0.0").unwrap(),
+            http_tls: HttpTls::Platform,
         }
     }
 
@@ -409,6 +447,39 @@ mod tests {
         let mut cfg = test_config(dir.path());
         cfg.config = ConfigSource::File(write(dir.path(), "pos.json", "not json"));
         assert!(Engine::open(cfg).is_err());
+    }
+
+    #[test]
+    fn open_refuses_empty_roots_before_touching_the_data_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = dir.path().join("fresh");
+        let mut cfg = test_config(&data);
+        cfg.http_tls = HttpTls::RootsOnly(vec![]);
+        let err = Engine::open(cfg).err().expect("no roots, no engine");
+        let msg = err.to_string();
+        assert!(msg.contains("no trusted root certificate"), "{msg}");
+        assert!(!data.exists(), "nothing was created");
+    }
+
+    #[test]
+    fn open_refuses_an_invalid_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = test_config(dir.path());
+        cfg.http_tls = HttpTls::RootsOnly(vec![b"not a certificate".to_vec()]);
+        let err = Engine::open(cfg).err().expect("invalid root");
+        assert!(
+            err.to_string().contains("invalid root certificate"),
+            "{err}"
+        );
+        assert!(!dir.path().join("pos.db").exists());
+    }
+
+    #[test]
+    fn the_state_carries_the_identity_and_the_trust_it_was_given() {
+        let dir = tempfile::tempdir().unwrap();
+        let engine = Engine::open(test_config(dir.path())).unwrap();
+        assert_eq!(engine.identity.as_str(), "pili-pos/1.0.0");
+        assert_eq!(engine.http_tls, HttpTls::Platform);
     }
 
     #[test]

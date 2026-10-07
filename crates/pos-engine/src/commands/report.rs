@@ -69,6 +69,7 @@ pub async fn do_generate_x_report(
 
     let report = build_report_turnover_x(
         &config,
+        &state.identity,
         ticket_number,
         &employee_insz,
         &as_booking(&period),
@@ -335,6 +336,7 @@ async fn z_report_locked(
 
     let turnover_report = build_report_turnover_z(
         config,
+        &state.identity,
         turnover_ticket,
         &employee_insz,
         &as_booking(&period),
@@ -344,6 +346,7 @@ async fn z_report_locked(
     );
     let user_report = build_report_user_z(
         config,
+        &state.identity,
         user_ticket,
         &employee_insz,
         &as_booking(&period),
@@ -421,6 +424,7 @@ pub async fn do_generate_user_x_report(
 
     let report = build_report_user_x(
         &config,
+        &state.identity,
         ticket_number,
         &employee_insz,
         &as_booking(&period),

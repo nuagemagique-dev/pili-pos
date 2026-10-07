@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 
+use crate::http_tls::HttpTls;
 use crate::inputs::*;
 use crate::response::*;
 use crate::response_check::{ExpectedEvent, check_sign_result};
@@ -413,21 +414,31 @@ impl FdmClient {
     /// exercise a real timeout in milliseconds instead of waiting out
     /// the full 10s production budget.
     pub fn with_timeouts(fdm_url: &str, connect_timeout: Duration, timeout: Duration) -> Self {
-        Self::build(fdm_url, connect_timeout, timeout, None)
+        Self::build(fdm_url, connect_timeout, timeout, None, &HttpTls::Platform)
     }
 
+    /// `tls` is the preconfigured mTLS setup of the FDM's own files
+    /// ([`crate::fdm_tls`]); without it the client trusts what
+    /// `http_tls` says.
+    ///
+    /// # Panics
+    ///
+    /// When `http_tls` cannot make a client (no roots, an invalid
+    /// certificate). The engine checks its `HttpTls` when it opens, so
+    /// that never happens past that point.
     fn build(
         fdm_url: &str,
         connect_timeout: Duration,
         timeout: Duration,
         tls: Option<rustls::ClientConfig>,
+        http_tls: &HttpTls,
     ) -> Self {
-        let mut http = reqwest::Client::builder()
-            .connect_timeout(connect_timeout)
-            .timeout(timeout);
-        if let Some(tls) = tls {
-            http = http.tls_backend_preconfigured(tls);
-        }
+        let http = match tls {
+            // The FDM's own CA and client certificate: unchanged.
+            Some(tls) => reqwest::Client::builder().tls_backend_preconfigured(tls),
+            None => http_tls.client_builder().expect("valid HttpTls"),
+        };
+        let http = http.connect_timeout(connect_timeout).timeout(timeout);
         Self {
             http: http.build().expect("reqwest client builder"),
             url: fdm_url.to_string(),
@@ -441,6 +452,13 @@ impl FdmClient {
     /// file is logged and the request goes without one: the FDM then
     /// refuses it (UNAUTHORIZED), which the operator sees.
     pub fn from_config(config: &pos_core::config::PosConfig) -> Self {
+        Self::from_config_with(config, &HttpTls::Platform)
+    }
+
+    /// [`FdmClient::from_config`], trusting `http_tls` when the FDM's
+    /// own TLS files are not configured. `http_tls` must be usable
+    /// ([`HttpTls::client_builder`]).
+    pub fn from_config_with(config: &pos_core::config::PosConfig, http_tls: &HttpTls) -> Self {
         let token =
             config
                 .fdm_token_file
@@ -461,6 +479,7 @@ impl FdmClient {
             Duration::from_secs(5),
             Duration::from_secs(10),
             Self::tls_from_config(config),
+            http_tls,
         )
         .with_bearer_token(token)
     }

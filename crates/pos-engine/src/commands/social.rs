@@ -47,7 +47,13 @@ async fn do_work_event(
     let label = EventLabel::S.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, &guard, label)?;
 
-    let input = build_work_in_out(&config, ticket_number, &employee_insz, &bp_id);
+    let input = build_work_in_out(
+        &config,
+        &state.identity,
+        ticket_number,
+        &employee_insz,
+        &bp_id,
+    );
     let request_json = serde_json::to_string(&input).map_err(|e| e.to_string())?;
     let mutation = if is_in {
         SignMutation::WorkIn

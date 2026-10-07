@@ -30,6 +30,12 @@ pub struct AppState {
     #[cfg(feature = "hubrise")]
     pub poller_db: Arc<Mutex<Connection>>,
     pub config: Mutex<PosConfig>,
+    /// The `posSwVersion` of every event and ticket, given by the shell
+    /// ([`crate::engine::EngineConfig::identity`]).
+    pub identity: pos_fiscal::identity::SoftwareIdentity,
+    /// Whom the engine's HTTPS clients trust
+    /// ([`crate::engine::EngineConfig::http_tls`]); checked at open.
+    pub http_tls: pos_fiscal::http_tls::HttpTls,
     /// Current booking period ID (UUID, set on first sale of the day / shift).
     #[cfg(feature = "hubrise")]
     pub shared_http: reqwest::Client,
@@ -76,13 +82,12 @@ impl AppState {
     /// v2.2, Message), whichever command signed.
     pub fn fdm_client(&self, config: &PosConfig) -> pos_fiscal::fdm_client::FdmClient {
         let events = self.events.clone();
-        pos_fiscal::fdm_client::FdmClient::from_config(config).with_sign_messages(
-            std::sync::Arc::new(move |messages| {
+        pos_fiscal::fdm_client::FdmClient::from_config_with(config, &self.http_tls)
+            .with_sign_messages(std::sync::Arc::new(move |messages| {
                 events.emit(crate::events::EngineEvent::FdmSignMessages(
                     messages.clone(),
                 ));
-            }),
-        )
+            }))
     }
 }
 

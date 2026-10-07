@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 
 use pos_core::config::{DigitalTicketConfig, PosConfig};
 use pos_db::queries::deliveries::{self, NewTicketDelivery};
+use pos_fiscal::http_tls::HttpTls;
 use pos_fiscal::ticket::FiscalTicket;
 use pos_fiscal::types::TicketMedium;
 use pos_mail::outbox::{self, SendNowOutcome};
@@ -69,11 +70,15 @@ impl MailState {
     /// Build the client from `pos.json`. A configured but unusable
     /// setup (missing key file) is logged and leaves email disabled:
     /// the POS then offers paper only.
-    pub fn from_config(config: &PosConfig) -> Self {
+    pub fn from_config(config: &PosConfig, http_tls: &HttpTls) -> Self {
         let Some(cfg) = config.digital_ticket.as_ref() else {
             return Self::disabled();
         };
-        let http = match reqwest::Client::builder().build() {
+        let http = match http_tls.client_builder() {
+            Ok(builder) => builder.build().map_err(|e| e.to_string()),
+            Err(e) => Err(e.to_string()),
+        };
+        let http = match http {
             Ok(http) => http,
             Err(e) => {
                 tracing::error!(%e, "digital ticket: cannot build the HTTP client");
@@ -785,7 +790,7 @@ mod tests {
 
     #[test]
     fn a_config_without_digital_ticket_disables_mail() {
-        let m = MailState::from_config(&PosConfig::default());
+        let m = MailState::from_config(&PosConfig::default(), &HttpTls::Platform);
         assert!(m.client().is_none());
     }
 
@@ -804,6 +809,10 @@ mod tests {
             digital_ticket: Some(d),
             ..PosConfig::default()
         };
-        assert!(MailState::from_config(&config).client().is_none());
+        assert!(
+            MailState::from_config(&config, &HttpTls::Platform)
+                .client()
+                .is_none()
+        );
     }
 }

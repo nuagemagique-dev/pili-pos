@@ -192,7 +192,14 @@ async fn sign_table_order_locked(
 
     let label = EventLabel::P.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    let order_input = build_order_input(config, &order, &entries, ticket_number, &bp_id);
+    let order_input = build_order_input(
+        config,
+        &state.identity,
+        &order,
+        &entries,
+        ticket_number,
+        &bp_id,
+    );
     let request = SignRequest::new(SignMutation::Order, &order_input, config.training_mode)
         .map_err(errors::internal)?;
     let context = PendingContext::TableOrder {
@@ -288,7 +295,14 @@ async fn sign_pre_bill_locked(
 
     let label = EventLabel::P.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    let pre_bill = build_pre_bill_input(config, &order, &lines, ticket_number, &bp_id);
+    let pre_bill = build_pre_bill_input(
+        config,
+        &state.identity,
+        &order,
+        &lines,
+        ticket_number,
+        &bp_id,
+    );
     let request = SignRequest::new(SignMutation::PreBill, &pre_bill, config.training_mode)
         .map_err(errors::internal)?;
 

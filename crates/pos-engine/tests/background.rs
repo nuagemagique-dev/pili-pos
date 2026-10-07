@@ -26,6 +26,8 @@ fn open(dir: &std::path::Path, sink: Arc<Recorder>) -> Engine {
             auto_z: Duration::from_millis(10),
             mail_outbox: Duration::from_millis(10),
         },
+        identity: pos_engine::SoftwareIdentity::new("pili-pos/1.0.0").unwrap(),
+        http_tls: pos_engine::HttpTls::Platform,
     })
     .expect("open the engine")
 }

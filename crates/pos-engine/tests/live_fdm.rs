@@ -432,13 +432,13 @@ async fn live_fdm_protocol_edges() {
     record_as("signWorkIn_unknown_pos");
     let refused = pos_fiscal::fdm_client::FdmClient::from_config(&unknown)
         .sign_work_in(
-            pos_fiscal::event::build_work_in_out(&unknown, 1, INSZ, &booking),
+            pos_fiscal::event::build_work_in_out(&unknown, &ident(), 1, INSZ, &booking),
             false,
         )
         .await;
     assert!(refused.is_err(), "an unknown posId is refused");
 
-    let mut input = pos_fiscal::event::build_work_in_out(&config, 1, INSZ, &booking);
+    let mut input = pos_fiscal::event::build_work_in_out(&config, &ident(), 1, INSZ, &booking);
     input.common.pos_date_time = format!("{}.123456+02:00", &input.common.pos_date_time[..19]);
     record_as("signWorkIn_microseconds");
     let refused = pos_fiscal::fdm_client::FdmClient::from_config(&config)
@@ -664,4 +664,9 @@ async fn live_fdm_https_mtls() {
 
     app.dump_evidence("LIVE_https");
     eprintln!("HTTPS: status, sale and raw status signed over mTLS");
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

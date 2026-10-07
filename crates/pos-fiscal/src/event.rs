@@ -1,5 +1,6 @@
 use chrono::Utc;
 
+use crate::identity::SoftwareIdentity;
 use crate::inputs::*;
 use crate::payment::{Settlement, payment_line_identity};
 use crate::response::FdmReference;
@@ -7,9 +8,6 @@ use crate::types::*;
 use pos_core::config::PosConfig;
 use pos_core::order::{Order, OrderLine};
 use pos_core::vat::VatCode;
-
-/// Software version string sent to FDM.
-pub const POS_SW_VERSION: &str = concat!("pili-pos/", env!("CARGO_PKG_VERSION"));
 
 // ── Common Fields ──────────────────────────────────────────────
 
@@ -45,9 +43,11 @@ pub fn fdm_now() -> String {
 
 /// Build common fields shared by all FDM mutations. `ticket_medium`
 /// states what the POS does with the event: `None` when nothing is
-/// printed (drawer, money in/out, staff presence).
+/// printed (drawer, money in/out, staff presence). `identity` is the
+/// `posSwVersion` of the terminal.
 pub fn build_common_fields(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -60,7 +60,7 @@ pub fn build_common_fields(
         pos_id: config.pos_id.clone(),
         pos_fiscal_ticket_no: ticket_number,
         pos_date_time: fdm_now(),
-        pos_sw_version: POS_SW_VERSION.to_string(),
+        pos_sw_version: identity.to_string(),
         terminal_id: Some(config.terminal_id.clone()),
         device_id: config.device_id.clone(),
         booking_period_id: booking.period_id.clone(),
@@ -179,6 +179,7 @@ fn build_table_cost_center(table_number: i32, reference: &str) -> CostCenterInpu
 #[allow(clippy::too_many_arguments)]
 pub fn build_sale_input(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
@@ -190,6 +191,7 @@ pub fn build_sale_input(
 ) -> SaleInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         &order.user_insz,
         booking,
@@ -233,6 +235,7 @@ pub fn build_sale_input(
 /// ROUNDING line right after the cash payment.
 pub fn build_sale_input_split(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
@@ -241,6 +244,7 @@ pub fn build_sale_input_split(
 ) -> SaleInput {
     let mut sale = build_sale_input(
         config,
+        identity,
         order,
         lines,
         ticket_number,
@@ -312,6 +316,7 @@ fn financial_lines(
 /// included. Orders are not printed in v1.0.0 (no kitchen ticket).
 pub fn build_order_input(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
@@ -319,6 +324,7 @@ pub fn build_order_input(
 ) -> OrderInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         &order.user_insz,
         booking,
@@ -338,6 +344,7 @@ pub fn build_order_input(
 /// Build a PreBillInput (event P) for a provisional bill / account overview.
 pub fn build_pre_bill_input(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     order: &Order,
     lines: &[OrderLine],
     ticket_number: i64,
@@ -345,6 +352,7 @@ pub fn build_pre_bill_input(
 ) -> PreBillInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         &order.user_insz,
         booking,
@@ -368,6 +376,7 @@ pub fn build_pre_bill_input(
 /// `fdm_ref` references the original event (fdmId + eventLabel + counters).
 pub fn build_copy_input(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -375,6 +384,7 @@ pub fn build_copy_input(
 ) -> CopyInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         employee_insz,
         booking,
@@ -398,8 +408,10 @@ pub fn build_copy_input(
 /// Build an InvoiceInput (event I) for a B2B invoice covering one or
 /// more prior sales. `fdm_refs` reference the underlying N events
 /// (the M150 fixture shows an invoice consolidating two sales).
+#[allow(clippy::too_many_arguments)]
 pub fn build_invoice_input(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -409,6 +421,7 @@ pub fn build_invoice_input(
 ) -> InvoiceInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         employee_insz,
         booking,
@@ -438,6 +451,7 @@ pub fn build_invoice_input(
 /// Build a WorkInOutInput for employee clock in/out.
 pub fn build_work_in_out(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -445,6 +459,7 @@ pub fn build_work_in_out(
     WorkInOutInput {
         common: build_common_fields(
             config,
+            identity,
             ticket_number,
             employee_insz,
             booking,
@@ -465,6 +480,7 @@ pub struct TurnoverReportData {
 /// Build a ReportTurnoverXInput (non-resetting mid-day report).
 pub fn build_report_turnover_x(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -472,6 +488,7 @@ pub fn build_report_turnover_x(
 ) -> ReportTurnoverXInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         employee_insz,
         booking,
@@ -487,8 +504,10 @@ pub fn build_report_turnover_x(
 }
 
 /// Build a ReportTurnoverZInput (end-of-day report, resets counters).
+#[allow(clippy::too_many_arguments)]
 pub fn build_report_turnover_z(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -498,6 +517,7 @@ pub fn build_report_turnover_z(
 ) -> ReportTurnoverZInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         employee_insz,
         booking,
@@ -524,6 +544,7 @@ pub struct UserReportData {
 /// Build a ReportUserXInput (non-resetting user report).
 pub fn build_report_user_x(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -531,6 +552,7 @@ pub fn build_report_user_x(
 ) -> ReportUserXInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         employee_insz,
         booking,
@@ -546,8 +568,10 @@ pub fn build_report_user_x(
 }
 
 /// Build a ReportUserZInput (end-of-day user report).
+#[allow(clippy::too_many_arguments)]
 pub fn build_report_user_z(
     config: &PosConfig,
+    identity: &SoftwareIdentity,
     ticket_number: i64,
     employee_insz: &str,
     booking: &Booking,
@@ -557,6 +581,7 @@ pub fn build_report_user_z(
 ) -> ReportUserZInput {
     let common = build_common_fields(
         config,
+        identity,
         ticket_number,
         employee_insz,
         booking,
@@ -584,6 +609,29 @@ mod tests {
         }
     }
 
+    /// The identity of the Linux shell at version 1.0.0.
+    fn ident() -> SoftwareIdentity {
+        SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
+    }
+
+    #[test]
+    fn events_carry_the_identity_they_are_built_with() {
+        let other = SoftwareIdentity::new("other-pos/9.9.9").unwrap();
+        let common = build_common_fields(
+            &test_config(),
+            &other,
+            1,
+            "00000000029",
+            &bk("bp"),
+            TicketMedium::None,
+        );
+        assert_eq!(common.pos_sw_version, "other-pos/9.9.9");
+        let work = build_work_in_out(&test_config(), &other, 1, "00000000029", &bk("bp"));
+        assert_eq!(work.common.pos_sw_version, "other-pos/9.9.9");
+        let work = build_work_in_out(&test_config(), &ident(), 1, "00000000029", &bk("bp"));
+        assert_eq!(work.common.pos_sw_version, "pili-pos/1.0.0");
+    }
+
     #[test]
     fn events_carry_the_booking_date_of_their_period() {
         // A period opened on the 3rd keeps that date after midnight.
@@ -593,6 +641,7 @@ mod tests {
         };
         let common = build_common_fields(
             &test_config(),
+            &ident(),
             1,
             "00000000029",
             &booking,
@@ -606,6 +655,7 @@ mod tests {
     fn pos_date_time_is_belgian_time_whatever_the_system_zone() {
         let common = build_common_fields(
             &test_config(),
+            &ident(),
             1,
             "00000000029",
             &bk("bp"),
@@ -708,6 +758,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -746,7 +797,15 @@ mod tests {
             ],
         )
         .unwrap();
-        let sale = build_sale_input_split(&config, &order, &lines, 1, &bk(&bp_id), &settlement);
+        let sale = build_sale_input_split(
+            &config,
+            &ident(),
+            &order,
+            &lines,
+            1,
+            &bk(&bp_id),
+            &settlement,
+        );
         let financials = serde_json::to_value(&sale.financials).unwrap();
         let summary: Vec<(String, String, String, f64)> = financials
             .as_array()
@@ -782,7 +841,8 @@ mod tests {
             payments: vec![],
             rounding_cents: 0,
         };
-        let sale = build_sale_input_split(&config, &order, &lines, 1, &bk(&bp_id), &unpaid);
+        let sale =
+            build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &unpaid);
         let json = serde_json::to_value(&sale).unwrap();
         assert_eq!(json["financials"], serde_json::json!([]));
     }
@@ -796,6 +856,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -821,7 +882,7 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let order_input = build_order_input(&config, &order, &lines, 1, &bk(&bp_id));
+        let order_input = build_order_input(&config, &ident(), &order, &lines, 1, &bk(&bp_id));
 
         assert_eq!(order_input.cost_center.id, "T05");
         assert_eq!(
@@ -844,7 +905,7 @@ mod tests {
             total_counter: 100,
         };
 
-        let copy = build_copy_input(&config, 2, "00000000029", &bk(&bp_id), &original);
+        let copy = build_copy_input(&config, &ident(), 2, "00000000029", &bk(&bp_id), &original);
 
         assert_eq!(copy.fdm_ref.fdm_id, "FDM001");
         assert_eq!(copy.fdm_ref.event_counter, 42);
@@ -880,6 +941,7 @@ mod tests {
         let reason = |fdm_ref: Option<&FdmReference>| {
             build_sale_input(
                 &config,
+                &ident(),
                 &order,
                 &lines,
                 1,
@@ -909,6 +971,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -951,6 +1014,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             2,
@@ -982,6 +1046,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -1005,7 +1070,7 @@ mod tests {
         let lines = test_lines();
         let bp_id = Uuid::new_v4().to_string();
 
-        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bk(&bp_id));
+        let pre_bill = build_pre_bill_input(&config, &ident(), &order, &lines, 1, &bk(&bp_id));
         assert!((pre_bill.transaction.transaction_total - 25.0).abs() < 0.01);
         assert!(pre_bill.cost_center.is_some());
     }
@@ -1022,6 +1087,7 @@ mod tests {
         let lines = test_lines();
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -1039,7 +1105,7 @@ mod tests {
         let config = test_config();
         let order = test_order();
         let lines = test_lines();
-        let order_input = build_order_input(&config, &order, &lines, 1, &bk("bp"));
+        let order_input = build_order_input(&config, &ident(), &order, &lines, 1, &bk("bp"));
         assert_eq!(order_input.common.ticket_medium, TicketMedium::None);
     }
 
@@ -1048,14 +1114,14 @@ mod tests {
         let config = test_config();
         let order = test_order();
         let lines = test_lines();
-        let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bk("bp"));
+        let pre_bill = build_pre_bill_input(&config, &ident(), &order, &lines, 1, &bk("bp"));
         assert_eq!(pre_bill.common.ticket_medium, TicketMedium::Paper);
     }
 
     #[test]
     fn work_in_out_has_no_ticket_medium() {
         let config = test_config();
-        let w = build_work_in_out(&config, 1, "00000000029", &bk("bp"));
+        let w = build_work_in_out(&config, &ident(), 1, "00000000029", &bk("bp"));
         assert_eq!(w.common.ticket_medium, TicketMedium::None);
         assert_eq!(w.common.employee_id, "00000000029");
     }
@@ -1066,7 +1132,7 @@ mod tests {
     fn work_in_out_carries_identity_and_serializes() {
         let config = test_config();
         let bp_id = Uuid::new_v4().to_string();
-        let w = build_work_in_out(&config, 7, "94060242576", &bk(&bp_id));
+        let w = build_work_in_out(&config, &ident(), 7, "94060242576", &bk(&bp_id));
         assert_eq!(w.common.pos_id, "CFOD0061234567");
         assert_eq!(w.common.pos_fiscal_ticket_no, 7);
         assert_eq!(w.common.employee_id, "94060242576");
@@ -1104,6 +1170,7 @@ mod tests {
 
         let invoice = build_invoice_input(
             &config,
+            &ident(),
             3,
             "00000000029",
             &bk(&bp_id),
@@ -1129,8 +1196,16 @@ mod tests {
     #[test]
     fn invoice_input_with_no_underlying_sales_has_empty_refs() {
         let config = test_config();
-        let invoice =
-            build_invoice_input(&config, 1, "00000000029", &bk("bp"), "INV-1", "BE1", &[]);
+        let invoice = build_invoice_input(
+            &config,
+            &ident(),
+            1,
+            "00000000029",
+            &bk("bp"),
+            "INV-1",
+            "BE1",
+            &[],
+        );
         assert!(invoice.fdm_refs.is_empty());
     }
 
@@ -1158,6 +1233,7 @@ mod tests {
         let config = test_config();
         let x = build_report_turnover_x(
             &config,
+            &ident(),
             100,
             "00000000029",
             &bk("bp"),
@@ -1176,6 +1252,7 @@ mod tests {
         let config = test_config();
         let z = build_report_turnover_z(
             &config,
+            &ident(),
             101,
             "00000000029",
             &bk("bp"),
@@ -1201,7 +1278,14 @@ mod tests {
     #[test]
     fn report_user_x_has_no_report_no() {
         let config = test_config();
-        let x = build_report_user_x(&config, 102, "00000000029", &bk("bp"), empty_user_data());
+        let x = build_report_user_x(
+            &config,
+            &ident(),
+            102,
+            "00000000029",
+            &bk("bp"),
+            empty_user_data(),
+        );
         let json = serde_json::to_string(&x).unwrap();
         assert!(!json.contains("reportNo"));
         assert_eq!(x.common.ticket_medium, TicketMedium::Paper);
@@ -1212,6 +1296,7 @@ mod tests {
         let config = test_config();
         let z = build_report_user_z(
             &config,
+            &ident(),
             103,
             "00000000029",
             &bk("bp"),
@@ -1241,7 +1326,7 @@ mod tests {
         });
         data.turnover.drawers_open_count = 3;
 
-        let x = build_report_turnover_x(&config, 1, "00000000029", &bk("bp"), data);
+        let x = build_report_turnover_x(&config, &ident(), 1, "00000000029", &bk("bp"), data);
         assert_eq!(x.turnover.departments.len(), 1);
         assert_eq!(x.turnover.departments[0].department_id, "12");
         assert_eq!(x.turnover.vats[0].label, VatLabel::B);
@@ -1258,6 +1343,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &[], // no lines at all
             1,
@@ -1290,6 +1376,7 @@ mod tests {
         }];
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -1315,6 +1402,7 @@ mod tests {
         let lines = test_lines();
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -1354,6 +1442,7 @@ mod tests {
 
         let sale = build_sale_input(
             &config,
+            &ident(),
             &order,
             &lines,
             1,
@@ -1425,6 +1514,7 @@ mod tests {
                 .sum();
             let sale = build_sale_input(
                 &config,
+                &ident(),
                 &order,
                 &lines,
                 1,
@@ -1442,7 +1532,7 @@ mod tests {
                 );
             }
             check(&serde_json::to_value(&sale).unwrap(), "sale", &mut bad);
-            let pre_bill = build_pre_bill_input(&config, &order, &lines, 1, &bk("bp"));
+            let pre_bill = build_pre_bill_input(&config, &ident(), &order, &lines, 1, &bk("bp"));
             check(
                 &serde_json::to_value(&pre_bill).unwrap(),
                 "preBill",
@@ -1475,6 +1565,7 @@ mod tests {
         }];
         let sale = build_sale_input(
             &config,
+            &ident(),
             &test_order(),
             &lines,
             1,

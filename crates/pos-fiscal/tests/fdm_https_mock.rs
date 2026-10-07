@@ -64,7 +64,7 @@ async fn the_pos_signs_over_mtls_with_v1_certificates() {
     };
     let signed = fdm
         .sign_work_in(
-            build_work_in_out(&config, 1, "75061189702", &booking),
+            build_work_in_out(&config, &ident(), 1, "75061189702", &booking),
             false,
         )
         .await
@@ -96,4 +96,9 @@ async fn an_fdm_signed_by_another_ca_is_refused() {
         format!("{err:?}").to_lowercase().contains("certificate"),
         "{err:?}"
     );
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

@@ -147,6 +147,7 @@ pub async fn do_copy_ticket_with(
     // 3. Build the copy event
     let mut copy_input = build_copy_input(
         &config,
+        &state.identity,
         ticket_number,
         &employee_insz,
         &bp_id,
@@ -257,6 +258,7 @@ pub(crate) fn original_ticket(
         Some(result) => {
             let (payments, rounding) = printed_payments(&request);
             let mut ticket = FiscalTicket::from_sign_result(TicketParams {
+                identity: &state.identity,
                 result: &result,
                 restaurant_name: &config.restaurant_name,
                 restaurant_address: &config.restaurant_address,

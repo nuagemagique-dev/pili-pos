@@ -144,6 +144,8 @@ pub struct TicketPayment {
 
 /// Parameters for building a FiscalTicket.
 pub struct TicketParams<'a> {
+    /// The `posSwVersion` printed on the ticket.
+    pub identity: &'a crate::identity::SoftwareIdentity,
     pub result: &'a SignResult,
     pub restaurant_name: &'a str,
     pub restaurant_address: &'a str,
@@ -216,8 +218,13 @@ impl TicketDraft {
 
 impl FiscalTicket {
     /// The ticket of `draft`, signed as `result`.
-    pub fn from_draft(draft: &TicketDraft, result: &SignResult) -> Self {
+    pub fn from_draft(
+        draft: &TicketDraft,
+        result: &SignResult,
+        identity: &crate::identity::SoftwareIdentity,
+    ) -> Self {
         let mut ticket = Self::from_sign_result(TicketParams {
+            identity,
             result,
             restaurant_name: &draft.restaurant_name,
             restaurant_address: &draft.restaurant_address,
@@ -257,7 +264,7 @@ impl FiscalTicket {
                 params.restaurant_legal_name.to_string()
             },
             pos_id: result.pos_id.clone(),
-            pos_sw_version: crate::event::POS_SW_VERSION.to_string(),
+            pos_sw_version: params.identity.to_string(),
             terminal_id: result.terminal_id.clone().unwrap_or_default(),
             device_id: result.device_id.clone(),
             operator: params.operator.to_string(),
@@ -555,12 +562,38 @@ mod tests {
         }
     }
 
+    fn ident() -> crate::identity::SoftwareIdentity {
+        crate::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
+    }
+
     // ── Ticket construction ────────────────────────────────────
+
+    #[test]
+    fn a_ticket_carries_the_identity_it_is_built_with() {
+        let result = mock_sign_result(EventLabel::N);
+        let other = crate::identity::SoftwareIdentity::new("other-pos/9.9.9").unwrap();
+        let draft = TicketDraft::new(
+            &pos_core::config::PosConfig::default(),
+            vec![],
+            vec![],
+            0.0,
+            "Test",
+        );
+        assert_eq!(
+            FiscalTicket::from_draft(&draft, &result, &other).pos_sw_version,
+            "other-pos/9.9.9"
+        );
+        assert_eq!(
+            FiscalTicket::from_draft(&draft, &result, &ident()).pos_sw_version,
+            "pili-pos/1.0.0"
+        );
+    }
 
     #[test]
     fn normal_sale_label() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Tokyo Sushi Bar",
             restaurant_address: "Rue Test 1",
@@ -593,6 +626,7 @@ mod tests {
     fn refund_detected_when_all_negative() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -622,6 +656,7 @@ mod tests {
     fn training_label() {
         let result = mock_sign_result(EventLabel::T);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -644,6 +679,7 @@ mod tests {
     fn pro_forma_needs_disclaimer() {
         let result = mock_sign_result(EventLabel::P);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -666,6 +702,7 @@ mod tests {
     fn copy_label_and_disclaimer() {
         let result = mock_sign_result(EventLabel::C);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -688,6 +725,7 @@ mod tests {
     fn fdm_data_populated() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -715,6 +753,7 @@ mod tests {
     fn rounding_applied_to_total() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",
@@ -747,6 +786,7 @@ mod tests {
     fn no_rounding_for_card() {
         let result = mock_sign_result(EventLabel::N);
         let ticket = FiscalTicket::from_sign_result(TicketParams {
+            identity: &ident(),
             result: &result,
             restaurant_name: "Test",
             restaurant_address: "",

@@ -6,6 +6,7 @@ use pili_pos::events::TauriEventSink;
 use pili_pos::{cli, ipc, paths};
 use pos_engine::engine::{Engine, EngineConfig, EnginePaths, EngineTimers, config_source_from};
 use pos_engine::install;
+use pos_engine::{HttpTls, SoftwareIdentity};
 
 use std::sync::Arc;
 
@@ -90,6 +91,10 @@ fn main() {
         ),
         events: sink.clone(),
         timers: EngineTimers::default(),
+        // The version string the FDM and the tickets carry.
+        identity: SoftwareIdentity::new(concat!("pili-pos/", env!("CARGO_PKG_VERSION")))
+            .expect("software identity"),
+        http_tls: HttpTls::Platform,
     })
     .expect("Failed to initialize app state");
 

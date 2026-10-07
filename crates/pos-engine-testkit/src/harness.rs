@@ -141,6 +141,8 @@ impl TestApp {
             db: Mutex::new(conn),
             poller_db: Arc::new(Mutex::new(poller)),
             config: Mutex::new(config),
+            identity: pos_engine::SoftwareIdentity::new("pili-pos/1.0.0").unwrap(),
+            http_tls: pos_engine::HttpTls::Platform,
             shared_http: reqwest::Client::new(),
             hubrise_poll_now: Arc::new(tokio::sync::Notify::new()),
             hubrise_outbox_wake: Arc::new(tokio::sync::Notify::new()),

@@ -87,7 +87,7 @@ async fn sign_work_in_call(
     client: &FdmClient,
     cfg: &PosConfig,
 ) -> Result<pos_fiscal::response::SignResult, FdmError> {
-    let input = build_work_in_out(cfg, 1, "93051800189", &bk("bp-1"));
+    let input = build_work_in_out(cfg, &ident(), 1, "93051800189", &bk("bp-1"));
     client.sign_work_in(input, false).await
 }
 
@@ -519,4 +519,9 @@ async fn the_mismatch_reaches_the_ui_with_its_code() {
         ui_text.starts_with("FDM error: FDM_RESPONSE_MISMATCH: "),
         "{ui_text}"
     );
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

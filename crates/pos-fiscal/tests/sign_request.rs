@@ -42,7 +42,13 @@ fn work_in() -> pos_fiscal::inputs::WorkInOutInput {
         period_id: "bp-1".into(),
         date: "2026-07-03".into(),
     };
-    build_work_in_out(&config("http://unused"), 1, "93051800189", &booking)
+    build_work_in_out(
+        &config("http://unused"),
+        &ident(),
+        1,
+        "93051800189",
+        &booking,
+    )
 }
 
 /// The body as every sign call built it before requests were stored.
@@ -228,4 +234,9 @@ async fn failures_say_whether_the_event_may_be_signed() {
     );
     let err = client.sign_work_in(work_in(), false).await.unwrap_err();
     assert_eq!(err.outcome(), SignOutcome::Unknown, "{err:?}");
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }

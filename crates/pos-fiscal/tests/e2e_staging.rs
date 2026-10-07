@@ -373,7 +373,7 @@ async fn staging_basic_set_smoke() {
     // 1. S - work-in (M140). The service day starts with staff
     //    presence registration; the FDM refuses sales before it.
     let n = next_ticket();
-    let input = build_work_in_out(&config, n, &insz, &bk(&booking_period_id));
+    let input = build_work_in_out(&config, &ident(), n, &insz, &bk(&booking_period_id));
     let result = client
         .sign_work_in(input.clone(), false)
         .await
@@ -384,7 +384,14 @@ async fn staging_basic_set_smoke() {
     let order = rehearsal_order(4, &insz);
     let lines = rehearsal_lines(1);
     let n = next_ticket();
-    let input = build_order_input(&config, &order, &lines, n, &bk(&booking_period_id));
+    let input = build_order_input(
+        &config,
+        &ident(),
+        &order,
+        &lines,
+        n,
+        &bk(&booking_period_id),
+    );
     let result = client
         .sign_order(input.clone(), false)
         .await
@@ -393,7 +400,14 @@ async fn staging_basic_set_smoke() {
 
     // 3. P - pre-bill (M123): provisional bill for the same table.
     let n = next_ticket();
-    let input = build_pre_bill_input(&config, &order, &lines, n, &bk(&booking_period_id));
+    let input = build_pre_bill_input(
+        &config,
+        &ident(),
+        &order,
+        &lines,
+        n,
+        &bk(&booking_period_id),
+    );
     let result = client
         .sign_pre_bill(input.clone(), false)
         .await
@@ -410,6 +424,7 @@ async fn staging_basic_set_smoke() {
     let n = next_ticket();
     let input = build_sale_input(
         &config,
+        &ident(),
         &order,
         &lines,
         n,
@@ -435,6 +450,7 @@ async fn staging_basic_set_smoke() {
     let n = next_ticket();
     let input = build_sale_input(
         &config,
+        &ident(),
         &order,
         &refund_lines,
         n,
@@ -458,7 +474,14 @@ async fn staging_basic_set_smoke() {
 
     // 6. C - copy of the original sale (M160).
     let n = next_ticket();
-    let input = build_copy_input(&config, n, &insz, &bk(&booking_period_id), &sale_ref);
+    let input = build_copy_input(
+        &config,
+        &ident(),
+        n,
+        &insz,
+        &bk(&booking_period_id),
+        &sale_ref,
+    );
     let result = client
         .sign_copy(input.clone(), false)
         .await
@@ -470,6 +493,7 @@ async fn staging_basic_set_smoke() {
     let input = DrawerOpenInput {
         common: pos_fiscal::event::build_common_fields(
             &config,
+            &ident(),
             n,
             &insz,
             &bk(&booking_period_id),
@@ -494,6 +518,7 @@ async fn staging_basic_set_smoke() {
     let input = MoneyInOutInput {
         common: pos_fiscal::event::build_common_fields(
             &config,
+            &ident(),
             n,
             &insz,
             &bk(&booking_period_id),
@@ -594,7 +619,14 @@ async fn staging_basic_set_smoke() {
         },
     };
     let n = next_ticket();
-    let input = build_report_turnover_x(&config, n, &insz, &bk(&booking_period_id), report_data);
+    let input = build_report_turnover_x(
+        &config,
+        &ident(),
+        n,
+        &insz,
+        &bk(&booking_period_id),
+        report_data,
+    );
     let result = client
         .sign_report_turnover_x(input.clone(), false)
         .await
@@ -638,7 +670,14 @@ async fn staging_basic_set_smoke() {
         }],
     };
     let n = next_ticket();
-    let input = build_report_user_x(&config, n, &insz, &bk(&booking_period_id), user_data);
+    let input = build_report_user_x(
+        &config,
+        &ident(),
+        n,
+        &insz,
+        &bk(&booking_period_id),
+        user_data,
+    );
     let result = client
         .sign_report_user_x(input.clone(), false)
         .await
@@ -653,7 +692,7 @@ async fn staging_basic_set_smoke() {
 
     // 11. S - work-out (M141): the service day closes.
     let n = next_ticket();
-    let input = build_work_in_out(&config, n, &insz, &bk(&booking_period_id));
+    let input = build_work_in_out(&config, &ident(), n, &insz, &bk(&booking_period_id));
     let result = client
         .sign_work_out(input.clone(), false)
         .await
@@ -671,4 +710,9 @@ async fn staging_basic_set_smoke() {
          monotonic, all short signatures verified."
     );
     r.finish();
+}
+
+/// The software identity of the Linux shell at version 1.0.0.
+fn ident() -> pos_fiscal::identity::SoftwareIdentity {
+    pos_fiscal::identity::SoftwareIdentity::new("pili-pos/1.0.0").unwrap()
 }
