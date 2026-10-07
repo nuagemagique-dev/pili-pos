@@ -18,9 +18,14 @@
 #                                       sorted (jq -S), see NORMALISE below
 #
 # Usage: scripts/android/capture_fdm_journals.sh [--name NAME] [--out-dir DIR]
-#                                                [--work-dir DIR]
+#                                                [--work-dir DIR] [--volume-tag TAG]
 # Own docker volumes (pili-e2e-p0-*) and container, so a concurrent
 # scripts/e2e_hubrise.sh run is untouched. Needs docker, jq, node/npm.
+# The target volume is pili-e2e-p0-target-<TAG>; TAG defaults to the first 8 hex
+# digits of the sha1 of this checkout's absolute path, so the stale build of one
+# checkout is never reused by another (PD29). The name is printed at the start.
+# The cargo registry volume (pili-e2e-p0-cargo) stays shared. No volume is ever
+# removed by this script.
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -30,6 +35,7 @@ HERE="$ROOT/scripts/e2e_hubrise"
 name=hubrise_e2e
 out_dir="$ROOT/docs/android/baseline"
 work_dir="${PILI_ANDROID_WORK_DIR:-$HOME/.cache/pili-android/P0.1}/e2e"
+volume_tag=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -45,6 +51,10 @@ while [[ $# -gt 0 ]]; do
         work_dir="${2:?--work-dir needs a directory}"
         shift
         ;;
+    --volume-tag)
+        volume_tag="${2:?--volume-tag needs a value}"
+        shift
+        ;;
     -h | --help)
         sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'
         exit 0
@@ -56,6 +66,13 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+if [[ -z "$volume_tag" ]]; then
+    volume_tag="$(printf '%s' "$ROOT" | { shasum -a 1 2>/dev/null || sha1sum; } | cut -c1-8)"
+fi
+[[ "$volume_tag" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "invalid --volume-tag: $volume_tag" >&2; exit 2; }
+VOL_TARGET="pili-e2e-p0-target-$volume_tag"
+echo "docker target volume: $VOL_TARGET"
 
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 2; }
@@ -109,7 +126,6 @@ grep -q 'fdm_requests.json' "$work_dir/ctx/inside.sh" || {
 
 IMAGE=pili-e2e-hubrise
 CONTAINER=pili-e2e-p0-hubrise
-VOL_TARGET=pili-e2e-p0-target
 VOL_CARGO=pili-e2e-p0-cargo
 
 docker build -q -t "$IMAGE" "$work_dir/ctx" >/dev/null
