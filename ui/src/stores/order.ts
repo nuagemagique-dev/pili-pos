@@ -56,6 +56,7 @@ export const useOrderStore = defineStore("order", () => {
     });
     // A busy table returns its open order: show its lines.
     lines.value = tableNumber ? await ipc.listCartLines(currentOrder.value.id) : [];
+    await ipc.setActiveOrder(currentOrder.value.id);
   }
 
   /**
@@ -72,6 +73,7 @@ export const useOrderStore = defineStore("order", () => {
     ]);
     currentOrder.value = order;
     lines.value = orderLines;
+    await ipc.setActiveOrder(orderId);
   }
 
   /** `unitPriceCents` is the operator-entered price of a free-price
@@ -166,23 +168,18 @@ export const useOrderStore = defineStore("order", () => {
   }
 
   /**
-   * Register with the FDM what was ordered since the last registration
-   * (event P, interrupted sale - POS spec §1.3). Called whenever the
-   * operator leaves an open table order unpaid. The backend is a no-op when
-   * nothing changed; on failure the entries stay pending and are sent
-   * at the next registration, pre-bill or sale.
+   * The operator leaves the order (another screen, another order, or
+   * "send to kitchen"). The engine registers what was ordered (event P)
+   * for an open dine-in order and does nothing for a takeaway or an order
+   * that is not open; on failure the entries stay pending and are sent at
+   * the next registration. A refusal is thrown for the caller's toast.
    */
-  async function registerPending() {
+  async function leave(reason: ipc.LeaveReason) {
     const current = currentOrder.value;
-    // Not skipped when the cart is empty: lines added then removed are
-    // corrections the FDM must still receive.
-    if (!current || current.status !== "open") return;
-    // A takeaway is a direct sale: nothing is registered when it is
-    // left, it stays a draft listed on the Tables screen until it is
-    // paid or closed unpaid, and ends in an N (FAQ Q205).
-    if (current.order_type === "takeaway") return;
-    warnIfSlipFailed(await ipc.signTableOrder(current.id));
-    markAllSent();
+    if (!current) return;
+    warnIfSlipFailed(await ipc.leaveOrder(current.id, reason));
+    // Only a dine-in order sent anything: the badge shows the unsent units.
+    if (current.order_type === "dine_in") markAllSent();
   }
 
   /** Everything ordered so far went out with a signed P (or the sale). */
@@ -212,10 +209,18 @@ export const useOrderStore = defineStore("order", () => {
     clearOrder();
   }
 
-  function clearOrder() {
+  /** Forget the local order state only: after a lock the engine has
+   * already registered and cleared its active order. */
+  function resetLocal() {
     currentOrder.value = null;
     lines.value = [];
     itemCategoryMap.value.clear();
+  }
+
+  function clearOrder() {
+    resetLocal();
+    // Best effort: the engine drops it on the next set_active_order anyway.
+    void ipc.setActiveOrder(null).catch(() => {});
   }
 
   return {
@@ -231,10 +236,11 @@ export const useOrderStore = defineStore("order", () => {
     removeLine,
     updateQuantity,
     loadOpenOrders,
-    registerPending,
+    leave,
     preBill,
     closeUnpaid,
     clearOrder,
+    resetLocal,
     getCategoryId,
   };
 });

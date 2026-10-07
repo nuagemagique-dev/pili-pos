@@ -335,6 +335,7 @@ const coreMessages: Messages = {
   "delivery_status_purged": { fr: "Purgé", en: "Purged", zh: "已清除" },
 
   // Pili header, device lights and FDM alerts
+  "sw_version": { fr: "Version", en: "Version", zh: "版本" },
   "lock": { fr: "Verrouiller", en: "Lock", zh: "锁屏" },
   "status_kitchen": { fr: "Cuisine", en: "Kitchen", zh: "厨房" },
   "fdm_closes_in": { fr: "se ferme dans {s} s", en: "closes in {s} s", zh: "{s} 秒后关闭" },

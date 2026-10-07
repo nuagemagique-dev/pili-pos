@@ -42,6 +42,7 @@ test.describe('Login View', () => {
         printerAddress: null,
         trainingMode: false,
         language: 'fr',
+        posSwVersion: 'pili-pos/1.0.0',
         configProblems: ['restaurant_vat: BE followed by 10 digits, got "BE123"'],
       }),
     });
@@ -50,6 +51,11 @@ test.describe('Login View', () => {
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('Configuration invalide');
     await expect(banner.locator('li')).toHaveText(['restaurant_vat: BE followed by 10 digits, got "BE123"']);
+  });
+
+  test('shows the software version declared to the FDM', async ({ page }) => {
+    await expect(page.locator('.sw-version')).toHaveText('Version pili-pos/1.0.0');
+    await expect(page.locator('.sw-version')).toBeInViewport();
   });
 
   test('shows user tile with name and role', async ({ page }) => {
@@ -254,8 +260,8 @@ test.describe('Shifts (clock-in / clock-out, event S)', () => {
     await expect.poll(async () =>
       page.evaluate(() => ((window as any).__ipcCalls as Array<{ cmd: string }>)
         .map((c) => c.cmd)
-        .filter((c) => c === 'login' || c === 'work_out' || c === 'logout')),
-    ).toEqual(['login', 'work_out', 'logout']);
+        .filter((c) => c === 'login' || c === 'work_out' || c === 'lock_session' || c === 'logout')),
+    ).toEqual(['login', 'work_out', 'lock_session']);
     await expect(page).toHaveURL(/#\/$/);
     expect(await ipcCalls(page, 'work_in')).toHaveLength(0);
   });

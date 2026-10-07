@@ -247,7 +247,7 @@ test.describe('Section 1 - écrans de flux fonctionnels', () => {
     await overrideIPC(page, 'list_cart_lines', FILLED_LINES);
     await page.locator('.nav-btn', { hasText: 'Tables' }).click();
     await page.waitForURL(/tables/);
-    await expect.poll(() => ipcCalls(page, 'sign_table_order')).toHaveLength(1);
+    await expect.poll(() => ipcCalls(page, 'leave_order')).toHaveLength(1);
     const table4 = page.locator('.table-card').nth(3);
     await expect(table4).toHaveClass(/occupied/);
     await expect(table4.locator('.table-total')).toContainText('40,00');

@@ -68,6 +68,8 @@ async function toPayment(page: Page, checkout: object = SALE) {
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);
   await page.locator('.item-btn').first().click();
+  // The tap is applied once the cart shows the second unit.
+  await expect(page.locator('.total-amount')).toContainText('24,00');
   await page.locator('.checkout-btn').click();
   await page.waitForURL(/checkout/);
   await expect(page.locator('.total-value')).toHaveText('24,00');

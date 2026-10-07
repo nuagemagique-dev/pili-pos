@@ -6,6 +6,8 @@ import TablesView from "../views/TablesView.vue";
 import ReportsView from "../views/ReportsView.vue";
 import SettingsView from "../views/SettingsView.vue";
 import { useOrderStore } from "../stores/order";
+import { useAuthStore } from "../stores/auth";
+import type { LeaveReason } from "../api/ipc";
 import { useToastStore } from "../stores/toast";
 import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
@@ -39,17 +41,21 @@ const router = createRouter({
 // registered with the FDM first (event P, POS spec §1.3).
 const ORDER_ROUTES = new Set(["order", "checkout"]);
 
+const leaveOrder = (reason: LeaveReason) => useOrderStore().leave(reason);
+
 router.beforeEach(async (to, from) => {
   if (!ORDER_ROUTES.has(String(from.name)) || ORDER_ROUTES.has(String(to.name))) return true;
+  // No operator or no order: a lock already registered it in the engine.
+  if (!useAuthStore().currentUser || !useOrderStore().currentOrder) return true;
   try {
-    await useOrderStore().registerPending();
+    await leaveOrder("navigate");
     return true;
   } catch (e) {
     const { t } = useI18n();
     useToastStore().show(`${t("order_register_failed")} : ${describeError(e)}`, "error", 6000);
     // The operator stays on the order and retries once the FDM is back.
-    // Locking the screen (idle timer, logout) always goes through: the
-    // entries stay pending and are sent at the next registration.
+    // Going to the login screen always goes through: the entries stay
+    // pending and are sent at the next registration.
     return to.name === "login";
   }
 });

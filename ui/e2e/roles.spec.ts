@@ -52,7 +52,7 @@ test.describe('What each role is offered', () => {
     await expect.poll(async () =>
       page.evaluate(() => ((window as any).__ipcCalls as Array<{ cmd: string }>)
         .map((c) => c.cmd)
-        .filter((c) => c === 'sign_table_order' || c === 'work_out' || c === 'logout')),
-    ).toEqual(['sign_table_order', 'logout']);
+        .filter((c) => c === 'lock_session' || c === 'work_out' || c === 'logout')),
+    ).toEqual(['lock_session']);
   });
 });
