@@ -59,6 +59,31 @@ pub struct AppState {
     pub pin_throttle: crate::commands::access::PinThrottle,
     /// Held while a fiscal event is signed (`commands::signing`).
     pub signing: crate::commands::signing::SigningLock,
+    /// The last FDM status answer (`commands::checkout::do_check_fdm_status`).
+    pub fdm_status_cache: Mutex<Option<FdmStatusAnswer>>,
+}
+
+/// One cached FDM status answer: the key of everything that reaches the
+/// FDM (its URL, the token and TLS files, the message language), when it
+/// was fetched, and the answer. A changed setting queries the FDM again
+/// at once.
+pub type FdmStatusAnswer = (String, std::time::Instant, serde_json::Value);
+
+impl AppState {
+    /// The client of the configured FDM. The warnings and informations
+    /// of every event it signs reach the engine's sink as
+    /// [`crate::events::EngineEvent::FdmSignMessages`] (POS description
+    /// v2.2, Message), whichever command signed.
+    pub fn fdm_client(&self, config: &PosConfig) -> pos_fiscal::fdm_client::FdmClient {
+        let events = self.events.clone();
+        pos_fiscal::fdm_client::FdmClient::from_config(config).with_sign_messages(
+            std::sync::Arc::new(move |messages| {
+                events.emit(crate::events::EngineEvent::FdmSignMessages(
+                    messages.clone(),
+                ));
+            }),
+        )
+    }
 }
 
 /// Crash recovery at boot: close orders whose sale (event N) is in the

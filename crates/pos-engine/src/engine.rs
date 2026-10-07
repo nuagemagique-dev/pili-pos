@@ -153,6 +153,9 @@ pub struct Engine {
     pub(crate) tasks: Mutex<Vec<JoinHandle<()>>>,
     /// How often each background pass has run (for tests).
     pub(crate) ticks: Arc<BackgroundTicks>,
+    /// The exclusive lock on `engine.lock` of the data directory, held
+    /// for the engine's lifetime: closing the file releases it.
+    _lock: std::fs::File,
 }
 
 /// Passes the background loops have completed since the engine started.
@@ -173,6 +176,7 @@ impl Engine {
             timers,
         } = cfg;
         let db_path = paths.db.clone();
+        let lock = lock_data_dir(&paths.data_dir)?;
         tracing::info!(path = %db_path.display(), "opening database");
 
         if let Some(parent) = db_path.parent() {
@@ -238,15 +242,45 @@ impl Engine {
                 support: crate::commands::support::SupportState::installed(),
                 pin_throttle: Default::default(),
                 signing: Default::default(),
+                fdm_status_cache: Mutex::new(None),
             }),
             tasks: Mutex::new(Vec::new()),
             ticks: Arc::new(BackgroundTicks::default()),
+            _lock: lock,
         })
     }
 
     /// The shared state, for the background tasks that outlive a call.
     pub fn state(&self) -> &Arc<AppState> {
         &self.state
+    }
+}
+
+/// Name of the lock file in the data directory.
+pub const LOCK_FILE: &str = "engine.lock";
+
+/// Create the data directory if needed and take an exclusive lock on its
+/// `engine.lock`, before anything touches the database: two engines on
+/// one data directory would sign events with the same counters. The file
+/// stays empty and holds no data; the lock lives as long as the returned
+/// file stays open.
+fn lock_data_dir(data_dir: &Path) -> anyhow::Result<std::fs::File> {
+    std::fs::create_dir_all(data_dir)?;
+    let path = data_dir.join(LOCK_FILE);
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)?;
+    match file.try_lock() {
+        Ok(()) => Ok(file),
+        Err(std::fs::TryLockError::WouldBlock) => {
+            anyhow::bail!("engine already open: {}", path.display())
+        }
+        Err(std::fs::TryLockError::Error(e)) => {
+            Err(anyhow::Error::new(e).context(format!("locking {}", path.display())))
+        }
     }
 }
 
@@ -323,6 +357,41 @@ mod tests {
             .query_row("SELECT status FROM orders WHERE id = 1", [], |r| r.get(0))
             .unwrap();
         assert_eq!(status, "closed");
+    }
+
+    #[test]
+    fn a_second_open_on_one_data_dir_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let _first = Engine::open(test_config(dir.path())).unwrap();
+        let err = Engine::open(test_config(dir.path()))
+            .err()
+            .expect("the data directory is locked");
+        let msg = err.to_string();
+        assert!(msg.contains("engine already open"), "{msg}");
+        assert!(msg.contains("engine.lock"), "{msg}");
+    }
+
+    #[test]
+    fn open_after_drop_succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        drop(Engine::open(test_config(dir.path())).unwrap());
+        Engine::open(test_config(dir.path())).unwrap();
+    }
+
+    #[test]
+    fn two_data_dirs_open_together() {
+        let a = tempfile::tempdir().unwrap();
+        let b = tempfile::tempdir().unwrap();
+        let _first = Engine::open(test_config(a.path())).unwrap();
+        let _second = Engine::open(test_config(b.path())).unwrap();
+    }
+
+    #[test]
+    fn the_lock_file_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let _engine = Engine::open(test_config(dir.path())).unwrap();
+        let lock = std::fs::metadata(dir.path().join(LOCK_FILE)).unwrap();
+        assert_eq!(lock.len(), 0);
     }
 
     #[test]

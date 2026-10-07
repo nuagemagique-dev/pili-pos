@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -10,6 +10,7 @@ use crate::response_check::{ExpectedEvent, check_sign_result};
 /// Parse one sign result out of the GraphQL `data` object and check it
 /// against the request it answers before anyone can archive it.
 fn parse_checked<D: Serialize>(
+    sink: Option<&SignMessageSink>,
     data: &serde_json::Value,
     mutation_name: &str,
     request: &D,
@@ -33,7 +34,7 @@ fn parse_checked<D: Serialize>(
         );
         FdmError::ResponseMismatch(mismatch.to_string())
     })?;
-    report_sign_messages(mutation_name, &request, &result);
+    report_sign_messages(sink, mutation_name, &request, &result);
     Ok(result)
 }
 
@@ -49,21 +50,16 @@ pub struct SignMessages {
     pub informations: Vec<MessageItem>,
 }
 
-type SignMessageSink = Box<dyn Fn(&SignMessages) + Send + Sync>;
+/// Where one client reports the messages of its signed events.
+pub type SignMessageSink = Arc<dyn Fn(&SignMessages) + Send + Sync>;
 
-static SIGN_MESSAGE_SINK: OnceLock<SignMessageSink> = OnceLock::new();
-
-/// Where the messages of signed events go. POS description v2.2,
-/// Message: a warning received with a mutation's response is shown at
-/// least once per bookingDate, so every sign response's warnings and
-/// informations reach `sink`, whichever command signed. Set once;
-/// returns false if a sink was already set.
-pub fn on_sign_messages(sink: impl Fn(&SignMessages) + Send + Sync + 'static) -> bool {
-    SIGN_MESSAGE_SINK.set(Box::new(sink)).is_ok()
-}
-
-fn report_sign_messages(mutation_name: &str, request: &serde_json::Value, result: &SignResult) {
-    let Some(sink) = SIGN_MESSAGE_SINK.get() else {
+fn report_sign_messages(
+    sink: Option<&SignMessageSink>,
+    mutation_name: &str,
+    request: &serde_json::Value,
+    result: &SignResult,
+) {
+    let Some(sink) = sink else {
         return;
     };
     let shown = |items: &Option<Vec<MessageItem>>| -> Vec<MessageItem> {
@@ -396,6 +392,8 @@ pub struct FdmClient {
     /// Sent as `Authorization: Bearer ...` when the FDM requires it (a
     /// cloud simulator); never logged.
     bearer_token: Option<String>,
+    /// Where the messages of signed events go ([`FdmClient::with_sign_messages`]).
+    sign_messages: Option<SignMessageSink>,
 }
 
 #[derive(Serialize)]
@@ -434,6 +432,7 @@ impl FdmClient {
             http: http.build().expect("reqwest client builder"),
             url: fdm_url.to_string(),
             bearer_token: None,
+            sign_messages: None,
         }
     }
 
@@ -507,6 +506,16 @@ impl FdmClient {
     /// Send `token` as a bearer token with every request.
     pub fn with_bearer_token(mut self, token: Option<String>) -> Self {
         self.bearer_token = token;
+        self
+    }
+
+    /// Where the messages of signed events go. POS description v2.2,
+    /// Message: a warning received with a mutation's response is shown
+    /// at least once per bookingDate, so every sign response's warnings
+    /// and informations (minus `showPos: NEVER`) reach `sink`, whichever
+    /// command signed.
+    pub fn with_sign_messages(mut self, sink: SignMessageSink) -> Self {
+        self.sign_messages = Some(sink);
         self
     }
 
@@ -805,7 +814,15 @@ impl FdmClient {
             .fields()
             .iter()
             .zip(&inputs)
-            .map(|((field, _, _), input)| parse_checked(&data, field, input, request.is_training()))
+            .map(|((field, _, _), input)| {
+                parse_checked(
+                    self.sign_messages.as_ref(),
+                    &data,
+                    field,
+                    input,
+                    request.is_training(),
+                )
+            })
             .collect()
     }
 

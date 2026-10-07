@@ -153,6 +153,7 @@ impl TestApp {
             support: pos_engine::commands::support::SupportState::disabled(),
             pin_throttle: Default::default(),
             signing: Default::default(),
+            fdm_status_cache: Mutex::new(None),
         };
 
         let app = Self {

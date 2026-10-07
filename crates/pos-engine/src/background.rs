@@ -11,30 +11,13 @@ use tokio::task::JoinHandle;
 
 use crate::commands;
 use crate::engine::Engine;
-use crate::events::EngineEvent;
 
 impl Engine {
     /// Spawn the loops on `rt`: all of them stop when
     /// [`Engine::shutdown`] cancels the shutdown token.
-    ///
-    /// Also registers the FDM client's sign-message hook so the
-    /// warnings and informations the FDM attaches to a signed event
-    /// reach the sink (POS description v2.2, Message). That hook is a
-    /// process-wide global until phase P1a-T8: when one is already set
-    /// in this process, it stays.
     pub fn start_background(&self, rt: &tokio::runtime::Handle) {
         let state = self.state().clone();
         let mut spawned: Vec<JoinHandle<()>> = Vec::new();
-
-        {
-            let sink = state.events.clone();
-            let registered = pos_fiscal::fdm_client::on_sign_messages(move |messages| {
-                sink.emit(EngineEvent::FdmSignMessages(messages.clone()));
-            });
-            if !registered {
-                tracing::debug!("sign-message hook already set in this process; keeping it");
-            }
-        }
 
         // Automatic Z of a business day left open (producers FAQ
         // Q501c): at start-up, then every minute. A failure (FDM

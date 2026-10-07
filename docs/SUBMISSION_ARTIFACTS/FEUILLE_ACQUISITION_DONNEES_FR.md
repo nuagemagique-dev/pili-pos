@@ -19,6 +19,7 @@ Finances.
 | Chemin (développement Linux) | `~/.local/share/pili-pos/pos.db` |
 | Encodage | UTF-8 |
 | Fichiers annexes WAL | `pos.db-wal`, `pos.db-shm` (mêmes répertoire et permissions) |
+| Fichier de verrou | `engine.lock` (même répertoire) : fichier vide, qui ne contient aucune donnée ; le moteur y prend un verrou exclusif à l'ouverture, ce qui empêche deux instances d'écrire dans la même base |
 | Propriétaire | `pos:pos` (UID/GID dédiés sur le kiosque) |
 | Permissions | `0640` (lecture restreinte au service) |
 

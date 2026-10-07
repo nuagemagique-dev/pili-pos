@@ -159,6 +159,7 @@ exclusivement, jamais ne diminue). Voir
 | `/var/lib/pili-pos/pos.db` | `pos:pos` | `0640` | Lecture/écriture par le service uniquement (le groupe `pos` donne un accès lecture au compte `spf`, voir §3.2) |
 | `/var/lib/pili-pos/pos.db-wal` | `pos:pos` | `0640` | Idem |
 | `/var/lib/pili-pos/pos.db-shm` | `pos:pos` | `0640` | Idem |
+| `engine.lock` (dans `/var/lib/pili-pos/`) | `pos:pos` | `0640` | Fichier de verrou vide, sans aucune donnée : le moteur y prend un verrou exclusif à l'ouverture, pour qu'une seule instance écrive dans `pos.db` |
 | `/var/lib/pili-pos/backups/` | `pos:pos` | `0750` | Répertoire des sauvegardes |
 | `/var/lib/pili-pos/backups/pos-*.db` | `pos:pos` | `0640` | Sauvegardes journalières |
 | `/var/lib/pili-pos/logs/pos.log.*` | `pos:pos` | `0640` | Journaux applicatifs |
