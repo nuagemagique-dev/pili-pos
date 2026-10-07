@@ -311,6 +311,7 @@ impl Engine {
                 pin_throttle: Default::default(),
                 signing: Default::default(),
                 fdm_status_cache: Mutex::new(None),
+                session_rules: Default::default(),
             }),
             tasks: Mutex::new(Vec::new()),
             ticks: Arc::new(BackgroundTicks::default()),

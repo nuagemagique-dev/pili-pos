@@ -67,6 +67,8 @@ pub struct AppState {
     pub signing: crate::commands::signing::SigningLock,
     /// The last FDM status answer (`commands::checkout::do_check_fdm_status`).
     pub fdm_status_cache: Mutex<Option<FdmStatusAnswer>>,
+    /// The order on screen and the lock (`commands::session`).
+    pub session_rules: crate::commands::session::SessionRules,
 }
 
 /// One cached FDM status answer: the key of everything that reaches the
