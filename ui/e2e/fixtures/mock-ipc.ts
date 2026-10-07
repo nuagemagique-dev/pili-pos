@@ -129,6 +129,35 @@ export function live(fn: Handler): Handler {
   return fn;
 }
 
+/** The engine's FdmHealth (event "fdm-status"); healthy unless overridden. */
+export interface FdmHealthMock {
+  connected: boolean;
+  answered: boolean;
+  severity: 'blocking' | 'warning' | 'info';
+  code: string | null;
+  mandatory: boolean;
+  checkedAt: string;
+  nextCheckAt: string | null;
+}
+
+export function fdmHealth(over: Partial<FdmHealthMock> = {}): FdmHealthMock {
+  return {
+    connected: true,
+    answered: true,
+    severity: 'info',
+    code: null,
+    mandatory: false,
+    checkedAt: '2026-10-08T10:00:00+02:00',
+    nextCheckAt: null,
+    ...over,
+  };
+}
+
+/** `fdm_check_now` and `fdm_health` answering with this health. */
+export function fdmMocks(health: FdmHealthMock): Record<string, Handler> {
+  return { fdm_check_now: () => health, fdm_health: () => health };
+}
+
 function defaultHandlers(): Record<string, Handler> {
   let nextOrderId = 1;
   let nextLineId = 1;
@@ -232,8 +261,12 @@ function defaultHandlers(): Record<string, Handler> {
       success: true, ticket: null, error: null, fdm_connected: true,
       fiscal_event_id: 9, delivery: null, kitchen_slip: 'printed',
     }),
-    // A healthy FDM: a blocking status covers the sales screens with a
-    // veil (FdmAlerts), so FDM specs set their own status.
+    // A healthy FDM, as the engine monitor reports it: a blocking
+    // status covers the sales screens with a veil (FdmAlerts), so FDM
+    // specs set their own health (`fdmMocks`). check_fdm_status stays a
+    // valid command but the UI no longer calls it.
+    fdm_health: () => fdmHealth(),
+    fdm_check_now: () => fdmHealth(),
     check_fdm_status: () => ({ initialized: true, errors: [], warnings: [] }),
 
     // Refund (event N, negative lines)

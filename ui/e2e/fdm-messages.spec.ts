@@ -3,10 +3,12 @@ import {
   mockTauriIPC,
   DEFAULT_USER,
   DEFAULT_CATEGORY,
-  DEFAULT_MENU_ITEM, tapUserTile } from './fixtures/mock-ipc';
+  DEFAULT_MENU_ITEM, tapUserTile, fdmHealth, fdmMocks } from './fixtures/mock-ipc';
 
 // Certification manual §V: every message code of tb_messages, as the
-// FDM's Status query returns it, against the header indicator.
+// engine's FDM monitor reports it (FdmHealth, classified in Rust:
+// crates/pos-engine/src/commands/fdm_monitor.rs), against the header
+// indicator.
 // "M" and "O" codes show their French message (fdmMessages.ts) in the
 // banner under the header; the four blocking errors turn the indicator
 // red and veil the sales screens. "N" codes come with
@@ -15,18 +17,29 @@ import {
 
 type Nature = 'Error' | 'Warning';
 
+const BLOCKING = new Set(['BUFFER_FULL', 'FDM_LOCKED', 'FDM_NOT_OPERATIONAL', 'UNKNOWN_POS']);
+
+/** The health the engine reports for one FDM message: errors first,
+ * blocking for the four blocking codes, a showPos NEVER message not
+ * shown at all. */
+function healthFor(code: string, nature: Nature, showPos: string) {
+  if (showPos === 'NEVER') return fdmHealth();
+  const blocking = nature === 'Error' && BLOCKING.has(code);
+  return fdmHealth({
+    connected: !blocking,
+    severity: blocking ? 'blocking' : 'warning',
+    code,
+    mandatory: showPos === 'MANDATORY',
+  });
+}
+
 async function orderScreenWithStatus(page: Page, code: string, nature: Nature, showPos: string) {
-  const item = { message: code, extensions: { category: 'SPF_FOD', code, showPos } };
   await mockTauriIPC(page, {
     login: () => DEFAULT_USER,
     list_users: () => [DEFAULT_USER],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
-    check_fdm_status: () => ({
-      initialized: true,
-      errors: nature === 'Error' ? [item] : [],
-      warnings: nature === 'Warning' ? [item] : [],
-    }),
+    ...fdmMocks(healthFor(code, nature, showPos)),
   });
   await page.goto('/');
   await tapUserTile(page);
@@ -37,8 +50,6 @@ async function orderScreenWithStatus(page: Page, code: string, nature: Nature, s
   await page.locator('.table-card').first().click();
   await page.waitForURL(/order/);
 }
-
-const BLOCKING = new Set(['BUFFER_FULL', 'FDM_LOCKED', 'FDM_NOT_OPERATIONAL', 'UNKNOWN_POS']);
 
 /** A displayed code: its message, and the indicator's color. */
 async function shows(
@@ -195,7 +206,7 @@ test('an FDM that is not initialized says so under the header', async ({ page })
     list_users: () => [DEFAULT_USER],
     get_categories: () => [DEFAULT_CATEGORY],
     get_menu_items: () => [DEFAULT_MENU_ITEM],
-    check_fdm_status: () => ({ initialized: false, errors: [], warnings: [], informations: [] }),
+    ...fdmMocks(fdmHealth({ connected: false, code: 'FDM_NOT_INITIALIZED' })),
   });
   await page.goto('/');
   await tapUserTile(page);
