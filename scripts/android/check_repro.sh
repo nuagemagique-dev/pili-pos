@@ -210,7 +210,7 @@ echo "PREFETCH | cargo fetch --locked --manifest-path android/rust/Cargo.toml"
 (cd /build/src && cargo fetch --locked --manifest-path android/rust/Cargo.toml)
 echo "PREFETCH | gradle -I docker/prefetch.gradle prefetchAll"
 (cd /build/src/android && ./gradlew --no-daemon --no-build-cache --no-configuration-cache --console=plain \
-    -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I docker/prefetch.gradle prefetchAll prefetchAapt2)
+    -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I docker/prefetch.gradle prefetchAll prefetchLazy)
 if [ "$PILI_PREFETCH_METHOD" = "full-build" ]; then
     echo "PREFETCH | one full network build of :smoke:assembleRelease (outputs discarded)"
     mkdir -p /tmp/prefetch-out
