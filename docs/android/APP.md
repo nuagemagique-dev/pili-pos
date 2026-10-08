@@ -18,7 +18,7 @@ One Gradle module, `:app` (decision PD101): package `dev.nuagemagique.pilipos`, 
 | `ui/theme/` | tokens, `PiliTheme`, `PiliDensity` (section 6) | ui-common (P5 run A) |
 | `feature/<view>/` | one screen area each: login, tables, order, checkout, reports, settings, webshop | ui-`<view>` (P5 run B) |
 | `platform/` | About, updater, boot and package-replaced receivers, watchdog | platform (P6) |
-| `debugtools/` (debug source set) | `DebugTeardownReceiver`, `E2eEntryPoint` | foundation |
+| `debugtools/` (debug source set) | `DebugTeardownReceiver`, `DebugKillReceiver`, `E2eEntryPoint` | foundation |
 
 `MainActivity` is the single activity (kiosk home). `PiliApplication` is the Hilt root and plants the Timber debug tree in debug builds only. Every feature is a placeholder screen until P5 fills it; the contracts around it are final.
 
@@ -193,7 +193,7 @@ Overlays are drawn above the navigation host by ascending `order`.
 | `launch` | `am start`, then `PiliShell state=NotProvisioned` in logcat since the launch |
 | `push` | the bundle files into `/sdcard/Android/data/dev.nuagemagique.pilipos.debug/files/provisioning-inbox` |
 | `instrumented` | `am instrument` of `ProvisioningE2eTest` (below) |
-| `restart` | `am force-stop` and `am start`; within 30 s `state=Ready` with no `NotProvisioned`, and `mLockTaskModeState=LOCKED` |
+| `restart` | the debug-only `DebugKillReceiver` broadcast (`...debug.KILL`, SIGKILL of its own process; not `am force-stop`, `am crash` or `run-as kill`, see section 10); the old pid must be gone, a new pid must appear (the system restarts the HOME app, `am start` is the fallback), and only that pid's `PiliShell` lines count: `state=Ready` within 30 s with no `NotProvisioned`, then `mLockTaskModeState=LOCKED`. The PASS detail reports `old pid -> new pid` |
 | `teardown` | the debug teardown broadcast, owner cleared, both packages uninstalled, this run's reverse rules removed, mocks stopped, bundle deleted |
 
 `ProvisioningE2eTest` (`androidTest/.../e2e`) runs the real application and Hilt graph. `E2eEntryPoint` lives in the debug source set (an entry point declared only in the test APK is not part of the app's component) and gives the test `EngineHolder`, `EngineGateway`, `EngineEvents`, `UserActivityForwarder`, `KioskController` and `ProvisioningStore`. It checks: `shell_provisioning` shown; click `prov_import_inbox`; within 90 s `Ready` with `pili-pos-android/1.0.0-dev`; the record's `deviceId` equals `Build.getSerial()` and is not blank; Lock Task LOCKED; a real touch raises `forwardedCount` within 3 s; with `EngineEvents` subscribed first, the manager login succeeds and an `FdmStatus` event with `health.connected` arrives within 20 s; logout. Instrumentation arguments: `managerInsz` (default 94060242576), `managerPin` (default 1111), `fdmPort` (default 19380). A missing mock fails the test; it is never skipped.
@@ -210,5 +210,7 @@ The emulator proves the code paths, not the hardware. Still open, and tracked in
 - the USB stick for the SPF export (an SD card stood in) and the real update image;
 - the 24 hour survival run with the foreground service and deep sleep (P7; the emulator ran a 30 minute soak);
 - display facts of the real panel (density, usable height) and whether Chinese prints on the ticket (CP858 prints `?`, a P6 product decision).
+
+- `am force-stop` is ignored for the device-owner package on API 33 (logcat: `Ignoring request to force stop protected package`). Neither the e2e script nor P6's restart and watchdog design can rely on it: a restart is a real process death (the debug `KILL` broadcast of `DebugKillReceiver`, or the OS); `am crash` is ignored for the protected package too and `run-as kill` cannot see the pid (separate pid namespace). The system then restarts the persistent HOME app. After `am instrument` ends, the system also starts a fresh process for the top activity, so a restart check must compare pids and read only the new pid's log. This replaces the brief's `am force-stop` (decision to be copied into `DECISIONS.md` under "Decided while the user was away (review)": that file is outside this card's allowed paths).
 
 The emulator is not wiped by any card. A debug run leaves it without owner, without the packages and without this run's reverse rules.
