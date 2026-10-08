@@ -38,7 +38,9 @@ class EngineErrorCodesTest {
                 assertEquals(entry.getString(lang.code), text)
             }
         }
-        println("error codes checked: ${codes.size} (${EngineErrorCodes.ALL.size} engine + ${EngineErrorCodes.HUBRISE.size} hubrise), 3 languages each")
+        val engine = EngineErrorCodes.ALL.size
+        val hubrise = EngineErrorCodes.HUBRISE.size
+        println("error codes checked: ${codes.size} ($engine engine + $hubrise hubrise), 3 languages each")
     }
 
     @Test

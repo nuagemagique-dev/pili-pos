@@ -51,11 +51,13 @@ class ErrorTexts
             lang: AppLanguage,
         ): String {
             val text = raw.orEmpty().trim()
-            if (text.isEmpty()) return catalog.text("err_failed", lang)
-            if (isFdm(text)) return describeFdm(text, lang)
             val coded = parseErrorCode(text)
-            if (coded != null) return describeCoded(coded.code, coded.vars, text, lang)
-            return unexpected(text, lang)
+            return when {
+                text.isEmpty() -> catalog.text("err_failed", lang)
+                isFdm(text) -> describeFdm(text, lang)
+                coded != null -> describeCoded(coded.code, coded.vars, text, lang)
+                else -> unexpected(text, lang)
+            }
         }
 
         /** The text of a failed engine call, by the kind of [error]. */
