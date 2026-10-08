@@ -1,6 +1,5 @@
 package dev.nuagemagique.pilipos.core
 
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -8,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import uniffi.pos_ffi.posSwVersion
 import uniffi.pos_ffi.uniffiEnsureInitialized
+import java.io.File
 
 /** Loads the host dylib through the plain JNA jar with bindings generated from that same dylib. */
 class LoadTest {
@@ -26,9 +26,10 @@ class LoadTest {
     }
 
     @Test
-    fun posSwVersionIsTheAndroidPrefixPlusTheCrateVersion() = runBlocking(Dispatchers.IO) {
-        uniffiEnsureInitialized()
-        val version = withContext(Dispatchers.IO) { posSwVersion() }
-        assertEquals("pili-pos-android/" + ffiCrateVersion(), version)
-    }
+    fun posSwVersionIsTheAndroidPrefixPlusTheCrateVersion() =
+        runBlocking(Dispatchers.IO) {
+            uniffiEnsureInitialized()
+            val version = withContext(Dispatchers.IO) { posSwVersion() }
+            assertEquals("pili-pos-android/" + ffiCrateVersion(), version)
+        }
 }

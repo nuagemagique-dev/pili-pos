@@ -1,6 +1,5 @@
 package dev.nuagemagique.pilipos.core
 
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -19,6 +18,7 @@ import uniffi.pos_ffi.PosEngine
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.initLogging
 import uniffi.pos_ffi.uniffiEnsureInitialized
+import java.io.File
 
 /**
  * Lifecycle of the engine over the real host library: open, second open on the same directory,
@@ -40,7 +40,7 @@ class LifecycleTest {
             if (::fdm.isInitialized) fdm.stop()
         }
 
-        private val TIMEOUT_MS = 60_000L
+        private const val TIMEOUT_MS = 60_000L
     }
 
     @get:Rule
@@ -73,25 +73,27 @@ class LifecycleTest {
         )
     }
 
-    private fun options(data: String = dataDir.absolutePath) = EngineOptions(
-        dataDir = data,
-        configBundle = posJson.absolutePath,
-        deviceId = "EMULATOR-TEST-0001",
-        timers = null,
-    )
+    private fun options(data: String = dataDir.absolutePath) =
+        EngineOptions(
+            dataDir = data,
+            configBundle = posJson.absolutePath,
+            deviceId = "EMULATOR-TEST-0001",
+            timers = null,
+        )
 
     /** Opens an engine on the IO dispatcher and remembers it for the cleanup. */
     private suspend fun open(data: String = dataDir.absolutePath): PosEngine =
         withContext(Dispatchers.IO) { PosEngine.open(options(data)) }.also { opened += it }
 
     /** Always shut the engines down and release their native objects. */
-    private fun cleanup() = runBlocking(Dispatchers.IO) {
-        for (engine in opened) {
-            runCatching { withTimeout(TIMEOUT_MS) { engine.shutdown() } }
-            runCatching { engine.destroy() }
+    private fun cleanup() =
+        runBlocking(Dispatchers.IO) {
+            for (engine in opened) {
+                runCatching { withTimeout(TIMEOUT_MS) { engine.shutdown() } }
+                runCatching { engine.destroy() }
+            }
+            opened.clear()
         }
-        opened.clear()
-    }
 
     private fun lifecycle(body: suspend () -> Unit) {
         try {
@@ -102,71 +104,79 @@ class LifecycleTest {
     }
 
     @Test
-    fun initLoggingCreatesTheDailyLogFile() = lifecycle {
-        uniffiEnsureInitialized()
-        val logs = File(base, "logs")
-        initLogging(logs.absolutePath, "info")
-        // A second call is Ok and changes nothing (the subscriber is process-wide).
-        initLogging(File(base, "logs-again").absolutePath, "info")
-        val files = logs.listFiles { f -> f.name.startsWith("pili-pos.log.") }.orEmpty()
-        assertTrue("a log file pili-pos.log.<date> under $logs, found ${logs.list()?.toList()}", files.isNotEmpty())
-    }
+    fun initLoggingCreatesTheDailyLogFile() =
+        lifecycle {
+            uniffiEnsureInitialized()
+            val logs = File(base, "logs")
+            initLogging(logs.absolutePath, "info")
+            // A second call is Ok and changes nothing (the subscriber is process-wide).
+            initLogging(File(base, "logs-again").absolutePath, "info")
+            val files = logs.listFiles { f -> f.name.startsWith("pili-pos.log.") }.orEmpty()
+            assertTrue("a log file pili-pos.log.<date> under $logs, found ${logs.list()?.toList()}", files.isNotEmpty())
+        }
 
     @Test
-    fun openThenShutdownThenReopenOnTheSameDirectory() = lifecycle {
-        val first = open()
-        first.shutdown()
-        // shutdown released engine.lock: the same directory opens again.
-        val second = open()
-        second.shutdown()
-        // A second shutdown is Ok.
-        second.shutdown()
-    }
+    fun openThenShutdownThenReopenOnTheSameDirectory() =
+        lifecycle {
+            val first = open()
+            first.shutdown()
+            // shutdown released engine.lock: the same directory opens again.
+            val second = open()
+            second.shutdown()
+            // A second shutdown is Ok.
+            second.shutdown()
+        }
 
     @Test
-    fun aSecondOpenOnTheSameDataDirIsRefused() = lifecycle {
-        val first = open()
-        val error = runCatching { open() }.exceptionOrNull()
-        assertTrue("expected PosException.Internal, got $error", error is PosException.Internal)
-        val detail = (error as PosException.Internal).detail
-        assertTrue("detail was: $detail", detail.contains("engine already open"))
-        first.shutdown()
-    }
+    fun aSecondOpenOnTheSameDataDirIsRefused() =
+        lifecycle {
+            val first = open()
+            val error = runCatching { open() }.exceptionOrNull()
+            assertTrue("expected PosException.Internal, got $error", error is PosException.Internal)
+            val detail = (error as PosException.Internal).detail
+            assertTrue("detail was: $detail", detail.contains("engine already open"))
+            first.shutdown()
+        }
 
     @Test
-    fun eventsAfterShutdownAreEngineClosed() = lifecycle {
-        val engine = open()
-        engine.shutdown()
-        val error = runCatching { engine.events() }.exceptionOrNull()
-        assertTrue("expected PosException.EngineClosed, got $error", error is PosException.EngineClosed)
-    }
+    fun eventsAfterShutdownAreEngineClosed() =
+        lifecycle {
+            val engine = open()
+            engine.shutdown()
+            val error = runCatching { engine.events() }.exceptionOrNull()
+            assertTrue("expected PosException.EngineClosed, got $error", error is PosException.EngineClosed)
+        }
 
     @Test
-    fun theEventStreamEndsWithTheEngine() = lifecycle {
-        val engine = open()
-        val stream = engine.events()
-        engine.shutdown()
-        assertNull("next() after shutdown", withTimeout(10_000) { stream.next() })
-        // And stays closed.
-        assertNull(withTimeout(10_000) { stream.next() })
-        stream.destroy()
-    }
+    fun theEventStreamEndsWithTheEngine() =
+        lifecycle {
+            val engine = open()
+            val stream = engine.events()
+            engine.shutdown()
+            assertNull("next() after shutdown", withTimeout(10_000) { stream.next() })
+            // And stays closed.
+            assertNull(withTimeout(10_000) { stream.next() })
+            stream.destroy()
+        }
 
     @Test
-    fun aRelativeDataDirIsRefused() = lifecycle {
-        val error = runCatching { open("relative/data") }.exceptionOrNull()
-        assertTrue("expected PosException.Internal, got $error", error is PosException.Internal)
-        assertTrue((error as PosException.Internal).detail.contains("absolute"))
-    }
+    fun aRelativeDataDirIsRefused() =
+        lifecycle {
+            val error = runCatching { open("relative/data") }.exceptionOrNull()
+            assertTrue("expected PosException.Internal, got $error", error is PosException.Internal)
+            assertTrue((error as PosException.Internal).detail.contains("absolute"))
+        }
 
     @Test
-    fun aRelativeBundlePathIsRefused() = lifecycle {
-        val error = runCatching {
-            withContext(Dispatchers.IO) {
-                PosEngine.open(EngineOptions(dataDir.absolutePath, "bundle/pos.json", null, null))
-            }.also { opened += it }
-        }.exceptionOrNull()
-        assertTrue("expected PosException.Internal, got $error", error is PosException.Internal)
-        assertEquals(true, (error as PosException.Internal).detail.contains("absolute"))
-    }
+    fun aRelativeBundlePathIsRefused() =
+        lifecycle {
+            val error =
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        PosEngine.open(EngineOptions(dataDir.absolutePath, "bundle/pos.json", null, null))
+                    }.also { opened += it }
+                }.exceptionOrNull()
+            assertTrue("expected PosException.Internal, got $error", error is PosException.Internal)
+            assertEquals(true, (error as PosException.Internal).detail.contains("absolute"))
+        }
 }

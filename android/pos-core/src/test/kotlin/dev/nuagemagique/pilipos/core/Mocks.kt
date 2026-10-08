@@ -4,6 +4,7 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -20,11 +21,12 @@ class MockProcess(
     val isAlive: Boolean get() = process.isAlive
 
     fun stop() {
-        val tree = process.descendants().toList()
+        Mocks.forget(this)
+        val tree = descendantHandles(process)
         process.destroy()
-        tree.forEach { it.destroy() }
+        tree.forEach { destroyHandle(it, force = false) }
         if (!process.waitFor(5, TimeUnit.SECONDS)) {
-            tree.forEach { it.destroyForcibly() }
+            tree.forEach { destroyHandle(it, force = true) }
             process.destroyForcibly()
             process.waitFor(5, TimeUnit.SECONDS)
         }
@@ -33,12 +35,43 @@ class MockProcess(
     override fun close() = stop()
 }
 
+// java.lang.ProcessHandle is not part of the Android API surface that unit tests compile against
+// (android.jar), but the host JVM that runs them has it: the descendants are reached by reflection.
+private val processHandleClass: Class<*> = Class.forName("java.lang.ProcessHandle")
+
+private fun descendantHandles(process: Process): List<Any> {
+    val stream = Process::class.java.getMethod("descendants").invoke(process) as java.util.stream.Stream<*>
+    return stream.iterator().asSequence().filterNotNull().toList()
+}
+
+private fun destroyHandle(
+    handle: Any,
+    force: Boolean,
+) {
+    processHandleClass.getMethod(if (force) "destroyForcibly" else "destroy").invoke(handle)
+}
+
 /** Starts the mocks built by the Gradle task cargoBuildMocks (paths come from system properties). */
 object Mocks {
     private const val STARTUP_TIMEOUT_MS = 10_000L
 
     /** The repository root (system property pili.repoRoot). */
     val repoRoot: File get() = File(requiredProperty("pili.repoRoot"))
+
+    // Mocks still running; one JVM shutdown hook stops them, so a crashed test JVM leaves no process.
+    private val running: MutableSet<MockProcess> = ConcurrentHashMap.newKeySet()
+
+    init {
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                running.toList().forEach { runCatching { it.stop() } }
+            },
+        )
+    }
+
+    internal fun forget(mock: MockProcess) {
+        running.remove(mock)
+    }
 
     private val logDir: File
         get() = File(System.getProperty("user.dir"), "build/mock-logs").also { it.mkdirs() }
@@ -66,7 +99,10 @@ object Mocks {
     }
 
     /** Whether something accepts TCP connections on 127.0.0.1:[port]. */
-    fun accepts(port: Int, timeoutMs: Int = 300): Boolean =
+    fun accepts(
+        port: Int,
+        timeoutMs: Int = 300,
+    ): Boolean =
         try {
             Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), timeoutMs) }
             true
@@ -77,14 +113,21 @@ object Mocks {
     private fun requiredProperty(name: String): String =
         System.getProperty(name) ?: error("system property $name is not set (run the tests through Gradle)")
 
-    private fun start(name: String, binary: String, env: Map<String, String>, ports: List<Int>): MockProcess {
+    private fun start(
+        name: String,
+        binary: String,
+        env: Map<String, String>,
+        ports: List<Int>,
+    ): MockProcess {
         require(File(binary).canExecute()) { "$name binary not found or not executable: $binary" }
         val log = File(logDir, "$name-${ports.first()}.log")
-        val builder = ProcessBuilder(binary)
-            .redirectErrorStream(true)
-            .redirectOutput(log)
+        val builder =
+            ProcessBuilder(binary)
+                .redirectErrorStream(true)
+                .redirectOutput(log)
         builder.environment().putAll(env)
         val mock = MockProcess(name, builder.start(), log, ports)
+        running.add(mock)
         try {
             val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(STARTUP_TIMEOUT_MS)
             for (port in ports) {

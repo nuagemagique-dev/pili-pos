@@ -1,9 +1,5 @@
 package dev.nuagemagique.pilipos.core
 
-import java.io.File
-import java.net.HttpURLConnection
-import java.net.URI
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -17,6 +13,10 @@ import uniffi.pos_ffi.EngineOptions
 import uniffi.pos_ffi.PosEngine
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.installInitDb
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URI
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** Seeded manager of src-tauri/seed_spf_test.sql (role admin). */
 const val MANAGER_INSZ = "94060242576"
@@ -68,7 +68,10 @@ class EndToEnd private constructor(
             .map { it.groupValues[1].replace("\\n", "\n").replace("\\\"", "\"") }.toList()
 
     /** Waits until the printer mock holds at least [count] jobs and returns their texts. */
-    suspend fun awaitPrinterJobs(count: Int, timeoutMs: Long = 10_000): List<String> {
+    suspend fun awaitPrinterJobs(
+        count: Int,
+        timeoutMs: Long = 10_000,
+    ): List<String> {
         var texts = emptyList<String>()
         try {
             withTimeout(timeoutMs) {
@@ -79,7 +82,7 @@ class EndToEnd private constructor(
                 }
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            throw AssertionError("printer mock holds ${texts.size} job(s), expected $count")
+            throw AssertionError("printer mock holds ${texts.size} job(s), expected $count", e)
         }
         return texts
     }
@@ -124,29 +127,31 @@ class EndToEnd private constructor(
             val seed = File(Mocks.repoRoot, "src-tauri/seed_spf_test.sql")
             require(seed.isFile) { "seed not found: $seed" }
             installInitDb(dataDir.absolutePath, seed.absolutePath)
-            val engine = withContext(Dispatchers.IO) {
-                PosEngine.open(
-                    EngineOptions(
-                        dataDir = dataDir.absolutePath,
-                        configBundle = posJson.absolutePath,
-                        deviceId = "EMULATOR-TEST-0001",
-                        timers = null,
-                    ),
-                )
-            }
+            val engine =
+                withContext(Dispatchers.IO) {
+                    PosEngine.open(
+                        EngineOptions(
+                            dataDir = dataDir.absolutePath,
+                            configBundle = posJson.absolutePath,
+                            deviceId = "EMULATOR-TEST-0001",
+                            timers = null,
+                        ),
+                    )
+                }
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             val stream = engine.events()
             val events = CopyOnWriteArrayList<PosEvent>()
-            val collector = scope.launch {
-                try {
-                    while (true) {
-                        val event = stream.next() ?: break
-                        events += event
+            val collector =
+                scope.launch {
+                    try {
+                        while (true) {
+                            val event = stream.next() ?: break
+                            events += event
+                        }
+                    } finally {
+                        stream.destroy()
                     }
-                } finally {
-                    stream.destroy()
                 }
-            }
             return EndToEnd(engine, dataDir, printer.ports[1], scope, collector, events)
         }
     }

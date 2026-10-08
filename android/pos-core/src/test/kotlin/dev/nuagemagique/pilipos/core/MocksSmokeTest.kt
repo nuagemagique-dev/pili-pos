@@ -1,10 +1,10 @@
 package dev.nuagemagique.pilipos.core
 
-import java.net.HttpURLConnection
-import java.net.URI
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.HttpURLConnection
+import java.net.URI
 
 class MocksSmokeTest {
     @Test
@@ -56,7 +56,14 @@ class MocksSmokeTest {
     @Test
     fun bothMocksRunSideBySideOnDistinctPortsAndStop() {
         val fdm = Mocks.startFdm()
-        val printer = Mocks.startPrinter()
+        val printer =
+            try {
+                Mocks.startPrinter()
+            } catch (t: Throwable) {
+                // Do not leave the FDM mock running when the printer mock fails to start.
+                fdm.stop()
+                throw t
+            }
         try {
             val all = fdm.ports + printer.ports
             assertTrue("ports are distinct: $all", all.toSet().size == all.size)
