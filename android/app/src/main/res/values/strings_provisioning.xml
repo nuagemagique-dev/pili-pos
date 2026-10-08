@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Provisioning screens (P4-T11). Placeholders are written {name} and replaced in Kotlin. -->
+    <string name="prov_title">Mise en service de la caisse</string>
+    <string name="prov_instructions">Branchez la clé USB de configuration, puis choisissez le dossier qui contient le paquet de configuration signé.</string>
+    <string name="prov_choose_folder">Choisir le dossier</string>
+    <string name="prov_import_inbox">Importer depuis la boîte de réception de test</string>
+    <string name="prov_importing">Importation en cours…</string>
+    <string name="prov_done">Configuration importée. La caisse démarre.</string>
+    <string name="prov_mismatch_title">Configuration d’un autre appareil</string>
+    <string name="prov_mismatch_body">La configuration installée a été préparée pour l’appareil {stored}, mais cet appareil est {actual}. Importez une nouvelle configuration signée pour cet appareil.</string>
+    <string name="prov_owner_required_title">Appareil non préparé</string>
+    <string name="prov_owner_required_body">L’application doit être installée comme propriétaire de l’appareil avant la mise en service. Contactez l’installateur.</string>
+    <string name="prov_device_id_title">Numéro de série illisible</string>
+    <string name="prov_device_id_body">Le numéro de série de l’appareil ne peut pas être lu ({detail}). La caisse ne démarre pas sans lui.</string>
+
+    <!-- Import problems. -->
+    <string name="prov_err_bundle_signature_invalid">La signature du paquet de configuration est absente ou invalide.</string>
+    <string name="prov_err_bundle_manifest_invalid">Le manifeste du paquet de configuration est absent ou illisible.</string>
+    <string name="prov_err_bundle_path_invalid">Chemin de fichier refusé dans le paquet : {path}</string>
+    <string name="prov_err_bundle_file_missing">Fichier manquant dans le paquet : {path}</string>
+    <string name="prov_err_bundle_size_mismatch">Taille de fichier inattendue : {path}</string>
+    <string name="prov_err_bundle_hash_mismatch">Contenu de fichier modifié : {path}</string>
+    <string name="prov_err_bundle_unlisted_file">Fichier non prévu dans le paquet : {path}</string>
+    <string name="prov_err_minisign_key_invalid">La clé publique de vérification est invalide.</string>
+    <string name="prov_err_minisign_signature_invalid">La signature est invalide.</string>
+    <string name="prov_err_key_missing">Cette version ne contient pas de clé de vérification : aucune configuration ne peut être importée.</string>
+    <string name="prov_err_not_device_owner">L’application n’est pas propriétaire de l’appareil : importation impossible.</string>
+    <string name="prov_err_device_id_unavailable">Le numéro de série de l’appareil est illisible : {detail}</string>
+    <string name="prov_err_config_invalid">La configuration est invalide : {detail}</string>
+    <string name="prov_err_engine_open">Le moteur de la caisse est ouvert : fermez-le avant d’importer.</string>
+    <string name="prov_err_copy_failed">Copie du paquet impossible : {detail}</string>
+    <string name="prov_err_too_large">Le paquet est trop volumineux ou contient trop de fichiers.</string>
+    <string name="prov_err_symlink">Le paquet contient un lien symbolique, refusé : {path}</string>
+    <string name="prov_err_busy">Une importation est déjà en cours.</string>
+    <string name="prov_err_unexpected">Erreur inattendue : {detail}</string>
+</resources>

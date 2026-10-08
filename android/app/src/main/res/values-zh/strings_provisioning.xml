@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Provisioning screens (P4-T11). Placeholders are written {name} and replaced in Kotlin. -->
+    <string name="prov_title">收银机设置</string>
+    <string name="prov_instructions">请插入配置用 U 盘，然后选择包含已签名配置包的文件夹。</string>
+    <string name="prov_choose_folder">选择文件夹</string>
+    <string name="prov_import_inbox">从测试收件箱导入</string>
+    <string name="prov_importing">正在导入…</string>
+    <string name="prov_done">配置已导入，收银机正在启动。</string>
+    <string name="prov_mismatch_title">配置属于另一台设备</string>
+    <string name="prov_mismatch_body">已安装的配置是为设备 {stored} 准备的，而本设备是 {actual}。请为本设备导入新的已签名配置。</string>
+    <string name="prov_owner_required_title">设备尚未准备好</string>
+    <string name="prov_owner_required_body">设置之前，应用必须安装为设备所有者。请联系安装人员。</string>
+    <string name="prov_device_id_title">无法读取序列号</string>
+    <string name="prov_device_id_body">无法读取设备序列号（{detail}）。没有序列号，收银机无法启动。</string>
+
+    <!-- Import problems. -->
+    <string name="prov_err_bundle_signature_invalid">配置包的签名缺失或无效。</string>
+    <string name="prov_err_bundle_manifest_invalid">配置包的清单缺失或无法读取。</string>
+    <string name="prov_err_bundle_path_invalid">配置包中的文件路径被拒绝：{path}</string>
+    <string name="prov_err_bundle_file_missing">配置包缺少文件：{path}</string>
+    <string name="prov_err_bundle_size_mismatch">文件大小不符：{path}</string>
+    <string name="prov_err_bundle_hash_mismatch">文件内容已被更改：{path}</string>
+    <string name="prov_err_bundle_unlisted_file">配置包中有未列出的文件：{path}</string>
+    <string name="prov_err_minisign_key_invalid">验证用公钥无效。</string>
+    <string name="prov_err_minisign_signature_invalid">签名无效。</string>
+    <string name="prov_err_key_missing">此版本没有验证密钥，无法导入任何配置。</string>
+    <string name="prov_err_not_device_owner">应用不是设备所有者，无法导入。</string>
+    <string name="prov_err_device_id_unavailable">无法读取设备序列号：{detail}</string>
+    <string name="prov_err_config_invalid">配置无效：{detail}</string>
+    <string name="prov_err_engine_open">收银机引擎正在运行，请先关闭再导入。</string>
+    <string name="prov_err_copy_failed">无法复制配置包：{detail}</string>
+    <string name="prov_err_too_large">配置包过大或文件过多。</string>
+    <string name="prov_err_symlink">配置包含符号链接，已被拒绝：{path}</string>
+    <string name="prov_err_busy">已有导入正在进行。</string>
+    <string name="prov_err_unexpected">意外错误：{detail}</string>
+</resources>
