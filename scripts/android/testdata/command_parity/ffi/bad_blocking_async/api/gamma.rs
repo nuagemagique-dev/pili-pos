@@ -1,0 +1,13 @@
+#[uniffi::export]
+impl PosEngine {
+    pub async fn check_gamma(
+        &self,
+        order_id: i64,
+    ) -> Result<bool, PosError> {
+        self.blocking(move |e| async move {
+            let r = { pos_engine::commands::gamma::do_check_gamma(&e, order_id).await };
+            r
+        })
+        .await
+    }
+}
