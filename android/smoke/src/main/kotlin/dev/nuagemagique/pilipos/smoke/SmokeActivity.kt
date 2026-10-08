@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 /**
  * The only screen of the never-shipped :smoke app. With the extra run=true it starts the scripted
  * engine scenario ([SmokeScenario]) on Dispatchers.IO and shows its lines; without it, it only
- * shows a label. The scenario also writes every line to logcat (tag PiliSmoke).
+ * shows a label. The mocks are at 127.0.0.1 on fdmPort and printerPort (adb reverse).
+ * The scenario also writes every line to logcat (tag PiliSmoke).
  */
 class SmokeActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -23,6 +24,9 @@ class SmokeActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A headless emulator sleeps quickly; a sleeping screen holds back the network of the app.
+        setShowWhenLocked(true)
+        setTurnScreenOn(true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         output =
             TextView(this).apply {

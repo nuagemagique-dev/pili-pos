@@ -184,12 +184,27 @@ fi
 
 adbd reverse "tcp:$FDM_DEV_PORT" "tcp:$FDM_PORT" >/dev/null && adbd reverse "tcp:$PRINTER_DEV_PORT" "tcp:$PRINTER_PORT" >/dev/null &&
     REVERSED=1
-if [[ "$REVERSED" -eq 1 ]]; then
-    say reverse PASS "device $FDM_DEV_PORT -> $FDM_PORT, $PRINTER_DEV_PORT -> $PRINTER_PORT"
-else
+if [[ "$REVERSED" -ne 1 ]]; then
     REVERSED=1 # remove whatever of the two rules exists
     abort reverse "adb reverse failed"
 fi
+
+# A sleeping headless emulator holds back the network of the tunnel and of the app: wake the screen
+# (no setting is changed; the activity keeps it on).
+adbd shell "input keyevent KEYCODE_WAKEUP; wm dismiss-keyguard" >/dev/null 2>&1
+sleep 1
+
+# The tunnel must carry data, not only accept a connection: ask the FDM mock for a plain HTTP answer
+# through the device port (stdin stays open one second so that nc reads the answer).
+tunnel_ok() {
+    adbd shell "(printf 'GET /graphql HTTP/1.0\\r\\n\\r\\n'; sleep 1) | nc -w 3 127.0.0.1 $FDM_DEV_PORT" 2>/dev/null | grep -q '^HTTP/'
+}
+tunnel=0
+for _ in 1 2 3; do
+    if tunnel_ok; then tunnel=1; break; fi
+done
+[[ "$tunnel" -eq 1 ]] || abort reverse "the FDM mock does not answer through the device port $FDM_DEV_PORT"
+say reverse PASS "device $FDM_DEV_PORT -> $FDM_PORT, $PRINTER_DEV_PORT -> $PRINTER_PORT, answered through the tunnel"
 
 # ── install and run ─────────────────────────────────────────────
 out="$(adbd install -r "$APK_SIGNED" 2>&1)"
