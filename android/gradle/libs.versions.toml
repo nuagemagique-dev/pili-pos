@@ -1,0 +1,23 @@
+[versions]
+# Pins equal to docs/android/DECISIONS.md section 5 (copied from moyun-handheld).
+# agp and r8 are declared for P3 (Android modules) and are not used by P2.
+agp = "8.9.1"
+kotlin = "2.2.20"
+kotlinxCoroutines = "1.9.0"
+# R8 bundled with AGP 8.9 predates Kotlin 2.2 metadata; Kotlin 2.2 needs R8 8.11+.
+r8 = "8.13.25"
+# JNA: plain jar for the JVM host tests (carries libjnidispatch for macOS and Linux).
+jna = "5.19.1"
+junit = "4.13.2"
+
+[libraries]
+r8 = { module = "com.android.tools:r8", version.ref = "r8" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
