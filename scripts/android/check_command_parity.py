@@ -25,6 +25,12 @@ names; H5 no process-wide statics outside logging.rs; H6 no unsigned
 integers except Vec<u8> in records, enums and exported signatures; H7 no
 peppol, sign_invoice or b2b_invoice identifiers.
 
+uniffi kinds are found through `uniffi::Record|Enum|Object|Error` derive
+paths, through an alias of the crate (`use uniffi as u;`) and through bare
+derives imported from uniffi (`use uniffi::Record;`). Methods of exported
+traits (callback interfaces) are exempt from H1 (foreign code implements them,
+they are synchronous) but their signatures are checked for H6.
+
 Standard library only.
 """
 
@@ -215,6 +221,7 @@ class Fn:
         self.owner = owner
         self.ctor = ctor
         self.exported = exported
+        self.in_trait = False
 
     @property
     def param_names(self):
@@ -304,9 +311,34 @@ def parse_exports(src):
                 continue
             fns.append(fn)
             continue
+        tm_ = re.compile(rf"(?:pub(?:\s*\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+({IDENT})").match(text, ws.end())
+        if tm_:
+            # callback interface: only H6 looks at its method signatures
+            brace = text.find("{", tm_.end())
+            if brace < 0:
+                continue
+            try:
+                end = match_close(text, brace, "{", "}")
+            except ValueError as e:
+                src.errors.append((src.line_of(brace), str(e)))
+                continue
+            want_depth = src.depths[brace] + 1
+            prev_end = brace + 1
+            for fm in FN_RE.finditer(text, brace + 1, end):
+                if src.depths[fm.start()] != want_depth or fm.start() < prev_end:
+                    continue
+                try:
+                    fn, fn_end = read_fn(src, fm, tm_.group(1), False, True)
+                except ValueError as e:
+                    src.errors.append((src.line_of(fm.start()), str(e)))
+                    continue
+                fn.in_trait = True
+                fns.append(fn)
+                prev_end = fn_end + 1
+            continue
         im = re.compile(r"(?:pub\s+)?(?:unsafe\s+)?impl\b").match(text, ws.end())
         if not im:
-            continue  # export of a trait or other item: not checked
+            continue  # export of another item: not checked
         brace = text.find("{", im.end())
         if brace < 0:
             continue
@@ -364,8 +396,52 @@ def attrs_before(text, pos):
     return attrs, start
 
 
+def uniffi_imports(text):
+    """(local name -> uniffi kind, local aliases of the uniffi crate) from `use` items."""
+    kinds = {}
+    crates = {"uniffi"}
+    for m in re.finditer(rf"\buse\s+(?:::)?uniffi\b\s*(?:as\s+({IDENT})\s*)?(?:::\s*(\{{[^;]*\}}|\*|{IDENT}(?:\s+as\s+{IDENT})?))?\s*;", text):
+        if m.group(1):
+            crates.add(m.group(1))
+        item = m.group(2)
+        if not item:
+            continue
+        if item == "*":
+            kinds.update({k: k for k in UNIFFI_KINDS})
+            continue
+        names = split_top(item[1:-1]) if item.startswith("{") else [item]
+        for n in names:
+            im = re.match(rf"\s*({IDENT})(?:\s+as\s+({IDENT}))?\s*$", n)
+            if not im:
+                continue
+            if im.group(1) in UNIFFI_KINDS:
+                kinds[im.group(2) or im.group(1)] = im.group(1)
+            elif im.group(1) == "self" and im.group(2):
+                crates.add(im.group(2))
+    return kinds, crates
+
+
+def uniffi_kind(derive, imports):
+    """The uniffi kind a derive path stands for, or None.
+
+    `uniffi::Record` (or an alias of the crate) always counts. A bare
+    `Record` counts only when the file imports it from uniffi, so a bare
+    thiserror `Error` is not mistaken for uniffi::Error.
+    """
+    kinds, crates = imports
+    segs = [p.strip() for p in derive.split("::") if p.strip()]
+    if not segs:
+        return None
+    if len(segs) == 1:
+        return kinds.get(segs[0])
+    if segs[-1] in UNIFFI_KINDS and segs[-2] in crates:
+        return segs[-1]
+    return None
+
+
 def parse_types(src):
     text = src.blank
+    imports = uniffi_imports(text)
     raw_lines = src.raw.split("\n")
     types = []
     for m in re.finditer(rf"\b(struct|enum)\s+({IDENT})", text):
@@ -380,7 +456,7 @@ def parse_types(src):
                 except ValueError:
                     continue
                 derives += [collapse(d) for d in split_top(inner)]
-        uniffi = {d.split("::")[-1] for d in derives if re.search(r"(^|::)uniffi::(?:%s)$" % "|".join(UNIFFI_KINDS), d)}
+        uniffi = {k for k in (uniffi_kind(d, imports) for d in derives) if k}
         last = {d.split("::")[-1] for d in derives}
         # body: first of { ( ; after the name (generics skipped)
         j = m.end()
@@ -495,10 +571,27 @@ def engine_methods(sources):
     return fns
 
 
-def call_paths(body, engine_fn):
+def call_matches(body, engine_fn):
     # No leading word char or `.`: `xdo_get_alpha(` and `e.do_get_alpha(` are
     # not calls of `do_get_alpha`.
-    return re.findall(rf"(?<![A-Za-z0-9_.])((?:{IDENT}\s*::\s*)*{re.escape(engine_fn)})\s*\(", body)
+    return list(re.finditer(rf"(?<![A-Za-z0-9_.])((?:{IDENT}\s*::\s*)*{re.escape(engine_fn)})\s*\(", body))
+
+
+def call_paths(body, engine_fn):
+    return [m.group(1) for m in call_matches(body, engine_fn)]
+
+
+def inside_call(body, wrapper, offsets):
+    """True when one of `offsets` lies between the parentheses of a `self.<wrapper>(` call."""
+    for m in re.finditer(rf"\bself\s*\.\s*{wrapper}\s*\(", body):
+        open_paren = m.end() - 1
+        try:
+            close = match_close(body, open_paren, "(", ")")
+        except ValueError:
+            close = len(body)
+        if any(open_paren < off < close for off in offsets):
+            return True
+    return False
 
 
 def check_method(fn, cert):
@@ -513,7 +606,8 @@ def check_method(fn, cert):
         issues.append(
             f"parameters ({', '.join(fn.param_names)}) differ from the wrapper ({', '.join(names)})"
         )
-    paths = [re.sub(r"\s+", "", p) for p in call_paths(fn.body, engine_fn)]
+    calls = call_matches(fn.body, engine_fn)
+    paths = [re.sub(r"\s+", "", c.group(1)) for c in calls]
     if not paths:
         issues.append(f"body does not call the engine function {engine_fn}")
     else:
@@ -522,12 +616,15 @@ def check_method(fn, cert):
             issues.append(f"body calls {bad[0]}, expected module {module}")
     uses_spawn = bool(re.search(r"\bself\s*\.\s*spawn\s*\(", fn.body))
     uses_blocking = bool(re.search(r"\bself\s*\.\s*blocking\s*\(", fn.body))
+    wrapper = "blocking" if kind == "sync" else "spawn"
     if kind == "sync" and uses_spawn:
         issues.append(f"{engine_fn} is sync: use self.blocking, not self.spawn")
     elif kind == "async" and uses_blocking:
         issues.append(f"{engine_fn} is async: use self.spawn, not self.blocking")
     elif not (uses_spawn or uses_blocking):
         issues.append("body uses neither self.blocking nor self.spawn")
+    elif calls and not inside_call(fn.body, wrapper, [c.start(1) for c in calls]):
+        issues.append(f"the call of {engine_fn} is not inside self.{wrapper}(...): it would run on the async executor")
     return issues
 
 
@@ -624,6 +721,11 @@ def run_hygiene(args, sources, ffi_exists, ffi_dir, out):
             add(src, line, "parse", msg)
         # H1 + H6 on exported fns
         for fn in parse_exports(src):
+            if fn.in_trait:  # callback interface method: foreign code calls it, H6 only
+                sig = re.sub(r"Vec\s*<\s*u8\s*>", "Vec<>", fn.sig)
+                for um in UNSIGNED_RE.finditer(sig):
+                    add(src, fn.line, "H6", f"`{um.group(0)}` in the signature of `{fn.owner}::{fn.name}`")
+                continue
             n_exports += 1
             if not fn.is_async and not (fn.ctor and fn.name == "open" and fn.owner == ENGINE_TYPE):
                 add(src, fn.line, "H1", f"exported fn `{fn.name}` is not async")

@@ -169,6 +169,27 @@ class ParityFailures(unittest.TestCase):
             "bad_blocking_async", "do_check_gamma is async: use self.spawn, not self.blocking"
         )
 
+    def test_engine_call_outside_blocking(self):
+        # a sync rusqlite call made directly on the async executor
+        out = self.assert_issue(
+            "bad_outside_blocking", "get_alpha: the call of do_get_alpha is not inside self.blocking(...)"
+        )
+        self.assertIn("parity: 2/3", out)
+
+    def test_engine_call_after_spawn_closure_is_outside(self):
+        with TempFfi(
+            {
+                "api/a.rs": "#[uniffi::export]\nimpl PosEngine {\n"
+                "    pub async fn check_gamma(&self, order_id: i64) -> R {\n"
+                "        self.spawn(move |_e| async move { Ok(()) }).await?;\n"
+                "        gamma::do_check_gamma(&self.e, order_id).await\n"
+                "    }\n}\n"
+            }
+        ) as t:
+            code, out = t.parity()
+            self.assertEqual(code, 1)
+            self.assertIn("not inside self.spawn(...)", out)
+
     def test_neither_blocking_nor_spawn(self):
         with TempFfi(
             {
@@ -393,6 +414,52 @@ class HygieneRules(unittest.TestCase):
 
     def test_h7_ignores_comments(self):
         with TempFfi({"x.rs": "// peppol invoice\n/* invoice */\npub fn f() {}\n"}) as t:
+            self.assertEqual(t.hygiene()[0], 0)
+
+    def test_bare_uniffi_derives_are_still_checked(self):
+        # `use uniffi::Record;` + `#[derive(Record)]` must not escape H3, H4, H6
+        src = "use uniffi::Record;\n#[derive(Debug, Record)]\npub struct Sneaky { pub n: u32 }\n"
+        with TempFfi({"records/mod.rs": src, "records/b.rs": src}) as t:
+            code, out = t.hygiene()
+        self.assertEqual(code, 1)
+        for frag in ("H3: Sneaky does not derive Serialize", "H3: Sneaky lacks #[serde(deny_unknown_fields)]",
+                     "H4: type `Sneaky`", "H6: `u32` in Sneaky"):
+            self.assertIn(frag, out)
+
+    def test_grouped_alias_and_glob_uniffi_imports(self):
+        forms = [
+            "use uniffi::{Record, Enum};\n#[derive(Record)]",
+            "use uniffi::Record as Rec;\n#[derive(Rec)]",
+            "use uniffi::*;\n#[derive(Record)]",
+            "use uniffi as u;\n#[derive(u::Record)]",
+        ]
+        for head in forms:
+            with TempFfi({"records/x.rs": head + "\npub struct S { pub n: u32 }\n"}) as t:
+                code, out = t.hygiene()
+            self.assertEqual(code, 1, head)
+            self.assertIn("H6: `u32` in S", out, head)
+
+    def test_bare_derive_not_imported_from_uniffi_is_not_uniffi(self):
+        # thiserror's Error and a local Record trait derive are not uniffi types
+        src = "use thiserror::Error;\n#[derive(Debug, Error)]\npub enum E { #[error(\"x\")] A(u32) }\n"
+        with TempFfi({"records/e.rs": src}) as t:
+            code, out = t.hygiene()
+        self.assertEqual(code, 0, out)
+
+    def test_callback_interface_h6_and_no_h1(self):
+        src = (
+            "#[uniffi::export(callback_interface)]\npub trait EventListener: Send + Sync {\n"
+            "    fn on_event(&self, n: u32, json: String);\n"
+            "    fn ok(&self, id: i64, raw: Vec<u8>);\n}\n"
+        )
+        with TempFfi({"lib.rs": src}) as t:
+            code, out = t.hygiene()
+        self.assertEqual(code, 1)
+        self.assertEqual(out.count("H6"), 1, out)
+        self.assertIn("`u32` in the signature of `EventListener::on_event`", out)
+        self.assertNotIn("H1", out)
+        clean = src.replace("n: u32", "n: i64")
+        with TempFfi({"lib.rs": clean}) as t:
             self.assertEqual(t.hygiene()[0], 0)
 
     def test_hygiene_is_independent_of_parity(self):
