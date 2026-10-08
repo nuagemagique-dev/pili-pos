@@ -17,6 +17,11 @@
 // (the plugins block of the root and the modules) are downloaded while Gradle configures
 // the projects, which the invocation does anyway.
 //
+// AGP also resolves the aapt2 binary of its own version (com.android.tools.build:aapt2 with the
+// classifier of the host OS) through a detached configuration while the build runs. The root
+// project therefore fetches every aapt2 version that gradle/verification-metadata.xml lists, for
+// the Linux classifier, which is what the build image needs.
+//
 // The check does not trust this script for completeness: the two builds that follow run with
 // --network none and --offline, so anything missing here fails them.
 allprojects { p ->
@@ -51,6 +56,30 @@ allprojects { p ->
                 }
             }
             println "PREFETCH | ${p.path} | resolved ${resolved} configurations, skipped ${skipped}"
+        }
+    }
+}
+
+// aapt2 (see above): one detached configuration per aapt2 version of the verification metadata.
+gradle.rootProject { root ->
+    root.tasks.register('prefetchAapt2') {
+        group = 'help'
+        description = 'Downloads the Linux aapt2 jar of every version in the verification metadata.'
+        notCompatibleWithConfigurationCache('resolves configurations at execution time')
+        doLast {
+            def md = new File(root.projectDir, 'gradle/verification-metadata.xml')
+            def doc = new XmlSlurper().parse(md)
+            def versions = doc.components.component
+                .findAll { it.@group.text() == 'com.android.tools.build' && it.@name.text() == 'aapt2' }
+                .collect { it.@version.text() }
+            if (versions.isEmpty()) {
+                throw new GradleException('PREFETCH | no aapt2 component in ' + md)
+            }
+            versions.each { v ->
+                def dep = root.dependencies.create("com.android.tools.build:aapt2:${v}:linux@jar")
+                def files = root.configurations.detachedConfiguration(dep).resolve()
+                println "PREFETCH | aapt2 ${v} linux | ${files.collect { it.name }}"
+            }
         }
     }
 }

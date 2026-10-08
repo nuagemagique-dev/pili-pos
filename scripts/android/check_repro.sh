@@ -23,7 +23,7 @@
 #      "full-build" (PILI_PREFETCH_METHOD=full-build) additionally runs one network build of
 #      :smoke:assembleRelease in the prefetch container and discards its outputs; use it when
 #      an offline build misses something the init script did not fetch. The volume is reused,
-#      and rebuilt when it lacks its COMPLETE marker,
+#      and rebuilt when its COMPLETE marker is missing or names another prefetch.gradle,
 #   4. runs two builds, each in a fresh "docker run --rm --platform linux/amd64 --network none"
 #      with an empty /build, the snapshot and the prefetch volume read only, its own /out
 #      (work/run1, work/run2); the volume content is copied into the build's own CARGO_HOME
@@ -176,7 +176,10 @@ VOL="pili-android-prefetch-${KEY:0:12}"
 emit prefetch-key INFO "$KEY (volume $VOL)"
 
 dock() { docker run --rm --platform "$PLATFORM" "$@"; }
-vol_complete() { dock -v "$VOL:/prefetch:ro" "$IMAGE" test -f /prefetch/COMPLETE >/dev/null 2>&1; }
+# The COMPLETE marker holds the sha256 of prefetch.gradle: a volume filled by another version of
+# the init script is not reused (the key itself only covers the four inputs named above).
+PF_SHA="$(git show "$COMMIT:android/docker/prefetch.gradle" | shasum -a 256 | cut -d' ' -f1)"
+vol_complete() { [[ "$(dock -v "$VOL:/prefetch:ro" "$IMAGE" cat /prefetch/COMPLETE 2>/dev/null)" == "$PF_SHA" ]]; }
 
 if [[ "$clean_prefetch" -eq 1 ]] && docker volume inspect "$VOL" >/dev/null 2>&1; then
     docker volume rm "$VOL" >/dev/null 2>&1 || true
@@ -194,7 +197,7 @@ else
     STARTED+=("$PF_NAME")
     # shellcheck disable=SC2016 # expanded inside the container
     dock --name "$PF_NAME" \
-        -e "SOURCE_DATE_EPOCH=$EPOCH" -e "PILI_PREFETCH_METHOD=$METHOD" \
+        -e "SOURCE_DATE_EPOCH=$EPOCH" -e "PILI_PREFETCH_METHOD=$METHOD" -e "PILI_PREFETCH_SHA=$PF_SHA" \
         -v "$SNAP:/in/src.tar:ro" -v "$VOL:/prefetch" \
         "$IMAGE" bash -c '
 set -euo pipefail
@@ -207,7 +210,7 @@ echo "PREFETCH | cargo fetch --locked --manifest-path android/rust/Cargo.toml"
 (cd /build/src && cargo fetch --locked --manifest-path android/rust/Cargo.toml)
 echo "PREFETCH | gradle -I docker/prefetch.gradle prefetchAll"
 (cd /build/src/android && ./gradlew --no-daemon --no-build-cache --no-configuration-cache --console=plain \
-    -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I docker/prefetch.gradle prefetchAll)
+    -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I docker/prefetch.gradle prefetchAll prefetchAapt2)
 if [ "$PILI_PREFETCH_METHOD" = "full-build" ]; then
     echo "PREFETCH | one full network build of :smoke:assembleRelease (outputs discarded)"
     mkdir -p /tmp/prefetch-out
@@ -220,7 +223,7 @@ mkdir -p /prefetch/gradle-home/caches
 cp -a /build/gradle-home/wrapper /prefetch/gradle-home/wrapper
 cp -a /build/gradle-home/caches/modules-2 /prefetch/gradle-home/caches/modules-2
 echo "$PILI_PREFETCH_METHOD" > /prefetch/METHOD
-touch /prefetch/COMPLETE
+echo "$PILI_PREFETCH_SHA" > /prefetch/COMPLETE
 echo "PREFETCH | done"
 ' >"$LOGS/prefetch.log" 2>&1
     rc=$?
