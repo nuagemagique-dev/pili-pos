@@ -1,0 +1,10 @@
+# Kotlin test moves (PD111), read by scripts/android/kotlin_test_inventory.py --base REF.
+#
+# One rule per line: old_prefix<TAB>new_prefix. An id of the base ref that starts with
+# old_prefix and is missing in the working tree is looked up again with old_prefix
+# replaced by new_prefix; it passes when that id exists. Ids have the form
+#   <module>/<set>:<package>.<TopLevelClass>#<function>
+# so a rule moves one test, a class ("...:pkg.Class#") or a whole module set.
+# A rule that matches no id of the base ref is stale and fails the check: delete it
+# once the card that needed it is merged. Lines starting with # and blank lines are
+# ignored.

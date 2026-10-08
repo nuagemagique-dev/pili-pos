@@ -14,7 +14,7 @@
 # Usage: scripts/android/p2_gate.sh [--fast] [--android] [--root] [--exit]
 #                                   [--base REF] [--allow REGEX]
 #                                   [--extra-paths REGEX]
-#                                   [--require-modules LIST]
+#                                   [--require-modules LIST] [--hygiene-only]
 #   --fast       skip the self-tests and the JVM tests (card gates)
 #   --android    also build the arm64 library and check it (ndk-build, so-align,
 #                bindgen-android); slow, for the integrator's phase gate
@@ -29,6 +29,11 @@
 #                (docs/android/baseline/ stays refused; --allow still applies)
 #   --require-modules LIST  passed to check_command_parity.py (modules whose
 #                facade must be complete in this card)
+#   --hygiene-only  run only hygiene-paths, hygiene-emdash, hygiene-artifacts,
+#                hygiene-subjects, hygiene-root-lock, frozen-provisional and
+#                linux-frozen (same --base/--allow/--extra-paths), then the total
+#                line; no Rust, parity, self-test, Gradle or --android/--root/--exit
+#                check (used by p4_gate.sh --app)
 #
 # Checks, in order
 #   hygiene-paths     every file changed in BASE...HEAD plus every modified or
@@ -44,7 +49,9 @@
 #   hygiene-subjects  every commit subject in BASE..HEAD (merges included) is a
 #                     Conventional Commit
 #   hygiene-root-lock Cargo.lock and Cargo.toml unchanged against BASE
-#   frozen-provisional  check_linux_frozen.sh --ref 042d911... (PD48, PD63)
+#   frozen-provisional  check_linux_frozen.sh --ref 042d911... (PD48, PD63); SKIP with
+#                     'retired: tag <name> exists (PD100)' once a linux-v1.1.0* tag
+#                     exists (the tag mode of linux-frozen replaces it)
 #   linux-frozen      check_linux_frozen.sh against the freeze tag; SKIP while there
 #                     is none (exit 2)
 #   rust-fmt, rust-clippy, rust-tests   in android/rust: cargo fmt --all --check,
@@ -98,6 +105,7 @@ base="android/int"
 allow_re=""
 extra_re=""
 require_modules=""
+hygiene_only=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
     --fast) fast=1 ;;
@@ -120,6 +128,7 @@ while [[ $# -gt 0 ]]; do
         require_modules="${2:?--require-modules needs a list}"
         shift
         ;;
+    --hygiene-only) hygiene_only=1 ;;
     -h | --help)
         sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'
         exit 0
@@ -280,8 +289,23 @@ h_root_lock() {
 gate hygiene-root-lock h_root_lock
 
 # ── freeze ──────────────────────────────────────────────────────
-gate frozen-provisional bash scripts/android/check_linux_frozen.sh --ref "$PROVISIONAL_REF"
+freeze_tag="$(git tag -l 'linux-v1.1.0*' | head -n 1)"
+if [[ -n "$freeze_tag" ]]; then
+    skip frozen-provisional "retired: tag $freeze_tag exists (PD100)"
+else
+    gate frozen-provisional bash scripts/android/check_linux_frozen.sh --ref "$PROVISIONAL_REF"
+fi
 gate_skip2 linux-frozen "no freeze tag" bash scripts/android/check_linux_frozen.sh
+
+finish() {
+    if [[ "$n_failed" -eq 0 ]]; then
+        printf 'GATE | total | PASS | 0 failed (%d checks)\n' "$n_checks"
+        exit 0
+    fi
+    printf 'GATE | total | FAIL | %d failed (%d checks)\n' "$n_failed" "$n_checks"
+    exit 1
+}
+[[ "$hygiene_only" -eq 0 ]] || finish
 
 # ── android/rust ────────────────────────────────────────────────
 rust_tests() {
@@ -448,9 +472,4 @@ if [[ "$exit_mode" -eq 1 ]]; then
     fi
 fi
 
-if [[ "$n_failed" -eq 0 ]]; then
-    printf 'GATE | total | PASS | 0 failed (%d checks)\n' "$n_checks"
-    exit 0
-fi
-printf 'GATE | total | FAIL | %d failed (%d checks)\n' "$n_failed" "$n_checks"
-exit 1
+finish
