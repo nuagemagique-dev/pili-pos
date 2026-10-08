@@ -1,0 +1,15 @@
+# Allowed differences of the lock parity rule (PD59), read by
+# scripts/android/lock_parity.py --allow and scripts/android/check_lock_parity.sh.
+#
+# The set of (name, version) of `cargo tree -p pos-engine -e normal,build
+# --target all --prefix none` must be identical in the root workspace (built
+# with --no-default-features --features cert) and in android/rust. A pair that
+# is in one tree only may be listed here, one line per pair:
+#
+#   <name> <version> <reason, mandatory, free text>
+#
+# A version bump needs two lines (the old and the new version). Comment lines
+# start with #. A line that matches no difference is stale and fails the check.
+# The reason says why the difference is acceptable and who removes it.
+#
+# No allowed difference yet.

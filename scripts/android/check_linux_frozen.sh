@@ -16,10 +16,14 @@
 #   - git status --porcelain --untracked-files=all -- <paths> is not empty,
 #   - a path package of that graph lives outside crates/ (src-tauri aside).
 #
-# Usage: scripts/android/check_linux_frozen.sh [--tag TAG]
+# Usage: scripts/android/check_linux_frozen.sh [--tag TAG | --ref COMMIT]
 #   TAG defaults to linux-v1.1.0 when it exists, else linux-v1.1.0-rc1.
-# Exit: 0 frozen, 1 not frozen, 2 no freeze tag (or no cargo).
+#   --ref COMMIT compares with any commit-ish instead of a tag (the provisional
+#   freeze point of PD48); same paths, same checks. --tag and --ref exclude
+#   each other.
+# Exit: 0 frozen, 1 not frozen, 2 no freeze tag, unknown ref, bad usage (or no cargo).
 # On success: "frozen against TAG (<sha>): N paths, clean"
+#          or "frozen against ref <sha>: N paths, clean"
 # ─────────────────────────────────────────────────────────────────
 set -euo pipefail
 export LC_ALL=C
@@ -29,10 +33,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT"
 
 tag=""
+ref=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
     --tag)
         tag="${2:?--tag needs a tag name}"
+        shift
+        ;;
+    --ref)
+        ref="${2:?--ref needs a commit}"
         shift
         ;;
     -h | --help)
@@ -47,22 +56,38 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-tag_exists() { git rev-parse -q --verify "refs/tags/$1^{commit}" >/dev/null 2>&1; }
-
-if [[ -z "$tag" ]]; then
-    if tag_exists linux-v1.1.0; then
-        tag=linux-v1.1.0
-    elif tag_exists linux-v1.1.0-rc1; then
-        tag=linux-v1.1.0-rc1
-    else
-        echo "no freeze tag yet (neither linux-v1.1.0 nor linux-v1.1.0-rc1): nothing to check against" >&2
-        exit 2
-    fi
-elif ! tag_exists "$tag"; then
-    echo "freeze tag not found: $tag" >&2
+if [[ -n "$tag" && -n "$ref" ]]; then
+    echo "--tag and --ref are mutually exclusive" >&2
     exit 2
 fi
-sha="$(git rev-parse --short "refs/tags/$tag^{commit}")"
+
+tag_exists() { git rev-parse -q --verify "refs/tags/$1^{commit}" >/dev/null 2>&1; }
+
+if [[ -n "$ref" ]]; then
+    full="$(git rev-parse -q --verify "$ref^{commit}" 2>/dev/null)" || {
+        echo "unknown ref: $ref" >&2
+        exit 2
+    }
+    base="$full"
+    label="ref $(git rev-parse --short "$full")"
+else
+    if [[ -z "$tag" ]]; then
+        if tag_exists linux-v1.1.0; then
+            tag=linux-v1.1.0
+        elif tag_exists linux-v1.1.0-rc1; then
+            tag=linux-v1.1.0-rc1
+        else
+            echo "no freeze tag yet (neither linux-v1.1.0 nor linux-v1.1.0-rc1): nothing to check against" >&2
+            exit 2
+        fi
+    elif ! tag_exists "$tag"; then
+        echo "freeze tag not found: $tag" >&2
+        exit 2
+    fi
+    sha="$(git rev-parse --short "refs/tags/$tag^{commit}")"
+    base="$tag"
+    label="$tag ($sha)"
+fi
 
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 2; }
 
@@ -98,8 +123,8 @@ paths=("${uniq_paths[@]}")
 echo "frozen paths (${#paths[@]}):"
 printf '  %s\n' "${paths[@]}"
 
-if ! git diff --exit-code --stat "$tag" -- "${paths[@]}"; then
-    echo "x frozen paths differ from $tag" >&2
+if ! git diff --exit-code --stat "$base" -- "${paths[@]}"; then
+    echo "x frozen paths differ from $base" >&2
     status=1
 fi
 untracked="$(git status --porcelain --untracked-files=all -- "${paths[@]}")"
@@ -110,4 +135,4 @@ if [[ -n "$untracked" ]]; then
 fi
 
 [[ $status -eq 0 ]] || exit 1
-echo "frozen against $tag ($sha): ${#paths[@]} paths, clean"
+echo "frozen against $label: ${#paths[@]} paths, clean"
