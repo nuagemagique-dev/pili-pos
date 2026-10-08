@@ -10,6 +10,7 @@ import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.VatCode
 
+@Suppress("LongParameterList")
 class ProductNamesTest {
     private fun names(
         name: String = "Sushi",

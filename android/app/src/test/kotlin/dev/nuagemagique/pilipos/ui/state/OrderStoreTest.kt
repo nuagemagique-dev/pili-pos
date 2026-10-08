@@ -34,6 +34,7 @@ import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.VatCode
 
+@Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
 class OrderStoreTest {
     @get:Rule
     val tmp = TemporaryFolder()

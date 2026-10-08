@@ -48,6 +48,7 @@ class OrderRefusedException(
  * Operations that change the order run one at a time. Cart actions ([addItem], [addLineWith], [removeLine],
  * [updateQuantity]) report a refusal on [failures] and answer false; the other operations throw it to the caller.
  */
+@Suppress("TooManyFunctions")
 @Singleton
 class OrderStore
     @Inject

@@ -37,6 +37,7 @@ data class BilingualName(
  *
  * Pure: no rule of the till lives here, only the choice of which text to show.
  */
+@Suppress("LongParameterList")
 fun bilingualName(
     name: String,
     nameFr: String?,
