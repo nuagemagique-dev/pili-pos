@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.navigation.NavGraph
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -94,6 +95,31 @@ class AppNavHostTest {
         compose.onNodeWithTag("placeholder_order").assertIsDisplayed()
         assertEquals(0, loginEntries())
         assertEquals(0, controller.currentBackStack.value.count { it.destination.route == "tables" })
+    }
+
+    private fun nonGraphRoutes(): List<String?> =
+        controller.currentBackStack.value
+            .filter { it.destination !is NavGraph }
+            .map { it.destination.route }
+
+    @Test
+    fun toLoginClearsTheStackEvenWhenLoginWasReplaced() {
+        show()
+        compose.runOnUiThread { navigator.replaceAll("tables") }
+        compose.runOnUiThread { navigator.navigate("order/7") }
+        compose.runOnUiThread { navigator.toLogin() }
+        compose.onNodeWithTag("placeholder_login").assertIsDisplayed()
+        assertEquals(listOf<String?>("login"), nonGraphRoutes())
+    }
+
+    @Test
+    fun replaceAllTwiceLeavesASingleEntry() {
+        show()
+        compose.runOnUiThread { navigator.replaceAll("tables") }
+        compose.runOnUiThread { navigator.navigate("order/7") }
+        compose.runOnUiThread { navigator.replaceAll("order/9") }
+        compose.onNodeWithTag("placeholder_order").assertIsDisplayed()
+        assertEquals(listOf<String?>("order/{orderId}"), nonGraphRoutes())
     }
 
     @Test

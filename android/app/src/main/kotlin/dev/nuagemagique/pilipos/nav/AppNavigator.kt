@@ -1,6 +1,5 @@
 package dev.nuagemagique.pilipos.nav
 
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 
 /** What a screen may ask of the navigation, without seeing the controller. */
@@ -38,10 +37,13 @@ class NavControllerNavigator(
         relaunchStart(route)
     }
 
-    /** Pops to the start destination (itself included) and opens [route] single-top: one entry remains. */
+    /**
+     * Pops the whole graph (so it works even when the start destination is no longer on the back stack)
+     * and opens [route] single-top: exactly one entry remains.
+     */
     private fun relaunchStart(route: String) {
         navController.navigate(route) {
-            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+            popUpTo(navController.graph.id) { inclusive = true }
             launchSingleTop = true
         }
     }

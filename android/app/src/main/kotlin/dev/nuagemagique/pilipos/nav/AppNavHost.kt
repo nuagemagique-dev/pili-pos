@@ -2,7 +2,9 @@ package dev.nuagemagique.pilipos.nav
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -21,7 +23,8 @@ fun AppNavHost(
     onNavigator: (AppNavigator) -> Unit = {},
 ) {
     val navigator = remember(navController) { NavControllerNavigator(navController) }
-    LaunchedEffect(navigator) { onNavigator(navigator) }
+    val currentOnNavigator by rememberUpdatedState(onNavigator)
+    LaunchedEffect(navigator) { currentOnNavigator(navigator) }
     NavHost(navController = navController, startDestination = NavContract.START_ROUTE) {
         registry.entries.forEach { it.register(this, navigator) }
     }
