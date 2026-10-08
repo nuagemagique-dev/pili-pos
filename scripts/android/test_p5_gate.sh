@@ -249,6 +249,17 @@ money_flag "roundToInt" 'val a = x.roundToInt(); val centsLabel = 1'
 money_flag "roundToLong" 'val a = value.roundToLong(); val b = centsText'
 money_flag "Math.round" 'val a = Math.round(amountCents)'
 money_flag "a feature file" 'val a = totalCents * 2'
+money_flag "a member call then /" 'val a = cents.toDouble() / 100'
+money_flag "a member call then / (float)" 'val a = cents.toFloat() / 100f'
+money_flag "a chain with a call then +" 'val a = line.priceCents.toLong() + 1'
+money_flag "a safe call then *" 'val a = line?.priceCents?.toLong() * 2'
+money_flag "a parenthesised elvis then +" 'val a = (cents ?: 0) + 1'
+money_flag "a parenthesised sum then *" 'val a = 2 * (base + totalCents)'
+money_flag "a parenthesised group with a member call then /" 'val a = (cents ?: 0).toLong() / 100'
+money_flag "a called identifier then *" 'val a = totalCents() * 2'
+money_flag "two called identifiers with -" 'val a = subtotalCents(a) - discountCents(b)'
+money_flag "a called identifier then + a number" 'val a = totalCents() + 1'
+money_flag "a called identifier then + a non-literal" 'val a = formatCents(x) + suffix'
 
 R="$(new_root)"
 kt "$R" feature/login/F.kt $'package x\nval a = lines.sumOf { it.lineCents }'
@@ -275,6 +286,11 @@ fun f(totalCents: Long, other: Long, cents: Long, list: LongArray) {
     val p = list.map { cents -> format(cents) }
     val q = mapOf(1 to -cents)
     val r = formatCents(totalCents) + " EUR"
+    val r2 = "EUR " + formatCents(totalCents)
+    val r3 = formatCents(totalCents) + " (" + label + ")"
+    val r4 = (totalCents > 0) && (other > 0)
+    val r5 = vatSplit(totalCents).first
+    val r6 = lines.map { it.label }.joinToString()
     val s = "total cents * 2 = ${'$'}{a * cents}"
     val t = "sumOf { it.cents }"
     // val u = totalCents * 2
@@ -399,6 +415,22 @@ R="$(new_root)"
 for d in values values-en values-zh; do strings_file "$R" "$d" login ui_login_title; strings_file "$R" "$d" tables ui_tables_title; done
 run_gate "$R" -- --base b1
 expect_status "ui-strings passes with several areas" ui-strings PASS
+
+R="$(new_root)"
+for d in values values-en values-zh; do strings_file "$R" "$d" order_cart ui_order_cart_title; done
+run_gate "$R" -- --base b1
+expect_status "ui-strings checks an area with an underscore" ui-strings PASS
+
+R="$(new_root)"
+strings_file "$R" values order_cart ui_order_cart_title
+run_gate "$R" -- --base b1
+expect_status "ui-strings fails an area with an underscore that lacks its twins" ui-strings FAIL
+check "ui-strings names the missing twin of an underscore area" "$(contains "$ERR" "values-en/strings_ui_order_cart.xml is missing" && echo 0 || echo 1)" "err: $ERR"
+
+R="$(new_root)"
+for d in values values-en values-zh; do strings_file "$R" "$d" order_cart ui_order_title; done
+run_gate "$R" -- --base b1
+expect_status "ui-strings requires the full underscore area as prefix" ui-strings FAIL
 
 R="$(new_root)"
 for d in values values-en values-zh; do strings_file "$R" "$d" common ui_common_ok; done

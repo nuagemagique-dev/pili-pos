@@ -287,9 +287,12 @@ def operand_end(ln, i):
     return False
 
 
-def chain_bounds(ln, m):
-    """Start and end of the operand around the identifier match m (receiver chain and call suffixes)."""
-    s, e = m.start(), m.end()
+ARITH_MEMBERS = {"times", "div", "rem", "plus", "minus"}
+MEMBER = re.compile(r"\??\.\s*([A-Za-z_]\w*)")
+
+
+def call_suffixes(ln, e):
+    """Skip (...), [...] and !! suffixes starting at e."""
     while e < len(ln):
         if ln[e] == "(":
             e = match_forward(ln, e, "(", ")") + 1
@@ -299,6 +302,24 @@ def chain_bounds(ln, m):
             e += 2
         else:
             break
+    return e
+
+
+def extend_forward(ln, e):
+    """End of the operand that goes on at e: suffixes, then .name / ?.name members with their call suffixes.
+    .times/.div/.rem/.plus/.minus are not consumed, they keep their own rule."""
+    e = call_suffixes(ln, e)
+    while True:
+        mm = MEMBER.match(ln, e)
+        if not mm or mm.group(1) in ARITH_MEMBERS:
+            return e
+        e = call_suffixes(ln, mm.end())
+
+
+def chain_bounds(ln, m):
+    """Start and end of the operand around the identifier match m (receiver chain and call suffixes)."""
+    s = m.start()
+    e = extend_forward(ln, m.end())
     while s > 0 and ln[s - 1] == ".":
         p = s - 1
         if p > 0 and ln[p - 1] == "?":
@@ -322,7 +343,7 @@ def chain_bounds(ln, m):
 
 
 def left_operator(ln, s):
-    """Name of the binary operator just before position s, or None."""
+    """(operator, index) of the binary operator just before position s, or None."""
     i = s - 1
     while i >= 0 and ln[i] in " \t":
         i -= 1
@@ -331,7 +352,7 @@ def left_operator(ln, s):
     ch = ln[i]
     if ch == "=":
         if i >= 1 and ln[i - 1] in "*/%+-":
-            return ln[i - 1] + "="
+            return ln[i - 1] + "=", i - 1
         return None
     if ch in "*/%+-":
         if ch in "+-" and i >= 1 and ln[i - 1] == ch:
@@ -340,22 +361,83 @@ def left_operator(ln, s):
         while j >= 0 and ln[j] in " \t":
             j -= 1
         if j >= 0 and operand_end(ln, j):
-            return ch
+            return ch, i
     return None
 
 
 def right_operator(ln, e):
+    """(operator, index after it) of the binary operator just after position e, or None."""
     j = e
     while j < len(ln) and ln[j] in " \t":
         j += 1
     two = ln[j : j + 2]
     if two in ("*=", "/=", "%=", "+=", "-="):
-        return two
+        return two, j + 2
     if j < len(ln) and ln[j] in "*/%":
-        return ln[j]
+        return ln[j], j + 1
     if j < len(ln) and ln[j] in "+-" and two not in ("++", "--", "->"):
-        return ln[j]
+        return ln[j], j + 1
     return None
+
+
+def string_next_to(ln, side, pos):
+    """True when the operand on the far side of an operator is a string literal (drop_strings keeps the quotes)."""
+    if side == "right":
+        j = pos
+        while j < len(ln) and ln[j] in " \t":
+            j += 1
+        return j < len(ln) and ln[j] == '"'
+    j = pos - 1
+    while j >= 0 and ln[j] in " \t":
+        j -= 1
+    return j >= 0 and ln[j] == '"'
+
+
+def operator_around(ln, s, e, called):
+    """Binary operator that has the operand ln[s:e] on one side, or None. A called identifier
+    (formatCents(x) + "...") is exempt only when the operator is + and the other operand is a string literal."""
+    left = left_operator(ln, s)
+    if left and not (called and left[0] == "+" and string_next_to(ln, "left", left[1])):
+        return left[0]
+    right = right_operator(ln, e)
+    if right and not (called and right[0] == "+" and string_next_to(ln, "right", right[1])):
+        return right[0]
+    return None
+
+
+GROUP_KEYWORDS = ("if", "while", "for", "when", "catch")
+
+
+def is_bare_group(ln, k):
+    """True when the `(` at k opens a plain parenthesised expression: not a call (after an identifier,
+    `)`, `]` or `>`) and not a condition (after if/while/for/when/catch)."""
+    j = k - 1
+    while j >= 0 and ln[j] in " \t":
+        j -= 1
+    if j < 0:
+        return True
+    if ln[j] in ")]>":
+        return False
+    if ln[j].isalnum() or ln[j] == "_":
+        m = re.search(r"([A-Za-z_]\w*)$", ln[: j + 1])
+        word = m.group(1) if m else ""
+        return word in NON_OPERAND_WORDS and word not in GROUP_KEYWORDS
+    return True
+
+
+def enclosing_groups(ln, pos):
+    """(start, end) of every bare parenthesised group around pos, innermost first."""
+    out = []
+    depth = 0
+    for k in range(pos - 1, -1, -1):
+        if ln[k] == ")":
+            depth += 1
+        elif ln[k] == "(":
+            if depth:
+                depth -= 1
+            elif is_bare_group(ln, k):
+                out.append((k, match_forward(ln, k, "(", ")")))
+    return out
 
 
 def line_findings(ln):
@@ -364,9 +446,12 @@ def line_findings(ln):
         if not is_cents(m.group(0)):
             continue
         s, e = chain_bounds(ln, m)
-        op = None
-        if not ln.startswith("(", m.end()):  # a call returns text or an engine value, not a cents operand
-            op = left_operator(ln, s) or right_operator(ln, e)
+        op = operator_around(ln, s, e, ln.startswith("(", m.end()))
+        if not op:
+            for gs, ge in enclosing_groups(ln, m.start()):
+                op = operator_around(ln, gs, extend_forward(ln, ge + 1), False)
+                if op:
+                    break
         if op:
             found.append("operator %s on %s" % (op, m.group(0)))
         elif APPLIED_AFTER.match(ln, e) or APPLIED_BEFORE.search(ln[:s]):
@@ -442,7 +527,7 @@ def string_names(path):
 
 def strings():
     res = os.path.join(root, RES, "values")
-    files = sorted(f for f in os.listdir(res) if re.fullmatch(r"strings_ui_[A-Za-z0-9]+\.xml", f)) if os.path.isdir(res) else []
+    files = sorted(f for f in os.listdir(res) if re.fullmatch(r"strings_ui_.+\.xml", f)) if os.path.isdir(res) else []
     if not files:
         print("SKIP")
         sys.exit(3)
