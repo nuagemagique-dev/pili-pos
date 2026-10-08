@@ -9,7 +9,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 /// What the UI is told outside a command call. The topic variants come with the events card; for
 /// now only the stream's own marker exists.
-#[derive(Debug, Clone, uniffi::Enum)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum PosEvent {
     /// The receiver lagged and `missed` events were dropped: the UI must re-fetch its state.
     Resync { missed: i64 },

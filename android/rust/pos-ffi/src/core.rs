@@ -31,7 +31,8 @@ const SHUTDOWN_BOUND: Duration = Duration::from_secs(30);
 const PRINTER_STATUS_READ: Duration = Duration::from_secs(2);
 
 /// Intervals of the engine's background loops, in milliseconds. All must be positive.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
 pub struct EngineTimersMs {
     pub auto_z_ms: i64,
     pub mail_outbox_ms: i64,
@@ -41,7 +42,8 @@ pub struct EngineTimersMs {
 }
 
 /// What the app gives [`PosEngine::open`].
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
 pub struct EngineOptions {
     /// Absolute path of the app's files directory: database, backups, `engine.lock`.
     pub data_dir: String,
