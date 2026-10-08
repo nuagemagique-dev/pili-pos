@@ -153,7 +153,13 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
 
     /** Resynchroniser: fetch the catalog, then the orders it resolves. */
     async resync() {
-      await this.run(() => hubriseSyncCatalog())
+      await this.run(async () => {
+        const outcome = await hubriseSyncCatalog()
+        if (outcome?.outcome === 'rejected') {
+          const { t } = useI18n()
+          useToastStore().show(t('hubrise_catalog_rejected'), 'error')
+        }
+      })
     },
 
     /** Run a board action, show its error, reload the board. */
