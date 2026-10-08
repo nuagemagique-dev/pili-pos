@@ -336,9 +336,11 @@ else
 fi
 
 # ── restart ─────────────────────────────────────────────────────
+# The app is the persistent HOME of the kiosk: the system relaunches it right after the force-stop, so the
+# log window starts before the force-stop (a later start would miss the new process' state lines).
+since="$(adbd shell date +'%m-%d\ %H:%M:%S.000' | tr -d '\r')"
 adbd shell am force-stop "$PKG"
 sleep 1
-since="$(adbd shell date +'%m-%d\ %H:%M:%S.000' | tr -d '\r')"
 adbd shell am start -n "$MAIN" >"$OUTDIR/restart.log" 2>&1
 deadline=$(($(date +%s) + 30))
 ready=0
