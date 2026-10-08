@@ -128,9 +128,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # build_image.sh needs 20 GB free and check_repro.sh 25 GB; a hosted runner has less on /
+      # until the preinstalled toolchains it does not need here are removed.
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
       # The script builds the pinned image (android/docker/Dockerfile) with docker, prefetches
       # crates and Gradle artifacts once, then builds twice with --network none and compares.
       - name: Two-build reproducibility check
+        # An explicit shell turns on pipefail: without it the step status would be the one of
+        # tee (always 0) and a non-reproducible APK (exit 1) or a failed precondition (exit 2)
+        # would leave the job green.
+        shell: bash
         run: |
           mkdir -p "${RUNNER_TEMP}/repro"
           bash scripts/android/check_repro.sh 2>&1 | tee "${RUNNER_TEMP}/repro/result.txt"
