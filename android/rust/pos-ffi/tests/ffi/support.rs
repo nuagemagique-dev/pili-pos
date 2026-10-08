@@ -12,8 +12,17 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
-use pos_ffi::{EngineOptions, PosEngine};
+use axum::body::Body;
+use axum::extract::{Request, State};
+use axum::middleware::Next;
+use axum::response::Response;
+use pos_ffi::records::reports::SocialResult;
+use pos_ffi::{EngineOptions, PosEngine, PosError};
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 
 /// Manager INSZ and PIN of the seed.
 pub const MANAGER_INSZ: &str = "94060242576";
@@ -73,14 +82,77 @@ pub fn options_for(dir: &Path) -> EngineOptions {
 
 /// Open an engine on a fresh seeded database, pointed at its own mocks.
 pub async fn open_seeded() -> TestEngine {
+    open_seeded_on(pos_fdm_mock::app()).await
+}
+
+/// Holds the first clock-out the FDM mock receives until the test releases it, so a call stays in
+/// flight on the engine for as long as the test wants.
+#[derive(Clone)]
+pub struct Hold {
+    armed: Arc<AtomicBool>,
+    arrived: Arc<Notify>,
+    release: Arc<Notify>,
+}
+
+impl Hold {
+    /// Let the held clock-out go on.
+    pub fn release(&self) {
+        self.release.notify_one();
+    }
+}
+
+async fn hold_clock_out(State(hold): State<Hold>, req: Request, next: Next) -> Response {
+    let (parts, body) = req.into_parts();
+    let bytes = axum::body::to_bytes(body, usize::MAX)
+        .await
+        .unwrap_or_default();
+    if bytes.windows(11).any(|w| w == b"signWorkOut") && hold.armed.swap(false, Ordering::SeqCst) {
+        hold.arrived.notify_one();
+        hold.release.notified().await;
+    }
+    next.run(Request::from_parts(parts, Body::from(bytes)))
+        .await
+}
+
+/// Like [`open_seeded`], with the FDM mock behind a [`Hold`].
+pub async fn open_seeded_with_hold() -> (TestEngine, Hold) {
+    let hold = Hold {
+        armed: Arc::new(AtomicBool::new(true)),
+        arrived: Arc::new(Notify::new()),
+        release: Arc::new(Notify::new()),
+    };
+    let app = pos_fdm_mock::app().layer(axum::middleware::from_fn_with_state(
+        hold.clone(),
+        hold_clock_out,
+    ));
+    (open_seeded_on(app).await, hold)
+}
+
+/// Start `end_shift` for the manager and wait until its clock-out is held at the FDM: from then
+/// on one call is in flight on the engine and `shutdown` has to wait for it.
+pub async fn start_held_call(
+    t: &TestEngine,
+    hold: &Hold,
+) -> JoinHandle<Result<SocialResult, PosError>> {
+    let engine = t.engine.clone();
+    let task = tokio::spawn(async move {
+        engine
+            .end_shift(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+            .await
+    });
+    tokio::time::timeout(Duration::from_secs(20), hold.arrived.notified())
+        .await
+        .expect("the clock-out reached the FDM");
+    task
+}
+
+async fn open_seeded_on(app: axum::Router) -> TestEngine {
     let fdm = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind the FDM mock");
     let fdm_url = format!("http://{}/graphql", fdm.local_addr().unwrap());
     tokio::spawn(async move {
-        axum::serve(fdm, pos_fdm_mock::app())
-            .await
-            .expect("serve the FDM mock");
+        axum::serve(fdm, app).await.expect("serve the FDM mock");
     });
     let printer_mock = pos_printer_mock::Printer::new(pos_printer_mock::Control::default(), None);
     let printer = pos_printer_mock::bind("127.0.0.1:0".parse().unwrap(), printer_mock)

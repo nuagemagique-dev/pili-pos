@@ -17,6 +17,7 @@ use pos_engine::{
 };
 use tokio::runtime::Runtime;
 use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 
 use crate::error::{self, PosError};
 use crate::events::{EventStream, FfiSink, PosEvent};
@@ -62,12 +63,24 @@ pub async fn pos_sw_version() -> String {
     SW_VERSION.to_string()
 }
 
-/// Same name, different signature: bindings generated from the normal build no longer match.
+/// Same exported name, different signature: bindings generated from the normal build no longer
+/// match. The Rust function has another name so that `pos_sw_version()` (the normal signature)
+/// still exists for the integration tests, which build with this feature too.
 #[cfg(feature = "abi-mismatch")]
-#[uniffi::export]
-pub async fn pos_sw_version(extra: i64) -> String {
+#[uniffi::export(name = "pos_sw_version")]
+pub async fn pos_sw_version_mismatch(extra: i64) -> String {
     format!("{SW_VERSION}+{extra}")
 }
+
+/// The normal signature, not exported, so the tests build with `--features abi-mismatch`.
+#[cfg(feature = "abi-mismatch")]
+pub async fn pos_sw_version() -> String {
+    SW_VERSION.to_string()
+}
+
+/// What the drain of a shutdown ends with: `Ok` once the engine is dropped, or the engine itself
+/// when the bound ran out.
+type Drained = Result<(), Arc<Engine>>;
 
 /// The engine and its runtime.
 #[derive(uniffi::Object)]
@@ -78,8 +91,32 @@ pub struct PosEngine {
     engine: Mutex<Option<Arc<Engine>>>,
     closing: AtomicBool,
     events_tx: Mutex<Option<broadcast::Sender<PosEvent>>>,
-    /// One shutdown at a time; a second caller waits and then finds the engine gone.
-    shutdown_gate: tokio::sync::Mutex<()>,
+    /// One shutdown at a time. Holds the drain a shutdown started and did not see through (its
+    /// caller was cancelled while waiting), so the next shutdown waits for that same drain.
+    shutdown_gate: tokio::sync::Mutex<Option<JoinHandle<Drained>>>,
+}
+
+/// Cancel the engine's tasks and wait for them and for the calls in flight, at most
+/// [`SHUTDOWN_BOUND`]; then drop the engine.
+async fn drain(engine: Arc<Engine>) -> Drained {
+    engine.shutdown();
+    let tasks = engine.take_background_tasks();
+    let drained = tokio::time::timeout(SHUTDOWN_BOUND, async {
+        for task in tasks {
+            let _ = task.await;
+        }
+        while Arc::strong_count(&engine) > 1 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    match drained {
+        Ok(()) => {
+            drop(engine);
+            Ok(())
+        }
+        Err(_) => Err(engine),
+    }
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -179,54 +216,52 @@ impl PosEngine {
             engine: Mutex::new(Some(engine)),
             closing: AtomicBool::new(false),
             events_tx: Mutex::new(Some(tx)),
-            shutdown_gate: tokio::sync::Mutex::new(()),
+            shutdown_gate: tokio::sync::Mutex::new(None),
         }))
     }
 
     /// Stop the engine: cancel the background loops, wait for them and for the calls in flight
     /// (30 s at most), then close the database and release `engine.lock`, so the same data
-    /// directory can be opened again. A second call is `Ok`. On timeout the engine stays (closed
-    /// to new calls) and the error is `Internal`.
+    /// directory can be opened again, and end every `EventStream`. A second call is `Ok`. On
+    /// timeout the engine stays (closed to new calls) and the error is `Internal`.
+    ///
+    /// The drain runs on the engine's runtime, so a `shutdown` whose caller is cancelled still
+    /// completes in the background, and the next `shutdown` waits for that same drain: `Ok`
+    /// always means the engine is dropped, `engine.lock` is free and the event streams have ended.
     pub async fn shutdown(&self) -> Result<(), PosError> {
-        let _gate = self.shutdown_gate.lock().await;
+        let mut pending = self.shutdown_gate.lock().await;
         self.closing.store(true, Ordering::SeqCst);
-        let Some(engine) = lock(&self.engine).take() else {
-            return Ok(());
+        if pending.is_none() {
+            let Some(engine) = lock(&self.engine).take() else {
+                // Shut down before: the engine is gone, so the streams must be over too.
+                lock(&self.events_tx).take();
+                return Ok(());
+            };
+            // The wait sleeps, so it runs on the engine's runtime, not on the foreign executor.
+            *pending = Some(self.rt().spawn(drain(engine)));
+        }
+        // The handle stays in the gate while it is awaited: if this future is dropped here, the
+        // next shutdown polls the same handle.
+        let outcome = match pending.as_mut() {
+            Some(handle) => handle.await,
+            None => return Ok(()),
         };
-        // The wait sleeps, so it runs on the engine's runtime, not on the foreign executor.
-        let outcome = self
-            .rt()
-            .spawn(async move {
-                engine.shutdown();
-                let tasks = engine.take_background_tasks();
-                let drained = tokio::time::timeout(SHUTDOWN_BOUND, async {
-                    for task in tasks {
-                        let _ = task.await;
-                    }
-                    while Arc::strong_count(&engine) > 1 {
-                        tokio::time::sleep(Duration::from_millis(20)).await;
-                    }
-                })
-                .await;
-                match drained {
-                    Ok(()) => {
-                        drop(engine);
-                        Ok(())
-                    }
-                    Err(_) => Err(engine),
-                }
-            })
-            .await;
-        match joined(outcome)? {
-            Ok(()) => {
+        *pending = None;
+        if outcome.is_err() {
+            // The drain panicked or was cancelled with the runtime: the engine is lost.
+            lock(&self.events_tx).take();
+        }
+        match joined(outcome) {
+            Ok(Ok(())) => {
                 lock(&self.events_tx).take();
                 Ok(())
             }
-            Err(engine) => {
+            Ok(Err(engine)) => {
                 tracing::error!("shutdown: timed out waiting for the engine's tasks");
                 *lock(&self.engine) = Some(engine);
                 Err(PosError::internal("shutdown: timed out"))
             }
+            Err(e) => Err(e),
         }
     }
 
