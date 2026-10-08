@@ -85,6 +85,30 @@ abstract class VariantCopy
         }
     }
 
+// A single-file copy that AGP wires as a generated assets directory of the androidTest variant: the seed
+// SQL of the instrumented tests comes from src-tauri/seed_spf_test.sql (read only) at build time and is
+// never committed under src/androidTest.
+abstract class SeedAssetCopy
+    @Inject
+    constructor(
+        private val fs: FileSystemOperations,
+    ) : DefaultTask() {
+        @get:InputFile
+        @get:PathSensitive(PathSensitivity.NONE)
+        abstract val seed: RegularFileProperty
+
+        @get:OutputDirectory
+        abstract val target: DirectoryProperty
+
+        @TaskAction
+        fun copy() {
+            fs.sync {
+                from(seed)
+                into(target)
+            }
+        }
+    }
+
 // Host (macOS dylib or Linux so) build for the unit tests only; assemble tasks never depend on it.
 val cargoBuildHost =
     tasks.register<Exec>("cargoBuildHost") {
@@ -178,6 +202,10 @@ android {
         jniLibs { useLegacyPackaging = false }
     }
 
+    testOptions {
+        animationsDisabled = true
+    }
+
     lint {
         abortOnError = true
         warningsAsErrors = false
@@ -213,6 +241,17 @@ androidComponents {
     }
 }
 
+androidComponents {
+    // The instrumented tests (debug only) read the seed SQL as an asset of the test APK.
+    onVariants(selector().withBuildType("debug")) { variant ->
+        val testAssets =
+            tasks.register<SeedAssetCopy>("copyAndroidTestSeedAssets") {
+                seed.set(File(repoRoot, "src-tauri/seed_spf_test.sql"))
+            }
+        variant.androidTest?.sources?.assets?.addGeneratedSourceDirectory(testAssets, SeedAssetCopy::target)
+    }
+}
+
 dependencies {
     // AAR on the device: it carries libjnidispatch.so per ABI. The unit tests add the plain jar below.
     implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
@@ -224,6 +263,14 @@ dependencies {
     testImplementation(libs.jna)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // Instrumented tests (connectedDebugAndroidTest, scripts/android/run_android_tests.sh).
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }
 
 ktlint {
