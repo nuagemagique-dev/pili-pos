@@ -69,6 +69,8 @@ ADMIN="$PKG/dev.nuagemagique.pilipos.provisioning.PiliAdminReceiver"
 MAIN="$PKG/dev.nuagemagique.pilipos.MainActivity"
 TEARDOWN_ACTION=dev.nuagemagique.pilipos.debug.TEARDOWN
 TEARDOWN_COMPONENT="$PKG/dev.nuagemagique.pilipos.debugtools.DebugTeardownReceiver"
+KILL_ACTION=dev.nuagemagique.pilipos.debug.KILL
+KILL_COMPONENT="$PKG/dev.nuagemagique.pilipos.debugtools.DebugKillReceiver"
 INBOX="/sdcard/Android/data/$PKG/files/provisioning-inbox"
 FDM_DEV_PORT=19380
 PRINTER_DEV_PORT=19390
@@ -129,7 +131,12 @@ do_teardown() {
         if [[ "$INSTALLED" -eq 1 ]]; then
             for pkg in "$TEST_PKG" "$PKG"; do
                 if adbd shell pm list packages 2>/dev/null | tr -d '\r' | grep -qx "package:$pkg"; then
-                    out="$(adbd uninstall "$pkg" 2>&1 | tr -d '\r')"
+                    # the policy manager may still hold the uninstall block for a moment after the owner is cleared
+                    for i in 1 2 3 4 5 6; do
+                        out="$(adbd uninstall "$pkg" 2>&1 | tr -d '\r')"
+                        [[ "$out" == *Success* ]] && break
+                        sleep 2
+                    done
                     [[ "$out" == *Success* ]] || problems+=("uninstall $pkg: $out")
                 fi
             done
@@ -336,23 +343,64 @@ else
 fi
 
 # ── restart ─────────────────────────────────────────────────────
-adbd shell am force-stop "$PKG"
-sleep 1
-since="$(adbd shell date +'%m-%d\ %H:%M:%S.000' | tr -d '\r')"
-adbd shell am start -n "$MAIN" >"$OUTDIR/restart.log" 2>&1
+# `am force-stop` cannot be used: on API 33 the OS ignores it for the device-owner package
+# ("Ignoring request to force stop protected package"). The process that is alive after `am instrument`
+# is the one the system started when the instrumentation ended, so reading its log would prove nothing.
+# The app process is killed with SIGKILL by the debug-only kill receiver (`run-as kill` does not work: its pid
+# namespace is separate, and `am crash` is ignored for the protected package as well), the old pid must be
+# gone, and only the lines of a NEW pid count: that process must reach Ready on its own (the app is the
+# persistent HOME of the kiosk, the system restarts it; `am start` is the fallback if it does not) with
+# no import, so the kept record is what it opens from.
+# the end of `am instrument` kills the app process and the system starts a new one a moment later: wait for it
+old_pid=""
+for _ in $(seq 1 30); do
+    old_pid="$(adbd shell pidof "$PKG" | tr -d '\r' | awk '{print $1}')"
+    [[ -n "$old_pid" ]] && break
+    sleep 1
+done
+sleep 3 # let that process settle before it is killed
+old_pid="$(adbd shell pidof "$PKG" | tr -d '\r' | awk '{print $1}')"
+[[ -n "$old_pid" ]] || abort restart "no running process for $PKG before the restart (pidof stayed empty for 30 s)"
+adbd shell am broadcast -a "$KILL_ACTION" -n "$KILL_COMPONENT" >"$OUTDIR/restart.log" 2>&1 || true
+gone=0
+for _ in $(seq 1 10); do
+    if ! adbd shell pidof "$PKG" | tr -d '\r' | tr ' ' '\n' | grep -qx "$old_pid"; then
+        gone=1
+        break
+    fi
+    sleep 1
+done
+[[ "$gone" -eq 1 ]] || abort restart "pid $old_pid still runs after the kill (broadcast output: $(tr -d '\r' <"$OUTDIR/restart.log" | head -n 2))"
+new_pid=""
+started_by_us=0
+deadline=$(($(date +%s) + 30))
+while [[ "$(date +%s)" -lt "$deadline" && -z "$new_pid" ]]; do
+    cand="$(adbd shell pidof "$PKG" | tr -d '\r' | awk '{print $1}')"
+    if [[ -n "$cand" && "$cand" != "$old_pid" ]]; then
+        new_pid="$cand"
+    else
+        sleep 1
+    fi
+    if [[ -z "$new_pid" && "$started_by_us" -eq 0 && "$(date +%s)" -ge $((deadline - 25)) ]]; then
+        # the system did not bring the app back within 5 s: start it, the check stays on a new pid
+        adbd shell am start -n "$MAIN" >>"$OUTDIR/restart.log" 2>&1
+        started_by_us=1
+    fi
+done
+[[ -n "$new_pid" ]] || abort restart "no new process for $PKG within 30 s of killing pid $old_pid"
 deadline=$(($(date +%s) + 30))
 ready=0
 while [[ "$(date +%s)" -lt "$deadline" ]]; do
-    if adbd logcat -d -s PiliShell:I -T "$since" 2>/dev/null | grep -q 'state=Ready'; then
+    if adbd logcat -d --pid="$new_pid" -s PiliShell:I 2>/dev/null | grep -q 'state=Ready'; then
         ready=1
         break
     fi
     sleep 1
 done
-shell_log="$(adbd logcat -d -s PiliShell:I -T "$since" 2>/dev/null | grep 'state=' | sed 's/.*state=/state=/' | tr '\n' ' ')"
-[[ "$ready" -eq 1 ]] || abort restart "no state=Ready within 30 s of the restart (saw: $shell_log)"
+shell_log="$(adbd logcat -d --pid="$new_pid" -s PiliShell:I 2>/dev/null | grep 'state=' | sed 's/.*state=/state=/' | tr '\n' ' ')"
+[[ "$ready" -eq 1 ]] || abort restart "pid $new_pid (was $old_pid) never logged state=Ready within 30 s (saw: $shell_log)"
 if echo "$shell_log" | grep -q 'NotProvisioned'; then
-    abort restart "the restart went through NotProvisioned, the bundle was not kept (saw: $shell_log)"
+    abort restart "pid $new_pid went through NotProvisioned, the bundle was not kept (saw: $shell_log)"
 fi
 locked=0
 for _ in $(seq 1 20); do
@@ -362,8 +410,8 @@ for _ in $(seq 1 20); do
     fi
     sleep 1
 done
-[[ "$locked" -eq 1 ]] || abort restart "Ready without import, but mLockTaskModeState is not LOCKED (saw: $shell_log)"
-pass restart "Ready again without import ($shell_log), mLockTaskModeState=LOCKED"
+[[ "$locked" -eq 1 ]] || abort restart "pid $new_pid Ready without import, but mLockTaskModeState is not LOCKED (saw: $shell_log)"
+pass restart "pid $old_pid -> $new_pid after the kill, Ready again without import ($shell_log), mLockTaskModeState=LOCKED"
 
 # teardown and the total line come from the EXIT trap
 exit 0
