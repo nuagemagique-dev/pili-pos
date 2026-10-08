@@ -1,0 +1,30 @@
+[package]
+name = "pos-export"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+pos-db = { path = "../pos-db" }
+pos-fiscal = { path = "../pos-fiscal" }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = "0.1"
+sha2 = "0.10"
+hex = "0.4"
+getrandom = "0.3"
+# age: exact pin (X1D15)
+age = { version = "=0.12.1", default-features = false }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+pos-export-mock = { path = "../pos-export-mock" }
