@@ -549,7 +549,7 @@ fn export_url_problem(url: &str) -> Option<String> {
 impl ExportConfig {
     /// What would make the export unusable. Each message starts with
     /// `export.<field>: `.
-    fn problems(&self) -> Vec<String> {
+    pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
         if let Some(p) = export_url_problem(&self.url) {
             out.push(p);
