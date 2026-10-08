@@ -25,7 +25,7 @@ private open class RecordingHook(
 
     private fun record(point: String) {
         log += "$label:$point"
-        if (point in failOn) throw IllegalStateException("$label fails at $point")
+        if (point in failOn) error("$label fails at $point")
     }
 }
 
