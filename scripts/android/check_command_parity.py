@@ -23,7 +23,7 @@ derive Serialize + Deserialize and records carry deny_unknown_fields
 (unless `// contract: custom` sits above them); H4 unique uniffi type
 names; H5 no process-wide statics outside logging.rs; H6 no unsigned
 integers except Vec<u8> in records, enums and exported signatures; H7 no
-peppol or invoice names.
+peppol, sign_invoice or b2b_invoice identifiers.
 
 Standard library only.
 """
@@ -50,7 +50,10 @@ STATIC_PATTERNS = [
     (re.compile(r"\bOnceCell\b"), "OnceCell"),
     (re.compile(r"\bLazyLock\b"), "LazyLock"),
 ]
-H7_RE = re.compile(r"peppol|invoice", re.I)
+# H7: the identifiers of the peppol-gated commands, matched on text stripped of
+# comments and string literals. A bare "invoice" is allowed: the cert engine
+# still has invoice vocabulary (fiscal event kind, Z-report data).
+H7_RE = re.compile(r"peppol|sign_?invoice|b2b_?invoice", re.I)
 H3_FILES = {"events.rs", "helpers.rs", "install.rs", "core.rs"}
 H3_DIRS = ("records/", "api/")
 UNIFFI_KINDS = ("Record", "Enum", "Object", "Error")
@@ -493,7 +496,9 @@ def engine_methods(sources):
 
 
 def call_paths(body, engine_fn):
-    return re.findall(rf"((?:{IDENT}\s*::\s*)*{re.escape(engine_fn)})\s*\(", body)
+    # No leading word char or `.`: `xdo_get_alpha(` and `e.do_get_alpha(` are
+    # not calls of `do_get_alpha`.
+    return re.findall(rf"(?<![A-Za-z0-9_.])((?:{IDENT}\s*::\s*)*{re.escape(engine_fn)})\s*\(", body)
 
 
 def check_method(fn, cert):
@@ -526,14 +531,10 @@ def check_method(fn, cert):
     return issues
 
 
-def run_parity(args, cert, sources, ffi_exists, ffi_dir, out):
-    total = len(cert)
-    if not ffi_exists:
-        print(f"parity: 0/{total} (no pos-ffi yet)", file=out)
-        return 1 if args.strict else 0
+def evaluate(cert, sources, pre):
+    """(issues, methods by name, set of commands whose method has no issue)."""
     issues = []
     methods = {}
-    pre = Path(ffi_dir).name
     for s in sources:
         for line, msg in s.errors:
             issues.append(f"{pre}/{s.rel}:{line}: parse error: {msg}")
@@ -550,8 +551,17 @@ def run_parity(args, cert, sources, ffi_exists, ffi_dir, out):
         found = check_method(fn, cert)
         if found:
             issues += [f"{pre}/{fn.rel}:{fn.line}: {name}: {msg}" for msg in found]
-        else:
+        elif name in cert:
             ok_cmds.add(name)
+    return issues, methods, ok_cmds
+
+
+def run_parity(args, cert, sources, ffi_exists, ffi_dir, out):
+    total = len(cert)
+    if not ffi_exists:
+        print(f"parity: 0/{total} (no pos-ffi yet)", file=out)
+        return 1 if args.strict else 0
+    issues, methods, ok_cmds = evaluate(cert, sources, Path(ffi_dir).name)
     for line in issues:
         print(line, file=out)
     missing = sorted(set(cert) - set(methods))
@@ -575,7 +585,8 @@ def run_parity(args, cert, sources, ffi_exists, ffi_dir, out):
 
 
 def run_markdown(args, cert, sources, ffi_exists, out):
-    present = {f.name for f in engine_methods(sources)} if ffi_exists else set()
+    # same ok set as the parity gate: a method with an issue is not "present"
+    present = evaluate(cert, sources, "ffi")[2] if ffi_exists else set()
     print("| Command | Engine function | Call | FFI method (Kotlin) |", file=out)
     print("| --- | --- | --- | --- |", file=out)
     found = 0
@@ -631,7 +642,7 @@ def run_hygiene(args, sources, ffi_exists, ffi_dir, out):
                 for m in rx.finditer(src.blank):
                     add(src, src.line_of(m.start()), "H5", f"`{label}` outside logging.rs")
         # H7
-        for m in H7_RE.finditer(src.keep):
+        for m in H7_RE.finditer(src.blank):
             add(src, src.line_of(m.start()), "H7", f"`{m.group(0)}` is not part of the cert build")
         # types
         for t in parse_types(src):

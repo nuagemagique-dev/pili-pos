@@ -6,4 +6,4 @@ impl PosEngine {
 }
 
 #[cfg(feature = "peppol")]
-pub fn gated() {}
+pub fn peppol_gated() {}

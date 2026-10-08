@@ -151,6 +151,13 @@ class ParityFailures(unittest.TestCase):
     def test_wrong_engine_fn(self):
         self.assert_issue("bad_engine_fn", "body does not call the engine function do_set_beta")
 
+    def test_suffix_colliding_engine_fn_name(self):
+        # xdo_get_alpha( ends with do_get_alpha( but is another function
+        self.assert_issue("bad_suffix_call", "body does not call the engine function do_get_alpha")
+
+    def test_method_call_is_not_an_engine_path(self):
+        self.assert_issue("bad_method_call", "body does not call the engine function do_get_alpha")
+
     def test_wrong_engine_module(self):
         self.assert_issue("bad_module", "expected module gamma")
 
@@ -229,6 +236,25 @@ class Markdown(unittest.TestCase):
         self.assertEqual([r.split(" | ")[0] for r in rows], ["| check_gamma", "| get_alpha", "| set_beta"])
         self.assertIn("| check_gamma | gamma::do_check_gamma | spawn | missing |", a)
         self.assertTrue(a.rstrip().endswith("Parity: 2/3."))
+
+
+class MarkdownMatchesParity(unittest.TestCase):
+    def test_method_with_an_issue_is_not_counted(self):
+        # get_alpha has a wrong param name: parity says 1/3, markdown must too
+        files = {
+            "api/a.rs": "#[uniffi::export]\nimpl PosEngine {\n"
+            "    pub async fn get_alpha(&self, bogus: i64) -> R {\n"
+            "        self.blocking(|e| alpha::do_get_alpha(e)).await\n    }\n"
+            "    pub async fn set_beta(&self, item_id: i64, label: String) -> R {\n"
+            "        self.blocking(|e| alpha::do_set_beta(e, item_id, label)).await\n    }\n}\n"
+        }
+        with TempFfi(files) as t:
+            _, par = t.parity()
+            _, md = t.parity("--markdown")
+        self.assertIn("parity: 1/3", par)
+        self.assertTrue(md.rstrip().endswith("Parity: 1/3."))
+        self.assertIn("| get_alpha | alpha::do_get_alpha | blocking | missing |", md)
+        self.assertIn("| set_beta | alpha::do_set_beta | blocking | posEngine.setBeta() |", md)
 
 
 class HygieneRules(unittest.TestCase):
@@ -345,7 +371,25 @@ class HygieneRules(unittest.TestCase):
         lines = self.violations("hyg_h7", "H7")
         self.assertEqual(len(lines), 2)
         self.assertIn("api/x.rs:3", lines[0])
-        self.assertIn("api/x.rs:8", lines[1])  # the feature name in a string
+        self.assertIn("api/x.rs:9", lines[1])  # peppol_gated
+
+    def test_h7_allows_bare_invoice_vocabulary_and_strings(self):
+        # the cert engine has invoice vocabulary (event kind, Z-report data)
+        src = (
+            '#[derive(Debug, uniffi::Enum, serde::Serialize, serde::Deserialize)]\n'
+            'pub enum FiscalKind { Invoice, Ticket }\n'
+            'pub struct ZData { pub invoices: i64 }\n'
+            'pub fn f() -> String { "peppol sign_invoice".into() }\n'
+        )
+        with TempFfi({"x.rs": src}) as t:
+            code, out = t.hygiene()
+            self.assertEqual(code, 0, out)
+
+    def test_h7_camel_case_identifiers(self):
+        with TempFfi({"x.rs": "pub struct IssueB2bInvoiceInput;\npub fn SignInvoiceFiscal() {}\n"}) as t:
+            code, out = t.hygiene()
+            self.assertEqual(code, 1)
+            self.assertEqual(out.count("H7"), 2)
 
     def test_h7_ignores_comments(self):
         with TempFfi({"x.rs": "// peppol invoice\n/* invoice */\npub fn f() {}\n"}) as t:
