@@ -79,6 +79,7 @@
 set -uo pipefail
 export LC_ALL=C
 export PATH="$HOME/.cargo/bin:$PATH"
+export CARGO_TERM_COLOR=never
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 cd "$ROOT" || exit 2
@@ -297,7 +298,7 @@ ffi_deps() {
 }
 
 if have_rust; then
-    gate rust-fmt in_rust cargo fmt --all --check
+    gate rust-fmt in_rust cargo fmt --all --check -- --color never
     gate rust-clippy in_rust cargo clippy --workspace --all-targets --locked -- -D warnings
     gate rust-tests rust_tests
     gate ffi-deps ffi_deps
