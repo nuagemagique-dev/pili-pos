@@ -1,0 +1,6 @@
+# uniffi 0.32 global config file (the old flat --config format is ignored with a warning).
+[crates.pos_ffi.bindings.kotlin]
+cdylib_name = "pos_ffi"
+# API 33+ (our minSdk): android.system.SystemCleaner instead of java.lang.ref.Cleaner.
+android = true
+android_cleaner = true

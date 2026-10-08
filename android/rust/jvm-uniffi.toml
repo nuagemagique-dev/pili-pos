@@ -1,0 +1,4 @@
+# uniffi 0.32 global config file (the old flat --config format is ignored with a warning).
+# Bindings for the JVM host tests (P2-T6): default package uniffi.pos_ffi, no Android flags.
+[crates.pos_ffi.bindings.kotlin]
+cdylib_name = "pos_ffi"
