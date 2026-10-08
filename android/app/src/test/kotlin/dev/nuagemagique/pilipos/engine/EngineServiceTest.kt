@@ -14,7 +14,10 @@ import dev.nuagemagique.pilipos.di.ApplicationScope
 import dev.nuagemagique.pilipos.di.CoroutinesModule
 import dev.nuagemagique.pilipos.di.IoDispatcher
 import dev.nuagemagique.pilipos.provisioning.ProvisioningModule
+import dev.nuagemagique.pilipos.provisioning.ProvisioningNatives
+import dev.nuagemagique.pilipos.provisioning.TreeReader
 import io.mockk.coVerify
+import io.mockk.mockk
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -62,6 +65,16 @@ class EngineServiceTest {
     @BindValue
     @JvmField
     val factory: EngineFactory = FakeFactory(log, engine)
+
+    // The shell's ProvisioningCoordinator reaches BundleImporter, which needs these two seams of the
+    // uninstalled ProvisioningModule.
+    @BindValue
+    @JvmField
+    val provisioningNatives: ProvisioningNatives = mockk()
+
+    @BindValue
+    @JvmField
+    val treeReader: TreeReader = mockk()
 
     @BindValue
     @JvmField
