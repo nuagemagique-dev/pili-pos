@@ -26,9 +26,12 @@ sealed interface DeviceIdResult {
 class DeviceIdReader internal constructor(
     private val serialSource: () -> String?,
 ) {
-    /** Production reader: the platform serial. */
+    /**
+     * Production reader: the platform serial. Lint wants the privileged permission; the device owner with
+     * READ_PHONE_STATE is allowed instead (S4 measured it on API 33), and a refusal is a SecurityException.
+     */
     @Inject
-    @SuppressLint("HardwareIds")
+    @SuppressLint("HardwareIds", "MissingPermission")
     constructor() : this({ Build.getSerial() })
 
     /** Reads the serial now; never throws. */
