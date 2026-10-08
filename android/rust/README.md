@@ -4,6 +4,9 @@ The Rust side of the Android port: a Cargo workspace of its own (the repo-root w
 `android` in `exclude`). It holds `pos-ffi`, the UniFFI facade over `crates/pos-engine`, and the
 `uniffi-bindgen` binary. Build output goes to `../../target/android-rust` (see `.cargo/config.toml`).
 
+The Gradle and Android pipeline (modules, gates, emulator, signing, reproducibility, CI) is described in
+[`docs/android/BUILD.md`](../../docs/android/BUILD.md).
+
 Use the pinned toolchain (`rust-toolchain.toml` at the repo root) and, with Homebrew's cargo
 installed, put rustup first: `export PATH="$HOME/.cargo/bin:$PATH"`.
 
