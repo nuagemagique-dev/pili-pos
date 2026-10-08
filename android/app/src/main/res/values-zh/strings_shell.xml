@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="shell_app_name">Pili POS</string>
+    <string name="shell_opening">收银机启动中…</string>
+    <string name="shell_fatal_title">收银机需要重新启动</string>
+    <string name="shell_fatal_body">发生错误，收银机无法继续运行。请重新启动收银机。如果问题反复出现，请联系技术人员。</string>
+    <!-- Placeholders are written {name} and replaced in Kotlin. -->
+    <string name="shell_version">版本 {version}</string>
+    <string name="shell_owner_adb_hint">准备命令（测试版本）：</string>
 </resources>

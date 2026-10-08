@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="shell_app_name">Pili POS</string>
+    <string name="shell_opening">Démarrage de la caisse…</string>
+    <string name="shell_fatal_title">La caisse doit redémarrer</string>
+    <string name="shell_fatal_body">Une erreur empêche la caisse de continuer. Redémarrez la caisse. Si le problème se répète, appelez le technicien.</string>
+    <!-- Placeholders are written {name} and replaced in Kotlin. -->
+    <string name="shell_version">Version {version}</string>
+    <string name="shell_owner_adb_hint">Commande de préparation (version de test) :</string>
 </resources>
