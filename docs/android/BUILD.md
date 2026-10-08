@@ -154,6 +154,7 @@ Checks (from `p2_gate.sh` and `p3_gate.sh`):
 | `command-parity`, `ffi-hygiene` | `check_command_parity.py` (every cert command has a valid `PosEngine` method; `--strict` needs all 84) and `--hygiene` (rules H1 to H7) |
 | `selftest-*` | self-tests of the gate tools |
 | `gradle-lint`, `gradle-ktlint`, `gradle-detekt` | `lint`, `ktlintCheck`, `detekt` |
+| `jvm-tests` | `:pos-core:test` (host JVM tests of the full p2 mode; SKIP before `android/settings.gradle.kts` exists) |
 | `unit-tests` | `:pos-core:testDebugUnitTest`, at least 22 tests, none failed |
 | `mismatch-test`, `api-check` | `:pos-core:mismatchTest`, `:pos-core:apiCheck` |
 | `aar-check` | `:pos-core:assembleRelease`, then the AAR has `jni/arm64-v8a/libpos_ffi.so`, no other ABI, a `proguard.txt` with the four consumer rules |
@@ -301,6 +302,12 @@ in the same commit:
 
    `git stash create` prints nothing when the tree is clean, so `${REF:-HEAD}` archives `HEAD`.
    Run the container with the network on (no `--network none`): it downloads the Linux artifacts.
+   An AGP bump also changes the artifacts that `connectedDebugAndroidTest` resolves (the
+   `com.android.tools.utp` family), which the task list above does not always reach. After such a
+   bump run one more metadata pass with the emulator up
+   (`scripts/android/emulator.sh ensure`), adding `:pos-core:connectedDebugAndroidTest` to the
+   task list, and confirm `scripts/android/run_android_tests.sh` still passes dependency
+   verification.
 4. Check the diff is only what you expected (new `<component>` entries; no `trusted-artifacts`,
    no `ignored-keys`), then re-run the host gate and, when the dependencies of the APK changed,
    `scripts/android/check_repro.sh`.
