@@ -31,7 +31,7 @@ class StubsTest {
         val service = controller.create().get()
         assertNull(service.onBind(Intent()))
         controller.startCommand(0, 1)
-        assertEquals(Service.START_NOT_STICKY, service.onStartCommand(Intent(), 0, 2))
+        assertEquals(Service.START_STICKY, service.onStartCommand(Intent(), 0, 2))
         controller.destroy()
     }
 
