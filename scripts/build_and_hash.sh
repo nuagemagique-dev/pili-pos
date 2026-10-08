@@ -7,7 +7,8 @@
 #   1. Compile the certification build (HubRise in, switched per
 #      installation; no peppol).
 #   2. Verify the binary has the HubRise integration and no invoicing.
-#   3. Verify the source contains no DELETE/UPDATE on fiscal_events.
+#   3. Verify the source compiled into the binary contains no
+#      DELETE/UPDATE on fiscal_events.
 #   4. Compute SHA-1, SHA-256 and MD5 of the binary.
 #   5. Emit a build_info_YYYYMMDD-HHMMSS.txt report.
 #
@@ -66,11 +67,26 @@ rm -f "$BIN_STRINGS"
 echo "✓ UI bundle embedded (${#ASSETS[@]} assets)"
 
 echo "── 3/5 Fiscal-archive mutation scan ─────────────────────"
-# The fiscal archive is append-only by law. No source file may
-# contain a DELETE or UPDATE statement targeting fiscal_events.
-# `#[cfg(test)]` blocks are left out: their DELETE/UPDATE statements
-# are the tests proving the database refuses them.
-MUTATIONS="$(find crates src-tauri/src -name '*.rs' -o -name '*.sql' | sort | xargs awk '
+# The fiscal archive is append-only by law. No source file compiled
+# into the cert binary may contain a DELETE or UPDATE statement
+# targeting fiscal_events. Scanned: every *.rs and *.sql file under
+# crates and src-tauri/src. Two kinds of test code are left out, since
+# neither is compiled into the binary and both hold the tests proving
+# the database refuses these statements:
+#   - the Cargo integration-test directories, i.e. a `tests` directory
+#     directly under a crate root (a directory with a Cargo.toml, so
+#     crates/*/tests), built only by `cargo test`;
+#   - `#[cfg(test)]` blocks.
+# Everything else is scanned, test helpers under src/ that are not
+# behind #[cfg(test)] included.
+TEST_DIR_PRUNE=()
+while IFS= read -r manifest; do
+    crate_dir="$(dirname "$manifest")"
+    if [[ -d "$crate_dir/tests" ]]; then
+        TEST_DIR_PRUNE+=(-path "$crate_dir/tests" -prune -o)
+    fi
+done < <(find crates -name Cargo.toml -not -path '*/target/*' | sort)
+MUTATIONS="$(find crates src-tauri/src ${TEST_DIR_PRUNE[@]+"${TEST_DIR_PRUNE[@]}"} \( -name '*.rs' -o -name '*.sql' \) -print | sort | xargs awk '
     FNR == 1 { armed = 0; skip = 0; depth = 0 }
     /^[[:space:]]*#\[cfg\(test\)\]/ { armed = 1; next }
     armed && !skip && /\{/ { skip = 1; depth = 0 }
