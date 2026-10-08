@@ -42,8 +42,10 @@ pub enum ApplyOutcome {
     /// ([`adopt_and_apply`]); the menu is untouched.
     AwaitingAdoption,
     /// The catalog has issues: the menu is untouched, the issues are
-    /// stored for Settings.
-    Rejected(Vec<Issue>),
+    /// stored for Settings. A struct variant, so the internally tagged
+    /// form serializes: `{"outcome": "rejected", "issues": [...]}` (a
+    /// tagged newtype holding a sequence has no serde form).
+    Rejected { issues: Vec<Issue> },
 }
 
 /// Validate `catalog` and, if it is sound, make the menu mirror it.
@@ -64,7 +66,7 @@ pub fn apply_checked(
     issues.extend(validate(catalog));
     if !issues.is_empty() {
         record_rejection(conn, source, catalog, &issues)?;
-        return Ok(ApplyOutcome::Rejected(issues));
+        return Ok(ApplyOutcome::Rejected { issues });
     }
     if has_unkeyed_items(conn)? {
         hold_for_adoption(conn, source, catalog)?;
@@ -125,7 +127,7 @@ pub fn adopt_and_apply(
     let issues = validate(&catalog);
     if !issues.is_empty() {
         record_rejection(conn, source, &catalog, &issues)?;
-        return Ok(Some(ApplyOutcome::Rejected(issues)));
+        return Ok(Some(ApplyOutcome::Rejected { issues }));
     }
     adopt(conn, adoptions)?;
     write_menu(conn, source, &catalog).map(Some)

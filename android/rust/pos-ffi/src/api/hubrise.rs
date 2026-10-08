@@ -8,9 +8,7 @@
 //! `hubrise_set_confirmed_time`, a queue write in SQLite) go through `spawn`, like the Tauri
 //! wrapper that runs them on the async runtime: the command map and the parity check classify
 //! a command by its wrapper. Inputs go through `convert::inp`, outputs
-//! through `convert::out`; the catalog outcome has its own conversion
-//! ([`ApplyOutcome::from_engine`]) and `hubrise_set_channel` answers an `i64` (the engine's
-//! `usize`).
+//! through `convert::out`; `hubrise_set_channel` answers an `i64` (the engine's `usize`).
 //!
 //! The HubRise commands refuse with the `hubrise_*` and `webshop_*` codes: `hubrise_disabled`
 //! while the integration is switched off, `hubrise_not_connected` without a connection,
@@ -125,7 +123,7 @@ impl PosEngine {
                 pos_engine::commands::hubrise::do_sync_catalog(&engine).await
             })
             .await?;
-        outcome.as_ref().map(ApplyOutcome::from_engine).transpose()
+        convert::out(&outcome)
     }
 
     /// The local products that can keep their id when HubRise takes over the menu.
@@ -148,7 +146,7 @@ impl PosEngine {
                 pos_engine::commands::hubrise::do_adopt_catalog(state, &adoptions)
             })
             .await?;
-        ApplyOutcome::from_engine(&outcome)
+        convert::out(&outcome)
     }
 
     /// How each HubRise channel is signed.

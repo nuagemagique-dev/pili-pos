@@ -383,7 +383,7 @@ async fn process_event(
             }
             Ok(match sync_catalog(ctx, client, stored).await? {
                 ApplyOutcome::Applied { .. } => DispatchOutcome::CatalogUpdated,
-                ApplyOutcome::Rejected(_) => DispatchOutcome::CatalogRejected,
+                ApplyOutcome::Rejected { .. } => DispatchOutcome::CatalogRejected,
                 ApplyOutcome::AwaitingAdoption => DispatchOutcome::CatalogAwaitingAdoption,
                 ApplyOutcome::Unchanged => DispatchOutcome::Ignored,
             })
@@ -485,7 +485,7 @@ fn synthetic_catalog_event(stored: &StoredConnection) -> CallbackEvent {
 fn catalog_outcome(outcome: &ApplyOutcome) -> Option<DispatchOutcome> {
     match outcome {
         ApplyOutcome::Applied { .. } => Some(DispatchOutcome::CatalogUpdated),
-        ApplyOutcome::Rejected(_) => Some(DispatchOutcome::CatalogRejected),
+        ApplyOutcome::Rejected { .. } => Some(DispatchOutcome::CatalogRejected),
         ApplyOutcome::AwaitingAdoption => Some(DispatchOutcome::CatalogAwaitingAdoption),
         ApplyOutcome::Unchanged => None,
     }
