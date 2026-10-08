@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use pos_ffi::{EngineOptions, EngineTimersMs, PosEngine, PosError, init_logging, pos_sw_version};
 
-use crate::support::{open_seeded, options_for};
+use crate::support::{open_seeded, open_seeded_with_hold, options_for, start_held_call};
 
 fn open_err(options: EngineOptions) -> PosError {
     match PosEngine::open(options) {
@@ -171,4 +171,81 @@ async fn an_event_stream_ends_when_the_engine_shuts_down() {
     let stream = t.engine.events().await.unwrap();
     t.engine.shutdown().await.unwrap();
     assert!(stream.next().await.is_none());
+}
+
+/// How long the first `shutdown` is given before its caller gives up (a cancelled Kotlin
+/// coroutine drops the UniFFI future the same way).
+const CANCEL_AFTER: Duration = Duration::from_millis(300);
+
+/// The first `shutdown` of an engine with a call in flight is dropped by its caller after the
+/// engine was taken. Checks that it really was: the call in flight keeps the drain waiting, so
+/// the data directory is still locked, and new calls are already refused.
+async fn cancel_a_shutdown_in_progress(t: &crate::support::TestEngine) {
+    let first = tokio::time::timeout(CANCEL_AFTER, t.engine.shutdown()).await;
+    assert!(
+        first.is_err(),
+        "the first shutdown must still be waiting: {first:?}"
+    );
+    assert!(matches!(
+        t.engine.events().await,
+        Err(PosError::EngineClosed)
+    ));
+    assert!(matches!(
+        t.engine.get_settings().await,
+        Err(PosError::EngineClosed)
+    ));
+    let err = open_err(t.options());
+    assert!(detail(&err).contains("engine already open"), "{err:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cancelled_shutdown_then_shutdown_releases_the_engine() {
+    let (t, hold) = open_seeded_with_hold().await;
+    let call = start_held_call(&t, &hold).await;
+    cancel_a_shutdown_in_progress(&t).await;
+
+    // The second shutdown waits for the drain the first one started: while the call is held it
+    // is not done.
+    let engine = t.engine.clone();
+    let second = tokio::spawn(async move { engine.shutdown().await });
+    tokio::time::sleep(CANCEL_AFTER).await;
+    assert!(
+        !second.is_finished(),
+        "the second shutdown returned while the engine was still in use"
+    );
+
+    hold.release();
+    tokio::time::timeout(Duration::from_secs(10), second)
+        .await
+        .expect("the second shutdown ends once the call is done")
+        .unwrap()
+        .unwrap();
+    call.await.unwrap().unwrap();
+
+    // Ok means engine.lock is free: the same directory opens right away.
+    let again = PosEngine::open(t.options()).unwrap_or_else(|e| panic!("reopen: {e}"));
+    again.shutdown().await.unwrap();
+    // And a third shutdown is still Ok.
+    t.engine.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cancelled_shutdown_then_shutdown_ends_the_streams() {
+    let (t, hold) = open_seeded_with_hold().await;
+    let stream = t.engine.events().await.unwrap();
+    let call = start_held_call(&t, &hold).await;
+    cancel_a_shutdown_in_progress(&t).await;
+
+    hold.release();
+    call.await.unwrap().unwrap();
+    t.engine.shutdown().await.unwrap();
+
+    let next = tokio::time::timeout(Duration::from_secs(5), stream.next())
+        .await
+        .expect("the stream ends once the engine is shut down");
+    assert!(next.is_none());
+    assert!(matches!(
+        t.engine.events().await,
+        Err(PosError::EngineClosed)
+    ));
 }
