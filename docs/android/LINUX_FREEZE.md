@@ -102,3 +102,11 @@ scripts/check_repro.sh                           # from a clean clone of the tag
 ```
 
 The hard freeze `linux-v1.1.0` (signed by the user) is still to come.
+
+## P4 exit check (2026-10-08)
+
+At the end of P4 (`android/int` at `96c99f1`, `chore(android): merge P4-T12 restart-check fixes`):
+
+- `scripts/android/check_linux_frozen.sh` prints `frozen against linux-v1.1.0-rc1 (65b567f): 16 paths, clean`, and `git diff --quiet 30b32a0 -- <freeze paths, android/rust, android/smoke, android/docker, android/pos-core sources, .github>` is empty: P4 changed no Linux build input.
+- `scripts/android/p4_gate.sh --fast --linux-repro --base 30b32a0` (integrator, same commit) built the tag twice in Docker from a clean clone and reproduced SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`.
+- No tag was set. The plan requires no freeze step at the end of P4, and the plan's update of 2026-10-08 renames the freeze: the local tag `linux-v1.1.0-rc1` was misnamed, and the freeze is redone as `linux-v1.0.0-rc1` after the nightly export feature is merged. That feature is not merged yet and a re-freeze needs the user (PD121). Until then the chain keeps checking `linux-v1.1.0-rc1`.
