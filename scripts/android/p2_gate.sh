@@ -13,6 +13,7 @@
 #
 # Usage: scripts/android/p2_gate.sh [--fast] [--android] [--root] [--exit]
 #                                   [--base REF] [--allow REGEX]
+#                                   [--extra-paths REGEX]
 #                                   [--require-modules LIST]
 #   --fast       skip the self-tests and the JVM tests (card gates)
 #   --android    also build the arm64 library and check it (ndk-build, so-align,
@@ -23,6 +24,9 @@
 #   --base REF   branch the checks compare with (default android/int)
 #   --allow REGEX  every changed file must also match REGEX (hygiene-paths); a
 #                card gate gives the list of the card's allowed paths
+#   --extra-paths REGEX  a changed file that matches REGEX is accepted by hygiene-paths
+#                although it is outside android/, scripts/android/ and docs/android/
+#                (docs/android/baseline/ stays refused; --allow still applies)
 #   --require-modules LIST  passed to check_command_parity.py (modules whose
 #                facade must be complete in this card)
 #
@@ -58,8 +62,8 @@
 #                     test is absent), jvm-tests (:pos-core:test in android/; SKIP
 #                     while android/settings.gradle.kts is absent)
 #   With --android:
-#   ndk-build         cargo ndk -t arm64-v8a build --locked --profile android-release
-#                     -p pos-ffi in android/rust
+#   ndk-build         cargo ndk -t arm64-v8a --platform 33 build --locked --profile
+#                     android-release -p pos-ffi in android/rust (minSdk 33, PD78)
 #   so-align          every LOAD segment of libpos_ffi.so has an alignment that is a
 #                     multiple of 0x4000 (16 KB pages; 0x4000 is what the build sets)
 #   bindgen-android   uniffi-bindgen generate --library that .so --language kotlin
@@ -92,6 +96,7 @@ do_root=0
 exit_mode=0
 base="android/int"
 allow_re=""
+extra_re=""
 require_modules=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -105,6 +110,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --allow)
         allow_re="${2:?--allow needs a regex}"
+        shift
+        ;;
+    --extra-paths)
+        extra_re="${2:?--extra-paths needs a regex}"
         shift
         ;;
     --require-modules)
@@ -196,7 +205,9 @@ h_paths() {
     local bad="" f
     while IFS= read -r f; do
         [[ -n "$f" ]] || continue
-        if ! [[ "$f" =~ ^(android/|scripts/android/|docs/android/) ]] || [[ "$f" =~ ^docs/android/baseline/ ]]; then
+        if [[ "$f" =~ ^docs/android/baseline/ ]]; then
+            bad+="$f"$'\n'
+        elif ! [[ "$f" =~ ^(android/|scripts/android/|docs/android/) ]] && ! { [[ -n "$extra_re" ]] && [[ "$f" =~ $extra_re ]]; }; then
             bad+="$f"$'\n'
         elif [[ -n "$allow_re" ]] && ! [[ "$f" =~ $allow_re ]]; then
             bad+="$f (not allowed by --allow)"$'\n'
@@ -355,7 +366,7 @@ find_readelf() {
 ndk_build() {
     [[ -n "${ANDROID_NDK_HOME:-}" ]] || export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/27.1.12297006"
     command -v cargo-ndk >/dev/null || { echo "cargo-ndk is not installed"; return 1; }
-    in_rust cargo ndk -t arm64-v8a build --locked --profile android-release -p pos-ffi || return 1
+    in_rust cargo ndk -t arm64-v8a --platform 33 build --locked --profile android-release -p pos-ffi || return 1
     [[ -f "$SO" ]] || { echo "missing $SO"; return 1; }
     echo "built libpos_ffi.so ($(wc -c <"$SO" | tr -d ' ') bytes)"
 }
