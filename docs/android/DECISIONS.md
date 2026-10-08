@@ -778,6 +778,141 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   - **PD120 FDM prefix in Kotlin.** `ErrorTexts.isFdm` uses `startsWith("FDM")` (PD54, FFI.md section 6), not Vue's `/^FDM\b/`. In Vue, `FDM_ANSWER_PENDING|label=N` fails `^FDM\b` (the underscore is a word character) and probably shows `err_unexpected`, although the comment at `errors.rs:122-124` says it shows as an FDM message. The Kotlin behaviour is kept. The Linux UI is frozen, so it is a question for the user (it could be fixed with the v1.0 re-freeze, see PD121).
   - **PD121 No freeze step at the P4 exit.** The plan requires no tag at the end of P4: the Linux SHA-1 reproduction and the tag-mode freeze check are the P4 exit obligations, and both pass. The plan's update of 2026-10-08 says the local tag `linux-v1.1.0-rc1` was misnamed and the freeze is redone as `linux-v1.0.0-rc1` after the nightly export feature is merged; that feature is not on `android/int`, and a re-freeze needs the user's go-ahead. So no tag was set and P5 and P6 keep checking `linux-v1.1.0-rc1` (65b567f) in tag mode until the user re-freezes. Recorded in `docs/android/LINUX_FREEZE.md`.
   - **PD122 Review findings carried forward.** The non-blocking findings of the P4 reviews are listed in `phases/P4-exit.md` ("Risks"). The ones in foundation files (`engine/`, `provisioning/`, `kiosk/`, `shell/`, `scripts/android/`) are fixed by one foundation card that runs alone in the first wave of the next run, before the UI and platform lanes branch, because the lanes may not edit foundation files (PD102). The ones that touch the restart after Fatal (event stream ending while Ready, `Closed(Shutdown)` shown as Opening) belong to P6's restart design.
+- **P6 planner (platform lane, 2026-10-08):** decisions of the platform lane, cards in docs/android/phases/P6.md.
+  - **PD201 Card layout.** Eleven cards in seven waves, at most two per wave (the Mac is shared with the UI lane):
+    - Wave 1: the shared foundation hooks (T1), alone in its wave (LANES.md "Shared changes").
+    - Wave 2: the P6 gate and the no-backup checks (T2); the audit log and the crash watchdog (T5).
+    - Wave 3: the device-owner policies (T3); the About screen and the identity report (T4).
+    - Wave 4: the SPF export (T6); the updater verification core (T7).
+    - Wave 5: the updater install and its screen (T8); `declare_android.sh` (T9).
+    - Wave 6: the APK reproducibility check moved to `:app` (T10), alone because Docker under amd64 emulation is heavy.
+    - Wave 7: the emulator end-to-end run of the platform features (T11), alone.
+
+    Plan mapping:
+    - SPF access = T6;
+    - About = T4;
+    - declared-only updater = T7, T8;
+    - device-owner restrictions = T3;
+    - no cloud backup = T2;
+    - crash restart = T5 (+ T1 pump fix);
+    - release tooling = T9, T10.
+  - **PD202 Gates and bases.** Cards branch from `android/lane-plat` at their wave start.
+    - Until `scripts/android/p6_gate.sh` is merged (waves 1 and 2), a card runs `p4_gate.sh --app --fast --base android/lane-plat --allow <regex>` on every commit and `p4_gate.sh --app ...` without `--fast` at the end.
+    - From wave 3 on, the same profiles go through `p6_gate.sh`, which runs `p4_gate.sh` and adds the P6 checks.
+    - A reviewer of a card already merged gates against the card's fork point (PD116).
+    - Card regex: `python3 scripts/android/lane_paths.py --regex platform`. T1 has its own explicit regex.
+  - **PD203 Foundation hooks (T1, shared).** The lane needs four things the foundation does not offer. T1 adds them with tests, in one card alone in wave 1:
+    - an `AppLifecycleHook` set (Hilt `@Multibinds` in `di/`), called by `PiliApplication.onCreate` and by `MainActivity.onCreate` (after `kiosk.prepare()`) and `onResume` (after `kiosk.relock`, before `EngineService.start`), each hook isolated in try/catch;
+    - `EngineGateway.state` (read-only `StateFlow<EngineState>`) and `EngineGateway.close()` (delegates to `EngineHolder.close()`, for the updater only);
+    - `EngineHelpers.verifyMinisign(...)` (the updater may not call the uniffi free function, `ffi-boundary`);
+    - the restart-related P4 finding in `engine/` (PD122): when the event stream ends while the state is Ready, the pump calls `markFatal`.
+
+    T1 also adds to LANES.md the platform rules for `scripts/android/(test_)?plat_*.sh|py`, `scripts/android/testdata/plat_*/`, `test/screenshots/platform/` and `test/resources/platform/`, their probes, and a "Platform routes" section. The other PD122 findings (`provisioning/`, `kiosk/`, `shell/`, scripts, including `Closed(Shutdown)` shown as Opening in `ShellState.kt`) are not in this lane.
+  - **PD204 Strings files.** The brief named one `strings_platform.xml`, but LANES.md only owns `strings_plat_<area>.xml` with the prefix `plat_<area>_` (`lane_paths.py --check` would fail on the other name). The lane uses `strings_plat_about.xml` (exists), `strings_plat_policy.xml`, `strings_plat_watchdog.xml`, `strings_plat_export.xml` and `strings_plat_update.xml`. French is in `values/`, with English and Chinese in `values-en/` and `values-zh/`. Each file has the same key set in all three folders (gate check `plat-strings`).
+  - **PD205 Routes and Settings rows** (published in LANES.md "Platform routes" and `PLATFORM.md`):
+
+    | Route | Settings row id | Order | Who sees the row |
+    |-------|-----------------|-------|------------------|
+    | `platform/about` | `platform.about` | 900 | everyone (`managerOnly = false`) |
+    | `platform/export` | `platform.export` | 910 | managers only |
+    | `platform/update` | `platform.update` | 920 | managers only |
+
+    All three are registered by `PlatformEntry`; the UI lane's Settings screen lists them from the `SettingsEntry` set.
+  - **PD206 Device-owner policies.** `platform/policy/` applies, at every application start and every activity start, each step isolated and its failures audited:
+    - the Q16 set: 12 user restrictions plus `no_system_error_dialogs`;
+    - `setUninstallBlocked`;
+    - auto time on, auto time zone off, `Europe/Brussels`;
+    - stay awake 7;
+    - keyguard and status bar disabled;
+    - the postpone system update policy;
+    - `setLockTaskFeatures(NONE)`, which runs after `KioskController.prepare()` and so overrides its GLOBAL_ACTIONS.
+
+    This answers the P4 exit question 2 while the user is away: in production the staff lose the power menu. Exceptions:
+    - `DISALLOW_DEBUGGING_FEATURES` (adb off) is applied only in release builds, and only once a provisioning record exists. Debug builds never apply it (the emulator loop needs adb).
+    - `DISALLOW_MOUNT_PHYSICAL_MEDIA` and `DISALLOW_CONFIG_WIFI` stay off.
+    - There is no timed adb (DECISIONS 7).
+
+    The policies end when the debug teardown clears the device owner.
+  - **PD207 Crash watchdog.** `platform/watchdog/EngineWatchdog` watches `EngineGateway.state` from the application scope.
+    - **On Fatal:** it writes an audit row, waits 3 s (logs flush, the fatal screen is seen), records the restart and kills its own process (`Process.killProcess(myPid())` behind an injectable killer). The system restarts the persistent HOME app and the START_STICKY service. It never uses `am force-stop` (PD118).
+    - **Budget:** 3 restarts in 10 minutes (wall clock, persisted in `filesDir/platform/restarts.json`). Beyond that it stays on the fatal screen and audits "budget exhausted".
+    - **Closed(Shutdown) for more than 60 s,** while no platform operation (update, export) is running: it calls `EngineService.start(context)` and audits it.
+    - **`BootReceiver`:** audits the boot and starts `MainActivity` as a fallback to HOME.
+  - **PD208 Platform audit log.** `filesDir/platform/audit.jsonl`, one JSON object per line: `ts` (ISO 8601 with the Europe/Brussels offset), `kind`, `event`, `detail` (string map), `versionCode`, `versionName`, `pid`.
+    - Every append is fsynced; rotation at 1 MiB keeps 5 files (`audit.jsonl.1` to `.5`).
+    - It is not the fiscal journal and is never sent anywhere. It is part of the SPF export.
+  - **PD209 About and identity.** `platform/about/IdentityProvider` builds an `IdentityReport`:
+    - application id, versionName, versionCode, `posSwVersion` (`EngineHelpers.posSwVersion`), the engine reference;
+    - SHA-1 and SHA-256 of the installed `base.apk` (`applicationInfo.sourceDir`), SHA-1 of the `lib/arm64-v8a/libpos_ffi.so` entry read from that APK (it is stored uncompressed and not extracted), SHA-256 of the signing certificates;
+    - deviceId (the provisioning record), posId and terminalId (`getSettings` when Ready);
+    - Android release, SDK, build fingerprint, manufacturer and model;
+    - free internal bytes, count and bytes of `engine/backups/`.
+
+    Hashes are cached per `(sourceDir, lastUpdateTime)`. The engine reference is the non-translatable string `plat_about_engine_ref` = `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`; a gate check compares it with the freeze tag, so a re-freeze must update it. The About screen shows the report; the export writes it as `identity.json`.
+  - **PD210 SPF export** (AM Art. 16/102; Linux practice: `FEUILLE_ACQUISITION_DONNEES_FR.md` section 7 = full `pos.db`, logs, SHA-1 of the binary). The flow follows Q17:
+    - a manager-only screen, refused while an order or takeaway is open;
+    - pre-check of a mounted removable non-primary volume ("Insert the USB stick or SD card");
+    - picker `StorageVolume.createOpenDocumentTreeIntent()` from the locked activity (never `FLAG_ACTIVITY_NEW_TASK`), the root refused with the hint to create `PILI-EXPORT`;
+    - a persisted grant per volume uuid, and "Change folder" releases the old grant.
+
+    Export folder `pili-export-<yyyyMMdd-HHmmss>-<deviceId>` with:
+    - `pos.db` (a fresh `backupDatabase()`);
+    - `backups/` (the 7 newest older backups);
+    - `backups.txt` (inventory of every backup: name, bytes, SHA-256);
+    - `logs/` (engine logs);
+    - `audit/` (platform audit files);
+    - `identity.json`;
+    - `LISEZMOI.txt` (French, brand-neutral: what the files are, how to check `MANIFEST.sha256` with `shasum -a 256 -c`);
+    - `MANIFEST.sha256` (sha256sum format), written last.
+
+    There is no staging copy: each file is hashed while it streams to the volume, `fd.sync()`, then read back through the content resolver and hashed again. A mismatch fails the export. Nothing on the volume is deleted, even on error. A write failure on a file of 4 GiB or more says "the stick is probably FAT32, use exFAT". Every export is audited (files, bytes, result).
+  - **PD211 Update source format.** One signed descriptor `declared.json` per declared Android version:
+    `{"format":1,"platform":"android","package":"dev.nuagemagique.pilipos","version":"X.Y.Z","versionCode":N,"asset":"pili-pos-android-X.Y.Z.apk","sha1":"..","sha256":"..","signerSha256":"..","declared_at":".."}`
+    with `declared.json.minisig` (trusted comment `pili-pos-android X.Y.Z declared <ts>`).
+    - **Online:** an OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (same package as the Linux `:declared`), pulled anonymously:
+      1. `GET /token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`;
+      2. the manifest (`application/vnd.oci.image.manifest.v1+json`); the layers are found by their `org.opencontainers.image.title` annotation;
+      3. the blobs, checked against their digest. Redirects are followed by hand, and the bearer token is never sent to another host.
+    - **USB (Q8):** the same three files in a SAF folder.
+    - **Limits:** APK 200 MB, descriptor 64 KB. HTTPS only in release builds. Debug builds read an optional override `filesDir/platform/registry.json` (`{"baseUrl":"http://127.0.0.1:<port>"}`), so the emulator test can reach a host mock through `adb reverse`; cleartext is already limited to 127.0.0.1 and localhost.
+  - **PD212 Declaration keys.** `res/xml/plat_update_keys.xml` holds the public minisign key per build type: `debug` = the committed development key (`android/app/provisioning/dev-minisign.pub`, a gate check compares them), `release` = empty until the user creates the declaration key (DECISIONS 9, Q7). With an empty key every update is refused (`plat_update_err_key_missing`).
+  - **PD213 Update preconditions** (interim). The FFI has no engine-side update precheck, and the engine is frozen. The updater composes the check from engine answers only; it computes no money and signs nothing:
+    - the current user is Admin (`getCurrentUser`);
+    - `listOpenOrders()` and `listOpenTakeaways()` are empty;
+    - `needsZReport()` is false;
+    - no fiscal event newer than the newest Z report's `fiscalEventId` (`listFiscalEvents(200)`) has a type other than the presence (work in, work out) types of `crates/pos-fiscal`;
+    - or the till has no fiscal event at all;
+    - then `EngineGateway.close()` must return `Closed` (the engine shutdown waits for a call in flight and stops the background loops). `StillOpen` refuses the update.
+
+    Question for the user: an engine `update_precheck` (booking period closed, no pending sign) together with the re-freeze.
+  - **PD214 Manager PIN.** The plan's "manager PIN" is the logged-in Admin session (the manager typed the PIN to log in). The updater and the export check `getCurrentUser()` again right before they act. There is no second PIN prompt, because a new `login` would queue a clock-in.
+  - **PD215 Install flow** (Q18). Order:
+    1. preconditions;
+    2. verification (PD211, PD212: minisign, JSON, package, versionCode strictly greater than the installed one, download, SHA-256 and SHA-1, archive info: package, versionCode, versionName, signer set equal to the installed one and to `signerSha256`);
+    3. `backupDatabase()`;
+    4. `EngineGateway.close()`;
+    5. a fsynced marker `filesDir/platform/update/pending.json`;
+    6. the audit row "started";
+    7. a PackageInstaller session (`MODE_FULL_INSTALL`, `USER_ACTION_NOT_REQUIRED`, `INSTALL_REASON_POLICY`), committed with an explicit mutable PendingIntent to `InstallResultReceiver`.
+
+    Afterwards:
+    - **Refusal:** no session, the file is deleted.
+    - **Failure status:** audit, marker deleted, engine reopened with `EngineService.start`.
+    - **`STATUS_PENDING_USER_ACTION`:** the session is abandoned and recorded as an error.
+    - **Success:** the "done" row is written by the new process (`UpdateCompletionHook`, from the marker).
+    - **Restart:** `PackageReplacedReceiver` starts `MainActivity`.
+    - **No rollback:** a faulty version is fixed by a newer declared version (DECISIONS 6).
+  - **PD216 Release tooling.** `scripts/release/declare.sh` (Linux) lives on the unmerged `feat/usb-autoinstall` branch; a copy here would conflict at that merge. The Android declaration is therefore its own script, `scripts/release/declare_android.sh`; `declare.sh --android` gets a one-line dispatch when `feat/usb-autoinstall` is merged (the user's step). What the script does:
+    - signs the reproducible unsigned APK (RSA only, v1 off, v2 and v3 on, pinned build-tools 35.0.0);
+    - checks the SHA-1 the SPF accepted;
+    - writes and signs `declared.json` and pushes tag `declared-android` with `oras`.
+
+    The tag scheme is `android-vX.Y.Z` = versionName. The script refuses `-dev` versions and EC keys. The chain only runs it with `--dry-run` against throwaway keys in `mktemp` dirs, with stub `oras` and `gh`.
+  - **PD217 APK reproducibility on `:app`.** The container build (`android/docker/build_in_container.sh`) builds `:app:assembleRelease` instead of `:smoke` (PD80, PD114). `check_repro.sh` compares two `app-release-unsigned.apk`; `:smoke` stays in the host gates. `android.yml` builds and checks the `:app` APK too (never triggered by the chain). `REPRO.md` records the SHA-1 and the image digest.
+  - **PD218 Emulator.** Only P6-T11 and the phase exit start or reuse `sunmi_d3_pro_api33`, never while another AVD runs (`scripts/android/emulator.sh ensure`). The removable volume is vold's virtual SD disk (S4-T4, Q20; `sm set-virtual-disk true` if absent). Teardown as in `app_e2e.sh`: no owner, no package, no reverse rule, export folders removed. The AVD is never wiped.
+  - **PD219 Backup retention.** The engine keeps every post-Z backup forever (`signing.rs:761`) and P6 deletes none. The About screen shows the free space and the backups total, and the export copies the 7 newest. Retention is a question for the user (engine change, re-freeze).
+  - **PD220 Storage location.** The database, backups, logs and provisioning bundle stay in app-private internal storage. No `android:installLocation` (internalOnly) and no storage permissions; gate check `plat-manifest`. Removable media are reached only through SAF grants (export, update from a stick).
+  - **PD221 Exit without the user.** With the user away, the planner writes `P6-exit.md` and the lane waits for the integrator's merge into `android/int`. Merging into main, freezes, pushes, the release keys and `declare_android.sh` for real wait for the user.
 
 ## Decided by the user
 

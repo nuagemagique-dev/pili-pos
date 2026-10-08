@@ -10,6 +10,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -179,5 +180,74 @@ class EngineEventsTest {
             advanceUntilIdle()
             assertEquals(EngineState.Fatal("panic: event pump: pump panic"), f.holder.state.value)
             assertNull(f.holder.readyEngine())
+        }
+
+    @Test
+    fun aStreamEndingWhileReadyMakesTheEngineFatal() =
+        runTest {
+            val f = EngineFixture(this, tmp.root, wireStreamEnd = true)
+            f.holder.open()
+            // The pump runs in the background scope: advance the virtual clock past the grace period.
+            advanceTimeBy(f.events.endGraceMs - 1)
+            runCurrent()
+            assertTrue("still within the grace period", f.holder.state.value is EngineState.Ready)
+            advanceTimeBy(2)
+            runCurrent()
+            assertEquals(EngineState.Fatal("event stream ended while ready"), f.holder.state.value)
+            assertNull(f.holder.readyEngine())
+            verify(exactly = 1) { f.stream.destroy() }
+        }
+
+    @Test
+    fun aStreamEndingDuringAShutdownInProgressStaysQuiet() =
+        runTest {
+            val f = EngineFixture(this, tmp.root, wireStreamEnd = true)
+            val streamEnded = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val stream = mockk<EventStream>()
+            coEvery { stream.next() } coAnswers {
+                streamEnded.await()
+                null
+            }
+            justRun { stream.destroy() }
+            coEvery { f.engine.events() } returns stream
+            coEvery { f.engine.shutdown() } coAnswers { release.await() }
+            f.holder.open()
+            val closing = launch { f.holder.close() }
+            runCurrent()
+            // The engine closes its stream while the shutdown call is still running: state is still Ready.
+            streamEnded.complete(Unit)
+            runCurrent()
+            assertTrue(f.holder.state.value is EngineState.Ready)
+            release.complete(Unit)
+            closing.join()
+            advanceUntilIdle()
+            assertEquals(EngineState.Closed(ClosedReason.Shutdown), f.holder.state.value)
+        }
+
+    @Test
+    fun aStreamEndingWhileNotReadyEndsQuietly() =
+        runTest {
+            val f = EngineFixture(this, tmp.root, wireStreamEnd = true)
+            f.holder.open()
+            f.holder.markFatal("earlier", null)
+            advanceUntilIdle()
+            assertEquals(EngineState.Fatal("earlier"), f.holder.state.value)
+            // A pump started after the engine left Ready (closed here) must not report anything.
+            val closed = EngineFixture(this, tmp.root, LaunchResult.NotProvisioned, wireStreamEnd = true)
+            closed.holder.open()
+            val stream = streamOf(1)
+            closed.events.pump(stream) { _, _ -> error("onFatal must not be called") }
+            assertEquals(EngineState.Closed(ClosedReason.NotProvisioned), closed.holder.state.value)
+            verify(exactly = 1) { stream.destroy() }
+        }
+
+    @Test
+    fun aPumpWithoutAHolderEndsQuietly() =
+        runTest {
+            val events = EngineEvents()
+            val stream = streamOf(0)
+            events.pump(stream) { _, _ -> error("onFatal must not be called") }
+            verify(exactly = 1) { stream.destroy() }
         }
 }

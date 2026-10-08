@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.engine
 import dev.nuagemagique.pilipos.di.IoDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import uniffi.pos_ffi.MinisignCheck
 import uniffi.pos_ffi.PaymentPart
 import uniffi.pos_ffi.SettlementPreview
 import uniffi.pos_ffi.VatLine
@@ -42,4 +43,15 @@ class EngineHelpers
 
         /** The software version the engine reports. */
         suspend fun posSwVersion(): String = withContext(ioDispatcher) { natives.posSwVersion() }
+
+        /**
+         * Checks the minisign [signature] of [data] against [publicKey] (the declared-only updater, PD203).
+         * A bad key or signature is a [MinisignCheck] with `valid = false` and a `problem` code, not an
+         * exception. The ffi-boundary gate forbids the lanes to call the free function themselves.
+         */
+        suspend fun verifyMinisign(
+            publicKey: String,
+            data: ByteArray,
+            signature: String,
+        ): MinisignCheck = withContext(ioDispatcher) { natives.verifyMinisign(publicKey, data, signature) }
     }

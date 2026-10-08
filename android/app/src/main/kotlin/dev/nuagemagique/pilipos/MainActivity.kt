@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import dagger.hilt.android.AndroidEntryPoint
+import dev.nuagemagique.pilipos.di.AppLifecycleHooks
 import dev.nuagemagique.pilipos.engine.EngineService
 import dev.nuagemagique.pilipos.kiosk.KioskController
 import dev.nuagemagique.pilipos.kiosk.UserActivityForwarder
@@ -24,9 +25,13 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var forwarder: UserActivityForwarder
 
+    @Inject
+    lateinit var hooks: AppLifecycleHooks
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         kiosk.prepare()
+        hooks.activityCreated(this)
         setContent { ShellRoot() }
     }
 
@@ -34,6 +39,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         kiosk.relock(this)
         applyImmersive(window)
+        hooks.activityResumed(this)
         // Q15: the foreground service starts after the relock, while the activity is visible.
         EngineService.start(this)
     }
