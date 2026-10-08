@@ -63,11 +63,19 @@ pub async fn pos_sw_version() -> String {
     SW_VERSION.to_string()
 }
 
-/// Same name, different signature: bindings generated from the normal build no longer match.
+/// Same exported name, different signature: bindings generated from the normal build no longer
+/// match. The Rust function has another name so that `pos_sw_version()` (the normal signature)
+/// still exists for the integration tests, which build with this feature too.
 #[cfg(feature = "abi-mismatch")]
-#[uniffi::export]
-pub async fn pos_sw_version(extra: i64) -> String {
+#[uniffi::export(name = "pos_sw_version")]
+pub async fn pos_sw_version_mismatch(extra: i64) -> String {
     format!("{SW_VERSION}+{extra}")
+}
+
+/// The normal signature, not exported, so the tests build with `--features abi-mismatch`.
+#[cfg(feature = "abi-mismatch")]
+pub async fn pos_sw_version() -> String {
+    SW_VERSION.to_string()
 }
 
 /// What the drain of a shutdown ends with: `Ok` once the engine is dropped, or the engine itself
