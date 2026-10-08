@@ -173,8 +173,7 @@ class ProvisioningE2eTest {
         }
     }
 
-    private fun isDeviceOwner(): Boolean =
-        context.getSystemService(DevicePolicyManager::class.java).isDeviceOwnerApp(context.packageName)
+    private fun isDeviceOwner(): Boolean = context.getSystemService(DevicePolicyManager::class.java).isDeviceOwnerApp(context.packageName)
 
     @Suppress("HardwareIds", "MissingPermission")
     private fun serial(): String = Build.getSerial()
