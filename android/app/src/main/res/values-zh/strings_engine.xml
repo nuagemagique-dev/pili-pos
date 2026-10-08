@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="engine_channel_name">收银引擎</string>
+    <string name="engine_notification_title">收银机运行中</string>
+    <string name="engine_notification_text">收银引擎正在运行。</string>
+    <string name="engine_unavailable">收银机正在启动，请稍候。</string>
+    <string name="engine_fatal">收银机内部错误，即将重启。</string>
+</resources>

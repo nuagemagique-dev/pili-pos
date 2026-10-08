@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="engine_channel_name">POS engine</string>
+    <string name="engine_notification_title">Till in service</string>
+    <string name="engine_notification_text">The till engine is running.</string>
+    <string name="engine_unavailable">The till is starting, please wait.</string>
+    <string name="engine_fatal">Internal till error. It will restart.</string>
+</resources>
