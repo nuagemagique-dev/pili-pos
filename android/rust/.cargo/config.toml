@@ -1,0 +1,6 @@
+[build]
+target-dir = "../../target/android-rust"
+
+[target.aarch64-linux-android]
+# 16 KB page size support (Android 15+ devices with 16 KB pages).
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]

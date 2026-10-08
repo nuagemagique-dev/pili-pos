@@ -1,0 +1,31 @@
+# The Android Rust workspace: its own workspace, never a member of the repo-root one
+# (the root Cargo.toml lists "android" in `exclude`). It consumes the engine crates by
+# path and shares their versions through the copy of the root Cargo.lock.
+#
+# Cargo.toml and Cargo.lock change only deliberately (PD59): a domain card never edits them.
+[workspace]
+resolver = "3"
+members = ["pos-ffi", "uniffi-bindgen"]
+
+[workspace.package]
+edition = "2024"
+
+[workspace.dependencies]
+# Exact pin, same value in pos-ffi and uniffi-bindgen (proven by spike S2).
+uniffi = "=0.32.2"
+
+[profile.dev]
+debug = "line-tables-only"
+
+# Android release profile: panic = "unwind" so a Rust panic is caught by UniFFI's
+# catch_unwind and reaches Kotlin as InternalException instead of aborting the process.
+[profile.android-release]
+inherits = "release"
+panic = "unwind"
+opt-level = "z"
+lto = true
+codegen-units = 1
+# Keep symbols in the cargo output: library-mode bindgen reads the UniFFI metadata
+# symbols from this file. The packaged copy is stripped afterwards (by AGP).
+strip = "none"
+debug = "line-tables-only"
