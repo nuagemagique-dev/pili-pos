@@ -39,6 +39,16 @@ class EngineGateway
                 .map { it is EngineState.Ready }
                 .stateIn(scope, SharingStarted.Eagerly, holder.state.value is EngineState.Ready)
 
+        /** The lifecycle state of the engine, read-only: for the platform watchdog and for screens. */
+        val state: StateFlow<EngineState> = holder.state
+
+        /**
+         * Shuts the engine down. Only for the platform updater, before a package install: the engine is
+         * reopened by `EngineService.start`, there is no in-process reopen. Same contract as
+         * [EngineHolder.close]: a refusal or a timeout leaves it running ([CloseResult.StillOpen]).
+         */
+        suspend fun close(): CloseResult = holder.close()
+
         /**
          * Runs [block] against the ready engine on the I/O dispatcher.
          *

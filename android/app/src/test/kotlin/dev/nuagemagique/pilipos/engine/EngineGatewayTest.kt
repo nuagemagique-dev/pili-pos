@@ -104,4 +104,40 @@ class EngineGatewayTest {
                 assertFalse(awaitItem())
             }
         }
+
+    @Test
+    fun stateMirrorsTheHolderState() =
+        runTest {
+            val f = EngineFixture(this, tmp.root)
+            val gateway = f.gateway(this)
+            assertSame(f.holder.state, gateway.state)
+            gateway.state.test {
+                assertEquals(EngineState.Closed(ClosedReason.Initial), awaitItem())
+                f.holder.open()
+                assertTrue(awaitItem() is EngineState.Opening)
+                assertTrue(awaitItem() is EngineState.Ready)
+                f.holder.markFatal("boom", null)
+                assertEquals(EngineState.Fatal("boom"), awaitItem())
+            }
+        }
+
+    @Test
+    fun closeDelegatesToTheHolder() =
+        runTest {
+            val f = EngineFixture(this, tmp.root)
+            f.holder.open()
+            val gateway = f.gateway(this)
+            assertEquals(CloseResult.Closed, gateway.close())
+            assertEquals(EngineState.Closed(ClosedReason.Shutdown), f.holder.state.value)
+            assertTrue(f.log.entries.contains("shutdown"))
+        }
+
+    @Test
+    fun closeBeforeReadyCallsNoShutdown() =
+        runTest {
+            val f = EngineFixture(this, tmp.root, LaunchResult.NotProvisioned)
+            f.holder.open()
+            assertEquals(CloseResult.Closed, f.gateway(this).close())
+            assertFalse(f.log.entries.contains("shutdown"))
+        }
 }

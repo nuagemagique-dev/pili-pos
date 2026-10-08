@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import uniffi.pos_ffi.MinisignCheck
 import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.PaymentPart
 import uniffi.pos_ffi.VatCode
@@ -57,5 +58,35 @@ class EngineHelpersTest {
             val helpers = EngineHelpers(natives, UnconfinedTestDispatcher(testScheduler))
             val failure = runCatching { helpers.cashDueCents(1L, parts) }.exceptionOrNull()
             assertEquals("payment_invalid", (failure as uniffi.pos_ffi.PosException.Coded).code)
+        }
+
+    @Test
+    fun verifyMinisignDelegatesToTheNativesOnTheIoDispatcher() =
+        runTest {
+            val executor = Executors.newSingleThreadExecutor { Thread(it, "fake-io") }
+            try {
+                val natives = FakeNatives()
+                natives.minisign = MinisignCheck(valid = true, trustedComment = "build 7", problem = null)
+                val helpers = EngineHelpers(natives, executor.asCoroutineDispatcher())
+
+                val result = helpers.verifyMinisign("RWQkey", byteArrayOf(1, 2, 3), "signature-text")
+
+                assertSame(natives.minisign, result)
+                assertEquals(listOf(Triple("RWQkey", listOf<Byte>(1, 2, 3), "signature-text")), natives.minisignCalls)
+                assertEquals(listOf("fake-io"), natives.threadNames)
+            } finally {
+                executor.shutdown()
+            }
+        }
+
+    @Test
+    fun anInvalidSignatureIsAValueNotAnException() =
+        runTest {
+            val natives = FakeNatives()
+            natives.minisign = MinisignCheck(valid = false, trustedComment = null, problem = "minisign_signature_invalid")
+            val helpers = EngineHelpers(natives, UnconfinedTestDispatcher(testScheduler))
+            val result = helpers.verifyMinisign("RWQkey", ByteArray(0), "bad")
+            assertEquals(false, result.valid)
+            assertEquals("minisign_signature_invalid", result.problem)
         }
 }
