@@ -60,6 +60,10 @@ set -uo pipefail
 export LC_ALL=C
 export PATH="$HOME/.cargo/bin:$PATH"
 
+# SELF: absolute path of this script, so a re-invocation works after the cd below
+# and when the script was started by a relative path from another directory (PD96).
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+
 MIN_TESTS=22
 AAR_RULES=(
     '-dontwarn java.awt.*'
@@ -171,7 +175,7 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
     -h | --help)
-        sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'
+        sed -n '2,/^set -uo/p' "$SELF" | sed '$d; s/^# \{0,1\}//'
         exit 0
         ;;
     *)
@@ -264,7 +268,7 @@ has_smoke() {
 unit_tests() {
     local dir=android/pos-core/build/test-results/testDebugUnitTest n
     gradle :pos-core:testDebugUnitTest || return 1
-    n="$(bash "${BASH_SOURCE[0]}" --count-unit-tests "$dir")" || { echo "unit tests: $n (failed or fewer than $MIN_TESTS)"; return 1; }
+    n="$(bash "$SELF" --count-unit-tests "$dir")" || { echo "unit tests: $n (failed or fewer than $MIN_TESTS)"; return 1; }
     echo "$n tests"
 }
 
