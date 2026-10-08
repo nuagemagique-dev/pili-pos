@@ -133,6 +133,7 @@ impl TestApp {
             restaurant_legal_name: None,
             day_end_hour: 5,
             digital_ticket: None,
+            export: None,
         };
 
         let data_dir = tempfile::tempdir().expect("test data dir");
