@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="shell_app_name">Pili POS</string>
+    <string name="shell_opening">Starting the till…</string>
+    <string name="shell_fatal_title">The till must restart</string>
+    <string name="shell_fatal_body">An error stops the till from going on. Restart the till. If the problem repeats, call the technician.</string>
+    <!-- Placeholders are written {name} and replaced in Kotlin. -->
+    <string name="shell_version">Version {version}</string>
+    <string name="shell_owner_adb_hint">Setup command (test build):</string>
 </resources>
