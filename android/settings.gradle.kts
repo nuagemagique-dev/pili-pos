@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "pili-pos-android"
 include(":pos-core")
+include(":smoke")

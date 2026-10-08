@@ -14,3 +14,11 @@ plugins {
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
 }
+
+// S5 determinism: archives (AAR, JAR, APK inputs) carry no timestamps and a stable entry order.
+allprojects {
+    tasks.withType<AbstractArchiveTask>().configureEach {
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+    }
+}
