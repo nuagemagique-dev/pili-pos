@@ -186,8 +186,8 @@ in_rust() { (cd android/rust && env -u CARGO_TARGET_DIR "$@"); }
 # ── hygiene ─────────────────────────────────────────────────────
 # Files changed in BASE...HEAD, plus modified (staged or not) and untracked ones.
 changed_files() {
-    git diff --name-only "$base...HEAD"
-    git diff --name-only HEAD
+    git diff --name-only --no-renames "$base...HEAD"
+    git diff --name-only --no-renames HEAD
     git ls-files --others --exclude-standard
 }
 
@@ -263,7 +263,7 @@ gate hygiene-subjects h_subjects
 
 h_root_lock() {
     have_base || { echo "base ref not found: $base"; return 1; }
-    git diff --quiet "$base...HEAD" -- Cargo.lock Cargo.toml || { echo "Cargo.lock or Cargo.toml changed against $base"; return 1; }
+    git diff --quiet --no-renames "$base...HEAD" -- Cargo.lock Cargo.toml || { echo "Cargo.lock or Cargo.toml changed against $base"; return 1; }
     echo "Cargo.lock and Cargo.toml unchanged"
 }
 gate hygiene-root-lock h_root_lock
