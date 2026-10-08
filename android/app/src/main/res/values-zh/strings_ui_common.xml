@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Content descriptions of the glyph keys of the numeric pad (no Vue key: the Vue pad shows C and a glyph only). -->
+    <string name="ui_common_numpad_clear">全部清除</string>
+    <string name="ui_common_numpad_backspace">删除上一位数字</string>
+</resources>
