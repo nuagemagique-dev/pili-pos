@@ -9,6 +9,8 @@ r8 = "8.13.25"
 # JNA: plain jar for the JVM host tests (carries libjnidispatch for macOS and Linux).
 jna = "5.19.1"
 junit = "4.13.2"
+# API snapshot of :pos-core (apiDump / apiCheck, PD60).
+binaryCompatibilityValidator = "0.18.2"
 
 [libraries]
 r8 = { module = "com.android.tools:r8", version.ref = "r8" }
@@ -21,3 +23,4 @@ junit = { module = "junit:junit", version.ref = "junit" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-binary-compatibility-validator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibilityValidator" }

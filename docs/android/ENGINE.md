@@ -6,13 +6,15 @@ Status: written at the end of phase P1a (engine extraction), final pass at the e
 
 `crates/pos-engine` holds everything the till does that is not a window: opening the database, signing events with the FDM, tickets, reports, HubRise, settings. It has no Tauri dependency and no platform conditional compilation: platform differences are `EngineConfig` inputs. The Linux shell `src-tauri` wraps each command as a `#[tauri::command]` (one call each, `src-tauri/src/ipc`); the Android shell (`android/rust/pos-ffi`, phase P2) calls the same functions.
 
+The Android facade is described in `docs/android/FFI.md` (implemented in P2).
+
 The harness of the integration tests (`crates/pos-engine/tests`) is `crates/pos-engine-testkit` (`publish = false`, a dev-dependency of `pos-engine` only, outside the certified binary).
 
 The fiscal behaviour is the certified one: P1a is a pure move, guarded by the test inventory and the normalised FDM journals (`docs/android/DECISIONS.md`, PD2, PD3).
 
 ## 2. EngineConfig
 
-`Engine::open(EngineConfig) -> anyhow::Result<Engine>`. The Android column is what `pos-ffi` is planned to pass (decisions of the plan, P2); it is not implemented yet.
+`Engine::open(EngineConfig) -> anyhow::Result<Engine>`. The Android column is what `pos-ffi` passes; it is implemented in P2, see `docs/android/FFI.md` (section 3).
 
 | Field | Type | Linux value (`src-tauri/src/main.rs`) | Android value (`pos-ffi`, P2) |
 |---|---|---|---|

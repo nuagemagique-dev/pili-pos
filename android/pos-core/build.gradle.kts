@@ -3,6 +3,7 @@
 // tests as host unit tests. Generated code is never committed.
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.binary.compatibility.validator)
 }
 
 val repoRoot: File = rootDir.parentFile
