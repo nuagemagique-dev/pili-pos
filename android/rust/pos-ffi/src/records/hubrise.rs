@@ -12,20 +12,16 @@
 //! `SetConfirmedTimeRequest`, `SyncState`, `Warning`, `WebshopOrderItem`, `WebshopOrderSummary`
 //! and `WebshopState`. No type outside the table is needed.
 //!
-//! Two types are `// contract: custom`:
+//! One type is `// contract: custom`: [`HubriseStatus`]. The engine flattens `ConnectionHealth`
+//! into it (`#[serde(flatten)]`). serde cannot combine `flatten` with `deny_unknown_fields`, so
+//! the record carries the same `#[serde(flatten)]` on a `health` field and no
+//! `deny_unknown_fields`: it reads the engine's JSON (health keys at the top level) but would
+//! ignore a key the engine added. The contract test compares the engine's JSON with the record's
+//! for a real status, so a new engine field fails the test instead of being dropped silently.
 //!
-//! - [`HubriseStatus`] flattens `ConnectionHealth` in the engine (`#[serde(flatten)]`). serde cannot
-//!   combine `flatten` with `deny_unknown_fields`, so the record carries the same
-//!   `#[serde(flatten)]` on a `health` field and no `deny_unknown_fields`: it reads the engine's
-//!   JSON (health keys at the top level) but would ignore a key the engine added. The contract
-//!   test compares the engine's JSON with the record's for a real status, so a new engine field
-//!   fails the test instead of being dropped silently.
-//! - [`ApplyOutcome`]: the engine enum is internally tagged (`outcome`) and its `Rejected` variant
-//!   is a newtype around a `Vec`, which serde cannot serialize with a tag ("cannot serialize
-//!   tagged newtype variant containing a sequence"). So the engine value of a rejected catalog has
-//!   no JSON form and `convert::out` cannot carry it. [`ApplyOutcome::from_engine`] converts the
-//!   engine value variant by variant instead; the record's `Rejected` holds its `issues` as a
-//!   field. The other three variants have the engine's serde form.
+//! [`ApplyOutcome`] goes through `convert::out` like the other types: since the engine's
+//! `Rejected` became a struct variant (PD71), every variant has a serde form, the same on both
+//! sides.
 //!
 //! `Value`, chrono and unsigned fields do not occur in these types except the `usize` counts of
 //! [`ApplyOutcome::Applied`], which become `i64`.
@@ -345,9 +341,7 @@ pub struct Adoption {
     pub price_cents: i64,
 }
 
-/// `pos_catalog::apply::ApplyOutcome`: what applying a catalog did. Converted with
-/// [`ApplyOutcome::from_engine`], see the module doc.
-// contract: custom
+/// `pos_catalog::apply::ApplyOutcome`: what applying a catalog did, tagged by `outcome`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum ApplyOutcome {
@@ -364,29 +358,6 @@ pub enum ApplyOutcome {
     AwaitingAdoption,
     /// The catalog has issues: the menu is untouched.
     Rejected { issues: Vec<Issue> },
-}
-
-impl ApplyOutcome {
-    /// Engine outcome to record, variant by variant (the engine value of a rejected catalog has
-    /// no JSON form).
-    pub fn from_engine(outcome: &pos_catalog::ApplyOutcome) -> Result<Self, PosError> {
-        Ok(match outcome {
-            pos_catalog::ApplyOutcome::Applied {
-                hash,
-                active_items,
-                deactivated_items,
-            } => ApplyOutcome::Applied {
-                hash: hash.clone(),
-                active_items: count(*active_items)?,
-                deactivated_items: count(*deactivated_items)?,
-            },
-            pos_catalog::ApplyOutcome::Unchanged => ApplyOutcome::Unchanged,
-            pos_catalog::ApplyOutcome::AwaitingAdoption => ApplyOutcome::AwaitingAdoption,
-            pos_catalog::ApplyOutcome::Rejected(issues) => ApplyOutcome::Rejected {
-                issues: crate::convert::out(issues)?,
-            },
-        })
-    }
 }
 
 /// A count of the engine (`usize`) as the record's `i64`.

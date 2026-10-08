@@ -40,7 +40,7 @@ Deux builds du même commit produisent donc le même SHA-1. La CI le vérifie à
 Le script `scripts/build_and_hash.sh` :
 1. Compile le build de certification.
 2. Vérifie le périmètre du binaire (vérification anti-régression) : commandes en ligne présentes, facturation B2B (`pos_peppol`) absente.
-3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source, hors blocs de test (ceux-ci exécutent ces requêtes pour prouver que la base les refuse).
+3. Vérifie l'absence de `DELETE FROM fiscal_events` ou `UPDATE fiscal_events` dans le source compilé dans le binaire : tous les fichiers `*.rs` et `*.sql` de `crates/` et de `src-tauri/src/`. Seul le code de test, jamais compilé dans le binaire, en est exclu : les dossiers de tests d'intégration Cargo (le dossier `tests/` à la racine d'une crate, soit `crates/*/tests/`, compilé uniquement par `cargo test`) et les blocs `#[cfg(test)]`. Ces tests exécutent ces requêtes pour prouver que la base les refuse.
 4. Calcule SHA-1, SHA-256 et MD5 du binaire.
 5. Produit un rapport `build_info_YYYYMMDD-HHMMSS.txt`.
 

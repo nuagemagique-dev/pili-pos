@@ -422,6 +422,43 @@ async fn staff_can_resync_the_catalog() {
 }
 
 #[tokio::test]
+async fn a_resync_of_a_bad_catalog_answers_the_rejection_not_an_error() {
+    // `hubrise_sync_catalog` hands this value to the UI as JSON: a
+    // rejected catalog must come back as an outcome with its issues.
+    let (app, _db, mock) = connected_app().await;
+    start(&poller(&app)).await.unwrap();
+    let bad = CatalogBuilder::new()
+        .category("MAKI", "Makis")
+        .product(
+            "MAKI-SAUMON",
+            "MAKI",
+            "Maki saumon",
+            ("20.0", "6.0", "6.0"),
+            &[("MAKI-SAUMON-6", None, 999, &[])],
+        )
+        .build();
+    push_catalog(&mock, bad);
+
+    let outcome = cmd::do_sync_catalog(&app.state)
+        .await
+        .expect("a rejection is an outcome, not an error")
+        .expect("an outcome");
+    let ApplyOutcome::Rejected { issues } = &outcome else {
+        panic!("rejected, got {outcome:?}");
+    };
+    assert_eq!(issues[0].code, pos_catalog::IssueCode::UnknownVatRate);
+    assert_eq!(
+        serde_json::to_value(&outcome).expect("the outcome serializes"),
+        serde_json::json!({
+            "outcome": "rejected",
+            "issues": [{"code": "unknown_vat_rate", "key": "MAKI-SAUMON-6"}]
+        })
+    );
+    // The menu is untouched.
+    assert_eq!(line(&app, "MAKI-SAUMON-6", true).unit_price_cents, 550);
+}
+
+#[tokio::test]
 async fn resyncing_without_a_connection_is_refused() {
     let (app, _db) = TestApp::with_shared_db().await;
     assert_eq!(

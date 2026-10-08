@@ -281,7 +281,7 @@ fn an_invalid_catalog_leaves_the_menu_untouched() {
     bad.items[0].price_cents = 1;
     bad.items[1].category_key = "nowhere".into();
 
-    let ApplyOutcome::Rejected(issues) = apply(&mut conn, SOURCE, &bad).unwrap() else {
+    let ApplyOutcome::Rejected { issues } = apply(&mut conn, SOURCE, &bad).unwrap() else {
         panic!("applied an invalid catalog");
     };
     assert_eq!(issues[0].code, IssueCode::UnknownCategory);
@@ -303,6 +303,58 @@ fn an_invalid_catalog_leaves_the_menu_untouched() {
     );
     let state = pos_catalog::state(&conn, SOURCE).unwrap().unwrap();
     assert!(state.rejected_at.is_none() && state.issues.is_empty());
+}
+
+#[test]
+fn every_outcome_serializes_with_its_tag() {
+    // The Tauri commands and the FFI hand the outcome over as JSON: a
+    // rejected catalog must serialize with its issues, not fail.
+    let issue = pos_catalog::validate::Issue::new(IssueCode::NegativePrice, "MAKI-6");
+    let cases = [
+        (
+            ApplyOutcome::Applied {
+                hash: "h".into(),
+                active_items: 3,
+                deactivated_items: 1,
+            },
+            serde_json::json!({
+                "outcome": "applied", "hash": "h", "active_items": 3, "deactivated_items": 1
+            }),
+        ),
+        (
+            ApplyOutcome::Unchanged,
+            serde_json::json!({"outcome": "unchanged"}),
+        ),
+        (
+            ApplyOutcome::AwaitingAdoption,
+            serde_json::json!({"outcome": "awaiting_adoption"}),
+        ),
+        (
+            ApplyOutcome::Rejected {
+                issues: vec![issue],
+            },
+            serde_json::json!({
+                "outcome": "rejected",
+                "issues": [{"code": "negative_price", "key": "MAKI-6"}]
+            }),
+        ),
+    ];
+    for (outcome, expected) in cases {
+        assert_eq!(serde_json::to_value(&outcome).unwrap(), expected);
+    }
+}
+
+#[test]
+fn a_rejected_outcome_serializes_the_issues_it_stored() {
+    let mut conn = db();
+    let mut bad = catalog();
+    bad.items[1].category_key = "nowhere".into();
+    let outcome = apply(&mut conn, SOURCE, &bad).unwrap();
+    let json = serde_json::to_value(&outcome).expect("a rejected outcome serializes");
+    assert_eq!(json["outcome"], "rejected");
+    let state = pos_catalog::state(&conn, SOURCE).unwrap().unwrap();
+    assert_eq!(json["issues"], serde_json::to_value(&state.issues).unwrap());
+    assert!(!state.issues.is_empty());
 }
 
 #[test]

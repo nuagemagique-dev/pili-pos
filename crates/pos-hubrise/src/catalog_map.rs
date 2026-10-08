@@ -165,7 +165,7 @@ pub fn apply(
     let (neutral, issues) = to_neutral(catalog.data.as_ref().unwrap_or(&empty));
     let outcome = pos_catalog::apply_checked(conn, SOURCE, &neutral, issues)
         .map_err(|e| crate::errors::HubriseError::Other(e.to_string()))?;
-    if !matches!(outcome, pos_catalog::ApplyOutcome::Rejected(_)) {
+    if !matches!(outcome, pos_catalog::ApplyOutcome::Rejected { .. }) {
         conn.execute(
             "UPDATE hubrise_connection SET last_catalog_sync_at = datetime('now') WHERE id = 1",
             [],

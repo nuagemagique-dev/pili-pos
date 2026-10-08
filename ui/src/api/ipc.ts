@@ -628,7 +628,16 @@ export function hubriseAdoptionPreview(): Promise<CatalogAdoption[]> {
   return invoke("hubrise_adoption_preview");
 }
 
-export function hubriseAdoptCatalog(adoptions: CatalogAdoption[]): Promise<unknown> {
+/** What applying a HubRise catalog did (`pos_catalog::ApplyOutcome`,
+ * tagged by `outcome`). A refused catalog comes with its issues; the
+ * menu is then untouched. */
+export type CatalogApplyOutcome =
+  | { outcome: "applied"; hash: string; active_items: number; deactivated_items: number }
+  | { outcome: "unchanged" }
+  | { outcome: "awaiting_adoption" }
+  | { outcome: "rejected"; issues: CatalogIssue[] };
+
+export function hubriseAdoptCatalog(adoptions: CatalogAdoption[]): Promise<CatalogApplyOutcome> {
   return invoke("hubrise_adopt_catalog", { adoptions });
 }
 
@@ -650,7 +659,7 @@ export function hubriseSetChannel(channel: HubriseChannel): Promise<number> {
 }
 
 /** Fetch the HubRise catalog now (after an order to check). */
-export function hubriseSyncCatalog(): Promise<unknown> {
+export function hubriseSyncCatalog(): Promise<CatalogApplyOutcome | null> {
   return invoke("hubrise_sync_catalog");
 }
 

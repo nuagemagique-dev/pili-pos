@@ -189,23 +189,10 @@ fn hand_entered(app: &TestApp, name: &str, price: i64) -> i64 {
     id
 }
 
-/// `ApplyOutcome` has its own conversion (see the record's doc): the three variants the engine can
-/// serialize keep the engine's serde form, a rejected catalog carries its issues.
+/// A catalog outcome through `convert::out`: every variant, a rejected catalog included, has the
+/// same serde form on both sides (PD71).
 fn outcome_equal(engine: &pos_catalog::ApplyOutcome) -> rec::ApplyOutcome {
-    let record = rec::ApplyOutcome::from_engine(engine).unwrap_or_else(|e| panic!("{e}"));
-    match engine {
-        pos_catalog::ApplyOutcome::Rejected(issues) => {
-            let json = json_of(&record);
-            assert_eq!(json["outcome"], "rejected");
-            assert_eq!(json["issues"], json_of(issues));
-            let rec::ApplyOutcome::Rejected { issues: got } = &record else {
-                panic!("a rejected record");
-            };
-            assert_eq!(got.len(), issues.len());
-        }
-        other => assert_eq!(json_of(other), json_of(&record), "engine vs FFI serde form"),
-    }
-    record
+    out_equal(engine)
 }
 
 // ───────────────────────────── contract: connection ─────────────────────────────
@@ -695,19 +682,44 @@ async fn catalog_outcomes_convert_applied_unchanged_awaiting_and_rejected() {
 }
 
 #[test]
-fn the_engine_cannot_serialize_a_rejected_outcome() {
-    // Why `ApplyOutcome` has its own conversion: serde refuses a tagged newtype variant that holds
-    // a sequence. If the engine ever fixes its enum, this test fails and the custom conversion
-    // can go back to `convert::out`.
-    let rejected = pos_catalog::ApplyOutcome::Rejected(vec![pos_catalog::validate::Issue::new(
-        pos_catalog::validate::IssueCode::EmptyKey,
-        "",
-    )]);
-    assert!(to_value(&rejected).is_err());
-    let record = rec::ApplyOutcome::from_engine(&rejected).unwrap();
+fn a_rejected_outcome_converts_with_its_issues() {
+    // The engine's `Rejected` is a struct variant (PD71): it serializes with its tag and its
+    // issues, and `convert::out` carries it like the other variants.
+    let rejected = pos_catalog::ApplyOutcome::Rejected {
+        issues: vec![
+            pos_catalog::validate::Issue::new(pos_catalog::validate::IssueCode::EmptyKey, ""),
+            pos_catalog::validate::Issue::new(
+                pos_catalog::validate::IssueCode::NegativePrice,
+                "MAKI-6",
+            ),
+        ],
+    };
+    let expected = json!({
+        "outcome": "rejected",
+        "issues": [
+            {"code": "empty_key", "key": ""},
+            {"code": "negative_price", "key": "MAKI-6"}
+        ]
+    });
     assert_eq!(
-        json_of(&record),
-        json!({"outcome": "rejected", "issues": [{"code": "empty_key", "key": ""}]})
+        to_value(&rejected).expect("the engine serializes it"),
+        expected
+    );
+    let record = outcome_equal(&rejected);
+    assert_eq!(
+        record,
+        rec::ApplyOutcome::Rejected {
+            issues: vec![
+                rec::Issue {
+                    code: rec::IssueCode::EmptyKey,
+                    key: String::new(),
+                },
+                rec::Issue {
+                    code: rec::IssueCode::NegativePrice,
+                    key: "MAKI-6".into(),
+                },
+            ],
+        }
     );
     // The record reads its own form back.
     let back: rec::ApplyOutcome = serde_json::from_value(json_of(&record)).unwrap();
@@ -724,7 +736,7 @@ fn a_huge_count_is_a_contract_error_not_a_wrap() {
         deactivated_items: 0,
     };
     // 32-bit and 64-bit targets both: the conversion is checked, never `as`.
-    match rec::ApplyOutcome::from_engine(&big) {
+    match contract_out::<_, rec::ApplyOutcome>(&big) {
         Err(PosError::Internal { detail }) => assert!(detail.starts_with("contract: "), "{detail}"),
         Ok(rec::ApplyOutcome::Applied { active_items, .. }) => {
             assert_eq!(active_items, i64::try_from(usize::MAX).unwrap());

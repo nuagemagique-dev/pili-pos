@@ -119,12 +119,18 @@ async function loadHealth() {
   if (health.value.connected && auth.isManager) await loadChannels();
 }
 
+/** A refused catalog is an answer, not an error: say so; its issues
+ * show in the catalog banner once the health is reloaded. */
+function showCatalogOutcome(outcome: ipc.CatalogApplyOutcome | null) {
+  if (outcome?.outcome === "rejected") toast.show(t("hubrise_catalog_rejected"), "error");
+  else toast.show(t("hubrise_catalog_sync_ok"), "success");
+}
+
 async function syncCatalog() {
   catalogBusy.value = true;
   hubriseError.value = null;
   try {
-    await ipc.hubriseSyncCatalog();
-    toast.show(t("hubrise_catalog_sync_ok"), "success");
+    showCatalogOutcome(await ipc.hubriseSyncCatalog());
   } catch (e) {
     hubriseError.value = describeError(e);
   } finally {
@@ -153,9 +159,11 @@ async function adoptCatalog() {
   catalogBusy.value = true;
   hubriseError.value = null;
   try {
-    await ipc.hubriseAdoptCatalog(adoptions.value.filter((a) => adopted.value.has(a.menu_item_id)));
+    const outcome = await ipc.hubriseAdoptCatalog(
+      adoptions.value.filter((a) => adopted.value.has(a.menu_item_id))
+    );
     adoptions.value = [];
-    toast.show(t("hubrise_catalog_sync_ok"), "success");
+    showCatalogOutcome(outcome);
   } catch (e) {
     hubriseError.value = describeError(e);
   } finally {

@@ -164,9 +164,13 @@ strings target/linux-amd64/release/pili-pos | grep -c integration_switch_log   #
 nm target/linux-amd64/release/pili-pos | grep -c pos_peppol                    # → 0
 
 # 3) Confirmer que fiscal_events est append-only (pas de DELETE/UPDATE
-#    dans le code).
-grep -r "DELETE FROM fiscal_events\|UPDATE fiscal_events" \
-  src-tauri/ crates/                                            # → aucun match
+#    dans le code compilé dans le binaire ; scripts/build_and_hash.sh,
+#    étape 3/5, fait la même vérification). Les dossiers tests/ des
+#    crates (tests d'intégration, hors binaire) sont exclus.
+grep -rn --exclude-dir=tests "DELETE FROM fiscal_events\|UPDATE fiscal_events" \
+  src-tauri/src/ crates/          # → uniquement des lignes de blocs #[cfg(test)]
+                                  #   (crates/pos-fiscal/src/archive.rs,
+                                  #   crates/pos-db/src/migrate.rs)
 
 # 4) Lancer la suite de tests hors-ligne.
 cargo test --workspace --no-fail-fast                           # → tout vert

@@ -307,6 +307,41 @@ test.describe('Settings - HubRise catalog and channels', () => {
     await expect(page.getByText('Catalogue synchronisé')).toBeVisible();
   });
 
+  test('a refused resync says so and lists the issues it came with', async ({ page }) => {
+    await hubriseSettings(page, {
+      // The engine answers the rejection (it is not an error) and the
+      // health read after it shows the stored issues.
+      hubrise_sync_catalog: live(() => {
+        (window as any).__catalogRefused = true;
+        return { outcome: 'rejected', issues: [{ code: 'unknown_vat_rate', key: 'MAKI-6' }] };
+      }),
+      hubrise_status: live(() => ({
+        connected: true,
+        last_poll_at: '2026-10-03 10:00:00',
+        auth_error_at: null,
+        last_error: null,
+        callback_registered_at: '2026-10-03 09:00:00',
+        last_catalog_sync_at: '2026-10-03 09:30:00',
+        outbox: { pending: 0, parked: 0 },
+        outbox_error: null,
+        parked_events: 0,
+        stale_orders: 0,
+        catalog: (window as any).__catalogRefused
+          ? { source: 'hubrise', manages_menu: true, applied_at: '2026-10-03 09:30:00', rejected_at: '2026-10-03 10:05:00', issues: [{ code: 'unknown_vat_rate', key: 'MAKI-6' }] }
+          : { source: 'hubrise', manages_menu: true, applied_at: '2026-10-03 09:30:00', rejected_at: null, issues: [] },
+        catalog_awaiting_adoption: false,
+      })),
+    });
+    await expect(page.getByTestId('catalog-refused')).toHaveCount(0);
+    await page.locator('.catalog-row').getByRole('button', { name: 'Resynchroniser' }).click();
+    expect(await ipcCalls(page, 'hubrise_sync_catalog')).toHaveLength(1);
+    await expect(page.locator('.toast-error', { hasText: 'Catalogue refusé' })).toBeVisible();
+    await expect(page.getByText('Catalogue synchronisé')).toHaveCount(0);
+    const refused = page.getByTestId('catalog-refused');
+    await expect(refused).toContainText('Taux de TVA inconnu');
+    await expect(refused).toContainText('MAKI-6');
+  });
+
   test('the first catalog waits for the manager to pick the products to keep', async ({ page }) => {
     await hubriseSettings(page, {
       hubrise_status: () => ({ ...HEALTHY, catalog: null, catalog_awaiting_adoption: true }),
