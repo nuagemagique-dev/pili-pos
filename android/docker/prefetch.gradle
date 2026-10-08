@@ -1,0 +1,96 @@
+// pili-pos - Gradle init script of the offline prefetch (P3.4, PD83)
+//
+// Used only by scripts/android/check_repro.sh, once per prefetch key, with the network on:
+//
+//   ./gradlew --no-daemon -I android/docker/prefetch.gradle prefetchAll
+//
+// The task prefetchAll exists in every project. It resolves and downloads the artifacts of
+//   - the buildscript classpath of the project (the R8 override of the root build),
+//   - every resolvable configuration of the project (compile and runtime classpaths of all
+//     variants, the Kotlin compiler classpaths, the lint, ktlint and detekt classpaths, the
+//     AGP tools such as aapt2 that AGP resolves from internal configurations).
+// Resolution goes through Gradle's dependency verification (android/gradle/verification-
+// metadata.xml), so a download whose sha256 is unknown fails here, with the network on, and
+// not in the offline build. A configuration that cannot be resolved on its own (no consumer
+// attributes, a variant ambiguity) is reported as "PREFETCH | skip" and does not fail the
+// task: artifacts are fetched through a lenient artifact view. The plugins of the build
+// (the plugins block of the root and the modules) are downloaded while Gradle configures
+// the projects, which the invocation does anyway.
+//
+// AGP also resolves two things of its own version through detached configurations while the
+// build runs, so no project configuration lists them: the aapt2 binary (com.android.tools.
+// build:aapt2 with the classifier of the host OS) and the lint engine of lintVitalAnalyzeRelease
+// (com.android.tools.lint:lint-gradle with its dependencies). The root project therefore fetches,
+// through the task prefetchLazy, every version of these two that gradle/verification-metadata.xml
+// lists, aapt2 for the Linux classifier, which is what the build image needs.
+//
+// The check does not trust this script for completeness: the two builds that follow run with
+// --network none and --offline, so anything missing here fails them.
+allprojects { p ->
+    p.tasks.register('prefetchAll') {
+        group = 'help'
+        description = 'Downloads every artifact of every resolvable configuration (offline prefetch).'
+        notCompatibleWithConfigurationCache('resolves configurations at execution time')
+        doLast {
+            def resolved = 0
+            def skipped = 0
+            def fetch = { String label, org.gradle.api.artifacts.Configuration c ->
+                if (!c.canBeResolved) {
+                    return
+                }
+                try {
+                    def files = c.incoming.artifactView { v -> v.lenient = true }.files.files
+                    resolved++
+                    logger.info("PREFETCH | ${label} | ${files.size()} files")
+                } catch (Throwable e) {
+                    skipped++
+                    println "PREFETCH | skip | ${label} | ${e.class.simpleName}: ${e.message?.readLines()?.first()}"
+                }
+            }
+            def scripts = [p.buildscript.configurations.toList(), p.configurations.toList()]
+            scripts[0].each { c -> fetch("${p.path} buildscript ${c.name}", c) }
+            // Snapshot first: resolving may register further configurations (AGP, Kotlin).
+            scripts[1].each { c -> fetch("${p.path} ${c.name}", c) }
+            // A second pass picks up the configurations created by the first one.
+            p.configurations.toList().each { c ->
+                if (!scripts[1].contains(c)) {
+                    fetch("${p.path} ${c.name}", c)
+                }
+            }
+            println "PREFETCH | ${p.path} | resolved ${resolved} configurations, skipped ${skipped}"
+        }
+    }
+}
+
+// The detached-configuration artifacts (see above), one resolution per version in the metadata.
+gradle.rootProject { root ->
+    root.tasks.register('prefetchLazy') {
+        group = 'help'
+        description = 'Downloads the Linux aapt2 jar and the lint-gradle classpath of the verification metadata.'
+        notCompatibleWithConfigurationCache('resolves configurations at execution time')
+        doLast {
+            def md = new File(root.projectDir, 'gradle/verification-metadata.xml')
+            def doc = new XmlSlurper().parse(md)
+            def versionsOf = { String group, String name ->
+                doc.components.component
+                    .findAll { it.@group.text() == group && it.@name.text() == name }
+                    .collect { it.@version.text() }
+            }
+            def aapt2 = versionsOf('com.android.tools.build', 'aapt2')
+            def lint = versionsOf('com.android.tools.lint', 'lint-gradle')
+            if (aapt2.isEmpty() || lint.isEmpty()) {
+                throw new GradleException('PREFETCH | aapt2 or lint-gradle is missing in ' + md)
+            }
+            aapt2.each { v ->
+                def dep = root.dependencies.create("com.android.tools.build:aapt2:${v}:linux@jar")
+                def files = root.configurations.detachedConfiguration(dep).resolve()
+                println "PREFETCH | aapt2 ${v} linux | ${files.collect { it.name }}"
+            }
+            lint.each { v ->
+                def dep = root.dependencies.create("com.android.tools.lint:lint-gradle:${v}")
+                def files = root.configurations.detachedConfiguration(dep).resolve()
+                println "PREFETCH | lint-gradle ${v} | ${files.size()} files"
+            }
+        }
+    }
+}
