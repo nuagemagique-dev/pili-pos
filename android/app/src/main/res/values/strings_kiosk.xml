@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kiosk_not_owner_title">Caisse non verrouillée</string>
+    <string name="kiosk_not_owner_body">Cet appareil n\'est pas configuré comme caisse dédiée : le mode kiosque est inactif. Faites configurer l\'appareil avant de l\'utiliser.</string>
+</resources>
