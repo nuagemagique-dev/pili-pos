@@ -5,6 +5,10 @@
 #   edit of Cargo.toml            -> 1
 #   untracked file in src-tauri   -> 1
 #   no tag                        -> 2
+#   --ref HEAD on a clean tree    -> 0
+#   --ref HEAD after an edit of a frozen path -> 1
+#   --ref with an unknown commit  -> 2
+#   --ref together with --tag     -> 2
 # The suite runs twice: once against the real repository as the clone source,
 # and once against a throwaway source repository that already carries the real
 # freeze tags (linux-v1.1.0-rc1 and linux-v1.1.0), the state after the soft
@@ -22,9 +26,10 @@ trap 'rm -rf "$TMP"' EXIT
 tags_before="$(git -C "$ROOT" tag -l)"
 fails=0
 
-run() { # <name> <want exit> [regex]
+ARGS=()
+run() { # <name> <want exit> [regex]; extra script arguments in ARGS
     local name="$1" want="$2" re="${3:-}" got out
-    out="$(bash scripts/android/check_linux_frozen.sh 2>&1)"
+    out="$(bash scripts/android/check_linux_frozen.sh ${ARGS[@]+"${ARGS[@]}"} 2>&1)"
     got=$?
     if [[ "$got" -eq "$want" && ( -z "$re" || "$out" =~ $re ) ]]; then
         echo "PASS $name"
@@ -53,8 +58,15 @@ suite() {
 
         run "$label/clean" 0 'frozen against linux-v1.1.0-rc1 \([0-9a-f]+\): [0-9]+ paths, clean'
 
+        ARGS=(--ref HEAD)
+        run "$label/ref-clean" 0 'frozen against ref [0-9a-f]+: [0-9]+ paths, clean'
+        ARGS=()
+
         echo '# edit' >>Cargo.toml
         run "$label/edit-Cargo.toml" 1 'differ'
+        ARGS=(--ref HEAD)
+        run "$label/ref-edit-Cargo.toml" 1 'differ'
+        ARGS=()
         git checkout -q -- Cargo.toml
 
         echo x >src-tauri/untracked_probe.txt
@@ -62,6 +74,12 @@ suite() {
         rm -f src-tauri/untracked_probe.txt
 
         run "$label/clean-again" 0
+
+        ARGS=(--ref no-such-commit-anywhere)
+        run "$label/ref-unknown" 2 'unknown ref'
+        ARGS=(--tag linux-v1.1.0-rc1 --ref HEAD)
+        run "$label/ref-and-tag" 2 'mutually exclusive'
+        ARGS=()
 
         git tag -d linux-v1.1.0-rc1 >/dev/null
         run "$label/no-tag" 2 'no freeze tag yet'
