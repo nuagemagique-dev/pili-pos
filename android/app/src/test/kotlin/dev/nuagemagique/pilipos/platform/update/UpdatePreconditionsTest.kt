@@ -69,6 +69,29 @@ class UpdatePreconditionsTest {
         }
 
     @Test
+    fun theSecondEventOfTheZPairIsIgnored() =
+        runTest {
+            // z_reports keeps the first R (20); the user Z is the second R (21), then presence events
+            coEvery { engine.listFiscalEvents(200) } returns
+                listOf(fiscalEvent(23, "S"), fiscalEvent(22, "S"), fiscalEvent(21, "R"), fiscalEvent(20, "R"))
+            assertEquals(emptyList<PreconditionFailure>(), preconditions.check())
+        }
+
+    @Test
+    fun theZPairExceptionCoversOnlyTheEventRightAfterTheZ() =
+        runTest {
+            coEvery { engine.listFiscalEvents(200) } returns listOf(fiscalEvent(22, "R"), fiscalEvent(21, "R"), fiscalEvent(20, "R"))
+            assertEquals(listOf(PreconditionFailure.Z_NOT_DONE), preconditions.check())
+        }
+
+    @Test
+    fun aSaleRightAfterTheZIsStillRefused() =
+        runTest {
+            coEvery { engine.listFiscalEvents(200) } returns listOf(fiscalEvent(21, "N"), fiscalEvent(20, "R"))
+            assertEquals(listOf(PreconditionFailure.Z_NOT_DONE), preconditions.check())
+        }
+
+    @Test
     fun aSaleAfterTheZIsRefused() =
         runTest {
             coEvery { engine.listFiscalEvents(200) } returns listOf(fiscalEvent(22, "S"), fiscalEvent(21, "N"), fiscalEvent(20, "R"))
@@ -78,7 +101,7 @@ class UpdatePreconditionsTest {
     @Test
     fun everyOtherLabelAfterTheZIsRefused() =
         runTest {
-            for (label in listOf("N", "P", "F", "I", "R", "C", "T")) {
+            for (label in listOf("N", "P", "F", "I", "C", "T")) {
                 coEvery { engine.listFiscalEvents(200) } returns listOf(fiscalEvent(21, label), fiscalEvent(20, "R"))
                 assertEquals("label $label", listOf(PreconditionFailure.Z_NOT_DONE), preconditions.check())
             }
