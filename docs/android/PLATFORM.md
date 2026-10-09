@@ -41,23 +41,40 @@ Used by: the device-owner policies (application and activity start), the watchdo
 
 ## 3. Device-owner policies
 
-Status: design (P6-T3)
+Status: as built (P6-T3)
 
-`platform/policy/` applies, at every application start and every activity start, each step isolated and its failures audited (PD206):
+`platform/policy/` holds four classes and a Hilt module:
 
-- the Q16 set: 12 user restrictions plus `no_system_error_dialogs`;
-- `setUninstallBlocked` for the application;
-- auto time on, auto time zone off, time zone `Europe/Brussels`;
-- stay awake while plugged in (value 7);
-- keyguard and status bar disabled;
-- the postpone system update policy;
-- `setLockTaskFeatures(NONE)`, applied after `KioskController.prepare()`, so it overrides the global actions the kiosk enables. In production the staff lose the power menu (question for the user).
+- `PolicySet`: the constants (the restriction keys, `stay_on_while_plugged_in` = 7, `Europe/Brussels`, Lock Task features 0).
+- `DevicePolicies`: an interface over `DevicePolicyManager` with exactly the calls used; `AndroidDevicePolicies` is the production implementation and reaches the manager through `provisioning.DeviceOwner.adminComponent` (read only use of the foundation helper). Tests use a fake.
+- `PolicyApplier` (`@Singleton`): `apply(release, provisioned)` returns a `PolicyReport` (one `PolicyStep` per step: name, ok, error text). `applyLockTaskFeatures()` applies the last-but-one step alone.
+- `PolicyHook` (an `AppLifecycleHook`, order 100, bound `@IntoSet` in `PolicyModule`): it runs the applier at the lifecycle points and writes the audit rows.
 
-Exceptions:
-- `DISALLOW_DEBUGGING_FEATURES` (adb off) is applied only in release builds and only once a provisioning record exists. Debug builds never apply it, because the emulator loop needs adb. There is no timed adb (DECISIONS 7).
-- `DISALLOW_MOUNT_PHYSICAL_MEDIA` and `DISALLOW_CONFIG_WIFI` stay off, so an SD card or a USB stick mounts and the Wi-Fi can be fixed on site.
+Order inside `apply`, each step in its own try/catch (a refusal is recorded and the next step still runs):
 
-The policies end when the debug teardown clears the device owner. Strings: `strings_plat_policy.xml`.
+1. `setAutoTimeZoneEnabled(false)`, then `setTimeZone("Europe/Brussels")` (the zone is set only once the automatic zone is off), then `setAutoTimeEnabled(true)`;
+2. the 13 restrictions one by one: `no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`, `no_system_error_dialogs`. One `getUserRestrictions` read comes first, and a restriction already listed is not added again (the step counts as ok and is marked skipped), so a normal start makes few calls;
+3. `setUninstallBlocked` for the own package;
+4. stay awake while plugged in (`STAY_ON_WHILE_PLUGGED_IN` = "7");
+5. keyguard disabled, status bar disabled (a `false` return from the system is a failed step);
+6. the postpone system update policy;
+7. `setLockTaskFeatures(0)`;
+8. last, only when the build is release and a provisioning record exists: `no_debugging_features` (adb off).
+
+When the app is not the device owner nothing is called and the report is `NotOwner`.
+
+Hook behaviour (PD206):
+
+- **Application start:** the hook reads the provisioning record file (`ProvisioningStore.refresh`), then applies the whole set once in the application scope on the I/O dispatcher. In a release build with no record yet it keeps waiting for the record (the first import) and applies the set again when it appears, which adds adb off.
+- **Activity create and resume:** `setLockTaskFeatures(0)` is called synchronously every time. It runs after `KioskController.prepare()` (the foundation calls the kiosk directly in `MainActivity.onCreate`, before any hook), so it overrides the power menu the kiosk enables, and it is repeated because the OS reverts the features at every boot (S4 2.3). If the previous full application had failed steps, the whole set is applied again, in the background.
+- **Audit** (`PlatformAudit`, kind `policy`): one `step_failed` row per failed step (step name and error text), and one summary row per application start (`applied` with the ok count and the failed names, or `not_owner`). A successful resume writes nothing.
+- In the production release the staff lose the power menu (question for the user).
+
+Debug versus release: a debug build (`BuildConfig.DEBUG`) applies steps 1 to 7 and never adb off, because the emulator loop and Gradle need adb. A release build adds step 8 as soon as a record exists. There is no timed adb (DECISIONS 7).
+
+Never applied, and a test asserts it: `no_mount_physical_media` (an SD card or a USB stick mounts, the export needs it) and `no_config_wifi` (the Wi-Fi can be fixed on site).
+
+Teardown: the restrictions, the uninstall block and the other policies belong to the device owner. The debug `DebugTeardownReceiver` calls `KioskController.release()` and then `clearDeviceOwnerApp`; clearing the owner removes every restriction and policy the owner had set, so an emulator is usable again (including adb, which release builds switch off). The policy layer has its own teardown code in no place, and no strings: it has no screen, so `strings_plat_policy.xml` does not exist.
 
 ## 4. Audit log
 
