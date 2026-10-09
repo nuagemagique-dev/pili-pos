@@ -95,6 +95,7 @@ internal fun cartLine(
     nameZh: String? = null,
     code: String? = null,
     modifiersJson: String? = null,
+    unsent: Long = 0,
 ): CartLine =
     CartLine(
         id = id,
@@ -111,7 +112,7 @@ internal fun cartLine(
         createdAt = "2026-10-09 10:00:00",
         departmentId = "d",
         departmentName = "Dept",
-        unsentQuantity = 0,
+        unsentQuantity = unsent,
     )
 
 internal fun orderLine(menuItemId: Long): OrderLine =
@@ -218,6 +219,8 @@ internal class TestOrderEntry(
     private val settings: PosSettingsStore,
     private val integrations: IntegrationsStore,
     private val amounts: CartAmounts,
+    private val toasts: ToastStore,
+    private val catalog: MessageCatalog,
 ) : OrderEntryPoint {
     override fun session(): SessionStore = session
 
@@ -234,6 +237,10 @@ internal class TestOrderEntry(
     override fun integrations(): IntegrationsStore = integrations
 
     override fun amounts(): CartAmounts = amounts
+
+    override fun toasts(): ToastStore = toasts
+
+    override fun catalog(): MessageCatalog = catalog
 }
 
 /** What the stubbed engine holds: the catalog, the cart and the switches a test turns. */
@@ -316,7 +323,7 @@ internal suspend fun TestScope.startOrder(
         f.holder.open()
         runCurrent()
     }
-    val entry = TestOrderEntry(session, order, gateway, f.events, errors, settings, integrations, amounts)
+    val entry = TestOrderEntry(session, order, gateway, f.events, errors, settings, integrations, amounts, toasts, catalog)
     val model = MenuViewModel(entry, routeOrderId)
     // The screen runs its model while it is composed; a model of a screen left on the back stack is not run.
     if (shown) backgroundScope.launch { model.run() }

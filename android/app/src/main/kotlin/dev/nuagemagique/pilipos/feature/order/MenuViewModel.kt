@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.order
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
@@ -25,9 +26,16 @@ import timber.log.Timber
 import uniffi.pos_ffi.AddWithModifiersInput
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
+import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.OrderStatus
+import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
+import uniffi.pos_ffi.VatSplitRow
+
+/** How long the error toast of a refused send or bill stays, in milliseconds (6 s in `CartSidebar.vue`). */
+private const val ERROR_TTL_MS: Long = 6_000L
 
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
@@ -41,6 +49,9 @@ private data class Data(
     val zWarning: Boolean = false,
     val dialog: OrderDialog = OrderDialog.None,
     val amounts: Map<Long, LineAmount> = emptyMap(),
+    val vatRows: List<VatSplitRow> = emptyList(),
+    val sending: Boolean = false,
+    val preBilling: Boolean = false,
 )
 
 /** How the screen speaks and what the signed-in user may do. */
@@ -49,6 +60,7 @@ private data class Look(
     val labelMode: ProductLabelMode,
     val canPay: Boolean,
     val signedIn: Boolean,
+    val isManager: Boolean,
 )
 
 /**
@@ -64,8 +76,10 @@ private data class Look(
  * its price first, and with HubRise on a product with options asks for the picks (`get_item_modifiers`,
  * `add_order_line_with_modifiers`).
  *
- * It never navigates. A refusal of any cart action is shown as an error toast here (the whole screen's, so the
- * cart column of P5b-T12 does not report its own).
+ * It also runs the cart column (`CartSidebar.vue`): quantity steps, removal, send to kitchen, the provisional
+ * bill and "customer left without paying" with the manager PIN, all through the order store. It never navigates.
+ * A refusal of any cart action is shown as an error toast here (the whole screen's, so the cart column does not
+ * report its own).
  */
 @Suppress("TooManyFunctions")
 internal class MenuViewModel(
@@ -88,14 +102,24 @@ internal class MenuViewModel(
             .stateIn(viewModelScope, SharingStarted.Eagerly, gateway.ready.value && session.currentUser.value != null)
 
     private val look: StateFlow<Look> =
-        combine(settings.language, settings.productLabel, session.canTakePayment, session.currentUser) { language, label, pay, user ->
-            Look(language, label.toMode(), pay, user != null)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, currentLook())
+        combine(
+            settings.language,
+            settings.productLabel,
+            session.canTakePayment,
+            session.currentUser,
+            session.isManager,
+        ) { language, label, pay, user, manager -> Look(language, label.toMode(), pay, user != null, manager) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, currentLook())
 
     /** What the screen draws. */
     val state: StateFlow<OrderUiState> =
-        combine(data, order.current, order.lines, look) { d, current, lines, l -> build(d, current, lines, l) }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, build(data.value, order.current.value, order.lines.value, currentLook()))
+        combine(data, order.current, order.lines, look, order.unsentCount) { d, current, lines, l, unsent ->
+            build(d, current, lines, l, unsent)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            build(data.value, order.current.value, order.lines.value, currentLook(), order.unsentCount.value),
+        )
 
     init {
         viewModelScope.launch { active.collect { on -> if (!on) data.value = Data() } }
@@ -111,7 +135,8 @@ internal class MenuViewModel(
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
-                data.update { it.copy(amounts = amounts) }
+                val vatRows = vatRowsOf(lines)
+                data.update { it.copy(amounts = amounts, vatRows = vatRows) }
             }
         }
     }
@@ -122,6 +147,7 @@ internal class MenuViewModel(
             settings.productLabel.value.toMode(),
             session.canTakePayment.value,
             session.currentUser.value != null,
+            session.isManager.value,
         )
 
     private fun build(
@@ -129,6 +155,7 @@ internal class MenuViewModel(
         shared: Order?,
         sharedLines: List<CartLine>,
         l: Look,
+        sharedUnsent: Int,
     ): OrderUiState {
         // The order store is shared by every screen: another order than the one of the route is not this screen's (PD205).
         val current = shared?.takeIf { it.id == routeOrderId }
@@ -137,7 +164,19 @@ internal class MenuViewModel(
         return OrderUiState(
             signedIn = l.signedIn,
             menu = MenuState(d.categories, d.selectedCategoryId, d.items, quantities, l.language, l.labelMode, d.loaded),
-            cart = OrderCartState(current, lines.map { CartRow(it, d.amounts[it.id]) }, l.language, l.labelMode, l.canPay),
+            cart =
+                OrderCartState(
+                    order = current,
+                    rows = lines.map { CartRow(it, d.amounts[it.id]) },
+                    language = l.language,
+                    labelMode = l.labelMode,
+                    canPay = l.canPay,
+                    vatRows = if (current != null) d.vatRows else emptyList(),
+                    unsentCount = if (current != null) sharedUnsent else 0,
+                    sending = d.sending,
+                    preBilling = d.preBilling,
+                    canCloseUnpaid = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty(),
+                ),
             zWarning = d.zWarning,
             dialog = d.dialog,
         )
@@ -298,6 +337,95 @@ internal class MenuViewModel(
     }
 
     // ── Cart lines ────────────────────────────────────────────────
+
+    /** The plus of a line (`increment`): one more. Ignored when the line is gone or another order is current. */
+    fun incrementLine(lineId: Long) = changeQuantity(lineId, 1)
+
+    /** The minus of a line (`decrement`): one less, never below 1 (removing a line is [removeLine]). */
+    fun decrementLine(lineId: Long) = changeQuantity(lineId, -1)
+
+    private fun changeQuantity(
+        lineId: Long,
+        step: Int,
+    ) {
+        val line = order.lines.value.firstOrNull { it.id == lineId }
+        val quantity = (line?.quantity ?: 0) + step
+        if (isRouteOrderCurrent() && line != null && quantity >= 1) {
+            // A refusal is on OrderStore.failures, shown by run().
+            viewModelScope.launch { order.updateQuantity(lineId, quantity) }
+        }
+    }
+
+    /** The delete control of a line. */
+    fun removeLine(lineId: Long) {
+        if (!isRouteOrderCurrent()) return
+        viewModelScope.launch { order.removeLine(lineId) }
+    }
+
+    /**
+     * Sends what was ordered to the bar and kitchen without leaving the table (`sendToKitchen`, event P as when
+     * leaving the order). Ignored while a send runs and when nothing is unsent.
+     */
+    fun sendToKitchen() {
+        val count = order.unsentCount.value
+        if (!isRouteOrderCurrent() || data.value.sending || count == 0) return
+        data.update { it.copy(sending = true) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt { order.leave(LeaveReason.SEND_TO_KITCHEN) }.fold(
+                onSuccess = {
+                    entry.toasts().show(entry.catalog().text("sent_to_kitchen", language, mapOf("n" to count)), ToastVariant.Success)
+                },
+                onFailure = { entry.errors().show(it, language, entry.catalog().text("order_register_failed", language), ERROR_TTL_MS) },
+            )
+            data.update { it.copy(sending = false) }
+        }
+    }
+
+    /** Prints the provisional bill of a dine-in order with lines (`printPreBill`). */
+    fun printPreBill() {
+        val current = order.current.value
+        if (!isRouteOrderCurrent() || current?.orderType != OrderType.DINE_IN || order.lines.value.isEmpty()) return
+        if (data.value.preBilling) return
+        data.update { it.copy(preBilling = true) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt { order.preBill() }.fold(
+                onSuccess = { entry.toasts().show(entry.catalog().text("pre_bill_printed", language), ToastVariant.Success) },
+                onFailure = { entry.errors().show(it, language, entry.catalog().text("pre_bill_failed", language), ERROR_TTL_MS) },
+            )
+            data.update { it.copy(preBilling = false) }
+        }
+    }
+
+    /** Opens the manager PIN dialog of "customer left without paying", when the order may be closed that way. */
+    fun askCloseUnpaid() {
+        if (!state.value.cart.canCloseUnpaid) return
+        val name = session.currentUser.value?.name.orEmpty()
+        data.update { it.copy(dialog = OrderDialog.CloseUnpaid(name)) }
+    }
+
+    /**
+     * The PIN typed in the dialog (`closeUnpaid`): the engine closes the order unpaid for the logged-in user, or
+     * refuses and the error is thrown to the dialog, which shows it on the pad.
+     */
+    suspend fun closeUnpaid(pin: String) {
+        val insz = session.currentUser.value?.insz ?: error("No user")
+        order.closeUnpaid(insz, pin)
+    }
+
+    /** The text of a refusal of [closeUnpaid], for the line of the PIN pad. */
+    fun describe(error: Throwable): String = entry.errors().text(error, settings.language.value)
+
+    /** The sale was closed unpaid (`onUnpaidClosed`): the dialog closes and the toast says so; the screen leaves. */
+    fun unpaidClosed() {
+        data.update { it.copy(dialog = OrderDialog.None) }
+        entry.toasts().show(entry.catalog().text("unpaid_closed", settings.language.value), ToastVariant.Success)
+    }
+
+    /** The VAT summary rows of the cart from the engine VAT helper; none when it cannot answer. */
+    private suspend fun vatRowsOf(lines: List<CartLine>): List<VatSplitRow> =
+        if (lines.isEmpty()) emptyList() else attempt { entry.amounts().vatRows(lines) }.getOrDefault(emptyList())
 
     /** The amount of each line from the engine VAT helper; a line it cannot answer for has no amount. */
     private suspend fun amountsOf(lines: List<CartLine>): Map<Long, LineAmount> {
