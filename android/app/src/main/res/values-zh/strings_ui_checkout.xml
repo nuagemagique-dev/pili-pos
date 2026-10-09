@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Checkout screen: the texts that have no Vue key (empty states, composed labels, the recap). -->
+    <string name="ui_checkout_no_order">没有待结账的订单。请返回桌台。</string>
+    <string name="ui_checkout_no_payment">您的角色无权收款。</string>
+    <string name="ui_checkout_done_ok">OK</string>
+    <string name="ui_checkout_fdm_ref">FDM：{id}</string>
+    <string name="ui_checkout_chip_paid">{method} · {amount} € ✓</string>
+    <string name="ui_checkout_chip_current">{method} · {amount} €</string>
+    <string name="ui_checkout_chip_next">{amount} €</string>
+    <string name="ui_checkout_paid_part">− {amount} €</string>
+    <string name="ui_checkout_amount_eur">{amount} €</string>
+    <string name="ui_checkout_per_unit">{quantity} × {unit} €</string>
+    <string name="ui_checkout_line_qty">{quantity}×</string>
+    <string name="ui_checkout_title">{order} · {where}</string>
+    <string name="ui_checkout_table">{table} {number}</string>
+    <string name="ui_checkout_part_label">{part} · {method}</string>
+</resources>

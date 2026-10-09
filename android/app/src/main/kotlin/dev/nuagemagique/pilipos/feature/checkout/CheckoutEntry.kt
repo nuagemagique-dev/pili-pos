@@ -6,10 +6,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
-import dev.nuagemagique.pilipos.nav.PlaceholderScreen
 import javax.inject.Inject
 
-/** Navigation entry of the checkout feature (placeholder until P5). */
+/** Navigation entry of the checkout feature: the checkout screen of the order in the route (P5b-T8). */
 internal class CheckoutEntry
     @Inject
     constructor() : FeatureEntry {
@@ -25,7 +24,7 @@ internal class CheckoutEntry
                 arguments = listOf(navArgument(CheckoutRoutes.ARG_ORDER_ID) { type = NavType.LongType }),
             ) { entry ->
                 val orderId = entry.arguments?.getLong(CheckoutRoutes.ARG_ORDER_ID) ?: -1L
-                PlaceholderScreen(area, CheckoutRoutes.checkout(orderId))
+                CheckoutRoute(navigator, orderId)
             }
         }
     }
