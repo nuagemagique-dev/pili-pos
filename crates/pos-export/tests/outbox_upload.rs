@@ -566,3 +566,16 @@ async fn retention_counts_only_the_unsent_exports_in_dropped() {
     assert!(rig.exports.join("status.json").exists());
     rig.assert_token_is_nowhere();
 }
+
+#[tokio::test]
+async fn status_names_the_newest_export_even_when_its_state_is_unreadable() {
+    let rig = Rig::new(30);
+    rig.set_cursor(40);
+    assert_eq!(rig.prepare(t0()).len(), 2);
+    std::fs::write(rig.exports.join(ID_42).join("state.json"), b"not json").unwrap();
+    let status = rig.status();
+    assert_eq!(status.kept, 2);
+    assert_eq!(status.last_export_id.as_deref(), Some(ID_42));
+    assert_eq!(status.last_prepared_at, None);
+    assert_eq!(status.pending, 1);
+}

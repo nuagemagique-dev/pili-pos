@@ -35,7 +35,6 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use chrono::{DateTime, Duration, NaiveDate, SecondsFormat, Utc};
 use rusqlite::{Connection, OpenFlags};
@@ -59,9 +58,6 @@ const MAX_BACKOFF_MINUTES: i64 = 60;
 
 const OCTET_STREAM: &str = "application/octet-stream";
 const JSON: &str = "application/json";
-
-/// Serialises the read-modify-write of `status.json` inside the process.
-static STATUS_LOCK: Mutex<()> = Mutex::new(());
 
 /// What the outbox needs to work. Cheap to copy; borrows everything.
 #[derive(Debug, Clone, Copy)]
@@ -201,8 +197,12 @@ fn read_status_file(exports_dir: &Path) -> StatusFile {
 }
 
 /// Read-modify-write of `status.json`.
+///
+/// There is no lock: the engine has one export worker, which runs
+/// [`prepare_due`], [`upload_due`] and [`retention`] one after another, so
+/// two writers never overlap. The write itself is an atomic rename, so a
+/// reader ([`status`]) never sees a torn file.
 fn update_status(exports_dir: &Path, change: impl FnOnce(&mut StatusFile)) -> Result<(), String> {
-    let _guard = STATUS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut file = read_status_file(exports_dir);
     change(&mut file);
     std::fs::create_dir_all(exports_dir)
@@ -486,6 +486,32 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> 
         .map_err(|e| format!("background task failed: {e}"))
 }
 
+/// [`record_error`] off the async task (the write syncs the disk).
+async fn record_error_bg(exports_dir: &Path, message: &str, now: DateTime<Utc>) {
+    let dir = exports_dir.to_path_buf();
+    let message = message.to_string();
+    if let Err(e) = blocking(move || record_error(&dir, &message, now)).await {
+        tracing::warn!("export: cannot record the error: {e}");
+    }
+}
+
+/// [`save_state`] off the async task.
+async fn save_state_bg(exports_dir: &Path, id: &str, state: &ExportState) -> Result<(), String> {
+    let dir = exports_dir.to_path_buf();
+    let id = id.to_string();
+    let state = state.clone();
+    blocking(move || save_state(&dir, &id, &state)).await?
+}
+
+/// [`update_status`] off the async task.
+async fn update_status_bg(
+    exports_dir: &Path,
+    change: impl FnOnce(&mut StatusFile) + Send + 'static,
+) -> Result<(), String> {
+    let dir = exports_dir.to_path_buf();
+    blocking(move || update_status(&dir, change)).await?
+}
+
 /// One upload pass: PUT the missing files of every incomplete export that is
 /// due, in id order, each export as backup, stats, manifest.
 ///
@@ -499,12 +525,15 @@ pub async fn upload_due(
 ) -> PassReport {
     let mut report = PassReport::default();
     let exports_dir = env.exports_dir.to_path_buf();
-    let token = match env.settings.read_token() {
-        Ok(token) => token,
-        Err(e) => {
-            tracing::warn!("export: {e}");
-            record_error(&exports_dir, &e, now);
-            return report;
+    let token = {
+        let settings = env.settings.clone();
+        match blocking(move || settings.read_token()).await {
+            Ok(Ok(token)) => token,
+            Ok(Err(e)) | Err(e) => {
+                tracing::warn!("export: {e}");
+                record_error_bg(&exports_dir, &e, now).await;
+                return report;
+            }
         }
     };
     let ids = {
@@ -512,7 +541,7 @@ pub async fn upload_due(
         match blocking(move || list_exports(&dir)).await {
             Ok(Ok(ids)) => ids,
             Ok(Err(e)) | Err(e) => {
-                record_error(&exports_dir, &e, now);
+                record_error_bg(&exports_dir, &e, now).await;
                 return report;
             }
         }
@@ -537,21 +566,23 @@ pub async fn upload_due(
             Ok(()) => {
                 state.next_attempt_at = None;
                 state.last_error = None;
-                if let Err(e) = save_state(&exports_dir, &id, &state) {
+                if let Err(e) = save_state_bg(&exports_dir, &id, &state).await {
                     tracing::warn!("export: {id}: {e}");
                 }
                 report.uploaded += 1;
                 tracing::info!("export: {id} uploaded");
                 let clear_error = report.failed == 0;
                 let done = id.clone();
-                if let Err(e) = update_status(&exports_dir, |s| {
+                if let Err(e) = update_status_bg(&exports_dir, move |s| {
                     s.last_uploaded_id = Some(done);
                     s.last_uploaded_at = Some(stamp(now));
                     if clear_error {
                         s.last_error = None;
                         s.last_error_at = None;
                     }
-                }) {
+                })
+                .await
+                {
                     tracing::warn!("export: {id}: {e}");
                 }
             }
@@ -562,14 +593,14 @@ pub async fn upload_due(
                     now + Duration::minutes(backoff_minutes(state.attempts)),
                 ));
                 state.last_error = Some(error.clone());
-                if let Err(e) = save_state(&exports_dir, &id, &state) {
+                if let Err(e) = save_state_bg(&exports_dir, &id, &state).await {
                     tracing::warn!("export: {id}: {e}");
                 }
                 tracing::warn!(
                     "export: {id}: upload failed (attempt {}): {error}",
                     state.attempts
                 );
-                record_error(&exports_dir, &error, now);
+                record_error_bg(&exports_dir, &error, now).await;
                 report.failed += 1;
             }
         }
@@ -619,7 +650,7 @@ async fn upload_export(
             .await
             .map_err(|e| e.to_string())?;
         state.uploaded.push(name);
-        if let Err(e) = save_state(exports_dir, id, state) {
+        if let Err(e) = save_state_bg(exports_dir, id, state).await {
             // The next pass uploads the file again: a PUT is idempotent.
             tracing::warn!("export: {id}: {e}");
         }
@@ -701,12 +732,14 @@ pub fn status(
     let ids = list_exports(exports_dir).unwrap_or_default();
     let mut pending = 0;
     let mut next: Option<(DateTime<Utc>, String)> = None;
-    let mut last_prepared: Option<(String, String)> = None;
+    let mut newest_prepared_at: Option<String> = None;
     for id in &ids {
         let Some(state) = load_state(exports_dir, id) else {
             continue;
         };
-        last_prepared = Some((id.clone(), state.created_at.clone()));
+        if Some(id) == ids.last() {
+            newest_prepared_at = Some(state.created_at.clone()).filter(|a| !a.is_empty());
+        }
         if state.is_complete(id) {
             continue;
         }
@@ -718,11 +751,10 @@ pub fn status(
             next = Some((at, raw.clone()));
         }
     }
-    let newest = ids.last().cloned();
-    let (last_export_id, last_prepared_at) = match last_prepared {
-        Some((id, at)) => (Some(id), Some(at).filter(|a| !a.is_empty())),
-        None => (newest, None),
-    };
+    // The newest export names `lastExportId`; its date is empty when its
+    // state.json is unreadable.
+    let last_export_id = ids.last().cloned();
+    let last_prepared_at = newest_prepared_at;
     ExportStatus {
         enabled: settings.is_some() && problem.is_none(),
         problem,
