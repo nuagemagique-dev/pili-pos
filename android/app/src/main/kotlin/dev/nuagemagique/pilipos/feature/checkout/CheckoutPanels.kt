@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -537,24 +536,33 @@ private fun SummaryFoot(
                 modifier = Modifier.testTag("checkout_no_rights"),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
-            if (state.taken.isNotEmpty()) {
-                PiliButton(
-                    text = vueText("clear_payments"),
-                    onClick = callbacks.onClearParts,
-                    variant = PiliButtonVariant.Secondary,
-                    modifier = Modifier.weight(1f).height(ActionHeight).testTag("checkout_clear_parts"),
-                )
-            } else {
-                PiliButton(
-                    text = vueText("back"),
-                    onClick = callbacks.onBack,
-                    variant = PiliButtonVariant.Secondary,
-                    modifier = Modifier.weight(1f).height(ActionHeight).testTag("checkout_back"),
-                )
-            }
-            ValidateButton(state, callbacks.onValidate, Modifier.weight(2f))
+        FootActions(state, callbacks)
+    }
+}
+
+/** Back (or clear the parts once one is taken) and validate. */
+@Composable
+private fun FootActions(
+    state: CheckoutUiState,
+    callbacks: CheckoutCallbacks,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
+        if (state.taken.isNotEmpty()) {
+            PiliButton(
+                text = vueText("clear_payments"),
+                onClick = callbacks.onClearParts,
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.weight(1f).height(ActionHeight).testTag("checkout_clear_parts"),
+            )
+        } else {
+            PiliButton(
+                text = vueText("back"),
+                onClick = callbacks.onBack,
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.weight(1f).height(ActionHeight).testTag("checkout_back"),
+            )
         }
+        ValidateButton(state, callbacks.onValidate, Modifier.weight(2f))
     }
 }
 
