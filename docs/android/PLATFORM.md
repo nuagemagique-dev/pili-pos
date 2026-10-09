@@ -365,9 +365,9 @@ Status: as built (P6-T9)
 
 ## 11. Reproducible APK
 
-Status: design (P6-T10)
+Status: as built (P6-T10)
 
-The container build (`android/docker/build_in_container.sh`) builds `:app:assembleRelease` instead of `:smoke` (PD217, PD80, PD114). `check_repro.sh` compares two `app-release-unsigned.apk` files built from the same commit; `:smoke` stays in the host gates. `android.yml` builds and checks the `:app` APK as well (the chain never triggers it). `REPRO.md` records the SHA-1 and the image digest.
+The container build (`android/docker/build_in_container.sh`) builds `:app:assembleRelease` instead of `:smoke` (PD217, PD80, PD114) and copies `app-release-unsigned.apk`, the R8 `mapping.txt` of `:app` and the unstripped `libpos_ffi.so` to `/out`; it prints `APK | sha256`, `SO | sha1` and `APK | sha1`. Everything that makes the build reproducible is unchanged: `SOURCE_DATE_EPOCH`, Gradle and cargo `--offline`, the path remaps, `vcsInfo.include = false`, no signing key. `check_repro.sh` compares two `app-release-unsigned.apk` files built from the same commit in fresh `--network none` containers (checks `build-1`, `build-2`, `apk-identical`, `so-identical`, `entry-manifest`, `apk-check`; `check_apk.sh` runs on the `:app` APK). `:smoke` stays in the host gates. `android.yml` also assembles `:app:assembleRelease` and runs `check_apk.sh` on `android/app/build/outputs/apk/release/app-release-unsigned.apk` (the chain never triggers it). The commit, the image digest, both APK hashes and the `libpos_ffi.so` SHA-1 of the run are in `REPRO.md`, section "P6: :app". The signed APK SHA-1 of record is produced later by `declare_android.sh` with the release key (DECISIONS 9).
 
 ## 12. Storage and the SD card
 
