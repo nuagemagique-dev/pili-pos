@@ -164,7 +164,7 @@ internal class ReportsViewModel(
         }.fold(
             onSuccess = { result ->
                 if (result.success) {
-                    toast(ToastVariant.Success, "${text("report_generated")} (${label(kind, result.reportNo)})", REPORT_TOAST_MS)
+                    toast(ToastVariant.Success, "${text("report_generated")} (${reportLabel(kind, result.reportNo)})", REPORT_TOAST_MS)
                     ReportOutcome(kind, result)
                 } else {
                     ReportOutcome(kind, result, failure = errorRaw(result.error, ERROR_TOAST_TTL_MS))
@@ -172,16 +172,6 @@ internal class ReportsViewModel(
             },
             onFailure = { ReportOutcome(kind, null, failure = errorOf(it, ERROR_TOAST_TTL_MS)) },
         )
-
-    private fun label(
-        kind: ReportKind,
-        reportNo: Long?,
-    ): String =
-        when (kind) {
-            ReportKind.X -> "X"
-            ReportKind.USER_X -> "X util."
-            ReportKind.Z -> if (reportNo != null && reportNo != 0L) "Z #$reportNo" else "Z"
-        }
 
     // ── Z history ─────────────────────────────────────────────────
 
@@ -235,8 +225,34 @@ internal class ReportsViewModel(
         }
     }
 
+    /** Opens the "other amount" keypad of the cash form. */
+    fun openOtherAmount() {
+        own.update { it.copy(cash = it.cash.copy(otherAmountOpen = true)) }
+    }
+
+    /** Closes the "other amount" keypad without taking its amount. */
+    fun closeOtherAmount() {
+        own.update { it.copy(cash = it.cash.copy(otherAmountOpen = false)) }
+    }
+
+    /** The keypad confirmed: closes it and sets the amount as typed (`handleOtherAmount`); never computed. */
+    fun pickOtherAmount(amountCents: Long) {
+        own.update { it.copy(cash = it.cash.copy(otherAmountOpen = false, amountCents = amountCents)) }
+    }
+
+    /** Opens the drawer count keypad. */
+    fun openDeclaration() {
+        own.update { it.copy(cash = it.cash.copy(declarationOpen = true)) }
+    }
+
+    /** Closes the drawer count keypad without recording a count. */
+    fun closeDeclaration() {
+        own.update { it.copy(cash = it.cash.copy(declarationOpen = false)) }
+    }
+
     /** The drawer count (Basic Set M133): any amount, 0 for an empty drawer. */
     fun declareDrawer(amountCents: Long) {
+        own.update { it.copy(cash = it.cash.copy(declarationOpen = false)) }
         val insz = operatorInsz() ?: return
         if (amountCents < 0L) return
         viewModelScope.launch {
@@ -498,6 +514,9 @@ internal class ReportsViewModel(
 
     /** The screen text of a refusal, in the language of the till. */
     fun describeError(error: Throwable): String = entry.errors().text(error, language())
+
+    /** The screen text of the raw error string of a result that was not a success, in the language of the till. */
+    fun describeRaw(raw: String?): String = entry.errors().textRaw(raw, language())
 
     private fun operatorInsz(): String? = entry.session().currentUser.value?.insz
 

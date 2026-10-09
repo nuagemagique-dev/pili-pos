@@ -47,6 +47,20 @@ internal data class ReportOutcome(
     val generated: Boolean get() = failure == null && result?.success == true
 }
 
+/**
+ * The label of a report in the toast and the result panel: `X`, `X util.` or `Z #<no>` (`Z` without a number).
+ * Text only, no amount.
+ */
+internal fun reportLabel(
+    kind: ReportKind,
+    reportNo: Long?,
+): String =
+    when (kind) {
+        ReportKind.X -> "X"
+        ReportKind.USER_X -> "X util."
+        ReportKind.Z -> if (reportNo != null && reportNo != 0L) "Z #$reportNo" else "Z"
+    }
+
 /** The day tab. */
 internal data class DayState(
     /** The Z reports, newest first (the history). */
@@ -98,6 +112,10 @@ internal data class CashState(
     val loading: Boolean = false,
     /** The last answer, or null. */
     val lastOutcome: CashOutcome? = null,
+    /** True while the "other amount" keypad is open (`otherAmountOpen` of `ReportsView.vue`). */
+    val otherAmountOpen: Boolean = false,
+    /** True while the drawer count keypad is open (`declarationOpen` of `ReportsView.vue`). */
+    val declarationOpen: Boolean = false,
 ) {
     /** The reasons that make sense for the chosen direction. */
     val reasons: List<String> get() = CashRules.reasonsOf(direction)

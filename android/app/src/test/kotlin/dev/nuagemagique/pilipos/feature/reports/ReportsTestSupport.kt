@@ -14,6 +14,7 @@ import dev.nuagemagique.pilipos.i18n.FdmTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import dev.nuagemagique.pilipos.ui.state.EventFeed
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -147,6 +148,7 @@ internal class TestReportsEntryPoint(
     private val errors: ErrorPresenter,
     private val toasts: ToastStore,
     private val catalog: MessageCatalog,
+    private val delivery: DeliveryStore,
 ) : ReportsEntryPoint {
     override fun gateway(): EngineGateway = gateway
 
@@ -163,9 +165,12 @@ internal class TestReportsEntryPoint(
     override fun toasts(): ToastStore = toasts
 
     override fun catalog(): MessageCatalog = catalog
+
+    override fun delivery(): DeliveryStore = delivery
 }
 
 /** A started reports view model with the real stores it drives, built on one engine fixture. */
+@Suppress("LongParameterList")
 internal class ReportsRig(
     val f: EngineFixture,
     val model: ReportsViewModel,
@@ -173,6 +178,8 @@ internal class ReportsRig(
     val catalog: MessageCatalog,
     val feed: EventFeed,
     private val errorTexts: ErrorTexts,
+    val delivery: DeliveryStore,
+    val helpers: EngineHelpers,
 ) {
     val state get() = model.state.value
     val engine: DisposableEngine get() = f.engine
@@ -227,8 +234,9 @@ internal suspend fun TestScope.startReports(
         runCurrent()
     }
     if (loggedIn && open) session.login(OPERATOR_INSZ, "1234")
-    val entry = TestReportsEntryPoint(gateway, helpers, f.events, session, settings, errors, toasts, catalog)
+    val delivery = DeliveryStore(gateway, errors, settings)
+    val entry = TestReportsEntryPoint(gateway, helpers, f.events, session, settings, errors, toasts, catalog, delivery)
     val model = ReportsViewModel(entry)
     runCurrent()
-    return ReportsRig(f, model, toasts, catalog, feed, errorTexts)
+    return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers)
 }

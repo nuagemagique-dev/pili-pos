@@ -4,10 +4,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
-import dev.nuagemagique.pilipos.nav.PlaceholderScreen
 import javax.inject.Inject
 
-/** Navigation entry of the reports feature (placeholder until P5). */
+/** Navigation entry of the reports feature: the reports screen (P5b-T9). */
 internal class ReportsEntry
     @Inject
     constructor() : FeatureEntry {
@@ -18,6 +17,6 @@ internal class ReportsEntry
             builder: NavGraphBuilder,
             navigator: AppNavigator,
         ) {
-            builder.composable(ReportsRoutes.REPORTS) { PlaceholderScreen(area, ReportsRoutes.REPORTS) }
+            builder.composable(ReportsRoutes.REPORTS) { ReportsRoute(navigator) }
         }
     }
