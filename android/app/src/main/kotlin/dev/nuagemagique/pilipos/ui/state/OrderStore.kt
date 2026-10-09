@@ -27,6 +27,7 @@ import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SlipOutcome
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -68,6 +69,11 @@ class OrderStore
         private val categories = ConcurrentHashMap<Long, Long>()
         private val mutex = Mutex()
 
+        // Bumped by resetLocal(). An operation reads it before it talks to the engine and publishes only while it is
+        // unchanged, so a read that was in flight during a reset (lock, idle lock) cannot bring the old order back.
+        private val generation = AtomicInteger()
+        private val publishLock = Any()
+
         /** The order being taken; null when there is none. */
         val current: StateFlow<Order?> = mutableCurrent.asStateFlow()
 
@@ -106,6 +112,7 @@ class OrderStore
             tableNumber: Int?,
             userInsz: String,
         ) = mutex.withLock {
+            val seen = generation.get()
             val type = if (tableNumber != null) OrderType.DINE_IN else OrderType.TAKEAWAY
             val order = gateway.call { engine -> engine.createOrder(CreateOrderInput(type, tableNumber, userInsz)) }
             val cart =
@@ -114,17 +121,16 @@ class OrderStore
                 } else {
                     emptyList()
                 }
-            publish(order, cart)
-            gateway.call { engine -> engine.setActiveOrder(order.id) }
+            if (publish(order, cart, seen)) gateway.call { engine -> engine.setActiveOrder(order.id) }
         }
 
         /** Loads an existing order and its lines (re-opening a table) and makes it the active order. */
         suspend fun loadOrder(orderId: Long) =
             mutex.withLock {
+                val seen = generation.get()
                 val (order, cart) =
                     gateway.call { engine -> engine.getOrder(orderId) to engine.listCartLines(orderId) }
-                publish(order, cart)
-                gateway.call { engine -> engine.setActiveOrder(orderId) }
+                if (publish(order, cart, seen)) gateway.call { engine -> engine.setActiveOrder(orderId) }
             }
 
         /**
@@ -240,10 +246,14 @@ class OrderStore
          * active order.
          */
         fun resetLocal() {
-            mutableCurrent.value = null
-            mutableLines.value = emptyList()
-            mutableUnsentCount.value = 0
-            categories.clear()
+            synchronized(publishLock) {
+                // Every read started before this point is now stale: its publish is refused.
+                generation.incrementAndGet()
+                mutableCurrent.value = null
+                mutableLines.value = emptyList()
+                mutableUnsentCount.value = 0
+                categories.clear()
+            }
         }
 
         /** The category of a menu item added in this session, or null. */
@@ -282,10 +292,11 @@ class OrderStore
 
         private suspend fun leaveUnlocked(reason: LeaveReason) {
             val order = mutableCurrent.value ?: return
+            val seen = generation.get()
             val outcome = gateway.call { engine -> engine.leaveOrder(order.id, reason) }
             warnIfSlipFailed(outcome)
             // The lines carry the new unsent quantities.
-            publishLines(gateway.call { engine -> engine.listCartLines(order.id) })
+            publishLines(gateway.call { engine -> engine.listCartLines(order.id) }, seen)
         }
 
         @Suppress("TooGenericExceptionCaught", "SwallowedException")
@@ -303,20 +314,35 @@ class OrderStore
 
         /** Re-reads the order and its lines from the engine. */
         private suspend fun refresh(orderId: Long) {
+            val seen = generation.get()
             val (order, cart) =
                 gateway.call { engine -> engine.getOrder(orderId) to engine.listCartLines(orderId) }
-            publish(order, cart)
+            publish(order, cart, seen)
         }
 
+        /** Shows [order] and [cart] unless [resetLocal] ran since [seen] was read; answers whether it did. */
         private fun publish(
             order: Order,
             cart: List<CartLine>,
+            seen: Int,
+        ): Boolean =
+            synchronized(publishLock) {
+                if (generation.get() != seen) return@synchronized false
+                mutableCurrent.value = order
+                setLines(cart)
+                true
+            }
+
+        private fun publishLines(
+            cart: List<CartLine>,
+            seen: Int,
         ) {
-            mutableCurrent.value = order
-            publishLines(cart)
+            synchronized(publishLock) {
+                if (generation.get() == seen) setLines(cart)
+            }
         }
 
-        private fun publishLines(cart: List<CartLine>) {
+        private fun setLines(cart: List<CartLine>) {
             mutableLines.value = cart
             val units = cart.sumOf { it.unsentQuantity.coerceAtLeast(0L) }
             mutableUnsentCount.value = units.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()

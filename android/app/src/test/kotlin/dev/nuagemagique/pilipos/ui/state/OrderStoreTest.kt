@@ -6,6 +6,8 @@ import dev.nuagemagique.pilipos.engine.EngineUnavailableException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -703,6 +705,63 @@ class OrderStoreTest {
             assertNull(r.store.categoryOf(10))
             // Local only: the engine already cleared its active order.
             coVerify(exactly = 0) { r.f.engine.setActiveOrder(null) }
+        }
+
+    @Test
+    fun aResetDuringARefreshInFlightIsNotUndoneByIt() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1), listOf(line(1, 10, unsent = 1)))
+            val gate = CompletableDeferred<Order>()
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(11)
+            coEvery { r.f.engine.getOrder(1L) } coAnswers { gate.await() }
+            coEvery { r.f.engine.listCartLines(1L) } returns listOf(line(1, 10, unsent = 1), line(2, 11, unsent = 1))
+            val added = async { r.store.addItem(item(11)) }
+            runCurrent()
+
+            // The refresh is suspended on getOrder; the session locks and the store forgets its order.
+            r.events.send(PosEvent.SessionLocked(mockk(relaxed = true)))
+            runCurrent()
+            assertNull(r.store.current.value)
+            gate.complete(order(id = 1))
+            runCurrent()
+
+            assertTrue(added.await())
+            assertNull(r.store.current.value)
+            assertTrue(r.store.lines.value.isEmpty())
+            assertEquals(0, r.store.unsentCount.value)
+        }
+
+    @Test
+    fun aResetDuringALoadInFlightDoesNotActivateTheOldOrder() =
+        runTest {
+            val r = rig()
+            val gate = CompletableDeferred<Order>()
+            coEvery { r.f.engine.getOrder(3L) } coAnswers { gate.await() }
+            coEvery { r.f.engine.listCartLines(3L) } returns listOf(line(1, 10))
+            coEvery { r.f.engine.setActiveOrder(3L) } returns Unit
+            val loading = async { r.store.loadOrder(3L) }
+            runCurrent()
+
+            r.store.resetLocal()
+            gate.complete(order(id = 3))
+            runCurrent()
+            loading.await()
+
+            assertNull(r.store.current.value)
+            coVerify(exactly = 0) { r.f.engine.setActiveOrder(3L) }
+        }
+
+    @Test
+    fun anOrderLoadedAfterAResetIsShown() =
+        runTest {
+            val r = rig()
+            r.store.resetLocal()
+
+            r.store.seed(r, order(id = 4), listOf(line(1, 10)))
+
+            assertEquals(4L, r.store.current.value?.id)
+            assertEquals(1, r.store.lines.value.size)
         }
 
     @Test

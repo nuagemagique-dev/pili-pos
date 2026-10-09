@@ -262,4 +262,34 @@ class SessionStoreTest {
                 assertEquals("FDM error", awaitItem().error)
             }
         }
+
+    @Test
+    fun theUserIsForgottenWhenTheEngineGoesAway() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("1", "1234") } returns user(UserRole.ADMIN)
+            s.store.login("1", "1234")
+            assertTrue(s.store.isManager.value)
+            assertTrue(s.store.canTakePayment.value)
+
+            s.f.holder.close()
+            runCurrent()
+
+            assertNull(s.store.currentUser.value)
+            assertFalse(s.store.isManager.value)
+            assertFalse(s.store.canTakePayment.value)
+        }
+
+    @Test
+    fun aUserLoggedInWhileTheEngineIsReadyIsKept() =
+        runTest {
+            val s = setup()
+            coEvery { s.f.engine.login("2", null) } returns user(UserRole.CASHIER)
+
+            s.store.login("2", null)
+            runCurrent()
+
+            assertEquals(UserRole.CASHIER, s.store.currentUser.value?.role)
+            assertTrue(s.store.canTakePayment.value)
+        }
 }
