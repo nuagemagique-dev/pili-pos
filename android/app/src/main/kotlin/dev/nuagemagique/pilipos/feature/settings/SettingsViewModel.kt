@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import uniffi.pos_ffi.CreateUserInput
 import uniffi.pos_ffi.Integrations
+import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
 
@@ -35,6 +36,12 @@ private data class Shared(
     val engine: PosSettings?,
     val training: Boolean,
     val language: AppLanguage,
+)
+
+/** The product label and the mail status, gathered before the screen state is built. */
+private data class Pieces(
+    val label: ProductLabel,
+    val mail: MailStatus?,
 )
 
 /**
@@ -59,6 +66,7 @@ internal class SettingsViewModel(
     private val settings = entry.settings()
     private val session = entry.session()
     private val integrations = entry.integrations()
+    private val delivery = entry.delivery()
     private val own = MutableStateFlow(SettingsUiState())
 
     /** What the screen draws. */
@@ -72,15 +80,15 @@ internal class SettingsViewModel(
                 settings.language,
                 ::Shared,
             ),
-            settings.productLabel,
+            combine(settings.productLabel, delivery.mailStatus, ::Pieces),
             integrations.state,
             own,
-        ) { shared, label, switch, base ->
-            build(base, shared, label, switch)
+        ) { shared, pieces, switch, base ->
+            build(base, shared, pieces, switch)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            build(own.value, currentShared(), settings.productLabel.value, integrations.state.value),
+            build(own.value, currentShared(), Pieces(settings.productLabel.value, delivery.mailStatus.value), integrations.state.value),
         )
 
     init {
@@ -107,10 +115,9 @@ internal class SettingsViewModel(
             .onSuccess { list -> own.update { it.copy(users = list) } }
     }
 
-    /** Asks the engine whether the mail service is configured and reachable. A failure gives no status. */
+    /** Asks the engine whether the mail service is configured and reachable (through the delivery store). A failure gives no status. */
     suspend fun refreshMailStatus() {
-        val status = attempt { entry.gateway().call { engine -> engine.checkMailStatus() } }.getOrNull()
-        own.update { it.copy(mailStatus = status) }
+        delivery.refreshMailStatus()
     }
 
     /** Lists the last ticket deliveries; a failure gives an empty list (`loadDeliveries`). */
@@ -313,7 +320,7 @@ internal class SettingsViewModel(
     private fun build(
         base: SettingsUiState,
         shared: Shared,
-        label: ProductLabel,
+        pieces: Pieces,
         switch: Integrations?,
     ): SettingsUiState =
         base.copy(
@@ -322,7 +329,8 @@ internal class SettingsViewModel(
             currentInsz = shared.user?.insz,
             training = shared.training,
             language = shared.language,
-            productLabel = label,
+            productLabel = pieces.label,
+            mailStatus = pieces.mail,
             info = shared.engine,
             hubrise =
                 base.hubrise.copy(

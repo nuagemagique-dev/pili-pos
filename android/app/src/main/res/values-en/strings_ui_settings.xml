@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings screen: the texts that have no Vue key (the rows section, two confirmations, the QR description). -->
+    <string name="ui_settings_rows_title">More settings</string>
+    <string name="ui_settings_deactivate_message">Deactivate {name}? This employee will no longer be able to log in.</string>
+    <string name="ui_settings_hubrise_disconnect_message">Online orders will not be received until HubRise is connected again.</string>
+    <string name="ui_settings_qr_description">QR code of the HubRise connection link</string>
+</resources>
