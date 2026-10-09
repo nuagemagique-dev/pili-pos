@@ -1,0 +1,33 @@
+[package]
+name = "pos-uc-check"
+version = "1.0.0-dev"
+edition.workspace = true
+publish = false
+
+[lib]
+name = "pos_uc_check"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pos-uc-check"
+path = "src/main.rs"
+
+[dependencies]
+# The engine, built like the certification set: HubRise in, peppol out.
+pos-engine = { path = "../../../crates/pos-engine", default-features = false, features = ["cert"] }
+pos-core = { path = "../../../crates/pos-core" }
+pos-fiscal = { path = "../../../crates/pos-fiscal" }
+# business_view and diff (compare.rs) are the comparison the Linux fixture tests use.
+pos-engine-testkit = { path = "../../../crates/pos-engine-testkit" }
+# The mocks, served in process.
+pos-fdm-mock = { path = "../../../crates/pos-fdm-mock" }
+pos-printer-mock = { path = "../../../crates/pos-printer-mock" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net"] }
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tempfile = "3"
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+axum = "0.8"
+regex = "1"
