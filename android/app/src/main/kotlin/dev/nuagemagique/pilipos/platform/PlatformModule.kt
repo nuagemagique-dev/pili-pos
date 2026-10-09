@@ -22,6 +22,9 @@ internal abstract class PlatformModule {
         /** Settings row id of the about screen. */
         const val ABOUT_SETTINGS_ID = "platform.about"
 
+        /** Settings row id of the SPF export screen. */
+        const val EXPORT_SETTINGS_ID = "platform.export"
+
         @Provides
         @IntoSet
         fun provideAboutSettings(): SettingsEntry =
@@ -31,6 +34,17 @@ internal abstract class PlatformModule {
                 route = PlatformRoutes.ABOUT,
                 order = 900,
                 managerOnly = false,
+            )
+
+        @Provides
+        @IntoSet
+        fun provideExportSettings(): SettingsEntry =
+            SettingsEntry(
+                id = EXPORT_SETTINGS_ID,
+                titleRes = R.string.plat_export_title,
+                route = PlatformRoutes.EXPORT,
+                order = 910,
+                managerOnly = true,
             )
     }
 }

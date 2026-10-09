@@ -133,29 +133,64 @@ Strings: `strings_plat_about.xml`.
 
 ## 7. SPF export
 
-Status: design (P6-T6)
+Status: as built (P6-T6)
 
-The tax authority (SPF) may ask for the data of the till (AM Art. 16 and 102). The Linux practice is the full `pos.db`, the logs and the SHA-1 of the binary. The Android flow follows Q17 (PD210):
+The tax authority (SPF) may ask for the data of the till (AM Art. 16 and 102). The Linux practice is the full `pos.db`, the logs and the SHA-1 of the binary. The Android flow follows Q17 (PD210). Route `platform/export` (`PlatformRoutes.EXPORT`), settings row `platform.export` (order 910, `managerOnly = true`), package `platform/export`, strings `strings_plat_export.xml` (fr, en, zh).
 
-- a manager-only screen, refused while an order or a takeaway is open;
-- a pre-check that a removable, non-primary volume is mounted ("Insert the USB stick or SD card");
-- the picker `StorageVolume.createOpenDocumentTreeIntent()` from the locked activity (never `FLAG_ACTIVITY_NEW_TASK`); the root of the volume is refused with the hint to create a folder `PILI-EXPORT`;
-- a persisted grant per volume uuid; "Change folder" releases the old grant.
+**Screen states** (`ExportViewModel`, `ExportScreen`; every state has a test):
 
-The export folder is `pili-export-<yyyyMMdd-HHmmss>-<deviceId>` and holds:
+| State | Shown when | Test tag |
+|---|---|---|
+| Checking | the first rights check runs | `export_checking` |
+| NotManager | the logged-in user is not an Admin (`getCurrentUser()`, PD214) | `export_not_manager` |
+| Blocked | an order or a takeaway is open, or the engine is not ready | `export_blocked` |
+| NoStick | no mounted removable non-primary volume: "Insert the USB stick or SD card" | `export_no_stick` |
+| NeedsFolder | the volume has no stored folder; the picker button; a refused pick shows its reason | `export_pick`, `export_error` |
+| Ready | a folder is stored: its name, "Change folder", "Export" | `export_folder`, `export_start`, `export_change` |
+| Running | progress (files and bytes, current file) | `export_progress` |
+| Done | export folder, file count, total size, SHA-256 of `MANIFEST.sha256` | `export_done`, `export_manifest_sha` |
+| Failed | step, file, reason from the strings, the technical detail, and "what was written is kept" | `export_failed`, `export_failed_reason` |
+
+The root tag is `export_root`. The screen looks for a stick that was inserted or removed every 2 s while it is in front, and re-checks the rights each time it comes back to the front. When several removable volumes are mounted the screen works with the one that has a stored folder and offers the others as buttons.
+
+**Volume and folder.**
+- `VolumeProbe` lists `StorageManager.storageVolumes` filtered to `isRemovable && !isPrimary && state == MEDIA_MOUNTED` (and a uuid) and builds `StorageVolume.createOpenDocumentTreeIntent()`.
+- The picker is started with `rememberLauncherForActivityResult(StartActivityForResult)` from the activity, never with `FLAG_ACTIVITY_NEW_TASK` (Lock Task refuses it; S4 case B).
+- `ExportFolderStore` keeps the tree Uri per volume uuid in the app-private preferences `platform_export` and calls `takePersistableUriPermission(READ|WRITE)`; "Change folder" and a new choice release the old grant. It refuses the volume root (document id ending with ':', `plat_export_err_root`: "create a folder named PILI-EXPORT and choose it") and a tree of another volume (`plat_export_err_wrong_volume`). A stored folder whose grant is gone is read as no folder.
+- No storage permission is added: the tree grant is enough, and the manifest is untouched by this card (`git diff android/lane-plat...HEAD -- android/app/src/main/AndroidManifest.xml` is empty).
+
+**Export folder.** `pili-export-<yyyyMMdd-HHmmss>-<deviceId>` (Europe/Brussels; the deviceId keeps letters, digits, `.`, `_`, `-`), created in the folder the manager chose:
 
 | Entry | Content |
 | --- | --- |
-| `pos.db` | a fresh `backupDatabase()` |
-| `backups/` | the 7 newest older backups |
-| `backups.txt` | inventory of every backup: name, bytes, SHA-256 |
-| `logs/` | the engine logs |
-| `audit/` | the platform audit files |
-| `identity.json` | the identity report (section 6) |
-| `LISEZMOI.txt` | French, brand-neutral: what the files are and how to check `MANIFEST.sha256` with `shasum -a 256 -c` |
-| `MANIFEST.sha256` | `sha256sum` format, written last |
+| `pos.db` | a fresh `backupDatabase()`: a consistent SQLite copy made by the online backup API (it opens as is, `PRAGMA integrity_check` answers `ok`) |
+| `backups/` | the 7 newest other `*.db` of `engine/backups` (never more) |
+| `backups.txt` | inventory of every other backup of the till, sorted by name, one line each: `<name><TAB><bytes><TAB><sha256>` (the fresh copy is `pos.db`, not listed) |
+| `logs/` | every file of `filesDir/logs`, copied up to the size it had when the plan was made |
+| `audit/` | the platform audit files (`PlatformAudit.files()`), including the row "started" of this export |
+| `identity.json` | `IdentityReport.toJson()` (section 6) |
+| `LISEZMOI.txt` | French, brand-neutral: what each file is, that `pos.db` is a consistent copy made by the online backup API, how to verify, export date, deviceId, posId |
+| `MANIFEST.sha256` | `sha256sum` format, `<sha256>  <relative path>`, sorted by path, covering every other file, written last |
 
-There is no staging copy: each file is hashed while it streams to the volume, `fd.sync()` is called, then the file is read back through the content resolver and hashed again. A mismatch fails the export. Nothing on the volume is ever deleted, even after an error. A write failure on a file of 4 GiB or more says that the stick is probably FAT32 and that exFAT is needed. Every export is audited (files, bytes, result). Strings: `strings_plat_export.xml`.
+`backups/`, `logs/` and `audit/` always exist, empty when there is nothing to copy.
+
+**How it runs** (`Exporter.run`, inside `PlatformOps.run("export")` so the watchdog stays out of the way):
+1. Pre-check, repeated at every run: the volume is still mounted, the engine is ready, the current user is an Admin, `listOpenOrders()` and `listOpenTakeaways()` are empty. A refusal writes nothing and is audited as `refused`.
+2. Audit row `started`, then the plan (`ExportPlanner`: the fresh `backupDatabase()`, the lists, the generated files).
+3. For each file, in plan order: stream it in 1 MiB chunks through a SHA-256 `DigestOutputStream` to the target, `fd.sync()`, close, open it again through the target, hash it again; a different hash fails the export. Then `MANIFEST.sha256` the same way.
+4. Audit row `done` (files, bytes, folder).
+
+On any error the export stops, keeps what was written and reports the step (`precheck`, `plan`, `create_dir`, `copy`, `verify`, `manifest`), the file and the reason; the audit row `failed` carries `step`, `file`, `problem`, `reason`. A write error on a file of 4 GiB or more is reported as `plat_export_err_fat32_hint` (the stick is probably FAT32, use exFAT). The export never deletes anything, neither on the volume nor in `filesDir` (the fresh `pos.db` copy stays in `engine/backups` like every backup the engine made, so each export adds one backup to the till; retention is the open question of section 12).
+
+**Targets.** All export logic is above `ExportTarget` (`createDirectory`, `createFile` returning an `ExportOutput` with `sync()`, `openForRead`). `SafTarget` uses `DocumentsContract.createDocument`, `openFileDescriptor("w")` with `FileOutputStream(fd)` and `fd.sync()`, and reads back through `ContentResolver.openInputStream`; every file is created with the MIME type `application/octet-stream` so that the provider never adds an extension to `MANIFEST.sha256`. `FileTarget` writes plain files (unit tests, and the P6-T11 device test on the removable volume's app-specific directory).
+
+**For an inspector.** Plug the stick into a computer and, in the `pili-export-...` folder:
+1. `shasum -a 256 -c MANIFEST.sha256` (Linux: `sha256sum -c MANIFEST.sha256`): every line must say `OK`, and a missing `MANIFEST.sha256` means the export is incomplete.
+2. `sqlite3 pos.db "PRAGMA integrity_check;"` must say `ok`.
+3. `identity.json` gives the application hashes to compare with the installed build (section 6); `backups.txt` lists the other backups; `audit/audit.jsonl` shows when exports ran and how they ended.
+4. The hash shown on the Done screen is the SHA-256 of `MANIFEST.sha256`: `shasum -a 256 MANIFEST.sha256` must give the same value.
+
+Limits: the gate cannot read a real stick; the real USB and SD behaviour (exFAT, removal during a write) is hardware residue (spike S4). A log or audit file that is rotated away between the plan and its copy fails the export with `plat_export_err_read` (rare: audit rotates at 1 MiB, the plan and the copy are seconds apart); the manager just runs it again.
 
 ## 8. Updater: source format and verification
 
