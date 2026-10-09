@@ -40,7 +40,8 @@ stores and the gateway.
 - **No total in the options dialog (PD208, PD219).** Vue previews `price + sum of the picked options`. The Compose
   dialog shows the product price and the own price of each option and no total; the engine prices the line
   (`add_order_line_with_modifiers` sends only ids). The confirm caption is the plain "Ajouter".
-- **One cart action at a time.** A second tap on a product while the first still talks to the engine is ignored.
+- **Every tap counts.** As in `OrderView.vue`, each tap on a product (and each confirmed price or option pick) is sent
+  on; `OrderStore` runs the cart actions one after the other, so quick taps queue up and merge into the same line.
   A refusal of a cart action (the order was paid meanwhile, a product is no longer available) is shown as an error
   toast by the order screen, which listens to `OrderStore.failures`.
 - **Sizes and flash.** Text sizes use the theme tokens only (the Vue 17, 13 and 24 px names become 16, 14 and 20); the

@@ -9,6 +9,7 @@ import dev.nuagemagique.pilipos.ui.state.EventFeed
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -207,6 +208,34 @@ class MenuViewModelTest {
 
             assertEquals(2L, r.state.menu.selectedCategoryId)
             assertEquals(listOf(20L), r.state.menu.items.map { it.id })
+        }
+
+    @Test
+    fun aTabTappedWhileAReloadReadsIsNotUndoneByIt() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            val feed = EventFeed(f)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { f.engine.getMenuItems(1L, any()) } coAnswers
+                {
+                    gate.await()
+                    world.items.getValue(1L)
+                }
+            feed.send(catalogUpdated())
+            runCurrent()
+
+            r.model.selectCategory(2L)
+            runCurrent()
+            gate.complete(Unit)
+            runCurrent()
+
+            assertEquals(2L, r.state.menu.selectedCategoryId)
+            assertEquals(listOf(20L), r.state.menu.items.map { it.id })
+            assertEquals(listOf(1L, 2L), r.state.menu.categories.map { it.id })
         }
 
     @Test

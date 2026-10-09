@@ -100,23 +100,110 @@ class OrderItemFlowTest {
         }
 
     @Test
-    fun aSecondTapWhileTheFirstIsRunningIsIgnored() =
+    fun everyQuickTapCountsTheSecondOneMergesIntoTheLineOfTheFirst() =
         runTest {
-            val r = ready()
+            val world = OrderWorld()
+            val r = ready(world)
             val gate = CompletableDeferred<Unit>()
             coEvery { r.f.engine.addOrderLine(any()) } coAnswers
                 {
                     gate.await()
+                    world.cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 1))
                     orderLine(10)
                 }
 
             r.model.addItem(maki)
             runCurrent()
             r.model.addItem(maki)
+            runCurrent()
             gate.complete(Unit)
             runCurrent()
 
             coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(1L, 2) }
+        }
+
+    @Test
+    fun threeQuickTapsOnTheSameProductAreAllCounted() =
+        runTest {
+            val world = OrderWorld()
+            val r = ready(world)
+            val gate = CompletableDeferred<Unit>()
+            coEvery { r.f.engine.addOrderLine(any()) } coAnswers
+                {
+                    gate.await()
+                    world.cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 1))
+                    orderLine(10)
+                }
+            coEvery { r.f.engine.updateOrderLineQuantity(any(), any()) } coAnswers
+                {
+                    world.cart = listOf(cartLine(1, 10, "Maki saumon", quantity = secondArg()))
+                }
+
+            repeat(3) {
+                r.model.addItem(maki)
+                runCurrent()
+            }
+            gate.complete(Unit)
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify { r.f.engine.updateOrderLineQuantity(1L, 2) }
+            coVerify { r.f.engine.updateOrderLineQuantity(1L, 3) }
+            assertEquals(mapOf(10L to 3), r.state.menu.cartQuantities)
+        }
+
+    @Test
+    fun aConfirmedPriceIsNotLostWhileAnotherAddIsRunning() =
+        runTest {
+            val r = ready()
+            val gate = CompletableDeferred<Unit>()
+            val inputs = mutableListOf<AddOrderLineInput>()
+            coEvery { r.f.engine.addOrderLine(capture(inputs)) } coAnswers
+                {
+                    if (inputs.size == 1) gate.await()
+                    orderLine(10)
+                }
+            r.model.addItem(maki)
+            runCurrent()
+            r.model.addItem(freePrice)
+            runCurrent()
+
+            r.model.confirmPrice(900)
+            runCurrent()
+            gate.complete(Unit)
+            runCurrent()
+
+            assertEquals(listOf(10L, 30L), inputs.map { it.menuItemId })
+            assertEquals(900L, inputs.last().unitPriceCents)
+            assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    @Test
+    fun confirmedPicksAreNotLostWhileAnotherAddIsRunning() =
+        runTest {
+            val r = ready(OrderWorld(hubrise = true))
+            val gate = CompletableDeferred<Unit>()
+            coEvery { r.f.engine.getItemModifiers(10L, any()) } returns emptyList()
+            coEvery { r.f.engine.getItemModifiers(11L, any()) } returns sauces
+            coEvery { r.f.engine.addOrderLine(any()) } coAnswers
+                {
+                    gate.await()
+                    orderLine(10)
+                }
+            r.model.addItem(maki)
+            runCurrent()
+            r.model.addItem(menuItem(11, 1, "Nigiri thon", 480))
+            runCurrent()
+            assertTrue(r.state.dialog is OrderDialog.Modifiers)
+
+            r.model.confirmModifiers(listOf(100L))
+            runCurrent()
+            gate.complete(Unit)
+            runCurrent()
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLineWithModifiers(AddWithModifiersInput(ORDER_ID, 11L, 1, listOf(100L))) }
+            assertEquals(OrderDialog.None, r.state.dialog)
         }
 
     @Test

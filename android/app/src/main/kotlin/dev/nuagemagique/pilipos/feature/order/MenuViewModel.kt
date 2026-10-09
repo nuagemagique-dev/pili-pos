@@ -27,7 +27,6 @@ import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.PosEvent
-import java.util.concurrent.atomic.AtomicBoolean
 
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
@@ -80,9 +79,6 @@ internal class MenuViewModel(
     private val reload = MutableStateFlow(0)
     private val menuLock = Mutex()
     private var itemsJob: Job? = null
-
-    // One cart action at a time: a second tap while the first still talks to the engine is ignored.
-    private val busy = AtomicBoolean(false)
 
     // The engine is ready and somebody is logged in: the only state in which anything is read.
     private val active: StateFlow<Boolean> =
@@ -180,9 +176,10 @@ internal class MenuViewModel(
     /** Reads the categories and the products of the selected one (the first when none is selected or it is gone). */
     private suspend fun loadMenu(language: AppLanguage) =
         menuLock.withLock {
+            // The selection the read starts from: a tab tapped after this point must not be undone by the result.
+            val keep = data.value.selectedCategoryId
             attempt {
                 val categories = gateway.call { engine -> engine.getCategories(language.code) }
-                val keep = data.value.selectedCategoryId
                 val selected = categories.firstOrNull { it.id == keep }?.id ?: categories.firstOrNull()?.id
                 val items =
                     if (selected != null) {
@@ -193,7 +190,14 @@ internal class MenuViewModel(
                 Triple(categories, selected, items)
             }.fold(
                 onSuccess = { (categories, selected, items) ->
-                    data.update { it.copy(categories = categories, selectedCategoryId = selected, items = items, loaded = true) }
+                    data.update {
+                        // A tab tapped while the read ran wins: its own job reads its products, so only the tabs are published.
+                        if (it.selectedCategoryId == keep) {
+                            it.copy(categories = categories, selectedCategoryId = selected, items = items, loaded = true)
+                        } else {
+                            it.copy(categories = categories, loaded = true)
+                        }
+                    }
                 },
                 // What was shown stays: the next language change, catalog event or resync reads it again.
                 onFailure = { Timber.d(it, "Menu not loaded") },
@@ -226,7 +230,8 @@ internal class MenuViewModel(
             data.update { it.copy(dialog = OrderDialog.Price(item)) }
             return
         }
-        launchOnce {
+        // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
+        viewModelScope.launch {
             if (entry.integrations().hubriseEnabled.value) askModifiers(item) else order.addItem(item)
         }
     }
@@ -250,14 +255,14 @@ internal class MenuViewModel(
     fun confirmPrice(priceCents: Long) {
         val item = (data.value.dialog as? OrderDialog.Price)?.item ?: return
         data.update { it.copy(dialog = OrderDialog.None) }
-        launchOnce { order.addItem(item, 1, priceCents) }
+        viewModelScope.launch { order.addItem(item, 1, priceCents) }
     }
 
     /** The picks of the options dialog: the engine prices the options and names the line, only the ids go up. */
     fun confirmModifiers(modifierIds: List<Long>) {
         val item = (data.value.dialog as? OrderDialog.Modifiers)?.item ?: return
         data.update { it.copy(dialog = OrderDialog.None) }
-        launchOnce {
+        viewModelScope.launch {
             order.addLineWith(item, 1) { orderId ->
                 gateway.call { engine ->
                     engine.addOrderLineWithModifiers(AddWithModifiersInput(orderId, item.id, 1, modifierIds))
@@ -269,17 +274,6 @@ internal class MenuViewModel(
     /** Closes the open dialog without adding anything. */
     fun dismissDialog() {
         data.update { it.copy(dialog = OrderDialog.None) }
-    }
-
-    private fun launchOnce(action: suspend () -> Unit) {
-        if (!busy.compareAndSet(false, true)) return
-        viewModelScope.launch {
-            try {
-                action()
-            } finally {
-                busy.set(false)
-            }
-        }
     }
 
     // ── Cart lines ────────────────────────────────────────────────
