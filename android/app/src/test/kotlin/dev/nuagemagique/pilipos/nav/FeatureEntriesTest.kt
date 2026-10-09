@@ -14,6 +14,7 @@ import dev.nuagemagique.pilipos.feature.reports.ReportsRoutes
 import dev.nuagemagique.pilipos.feature.settings.SettingsRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
+import dev.nuagemagique.pilipos.nightly.NightlyRoutes
 import dev.nuagemagique.pilipos.platform.PlatformRoutes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,10 +51,10 @@ class FeatureEntriesTest {
     fun theSetHoldsSevenFeaturesAndThePlatform() {
         hiltRule.inject()
         assertEquals(
-            setOf("login", "tables", "order", "checkout", "reports", "settings", "webshop", "platform"),
+            setOf("login", "tables", "order", "checkout", "reports", "settings", "webshop", "platform", "nightly"),
             entries.map { it.area }.toSet(),
         )
-        assertEquals(8, entries.size)
+        assertEquals(9, entries.size)
     }
 
     @Test
@@ -71,6 +72,7 @@ class FeatureEntriesTest {
                 SettingsRoutes.SETTINGS,
                 WebshopRoutes.WEBSHOP,
                 PlatformRoutes.ABOUT,
+                NightlyRoutes.NIGHTLY,
             ),
             routes.toSet(),
         )
@@ -93,7 +95,7 @@ class FeatureEntriesTest {
         val about = settings.single { it.id == "platform.about" }
         assertEquals(PlatformRoutes.ABOUT, about.route)
         assertEquals(registry.settingsEntries, registry.settingsEntries.sortedWith(compareBy({ it.order }, { it.id })))
-        assertTrue(registry.entries.size == 8)
+        assertTrue(registry.entries.size == 9)
     }
 
     @Test
