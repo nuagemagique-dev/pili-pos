@@ -31,6 +31,24 @@ const DEFAULT_USER_WITH_PIN = {
   has_pin: true,
 };
 
+// The nightly export as the engine reports it when it is not configured.
+const EXPORT_STATUS_DISABLED = {
+  enabled: false,
+  problem: null,
+  endpoint: null,
+  keepDays: 30,
+  lastExportId: null,
+  lastPreparedAt: null,
+  lastUploadedId: null,
+  lastUploadedAt: null,
+  pending: 0,
+  nextAttemptAt: null,
+  lastError: null,
+  lastErrorAt: null,
+  kept: 0,
+  dropped: 0,
+};
+
 const DEFAULT_CATEGORY = {
   id: 1,
   name: 'Sushi',
@@ -345,6 +363,10 @@ function defaultHandlers(): Record<string, Handler> {
     list_ticket_deliveries: () => [],
     print_missing_original: () => undefined,
 
+    // Nightly export (manager only): not configured unless a spec says otherwise
+    export_status: () => EXPORT_STATUS_DISABLED,
+    export_run_now: () => EXPORT_STATUS_DISABLED,
+
     // Settings
     get_settings: () => ({
       posId: 'CPOS0031234567',
@@ -588,4 +610,4 @@ export async function loginAndGoto(page: Page, hashRoute: string) {
 }
 
 // Re-export fixtures for direct use in tests.
-export { DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };
+export { EXPORT_STATUS_DISABLED, DEFAULT_USER, DEFAULT_USER_WITH_PIN, DEFAULT_CATEGORY, DEFAULT_MENU_ITEM, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CART_LINE };
