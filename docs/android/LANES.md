@@ -22,6 +22,7 @@ Lanes start after P4. Until the P4 exit report is written, the foundation owner 
 | `ui-login`, `ui-tables`, `ui-order`, `ui-checkout`, `ui-reports`, `ui-settings`, `ui-webshop` | P5 run B, one worker each | The `feature/<view>/` package, its tests, its screenshots, its `strings_ui_<view>.xml`, its parity file. |
 | `platform` | P6 | The `platform/` package, `strings_plat_*.xml`, platform XML and drawables, Docker, release tooling, the CI workflow. |
 | `nightly` | X1 (export lane) | The `nightly/` package, its tests, its screenshots, `strings_nightly.xml`. |
+| `e2e-parity` | P7 (end-to-end lane) | UC scenarios and runners, `android/uccheck`, soak, power cut, GMS run, runbook and parity docs. |
 | `shared` | every lane | Append-only. Today: `docs/android/DECISIONS.md`. |
 | `frozen` | nobody | Linux build inputs, the FFI and the P3 modules. A change is an escalation to the user, never a card. |
 
@@ -113,6 +114,14 @@ frozen (src-tauri|ui|crates|deploy)/.*
 frozen scripts/(build_and_hash|check_repro)[.]sh
 frozen docs/android/baseline/.*
 frozen docs/SUBMISSION_ARTIFACTS/.*
+e2e-parity android/app/src/androidTest/kotlin/dev/nuagemagique/pilipos/(uc|soak|powercut)/.*
+e2e-parity android/app/src/androidTest/assets/uc/.*
+e2e-parity android/uccheck/.*
+e2e-parity scripts/android/(test_)?(p7|uc|soak|powercut|fdm_delay)_[a-z0-9_]+[.](sh|py|toml|txt)
+e2e-parity scripts/android/testdata/(p7|uc|soak|powercut|fdm_delay)_[a-z0-9_]+/.*
+e2e-parity docs/android/(UC|UC_MATRIX_ANDROID|UC_RESULTS|SOAK|POWERCUT|GMS|RUNBOOK_D3PRO|LIVE_MODULE2)[.]md
+e2e-parity docs/android/uc/.*
+e2e-parity docs/android/phases/P7[^/]*[.]md
 ```
 
 ### Probes
@@ -194,6 +203,21 @@ src-tauri/src/main.rs frozen
 crates/pos-engine/src/engine.rs frozen
 scripts/check_repro.sh frozen
 Cargo.lock frozen
+android/app/src/androidTest/kotlin/dev/nuagemagique/pilipos/uc/UcScenarioTest.kt e2e-parity
+android/app/src/androidTest/kotlin/dev/nuagemagique/pilipos/soak/SoakDriverTest.kt e2e-parity
+android/app/src/androidTest/kotlin/dev/nuagemagique/pilipos/powercut/PowercutSteps.kt e2e-parity
+android/app/src/androidTest/assets/uc/00_smoke/001_SMOKE.json e2e-parity
+android/uccheck/Cargo.toml e2e-parity
+android/uccheck/pos-uc-check/src/main.rs e2e-parity
+scripts/android/p7_gate.sh e2e-parity
+scripts/android/test_p7_gate.sh e2e-parity
+scripts/android/uc_e2e.sh e2e-parity
+scripts/android/uc_scope_android.toml e2e-parity
+scripts/android/uc_lock_parity_allow.txt e2e-parity
+scripts/android/fdm_delay_proxy.py e2e-parity
+docs/android/UC_MATRIX_ANDROID.md e2e-parity
+docs/android/uc/results.json e2e-parity
+docs/android/phases/P7.md e2e-parity
 ```
 
 ## Created by vs owned by
@@ -274,3 +298,28 @@ The platform lane registers its three screens through one `PlatformEntry` (a `Fe
 ### AppLifecycleHook
 
 `AppLifecycleHook` (`di/AppLifecycleHook.kt`, PD203) is the contract for behaviour that must run at the application and activity lifecycle points: `onApplicationCreated` at the end of `PiliApplication.onCreate`, `onActivityCreated` right after `KioskController.prepare()`, `onActivityResumed` after the Lock Task relock and the immersive bars and before the engine service starts. Any lane may bind a hook, `@Binds @IntoSet` in a Hilt module of its own package; nobody edits `PiliApplication`, `MainActivity` or `HooksModule` for it. The runner calls the hooks by `order`, then class name, each in its own try/catch, so a failing hook is logged and never stops the start or the next hook.
+
+## End-to-end lane (P7)
+
+The end-to-end lane (phase P7, parallel to the P8 dossier lane) owns the `e2e-parity` paths of the rules above:
+
+- the `uc/`, `soak/` and `powercut/` packages of the androidTest source set and the scenario assets under `androidTest/assets/uc/`;
+- the third Cargo workspace `android/uccheck` (the host reference run and the comparison tool `pos-uc-check`);
+- the scripts `scripts/android/(test_)?(p7|uc|soak|powercut|fdm_delay)_*` and their fixtures `scripts/android/testdata/<same prefix>_*/`;
+- the docs `UC`, `UC_MATRIX_ANDROID`, `UC_RESULTS`, `SOAK`, `POWERCUT`, `GMS`, `RUNBOOK_D3PRO` and `LIVE_MODULE2` (all `.md` under `docs/android/`), the folder `docs/android/uc/` and the phase file `docs/android/phases/P7*.md`.
+
+The lane edits no foundation file after the card P7-T1 that registered it: no `:app` main or debug source set, no build file, no manifest, no foundation, UI, platform or nightly package. A lane card that needs such a change stops and asks its planner (section "Shared changes"). `docs/android/DECISIONS.md` stays append-only and shared.
+
+### P7 emulator lock contract
+
+Every P7 script that uses the emulator (`uc_e2e.sh`, `p7_soak.sh`, `p7_powercut.sh`, `p7_gms.sh`) takes the P7 lock from `scripts/android/p7_emulator_lock.sh` before it touches a device, by calling `p7_emulator_lock NAME SCRIPT_PATH [ARGS...]` at the top of the script:
+
+- the lock file is `$HOME/.cache/pili-android/emulator/p7-use.lock` (override `PILI_P7_LOCK_DIR`), taken with `/usr/bin/lockf`;
+- the call first waits while `app_e2e.sh`, `plat_e2e.sh`, `device_engine_tests.sh` or `emulator_smoke.sh` runs (a process that is not the caller or one of its ancestors), at most `PILI_P7_EMU_WAIT` seconds (default 5400), then re-executes the script under the lock with `PILI_P7_LOCK_HELD=1`;
+- a nested P7 script (`PILI_P7_LOCK_HELD=1`) returns at once and runs under its parent's lock;
+- on timeout it prints `P7LOCK | busy | held by <holder>` and exits 75;
+- the holder (name, pid, start time) is written to `p7-use.holder`, removed by `p7_emulator_lock_cleanup`; `bash scripts/android/p7_emulator_lock.sh --status` prints `free` or the holder line.
+
+### P7 output tags
+
+Each P7 script ends with one `<TAG> | total | PASS|FAIL | ...` line and exits 1 on any FAIL: `UCE2E` (`uc_e2e.sh`), `UCREC` (`pos-uc-check record`), `UCCHECK` (`pos-uc-check compare`), `SOAK` (`p7_soak.sh report`), `POWERCUT` (`p7_powercut.sh`), `GMS` (`p7_gms.sh`), `GATE` (`p7_gate.sh`). The lock prints only its own `P7LOCK | busy | held by <holder>` line (exit 75) and `P7LOCK | wait | ...` progress lines on stderr. Ports on the host seen from the device through `adb reverse`: 19380 FDM (or the delay proxy), 19390 printer, 19391 printer HTTP jobs (P7.md section 4.7).

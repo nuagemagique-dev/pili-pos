@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Stub cargo (PILI_P7_STUB_DIR): records its arguments; a 'compare' run prints a UCCHECK total
+# line (STUB_UCCHECK=FAIL makes it FAIL); STUB_CARGO_FAIL=1 makes every run exit 1.
+printf 'cargo %s\n' "$*" >>"${STUB_LOG:-/dev/null}"
+if [[ "${STUB_CARGO_FAIL:-0}" == "1" ]]; then
+    echo "error: stub cargo failure"
+    exit 1
+fi
+case " $* " in
+*" compare "*)
+    echo "UCCHECK | total | ${STUB_UCCHECK:-PASS} | 12 scenarios"
+    [[ "${STUB_UCCHECK:-PASS}" == "PASS" ]] || exit 1
+    ;;
+esac
+exit 0
