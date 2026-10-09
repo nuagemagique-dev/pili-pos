@@ -72,6 +72,7 @@ class FeatureEntriesTest {
                 WebshopRoutes.WEBSHOP,
                 PlatformRoutes.ABOUT,
                 PlatformRoutes.EXPORT,
+                PlatformRoutes.UPDATE,
             ),
             routes.toSet(),
         )
