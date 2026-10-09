@@ -1,0 +1,50 @@
+# Parity: login
+
+Port of `ui/src/views/LoginView.vue` (card P5-T9). The screen is a native Compose view of module `:app`, package
+`dev.nuagemagique.pilipos.feature.login`, laid out for 1920 x 1080 dp. The engine owns every rule (clock-in, PIN
+checks, end of shift); the screen only calls it through the shared stores and the gateway.
+
+## Rows
+
+| Vue | Compose | Commands |
+| --- | --- | --- |
+| ui/src/views/LoginView.vue | feature/login/LoginScreen.kt (LoginRoute, LoginContent), LoginBrand.kt, LoginPeople.kt, LoginPinPanel.kt, LoginViewModel.kt, LoginStartupChecks.kt, LoginState.kt, LoginEntryPoint.kt | `list_users` `list_open_shifts` `check_printer` `check_kitchen_printer` `check_mail_status` `hubrise_get_connection_status` |
+| stores/auth.ts (login, loginWithNewPin, endShift driven by the tiles, the PIN pad, the INSZ entry and the first PIN) | ui/state/SessionStore.kt | `login` `login_with_new_pin` `end_shift` |
+| stores/fdm.ts (checkNow, read by the start-up checks) | feature/login/LoginStartupChecks.kt (GatewayFdmProbe), until the shared FdmStore of P5-T6 lands | `fdm_check_now` |
+| components/PinDialog.vue (first login) | ui/components/PinPad.kt (PinDialog in PinMode.Choose), drawn inside the screen layout | - |
+| components/PiliLogo.vue | feature/login/LoginBrand.kt (wordmark as text) | - |
+
+## Differences
+
+- **No redirect on start.** Vue has no redirect here, and the Compose screen adds none either (PD205): it never
+  navigates when it starts, only after an action of the operator succeeded. A test proves that no effect is sent
+  while the screen loads and while the operator only browses (tile, PIN panel, INSZ entry, language).
+- **Tables after a login (PD211).** A successful login, a PIN entered on the 4th digit, the INSZ path and the first
+  PIN all end with `navigator.replaceAll(TablesRoutes.TABLES)`. Vue pushes the `order` route, whose screen bounces to
+  Tables when there is no order. The login screen is removed from the back stack, so Back does not return to it.
+- **Engine not ready.** Every engine failure is caught: with the engine closed the screen shows the INSZ entry and
+  the checks as "not configured" instead of failing. The root carries the tag `placeholder_login` (PD204: the tag
+  means "feature root") so the foundation tests keep finding the screen.
+- **Start-up checks wait for the engine, then appear together.** As in Vue the list is empty until all checks ran.
+  HubRise is only checked when the integration is switched on; the screen loads the switch itself when the shared
+  store has not yet (the store loads when the engine turns ready, which may be after the screen started).
+- **FDM check without FdmStore.** The shared `FdmStore` (P5-T6) is not on this branch. The screen calls
+  `fdm_check_now` itself through the gateway (`GatewayFdmProbe`) and maps the severity as Vue does (blocking is an
+  error "offline", warning is a warning, otherwise ok). When the store lands, only the probe changes.
+- **Software version (art. 47).** The version of `PosSettings.posSwVersion` is shown under the checks
+  (`login_version`), as in Vue.
+- **Language choice.** Three buttons (Francais, English, Chinese) choose the language through
+  `PosSettingsStore.setLanguage` and are kept on the device. Vue has no such control on this screen (its language
+  lives in Settings); the till needs one before the first login, so it is added here.
+- **PIN panel layout.** The PIN pad is the shared `PinPad` (96 x 72 dp keys, the hint above the dots) instead of the
+  128 x 88 px keys of the Vue panel. The end-shift button sits under the pad instead of beside "back", because the
+  pad carries its own back button. An operator on shift without a PIN gets login, back and end-shift buttons, as in
+  Vue.
+- **First PIN dialog.** `PinDialog` has no "who" line, so the operator name leads its hint text. The toast
+  "PIN saved" is raised after the engine accepted the PIN, as in Vue.
+- **Tiles.** Two columns of tiles in a scrolling grid; only active users are listed. The selected tile (the one whose
+  PIN panel is open) gets a Brume ring and a Brume initial, never Volt.
+- **Wordmark.** `PiliLogo.vue` is an SVG; the Compose screen draws the word "pili" and the hanzi as text until the
+  bundled brand font and logo asset land (PD106).
+- **Fonts and sizes.** Text sizes use the theme tokens only; the Vue sizes that have no token (40, 26, 18 px) use the
+  nearest token or a multiple of one.
