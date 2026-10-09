@@ -45,6 +45,8 @@ internal data class TicketsCallbacks(
     val onRefundBack: () -> Unit = {},
     val onRefundConfirm: () -> Unit = {},
     val onRefundClose: () -> Unit = {},
+    /** The screen text of the raw error of a copy or a refund the engine did not sign. */
+    val describeError: (String?) -> String = { it.orEmpty() },
 )
 
 /** What the delivery picker of the copy and refund dialogs does. */
@@ -159,4 +161,5 @@ private fun ticketsCallbacks(
             model.closeRefund()
             delivery.reset()
         },
+        describeError = model::describeRaw,
     )

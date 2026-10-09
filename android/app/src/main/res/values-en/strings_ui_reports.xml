@@ -2,4 +2,9 @@
 <resources>
     <!-- Reports screen: the texts that have no Vue key. -->
     <string name="ui_reports_signed_out">No operator signed in. Sign in to see the reports.</string>
+    <string name="ui_reports_quantity_less">Less</string>
+    <string name="ui_reports_quantity_more">More</string>
+    <string name="ui_reports_line_per_unit">{quantity} × {price}</string>
+    <string name="ui_reports_refund_cash_total">To pay back in cash</string>
+    <string name="ui_reports_total_unavailable">Amount computed by the engine when it signs.</string>
 </resources>

@@ -515,6 +515,9 @@ internal class ReportsViewModel(
     /** The screen text of a refusal, in the language of the till. */
     fun describeError(error: Throwable): String = entry.errors().text(error, language())
 
+    /** The screen text of the raw error string of a result that was not a success, in the language of the till. */
+    fun describeRaw(raw: String?): String = entry.errors().textRaw(raw, language())
+
     private fun operatorInsz(): String? = entry.session().currentUser.value?.insz
 
     private fun language(): AppLanguage = entry.settings().language.value

@@ -2,4 +2,9 @@
 <resources>
     <!-- Reports screen: the texts that have no Vue key. -->
     <string name="ui_reports_signed_out">Aucun opérateur connecté. Connectez-vous pour voir les rapports.</string>
+    <string name="ui_reports_quantity_less">Moins</string>
+    <string name="ui_reports_quantity_more">Plus</string>
+    <string name="ui_reports_line_per_unit">{quantity} × {price}</string>
+    <string name="ui_reports_refund_cash_total">À rembourser en espèces</string>
+    <string name="ui_reports_total_unavailable">Montant calculé par le moteur à la signature.</string>
 </resources>

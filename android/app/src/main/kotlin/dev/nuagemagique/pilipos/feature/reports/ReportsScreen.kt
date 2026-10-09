@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
+import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffold
 import dev.nuagemagique.pilipos.ui.text.uiText
@@ -43,12 +45,21 @@ internal fun ReportsRoute(navigator: AppNavigator) {
     val state by model.state.collectAsState()
     val scope = rememberCoroutineScope()
     val callbacks = remember(model) { reportsCallbacks(model, entry.delivery(), scope) }
+    val mailStatus by entry.delivery().mailStatus.collectAsState()
+    val request by entry.delivery().request.collectAsState()
+    val canPay by entry.session().canTakePayment.collectAsState()
+    val delivery = ReportsDelivery(mailStatus, request, canPay)
+    // The amounts come from the engine helpers (UI-PD307): the lines of the sale once, the ticked ones on each change.
+    val lines = state.refundFlow?.lines.orEmpty()
+    val selected = state.refundFlow?.selected.orEmpty()
+    val amounts by produceState(emptyMap<Long, LineAmount>(), lines) { value = lineAmounts(entry.helpers(), lines) }
+    val preview by produceState(RefundPreview(), selected) { value = refundPreview(entry.helpers(), selected) }
     LaunchedEffect(model, state.signedIn) { if (state.signedIn) model.load() }
     PosScaffold(
         area = HeaderArea.REPORTS,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_reports"),
-        overlay = { ReportsOverlay(state, callbacks) },
+        overlay = { ReportsOverlay(state, delivery, RefundUi(amounts, preview), callbacks) },
     ) {
         ReportsContent(state, callbacks)
     }
@@ -81,7 +92,7 @@ internal fun ReportsContent(
             when (state.tab) {
                 ReportsTab.DAY -> DayTab(state.day, callbacks.day)
                 ReportsTab.CASH -> CashTab(state.cash, callbacks.cash)
-                ReportsTab.TICKETS -> Unit
+                ReportsTab.TICKETS -> TicketsTab(state.tickets, callbacks.tickets)
             }
         }
     }
@@ -113,15 +124,19 @@ private fun tabKey(tab: ReportsTab): String =
     }
 
 /**
- * The dialogs of the screen, for the scaffold's overlay slot: the Z history and the two amount keypads. Nothing is
- * drawn while no dialog is open.
+ * The dialogs of the screen, for the scaffold's overlay slot: the Z history, the two amount keypads, the copy flow
+ * and the refund flow. Nothing is drawn while no dialog is open.
  */
 @Composable
 internal fun BoxScope.ReportsOverlay(
     state: ReportsState,
+    delivery: ReportsDelivery,
+    refund: RefundUi,
     callbacks: ReportsCallbacks,
 ) {
     if (!state.signedIn) return
     if (state.day.zListOpen) ZListDialog(state.day.zHistory, callbacks.day)
     CashDialogs(state.cash, callbacks.cash)
+    state.copyFlow?.let { CopyDialog(it, delivery, callbacks) }
+    state.refundFlow?.let { RefundDialog(it, state.tickets.refundable, delivery, refund, callbacks) }
 }

@@ -10,9 +10,11 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
+import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
@@ -21,7 +23,18 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.CopyResult
+import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.DeliveryOutcome
+import uniffi.pos_ffi.EmailStatus
+import uniffi.pos_ffi.MailStatus
+import uniffi.pos_ffi.RefundableEvent
+import uniffi.pos_ffi.TicketMedium
+import uniffi.pos_ffi.VatCode
+import uniffi.pos_ffi.VatSplitRow
 
+@Suppress("TooManyFunctions", "LargeClass")
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")
 class ReportsContentTest {
@@ -57,17 +70,36 @@ class ReportsContentTest {
                     onOpenDrawer = { calls += "drawer" },
                     onSubmit = { calls += "submit" },
                 ),
+            tickets =
+                TicketsCallbacks(
+                    onCopy = { calls += "copy:$it" },
+                    onCopyConfirm = { calls += "copy-confirm" },
+                    onCopyClose = { calls += "copy-close" },
+                    onRefund = { calls += "refund:${it.fiscalEventId}" },
+                    onToggleLine = { calls += "toggle:$it" },
+                    onQuantity = { id, delta -> calls += "qty:$id:$delta" },
+                    onRefundNext = { calls += "refund-next" },
+                    onRefundBack = { calls += "refund-back" },
+                    onRefundConfirm = { calls += "refund-confirm" },
+                    onRefundClose = { calls += "refund-close" },
+                    describeError = { "Refus: $it" },
+                ),
+            delivery = DeliveryCallbacks(onPaper = { calls += "paper" }),
         )
 
     private val base = ReportsState(signedIn = true)
 
-    private fun show(state: ReportsState) {
+    private fun show(
+        state: ReportsState,
+        delivery: ReportsDelivery = ReportsDelivery(),
+        refund: RefundUi = RefundUi(),
+    ) {
         compose.setContent {
             PiliTheme {
                 ProvideUiText(AppLanguage.FR, catalog) {
                     Box(Modifier.fillMaxSize()) {
                         ReportsContent(state, callbacks)
-                        ReportsOverlay(state, callbacks)
+                        ReportsOverlay(state, delivery, refund, callbacks)
                     }
                 }
             }
@@ -338,5 +370,321 @@ class ReportsContentTest {
         compose.onNodeWithTag("amount_cancel").performClick()
 
         assertEquals(listOf("declaration-close"), calls)
+    }
+
+    // ── Tickets tab ───────────────────────────────────────────────
+
+    private fun tickets(
+        copyables: List<CopyableTicket> = emptyList(),
+        refundables: List<RefundableEvent> = emptyList(),
+        loaded: Boolean = true,
+    ) = base.copy(
+        tab = ReportsTab.TICKETS,
+        tickets =
+            TicketsState(
+                loaded = loaded,
+                copyable = copyables,
+                refundable = refundables,
+                rows = mergeRows(copyables, refundables),
+            ),
+    )
+
+    @Test
+    fun theTicketsTabListsEveryTicketWithItsKindTableTimeAndAmount() {
+        show(tickets(listOf(copyable(3L), copyable(2L, label = "T"), copyable(1L, label = "P")), listOf(refundable(3L))))
+
+        compose.onNodeWithTag("tickets_title").assertTextEquals("Tickets récents")
+        compose.onNodeWithTag("ticket_number_3").assertTextEquals("#3")
+        compose.onNodeWithTag("ticket_kind_3").assertTextEquals("Vente")
+        compose.onNodeWithTag("ticket_kind_2").assertTextEquals("Formation")
+        compose.onNodeWithTag("ticket_kind_1").assertTextEquals("Addition")
+        compose.onNodeWithTag("ticket_table_3").assertTextEquals("T4")
+        // 12:00 UTC is 14:00 in Brussels.
+        compose.onNodeWithTag("ticket_time_3").assertTextEquals("14:00")
+        compose.onNodeWithTag("ticket_total_3").assertTextEquals("10,00 €")
+    }
+
+    @Test
+    fun aRefundTicketIsNamedAndShownWithItsNegativeAmount() {
+        show(tickets(listOf(copyable(5L, totalCents = -500L))))
+
+        compose.onNodeWithTag("ticket_kind_5").assertTextEquals("Remboursement")
+        compose.onNodeWithTag("ticket_total_5").assertTextEquals("-5,00 €")
+    }
+
+    @Test
+    fun theCopyButtonIsOfferedForACopyableTicketAndTheRefundButtonForARefundableOne() {
+        show(tickets(listOf(copyable(3L), copyable(2L)), listOf(refundable(3L), refundable(1L))))
+
+        compose.onNodeWithTag("ticket_copy_3").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_refund_3").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_copy_2").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_refund_2").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_copy_1").assertDoesNotExist()
+        compose.onNodeWithTag("ticket_refund_1").assertIsDisplayed()
+    }
+
+    @Test
+    fun theCopyAndRefundButtonsCallBackWithTheirTicket() {
+        show(tickets(listOf(copyable(3L)), listOf(refundable(3L))))
+
+        compose.onNodeWithTag("ticket_copy_3").performClick()
+        compose.onNodeWithTag("ticket_refund_3").performClick()
+
+        assertEquals(listOf("copy:3", "refund:3"), calls)
+    }
+
+    @Test
+    fun anEmptyListAfterTheLoadSaysThereIsNoTicket() {
+        show(tickets())
+
+        compose.onNodeWithTag("tickets_empty").assertTextEquals("Aucun ticket récent")
+    }
+
+    @Test
+    fun beforeTheFirstLoadNoEmptyMessageFlashes() {
+        show(tickets(loaded = false))
+
+        compose.onNodeWithTag("tickets_empty").assertDoesNotExist()
+    }
+
+    // ── Copy flow ─────────────────────────────────────────────────
+
+    private val mail = MailStatus(configured = true, reachable = true, allowDigitalOnly = true)
+
+    private fun copying(
+        step: CopyStep,
+        kind: CopyTargetKind = CopyTargetKind.TICKET,
+        result: CopyResult? = null,
+    ) = base.copy(tab = ReportsTab.TICKETS, copyFlow = CopyFlow(7L, kind, step, result))
+
+    private fun outcome(
+        email: EmailStatus = EmailStatus.NOT_REQUESTED,
+        needsPaper: Boolean = false,
+        printed: Boolean = true,
+    ) = DeliveryOutcome(8L, 1L, TicketMedium.PAPER, email, "a***@x.be", printed, needsPaper)
+
+    @Test
+    fun theCopyPickerOpensBeforeAnythingIsSignedAndOffersTheMediums() {
+        show(copying(CopyStep.PICKER), ReportsDelivery(mail))
+
+        compose.onNodeWithText("Copie de ticket").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_medium_picker").assertIsDisplayed()
+        compose.onNodeWithTag("medium_paper").assertIsDisplayed()
+        compose.onNodeWithTag("copy_confirm").performClick()
+        compose.onNodeWithTag("copy_back").performClick()
+
+        assertEquals(listOf("copy-confirm", "copy-close"), calls)
+    }
+
+    @Test
+    fun theCopyOfAZIsNamedReprintAndPaperStaysTheSilentDefaultWithoutMail() {
+        show(copying(CopyStep.PICKER, CopyTargetKind.Z), ReportsDelivery(mailStatus = null))
+
+        compose.onNodeWithText("Réimprimer").assertIsDisplayed()
+        compose.onNodeWithTag("ticket_medium_picker").assertDoesNotExist()
+    }
+
+    @Test
+    fun theMediumButtonsCallTheDeliveryStore() {
+        show(copying(CopyStep.PICKER), ReportsDelivery(mail))
+
+        compose.onNodeWithTag("medium_paper").performClick()
+
+        assertEquals(listOf("paper"), calls)
+    }
+
+    @Test
+    fun whileTheCopyIsSignedOnlyTheProgressIsShown() {
+        show(copying(CopyStep.PROCESSING), ReportsDelivery(mail))
+
+        compose.onNodeWithTag("copy_processing").assertIsDisplayed()
+        compose.onNodeWithTag("copy_confirm").assertDoesNotExist()
+        compose.onNodeWithTag("copy_done").assertDoesNotExist()
+    }
+
+    @Test
+    fun aSignedCopyShowsWhatHappenedToTheTicketAndFinishes() {
+        val result = copyResult().also { it.delivery = outcome(EmailStatus.SENT) }
+        show(copying(CopyStep.RESULT, result = result), ReportsDelivery(mail))
+
+        compose.onNodeWithTag("delivery_message").assertTextContains("a***@x.be", substring = true)
+        compose.onNodeWithTag("copy_error").assertDoesNotExist()
+        compose.onNodeWithTag("copy_done").performClick()
+
+        assertEquals(listOf("copy-close"), calls)
+    }
+
+    @Test
+    fun aRefusedCopyShowsTheTextOfTheRefusal() {
+        show(copying(CopyStep.RESULT, result = copyResult(success = false, error = "boom")), ReportsDelivery(mail))
+
+        compose.onNodeWithTag("copy_error").assertTextEquals("Refus: boom")
+    }
+
+    @Test
+    fun theOnePrintActionIsOfferedWhenThePaperOriginalIsMissingAndTheOperatorMayTakePayments() {
+        val result = copyResult().also { it.delivery = outcome(needsPaper = true, printed = false) }
+        show(copying(CopyStep.RESULT, result = result), ReportsDelivery(mail, canPrintMissing = true))
+
+        compose.onNodeWithTag("delivery_print_missing").assertIsDisplayed()
+    }
+
+    @Test
+    fun theOnePrintActionIsHiddenFromAnOperatorWhoMayNotTakePayments() {
+        val result = copyResult().also { it.delivery = outcome(needsPaper = true, printed = false) }
+        show(copying(CopyStep.RESULT, result = result), ReportsDelivery(mail, canPrintMissing = false))
+
+        compose.onNodeWithTag("delivery_print_missing").assertDoesNotExist()
+    }
+
+    // ── Refund flow ───────────────────────────────────────────────
+
+    private val lineOne = orderLine(1L, quantity = 3)
+    private val lineTwo = orderLine(2L, quantity = 1)
+
+    private fun refunding(
+        step: RefundStep,
+        checked: Map<Long, Int> = emptyMap(),
+        result: CheckoutResult? = null,
+    ) = base.copy(
+        tab = ReportsTab.TICKETS,
+        tickets = TicketsState(loaded = true, refundable = listOf(refundable(7L))),
+        refundFlow = RefundFlow(step, refundable(7L), listOf(lineOne, lineTwo), checked, result),
+    )
+
+    private val amounts = mapOf<Long, LineAmount>(1L to LineAmount.Total(1_500L), 2L to LineAmount.Total(500L))
+
+    private fun previewOf(
+        quantity: Int = 2,
+        amount: LineAmount = LineAmount.Total(1_000L),
+        cash: Long? = 995L,
+    ) = RefundPreview(
+        lines = listOf(PreviewLine(RefundSelection(lineOne, quantity), amount)),
+        vatRows = if (amount is LineAmount.Total) listOf(VatSplitRow(VatCode.B, 12L, 1_000L, 107L)) else emptyList(),
+        totalCents = if (cash != null) 1_000L else null,
+        cashCents = cash,
+    )
+
+    @Test
+    fun theRefundLinesStepShowsEveryLineWithTheEnginesAmountAndTheOriginalQuantity() {
+        show(refunding(RefundStep.CHOOSE_LINES), refund = RefundUi(amounts))
+
+        compose.onNodeWithText("Articles à rembourser · #7").assertIsDisplayed()
+        compose.onNodeWithTag("refund_orig_1", useUnmergedTree = true).assertTextEquals("3x")
+        compose.onNodeWithTag("refund_amount_1", useUnmergedTree = true).assertTextEquals("15,00 €")
+        compose.onNodeWithTag("refund_amount_2", useUnmergedTree = true).assertTextEquals("5,00 €")
+        compose.onNodeWithTag("refund_next").assertIsNotEnabled()
+        compose.onNodeWithTag("refund_qty_1", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun tappingALineTicksItAndASelectedLineShowsItsStepper() {
+        show(refunding(RefundStep.CHOOSE_LINES, checked = mapOf(1L to 2)), refund = RefundUi(amounts, previewOf()))
+
+        compose.onNodeWithTag("refund_qty_1", useUnmergedTree = true).assertTextEquals("2")
+        compose.onNodeWithTag("refund_minus_1").performClick()
+        compose.onNodeWithTag("refund_plus_1").performClick()
+        compose.onNodeWithTag("refund_line_2").performClick()
+
+        assertEquals(listOf("qty:1:-1", "qty:1:1", "toggle:2"), calls)
+    }
+
+    @Test
+    fun theNextButtonCarriesTheCashAmountTheEngineRoundedAndOpensTheDelivery() {
+        show(refunding(RefundStep.CHOOSE_LINES, checked = mapOf(1L to 2)), refund = RefundUi(amounts, previewOf()))
+
+        compose.onNodeWithTag("refund_next").assertTextContains("Rembourser 9,95 €", substring = true)
+        compose.onNodeWithTag("refund_next").assertIsEnabled()
+        compose.onNodeWithTag("refund_next").performClick()
+        compose.onNodeWithTag("refund_close").performClick()
+
+        assertEquals(listOf("refund-next", "refund-close"), calls)
+    }
+
+    @Test
+    fun theVatSummaryOfTheSelectionIsShownUnderTheLines() {
+        show(refunding(RefundStep.CHOOSE_LINES, checked = mapOf(1L to 2)), refund = RefundUi(amounts, previewOf()))
+
+        compose.onNodeWithTag("refund_vat").assertTextContains("12%", substring = true)
+    }
+
+    @Test
+    fun theConfirmationShowsTheSelectedLinesTheVatSummaryAndThePreviewTotal() {
+        show(refunding(RefundStep.DELIVERY, mapOf(1L to 2)), ReportsDelivery(mail), RefundUi(amounts, previewOf()))
+
+        compose.onNodeWithTag("refund_recap_1").assertTextContains("2 × item1", substring = true)
+        compose.onNodeWithTag("refund_recap_1").assertTextContains("10,00 €", substring = true)
+        compose.onNodeWithTag("refund_vat").assertTextContains("12%", substring = true)
+        compose.onNodeWithTag("refund_total").assertTextEquals("9,95 €")
+        compose.onNodeWithTag("refund_confirm").assertTextContains("Rembourser 9,95 €", substring = true)
+        compose.onNodeWithTag("ticket_medium_picker").assertIsDisplayed()
+        compose.onNodeWithTag("refund_total_unavailable").assertDoesNotExist()
+    }
+
+    @Test
+    fun aSelectedLineWithVatCodeXHidesThePreviewTotal() {
+        val preview = previewOf(amount = LineAmount.PerUnit(2, 500L), cash = null)
+        show(refunding(RefundStep.DELIVERY, mapOf(1L to 2)), ReportsDelivery(mail), RefundUi(amounts, preview))
+
+        compose.onNodeWithTag("refund_recap_1").assertTextContains("2 × 5,00 €", substring = true)
+        compose.onNodeWithTag("refund_total").assertDoesNotExist()
+        compose.onNodeWithTag("refund_total_unavailable").assertIsDisplayed()
+        compose.onNodeWithTag("refund_confirm").assertTextEquals("Rembourser")
+    }
+
+    @Test
+    fun theLinesStepWithAnXLineShowsNoTotalOnTheNextButtonEither() {
+        val preview = previewOf(amount = LineAmount.PerUnit(2, 500L), cash = null)
+        show(refunding(RefundStep.CHOOSE_LINES, mapOf(1L to 2)), refund = RefundUi(amounts, preview))
+
+        compose.onNodeWithTag("refund_next").assertTextEquals("Rembourser")
+    }
+
+    @Test
+    fun theConfirmButtonSignsAndTheBackButtonReturnsToTheLines() {
+        show(refunding(RefundStep.DELIVERY, mapOf(1L to 2)), ReportsDelivery(mail), RefundUi(amounts, previewOf()))
+
+        compose.onNodeWithTag("refund_confirm").performClick()
+        compose.onNodeWithTag("refund_back").performClick()
+
+        assertEquals(listOf("refund-confirm", "refund-back"), calls)
+    }
+
+    @Test
+    fun whileTheRefundIsSignedOnlyTheProgressIsShown() {
+        show(refunding(RefundStep.PROCESSING, mapOf(1L to 2)))
+
+        compose.onNodeWithTag("refund_processing").assertIsDisplayed()
+        compose.onNodeWithTag("refund_confirm").assertDoesNotExist()
+    }
+
+    @Test
+    fun aSignedRefundShowsWhatHappenedToTheTicketAndFinishes() {
+        val result = checkoutResult().also { it.delivery = outcome(EmailStatus.QUEUED) }
+        show(refunding(RefundStep.RESULT, result = result), ReportsDelivery(mail))
+
+        compose.onNodeWithTag("delivery_message").assertIsDisplayed()
+        compose.onNodeWithTag("refund_error").assertDoesNotExist()
+        compose.onNodeWithTag("refund_done").performClick()
+
+        assertEquals(listOf("refund-close"), calls)
+    }
+
+    @Test
+    fun aRefusedRefundShowsTheTextOfTheRefusal() {
+        show(refunding(RefundStep.RESULT, result = checkoutResult(success = false, error = "boom")), ReportsDelivery(mail))
+
+        compose.onNodeWithTag("refund_error").assertTextEquals("Refus: boom")
+    }
+
+    @Test
+    fun theRefundCanStartFromTheListOfRefundableSales() {
+        val state = refunding(RefundStep.CHOOSE_EVENT).copy(refundFlow = RefundFlow(RefundStep.CHOOSE_EVENT))
+        show(state)
+
+        compose.onNodeWithTag("refund_event_7").performClick()
+
+        assertEquals(listOf("refund:7"), calls)
     }
 }
