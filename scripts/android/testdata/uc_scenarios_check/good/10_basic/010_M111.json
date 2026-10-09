@@ -1,0 +1,150 @@
+{
+  "format": 1,
+  "id": "M111",
+  "ids": [
+    "M111",
+    "M110"
+  ],
+  "title": "Sale, refund and mock commands",
+  "steps": [
+    {
+      "cmd": "login",
+      "args": {
+        "insz": "94060242576",
+        "pin": "1111"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "args": {
+        "input": {
+          "order_type": "takeaway",
+          "table_number": null,
+          "user_insz": "94060242576"
+        }
+      },
+      "save": "order"
+    },
+    {
+      "cmd": "add_order_line",
+      "args": {
+        "input": {
+          "order_id": "$order.id",
+          "menu_item_id": 10006,
+          "quantity": 2,
+          "modifiers_json": null
+        }
+      }
+    },
+    {
+      "cmd": "checkout",
+      "args": {
+        "orderId": "$order.id",
+        "payments": [
+          {
+            "method": "cash"
+          }
+        ]
+      },
+      "save": "sale",
+      "expect": {
+        "fields": {
+          "success": true
+        }
+      }
+    },
+    {
+      "cmd": "refund_checkout",
+      "args": {
+        "originalFiscalEventId": "$sale.fiscal_event_id",
+        "items": [
+          {
+            "menuItemId": 10006,
+            "quantity": 1
+          }
+        ],
+        "employeeInsz": "94060242576"
+      },
+      "save": "refund"
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "args": {
+        "limit": 5
+      },
+      "save": "events"
+    },
+    {
+      "cmd": "copy_ticket",
+      "args": {
+        "fiscalEventId": "$events.0.id",
+        "employeeInsz": "94060242576",
+        "delivery": {
+          "medium": "paper"
+        }
+      },
+      "expect": {
+        "fields": {
+          "success": true
+        }
+      }
+    },
+    {
+      "cmd": "fdm_control",
+      "args": {
+        "errors": [
+          "FDM_LOCKED"
+        ],
+        "bufferPct": 12.5
+      }
+    },
+    {
+      "cmd": "sleep_ms",
+      "args": {
+        "ms": 200
+      }
+    },
+    {
+      "cmd": "checkout",
+      "args": {
+        "orderId": "$order.id",
+        "payments": [
+          {
+            "method": "cash"
+          }
+        ]
+      },
+      "expect": {
+        "error": "FDM_LOCKED"
+      },
+      "repeat": 2
+    },
+    {
+      "cmd": "fdm_control_reset",
+      "args": {}
+    },
+    {
+      "cmd": "printer_control",
+      "args": {
+        "paper": "near_end",
+        "coverOpen": false
+      }
+    },
+    {
+      "cmd": "generate_x_report",
+      "args": {
+        "employeeInsz": "94060242576"
+      }
+    }
+  ],
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M111_signSale_Refund",
+  "fixtureDeviations": [
+    {
+      "path": "transaction.transactionLines.0.mainProduct.productId",
+      "reason": "same reason as the Linux test"
+    }
+  ],
+  "compare": {
+    "status": "shape"
+  }
+}
