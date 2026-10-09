@@ -870,6 +870,155 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   - **UI-PD322 Follow-ups for a later UI polish card** (none blocking, none fiscal; the engine settles, rounds and refuses): (1) disable checkout validate while an amount recompute is pending (`CheckoutViewModel`); (2) take the `OrderStore` generation at mutex acquisition so a reset during a cart command is not undone; (3) `WebshopOrdersStore.publish` checks `active`; (4) a login that completes after `forget()` does not remember the user (`SessionStore`); (5) the header lock never waits on the shared busy flag, and `TablesViewModel` serializes its init and resume loads; (6) `ReportsViewModel` checks the flow identity when a copy or refund answer arrives, and the PROCESSING step stays non-dismissable; (7) `HubriseViewModel` ignores writes after its reset; (8) comment nits: `strings_ui_order.xml` header comment, `CategoryTabs.kt` KDoc, the sentence at `PARITY.md:25` that credits P5b-T12 with the prune done in `4239a90`; (9) `OrderLineItem.lineNotes` treats `NaN` and `Infinity` as JSON would; (10) the PD244 items left open by UI-PD311 (QR placeholder size, toast slide-in, `ui-money` heuristic gaps).
   - **UI-PD323 Device checks for P7.** The order chime plays with `USAGE_NOTIFICATION` (`OrderChime.kt`); on a kiosk the notification volume or Do Not Disturb can silence it, where Vue plays on the media output. The P7 runbook checks it on both emulators and on the device, with the status lights against a real FDM and Epson, and the FDM banner on the login screen.
   - **UI-PD324 Gate evidence at the exit.** The static phase checks were rerun by the planner at `47afe44` and pass (freeze, frozen paths, lane scope, lanes, Kotlin inventory removed 0 against `B` and `S`, strict parity), and so did the exit gate `p5_gate.sh --exit --parity-strict` (figures in the report). The app e2e run (`p4_gate.sh --fast --app-e2e`, 11 of 11) and the rerun Gradle tests are the wave 4 integrator's, on the same code. The root Rust inventory ran at the wave 3 integration (`ws 1482 >= 1355`) and the UI lane changed no Rust since. `p4_gate.sh --exit --root --android` and the Linux reproduction (`9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`) are left to the `android/int` merge (PD249, UI-PD315). The SD card answer is unchanged (PD248, UI-PD318): the database and its backups are in app-private internal storage, the card is only an export target, and its size (a good 16 or 32 GB A1 card) is an estimate until research card SD-1 measures it.
+- **P6 planner (platform lane, 2026-10-08):** decisions of the platform lane, cards in docs/android/phases/P6.md.
+  - **PD201 Card layout.** Eleven cards in seven waves, at most two per wave (the Mac is shared with the UI lane):
+    - Wave 1: the shared foundation hooks (T1), alone in its wave (LANES.md "Shared changes").
+    - Wave 2: the P6 gate and the no-backup checks (T2); the audit log and the crash watchdog (T5).
+    - Wave 3: the device-owner policies (T3); the About screen and the identity report (T4).
+    - Wave 4: the SPF export (T6); the updater verification core (T7).
+    - Wave 5: the updater install and its screen (T8); `declare_android.sh` (T9).
+    - Wave 6: the APK reproducibility check moved to `:app` (T10), alone because Docker under amd64 emulation is heavy.
+    - Wave 7: the emulator end-to-end run of the platform features (T11), alone.
+
+    Plan mapping:
+    - SPF access = T6;
+    - About = T4;
+    - declared-only updater = T7, T8;
+    - device-owner restrictions = T3;
+    - no cloud backup = T2;
+    - crash restart = T5 (+ T1 pump fix);
+    - release tooling = T9, T10.
+  - **PD202 Gates and bases.** Cards branch from `android/lane-plat` at their wave start.
+    - Until `scripts/android/p6_gate.sh` is merged (waves 1 and 2), a card runs `p4_gate.sh --app --fast --base android/lane-plat --allow <regex>` on every commit and `p4_gate.sh --app ...` without `--fast` at the end.
+    - From wave 3 on, the same profiles go through `p6_gate.sh`, which runs `p4_gate.sh` and adds the P6 checks.
+    - A reviewer of a card already merged gates against the card's fork point (PD116).
+    - Card regex: `python3 scripts/android/lane_paths.py --regex platform`. T1 has its own explicit regex.
+  - **PD203 Foundation hooks (T1, shared).** The lane needs four things the foundation does not offer. T1 adds them with tests, in one card alone in wave 1:
+    - an `AppLifecycleHook` set (Hilt `@Multibinds` in `di/`), called by `PiliApplication.onCreate` and by `MainActivity.onCreate` (after `kiosk.prepare()`) and `onResume` (after `kiosk.relock`, before `EngineService.start`), each hook isolated in try/catch;
+    - `EngineGateway.state` (read-only `StateFlow<EngineState>`) and `EngineGateway.close()` (delegates to `EngineHolder.close()`, for the updater only);
+    - `EngineHelpers.verifyMinisign(...)` (the updater may not call the uniffi free function, `ffi-boundary`);
+    - the restart-related P4 finding in `engine/` (PD122): when the event stream ends while the state is Ready, the pump calls `markFatal`.
+
+    T1 also adds to LANES.md the platform rules for `scripts/android/(test_)?plat_*.sh|py`, `scripts/android/testdata/plat_*/`, `test/screenshots/platform/` and `test/resources/platform/`, their probes, and a "Platform routes" section. The other PD122 findings (`provisioning/`, `kiosk/`, `shell/`, scripts, including `Closed(Shutdown)` shown as Opening in `ShellState.kt`) are not in this lane.
+  - **PD204 Strings files.** The brief named one `strings_platform.xml`, but LANES.md only owns `strings_plat_<area>.xml` with the prefix `plat_<area>_` (`lane_paths.py --check` would fail on the other name). The lane uses `strings_plat_about.xml` (exists), `strings_plat_policy.xml`, `strings_plat_watchdog.xml`, `strings_plat_export.xml` and `strings_plat_update.xml`. French is in `values/`, with English and Chinese in `values-en/` and `values-zh/`. Each file has the same key set in all three folders (gate check `plat-strings`).
+  - **PD205 Routes and Settings rows** (published in LANES.md "Platform routes" and `PLATFORM.md`):
+
+    | Route | Settings row id | Order | Who sees the row |
+    |-------|-----------------|-------|------------------|
+    | `platform/about` | `platform.about` | 900 | everyone (`managerOnly = false`) |
+    | `platform/export` | `platform.export` | 910 | managers only |
+    | `platform/update` | `platform.update` | 920 | managers only |
+
+    All three are registered by `PlatformEntry`; the UI lane's Settings screen lists them from the `SettingsEntry` set.
+  - **PD206 Device-owner policies.** `platform/policy/` applies, at every application start and every activity start, each step isolated and its failures audited:
+    - the Q16 set: 12 user restrictions plus `no_system_error_dialogs`;
+    - `setUninstallBlocked`;
+    - auto time on, auto time zone off, `Europe/Brussels`;
+    - stay awake 7;
+    - keyguard and status bar disabled;
+    - the postpone system update policy;
+    - `setLockTaskFeatures(NONE)`, which runs after `KioskController.prepare()` and so overrides its GLOBAL_ACTIONS.
+
+    This answers the P4 exit question 2 while the user is away: in production the staff lose the power menu. Exceptions:
+    - `DISALLOW_DEBUGGING_FEATURES` (adb off) is applied only in release builds, and only once a provisioning record exists. Debug builds never apply it (the emulator loop needs adb).
+    - `DISALLOW_MOUNT_PHYSICAL_MEDIA` and `DISALLOW_CONFIG_WIFI` stay off.
+    - There is no timed adb (DECISIONS 7).
+
+    The policies end when the debug teardown clears the device owner.
+  - **PD207 Crash watchdog.** `platform/watchdog/EngineWatchdog` watches `EngineGateway.state` from the application scope.
+    - **On Fatal:** it writes an audit row, waits 3 s (logs flush, the fatal screen is seen), records the restart and kills its own process (`Process.killProcess(myPid())` behind an injectable killer). The system restarts the persistent HOME app and the START_STICKY service. It never uses `am force-stop` (PD118).
+    - **Budget:** 3 restarts in 10 minutes (wall clock, persisted in `filesDir/platform/restarts.json`). Beyond that it stays on the fatal screen and audits "budget exhausted".
+    - **Closed(Shutdown) for more than 60 s,** while no platform operation (update, export) is running: it calls `EngineService.start(context)` and audits it.
+    - **`BootReceiver`:** audits the boot and starts `MainActivity` as a fallback to HOME.
+  - **PD208 Platform audit log.** `filesDir/platform/audit.jsonl`, one JSON object per line: `ts` (ISO 8601 with the Europe/Brussels offset), `kind`, `event`, `detail` (string map), `versionCode`, `versionName`, `pid`.
+    - Every append is fsynced; rotation at 1 MiB keeps 5 files (`audit.jsonl.1` to `.5`).
+    - It is not the fiscal journal and is never sent anywhere. It is part of the SPF export.
+  - **PD209 About and identity.** `platform/about/IdentityProvider` builds an `IdentityReport`:
+    - application id, versionName, versionCode, `posSwVersion` (`EngineHelpers.posSwVersion`), the engine reference;
+    - SHA-1 and SHA-256 of the installed `base.apk` (`applicationInfo.sourceDir`), SHA-1 of the `lib/arm64-v8a/libpos_ffi.so` entry read from that APK (it is stored uncompressed and not extracted), SHA-256 of the signing certificates;
+    - deviceId (the provisioning record), posId and terminalId (`getSettings` when Ready);
+    - Android release, SDK, build fingerprint, manufacturer and model;
+    - free internal bytes, count and bytes of `engine/backups/`.
+
+    Hashes are cached per `(sourceDir, lastUpdateTime)`. The engine reference is the non-translatable string `plat_about_engine_ref` = `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`; a gate check compares it with the freeze tag, so a re-freeze must update it. The About screen shows the report; the export writes it as `identity.json`.
+  - **PD210 SPF export** (AM Art. 16/102; Linux practice: `FEUILLE_ACQUISITION_DONNEES_FR.md` section 7 = full `pos.db`, logs, SHA-1 of the binary). The flow follows Q17:
+    - a manager-only screen, refused while an order or takeaway is open;
+    - pre-check of a mounted removable non-primary volume ("Insert the USB stick or SD card");
+    - picker `StorageVolume.createOpenDocumentTreeIntent()` from the locked activity (never `FLAG_ACTIVITY_NEW_TASK`), the root refused with the hint to create `PILI-EXPORT`;
+    - a persisted grant per volume uuid, and "Change folder" releases the old grant.
+
+    Export folder `pili-export-<yyyyMMdd-HHmmss>-<deviceId>` with:
+    - `pos.db` (a fresh `backupDatabase()`);
+    - `backups/` (the 7 newest older backups);
+    - `backups.txt` (inventory of every backup: name, bytes, SHA-256);
+    - `logs/` (engine logs);
+    - `audit/` (platform audit files);
+    - `identity.json`;
+    - `LISEZMOI.txt` (French, brand-neutral: what the files are, how to check `MANIFEST.sha256` with `shasum -a 256 -c`);
+    - `MANIFEST.sha256` (sha256sum format), written last.
+
+    There is no staging copy: each file is hashed while it streams to the volume, `fd.sync()`, then read back through the content resolver and hashed again. A mismatch fails the export. Nothing on the volume is deleted, even on error. A write failure on a file of 4 GiB or more says "the stick is probably FAT32, use exFAT". Every export is audited (files, bytes, result).
+  - **PD211 Update source format.** One signed descriptor `declared.json` per declared Android version:
+    `{"format":1,"platform":"android","package":"dev.nuagemagique.pilipos","version":"X.Y.Z","versionCode":N,"asset":"pili-pos-android-X.Y.Z.apk","sha1":"..","sha256":"..","signerSha256":"..","declared_at":".."}`
+    with `declared.json.minisig` (trusted comment `pili-pos-android X.Y.Z declared <ts>`).
+    - **Online:** an OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (same package as the Linux `:declared`), pulled anonymously:
+      1. `GET /token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`;
+      2. the manifest (`application/vnd.oci.image.manifest.v1+json`); the layers are found by their `org.opencontainers.image.title` annotation;
+      3. the blobs, checked against their digest. Redirects are followed by hand, and the bearer token is never sent to another host.
+    - **USB (Q8):** the same three files in a SAF folder.
+    - **Limits:** APK 200 MB, descriptor 64 KB. HTTPS only in release builds. Debug builds read an optional override `filesDir/platform/registry.json` (`{"baseUrl":"http://127.0.0.1:<port>"}`), so the emulator test can reach a host mock through `adb reverse`; cleartext is already limited to 127.0.0.1 and localhost.
+  - **PD212 Declaration keys.** `res/xml/plat_update_keys.xml` holds the public minisign key per build type: `debug` = the committed development key (`android/app/provisioning/dev-minisign.pub`, a gate check compares them), `release` = empty until the user creates the declaration key (DECISIONS 9, Q7). With an empty key every update is refused (`plat_update_err_key_missing`).
+  - **PD213 Update preconditions** (interim). The FFI has no engine-side update precheck, and the engine is frozen. The updater composes the check from engine answers only; it computes no money and signs nothing:
+    - the current user is Admin (`getCurrentUser`);
+    - `listOpenOrders()` and `listOpenTakeaways()` are empty;
+    - `needsZReport()` is false;
+    - no fiscal event newer than the newest Z report's `fiscalEventId` (`listFiscalEvents(200)`) has a type other than the presence (work in, work out) types of `crates/pos-fiscal`;
+    - or the till has no fiscal event at all;
+    - then `EngineGateway.close()` must return `Closed` (the engine shutdown waits for a call in flight and stops the background loops). `StillOpen` refuses the update.
+
+    Question for the user: an engine `update_precheck` (booking period closed, no pending sign) together with the re-freeze.
+  - **PD214 Manager PIN.** The plan's "manager PIN" is the logged-in Admin session (the manager typed the PIN to log in). The updater and the export check `getCurrentUser()` again right before they act. There is no second PIN prompt, because a new `login` would queue a clock-in.
+  - **PD215 Install flow** (Q18). Order:
+    1. preconditions;
+    2. verification (PD211, PD212: minisign, JSON, package, versionCode strictly greater than the installed one, download, SHA-256 and SHA-1, archive info: package, versionCode, versionName, signer set equal to the installed one and to `signerSha256`);
+    3. `backupDatabase()`;
+    4. `EngineGateway.close()`;
+    5. a fsynced marker `filesDir/platform/update/pending.json`;
+    6. the audit row "started";
+    7. a PackageInstaller session (`MODE_FULL_INSTALL`, `USER_ACTION_NOT_REQUIRED`, `INSTALL_REASON_POLICY`), committed with an explicit mutable PendingIntent to `InstallResultReceiver`.
+
+    Afterwards:
+    - **Refusal:** no session, the file is deleted.
+    - **Failure status:** audit, marker deleted, engine reopened with `EngineService.start`.
+    - **`STATUS_PENDING_USER_ACTION`:** the session is abandoned and recorded as an error.
+    - **Success:** the "done" row is written by the new process (`UpdateCompletionHook`, from the marker).
+    - **Restart:** `PackageReplacedReceiver` starts `MainActivity`.
+    - **No rollback:** a faulty version is fixed by a newer declared version (DECISIONS 6).
+  - **PD216 Release tooling.** `scripts/release/declare.sh` (Linux) lives on the unmerged `feat/usb-autoinstall` branch; a copy here would conflict at that merge. The Android declaration is therefore its own script, `scripts/release/declare_android.sh`; `declare.sh --android` gets a one-line dispatch when `feat/usb-autoinstall` is merged (the user's step). What the script does:
+    - signs the reproducible unsigned APK (RSA only, v1 off, v2 and v3 on, pinned build-tools 35.0.0);
+    - checks the SHA-1 the SPF accepted;
+    - writes and signs `declared.json` and pushes tag `declared-android` with `oras`.
+
+    The tag scheme is `android-vX.Y.Z` = versionName. The script refuses `-dev` versions and EC keys. The chain only runs it with `--dry-run` against throwaway keys in `mktemp` dirs, with stub `oras` and `gh`.
+  - **PD217 APK reproducibility on `:app`.** The container build (`android/docker/build_in_container.sh`) builds `:app:assembleRelease` instead of `:smoke` (PD80, PD114). `check_repro.sh` compares two `app-release-unsigned.apk`; `:smoke` stays in the host gates. `android.yml` builds and checks the `:app` APK too (never triggered by the chain). `REPRO.md` records the SHA-1 and the image digest.
+  - **PD218 Emulator.** Only P6-T11 and the phase exit start or reuse `sunmi_d3_pro_api33`, never while another AVD runs (`scripts/android/emulator.sh ensure`). The removable volume is vold's virtual SD disk (S4-T4, Q20; `sm set-virtual-disk true` if absent). Teardown as in `app_e2e.sh`: no owner, no package, no reverse rule, export folders removed. The AVD is never wiped.
+  - **PD219 Backup retention.** The engine keeps every post-Z backup forever (`signing.rs:761`) and P6 deletes none. The About screen shows the free space and the backups total, and the export copies the 7 newest. Retention is a question for the user (engine change, re-freeze).
+  - **PD220 Storage location.** The database, backups, logs and provisioning bundle stay in app-private internal storage. No `android:installLocation` (internalOnly) and no storage permissions; gate check `plat-manifest`. Removable media are reached only through SAF grants (export, update from a stick).
+  - **PD221 Exit without the user.** With the user away, the planner writes `P6-exit.md` and the lane waits for the integrator's merge into `android/int`. Merging into main, freezes, pushes, the release keys and `declare_android.sh` for real wait for the user.
+
+- **Integrator P6 wave 3 (2026-10-09):** `android/p6-P6-T3` then `android/P6-P6-T4` merged into `android/lane-plat` with no conflict. The phase gate passed on every check that does not need Docker (freeze tag, lane paths, Kotlin test inventory 318 to 460, scope regex, `p6_gate.sh --exit --android --root`, `p6_gate.sh --app --fast --plat-e2e --app-e2e`). `check_repro.sh` and `p4_gate.sh --linux-repro` could not run: the disk filled up during the run and the Docker daemon stopped answering (`docker info` hangs). The planner freed 13 GB of regenerable `target/` output of this worktree but did not restart Docker Desktop, because other lanes share it. These two Docker checks stay to be re-run once Docker is healthy, before the merge into `android/int`.
+- **Integrator P6 wave 4 (2026-10-09):** `android/P6-P6-T6` (SPF export) then `android/P6-P6-T7` (updater) merged into `android/lane-plat` with no conflict. The merge exposed one failing foundation test: `FeatureEntriesTest.allRoutesAreUnique` listed only `PlatformRoutes.ABOUT`, while T6 registers `PlatformRoutes.EXPORT` on the same `PlatformEntry`. Fixed by adding `PlatformRoutes.EXPORT` to the expected set (one line, commit `215be38`). That test lives under `nav/` (foundation scope, no other lane edits it), so the platform scope regex now lists it as the one out-of-scope file of the lane; it is expected and cannot conflict with `android/lane-ui`. The phase gate then passed on every check that does not need Docker (freeze tag, lane paths, Kotlin test inventory 318 to 632 with none removed, no em-dash, `p6_gate.sh --exit --android --root` 64 checks, `p6_gate.sh --app --fast --plat-e2e --app-e2e` 23 checks). `check_repro.sh` and `p4_gate.sh --linux-repro` could not run because the Docker daemon is not running; they stay to be re-run once Docker is up, before the merge into `android/int`.
+- **Integrator P6 wave 7 (2026-10-09):** `android/P6-P6-T11` (platform end-to-end run on the emulator) merged into `android/lane-plat` with no conflict. The merge brought the `androidTest` platform steps under the ktlint and detekt gates, which failed (file name, import order, long lines, throw count, loop jumps, a complex condition); fixed in one commit `986108b` without behavior change (`PlatformE2eSupport.kt` renamed `PlatformE2eEnv.kt`, one `e2eFail` helper replaces the repeated throws). After the fix: freeze tag, lane paths, Kotlin test inventory (318 to 727, none removed), no em-dash, `p6_gate.sh --exit --android --root` all green except the two items below, `plat_e2e.sh` alone on the emulator 19 checks PASS, `app-e2e` 11 checks PASS, `p4_gate.sh --fast --linux-repro` 22 checks with only the item below failing, and `check_repro.sh` PASS (two byte-identical unsigned APKs, SHA-1 `f7c9aab317c0759aa92458e9e7ddda36704eb61f`; run with `PILI_MIN_FREE_GB=14` because the shared disk had 18 GB free, the build itself uses about 9 GB; a first attempt hung inside the amd64 emulation with a zombie rustc and was killed, the second ran in 1131 s and 1008 s). Open, not caused by this merge: (1) `hygiene-paths` and the scope grep of the wave command list `scripts/release/declare_android.sh` and `test_declare_android.sh` (added by T9) and `android/app/src/test/.../nav/FeatureEntriesTest.kt` (the foundation test edited in wave 4 and wave 6, see above) as outside the platform scope, because the gate command does not pass `--extra-paths` for them; both are expected and lane-owned, the owner of `p3_gate.sh` should admit them before the merge into `android/int`; (2) `p6_gate.sh --app --fast` stops on `app-only-scope` because the lane touched `android/docker` and `pos-core` (P6-T10), so it needs the full gate, which the other runs cover; (3) `selftest-declare` failed once in one full gate run (`empty-release-key-refused`) and passed in the previous run and when run alone, so it is flaky, not a regression.
+- **P6 exit (planner, 2026-10-09), PD222 to PD230.** Recorded in `phases/P6-exit.md` with the gate evidence.
+  - **PD222 Exit gate profiles.** The phase gate's step 7 (`p6_gate.sh --app --fast --plat-e2e --app-e2e`) cannot pass on this lane: `app-only-scope` refuses the `--app` profile because P6-T10 changed `android/docker/` (by design, "use the full gate"). The planner ran the same emulator checks under the non-app profile, `p6_gate.sh --fast --plat-e2e --app-e2e --base ba57adf`. Step 6 ran as `--exit --android` without `--root`: the root inventory builds the Linux workspace twice and did not fit on the shared disk (11 to 17 GB free). P6 changed no root workspace path (`git diff --quiet ba57adf HEAD -- Cargo.toml Cargo.lock rust-toolchain.toml crates src-tauri ui deploy android/rust android/pos-core android/smoke` is empty), so the root inventory equals the one of `ba57adf` by construction, and the wave 3 and wave 4 integrators passed `--exit --android --root` (64 checks).
+  - **PD223 `hygiene-paths` on `scripts/release/`.** The one red check of every lane-wide gate run. `scripts/android/p4_gate.sh:310` calls `p2_gate.sh --hygiene-only` with `--allow` but without `--extra-paths`, and `p2_gate.sh` admits only `android/`, `scripts/android/` and `docs/android/` (plus what `--extra-paths` adds). `scripts/release/declare_android.sh` and `test_declare_android.sh` (P6-T9, platform lane per `lane_paths.py --regex platform`) are therefore refused. `p4_gate.sh` is a foundation file, so the platform lane does not edit it and does not waive the check. Fix for a foundation card on `android/int`: pass `--extra-paths '^(\.github/workflows/android\.yml|scripts/release/.*)$'` in `hy_args`, the same regex in `p3_gate.sh:225`, and a self-test case. Until then the check stays FAIL and the exit report says so.
+  - **PD224 `FeatureEntriesTest` is edited by the lane.** The integrators added `PlatformRoutes.EXPORT` (`215be38`) and `PlatformRoutes.UPDATE` (`e03146e`) to `nav/FeatureEntriesTest.kt`, a foundation test. The wave 4 record above says the platform scope regex lists it; it does not (`lane_paths.py --regex platform` does not match it, and `LANES.md` has no rule for it). It is the one file of the lane outside both the platform regex and P6-T1's regex. `android/lane-ui` does not edit it, so the merge does not conflict. A later platform route needs the same one-line edit, best made by a foundation card that lets the test read the routes from `PlatformRoutes` instead of a fixed set.
+  - **PD225 `KioskControllerTest` flake, cause found.** `KioskControllerTest.preparingAsOwnerKeepsOnlyTheGlobalActionsLockTaskFeature` (`KioskControllerTest.kt:75`) failed in the P6-T6 review, the P6-T9 review and the exit run (`app-screenshots`), and passed on rerun each time. The test has no `@Config(application = ...)`, so Robolectric starts the real `PiliApplication`, whose `onCreate` runs the P6-T3 `PolicyHook`; that hook applies the full policy set on the I/O dispatcher, `setLockTaskFeatures(0)` included. When that background apply sees the owner the test sets, it overwrites the `GLOBAL_ACTIONS` the test asserts. Production is not affected (the hook's synchronous call on the main thread also writes 0, and that is the intended end state, PD206). Fix for a foundation card: run `KioskControllerTest` on `HiltTestApplication` or a plain `Application` (as `DebugTeardownReceiverTest` does), with no change to `PolicyHook`.
+  - **PD226 Watchdog and platform operations.** `EngineWatchdog` waits for `PlatformOps.busy` to become empty and then reopens at once, instead of restarting the 60 s timer (P6-T5 review). The update keeps the `update` operation busy for 90 s after the commit (P6-T8), so the watchdog cannot reopen the engine while the PackageInstaller session runs. Kept as built.
+  - **PD227 Repro evidence at the exit.** `check_repro.sh` ran at `986108b` (wave 7 integrator): two byte-identical unsigned `:app` APKs, SHA-1 `f7c9aab317c0759aa92458e9e7ddda36704eb61f`. The exit head adds only documentation after `986108b`, which is not a build input, but changes `SOURCE_DATE_EPOCH`, so a rebuild at the exit head gives another SHA-1 that is just as reproducible. The SHA-1 of record comes later from `declare_android.sh` on the release commit. The Linux SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e` was reproduced from the tag on 2026-10-09 (`~/.cache/pili-freeze/p4-linux-repro.log`); it does not depend on the lane head. The planner did not rerun the two Docker builds (several lanes share the disk and Docker).
+  - **PD228 No freeze step at the P6 exit.** As PD121 and X1D27: the plan sets no tag at the end of P6, and the re-freeze `linux-v1.0.0-rc1` is the user's. `linux-v1.1.0-rc1` stays the tag the lane checks; the P6 exit check is recorded in `LINUX_FREEZE.md`.
+  - **PD229 Review findings carried forward.** The non-blocking findings of the eleven reviews are listed in `phases/P6-exit.md` ("Risks"). The platform ones go to one platform follow-up card in the next run; the foundation ones (PD223, PD224, PD225 and the `EngineEvents` Opening gap) go to a foundation card that runs alone.
+  - **PD230 GMS D3 Pro.** The plan's update of 2026-10-09 (the user buys the GMS variant) came after the P6 cards were written. P6 does not hide the Play Store, does not set `DISALLOW_INSTALL_APPS` and sets the postpone system update policy, not a windowed one outside service hours. These are a platform card for the next run (`platform/policy/`), together with the second AVD `sunmi_d3_pro_gms_api33` in `plat_e2e.sh`.
 
 ## Decided by the user
 

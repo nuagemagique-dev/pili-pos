@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import uniffi.pos_ffi.Disposable
 import uniffi.pos_ffi.EngineOptions
 import uniffi.pos_ffi.EventStream
+import uniffi.pos_ffi.MinisignCheck
 import uniffi.pos_ffi.PaymentPart
 import uniffi.pos_ffi.PosEngineInterface
 import uniffi.pos_ffi.SettlementPreview
@@ -44,6 +45,8 @@ class FakeNatives(
     var vatRows: List<VatSplitRow> = emptyList()
     var qr: List<List<Boolean>> = emptyList()
     var threadNames: MutableList<String> = mutableListOf()
+    var minisign: MinisignCheck = MinisignCheck(valid = true, trustedComment = null, problem = null)
+    var minisignCalls: MutableList<Triple<String, List<Byte>, String>> = mutableListOf()
 
     override suspend fun initLogging(
         logDir: String,
@@ -87,6 +90,16 @@ class FakeNatives(
     override suspend fun qrMatrix(text: String): List<List<Boolean>> {
         threadNames += Thread.currentThread().name
         return qr
+    }
+
+    override suspend fun verifyMinisign(
+        publicKey: String,
+        data: ByteArray,
+        signature: String,
+    ): MinisignCheck {
+        threadNames += Thread.currentThread().name
+        minisignCalls += Triple(publicKey, data.toList(), signature)
+        return minisign
     }
 }
 
@@ -163,6 +176,7 @@ class EngineFixture(
     root: File,
     launch: LaunchResult? = null,
     val dispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(testScope.testScheduler),
+    wireStreamEnd: Boolean = false,
 ) {
     val log = CallLog()
     val stream: EventStream = mockStream()
@@ -176,6 +190,8 @@ class EngineFixture(
 
     init {
         holder = EngineHolder(source, natives, factory, events, dispatcher, testScope.backgroundScope)
+        // Hilt member-injects this; most tests leave it off so that an immediately ending stream stays quiet.
+        if (wireStreamEnd) events.holder = dagger.Lazy { holder }
     }
 
     /** A gateway over [holder] on the fixture dispatcher. */

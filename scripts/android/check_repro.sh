@@ -21,7 +21,7 @@
 #      the cargo registry (cargo fetch --locked) and a Gradle user home (wrapper distribution,
 #      modules-2) filled by android/docker/prefetch.gradle (method "init-script"). The method
 #      "full-build" (PILI_PREFETCH_METHOD=full-build) additionally runs one network build of
-#      :smoke:assembleRelease in the prefetch container and discards its outputs; use it when
+#      :app:assembleRelease in the prefetch container and discards its outputs; use it when
 #      an offline build misses something the init script did not fetch. The volume is reused,
 #      and rebuilt when its COMPLETE marker is missing or names another prefetch.gradle,
 #   4. runs two builds, each in a fresh "docker run --rm --platform linux/amd64 --network none"
@@ -212,10 +212,10 @@ echo "PREFETCH | gradle -I docker/prefetch.gradle prefetchAll"
 (cd /build/src/android && ./gradlew --no-daemon --no-build-cache --no-configuration-cache --console=plain \
     -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I docker/prefetch.gradle prefetchAll prefetchLazy)
 if [ "$PILI_PREFETCH_METHOD" = "full-build" ]; then
-    echo "PREFETCH | one full network build of :smoke:assembleRelease (outputs discarded)"
+    echo "PREFETCH | one full network build of :app:assembleRelease (outputs discarded)"
     mkdir -p /tmp/prefetch-out
     (cd /build/src/android && ./gradlew --no-daemon --no-build-cache --no-configuration-cache --console=plain \
-        -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" :smoke:assembleRelease)
+        -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" :app:assembleRelease)
 fi
 cp -a /opt/cargo/registry /prefetch/cargo-registry
 [ -d /opt/cargo/git ] && cp -a /opt/cargo/git /prefetch/cargo-git
@@ -246,7 +246,7 @@ if [[ "$prefetch_only" -eq 1 ]]; then
 fi
 
 # ── two offline builds ──────────────────────────────────────────
-APK_NAME="smoke-release-unsigned.apk"
+APK_NAME="app-release-unsigned.apk"
 dur_wall=()
 dur_gradle=()
 build_ok=()

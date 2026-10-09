@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.engine
 
+import uniffi.pos_ffi.MinisignCheck
 import uniffi.pos_ffi.PaymentPart
 import uniffi.pos_ffi.SettlementPreview
 import uniffi.pos_ffi.VatLine
@@ -13,6 +14,7 @@ import uniffi.pos_ffi.posSwVersion as ffiPosSwVersion
 import uniffi.pos_ffi.qrMatrix as ffiQrMatrix
 import uniffi.pos_ffi.settlePreview as ffiSettlePreview
 import uniffi.pos_ffi.vatSplit as ffiVatSplit
+import uniffi.pos_ffi.verifyMinisign as ffiVerifyMinisign
 
 /**
  * The free functions of the UniFFI bindings, behind an interface so that JVM unit tests never load the
@@ -48,6 +50,13 @@ interface EngineNatives {
 
     /** The QR modules of [text], rows of booleans. */
     suspend fun qrMatrix(text: String): List<List<Boolean>>
+
+    /** Checks the minisign [signature] of [data] against [publicKey]; failures are values (FFI.md section 9). */
+    suspend fun verifyMinisign(
+        publicKey: String,
+        data: ByteArray,
+        signature: String,
+    ): MinisignCheck
 }
 
 /** [EngineNatives] backed by the generated UniFFI bindings. */
@@ -77,4 +86,10 @@ class UniffiEngineNatives
         override suspend fun vatSplit(lines: List<VatLine>): List<VatSplitRow> = ffiVatSplit(lines)
 
         override suspend fun qrMatrix(text: String): List<List<Boolean>> = ffiQrMatrix(text)
+
+        override suspend fun verifyMinisign(
+            publicKey: String,
+            data: ByteArray,
+            signature: String,
+        ): MinisignCheck = ffiVerifyMinisign(publicKey, data, signature)
     }

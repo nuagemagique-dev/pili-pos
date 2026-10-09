@@ -102,6 +102,10 @@ platform docs/android/phases/P6[^/]*[.]md
 nightly android/app/src/(main|test|androidTest)/kotlin/dev/nuagemagique/pilipos/nightly/.*
 nightly android/app/src/test/screenshots/nightly/.*
 nightly android/app/src/main/res/values(-[a-z]+)?/strings_nightly[.]xml
+platform scripts/android/(test_)?plat_[a-z0-9_]+[.](sh|py)
+platform scripts/android/testdata/plat_[a-z0-9_]+/.*
+platform android/app/src/test/screenshots/platform/.*
+platform android/app/src/test/resources/platform/.*
 shared docs/android/DECISIONS[.]md
 frozen android/(rust|pos-core|smoke)/.*
 frozen (Cargo[.]toml|Cargo[.]lock|rust-toolchain[.]toml)
@@ -177,6 +181,12 @@ scripts/android/check_repro.sh platform
 docs/android/phases/P6-exit.md platform
 android/app/src/main/kotlin/dev/nuagemagique/pilipos/nightly/NightlyScreen.kt nightly
 android/app/src/main/res/values-zh/strings_nightly.xml nightly
+scripts/android/plat_e2e.sh platform
+scripts/android/test_plat_registry_mock.py platform
+scripts/android/testdata/plat_registry/manifest.json platform
+android/app/src/test/screenshots/platform/about.png platform
+android/app/src/test/resources/platform/declared.json platform
+android/app/src/main/kotlin/dev/nuagemagique/pilipos/di/AppLifecycleHook.kt foundation
 docs/android/DECISIONS.md shared
 android/rust/pos-ffi/src/core.rs frozen
 android/pos-core/build.gradle.kts frozen
@@ -250,3 +260,17 @@ A lane card passes its own paths to the allowed-paths check of its gate:
 and may add a card-specific regex next to it. `--regex ui` prints the regex of `ui-common` plus every `ui-<view>`; `--regex platform` the platform regex. The lane gates `p5_gate.sh` and `p6_gate.sh` build on `p4_gate.sh`, so a lane card still runs the whole foundation gate.
 
 Other modes of the checker: `--check` (validates this file against the tree), `--owner PATH` (prints the owner, or `none`; exit 1 when two owners match), `--list-owners`.
+
+## Platform routes
+
+The platform lane registers its three screens through one `PlatformEntry` (a `FeatureEntry` bound `@IntoSet` in the `platform/` package). Route constants live in `PlatformRoutes`, never in `nav/`.
+
+| Route | Row id | Order | Who sees it |
+| --- | --- | --- | --- |
+| `platform/about` | `platform.about` | 900 | everyone |
+| `platform/export` | `platform.export` | 910 | managers |
+| `platform/update` | `platform.update` | 920 | managers |
+
+### AppLifecycleHook
+
+`AppLifecycleHook` (`di/AppLifecycleHook.kt`, PD203) is the contract for behaviour that must run at the application and activity lifecycle points: `onApplicationCreated` at the end of `PiliApplication.onCreate`, `onActivityCreated` right after `KioskController.prepare()`, `onActivityResumed` after the Lock Task relock and the immersive bars and before the engine service starts. Any lane may bind a hook, `@Binds @IntoSet` in a Hilt module of its own package; nobody edits `PiliApplication`, `MainActivity` or `HooksModule` for it. The runner calls the hooks by `order`, then class name, each in its own try/catch, so a failing hook is logged and never stops the start or the next hook.
