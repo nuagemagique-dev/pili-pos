@@ -68,6 +68,8 @@ The default run passes while commands are pending. At the P5b exit the gate runs
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |
 | App.vue activity forwarding | foundation kiosk/UserActivityForwarder.kt | `user_activity` |
 
+Not landed in this run (see `phases/P5-exit.md`): the `ui/fdm/` rows (P5-T6) and the `ui/scaffold/` rows (P5-T8). Until P5-T6 lands, `fdm_check_now` is called by the login start-up probe (`feature/login/LoginStartupChecks.kt`, `GatewayFdmProbe`), and `check_printer` and `check_kitchen_printer` by the login start-up checks.
+
 Not ported: components/SupportBanner.vue and stores/support.ts. There is no remote support in v1 (DECISIONS section 7).
 
 ## Declarations
@@ -84,36 +86,9 @@ list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b
 work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b
-login pending:P5-T4
-login_with_new_pin pending:P5-T4
-logout pending:P5-T4
-lock_session pending:P5-T4
-end_shift pending:P5-T4
-get_settings pending:P5-T4
-set_training_mode pending:P5-T4
-get_integrations pending:P5-T4
-set_hubrise_enabled pending:P5-T4
-create_order pending:P5-T5
-get_order pending:P5-T5
-list_cart_lines pending:P5-T5
-set_active_order pending:P5-T5
-add_order_line pending:P5-T5
-remove_order_line pending:P5-T5
-update_order_line_quantity pending:P5-T5
-leave_order pending:P5-T5
-sign_pre_bill pending:P5-T5
-close_unpaid pending:P5-T5
-list_open_orders pending:P5-T5
 fdm_health pending:P5-T6
-fdm_check_now pending:P5-T6
-check_printer pending:P5-T8
-check_kitchen_printer pending:P5-T8
 hubrise_status pending:P5-T8
 set_pin pending:P5-T8
-list_users pending:P5-T9
-list_open_shifts pending:P5-T9
-check_mail_status pending:P5-T9
-hubrise_get_connection_status pending:P5-T9
 list_tables pending:P5-T10
 list_open_takeaways pending:P5-T10
 get_categories pending:P5-T11
