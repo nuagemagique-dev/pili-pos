@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plat_update_title">更新</string>
+    <string name="plat_update_err_key_missing">此收银机未安装声明密钥：更新被拒绝。</string>
+    <string name="plat_update_err_network">无法连接更新来源，或来源返回了意外的内容。</string>
+    <string name="plat_update_err_bad_descriptor">版本描述文件无法读取或不完整。</string>
+    <string name="plat_update_err_bad_signature">描述文件的签名无效：更新被拒绝。</string>
+    <string name="plat_update_err_wrong_package">此版本不适用于本应用。</string>
+    <string name="plat_update_err_not_newer">此版本不比已安装的版本新。</string>
+    <string name="plat_update_err_too_large">更新中的某个文件超过了允许的大小。</string>
+    <string name="plat_update_err_sha256_mismatch">文件的 SHA-256 与声明的值不一致。</string>
+    <string name="plat_update_err_sha1_mismatch">文件的 SHA-1 与声明的值不一致。</string>
+    <string name="plat_update_err_archive_mismatch">APK 的内容（包名、版本）与描述文件不一致。</string>
+    <string name="plat_update_err_signer_mismatch">此 APK 的签名密钥与已安装的应用不同。</string>
+    <string name="plat_update_err_usb_missing_file">所选文件夹中缺少更新所需的文件。</string>
+</resources>
