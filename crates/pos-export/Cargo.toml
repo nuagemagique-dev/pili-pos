@@ -23,6 +23,10 @@ hex = "0.4"
 getrandom = "0.3"
 # age: exact pin (X1D15)
 age = { version = "=0.12.1", default-features = false }
+# age embeds its translations with rust-embed, which stamps the embedded files with their
+# build-host times; this feature (unified by cargo onto age's copy) pins them to 0 so that
+# the Linux cert build stays reproducible. The crate is not used in code.
+rust-embed = { version = "8", default-features = false, features = ["deterministic-timestamps"] }
 
 [dev-dependencies]
 tempfile = "3"
