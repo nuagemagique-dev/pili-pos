@@ -2408,6 +2408,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-export-mock"
+version = "1.1.0"
+dependencies = [
+ "axum",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "pos-fdm-mock"
 version = "1.1.0"
 dependencies = [
@@ -2438,6 +2451,8 @@ dependencies = [
  "pos-db",
  "pos-engine",
  "pos-engine-testkit",
+ "pos-export",
+ "pos-export-mock",
  "pos-fdm-mock",
  "pos-fiscal",
  "pos-hubrise",

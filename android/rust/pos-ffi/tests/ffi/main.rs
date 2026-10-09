@@ -5,6 +5,7 @@ mod auth;
 mod checkout;
 mod common;
 mod events;
+mod export;
 mod helpers;
 mod hubrise;
 mod install;

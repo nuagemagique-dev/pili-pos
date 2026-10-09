@@ -983,6 +983,61 @@ public abstract interface class uniffi/pos_ffi/EventStreamInterface {
 public final class uniffi/pos_ffi/EventStreamInterface$Companion {
 }
 
+public final class uniffi/pos_ffi/ExportStatus {
+	public static final field Companion Luniffi/pos_ffi/ExportStatus$Companion;
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJ)V
+	public final fun component1 ()Z
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/lang/String;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component13 ()J
+	public final fun component14 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()J
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJ)Luniffi/pos_ffi/ExportStatus;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/ExportStatus;ZLjava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJILjava/lang/Object;)Luniffi/pos_ffi/ExportStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDropped ()J
+	public final fun getEnabled ()Z
+	public final fun getEndpoint ()Ljava/lang/String;
+	public final fun getKeepDays ()J
+	public final fun getKept ()J
+	public final fun getLastError ()Ljava/lang/String;
+	public final fun getLastErrorAt ()Ljava/lang/String;
+	public final fun getLastExportId ()Ljava/lang/String;
+	public final fun getLastPreparedAt ()Ljava/lang/String;
+	public final fun getLastUploadedAt ()Ljava/lang/String;
+	public final fun getLastUploadedId ()Ljava/lang/String;
+	public final fun getNextAttemptAt ()Ljava/lang/String;
+	public final fun getPending ()J
+	public final fun getProblem ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setDropped (J)V
+	public final fun setEnabled (Z)V
+	public final fun setEndpoint (Ljava/lang/String;)V
+	public final fun setKeepDays (J)V
+	public final fun setKept (J)V
+	public final fun setLastError (Ljava/lang/String;)V
+	public final fun setLastErrorAt (Ljava/lang/String;)V
+	public final fun setLastExportId (Ljava/lang/String;)V
+	public final fun setLastPreparedAt (Ljava/lang/String;)V
+	public final fun setLastUploadedAt (Ljava/lang/String;)V
+	public final fun setLastUploadedId (Ljava/lang/String;)V
+	public final fun setNextAttemptAt (Ljava/lang/String;)V
+	public final fun setPending (J)V
+	public final fun setProblem (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/ExportStatus$Companion {
+}
+
 public final class uniffi/pos_ffi/ExtensionItem {
 	public static final field Companion Luniffi/pos_ffi/ExtensionItem$Companion;
 	public fun <init> (Luniffi/pos_ffi/MessageCategory;Luniffi/pos_ffi/FdmWarningCode;Ljava/util/List;Luniffi/pos_ffi/FdmMessageDisplay;)V
@@ -3252,6 +3307,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeEventStream : uniffi/pos_ffi/F
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/EventStream;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/EventStream;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeExportStatus : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeExportStatus;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/ExportStatus;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/ExportStatus;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/ExportStatus;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/ExportStatus;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/ExportStatus;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/ExportStatus;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/ExportStatus;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeExtensionItem : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -5716,6 +5791,8 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun destroy ()V
 	public fun endShift (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun events (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun exportRunNow (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun exportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun fdmCheckNow (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun fdmHealth (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun generateUserXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -5814,6 +5891,8 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun deactivateUser (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun endShift (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun events (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun exportRunNow (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun exportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun fdmCheckNow (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun fdmHealth (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun generateUserXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

@@ -40,6 +40,8 @@ minisign-verify = "=0.3.0"
 
 [dev-dependencies]
 pos-engine-testkit = { path = "../../../crates/pos-engine-testkit" }
+pos-export = { path = "../../../crates/pos-export" }
+pos-export-mock = { path = "../../../crates/pos-export-mock" }
 pos-fdm-mock = { path = "../../../crates/pos-fdm-mock" }
 pos-printer-mock = { path = "../../../crates/pos-printer-mock" }
 tempfile = "3"

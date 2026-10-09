@@ -6,7 +6,7 @@ Status: written at the end of phase P2. English, internal, not part of the dossi
 
 `android/rust/pos-ffi` is a Rust crate (UniFFI 0.32.2, proc-macro mode, no UDL) that wraps `crates/pos-engine` for Kotlin. It depends on `pos-engine` with `default-features = false, features = ["cert"]`: HubRise in, Peppol out, no Tauri. It adds no fiscal logic: every command of the Linux shell has one wrapper here that calls the same engine function (PD52).
 
-- `PosEngine` (an `Object`): `open` (the only synchronous export, a constructor), `shutdown`, `events`, and one `suspend` method per cert command (84, section 11).
+- `PosEngine` (an `Object`): `open` (the only synchronous export, a constructor), `shutdown`, `events`, and one `suspend` method per cert command (86, section 11).
 - `EventStream` (an `Object`): `next()` returns the next `PosEvent`, or `null` once the engine is gone.
 - Free functions: `initLogging`, `posSwVersion`, `installInitDb`, `checkConfigBundle`, `qrMatrix`, `verifyMinisign`, `verifyBundle`, `settlePreview`, `cashDueCents`, `vatSplit`.
 - Records, enums and errors mirror the engine types (section 7); Kotlin never sees SQL, JSON of the engine or a Rust type.
@@ -139,7 +139,7 @@ Free functions, all `suspend`:
 
 ## 11. Command parity
 
-The parity script (`scripts/android/check_command_parity.py`) checks that each of the 84 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
+The parity script (`scripts/android/check_command_parity.py`) checks that each of the 86 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
 
 <!-- parity:begin -->
 | Command | Engine function | Call | FFI method (Kotlin) |
@@ -158,6 +158,8 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | create_user | auth::do_create_user | blocking | posEngine.createUser() |
 | deactivate_user | auth::do_deactivate_user | blocking | posEngine.deactivateUser() |
 | end_shift | social::do_end_shift | spawn | posEngine.endShift() |
+| export_run_now | export::do_export_run_now | spawn | posEngine.exportRunNow() |
+| export_status | export::do_export_status | spawn | posEngine.exportStatus() |
 | fdm_check_now | fdm_monitor::do_fdm_check_now | spawn | posEngine.fdmCheckNow() |
 | fdm_health | fdm_monitor::do_fdm_health | blocking | posEngine.fdmHealth() |
 | generate_user_x_report | report::do_generate_user_x_report | spawn | posEngine.generateUserXReport() |
@@ -229,7 +231,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 84/84.
+Parity: 86/86.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates
@@ -250,4 +252,4 @@ Gates:
 
 - `cd android && ./gradlew --no-daemon :pos-core:check`: unit, lifecycle, `mismatchTest`, end-to-end, and `apiCheck`.
 - `apiCheck` compares the public Kotlin API of `:pos-core`, which includes the generated bindings (package `uniffi.pos_ffi`), with the snapshot `android/pos-core/api/pos-core.api` (binary-compatibility-validator). A change of the FFI changes the snapshot: after a deliberate change run `./gradlew --no-daemon :pos-core:apiDump` and commit the diff, which is then the review of the API change. The dump is deterministic.
-- `scripts/android/p2_gate.sh --fast` (card gate), `--exit` (phase exit: strict parity 84/84, `:pos-core:check`, and `ffi-doc`, which compares section 11 with the script), `--android` (arm64 build, 16 KB alignment, bindgen on the `.so`).
+- `scripts/android/p2_gate.sh --fast` (card gate), `--exit` (phase exit: strict parity 86/86, `:pos-core:check`, and `ffi-doc`, which compares section 11 with the script), `--android` (arm64 build, 16 KB alignment, bindgen on the `.so`).
