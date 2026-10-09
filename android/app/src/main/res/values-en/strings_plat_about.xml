@@ -1,4 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="plat_about_title">About</string>
+    <string name="plat_about_loading">Reading the identity of the till…</string>
+    <string name="plat_about_refresh">Refresh</string>
+    <string name="plat_about_unavailable">Unavailable</string>
+    <string name="plat_about_section_version">Version</string>
+    <string name="plat_about_section_integrity">Integrity</string>
+    <string name="plat_about_section_device">Device</string>
+    <string name="plat_about_section_storage">Storage</string>
+    <string name="plat_about_version_name">App version</string>
+    <string name="plat_about_version_code">Version code</string>
+    <string name="plat_about_pos_sw_version">Engine software version</string>
+    <string name="plat_about_engine_ref_label">Engine reference</string>
+    <string name="plat_about_apk_sha1">SHA-1 of base.apk</string>
+    <string name="plat_about_apk_sha256">SHA-256 of base.apk</string>
+    <string name="plat_about_so_sha1">SHA-1 of libpos_ffi.so</string>
+    <string name="plat_about_signer_sha256">SHA-256 of the signing certificate</string>
+    <string name="plat_about_device_id">Device identifier (deviceId)</string>
+    <string name="plat_about_pos_id">Till identifier (posId)</string>
+    <string name="plat_about_terminal_id">Terminal identifier (terminalId)</string>
+    <string name="plat_about_android">Android</string>
+    <string name="plat_about_android_value">Android %1$s (API %2$d)</string>
+    <string name="plat_about_model">Model</string>
+    <string name="plat_about_free_space">Free space</string>
+    <string name="plat_about_backups">Database backups</string>
+    <string name="plat_about_backups_value">%1$d copies, %2$s</string>
+    <string name="plat_about_warning_low_space">Less than 2 GB free on the till. Tell support.</string>
+    <string name="plat_about_warning_backups">The backups take more than half of the free space. Tell support.</string>
 </resources>
