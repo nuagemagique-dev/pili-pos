@@ -234,3 +234,26 @@ export interface DeliveryView {
   fallbackPrinted: boolean;
   createdAt: string;
 }
+
+/** The nightly export as the manager sees it (Settings). Times are
+ * RFC 3339 UTC; show them through utils/datetime. */
+export interface ExportStatus {
+  enabled: boolean;
+  /** Why the configuration is unusable, when it is. */
+  problem: string | null;
+  endpoint: string | null;
+  keepDays: number;
+  lastExportId: string | null;
+  lastPreparedAt: string | null;
+  lastUploadedId: string | null;
+  lastUploadedAt: string | null;
+  /** Exports prepared and not uploaded yet. */
+  pending: number;
+  nextAttemptAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  /** Exports kept on the device. */
+  kept: number;
+  /** Exports dropped after the keep window. */
+  dropped: number;
+}
