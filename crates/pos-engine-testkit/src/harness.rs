@@ -159,6 +159,7 @@ impl TestApp {
             fdm_status_cache: Mutex::new(None),
             session_rules: Default::default(),
             fdm_monitor: Default::default(),
+            export: pos_engine::commands::export::ExportState::disabled(),
         };
 
         let app = Self {

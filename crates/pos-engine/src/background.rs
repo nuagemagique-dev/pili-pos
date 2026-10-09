@@ -1,7 +1,7 @@
 //! The background loops of the engine: the automatic Z, the digital
-//! ticket outbox, the presence worker, the idle lock, the FDM status
-//! monitor and, with the `hubrise` feature, the HubRise poller and
-//! outbox. The shell calls [`Engine::start_background`] once the runtime
+//! ticket outbox, the nightly export, the presence worker, the idle
+//! lock, the FDM status monitor and, with the `hubrise` feature, the
+//! HubRise poller and outbox. The shell calls [`Engine::start_background`] once the runtime
 //! is up and [`Engine::shutdown`] when it closes; the loops run on the
 //! runtime the shell gives and report through the engine's
 //! [`crate::events::EventSink`].
@@ -184,6 +184,40 @@ impl Engine {
             }));
         }
 
+        // Nightly export: one pass at start-up (it catches a Z made
+        // before the last shutdown), then one at every
+        // `timers.export_outbox` tick and at every wake-up (a real Z, the
+        // run-now command). Spawned only when the configuration has a
+        // usable `export` section, so a terminal without export runs the
+        // same loops as before. A pass in flight is dropped at shutdown:
+        // what it uploaded is already recorded, the rest is retried at the
+        // next start.
+        if state.export.is_enabled() {
+            let state = state.clone();
+            let ticks = self.ticks.clone();
+            spawned.push(rt.spawn(async move {
+                tokio::select! {
+                    _ = state.shutdown_token.cancelled() => return,
+                    _ = commands::export::run_startup_pass(&state) => {}
+                }
+                ticks.export_outbox.fetch_add(1, Ordering::SeqCst);
+                let period = state.timers.export_outbox;
+                let mut tick = tokio::time::interval_at(Instant::now() + period, period);
+                loop {
+                    tokio::select! {
+                        _ = state.shutdown_token.cancelled() => return,
+                        _ = tick.tick() => {}
+                        _ = state.export.woken() => {}
+                    }
+                    tokio::select! {
+                        _ = state.shutdown_token.cancelled() => return,
+                        _ = commands::export::run_pass(&state) => {}
+                    }
+                    ticks.export_outbox.fetch_add(1, Ordering::SeqCst);
+                }
+            }));
+        }
+
         // Presence worker: signs the clock-ins that logins queue
         // (`commands::session`), one after another in arrival order, so
         // a login never waits for the FDM. The receiver is taken once:
@@ -272,5 +306,10 @@ impl Engine {
     /// How many mail outbox passes have completed (for tests).
     pub fn mail_outbox_passes(&self) -> u64 {
         self.ticks.mail_outbox.load(Ordering::SeqCst)
+    }
+
+    /// How many export passes have completed (for tests).
+    pub fn export_passes(&self) -> u64 {
+        self.ticks.export_outbox.load(Ordering::SeqCst)
     }
 }

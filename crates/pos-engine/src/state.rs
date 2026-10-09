@@ -72,6 +72,10 @@ pub struct AppState {
     /// The last FDM health and the monitor's backoff
     /// (`commands::fdm_monitor`).
     pub fdm_monitor: crate::commands::fdm_monitor::FdmMonitorState,
+    /// The nightly export after each real Z: its settings, its HTTPS
+    /// client and the wake-up of its background loop
+    /// (`commands::export`). Disabled without an `export` section.
+    pub export: crate::commands::export::ExportState,
 }
 
 /// One cached FDM status answer: the key of everything that reaches the
