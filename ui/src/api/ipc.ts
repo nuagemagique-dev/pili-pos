@@ -16,6 +16,7 @@ import type {
   MailStatus,
   DeliveryView,
   SlipOutcome,
+  ExportStatus,
 } from "../types";
 
 // Menu
@@ -205,6 +206,20 @@ export function listTicketDeliveries(limit?: number): Promise<DeliveryView[]> {
 /** The backend rebuilds the ticket from the archive. */
 export function printMissingOriginal(fiscalEventId: number): Promise<void> {
   return invoke("print_missing_original", { fiscalEventId });
+}
+
+// ── Nightly export (manager only) ───────────────────────────────────
+
+/** The nightly export state: configuration, last export and upload,
+ * the outbox. Needs an admin session. */
+export function exportStatus(): Promise<ExportStatus> {
+  return invoke("export_status");
+}
+
+/** Make the pending exports due now and return at once; read
+ * `exportStatus()` afterwards. Needs an admin session. */
+export function exportRunNow(): Promise<ExportStatus> {
+  return invoke("export_run_now");
 }
 
 // Settings

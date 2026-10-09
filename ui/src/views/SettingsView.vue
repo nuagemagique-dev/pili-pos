@@ -13,6 +13,7 @@ import type { DeliveryView, User } from "../types";
 import * as ipc from "../api/ipc";
 import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
+import ExportStatusPanel from "../components/ExportStatusPanel.vue";
 import { useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -243,6 +244,9 @@ onMounted(() => {
           </div>
           <p class="panel-note">{{ t('settings_product_label_note') }}</p>
         </section>
+
+        <!-- Nightly export (manager only; the engine refuses it to the others) -->
+        <ExportStatusPanel v-if="auth.isManager" class="panel" />
 
         <!-- Remote support (manager) -->
         <section class="panel panel-grow support-section">

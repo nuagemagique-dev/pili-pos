@@ -89,6 +89,7 @@ fn config(fdm_url: &str) -> PosConfig {
         restaurant_legal_name: None,
         day_end_hour: 5,
         digital_ticket: None,
+        export: None,
     }
 }
 

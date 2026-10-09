@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nightly_title">Export nocturne</string>
+    <string name="nightly_back">Retour</string>
+    <string name="nightly_loading">Chargement…</string>
+    <string name="nightly_state_disabled">Non configuré</string>
+    <string name="nightly_state_invalid">Configuration invalide</string>
+    <string name="nightly_state_ok">À jour</string>
+    <plurals name="nightly_state_pending">
+        <item quantity="one">%1$d export en attente</item>
+        <item quantity="other">%1$d exports en attente</item>
+    </plurals>
+    <string name="nightly_endpoint">Destination</string>
+    <string name="nightly_last_export">Dernier export</string>
+    <string name="nightly_last_upload">Dernier envoi</string>
+    <string name="nightly_next_attempt">Prochain essai</string>
+    <string name="nightly_last_error">Dernière erreur</string>
+    <string name="nightly_kept">Conservés : %1$d sur %2$d jours</string>
+    <string name="nightly_dropped">Abandonnés</string>
+    <string name="nightly_retry_now">Réessayer maintenant</string>
+    <string name="nightly_retrying">Nouvel essai…</string>
+    <string name="nightly_never">Jamais</string>
+</resources>

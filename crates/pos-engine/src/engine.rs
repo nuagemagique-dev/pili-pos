@@ -145,6 +145,11 @@ pub struct EngineTimers {
     /// this value (30 s, 60, 120, 240, then 300 s). A session that opens
     /// is checked at once, and no check is made without a session.
     pub fdm_poll: Duration,
+    /// Nightly export: an export pass (prepare the exports of the new Z
+    /// reports, apply the retention, upload what is due) runs at this
+    /// interval, and at once after a real Z. Nothing runs without an
+    /// `export` section in the configuration.
+    pub export_outbox: Duration,
 }
 
 impl Default for EngineTimers {
@@ -155,6 +160,7 @@ impl Default for EngineTimers {
             printer_status_read: pos_print::transport::DEFAULT_STATUS_READ_TIMEOUT,
             idle_lock: Duration::from_secs(300),
             fdm_poll: Duration::from_secs(30),
+            export_outbox: Duration::from_secs(60),
         }
     }
 }
@@ -233,6 +239,7 @@ pub struct Engine {
 pub struct BackgroundTicks {
     pub auto_z: AtomicU64,
     pub mail_outbox: AtomicU64,
+    pub export_outbox: AtomicU64,
 }
 
 impl Engine {
@@ -293,6 +300,15 @@ impl Engine {
             tracing::error!(%problem, "pos.json: the FDM will refuse this setting");
         }
         let mail = crate::commands::delivery::MailState::from_config(&config, &http_tls);
+        // A bad `export` section turns the export off and shows in its
+        // status; it never stops the engine from opening.
+        let export = crate::commands::export::ExportState::from_config(&config, &http_tls);
+        if export.is_enabled() {
+            let exports_dir = paths.data_dir.join("exports");
+            if let Err(e) = pos_export::outbox::clean_tmp(&exports_dir) {
+                tracing::warn!(%e, "export: cannot empty the work area");
+            }
+        }
         #[cfg(feature = "hubrise")]
         let hubrise_on =
             pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;
@@ -333,6 +349,7 @@ impl Engine {
                 fdm_status_cache: Mutex::new(None),
                 session_rules: Default::default(),
                 fdm_monitor: Default::default(),
+                export,
             }),
             tasks: Mutex::new(Vec::new()),
             ticks: Arc::new(BackgroundTicks::default()),
@@ -692,6 +709,7 @@ mod tests {
         assert_eq!(t.mail_outbox, crate::commands::delivery::OUTBOX_INTERVAL);
         assert_eq!(t.idle_lock, Duration::from_secs(300));
         assert_eq!(t.fdm_poll, Duration::from_secs(30));
+        assert_eq!(t.export_outbox, Duration::from_secs(60));
     }
 
     #[test]

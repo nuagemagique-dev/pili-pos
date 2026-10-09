@@ -76,8 +76,34 @@ pub fn check_config_source(source: &ConfigSource) -> Vec<String> {
         ];
     }
     match source.load() {
-        Ok(config) => pos_fiscal::fdm_client::FdmClient::config_problems(&config),
+        Ok(config) => {
+            let mut problems = pos_fiscal::fdm_client::FdmClient::config_problems(&config);
+            problems.extend(export_problems(&config, &problems));
+            problems
+        }
         Err(e) => vec![format!("{e:#}")],
+    }
+}
+
+/// What keeps the nightly export from working beyond the syntax
+/// `PosConfig::problems` (already in `reported`) checks: a recipient that is
+/// not a valid age key, and a token file that cannot be read. Empty without
+/// an `export` section.
+fn export_problems(config: &pos_core::config::PosConfig, reported: &[String]) -> Vec<String> {
+    let Some(section) = config.export.as_ref() else {
+        return Vec::new();
+    };
+    if reported.iter().any(|p| p.starts_with("export.")) {
+        return Vec::new();
+    }
+    match pos_export::settings::ExportSettings::from_config(section) {
+        Err(e) => vec![format!("export: {e}")],
+        Ok(settings) => settings
+            .read_token()
+            .err()
+            .map(|e| format!("export: {e}"))
+            .into_iter()
+            .collect(),
     }
 }
 
@@ -214,6 +240,90 @@ mod tests {
         assert_eq!(
             check_config_source(&ConfigSource::Bundle(file)),
             Vec::<String>::new()
+        );
+    }
+
+    /// `GOOD` with an `export` section; `token_file` is relative, so the
+    /// check resolves it against a bundle.
+    fn with_export(owner: &str, producer: Option<&str>, keep_days: u32) -> String {
+        let producer = producer
+            .map(|p| format!(", \"producer_recipient\": \"{p}\""))
+            .unwrap_or_default();
+        GOOD.replace(
+            "\"fdm_url\": \"http://192.168.1.20/graphql\"",
+            &format!(
+                "\"fdm_url\": \"http://192.168.1.20/graphql\", \"export\": {{ \
+                 \"url\": \"https://export.example.com/v1/inst-42\", \
+                 \"token_file\": \"secrets/export.token\", \
+                 \"owner_recipient\": \"{owner}\"{producer}, \"keep_days\": {keep_days} }}"
+            ),
+        )
+    }
+
+    #[test]
+    fn the_export_section_is_checked_with_its_token_file() {
+        let (_, owner) = pos_export::crypt::generate_identity();
+        let (_, producer) = pos_export::crypt::generate_identity();
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("pos.json");
+        let bundle = ConfigSource::Bundle(file.clone());
+
+        // No section: nothing to report about the export.
+        std::fs::write(&file, GOOD).unwrap();
+        assert_eq!(check_config_source(&bundle), Vec::<String>::new());
+
+        // A section whose token is not in the bundle yet.
+        std::fs::write(&file, with_export(&owner, Some(&producer), 14)).unwrap();
+        let missing = check_config_source(&bundle);
+        assert_eq!(missing.len(), 1, "{missing:?}");
+        assert!(missing[0].starts_with("export: "), "{missing:?}");
+        assert!(missing[0].contains("unreadable"), "{missing:?}");
+        assert!(
+            missing[0].contains(dir.path().join("secrets").to_str().unwrap()),
+            "the relative token path is resolved: {missing:?}"
+        );
+
+        // An empty token file.
+        std::fs::create_dir_all(dir.path().join("secrets")).unwrap();
+        std::fs::write(dir.path().join("secrets/export.token"), "\n").unwrap();
+        let empty = check_config_source(&bundle);
+        assert_eq!(empty.len(), 1, "{empty:?}");
+        assert!(
+            empty[0].starts_with("export: ") && empty[0].contains("empty"),
+            "{empty:?}"
+        );
+
+        // A usable section.
+        std::fs::write(dir.path().join("secrets/export.token"), "tok\n").unwrap();
+        assert_eq!(check_config_source(&bundle), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_bad_export_section_is_reported_once() {
+        let (_, owner) = pos_export::crypt::generate_identity();
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("pos.json");
+        std::fs::create_dir_all(dir.path().join("secrets")).unwrap();
+        std::fs::write(dir.path().join("secrets/export.token"), "tok").unwrap();
+
+        // Syntax problem: reported by PosConfig::problems only, not twice.
+        std::fs::write(&file, with_export(&owner, None, 0)).unwrap();
+        let syntax = check_config_source(&ConfigSource::Bundle(file.clone()));
+        assert_eq!(syntax.len(), 1, "{syntax:?}");
+        assert!(syntax[0].starts_with("export.keep_days: "), "{syntax:?}");
+
+        // Well-formed but not a valid age key (bad checksum).
+        let mut wrong = owner.clone();
+        wrong.replace_range(
+            wrong.len() - 1..,
+            if owner.ends_with('q') { "p" } else { "q" },
+        );
+        std::fs::write(&file, with_export(&wrong, None, 14)).unwrap();
+        let key = check_config_source(&ConfigSource::Bundle(file));
+        assert_eq!(key.len(), 1, "{key:?}");
+        assert!(
+            key[0].starts_with("export: export.owner_recipient: "),
+            "{key:?}"
         );
     }
 

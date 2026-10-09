@@ -225,6 +225,9 @@ fn main() {
         ipc::delivery::check_mail_status,
         ipc::delivery::list_ticket_deliveries,
         ipc::delivery::print_missing_original,
+        // Nightly export
+        ipc::export::export_status,
+        ipc::export::export_run_now,
         // Print
         ipc::print::check_printer,
         ipc::print::check_kitchen_printer,
@@ -331,6 +334,9 @@ fn main() {
         ipc::delivery::check_mail_status,
         ipc::delivery::list_ticket_deliveries,
         ipc::delivery::print_missing_original,
+        // Nightly export
+        ipc::export::export_status,
+        ipc::export::export_run_now,
         // Print
         ipc::print::check_printer,
         ipc::print::check_kitchen_printer,

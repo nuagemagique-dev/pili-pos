@@ -133,6 +133,7 @@ impl TestApp {
             restaurant_legal_name: None,
             day_end_hour: 5,
             digital_ticket: None,
+            export: None,
         };
 
         let data_dir = tempfile::tempdir().expect("test data dir");
@@ -158,6 +159,7 @@ impl TestApp {
             fdm_status_cache: Mutex::new(None),
             session_rules: Default::default(),
             fdm_monitor: Default::default(),
+            export: pos_engine::commands::export::ExportState::disabled(),
         };
 
         let app = Self {

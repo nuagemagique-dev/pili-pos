@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nightly_title">夜间导出</string>
+    <string name="nightly_back">返回</string>
+    <string name="nightly_loading">加载中…</string>
+    <string name="nightly_state_disabled">未配置</string>
+    <string name="nightly_state_invalid">配置无效</string>
+    <string name="nightly_state_ok">已是最新</string>
+    <plurals name="nightly_state_pending">
+        <item quantity="other">%1$d 个导出待上传</item>
+    </plurals>
+    <string name="nightly_endpoint">目标地址</string>
+    <string name="nightly_last_export">最近导出</string>
+    <string name="nightly_last_upload">最近上传</string>
+    <string name="nightly_next_attempt">下次尝试</string>
+    <string name="nightly_last_error">最近错误</string>
+    <string name="nightly_kept">已保留：%1$d 个（%2$d 天内）</string>
+    <string name="nightly_dropped">已丢弃</string>
+    <string name="nightly_retry_now">立即重试</string>
+    <string name="nightly_retrying">正在重试…</string>
+    <string name="nightly_never">从未</string>
+</resources>

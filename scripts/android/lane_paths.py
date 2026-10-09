@@ -28,6 +28,7 @@ FIXED_PREFIX = {
     "engine": "engine_",
     "provisioning": "prov_",
     "kiosk": "kiosk_",
+    "nightly": "nightly_",
 }
 
 

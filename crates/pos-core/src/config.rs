@@ -98,6 +98,12 @@ pub struct PosConfig {
     /// offers paper tickets only.
     #[serde(default)]
     pub digital_ticket: Option<DigitalTicketConfig>,
+    /// Nightly export after each real Z report: an encrypted backup of
+    /// the database, a statistics file without personal data and a
+    /// manifest, sent to a per-installation HTTPS endpoint. Absent =
+    /// no export.
+    #[serde(default)]
+    pub export: Option<ExportConfig>,
 }
 
 fn default_language() -> String {
@@ -129,7 +135,7 @@ impl PosConfig {
     /// required - a fiscal terminal must not boot with a partial
     /// identity. Only printer_address, kitchen_printer_address,
     /// training_mode, language, day_end_hour, backup_dir,
-    /// digital_ticket, hubrise_enabled and hubrise may be omitted.
+    /// digital_ticket, export, hubrise_enabled and hubrise may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
             path: path.display().to_string(),
@@ -144,7 +150,8 @@ impl PosConfig {
     /// Make every relative file or directory path of the configuration
     /// absolute by joining it to `base`: `fdm_token_file`, `fdm_ca_file`,
     /// `fdm_client_cert_file`, `fdm_client_key_file`, `backup_dir`,
-    /// `hubrise.client_secret_file` and `digital_ticket.api_key_file`.
+    /// `hubrise.client_secret_file`, `digital_ticket.api_key_file` and
+    /// `export.token_file`.
     /// An absolute path, an empty value, a URL or any other field is left
     /// as it is. Used for a configuration bundle that names its files
     /// relative to its own directory.
@@ -166,6 +173,9 @@ impl PosConfig {
         }
         if let Some(d) = &mut self.digital_ticket {
             resolve_path(&mut d.api_key_file, base);
+        }
+        if let Some(e) = &mut self.export {
+            resolve_path(&mut e.token_file, base);
         }
     }
 
@@ -273,6 +283,9 @@ impl PosConfig {
                 ));
             }
         }
+        if let Some(e) = &self.export {
+            out.extend(e.problems());
+        }
         out
     }
 }
@@ -339,6 +352,7 @@ impl Default for PosConfig {
             day_end_hour: default_day_end_hour(),
             backup_dir: None,
             digital_ticket: None,
+            export: None,
         }
     }
 }
@@ -448,6 +462,117 @@ pub struct DigitalTicketConfig {
     /// safer default for a fiscal terminal.
     #[serde(default)]
     pub allow_digital_only: bool,
+}
+
+fn default_keep_days() -> u32 {
+    14
+}
+
+/// Nightly export (phase X1): where the encrypted backup, the
+/// statistics file and the manifest go after each real Z report, and
+/// for whom they are encrypted. Loaded from `pos.json` as `export`;
+/// `pos-export` builds its settings from it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExportConfig {
+    /// Per-installation endpoint. `https://`; plain `http://` only to
+    /// 127.0.0.1, localhost, [::1] or 10.0.2.2 (tests, emulator).
+    pub url: String,
+    /// File holding the bearer token and nothing else (whitespace is
+    /// trimmed). The token stays out of `pos.json`.
+    pub token_file: String,
+    /// age X25519 public key (`age1...`) of the owner: can always
+    /// decrypt the backup.
+    pub owner_recipient: String,
+    /// age X25519 public key of the producer (optional second
+    /// recipient).
+    #[serde(default)]
+    pub producer_recipient: Option<String>,
+    /// Days the exports stay in the local outbox (1 to 365).
+    #[serde(default = "default_keep_days")]
+    pub keep_days: u32,
+}
+
+/// Lowercase bech32 data alphabet (no 1, b, i, o).
+const BECH32_CHARSET: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+/// `true` when `s` looks like an age X25519 recipient: all lowercase,
+/// `age1` then 58 bech32 characters (62 in all).
+fn looks_like_age_recipient(s: &str) -> bool {
+    s.len() == 62 && s.starts_with("age1") && s[4..].chars().all(|c| BECH32_CHARSET.contains(c))
+}
+
+/// Why `url` is not an acceptable export endpoint, or `None`.
+fn export_url_problem(url: &str) -> Option<String> {
+    let (secure, rest) = if let Some(r) = url.strip_prefix("https://") {
+        (true, r)
+    } else if let Some(r) = url.strip_prefix("http://") {
+        (false, r)
+    } else {
+        return Some("export.url: an https:// URL expected".to_string());
+    };
+    if url.contains('?') || url.contains('#') {
+        return Some("export.url: no query or fragment allowed".to_string());
+    }
+    let authority = rest.split('/').next().unwrap_or("");
+    if authority.contains('@') {
+        return Some("export.url: no user info allowed".to_string());
+    }
+    // host[:port], with [::1] in brackets.
+    let (host, port) = if let Some(after) = authority.strip_prefix('[') {
+        match after.split_once(']') {
+            Some((h, tail)) => (format!("[{h}]"), tail.strip_prefix(':')),
+            None => return Some("export.url: malformed host".to_string()),
+        }
+    } else {
+        match authority.rsplit_once(':') {
+            Some((h, p)) => (h.to_string(), Some(p)),
+            None => (authority.to_string(), None),
+        }
+    };
+    if host.is_empty() || host == "[]" {
+        return Some("export.url: a host is required".to_string());
+    }
+    if let Some(p) = port
+        && (p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
+    {
+        return Some("export.url: malformed port".to_string());
+    }
+    if !secure && !["127.0.0.1", "localhost", "[::1]", "10.0.2.2"].contains(&host.as_str()) {
+        return Some(
+            "export.url: plain http is only allowed to 127.0.0.1, localhost, [::1] or 10.0.2.2"
+                .to_string(),
+        );
+    }
+    None
+}
+
+impl ExportConfig {
+    /// What would make the export unusable. Each message starts with
+    /// `export.<field>: `.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Some(p) = export_url_problem(&self.url) {
+            out.push(p);
+        }
+        if self.token_file.trim().is_empty() {
+            out.push("export.token_file: must not be empty".to_string());
+        }
+        if !looks_like_age_recipient(&self.owner_recipient) {
+            out.push("export.owner_recipient: an age public key (age1...) expected".to_string());
+        }
+        if let Some(r) = &self.producer_recipient
+            && !looks_like_age_recipient(r)
+        {
+            out.push("export.producer_recipient: an age public key (age1...) expected".to_string());
+        }
+        if !(1..=365).contains(&self.keep_days) {
+            out.push(format!(
+                "export.keep_days: 1 to 365 expected, got {}",
+                self.keep_days
+            ));
+        }
+        out
+    }
 }
 
 #[cfg(test)]
@@ -882,5 +1007,184 @@ mod tests {
     fn digital_ticket_defaults_to_none() {
         let cfg = PosConfig::default();
         assert!(cfg.digital_ticket.is_none());
+    }
+
+    const RECIPIENT: &str = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
+
+    fn export_cfg() -> ExportConfig {
+        ExportConfig {
+            url: "https://export.example.com/v1/inst-42".into(),
+            token_file: "secrets/export.token".into(),
+            owner_recipient: RECIPIENT.into(),
+            producer_recipient: None,
+            keep_days: 14,
+        }
+    }
+
+    fn export_problems(e: ExportConfig) -> Vec<String> {
+        PosConfig {
+            export: Some(e),
+            ..valid()
+        }
+        .problems()
+    }
+
+    #[test]
+    fn a_valid_export_section_has_no_problem() {
+        assert!(export_problems(export_cfg()).is_empty());
+        let mut e = export_cfg();
+        e.producer_recipient = Some(RECIPIENT.into());
+        e.keep_days = 365;
+        assert!(export_problems(e).is_empty());
+    }
+
+    #[test]
+    fn an_absent_export_section_is_off_and_no_problem() {
+        let c = valid();
+        assert!(c.export.is_none());
+        assert!(c.problems().is_empty());
+        let json = r#"{"pos_id":"CFOD0061234567","terminal_id":"POS1","device_id":"d",
+            "restaurant_name":"R","restaurant_address":"A","restaurant_vat":"BE0499999960",
+            "restaurant_est_no":"8789456149","fdm_url":"http://h/graphql"}"#;
+        assert!(
+            serde_json::from_str::<PosConfig>(json)
+                .unwrap()
+                .export
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn export_url_rules() {
+        for ok in [
+            "https://export.example.com",
+            "https://export.example.com:8443/p/a",
+            "http://127.0.0.1:9000/x",
+            "http://localhost/x",
+            "http://[::1]:9000/x",
+            "http://10.0.2.2:9300",
+        ] {
+            let mut e = export_cfg();
+            e.url = ok.into();
+            assert!(export_problems(e).is_empty(), "{ok} must be accepted");
+        }
+        for bad in [
+            "",
+            "ftp://export.example.com",
+            "export.example.com",
+            "https://",
+            "https:///path",
+            "https://:443/x",
+            "http://export.example.com/x",
+            "http://192.168.1.5/x",
+            "https://user:pw@export.example.com",
+            "https://export.example.com/x?a=b",
+            "https://export.example.com/x#frag",
+            "https://export.example.com:port/x",
+            "http://[::1/x",
+        ] {
+            let mut e = export_cfg();
+            e.url = bad.into();
+            let p = export_problems(e);
+            assert_eq!(p.len(), 1, "{bad} must be rejected: {p:?}");
+            assert!(p[0].starts_with("export.url: "), "{p:?}");
+        }
+    }
+
+    #[test]
+    fn export_token_file_must_not_be_empty() {
+        let mut e = export_cfg();
+        e.token_file = "  ".into();
+        let p = export_problems(e);
+        assert_eq!(p.len(), 1);
+        assert!(p[0].starts_with("export.token_file: "));
+    }
+
+    #[test]
+    fn export_recipients_must_look_like_age_keys() {
+        let upper = RECIPIENT.to_uppercase();
+        let short = &RECIPIENT[..61];
+        let long = format!("{RECIPIENT}q");
+        let wrong_prefix = format!("agf1{}", &RECIPIENT[4..]);
+        let bad_char = format!("{}b", &RECIPIENT[..61]);
+        let secret = "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ";
+        for bad in [
+            "",
+            upper.as_str(),
+            short,
+            long.as_str(),
+            wrong_prefix.as_str(),
+            bad_char.as_str(),
+            secret,
+        ] {
+            let mut e = export_cfg();
+            e.owner_recipient = bad.into();
+            let p = export_problems(e);
+            assert_eq!(p.len(), 1, "owner {bad:?}: {p:?}");
+            assert!(p[0].starts_with("export.owner_recipient: "));
+
+            let mut e = export_cfg();
+            e.producer_recipient = Some(bad.into());
+            let p = export_problems(e);
+            assert_eq!(p.len(), 1, "producer {bad:?}: {p:?}");
+            assert!(p[0].starts_with("export.producer_recipient: "));
+        }
+    }
+
+    #[test]
+    fn export_keep_days_is_bounded() {
+        for (days, ok) in [(0, false), (1, true), (14, true), (365, true), (366, false)] {
+            let mut e = export_cfg();
+            e.keep_days = days;
+            let p = export_problems(e);
+            assert_eq!(p.is_empty(), ok, "keep_days {days}: {p:?}");
+            if !ok {
+                assert!(p[0].starts_with("export.keep_days: "));
+            }
+        }
+    }
+
+    #[test]
+    fn export_keep_days_defaults_to_14() {
+        let e: ExportConfig = serde_json::from_str(&format!(
+            r#"{{"url":"https://x.example.com","token_file":"t","owner_recipient":"{RECIPIENT}"}}"#
+        ))
+        .unwrap();
+        assert_eq!(e.keep_days, 14);
+        assert!(e.producer_recipient.is_none());
+    }
+
+    #[test]
+    fn export_token_file_is_resolved_relative_to_the_base() {
+        let mut c = PosConfig {
+            export: Some(export_cfg()),
+            ..valid()
+        };
+        c.resolve_relative_to(Path::new("/etc/pili"));
+        assert_eq!(
+            c.export.as_ref().unwrap().token_file,
+            "/etc/pili/secrets/export.token"
+        );
+        let mut e = export_cfg();
+        e.token_file = "/abs/export.token".into();
+        let mut c = PosConfig {
+            export: Some(e),
+            ..valid()
+        };
+        c.resolve_relative_to(Path::new("/etc/pili"));
+        assert_eq!(c.export.as_ref().unwrap().token_file, "/abs/export.token");
+    }
+
+    #[test]
+    fn a_full_export_section_survives_a_json_round_trip() {
+        let mut e = export_cfg();
+        e.producer_recipient = Some(RECIPIENT.into());
+        e.keep_days = 30;
+        let c = PosConfig {
+            export: Some(e.clone()),
+            ..valid()
+        };
+        let back: PosConfig = serde_json::from_str(&serde_json::to_string(&c).unwrap()).unwrap();
+        assert_eq!(back.export, Some(e));
     }
 }
