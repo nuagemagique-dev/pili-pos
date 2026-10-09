@@ -122,7 +122,8 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   directement identifiante) et un manifeste avec les empreintes SHA-256.
 - Envoi HTTPS (`PUT`) vers le point de réception propre à l'installation,
   jeton dans un fichier séparé, manifeste envoyé en dernier ; nouvelles
-  tentatives de 1 à 60 minutes, sans perte.
+  tentatives de 1 à 60 minutes, sans limite du nombre d'essais pendant
+  `keep_days` jours.
 - Tâche de fond sur une connexion SQLite en lecture seule, hors du
   verrou de signature : elle ne retarde jamais une vente ni un Z.
 - Copies locales conservées `keep_days` jours (14 par défaut), dans la

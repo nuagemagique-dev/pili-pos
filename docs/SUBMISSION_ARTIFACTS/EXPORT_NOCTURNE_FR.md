@@ -1,8 +1,8 @@
 # Export nocturne : sauvegarde chiffrée et copie statistique
 
-**Référence :** §II.C et §VII (acquisition des données), §II.G
-(connexions réseau), question « le POS nécessite une connexion
-Internet » du manuel de certification. Cette annexe décrit une
+**Référence :** « Configuration du POS - B. Configuration Internet »,
+§VII.B et tableau DAS (question « le POS nécessite une connexion
+Internet ») du manuel de certification. Cette annexe décrit une
 fonction **facultative** de `pili-pos`, absente tant que la section
 `export` de `pos.json` n'est pas renseignée.
 

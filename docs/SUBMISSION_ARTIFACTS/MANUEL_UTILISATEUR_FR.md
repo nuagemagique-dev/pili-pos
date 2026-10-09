@@ -821,7 +821,7 @@ L'état, en haut du panneau :
 | « Non configuré » | L'établissement n'envoie rien : la fonction n'a pas été installée. | Rien. |
 | « Configuration invalide » | La configuration de l'export est refusée (la cause s'affiche dessous). L'export est arrêté, la caisse vend normalement. | Appeler l'installateur (§14). |
 | « À jour » | Tous les exports préparés sont arrivés au point de réception. | Rien. |
-| « n exports en attente » | Des exports ne sont pas encore livrés (réseau coupé, point de réception en panne, jeton refusé). Ils sont réessayés automatiquement, de plus en plus espacés (de 1 à 60 minutes), sans rien perdre. | Si l'état dure, lire « Dernière erreur » et appeler l'installateur. |
+| « n exports en attente » | Des exports ne sont pas encore livrés (réseau coupé, point de réception en panne, jeton refusé). Ils sont réessayés automatiquement, de plus en plus espacés (de 1 à 60 minutes), tant qu'ils sont conservés (`keep_days` jours). | Si l'état dure, lire « Dernière erreur » et appeler l'installateur. |
 
 Les lignes du panneau : « Destination » (serveur de réception, sans
 chemin), « Dernier export » (identifiant et heure de préparation),
