@@ -86,11 +86,16 @@ internal object PlatformUpdateSteps {
                 else -> throw AssertionError("unknown refusal case $case")
             }
         writeRegistryOverride(env)
+        val updateDir = File(env.context.filesDir, "platform/update")
+        // A refusal before the download (not_newer) deletes nothing, so the APK of an earlier verified update may
+        // be there already; what a refusal must never do is leave a file of its own behind.
+        val before = updateDir.listFiles().orEmpty().map { it.name }.toSet()
         val result = runBlocking { env.update.verifier().verify(env.update.sources().ghcr()) }
         val refused = result as? UpdateRefusal ?: throw AssertionError("the release must be refused with $case, got $result")
         assertEquals("refusal code", expected, refused.code)
-        val leftovers = File(env.context.filesDir, "platform/update").listFiles().orEmpty().map { it.name }
-        assertFalse("a refused download must leave no APK behind: $leftovers", leftovers.any { it.endsWith(".apk") || it.endsWith(".part") })
+        val added = updateDir.listFiles().orEmpty().map { it.name }.filterNot { it in before }
+        assertFalse("a refusal must leave no new file in filesDir/platform/update: $added", added.isNotEmpty())
+        assertFalse("no partial download may stay: ${updateDir.list().orEmpty().toList()}", updateDir.list().orEmpty().any { it.endsWith(".part") })
         PlatformE2eEnv.line("PLATE2E_REFUSALS ok case=$case code=${refused.code.id}")
     }
 }

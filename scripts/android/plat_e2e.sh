@@ -36,7 +36,8 @@
 # The emulator is never stopped or wiped.
 #
 # Environment: ANDROID_HOME, ANDROID_NDK_HOME, JAVA_HOME (JDK 17), cargo on PATH, minisign.
-# PILI_GRADLE_OFFLINE=0 lets Gradle go online (default: --offline). PLAT_E2E_SALES (default 50) is
+# PILI_GRADLE_OFFLINE=0 lets Gradle go online (default: --offline). PLAT_E2E_WAIT (seconds, default 2400) is how
+# long the precheck waits for another end-to-end run on the shared emulator to end. PLAT_E2E_SALES (default 50) is
 # the number of one-line sales, then PLAT_E2E_SALES2 (10) sales of PLAT_E2E_LINES2 (6) lines each. Logs: target/android-plat-e2e/.
 # ─────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -313,9 +314,12 @@ run_step() {
     done
     wait "$ipid" 2>/dev/null
     adbd logcat -d -v threadtime -s PlatE2e:I >"$log.logcat" 2>&1
+    adbd logcat -d -b crash -v threadtime >"$log.crash" 2>&1
     STEP_OK=0
     if tr -d '\r' <"$log.log" | grep -q '^OK (1 test)' && ! tr -d '\r' <"$log.log" | grep -qE 'INSTRUMENTATION_STATUS_CODE: -[0-9]|FAILURES!!!|shortMsg=|TIMEOUT after'; then
         STEP_OK=1
+    else
+        adbd logcat -d -t 600 -v threadtime >"$log.tail" 2>&1 # the last lines of every tag, for the post-mortem
     fi
 }
 
@@ -328,6 +332,15 @@ step_pid() { grep -h "PLATE2E_$2" "$OUTDIR/step-$1$STEP_SUFFIX.logcat" 2>/dev/nu
 step_failure() { # <name>: the first lines of why a step failed
     tr -d '\r' <"$OUTDIR/step-$1$STEP_SUFFIX.log" | grep -E "stack=|AssertionError|Exception|shortMsg=|longMsg=|TIMEOUT|FAILURES" | head -n 6 | tr '\n' ' '
 }
+
+# ms_of <HH:MM:SS.mmm>: milliseconds since midnight (logcat threadtime stamps are device local time).
+ms_of() { echo "$1" | awk -F'[:.]' '{ printf "%d", (($1 * 60 + $2) * 60 + $3) * 1000 + $4 }'; }
+
+# step_time <name> <prefix>: the device time (HH:MM:SS.mmm) of the last PLATE2E_<prefix> line of the step.
+step_time() { grep -h "PLATE2E_$2" "$OUTDIR/step-$1$STEP_SUFFIX.logcat" 2>/dev/null | tail -n 1 | awk '{print $2}'; }
+
+# ready_time <pid>: the device time of the first 'state=Ready' line of that pid.
+ready_time() { adbd logcat -d -v threadtime --pid="$1" -s PiliShell:I 2>/dev/null | grep 'state=Ready' | head -n 1 | awk '{print $2}'; }
 
 field() { # <key> <line>: value of key=value in a result line
     echo "$2" | tr ' ' '\n' | sed -n "s/^$1=//p" | head -n 1
@@ -354,6 +367,22 @@ pass emulator "$SERIAL"
 adbd shell "input keyevent KEYCODE_WAKEUP; wm dismiss-keyguard" >/dev/null 2>&1
 
 # ── precheck ────────────────────────────────────────────────────
+# The emulator is shared with the other lanes' gates. Another end-to-end run on it (app_e2e.sh, this script,
+# the device tests) would install over this run and clear its device owner, so the run waits, at most
+# PLAT_E2E_WAIT seconds (default 2400), until none is running. Nothing stops a run that starts later.
+other_e2e() { pgrep -f 'scripts/android/(app_e2e|plat_e2e|device_engine_tests|emulator_smoke)[.]sh' | grep -vx "$$"; }
+wait_idle() { # <check name>
+    local deadline
+    deadline=$(($(date +%s) + ${PLAT_E2E_WAIT:-2400}))
+    while [[ -n "$(other_e2e)" ]]; do
+        if [[ "$(date +%s)" -ge "$deadline" ]]; then
+            abort "$1" "another end-to-end run still uses the emulator after ${PLAT_E2E_WAIT:-2400} s (pids $(other_e2e | tr '\n' ' '))"
+        fi
+        note "waiting for another end-to-end run on the emulator (pids $(other_e2e | tr '\n' ' '))"
+        sleep 15
+    done
+}
+wait_idle precheck
 owners_now="$(owners)"
 users_now="$(adbd shell pm list users 2>/dev/null | tr -d '\r' | grep -c 'UserInfo{')"
 if ! no_owner; then
@@ -397,15 +426,25 @@ pass removable-volume "public volume $VOLUME_UUID mounted$created_volume"
 # ── build ───────────────────────────────────────────────────────
 offline=(--offline)
 [[ "${PILI_GRADLE_OFFLINE:-1}" == "0" ]] && offline=()
-gradle_run() { # <log> <gradle args...>
-    local log="$1"
-    shift
-    (
-        cd android &&
-            bash ../scripts/android/heavy.sh ./gradlew --no-daemon --console=plain "${offline[@]}" \
-                "-Dorg.gradle.jvmargs=$JVMARGS" "$@"
-    ) >"$log" 2>&1
+# gradle_in <dir> <log> <gradle args...>: one Gradle build in <dir>/android through heavy.sh. Other agents on this
+# Mac run `gradlew --stop`, which kills a build of ours in the middle ("Gradle build daemon has been stopped"):
+# that failure alone is retried, twice.
+gradle_in() {
+    local dir="$1" log="$2" try rc=1
+    shift 2
+    for try in 1 2 3; do
+        (
+            cd "$dir/android" &&
+                bash "$dir/scripts/android/heavy.sh" ./gradlew --no-daemon --console=plain "${offline[@]}" \
+                    "-Dorg.gradle.jvmargs=$JVMARGS" "$@"
+        ) >"$log" 2>&1
+        rc=$?
+        [[ "$rc" -ne 0 ]] && grep -q "Gradle build daemon has been stopped" "$log" || break
+        note "the Gradle daemon was stopped by another process, retrying ($try)"
+    done
+    return "$rc"
 }
+gradle_run() { gradle_in "$ROOT" "$@"; } # <log> <gradle args...>
 note "gradle :app:assembleDebug :app:assembleDebugAndroidTest (log $OUTDIR/gradle.log)"
 gradle_run "$OUTDIR/gradle.log" :app:assembleDebug :app:assembleDebugAndroidTest || {
     grep -E "FAILED|What went wrong|error:|e: " "$OUTDIR/gradle.log" | head -n 20 >&2
@@ -444,11 +483,7 @@ sed -i '' -e "s/versionName = ffiVersion/versionName = \"$NEW_NAME\"/" -e "s/ver
     "$NEWER_WT/android/app/build.gradle.kts"
 grep -q "versionName = \"$NEW_NAME\"" "$NEWER_WT/android/app/build.gradle.kts" || abort newer-apk "could not patch build.gradle.kts in $NEWER_WT"
 note "gradle :app:assembleDebug in $NEWER_WT (log $OUTDIR/gradle-newer.log)"
-(
-    cd "$NEWER_WT/android" &&
-        bash "$NEWER_WT/scripts/android/heavy.sh" ./gradlew --no-daemon --console=plain "${offline[@]}" \
-            "-Dorg.gradle.jvmargs=$JVMARGS" :app:assembleDebug
-) >"$OUTDIR/gradle-newer.log" 2>&1 || {
+gradle_in "$NEWER_WT" "$OUTDIR/gradle-newer.log" :app:assembleDebug || {
     grep -E "FAILED|What went wrong|error:|e: " "$OUTDIR/gradle-newer.log" | head -n 20 >&2
     abort newer-apk "gradle failed in $NEWER_WT, see $OUTDIR/gradle-newer.log"
 }
@@ -505,6 +540,9 @@ bundle_out="$(bash scripts/android/make_dev_bundle.sh --seed --out "$WORK_DIR/bu
 pass bundle "$(echo "$bundle_out" | tail -n 1)"
 
 # ── install ─────────────────────────────────────────────────────
+wait_idle install # the builds took minutes: another run may have started meanwhile
+adbd shell pm list packages 2>/dev/null | tr -d '\r' | grep -q 'dev.nuagemagique.pilipos' && abort install "a pilipos package appeared during the build (another run?)"
+no_owner || abort install "a device owner appeared during the build (another run?): $(owners | tr '\n' ' ')"
 INSTALLED=1
 for apk in "$WORK_DIR/apk/app.apk" "$WORK_DIR/apk/test.apk"; do
     out="$(adbd install -r "$apk" 2>&1 | tr -d '\r')"
@@ -706,8 +744,14 @@ check_update() {
         fail update "no authenticated blob request was redirected by the registry"
         return 1
     fi
+    local t_commit t_ready commit_to_ready=""
+    t_commit="$(step_time update 'UPDATE committed')"
+    t_ready="$(ready_time "$new_pid")"
+    if [[ -n "$t_commit" && -n "$t_ready" ]]; then
+        commit_to_ready="$(( $(ms_of "$t_ready") - $(ms_of "$t_commit") )) ms from the commit line to state=Ready of the new pid, "
+    fi
     UPDATE_OK=1
-    pass update "versionCode $old_code -> $new_code, pid $old_pid -> $new_pid after ${pid_seconds}s, Ready again, mLockTaskModeState=LOCKED after ${locked_seconds}s; registry: $main_blob_auth blob request(s) with the bearer redirected, $cdn_hits on the redirect target, 0 with Authorization"
+    pass update "versionCode $old_code -> $new_code, pid $old_pid -> $new_pid, ${commit_to_ready}mLockTaskModeState=LOCKED within ${locked_seconds}s of the end of the instrumentation; registry: $main_blob_auth blob request(s) with the bearer redirected, $cdn_hits on the redirect target, 0 with Authorization"
 }
 check_update
 
@@ -758,7 +802,13 @@ if echo "$shell_log" | grep -q 'NotProvisioned'; then
 fi
 wait_locked 30 || abort watchdog "pid $new_pid is Ready but mLockTaskModeState is not LOCKED within 30 s"
 locked_seconds=$(($(date +%s) - fatal_end))
-pass watchdog "fatal sent, pid $old_pid -> $new_pid ${restart_seconds}s after the process died, Ready after ${ready_seconds}s ($shell_log), mLockTaskModeState=LOCKED after ${locked_seconds}s"
+t_sent="$(step_time fatal 'FATAL sent')"
+t_ready="$(ready_time "$new_pid")"
+sent_to_ready=""
+if [[ -n "$t_sent" && -n "$t_ready" ]]; then
+    sent_to_ready="$(( $(ms_of "$t_ready") - $(ms_of "$t_sent") )) ms from markFatal to state=Ready of the new pid (3000 ms of it is the watchdog's wait), "
+fi
+pass watchdog "fatal sent, pid $old_pid -> $new_pid, ${sent_to_ready}new pid seen ${restart_seconds}s after the process died, mLockTaskModeState=LOCKED within ${locked_seconds}s ($shell_log)"
 
 # ── audit ───────────────────────────────────────────────────────
 note "am instrument step=check_audit (log $OUTDIR/step-check_audit.log)"

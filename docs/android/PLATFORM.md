@@ -78,7 +78,7 @@ Teardown: the restrictions, the uninstall block and the other policies belong to
 
 ## 4. Audit log
 
-Status: design (P6-T5)
+Status: as built (P6-T11 observed)
 
 `filesDir/platform/audit.jsonl`, one JSON object per line (PD208): `ts` (ISO 8601 with the Europe/Brussels offset), `kind`, `event`, `detail` (string map), `versionCode`, `versionName`, `pid`.
 
@@ -87,9 +87,11 @@ Status: design (P6-T5)
 - It is not the fiscal journal, it is never sent anywhere, and it is part of the SPF export (section 7).
 - Writers: the policies, the watchdog, the export and the updater.
 
+Observed on the emulator (`plat_e2e.sh`, section 13): the file survives the restarts and the package replacement (the same `audit.jsonl` carries rows of `versionCode` 10000 and 10001), and after one full run it holds `policy/applied`, `export/started`, `export/done`, `update/check_started`, `update/verified`, `update/refused` (`not_newer`, `sha256_mismatch`), `update/started`, `update/package_replaced`, `update/done`, `watchdog/fatal`, `watchdog/restart` and, written by the new process, `watchdog/restarted` (31 rows in the run with the update). The step `check_audit` asserts these rows.
+
 ## 5. Crash watchdog
 
-Status: design (P6-T5)
+Status: as built (P6-T11 observed)
 
 `platform/watchdog/EngineWatchdog` watches `EngineGateway.state` from the application scope (PD207).
 
@@ -99,6 +101,8 @@ Status: design (P6-T5)
 - **`BootReceiver`:** audits the boot and starts `MainActivity` as a fallback to HOME.
 
 Strings: `strings_plat_watchdog.xml`.
+
+Observed (step `fatal` of `plat_e2e.sh`, `EngineHolder.markFatal("e2e")` from the debug entry point, no `am force-stop`): the audit rows `watchdog/fatal` then `watchdog/restart` are written, the process ends about 3 s later, the system starts a new process at once (the new pid is there when the instrumentation reports "Process crashed"), the new process logs `PiliShell state=Ready` without a second import, 4,011 ms after `markFatal` (3,000 ms of it is the wait of the watchdog, so about 1 s of restart), the kiosk is `mLockTaskModeState=LOCKED` within 1 s of that, and the new process writes `watchdog/restarted`. The budget file `restarts.json` held one entry.
 
 ## 6. About and identity
 
@@ -371,7 +375,7 @@ The container build (`android/docker/build_in_container.sh`) builds `:app:assemb
 
 ## 12. Storage and the SD card
 
-Status: design (P6-T11)
+Status: as built (P6-T11)
 
 **Where the database lives.** Not on the SD card. The engine database is `filesDir/engine/pos.db` in app-private internal storage, next to `filesDir/engine/backups/`, `filesDir/provisioning/` and `filesDir/logs/` (`provisioning/ProvisioningPaths.kt`). It stays there by design (PD220):
 - a fiscal journal on removable media can be pulled out, swapped, corrupted or read by another device;
@@ -382,29 +386,85 @@ Removable media are reached only through SAF grants (the export, the update from
 
 **What the SD card is for.** It is a removable volume like a USB stick, so it is a target of the SPF export (section 7), of the update source "from a stick" (section 8) and later of the nightly export lane. Spike S4 proved the SAF export on this kind of volume (a virtual SD card stood in for the stick). `DISALLOW_MOUNT_PHYSICAL_MEDIA` stays off so the card mounts.
 
-**Size, first estimate.** A test database of this repository holds about 1.6 KB per fiscal event and 3.5 KB per pending sign (19 events, measured with `dbstat`). With the order, its lines and its payments that is roughly 10 to 15 KB per sale. At 100 to 300 sales a day that is roughly 0.4 to 1.5 GB a year. The P4 exit report said "megabytes per year", which was too low.
+**Size, first estimate (superseded by the measurement below).** A test database of this repository holds about 1.6 KB per fiscal event and 3.5 KB per pending sign (19 events, measured with `dbstat`). With the order, its lines and its payments that was estimated at 10 to 15 KB per sale, 0.4 to 1.5 GB a year at 100 to 300 sales a day. The P4 exit report said "megabytes per year", which was too low.
 
-Measured figure: to be measured by P6-T11 (growth per sale on the emulator, then written here).
+**Size, measured (P6-T11).** Step `sales` of `plat_e2e.sh` on the emulator, with the seeded test database (294,912 bytes at the start, real engine, FDM mock): 50 takeaway sales of one product, one line each, paid in cash, then 10 sales of 6 lines each, then the Z report. Three kinds of figure come out; only the second and third are the growth of the data:
 
-**A finding that matters more than the card size.** The engine writes a full copy of `pos.db` to `backups/` after every Z (`crates/pos-engine/src/commands/signing.rs:761`) and never deletes one (PD219). After a year that is about 365 copies of a database that keeps growing, which is far more than the database itself and can fill the internal storage of the till within months. The platform lane deletes nothing, because the engine is frozen and deleting is a decision for the user. The About screen shows the free internal space and the size of `backups/`, and the export copies only the 7 newest backups. A retention rule (for example "keep 14 days on the till") is an engine change, best made with the re-freeze that the nightly export lane needs anyway.
+| Measure | Result | Meaning |
+| --- | --- | --- |
+| size of `pos.db` plus `pos.db-wal`, no checkpoint forced | 319,664 to 4,746,888 bytes, 88,544 bytes per sale | the write-ahead log re-writes the changed pages at every commit until its next checkpoint (about 4 MB), so this is not growth; it is logged as `bytes_per_sale` of `PLATE2E_DBSIZE` for the record |
+| `PRAGMA page_count` times `page_size` (4096), read-only connection, WAL frames included, sales of 1 line | 294,912 to 618,496 bytes: **6,471 bytes per sale** | the growth of the database |
+| same, sales of 6 lines | **14,336 bytes per sale** | one more line costs about 1.6 KB: (14,336 - 6,471) / 5 = 1,573 (measured, not decomposed) |
+| `engine/backups` after the Z (60 sales) | 1 file, **778,240 bytes** | the full copy the engine makes after every Z (`signing.rs:761`) |
 
-**Recommendation.** A good-quality microSDXC card of 64 GB, "high endurance" or class A1/U3, formatted exFAT:
-- exFAT because FAT32 refuses files of 4 GiB or more, which a database plus its copies can reach over the years;
-- 64 GB holds many full exports even after several years.
+The database has no free pages after the run, so the figures are the growth and not slack. A real sale of the restaurant has several lines, so the 6-line figure is the one to plan with; the 1-line figure is the floor.
 
-Not checked, hardware residue: the largest card the D3 Pro accepts and its slot behaviour (there is no real D3 Pro here). The SD card is never the only copy: the SPF export is a manager action, and the off-till copy belongs to the nightly export lane.
+**Yearly projection** (`bytes_per_sale x sales a day x 365`, from the measured figures):
+
+| Sales a day | 1-line sale (6,471 bytes) | 6-line sale (14,336 bytes) |
+| --- | --- | --- |
+| 100 | 236 MB a year (225 MiB) | 523 MB a year (499 MiB) |
+| 300 | 709 MB a year (676 MiB) | 1.57 GB a year (1.46 GiB) |
+
+**Backups, if every Z copies the whole database and nothing deletes the copies.** The copy of day *d* weighs the database of day *d*, so after 365 days the copies together weigh `365 x 294,912 + daily growth x 365 x 366 / 2`:
+
+| Sales a day | 1-line sale | 6-line sale |
+| --- | --- | --- |
+| 100 | 40 GiB a year; 32 GiB reached on day 325, 64 GiB on day 460 | 89 GiB a year; 32 GiB on day 219, 64 GiB on day 309 |
+| 300 | 121 GiB a year; 32 GiB on day 188, 64 GiB on day 266 | 268 GiB a year; 32 GiB on day 126, 64 GiB on day 179 |
+
+The database itself stays small (about 0.2 to 1.5 GiB a year); the backups are 100 times bigger than it after a year.
+
+**A finding that matters more than the card size.** The engine writes a full copy of `pos.db` to `backups/` after every Z (`crates/pos-engine/src/commands/signing.rs:761`) and never deletes one (PD219). After a year that is about 365 copies of a database that keeps growing, which is far more than the database itself: the measurement above gives 40 to 268 GiB of backups after a year, and 32 GiB are reached between day 126 and day 325 depending on the volume. That fills the internal storage of the till within months (the free space of the real D3 Pro is read from its About screen; the emulator says nothing about it). The platform lane deletes nothing, because the engine is frozen and deleting is a decision for the user. The About screen shows the free internal space and the size of `backups/`, and the export copies only the 7 newest backups. A retention rule (for example "keep 14 days on the till") is an engine change, best made with the re-freeze that the nightly export lane needs anyway.
+
+**Recommendation.** The database stays in internal storage only (above). The SD card is for exports and updates:
+- exFAT, because FAT32 refuses files of 4 GiB or more, which the database alone reaches after about 3 years at 300 sales a day of 6 lines;
+- a good-quality microSDXC card, "high endurance" or class A1/U3;
+- **64 GB** is enough for the first year at 100 sales a day: one export is `pos.db` plus the 7 newest backups, about 8 times the database, so about 0.2 GiB at the start and 3.9 GiB at the end of the first year, which leaves room for about 15 exports at the end of that year;
+- **128 GB** at 300 sales a day or from the second year: one export weighs about 12 GiB at the end of the first year at 300 sales a day (6-line sales), and the app never deletes a folder on the card, so the manager has to clear old exports.
+
+The measurement does not change "internal only" nor the card kind; it makes the size depend on the volume and shows that the card cannot be the answer to the backups: only a retention rule on the till (for example "keep 14 days", an engine change, PD219) keeps the internal storage from filling.
+
+Not checked, hardware residue: the largest card the D3 Pro accepts and its slot behaviour (there is no real D3 Pro here), the free internal space of the real device, and exFAT on a real card (the virtual SD disk of the emulator is vfat). The SD card is never the only copy: the SPF export is a manager action, and the off-till copy belongs to the nightly export lane.
 
 ## 13. End-to-end run
 
-Status: design (P6-T11)
+Status: as built (P6-T11)
 
-`scripts/android/plat_e2e.sh` proves the platform features on the AVD `sunmi_d3_pro_api33` (PD218). One line per check, `PLATE2E | <check> | PASS|FAIL | <detail>`, then `PLATE2E | total | PASS|FAIL | <n> failed (<m> checks)`. `p6_gate.sh --plat-e2e` runs it and passes on the total line.
+`scripts/android/plat_e2e.sh` proves the platform features on the AVD `sunmi_d3_pro_api33` (PD218). One line per check, `PLATE2E | <check> | PASS|FAIL | <detail>`, then `PLATE2E | total | PASS|FAIL | <n> failed (<m> checks)`. `p6_gate.sh --plat-e2e` runs it and passes on the total line. The instrumented side is `PlatformE2eTest` (`androidTest/.../platform`), one `am instrument -e step <name>` per step so that the host can wait for the process deaths between steps; it reads the singletons through the debug `E2eEntryPoint` and the internal platform entry points, and prints `PLATE2E_*` lines to logcat (tag `PlatE2e`).
 
-- Only P6-T11 and the phase exit start or reuse the emulator, never while another AVD runs (`scripts/android/emulator.sh ensure`). The AVD is never wiped.
-- The removable volume is the virtual SD disk of vold (S4-T4, Q20; `sm set-virtual-disk true` if absent).
-- The update test reaches a host mock registry (`plat_registry_mock.py`) through `adb reverse`, using the debug-only registry override of section 8.
-- Teardown as in `app_e2e.sh` (`APP.md` section 9): no device owner, no package, no reverse rule, export folders removed.
-- It also measures the database growth per sale (section 12).
+| Check | What it does |
+| --- | --- |
+| `emulator`, `precheck` | `emulator.sh ensure`; no owner, one user, no pilipos package; waits (at most 40 minutes) while another end-to-end run uses the shared emulator |
+| `removable-volume` | `sm list-volumes public` shows a mounted public volume (the virtual SD disk, created with `sm set-virtual-disk true` and `sm partition ... public` when absent) |
+| `build`, `newer-apk` | `:app:assembleDebug :app:assembleDebugAndroidTest`; then the same debug app as versionCode + 1 and the next patch version (`1.0.1`, no `-dev`, as the descriptor wants) |
+| `mocks` | FDM and printer mocks as `app_e2e.sh`, plus `plat_registry_mock.py` (device ports 19392, and 19393 for its redirect target) |
+| `bundle`, `install`, `launch`, `push` | as `app_e2e.sh` |
+| `policies` | step `provision_and_policies`: import from the inbox, Ready, then through the system: the 13 restrictions of PD206, `no_debugging_features` absent in debug, `no_physical_media` and `no_config_wifi` absent, lock task features 0, auto time on, auto time zone off, zone Europe/Brussels, uninstall blocked, stay awake 7, keyguard off |
+| `sales` | step `sales`: manager login, 50 sales of one line then 10 of 6 lines, each `createOrder` (takeaway), `addOrderLine`, `checkout` with one cash part without an amount (the engine settles it, no arithmetic in the test), then `generateZReport`; the PASS detail carries `bytes_per_sale` and the sizes of section 12 |
+| `export` | step `export`: `Exporter` with a `FileTarget` on the app-specific directory of the removable volume, every `MANIFEST.sha256` entry hashed again in the app; then `sha256sum -c` on the device, the folder pulled and `shasum -a 256 -c` on the host, and `PRAGMA integrity_check` of the exported `pos.db` |
+| `declared` | the host copies the newer APK to the registry directory and writes `declared.json` (PD211) with the hashes and the signer from `apksigner verify --print-certs`, signed with the development minisign key (read in place) and verified with `dev-minisign.pub` |
+| `update` | step `update`: `UpdateVerifier` with `GhcrSource` (the debug override `filesDir/platform/registry.json`), then `UpdateInstaller.install`; the install ends the process; the host checks a new pid, `dumpsys package` versionCode, `state=Ready` of the new pid, `mLockTaskModeState=LOCKED`, and that the registry log shows the bearer on the blob requests of the main port and none on the redirect target |
+| `refusals` | step `update_refusals` twice with the registry swapped: a signed descriptor for the installed versionCode (`not_newer`) and a newer one with a wrong SHA-256 (`sha256_mismatch`); a refusal leaves no new file |
+| `watchdog` | step `fatal`: `markFatal`; the watchdog kills the process; new pid, Ready, LOCKED, timings |
+| `audit` | step `check_audit`: the rows of section 4 |
+| `teardown` | the debug teardown broadcast, owner cleared, both packages uninstalled, the export folder on the volume, the reverse rules, the mocks, the temporary directories and the newer-apk copy removed |
+
+Choices to know:
+- Only P6-T11 and the phase exit start or reuse the emulator, never while another AVD runs (`scripts/android/emulator.sh ensure`). The AVD is never wiped. Other lanes' gates also use it, so the script waits while another `app_e2e.sh`, `plat_e2e.sh` or device-test script runs; a run that starts after the install is not prevented.
+- The removable volume is the virtual SD disk of vold (S4-T4, Q20). It is vfat, so the exFAT and FAT32 behaviour stays hardware residue.
+- The newer APK cannot come from the injected AGP properties (`-Pandroid.injected.version.code` and `.name` are ignored by the AGP of this repository: the APK kept its version), so it is built from a throwaway `git archive HEAD` copy under `target/p6-newer` of the work tree whose `build.gradle.kts` is patched there only (a registered `git worktree` under `~/.cache` lost its `target` directory in the middle of a build to the disk guard of the shared Mac). The copy is removed at the end; `git worktree list` never names it.
+- The instrumented steps do not use `am force-stop` (PD118). The install and the watchdog end the instrumented process on purpose, so the restart checks compare pids and read only the log of the new pid.
+
+**Run of 2026-10-09 (this card), the repository as it is: 2 FAIL of 19 checks.** `emulator`, `precheck`, `removable-volume`, `build`, `newer-apk`, `mocks`, `bundle`, `install`, `launch`, `push`, `policies`, `sales`, `export`, `declared`, `refusals`, `watchdog` and `teardown` pass; `update` and, because of it, `audit` fail. Lines (detail shortened):
+- `policies | PASS | PLATE2E_POLICIES ok restrictions=13 zone=Europe/Brussels`
+- `sales | PASS | sales=50 ... bytes_per_sale=88544 (file sizes, WAL included); logical: bytes_per_sale=6471; multi-line: sales=10 lines=6 bytes_per_sale=14336; backups: after_z files=1 bytes=778240`
+- `export | PASS | 8 files, 1562872 bytes ...; MANIFEST.sha256 verified on the device (sha256sum -c: 7 OK) and on the host (shasum -a 256 -c: 7 OK); pos.db integrity_check ok`
+- `refusals | PASS | installed versionCode 10000; case=not_newer code=not_newer case=sha256_mismatch code=sha256_mismatch`
+- `watchdog | PASS | fatal sent, pid 15391 -> 15437, 4011 ms from markFatal to state=Ready of the new pid ..., mLockTaskModeState=LOCKED within 1s`
+- `update | FAIL | ... Blocked(failures=[Z_NOT_DONE]) [PLATE2E_PRECONDITIONS z=1 zEvent=62 needsZ=false eventsAfter=63:R open=0/0]`
+
+**Open finding, for the owner of `platform/update` (not fixed in P6-T11, which may not touch the main sources): `UpdatePreconditions.zIsDone` can never be true after a real Z.** The engine signs the financial Z and the user Z in one operation (M184, `report.rs` `z_report_locked`), as two events of type `R` with consecutive ids, and the `z_reports` row points to the first one. `zIsDone` then finds the second `R` (id 63 after 62 in the run) among the events newer than the Z and, since only `S` is allowed (`PRESENCE_TYPES`), reports `Z_NOT_DONE`. Without a Z at all the check fails too (`needsZReport`, and a till with any fiscal event fails `newest == null`). So no update can be installed on a till that has signed anything. The fix is local to `zIsDone`: accept the `R` event whose id is `fiscalEventId + 1` (the user Z of the same operation), or compare with the highest id of the Z pair. Verified outside the repository, on a throwaway export of HEAD with that one-line change (`it.eventType in PRESENCE_TYPES || (it.eventType == "R" && it.id == after + 1)`), the whole script passes: `PLATE2E | total | PASS | 0 failed (19 checks)`, with `update | PASS | versionCode 10000 -> 10001, pid 16946 -> 17001, 1343 ms from the commit line to state=Ready of the new pid ..., mLockTaskModeState=LOCKED ... registry: 3 blob request(s) with the bearer redirected, 3 on the redirect target, 0 with Authorization` and `audit | PASS | rows=31 kinds=13 update_done_version=1.0.1 versions=[10000, 10001]`. `UpdatePreconditionsTest` models a Z as one `R` event followed by `S` events only, which is why this was not seen before; it should add the second `R` of the pair.
 
 ## 14. Gates
 
