@@ -416,7 +416,8 @@ pili-pos --check-config        # refuse une URL non sécurisée, une clé qui n'
 systemctl restart pili-pos
 ```
 
-Le seul trafic sortant ajouté est HTTPS (443) vers l'hôte de `url`. Si
+Le seul trafic sortant ajouté est HTTPS (port 443, ou le port indiqué
+dans `url`) vers l'hôte de `url`. Si
 le fichier du jeton est absent ou vide, l'export le consigne dans son
 état et dans le journal, et la caisse continue de vendre. Une section
 mal formée est refusée par `pili-pos --check-config` ; si elle était

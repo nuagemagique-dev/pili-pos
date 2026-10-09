@@ -231,8 +231,8 @@ fichier vers `<url>/<identifiant>/<nom du fichier>` :
 - **Limites** : délai de 120 secondes par fichier ; un fichier de plus
   de 512 Mio est refusé avec une erreur.
 - **Aucun port entrant** n'est ouvert sur la caisse : c'est une seule
-  connexion sortante HTTPS (443), seulement si la section `export` est
-  renseignée.
+  connexion sortante HTTPS (port 443, ou le port indiqué dans `url`),
+  seulement si la section `export` est renseignée.
 
 ## 8. Nouvelles tentatives et conservation
 
