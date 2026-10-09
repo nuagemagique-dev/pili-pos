@@ -914,6 +914,8 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   - **PD220 Storage location.** The database, backups, logs and provisioning bundle stay in app-private internal storage. No `android:installLocation` (internalOnly) and no storage permissions; gate check `plat-manifest`. Removable media are reached only through SAF grants (export, update from a stick).
   - **PD221 Exit without the user.** With the user away, the planner writes `P6-exit.md` and the lane waits for the integrator's merge into `android/int`. Merging into main, freezes, pushes, the release keys and `declare_android.sh` for real wait for the user.
 
+- **Integrator P6 wave 3 (2026-10-09):** `android/p6-P6-T3` then `android/P6-P6-T4` merged into `android/lane-plat` with no conflict. The phase gate passed on every check that does not need Docker (freeze tag, lane paths, Kotlin test inventory 318 to 460, scope regex, `p6_gate.sh --exit --android --root`, `p6_gate.sh --app --fast --plat-e2e --app-e2e`). `check_repro.sh` and `p4_gate.sh --linux-repro` could not run: the disk filled up during the run and the Docker daemon stopped answering (`docker info` hangs). The planner freed 13 GB of regenerable `target/` output of this worktree but did not restart Docker Desktop, because other lanes share it. These two Docker checks stay to be re-run once Docker is healthy, before the merge into `android/int`.
+
 ## Decided by the user
 
 - **User (2026-10-08):** the two questions left open for the soft freeze. Record of the freeze in `docs/android/LINUX_FREEZE.md`.
