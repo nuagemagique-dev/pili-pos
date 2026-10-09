@@ -346,6 +346,49 @@ kt "$R" ui/format/Money.kt $'package x\nval a = 1\n// money-format-only\nval d =
 run_gate "$R" -- --base b1
 expect_status "a marker on its own line does not cover the next line" ui-money FAIL
 
+# the CashDisplay.kt marker (UI-PD306)
+R="$(new_root)"
+kt "$R" ui/format/CashDisplay.kt $'package x\nval d = tenderedCents - dueCents // money-display-only\nval e = totalCents / parts   // money-display-only  '
+run_gate "$R" -- --base b1
+expect_status "a money-display-only line of CashDisplay.kt is allowed" ui-money PASS
+
+R="$(new_root)"
+kt "$R" ui/format/CashDisplay.kt $'package x\nval d = tenderedCents - dueCents'
+run_gate "$R" -- --base b1
+expect_status "a line of CashDisplay.kt without the marker is flagged" ui-money FAIL
+
+R="$(new_root)"
+kt "$R" ui/format/CashDisplay.kt $'package x\nval d = tenderedCents - dueCents // money-display-only too'
+run_gate "$R" -- --base b1
+expect_status "a display marker that does not end the line of CashDisplay.kt is flagged" ui-money FAIL
+
+R="$(new_root)"
+kt "$R" ui/format/Other.kt $'package x\nval d = tenderedCents - dueCents // money-display-only'
+run_gate "$R" -- --base b1
+expect_status "the display marker in another file is flagged" ui-money FAIL
+check "the display marker in another file is named" "$(contains "$ERR" "marker outside ui/format/CashDisplay.kt" && echo 0 || echo 1)" "err: $ERR"
+
+R="$(new_root)"
+kt "$R" feature/checkout/C.kt $'package x\nval d = 1 // money-display-only'
+run_gate "$R" -- --base b1
+expect_status "the display marker without arithmetic outside CashDisplay.kt is flagged" ui-money FAIL
+
+R="$(new_root)"
+kt "$R" ui/format/CashDisplay.kt $'package x\nval d = tenderedCents - dueCents // money-format-only'
+run_gate "$R" -- --base b1
+expect_status "the format marker in CashDisplay.kt is flagged" ui-money FAIL
+check "the format marker in CashDisplay.kt is named" "$(contains "$ERR" "marker outside ui/format/Money.kt" && echo 0 || echo 1)" "err: $ERR"
+
+R="$(new_root)"
+kt "$R" ui/format/Money.kt $'package x\nval d = totalCents / 100 // money-display-only'
+run_gate "$R" -- --base b1
+expect_status "the display marker in Money.kt is flagged" ui-money FAIL
+
+R="$(new_root)"
+kt "$R" ui/format/CashDisplay.kt $'package x\nval a = 1\n// money-display-only\nval d = tenderedCents - dueCents'
+run_gate "$R" -- --base b1
+expect_status "a display marker on its own line does not cover the next line" ui-money FAIL
+
 # ── ui-strings ──────────────────────────────────────────────────
 # strings_file DIR NAME NAMES...: writes res/DIR/strings_ui_NAME.xml with those string names.
 strings_file() {

@@ -38,8 +38,11 @@
 #                 applied to one (receiver or argument), and on roundToInt, roundToLong or
 #                 Math.round in a line with one. Comparisons, unary minus, ++ and --, and
 #                 the lambda arrow -> are not operators. A line of ui/format/Money.kt that
-#                 ends with the comment '// money-format-only' is exempt (PD208); the
-#                 marker anywhere else is a FAIL
+#                 ends with the comment '// money-format-only' is exempt (PD208), and a
+#                 line of ui/format/CashDisplay.kt that ends with the comment
+#                 '// money-display-only' is exempt (UI-PD306); each marker anywhere else
+#                 (another file, or the other marker's file, or not at the end of the
+#                 line) is a FAIL
 #   ui-strings    every android/app/src/main/res/values/strings_ui_*.xml has twins in
 #                 values-en/ and values-zh/ with exactly the same set of name attributes,
 #                 and every name of strings_ui_<area>.xml starts with ui_<area>_; SKIP
@@ -179,6 +182,10 @@ PKG = "android/app/src/main/kotlin/dev/nuagemagique/pilipos"
 RES = "android/app/src/main/res"
 MONEY_FILE = PKG + "/ui/format/Money.kt"
 MARKER = "// money-format-only"
+CASH_FILE = PKG + "/ui/format/CashDisplay.kt"
+CASH_MARKER = "// money-display-only"
+# (marker, the only file whose lines it exempts)
+MARKERS = ((MARKER, MONEY_FILE), (CASH_MARKER, CASH_FILE))
 
 
 def kotlin_files():
@@ -499,12 +506,20 @@ def money():
         raw_lines = raw.split("\n")
         exempt = set()
         for no, ln in enumerate(raw_lines, 1):
-            if "money-format-only" in ln:
-                if rel == MONEY_FILE and ln.rstrip().endswith(MARKER):
+            for marker, owner in MARKERS:
+                tag = marker[3:]
+                if tag not in ln:
+                    continue
+                if rel == owner and ln.rstrip().endswith(marker):
                     exempt.add(no)
                 else:
-                    where = "only the end of a line of ui/format/Money.kt" if rel == MONEY_FILE else "outside ui/format/Money.kt"
-                    hits.append("%s:%d money-format-only marker %s" % (rel, no, where))
+                    owner_name = owner[len(PKG) + 1 :]
+                    where = (
+                        "only at the end of a line of " + owner_name
+                        if rel == owner
+                        else "outside " + owner_name
+                    )
+                    hits.append("%s:%d %s marker %s" % (rel, no, tag, where))
         text = strip_kotlin(raw, drop_strings=True)
         for no, ln in enumerate(text.split("\n"), 1):
             if no in exempt:
