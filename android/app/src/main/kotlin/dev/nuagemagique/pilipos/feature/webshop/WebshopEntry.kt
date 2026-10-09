@@ -4,10 +4,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
-import dev.nuagemagique.pilipos.nav.PlaceholderScreen
 import javax.inject.Inject
 
-/** Navigation entry of the webshop feature (placeholder until P5). */
+/** Navigation entry of the webshop feature: the online orders screen (P5b-T11). */
 internal class WebshopEntry
     @Inject
     constructor() : FeatureEntry {
@@ -18,6 +17,6 @@ internal class WebshopEntry
             builder: NavGraphBuilder,
             navigator: AppNavigator,
         ) {
-            builder.composable(WebshopRoutes.WEBSHOP) { PlaceholderScreen(area, WebshopRoutes.WEBSHOP) }
+            builder.composable(WebshopRoutes.WEBSHOP) { WebshopRoute(navigator) }
         }
     }
