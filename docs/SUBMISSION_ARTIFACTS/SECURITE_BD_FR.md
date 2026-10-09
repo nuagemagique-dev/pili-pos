@@ -438,8 +438,9 @@ ci-dessus, qu'elle ne remplace pas ni ne modifie.
   sur la caisse avec age (X25519) pour la clé publique du propriétaire
   de l'établissement et, en option, du producteur, avant d'être
   envoyée. Les clés privées ne sont jamais sur la caisse ni sur le
-  serveur de réception, qui ne détient que du texte chiffré et ne peut
-  pas la lire.
+  serveur de réception, qui ne détient la sauvegarde que sous forme
+  chiffrée et ne peut pas la lire (il reçoit aussi la copie statistique
+  et le manifeste, non chiffrés).
 - **Aucun texte clair conservé.** La copie intermédiaire de la base
   n'existe que le temps du chiffrement, dans un répertoire de travail
   vidé au démarrage et avant chaque préparation ; elle est supprimée

@@ -47,8 +47,10 @@ L'export est lancé :
 - après **chaque rapport Z réel**, qu'il soit demandé par un Gérant
   (« Clôture journée ») ou produit automatiquement pour une journée
   restée ouverte (`MANUEL_UTILISATEUR_FR.md` §10) ;
-- au démarrage du POS, pour tout Z réel postérieur au dernier export
-  (la caisse a pu être éteinte entre la clôture et l'export) ;
+- au démarrage du POS, pour tout Z réel postérieur au dernier export,
+  dans la limite de `keep_days` jours (la caisse a pu être éteinte entre
+  la clôture et l'export ; un Z plus ancien que `keep_days` jours est
+  ignoré, test `a_z_older_than_keep_days_is_skipped_and_the_cursor_moves_past_it`) ;
 - à la demande d'un Gérant (« Réessayer maintenant »), uniquement
   pour renvoyer des exports déjà préparés mais pas encore livrés.
 
@@ -115,9 +117,10 @@ X25519), avant tout envoi :
   réception.** La caisse ne reçoit que des clés publiques (dans
   `pos.json`). Le propriétaire génère sa paire de clés lui-même et garde
   la clé privée hors ligne (`MANUEL_INSTALLATION_FR.md` §4.2). Le
-  serveur de réception ne détient que des fichiers chiffrés : **il ne
-  peut pas lire la sauvegarde.**
-- **Aucune copie en clair ne reste sur le disque** : la copie
+  serveur de réception ne détient la sauvegarde que sous forme chiffrée :
+  **il ne peut pas la lire.** Il reçoit aussi la copie statistique et le
+  manifeste, qui ne sont pas chiffrés (§6).
+- **Aucune copie en clair de la base ne reste sur le disque** : la copie
   intermédiaire de la base est supprimée dès le chiffrement, et en
   cas d'échec à n'importe quelle étape ; le répertoire de travail est
   vidé au démarrage et avant chaque préparation (tests
@@ -259,8 +262,7 @@ Les exports se trouvent dans la **mémoire interne** de l'appareil, à
 côté de la base : dans le sous-répertoire `exports` de `/var/lib/pili-pos`
 sur le kiosque Linux, dans le répertoire privé de l'application sur un terminal Android. **Ils
 ne sont jamais écrits sur une carte SD ni sur un autre support
-amovible.** Un support amovible reste réservé à l'export manuel
-demandé par le Gérant.
+amovible.**
 
 Ordre de grandeur de l'espace : chaque sauvegarde a la taille de
 `pos.db` (le chiffrement ne comprime pas), la copie statistique est bien
@@ -317,9 +319,13 @@ désactivé et l'état affiche le problème. Voir
 - Les **procédures d'accès aux données décrites dans le dossier**
   (`FEUILLE_ACQUISITION_DONNEES_FR.md` §2) sont inchangées : le
   contrôleur lit `pos.db` sur la caisse.
-- **Aucune donnée fiscale ne quitte la caisse en clair.** La
-  sauvegarde est chiffrée pour le propriétaire ; la copie statistique
-  ne contient que des montants agrégés par ticket et des pseudonymes.
+- **La sauvegarde complète ne quitte la caisse que chiffrée de bout en
+  bout** pour le propriétaire. La copie statistique, elle, n'est pas
+  chiffrée : elle est protégée par HTTPS pendant le transfert et le
+  récepteur de l'installation peut la lire. Elle contient les montants
+  de vente, de TVA et de paiement par ticket et par ligne, les
+  numéros de ticket et les totaux des rapports Z, sans donnée
+  directement identifiante, et les opérateurs y sont sous pseudonyme.
 - Le POS **ne devient pas un POS dans le cloud** : la base reste locale,
   chaque vente est signée par le FDM sur le réseau local, et la caisse
   fonctionne identiquement sans Internet (l'export attend simplement
