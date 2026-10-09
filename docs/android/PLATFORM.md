@@ -194,20 +194,90 @@ Limits: the gate cannot read a real stick; the real USB and SD behaviour (exFAT,
 
 ## 8. Updater: source format and verification
 
-Status: design (P6-T7)
+Status: as built (P6-T7)
 
-One signed descriptor `declared.json` per declared Android version (PD211):
+The package is `platform/update/`. Part 1 (this section) reads a declared release and verifies it; it installs nothing. Part 2 (section 9) installs. Nothing here touches `InstallResultReceiver` or `PackageReplacedReceiver`.
+
+### 8.1 Descriptor
+
+One signed descriptor `declared.json` per declared Android version (PD211), UTF-8, at most 64 KiB (`DeclaredParser.MAX_BYTES`):
 
 `{"format":1,"platform":"android","package":"dev.nuagemagique.pilipos","version":"X.Y.Z","versionCode":N,"asset":"pili-pos-android-X.Y.Z.apk","sha1":"..","sha256":"..","signerSha256":"..","declared_at":".."}`
 
-with `declared.json.minisig` (trusted comment `pili-pos-android X.Y.Z declared <ts>`).
+| Field | Rule (`DeclaredParser`, a refusal is `bad_descriptor`, or `too_large` above 64 KiB) |
+| --- | --- |
+| `format` | the integer `1` |
+| `platform` | exactly `"android"` |
+| `package` | non-empty string, must equal the installed application id (`wrong_package`) |
+| `version` | `^[0-9]+\.[0-9]+\.[0-9]+$`, equal to the `versionName` of the APK |
+| `versionCode` | integer greater than 0, strictly greater than the installed `versionCode` (`not_newer`) |
+| `asset` | `^pili-pos-android-[0-9]+\.[0-9]+\.[0-9]+\.apk$` and equal to `pili-pos-android-<version>.apk` |
+| `sha1` | 40 lowercase hex characters, SHA-1 of the APK |
+| `sha256` | 64 lowercase hex characters, SHA-256 of the APK |
+| `signerSha256` | 64 lowercase hex characters, SHA-256 of the DER signing certificate of the APK |
+| `declared_at` | non-empty string |
 
-- **Online:** an OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (the same package as the Linux `:declared`), pulled anonymously: a token from `/token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`, then the manifest (`application/vnd.oci.image.manifest.v1+json`), whose layers are found by their `org.opencontainers.image.title` annotation, then the blobs, each checked against its digest. Redirects are followed by hand and the bearer token is never sent to another host.
-- **USB (Q8):** the same three files in a folder chosen through SAF.
-- **Limits:** APK 200 MB, descriptor 64 KB. HTTPS only in release builds. Debug builds read an optional `filesDir/platform/registry.json` (`{"baseUrl":"http://127.0.0.1:<port>"}`) so the emulator test can reach a host mock through `adb reverse`. The gate check `plat-boundary` allows an `http://` literal only on a line with `127.0.0.1` or `localhost`.
-- **Keys (PD212):** `res/xml/plat_update_keys.xml` holds the public minisign key per build type. `debug` is the committed development key (`android/app/provisioning/dev-minisign.pub`; the gate check `plat-keys` compares them). `release` is empty until the user creates the declaration key (DECISIONS 9, Q7). With an empty key every update is refused (`plat_update_err_key_missing`).
+A missing, mistyped or empty field, an unknown `format`, another `platform` or a hash in capitals refuses the release. Unknown extra keys are ignored (the whole file is signed). The file is written compactly with one trailing newline; the signature covers the exact bytes.
 
-The verification core only reads and checks; it installs nothing. Signature verification goes through `EngineHelpers.verifyMinisign`.
+`declared.json.minisig` is a prehashed minisign signature (`minisign -S`, the default, algorithm `ED`) of `declared.json`, trusted comment `pili-pos-android X.Y.Z declared <ts>`. It is verified only through `EngineHelpers.verifyMinisign` (the Rust verifier of the engine). A key that is not a minisign key is `key_missing`, any other failure is `bad_signature`.
+
+### 8.2 Sources
+
+`UpdateSource` has two calls: `fetchDescriptor()` returns `DescriptorFiles(jsonBytes, minisigText)`, `fetchAsset(name, dest, maxBytes = 200 MiB)` writes the APK to `dest` (through `dest.part`, so a failed copy leaves nothing). A source moves bytes and trusts nothing; failures are an `UpdateException(code, detail)`.
+
+**`GhcrSource` (online).** An OCI artifact, tag `declared-android` of the public package `ghcr.io/brunomoyse/moyun-pos` (the same package as the Linux `:declared`), pulled anonymously:
+
+1. `GET {base}/token?scope=repository:brunomoyse/moyun-pos:pull&service=ghcr.io`, JSON `{"token":"..."}` (`access_token` is accepted too);
+2. `GET {base}/v2/brunomoyse/moyun-pos/manifests/declared-android` with `Accept: application/vnd.oci.image.manifest.v1+json` and `Authorization: Bearer <token>`;
+3. `GET {base}/v2/brunomoyse/moyun-pos/blobs/<digest>` for each layer, with the bearer.
+
+The token and the manifest are fetched once per source object, so the descriptor and the APK come from the same manifest. Every blob is hashed while it streams and compared with its `sha256:` digest: a wrong digest is `sha256_mismatch` for the APK and `bad_descriptor` for the descriptor files. A layer larger than its limit is `too_large` before the blob is requested, and a blob that turns out longer than the manifest says is refused (`too_large`) as soon as it passes the limit, and nothing is kept. Timeouts: 15 s to connect, 60 s to read. Redirects (the registry sends blobs to a CDN) are followed by hand, at most 5, and the `Authorization` header goes only to the origin (scheme, host and port) of the base URL, never to the target of a redirect. TLS is required, apart from the debug override below. Any HTTP error or transport failure is `network`.
+
+**`UsbSource` (Q8).** The same three files from a folder chosen through the Storage Access Framework (`UsbSource(context, treeUri)`, a `UsbFolder` over a `DocumentFile`); a file that is absent or cannot be opened is `usb_missing_file`. The same size limits apply.
+
+**Limits:** APK 200 MiB, each descriptor file 64 KiB. HTTPS only in release builds. Debug builds read an optional `filesDir/platform/registry.json` (`{"baseUrl":"http://127.0.0.1:<port>"}`) so the emulator test can reach a host mock through `adb reverse`; `GhcrSource.forApp(filesDir, debug)` is the only reader. In the override, clear text is accepted only for `127.0.0.1` or `localhost` (an unacceptable file is ignored and logged), a release build never reads it, and a redirect to clear text on another host is refused. The gate check `plat-boundary` allows an `http://` literal only on a line with `127.0.0.1` or `localhost`; the code compares schemes and has no such literal.
+
+### 8.3 OCI layout that P6-T9 must produce
+
+`oras push ghcr.io/brunomoyse/moyun-pos:declared-android` with exactly these three files, each pushed as a layer whose `org.opencontainers.image.title` annotation is the file name (oras sets it from the file name):
+
+| Layer title | Content |
+| --- | --- |
+| `declared.json` | the descriptor of 8.1 |
+| `declared.json.minisig` | its minisign signature |
+| `pili-pos-android-X.Y.Z.apk` | the signed APK of `asset` |
+
+Each title appears once (two layers with the same title are refused). The manifest is `application/vnd.oci.image.manifest.v1+json`; the config blob and the media types of the layers are not read. The tag is moved to the new manifest at each declaration; the app never reads another tag. Layer digests must be `sha256:`.
+
+### 8.4 Keys (PD212)
+
+`res/xml/plat_update_keys.xml` holds the public minisign key per build type: `<plat-update-keys><key build="debug">RW...</key><key build="release"></key></plat-update-keys>`. `UpdateKeys.load` picks the element by `BuildConfig.DEBUG`. `debug` is the committed development key (`android/app/provisioning/dev-minisign.pub`; the gate check `plat-keys` compares them). `release` is empty until the user creates the declaration key (DECISIONS 9, Q7). With an empty key every update is refused (`key_missing`, string `plat_update_err_key_missing`).
+
+### 8.5 Verification order
+
+`UpdateVerifier.verify(source)` returns a `VerifiedUpdate(release, file, sha1, sha256)` or an `UpdateRefusal(code, detail)`. It stops at the first refusal, in this order (S4 section 7):
+
+1. a public key for this build (`key_missing`);
+2. `fetchDescriptor()` (source codes: `network`, `bad_descriptor`, `too_large`, `usb_missing_file`);
+3. minisign over the exact bytes of `declared.json` (`bad_signature`);
+4. the strict parse (`bad_descriptor`, `too_large`);
+5. `package` equals the installed application id (`wrong_package`);
+6. `versionCode` strictly greater than the installed one (`not_newer`; the OS accepts an equal one, S4 U5, so the app refuses it);
+7. the download to `filesDir/platform/update/<asset>` (app-private; an older file is removed first);
+8. SHA-256, then SHA-1, of the file equal to the descriptor (`sha256_mismatch`, `sha1_mismatch`), one pass through `platform/about/Hasher`;
+9. `PackageManager.getPackageArchiveInfo(path, GET_SIGNING_CERTIFICATES)`: package, `versionCode` and `versionName` equal to the descriptor (`archive_mismatch`); the signer set (SHA-256 of each signing certificate) equal to the installed signer set and containing `signerSha256` (`signer_mismatch`).
+
+Any refusal, any error and a cancellation after the download began delete the file downloaded by that run (and its `.part`). A refusal raised before the download (steps 1 to 6) deletes nothing, so the file of an earlier `VerifiedUpdate` stays in `filesDir/platform/update`. A returned `VerifiedUpdate` leaves its file for part 2. Calls are serialised (one verification at a time).
+
+Audit rows, kind `update`: `check_started` (`source` = `ghcr` or `usb`), then `refused` (`code`, `detail`) or `verified` (`version`, `sha1`).
+
+### 8.6 Refusal codes and strings
+
+`UpdateRefusalCode` has twelve codes, each with `plat_update_err_<code>` in `strings_plat_update.xml` (French in `values/`, `values-en/`, `values-zh/`) plus `plat_update_title`: `key_missing`, `network`, `bad_descriptor`, `bad_signature`, `wrong_package`, `not_newer`, `too_large`, `sha256_mismatch`, `sha1_mismatch`, `archive_mismatch`, `signer_mismatch`, `usb_missing_file`. P6-T8 adds the other strings of the screen to the same file.
+
+### 8.7 Tests
+
+Fixtures `src/test/resources/platform/declared.json`, `declared.json.minisig` (signed with the development key) and `declared.tampered.json`. The JVM tests cannot load the Rust library, so `RealMinisignNatives` (test sources) re-implements the check (Ed25519 over BLAKE2b-512, as `minisign -S` does) behind `EngineNatives`; its own test pins BLAKE2b to the RFC 7693 vectors. `GhcrSource` is tested against `TestServer` (test sources), a minimal HTTP/1.1 server on plain sockets bound to `127.0.0.1`; the JDK `com.sun.net.httpserver.HttpServer` is not visible to the Kotlin test compilation of this module. No test reaches another host.
 
 ## 9. Updater: preconditions and install
 

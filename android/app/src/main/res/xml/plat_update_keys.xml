@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Public minisign keys of the declared-only updater (PD212). debug = android/app/provisioning/dev-minisign.pub
+     (the gate check plat-keys compares them). release stays empty until the declaration key exists: every
+     update is then refused (key_missing). Never put a secret key here. -->
+<plat-update-keys>
+    <key build="debug">RWQmv3D5F4695q2BBUUzfk0ABpONbcMKPePaMqZkpr5UV8J0PCTEdO/v</key>
+    <key build="release"></key>
+</plat-update-keys>

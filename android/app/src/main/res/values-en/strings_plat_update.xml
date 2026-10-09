@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plat_update_title">Update</string>
+    <string name="plat_update_err_key_missing">No declaration key is installed on this till: the update is refused.</string>
+    <string name="plat_update_err_network">The update source cannot be reached or answered something unexpected.</string>
+    <string name="plat_update_err_bad_descriptor">The release descriptor is unreadable or incomplete.</string>
+    <string name="plat_update_err_bad_signature">The descriptor signature is not valid: the update is refused.</string>
+    <string name="plat_update_err_wrong_package">This release is not meant for this application.</string>
+    <string name="plat_update_err_not_newer">This release is not newer than the installed one.</string>
+    <string name="plat_update_err_too_large">A file of the update is larger than the allowed size.</string>
+    <string name="plat_update_err_sha256_mismatch">The SHA-256 of the file is not the declared one.</string>
+    <string name="plat_update_err_sha1_mismatch">The SHA-1 of the file is not the declared one.</string>
+    <string name="plat_update_err_archive_mismatch">The content of the APK (package, version) does not match the descriptor.</string>
+    <string name="plat_update_err_signer_mismatch">The APK is not signed by the same key as the installed application.</string>
+    <string name="plat_update_err_usb_missing_file">A file of the update is missing from the chosen folder.</string>
+</resources>
