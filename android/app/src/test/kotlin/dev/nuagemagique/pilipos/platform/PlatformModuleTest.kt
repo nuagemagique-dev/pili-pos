@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.platform
 import dev.nuagemagique.pilipos.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlatformModuleTest {
@@ -17,8 +18,29 @@ class PlatformModuleTest {
     }
 
     @Test
+    fun exportSettingsRowIsDeclaredForManagersOnly() {
+        val row = PlatformModule.provideExportSettings()
+        assertEquals("platform.export", row.id)
+        assertEquals(R.string.plat_export_title, row.titleRes)
+        assertEquals(PlatformRoutes.EXPORT, row.route)
+        assertEquals(910, row.order)
+        assertTrue(row.managerOnly)
+    }
+
+    @Test
     fun platformEntryRegistersTheAboutRoute() {
-        assertEquals(listOf("platform/about"), PlatformEntry().routes)
+        assertEquals("platform/about", PlatformEntry().routes.first())
         assertEquals("platform", PlatformEntry().area)
+    }
+
+    @Test
+    fun platformEntryRegistersTheExportRoute() {
+        assertEquals(listOf("platform/about", "platform/export"), PlatformEntry().routes)
+    }
+
+    @Test
+    fun theExportRouteIsTheOneOfTheSettingsRow() {
+        assertEquals("platform/export", PlatformRoutes.EXPORT)
+        assertTrue(PlatformModule.provideExportSettings().route in PlatformEntry().routes)
     }
 }

@@ -8,22 +8,26 @@ import androidx.navigation.compose.composable
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
 import dev.nuagemagique.pilipos.platform.about.AboutScreen
+import dev.nuagemagique.pilipos.platform.export.ExportScreen
 import javax.inject.Inject
 
 /** Route constants of the platform lane (P6). */
 object PlatformRoutes {
     /** The about screen (version, device identity). */
     const val ABOUT = "platform/about"
+
+    /** The SPF export screen (manager only). */
+    const val EXPORT = "platform/export"
 }
 
 private const val LEGACY_PLACEHOLDER_TAG = "placeholder_platform"
 
-/** Navigation entry of the platform lane: the About screen. */
+/** Navigation entry of the platform lane: the About and the SPF export screens. */
 internal class PlatformEntry
     @Inject
     constructor() : FeatureEntry {
         override val area: String = "platform"
-        override val routes: List<String> = listOf(PlatformRoutes.ABOUT)
+        override val routes: List<String> = listOf(PlatformRoutes.ABOUT, PlatformRoutes.EXPORT)
 
         override fun register(
             builder: NavGraphBuilder,
@@ -34,5 +38,6 @@ internal class PlatformEntry
                 // it goes away with that test's update at integration.
                 Box(Modifier.testTag(LEGACY_PLACEHOLDER_TAG)) { AboutScreen() }
             }
+            builder.composable(PlatformRoutes.EXPORT) { ExportScreen() }
         }
     }
