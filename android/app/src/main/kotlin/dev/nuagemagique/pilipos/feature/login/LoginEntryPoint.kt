@@ -6,6 +6,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
+import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
@@ -27,6 +28,9 @@ internal interface LoginEntryPoint {
 
     /** The HubRise switch: its check only runs when it is on. */
     fun integrations(): IntegrationsStore
+
+    /** The FDM health: the start-up check asks it for a fresh reading. */
+    fun fdm(): FdmStore
 
     /** The only way to call the engine. */
     fun gateway(): EngineGateway

@@ -1,6 +1,7 @@
 package dev.nuagemagique.pilipos.feature.login
 
 import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import uniffi.pos_ffi.FdmSeverity
@@ -11,25 +12,17 @@ internal fun interface FdmProbe {
 }
 
 /**
- * The FDM probe of the login screen: `fdm_check_now` through the gateway.
+ * The FDM probe of the login screen, over the shared [FdmStore].
  *
- * The Vue screen calls `fdm.checkNow()` and reads `fdm.severity`. The shared FDM store is not part of this branch
- * yet (P5-T6), so the screen asks the engine itself; once that store lands this class is replaced by a probe
- * over `FdmStore.checkNow()` and nothing else changes.
+ * The Vue screen calls `fdm.checkNow()` and reads `fdm.severity`: the store asks the engine (`fdm_check_now`, called
+ * only from the store) and keeps the answer, and the severity it then holds is the one of the check. An FDM that did
+ * not answer, an engine that is not running, or a command that failed give null, which the check shows as "not
+ * configured".
  */
-internal class GatewayFdmProbe(
-    private val gateway: EngineGateway,
+internal class StoreFdmProbe(
+    private val fdm: FdmStore,
 ) : FdmProbe {
-    @Suppress("TooGenericExceptionCaught")
-    override suspend fun severity(): FdmSeverity? =
-        try {
-            gateway.call { engine -> engine.fdmCheckNow() }.severity
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Timber.d(e, "FDM check not answered")
-            null
-        }
+    override suspend fun severity(): FdmSeverity? = if (fdm.checkNow()) fdm.state.value.severity else null
 }
 
 /**

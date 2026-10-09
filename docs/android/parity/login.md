@@ -10,7 +10,7 @@ checks, end of shift); the screen only calls it through the shared stores and th
 | --- | --- | --- |
 | ui/src/views/LoginView.vue | feature/login/LoginScreen.kt (LoginRoute, LoginContent), LoginBrand.kt, LoginPeople.kt, LoginPinPanel.kt, LoginViewModel.kt, LoginStartupChecks.kt, LoginState.kt, LoginEntryPoint.kt | `list_users` `list_open_shifts` `check_printer` `check_kitchen_printer` `check_mail_status` `hubrise_get_connection_status` |
 | stores/auth.ts (login, loginWithNewPin, endShift driven by the tiles, the PIN pad, the INSZ entry and the first PIN) | ui/state/SessionStore.kt | `login` `login_with_new_pin` `end_shift` |
-| stores/fdm.ts (checkNow, read by the start-up checks) | feature/login/LoginStartupChecks.kt (GatewayFdmProbe), until the shared FdmStore of P5-T6 lands | `fdm_check_now` |
+| stores/fdm.ts (checkNow, read by the start-up checks) | feature/login/LoginStartupChecks.kt (StoreFdmProbe over ui/fdm/FdmStore.kt, which makes the call) | `fdm_check_now` |
 | components/PinDialog.vue (first login) | ui/components/PinPad.kt (PinDialog in PinMode.Choose), drawn inside the screen layout | - |
 | components/PiliLogo.vue | feature/login/LoginBrand.kt (wordmark as text) | - |
 
@@ -28,9 +28,12 @@ checks, end of shift); the screen only calls it through the shared stores and th
 - **Start-up checks wait for the engine, then appear together.** As in Vue the list is empty until all checks ran.
   HubRise is only checked when the integration is switched on; the screen loads the switch itself when the shared
   store has not yet (the store loads when the engine turns ready, which may be after the screen started).
-- **FDM check without FdmStore.** The shared `FdmStore` (P5-T6) is not on this branch. The screen calls
-  `fdm_check_now` itself through the gateway (`GatewayFdmProbe`) and maps the severity as Vue does (blocking is an
-  error "offline", warning is a warning, otherwise ok). When the store lands, only the probe changes.
+- **FDM check through the shared store.** The screen asks `FdmStore.checkNow()` (`StoreFdmProbe`), which is the
+  only caller of `fdm_check_now`, and reads the severity the store then holds. The severity is mapped as Vue does:
+  blocking is an error "offline", warning is a warning, info is ok ("connected"). An FDM that did not answer (the
+  store returned false), an engine that is not running, or a command that failed gives "not configured"
+  (`check_not_configured`, PD244): an unanswered FDM is never shown as ok. A command that failed also raises the
+  store's error toast, as in Vue; an engine that is not running does not.
 - **Software version (art. 47).** The version of `PosSettings.posSwVersion` is shown under the checks
   (`login_version`), as in Vue.
 - **Language choice.** Three buttons (Francais, English, Chinese) choose the language through
