@@ -3695,6 +3695,8 @@ dependencies = [
  "pos-core",
  "pos-db",
  "pos-engine-testkit",
+ "pos-export",
+ "pos-export-mock",
  "pos-fdm-mock",
  "pos-fiscal",
  "pos-hubrise",

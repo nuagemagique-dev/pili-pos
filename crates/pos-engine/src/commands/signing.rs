@@ -756,7 +756,10 @@ pub(crate) async fn follow_up(
             .await;
         }
         PendingContext::ReportZ {
-            print, user_print, ..
+            print,
+            user_print,
+            training,
+            ..
         } => {
             // Best effort: a failed backup never undoes the Z.
             if let Ok(db) = state.db.lock()
@@ -779,6 +782,11 @@ pub(crate) async fn follow_up(
                 state.timers.printer_status_read,
             )
             .await;
+            // A real Z feeds the nightly export; a training Z takes no
+            // number and exports nothing.
+            if !training {
+                crate::commands::export::wake_after_z(state);
+            }
         }
         PendingContext::Drawer => kick(with_drawer).await,
         #[cfg(feature = "hubrise")]
