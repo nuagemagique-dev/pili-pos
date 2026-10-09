@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.order
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -21,6 +22,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.VatCode
+import uniffi.pos_ffi.VatSplitRow
+import java.time.Instant
 
 /** Goldens of the order screen at 1920 x 1080 dp: the menu with a cart, the options dialog, the empty state. */
 @RunWith(RobolectricTestRunner::class)
@@ -70,6 +74,30 @@ class OrderScreenshotTest {
             canPay = true,
         )
 
+    // The full cart: sent and unsent lines, notes, a line the VAT split leaves out, the manager and the payment right.
+    private val fullCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 4_920),
+            rows =
+                listOf(
+                    CartRow(
+                        cartLine(1, 10, "Nigiri saumon", quantity = 2, nameZh = "三文鱼寿司", modifiersJson = "[\"Sans wasabi\"]"),
+                        LineAmount.Total(960),
+                    ),
+                    CartRow(cartLine(2, 16, "Assortiment 8 pièces", quantity = 1, nameZh = "拼盘八件"), LineAmount.Total(1_650)),
+                    CartRow(
+                        cartLine(3, 11, "Nigiri thon", quantity = 3, unitPriceCents = 520, nameZh = "金枪鱼寿司", unsent = 3),
+                        LineAmount.Total(1_560),
+                    ),
+                    CartRow(cartLine(4, 18, "Offert", quantity = 1, unitPriceCents = 0, unsent = 1), LineAmount.PerUnit(1, 0)),
+                    CartRow(cartLine(5, 19, "Sushi du jour", quantity = 1, unitPriceCents = 750, unsent = 1), LineAmount.Total(750)),
+                ),
+            canPay = true,
+            vatRows = listOf(VatSplitRow(VatCode.B, 12, 4_920, 527)),
+            unsentCount = 5,
+            canCloseUnpaid = true,
+        )
+
     private val menu =
         MenuState(
             categories = categories,
@@ -89,17 +117,20 @@ class OrderScreenshotTest {
     ) {
         rule.setContent {
             PiliTheme {
-                ProvideUiText(AppLanguage.FR, catalog) {
-                    PosScaffoldContent(
-                        header = header,
-                        actions = HeaderActions(),
-                        fdm = FdmUiState(connected = true),
-                        onCheckFdm = {},
-                        training = false,
-                        clock = "12:30",
-                        lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
-                        overlay = { OrderDialogs(state.dialog, OrderCallbacks()) },
-                    ) { OrderContent(state, OrderCallbacks(), OrderCartActions()) }
+                // A fixed clock: "opened at" shows minutes, which must not change from one run to the next.
+                CompositionLocalProvider(LocalOrderNow provides { Instant.parse("2026-10-09T10:37:00Z") }) {
+                    ProvideUiText(AppLanguage.FR, catalog) {
+                        PosScaffoldContent(
+                            header = header,
+                            actions = HeaderActions(),
+                            fdm = FdmUiState(connected = true),
+                            onCheckFdm = {},
+                            training = false,
+                            clock = "12:30",
+                            lights = { StatusLights(FdmUiState(connected = true), DeviceLights(FakeProbe()), hubriseVisible = false) },
+                            overlay = { OrderDialogs(state.dialog, OrderCallbacks()) },
+                        ) { OrderContent(state, OrderCallbacks(), OrderCartActions()) }
+                    }
                 }
             }
         }
@@ -120,6 +151,17 @@ class OrderScreenshotTest {
             group(2, "Extras", min = 0, max = 2, modifier(103, "Gingembre", 30), modifier(104, "Wasabi"), modifier(105, "Sésame", 20))
         val dialog = OrderDialog.Modifiers(items[1], listOf(sauces, extras))
         capture(OrderUiState(signedIn = true, menu = menu, cart = cart, dialog = dialog), "order_modifiers")
+    }
+
+    @Test
+    fun cart() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart), "order_cart")
+    }
+
+    @Test
+    fun cartDialogs() {
+        val dialog = OrderDialog.CloseUnpaid("Alice Dupont")
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart, dialog = dialog), "order_cart_dialogs")
     }
 
     @Test

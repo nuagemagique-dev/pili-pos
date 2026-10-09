@@ -24,8 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
+import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
+import dev.nuagemagique.pilipos.ui.components.PinDialog
+import dev.nuagemagique.pilipos.ui.components.PinMode
+import dev.nuagemagique.pilipos.ui.components.PinPadTexts
 import dev.nuagemagique.pilipos.ui.components.defaultAmountDialogTexts
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
@@ -43,14 +47,19 @@ internal data class OrderCallbacks(
     val onPrice: (Long) -> Unit = {},
     val onPicks: (List<Long>) -> Unit = {},
     val onDismiss: () -> Unit = {},
+    /** The manager PIN of "customer left without paying"; throws what the engine refused. */
+    val onUnpaidPin: suspend (String) -> Unit = {},
+    val describeError: (Throwable) -> String = { it.message.orEmpty() },
+    /** The sale was closed unpaid. */
+    val onUnpaidDone: () -> Unit = {},
 )
 
 /**
  * The order route (`OrderView.vue`): builds [MenuViewModel] from the application graph and draws [OrderContent] in
  * the staff scaffold, with the price and options dialogs in the overlay slot (PD214). It does not navigate when it
  * starts and does not redirect (PD205): the order of the route is loaded once the engine is ready and somebody is
- * logged in, and without an order an empty state is shown. It leaves only for the checkout, from the pay button. The
- * root carries the tag `placeholder_order` (PD204: the tag means "feature root").
+ * logged in, and without an order an empty state is shown. It leaves only for the checkout (the pay button) and
+ * for the tables (a sale closed unpaid). The root carries the tag `placeholder_order` (PD204: the tag means "feature root").
  */
 @Composable
 internal fun OrderRoute(
@@ -72,9 +81,23 @@ internal fun OrderRoute(
             onPrice = model::confirmPrice,
             onPicks = model::confirmModifiers,
             onDismiss = model::dismissDialog,
+            onUnpaidPin = model::closeUnpaid,
+            describeError = model::describe,
+            onUnpaidDone = {
+                model.unpaidClosed()
+                navigator.navigate(TablesRoutes.TABLES)
+            },
         )
     val cartActions =
-        OrderCartActions(onPay = { state.order?.let { navigator.navigate(CheckoutRoutes.checkout(it.id)) } })
+        OrderCartActions(
+            onPay = { state.order?.let { navigator.navigate(CheckoutRoutes.checkout(it.id)) } },
+            onIncrement = model::incrementLine,
+            onDecrement = model::decrementLine,
+            onRemove = model::removeLine,
+            onSend = model::sendToKitchen,
+            onPreBill = model::printPreBill,
+            onCloseUnpaid = model::askCloseUnpaid,
+        )
     PosScaffold(
         area = HeaderArea.ORDER,
         navigator = navigator,
@@ -140,7 +163,10 @@ internal fun OrderContent(
     }
 }
 
-/** The open dialog, over everything: the price of a free-price product or the options of a product (`OrderView.vue`). */
+/**
+ * The open dialog, over everything: the price of a free-price product, the options of a product (`OrderView.vue`)
+ * or the manager PIN of an unpaid close (`CartSidebar.vue`).
+ */
 @Composable
 internal fun BoxScope.OrderDialogs(
     dialog: OrderDialog,
@@ -158,5 +184,34 @@ internal fun BoxScope.OrderDialogs(
             )
         is OrderDialog.Modifiers ->
             ModifierDialog(dialog.item, dialog.groups, onConfirm = callbacks.onPicks, onCancel = callbacks.onDismiss)
+        is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
     }
+}
+
+/** The manager PIN of "customer left without paying" (`PinDialog.vue` with the hint `unpaid_hint`). */
+@Composable
+private fun CloseUnpaidDialog(
+    userName: String,
+    callbacks: OrderCallbacks,
+) {
+    val hint = vueText("unpaid_hint")
+    val texts =
+        PinPadTexts(
+            title = vueText("pin_enter"),
+            hint = if (userName.isBlank()) hint else userName + "\n" + hint,
+            enterPrompt = vueText("pin_enter"),
+            confirmPrompt = vueText("pin_confirm"),
+            mismatch = vueText("pin_mismatch"),
+            cancel = vueText("back"),
+            clearLabel = uiText(R.string.ui_common_numpad_clear),
+            backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
+        )
+    PinDialog(
+        mode = PinMode.Verify,
+        texts = texts,
+        onSubmit = callbacks.onUnpaidPin,
+        describeError = callbacks.describeError,
+        onDone = callbacks.onUnpaidDone,
+        onCancel = callbacks.onDismiss,
+    )
 }

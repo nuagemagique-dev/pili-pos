@@ -8,7 +8,7 @@ import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
 import javax.inject.Inject
 
-/** Navigation entry of the order feature: the order screen (P5b-T7, the cart column is filled by P5b-T12). */
+/** Navigation entry of the order feature: the order screen with its menu (P5b-T7) and its cart (P5b-T12). */
 internal class OrderEntry
     @Inject
     constructor() : FeatureEntry {

@@ -8,6 +8,7 @@ import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */
 internal sealed interface OrderDialog {
@@ -24,6 +25,11 @@ internal sealed interface OrderDialog {
         val item: MenuItem,
         val groups: List<ModifierGroup>,
     ) : OrderDialog
+
+    /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
+    data class CloseUnpaid(
+        val userName: String,
+    ) : OrderDialog
 }
 
 /** One line of the cart column: the engine line and its amount, null until the VAT helper answered. */
@@ -33,20 +39,38 @@ internal data class CartRow(
 )
 
 /**
- * What the cart column shows. The total is the engine's [Order.totalCents] (PD208: nothing is added here); the
- * amounts of the lines come from `CartAmounts`.
+ * What the cart column shows (`CartSidebar.vue`). The total is the engine's [Order.totalCents] (PD208: nothing is
+ * added here); the amounts of the lines and the VAT rows come from `CartAmounts`, the unsent count is
+ * `OrderStore.unsentCount` (a quantity, not money).
  */
+@Suppress("LongParameterList")
 internal data class OrderCartState(
     val order: Order? = null,
     val rows: List<CartRow> = emptyList(),
     val language: AppLanguage = AppLanguage.FR,
     val labelMode: ProductLabelMode = ProductLabelMode.NAME,
     val canPay: Boolean = false,
+    /** The VAT included in the total, per rate, as the engine split it. */
+    val vatRows: List<VatSplitRow> = emptyList(),
+    /** Units ordered and not yet sent to the bar or kitchen. */
+    val unsentCount: Int = 0,
+    /** "Send to kitchen" is running (`sending`). */
+    val sending: Boolean = false,
+    /** The provisional bill is being printed (`preBilling`). */
+    val preBilling: Boolean = false,
+    /** A manager may close the open order unpaid (`canCloseUnpaid`). */
+    val canCloseUnpaid: Boolean = false,
 )
 
-/** What the cart column can ask for. P5b-T12 adds the line actions. */
+/** What the cart column can ask for. */
 internal data class OrderCartActions(
     val onPay: () -> Unit = {},
+    val onIncrement: (lineId: Long) -> Unit = {},
+    val onDecrement: (lineId: Long) -> Unit = {},
+    val onRemove: (lineId: Long) -> Unit = {},
+    val onSend: () -> Unit = {},
+    val onPreBill: () -> Unit = {},
+    val onCloseUnpaid: () -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */

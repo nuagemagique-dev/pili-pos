@@ -5,7 +5,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.nuagemagique.pilipos.engine.EngineEvents
 import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
+import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.format.CartAmounts
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
@@ -42,4 +44,10 @@ internal interface OrderEntryPoint {
 
     /** The amount of each cart line, from the engine VAT helper. */
     fun amounts(): CartAmounts
+
+    /** The success toasts of the cart (sent to the kitchen, bill printed, sale closed unpaid). */
+    fun toasts(): ToastStore
+
+    /** The Vue texts of those toasts, which a state holder cannot ask a composition for. */
+    fun catalog(): MessageCatalog
 }

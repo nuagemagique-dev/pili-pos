@@ -198,8 +198,8 @@ class OrderContentTest {
         show(base)
 
         compose.onNodeWithTag("cart_title").assertTextEquals("Commande · Table 4")
-        compose.onNodeWithTag("cart_line_1").assertTextContains("2×", substring = true)
-        compose.onNodeWithTag("cart_line_1").assertTextContains("Maki saumon", substring = true)
+        compose.onNodeWithTag("cart_line_1_qty").assertTextEquals("2")
+        compose.onNodeWithTag("cart_line_1_name").assertTextContains("Maki saumon", substring = true)
         compose.onNodeWithTag("cart_line_1_amount", useUnmergedTree = true).assertTextEquals("13,00 €")
         compose.onNodeWithTag("cart_line_2_amount", useUnmergedTree = true).assertTextEquals("3 × 0,00 €")
         compose.onNodeWithTag("cart_total").assertTextEquals("13,00 €")
