@@ -71,6 +71,7 @@ private fun refusal(code: String) = PosException.Coded(code, emptyMap())
  * `pos_fiscal::payment::settle` in Kotlin, for the fake natives only: non-cash parts first, then the cash rest and
  * its rounding. The app never does this arithmetic: the tests need an engine stand-in that keeps the rules.
  */
+@Suppress("CyclomaticComplexMethod", "ThrowsCount")
 internal fun settleLikeEngine(
     total: Long,
     parts: List<PaymentPart>,
@@ -185,6 +186,7 @@ internal fun posSettings(): PosSettings =
         posSwVersion = "pili-pos-android/1.2.3",
     )
 
+@Suppress("LongParameterList")
 internal fun sale(
     fiscalEventId: Long? = 99L,
     fdmConnected: Boolean = true,

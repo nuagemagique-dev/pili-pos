@@ -58,7 +58,11 @@ class CheckoutContentTest {
             },
         )
 
-    private val lines = listOf(cartLine(1, name = "Sushi", quantity = 2, unitPriceCents = 500L), cartLine(2, name = "Free", quantity = 3, unitPriceCents = 100L, vat = VatCode.X))
+    private val lines =
+        listOf(
+            cartLine(1, name = "Sushi", quantity = 2, unitPriceCents = 500L),
+            cartLine(2, name = "Free", quantity = 3, unitPriceCents = 100L, vat = VatCode.X),
+        )
 
     private val base =
         CheckoutUiState(
@@ -175,7 +179,8 @@ class CheckoutContentTest {
                 PartChip(ChipState.CURRENT, PaymentMethod.CASH, 2_010L),
                 PartChip(ChipState.NEXT, null, 2_010L),
             )
-        show(base.copy(splitCount = 3, taken = listOf(TakenPart(PaymentMethod.CARD, 2_011L, 0L)), amounts = base.amounts.copy(chips = chips)))
+        val taken = listOf(TakenPart(PaymentMethod.CARD, 2_011L, 0L))
+        show(base.copy(splitCount = 3, taken = taken, amounts = base.amounts.copy(chips = chips)))
 
         compose.onNodeWithTag("checkout_chip_0").assertTextContains("Carte · 20,11 € ✓", substring = true)
         compose.onNodeWithTag("checkout_chip_1").assertTextContains("Espèces · 20,10 €", substring = true)

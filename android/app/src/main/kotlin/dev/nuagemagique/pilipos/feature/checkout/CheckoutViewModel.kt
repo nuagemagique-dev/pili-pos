@@ -166,9 +166,14 @@ internal class CheckoutViewModel(
     /** The split buttons: [parts] equal parts, only before the first part is taken (Vue `selectSplit`). */
     fun selectSplit(parts: Int) {
         val local = own.value
-        val total = order.current.value?.totalCents ?: return
-        if (local.step != CheckoutStep.PAY || parts !in 1..SPLIT_MAX) return
-        if (local.taken.isNotEmpty() || !(parts == 1 || parts.toLong() <= total)) return
+        val total = order.current.value?.totalCents
+        val allowed =
+            total != null &&
+                local.step == CheckoutStep.PAY &&
+                parts in 1..SPLIT_MAX &&
+                local.taken.isEmpty() &&
+                (parts == 1 || parts.toLong() <= total)
+        if (!allowed) return
         own.update { it.copy(splitCount = parts) }
         launchRecompute(prefill = true)
     }
@@ -336,12 +341,13 @@ internal class CheckoutViewModel(
             own.update { it.copy(loadTried = true) }
             return
         }
-        if (!loading.compareAndSet(false, true)) return
-        try {
-            attempt { order.loadOrder(routeOrderId) }.onFailure { entry.errors().show(it, settings.language.value) }
-        } finally {
-            loading.set(false)
-            own.update { it.copy(loadTried = true) }
+        if (loading.compareAndSet(false, true)) {
+            try {
+                attempt { order.loadOrder(routeOrderId) }.onFailure { entry.errors().show(it, settings.language.value) }
+            } finally {
+                loading.set(false)
+                own.update { it.copy(loadTried = true) }
+            }
         }
     }
 

@@ -61,6 +61,7 @@ private val PadWidth = 296.dp
 private val ValidateHeight = 88.dp
 private val ActionHeight = 88.dp
 private val Hairline = 1.dp
+private val CurrentBorder = 2.dp
 
 /** The label of a till method (`method_cash`, `method_card`, `method_meal_voucher`). */
 @Composable
@@ -127,7 +128,7 @@ private fun SplitRow(
     val d = PiliTheme.dimens
     Row(horizontalArrangement = Arrangement.spacedBy(d.spaceSm), verticalAlignment = Alignment.CenterVertically) {
         Text(vueText("split_into"), style = PiliTheme.typography.label, color = PiliTheme.colors.textSecondary)
-        (1..SPLIT_MAX).forEach { n ->
+        for (n in 1..SPLIT_MAX) {
             PiliButton(
                 text = n.toString(),
                 onClick = { callbacks.onSplit(n) },
@@ -155,13 +156,16 @@ private fun ChipRow(state: CheckoutUiState) {
                     ChipState.NEXT -> c.bgSecondary
                 }
             val shape = RoundedCornerShape(d.radiusMd)
+            val current = chip.state == ChipState.CURRENT
+            val borderWidth = if (current) CurrentBorder else Hairline
+            val borderColor = if (current) c.accentPrimary else c.border
             Column(
                 modifier =
                     Modifier
                         .weight(1f)
                         .height(ChipMinHeight)
                         .background(fill, shape)
-                        .border(if (chip.state == ChipState.CURRENT) 2.dp else Hairline, if (chip.state == ChipState.CURRENT) c.accentPrimary else c.border, shape)
+                        .border(borderWidth, borderColor, shape)
                         .padding(horizontal = d.spaceSm, vertical = d.spaceXs)
                         .semantics(mergeDescendants = true) {}
                         .testTag("checkout_chip_$index"),
@@ -387,7 +391,12 @@ internal fun SummaryPanel(
     Column(modifier.background(c.bgSecondary).testTag("checkout_summary")) {
         SummaryHead(state)
         Column(
-            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = PiliTheme.dimens.spaceMd),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = PiliTheme.dimens.spaceMd),
             verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
         ) {
             state.summary.lines.forEachIndexed { index, line ->
@@ -521,7 +530,12 @@ private fun SummaryFoot(
             )
         }
         if (!state.canTakePayment) {
-            Text(uiText(R.string.ui_checkout_no_payment), style = t.body, color = c.accentWarning, modifier = Modifier.testTag("checkout_no_rights"))
+            Text(
+                text = uiText(R.string.ui_checkout_no_payment),
+                style = t.body,
+                color = c.accentWarning,
+                modifier = Modifier.testTag("checkout_no_rights"),
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(d.spaceMd)) {
             if (state.taken.isNotEmpty()) {
