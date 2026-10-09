@@ -110,3 +110,11 @@ At the end of P4 (`android/int` at `96c99f1`, `chore(android): merge P4-T12 rest
 - `scripts/android/check_linux_frozen.sh` prints `frozen against linux-v1.1.0-rc1 (65b567f): 16 paths, clean`, and `git diff --quiet 30b32a0 -- <freeze paths, android/rust, android/smoke, android/docker, android/pos-core sources, .github>` is empty: P4 changed no Linux build input.
 - `scripts/android/p4_gate.sh --fast --linux-repro --base 30b32a0` (integrator, same commit) built the tag twice in Docker from a clean clone and reproduced SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`.
 - No tag was set. The plan requires no freeze step at the end of P4, and the plan's update of 2026-10-08 renames the freeze: the local tag `linux-v1.1.0-rc1` was misnamed, and the freeze is redone as `linux-v1.0.0-rc1` after the nightly export feature is merged. That feature is not merged yet and a re-freeze needs the user (PD121). Until then the chain keeps checking `linux-v1.1.0-rc1`.
+
+## X1 exit check (2026-10-09, export lane)
+
+At the end of X1 (`android/lane-export` at `a364ad7`, `docs(android): record the X1 wave 6 integration`; fork point `ba57adf`):
+
+- The Linux freeze was reopened for this lane only (user, 2026-10-08; X1D2, X1D3). `check_linux_frozen.sh` against `linux-v1.1.0-rc1` fails here by design: the export lane changed `Cargo.toml`, `Cargo.lock`, `crates/` (new `pos-export`, `pos-export-mock`, engine glue), `src-tauri/` (two wrappers) and `ui/` (the export panel). `x1_gate.sh` waives exactly the six freeze checks and checks the scope instead (`x1-scope`, `x1-lock-additive`).
+- `x1_gate.sh --fast --linux-repro` (integrator, integrate-6, same commit) built the Linux cert binary twice in Docker from a clean clone: SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed`, two identical builds. It needed `rust-embed` with `deterministic-timestamps` on pos-export (`dc29f43`, X1D20); keep it.
+- No tag was set (X1D27). The version is still 1.1.0. The re-freeze as `linux-v1.0.0-rc1` (and the rename to 1.0.0 if wanted) is the user's, after `android/lane-export` is merged into `android/int` and the Linux build is reproduced there again. Until then the foundation gates keep `linux-v1.1.0-rc1`, and their freeze checks fail on `android/int` once the export lane is merged.
