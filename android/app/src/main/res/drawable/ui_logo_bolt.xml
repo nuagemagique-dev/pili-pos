@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The bolt of the Pili wordmark, converted from the mask path of ui/src/components/PiliLogo.vue
+    (M84,-30 L42,60 L70,52 L24,170, stroke 10, miter joins). In the Vue logo it is a gap cut out of the p; here it
+    is drawn over the ink in the colour of what lies behind the logo. Same viewport
+    as ui_logo.xml.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="244dp"
+    android:height="204dp"
+    android:viewportWidth="244"
+    android:viewportHeight="204">
+    <group android:translateY="62">
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M84,-30L42,60L70,52L24,170"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineJoin="miter"
+            android:strokeMiterLimit="4"
+            android:strokeWidth="10" />
+    </group>
+</vector>

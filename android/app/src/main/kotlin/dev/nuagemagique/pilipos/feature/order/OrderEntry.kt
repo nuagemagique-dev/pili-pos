@@ -6,10 +6,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
-import dev.nuagemagique.pilipos.nav.PlaceholderScreen
 import javax.inject.Inject
 
-/** Navigation entry of the order feature (placeholder until P5). */
+/** Navigation entry of the order feature: the order screen with its menu (P5b-T7) and its cart (P5b-T12). */
 internal class OrderEntry
     @Inject
     constructor() : FeatureEntry {
@@ -25,7 +24,7 @@ internal class OrderEntry
                 arguments = listOf(navArgument(OrderRoutes.ARG_ORDER_ID) { type = NavType.LongType }),
             ) { entry ->
                 val orderId = entry.arguments?.getLong(OrderRoutes.ARG_ORDER_ID) ?: -1L
-                PlaceholderScreen(area, OrderRoutes.order(orderId))
+                OrderRoute(navigator, orderId)
             }
         }
     }

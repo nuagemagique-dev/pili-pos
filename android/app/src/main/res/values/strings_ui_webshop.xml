@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Online orders screen: the texts that have no Vue key (empty states, confirmations, delay minutes). -->
+    <string name="ui_webshop_signed_out">Aucun opérateur connecté. Connectez-vous pour voir les commandes en ligne.</string>
+    <string name="ui_webshop_hubrise_off">HubRise est désactivé. Activez-le dans les réglages pour recevoir les commandes en ligne.</string>
+    <string name="ui_webshop_reject_message">La plateforme et le client seront prévenus du refus. Cette action est définitive.</string>
+    <string name="ui_webshop_refund_message">Rembourser {amount} ? Le remboursement est enregistré au nom de {name}.</string>
+    <string name="ui_webshop_delay_minutes">+{minutes} min</string>
+</resources>

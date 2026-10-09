@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings screen: the texts that have no Vue key (the rows section, two confirmations, the QR description). -->
+    <string name="ui_settings_rows_title">更多设置</string>
+    <string name="ui_settings_deactivate_message">停用 {name}？该员工将无法再登录。</string>
+    <string name="ui_settings_hubrise_disconnect_message">在重新连接 HubRise 之前，将不会收到在线订单。</string>
+    <string name="ui_settings_qr_description">HubRise 连接链接的二维码</string>
+</resources>

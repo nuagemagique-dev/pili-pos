@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The tone marks of the Pili wordmark (pi, li: flat, then falling), converted from ui/src/components/PiliLogo.vue
+    (rect 116,-34 38x16 and polygon 208,-46 226,-46 244,-16 226,-16). Same viewport as ui_logo.xml; white, tinted
+    by the caller with the accent colour.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="244dp"
+    android:height="204dp"
+    android:viewportWidth="244"
+    android:viewportHeight="204">
+    <group android:translateY="62">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M116,-34H154V-18H116Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M208,-46L226,-46L244,-16L226,-16Z" />
+    </group>
+</vector>
