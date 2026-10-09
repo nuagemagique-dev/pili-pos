@@ -322,4 +322,4 @@ Every P7 script that uses the emulator (`uc_e2e.sh`, `p7_soak.sh`, `p7_powercut.
 
 ### P7 output tags
 
-Each P7 script ends with one `<TAG> | total | PASS|FAIL | ...` line and exits 1 on any FAIL: `UCE2E` (`uc_e2e.sh`), `UCREC` (`pos-uc-check record`), `UCCHECK` (`pos-uc-check compare`), `SOAK` (`p7_soak.sh report`), `POWERCUT` (`p7_powercut.sh`), `GMS` (`p7_gms.sh`), `GATE` (`p7_gate.sh`), and `P7LOCK` for the lock above. Ports on the host seen from the device through `adb reverse`: 19380 FDM (or the delay proxy), 19390 printer, 19391 printer HTTP jobs (P7.md section 4.7).
+Each P7 script ends with one `<TAG> | total | PASS|FAIL | ...` line and exits 1 on any FAIL: `UCE2E` (`uc_e2e.sh`), `UCREC` (`pos-uc-check record`), `UCCHECK` (`pos-uc-check compare`), `SOAK` (`p7_soak.sh report`), `POWERCUT` (`p7_powercut.sh`), `GMS` (`p7_gms.sh`), `GATE` (`p7_gate.sh`). The lock prints only its own `P7LOCK | busy | held by <holder>` line (exit 75) and `P7LOCK | wait | ...` progress lines on stderr. Ports on the host seen from the device through `adb reverse`: 19380 FDM (or the delay proxy), 19390 printer, 19391 printer HTTP jobs (P7.md section 4.7).
