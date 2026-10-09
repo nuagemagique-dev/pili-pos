@@ -305,14 +305,28 @@ Strings: `strings_plat_update.xml`.
 
 ## 10. Release tooling
 
-Status: design (P6-T9)
+Status: as built (P6-T9)
 
-`scripts/release/declare.sh` (Linux) lives on the unmerged `feat/usb-autoinstall` branch, and a copy here would conflict when that branch merges. The Android declaration is therefore its own script, `scripts/release/declare_android.sh`; `declare.sh --android` gets a one-line dispatch when that branch is merged (a step for the user) (PD216). The script:
-- signs the reproducible unsigned APK (RSA only, v1 off, v2 and v3 on, build-tools 35.0.0 pinned);
-- checks the SHA-1 that the SPF accepted;
-- writes and signs `declared.json` and pushes the tag `declared-android` with `oras`.
+`scripts/release/declare.sh` (Linux) lives on the unmerged `feat/usb-autoinstall` branch, and a copy here would conflict when that branch merges. The Android declaration is therefore its own script, `scripts/release/declare_android.sh` (PD216), for the producer only. Its self-test is `scripts/release/test_declare_android.sh` (gate check `selftest-declare`).
 
-The tag scheme is `android-vX.Y.Z`, equal to `versionName`. The script refuses `-dev` versions and EC keys. The chain only runs it with `--dry-run`, against throwaway keys in `mktemp` directories, with stub `oras` and `gh`. The real run, the real signing key and the real declaration key are the user's.
+**Release procedure, in order (all of it the producer's, on the Mac):**
+1. Tag the commit `android-vX.Y.Z` locally (the tag equals `versionName`) and run `scripts/android/check_repro.sh` on that tagged commit: two container builds of the unsigned `:app` APK must be byte-identical (section 11).
+2. Sign a copy with the offline release key, with the same `apksigner` flags as the script (`--min-sdk-version 33 --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false`), and submit it to the SPF; the SPF accepts the SHA-1 of the SIGNED APK. The RSA key is deterministic (DECISIONS 9), so the SHA-1 does not change when `declare_android.sh` signs the same unsigned APK again.
+3. Run `scripts/release/declare_android.sh --apk <unsigned apk> --version X.Y.Z --sha1 <SHA-1 the SPF accepted> --keystore <offline keystore> --alias <alias> --minisign-key <offline declaration key>`, with `PILI_KS_PASS_FILE` set. Nothing is pushed unless every check passes. A real run needs `oras` and `gh` (scope `write:packages`).
+4. Later, once `feat/usb-autoinstall` is merged, `declare.sh --android` gets a one-line dispatch to this script (PD216), a step for the user.
+
+**What `declare_android.sh` does**, printing `DECLARE | <step> | PASS|FAIL | <detail>` per step and `DECLARE | total | ...` last (exit 0 declared, 1 a check failed, 2 usage):
+- `tools`: apksigner, zipalign and aapt2 from build-tools 35.0.0 (pinned), keytool, minisign; `oras` and `gh` only without `--dry-run`. The keystore and the minisign key must lie outside any git work tree.
+- `version`: `X.Y.Z` only (MINOR and PATCH below 100); a `-dev` version is refused unless `--allow-dev` is given together with `--dry-run`; without `--dry-run` the local tag `android-vX.Y.Z` must exist.
+- `badging`: package `dev.nuagemagique.pilipos`, `versionName` equal to the version, `versionCode` equal to MAJOR*10000 + MINOR*100 + PATCH.
+- `zipalign`: `zipalign -c -P 16 -v 4` passes on the unsigned APK.
+- `key`: RSA of 2048 bits or more; an EC or DSA key is refused.
+- `sign`: `apksigner sign` on a copy with `--min-sdk-version 33`, v1 off, v2 and v3 requested (apksigner folds v2 into v3 at that minSdk), v4 off; then `apksigner verify --print-certs` (v1 false, v3 true, one signer); the signer SHA-256 is read from its output.
+- `sha1`: the SHA-1 of the signed copy must equal `--sha1`, else the run stops and nothing is written beyond its temporary directory.
+- `descriptor`, `minisign-sign`, `minisign-verify`: `declared.json` in the section 8.1 schema (compact, one trailing newline), a prehashed `minisign -S` signature with trusted comment `pili-pos-android X.Y.Z declared <ts>`, then `minisign -V` with the public key. That key is `PILI_DECLARED_PUB` (a file or the base64 line, accepted only with `--dry-run`), else the release key of `plat_update_keys.xml`; an empty release key stops the run.
+- `push`: with `--dry-run`, the exact commands are printed and the three files (`declared.json`, `declared.json.minisig`, `pili-pos-android-X.Y.Z.apk`) are written into `--out`; without it, `oras push ghcr.io/<repo lowercased>:declared-android --artifact-type application/vnd.pili-pos.declared-android.v1 <apk>:application/vnd.android.package-archive declared.json:application/json declared.json.minisig:text/plain`, run in the directory of the files so that each layer title is the bare file name (section 8.3), then `gh release upload android-vX.Y.Z -R <repo> --clobber` for the same three files.
+
+**The chain never runs it for real.** It runs `test_declare_android.sh` only: every key (a throwaway RSA-2048 keystore, an EC keystore, two minisign pairs), every APK and a scratch git repository holding a copy of the script live in a `mktemp` directory outside this repository, deleted on exit; `oras` and `gh` are stubs that record their arguments and fail when called during a dry run. The real release signing key, the real declaration key and the real declaration are the user's.
 
 ## 11. Reproducible APK
 
