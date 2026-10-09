@@ -260,6 +260,23 @@ class LanePathsTest(unittest.TestCase):
         code, _, err = self.env.check()
         self.assertEqual(code, 0, err)
 
+    def test_24b_nightly_strings_need_the_nightly_prefix(self):
+        self.env.write(
+            "docs/android/LANES.md",
+            BASE_LANES.replace(
+                "shared docs/android/DECISIONS",
+                "nightly android/app/src/main/res/values(-[a-z]+)?/strings_nightly[.]xml\nshared docs/android/DECISIONS",
+                1,
+            ),
+        )
+        self.env.write(RES + "/values/strings_nightly.xml", strings("nightly_title", "nightly_retry"))
+        code, _, err = self.env.check()
+        self.assertEqual(code, 0, err)
+        self.env.write(RES + "/values-en/strings_nightly.xml", strings("nightly_title", "shell_oops"))
+        code, _, err = self.env.check()
+        self.assertEqual(code, 1)
+        self.assertIn("'shell_oops' lacks prefix 'nightly_'", err)
+
     # the real file
     def test_25_real_lanes_file_passes_check(self):
         code, out, err = run("--check", "--root", REPO)
