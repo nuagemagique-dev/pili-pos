@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand and device names of the login screen (no Vue key: the Vue screen draws them as a logo and fixed words). -->
+    <string name="ui_login_brand">pili</string>
+    <string name="ui_login_brand_hanzi">霹雳</string>
+    <string name="ui_login_check_fdm">FDM</string>
+    <string name="ui_login_check_hubrise">HubRise</string>
+    <string name="ui_login_insz">INSZ</string>
+</resources>
