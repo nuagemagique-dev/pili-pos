@@ -266,6 +266,20 @@ SQLite qui archive l'événement signé, de sorte que :
   au nom de l'employé qui l'accepte (P puis N si elle est payée à la
   remise). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 
+## 6quater. Export nocturne (facultatif)
+
+- Crate : `crates/pos-export` (sauvegarde par l'API Online Backup sur
+  une connexion en lecture seule, chiffrement age, copie statistique,
+  manifeste, client HTTPS, file d'attente) ; intégration au moteur dans
+  `crates/pos-engine/src/commands/export.rs` et une boucle de tâche de
+  fond dans `background.rs`.
+- Section `export` de `pos.json` ; absente, rien n'est créé et aucune
+  connexion n'est ouverte.
+- Déclenché après chaque rapport Z réel (jamais en formation) ; hors du
+  verrou de signature, hors du verrou de la base des commandes : une
+  vente ou un Z n'attend jamais l'export. Le journal légal reste local.
+  Détail : `EXPORT_NOCTURNE_FR.md`.
+
 ## 7. Persistance
 
 - Moteur : **SQLite** (DB en un seul fichier dans
@@ -331,6 +345,8 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
 | Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |
 | Résolution du support + commandes ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |
+| Export nocturne : moteur (état, passage, commandes) | `crates/pos-engine/src/commands/export.rs` |
+| Export nocturne : sauvegarde chiffrée, copie statistique, envoi, file d'attente | `crates/pos-export/src/` |
 | Rendu e-mail (texte/HTML/QR) | `crates/pos-mail/src/render.rs` |
 | Client Scaleway TEM | `crates/pos-mail/src/tem.rs` |
 | File d'attente + réessais | `crates/pos-mail/src/outbox.rs` |

@@ -180,6 +180,10 @@ rapports pour voir les totaux en cours.
    l'API Online Backup (`signing::follow_up` →
    `backup_database_impl`), avant l'impression.
 5. Deux tickets de rapport Z sont imprimés.
+6. Si la section `export` de `pos.json` est renseignée, la fin de
+   l'archivage et de l'impression réveille la tâche d'export (§9 ter) ;
+   le Z n'attend ni son résultat ni sa fin. Un Z de formation ne la
+   réveille pas.
 
 ## 6. Fin de service - Pointage sortie (Événement S)
 
@@ -295,6 +299,38 @@ Aucune de ces étapes ne touche à `fiscal_events` : le ticket fiscal a
 déjà été signé et archivé à l'encaissement (§3) ; cette tâche de fond
 ne fait que rattraper la remise numérique promise.
 
+## 9 ter. Tâche de fond - Export nocturne (facultatif)
+
+Seulement si la section `export` de `pos.json` est renseignée
+(`EXPORT_NOCTURNE_FR.md`).
+
+**Déclencheur.** Le réveil donné après un Z réel (§5), un passage
+périodique de `crates/pos-engine/src/background.rs` et un passage au
+démarrage. Jamais pour un Z de formation.
+
+**Circulation des données.**
+
+1. Sur sa propre connexion SQLite **en lecture seule**, sans le verrou
+   de signature ni le verrou des commandes, la tâche lit les Z réels
+   plus récents que le dernier exporté (fichier `cursor.json` du répertoire d'export).
+2. Pour chaque Z : instantané cohérent de `pos.db` (API Online Backup)
+   dans un répertoire de travail, copie statistique des ventes de la
+   période (opérateurs pseudonymisés, sans INSZ, nom, PIN ni donnée de
+   client), puis chiffrement de l'instantané pour le propriétaire (et
+   le producteur, s'il est configuré). L'instantané en clair est
+   supprimé aussitôt ; l'export complet est déplacé sous
+   `exports/<identifiant>/`.
+3. Suppression des exports locaux plus anciens que `keep_days`.
+4. Envoi HTTPS des trois fichiers dans l'ordre sauvegarde, copie
+   statistique, manifeste, avec le jeton lu dans son fichier et
+   l'empreinte SHA-256 de chaque fichier. Sur échec : nouvel essai
+   après 1, 2, 4 minutes, jusqu'à 60 minutes.
+5. Écriture de l'état d'envoi (`state.json`, `status.json`), lu par
+   l'écran « Export nocturne » du Gérant.
+
+Aucune de ces étapes n'écrit dans `pos.db` : ni `fiscal_events`, ni
+compteur, ni requête au FDM.
+
 ## 9 bis. Commande en ligne (plateforme ou webshop)
 
 Seulement si les commandes en ligne sont activées pour l'installation
@@ -347,6 +383,7 @@ n'est mis en file.
 | Ticket signé avec support numérique | `ticket_deliveries` (append, même tx que `fiscal_events`) |
 | Impression d'un original (vente, remboursement, ou rattrapage) | `original_prints` (une ligne, jamais deux, par événement) |
 | Envoi/réessai/purge du ticket numérique (tâche de fond) | `ticket_deliveries` (écriture des colonnes de statut, jamais `fiscal_events`) |
+| Export nocturne (tâche de fond, facultative) | Aucune table : lecture seule de `pos.db` ; écriture de fichiers sous `exports/` uniquement |
 
 Toute signature s'exécute sous un seul verrou. Une transaction SQLite
 unique, ouverte après la réponse du FDM, englobe l'avance du compteur,

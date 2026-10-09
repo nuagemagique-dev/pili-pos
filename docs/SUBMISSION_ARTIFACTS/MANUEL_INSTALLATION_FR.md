@@ -257,7 +257,8 @@ Le FDM refuse tout événement dont l'identification est mal formée
 La commande lit `pos.json` comme le POS et affiche `configuration OK`,
 ou la liste des champs à corriger (code de sortie 1) : format du
 `pos_id`, numéros de TVA et d'établissement (longueur, premier chiffre,
-modulo 97), champs vides, URL du FDM, langue, bloc `digital_ticket`.
+modulo 97), champs vides, URL du FDM, langue, blocs `digital_ticket` et
+`export`.
 Tant qu'un champ est refusé, le POS le signale aussi dans un bandeau
 rouge au bas de l'écran et dans le journal (`journalctl -u pili-pos`).
 
@@ -362,6 +363,70 @@ l'établissement, puis taper dans la caisse le code affiché par HubRise
 ("Code d'autorisation") et toucher « Valider la connexion ». Le trafic
 sortant ajouté est HTTPS (443) vers `manager.hubrise.com` et
 `api.hubrise.com`.
+
+**Export nocturne (optionnel).** Sans section `export`, le POS
+n'envoie rien hors du site et ne crée aucun fichier d'export. Pour
+envoyer, après chaque rapport Z réel, une sauvegarde chiffrée et une
+copie statistique au point de réception propre à l'installation
+(`EXPORT_NOCTURNE_FR.md`), ajouter à `pos.json` :
+
+```json
+"export": {
+  "url": "https://<hôte de réception de l'installation>/<chemin>",
+  "token_file": "/etc/pili-pos/secrets/export.token",
+  "owner_recipient": "<clé publique age du propriétaire, age1...>",
+  "producer_recipient": "<clé publique age du producteur, facultatif>",
+  "keep_days": 14
+}
+```
+
+| Champ | Description |
+|---|---|
+| `url` | Point de réception de l'installation, en `https://`, sans identifiant, sans paramètre. Le HTTP simple n'est accepté que vers la machine locale, pour les essais. |
+| `token_file` | Fichier contenant le seul jeton d'accès du point de réception, jamais le jeton lui-même dans `pos.json`. |
+| `owner_recipient` | Clé **publique** age du propriétaire de l'établissement (62 caractères, commence par `age1`). Obligatoire. Elle seule permet, avec la clé privée correspondante, de relire la sauvegarde. |
+| `producer_recipient` | Facultatif. Clé publique age du producteur, deuxième destinataire de la sauvegarde. |
+| `keep_days` | Facultatif, `14` par défaut, de 1 à 365 : durée de conservation des copies locales, envoyées ou non. |
+
+**Clé du propriétaire.** C'est le propriétaire de l'établissement qui
+génère sa paire de clés, sur son propre poste (pas sur la caisse, pas
+chez le distributeur) :
+
+```bash
+age-keygen -o cle-proprietaire.txt      # ou : rage-keygen -o cle-proprietaire.txt
+# affiche : Public key: age1...  (la valeur à copier dans owner_recipient)
+```
+
+Le fichier produit contient la clé **privée** : le propriétaire la
+garde **hors ligne** (coffre, gestionnaire de mots de passe, copie sur
+support déconnecté) et ne la communique à personne. Le distributeur ne
+reçoit que la clé publique. Sans la clé privée, les sauvegardes déjà
+envoyées ne peuvent plus être relues ; il n'existe pas de moyen de la
+retrouver. Jamais de clé privée sur la caisse ni sur le serveur de
+réception.
+
+Installer le jeton, lisible par le seul service POS :
+
+```bash
+install -d -m 750 -o root -g pos /etc/pili-pos/secrets
+(umask 027; cat > /etc/pili-pos/secrets/export.token)   # coller le jeton, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/export.token
+chmod 640 /etc/pili-pos/secrets/export.token
+pili-pos --check-config        # refuse une URL non sécurisée, une clé qui n'est pas une clé age, une durée hors de 1 à 365
+systemctl restart pili-pos
+```
+
+Le seul trafic sortant ajouté est HTTPS (443) vers l'hôte de `url`. Si
+le fichier du jeton est absent ou vide, l'export le consigne dans son
+état et dans le journal, et la caisse continue de vendre. Une section
+mal formée est refusée par `pili-pos --check-config` ; si elle était
+quand même présente, le POS démarre sans export et l'écran « Export
+nocturne » (`MANUEL_UTILISATEUR_FR.md` §12.9) affiche « Configuration
+invalide » avec la cause. Les exports sont écrits dans la mémoire
+interne, dans le sous-répertoire `exports` du répertoire de données,
+jamais sur une carte SD. Pour un terminal Android, la même section
+figure dans le dossier de configuration remis à l'installation, le
+fichier du jeton y étant désigné par un chemin relatif à ce dossier.
 
 ### 4.3 Configuration réseau LAN
 

@@ -68,7 +68,8 @@ Implémentation : `crates/pos-core/src/vat.rs::VatCode`.
 - Table `fiscal_events` (append-only, jamais de DELETE ni UPDATE ;
   des triggers SQLite le font respecter).
 - Sauvegarde automatique de la base SQLite après chaque rapport Z,
-  juste après son archivage, via l'API Online Backup.
+  juste après son archivage, via l'API Online Backup (copie chiffrée
+  hors site facultative : §1.7).
 - Rétention : indéfinie (au moins 7 ans, durée légale belge).
 
 ### 1.5 Ticket fiscal imprimé
@@ -107,6 +108,29 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   commande) et la copie (C). Non câblé pour les événements P, F, I, R,
   qui restent papier uniquement en v1.0.0.
 - Détail complet : `TICKET_NUMERIQUE_FR.md`.
+
+### 1.7 Export nocturne (facultatif)
+
+Absent tant que la section `export` de `pos.json` n'est pas renseignée.
+Détail complet : `EXPORT_NOCTURNE_FR.md`.
+
+- Après chaque rapport Z réel (manuel ou automatique, jamais en mode
+  formation), production de trois fichiers : une sauvegarde chiffrée
+  de `pos.db` (age, X25519, pour le propriétaire de l'établissement et,
+  en option, le producteur), une copie statistique nettoyée de la
+  période close (opérateurs sous pseudonyme, aucune donnée personnelle
+  directement identifiante) et un manifeste avec les empreintes SHA-256.
+- Envoi HTTPS (`PUT`) vers le point de réception propre à l'installation,
+  jeton dans un fichier séparé, manifeste envoyé en dernier ; nouvelles
+  tentatives de 1 à 60 minutes, sans perte.
+- Tâche de fond sur une connexion SQLite en lecture seule, hors du
+  verrou de signature : elle ne retarde jamais une vente ni un Z.
+- Copies locales conservées `keep_days` jours (14 par défaut), dans la
+  mémoire interne, jamais sur une carte SD.
+- État et nouvel essai réservés au Gérant (panneau « Export nocturne »
+  de « Config » sur Linux, écran dédié sur Android).
+- Le journal légal `fiscal_events` reste local ; l'export est une copie
+  et ne fait pas du POS un POS dans le cloud.
 
 ## 2. Fonctionnalités métier
 
