@@ -17,9 +17,25 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.CopyableTicket
 import uniffi.pos_ffi.MoneyDirection
-import uniffi.pos_ffi.PosEngineInterface
 import uniffi.pos_ffi.PosEvent
+import uniffi.pos_ffi.RefundItem
+import uniffi.pos_ffi.RefundableEvent
+import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.TicketDeliveryRequest
+
+/** How many recent sales the refund list asks for (`listRefundableEvents(20)` of `ReportsView.vue`). */
+private const val REFUNDABLE_LIMIT: Long = 20L
+
+/** The label of the event of a training ticket (`T` in `copyKind`). */
+private const val LABEL_TRAINING = "T"
+
+/** The label of the event of a pre-bill (`P` in `copyKind`). */
+private const val LABEL_PRE_BILL = "P"
+
+/** The smallest quantity of a ticked refund line. */
+private const val MIN_REFUND_QUANTITY: Int = 1
 
 /**
  * State holder of the reports screen, a port of the script of `ui/src/views/ReportsView.vue`.
@@ -29,7 +45,9 @@ import uniffi.pos_ffi.PosEvent
  * toast (and kept in the state where the screen has a panel for it); with the engine not ready the lists are
  * empty and no action crashes.
  *
- * No amount is computed here (PD208): a cash amount is sent as entered.
+ * No amount is computed here (PD208, UI-PD307): a cash amount is sent as entered and the refund exposes the
+ * ticked lines with their quantity for the screen to price. The delivery request of a copy or a refund is a
+ * parameter, so this does not depend on the delivery store.
  */
 @Suppress("TooManyFunctions") // One entry per action of the screen, as the script of ReportsView.vue.
 internal class ReportsViewModel(
@@ -57,10 +75,11 @@ internal class ReportsViewModel(
         viewModelScope.launch { loadDay() }
     }
 
-    /** Chooses a tab; leaving the day tab disarms the Z. */
+    /** Chooses a tab; leaving the day tab disarms the Z, opening the tickets tab loads the lists. */
     fun selectTab(tab: ReportsTab) {
         disarmZ()
         own.update { it.copy(tab = tab) }
+        if (tab == ReportsTab.TICKETS) loadTickets()
     }
 
     private suspend fun loadDay() {
@@ -70,14 +89,14 @@ internal class ReportsViewModel(
 
     private suspend fun loadHistory() {
         // Silently degrade: the history is not critical.
-        attempt { gateway { engine -> engine.listZReports() } }.onSuccess { list ->
+        attempt { entry.gateway().call { engine -> engine.listZReports() } }.onSuccess { list ->
             own.update { it.copy(day = it.day.copy(zHistory = list)) }
         }
     }
 
     private suspend fun loadZPending() {
         // The notice is only a reminder: a failure means no notice.
-        val pending = attempt { gateway { engine -> engine.needsZReport() } }.getOrDefault(false)
+        val pending = attempt { entry.gateway().call { engine -> engine.needsZReport() } }.getOrDefault(false)
         own.update { it.copy(day = it.day.copy(zPending = pending)) }
     }
 
@@ -135,7 +154,7 @@ internal class ReportsViewModel(
         insz: String,
     ): ReportOutcome =
         attempt {
-            gateway { engine ->
+            entry.gateway().call { engine ->
                 when (kind) {
                     ReportKind.X -> engine.generateXReport(insz)
                     ReportKind.USER_X -> engine.generateUserXReport(insz)
@@ -175,6 +194,12 @@ internal class ReportsViewModel(
     /** Closes the Z history dialog. */
     fun closeZList() {
         own.update { it.copy(day = it.day.copy(zListOpen = false)) }
+    }
+
+    /** The reprint button of a Z in the history: closes the list and opens the copy flow of that Z. */
+    fun reprintZ(fiscalEventId: Long?) {
+        closeZList()
+        openCopy(fiscalEventId, CopyTargetKind.Z)
     }
 
     // ── Cash ──────────────────────────────────────────────────────
@@ -223,7 +248,7 @@ internal class ReportsViewModel(
     fun openDrawer() {
         val insz = operatorInsz() ?: return
         viewModelScope.launch {
-            attempt { gateway { engine -> engine.openDrawerFiscal(insz) } }.fold(
+            attempt { entry.gateway().call { engine -> engine.openDrawerFiscal(insz) } }.fold(
                 onSuccess = { result -> cashAnswer(result.success, result.error, "cash_drawer_opened") },
                 onFailure = { cashError(it) },
             )
@@ -239,7 +264,7 @@ internal class ReportsViewModel(
     ): Boolean {
         own.update { it.copy(cash = it.cash.copy(loading = true)) }
         val answer =
-            attempt { gateway { engine -> engine.moneyInOut(insz, amountCents, direction, reason) } }.fold(
+            attempt { entry.gateway().call { engine -> engine.moneyInOut(insz, amountCents, direction, reason) } }.fold(
                 onSuccess = { result -> cashAnswer(result.success, result.error, successKey) },
                 onFailure = { cashError(it) },
             )
@@ -278,6 +303,197 @@ internal class ReportsViewModel(
         own.update { it.copy(cash = it.cash.copy(lastOutcome = outcome)) }
     }
 
+    // ── Tickets tab ───────────────────────────────────────────────
+
+    /** Loads the copyable tickets and the refundable sales (the tickets tab opens). */
+    fun loadTickets() {
+        viewModelScope.launch { fetchTickets() }
+    }
+
+    private suspend fun fetchTickets() {
+        own.update { it.copy(tickets = it.tickets.copy(loading = true)) }
+        val copyable =
+            attempt { entry.gateway().call { engine -> engine.listCopyableTickets(null) } }.getOrElse { failure ->
+                errorOf(failure, ERROR_TOAST_TTL_MS)
+                emptyList()
+            }
+        val refundable =
+            attempt { entry.gateway().call { engine -> engine.listRefundableEvents(REFUNDABLE_LIMIT) } }
+                .getOrDefault(emptyList())
+        own.update {
+            it.copy(
+                tickets =
+                    TicketsState(
+                        loaded = true,
+                        loading = false,
+                        copyable = copyable,
+                        refundable = refundable,
+                        rows = mergeRows(copyable, refundable),
+                    ),
+            )
+        }
+    }
+
+    // ── Copy flow (event C) ───────────────────────────────────────
+
+    /** Opens the copy flow on the picker, before anything is signed; nothing happens without a fiscal event. */
+    fun openCopy(
+        fiscalEventId: Long?,
+        kind: CopyTargetKind,
+    ) {
+        if (fiscalEventId == null) return
+        own.update { it.copy(copyFlow = CopyFlow(fiscalEventId, kind)) }
+    }
+
+    /** The confirm button of the picker: signs the copy of the event the flow was opened on. */
+    fun confirmCopy(request: TicketDeliveryRequest) {
+        val flow = own.value.copyFlow ?: return
+        copy(flow.fiscalEventId, request)
+    }
+
+    /**
+     * Signs a copy (event C) of [fiscalEventId] for [request]; paper is the engine default, so a paper request is
+     * sent as none, as the Vue screen does. A failed call closes the flow.
+     */
+    fun copy(
+        fiscalEventId: Long,
+        request: TicketDeliveryRequest,
+    ) {
+        val insz = operatorInsz() ?: return
+        val flow = own.value.copyFlow
+        if (flow != null && (flow.step != CopyStep.PICKER || flow.fiscalEventId != fiscalEventId)) return
+        own.update { it.copy(copyFlow = (flow ?: CopyFlow(fiscalEventId, CopyTargetKind.TICKET)).copy(step = CopyStep.PROCESSING)) }
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.copyTicket(fiscalEventId, insz, deliveryOf(request)) } }.fold(
+                onSuccess = { result ->
+                    if (result.success) {
+                        toast(ToastVariant.Success, text("report_reprint_ok"))
+                    } else {
+                        errorRaw(result.error, ERROR_TOAST_TTL_MS)
+                    }
+                    own.update { it.copy(copyFlow = it.copyFlow?.copy(step = CopyStep.RESULT, result = result)) }
+                },
+                onFailure = {
+                    errorOf(it, ERROR_TOAST_TTL_MS)
+                    own.update { current -> current.copy(copyFlow = null) }
+                },
+            )
+        }
+    }
+
+    /** Closes the copy flow; a copy of a ticket that was signed refreshes the lists. */
+    fun closeCopy() {
+        val flow = own.value.copyFlow
+        own.update { it.copy(copyFlow = null) }
+        if (flow != null && flow.step == CopyStep.RESULT && flow.kind == CopyTargetKind.TICKET) loadTickets()
+    }
+
+    // ── Refund flow ───────────────────────────────────────────────
+
+    /** Opens the refund flow on the list of refundable sales. */
+    fun startRefund() {
+        own.update { it.copy(refundFlow = RefundFlow(RefundStep.CHOOSE_EVENT)) }
+        if (!own.value.tickets.loaded) loadTickets()
+    }
+
+    /** Chooses the sale to refund (the refund button of a row): loads its lines; a failed read gives no line. */
+    fun openRefund(event: RefundableEvent) {
+        own.update { it.copy(refundFlow = RefundFlow(RefundStep.CHOOSE_LINES, event = event)) }
+        viewModelScope.launch {
+            val lines = attempt { entry.gateway().call { engine -> engine.listOrderLines(event.orderId) } }.getOrDefault(emptyList())
+            own.update { current ->
+                val flow = current.refundFlow
+                if (flow == null || flow.event != event) current else current.copy(refundFlow = flow.copy(lines = lines))
+            }
+        }
+    }
+
+    /** Ticks a line with its full quantity, or unticks it. */
+    fun toggleRefundLine(lineId: Long) {
+        updateLines { flow ->
+            val line = flow.lines.firstOrNull { it.id == lineId } ?: return@updateLines flow
+            val checked = LinkedHashMap(flow.checked)
+            if (checked.containsKey(lineId)) checked.remove(lineId) else checked[lineId] = line.quantity
+            flow.copy(checked = checked)
+        }
+    }
+
+    /** Steps the quantity of a line by [delta] (-1 or 1), kept between 1 and the quantity of the line. */
+    fun adjustRefundQuantity(
+        lineId: Long,
+        delta: Int,
+    ) {
+        updateLines { flow ->
+            val line = flow.lines.firstOrNull { it.id == lineId } ?: return@updateLines flow
+            val current = flow.checked[lineId] ?: 0
+            val next = (current + delta).coerceIn(MIN_REFUND_QUANTITY, maxOf(MIN_REFUND_QUANTITY, line.quantity))
+            val checked = LinkedHashMap(flow.checked)
+            checked[lineId] = next
+            flow.copy(checked = checked)
+        }
+    }
+
+    private fun updateLines(change: (RefundFlow) -> RefundFlow) {
+        own.update { current ->
+            val flow = current.refundFlow
+            if (flow == null || flow.step != RefundStep.CHOOSE_LINES) current else current.copy(refundFlow = change(flow))
+        }
+    }
+
+    /** The next button of the lines step: opens the delivery step; nothing happens with no line ticked. */
+    fun goToRefundDelivery() {
+        updateLines { if (it.hasSelection) it.copy(step = RefundStep.DELIVERY) else it }
+    }
+
+    /** The back button of the delivery step. */
+    fun backToRefundLines() {
+        own.update { current ->
+            val flow = current.refundFlow
+            if (flow == null || flow.step != RefundStep.DELIVERY) {
+                current
+            } else {
+                current.copy(refundFlow = flow.copy(step = RefundStep.CHOOSE_LINES))
+            }
+        }
+    }
+
+    /**
+     * Signs the refund of the ticked lines for [request] (paper is sent as none, as the Vue screen does). A failed
+     * call goes back to the lines step.
+     */
+    fun refund(request: TicketDeliveryRequest) {
+        val insz = operatorInsz()
+        val flow = own.value.refundFlow?.takeIf { it.step == RefundStep.DELIVERY && it.hasSelection }
+        val event = flow?.event
+        if (insz == null || flow == null || event == null) return
+        val items = flow.selected.map { RefundItem(menuItemId = it.line.menuItemId, quantity = it.quantity, lineId = it.line.id) }
+        val delivery = deliveryOf(request)
+        own.update { it.copy(refundFlow = flow.copy(step = RefundStep.PROCESSING)) }
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.refundCheckout(event.fiscalEventId, items, insz, delivery) } }.fold(
+                onSuccess = { result ->
+                    if (result.success) {
+                        toast(ToastVariant.Success, text("refund_success"))
+                    } else {
+                        errorRaw(result.error, DEFAULT_TOAST_TTL_MS)
+                    }
+                    own.update { it.copy(refundFlow = it.refundFlow?.copy(step = RefundStep.RESULT, result = result)) }
+                },
+                onFailure = {
+                    errorOf(it, DEFAULT_TOAST_TTL_MS)
+                    own.update { current -> current.copy(refundFlow = current.refundFlow?.copy(step = RefundStep.CHOOSE_LINES)) }
+                },
+            )
+        }
+    }
+
+    /** Closes the refund flow; a refund that was signed refreshes the lists. */
+    fun closeRefund() {
+        val flow = own.value.refundFlow
+        own.update { it.copy(refundFlow = null) }
+        if (flow != null && flow.step == RefundStep.RESULT) loadTickets()
+    }
+
     // ── Helpers ───────────────────────────────────────────────────
 
     /** The screen text of a refusal, in the language of the till. */
@@ -286,8 +502,6 @@ internal class ReportsViewModel(
     private fun operatorInsz(): String? = entry.session().currentUser.value?.insz
 
     private fun language(): AppLanguage = entry.settings().language.value
-
-    private suspend fun <T> gateway(block: suspend (PosEngineInterface) -> T): T = entry.gateway().call(block)
 
     private fun text(key: String): String = entry.catalog().text(key, language())
 
@@ -322,8 +536,57 @@ internal class ReportsViewModel(
     private companion object {
         /** Lifetime of the toast of a generated report, in milliseconds (4000 in `ReportsView.vue`). */
         const val REPORT_TOAST_MS: Long = 4000L
+
+        /** Paper is the engine default: the Vue screen sends no request for it. */
+        fun deliveryOf(request: TicketDeliveryRequest): TicketDeliveryRequest? =
+            if (request.medium == RequestedMedium.PAPER) null else request
     }
 }
+
+/** Both ticket lists in one, newest first (`ticketRows` of `ReportsView.vue`; fiscal event ids grow with time). */
+internal fun mergeRows(
+    copyable: List<CopyableTicket>,
+    refundable: List<RefundableEvent>,
+): List<TicketRow> {
+    val rows = LinkedHashMap<Long, TicketRow>()
+    for (ticket in copyable) {
+        rows[ticket.fiscalEventId] =
+            TicketRow(
+                fiscalEventId = ticket.fiscalEventId,
+                ticketNumber = ticket.ticketNumber,
+                tableNumber = ticket.tableNumber,
+                totalCents = ticket.totalCents,
+                createdAt = ticket.createdAt,
+                kind = kindOf(ticket),
+                copyable = ticket,
+                refundable = null,
+            )
+    }
+    for (event in refundable) {
+        val row = rows[event.fiscalEventId]
+        rows[event.fiscalEventId] =
+            row?.copy(refundable = event)
+                ?: TicketRow(
+                    fiscalEventId = event.fiscalEventId,
+                    ticketNumber = event.ticketNumber,
+                    tableNumber = event.tableNumber,
+                    totalCents = event.totalCents,
+                    createdAt = event.createdAt,
+                    kind = TicketKind.SALE,
+                    copyable = null,
+                    refundable = event,
+                )
+    }
+    return rows.values.sortedByDescending { it.fiscalEventId }
+}
+
+private fun kindOf(ticket: CopyableTicket): TicketKind =
+    when {
+        ticket.eventLabel == LABEL_TRAINING -> TicketKind.TRAINING
+        ticket.eventLabel == LABEL_PRE_BILL -> TicketKind.PRE_BILL
+        ticket.totalCents < 0L -> TicketKind.REFUND
+        else -> TicketKind.SALE
+    }
 
 /** Runs [block]; the answer or the failure it threw (cancellation is rethrown). */
 @Suppress("TooGenericExceptionCaught")

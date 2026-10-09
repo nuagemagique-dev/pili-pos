@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -28,8 +29,11 @@ import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.MoneyDirection
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.RefundItem
+import uniffi.pos_ffi.RequestedMedium
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass", "TooManyFunctions")
 @RunWith(RobolectricTestRunner::class)
 class ReportsViewModelTest {
     @get:Rule
@@ -591,5 +595,573 @@ class ReportsViewModelTest {
             runCurrent()
 
             assertEquals(listOf(r.model.describeError(refused)), r.toastTexts())
+        }
+
+    // ── Tickets tab ───────────────────────────────────────────────
+
+    @Test
+    fun openingTheTicketsTabReadsBothListsAndMergesThemNewestFirst() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listCopyableTickets(null) } returns
+                listOf(
+                    copyable(10L),
+                    copyable(11L, label = "T"),
+                    copyable(12L, label = "P"),
+                    copyable(13L, totalCents = -500L),
+                )
+            coEvery { f.engine.listRefundableEvents(20L) } returns listOf(refundable(10L), refundable(9L))
+            val r = start(f)
+
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.listCopyableTickets(null) }
+            coVerify(exactly = 1) { f.engine.listRefundableEvents(20L) }
+            val rows = r.state.tickets.rows
+            assertEquals(listOf(13L, 12L, 11L, 10L, 9L), rows.map { it.fiscalEventId })
+            assertEquals(
+                listOf(TicketKind.REFUND, TicketKind.PRE_BILL, TicketKind.TRAINING, TicketKind.SALE, TicketKind.SALE),
+                rows.map { it.kind },
+            )
+            val both = rows.single { it.fiscalEventId == 10L }
+            assertNotNull(both.copyable)
+            assertNotNull(both.refundable)
+            val refundOnly = rows.single { it.fiscalEventId == 9L }
+            assertNull(refundOnly.copyable)
+            assertNotNull(refundOnly.refundable)
+            assertTrue(r.state.tickets.loaded)
+            assertFalse(r.state.tickets.loading)
+        }
+
+    @Test
+    fun theTicketListsAreNotReadBeforeTheTab() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+
+            r.model.load()
+            runCurrent()
+
+            coVerify(exactly = 0) { f.engine.listCopyableTickets(any()) }
+            assertFalse(r.state.tickets.loaded)
+        }
+
+    @Test
+    fun aFailingCopyableListShowsTheErrorAndKeepsTheRefundableOnes() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listCopyableTickets(any()) } throws refused
+            coEvery { f.engine.listRefundableEvents(any()) } returns listOf(refundable(4L))
+            val r = start(f)
+
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            assertTrue(r.state.tickets.copyable.isEmpty())
+            assertEquals(listOf(4L), r.state.tickets.rows.map { it.fiscalEventId })
+            assertEquals(listOf(r.model.describeError(refused)), r.toastTexts())
+        }
+
+    @Test
+    fun aFailingRefundableListIsSilent() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listCopyableTickets(any()) } returns listOf(copyable(4L))
+            coEvery { f.engine.listRefundableEvents(any()) } throws refused
+            val r = start(f)
+
+            r.model.selectTab(ReportsTab.TICKETS)
+            runCurrent()
+
+            assertEquals(listOf(4L), r.state.tickets.rows.map { it.fiscalEventId })
+            assertTrue(r.toastTexts().isEmpty())
+        }
+
+    // ── Copy flow ─────────────────────────────────────────────────
+
+    @Test
+    fun theCopyFlowOpensOnThePickerWithoutSigning() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            val flow = r.state.copyFlow!!
+            assertEquals(7L, flow.fiscalEventId)
+            assertEquals(CopyStep.PICKER, flow.step)
+            assertEquals(CopyTargetKind.TICKET, flow.kind)
+            coVerify(exactly = 0) { f.engine.copyTicket(any(), any(), any()) }
+        }
+
+    @Test
+    fun anEventWithoutFiscalIdOpensNoCopyFlow() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+
+            r.model.openCopy(null, CopyTargetKind.Z)
+
+            assertNull(r.state.copyFlow)
+        }
+
+    @Test
+    fun confirmingTheCopySignsItWithTheDeliveryRequest() =
+        runTest {
+            val f = fixture()
+            val request = delivery(RequestedMedium.DIGITAL, "a@b.be")
+            coEvery { f.engine.copyTicket(7L, OPERATOR_INSZ, request) } returns copyResult()
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            r.model.confirmCopy(request)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(7L, OPERATOR_INSZ, request) }
+            val flow = r.state.copyFlow!!
+            assertEquals(CopyStep.RESULT, flow.step)
+            assertEquals(true, flow.result?.success)
+            assertEquals(listOf(r.text("report_reprint_ok")), r.toastTexts())
+        }
+
+    @Test
+    fun aPaperCopyIsSentWithoutRequest() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.copyTicket(7L, OPERATOR_INSZ, null) } returns copyResult()
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(7L, OPERATOR_INSZ, null) }
+        }
+
+    @Test
+    fun theCopyCanBeStartedDirectlyFromAnEvent() =
+        runTest {
+            val f = fixture()
+            val request = delivery(RequestedMedium.PAPER_DIGITAL, "c@d.be")
+            coEvery { f.engine.copyTicket(any(), any(), any()) } returns copyResult()
+            val r = start(f)
+
+            r.model.copy(9L, request)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(9L, OPERATOR_INSZ, request) }
+            assertEquals(CopyStep.RESULT, r.state.copyFlow?.step)
+        }
+
+    @Test
+    fun aCopyIsNotSignedTwice() =
+        runTest {
+            val f = fixture()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { f.engine.copyTicket(any(), any(), any()) } coAnswers
+                {
+                    gate.await()
+                    copyResult()
+                }
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+            assertEquals(CopyStep.PROCESSING, r.state.copyFlow?.step)
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            gate.complete(Unit)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(any(), any(), any()) }
+        }
+
+    @Test
+    fun aRefusedCopyShowsTheErrorOnTheResultStep() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.copyTicket(any(), any(), any()) } returns copyResult(success = false, error = "order_no_lines")
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            val flow = r.state.copyFlow!!
+            assertEquals(CopyStep.RESULT, flow.step)
+            assertEquals(false, flow.result?.success)
+            assertEquals(listOf(r.errorText("order_no_lines")), r.toastTexts())
+        }
+
+    @Test
+    fun aFailingCopyCallClosesTheFlow() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.copyTicket(any(), any(), any()) } throws refused
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            assertNull(r.state.copyFlow)
+            assertEquals(listOf(r.model.describeError(refused)), r.toastTexts())
+        }
+
+    @Test
+    fun closingASignedTicketCopyReloadsTheTickets() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.copyTicket(any(), any(), any()) } returns copyResult()
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+            coVerify(exactly = 0) { f.engine.listCopyableTickets(any()) }
+
+            r.model.closeCopy()
+            runCurrent()
+
+            assertNull(r.state.copyFlow)
+            coVerify(exactly = 1) { f.engine.listCopyableTickets(null) }
+        }
+
+    @Test
+    fun closingACopyThatWasNotSignedReloadsNothing() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+
+            r.model.closeCopy()
+            runCurrent()
+
+            assertNull(r.state.copyFlow)
+            coVerify(exactly = 0) { f.engine.listCopyableTickets(any()) }
+        }
+
+    @Test
+    fun reprintingAZFromTheHistoryCopiesItAndLeavesTheTicketsAlone() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listZReports() } returns listOf(zSummary(6L, fiscalEventId = 33L))
+            coEvery { f.engine.copyTicket(33L, OPERATOR_INSZ, null) } returns copyResult()
+            val r = start(f)
+            r.model.openZList()
+            runCurrent()
+
+            r.model.reprintZ(r.state.day.zHistory.first().fiscalEventId)
+            assertFalse(r.state.day.zListOpen)
+            assertEquals(CopyTargetKind.Z, r.state.copyFlow?.kind)
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+            r.model.closeCopy()
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.copyTicket(33L, OPERATOR_INSZ, null) }
+            coVerify(exactly = 0) { f.engine.listCopyableTickets(any()) }
+        }
+
+    @Test
+    fun aZWithoutFiscalEventCannotBeReprinted() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+
+            r.model.reprintZ(null)
+
+            assertNull(r.state.copyFlow)
+        }
+
+    // ── Refund flow ───────────────────────────────────────────────
+
+    private suspend fun TestScope.refundRig(
+        f: EngineFixture,
+        vararg quantities: Int,
+    ): ReportsRig {
+        val lines = quantities.mapIndexed { index, quantity -> orderLine(id = index + 1L, quantity = quantity) }
+        coEvery { f.engine.listOrderLines(50L) } returns lines
+        val r = start(f)
+        r.model.openRefund(refundable(5L, orderId = 50L))
+        runCurrent()
+        return r
+    }
+
+    @Test
+    fun theRefundFlowStartsOnTheListOfRefundableSales() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listRefundableEvents(20L) } returns listOf(refundable(5L))
+            val r = start(f)
+
+            r.model.startRefund()
+            runCurrent()
+
+            assertEquals(RefundStep.CHOOSE_EVENT, r.state.refundFlow?.step)
+            assertEquals(listOf(5L), r.state.tickets.refundable.map { it.fiscalEventId })
+        }
+
+    @Test
+    fun choosingASaleReadsItsLines() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 2, 1)
+
+            coVerify(exactly = 1) { f.engine.listOrderLines(50L) }
+            val flow = r.state.refundFlow!!
+            assertEquals(RefundStep.CHOOSE_LINES, flow.step)
+            assertEquals(5L, flow.event?.fiscalEventId)
+            assertEquals(listOf(1L, 2L), flow.lines.map { it.id })
+            assertFalse(flow.hasSelection)
+        }
+
+    @Test
+    fun aFailingLineReadGivesNoLine() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listOrderLines(any()) } throws refused
+            val r = start(f)
+
+            r.model.openRefund(refundable(5L, orderId = 50L))
+            runCurrent()
+
+            assertEquals(RefundStep.CHOOSE_LINES, r.state.refundFlow?.step)
+            assertTrue(r.state.refundFlow!!.lines.isEmpty())
+        }
+
+    @Test
+    fun tickingALineTakesItsFullQuantityAndTickingAgainRemovesIt() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 3, 2)
+
+            r.model.toggleRefundLine(1L)
+            r.model.toggleRefundLine(2L)
+            assertEquals(mapOf(1L to 3, 2L to 2), r.state.refundFlow?.checked)
+            r.model.toggleRefundLine(1L)
+
+            assertEquals(mapOf(2L to 2), r.state.refundFlow?.checked)
+            assertEquals(listOf(2), r.state.refundFlow!!.selected.map { it.quantity })
+            r.model.toggleRefundLine(99L)
+            assertEquals(mapOf(2L to 2), r.state.refundFlow?.checked)
+        }
+
+    @Test
+    fun theRefundQuantityStaysBetweenOneAndTheQuantityOfTheLine() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 3)
+            r.model.toggleRefundLine(1L)
+
+            r.model.adjustRefundQuantity(1L, 1)
+            assertEquals(3, r.state.refundFlow?.checked?.get(1L))
+            r.model.adjustRefundQuantity(1L, -1)
+            r.model.adjustRefundQuantity(1L, -1)
+            assertEquals(1, r.state.refundFlow?.checked?.get(1L))
+            r.model.adjustRefundQuantity(1L, -1)
+            assertEquals(1, r.state.refundFlow?.checked?.get(1L))
+            r.model.adjustRefundQuantity(1L, 5)
+            assertEquals(3, r.state.refundFlow?.checked?.get(1L))
+            r.model.adjustRefundQuantity(1L, -9)
+            assertEquals(1, r.state.refundFlow?.checked?.get(1L))
+        }
+
+    @Test
+    fun steppingAnUntickedLineTicksItAtOne() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 4)
+
+            r.model.adjustRefundQuantity(1L, 1)
+            assertEquals(1, r.state.refundFlow?.checked?.get(1L))
+            r.model.adjustRefundQuantity(77L, 1)
+            assertEquals(mapOf(1L to 1), r.state.refundFlow?.checked)
+        }
+
+    @Test
+    fun theDeliveryStepOpensOnlyWithALineTicked() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 2)
+
+            r.model.goToRefundDelivery()
+            assertEquals(RefundStep.CHOOSE_LINES, r.state.refundFlow?.step)
+            r.model.toggleRefundLine(1L)
+            r.model.goToRefundDelivery()
+            assertEquals(RefundStep.DELIVERY, r.state.refundFlow?.step)
+            r.model.backToRefundLines()
+            assertEquals(RefundStep.CHOOSE_LINES, r.state.refundFlow?.step)
+            assertTrue(r.state.refundFlow!!.hasSelection)
+        }
+
+    @Test
+    fun confirmingTheRefundSignsTheTickedLinesInTheOrderTheyWereTicked() =
+        runTest {
+            val f = fixture()
+            val request = delivery(RequestedMedium.DIGITAL, "a@b.be")
+            val items =
+                listOf(
+                    RefundItem(menuItemId = 200L, quantity = 1, lineId = 2L),
+                    RefundItem(menuItemId = 100L, quantity = 3, lineId = 1L),
+                )
+            coEvery { f.engine.refundCheckout(5L, items, OPERATOR_INSZ, request) } returns checkoutResult()
+            val r = refundRig(f, 3, 2)
+            r.model.toggleRefundLine(2L)
+            r.model.toggleRefundLine(1L)
+            r.model.adjustRefundQuantity(2L, -1)
+            r.model.goToRefundDelivery()
+
+            r.model.refund(request)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.refundCheckout(5L, items, OPERATOR_INSZ, request) }
+            val flow = r.state.refundFlow!!
+            assertEquals(RefundStep.RESULT, flow.step)
+            assertEquals(true, flow.result?.success)
+            assertEquals(listOf(r.text("refund_success")), r.toastTexts())
+        }
+
+    @Test
+    fun aPaperRefundIsSentWithoutRequest() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.refundCheckout(any(), any(), any(), null) } returns checkoutResult()
+            val r = refundRig(f, 1)
+            r.model.toggleRefundLine(1L)
+            r.model.goToRefundDelivery()
+
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.refundCheckout(5L, any(), OPERATOR_INSZ, null) }
+        }
+
+    @Test
+    fun aRefundOnlyStartsFromTheDeliveryStep() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 1)
+            r.model.toggleRefundLine(1L)
+
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            coVerify(exactly = 0) { f.engine.refundCheckout(any(), any(), any(), any()) }
+            assertEquals(RefundStep.CHOOSE_LINES, r.state.refundFlow?.step)
+        }
+
+    @Test
+    fun aRefundIsNotSignedTwice() =
+        runTest {
+            val f = fixture()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { f.engine.refundCheckout(any(), any(), any(), any()) } coAnswers
+                {
+                    gate.await()
+                    checkoutResult()
+                }
+            val r = refundRig(f, 1)
+            r.model.toggleRefundLine(1L)
+            r.model.goToRefundDelivery()
+
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            runCurrent()
+            assertEquals(RefundStep.PROCESSING, r.state.refundFlow?.step)
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            gate.complete(Unit)
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.refundCheckout(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun aRefusedRefundShowsTheErrorOnTheResultStep() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.refundCheckout(any(), any(), any(), any()) } returns
+                checkoutResult(success = false, error = "order_no_lines")
+            val r = refundRig(f, 1)
+            r.model.toggleRefundLine(1L)
+            r.model.goToRefundDelivery()
+
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            val flow = r.state.refundFlow!!
+            assertEquals(RefundStep.RESULT, flow.step)
+            assertEquals(false, flow.result?.success)
+            assertEquals(listOf(r.errorText("order_no_lines")), r.toastTexts())
+        }
+
+    @Test
+    fun aFailingRefundCallGoesBackToTheLines() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.refundCheckout(any(), any(), any(), any()) } throws refused
+            val r = refundRig(f, 1)
+            r.model.toggleRefundLine(1L)
+            r.model.goToRefundDelivery()
+
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            val flow = r.state.refundFlow!!
+            assertEquals(RefundStep.CHOOSE_LINES, flow.step)
+            assertTrue(flow.hasSelection)
+            assertEquals(listOf(r.model.describeError(refused)), r.toastTexts())
+        }
+
+    @Test
+    fun closingASignedRefundReloadsTheTickets() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.refundCheckout(any(), any(), any(), any()) } returns checkoutResult()
+            val r = refundRig(f, 1)
+            r.model.toggleRefundLine(1L)
+            r.model.goToRefundDelivery()
+            r.model.refund(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            r.model.closeRefund()
+            runCurrent()
+
+            assertNull(r.state.refundFlow)
+            coVerify(exactly = 1) { f.engine.listRefundableEvents(20L) }
+        }
+
+    @Test
+    fun closingARefundThatWasNotSignedReloadsNothing() =
+        runTest {
+            val f = fixture()
+            val r = refundRig(f, 1)
+
+            r.model.closeRefund()
+            runCurrent()
+
+            assertNull(r.state.refundFlow)
+            coVerify(exactly = 0) { f.engine.listRefundableEvents(any()) }
+        }
+
+    @Test
+    fun aClosedEngineNeverCrashesTheTicketFlows() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            f.holder.close()
+            runCurrent()
+
+            r.model.selectTab(ReportsTab.TICKETS)
+            r.model.openRefund(refundable(1L))
+            r.model.openCopy(7L, CopyTargetKind.TICKET)
+            r.model.confirmCopy(delivery(RequestedMedium.PAPER))
+            runCurrent()
+
+            assertTrue(r.state.tickets.loaded)
+            assertTrue(r.state.tickets.rows.isEmpty())
+            assertTrue(r.state.refundFlow!!.lines.isEmpty())
+            assertNull(r.state.copyFlow)
+            val starting = r.model.describeError(EngineUnavailableException(EngineState.Opening))
+            assertTrue(r.toastTexts().all { it == starting })
         }
 }

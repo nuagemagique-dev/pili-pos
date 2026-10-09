@@ -1,5 +1,10 @@
 package dev.nuagemagique.pilipos.feature.reports
 
+import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.CopyResult
+import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.OrderLine
+import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
 import uniffi.pos_ffi.ZReportSummary
 
@@ -107,7 +112,12 @@ internal data class CashState(
 /** What the cash tab knows by heart (`ReportsView.vue`). */
 internal object CashRules {
     /** The amount buttons: 10, 20, 50 and 100 euros. */
-    val PRESETS_CENTS: List<Long> = listOf(1000L, 2000L, 5000L, 10000L)
+    val PRESETS_CENTS: List<Long> = listOf(PRESET_10_CENTS, PRESET_20_CENTS, PRESET_50_CENTS, PRESET_100_CENTS)
+
+    private const val PRESET_10_CENTS: Long = 1000L
+    private const val PRESET_20_CENTS: Long = 2000L
+    private const val PRESET_50_CENTS: Long = 5000L
+    private const val PRESET_100_CENTS: Long = 10000L
 
     /** The reason of a drawer count (Basic Set M133). */
     const val DECLARATION_REASON: String = "declaration_tiroir"
@@ -120,11 +130,132 @@ internal object CashRules {
         }
 }
 
+/** The kind label of a ticket row (`copyKind` of `ReportsView.vue`). */
+internal enum class TicketKind {
+    TRAINING,
+    PRE_BILL,
+    REFUND,
+    SALE,
+}
+
+/**
+ * One line of the tickets list: a ticket that can be copied, refunded or both.
+ *
+ * [copyable] is set when the ticket is in `list_copyable_tickets`, [refundable] when it is in
+ * `list_refundable_events`.
+ */
+internal data class TicketRow(
+    val fiscalEventId: Long,
+    val ticketNumber: Long,
+    val tableNumber: Int?,
+    val totalCents: Long,
+    val createdAt: String,
+    val kind: TicketKind,
+    val copyable: CopyableTicket?,
+    val refundable: RefundableEvent?,
+)
+
+/** The tickets tab. */
+internal data class TicketsState(
+    /** True once the lists were loaded at least once (a failed load counts: it shows the empty list). */
+    val loaded: Boolean = false,
+    /** True while the lists load. */
+    val loading: Boolean = false,
+    val copyable: List<CopyableTicket> = emptyList(),
+    val refundable: List<RefundableEvent> = emptyList(),
+    /** Both lists in one, newest first. */
+    val rows: List<TicketRow> = emptyList(),
+)
+
+/** What a copy is a copy of. */
+internal enum class CopyTargetKind {
+    /** A Z report, from the history. */
+    Z,
+
+    /** A customer ticket, from the tickets tab. */
+    TICKET,
+}
+
+/** The step of the copy flow. */
+internal enum class CopyStep {
+    /** The operator chooses the medium; nothing is signed yet. */
+    PICKER,
+
+    /** The copy (event C) is being signed. */
+    PROCESSING,
+
+    /** The engine answered: [CopyFlow.result]. */
+    RESULT,
+}
+
+/** The copy flow (event C). */
+internal data class CopyFlow(
+    val fiscalEventId: Long,
+    val kind: CopyTargetKind,
+    val step: CopyStep = CopyStep.PICKER,
+    /** The engine's answer, with its print and delivery outcomes; set in the step [CopyStep.RESULT]. */
+    val result: CopyResult? = null,
+)
+
+/** The step of the refund flow. */
+internal enum class RefundStep {
+    /** The operator chooses the sale to refund among the refundable events. */
+    CHOOSE_EVENT,
+
+    /** The operator ticks the lines to give back and steps their quantity. */
+    CHOOSE_LINES,
+
+    /** The operator chooses how the customer receives the refund ticket. */
+    DELIVERY,
+
+    /** The refund is being signed. */
+    PROCESSING,
+
+    /** The engine answered: [RefundFlow.result]. */
+    RESULT,
+}
+
+/** A ticked line of the refund with the quantity to give back (1 up to the quantity of the line). */
+internal data class RefundSelection(
+    val line: OrderLine,
+    val quantity: Int,
+)
+
+/**
+ * The refund flow.
+ *
+ * No total is computed here (UI-PD307): [selected] gives the lines with their quantity, the screen builds the
+ * VAT lines from them and asks the engine helpers for the amounts.
+ */
+internal data class RefundFlow(
+    val step: RefundStep = RefundStep.CHOOSE_EVENT,
+    /** The sale being refunded, null in the step [RefundStep.CHOOSE_EVENT]. */
+    val event: RefundableEvent? = null,
+    /** The lines of that sale, as the engine lists them. */
+    val lines: List<OrderLine> = emptyList(),
+    /** The ticked lines: line id to quantity, in the order they were ticked. */
+    val checked: Map<Long, Int> = emptyMap(),
+    /** The engine's answer, with its print and delivery outcomes; set in the step [RefundStep.RESULT]. */
+    val result: CheckoutResult? = null,
+) {
+    /** The ticked lines with their quantity, in the order they were ticked. */
+    val selected: List<RefundSelection>
+        get() = checked.mapNotNull { (id, quantity) -> lines.firstOrNull { it.id == id }?.let { RefundSelection(it, quantity) } }
+
+    /** True when at least one line is ticked: the delivery step can open. */
+    val hasSelection: Boolean get() = checked.isNotEmpty()
+}
+
 /** Everything the reports screen draws. */
 internal data class ReportsState(
     val tab: ReportsTab = ReportsTab.DAY,
     val day: DayState = DayState(),
     val cash: CashState = CashState(),
+    val tickets: TicketsState = TicketsState(),
+    /** The copy flow, or null when no copy is in progress. */
+    val copyFlow: CopyFlow? = null,
+    /** The refund flow, or null when no refund is in progress. */
+    val refundFlow: RefundFlow? = null,
     /** True when an operator is logged in; without one the screen shows an in-place empty state (PD205). */
     val signedIn: Boolean = false,
 )

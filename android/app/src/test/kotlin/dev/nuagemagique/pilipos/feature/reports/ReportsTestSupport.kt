@@ -23,10 +23,18 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
+import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.CopyResult
+import uniffi.pos_ffi.CopyableTicket
 import uniffi.pos_ffi.FinancialResult
+import uniffi.pos_ffi.OrderLine
+import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
+import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.TicketDeliveryRequest
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
+import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.ZReportSummary
 import java.io.File
 
@@ -38,7 +46,13 @@ internal fun zSummary(
     id: Long,
     fiscalEventId: Long? = id,
 ): ZReportSummary =
-    ZReportSummary(id = id, reportDate = "2026-10-09", sequenceNumber = id, createdAt = "2026-10-09T22:00:00", fiscalEventId = fiscalEventId)
+    ZReportSummary(
+        id = id,
+        reportDate = "2026-10-09",
+        sequenceNumber = id,
+        createdAt = "2026-10-09T22:00:00",
+        fiscalEventId = fiscalEventId,
+    )
 
 internal fun reportResult(
     success: Boolean = true,
@@ -51,6 +65,76 @@ internal fun financial(
     success: Boolean = true,
     error: String? = null,
 ): FinancialResult = FinancialResult(success = success, error = error)
+
+internal fun copyable(
+    id: Long,
+    label: String = "N",
+    totalCents: Long = 1000L,
+): CopyableTicket =
+    CopyableTicket(
+        fiscalEventId = id,
+        eventLabel = label,
+        ticketNumber = id,
+        tableNumber = 4,
+        totalCents = totalCents,
+        createdAt = "2026-10-09T12:00:00",
+    )
+
+internal fun refundable(
+    id: Long,
+    orderId: Long = id * 10L,
+): RefundableEvent =
+    RefundableEvent(
+        fiscalEventId = id,
+        orderId = orderId,
+        ticketNumber = id,
+        tableNumber = 4,
+        totalCents = 1000L,
+        createdAt = "2026-10-09T12:00:00",
+    )
+
+internal fun orderLine(
+    id: Long,
+    quantity: Int,
+    menuItemId: Long = id * 100L,
+): OrderLine =
+    OrderLine(
+        id = id,
+        orderId = 1L,
+        menuItemId = menuItemId,
+        quantity = quantity,
+        unitPriceCents = 500L,
+        vatCode = VatCode.B,
+        name = "item$id",
+        modifiersJson = "[]",
+        createdAt = "2026-10-09T10:00:00",
+        departmentId = "d",
+        departmentName = "Dept",
+    )
+
+internal fun copyResult(
+    success: Boolean = true,
+    error: String? = null,
+): CopyResult = CopyResult(success = success, error = error, ticket = null, fiscalEventId = 7L, delivery = null)
+
+internal fun checkoutResult(
+    success: Boolean = true,
+    error: String? = null,
+): CheckoutResult =
+    CheckoutResult(
+        success = success,
+        ticket = null,
+        error = error,
+        fdmConnected = true,
+        fiscalEventId = 8L,
+        delivery = null,
+        kitchenSlip = null,
+    )
+
+internal fun delivery(
+    medium: RequestedMedium,
+    email: String? = null,
+): TicketDeliveryRequest = TicketDeliveryRequest(medium = medium, email = email)
 
 /** The reports entry point over real stores and a mocked engine. */
 @Suppress("LongParameterList")
@@ -107,6 +191,8 @@ internal class ReportsRig(
 internal fun stubReportReads(engine: DisposableEngine) {
     coEvery { engine.listZReports() } returns emptyList()
     coEvery { engine.needsZReport() } returns false
+    coEvery { engine.listCopyableTickets(any()) } returns emptyList()
+    coEvery { engine.listRefundableEvents(any()) } returns emptyList()
     coEvery { engine.login(any(), any()) } returns operatorUser
 }
 
