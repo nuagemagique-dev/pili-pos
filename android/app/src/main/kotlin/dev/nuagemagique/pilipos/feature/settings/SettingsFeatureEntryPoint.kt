@@ -8,12 +8,14 @@ import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.NavRegistry
+import dev.nuagemagique.pilipos.ui.components.QrMatrices
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
+import dev.nuagemagique.pilipos.ui.state.WebshopOrdersStore
 
 /**
  * What the settings screen reads from the Hilt graph (PD205: no Hilt view model factory). The screen builds
@@ -55,4 +57,10 @@ internal interface SettingsFeatureEntryPoint {
 
     /** The mail status of the ticket deliveries panel (`useDeliveryStore().refreshMailStatus()` on open). */
     fun delivery(): DeliveryStore
+
+    /** The online orders: a saved HubRise channel releases held orders, so the board is read again. */
+    fun webshop(): WebshopOrdersStore
+
+    /** The QR matrices of the engine: the HubRise authorize link is drawn from them (PD218). */
+    fun qrMatrices(): QrMatrices
 }

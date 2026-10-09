@@ -116,11 +116,24 @@ internal fun SettingsRoute(
 ) {
     val entry = rememberEntryPoint<SettingsFeatureEntryPoint>()
     val model = viewModel { SettingsViewModel(entry) }
+    val hubriseModel = viewModel { HubriseViewModel(entry) }
     val loaded by model.state.collectAsState()
+    val hubrise by hubriseModel.state.collectAsState()
+    val pending by entry.webshop().pendingCount.collectAsState()
+    LaunchedEffect(hubriseModel) {
+        hubriseModel.effects.collect {
+            when (it) {
+                is HubriseEffect.ChannelSaved -> entry.webshop().fetchOrders()
+            }
+        }
+    }
     val rows = remember(loaded.isManager) { visibleRows(registry.get().settingsEntries, loaded.isManager) }
     val state = loaded.copy(rows = rows)
     val callbacks = settingsCallbacks(model, navigator)
     val pinActions = pinActionsOf(model)
+    val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
+    val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
+    val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
     PosScaffold(
         HeaderArea.SETTINGS,
@@ -132,9 +145,18 @@ internal fun SettingsRoute(
                 pinActions = pinActions,
                 deactivate = DeactivateActions(onConfirm = model::deactivate, onCancel = model::cancelDeactivate),
             )
+            HubriseDialogs(
+                state = hubrise,
+                matrices = qr,
+                connect = connectActions,
+                onConfirmDisconnect = hubriseModel::confirmDisconnect,
+                onCancelDisconnect = hubriseModel::cancelDisconnect,
+            )
         },
     ) {
-        SettingsContent(state, callbacks)
+        SettingsContent(state, callbacks, hubriseSection = {
+            HubriseSection(hubrise, pending, hubriseCallbacks)
+        })
     }
 }
 
@@ -166,6 +188,20 @@ private fun pinActionsOf(model: SettingsViewModel): SettingsPinActions =
         describeError = model::describe,
         onDone = model::onPinDone,
         onCancel = model::closePin,
+    )
+
+/** What the HubRise panel calls on [model]. */
+private fun hubriseCallbacksOf(model: HubriseViewModel): HubriseCallbacks =
+    HubriseCallbacks(
+        onConnect = model::connect,
+        onDisconnect = model::requestDisconnect,
+        onSync = model::syncCatalog,
+        onToggleAdoption = model::toggleAdoption,
+        onAdopt = model::adoptCatalog,
+        onChannelKind = model::setChannelKind,
+        onChannelCharge = model::setChannelChargePolicy,
+        onNewChannel = model::setNewChannel,
+        onAddChannel = model::addChannel,
     )
 
 /**
