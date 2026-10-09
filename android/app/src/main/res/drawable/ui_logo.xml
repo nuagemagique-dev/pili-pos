@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The ink of the Pili wordmark, converted one to one from ui/src/components/PiliLogo.vue (viewBox 0 -62 244 204;
+    the group moves the origin to the top left because a vector viewport cannot start below zero): the p (a bar
+    and a ring) and the i, l, i. White, tinted by the caller. The bolt that strikes the p is ui_logo_bolt.xml and
+    the tone marks are ui_logo_tones.xml.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="244dp"
+    android:height="204dp"
+    android:viewportWidth="244"
+    android:viewportHeight="204">
+    <group android:translateY="62">
+        <!-- p: the bar (rect 0,0 22x140) -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M0,0H22V140H0Z" />
+        <!-- p: the ring (circle 50,50 r39, stroke 22) -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M11,50A39,39 0 1,0 89,50A39,39 0 1,0 11,50Z"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="22" />
+        <!-- i, l, i -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M124,0H146V100H124Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M170,-45H192V100H170Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M216,0H238V100H216Z" />
+    </group>
+</vector>
