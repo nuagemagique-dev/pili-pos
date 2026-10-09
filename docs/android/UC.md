@@ -255,7 +255,7 @@ The text of each printer job is the ESC/POS stream rendered by `crates/pos-print
 | 7 | `^(\s*(?:POS Serial:\|Terminal:)) .*$` | `\1 <identity>` | installation identity on receipts |
 | 8 | `^(\s*(?:POSID\|TerminalId))\s+\S+\s*$` | `\1 <identity>` | installation identity on reports (the value is right aligned, so its padding changes with its length) |
 | 9 | `^\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\s*$` | `<uuid>` | the booking period id printed on the line after `BookingPeriodId:` |
-| 10 | `\b\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\b` | `<datetime>` | date and time of a bar or kitchen slip |
+| 10 | `\b\d{2}/\d{2}/(?:\d{4}|\d{2}) \d{2}:\d{2}:\d{2}\b` | `<datetime>` | date and time of a bar or kitchen slip (four-digit year) and of the X and Z report header next to `Rapport X` (`ReportDetails.created_at`, formatted `%d/%m/%y %H:%M:%S` with a two-digit year, for example `10/10/26 11:35:00`) |
 | 11 | `\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}\b` | `<datetime>` | date and time in a report (`2026-04-12 11:30`) |
 | 12 | `\b\d{4}-\d{2}-\d{2}\b` | `<date>` | report date line |
 | 13 | `\b\d{2}\.\d{2}\.\d{4}\b` | `<date>` | receipt date (`23.06.2026`) and the date of "Copie etablie le" |
@@ -274,8 +274,9 @@ An engine function returns `Err(String)`; the text is `code|k=v|k=v` (`pin_locke
 
 `expect.error` is compared with the code of the error:
 
-- host side (`pos-uc-check`): the text before the first `|` of the `Err(String)`;
-- Android: `Coded.code`, or, for `PosException.Fdm`, the code of its detail as defined below.
+- host side (`pos-uc-check`): for an `Err(String)` whose trimmed text starts with `FDM` (the `sign_table_order` and `sign_pre_bill` commands return an FDM refusal as an `Err`, for example `FDM error: GraphQL error: FDM_LOCKED: FDM is locked.`), the same strip rule as Android, defined below (remove one leading `FDM error: `, then one leading `GraphQL error: `, then match `CODE` followed by `|`, `:`, a space or the end of the text); for any other `Err(String)` (the `code|k=v` form), the text before the first `|`;
+- Android: `Coded.code`, or, for `PosException.Fdm`, the code of its detail with the same strip rule;
+- an `Err` with an unknown code (`PosException.Internal` on Android, a text that is neither a known `code|k=v` nor an FDM text on the host) never matches an `expect.error` on either side, so both sides agree and the step fails on both.
 
 A step whose call returns `Ok` with `success: false` (the checkout, refund, copy, report, social and financial families report their refusals inside the result, as the Tauri commands do) matches `expect.error` when the result's `error` text matches `CODE`. The `error` text of an FDM refusal is not the bare code: the engine wraps it (`pos-engine/src/commands/signing.rs`, `pos-fiscal/src/fdm_client.rs`) as `FDM error: GraphQL error: FDM_LOCKED: FDM is locked.`, and a lost answer as `FDM error: FDM_ANSWER_PENDING|label=N|ticket=3|cause=...`. So both interpreters compare in this way, which completes the "starts with CODE" of section 2: remove one leading `FDM error: ` and then one leading `GraphQL error: ` if present, then the text matches `CODE` when it equals `CODE` or starts with `CODE` followed by `|`, `:` or a space. This keeps `"error": "FDM_LOCKED"` working on the `checkout` of the specification and `"error": "order_no_lines"` on a `code|k=v` result.
 
