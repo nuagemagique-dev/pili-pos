@@ -85,17 +85,34 @@ Strings: `strings_plat_watchdog.xml`.
 
 ## 6. About and identity
 
-Status: design (P6-T4)
+Status: as built (P6-T4)
 
-`platform/about/IdentityProvider` builds an `IdentityReport` (PD209):
+`platform/about/IdentityProvider` (a `@Singleton`) builds an `IdentityReport` (PD209). `report()` never throws (apart from the cancellation of its caller): a field that cannot be read is null. The route `platform/about` (`PlatformRoutes.ABOUT`) shows `AboutScreen`; the settings row `platform.about` (order 900, not manager only) is unchanged. The export writes `IdentityReport.toJson()` as `identity.json`.
 
-- application id, `versionName`, `versionCode`, `posSwVersion` (`EngineHelpers.posSwVersion`) and the engine reference;
-- SHA-1 and SHA-256 of the installed `base.apk` (`applicationInfo.sourceDir`), SHA-1 of the `lib/arm64-v8a/libpos_ffi.so` entry read from that APK (stored uncompressed, not extracted), SHA-256 of the signing certificates;
-- `deviceId` (the provisioning record), `posId` and `terminalId` (`getSettings` when Ready);
-- Android release, SDK level, build fingerprint, manufacturer and model;
-- free internal bytes, count and bytes of `engine/backups/`.
+| Field | Source | How to recompute it on a host |
+|---|---|---|
+| `applicationId`, `versionName`, `versionCode` | `PackageManager.getPackageInfo` | `aapt2 dump badging base.apk` |
+| `posSwVersion` | `EngineHelpers.posSwVersion()`, null when the native library does not load | Cargo version of `android/rust/pos-ffi` |
+| `engineRef` | string `plat_about_engine_ref` (not translatable) | see below |
+| `apkSha1`, `apkSha256` | `base.apk` (`applicationInfo.sourceDir`), streamed with a 64 KiB buffer on the I/O dispatcher | `shasum -a 1 base.apk`, `shasum -a 256 base.apk` (pull it with `adb shell pm path dev.nuagemagique.pilipos`, then `adb pull`) |
+| `soSha1` | the zip entry `lib/arm64-v8a/libpos_ffi.so` read inside the APK with `java.util.zip.ZipFile`; null with `soProblem` when the entry is absent or the file is not a zip | `unzip -p base.apk lib/arm64-v8a/libpos_ffi.so \| shasum` |
+| `signerSha256` | `PackageManager.GET_SIGNING_CERTIFICATES`, SHA-256 of the DER bytes of each signing certificate, lowercase hex | `apksigner verify --print-certs base.apk` (line "certificate SHA-256 digest") |
+| `deviceId` | the provisioning record (`ProvisioningStore`), read only | the Sunmi serial, `adb shell getprop ro.serialno` |
+| `posId`, `terminalId` | `getSettings` through `EngineGateway.call`, only while the gateway is ready; null otherwise or when the call fails | the `pos.json` of the bundle |
+| `androidRelease`, `sdkInt`, `fingerprint`, `manufacturer`, `model` | `Build` | `adb shell getprop` |
+| `freeInternalBytes` | `StatFs(filesDir).availableBytes` | `adb shell df /data` |
+| `backupsCount`, `backupsBytes` | the `*.db` files of `filesDir/engine/backups` | `adb shell run-as <package> ls -l files/engine/backups` (debug builds) |
+| `generatedAt` | ISO 8601 with the Europe/Brussels offset | |
 
-Hashes are cached per `(sourceDir, lastUpdateTime)`. The engine reference is the non-translatable string `plat_about_engine_ref`, of the form `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update it. The About screen shows the report; the export writes it as `identity.json`.
+The hashes are cached per `(sourceDir, lastUpdateTime)`, so a new install recomputes them and a second report of the same install reads nothing. A failed read of the APK is not cached. `toJson()` has a stable key order (the order above, fields as named in the table) and writes a missing value as JSON `null`, never as an absent key.
+
+The engine reference is `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update the string.
+
+`AboutScreen` has four sections: Version (version, code, engine version, engine reference), Integrity (APK SHA-1 and SHA-256, library SHA-1, signer SHA-256), Device (deviceId, posId, terminalId, Android, model) and Storage (free space, backups count and size). Hashes use the monospace figure style and the text is selectable. A warning line shows under Storage when less than 2 GiB are free or when the backups take more than half of the free space (PD219: the platform deletes nothing). Test tags: `about_root`, `about_apk_sha1`, `about_so_sha1`, `about_device_id`, plus `about_refresh`, `about_free_space`, `about_backups`, `about_warning_low_space`, `about_warning_backups`.
+
+`AboutScreen` takes its `AboutViewModel` from an entry point of the Hilt graph (not `hiltViewModel()`), so it renders under any host activity. The golden is `android/app/src/test/screenshots/platform/about.png` (Roborazzi, 960 px window at density 0.5, the 1920 px till).
+
+Strings: `strings_plat_about.xml`.
 
 ## 7. SPF export
 

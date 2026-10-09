@@ -1,4 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="plat_about_title">À propos</string>
+    <string name="plat_about_loading">Lecture de l\'identité de la caisse…</string>
+    <string name="plat_about_refresh">Actualiser</string>
+    <string name="plat_about_unavailable">Indisponible</string>
+    <string name="plat_about_section_version">Version</string>
+    <string name="plat_about_section_integrity">Intégrité</string>
+    <string name="plat_about_section_device">Appareil</string>
+    <string name="plat_about_section_storage">Stockage</string>
+    <string name="plat_about_version_name">Version de l\'application</string>
+    <string name="plat_about_version_code">Code de version</string>
+    <string name="plat_about_pos_sw_version">Version logicielle du moteur</string>
+    <string name="plat_about_engine_ref_label">Référence du moteur</string>
+    <string name="plat_about_engine_ref" translatable="false">pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)</string>
+    <string name="plat_about_apk_sha1">SHA-1 de base.apk</string>
+    <string name="plat_about_apk_sha256">SHA-256 de base.apk</string>
+    <string name="plat_about_so_sha1">SHA-1 de libpos_ffi.so</string>
+    <string name="plat_about_signer_sha256">SHA-256 du certificat de signature</string>
+    <string name="plat_about_device_id">Identifiant de l\'appareil (deviceId)</string>
+    <string name="plat_about_pos_id">Identifiant de la caisse (posId)</string>
+    <string name="plat_about_terminal_id">Identifiant du terminal (terminalId)</string>
+    <string name="plat_about_android">Android</string>
+    <string name="plat_about_android_value">Android %1$s (API %2$d)</string>
+    <string name="plat_about_model">Modèle</string>
+    <string name="plat_about_free_space">Espace libre</string>
+    <string name="plat_about_backups">Sauvegardes de la base</string>
+    <string name="plat_about_backups_value">%1$d copie(s), %2$s</string>
+    <string name="plat_about_warning_low_space">Moins de 2 Go libres sur la caisse. Prévenez le support.</string>
+    <string name="plat_about_warning_backups">Les sauvegardes occupent plus de la moitié de l\'espace libre. Prévenez le support.</string>
 </resources>
