@@ -1253,3 +1253,87 @@ pub fn assert_no_personal_data(path: &Path, secrets: &[String]) {
         );
     }
 }
+
+// ── The outbox tests (card X1-T5) ──────────────────────────────────
+
+/// What the outbox tests need to export: settings, the owner's secret key
+/// and the bearer token (random per run, nothing secret is committed).
+pub struct ExportKit {
+    pub settings: pos_export::settings::ExportSettings,
+    /// `AGE-SECRET-KEY-1...` of the owner, to decrypt the backups.
+    pub owner_secret: String,
+    pub token: String,
+}
+
+/// Settings for the endpoint `url` with a fresh owner identity and a token
+/// file in `dir`, keeping the exports `keep_days` days.
+pub fn export_kit(dir: &Path, url: &str, keep_days: i64) -> ExportKit {
+    use std::str::FromStr;
+    let (owner_secret, owner_public) = pos_export::crypt::generate_identity();
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).expect("random bytes");
+    let token = format!("tok-{}", hex::encode(bytes));
+    let token_file = dir.join("export.token");
+    std::fs::write(&token_file, &token).expect("write the token file");
+    ExportKit {
+        settings: pos_export::settings::ExportSettings {
+            url: url.trim_end_matches('/').to_string(),
+            token_file,
+            recipients: vec![age::x25519::Recipient::from_str(&owner_public).expect("recipient")],
+            keep_days,
+        },
+        owner_secret,
+        token,
+    }
+}
+
+/// Append a real Z report `z_no` for the booking date `date` to the fixture
+/// database: an empty period closed by a copy of the closing event of Z 42.
+/// Returns the new export id.
+pub fn add_empty_z(fx: &Fixture, z_no: i64, date: &str) -> String {
+    let conn = Connection::open(&fx.db_path).expect("open the fixture database");
+    let mut body: Value = conn
+        .query_row(
+            "SELECT event_data_json FROM fiscal_events WHERE id = ?1",
+            [fx.closing_event_id],
+            |r| r.get::<_, String>(0),
+        )
+        .map(|s| serde_json::from_str(&s).unwrap())
+        .expect("read the closing event of Z 42");
+    let period = format!("period-z{z_no}");
+    body["reportNo"] = json!(z_no);
+    body["reportBookingDate"] = json!(date);
+    body["bookingDate"] = json!(date);
+    body["bookingPeriodId"] = json!(period);
+    conn.execute(
+        "INSERT INTO fiscal_events (event_type, sequence_number, pos_id, terminal_id, user_insz,
+                event_data_json, fdm_response_json, fdm_id, fdm_datetime, event_label,
+                short_signature, qr_data)
+         SELECT event_type, (SELECT MAX(sequence_number) + 1 FROM fiscal_events WHERE event_type = 'R'),
+                pos_id, terminal_id, user_insz, ?2, fdm_response_json, fdm_id, fdm_datetime,
+                event_label, short_signature, qr_data
+         FROM fiscal_events WHERE id = ?1",
+        params![fx.closing_event_id, body.to_string()],
+    )
+    .expect("insert the Z event");
+    let event_id = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO booking_periods (id, booking_date, opened_at, closed_at, closing_event_id)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            period,
+            date,
+            format!("{date}T07:30:00.000Z"),
+            format!("{date}T22:00:00.000Z"),
+            event_id
+        ],
+    )
+    .expect("insert the period");
+    conn.execute(
+        "INSERT INTO z_reports (report_date, sequence_number, data_json, fiscal_event_id)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![date, z_no, body.to_string(), event_id],
+    )
+    .expect("insert the Z report");
+    pos_export::naming::export_id(date, z_no).expect("export id")
+}
