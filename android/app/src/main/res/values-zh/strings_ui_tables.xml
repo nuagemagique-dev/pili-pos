@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tables screen: the texts that have no Vue key (minutes open, the two empty states). -->
+    <string name="ui_tables_minutes">{minutes} 分钟</string>
+    <string name="ui_tables_signed_out">没有登录的操作员。请先登录再查看桌台。</string>
+    <string name="ui_tables_none">尚未设置桌台。</string>
+</resources>

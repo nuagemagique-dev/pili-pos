@@ -4,10 +4,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
-import dev.nuagemagique.pilipos.nav.PlaceholderScreen
 import javax.inject.Inject
 
-/** Navigation entry of the tables feature (placeholder until P5). */
+/** Navigation entry of the tables feature: the tables screen (P5b-T6). */
 internal class TablesEntry
     @Inject
     constructor() : FeatureEntry {
@@ -18,6 +17,6 @@ internal class TablesEntry
             builder: NavGraphBuilder,
             navigator: AppNavigator,
         ) {
-            builder.composable(TablesRoutes.TABLES) { PlaceholderScreen(area, TablesRoutes.TABLES) }
+            builder.composable(TablesRoutes.TABLES) { TablesRoute(navigator) }
         }
     }
