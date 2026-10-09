@@ -2,5 +2,4 @@
 <resources>
     <!-- Order screen: the texts that have no Vue key (the two empty states). -->
     <string name="ui_order_empty">Aucune commande ouverte. Choisissez une table ou une vente à emporter depuis l\'écran Tables.</string>
-    <string name="ui_order_cart_empty">Panier vide</string>
 </resources>

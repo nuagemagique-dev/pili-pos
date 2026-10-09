@@ -2,5 +2,4 @@
 <resources>
     <!-- Order screen: the texts that have no Vue key (the two empty states). -->
     <string name="ui_order_empty">当前没有订单。请在“桌台”页面选择桌台或外带。</string>
-    <string name="ui_order_cart_empty">购物车为空</string>
 </resources>

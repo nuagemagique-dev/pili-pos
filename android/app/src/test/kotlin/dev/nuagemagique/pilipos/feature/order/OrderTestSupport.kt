@@ -21,6 +21,7 @@ import dev.nuagemagique.pilipos.ui.state.SessionStore
 import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
@@ -259,6 +260,7 @@ internal class OrderRig(
     val settings: PosSettingsStore,
     val integrations: IntegrationsStore,
     val toasts: ToastStore,
+    val entry: OrderEntryPoint,
 ) {
     val state get() = model.state.value
 
@@ -292,12 +294,14 @@ internal fun TestScope.orderFixture(
 
 /** Builds the view model over real stores on [f]; the engine is opened first unless [open] is false. */
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LongParameterList")
 internal suspend fun TestScope.startOrder(
     f: EngineFixture,
     world: OrderWorld,
     context: Context,
     open: Boolean = true,
     routeOrderId: Long = ORDER_ID,
+    shown: Boolean = true,
 ): OrderRig {
     val gateway = f.gateway(this)
     val toasts = ToastStore(backgroundScope)
@@ -314,6 +318,8 @@ internal suspend fun TestScope.startOrder(
     }
     val entry = TestOrderEntry(session, order, gateway, f.events, errors, settings, integrations, amounts)
     val model = MenuViewModel(entry, routeOrderId)
+    // The screen runs its model while it is composed; a model of a screen left on the back stack is not run.
+    if (shown) backgroundScope.launch { model.run() }
     runCurrent()
-    return OrderRig(f, world, model, session, order, settings, integrations, toasts)
+    return OrderRig(f, world, model, session, order, settings, integrations, toasts, entry)
 }

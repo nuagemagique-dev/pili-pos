@@ -33,6 +33,7 @@ import dev.nuagemagique.pilipos.ui.scaffold.PosScaffold
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import kotlinx.coroutines.launch
 import uniffi.pos_ffi.MenuItem
 
 /** What the operator can do on the menu part of the order screen. */
@@ -59,7 +60,11 @@ internal fun OrderRoute(
     val entry = rememberEntryPoint<OrderEntryPoint>()
     val model = viewModel { MenuViewModel(entry, orderId) }
     val state by model.state.collectAsState()
-    LaunchedEffect(model) { model.runClock() }
+    // The order of the route and the refusals are the shown screen's job only, not that of one left on the back stack.
+    LaunchedEffect(model) {
+        launch { model.runClock() }
+        model.run()
+    }
     val callbacks =
         OrderCallbacks(
             onCategory = model::selectCategory,

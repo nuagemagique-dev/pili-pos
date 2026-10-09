@@ -341,6 +341,71 @@ class MenuViewModelTest {
             assertEquals(listOf(10L, 11L), r.state.menu.items.map { it.id })
         }
 
+    @Test
+    fun anOrderThatCannotBeLoadedWhileAnotherIsCurrentShowsTheEmptyStateAndTakesNoProduct() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.addOrderLine(any()) } returns orderLine(10)
+            val r = startOrder(f, world, context)
+            r.order.loadOrder(3L)
+            coEvery { f.engine.getOrder(ORDER_ID) } throws refusal
+
+            r.login()
+            runCurrent()
+            r.model.addItem(menuItem(10, 1, "Maki saumon", 650))
+            runCurrent()
+
+            assertEquals(3L, r.order.current.value?.id)
+            assertNull(r.state.order)
+            assertEquals(emptyList<Any>(), r.state.cart.rows)
+            assertEquals(1, r.toasts.toasts.value.size)
+            coVerify(exactly = 0) { f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun aScreenLeftOnTheBackStackNeitherTakesTheCurrentOrderBackNorShowsARefusalTwice() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.addOrderLine(any()) } throws refusal
+            val r = startOrder(f, world, context)
+            val hidden = MenuViewModel(r.entry, 3L)
+            r.login()
+            runCurrent()
+
+            r.model.addItem(menuItem(10, 1, "Maki saumon", 650))
+            runCurrent()
+
+            assertEquals(ORDER_ID, r.order.current.value?.id)
+            coVerify(exactly = 0) { f.engine.getOrder(3L) }
+            assertEquals(1, r.toasts.toasts.value.size)
+            assertNull(hidden.state.value.order)
+        }
+
+    @Test
+    fun theRouteOrderIsLoadedAgainWhenTheEngineBecomesReadyAgainOnlyByTheShownScreen() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            val hidden = MenuViewModel(r.entry, 3L)
+            r.login()
+            runCurrent()
+            r.order.loadOrder(5L)
+
+            f.holder.close()
+            runCurrent()
+            f.holder.open()
+            runCurrent()
+            r.login()
+            runCurrent()
+
+            assertEquals(ORDER_ID, r.order.current.value?.id)
+            coVerify(exactly = 0) { f.engine.getOrder(3L) }
+            assertNull(hidden.state.value.order)
+        }
+
     // ── The cart ──────────────────────────────────────────────────
 
     @Test

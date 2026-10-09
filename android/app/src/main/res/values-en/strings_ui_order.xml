@@ -2,5 +2,4 @@
 <resources>
     <!-- Order screen: the texts that have no Vue key (the two empty states). -->
     <string name="ui_order_empty">No open order. Choose a table or a takeaway from the Tables screen.</string>
-    <string name="ui_order_cart_empty">Cart is empty</string>
 </resources>

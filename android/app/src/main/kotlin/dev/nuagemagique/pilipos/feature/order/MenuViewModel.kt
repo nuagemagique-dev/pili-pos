@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -97,7 +98,7 @@ internal class MenuViewModel(
             .stateIn(viewModelScope, SharingStarted.Eagerly, build(data.value, order.current.value, order.lines.value, currentLook()))
 
     init {
-        viewModelScope.launch { active.collectLatest { on -> if (on) opened() else data.value = Data() } }
+        viewModelScope.launch { active.collect { on -> if (!on) data.value = Data() } }
         viewModelScope.launch {
             combine(active, settings.language, reload) { on, language, _ -> if (on) language else null }
                 .collectLatest { language -> if (language != null) loadMenu(language) }
@@ -107,7 +108,6 @@ internal class MenuViewModel(
                 if (event is PosEvent.CatalogUpdated || event is PosEvent.Resync) reload.update { it + 1 }
             }
         }
-        viewModelScope.launch { order.failures.collect { entry.errors().show(it, settings.language.value) } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -126,10 +126,13 @@ internal class MenuViewModel(
 
     private fun build(
         d: Data,
-        current: Order?,
-        lines: List<CartLine>,
+        shared: Order?,
+        sharedLines: List<CartLine>,
         l: Look,
     ): OrderUiState {
+        // The order store is shared by every screen: another order than the one of the route is not this screen's (PD205).
+        val current = shared?.takeIf { it.id == routeOrderId }
+        val lines = if (current != null) sharedLines else emptyList()
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
@@ -141,6 +144,18 @@ internal class MenuViewModel(
     }
 
     // ── Opening ───────────────────────────────────────────────────
+
+    /**
+     * What the screen does while it is composed and only then: it makes the route's order the current one (once
+     * ready, and again each time the engine becomes ready again), and it shows every refusal of a cart action as an
+     * error toast. A screen left on the back stack does neither, so a refusal is shown once and a hidden screen
+     * never takes the current order back.
+     */
+    suspend fun run() =
+        coroutineScope {
+            launch { order.failures.collect { entry.errors().show(it, settings.language.value) } }
+            active.collectLatest { on -> if (on) opened() }
+        }
 
     /**
      * Checks the Z-report reminder every [Z_CHECK_MS] until cancelled. The screen runs it while it is composed
@@ -226,6 +241,8 @@ internal class MenuViewModel(
 
     /** A tap on a product button (`handleAddItem`). */
     fun addItem(item: MenuItem) {
+        // Only the order of the route takes products: while another one is current the menu does nothing.
+        if (!isRouteOrderCurrent()) return
         if (item.openPrice) {
             data.update { it.copy(dialog = OrderDialog.Price(item)) }
             return
@@ -255,6 +272,7 @@ internal class MenuViewModel(
     fun confirmPrice(priceCents: Long) {
         val item = (data.value.dialog as? OrderDialog.Price)?.item ?: return
         data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent()) return
         viewModelScope.launch { order.addItem(item, 1, priceCents) }
     }
 
@@ -262,6 +280,7 @@ internal class MenuViewModel(
     fun confirmModifiers(modifierIds: List<Long>) {
         val item = (data.value.dialog as? OrderDialog.Modifiers)?.item ?: return
         data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent()) return
         viewModelScope.launch {
             order.addLineWith(item, 1) { orderId ->
                 gateway.call { engine ->
@@ -270,6 +289,8 @@ internal class MenuViewModel(
             }
         }
     }
+
+    private fun isRouteOrderCurrent() = order.current.value?.id == routeOrderId
 
     /** Closes the open dialog without adding anything. */
     fun dismissDialog() {

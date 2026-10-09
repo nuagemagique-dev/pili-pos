@@ -21,12 +21,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
 import dev.nuagemagique.pilipos.ui.format.formatEuro
-import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import uniffi.pos_ffi.Order
@@ -76,7 +74,7 @@ internal fun OrderCartColumn(
         ) {
             if (state.rows.isEmpty()) {
                 Text(
-                    text = uiText(R.string.ui_order_cart_empty),
+                    text = vueText("no_items"),
                     style = t.body,
                     color = c.textSecondary,
                     modifier = Modifier.testTag("cart_empty"),
