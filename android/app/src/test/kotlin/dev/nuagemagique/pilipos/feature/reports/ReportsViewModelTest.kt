@@ -378,9 +378,12 @@ class ReportsViewModelTest {
             r.model.openDrawer()
             runCurrent()
 
+            // The session forgets the operator when the engine goes away (UI-PD311): the actions are no-ops, the
+            // reads fail with the starting message, and nothing crashes.
             val starting = r.model.describeError(EngineUnavailableException(EngineState.Opening))
-            assertEquals(starting, r.state.day.lastReport?.failure)
-            assertEquals(starting, r.state.cash.lastOutcome?.failure)
+            assertFalse(r.state.signedIn)
+            assertNull(r.state.day.lastReport)
+            assertNull(r.state.cash.lastOutcome)
             assertTrue(r.toastTexts().all { it == starting })
             assertTrue(r.state.day.zHistory.isEmpty())
         }
@@ -1160,7 +1163,10 @@ class ReportsViewModelTest {
             assertTrue(r.state.tickets.loaded)
             assertTrue(r.state.tickets.rows.isEmpty())
             assertTrue(r.state.refundFlow!!.lines.isEmpty())
-            assertNull(r.state.copyFlow)
+            // No operator after the engine went away (UI-PD311): the copy stays at the picker, nothing is sent.
+            assertFalse(r.state.signedIn)
+            assertEquals(CopyStep.PICKER, r.state.copyFlow?.step)
+            coVerify(exactly = 0) { f.engine.copyTicket(any(), any(), any()) }
             val starting = r.model.describeError(EngineUnavailableException(EngineState.Opening))
             assertTrue(r.toastTexts().all { it == starting })
         }
