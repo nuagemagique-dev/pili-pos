@@ -20,8 +20,11 @@
 // AGP also resolves two things of its own version through detached configurations while the
 // build runs, so no project configuration lists them: the aapt2 binary (com.android.tools.
 // build:aapt2 with the classifier of the host OS) and the lint engine of lintVitalAnalyzeRelease
-// (com.android.tools.lint:lint-gradle with its dependencies). The root project therefore fetches,
-// through the task prefetchLazy, every version of these two that gradle/verification-metadata.xml
+// (com.android.tools.lint:lint-gradle with its dependencies). The :app module (PD217) adds a
+// third one: kspReleaseKotlin resolves the KSP2 processor classpath (com.google.devtools.ksp:
+// symbol-processing-aa-embeddable, symbol-processing-api and symbol-processing-common-deps with
+// their dependencies) through a detached configuration too. The root project therefore fetches,
+// through the task prefetchLazy, every version of these that gradle/verification-metadata.xml
 // lists, aapt2 for the Linux classifier, which is what the build image needs.
 //
 // The check does not trust this script for completeness: the two builds that follow run with
@@ -66,7 +69,7 @@ allprojects { p ->
 gradle.rootProject { root ->
     root.tasks.register('prefetchLazy') {
         group = 'help'
-        description = 'Downloads the Linux aapt2 jar and the lint-gradle classpath of the verification metadata.'
+        description = 'Downloads the Linux aapt2 jar, the lint-gradle and the KSP processor classpaths of the verification metadata.'
         notCompatibleWithConfigurationCache('resolves configurations at execution time')
         doLast {
             def md = new File(root.projectDir, 'gradle/verification-metadata.xml')
@@ -78,8 +81,9 @@ gradle.rootProject { root ->
             }
             def aapt2 = versionsOf('com.android.tools.build', 'aapt2')
             def lint = versionsOf('com.android.tools.lint', 'lint-gradle')
-            if (aapt2.isEmpty() || lint.isEmpty()) {
-                throw new GradleException('PREFETCH | aapt2 or lint-gradle is missing in ' + md)
+            def ksp = versionsOf('com.google.devtools.ksp', 'symbol-processing-aa-embeddable')
+            if (aapt2.isEmpty() || lint.isEmpty() || ksp.isEmpty()) {
+                throw new GradleException('PREFETCH | aapt2, lint-gradle or the KSP processor is missing in ' + md)
             }
             aapt2.each { v ->
                 def dep = root.dependencies.create("com.android.tools.build:aapt2:${v}:linux@jar")
@@ -90,6 +94,12 @@ gradle.rootProject { root ->
                 def dep = root.dependencies.create("com.android.tools.lint:lint-gradle:${v}")
                 def files = root.configurations.detachedConfiguration(dep).resolve()
                 println "PREFETCH | lint-gradle ${v} | ${files.size()} files"
+            }
+            ksp.each { v ->
+                def deps = ['symbol-processing-aa-embeddable', 'symbol-processing-api', 'symbol-processing-common-deps']
+                    .collect { n -> root.dependencies.create("com.google.devtools.ksp:${n}:${v}") }
+                def files = root.configurations.detachedConfiguration(*deps).resolve()
+                println "PREFETCH | ksp ${v} | ${files.size()} files"
             }
         }
     }

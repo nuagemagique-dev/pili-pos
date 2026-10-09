@@ -183,3 +183,45 @@ RESULT | DIFFERENT | 1 entries
 - **Not covered:** the signed APK (no key in the build), the Linux binary of the frozen
   desktop application (a different SHA-1), and the timing of a native build (about 22 to 28 minutes
   per build here under emulation).
+
+## P6: :app
+
+Status: done on the local Apple M1 host (P6-T10, PD217). The container build now assembles the
+real application, `:app:assembleRelease`, instead of `:smoke`. Two clean offline builds in fresh
+`--network none` containers of the pinned image give byte-identical `app-release-unsigned.apk`
+files. `:smoke` stays in the host gates (`android.yml` also checks it). The checks are the ones of
+the sections above, unchanged in meaning: `build-1`, `build-2`, `apk-identical`, `so-identical`,
+`entry-manifest`, `apk-check` (`check_apk.sh` on the `:app` APK). `build_in_container.sh` copies
+`app-release-unsigned.apk`, the R8 `mapping.txt` of `:app` and the unstripped `libpos_ffi.so`.
+
+One prefetch change was needed: `kspReleaseKotlin` resolves the KSP2 processor classpath
+(`symbol-processing-aa-embeddable`, `-api`, `-common-deps`) through a detached configuration while
+the build runs, so the first offline build of `:app` stopped with "No cached version of
+com.google.devtools.ksp:symbol-processing-aa-embeddable:2.2.20-2.0.3 available for offline mode".
+`prefetch.gradle` (`prefetchLazy`) now resolves it from `verification-metadata.xml`; the metadata
+itself was complete and is unchanged.
+
+Values of the run (`scripts/android/check_repro.sh`, method `init-script`, `work/result.txt`):
+
+| Item | Value |
+|---|---|
+| Commit built | `6c0142ef5f4614abd38d62ed05008cd2f3c1e6ff` (branch `android/P6-P6-T10`; the documentation commit that adds this section comes after it) |
+| `SOURCE_DATE_EPOCH` | 1791532483 (2026-10-09T07:54:43Z, the commit time) |
+| Image | `pili-android-build:p3`, digest (image ID, the image is local and has no registry digest) `sha256:eb51089c48ad4b158ca24138b4949dced8a8600def0a608d94928c296ea9b833` |
+| Dockerfile sha256 | `0045c8c5ef960329ecce979bed48b21127880f7a9c9784ad7869bf1e2767369f` (unchanged by this card) |
+| Prefetch key / volume | `3b6d35ec24d5131698d4e7f57205cffb5ad072865a29e17762aaa59ad6dd5126` / `pili-android-prefetch-3b6d35ec24d5` (1551 MB: cargo registry 500 MB, Gradle home 1052 MB), filled in 716 s |
+| APK SHA-1, build 1 and build 2 | `a1c6039d0c8103a0daa674f558acb6ef4111126c` (identical) |
+| APK SHA-256, build 1 and build 2 | `098ce1092ad1c1945a056ec4cd0837b6052e09ad3a6d0581b2dc647e3d9fbf65` (identical; the container prints `APK \| sha256` for each build and `cmp` is equal) |
+| APK size | 16002836 bytes |
+| `libpos_ffi.so` in the APK (stripped) SHA-1 | `f761159ff3ec8f1f61b57bf7f12e944367d61949` (12603048 bytes) |
+| `libpos_ffi.so` cargo output (unstripped) SHA-1 | `8a236b06f12e5ee458d40d2fef3d819ee40d504b` (67730512 bytes), same in both builds |
+| Other libraries | `libandroidx.graphics.path.so` `d7c17fcb44b30a6efe89d436aa102abe52e008a6`, `libjnidispatch.so` `ab124d34754c52e0373f7c66bc354db1afb6af78` |
+| Entry manifest | sha256 `f5ac4a4be53b98f406fd5f48264e3cbd9974d5a4c914373ebe62746f9cc5794c`, 108 entries |
+| Duration | build 1: 2158 s wall (Gradle 2140 s), build 2: 2125 s wall (Gradle 2087 s), amd64 container under emulation on an Apple M1; with the prefetch the run took about 83 minutes |
+| Result | `REPRO \| total \| PASS \| the two unsigned APKs are byte-identical (commit 6c0142ef5f46)` |
+
+The SHA-1 above is the one of the unsigned APK. The **signed APK SHA-1 of record** is not produced
+here: it is produced later by `scripts/release/declare_android.sh` with the release key
+(DECISIONS 9), which signs a copy of the unsigned APK outside any container. The release key must
+be RSA for that SHA-1 to be repeatable (see "What is compared, and why"). The native x86_64 run
+(`android.yml`, input `repro`) is still to be done by the user.

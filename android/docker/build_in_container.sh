@@ -13,7 +13,7 @@
 # Interface
 #   /in/src.tar            input: a git archive of the commit (read only mount)
 #   /out                   output directory (mount); receives
-#                            smoke-release-unsigned.apk, libpos_ffi.so (unstripped, from
+#                            app-release-unsigned.apk (the :app module, PD217), libpos_ffi.so (unstripped, from
 #                            target/android-rust/aarch64-linux-android/android-release),
 #                            mapping.txt, gradle.log, and verification-metadata.xml with
 #                            --write-metadata
@@ -96,7 +96,7 @@ before="$(locks_hash)"
 gradle_args=(--no-daemon --no-build-cache --no-configuration-cache --console=plain)
 [[ "$offline" -eq 1 ]] && gradle_args+=(--offline)
 [[ "$write_metadata" -eq 1 ]] && gradle_args+=(--write-verification-metadata sha256)
-gradle_args+=(:smoke:assembleRelease)
+gradle_args+=(:app:assembleRelease)
 
 echo "BUILD | start | $(date -u +%Y-%m-%dT%H:%M:%SZ) | SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
 t0=$(date +%s)
@@ -107,18 +107,18 @@ echo "BUILD | gradle-seconds | $((t1 - t0))"
 [[ "$(locks_hash)" == "$before" ]] || { echo "build_in_container: a Cargo.lock changed during the build" >&2; exit 1; }
 
 # ── outputs ─────────────────────────────────────────────────────
-APK="$BUILD_SRC/android/smoke/build/outputs/apk/release/smoke-release-unsigned.apk"
+APK="$BUILD_SRC/android/app/build/outputs/apk/release/app-release-unsigned.apk"
 SO="$TARGET_DIR/aarch64-linux-android/android-release/libpos_ffi.so"
-MAPPING="$BUILD_SRC/android/smoke/build/outputs/mapping/release/mapping.txt"
+MAPPING="$BUILD_SRC/android/app/build/outputs/mapping/release/mapping.txt"
 for f in "$APK" "$SO" "$MAPPING"; do
     [[ -f "$f" ]] || { echo "build_in_container: missing output $f" >&2; exit 1; }
 done
-cp "$APK" "$OUT/smoke-release-unsigned.apk"
+cp "$APK" "$OUT/app-release-unsigned.apk"
 cp "$SO" "$OUT/libpos_ffi.so"
 cp "$MAPPING" "$OUT/mapping.txt"
 if [[ "$write_metadata" -eq 1 ]]; then
     cp "$BUILD_SRC/android/gradle/verification-metadata.xml" "$OUT/verification-metadata.xml"
 fi
-echo "APK | sha256 | $(sha256sum "$OUT/smoke-release-unsigned.apk" | cut -d' ' -f1)"
+echo "APK | sha256 | $(sha256sum "$OUT/app-release-unsigned.apk" | cut -d' ' -f1)"
 echo "SO | sha1 | $(sha1sum "$OUT/libpos_ffi.so" | cut -d' ' -f1)"
-echo "APK | sha1 | $(sha1sum "$OUT/smoke-release-unsigned.apk" | cut -d' ' -f1)"
+echo "APK | sha1 | $(sha1sum "$OUT/app-release-unsigned.apk" | cut -d' ' -f1)"

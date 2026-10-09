@@ -5,10 +5,10 @@ name: Android
 #
 #   gate    the host gate of docs/android/BUILD.md on a Linux runner: cargo fmt, clippy and tests of
 #           android/rust, command and lock parity, the Gradle gates (lint, ktlint, detekt, unit
-#           tests, mismatch test, API check, release AAR, minified unsigned :smoke APK) and
-#           scripts/android/check_apk.sh. No emulator: the instrumented tests, the smoke run and the
+#           tests, mismatch test, API check, release AAR, minified unsigned :smoke and :app APKs) and
+#           scripts/android/check_apk.sh on both. No emulator: the instrumented tests, the smoke run and the
 #           engine tests on the device stay local (they need the sunmi_d3_pro_api33 AVD).
-#   repro   scripts/android/check_repro.sh: two offline container builds of the unsigned APK,
+#   repro   scripts/android/check_repro.sh: two offline container builds of the unsigned :app APK,
 #           compared byte for byte. This is the native x86_64 run of DECISIONS 11.13.
 #
 # The workflow needs no secret. It signs nothing, uploads to no store and pushes no image.
@@ -97,11 +97,14 @@ jobs:
           ./gradlew --no-daemon --console=plain
           lint ktlintCheck detekt
           :pos-core:testDebugUnitTest :pos-core:mismatchTest :pos-core:apiCheck
-          :pos-core:assembleRelease :smoke:assembleRelease
+          :pos-core:assembleRelease :smoke:assembleRelease :app:assembleRelease
           --continue
 
-      - name: APK check
+      - name: APK check (smoke)
         run: bash scripts/android/check_apk.sh android/smoke/build/outputs/apk/release/smoke-release-unsigned.apk
+
+      - name: APK check (app)
+        run: bash scripts/android/check_apk.sh android/app/build/outputs/apk/release/app-release-unsigned.apk
 
       - name: Upload reports
         if: always()
