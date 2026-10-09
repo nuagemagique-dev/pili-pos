@@ -69,6 +69,7 @@ keytool -genkeypair -keystore "$KEYS/ec.p12" -storetype PKCS12 -storepass:file "
     -alias rel -keyalg EC -groupname secp256r1 -validity 30 -dname "CN=declare test only EC" >/dev/null 2>&1 || bail "keytool EC"
 minisign -G -W -f -p "$KEYS/decl.pub" -s "$KEYS/decl.key" >/dev/null 2>&1 || bail "minisign -G"
 minisign -G -W -f -p "$KEYS/other.pub" -s "$KEYS/other.key" >/dev/null 2>&1 || bail "minisign -G (other)"
+printf 'throwaway-sign-pw\nthrowaway-sign-pw\n' | minisign -G -f -p "$KEYS/pw.pub" -s "$KEYS/pw.key" >/dev/null 2>&1 || bail "minisign -G (password)"
 DECL_PUB_LINE="$(sed -n '2p' "$KEYS/decl.pub")"
 [[ -n "$DECL_PUB_LINE" ]] || bail "no public key line"
 
@@ -153,6 +154,7 @@ for tool in oras gh; do
 #!/usr/bin/env bash
 printf '%s %s\n' "$tool" "\$*" >>"$STUBLOG"
 if [[ -e "$FORBID" ]]; then echo "stub $tool called while forbidden" >&2; exit 99; fi
+if [[ "$tool" == gh && "\$1" == release && "\$2" == view && -e "$T/stub.norelease" ]]; then exit 1; fi
 if [[ "$tool" == gh && "\$1" == auth ]]; then echo "stub-token"; fi
 if [[ "$tool" == gh && "\$1" == api ]]; then echo "stub-user"; fi
 if [[ "$tool" == oras && "\$1" == login ]]; then cat >/dev/null; fi
@@ -165,8 +167,9 @@ done
 # ── runner ─────────────────────────────────────────────────────
 OUTTXT="$T/run.out"
 RC=0
+STDIN_DATA=""
 run() { # run ARGS... : output in $OUTTXT, exit code in $RC; keystore, key and password defaults
-    PATH="$STUBS:$PATH" PILI_KS_PASS_FILE="$KEYS/pass" bash "$DECLARE" "$@" >"$OUTTXT" 2>&1
+    printf '%s' "$STDIN_DATA" | PATH="$STUBS:$PATH" PILI_KS_PASS_FILE="$KEYS/pass" bash "$DECLARE" "$@" >"$OUTTXT" 2>&1
     RC=$?
 }
 has() { grep -qF -- "$1" "$OUTTXT"; }
@@ -351,6 +354,10 @@ ok=1
 expect "stubs-still-uncalled-after-refusals" "$ok" "stub log: $(cat "$STUBLOG")"
 
 # 9. a real (stubbed) run: the tag must exist, then oras and gh are called as documented
+# Guard: the stubs must win the PATH lookup, else the real oras and gh could be reached.
+for tool in oras gh; do
+    [[ "$(PATH="$STUBS:$PATH" command -v "$tool")" == "$STUBS/$tool" ]] || bail "the $tool stub does not shadow the real one"
+done
 rm -f "$FORBID"
 git -C "$PROJ" tag -d android-v1.0.1 >/dev/null 2>&1
 run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
@@ -377,6 +384,52 @@ PILI_REPO="Example/Repo-Name" run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA
 ok=1
 grep -qF "oras push ghcr.io/example/repo-name:declared-android " "$STUBLOG" && grep -qF -- "-R Example/Repo-Name" "$STUBLOG" && ok=0
 expect "real-run-package-name-lowercased" "$ok" "stub log: $(cat "$STUBLOG" | tr '\n' ';')"
+
+# 9b. the GitHub release must exist before oras moves the tag
+touch "$T/stub.norelease"
+: >"$STUBLOG"
+run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
+    --keystore "$KEYS/rsa.p12" --alias rel --minisign-key "$KEYS/decl.key"
+ok=1
+[[ "$RC" -eq 1 ]] && has "DECLARE | push | FAIL" && has "does not exist" && ! grep -q "^oras push" "$STUBLOG" && ok=0
+expect "missing-github-release-stops-before-oras-push" "$ok" "exit $RC: $(tail -n 2 "$OUTTXT" | tr '\n' ' ') log: $(tr '\n' ';' <"$STUBLOG")"
+rm -f "$T/stub.norelease"
+
+# 9c. a password-protected declaration key: the prompt must reach the terminal, the password comes
+# from stdin here, and the signature verifies
+touch "$FORBID"
+write_xml "$(sed -n '2p' "$KEYS/pw.pub")"
+STDIN_DATA=$'throwaway-sign-pw\n'
+run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
+    --keystore "$KEYS/rsa.p12" --alias rel --minisign-key "$KEYS/pw.key" --out "$T/out9c" --dry-run
+ok=1
+[[ "$RC" -eq 0 ]] && has "DECLARE | total | PASS" && has "Password:" && ok=0
+expect "password-protected-minisign-key-passes" "$ok" "exit $RC: $(tail -n 3 "$OUTTXT" | tr '\n' ' ')"
+minisign -V -q -p "$KEYS/pw.pub" -m "$T/out9c/declared.json" -x "$T/out9c/declared.json.minisig" >/dev/null 2>&1
+expect "password-protected-signature-verifies" "$?" "minisign -V rejects the signature"
+STDIN_DATA=$'wrong-password\n'
+run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
+    --keystore "$KEYS/rsa.p12" --alias rel --minisign-key "$KEYS/pw.key" --out "$T/out9d" --dry-run
+ok=1
+[[ "$RC" -eq 1 ]] && has "DECLARE | minisign-sign | FAIL" && [[ ! -e "$T/out9d" ]] && ok=0
+expect "wrong-minisign-password-refused" "$ok" "exit $RC: $(tail -n 2 "$OUTTXT" | tr '\n' ' ')"
+STDIN_DATA=""
+write_xml "$DECL_PUB_LINE"
+
+# 9d. --out inside a git work tree is refused
+PILI_DECLARED_PUB="$KEYS/decl.pub" run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
+    --keystore "$KEYS/rsa.p12" --alias rel --minisign-key "$KEYS/decl.key" --out "$PROJ/leak" --dry-run
+ok=1
+[[ "$RC" -eq 1 ]] && has "DECLARE | out | FAIL" && [[ ! -e "$PROJ/leak" ]] && ok=0
+expect "out-inside-git-tree-refused" "$ok" "exit $RC: $(tail -n 2 "$OUTTXT" | tr '\n' ' ')"
+# a keystore inside a git tree gives one FAIL line for tools and no PASS line before it
+cp "$KEYS/rsa.p12" "$PROJ/inside.p12"
+PILI_DECLARED_PUB="$KEYS/decl.pub" run --apk "$T/ok.apk" --version 1.0.1 --sha1 "$SHA1_OK" \
+    --keystore "$PROJ/inside.p12" --alias rel --minisign-key "$KEYS/decl.key" --dry-run
+rm -f "$PROJ/inside.p12"
+ok=1
+! has "DECLARE | tools | PASS" && has "DECLARE | tools | FAIL" && ok=0
+expect "tools-step-not-contradictory" "$ok" "$(head -n 3 "$OUTTXT" | tr '\n' ' ')"
 
 # 10. nothing of the keys or the work directory leaked into the repository under test
 ok=1

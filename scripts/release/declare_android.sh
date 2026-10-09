@@ -26,8 +26,9 @@
 #   --alias        the key alias in the keystore
 #   --minisign-key the declaration secret key (default $PILI_MINISIGN_KEY, else
 #                  ~/.minisign/pili-pos-declared.key); minisign asks for its password
-#   --out DIR      where the three files are copied (default with --dry-run:
-#                  ./declared-android-X.Y.Z); a real run publishes from a temporary directory
+#   --out DIR      where the three files are copied (default with --dry-run: a new directory
+#                  under $TMPDIR); refused inside a git work tree; a real run publishes from
+#                  a temporary directory
 #   --dry-run      check, sign, write the files and print the commands, push nothing
 #   --allow-dev    accept an X.Y.Z-dev versionName; only together with --dry-run
 #
@@ -138,15 +139,15 @@ if [[ "$DRY" -eq 0 ]]; then
     command -v gh >/dev/null 2>&1 || missing+=" gh"
 fi
 [[ -z "$missing" ]] || die tools "missing:$missing"
+# Key material must never lie inside a repository.
+if in_git_tree "$KEYSTORE"; then die tools "the keystore lies inside a git work tree: $KEYSTORE"; fi
+if in_git_tree "$MINISIGN_KEY"; then die tools "the minisign key lies inside a git work tree: $MINISIGN_KEY"; fi
 if [[ "$DRY" -eq 1 ]]; then
     step tools PASS "apksigner, zipalign, aapt2 ($BUILD_TOOLS), keytool, minisign; oras and gh not needed with --dry-run"
 else
     step tools PASS "apksigner, zipalign, aapt2 ($BUILD_TOOLS), keytool, minisign, oras, gh"
 fi
 
-# Key material must never lie inside a repository.
-if in_git_tree "$KEYSTORE"; then die tools "the keystore lies inside a git work tree: $KEYSTORE"; fi
-if in_git_tree "$MINISIGN_KEY"; then die tools "the minisign key lies inside a git work tree: $MINISIGN_KEY"; fi
 
 # ── b. version and tag ─────────────────────────────────────────
 if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev$ ]]; then
@@ -276,9 +277,10 @@ PY
     PUB_SRC="plat_update_keys.xml"
 fi
 
-if ! ms="$(minisign -S -s "$MINISIGN_KEY" -m "$DIR/declared.json" -x "$DIR/declared.json.minisig" \
-    -t "pili-pos-android $BASE declared $DECLARED_AT" 2>&1)"; then
-    die minisign-sign "minisign -S failed: $(printf '%s' "$ms" | tail -n 1)"
+# Not captured: minisign prints its "Password:" prompt on stderr and must reach the terminal.
+if ! minisign -S -s "$MINISIGN_KEY" -m "$DIR/declared.json" -x "$DIR/declared.json.minisig" \
+    -t "pili-pos-android $BASE declared $DECLARED_AT" >/dev/null; then
+    die minisign-sign "minisign -S failed (wrong password or unreadable key $MINISIGN_KEY)"
 fi
 step minisign-sign PASS "declared.json.minisig written (prehashed), trusted comment 'pili-pos-android $BASE declared $DECLARED_AT'"
 if ! verify_out="$(minisign -V -q "${PUB_ARGS[@]}" -m "$DIR/declared.json" -x "$DIR/declared.json.minisig" 2>&1)"; then
@@ -292,9 +294,15 @@ PUSH_CMD=(oras push "$PACKAGE:declared-android" --artifact-type application/vnd.
 UPLOAD_CMD=(gh release upload "$TAG" -R "$REPO" --clobber "$ASSET" declared.json declared.json.minisig)
 
 if [[ "$DRY" -eq 1 && -z "$OUT" ]]; then
-    OUT="declared-android-$BASE"
+    OUT="$(mktemp -d "${TMPDIR:-/tmp}/declared-android-$BASE.XXXXXX")"
 fi
 if [[ -n "$OUT" ]]; then
+    # The signed APK must not land in a work tree as untracked files.
+    probe="$OUT"
+    while [[ ! -d "$probe" ]]; do probe="$(dirname "$probe")"; done
+    if git -C "$probe" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        die out "--out $OUT lies inside a git work tree"
+    fi
     mkdir -p "$OUT"
     cp "$DIR/$ASSET" "$DIR/declared.json" "$DIR/declared.json.minisig" "$OUT/"
 fi
@@ -308,6 +316,8 @@ if [[ "$DRY" -eq 1 ]]; then
     exit 0
 fi
 
+gh release view "$TAG" -R "$REPO" >/dev/null 2>&1 \
+    || die push "the GitHub release $TAG does not exist in $REPO: create it first (nothing was pushed)"
 echo "Logging oras in to ghcr.io with the gh token..."
 gh auth token | oras login ghcr.io -u "$(gh api user -q .login)" --password-stdin >/dev/null \
     || die push "oras login to ghcr.io failed"
