@@ -9,6 +9,7 @@ import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.FeatureEntry
 import dev.nuagemagique.pilipos.platform.about.AboutScreen
 import dev.nuagemagique.pilipos.platform.export.ExportScreen
+import dev.nuagemagique.pilipos.platform.update.UpdateScreen
 import javax.inject.Inject
 
 /** Route constants of the platform lane (P6). */
@@ -18,16 +19,19 @@ object PlatformRoutes {
 
     /** The SPF export screen (manager only). */
     const val EXPORT = "platform/export"
+
+    /** The updater screen (manager only). */
+    const val UPDATE = "platform/update"
 }
 
 private const val LEGACY_PLACEHOLDER_TAG = "placeholder_platform"
 
-/** Navigation entry of the platform lane: the About and the SPF export screens. */
+/** Navigation entry of the platform lane: the About, the SPF export and the update screens. */
 internal class PlatformEntry
     @Inject
     constructor() : FeatureEntry {
         override val area: String = "platform"
-        override val routes: List<String> = listOf(PlatformRoutes.ABOUT, PlatformRoutes.EXPORT)
+        override val routes: List<String> = listOf(PlatformRoutes.ABOUT, PlatformRoutes.EXPORT, PlatformRoutes.UPDATE)
 
         override fun register(
             builder: NavGraphBuilder,
@@ -39,5 +43,6 @@ internal class PlatformEntry
                 Box(Modifier.testTag(LEGACY_PLACEHOLDER_TAG)) { AboutScreen() }
             }
             builder.composable(PlatformRoutes.EXPORT) { ExportScreen() }
+            builder.composable(PlatformRoutes.UPDATE) { UpdateScreen() }
         }
     }
