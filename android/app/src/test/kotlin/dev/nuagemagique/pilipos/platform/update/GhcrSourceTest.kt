@@ -157,7 +157,7 @@ class GhcrSourceTest {
         }
 
     @Test
-    fun aBlobLongerThanItsManifestSaysIsCutAtTheLimit() =
+    fun aBlobLongerThanItsManifestSaysIsRefusedOnceItPassesTheLimit() =
         runTest {
             val registry = registry()
             val big = ByteArray(5_000) { 7 }

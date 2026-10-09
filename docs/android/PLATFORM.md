@@ -196,7 +196,7 @@ A missing, mistyped or empty field, an unknown `format`, another `platform` or a
 2. `GET {base}/v2/brunomoyse/moyun-pos/manifests/declared-android` with `Accept: application/vnd.oci.image.manifest.v1+json` and `Authorization: Bearer <token>`;
 3. `GET {base}/v2/brunomoyse/moyun-pos/blobs/<digest>` for each layer, with the bearer.
 
-The token and the manifest are fetched once per source object, so the descriptor and the APK come from the same manifest. Every blob is hashed while it streams and compared with its `sha256:` digest: a wrong digest is `sha256_mismatch` for the APK and `bad_descriptor` for the descriptor files. A layer larger than its limit is `too_large` before the blob is requested, and a blob that turns out longer than the manifest says is cut at the limit. Timeouts: 15 s to connect, 60 s to read. Redirects (the registry sends blobs to a CDN) are followed by hand, at most 5, and the `Authorization` header goes only to the origin (scheme, host and port) of the base URL, never to the target of a redirect. TLS is required, apart from the debug override below. Any HTTP error or transport failure is `network`.
+The token and the manifest are fetched once per source object, so the descriptor and the APK come from the same manifest. Every blob is hashed while it streams and compared with its `sha256:` digest: a wrong digest is `sha256_mismatch` for the APK and `bad_descriptor` for the descriptor files. A layer larger than its limit is `too_large` before the blob is requested, and a blob that turns out longer than the manifest says is refused (`too_large`) as soon as it passes the limit, and nothing is kept. Timeouts: 15 s to connect, 60 s to read. Redirects (the registry sends blobs to a CDN) are followed by hand, at most 5, and the `Authorization` header goes only to the origin (scheme, host and port) of the base URL, never to the target of a redirect. TLS is required, apart from the debug override below. Any HTTP error or transport failure is `network`.
 
 **`UsbSource` (Q8).** The same three files from a folder chosen through the Storage Access Framework (`UsbSource(context, treeUri)`, a `UsbFolder` over a `DocumentFile`); a file that is absent or cannot be opened is `usb_missing_file`. The same size limits apply.
 
@@ -232,7 +232,7 @@ Each title appears once (two layers with the same title are refused). The manife
 8. SHA-256, then SHA-1, of the file equal to the descriptor (`sha256_mismatch`, `sha1_mismatch`), one pass through `platform/about/Hasher`;
 9. `PackageManager.getPackageArchiveInfo(path, GET_SIGNING_CERTIFICATES)`: package, `versionCode` and `versionName` equal to the descriptor (`archive_mismatch`); the signer set (SHA-256 of each signing certificate) equal to the installed signer set and containing `signerSha256` (`signer_mismatch`).
 
-Any refusal, any error and a cancellation after the download began delete the downloaded file (and its `.part`). A returned `VerifiedUpdate` leaves the file for part 2. Calls are serialised (one verification at a time).
+Any refusal, any error and a cancellation after the download began delete the file downloaded by that run (and its `.part`). A refusal raised before the download (steps 1 to 6) deletes nothing, so the file of an earlier `VerifiedUpdate` stays in `filesDir/platform/update`. A returned `VerifiedUpdate` leaves its file for part 2. Calls are serialised (one verification at a time).
 
 Audit rows, kind `update`: `check_started` (`source` = `ghcr` or `usb`), then `refused` (`code`, `detail`) or `verified` (`version`, `sha1`).
 
@@ -242,7 +242,7 @@ Audit rows, kind `update`: `check_started` (`source` = `ghcr` or `usb`), then `r
 
 ### 8.7 Tests
 
-Fixtures `src/test/resources/platform/declared.json`, `declared.json.minisig` (signed with the development key) and `declared.tampered.json`. The JVM tests cannot load the Rust library, so `RealMinisignNatives` (test sources) re-implements the check (Ed25519 over BLAKE2b-512, as `minisign -S` does) behind `EngineNatives`; its own test pins BLAKE2b to the RFC 7693 vectors. `GhcrSource` is tested against a `com.sun.net.httpserver.HttpServer` on `127.0.0.1`: no test reaches another host.
+Fixtures `src/test/resources/platform/declared.json`, `declared.json.minisig` (signed with the development key) and `declared.tampered.json`. The JVM tests cannot load the Rust library, so `RealMinisignNatives` (test sources) re-implements the check (Ed25519 over BLAKE2b-512, as `minisign -S` does) behind `EngineNatives`; its own test pins BLAKE2b to the RFC 7693 vectors. `GhcrSource` is tested against `TestServer` (test sources), a minimal HTTP/1.1 server on plain sockets bound to `127.0.0.1`; the JDK `com.sun.net.httpserver.HttpServer` is not visible to the Kotlin test compilation of this module. No test reaches another host.
 
 ## 9. Updater: preconditions and install
 

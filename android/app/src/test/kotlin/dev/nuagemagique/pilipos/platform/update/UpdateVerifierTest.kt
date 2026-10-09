@@ -316,12 +316,13 @@ class UpdateVerifierTest {
         }
 
     @Test
-    fun aRefusalAfterAVerifiedRunRemovesTheEarlierFileToo() =
+    fun aRefusalBeforeTheDownloadLeavesTheFileOfAnEarlierVerifiedRun() =
         runTest {
             val verifier = verifier()
-            assertTrue(verifier.verify(FakeSource()) is VerifiedUpdate)
+            val earlier = (verifier.verify(FakeSource()) as VerifiedUpdate).file
             installed = installed.copy(versionCode = 102L)
             assertEquals(UpdateRefusalCode.NOT_NEWER, refused(verifier.verify(FakeSource())).code)
+            assertTrue(earlier.exists())
         }
 
     @Test
