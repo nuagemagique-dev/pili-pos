@@ -281,27 +281,62 @@ Fixtures `src/test/resources/platform/declared.json`, `declared.json.minisig` (s
 
 ## 9. Updater: preconditions and install
 
-Status: design (P6-T8)
+Status: as built (P6-T8)
 
-**Preconditions (PD213, interim).** The FFI has no engine-side update precheck and the engine is frozen. The updater composes the check from engine answers only; it computes no money and signs nothing:
-- the current user is Admin (`getCurrentUser`);
-- `listOpenOrders()` and `listOpenTakeaways()` are empty;
-- `needsZReport()` is false;
-- no fiscal event newer than the newest Z report's `fiscalEventId` (`listFiscalEvents(200)`) has a type other than the presence types (work in, work out) of `crates/pos-fiscal`, or the till has no fiscal event at all;
-- `EngineGateway.close()` returns `Closed`; `StillOpen` refuses the update.
+Package `platform/update` (verification is section 8). Everything below is `UpdatePreconditions`, `UpdateInstaller`, `InstallResultReceiver` (with `InstallStatusHandler`), `PackageReplacedReceiver`, `UpdateCompletionHook` (order 300, `@IntoSet` in `UpdateModule`) and the screen `UpdateScreen` / `UpdateViewModel` (route `platform/update`, settings row `platform.update`, order 920, managers only).
 
-**Manager PIN (PD214).** The "manager PIN" of the plan is the logged-in Admin session. The updater and the export check `getCurrentUser()` again right before they act. There is no second PIN prompt, because a new `login` would queue a clock-in.
+**Preconditions (PD213, interim).** The FFI has no engine-side update precheck and the engine is frozen. `UpdatePreconditions.check()` composes the check from engine answers only, through `EngineGateway.call`; it computes no money and signs nothing. It returns a list of `PreconditionFailure` (empty = go on):
+- `not_manager`: `getCurrentUser()` is not an Admin (nothing else is asked then);
+- `open_order`: `listOpenOrders()` or `listOpenTakeaways()` is not empty;
+- `z_due`: `needsZReport()` is true;
+- `z_not_done`: the newest `listZReports()` entry (highest `sequenceNumber`) has no `fiscalEventId`, or a fiscal event of `listFiscalEvents(200)` with an id greater than it has an event type outside `PRESENCE_TYPES`; with no Z report at all it is a failure unless `listFiscalEvents(1)` is empty (a till that never signed anything);
+- `engine_not_ready`: the engine is not ready or a call failed.
 
-**Install flow (PD215, Q18).** Order: preconditions; verification (minisign, JSON, package, `versionCode` strictly greater than the installed one, download, SHA-256 and SHA-1, archive info: package, `versionCode`, `versionName`, signer set equal to the installed one and to `signerSha256`); `backupDatabase()`; `EngineGateway.close()`; a fsynced marker `filesDir/platform/update/pending.json`; the audit row "started"; a `PackageInstaller` session (`MODE_FULL_INSTALL`, `USER_ACTION_NOT_REQUIRED`, `INSTALL_REASON_POLICY`) committed with an explicit mutable `PendingIntent` to `InstallResultReceiver`.
+`PRESENCE_TYPES = {"S"}`: the work-in and work-out events are the Social events, label `S` (`crates/pos-fiscal/src/response_check.rs:60-61`, `src/types.rs:42-51`; the label is stored as `event_type`, `src/archive.rs:57`). In training mode every event is `T` (`src/types.rs:53-59`), so training presence events are not accepted: the check stays strict.
 
-Afterwards:
-- **Refusal:** no session, the downloaded file is deleted.
-- **Failure status:** audit, marker deleted, the engine is reopened with `EngineService.start`.
-- **`STATUS_PENDING_USER_ACTION`:** the session is abandoned and recorded as an error.
-- **Success:** the "done" row is written by the new process (`UpdateCompletionHook`, from the marker); `PackageReplacedReceiver` starts `MainActivity`.
+**Manager PIN (PD214).** The "manager PIN" of the plan is the logged-in Admin session. The screen reads the preconditions when it comes to the front and again after a verification, and `UpdateInstaller` checks again right before it acts. There is no second PIN prompt, because a new `login` would queue a clock-in.
+
+**Install flow (PD215, Q18), as a sequence.** The screen verifies a release (section 8) and shows its version, `versionCode`, SHA-1 and signer. The Install button is enabled only with a `VerifiedUpdate` and no precondition failure. Then `UpdateInstaller.install(verified)`, inside `PlatformOps.run("update")`:
+
+```
+UpdateScreen            UpdateInstaller                 engine / disk / system
+  install() ----------> preconditions again ----------> getCurrentUser, listOpen*, needsZReport, listZReports, listFiscalEvents
+                         (failure: Blocked, nothing touched, audit install_blocked)
+                        gateway.call { backupDatabase() }   (error: Refused backup_failed)
+                        gateway.close()  -> Closed          (StillOpen: Refused engine_busy, EngineService.start)
+                        write filesDir/platform/update/pending.json  (tmp file, fsync, rename)
+                        audit update/started {from, to, version, sha1}
+                        PackageInstaller session: MODE_FULL_INSTALL, own package, INSTALL_REASON_POLICY,
+                          USER_ACTION_NOT_REQUIRED, setSize, openWrite + fsync, commit(broadcast to InstallResultReceiver)
+                        returns Committed (the result is not awaited)
+```
+
+Any exception from the marker on, before the commit returns: abandon the session, delete the marker, `EngineService.start`, audit `failed` (code `install_failed`), result `Refused(INSTALL_FAILED)`. A cancellation does the same, then rethrows. After the commit the call only keeps the `update` operation open for at most 90 s (or until the receiver reports), so that the watchdog does not reopen the engine while the system installs; it decides nothing from the answer. The screen then shows "installing, the till restarts".
+
+**After the commit.**
+- **Failure status** (`InstallResultReceiver`, action `dev.nuagemagique.pilipos.platform.update.INSTALL_STATUS` only, `goAsync`): audit `failed` with `code`, `status` and the system message, marker deleted, `EngineService.start`.
+- **`STATUS_PENDING_USER_ACTION`:** the session (`EXTRA_SESSION_ID`) is abandoned and recorded as `failed` with `code = silent_install_refused`; the confirmation intent is never started.
+- **`STATUS_SUCCESS`:** audit `status_success` (rare: the install normally kills the old process first); the marker stays for the new process.
+- **New process:** `PackageReplacedReceiver` (`MY_PACKAGE_REPLACED`) starts `MainActivity` with `FLAG_ACTIVITY_NEW_TASK` (the third way back into Lock Task, Q18) and audits `package_replaced`. `UpdateCompletionHook` (application start) reads `pending.json`: running `versionCode == toVersionCode` gives `done` (marker versions, `apkSha1` from `IdentityProvider`, the declared SHA-1) and deletes the marker; `== fromVersionCode` with a marker older than 5 minutes gives `not_completed` (younger: left alone, the install may still run); any other version gives `not_completed` (`unexpected_version`); an unreadable marker gives `marker_corrupt`. All delete the marker.
 - **No rollback:** a faulty version is fixed by a newer declared version (DECISIONS 6).
 
-Strings: `strings_plat_update.xml`.
+**Audit rows** (file `audit.jsonl`, kind `update`; verification rows are in section 8):
+
+| event | when | detail |
+| --- | --- | --- |
+| `install_blocked` | a precondition failed | `failures` (ids, comma separated) |
+| `install_refused` | backup failed or the engine stayed open | `code` (`backup_failed`, `engine_busy`), `detail` |
+| `started` | marker written, before the session | `from`, `to`, `version`, `sha1` |
+| `failed` | error before the commit, or a failure status | `code` (`install_failed`, `silent_install_refused`), `status`, `message` / `detail` |
+| `status_success` | the old process got the success status | `session` |
+| `package_replaced` | new process, `MY_PACKAGE_REPLACED` | none |
+| `done` | new process, running version is the target | `from`, `to`, `version`, `running`, `apkSha1`, `declaredSha1` |
+| `not_completed` | marker left by an install that did not happen | `from`, `to`, `version`, `reason` |
+| `marker_corrupt` | `pending.json` unreadable | `reason` |
+
+**Screen.** Test tags: `update_root`, `update_installed` (version and APK SHA-1 from `IdentityProvider`), `update_check_online` (`GhcrSource`), `update_from_usb` (`UsbSource`; `VolumeProbe` pre-check and the volume's `createOpenDocumentTreeIntent` started from the activity, no `FLAG_ACTIVITY_NEW_TASK`; with several volumes the first one is used; the grant is the temporary one of the result, nothing is persisted), `update_result` (version, `versionCode`, SHA-1, signer), `update_refusal` (verification refused), `update_failures` (one `update_failure_<id>` text per failed precondition), `update_install`, `update_installing`, `update_install_failed`. Not an Admin: only `update_not_manager` (`plat_update_not_manager`).
+
+Strings: `strings_plat_update.xml` (`plat_update_pre_<id>` for the preconditions, `plat_update_install_<id>` for the install refusals).
 
 ## 10. Release tooling
 
