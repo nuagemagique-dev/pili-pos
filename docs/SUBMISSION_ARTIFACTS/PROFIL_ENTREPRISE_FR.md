@@ -191,6 +191,8 @@ d'attaque réseau côté client au temps d'une intervention.
 | Nom et adresse client B2B | Client professionnel | Idem | Payload UBL stocké dans `peppol_deliveries.ubl_xml` |
 | Nom, téléphone et adresse de livraison du client d'une commande en ligne (HubRise, activé par installation, coupé par défaut) | Client B2C | Art. 6.1.b - Exécution de la commande passée par le client auprès du webshop ou de la plateforme | `orders.raw_hubrise_json`, `hubrise_events.payload_json` (JSON reçu de HubRise) ; bon client non fiscal imprimé |
 | Adresse e-mail (ticket numérique, §III.H) | Client B2C | Art. 6.1.a - Consentement/demande explicite du client à la caisse (le support "E-mail" n'est jamais activé par défaut ; l'opérateur ne le choisit qu'à la demande du client) | `ticket_deliveries.recipient` (en clair, 72 h max) puis `recipient_hint` (masqué, indéfiniment) |
+| Identifiants d'opérateur pseudonymisés de la copie statistique de l'export nocturne (facultatif, §6.5) | Employé | Art. 6.1.f - Intérêt légitime du responsable de traitement (suivi de l'activité de son établissement), avec minimisation : aucun nom ni INSZ | `stats-<identifiant>.sqlite`, colonne `user_ref` (fichier local `exports`, puis récepteur du propriétaire) |
+| Copie complète de `pos.db` de l'export nocturne (facultatif, §6.5) | Employé, client B2C | Mêmes bases légales que les données d'origine ; la copie n'est qu'une sauvegarde | `pos-<identifiant>.db.age`, chiffrée pour le responsable de traitement |
 
 Les **données client B2C** traitées sont : l'adresse e-mail du ticket
 numérique, sur demande explicite et ponctuelle du client à la caisse ;
@@ -230,6 +232,12 @@ de tracking, pas de WiFi guest, pas de base clients.
 - **Données client d'une commande en ligne** : conservées avec la
   commande (`orders.raw_hubrise_json`, `hubrise_events.payload_json`) ;
   aucune purge automatique n'est implémentée à ce jour.
+- **Export nocturne** (facultatif) : copies locales conservées
+  `keep_days` jours (14 par défaut, 365 au plus) puis supprimées
+  automatiquement. Chez le récepteur, la durée est décidée par le
+  responsable de traitement, qui est le propriétaire de l'établissement
+  (§6.5) : la copie complète n'est qu'une sauvegarde, et pour les
+  données fiscales la durée légale de 7 ans reste portée par `pos.db`.
 - **Adresse e-mail (ticket numérique)** : 72 heures maximum en clair,
   effacée immédiatement dès l'envoi réussi ou le repli papier
   (`ticket_deliveries.recipient`, purge automatique -
@@ -279,6 +287,24 @@ ticket numérique, via son API Transactional Email :
 | Durée de rétention côté producteur | 72 h maximum (§6.3) |
 | Usage marketing | Aucun - API transactionnelle uniquement, pas de liste de diffusion |
 
+**Récepteur de l'export nocturne** (facultatif ; connexion HTTPS
+sortante vers le point de réception propre à l'installation, seulement
+quand la section `export` de `pos.json` est renseignée,
+`EXPORT_NOCTURNE_FR.md`). L'exploitant du récepteur est un
+**sous-traitant** du propriétaire de l'établissement (le responsable de
+traitement) :
+
+| Élément | Valeur |
+|---|---|
+| Finalité | Sauvegarde hors site de la base et suivi statistique de l'activité, à la demande du propriétaire de l'établissement |
+| Donnée reçue | Un fichier **chiffré** (la sauvegarde complète, illisible pour lui) et une copie statistique à opérateurs **pseudonymisés** (`u-` suivi de 16 caractères hexadécimaux, calculés avec une clé propre à l'installation qui n'est jamais envoyée) |
+| Minimisation | La copie statistique ne contient ni INSZ, ni nom, ni PIN, ni jeton, ni e-mail, ni téléphone, ni adresse, ni donnée des clients des commandes en ligne. Un pseudonyme reste une donnée personnelle, mais il ne permet pas de remonter à la personne sans la clé, et il ne permet pas de relier deux installations. |
+| Clés | La clé privée de déchiffrement est détenue par le propriétaire (et, en option, par le producteur) ; jamais sur la caisse ni sur le récepteur |
+| Intégrité et transport | HTTPS, jeton porteur par installation, empreinte SHA-256 de chaque fichier |
+| Durée de conservation | Décidée par le propriétaire de l'établissement ; localement `keep_days` jours (§6.3) |
+| Localisation | Choisie par le propriétaire avec l'exploitant du récepteur ; le producteur recommande l'Union européenne |
+| Usage par le producteur | Aucun, sauf si le propriétaire l'a ajouté comme destinataire de déchiffrement pour l'assistance, auquel cas c'est le producteur qui agit comme sous-traitant du propriétaire |
+
 Aucun autre service tiers ne reçoit de donnée personnelle issue de
 `pili-pos` ni ne lui en transmet (le FDM reçoit l'INSZ de l'opérateur, obligation légale,
 mais n'est pas un sous-traitant du producteur - c'est l'organe de
@@ -298,7 +324,9 @@ Synthèse :
   obligatoire.
 - Audit log : `fiscal_events` couvre TOUTES les actions fiscales,
   horodatées et signées.
-- Sauvegarde : journalière, conservée localement.
+- Sauvegarde : journalière, conservée localement ; en option, copie
+  chiffrée de bout en bout hors site (export nocturne, §6.5), que le
+  serveur de réception ne peut pas lire.
 
 ### 6.7 Notification de violation
 
