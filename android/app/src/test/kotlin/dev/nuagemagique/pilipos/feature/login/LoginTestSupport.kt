@@ -12,6 +12,7 @@ import dev.nuagemagique.pilipos.i18n.FdmTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
@@ -112,6 +113,7 @@ internal fun stubReads(
     coEvery { engine.checkKitchenPrinter() } returns null
     coEvery { engine.checkMailStatus() } returns mailStatus(configured = false, reachable = false)
     coEvery { engine.hubriseGetConnectionStatus() } returns hubriseInfo(true)
+    coEvery { engine.fdmHealth() } returns null
     coEvery { engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.INFO)
     coEvery { engine.getSettings() } returns settings()
     coEvery { engine.getIntegrations() } returns hubriseSwitch(hubrise)
@@ -123,6 +125,7 @@ internal class TestEntryPoint(
     private val session: SessionStore,
     private val settings: PosSettingsStore,
     private val integrations: IntegrationsStore,
+    private val fdm: FdmStore,
     private val gateway: EngineGateway,
     private val errors: ErrorPresenter,
     private val toasts: ToastStore,
@@ -134,6 +137,8 @@ internal class TestEntryPoint(
     override fun settings(): PosSettingsStore = settings
 
     override fun integrations(): IntegrationsStore = integrations
+
+    override fun fdm(): FdmStore = fdm
 
     override fun gateway(): EngineGateway = gateway
 
@@ -220,11 +225,12 @@ internal suspend fun TestScope.startLogin(
     val session = SessionStore(gateway, f.events, backgroundScope)
     val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
+    val fdm = FdmStore(gateway, f.events, errors, toasts, FdmTexts(catalog), settings, backgroundScope)
     if (open) {
         f.holder.open()
         runCurrent()
     }
-    val entry = TestEntryPoint(session, settings, integrations, gateway, errors, toasts, catalog, errorTexts)
+    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts)
     val model = LoginViewModel(entry)
     runCurrent()
     return LoginRig(f, model, toasts, settings, catalog)

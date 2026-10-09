@@ -49,7 +49,7 @@ private const val PIN_REQUIRED = "pin_required"
 @Suppress("TooManyFunctions") // One entry per action of the screen, as the script of LoginView.vue.
 internal class LoginViewModel(
     private val entry: LoginEntryPoint,
-    fdm: FdmProbe = GatewayFdmProbe(entry.gateway()),
+    fdm: FdmProbe = StoreFdmProbe(entry.fdm()),
 ) : ViewModel() {
     private val settings = entry.settings()
     private val checks = LoginStartupChecks(entry.gateway(), fdm)
