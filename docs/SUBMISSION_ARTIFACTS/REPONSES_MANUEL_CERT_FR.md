@@ -268,9 +268,9 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 
 | Item | Réponse |
 |---|---|
-| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Deux connexions sortantes HTTPS (443) sont possibles, chacune seulement quand elle est activée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com`. Sans ces deux configurations, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
+| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Trois connexions sortantes HTTPS (443) sont possibles, chacune seulement quand elle est activée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com` ; (c) si l'export nocturne est configuré (section `export` de `pos.json`, absente par défaut donc absente sur la machine de test), vers le point de réception propre à l'installation (`export.url`), uniquement pour y envoyer une sauvegarde chiffrée de bout en bout et une copie statistique sans donnée directement identifiante, après chaque rapport Z réel (*EXPORT_NOCTURNE_FR.md*). Cette troisième connexion n'est jamais nécessaire à une vente, à un Z ni à l'accès aux données par le SPF Finances : coupée ou en panne, la caisse fonctionne à l'identique. Sans ces trois configurations, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
 | La connexion Internet peut se faire par | ☑ Ethernet (recommandé pour fiabilité) - ☐ Wifi (techniquement possible, déconseillé en production) |
-| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, seulement si elles sont activées, des connexions sortantes HTTPS (443) vers `api.scaleway.com` (ticket numérique configuré) et vers `api.hubrise.com` (`hubrise_enabled`, plus `manager.hubrise.com` pour l'autorisation OAuth). RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement quand un Gérant démarre une session depuis la caisse - jamais au démarrage du terminal. |
+| Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, seulement si elles sont activées, des connexions sortantes HTTPS (443) vers `api.scaleway.com` (ticket numérique configuré) et vers `api.hubrise.com` (`hubrise_enabled`, plus `manager.hubrise.com` pour l'autorisation OAuth) et vers le point de réception de l'export nocturne (section `export` configurée ; l'hôte est propre à l'installation, jamais le même pour deux installations). RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement quand un Gérant démarre une session depuis la caisse - jamais au démarrage du terminal. |
 
 ## Configuration du POS - C. Utilisateurs & Mots de Passe
 
@@ -646,6 +646,8 @@ les imprime sur le bon client non fiscal remis au livreur ou au client
 `hubrise_enabled` est coupé (valeur par défaut, donc machine de test).
 Détail : *COMMANDES_EN_LIGNE_FR.md* §3 bis ; RGPD : *PROFIL_ENTREPRISE_FR.md* §6.
 
+**Remarque :** le point de réception de l'export nocturne (section `export` de `pos.json`, facultative) n'est pas une intégration de plateforme de commande : il ne reçoit que des fichiers que la caisse lui envoie, jamais de commande. *Voir : EXPORT_NOCTURNE_FR.md*.
+
 ### Remarques sur les fonctionnalités du POS
 
 Toutes les fonctionnalités déclarées ☑ sont couvertes par des tests automatisés (unit, intégration, e2e applicatif via Tauri commands). Voir *RAPPORT_TESTS_BASELINE_FR.md* pour le détail des tests par binaire, régénéré sur la révision soumise par `scripts/generate_test_report.py`.
@@ -851,6 +853,8 @@ Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés a
 
 **☑ J'ai pris ceci en considération et j'ai fourni une procédure à l'équipe SCE** (cochée par défaut bien que non applicable : `pili-pos` est 100% local, aucune donnée fiscale dans le cloud. La déclaration cochée reconnaît qu'on a pris en compte la question).
 
+**Précision sur l'export nocturne (facultatif).** Les données légales (le journal `fiscal_events`, signé par le FDM) restent **sur la caisse**, dans `pos.db` ; la procédure d'accès du §VII.A est inchangée. Quand la section `export` de `pos.json` est renseignée (absente par défaut, donc absente sur la machine de test), une **copie chiffrée** de la base et une copie statistique nettoyée peuvent être envoyées, après chaque rapport Z réel, au point de réception propre à l'installation. La sauvegarde est chiffrée de bout en bout (age, X25519) pour le propriétaire de l'établissement : le serveur de réception ne détient que du texte chiffré et ne peut pas la lire. Il s'agit d'une copie de sauvegarde et de suivi statistique : elle n'est ni la source des tickets, ni une condition de la vente, et **ne fait pas du POS un POS dans le cloud** (la base reste locale, la signature est faite par le FDM sur le réseau local, la caisse fonctionne sans Internet). Aucune donnée fiscale ne quitte la caisse en clair. Détail : *EXPORT_NOCTURNE_FR.md*.
+
 ## Feuille d'acquisition des données (DAS)
 
 *Voir : FEUILLE_ACQUISITION_DONNEES_FR.md* qui couvre l'intégralité des §A-F (Informations générales, Réseaux & Appareils, Logs, Rapports X/Z, Base de données, Version du logiciel).
@@ -869,8 +873,9 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Date de certification | (à compléter par le SPF Finances) |
 | Agent de certification | (à compléter par le SPF Finances) |
 | SCE basé sur un système Cloud | ☐ Non |
-| Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`) - §III.B |
+| Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`), point de réception propre à l'installation (export nocturne, section `export` de `pos.json`) - §III.B |
 | Connexion avec des logiciels externes (commande en ligne) | ☑ Oui : HubRise, coupé par défaut (`hubrise_enabled`, activé par installation par un Gérant) ; *COMMANDES_EN_LIGNE_FR.md* |
+| Connexion avec un logiciel interne (statistiques et sauvegarde) | ☑ Oui, facultative et absente par défaut : l'export nocturne (section `export` de `pos.json`) envoie après chaque rapport Z réel une sauvegarde chiffrée de bout en bout et une copie statistique au point de réception propre à l'installation. Les données légales restent locales ; *EXPORT_NOCTURNE_FR.md* |
 | Connexion POS-FDM | ☑ Ethernet |
 | Périphériques supplémentaires | ☐ Non |
 | Logs disponibles, lisibles, copiables | ☑ Oui (fichiers `/var/lib/pili-pos/logs/pos.log.AAAA-MM-JJ` + table `fiscal_events`) |
@@ -956,6 +961,7 @@ Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pd
 | 31 | GARANTIE_MAJ_LANGUES_FR.pdf | §II.E + §VI (langue du ticket) |
 | 32 | TICKET_NUMERIQUE_FR.pdf | §III.H |
 | 33 | COMMANDES_EN_LIGNE_FR.pdf | §III.M + livraison, commandes en ligne |
+| 34 | EXPORT_NOCTURNE_FR.pdf | Configuration Internet + §VII.B + DAS (export nocturne facultatif) |
 
 Plus :
 - `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM_signe.pdf` - formulaire SPF rempli et signé.

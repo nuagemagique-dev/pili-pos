@@ -93,6 +93,29 @@ complet.
 | Modifiable par l'opérateur | Non (image scellée, accès root absent) |
 | Source de vérité runtime | Chargé à l'ouverture du moteur (`Engine::open`) dans `AppState.config` ; le fichier est désigné par `PILI_POS_CONFIG`, sinon `/etc/pili-pos/pos.json` |
 
+### 1.7 Exports nocturnes (répertoire local `exports`, facultatif)
+
+Seulement si la section `export` de `pos.json` est renseignée (absente
+par défaut : rien n'est alors créé). Après chaque rapport Z réel, le
+POS prépare dans le sous-répertoire `exports` de son répertoire de
+données (`/var/lib/pili-pos` en production), jamais sur une
+carte SD ni un support amovible, un répertoire par rapport Z :
+
+| Élément | Valeur |
+|---|---|
+| Répertoire | `exports/<date AAAAMMJJ>-z<numéro du Z sur 6 chiffres>/` |
+| `pos-<identifiant>.db.age` | Copie cohérente complète de `pos.db`, **chiffrée** (age, X25519) pour le propriétaire de l'établissement et, en option, le producteur. Illisible sans leur clé privée, qui n'est jamais sur la caisse. |
+| `stats-<identifiant>.sqlite` | Copie statistique nettoyée de la période close : tickets, lignes, TVA, paiements, remises, Z ; opérateurs sous pseudonyme ; ni INSZ, ni nom, ni PIN, ni donnée de client. Description des tables : `EXPORT_NOCTURNE_FR.md` §6. |
+| `manifest-<identifiant>.json` | Identité de l'installation, numéro du Z, noms, tailles et empreintes SHA-256 des deux autres fichiers. |
+| Fichiers de suivi | `cursor.json`, `status.json`, `state.json` de chaque export (état d'envoi, sans secret) et `pseudonym.key` (clé des pseudonymes, mode 0600, jamais envoyée). |
+| Propriétaire, permissions | Ceux du service POS ; aucune lecture par l'opérateur. |
+
+Ces fichiers sont des **copies** : la source de vérité reste
+`pos.db::fiscal_events` (§1.1). Ils n'ajoutent aucune méthode d'accès
+pour le contrôleur (§2.2) : la sauvegarde étant chiffrée pour le
+propriétaire, le contrôleur lit toujours la base elle-même. Détail :
+`EXPORT_NOCTURNE_FR.md`.
+
 ## 2. Accessibilité
 
 ### 2.1 Sur la machine du commerçant
@@ -206,10 +229,13 @@ GROUP BY method;
 | `payments`, `orders`, `order_lines` | Indéfinie | Données de support nécessaires à la reconstruction d'un ticket |
 | Translations, menu_items, modifier_groups, modifiers | Indéfinie | Données de référence. Le menu est mis à jour en place (y compris par la synchronisation du catalogue, qui désactive sans supprimer) ; l'historique fiscal n'en dépend pas : nom, prix et TVA sont figés dans `order_lines` et `order_entries` |
 | `orders.raw_hubrise_json`, `hubrise_events` (commandes en ligne) | Indéfinie, sans purge automatique | Contiennent des données de clients (§6) |
+| Exports nocturnes locaux (§1.7), s'ils sont activés | `keep_days` jours (14 par défaut, de 1 à 365), envoyés ou non, puis supprimés automatiquement | Simples copies, ni sources ni archives : la conservation légale est celle de `fiscal_events` et des sauvegardes du §1.2, qui ne sont pas touchées. Un export jamais livré qui est supprimé est compté (« Abandonnés ») et journalisé. La durée de conservation chez le récepteur est décidée par le propriétaire de l'établissement (`PROFIL_ENTREPRISE_FR.md` §6.3). |
 
-**Aucune purge automatique n'est implémentée.** Le passage à un
-modèle de purge légalement nécessitera une modification certifiée
-soumise au SPF Finances.
+**Aucune purge automatique n'est implémentée sur les données légales.**
+Le passage à un modèle de purge légalement nécessitera une modification
+certifiée soumise au SPF Finances. La seule suppression automatique est
+celle des copies d'export locales (dernière ligne du tableau), qui ne
+sont pas des données légales.
 
 ## 4. Protection contre la suppression / modification
 
@@ -283,6 +309,16 @@ soumise au SPF Finances.
   `pos.db` : il est lisible par le compte `spf` de l'image d'admission
   (`pos-db-ro`) et présent dans les sauvegardes. Détail dans
   `SECURITE_BD_FR.md` §6.
+- Export nocturne (§1.7), si la section `export` est renseignée : la
+  sauvegarde complète contient toutes les données personnelles de
+  `pos.db` (INSZ, données des clients des commandes en ligne), mais
+  elle ne quitte la caisse que **chiffrée pour le responsable de
+  traitement** ; le serveur de réception ne peut pas la lire. La copie
+  statistique ne contient ni INSZ, ni nom, ni PIN, ni donnée de client :
+  seulement des **pseudonymes** d'opérateurs, calculés avec une clé
+  propre à l'installation qui n'est jamais envoyée. Un pseudonyme reste
+  une donnée personnelle. Base légale, rôles et durées :
+  `PROFIL_ENTREPRISE_FR.md` §6 ; détail : `EXPORT_NOCTURNE_FR.md` §5 et §6.
 
 ## 7. Procédure d'export à fournir au contrôleur
 
@@ -304,3 +340,17 @@ SPF Finances. Le contrôleur peut, à partir de l'export :
 - Croiser avec les tickets imprimés (vérification QR code).
 - Repérer toute incohérence éventuelle entre l'archive locale et
   les enregistrements cloud SPF Finances.
+
+## 8. Réseaux et appareils (section B de la feuille du SPF)
+
+Réponse du producteur aux questions sur les réseaux et les appareils :
+
+| Question | Réponse |
+|---|---|
+| Connexion du POS au FDM | Ethernet, réseau local privé : GraphQL en HTTPS avec mTLS (port 443) ou en HTTP (port 80). Seul le FDM communique avec le SPF Finances. |
+| Connexion du POS à l'imprimante | Ethernet, réseau local, TCP 9100 (ESC/POS). |
+| Le POS nécessite une connexion Internet | Non par défaut. Trois sorties HTTPS (443) facultatives, chacune seulement quand elle est configurée ou activée : ticket numérique (`api.scaleway.com`), commandes en ligne (`api.hubrise.com`, `manager.hubrise.com`, par `hubrise_enabled`), et **export nocturne** (point de réception propre à l'installation, section `export` de `pos.json`). |
+| Connexion avec un logiciel interne (statistiques et sauvegarde) | Oui, facultative : l'export nocturne. Une requête HTTPS `PUT` par fichier, après chaque rapport Z réel, avec jeton porteur lu dans un fichier séparé et empreinte SHA-256 de chaque fichier. Contenu : une sauvegarde chiffrée de bout en bout (illisible pour le serveur de réception) et une copie statistique à opérateurs pseudonymisés. Elle n'est jamais nécessaire à une vente ni à un Z ; en son absence ou en cas de panne, la caisse fonctionne à l'identique. `EXPORT_NOCTURNE_FR.md`. |
+| Connexion avec des logiciels externes | HubRise (commandes en ligne), coupé par défaut ; `COMMANDES_EN_LIGNE_FR.md`. |
+| Accès distant | RustDesk, démarré depuis la caisse par un Gérant avec son PIN, 2 heures au plus ; aucun port entrant ouvert. |
+| Appareils supplémentaires | Aucun. |
