@@ -1,14 +1,12 @@
-# Parity: order, menu part
+# Parity: order
 
 Port of `ui/src/views/OrderView.vue`, `ui/src/stores/menu.ts` and the menu components `CategoryTabs.vue`,
 `MenuGrid.vue`, `MenuItemButton.vue`, `ModifierDialog.vue` and `PriceDialog.vue` (already ported as
-`ui/components/AmountDialog.kt`), card P5b-T7 (was P5-T11). Native Compose views of module `:app`, package
+`ui/components/AmountDialog.kt`), card P5b-T7 (was P5-T11), and of the cart `CartSidebar.vue`, `OrderLineItem.vue` and
+`VatSummary.vue`, card P5b-T12 (was P5-T12). Native Compose views of module `:app`, package
 `dev.nuagemagique.pilipos.feature.order`, laid out for 1920 x 1080 dp. The engine owns every rule (the catalog, the
-option groups and their limits, the price of a line, the VAT, the total); the screen only calls it through the shared
-stores and the gateway.
-
-`CartSidebar.vue` and `OrderLineItem.vue` come with P5b-T12: until then the cart column is the minimal
-`OrderCartColumn` (lines, engine total, pay button), the seam that card replaces.
+option groups and their limits, the price of a line, the VAT, the total, the unsent quantities, the registration when
+an order is sent or left, the closing unpaid); the screen only calls it through the shared stores and the gateway.
 
 ## Rows
 
@@ -22,6 +20,9 @@ stores and the gateway.
 | components/MenuItemButton.vue | feature/order/MenuGrid.kt (MenuItemButton, ItemLabel) over ui/format/ProductNames.kt | - |
 | components/ModifierDialog.vue, api/ipc-modifiers.ts | feature/order/ModifierDialog.kt (ModifierDialog, ModifierPicks), MenuViewModel.kt (confirmModifiers over OrderStore.addLineWith) | `get_item_modifiers` `add_order_line_with_modifiers` |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt, opened by feature/order/OrderScreen.kt (OrderDialogs) | - |
+| components/CartSidebar.vue | feature/order/OrderCartColumn.kt (OrderCartColumn), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
+| components/OrderLineItem.vue | feature/order/OrderLineItem.kt (OrderLineItem, lineNotes), MenuViewModel.kt (incrementLine, decrementLine, removeLine) over ui/state/OrderStore.kt | `update_order_line_quantity` `remove_order_line` |
+| components/VatSummary.vue | ui/components/VatSummary.kt over ui/format/CartAmounts.kt (vatRows), drawn by feature/order/OrderCartColumn.kt | - |
 
 ## Differences
 
@@ -51,3 +52,34 @@ stores and the gateway.
   value gives the neutral border colour.
 - **Money.** Prices are the engine's `price_cents` through `formatCents` and `formatEuro`; the cart total is
   `Order.totalCents` and a line amount comes from `CartAmounts`. No amount is computed here.
+
+## Differences of the cart (P5b-T12)
+
+- **One model for the screen.** The cart actions live in `MenuViewModel` next to the menu ones: the Vue component
+  talks to the order store directly, the Compose column is stateless (`OrderCartState`, `OrderCartActions`) and the
+  model turns each tap into an `OrderStore` call. Every action is ignored while another order than the route's is
+  current (PD205).
+- **Quantity and removal.** As Vue (UX guide 4.3) the minus stops at 1 and is disabled there; the delete control, set
+  apart on the right, removes the line at any quantity (`OrderStore.removeLine`). The plus and the minus send the new
+  quantity (`line.quantity` plus or minus one, a count) to `OrderStore.updateQuantity`.
+- **Amounts (PD208).** A line shows `CartAmounts.lineAmount` (its total, VAT included, from the engine VAT split),
+  not `unit_price_cents * quantity` as Vue does; a line the split leaves out (code X) shows `quantity × unit price`
+  as text. The total is `Order.totalCents`, the same figure on the pay button, and the VAT included are the rows of
+  `CartAmounts.vatRows` through `VatSummary`. The unsent count is `OrderStore.unsentCount`. No amount is computed.
+- **Unsent lines.** On a dine-in order the lines with an unsent quantity go last under the amber label; a takeaway
+  shows no label, no send button and no bill button, as Vue.
+- **Send to kitchen.** `OrderStore.leave(LeaveReason.SEND_TO_KITCHEN)`, disabled when nothing is unsent and while it
+  runs. Success is a toast "Envoyé en cuisine · n articles"; a refusal is the error toast prefixed with
+  `order_register_failed` (6 s), through `ErrorPresenter`. A slip that did not print is the store's `slipFailures`.
+- **Provisional bill.** `OrderStore.preBill()` for a dine-in order with lines, hidden without the payment right; the
+  same two toasts as Vue (`pre_bill_printed`, `pre_bill_failed` prefix).
+- **Close unpaid.** The outlined button shows for a manager (administrator) on an open order with lines. It opens the
+  shared `PinDialog` in the order window (the hint is the manager's name and `unpaid_hint`); the 4th digit calls
+  `OrderStore.closeUnpaid(insz, pin)`, a refusal is shown on the pad by `ErrorPresenter` and the pad is cleared. On
+  success the toast `unpaid_closed` is shown and the screen opens the tables, as Vue does.
+- **Pay.** The pay button exists only with the payment right (`SessionStore.canTakePayment`), is disabled without a
+  line, and opens the checkout of the order of the route; the screen never navigates by itself.
+- **Opened at.** "12:00 · 37 min" next to the title is refreshed every 30 s while the cart is composed (as Vue); the
+  clock is replaceable (`LocalOrderNow`) so that the goldens are stable.
+- **Sizes and flash.** Text sizes use the theme tokens (the 40 px total becomes the 28 sp `sizeXl`); the green flash
+  of a new line is not reproduced (the quantity badge of the product button shows the change).

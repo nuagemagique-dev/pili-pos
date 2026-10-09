@@ -1,6 +1,6 @@
 # Parity index (Vue to Compose)
 
-Owner: `ui-common` (see `LANES.md`). Maintained by the P5 workers; the checker and the P5 gate read it.
+Owner: `ui-common` (see `LANES.md`). Maintained by the P5 and P5b workers (P5b-T12 closed it); the checker and the P5 gate read it.
 
 ## Purpose
 
@@ -22,23 +22,25 @@ Paths in the Compose column are relative to `android/app/src/main/kotlin/dev/nua
 
 Every command must also be a method of the `PosEngineInterface` block of `android/pos-core/api/pos-core.api`. The tables with the header `| Vue | Compose | Commands |`, here and in `docs/android/parity/*.md`, may only name known commands.
 
-Owners are the P5 cards (`P5-T<n>`) and the P5b view workers (`P5b-checkout`, `P5b-reports`, `P5b-settings`, `P5b-webshop`). A worker that implements a command removes its declaration line in the same commit.
+The owners of a pending command are the P5 cards (`P5-T<n>`) and the P5b view workers (`P5b-checkout`, `P5b-reports`, `P5b-settings`, `P5b-webshop`). A worker that implements a command removes its declaration line in the same commit. P5b-T12 deleted the last `pending:` lines: since the P5b exit every command is called or excluded (73 called, 9 excluded).
 
-The default run passes while commands are pending. At the P5b exit the gate runs with `--parity-strict` (PD212): `check_ui_parity.py --strict` then fails on any pending or stale command and on any table token that is not called.
+The default run passes while commands are pending. The P5b exit and every later gate run with `--parity-strict` (PD212, UI-PD315): `check_ui_parity.py --strict` fails on any pending or stale command and on any table token that is not called.
 
 ## Views
 
 | View | Owner | Parity file |
 | --- | --- | --- |
 | login | P5-T9 | [parity/login.md](parity/login.md) |
-| tables | P5-T10 | [parity/tables.md](parity/tables.md) |
-| order | P5-T11 and P5-T12 | [parity/order.md](parity/order.md) |
-| checkout | P5b | [parity/checkout.md](parity/checkout.md) |
-| reports | P5b | [parity/reports.md](parity/reports.md) |
-| settings | P5b | [parity/settings.md](parity/settings.md) |
-| webshop | P5b | [parity/webshop.md](parity/webshop.md) |
+| tables | P5b-T6 | [parity/tables.md](parity/tables.md) |
+| order | P5b-T7 and P5b-T12 | [parity/order.md](parity/order.md) |
+| checkout | P5b-T8 | [parity/checkout.md](parity/checkout.md) |
+| reports | P5b-T3 and P5b-T9 | [parity/reports.md](parity/reports.md) |
+| settings | P5b-T4 and P5b-T10 | [parity/settings.md](parity/settings.md) |
+| webshop | P5b-T5 and P5b-T11 | [parity/webshop.md](parity/webshop.md) |
 
-## Run A components
+## Shared components (ui-common)
+
+Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders, chime). The view-specific rows are in `parity/*.md`.
 
 | Vue | Compose | Commands |
 | --- | --- | --- |
@@ -57,18 +59,23 @@ The default run passes while commands are pending. At the P5b exit the gate runs
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |
 | components/FdmAlerts.vue | ui/fdm/FdmBanner.kt (FdmBannerOverlay), ui/fdm/FdmBlockingVeil.kt | - |
-| App.vue and auth.ts listeners (presence-failed, fdm-sign-messages) and order.ts reported()/warnIfSlipFailed | ui/fdm/UiEventToasts.kt | - |
+| App.vue listeners (presence-failed, fdm-sign-messages) and order.ts reported()/warnIfSlipFailed | ui/fdm/UiEventToasts.kt | - |
 | utils/format.ts | ui/format/Money.kt | - |
 | utils/datetime.ts | ui/format/PosDateTime.kt | - |
 | components/VatSummary.vue and the line amount of components/OrderLineItem.vue | ui/format/CartAmounts.kt, ui/components/VatSummary.kt | - |
 | components/TrainingBanner.vue and the App.vue watermark | ui/components/TrainingBanner.kt, TrainingWatermarkOverlay | - |
 | components/ConfigProblemsBanner.vue | ui/components/ConfigProblemsBanner.kt | - |
-| components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/PosScaffold.kt, AppHeader.kt, HeaderViewModel.kt | `set_pin` |
+| components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (AppHeader, PiliLogo), PosScaffold.kt, HeaderViewModel.kt | `set_pin` |
 | components/StatusLights.vue | ui/scaffold/StatusLights.kt | `check_printer` `check_kitchen_printer` `hubrise_status` |
+| stores/delivery.ts | ui/state/DeliveryStore.kt | `check_mail_status` `print_missing_original` |
+| components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt | - |
+| components/EmailKeypad.vue | ui/components/EmailKeypad.kt | - |
+| components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt | - |
+| checkout and refund arithmetic of views/CheckoutView.vue and views/ReportsView.vue (UI-PD306) | ui/format/CashDisplay.kt | - |
+| stores/webshopOrders.ts | ui/state/WebshopOrdersStore.kt | `hubrise_list_webshop_orders` `webshop_accept_order` `webshop_reject_order` `hubrise_patch_order_status` `hubrise_set_confirmed_time` `webshop_handover_order` `webshop_complete_order` `webshop_refund_order` `webshop_close_cancelled_order` `print_webshop_kitchen` `print_webshop_customer` |
+| composables/useOrderChime.ts | ui/feedback/OrderChime.kt | - |
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |
 | App.vue activity forwarding | foundation kiosk/UserActivityForwarder.kt | `user_activity` |
-
-Not landed in this run (see `phases/P5-exit.md`): the `ui/fdm/` rows (P5-T6) and the `ui/scaffold/` rows (P5-T8). Until P5-T6 lands, `fdm_check_now` is called by the login start-up probe (`feature/login/LoginStartupChecks.kt`, `GatewayFdmProbe`), and `check_printer` and `check_kitchen_printer` by the login start-up checks.
 
 Not ported: components/SupportBanner.vue and stores/support.ts. There is no remote support in v1 (DECISIONS section 7).
 
