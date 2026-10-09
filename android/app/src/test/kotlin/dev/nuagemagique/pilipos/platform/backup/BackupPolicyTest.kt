@@ -6,7 +6,6 @@ import android.content.pm.ApplicationInfo
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.R
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -46,41 +45,44 @@ class BackupPolicyTest {
         assertEquals(0, rules.includes)
     }
 
-    private class Rules(
-        val excludes: Map<String, List<String>>,
-        val includes: Int,
-    )
-
-    private fun parse(): Rules {
+    private class Rules {
         val excludes = linkedMapOf<String, MutableList<String>>()
         var includes = 0
-        var section: String? = null
+        private var section: String? = null
+
+        fun start(
+            tag: String,
+            domain: String?,
+        ) {
+            when (tag) {
+                "cloud-backup", "device-transfer" -> {
+                    section = tag
+                    excludes[tag] = mutableListOf()
+                }
+                "exclude" -> excludes.getValue(checkNotNull(section) { "<exclude> outside a section" }).add(domain.orEmpty())
+                "include" -> includes++
+            }
+        }
+
+        fun end(tag: String) {
+            if (tag == section) section = null
+        }
+    }
+
+    private fun parse(): Rules {
+        val rules = Rules()
         val xml = context.resources.getXml(R.xml.data_extraction_rules)
         try {
             var event = xml.eventType
             while (event != XmlPullParser.END_DOCUMENT) {
-                if (event == XmlPullParser.START_TAG) {
-                    when (xml.name) {
-                        "cloud-backup", "device-transfer" -> {
-                            section = xml.name
-                            excludes[xml.name] = mutableListOf()
-                        }
-                        "exclude" -> {
-                            val domain = xml.getAttributeValue(null, "domain")
-                            assertTrue("<exclude> outside a section", section != null)
-                            excludes.getValue(section!!).add(domain)
-                        }
-                        "include" -> includes++
-                    }
-                } else if (event == XmlPullParser.END_TAG && xml.name == section) {
-                    section = null
-                }
+                if (event == XmlPullParser.START_TAG) rules.start(xml.name, xml.getAttributeValue(null, "domain"))
+                if (event == XmlPullParser.END_TAG) rules.end(xml.name)
                 event = xml.next()
             }
         } finally {
             xml.close()
         }
-        return Rules(excludes, includes)
+        return rules
     }
 
     private companion object {
