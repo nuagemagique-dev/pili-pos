@@ -7,6 +7,7 @@ pub mod auth;
 pub mod checkout;
 pub mod copy;
 pub mod delivery;
+pub mod export;
 pub mod fdm_monitor;
 pub mod financial;
 #[cfg(feature = "hubrise")]
