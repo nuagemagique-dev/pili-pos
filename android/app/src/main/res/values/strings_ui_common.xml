@@ -3,4 +3,9 @@
     <!-- Content descriptions of the glyph keys of the numeric pad (no Vue key: the Vue pad shows C and a glyph only). -->
     <string name="ui_common_numpad_clear">Effacer tout</string>
     <string name="ui_common_numpad_backspace">Effacer le dernier chiffre</string>
+    <!-- Staff header (no Vue key): the logo description, the device light names that Vue writes as literals, the PIN suffix of the user button. -->
+    <string name="ui_common_header_logo">Pili</string>
+    <string name="ui_common_light_fdm">FDM</string>
+    <string name="ui_common_light_hubrise">HubRise</string>
+    <string name="ui_common_header_pin">PIN</string>
 </resources>
