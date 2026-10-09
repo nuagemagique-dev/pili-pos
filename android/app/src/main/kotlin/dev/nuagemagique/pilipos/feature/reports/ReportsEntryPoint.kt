@@ -9,6 +9,7 @@ import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
 
@@ -42,4 +43,7 @@ internal interface ReportsEntryPoint {
 
     /** The Vue texts. */
     fun catalog(): MessageCatalog
+
+    /** The ticket-delivery choice of the copy and refund flows (paper, paper and e-mail, e-mail only). */
+    fun delivery(): DeliveryStore
 }

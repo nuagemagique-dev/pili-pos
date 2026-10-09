@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reports screen: the texts that have no Vue key. -->
+    <string name="ui_reports_signed_out">没有已登录的操作员。请登录后查看报表。</string>
+</resources>

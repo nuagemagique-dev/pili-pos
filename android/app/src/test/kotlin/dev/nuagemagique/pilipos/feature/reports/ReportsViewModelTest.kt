@@ -1170,4 +1170,81 @@ class ReportsViewModelTest {
             val starting = r.model.describeError(EngineUnavailableException(EngineState.Opening))
             assertTrue(r.toastTexts().all { it == starting })
         }
+
+    // ── Keypads of the cash tab (T9) ──────────────────────────────
+
+    @Test
+    fun theOtherAmountKeypadOpensAndTakesTheAmountAsTyped() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            r.model.setCashAmount(1000L)
+
+            r.model.openOtherAmount()
+            runCurrent()
+            assertTrue(r.state.cash.otherAmountOpen)
+
+            r.model.pickOtherAmount(1250L)
+            runCurrent()
+
+            assertFalse(r.state.cash.otherAmountOpen)
+            assertEquals(1250L, r.state.cash.amountCents)
+            assertTrue(r.state.cash.custom)
+        }
+
+    @Test
+    fun theOtherAmountKeypadClosesWithoutChangingTheAmount() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            r.model.setCashAmount(2000L)
+            r.model.openOtherAmount()
+
+            r.model.closeOtherAmount()
+            runCurrent()
+
+            assertFalse(r.state.cash.otherAmountOpen)
+            assertEquals(2000L, r.state.cash.amountCents)
+        }
+
+    @Test
+    fun theDrawerCountKeypadOpensAndClosesWithoutRecording() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+
+            r.model.openDeclaration()
+            runCurrent()
+            assertTrue(r.state.cash.declarationOpen)
+
+            r.model.closeDeclaration()
+            runCurrent()
+
+            assertFalse(r.state.cash.declarationOpen)
+            coVerify(exactly = 0) { f.engine.moneyInOut(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun declaringTheDrawerClosesItsKeypadEvenWhenTheCountIsRefused() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.moneyInOut(any(), any(), any(), any()) } returns financial(success = false, error = "no")
+            val r = start(f)
+            r.model.openDeclaration()
+
+            r.model.declareDrawer(500L)
+            runCurrent()
+
+            assertFalse(r.state.cash.declarationOpen)
+            assertEquals(false, r.state.cash.lastOutcome?.success)
+        }
+
+    @Test
+    fun theReportLabelsAreTheOnesOfTheToast() {
+        assertEquals("X", reportLabel(ReportKind.X, 5L))
+        assertEquals("X util.", reportLabel(ReportKind.USER_X, null))
+        assertEquals("Z #5", reportLabel(ReportKind.Z, 5L))
+        assertEquals("Z", reportLabel(ReportKind.Z, 0L))
+        assertEquals("Z", reportLabel(ReportKind.Z, null))
+    }
 }
