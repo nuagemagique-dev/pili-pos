@@ -81,6 +81,11 @@ class SessionStore
                     }
                 }
             }
+            // The engine went away (closed, device mismatch, fatal): nobody is logged in any more. UNDISPATCHED so the
+            // collector is subscribed when the constructor returns; a first value of false clears nothing.
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                gateway.ready.collect { ready -> if (!ready) forget() }
+            }
         }
 
         /** Logs in with [insz] and [pin] (null for an operator without a PIN). A refusal propagates for the PIN pad. */
