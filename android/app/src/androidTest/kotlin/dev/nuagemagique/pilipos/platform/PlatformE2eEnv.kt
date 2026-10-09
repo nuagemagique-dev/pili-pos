@@ -120,13 +120,13 @@ internal class PlatformE2eEnv {
      */
     fun removableAppDir(): Pair<File, String> {
         val storage = context.getSystemService(StorageManager::class.java)
-        for (dir in context.getExternalFilesDirs(null)) {
-            if (dir == null) continue
-            val volume = storage.getStorageVolume(dir) ?: continue
-            val uuid = volume.uuid
-            if (volume.isRemovable && !volume.isPrimary && uuid != null) return dir to uuid
-        }
-        throw AssertionError("no mounted removable non-primary volume with an app-specific directory")
+        val found =
+            context.getExternalFilesDirs(null).filterNotNull().firstNotNullOfOrNull { dir ->
+                val volume = storage.getStorageVolume(dir)
+                val removable = volume != null && volume.isRemovable && !volume.isPrimary
+                volume?.uuid?.takeIf { removable }?.let { dir to it }
+            }
+        return found ?: e2eFail("no mounted removable non-primary volume with an app-specific directory")
     }
 
     /** The audit files, the current one first. */
@@ -199,3 +199,6 @@ internal class PlatformE2eEnv {
         private const val BUFFER = 64 * 1024
     }
 }
+
+/** Ends the run with a failed assertion; the one place where the e2e steps throw. */
+internal fun e2eFail(message: String): Nothing = throw AssertionError(message)

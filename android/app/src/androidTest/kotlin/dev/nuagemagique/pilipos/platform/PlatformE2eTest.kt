@@ -1,10 +1,10 @@
 package dev.nuagemagique.pilipos.platform
 
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.test.core.app.ActivityScenario
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.nuagemagique.pilipos.MainActivity

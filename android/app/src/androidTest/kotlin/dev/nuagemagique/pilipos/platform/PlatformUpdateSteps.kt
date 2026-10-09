@@ -7,9 +7,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.json.JSONObject
 import java.io.File
 
 /** The `update` and `update_refusals` steps: the debug registry override, the verifier and the installer. */
@@ -60,7 +60,7 @@ internal object PlatformUpdateSteps {
         val verified =
             when (val result = runBlocking { env.update.verifier().verify(env.update.sources().ghcr()) }) {
                 is VerifiedUpdate -> result
-                is UpdateRefusal -> throw AssertionError("the declared release was refused: ${result.code.id} (${result.detail})")
+                is UpdateRefusal -> e2eFail("the declared release was refused: ${result.code.id} (${result.detail})")
             }
         PlatformE2eEnv.line(
             "PLATE2E_UPDATE verified version=${verified.release.version} versionCode=${verified.release.versionCode} sha1=${verified.sha1}",
@@ -68,22 +68,22 @@ internal object PlatformUpdateSteps {
         val install = CoroutineScope(Dispatchers.IO).async { env.update.installer().install(verified) }
         env.waitFor("the audit row update/started", STARTED_TIMEOUT_MS) { hasRow(env, "update", "started") || install.isCompleted }
         if (install.isCompleted) {
-            throw AssertionError("the install ended before the process died: ${runBlocking { install.await() }}")
+            e2eFail("the install ended before the process died: ${runBlocking { install.await() }}")
         }
         // The marker and the audit row exist and the session is being committed: the system kills this process.
         PlatformE2eEnv.line("PLATE2E_UPDATE committed to=${verified.release.versionCode}")
         env.waitFor("the system replaces the package and ends this process", DEATH_TIMEOUT_MS) { install.isCompleted }
-        throw AssertionError("the process survived the install: ${runBlocking { install.await() }}")
+        e2eFail("the process survived the install: ${runBlocking { install.await() }}")
     }
 
     /** One refusal of the verifier, selected by the `refusal` argument; the host swaps the registry between the runs. */
     fun refusal(env: PlatformE2eEnv) {
-        val case = env.refusal ?: throw AssertionError("the argument refusal (not_newer or sha256_mismatch) is missing")
+        val case = env.refusal ?: e2eFail("the argument refusal (not_newer or sha256_mismatch) is missing")
         val expected =
             when (case) {
                 "not_newer" -> UpdateRefusalCode.NOT_NEWER
                 "sha256_mismatch" -> UpdateRefusalCode.SHA256_MISMATCH
-                else -> throw AssertionError("unknown refusal case $case")
+                else -> e2eFail("unknown refusal case $case")
             }
         writeRegistryOverride(env)
         val updateDir = File(env.context.filesDir, "platform/update")
@@ -91,11 +91,12 @@ internal object PlatformUpdateSteps {
         // be there already; what a refusal must never do is leave a file of its own behind.
         val before = updateDir.listFiles().orEmpty().map { it.name }.toSet()
         val result = runBlocking { env.update.verifier().verify(env.update.sources().ghcr()) }
-        val refused = result as? UpdateRefusal ?: throw AssertionError("the release must be refused with $case, got $result")
+        val refused = result as? UpdateRefusal ?: e2eFail("the release must be refused with $case, got $result")
         assertEquals("refusal code", expected, refused.code)
         val added = updateDir.listFiles().orEmpty().map { it.name }.filterNot { it in before }
         assertFalse("a refusal must leave no new file in filesDir/platform/update: $added", added.isNotEmpty())
-        assertFalse("no partial download may stay: ${updateDir.list().orEmpty().toList()}", updateDir.list().orEmpty().any { it.endsWith(".part") })
+        val names = updateDir.list().orEmpty().toList()
+        assertFalse("no partial download may stay: $names", names.any { it.endsWith(".part") })
         PlatformE2eEnv.line("PLATE2E_REFUSALS ok case=$case code=${refused.code.id}")
     }
 }

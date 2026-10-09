@@ -39,11 +39,14 @@ internal object PlatformWatchdogSteps {
             )
         val missing = expected.filterNot { it in seen }
         assertTrue("audit rows missing: $missing (seen $seen)", missing.isEmpty())
-        val refusalCodes = rows.filter { it.optString("event") == "refused" }.map { it.optJSONObject("detail")?.optString("code") }
-        assertTrue("update refusals not_newer and sha256_mismatch: $refusalCodes", refusalCodes.containsAll(listOf("not_newer", "sha256_mismatch")))
+        val refused = rows.filter { it.optString("event") == "refused" }
+        val refusalCodes = refused.map { it.optJSONObject("detail")?.optString("code") }
+        val wanted = listOf("not_newer", "sha256_mismatch")
+        assertTrue("update refusals not_newer and sha256_mismatch: $refusalCodes", refusalCodes.containsAll(wanted))
         val done = rows.last { it.optString("kind") == "update" && it.optString("event") == "done" }
         val versions = rows.map { it.optLong("versionCode") }.toSet()
         assertTrue("the audit spans two versions: $versions", versions.size >= 2)
-        PlatformE2eEnv.line("PLATE2E_AUDIT ok rows=${rows.size} kinds=${seen.size} update_done_version=${done.optString("versionName")} versions=$versions")
+        val doneVersion = done.optString("versionName")
+        PlatformE2eEnv.line("PLATE2E_AUDIT ok rows=${rows.size} kinds=${seen.size} update_done_version=$doneVersion versions=$versions")
     }
 }

@@ -78,7 +78,10 @@ internal object PlatformSalesStep {
         }
     }
 
-    private fun newOrder(env: PlatformE2eEnv): Long = engine(env) { it.createOrder(CreateOrderInput(OrderType.TAKEAWAY, null, env.insz)) }.id
+    private fun newOrder(env: PlatformE2eEnv): Long {
+        val input = CreateOrderInput(OrderType.TAKEAWAY, null, env.insz)
+        return engine(env) { it.createOrder(input) }.id
+    }
 
     private fun addLine(
         env: PlatformE2eEnv,
