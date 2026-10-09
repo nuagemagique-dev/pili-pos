@@ -370,6 +370,15 @@ run_gate --fast "${BASE[@]}"
 expect cargo-failure-fails-clippy uccheck-clippy FAIL
 unset STUB_CARGO_FAIL
 
+# the stub directory comes before ~/.cargo/bin: a real cargo there must not shadow the stub
+mkdir -p "$HOME/.cargo/bin"
+printf '#!/bin/sh\necho "REAL cargo $*" >>"$STUB_LOG"\nexit 0\n' >"$HOME/.cargo/bin/cargo"
+chmod +x "$HOME/.cargo/bin/cargo"
+: >"$STUB_LOG"
+run_gate --fast "${BASE[@]}"
+check stub-cargo-before-home-cargo $(grep -q '^cargo fmt ' "$STUB_LOG" && ! grep -q '^REAL cargo' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
+rm -rf "$HOME/.cargo"
+
 # ── 13. uc-replay ──
 new_repo replay1
 write "$REPO/android/uccheck/Cargo.toml" <<<"[workspace]"

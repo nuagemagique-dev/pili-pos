@@ -140,10 +140,11 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+export PATH="$HOME/.cargo/bin:$PATH"
+# The stub directory goes in front of everything, ~/.cargo/bin included.
 if [[ -n "${PILI_P7_STUB_DIR:-}" ]]; then
     export PATH="$PILI_P7_STUB_DIR:$PATH"
 fi
-export PATH="$HOME/.cargo/bin:$PATH"
 # Mac build environment, only where the caller did not choose.
 if [[ -z "${RUSTC_WRAPPER:-}" && -x /opt/homebrew/bin/sccache ]]; then
     export RUSTC_WRAPPER=/opt/homebrew/bin/sccache SCCACHE_CACHE_SIZE="${SCCACHE_CACHE_SIZE:-25G}"

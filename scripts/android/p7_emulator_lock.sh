@@ -25,9 +25,13 @@
 #       The re-run is a child, not an exec, on purpose: lockf -t exits 75 when the lock is
 #       busy but the script may exit 75 too, so a marker file touched by the child right
 #       before it execs the script tells "lock never taken" from "script exited 75" (the
-#       idiom of heavy.sh). On a timeout (waiting for an old script, or for the lock) it
+#       idiom of heavy.sh; the marker holds the script pid). On a timeout (waiting for an old
+#       script, or for the lock) it
 #       prints 'P7LOCK | busy | held by <holder line>' and exits 75. SIGINT and SIGTERM are
-#       forwarded to the child.
+#       forwarded to the script under the lock and to its descendants (lockf does not pass a
+#       signal on to the program it runs, so the marker file holds the script pid for this);
+#       the wrapper then waits for the script to end, so the lock is held as long as the
+#       script runs, even when the wrapper was asked to stop.
 #   p7_emulator_lock_note NAME
 #       In the re-run, writes $LOCKDIR/p7-use.holder ('NAME pid=<pid> since=<ISO UTC>') and
 #       adds p7_emulator_lock_cleanup to the EXIT trap (the trap already set is kept and
@@ -93,6 +97,29 @@ p7__holder_line() {
     else
         printf 'unknown'
     fi
+}
+
+# Sends TERM to PID and to all its descendants (children first listed from ps).
+p7__kill_tree() {
+    local root="$1" pid kids
+    [[ "$root" =~ ^[0-9]+$ ]] || return 0
+    kids="$(ps -A -o pid= -o ppid= 2>/dev/null | awk -v p="$root" '$2 == p { print $1 }')"
+    for pid in $kids; do
+        p7__kill_tree "$pid"
+    done
+    kill -TERM "$root" 2>/dev/null || true
+}
+
+# Removes the holder file when its pid= is PID.
+p7__remove_holder_of() {
+    local f pid
+    f="$(p7__lockdir)/p7-use.holder"
+    [[ -f "$f" ]] || return 0
+    pid="$(sed -n 's/.* pid=\([0-9][0-9]*\).*/\1/p' "$f" | head -n 1)"
+    if [[ -n "$pid" && "$pid" == "$1" ]]; then
+        rm -f "$f"
+    fi
+    return 0
 }
 
 p7_emulator_lock_cleanup() {
@@ -174,14 +201,18 @@ p7_emulator_lock() {
     now="$(date +%s)"
     remaining=$((deadline - now))
     [[ "$remaining" -ge 1 ]] || remaining=1
-    local marker child rc
+    local marker child rc spid
     marker="$(mktemp "${TMPDIR:-/tmp}/pili-p7lock.XXXXXX")" || exit 2
     rm -f "$marker"
+    # The sh child writes its pid (kept by exec: it is the script's pid) into the marker.
     PILI_P7_LOCK_HELD=1 "$lockf" -k -s -t "$remaining" "$dir/p7-use.lock" \
-        /bin/sh -c 'touch "$1" && printf "%s pid=%s since=%s\n" "$2" "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$3" && shift 3 && exec "$@"' \
+        /bin/sh -c 'printf "%s\n" "$$" >"$1" && printf "%s pid=%s since=%s\n" "$2" "$$" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$3" && shift 3 && exec "$@"' \
         p7-lock "$marker" "$name" "$dir/p7-use.holder" bash "$script" "$@" &
     child=$!
-    trap 'kill -TERM "$child" 2>/dev/null' INT TERM
+    # lockf does not forward signals: stop the script itself (and its descendants) too.
+    # The lock is released when the script is gone, not before.
+    # lockf itself is only killed while it still waits for the lock (no script pid yet).
+    trap 'if [[ -s "$marker" ]]; then p7__kill_tree "$(head -n 1 "$marker")"; else kill -TERM "$child" 2>/dev/null; fi' INT TERM
     wait "$child"
     rc=$?
     # A signal interrupts the first wait; wait again for the real status.
@@ -190,13 +221,16 @@ p7_emulator_lock() {
         rc=$?
     done
     trap - INT TERM
-    if [[ ! -e "$marker" ]]; then
+    if [[ ! -s "$marker" ]]; then
+        rm -f "$marker"
         printf 'P7LOCK | busy | held by %s\n' "$(p7__holder_line)"
         exit 75
     fi
+    spid="$(head -n 1 "$marker")"
     rm -f "$marker"
-    # The child is gone: its holder file is stale whatever its trap did.
-    rm -f "$dir/p7-use.holder"
+    # The script is gone; remove the holder file only if it is still the script's own line
+    # (a next holder may already have written its line).
+    p7__remove_holder_of "$spid"
     # This first call is only a wrapper: the caller's own EXIT trap runs in the re-run.
     trap - EXIT
     exit "$rc"

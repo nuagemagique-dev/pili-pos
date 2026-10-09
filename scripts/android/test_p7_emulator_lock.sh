@@ -10,7 +10,8 @@
 # removed, second holder times out with 75 and the busy line, a script exiting 75 itself
 # is not 'busy', waiting for an older end-to-end process then proceeding, timing out on
 # it, the caller and its ancestors ignored, PILI_P7_LOCK_HELD short-circuit, nested
-# scripts, the caller's EXIT trap composed, --status free and held, usage errors.
+# scripts, the caller's EXIT trap composed, TERM on the wrapper stopping the script, holder
+# file removed only by its owner, --status free and held, usage errors.
 # Prints one line per case, then
 #     TESTP7LOCK | total | PASS|FAIL | <n> tests
 # and exits 1 when a case fails.
@@ -208,6 +209,47 @@ rc3=$?
 PILI_P7_EMU_WAIT=abc bash "$TMP/s1.sh" >/dev/null 2>&1
 rc4=$?
 check usage-errors-exit-2 $([[ $rc1 -eq 2 && $rc2 -eq 2 && $rc3 -eq 2 && $rc4 -eq 2 ]] && echo 0 || echo 1) "rc: $rc1 $rc2 $rc3 $rc4"
+
+# ── 16. TERM on the wrapper stops the script under the lock (lockf passes no signal on) ──
+new_case term
+mk_script "$TMP/s16.sh" 'echo $$ >"$LOCKDIR/script.pid"; sleep 20 & echo $! >"$LOCKDIR/sleep.pid"; wait'
+LOCKDIR="$LOCKDIR" PILI_P7_LOCK_DIR="$LOCKDIR" bash "$TMP/s16.sh" >/dev/null 2>&1 &
+wpid=$!
+BGPIDS+=("$wpid")
+for _ in $(seq 1 50); do [[ -s "$LOCKDIR/sleep.pid" ]] && break; sleep 0.1; done
+spid="$(cat "$LOCKDIR/script.pid" 2>/dev/null)"
+slpid="$(cat "$LOCKDIR/sleep.pid" 2>/dev/null)"
+kill -TERM "$wpid" 2>/dev/null
+for _ in $(seq 1 50); do kill -0 "$wpid" 2>/dev/null || break; sleep 0.1; done
+sleep 0.3
+alive=0
+kill -0 "$wpid" 2>/dev/null && alive=1
+kill -0 "$spid" 2>/dev/null && alive=1
+kill -0 "$slpid" 2>/dev/null && alive=1
+check term-stops-script $([[ -n "$spid" && -n "$slpid" && $alive -eq 0 ]] && echo 0 || echo 1) "wrapper/script/sleep alive: spid=$spid slpid=$slpid"
+check term-then-free $([[ "$(bash "$LIB" --status)" == free && ! -e "$LOCKDIR/p7-use.holder" ]] && echo 0 || echo 1) "status=$(bash "$LIB" --status) holder=$(cat "$LOCKDIR/p7-use.holder" 2>/dev/null)"
+[[ -n "$spid" ]] && kill -KILL "$spid" 2>/dev/null
+[[ -n "$slpid" ]] && kill -KILL "$slpid" 2>/dev/null
+
+# ── 17. a script that takes time to stop keeps the lock until it is gone ──
+new_case termslow
+mk_script "$TMP/s17.sh" 'trap "sleep 2; exit 0" TERM; echo ready >"$LOCKDIR/ready"; while :; do sleep 0.2; done'
+LOCKDIR="$LOCKDIR" PILI_P7_LOCK_DIR="$LOCKDIR" bash "$TMP/s17.sh" >/dev/null 2>&1 &
+wpid=$!
+BGPIDS+=("$wpid")
+for _ in $(seq 1 50); do [[ -e "$LOCKDIR/ready" ]] && break; sleep 0.1; done
+kill -TERM "$wpid" 2>/dev/null
+sleep 0.7
+st_mid="$(bash "$LIB" --status)"
+wait "$wpid" 2>/dev/null
+st_end="$(bash "$LIB" --status)"
+check term-slow-lock-held $([[ "$st_mid" == "case pid="* && "$st_end" == free ]] && echo 0 || echo 1) "mid=$st_mid end=$st_end"
+
+# ── 18. the wrapper never erases the holder line of another process ──
+new_case holderowner
+printf 'next pid=999999 since=2026-01-01T00:00:00Z\n' >"$LOCKDIR/p7-use.holder"
+out="$(PILI_P7_LOCK_DIR="$LOCKDIR" bash -c "source '$LIB'; p7__remove_holder_of 12345; [[ -f '$LOCKDIR/p7-use.holder' ]] && echo kept; p7__remove_holder_of 999999; [[ -f '$LOCKDIR/p7-use.holder' ]] || echo removed" 2>&1)"
+check holder-only-own-pid $([[ "$out" == $'kept\nremoved' ]] && echo 0 || echo 1) "out=$out"
 
 # ── 15. --help prints the header ──
 h="$(bash "$LIB" --help 2>&1)"
