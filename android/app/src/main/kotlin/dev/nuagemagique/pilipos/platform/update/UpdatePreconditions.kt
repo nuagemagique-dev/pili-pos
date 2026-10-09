@@ -18,7 +18,8 @@ import javax.inject.Singleton
  * - no order and no takeaway is open ([PreconditionFailure.OPEN_ORDER]);
  * - `needsZReport()` is false ([PreconditionFailure.Z_DUE]);
  * - the newest Z report exists, unless the till has no fiscal event at all, and every fiscal event newer than
- *   it (among the last 200) is a clock-in or clock-out ([PRESENCE_TYPES], [PreconditionFailure.Z_NOT_DONE]);
+ *   it (among the last 200) is a clock-in or clock-out ([PRESENCE_TYPES], [PreconditionFailure.Z_NOT_DONE]),
+ *   apart from the paired `R` event right after the Z's event id ([Z_PAIR_TYPE]);
  * - an engine that is not ready or does not answer is [PreconditionFailure.ENGINE_NOT_READY].
  */
 @Singleton
@@ -58,7 +59,11 @@ class UpdatePreconditions
             return when {
                 newest == null -> engine.listFiscalEvents(1).isEmpty()
                 after == null -> false
-                else -> engine.listFiscalEvents(RECENT_EVENTS).filter { it.id > after }.all { it.eventType in PRESENCE_TYPES }
+                else ->
+                    engine
+                        .listFiscalEvents(RECENT_EVENTS)
+                        .filter { it.id > after && !(it.id == after + 1 && it.eventType == Z_PAIR_TYPE) }
+                        .all { it.eventType in PRESENCE_TYPES }
             }
         }
 
@@ -72,6 +77,14 @@ class UpdatePreconditions
              * (`src/types.rs:53-59`), so a training clock-in is not a presence event here: the check stays strict.
              */
             val PRESENCE_TYPES: Set<String> = setOf("S")
+
+            /**
+             * The label of the second event of a Z: the engine signs the turnover Z and the user Z in one operation
+             * (`crates/pos-engine/src/commands/report.rs`, M184), two `R` events with consecutive ids, and
+             * `z_reports.fiscal_event_id` keeps only the first one (`commands/signing.rs`, `event_ids[0]`). The `R`
+             * that follows directly after that id belongs to the same Z and is not a sale.
+             */
+            const val Z_PAIR_TYPE: String = "R"
 
             /** How many recent fiscal events are read to look for anything after the Z report. */
             const val RECENT_EVENTS: Long = 200

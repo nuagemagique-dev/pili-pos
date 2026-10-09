@@ -142,7 +142,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_args):  # the Log object prints one line per request
         pass
 
+    def _log_request(self, status):
+        # logged before the response goes out, so a client that has the response can already read the line
+        self.server.log.add(self.listener, "GET " + self._path, self._auth is not None, status)
+
     def _send(self, status, body=b"", content_type="application/octet-stream", extra=None):
+        self._log_request(status)
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
@@ -152,6 +157,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _send_file(self, path, size):
+        self._log_request(200)
         self.send_response(200)
         self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Length", str(size))
@@ -163,8 +169,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 (http.server API)
         auth = self.headers.get("Authorization")
         path = self.path.split("?", 1)[0]
-        status = self._route(path, auth)
-        self.server.log.add(self.listener, "GET " + path, auth is not None, status)
+        self._auth = auth
+        self._path = path
+        self._route(path, auth)
 
     def _route(self, path, auth):
         store = self.server.store
