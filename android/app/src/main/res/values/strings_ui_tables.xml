@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tables screen: the texts that have no Vue key (minutes open, the two empty states). -->
+    <string name="ui_tables_minutes">{minutes} min</string>
+    <string name="ui_tables_signed_out">Aucun opérateur connecté. Connectez-vous pour voir les tables.</string>
+    <string name="ui_tables_none">Aucune table configurée.</string>
+</resources>
