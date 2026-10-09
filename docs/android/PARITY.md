@@ -86,49 +86,4 @@ list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b
 work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b
-fdm_health pending:P5-T6
-hubrise_status pending:P5-T8
-set_pin pending:P5-T8
-list_tables pending:P5-T10
-list_open_takeaways pending:P5-T10
-get_categories pending:P5-T11
-get_menu_items pending:P5-T11
-get_item_modifiers pending:P5-T11
-add_order_line_with_modifiers pending:P5-T11
-needs_z_report pending:P5-T11
-checkout pending:P5b-checkout
-print_missing_original pending:P5b-checkout
-copy_ticket pending:P5b-reports
-generate_user_x_report pending:P5b-reports
-generate_x_report pending:P5b-reports
-generate_z_report pending:P5b-reports
-list_copyable_tickets pending:P5b-reports
-list_order_lines pending:P5b-reports
-list_refundable_events pending:P5b-reports
-list_z_reports pending:P5b-reports
-money_in_out pending:P5b-reports
-open_drawer_fiscal pending:P5b-reports
-refund_checkout pending:P5b-reports
-create_user pending:P5b-settings
-deactivate_user pending:P5b-settings
-list_ticket_deliveries pending:P5b-settings
-hubrise_adopt_catalog pending:P5b-settings
-hubrise_adoption_preview pending:P5b-settings
-hubrise_complete_oauth pending:P5b-settings
-hubrise_disconnect pending:P5b-settings
-hubrise_list_channels pending:P5b-settings
-hubrise_set_channel pending:P5b-settings
-hubrise_start_oauth_flow pending:P5b-settings
-hubrise_sync_catalog pending:P5b-settings
-hubrise_list_webshop_orders pending:P5b-webshop
-hubrise_patch_order_status pending:P5b-webshop
-hubrise_set_confirmed_time pending:P5b-webshop
-print_webshop_customer pending:P5b-webshop
-print_webshop_kitchen pending:P5b-webshop
-webshop_accept_order pending:P5b-webshop
-webshop_close_cancelled_order pending:P5b-webshop
-webshop_complete_order pending:P5b-webshop
-webshop_handover_order pending:P5b-webshop
-webshop_refund_order pending:P5b-webshop
-webshop_reject_order pending:P5b-webshop
 ```
