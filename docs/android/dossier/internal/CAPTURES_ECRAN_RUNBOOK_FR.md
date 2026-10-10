@@ -3,7 +3,7 @@
 
 **Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve `À effectuer (EV-09 : captures du profil sunmi_d3_pro_gms_api33)`.
 
-Liste des 87 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent à la fin. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
+Liste des 92 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A92. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 
 ## Méthode
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
@@ -94,15 +94,20 @@ Liste des 87 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A77 | `A77_fdm_unreachable.png` | FDM simulé arrêté puis tentative d'encaissement : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. », vente refusée | 14.1 |
 | A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. » | 14.1 |
 | A79 | `A79_fdm_answer_pending.png` | Réponse du FDM à une vente perdue (FDM_ANSWER_PENDING) : « La caisse attend la réponse de la boîte noire pour l'opération précédente. » | 14.1 |
-| A80 | `A80_mise_en_service.png` | Caisse sans configuration : « Mise en service de la caisse », « Choisir le dossier » | ajout Android |
-| A81 | `A81_mise_en_service_refusee.png` | Paquet de configuration à signature invalide : « La signature du paquet de configuration est absente ou invalide. » | ajout Android |
-| A82 | `A82_a_propos.png` | Réglages, « À propos » : version, SHA-1 et SHA-256 de base.apk, SHA-1 de libpos_ffi.so, SHA-256 du certificat de signature, deviceId, posId, terminalId, stockage | ajout Android |
-| A83 | `A83_export_spf_dossier.png` | Réglages, « Export pour le SPF », support inséré : « Choisir le dossier », puis « Exporter » | ajout Android |
-| A84 | `A84_export_spf_termine.png` | Export fini : « Export terminé », fichiers, empreinte SHA-256 de MANIFEST.sha256 | ajout Android |
-| A85 | `A85_mise_a_jour_accueil.png` | Réglages, « Mise à jour » : version installée, « Vérifier en ligne », « Depuis une clé USB » | ajout Android |
-| A86 | `A86_mise_a_jour_verifiee.png` | Mise à jour déclarée vérifiée : « Mise à jour disponible et vérifiée », « Installer la mise à jour » | ajout Android |
-| A87 | `A87_mise_a_jour_refusee.png` | Version non plus récente ou empreinte fausse : « Mise à jour refusée » et le détail | ajout Android |
+| A80 | `A80_mise_en_service.png` | Caisse sans configuration : « Mise en service de la caisse », « Choisir le dossier » | 14.2 |
+| A81 | `A81_mise_en_service_refusee.png` | Paquet de configuration à signature invalide : « La signature du paquet de configuration est absente ou invalide. » | 14.2 |
+| A82 | `A82_a_propos.png` | Réglages, « À propos » : version, SHA-1 et SHA-256 de base.apk, SHA-1 de libpos_ffi.so, SHA-256 du certificat de signature, deviceId, posId, terminalId, stockage | 12.10 |
+| A83 | `A83_export_spf_dossier.png` | Réglages, « Export pour le SPF », support inséré : « Choisir le dossier », puis « Exporter » | 12.11 |
+| A84 | `A84_export_spf_termine.png` | Export fini : « Export terminé », fichiers, empreinte SHA-256 de MANIFEST.sha256 | 12.11 |
+| A85 | `A85_mise_a_jour_accueil.png` | Réglages, « Mise à jour » : version installée, « Vérifier en ligne », « Depuis une clé USB » | 12.12 |
+| A86 | `A86_mise_a_jour_verifiee.png` | Mise à jour déclarée vérifiée : « Mise à jour disponible et vérifiée », « Installer la mise à jour » | 12.12 |
+| A87 | `A87_mise_a_jour_refusee.png` | Version non plus récente ou empreinte fausse : « Mise à jour refusée » et le détail | 12.12 |
+| A88 | `A88_update_pos_vatno.png` | MOCK_FDM_WARNING=UPDATE_POS_VATNO : avertissement obligatoire | 14.1 |
+| A89 | `A89_update_pos_estno.png` | MOCK_FDM_WARNING=UPDATE_POS_ESTNO : avertissement obligatoire | 14.1 |
+| A90 | `A90_fdm_not_initialized.png` | MOCK_FDM_INITIALIZED=false : voyant orange, « La boîte noire n'est pas encore initialisée. » | 14.1 |
+| A91 | `A91_en_ligne_retarder.png` | « En ligne », commande acceptée, « Retarder » : fenêtre « +15 min », « +30 min », « +45 min » | 12.8 |
+| A92 | `A92_mise_a_jour_bloquee.png` | Réglages, « Mise à jour », une commande ouverte : « La mise à jour ne peut pas démarrer maintenant : » et la liste | 12.12 |
 
-Lignes « ajout Android » : écrans propres à Android, sans section Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md.
+Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A92 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 
 **Compilation finale.** Une fois toutes les captures dans le dossier screenshots, `scripts/make_captures_pdf.sh` (adapté au dossier Android en P8b) les assemble dans l'ordre du nom de fichier en CAPTURES_ECRAN_FR.pdf. Vérifier ensuite que ce PDF figure dans les annexes de REPONSES_MANUEL_CERT_FR.md §V et §VII.D.

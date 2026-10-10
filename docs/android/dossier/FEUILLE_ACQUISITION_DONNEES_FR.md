@@ -36,7 +36,7 @@ Finances.
 | Format de nom | `pos-YYYYMMDD-HHMMSS.db` |
 | Format | Fichier SQLite identique au fichier vivant |
 | Accès | Ceux du stockage privé de l'application (§1.1) |
-| Rétention | Les 7 plus récentes : après chaque Z, le moteur supprime les plus anciennes (décision du producteur du 2026-10-10 ; commit dans l'étiquette de gel : À effectuer, EV-19). `fiscal_events` n'est jamais supprimé (§3). |
+| Rétention | Les 7 plus récentes : après chaque Z, le moteur supprime les plus anciennes (décision du producteur du 2026-10-10 ; commit dans l'étiquette de gel : À effectuer (EV-19 : commit du changement du moteur)). `fiscal_events` n'est jamais supprimé (§3). |
 
 Implémentation : `crates/pos-engine/src/commands/report.rs::backup_database_impl`.
 
@@ -185,7 +185,7 @@ GROUP BY method;
 | Donnée | Durée de rétention | Justification |
 |---|---|---|
 | `fiscal_events` | Indéfinie | Code Belge des Impôts - 7 ans minimum, jamais purgé |
-| Sauvegardes (`pos-*.db`) | Les 7 plus récentes (EV-19), les plus anciennes sont supprimées après chaque Z | Chaque copie est une copie complète de `pos.db` : le journal fiscal n'en est jamais supprimé et contient tout ce que contenaient les copies supprimées |
+| Sauvegardes (`pos-*.db`) | Les 7 plus récentes (§1.2), les plus anciennes sont supprimées après chaque Z | Chaque copie est une copie complète de `pos.db` : le journal fiscal n'en est jamais supprimé et contient tout ce que contenaient les copies supprimées |
 | Logs applicatifs | 90 fichiers journaliers, puis suppression du plus ancien | Permettre un audit de comportement applicatif a posteriori ; non fiscaux |
 | Journal de la plateforme (`audit.jsonl`, répertoire `platform/`) | Rotation à 1 Mio, 5 fichiers conservés | Trace des règles appliquées, exports et mises à jour ; non fiscal |
 | `payments`, `orders`, `order_lines` | Indéfinie | Données de support nécessaires à la reconstruction d'un ticket |

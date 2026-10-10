@@ -314,7 +314,7 @@ sur le build reproductible (EV-01). Détail et reproductibilité du build :
 ### 4.3 Hash du code source
 
 Tag git de la révision certifiée (`android-v1.0.0`) et tag de gel du
-moteur commun `linux-v1.0.0-rc1` (À effectuer, EV-04 : commit du tag).
+moteur commun `linux-v1.0.0-rc1` (À effectuer (EV-04 : commit du tag)).
 Permet de reproduire l'APK à l'identique et de vérifier l'absence de
 modifications post-certification.
 
@@ -332,7 +332,7 @@ Politique :
 - **Rétention : les 7 sauvegardes les plus récentes.** Après chaque Z, le
   moteur garde les 7 copies les plus récentes et supprime les plus
   anciennes (décision du producteur du 2026-10-10 ; le commit de ce
-  changement du moteur dans l'étiquette de gel : À effectuer, EV-19).
+  changement du moteur dans l'étiquette de gel : À effectuer (EV-19 : commit du changement du moteur)).
   Chaque copie est une copie complète de `pos.db` : le journal fiscal
   (`fiscal_events`), qui est dans `pos.db`, n'est jamais supprimé et
   contient tout ce que contenaient les copies supprimées. Sans cette
@@ -524,7 +524,7 @@ l'image d'admission Linux n'a pas d'équivalent), pas d'assistance à
 distance, pas de port à l'écoute, débogage USB coupé et transfert de
 fichiers USB interdit (§3.2 à §3.4 ; pour la réinitialisation d'usine et
 le mode sans échec, restrictions posées, effet sur le D3 Pro réel : À
-effectuer, EV-15, §3.4). L'export nocturne (§5.1) n'est pas
+effectuer (EV-15 : effet des restrictions sur le D3 Pro réel), §3.4). L'export nocturne (§5.1) n'est pas
 une voie d'accès pour le SPF : sa sauvegarde est chiffrée pour le
 propriétaire de l'établissement.
 

@@ -6,30 +6,30 @@ Nothing in this registry is produced by the documentation lane. The values come 
 
 ## Registry
 
-The "Cited in" column is left empty on purpose: the consistency pass (P8a-T12) fills it from `grep -rnoE 'EV-[0-9]{2}' docs/android/dossier` and lists any id that no document cites.
+The "Cited in" column lists the documents of `docs/android/dossier/` (file name without `_FR.md`; `MANIFEST.txt` and `internal/` as written) that carry the id. It was filled by the consistency pass (P8a-T12) from `grep -rnoE 'EV-[0-9]{2}' docs/android/dossier`, on the dossier as it stands with the three documents of card P8a-T5 (`EXPORT_NOCTURNE`, `FLUX_DONNEES`, `COMMANDES_EN_LIGNE`, read from the branch android/P8a-P8a-T5). Every id of the registry is cited by at least one document: no id is uncited. The column is a map for the filling work; it is not a proof that a value was filled (see step 5 below).
 
 | Id | Evidence | Produced by | Notes | Cited in |
 |----|----------|-------------|-------|----------|
-| EV-01 | SHA-1 and SHA-256 of the signed release APK `pili-pos-android 1.0.0` | `scripts/release/declare_android.sh` on the release commit | user go-ahead; never run by the chain |  |
-| EV-02 | SHA-1 of the entry `lib/arm64-v8a/libpos_ffi.so` of that APK | same run, About screen | |  |
-| EV-03 | SHA-256 digest of the release signing certificate | user creates the RSA release key (DECISIONS §9) | |  |
-| EV-04 | commit of the engine freeze tag `linux-v1.0.0-rc1` (then the final tag) and the Linux binary SHA-1 of the same engine | re-freeze on the branch android/lane-freeze, values filled in P8 | the tag name may be written; never write a candidate SHA-1 |  |
-| EV-05 | build image digest and the two identical unsigned APK SHA-1 at the release commit | `scripts/android/check_repro.sh` | |  |
-| EV-06 | UC results (Basic Set 1.8, Advanced Set 1.6, Reports 1.3) on the Android emulator, JSON request and response per UC | P7 UC instrumented suite | |  |
-| EV-07 | journal and FDM request comparison Android vs Linux for the same scenarios | P7 `pos-uc-check` | |  |
-| EV-08 | ticket examples printed on `pos-printer-mock` (DLE EOT bytes stripped), real Epson if available | P7 or P8b | |  |
-| EV-09 | screen captures from `sunmi_d3_pro_gms_api33` | P8b | list in `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` |  |
-| EV-10 | D3 Pro runbook on both AVDs: provisioning, sale, refund and Z printed, SPF export, update, kiosk lock | P7 | |  |
-| EV-11 | 24 h run of the app with the foreground service | P7 | |  |
-| EV-12 | power-cut recovery (`adb emu kill` in a transaction, cold boot) | P7 | |  |
-| EV-13 | GMS D3 Pro: Play Store and user-facing Google apps hidden, install restrictions, windowed system update policy outside service hours, Play Protect behaviour | platform card for PD230, then the GMS run on `sunmi_d3_pro_gms_api33` | as built today: postpone update policy, no app hidden; the rest is the target until built |  |
-| EV-14 | live run against the module2 online simulator (`CPOS0031234567`, terminal `POS-2-ANDROID`) | user go-ahead | |  |
-| EV-15 | facts of a real D3 Pro (serial format, storage, card slot, Verified Boot, storage encryption, Epson, timings), or the statement that the test machine is the emulated profile | real device if available | |  |
-| EV-16 | deviceId of the test machine as printed on its tickets | P7 or P8b | |  |
-| EV-17 | final test counts at the release commit (Rust ws and cert, `android/rust`, Kotlin inventory, UC suite) | P8b | |  |
-| EV-18 | filing date and document dates | user at filing | |  |
-| EV-19 | commit of the engine change that keeps the 7 newest post-Z backups (user decision 2026-10-10) inside the freeze tag | the branch android/lane-freeze, checked in P8 | the rule itself is written as the product's rule; only the commit is pending |  |
-| EV-20 | nightly export on the test machine: enabled or not, holders of the age keys, receiver operator | user (X1 questions 3 and 5) | |  |
+| EV-01 | SHA-1 and SHA-256 of the signed release APK `pili-pos-android 1.0.0` | `scripts/release/declare_android.sh` on the release commit | user go-ahead; never run by the chain | CHECKLIST_DEPLOIEMENT, DOCUMENT_PROCESSUS_TECHNIQUE, FEUILLE_ACQUISITION_DONNEES, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, JOURNAL_TESTS_PRE_SOUMISSION, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, MAPPING_CONFORMITE, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-02 | SHA-1 of the entry `lib/arm64-v8a/libpos_ffi.so` of that APK | same run, About screen | | CHECKLIST_DEPLOIEMENT, DECISION_PEPPOL_AP, DOCUMENT_PROCESSUS_TECHNIQUE, FEUILLE_ACQUISITION_DONNEES, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, MAPPING_CONFORMITE, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-03 | SHA-256 digest of the release signing certificate | user creates the RSA release key (DECISIONS §9) | | CHECKLIST_DEPLOIEMENT, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-04 | commit of the engine freeze tag `linux-v1.0.0-rc1` (then the final tag) and the Linux binary SHA-1 of the same engine | re-freeze on the branch android/lane-freeze, values filled in P8 | the tag name may be written; never write a candidate SHA-1 | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, EXPORT_NOCTURNE, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_UTILISATEUR, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-05 | build image digest and the two identical unsigned APK SHA-1 at the release commit | `scripts/android/check_repro.sh` | | CHECKLIST_DEPLOIEMENT, DOCUMENT_PROCESSUS_TECHNIQUE, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANIFEST.txt, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT |
+| EV-06 | UC results (Basic Set 1.8, Advanced Set 1.6, Reports 1.3) on the Android emulator, JSON request and response per UC | P7 UC instrumented suite | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, COUVERTURE_ADVANCED_SET, FLUX_REMBOURSEMENT, INDEX_DOSSIER, MANIFEST.txt, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, RESULTATS_TESTS_UC |
+| EV-07 | journal and FDM request comparison Android vs Linux for the same scenarios | P7 `pos-uc-check` | | CADRE_DEMANDE, INDEX_DOSSIER, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, RESULTATS_TESTS_UC |
+| EV-08 | ticket examples printed on `pos-printer-mock` (DLE EOT bytes stripped), real Epson if available | P7 or P8b | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, INDEX_DOSSIER, MANIFEST.txt, RAPPORT_TESTS_BASELINE, TICKETS_EXEMPLES, internal/CAPTURES_ECRAN_RUNBOOK |
+| EV-09 | screen captures from `sunmi_d3_pro_gms_api33` | P8b | list in `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` | CHECKLIST_DEPLOIEMENT, COMMANDES_EN_LIGNE, INDEX_DOSSIER, MANIFEST.txt, MANUEL_UTILISATEUR, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, internal/CAPTURES_ECRAN_RUNBOOK |
+| EV-10 | D3 Pro runbook on both AVDs: provisioning, sale, refund and Z printed, SPF export, update, kiosk lock | P7 | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, INDEX_DOSSIER, MANUEL_INSTALLATION, MANUEL_PROGRAMMATION, MAPPING_CONFORMITE, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE, SECURITE_BD |
+| EV-11 | 24 h run of the app with the foreground service | P7 | | INDEX_DOSSIER, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE |
+| EV-12 | power-cut recovery (`adb emu kill` in a transaction, cold boot) | P7 | | INDEX_DOSSIER, MANUEL_UTILISATEUR, PLATEFORME_ANDROID, PROFIL_ENTREPRISE, RAPPORT_TESTS_BASELINE |
+| EV-13 | GMS D3 Pro: Play Store and user-facing Google apps hidden, install restrictions, windowed system update policy outside service hours, Play Protect behaviour | platform card for PD230, then the GMS run on `sunmi_d3_pro_gms_api33` | as built today: postpone update policy, no app hidden; the rest is the target until built | CHECKLIST_DEPLOIEMENT, DECLARATION_FONCTIONS_INTERDITES, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_INSTALLATION, PLATEFORME_ANDROID, PROFIL_ENTREPRISE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, SCHEMA_ASSEMBLAGE, SECURITE_BD |
+| EV-14 | live run against the module2 online simulator (`CPOS0031234567`, terminal `POS-2-ANDROID`) | user go-ahead | | CADRE_DEMANDE, JOURNAL_TESTS_PRE_SOUMISSION, MANUEL_INSTALLATION, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE, SCHEMA_ASSEMBLAGE |
+| EV-15 | facts of a real D3 Pro (serial format, storage, card slot, Verified Boot, storage encryption, Epson, timings), or the statement that the test machine is the emulated profile | real device if available | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, DECLARATION_FONCTIONS_INTERDITES, EXPORT_NOCTURNE, FEUILLE_ACQUISITION_DONNEES, GARANTIE_MAJ_LANGUES, JOURNAL_TESTS_PRE_SOUMISSION, LISTE_FONCTIONNALITES, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, MAPPING_CONFORMITE, PLATEFORME_ANDROID, PROFIL_ENTREPRISE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, SCHEMA_ASSEMBLAGE, SECURITE_BD, TICKETS_EXEMPLES |
+| EV-16 | deviceId of the test machine as printed on its tickets | P7 or P8b | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, LIGNES_PRODUITS, MANUEL_INSTALLATION, MAPPING_CONFORMITE, PLATEFORME_ANDROID, SCHEMA_ASSEMBLAGE, TICKETS_EXEMPLES |
+| EV-17 | final test counts at the release commit (Rust ws and cert, `android/rust`, Kotlin inventory, UC suite) | P8b | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, COUVERTURE_ADVANCED_SET, GARANTIE_MAJ_LANGUES, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE |
+| EV-18 | filing date and document dates | user at filing | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, COMMANDES_EN_LIGNE, COUVERTURE_ADVANCED_SET, DECISION_PEPPOL_AP, DECLARATION_FONCTIONS_INTERDITES, DOCUMENT_PROCESSUS_TECHNIQUE, FLUX_REMBOURSEMENT, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, JOURNAL_TESTS_PRE_SOUMISSION, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, RESULTATS_TESTS_UC, SCHEMA_ASSEMBLAGE, TICKETS_EXEMPLES |
+| EV-19 | commit of the engine change that keeps the 7 newest post-Z backups (user decision 2026-10-10) inside the freeze tag | the branch android/lane-freeze, checked in P8 | the rule itself is written as the product's rule; only the commit is pending | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, FEUILLE_ACQUISITION_DONNEES, FLUX_DONNEES, GARANTIE_MAJ_LANGUES, MANUEL_INSTALLATION, MANUEL_PROGRAMMATION, PLATEFORME_ANDROID, SECURITE_BD |
+| EV-20 | nightly export on the test machine: enabled or not, holders of the age keys, receiver operator | user (X1 questions 3 and 5) | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, EXPORT_NOCTURNE |
 
 ## How to fill a placeholder
 
@@ -37,7 +37,7 @@ The "Cited in" column is left empty on purpose: the consistency pass (P8a-T12) f
 2. Obtain the value from the producer listed in the registry row (for example the SHA-1 printed by `scripts/release/declare_android.sh` for the id EV-01, never run by the chain).
 3. Replace the whole marker, from `À effectuer (` to the closing parenthesis, with the value and its source in one sentence (command, file, commit or date). Do not leave the words "À effectuer" next to a value.
 4. Write the value the same way in every document that cites the id (grep the id again: the hash of record, the tag commit and the deviceId appear in several annexes).
-5. Record the filled id in the "Cited in" column only when the consistency pass (T12) or P8b has checked every citation.
+5. Run the grep of step 1 again: no marker for the id may remain. The "Cited in" column lists every document that carries the id, as a marker or as a plain reference; P8b refreshes it from `grep -rnoE 'EV-[0-9]{2}' docs/android/dossier` once the values are filled.
 6. A value that cannot be obtained is not invented: a hardware fact stays a placeholder (EV-15) or the sentence is rewritten to state that the test machine is the emulated profile.
 
 The final check (`python3 scripts/check_dossier.py --final`, rule `pending`) refuses any "À effectuer" left in a document listed in `MANIFEST.txt`. It is the gate that proves every placeholder was filled before the ZIP is built.

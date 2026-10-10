@@ -21,8 +21,8 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
 - [ ] Terminal Sunmi D3 Pro avec services Google, Android 13, écran 1920
       x 1080 en paysage, ou, si aucun vrai terminal n'est disponible au
       dépôt, le profil émulé `sunmi_d3_pro_gms_api33` déclaré comme tel
-      (À effectuer, EV-15 : fiche d'un vrai D3 Pro, ou déclaration du
-      profil émulé).
+      (À effectuer (EV-15 : fiche d'un vrai D3 Pro, ou déclaration du
+      profil émulé)).
 - [ ] Numéro de série du terminal relevé et consigné : c'est son
       deviceId, imprimé sur chaque ticket
       (`PLATEFORME_ANDROID_FR.md` §4). Valeur de la machine de test :
@@ -106,7 +106,7 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       connexion d'un Gérant : événement S signé.
 - [ ] Sauvegardes : copie de `pos.db` après chaque rapport Z, les 7 plus
       récentes conservées (`PLATEFORME_ANDROID_FR.md` §5.2 ; commit du
-      moteur : À effectuer, EV-19).
+      moteur : À effectuer (EV-19 : commit du changement du moteur)).
 - [ ] Export nocturne activé ou non sur la machine de test, détenteurs
       des clés age, opérateur du point de réception : À effectuer (EV-20 :
       état de l'export nocturne).
