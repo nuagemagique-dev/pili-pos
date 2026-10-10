@@ -205,7 +205,7 @@ voir le début du paragraphe).
 5. L'application est désormais l'écran d'accueil verrouillé du terminal
    (Lock Task, `PLATEFORME_ANDROID_FR.md` §3.2).
 
-### 3.5 Services Google : aucun compte, boutique et applications masquées
+### 3.5 Services Google : aucun compte, masquage de la boutique et des applications (cible)
 
 Le terminal porte les services Google, la caisse n'en utilise aucun.
 

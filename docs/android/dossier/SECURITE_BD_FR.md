@@ -194,7 +194,8 @@ pas de transfert de fichiers par USB, pas de changement de date ni
 d'heure (liste complète : `PLATEFORME_ANDROID_FR.md` §3). Les
 restrictions des cartes amovibles et du Wi-Fi sont volontairement
 laissées libres : la carte SD ou la clé sert à l'export SPF (§8) et le
-réseau se règle sur site.
+Wi-Fi se prépare au banc avant l'import du lot
+(`MANUEL_INSTALLATION_FR.md` §4.3).
 
 Les mesures propres à la variante avec services Google (Play Store et
 applications Google masqués, politique de mise à jour système hors des

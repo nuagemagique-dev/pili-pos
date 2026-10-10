@@ -120,7 +120,7 @@ Les treize premières lignes sont appliquées dans toutes les versions ; la dern
 | Constante Android | Raison |
 |---|---|
 | `DISALLOW_MOUNT_PHYSICAL_MEDIA` (clé `no_physical_media`) | la clé USB ou la carte SD doivent pouvoir se monter pour l'export vers le SPF ; le nom `no_mount_physical_media` est aussi interdit |
-| `DISALLOW_CONFIG_WIFI` (clé `no_config_wifi`) | le gérant doit pouvoir corriger le Wi-Fi sur place depuis l'application |
+| `DISALLOW_CONFIG_WIFI` (clé `no_config_wifi`) | le Wi-Fi du site se prépare au banc avant l'import du lot ; un écran de réseau protégé par le code d'un Gérant est la cible, non construite en 1.0.0 (`MANUEL_INSTALLATION_FR.md` §4.3) |
 
 Mesuré sur l'émulateur avec l'application prototype des essais préparatoires (mêmes appels de propriétaire d'appareil) : l'écran de réinitialisation d'usine répond « Bloqué par votre administrateur », l'ajout d'un utilisateur est refusé, la désinstallation de l'application est refusée. Ces refus avec pili-pos-android : À effectuer (EV-10 : manuel d'exécution du D3 Pro). Mesuré sur le produit : les 13 restrictions de l'ensemble constant sont présentes dans le système après le provisionnement. Le chemin de démarrage en mode sans échec par les touches de volume et le menu de récupération du fabricant ne sont pas établis : À effectuer (EV-15 : menu de récupération du D3 Pro, ce qu'il peut effacer ou installer sous ces restrictions).
 
@@ -269,7 +269,7 @@ Règles :
 - **FDM en mTLS.** Le client mTLS du FDM (certificat serveur à X.509 v1 de module2) est le même code que sous Linux ; il a été vérifié sur Android lors des essais préparatoires.
 - **Texte clair.** La configuration de sécurité réseau de l'application interdit le trafic en clair côté Kotlin, sauf vers `127.0.0.1` et `localhost` (simulateurs de l'environnement de test, joints par redirection de port adb).
 - **Aucun trafic permanent.** Il n'existe aucune session d'assistance, aucun canal permanent et aucun serveur : la mise à jour est lancée par le gérant, l'export nocturne est celui de `EXPORT_NOCTURNE_FR.md`.
-- **Réseau local.** Le terminal rejoint le réseau par Wi-Fi (réglable sur place par le gérant, `DISALLOW_CONFIG_WIFI` n'étant jamais appliquée) ou par liaison filaire si le modèle en offre une. Ports physiques du vrai D3 Pro : À effectuer (EV-15 : connectivité filaire et Wi-Fi mesurées sur un vrai D3 Pro).
+- **Réseau local.** Le terminal rejoint le réseau par Wi-Fi (préparé au banc avant l'import du lot ; `DISALLOW_CONFIG_WIFI` n'est jamais appliquée, mais l'application 1.0.0 n'a pas d'écran de réseau, `MANUEL_INSTALLATION_FR.md` §4.3) ou par liaison filaire si le modèle en offre une. Ports physiques du vrai D3 Pro : À effectuer (EV-15 : connectivité filaire et Wi-Fi mesurées sur un vrai D3 Pro).
 
 ---
 

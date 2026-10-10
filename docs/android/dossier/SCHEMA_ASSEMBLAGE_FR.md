@@ -118,7 +118,7 @@ Les ports physiques du D3 Pro ne sont pas établis par le dépôt : À effectuer
 
 | Port ou interface | Utilisation |
 |---|---|
-| Réseau (Wi-Fi, ou RJ45 si le modèle en offre un) | Connexion LAN vers routeur (1) ; le Wi-Fi est réglable sur place par le Gérant depuis l'application |
+| Réseau (Wi-Fi, ou RJ45 si le modèle en offre un) | Connexion LAN vers routeur (1) ; le Wi-Fi se prépare au banc avant l'import du lot ; l'application 1.0.0 n'a pas d'écran de réseau (`MANUEL_INSTALLATION_FR.md` §4.3) |
 | USB (clé) | Disponible pour la clé du lot de provisionnement signé à l'installation et pour la clé de mise à jour déclarée (retirées en service normal) |
 | Emplacement de carte SD ou clé USB | Cible de l'export vers le SPF (Art. 16 et 102), seulement par une action du Gérant (`PLATEFORME_ANDROID_FR.md` §5) ; jamais support de la base de données |
 | Transfert de fichiers USB vers un ordinateur | Interdit (`DISALLOW_USB_FILE_TRANSFER`, cf. `PLATEFORME_ANDROID_FR.md` §3.3) |
