@@ -48,9 +48,11 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       l'appareil (`adb shell dpm list-owners` au banc ; sur une caisse de
       production adb est coupé, la preuve est l'écran « À propos » et le
       fonctionnement du kiosque). Provisionnement par `dpm
-      set-device-owner` au banc, par code QR après réinitialisation
-      d'un terminal hors service (`MANUEL_INSTALLATION_FR.md` §3.2 et
-      §3.3).
+      set-device-owner` au banc, seule voie de la version 1.0.0
+      (`MANUEL_INSTALLATION_FR.md` §3.2). Le code QR sur le terrain est
+      la cible, non disponible : activités de provisionnement absentes et
+      essai non fait, À effectuer (EV-15 : provisionnement QR sur un vrai
+      D3 Pro) (`MANUEL_INSTALLATION_FR.md` §3.3).
 - [ ] Mode kiosque (Lock Task) : l'application est le seul écran
       d'accueil, sans barre système, menu d'alimentation ni applications
       récentes, et revient au premier plan, verrouillée, après un
@@ -136,7 +138,7 @@ scripts/android/check_apk.sh <APK non signé>
 # 3) Répétition de la déclaration, SANS rien publier : clés jetables hors
 #    dépôt, --dry-run obligatoire.
 scripts/release/declare_android.sh --apk <APK non signé> --version 1.0.0 \
-  --sha1 <SHA-1 du APK signé> --keystore <clé jetable> --alias <alias> --dry-run
+  --sha1 <SHA-1 de l'APK signé> --keystore <clé jetable> --alias <alias> --dry-run
                                           # attendu : DECLARE | total | PASS
 ```
 

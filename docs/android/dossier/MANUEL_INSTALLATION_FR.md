@@ -1,8 +1,6 @@
 <!-- Dérivé de docs/SUBMISSION_ARTIFACTS/MANUEL_INSTALLATION_FR.md @ 86088e4 -->
 # Manuel d'installation et de configuration - pili-pos-android v1.0.0
 
-**Distributeur :** Bruno Moyse / nuagemagique.dev (Bruxelles, BE)
-**Produit :** pili-pos-android 1.0.0 (posSwVersion pili-pos-android/1.0.0)
 **Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
 
 Ce manuel s'adresse au technicien installateur (= distributeur,
@@ -96,7 +94,7 @@ l'installation, ne jamais la laisser chez le client.
   `pili-pos-android 1.0.0`). Une version de développement (suffixe
   `-dev`) n'est jamais installée chez un client.
 
-### 3.2 Provisionnement au banc du producteur (voie normale)
+### 3.2 Provisionnement au banc du producteur (seule voie de la version 1.0.0)
 
 Le terminal est préparé chez le producteur avant la livraison. Le
 technicien le relie à son poste par USB (débogage USB activé) et exécute :
@@ -111,7 +109,7 @@ adb shell dpm list-owners
    de refus) : seul « Success: Device owner set to package ... » est un
    succès. Un refus (compte présent, plusieurs utilisateurs) se traite
    par la réinitialisation d'un terminal **neuf ou retiré du service**
-   puis le §3.3, jamais en forçant.
+   puis un nouveau provisionnement au banc, jamais en forçant.
 2. `dpm list-owners` doit nommer l'application `DeviceOwner`.
 3. Au lancement, l'application pose le mode kiosque et les restrictions
    (`PLATEFORME_ANDROID_FR.md` §3.2 à §3.4) et affiche « Mise en service
@@ -124,12 +122,26 @@ adb shell dpm list-owners
 5. Faire d'abord tout ce qui demande adb : à la fin du provisionnement
    d'une version de production, l'application coupe le débogage USB
    (`PLATEFORME_ANDROID_FR.md` §3.5). Un terminal mal provisionné se
-   reprend alors par le §3.3 ou par une version déclarée plus récente
-   (§6).
+   reprend alors au banc (après réinitialisation d'un terminal neuf ou
+   retiré du service) ou par une version déclarée plus récente (§6).
 
-### 3.3 Provisionnement sur le terrain, par code QR
+### 3.3 Provisionnement sur le terrain, par code QR (cible, non disponible en 1.0.0)
 
-Réservé à un terminal **réinitialisé et sans donnée à conserver**
+**Comme construit en 1.0.0, ce parcours ne peut pas être suivi.** Le
+composant d'administration de l'application est déclaré (réception
+`DEVICE_ADMIN_ENABLED`), mais aucune activité ne répond aux deux actions
+que l'assistant de configuration d'Android 12 et suivants exige pour un
+terminal entièrement géré (`android.app.action.GET_PROVISIONING_MODE` et
+`android.app.action.ADMIN_POLICY_COMPLIANCE`) : l'assistant ne peut pas
+l'achever sur l'API 33. La version 1.0.0 se provisionne donc **uniquement
+au banc** (§3.2). Ce qui suit décrit la cible, pour mémoire ; il ne se
+suit pas sur une caisse livrée. Manquent : les deux activités de
+provisionnement et l'essai sur un vrai D3 Pro : À effectuer (EV-15 :
+activités de provisionnement et essai du parcours QR sur un vrai D3 Pro).
+Un terminal à reprendre se réinitialise donc chez le producteur, puis se
+provisionne au banc.
+
+Cible. Réservé à un terminal **réinitialisé et sans donnée à conserver**
 (neuf, de remplacement, ou retiré du service après export des données).
 La réinitialisation d'usine efface la base fiscale : elle n'est jamais
 faite sur une caisse en service (§9).
@@ -157,9 +169,8 @@ faite sur une caisse en service (§9).
 3. Le terminal télécharge l'APK, vérifie l'empreinte, l'installe et le
    désigne propriétaire de l'appareil ; suite au §3.2 point 3.
 
-Ce parcours n'a pas été exercé sur l'assistant réel du D3 Pro : À
-effectuer (EV-15 : essai du provisionnement QR sur un vrai D3 Pro). Le
-préparer au banc avant tout déplacement.
+Ce parcours n'a pas été exercé sur l'assistant réel du D3 Pro (EV-15,
+voir le début du paragraphe).
 
 ### 3.4 Premier démarrage, import du lot et identifiant de l'appareil
 
@@ -195,7 +206,7 @@ Le terminal porte les services Google, la caisse n'en utilise aucun.
 
 - **Jamais de compte Google**, ni au banc ni chez le client : une fois
   propriétaire, l'application interdit d'en ajouter (`no_modify_accounts`).
-  Sur un appareil qui en porte déjà un : réinitialisation, puis §3.3.
+  Sur un appareil qui en porte déjà un : réinitialisation d'un terminal neuf ou retiré du service, puis provisionnement au banc (§3.2).
 - La boutique Play et les applications Google destinées à l'utilisateur
   doivent être **masquées par le propriétaire de l'appareil**, et toute
   installation bloquée sauf par l'outil de mise à jour déclarée. Comme
@@ -225,6 +236,7 @@ on refait un lot signé et on le réimporte.
 {
   "pos_id": "CFOD0061234567",
   "terminal_id": "POS1",
+  "device_id": "pos-json-device",
   "restaurant_name": "Restaurant Exemple",
   "restaurant_legal_name": "Exemple Horeca SRL",
   "restaurant_address": "Rue de l'Exemple 1, 4000 Liège",
@@ -248,7 +260,7 @@ on refait un lot signé et on le réimporte.
 |---|---|---|
 | `pos_id` | 14 caractères, lettres majuscules ou chiffres (commence par `C`). Attribué par le SPF Finances à la certification. | SPF Finances |
 | `terminal_id` | ID du terminal physique, en général `POS1`, `POS2`... | Distributeur |
-| `device_id` | **Sans effet sur Android** : le moteur le remplace, à chaque ouverture, par le numéro de série du terminal (§3.4). Le laisser absent. | Automatique |
+| `device_id` | **Requis par le format** (1 à 600 caractères, toute valeur non vide, par exemple `pos-json-device`) : sans lui l'import est refusé (« La configuration est invalide »). **Sans effet sur Android** : le moteur le remplace, à chaque ouverture, par le numéro de série matériel du terminal (§3.4). | Automatique |
 | `restaurant_name`, `restaurant_address` | Nom commercial et adresse complète, imprimés sur le ticket | Client |
 | `restaurant_legal_name` | Facultatif. Dénomination légale imprimée en bas du ticket avec l'adresse et la TVA ; absent : le nom commercial. | Client |
 | `restaurant_vat` | `BE` suivi de 10 chiffres commençant par 0 ou 1, valide modulo 97 | Client |
@@ -534,9 +546,11 @@ Chiffres de `PLATEFORME_ANDROID_FR.md` §5, mesurés sur l'émulateur.
 - **Réinitialiser aux paramètres d'usine un terminal en service, ou
   désinstaller l'application** : la base fiscale et ses 7 sauvegardes sont
   dans le stockage privé de l'application et disparaissent avec elle.
-  Android refuse d'ailleurs ces gestes une fois la caisse provisionnée
-  (`no_factory_reset`, `no_uninstall_apps`) : ne pas chercher à les
-  contourner. Avant de retirer un terminal, exporter les données (§4.7) et
+  La restriction `no_factory_reset` bloque la réinitialisation depuis les
+  Réglages et `no_uninstall_apps` la désinstallation ; le menu de
+  récupération du fabricant n'est pas établi (EV-15,
+  `PLATEFORME_ANDROID_FR.md` §3.3). L'interdiction reste absolue : ne pas
+  chercher à contourner ces restrictions. Avant de retirer un terminal, exporter les données (§4.7) et
   conserver la clé ou la carte.
 - **Se connecter à un compte Google**, installer une application ou
   utiliser la boutique Play (§3.5), ou laisser la clé du lot chez le client.
