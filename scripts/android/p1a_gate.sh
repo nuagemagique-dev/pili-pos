@@ -288,11 +288,11 @@ if [[ "$fast" -eq 0 ]]; then
     optional dossier-paths scripts/android/rewrite_dossier_paths.py --check
     optional dossier-paths-selftest scripts/android/test_rewrite_dossier_paths.py
 
-    if git rev-parse -q --verify 'refs/tags/linux-v1.1.0^{commit}' >/dev/null ||
-        git rev-parse -q --verify 'refs/tags/linux-v1.1.0-rc1^{commit}' >/dev/null; then
+    if git rev-parse -q --verify 'refs/tags/linux-v1.0.0^{commit}' >/dev/null ||
+        git rev-parse -q --verify 'refs/tags/linux-v1.0.0-rc1^{commit}' >/dev/null; then
         gate linux-frozen bash scripts/android/check_linux_frozen.sh
     else
-        skip linux-frozen "no freeze tag yet"
+        skip linux-frozen "no freeze tag yet (linux-v1.0.0-rc1 is set by the 1.0.0 re-freeze)"
     fi
 fi
 

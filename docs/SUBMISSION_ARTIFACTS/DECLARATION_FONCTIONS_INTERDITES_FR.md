@@ -142,8 +142,11 @@ utilisateur.
 - Une sauvegarde de la base est faite après chaque Z, une fois le Z
   signé et archivé (`crates/pos-engine/src/commands/signing.rs`, suite
   `ReportZ`, puis `report.rs::backup_database_impl`) ; elle s'écrit
-  dans un nouveau fichier horodaté (`pos-YYYYMMDD-HHMMSS.db`). Un
-  échec de sauvegarde n'annule pas le Z.
+  dans un nouveau fichier horodaté (`pos-YYYYMMDD-HHMMSS-mmm.db`). Un
+  échec de sauvegarde n'annule pas le Z. Le moteur garde les 7
+  sauvegardes les plus récentes ; il ne supprime une ancienne copie
+  qu'après avoir vérifié la nouvelle, et jamais `pos.db`, dont la table
+  `fiscal_events` reste en ajout seul.
 
 ## 7. Réimpression silencieuse d'un ticket comme s'il était neuf
 

@@ -200,7 +200,7 @@ class SmokeScenario(
 
     private companion object {
         const val TAG = "PiliSmoke"
-        const val EXPECTED_VERSION = "pili-pos-android/1.0.0-dev"
+        const val EXPECTED_VERSION = "pili-pos-android/1.0.0"
         const val SEED_ASSET = "seed_spf_test.sql"
 
         /** Seeded manager of src-tauri/seed_spf_test.sql (role admin). */

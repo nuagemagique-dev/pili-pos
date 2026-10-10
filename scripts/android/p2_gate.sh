@@ -50,8 +50,8 @@
 #                     Conventional Commit
 #   hygiene-root-lock Cargo.lock and Cargo.toml unchanged against BASE
 #   frozen-provisional  check_linux_frozen.sh --ref 042d911... (PD48, PD63); SKIP with
-#                     'retired: tag <name> exists (PD100)' once a linux-v1.1.0* tag
-#                     exists (the tag mode of linux-frozen replaces it)
+#                     'retired: tag <name> exists (PD100)' once a linux-v1.0.0* or
+#                     linux-v1.1.0* tag exists (the tag mode of linux-frozen replaces it)
 #   linux-frozen      check_linux_frozen.sh against the freeze tag; SKIP while there
 #                     is none (exit 2)
 #   rust-fmt, rust-clippy, rust-tests   in android/rust: cargo fmt --all --check,
@@ -289,7 +289,7 @@ h_root_lock() {
 gate hygiene-root-lock h_root_lock
 
 # ── freeze ──────────────────────────────────────────────────────
-freeze_tag="$(git tag -l 'linux-v1.1.0*' | head -n 1)"
+freeze_tag="$(git tag -l 'linux-v1.0.0*' 'linux-v1.1.0*' | head -n 1)"
 if [[ -n "$freeze_tag" ]]; then
     skip frozen-provisional "retired: tag $freeze_tag exists (PD100)"
 else

@@ -1,5 +1,7 @@
 # P5 exit report: UI lane, run A and the first views (partial)
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Phase cards: `docs/android/phases/P5.md`. Lane branch `android/lane-ui` (worktree `moyun-pos-wt/lane-ui`), base `ba57adf06191a1f386863f98f24930b6f5aa543c` (= `android/int`). Written by the P5 planner on 2026-10-09 while the user was away. Nothing was pushed, no tag was created, no GitHub Actions run, no live module2, HubRise, Scaleway or SPF call, no `declare.sh`, no release key. main (`96728e1`) and `cert/v1.0` (`d6210ca`) are untouched.
 
 ## Result in one paragraph

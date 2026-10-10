@@ -118,7 +118,7 @@ async fn a_missing_bundle_is_an_internal_error_and_leaves_the_directory_free() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn the_software_version_is_the_android_identity() {
-    assert_eq!(pos_sw_version().await, "pili-pos-android/1.0.0-dev");
+    assert_eq!(pos_sw_version().await, "pili-pos-android/1.0.0");
 }
 
 /// Logging is process-wide: this is the only test that calls `init_logging`.

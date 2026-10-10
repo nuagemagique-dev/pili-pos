@@ -1,5 +1,7 @@
 # P4 exit report: App foundation and provisioning
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Written by the P4 planner on 2026-10-08, at the end of the P4 run, with the user away (PD115).
 
 - **Base:** `android/int` at `30b32a0` (`chore(android): merge the Linux v1.1.0-rc1 soft freeze`).

@@ -342,8 +342,9 @@ sqlite3 /var/lib/pili-pos/pos.db \
 ```
 
 La caisse écrit aussi une sauvegarde dans `/var/lib/pili-pos/backups/`
-après chaque rapport Z, et `deploy/update.sh` une avant chaque mise à
-jour. `/tmp` est en mémoire : ne pas y laisser une sauvegarde.
+après chaque rapport Z (elle en garde les 7 plus récentes, et ne
+supprime jamais une copie `manual-*` ou `pre-update-*`), et
+`deploy/update.sh` une avant chaque mise à jour. `/tmp` est en mémoire : ne pas y laisser une sauvegarde.
 
 ### 10.2 Restauration : jamais par-dessus `pos.db`
 

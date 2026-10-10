@@ -25,7 +25,8 @@ import javax.inject.Singleton
  * plan is made, so that a log that grows during the copy still hashes the same), `identity.json` and
  * `LISEZMOI.txt`. `MANIFEST.sha256` is not part of the plan: the exporter writes it last.
  *
- * Nothing is deleted: the fresh backup stays in `engine/backups`, like every backup the engine made.
+ * The platform deletes nothing: the fresh backup stays in `engine/backups` like every backup the engine made, and
+ * the engine keeps only its 7 newest backups (the fresh one included), so at most 6 others are copied.
  */
 @Singleton
 class ExportPlanner internal constructor(

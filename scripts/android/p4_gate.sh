@@ -43,8 +43,10 @@
 #                 the working tree, is under android/rust/, android/pos-core/,
 #                 android/smoke/ or android/docker/ ('use the full gate')
 #   Always:
-#   freeze-tag    tag linux-v1.1.0-rc1 exists, its commit is 65b567fd... and
-#                 check_linux_frozen.sh --tag linux-v1.1.0-rc1 exits 0 (PD100)
+#   freeze-tag    tag linux-v1.0.0-rc1 exists, its commit is FREEZE_SHA and
+#                 check_linux_frozen.sh --tag linux-v1.0.0-rc1 exits 0 (PD100). SKIP while
+#                 the tag does not exist yet (the 1.0.0 re-freeze, user decision
+#                 2026-10-10); FAIL when the tag exists and FREEZE_SHA is still empty
 #   hygiene-keys  no tracked or untracked-not-ignored file under android/,
 #                 scripts/android/ or docs/android/ is a minisign secret key (first line
 #                 'untrusted comment: minisign [encrypted] secret key'), contains a PEM
@@ -110,8 +112,11 @@ TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 HEAVY="$TOOLS/heavy.sh"
 
-FREEZE_TAG=linux-v1.1.0-rc1
-FREEZE_SHA="${PILI_P4_FREEZE_SHA:-65b567fdd2497277300340979c2c61ff17abc918}"
+FREEZE_TAG=linux-v1.0.0-rc1
+# TAGGING: fill FREEZE_SHA_RECORDED with the full commit of linux-v1.0.0-rc1
+# (git rev-parse 'linux-v1.0.0-rc1^{commit}') when the tag is set.
+FREEZE_SHA_RECORDED=""
+FREEZE_SHA="${PILI_P4_FREEZE_SHA:-$FREEZE_SHA_RECORDED}"
 JVMARGS="${PILI_GRADLE_JVMARGS:--Xmx2g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8}"
 
 # ── helper mode ─────────────────────────────────────────────────
@@ -322,13 +327,21 @@ freeze_tag() {
     local sha
     git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1 || { echo "tag $FREEZE_TAG does not exist"; return 1; }
     sha="$(git rev-parse "$FREEZE_TAG^{commit}")" || return 1
+    if [[ -z "$FREEZE_SHA" ]]; then
+        echo "tag $FREEZE_TAG exists ($sha) but FREEZE_SHA_RECORDED in scripts/android/p4_gate.sh is not filled in yet"
+        return 1
+    fi
     if [[ "$sha" != "$FREEZE_SHA" ]]; then
         echo "tag $FREEZE_TAG points at $sha, expected $FREEZE_SHA"
         return 1
     fi
     bash scripts/android/check_linux_frozen.sh --tag "$FREEZE_TAG" || return 1
 }
-gate freeze-tag freeze_tag
+if git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1; then
+    gate freeze-tag freeze_tag
+else
+    skip freeze-tag "no tag $FREEZE_TAG yet: the 1.0.0 re-freeze sets it (then fill FREEZE_SHA_RECORDED)"
+fi
 
 # ── hygiene-keys ────────────────────────────────────────────────
 hygiene_keys() {
@@ -659,6 +672,7 @@ linux_repro() {
     local cache="$HOME/.cache/pili-freeze" clone log common want got rc
     clone="$cache/p4-clone"
     log="$cache/p4-linux-repro.log"
+    git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1 || { echo "tag $FREEZE_TAG does not exist yet"; return 1; }
     command -v docker >/dev/null 2>&1 || { echo "docker is not installed"; return 1; }
     mkdir -p "$cache" || return 1
     want="$(sed -n 's/.*Reproducible: SHA-1 \([0-9a-f]\{40\}\).*/\1/p' docs/android/LINUX_FREEZE.md | head -n 1)"

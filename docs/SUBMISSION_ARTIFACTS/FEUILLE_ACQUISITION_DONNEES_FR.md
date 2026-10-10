@@ -32,10 +32,10 @@ Finances.
 | Déclencheur | Après chaque rapport Z, juste après son archivage (clôture journalière fiscale) |
 | Mécanisme | API SQLite Online Backup (cohérent en WAL) |
 | Répertoire | `<data_dir>/pili-pos/backups/` ou chemin configuré dans `PosConfig.backup_dir` |
-| Format de nom | `pos-YYYYMMDD-HHMMSS.db` |
+| Format de nom | `pos-YYYYMMDD-HHMMSS-mmm.db` (heure UTC, millisecondes ; jamais deux fois le même nom) |
 | Format | Fichier SQLite identique au fichier vivant |
 | Permissions | `0640` (lecture restreinte) |
-| Rétention | Indéfinie (au moins 7 ans, durée légale belge) |
+| Rétention | Les 7 sauvegardes les plus récentes (`report::BACKUPS_KEPT`). Après chaque nouvelle sauvegarde complète et vérifiée (`PRAGMA quick_check`), le moteur supprime les plus anciennes de ses propres fichiers `pos-*.db` et journalise chaque suppression ; il ne touche jamais `pos.db`, le dossier de l'export nocturne ni les copies manuelles (`manual-*.db`, `pre-update-*.db`). La conservation légale (au moins 7 ans) porte sur `pos.db`, qui garde tout le journal fiscal en ajout seul. |
 
 Implémentation : `crates/pos-engine/src/commands/report.rs::backup_database_impl`.
 

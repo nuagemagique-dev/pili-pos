@@ -127,9 +127,9 @@ Status: as built (P6-T4)
 
 The hashes are cached per `(sourceDir, lastUpdateTime)`, so a new install recomputes them and a second report of the same install reads nothing. A failed read of the APK is not cached. `toJson()` has a stable key order (the order above, fields as named in the table) and writes a missing value as JSON `null`, never as an absent key.
 
-The engine reference is `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update the string.
+The engine reference is `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.0.0, linux-v1.0.0-rc1 (1a2b3c4)`. Until the tag `linux-v1.0.0-rc1` exists the string holds the placeholder `pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)`, and the tagging step replaces `pending` by the short commit. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update the string.
 
-`AboutScreen` has four sections: Version (version, code, engine version, engine reference), Integrity (APK SHA-1 and SHA-256, library SHA-1, signer SHA-256), Device (deviceId, posId, terminalId, Android, model) and Storage (free space, backups count and size). Hashes use the monospace figure style and the text is selectable. A warning line shows under Storage when less than 2 GiB are free or when the backups take more than half of the free space (PD219: the platform deletes nothing). Test tags: `about_root`, `about_apk_sha1`, `about_so_sha1`, `about_device_id`, plus `about_refresh`, `about_free_space`, `about_backups`, `about_warning_low_space`, `about_warning_backups`.
+`AboutScreen` has four sections: Version (version, code, engine version, engine reference), Integrity (APK SHA-1 and SHA-256, library SHA-1, signer SHA-256), Device (deviceId, posId, terminalId, Android, model) and Storage (free space, backups count and size). Hashes use the monospace figure style and the text is selectable. A warning line shows under Storage when less than 2 GiB are free or when the backups take more than half of the free space (PD219: the platform deletes nothing; since the 1.0.0 re-freeze the engine keeps only its 7 newest backups, so the backups warning is a safety net). Test tags: `about_root`, `about_apk_sha1`, `about_so_sha1`, `about_device_id`, plus `about_refresh`, `about_free_space`, `about_backups`, `about_warning_low_space`, `about_warning_backups`.
 
 `AboutScreen` takes its `AboutViewModel` from an entry point of the Hilt graph (not `hiltViewModel()`), so it renders under any host activity. The golden is `android/app/src/test/screenshots/platform/about.png` (Roborazzi, 960 px window at density 0.5, the 1920 px till).
 
@@ -168,7 +168,7 @@ The root tag is `export_root`. The screen looks for a stick that was inserted or
 | Entry | Content |
 | --- | --- |
 | `pos.db` | a fresh `backupDatabase()`: a consistent SQLite copy made by the online backup API (it opens as is, `PRAGMA integrity_check` answers `ok`) |
-| `backups/` | the 7 newest other `*.db` of `engine/backups` (never more) |
+| `backups/` | the 7 newest other `*.db` of `engine/backups` (never more; in practice at most 6, because the engine keeps its 7 newest backups and the fresh `pos.db` copy is one of them) |
 | `backups.txt` | inventory of every other backup of the till, sorted by name, one line each: `<name><TAB><bytes><TAB><sha256>` (the fresh copy is `pos.db`, not listed) |
 | `logs/` | every file of `filesDir/logs`, copied up to the size it had when the plan was made |
 | `audit/` | the platform audit files (`PlatformAudit.files()`), including the row "started" of this export |
@@ -184,7 +184,7 @@ The root tag is `export_root`. The screen looks for a stick that was inserted or
 3. For each file, in plan order: stream it in 1 MiB chunks through a SHA-256 `DigestOutputStream` to the target, `fd.sync()`, close, open it again through the target, hash it again; a different hash fails the export. Then `MANIFEST.sha256` the same way.
 4. Audit row `done` (files, bytes, folder).
 
-On any error the export stops, keeps what was written and reports the step (`precheck`, `plan`, `create_dir`, `copy`, `verify`, `manifest`), the file and the reason; the audit row `failed` carries `step`, `file`, `problem`, `reason`. A write error on a file of 4 GiB or more is reported as `plat_export_err_fat32_hint` (the stick is probably FAT32, use exFAT). The export never deletes anything, neither on the volume nor in `filesDir` (the fresh `pos.db` copy stays in `engine/backups` like every backup the engine made, so each export adds one backup to the till; retention is the open question of section 12).
+On any error the export stops, keeps what was written and reports the step (`precheck`, `plan`, `create_dir`, `copy`, `verify`, `manifest`), the file and the reason; the audit row `failed` carries `step`, `file`, `problem`, `reason`. A write error on a file of 4 GiB or more is reported as `plat_export_err_fat32_hint` (the stick is probably FAT32, use exFAT). The platform never deletes anything, neither on the volume nor in `filesDir`. The fresh `pos.db` copy stays in `engine/backups` like every backup the engine made; it is an engine backup, so the engine's retention (section 12) then keeps the 7 newest backups and may remove the oldest one.
 
 **Targets.** All export logic is above `ExportTarget` (`createDirectory`, `createFile` returning an `ExportOutput` with `sync()`, `openForRead`). `SafTarget` uses `DocumentsContract.createDocument`, `openFileDescriptor("w")` with `FileOutputStream(fd)` and `fd.sync()`, and reads back through `ContentResolver.openInputStream`; every file is created with the MIME type `application/octet-stream` so that the provider never adds an extension to `MANIFEST.sha256`. `FileTarget` writes plain files (unit tests, and the P6-T11 device test on the removable volume's app-specific directory).
 
@@ -406,7 +406,7 @@ The database has no free pages after the run, so the figures are the growth and 
 | 100 | 236 MB a year (225 MiB) | 523 MB a year (499 MiB) |
 | 300 | 709 MB a year (676 MiB) | 1.57 GB a year (1.46 GiB) |
 
-**Backups, if every Z copies the whole database and nothing deletes the copies.** The copy of day *d* weighs the database of day *d*, so after 365 days the copies together weigh `365 x 294,912 + daily growth x 365 x 366 / 2`:
+**Backups, if every Z copies the whole database and nothing deletes the copies (the engine before the 1.0.0 re-freeze; kept for the record).** The copy of day *d* weighs the database of day *d*, so after 365 days the copies together weigh `365 x 294,912 + daily growth x 365 x 366 / 2`:
 
 | Sales a day | 1-line sale | 6-line sale |
 | --- | --- | --- |
@@ -415,15 +415,17 @@ The database has no free pages after the run, so the figures are the growth and 
 
 The database itself stays small (about 0.2 to 1.5 GiB a year); the backups are 100 times bigger than it after a year.
 
-**A finding that matters more than the card size.** The engine writes a full copy of `pos.db` to `backups/` after every Z (`crates/pos-engine/src/commands/signing.rs:761`) and never deletes one (PD219). After a year that is about 365 copies of a database that keeps growing, which is far more than the database itself: the measurement above gives 40 to 268 GiB of backups after a year, and 32 GiB are reached between day 126 and day 325 depending on the volume. That fills the internal storage of the till within months (the free space of the real D3 Pro is read from its About screen; the emulator says nothing about it). The platform lane deletes nothing, because the engine is frozen and deleting is a decision for the user. The About screen shows the free internal space and the size of `backups/`, and the export copies only the 7 newest backups. A retention rule (for example "keep 14 days on the till") is an engine change, best made with the re-freeze that the nightly export lane needs anyway.
+**Retention (user decision of 2026-10-10, "Keep the 7 newest", PD219).** The engine writes a full copy of `pos.db` to `backups/` after every Z (`crates/pos-engine/src/commands/signing.rs`, `report::backup_database_impl`) and, before the 1.0.0 re-freeze, never deleted one: the table above gave 40 to 268 GiB of backups after a year, which would fill the internal storage of the till within months. Since the re-freeze the engine keeps only the 7 newest of its own backups (`report::BACKUPS_KEPT`). It deletes only after the new copy is complete and `PRAGMA quick_check` answers `ok`, only files named `pos-<UTC timestamp>.db`, never `pos.db`, the nightly export folder (`exports/`) or a file someone else put there (`manual-*.db`, `pre-update-*.db` on Linux), and it logs each deletion. Every engine backup counts, whatever made it (the Z, the Backup button, the SPF export's fresh copy). The rule is the same on Linux and Android (no platform conditional) and is tested by `nine_z_in_a_row_leave_the_seven_newest_backups` (`crates/pos-engine/tests/export_nightly.rs`). Nothing legal is lost: the live `pos.db` keeps the whole fiscal journal; the off-till copy is the nightly export.
+
+**Backups with retention.** The copies together weigh at most 7 times the database: about 2 MiB at the start, then at the end of the first year about 1.5 GiB at 100 sales a day of 1 line, 3.4 GiB at 100 sales of 6 lines, 4.6 GiB at 300 sales of 1 line and 10.2 GiB at 300 sales of 6 lines (7 x the yearly projection above plus the seed). The database and its 7 copies grow linearly, not quadratically.
 
 **Recommendation.** The database stays in internal storage only (above). The SD card is for exports and updates:
 - exFAT, because FAT32 refuses files of 4 GiB or more, which the database alone reaches after about 3 years at 300 sales a day of 6 lines;
 - a good-quality microSDXC card, "high endurance" or class A1/U3;
-- **64 GB** is enough for the first year at 100 sales a day: one export is `pos.db` plus the 7 newest backups, about 8 times the database, so about 0.2 GiB at the start and 3.9 GiB at the end of the first year, which leaves room for about 15 exports at the end of that year;
+- **64 GB** is enough for the first year at 100 sales a day: one export is `pos.db` plus at most 6 other backups, about 7 times the database (the figures here keep the earlier 8 as a margin), so about 0.2 GiB at the start and 3.9 GiB at the end of the first year, which leaves room for about 15 exports at the end of that year;
 - **128 GB** at 300 sales a day or from the second year: one export weighs about 12 GiB at the end of the first year at 300 sales a day (6-line sales), and the app never deletes a folder on the card, so the manager has to clear old exports.
 
-The measurement does not change "internal only" nor the card kind; it makes the size depend on the volume and shows that the card cannot be the answer to the backups: only a retention rule on the till (for example "keep 14 days", an engine change, PD219) keeps the internal storage from filling.
+The measurement does not change "internal only" nor the card kind; it makes the size depend on the volume and shows that the card cannot be the answer to the backups: the retention rule on the till (the engine keeps the 7 newest backups, PD219) is what keeps the internal storage from filling.
 
 Not checked, hardware residue: the largest card the D3 Pro accepts and its slot behaviour (there is no real D3 Pro here), the free internal space of the real device, and exFAT on a real card (the virtual SD disk of the emulator is vfat). The SD card is never the only copy: the SPF export is a manager action, and the off-till copy belongs to the nightly export lane.
 
@@ -482,7 +484,7 @@ Status: as built (P6-T2)
 | `plat-strings` | every `values/strings_plat_<area>.xml` has a twin in `values-en/` and `values-zh/` with the same names, each starting with `plat_<area>_`, no empty value; `translatable="false"` only in `values/` |
 | `plat-boundary` | under `platform/` (comments ignored): no `EngineHolder`, `force-stop`, `forceStop`, `killBackgroundProcesses`, `settlePreview`, `vatSplit`, `cashDueCents`; `http://` only on a line with `127.0.0.1` or `localhost` |
 | `plat-keys` | SKIP while `plat_update_keys.xml` is absent; else the `debug` key equals the key line of `dev-minisign.pub` and the `release` key is empty or matches `^RW[A-Za-z0-9+/]{54}$` |
-| `plat-engine-ref` | SKIP while `plat_about_engine_ref` does not exist; else it equals `pili-pos <V>, <TAG> (<SHORT>)` for the freeze tag (`PILI_P6_FREEZE_TAG`, default `linux-v1.1.0-rc1`) |
+| `plat-engine-ref` | SKIP while `plat_about_engine_ref` does not exist; else it equals `pili-pos <V>, <TAG> (<SHORT>)` for the freeze tag (`PILI_P6_FREEZE_TAG`, default `linux-v1.0.0-rc1`). While the tag does not exist, the placeholder `pili-pos <V>, <TAG> (pending)` (V from the working tree) is a SKIP and any other value a FAIL; once the tag exists the placeholder is a FAIL |
 | `selftest-p6-gate` | full mode only: `scripts/android/test_p6_gate.sh` |
 | `selftest-declare` | full mode only: `scripts/release/test_declare_android.sh`, SKIP while absent |
 | `plat-e2e` | `--plat-e2e` only: `scripts/android/plat_e2e.sh`, SKIP while absent |

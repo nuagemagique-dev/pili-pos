@@ -1,5 +1,7 @@
 # Merge of the parallel lanes into android/int (2026-10-09)
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Integrator report. The three lanes that forked from `android/int` at `ba57adf` (P4 exit) are merged back with `git merge --no-ff`, in the order lane-export, lane-ui, lane-plat. Nothing was pushed, `main` was not touched, no tag was set.
 
 ## What was merged

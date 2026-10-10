@@ -2296,7 +2296,7 @@ dependencies = [
 
 [[package]]
 name = "pos-catalog"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "pos-core",
  "pos-db",
@@ -2309,7 +2309,7 @@ dependencies = [
 
 [[package]]
 name = "pos-core"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
@@ -2319,7 +2319,7 @@ dependencies = [
 
 [[package]]
 name = "pos-db"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "pos-core",
@@ -2331,7 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "pos-engine"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "bcrypt",
@@ -2359,7 +2359,7 @@ dependencies = [
 
 [[package]]
 name = "pos-engine-testkit"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -2385,7 +2385,7 @@ dependencies = [
 
 [[package]]
 name = "pos-export"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "age",
  "anyhow",
@@ -2409,7 +2409,7 @@ dependencies = [
 
 [[package]]
 name = "pos-export-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "hex",
@@ -2422,7 +2422,7 @@ dependencies = [
 
 [[package]]
 name = "pos-fdm-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "axum-server",
@@ -2438,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "pos-ffi"
-version = "1.0.0-dev"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -2475,7 +2475,7 @@ dependencies = [
 
 [[package]]
 name = "pos-fiscal"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -2499,7 +2499,7 @@ dependencies = [
 
 [[package]]
 name = "pos-hubrise"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2522,7 +2522,7 @@ dependencies = [
 
 [[package]]
 name = "pos-hubrise-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -2539,7 +2539,7 @@ dependencies = [
 
 [[package]]
 name = "pos-hubrise-types"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
@@ -2548,7 +2548,7 @@ dependencies = [
 
 [[package]]
 name = "pos-mail"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -2567,7 +2567,7 @@ dependencies = [
 
 [[package]]
 name = "pos-print"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "pos-core",
  "pos-fiscal",
@@ -2578,7 +2578,7 @@ dependencies = [
 
 [[package]]
 name = "pos-printer-mock"
-version = "1.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "chrono",

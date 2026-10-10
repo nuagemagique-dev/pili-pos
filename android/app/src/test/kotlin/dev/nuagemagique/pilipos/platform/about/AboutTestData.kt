@@ -10,10 +10,10 @@ fun sampleReport(
 ): IdentityReport =
     IdentityReport(
         applicationId = "dev.nuagemagique.pilipos",
-        versionName = "1.1.0",
-        versionCode = 10100,
-        posSwVersion = "pili-pos-android/1.1.0",
-        engineRef = "pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)",
+        versionName = "1.0.0",
+        versionCode = 10000,
+        posSwVersion = "pili-pos-android/1.0.0",
+        engineRef = "pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)",
         apkSha1 = "a9993e364706816aba3e25717850c26c9cd0d89d",
         apkSha256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         soSha1 = soSha1,

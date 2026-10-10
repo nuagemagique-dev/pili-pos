@@ -285,7 +285,9 @@ SQLite qui archive l'événement signé, de sorte que :
   (`signing::follow_up` pour `ReportZ`, qui appelle
   `commands::report::backup_database_impl`), snapshot via l'API
   SQLite Online Backup. Un échec de sauvegarde est journalisé et
-  n'annule pas le Z.
+  n'annule pas le Z. Une fois la copie vérifiée (`PRAGMA quick_check`),
+  le moteur ne garde que ses 7 sauvegardes les plus récentes
+  (`report::BACKUPS_KEPT`) ; `pos.db` garde tout le journal fiscal.
 
 ## 8. Configurations de build
 

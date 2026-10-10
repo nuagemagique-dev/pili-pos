@@ -1,5 +1,7 @@
 # Linux soft freeze: linux-v1.1.0-rc1
 
+> **Superseded (2026-10-10).** The user set the version back to 1.0.0 and asked for a re-freeze ("Yes, 1.0.0 + re-freeze"): nothing has been filed, so the Linux build is a v1.0 initial filing (Art. 99), not a v1.1 under Art. 113, and the tag `linux-v1.1.0-rc1` below was misnamed. The new freeze is `linux-v1.0.0-rc1`, set after `android/lane-freeze` is merged into `android/int`; its record (two clean `scripts/check_repro.sh` builds, the new SHA-1, the tag commit) replaces this file at tagging. Until then this file is history: its SHA-1 `9d230ef...` is that of the 1.1.0 build and is not the reference of `p4_gate.sh --linux-repro`, which needs the new record first. See `docs/android/DECISIONS.md`, "Decided by the user".
+
 The soft freeze of the certified Linux build (plan P1b, PD44) after the
 user's two decisions of 2026-10-08 (PD47, PD71). From this tag on, the
 Linux build inputs that `scripts/android/check_linux_frozen.sh` guards do

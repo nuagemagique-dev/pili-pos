@@ -1,5 +1,7 @@
 # P3 exit report: Android build pipeline
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Written by the P3 planner on 2026-10-08, at the end of the P3 run.
 
 - **Base:** `android/int` at `ac15866` (`docs(android): P2 phase cards, exit report and exit decisions`).

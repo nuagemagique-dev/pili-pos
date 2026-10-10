@@ -48,8 +48,12 @@
 #   plat-engine-ref    SKIP while no string plat_about_engine_ref exists in
 #                      res/values/strings_plat_*.xml. Else it equals
 #                      'pili-pos <V>, <TAG> (<SHORT>)': TAG = $PILI_P6_FREEZE_TAG (default
-#                      linux-v1.1.0-rc1), V = version under [workspace.package] of
-#                      'git show TAG:Cargo.toml', SHORT = first 7 hex of TAG's commit
+#                      linux-v1.0.0-rc1), V = version under [workspace.package] of
+#                      'git show TAG:Cargo.toml', SHORT = first 7 hex of TAG's commit.
+#                      While TAG does not exist yet, the string may hold the placeholder
+#                      'pili-pos <V>, <TAG> (pending)' with V = the working tree's
+#                      [workspace.package] version: SKIP ('filled at tagging'); any other
+#                      value is a FAIL. Once TAG exists the placeholder is a FAIL.
 #   Full mode only (not --fast):
 #   selftest-p6-gate   scripts/android/test_p6_gate.sh
 #   selftest-declare   scripts/release/test_declare_android.sh; SKIP while it is absent
@@ -68,7 +72,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 ROOT="${PILI_P6_ROOT:-$(cd "$TOOLS/../.." && pwd -P)}"
-FREEZE_TAG="${PILI_P6_FREEZE_TAG:-linux-v1.1.0-rc1}"
+FREEZE_TAG="${PILI_P6_FREEZE_TAG:-linux-v1.0.0-rc1}"
 
 fast=0
 do_plat_e2e=0
@@ -510,10 +514,9 @@ sys.exit(3)
 PY
 }
 
-plat_engine_ref() {
-    local got="$1" ver short want
-    git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1 || { echo "tag $FREEZE_TAG does not exist"; return 1; }
-    ver="$(git show "$FREEZE_TAG:Cargo.toml" 2>/dev/null | python3 -I -c '
+# workspace_version: the version under [workspace.package] of the Cargo.toml on stdin.
+workspace_version() {
+    python3 -I -c '
 import re
 import sys
 
@@ -529,7 +532,27 @@ for line in sys.stdin:
         if v:
             print(v.group(1))
             break
-')"
+'
+}
+
+# The value plat_about_engine_ref holds until the freeze tag is set.
+engine_ref_placeholder() {
+    local ver
+    ver="$(workspace_version <Cargo.toml 2>/dev/null)"
+    echo "pili-pos ${ver}, ${FREEZE_TAG} (pending)"
+}
+
+plat_engine_ref() {
+    local got="$1" ver short want
+    if ! git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1; then
+        echo "tag $FREEZE_TAG does not exist and plat_about_engine_ref is '$got', not the placeholder '$(engine_ref_placeholder)'"
+        return 1
+    fi
+    if [[ "$got" == *"(pending)" ]]; then
+        echo "tag $FREEZE_TAG exists: fill the placeholder of plat_about_engine_ref ('$got')"
+        return 1
+    fi
+    ver="$(git show "$FREEZE_TAG:Cargo.toml" 2>/dev/null | workspace_version)"
     [[ -n "$ver" ]] || { echo "no version under [workspace.package] in $FREEZE_TAG:Cargo.toml"; return 1; }
     short="$(git rev-parse "$FREEZE_TAG^{commit}" | cut -c1-7)"
     want="pili-pos ${ver}, ${FREEZE_TAG} (${short})"
@@ -540,7 +563,11 @@ for line in sys.stdin:
     echo "$got"
 }
 if ref="$(engine_ref_value 2>/dev/null)"; then
-    gate plat-engine-ref plat_engine_ref "$ref"
+    if ! git rev-parse -q --verify "refs/tags/$FREEZE_TAG" >/dev/null 2>&1 && [[ "$ref" == "$(engine_ref_placeholder)" ]]; then
+        skip plat-engine-ref "no tag $FREEZE_TAG yet: '$ref' is the placeholder, filled at tagging"
+    else
+        gate plat-engine-ref plat_engine_ref "$ref"
+    fi
 else
     skip plat-engine-ref "no string plat_about_engine_ref yet"
 fi
