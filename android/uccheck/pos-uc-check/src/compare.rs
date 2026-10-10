@@ -531,13 +531,25 @@ fn check_fixture(android: &Journal, scenario: &Scenario, opts: &Options) -> Outc
     let mut problems = Vec::new();
     let mut taken: BTreeMap<String, usize> = BTreeMap::new();
 
+    // The fixtures are the last requests of their operation: a scenario may sign
+    // set-up requests first (the sale a refund refers to) that no fixture covers.
+    let mut wanted: BTreeMap<&str, usize> = BTreeMap::new();
+    for (_, operation, _) in &fixtures {
+        *wanted.entry(operation.as_str()).or_insert(0) += 1;
+    }
     for (name, operation, variables) in &fixtures {
         let nth = taken.entry(operation.clone()).or_insert(0);
+        let made = android
+            .fdm
+            .iter()
+            .filter(|c| &c.operation == operation)
+            .count();
+        let skipped = made.saturating_sub(wanted.get(operation.as_str()).copied().unwrap_or(0));
         let call = android
             .fdm
             .iter()
             .filter(|c| &c.operation == operation)
-            .nth(*nth);
+            .nth(skipped + *nth);
         *nth += 1;
         let Some(call) = call else {
             problems.push(format!("{name}: no {operation} request to compare with"));
@@ -1271,6 +1283,25 @@ mod tests {
 
         let (linux, mut android) = pair();
         android.fdm.push(sale_call(3.0, 2, &android.pos_sw_version));
+        let scenario = fixture_scenario(dir.path(), "[]");
+        let result = compare_pair(&linux, &android, Some(&scenario), &with_fixtures());
+        assert_eq!(
+            status(&result, "fixture"),
+            Status::Pass,
+            "{:?}",
+            result.detail_lines()
+        );
+    }
+
+    #[test]
+    fn a_fixture_is_matched_with_the_last_requests_of_its_operation() {
+        let dir = fixture_dir(3.0, false);
+        let (linux, mut android) = pair();
+        // A set-up sale signed first, that the fixture does not cover.
+        android
+            .fdm
+            .insert(0, sale_call(2.5, 1, &android.pos_sw_version));
+        android.fdm[1] = sale_call(3.0, 2, &android.pos_sw_version);
         let scenario = fixture_scenario(dir.path(), "[]");
         let result = compare_pair(&linux, &android, Some(&scenario), &with_fixtures());
         assert_eq!(

@@ -610,6 +610,19 @@ def check_step(step, index, saved, ctx, errs):
         saved.add(step["save"])
 
 
+def fixture_has_variables(target):
+    """A *GQL-Variables.json in the directory, or in one of its sub-directories (multi-step UCs,
+    as pos-uc-check load_fixtures reads them)."""
+    names = os.listdir(target)
+    if any(n.endswith("GQL-Variables.json") for n in names):
+        return True
+    for n in names:
+        sub = os.path.join(target, n)
+        if os.path.isdir(sub) and any(m.endswith("GQL-Variables.json") for m in os.listdir(sub)):
+            return True
+    return False
+
+
 def check_fixture(data, repo, errs):
     fixture = data.get("fixture")
     deviations = data.get("fixtureDeviations")
@@ -623,7 +636,7 @@ def check_fixture(data, repo, errs):
                 errs.append(f"fixture {fixture!r} must be a relative path inside the repository")
             elif not os.path.isdir(target):
                 errs.append(f"fixture directory {fixture!r} does not exist")
-            elif not any(n.endswith("GQL-Variables.json") for n in os.listdir(target)):
+            elif not fixture_has_variables(target):
                 errs.append(f"fixture directory {fixture!r} holds no *GQL-Variables.json file")
     if deviations is not None:
         if not isinstance(deviations, list):

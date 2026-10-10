@@ -29,6 +29,13 @@ fn smoke_dir() -> PathBuf {
     repo().join("android/app/src/androidTest/assets/uc")
 }
 
+/// The options for the smoke group only: the other groups hold the UC scenarios.
+fn smoke_options(out: &Path) -> RecordOptions {
+    let mut opts = options(&smoke_dir(), out);
+    opts.groups = vec!["00_smoke".to_string()];
+    opts
+}
+
 fn operations(journal: &Journal) -> Vec<&str> {
     journal.fdm.iter().map(|c| c.operation.as_str()).collect()
 }
@@ -36,9 +43,7 @@ fn operations(journal: &Journal) -> Vec<&str> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_smoke_group_records_a_passing_journal_with_a_sale_and_an_x_report() {
     let out = tempfile::tempdir().unwrap();
-    let recorded = record::record(&options(&smoke_dir(), out.path()))
-        .await
-        .unwrap();
+    let recorded = record::record(&smoke_options(out.path())).await.unwrap();
     let (lines, pass) = record::summary_lines(&recorded);
     assert!(pass, "{lines:?}");
     assert!(
@@ -80,9 +85,7 @@ async fn the_smoke_group_records_a_passing_journal_with_a_sale_and_an_x_report()
 async fn two_recordings_of_the_smoke_group_compare_equal_on_the_same_side() {
     let (first, second) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
     for out in [&first, &second] {
-        let recorded = record::record(&options(&smoke_dir(), out.path()))
-            .await
-            .unwrap();
+        let recorded = record::record(&smoke_options(out.path())).await.unwrap();
         assert!(record::summary_lines(&recorded).1);
     }
     let opts = Options {

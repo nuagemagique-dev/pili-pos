@@ -182,10 +182,12 @@ class ListIds(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(out.splitlines(), ["M110", "M111"])
 
-    def test_list_ids_of_the_smoke_tree_is_empty(self):
+    def test_list_ids_of_the_repository_tree_is_sorted_and_without_duplicate(self):
         code, out, _ = run_main("--list-ids")
         self.assertEqual(code, 0)
-        self.assertEqual(out, "")
+        ids = out.splitlines()
+        self.assertEqual(ids, sorted(set(ids)))
+        self.assertIn("M110", ids)
 
     def test_list_ids_leaves_out_an_invalid_scenario(self):
         code, out, _ = run_main("--root", str(TREES / "bad_format"), "--list-ids")
