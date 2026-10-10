@@ -1,0 +1,100 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "10_basic",
+  "scenario": "070_M131",
+  "ids": [
+    "M131"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "open_drawer_fiscal",
+      "ok": true,
+      "error": null,
+      "result": {
+        "error": null,
+        "success": true
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signDrawerOpen",
+      "request": {
+        "query": "mutation($data: DrawerOpenInput!, $isTraining: Boolean!) { signDrawerOpen(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "40101cd2-441d-4c6b-97ec-6482404fd59e",
+            "deviceId": "pos-json-device",
+            "drawer": {
+              "id": "DRAWER1",
+              "name": "Tiroir principal"
+            },
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:06:42.123+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signDrawerOpen": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi0xMy0xNzkxNjEyNDAy",
+            "eventOperation": "DRAWER_OPEN",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "F",
+              "fdmDateTime": "2026-10-10T06:06:42Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 13
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:06:42.123+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    ""
+  ],
+  "verdict": "PASS"
+}

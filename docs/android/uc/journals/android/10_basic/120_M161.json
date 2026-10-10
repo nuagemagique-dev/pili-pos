@@ -1,0 +1,408 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "10_basic",
+  "scenario": "120_M161",
+  "ids": [
+    "M161"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:00:25.860340287Z",
+        "id": 9,
+        "order_type": "dine_in",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": 7,
+        "total_cents": 0,
+        "user_insz": "94060242576"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:00:25.864634829Z",
+        "department_id": "10",
+        "department_name": "Aperitifs",
+        "id": 16,
+        "menu_item_id": 10006,
+        "modifiers_json": null,
+        "name": "Dry Martini",
+        "order_id": 9,
+        "quantity": 2,
+        "unit_price_cents": 1200,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:00:25.867908079Z",
+        "department_id": "28",
+        "department_name": "Tapas",
+        "id": 17,
+        "menu_item_id": 28007,
+        "modifiers_json": null,
+        "name": "Tapas variation",
+        "order_id": 9,
+        "quantity": 4,
+        "unit_price_cents": 334,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": null,
+      "result": "printed"
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "P",
+          "eventType": "P",
+          "fdmDatetime": "2026-10-10T06:00:28Z",
+          "fdmId": "MCK00000001",
+          "id": 20,
+          "orderId": 9,
+          "sequenceNumber": 4,
+          "shortSignature": null
+        }
+      ]
+    },
+    {
+      "cmd": "copy_ticket",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 21,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fiscalEventId": 21,
+        "success": true,
+        "ticket": {
+          "copy_made_at": "2026-10-10T08:00:25.885+02:00",
+          "device_id": "EMULATOR37X2X12X0",
+          "event_label": "P",
+          "fdm_ref": {
+            "eventCounter": 2,
+            "eventLabel": "C",
+            "fdmDateTime": "2026-10-10T06:00:28Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 21
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Dry Martini",
+              "quantity": 2,
+              "total": 24,
+              "unit_price": 12,
+              "vat_code": "A"
+            },
+            {
+              "description": "Tapas variation",
+              "quantity": 4,
+              "total": 13.36,
+              "unit_price": 3.34,
+              "vat_code": "B"
+            }
+          ],
+          "operator": "Gerant Test",
+          "original": {
+            "fdm_ref": {
+              "eventCounter": 4,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:00:28Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 20
+            },
+            "short_signature": null
+          },
+          "payments": [],
+          "pos_datetime": "2026-10-10T08:00:25.870+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos-android/1.0.0-dev",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": null,
+          "subtotal": 37.36,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 4,
+          "ticket_type_label": "PRO FORMA",
+          "total": 37.36,
+          "unpaid": false,
+          "vat_breakdown": [],
+          "verification_url": null
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signOrder",
+      "request": {
+        "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "5aabe8b1-e17b-4023-abb3-7f29ed68a253",
+            "costCenter": {
+              "id": "T07",
+              "reference": "O9",
+              "type": "TABLE"
+            },
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:00:25.870+02:00",
+            "posFiscalTicketNo": 4,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 24.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 13.36,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "28",
+                    "departmentName": "Tapas",
+                    "productId": "28007",
+                    "productName": "Tapas variation",
+                    "quantity": 4.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 3.34,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 13.36
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 37.36
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signOrder": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctNC0yMC0xNzkxNjEyMDI4",
+            "eventOperation": "ORDER",
+            "fdmRef": {
+              "eventCounter": 4,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:00:28Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 20
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:00:25.870+02:00",
+            "posFiscalTicketNo": 4,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signCopy",
+      "request": {
+        "query": "mutation($data: CopyInput!, $isTraining: Boolean!) { signCopy(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "5aabe8b1-e17b-4023-abb3-7f29ed68a253",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "fdmRef": {
+              "eventCounter": 4,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:00:28Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 20
+            },
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:00:25.885+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signCopy": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMi0yMS0xNzkxNjEyMDI4",
+            "eventOperation": "COPY",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "C",
+              "fdmDateTime": "2026-10-10T06:00:28Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 21
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:00:25.885+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:00:25Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:00:32Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:00:25\nOperateur:                           Gerant Test\nTable 7\n------------------------------------------------\nQte   Article\n4 x Tapas variation\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n",
+    "                   PRO FORMA\n              ADDITION PROVISOIRE\n                     COPIE\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:00\nUtilisateur: Gerant Test\nTerminal: POS-2-ANDROID\nTicketnr.: 000004\nPOS Serial: CPOS0031234567\nInput device MAC: EMULATOR37X2X12X0\nLogiciel de caisse v.: pili-pos-android/1.0.0-dev\n................................................\n2 Dry Martini                           24,00  A\n4 Tapas variation                       13,36  B\nTOTAL :                                   €37,36\n................................................\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:00:28Z;\nEvent: C; eventCounter: 2;\ntotalCounter: 21;\nInformations FDM d'origine :\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:00:28Z;\nEvent: P; eventCounter: 4;\ntotalCounter: 20;\nCopie etablie le 10.10.2026 08:00\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

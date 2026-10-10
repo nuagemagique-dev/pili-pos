@@ -1,0 +1,154 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "30_reports",
+  "scenario": "050_T5",
+  "ids": [
+    "T5"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:12.819088Z",
+        "id": 4,
+        "order_type": "dine_in",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": 10,
+        "total_cents": 0,
+        "user_insz": "84022899837"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:12.819862Z",
+        "department_id": "10",
+        "department_name": "Aperitifs",
+        "id": 6,
+        "menu_item_id": 10006,
+        "modifiers_json": null,
+        "name": "Dry Martini",
+        "order_id": 4,
+        "quantity": 2,
+        "unit_price_cents": 1200,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": null,
+      "result": "nothing_to_print"
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signOrder",
+      "request": {
+        "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "costCenter": {
+              "id": "T10",
+              "reference": "O4",
+              "type": "TABLE"
+            },
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:12.820+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 24.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 24.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signOrder": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi04LTE3OTE2MTI0MzI=",
+            "eventOperation": "ORDER",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:07:12Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 8
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:12.820+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [],
+  "verdict": "PASS"
+}

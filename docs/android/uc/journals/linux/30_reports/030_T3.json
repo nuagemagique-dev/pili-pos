@@ -1,0 +1,357 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "30_reports",
+  "scenario": "030_T3",
+  "ids": [
+    "T3"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "75061189702",
+        "name": "John",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "N",
+          "eventType": "N",
+          "fdmDatetime": "2026-10-10T06:07:10Z",
+          "fdmId": "MCK00000001",
+          "id": 3,
+          "orderId": 1,
+          "sequenceNumber": 1,
+          "shortSignature": "8a972cdff040c4a875592fb745ce7f871dff250e"
+        }
+      ]
+    },
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "refund_checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 5,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 5,
+        "kitchen_slip": null,
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 2,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:07:11Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 5
+          },
+          "footer": [],
+          "is_refund": true,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Dry Martini",
+              "quantity": -2.0,
+              "total": -24.0,
+              "unit_price": 12.0,
+              "vat_code": "A"
+            },
+            {
+              "description": "Burger of the CHEF",
+              "quantity": -1.0,
+              "total": -28.0,
+              "unit_price": 28.0,
+              "vat_code": "B"
+            }
+          ],
+          "operator": "Gerant Test",
+          "original": {
+            "fdm_ref": {
+              "eventCounter": 1,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:10Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 3
+            },
+            "short_signature": "8a972cdff040c4a875592fb745ce7f871dff250e"
+          },
+          "payments": [
+            {
+              "amount": -52.0,
+              "method": "Cash"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:11.512+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": "b7a4aeb740761d425bbb1ed3f0b57852a7bde49e",
+          "subtotal": -52.0,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 2,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": -52.0,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "B",
+              "outOfScope": false,
+              "rate": 12.0,
+              "taxableAmount": -25.0,
+              "totalAmount": -28.0,
+              "vatAmount": -3.0
+            },
+            {
+              "label": "A",
+              "outOfScope": false,
+              "rate": 21.0,
+              "taxableAmount": -19.83,
+              "totalAmount": -24.0,
+              "vatAmount": -4.17
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000200005AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "deviceId": "pos-json-device",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:11.434+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi00LTE3OTE2MTI0MzE=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:07:11Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 4
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:11.434+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "deviceId": "pos-json-device",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:10Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 3
+            },
+            "financials": [
+              {
+                "amount": -52.0,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:11.512+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": -24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "negQuantityReason": "REFUND",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": -2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": -24.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": -28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "negQuantityReason": "REFUND",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": -1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": -28.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": -52.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi01LTE3OTE2MTI0MzE=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:11Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 5
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:11.512+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": "b7a4aeb740761d425bbb1ed3f0b57852a7bde49e",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "B",
+                "outOfScope": false,
+                "rate": 12.0,
+                "taxableAmount": -25.0,
+                "totalAmount": -28.0,
+                "vatAmount": -3.0
+              },
+              {
+                "label": "A",
+                "outOfScope": false,
+                "rate": 21.0,
+                "taxableAmount": -19.83,
+                "totalAmount": -24.0,
+                "vatAmount": -4.17
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000200005AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\n                 REMBOURSEMENT\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Gerant Test\nTerminal: POS-2-ANDROID\nTicketnr.: 000002\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n-2 Dry Martini                         -24,00  A\n-1 Burger of the CHEF                  -28,00  B\nTOTAL :                                  €-52,00\n................................................\nMode de paiement :\nEspeces                                   -52,00\n% TVA   CODE          HT       TVA      Brut\n12,00%  B         -25,00     -3,00    -28,00\n21,00%  A         -19,83     -4,17    -24,00\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:11Z;\nEvent: N; eventCounter: 2;\ntotalCounter: 5; shortSignature:\nb7a4aeb740761d425bbb1ed3f0b57852a7bde49e;\n\n [QR: https://www.gs2.be/M0000200005AbCdEfGhI]  \n\nInformations FDM d'origine :\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:10Z;\nEvent: N; eventCounter: 1;\ntotalCounter: 3; shortSignature:\n8a972cdff040c4a875592fb745ce7f871dff250e;\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n",
+    ""
+  ],
+  "verdict": "PASS"
+}
