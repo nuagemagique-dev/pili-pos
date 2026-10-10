@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "id": "V_BUFFER_NEAR_FULL",
+  "ids": ["V_BUFFER_NEAR_FULL"],
+  "title": "A buffer above 70 percent only warns: the sale is signed, then the mock is reset",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "fdm_control", "args": {"warnings": ["BUFFER_NEAR_FULL"]}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}, "save": "sale"},
+    {"cmd": "fdm_control_reset", "args": {}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "94060242576"}}, "save": "order2"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order2.id", "menu_item_id": 10006, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order2.id", "payments": [{"method": "cash"}]}, "save": "sale2"}
+  ]
+}

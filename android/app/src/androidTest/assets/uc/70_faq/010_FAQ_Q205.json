@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "id": "FAQ_Q205",
+  "ids": ["FAQ_Q205"],
+  "title": "A takeaway is never registered as an order: no P event, one N event once paid",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12007, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}, "expect": {"error": "takeaway_not_registered"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "before", "expect": {"fields": {"0.eventLabel": "S"}}},
+    {"cmd": "leave_order", "args": {"orderId": "$order.id", "reason": "navigate"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "left", "expect": {"fields": {"0.eventLabel": "S"}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "card", "amount_cents": 250}]}, "save": "sale"},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "after", "expect": {"fields": {"0.eventLabel": "N"}}}
+  ]
+}

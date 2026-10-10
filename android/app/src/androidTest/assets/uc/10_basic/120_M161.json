@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "id": "M161",
+  "ids": ["M161"],
+  "title": "Copy of an order (signCopy C referencing the P event)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M161_signCopy_Order",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 7, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 28007, "quantity": 4, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "events", "expect": {"fields": {"0.eventLabel": "P"}}},
+    {"cmd": "copy_ticket", "args": {"fiscalEventId": "$events.0.id", "employeeInsz": "94060242576"}}
+  ]
+}
