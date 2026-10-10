@@ -13,7 +13,8 @@ The journal:
   {format: 1, side: "android", group, scenario, ids, posSwVersion, steps, fdm, statusCalls, tickets, verdict}
   fdm          the non-Status calls of the mock, in order, as {operation, request, response}
   statusCalls  the Status calls, as {request, response}
-  tickets      the text of each printer job, in print order (a job without text, a drawer kick, is left out)
+  tickets      the text of each printer job, in print order (a job without text, a drawer kick, is one entry with an
+               empty text, as pos-uc-check keeps it: docs/android/UC.md section 5)
   verdict      PASS when the steps file says PASS and no step has ok false, else FAIL
 
 The journal holds no money logic: it copies what the device, the FDM mock and the printer mock reported.
@@ -68,14 +69,14 @@ def split_requests(requests):
 
 
 def tickets_of(jobs):
-    """The text of each printer job in print order; jobs without text (drawer kicks) are left out."""
+    """The text of each printer job in print order; a job without text (a drawer kick) is an empty entry."""
     _require(isinstance(jobs, list), "jobs: a JSON array was expected")
     for index, job in enumerate(jobs):
         _require(isinstance(job, dict), "jobs[%d]: an object was expected" % index)
         _require(isinstance(job.get("id"), int), "jobs[%d]: 'id' must be an integer" % index)
         _require(isinstance(job.get("text", ""), str), "jobs[%d]: 'text' must be a text" % index)
     ordered = sorted(jobs, key=lambda job: job["id"])
-    return [job["text"] for job in ordered if job.get("text", "") != ""]
+    return [job.get("text", "") for job in ordered]
 
 
 def clean_steps(steps):

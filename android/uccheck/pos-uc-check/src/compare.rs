@@ -608,15 +608,17 @@ fn shape_of(value: &Value, prefix: &str, out: &mut BTreeSet<String>) {
     }
 }
 
-/// The key-path shapes of some JSON values, as a set of strings.
+/// The key paths of some JSON values, as one set: the union over the values.
+/// An answer whose list is empty carries no key below it, so comparing one
+/// whole-answer string per call would make a call without messages differ
+/// from a call with messages; the union over all the calls of a side is the
+/// set of keys that side can answer.
 fn shapes<'a>(values: impl Iterator<Item = &'a Value>) -> BTreeSet<String> {
-    values
-        .map(|value| {
-            let mut keys = BTreeSet::new();
-            shape_of(value, "", &mut keys);
-            keys.into_iter().collect::<Vec<_>>().join(",")
-        })
-        .collect()
+    let mut keys = BTreeSet::new();
+    for value in values {
+        shape_of(value, "", &mut keys);
+    }
+    keys
 }
 
 /// The shapes of what the scenario's `check_fdm_status` steps returned
@@ -1135,6 +1137,25 @@ mod tests {
         let ignore = Scenario::parse(r#"{"format":1,"id":"X","steps":[{"cmd":"a"}]}"#).unwrap();
         let skipped = compare_pair(&linux, &android, Some(&ignore), &Options::default());
         assert_eq!(status(&skipped, "status-shape"), Status::Skip);
+    }
+
+    #[test]
+    fn an_answer_without_messages_has_the_keys_of_one_with_messages_when_another_call_shows_them() {
+        let empty = FdmCall {
+            operation: "Status".to_string(),
+            request: json!({}),
+            response: json!({ "data": { "status": { "fdmId": "X", "messages": [] } } }),
+        };
+        let (mut linux, mut android) = pair();
+        linux.status_calls = vec![status_call(false)];
+        android.status_calls = vec![empty, status_call(false)];
+        let scenario = shape_scenario();
+        let both = compare_pair(&linux, &android, Some(&scenario), &Options::default());
+        assert_eq!(status(&both, "status-shape"), Status::Pass);
+        // The empty answer alone has fewer keys than the reference's: still a difference.
+        android.status_calls.remove(1);
+        let alone = compare_pair(&linux, &android, Some(&scenario), &Options::default());
+        assert_eq!(status(&alone, "status-shape"), Status::Fail);
     }
 
     #[test]
