@@ -308,10 +308,7 @@ fn settings_with_every_option_set_or_empty_convert() {
         let record: ffi::PosSettings = out_equal(&engine);
         assert_eq!(record.config_problems.len(), if full { 2 } else { 0 });
         // The camelCase key of the wire form.
-        assert_eq!(
-            json_of(&record)["posSwVersion"],
-            "pili-pos-android/1.0.0"
-        );
+        assert_eq!(json_of(&record)["posSwVersion"], "pili-pos-android/1.0.0");
     }
 }
 
