@@ -3,7 +3,7 @@
 # pili-pos - make a DEVELOPMENT provisioning bundle (PD108)
 #
 # Usage: scripts/android/make_dev_bundle.sh [--out DIR] [--keydir DIR] [--fdm-url URL]
-#                                           [--printer HOST:PORT] [--seed] [--write-pub]
+#                                           [--printer HOST:PORT] [--seed | --seed-file F] [--write-pub]
 #   --out DIR       bundle directory (default $HOME/.cache/pili-android/dev-bundle). Replaced when it
 #                   already holds a bundle (a MANIFEST.json) or nothing; any other content is refused.
 #   --keydir DIR    holds minisign.key (secret) and minisign.pub (default
@@ -12,6 +12,9 @@
 #   --fdm-url URL   fdm_url of pos.json (default http://127.0.0.1:19380/graphql)
 #   --printer H:P   printer_address of pos.json (default 127.0.0.1:19390)
 #   --seed          also ship src-tauri/seed_spf_test.sql as seed.sql
+#   --seed-file F   ship F as seed.sql instead (implies --seed; e.g. the demo seed)
+# Environment (demo only): PILI_BUNDLE_RESTAURANT_NAME, PILI_BUNDLE_RESTAURANT_ADDRESS, PILI_BUNDLE_KITCHEN_PRINTER (adds
+#   kitchen_printer_address). Defaults keep the test identity.
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
 #
@@ -58,6 +61,7 @@ while [[ $# -gt 0 ]]; do
         --fdm-url) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; FDM_URL="$2"; shift 2 ;;
         --printer) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; PRINTER="$2"; shift 2 ;;
         --seed) SEED=1; shift ;;
+        --seed-file) [[ $# -ge 2 ]] || die "--seed-file needs a path"; SEED=1; SEED_SOURCE="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"; shift 2 ;;
         --write-pub) WRITE_PUB=1; shift ;;
         *) echo "make_dev_bundle: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -140,17 +144,19 @@ if [[ -e "$OUT" ]]; then
 fi
 mkdir -p "$OUT"
 
+KITCHEN_LINE=""
+[[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
 cat >"$OUT/pos.json" <<JSON
 {
   "pos_id": "CPOS0031234567",
   "terminal_id": "POS-2-ANDROID",
   "device_id": "pos-json-device",
-  "restaurant_name": "Restaurant Test",
-  "restaurant_address": "1 Rue du Test, 4000 Liege",
+  "restaurant_name": "${PILI_BUNDLE_RESTAURANT_NAME:-Restaurant Test}",
+  "restaurant_address": "${PILI_BUNDLE_RESTAURANT_ADDRESS:-1 Rue du Test, 4000 Liege}",
   "restaurant_vat": "BE0000000097",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",
+  "printer_address": "$PRINTER",$KITCHEN_LINE
   "table_count": 25
 }
 JSON
