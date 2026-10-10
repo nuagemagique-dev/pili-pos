@@ -29,12 +29,12 @@ INSERT OR IGNORE INTO languages (code, name) VALUES
 -- Sammy 5555. Le robot (00000000029) n'a pas de PIN.
 INSERT OR REPLACE INTO users (insz, name, role, pin_hash) VALUES
     ('00000000029', 'Robot / Kiosk', 'admin', NULL),
-    ('00000000097', 'Technicien SPF', 'admin', '$2y$12$biMjvYoNKdT/dWj40tTyTuO3u/zvao.kwyU01SdyFPwIoxGg6UZR2'),
+    ('00000000097', 'Technicien', 'admin', '$2y$12$biMjvYoNKdT/dWj40tTyTuO3u/zvao.kwyU01SdyFPwIoxGg6UZR2'),
     ('94060242576', 'Gérant', 'admin', '$2y$12$XHH6GSKAOw3OBnHXvDlXjeBkBosOS2xDU4xu31O7yUUf6tfiO2ZRy'),
     ('75061189702', 'John', 'cashier', '$2y$12$J.LaAI2LXHL.3Sn/RxaizO06h/PaFlS4TDN.W67AP/CpJoBRMQ0Ne'),
     ('84022899837', 'Elisa', 'cashier', '$2y$12$7X94vlUi08Hlaid/ZV2vb.FM3QPpjKHW1vqEXxppYfANN7HCKuKD6'),
     ('80113078968', 'Sammy', 'cashier', '$2y$12$SBshMmwu2WPvEtC0A7ldpei7uKtYigjta7y6FsmHI8FFnWkQetp5W'),
-    ('99012345667', 'Apprenti Test', 'waiter', '$2y$12$FxE17eeRfr94ie9p28GF1eD0cB8o5dwy1pNsvKGf3oOq2oE81XqPi');
+    ('99012345667', 'Apprenti', 'waiter', '$2y$12$FxE17eeRfr94ie9p28GF1eD0cB8o5dwy1pNsvKGf3oOq2oE81XqPi');
 
 
 -- ── Categories ─────────────────────────────────────────────────

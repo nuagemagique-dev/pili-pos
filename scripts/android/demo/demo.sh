@@ -13,6 +13,8 @@
 #   status  shows what runs.
 # Tickets: the printer mock shows every printed ticket at http://127.0.0.1:19391/ (kitchen tickets:
 # http://127.0.0.1:19393/).
+# Nightly export: received files land in ~/.cache/pili-demo/exports (decrypt the backup with
+# age -d -i ~/.cache/pili-demo/age-key.txt).
 # PINs (demo seed): Gerant 1111, Elisa 2222, John 4444, Sammy 5555, Technicien 0097.
 # Not a certification tool: the demo seed is not the SPF test set.
 # ─────────────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ PRINTER_PORT=19390
 PRINTER_HTTP=19391
 KITCHEN_PORT=19392
 KITCHEN_HTTP=19393
+EXPORT_PORT=9330
 STATE="$HOME/.cache/pili-demo"
 MOCKS="$ROOT/target/android-mocks/debug"
 APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
@@ -76,9 +79,9 @@ build_apk() {
 }
 
 start_mocks() {
-    if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" ]]; then
+    if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" || ! -x "$MOCKS/pos-export-mock" ]]; then
         say "building the mocks"
-        cargo build --locked -p pos-fdm-mock -p pos-printer-mock --target-dir "$ROOT/target/android-mocks" \
+        cargo build --locked -p pos-fdm-mock -p pos-printer-mock -p pos-export-mock --target-dir "$ROOT/target/android-mocks" \
             >"$STATE/mocks-build.log" 2>&1 || die "mock build failed, see $STATE/mocks-build.log"
     fi
     if ! port_open "$FDM_PORT"; then
@@ -93,12 +96,21 @@ start_mocks() {
         PORT="$KITCHEN_PORT" HTTP_PORT="$KITCHEN_HTTP" nohup "$MOCKS/pos-printer-mock" >"$STATE/kitchen-mock.log" 2>&1 &
         echo $! >"$STATE/kitchen-mock.pid"
     fi
+    # nightly export receiver; the demo key pair and token stay in $STATE (never in git)
+    [[ -f "$STATE/age-key.txt" ]] || age-keygen -o "$STATE/age-key.txt" >/dev/null 2>&1 || die "age-keygen missing (brew install age)"
+    [[ -f "$STATE/export-token" ]] || openssl rand -hex 16 >"$STATE/export-token"
+    if ! port_open "$EXPORT_PORT"; then
+        nohup "$MOCKS/pos-export-mock" --listen "127.0.0.1:$EXPORT_PORT" --token-file "$STATE/export-token" \
+            --dir "$STATE/exports" >"$STATE/export-mock.log" 2>&1 &
+        echo $! >"$STATE/export-mock.pid"
+    fi
     for _ in $(seq 1 20); do port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && break; sleep 1; done
     port_open "$FDM_PORT" && port_open "$PRINTER_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
     adbd reverse "tcp:$FDM_PORT" "tcp:$FDM_PORT" >/dev/null &&
         adbd reverse "tcp:$PRINTER_PORT" "tcp:$PRINTER_PORT" >/dev/null &&
         adbd reverse "tcp:$PRINTER_HTTP" "tcp:$PRINTER_HTTP" >/dev/null &&
-        adbd reverse "tcp:$KITCHEN_PORT" "tcp:$KITCHEN_PORT" >/dev/null || die "adb reverse failed"
+        adbd reverse "tcp:$KITCHEN_PORT" "tcp:$KITCHEN_PORT" >/dev/null &&
+        adbd reverse "tcp:$EXPORT_PORT" "tcp:$EXPORT_PORT" >/dev/null || die "adb reverse failed"
     say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/"
 }
 
@@ -134,7 +146,10 @@ install_and_provision() {
         say "provisioning the till with the demo seed (Tokyo Sushi Bar menu)"
         rm -rf "$STATE/bundle"
         PILI_BUNDLE_RESTAURANT_NAME="Tokyo Sushi Bar" PILI_BUNDLE_RESTAURANT_ADDRESS="Liège" \
-            PILI_BUNDLE_KITCHEN_PRINTER="127.0.0.1:$KITCHEN_PORT" bash scripts/android/make_dev_bundle.sh --seed-file "$SEED" --out "$STATE/bundle" \
+            PILI_BUNDLE_KITCHEN_PRINTER="127.0.0.1:$KITCHEN_PORT" \
+            PILI_BUNDLE_EXPORT_URL="http://127.0.0.1:$EXPORT_PORT" \
+            PILI_BUNDLE_EXPORT_RECIPIENT="$(grep -o 'age1[a-z0-9]*' "$STATE/age-key.txt" | head -n 1)" \
+            PILI_BUNDLE_EXPORT_TOKEN="$(cat "$STATE/export-token")" bash scripts/android/make_dev_bundle.sh --seed-file "$SEED" --out "$STATE/bundle" \
             --fdm-url "http://127.0.0.1:$FDM_PORT/graphql" --printer "127.0.0.1:$PRINTER_PORT" >"$STATE/bundle.log" 2>&1 ||
             die "make_dev_bundle failed, see $STATE/bundle.log"
         adbd shell mkdir -p "$INBOX"
@@ -146,7 +161,7 @@ install_and_provision() {
 }
 
 stop_mocks() {
-    for m in fdm-mock printer-mock kitchen-mock; do
+    for m in fdm-mock printer-mock kitchen-mock export-mock; do
         [[ -f "$STATE/$m.pid" ]] && kill "$(cat "$STATE/$m.pid")" 2>/dev/null; rm -f "$STATE/$m.pid"
     done
     SERIAL="$(serial)"; [[ -n "$SERIAL" ]] && adbd reverse --remove-all >/dev/null 2>&1
