@@ -194,7 +194,7 @@ En cas d'audit SPF Finances, le SCE peut être réassemblé à l'identique à pa
 - L'APK signé de la version déclarée (artefact public `declared-android`, sommes de contrôle dans `GARANTIE_MAJ_LANGUES_FR.md` §1.2) et la procédure de provisionnement du terminal (`PLATEFORME_ANDROID_FR.md` §3.1).
 - Le lot de provisionnement signé, dont le fichier `pos.json` de configuration (sauvegardé séparément).
 - La base SQLite `pos.db` : les 7 sauvegardes les plus récentes, écrites après chaque rapport Z dans le stockage privé de l'application, sont reprises par l'export vers le SPF (`SECURITE_BD_FR.md` §8).
-- Le présent schéma + les n° de série des composants, dont le numéro de série du terminal, qui est son deviceId (`PLATEFORME_ANDROID_FR.md` §4), à consigner au formulaire d'Intake. Un autre terminal refuserait la base : le moteur bloque toute signature tant que le numéro de série ne correspond pas à l'enregistrement de provisionnement.
+- Le présent schéma + les n° de série des composants, dont le numéro de série du terminal, qui est son deviceId (`PLATEFORME_ANDROID_FR.md` §4), à consigner au formulaire d'Intake. Si le numéro de série du terminal diffère de l'enregistrement de provisionnement, le moteur reste fermé jusqu'à un nouvel import signé du lot (`PLATEFORME_ANDROID_FR.md` §4).
 
 ---
 

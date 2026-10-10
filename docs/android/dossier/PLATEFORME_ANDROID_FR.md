@@ -27,7 +27,7 @@ Convention de lecture. Une section « tel que construit » décrit ce que le cod
 
 Le versionCode se calcule ainsi : MAJEUR x 10000 + MINEUR x 100 + CORRECTIF (1.0.0 donne 10000). Les versions de développement portent le suffixe `-dev` et ne sont jamais une version déclarée.
 
-**Machine de test.** Sauf si un vrai terminal est disponible au moment du dépôt, la machine de test est le profil émulé `sunmi_d3_pro_gms_api33`, qui reproduit les caractéristiques suivantes du terminal : 1920 x 1080 à 160 dpi, 4 Go de mémoire, Android 13 arm64, orientation paysage, 8 Go de données, carte SD virtuelle, pas de batterie. Les mesures déjà faites (essais de verrouillage, de stockage, d'export, de mise à jour, de redémarrage) l'ont été sur le profil jumeau `sunmi_d3_pro_api33`, sans la boutique Play ; la répétition sur le profil avec services Google fait partie des preuves restant à établir (`EV-10`, `EV-13`).
+**Machine de test.** Sauf si un vrai terminal est disponible au moment du dépôt, la machine de test est le profil émulé `sunmi_d3_pro_gms_api33`, configuré avec : 1920 x 1080 à 160 dpi, 4 Go de mémoire, Android 13 arm64, orientation paysage. Ce sont les réglages du profil émulé, pas des faits établis sur le vrai terminal. Les mesures déjà faites (essais de verrouillage, de stockage, d'export, de mise à jour, de redémarrage) l'ont été sur le profil jumeau `sunmi_d3_pro_api33`, sans la boutique Play ; la répétition sur le profil avec services Google fait partie des preuves restant à établir (`EV-10`, `EV-13`).
 
 **Faits matériels du vrai terminal.** Les caractéristiques réelles du D3 Pro (processeur, mémoire, stockage interne, emplacement de carte, ports physiques, démarrage vérifié, chiffrement du stockage, comportement de l'imprimante Epson réelle) ne sont pas établies par le dépôt : À effectuer (EV-15 : fiche mesurée d'un vrai D3 Pro, ou déclaration que la machine de test est le profil émulé).
 
@@ -85,7 +85,7 @@ La configuration de la caisse (identité fiscale, FDM, imprimante) arrive ensuit
 À chaque démarrage de l'activité, le contrôleur de kiosque :
 
 1. déclare l'application comme seul paquet autorisé en Lock Task ;
-2. fixe les fonctions de Lock Task à « aucune » : ni menu d'alimentation, ni bouton d'accueil, ni écran des applications récentes pour le personnel (le système remet cette valeur par défaut à chaque redémarrage, elle est donc réappliquée à chaque création et reprise de l'activité) ;
+2. autorise d'abord le menu d'alimentation (fonction de Lock Task des actions globales) ; l'étape de politique `lock_task_features` (§3.4) fixe ensuite les fonctions de Lock Task à « aucune » à chaque création et reprise de l'activité : ni menu d'alimentation, ni bouton d'accueil, ni écran des applications récentes pour le personnel (le système remet la valeur par défaut à chaque redémarrage, d'où la réapplication) ;
 3. fait de l'application l'écran d'accueil préféré et persistant ;
 4. suspend les autres applications d'accueil et l'application Réglages du système (suspension réversible) ;
 5. masque les barres système (mode immersif) et démarre le Lock Task.
@@ -180,7 +180,7 @@ L'écran « À propos », visible de tous les utilisateurs, affiche la version, 
 
 ## 4. Identifiant de l'appareil
 
-L'identifiant de l'appareil (`deviceId`) est le **numéro de série matériel du terminal Sunmi**, lu par l'application en tant que propriétaire de l'appareil (réponse b de la FAQ producteurs, question 505 : « un autre identifiant matériel unique, par exemple un numéro de série, est autorisé »). La FAQ cite en règle générale l'adresse MAC ; elle admet donc le numéro de série.
+L'identifiant de l'appareil (`deviceId`) est le **numéro de série matériel du terminal Sunmi**, lu par l'application en tant que propriétaire de l'appareil (réponse b de la FAQ producteurs, question 505 : « D'autres types d'identification sont possibles via un identifiant hardware unique (ex: numéro de série). »). La réponse a de la même question indique qu'« en général, l'identification se fait via l'adresse MAC propre de chaque device » ; la réponse b admet donc le numéro de série.
 
 | Règle | Détail |
 |---|---|
@@ -239,7 +239,7 @@ La carte ne sert qu'aux exports et aux mises à jour. Un export vers le SPF copi
 
 - une carte microSDXC de bonne qualité, à haute endurance (classe A1 ou U3) ;
 - formatée en **exFAT** : le FAT32 refuse les fichiers de 4 Gio et plus, seuil que la base seule atteint après quelques années à fort volume ;
-- **64 Go** pour la première année à environ 100 ventes par jour : un export pèse environ 0,2 Gio au début et environ 3,9 Gio à la fin de la première année, ce qui laisse la place d'une quinzaine d'exports ;
+- **64 Go** pour la première année à environ 100 ventes par jour : un export pèse environ 3,9 Gio à la fin de la première année, ce qui laisse la place d'une quinzaine d'exports ;
 - **128 Go** à environ 300 ventes par jour ou à partir de la deuxième année : un export pèse alors environ 13 Go à la fin de la première année.
 
 L'application ne supprime jamais un dossier sur la carte : le gérant efface les anciens exports. La carte n'est jamais l'unique copie des données : l'export vers le SPF est une action du gérant et la copie hors caisse relève de l'export nocturne.
