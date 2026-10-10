@@ -1,0 +1,23 @@
+# Allowed differences of the lock parity rule of android/uccheck (P7D5), read by
+# scripts/android/lock_parity.py --allow and scripts/android/uc_lock_parity.sh.
+#
+# The set of (name, version) of `cargo tree -p pos-engine -e normal,build
+# --target all --prefix none` must be identical in the root workspace (built
+# with --no-default-features --features cert) and in android/uccheck. A pair that
+# is in one tree only may be listed here, one line per pair:
+#
+#   <name> <version> <reason, mandatory, free text>
+#
+# A version bump needs two lines (the old and the new version). Comment lines
+# start with #. A line that matches no difference is stale and fails the check.
+# The reason says why the difference is acceptable and who removes it.
+#
+# These three come from Cargo feature unification, not from another version: pos-uc-check links
+# the mocks (pos-fdm-mock, pos-printer-mock) as libraries, and they turn on tokio's `full` features
+# (signal handling) and hyper's server side (axum) for every crate of the graph, pos-engine's
+# tokio and hyper included. Each version is the root Cargo.lock's own (the lock of android/uccheck
+# is a pruned copy of it). The tool runs on the host only and ships nowhere; nobody removes the
+# lines unless the mocks stop needing those features.
+errno 0.3.14 tokio's `full` features (signal) via the mock libraries; same version as the root lock
+httpdate 1.0.3 hyper's server side via axum in the mock libraries; same version as the root lock
+signal-hook-registry 1.4.8 tokio's `full` features (signal) via the mock libraries; same version as the root lock
