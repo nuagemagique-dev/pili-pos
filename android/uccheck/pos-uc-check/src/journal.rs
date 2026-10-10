@@ -33,7 +33,7 @@ pub struct Journal {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JournalStep {
     pub cmd: String,
-    /// The call returned a value (false: it returned an error).
+    /// The step met its `expect` (UC.md section 5): an error the scenario expects is an ok step.
     pub ok: bool,
     pub error: Option<String>,
     #[serde(default)]

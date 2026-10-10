@@ -111,6 +111,7 @@
   ],
   "tickets": [
     "TICKET 1\nPerrier x2",
+    "",
     "X REPORT\nTotal 0,00"
   ],
   "verdict": "PASS"

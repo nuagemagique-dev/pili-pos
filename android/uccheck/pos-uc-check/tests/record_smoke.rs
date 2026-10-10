@@ -170,7 +170,8 @@ async fn references_repeat_expected_errors_and_unmet_expectations_are_recorded()
     assert_eq!(ok.verdict, "PASS");
     // login (refused), login, create_order, add_order_line twice, get_order, sleep_ms.
     assert_eq!(ok.steps.len(), 7);
-    assert!(!ok.steps[0].ok);
+    // An expected error is a step that met its expect: ok, with the error text kept.
+    assert!(ok.steps[0].ok);
     assert_eq!(ok.steps[0].error.as_deref(), Some("pin_wrong"));
     assert!(ok.steps[1].ok);
 
@@ -178,6 +179,7 @@ async fn references_repeat_expected_errors_and_unmet_expectations_are_recorded()
     let bad = Journal::load(&out.path().join("linux/00_t/002_BAD.json")).unwrap();
     assert_eq!(bad.verdict, "FAIL");
     assert_eq!(bad.steps.len(), 1);
+    assert!(!bad.steps[0].ok);
     assert!(bad.steps[0].unmet.as_deref().unwrap().contains("status"));
     let (lines, pass) = record::summary_lines(&recorded);
     assert!(!pass);

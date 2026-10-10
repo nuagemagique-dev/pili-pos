@@ -157,17 +157,20 @@ pub async fn run_scenario(
                     if let (Some(name), Ok(value)) = (&step.save, &outcome) {
                         saved.insert(name.clone(), value.clone());
                     }
+                    // `ok` is "the step met its expect" (UC.md section 5), as on Android: an
+                    // error the scenario expects is an ok step that still carries the error text.
+                    let ok = unmet.is_none();
                     match outcome {
                         Ok(result) => JournalStep {
                             cmd: step.cmd.clone(),
-                            ok: true,
+                            ok,
                             error: None,
                             result,
                             unmet,
                         },
                         Err(error) => JournalStep {
                             cmd: step.cmd.clone(),
-                            ok: false,
+                            ok,
                             error: Some(error),
                             result: Value::Null,
                             unmet,

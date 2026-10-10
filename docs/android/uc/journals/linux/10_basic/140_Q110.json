@@ -1,0 +1,117 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "10_basic",
+  "scenario": "140_Q110",
+  "ids": [
+    "Q110"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "fdm_control",
+      "ok": true,
+      "error": null,
+      "result": null
+    },
+    {
+      "cmd": "sleep_ms",
+      "ok": true,
+      "error": null,
+      "result": null
+    },
+    {
+      "cmd": "sleep_ms",
+      "ok": true,
+      "error": null,
+      "result": null
+    },
+    {
+      "cmd": "check_fdm_status",
+      "ok": true,
+      "error": null,
+      "result": {
+        "device": {
+          "bufferCapacityUsed": 82.53,
+          "fdmDateTime": "2026-10-10T06:07:06Z",
+          "fdmId": "MCK00000001",
+          "fdmSwVersion": "MOCK-FDM-1.0"
+        },
+        "errors": [],
+        "informations": [],
+        "initialized": true,
+        "warnings": [
+          {
+            "extensions": {
+              "category": "SPF_FOD",
+              "code": "BUFFER_NEAR_FULL",
+              "data": null,
+              "showPos": "MANDATORY"
+            },
+            "locations": null,
+            "message": "L'utilisation du buffer du FDM dépasse 70%"
+          }
+        ]
+      }
+    },
+    {
+      "cmd": "fdm_control_reset",
+      "ok": true,
+      "error": null,
+      "result": null
+    }
+  ],
+  "fdm": [],
+  "statusCalls": [
+    {
+      "operation": "Status",
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 82.53,
+              "fdmDateTime": "2026-10-10T06:07:06Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": [
+              {
+                "extensions": {
+                  "category": "SPF_FOD",
+                  "code": "BUFFER_NEAR_FULL",
+                  "showPos": "MANDATORY"
+                },
+                "message": "L'utilisation du buffer du FDM dépasse 70%"
+              }
+            ]
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [],
+  "verdict": "PASS"
+}

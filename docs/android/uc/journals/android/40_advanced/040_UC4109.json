@@ -1,0 +1,621 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "40_advanced",
+  "scenario": "040_UC4109",
+  "ids": [
+    "UC4109"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "75061189702",
+        "name": "John",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:04:16.052666688Z",
+        "id": 4,
+        "order_type": "dine_in",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": 1,
+        "total_cents": 0,
+        "user_insz": "75061189702"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:04:16.057295230Z",
+        "department_id": "20",
+        "department_name": "Starters",
+        "id": 5,
+        "menu_item_id": 20001,
+        "modifiers_json": null,
+        "name": "Carpaccio Beef",
+        "order_id": 4,
+        "quantity": 1,
+        "unit_price_cents": 2000,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:04:16.061955897Z",
+        "department_id": "22",
+        "department_name": "Main Dishes",
+        "id": 6,
+        "menu_item_id": 22001,
+        "modifiers_json": null,
+        "name": "Burger of the CHEF",
+        "order_id": 4,
+        "quantity": 1,
+        "unit_price_cents": 2800,
+        "vat_code": "B"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:04:16.065346938Z",
+        "department_id": "15",
+        "department_name": "Wines",
+        "id": 7,
+        "menu_item_id": 15023,
+        "modifiers_json": null,
+        "name": "Matching Wines",
+        "order_id": 4,
+        "quantity": 1,
+        "unit_price_cents": 2400,
+        "vat_code": "A"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": null,
+      "result": "printed"
+    },
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "close_unpaid",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 8,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 8,
+        "kitchen_slip": "nothing_to_print",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "EMULATOR37X2X12X0",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 4,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:04:18Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 8
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Carpaccio Beef",
+              "quantity": 1,
+              "total": 20,
+              "unit_price": 20,
+              "vat_code": "B"
+            },
+            {
+              "description": "Burger of the CHEF",
+              "quantity": 1,
+              "total": 28,
+              "unit_price": 28,
+              "vat_code": "B"
+            },
+            {
+              "description": "Matching Wines",
+              "quantity": 1,
+              "total": 24,
+              "unit_price": 24,
+              "vat_code": "A"
+            }
+          ],
+          "operator": "Gerant Test",
+          "original": null,
+          "payments": [],
+          "pos_datetime": "2026-10-10T08:04:16.666+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos-android/1.0.0-dev",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": "2f1a21eee7b6b2be8fb9f479eb8402bd410301c8",
+          "subtotal": 72,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 4,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 72,
+          "unpaid": true,
+          "vat_breakdown": [
+            {
+              "label": "B",
+              "outOfScope": false,
+              "rate": 12,
+              "taxableAmount": 42.86,
+              "totalAmount": 48,
+              "vatAmount": 5.14
+            },
+            {
+              "label": "A",
+              "outOfScope": false,
+              "rate": 21,
+              "taxableAmount": 19.83,
+              "totalAmount": 24,
+              "vatAmount": 4.17
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000400008AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "51eb08b1-0205-4dc2-994a-e690cf227b72",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "75061189702",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:04:16.049+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMi01LTE3OTE2MTIyNTg=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:04:18Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 5
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:04:16.049+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signOrder",
+      "request": {
+        "query": "mutation($data: OrderInput!, $isTraining: Boolean!) { signOrder(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "51eb08b1-0205-4dc2-994a-e690cf227b72",
+            "costCenter": {
+              "id": "T01",
+              "reference": "O4",
+              "type": "TABLE"
+            },
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "75061189702",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:04:16.068+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 20.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "20",
+                    "departmentName": "Starters",
+                    "productId": "20001",
+                    "productName": "Carpaccio Beef",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 20.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 28.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "15",
+                    "departmentName": "Wines",
+                    "productId": "15023",
+                    "productName": "Matching Wines",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 24.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 24.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 72.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signOrder": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMS02LTE3OTE2MTIyNTg=",
+            "eventOperation": "ORDER",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:04:18Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 6
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:04:16.068+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "51eb08b1-0205-4dc2-994a-e690cf227b72",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:04:16.369+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMy03LTE3OTE2MTIyNTg=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 3,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:04:18Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 7
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:04:16.369+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "51eb08b1-0205-4dc2-994a-e690cf227b72",
+            "costCenter": {
+              "id": "T01",
+              "reference": "O4",
+              "type": "TABLE"
+            },
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "financials": [],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:04:16.666+02:00",
+            "posFiscalTicketNo": 4,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 20.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "20",
+                    "departmentName": "Starters",
+                    "productId": "20001",
+                    "productName": "Carpaccio Beef",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 20.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 28.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22001",
+                    "productName": "Burger of the CHEF",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 28.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 28.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "15",
+                    "departmentName": "Wines",
+                    "productId": "15023",
+                    "productName": "Matching Wines",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 24.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 24.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 72.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctNC04LTE3OTE2MTIyNTg=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 4,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:04:18Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 8
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:04:16.666+02:00",
+            "posFiscalTicketNo": 4,
+            "posId": "CPOS0031234567",
+            "shortSignature": "2f1a21eee7b6b2be8fb9f479eb8402bd410301c8",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "B",
+                "outOfScope": false,
+                "rate": 12.0,
+                "taxableAmount": 42.86,
+                "totalAmount": 48.0,
+                "vatAmount": 5.14
+              },
+              {
+                "label": "A",
+                "outOfScope": false,
+                "rate": 21.0,
+                "taxableAmount": 19.83,
+                "totalAmount": 24.0,
+                "vatAmount": 4.17
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000400008AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:04:15Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:04:16\nOperateur:                                  John\nTable 1\n------------------------------------------------\nQte   Article\n1 x Carpaccio Beef\n1 x Burger of the CHEF\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n",
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:04\nUtilisateur: Gerant Test\nTerminal: POS-2-ANDROID\nTicketnr.: 000004\nPOS Serial: CPOS0031234567\nInput device MAC: EMULATOR37X2X12X0\nLogiciel de caisse v.: pili-pos-android/1.0.0-dev\n................................................\n1 Carpaccio Beef                        20,00  B\n1 Burger of the CHEF                    28,00  B\n1 Matching Wines                        24,00  A\nTOTAL :                                   €72,00\n................................................\nMode de paiement :\nNon paye\n% TVA   CODE          HT       TVA      Brut\n12,00%  B          42,86      5,14     48,00\n21,00%  A          19,83      4,17     24,00\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:04:18Z;\nEvent: N; eventCounter: 4;\ntotalCounter: 8; shortSignature:\n2f1a21eee7b6b2be8fb9f479eb8402bd410301c8;\n\n [QR: https://www.gs2.be/M0000400008AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

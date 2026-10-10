@@ -2,13 +2,19 @@
 # ─────────────────────────────────────────────────────────────────
 # pili-pos - UC scenarios on the emulator, Android journals (P7-T4, P7D6 to P7D8)
 #
-# Usage: scripts/android/uc_e2e.sh [--group G]... [--only STEM] [--out DIR] [--keep]
+# Usage: scripts/android/uc_e2e.sh [--group G]... [--only STEM] [--out DIR] [--keep] [--compare]
 #   --group G    run the scenario group G (a directory of android/app/src/androidTest/assets/uc/, for
 #                example 00_smoke); repeatable. Default: every group, in lexical order.
 #   --only STEM  run only the scenario whose file stem is STEM (for example 001_SMOKE).
 #   --out DIR    journal directory (default target/android-uc-e2e/journals); a journal is written to
 #                DIR/android/<group>/<scenario>.json.
 #   --keep       skip the teardown (owner, packages, reverse rules and mocks stay; for debugging).
+#   --compare    after the run, record the reference side (pos-uc-check record: the engine on the host,
+#                P7D4) of the same groups into DIR/linux and compare it with DIR/android
+#                (pos-uc-check compare --fixtures); the report goes to DIR/results.json. The UCCHECK
+#                lines are printed, then one check line 'UCE2E | compare | PASS|FAIL | ...' that counts in
+#                the total. A journal in DIR/android of a scenario this run did not play fails the
+#                comparison (a journal on one side only is a FAIL): use a fresh --out for a partial run.
 #
 # Runs the UC scenarios (P7.md section 4) against the real app on sunmi_d3_pro_api33 and the host mocks,
 # and writes one Android journal per scenario (format 1, side android, scripts/android/uc_journal.py). One
@@ -48,10 +54,11 @@ ROOT="$(cd "$(dirname "$SELF")/../.." && pwd -P)"
 SELF="$ROOT/scripts/android/uc_e2e.sh"
 
 usage_text() { sed -n '2,/^# ──*$/p' "$SELF" | sed '$d; s/^# \{0,1\}//'; }
-usage() { echo "usage: uc_e2e.sh [--group G]... [--only STEM] [--out DIR] [--keep]" >&2; exit 2; }
+usage() { echo "usage: uc_e2e.sh [--group G]... [--only STEM] [--out DIR] [--keep] [--compare]" >&2; exit 2; }
 
 ORIG_ARGS=("$@")
 KEEP=0
+COMPARE=0
 ONLY=""
 OUT_ARG=""
 WANT_GROUPS=()
@@ -59,6 +66,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
     -h | --help) usage_text; exit 0 ;;
     --keep) KEEP=1; shift ;;
+    --compare) COMPARE=1; shift ;;
     --group) [[ $# -ge 2 && -n "$2" ]] || usage; WANT_GROUPS+=("$2"); shift 2 ;;
     --only) [[ $# -ge 2 && -n "$2" ]] || usage; ONLY="$2"; shift 2 ;;
     --out) [[ $# -ge 2 && -n "$2" ]] || usage; OUT_ARG="$2"; shift 2 ;;
@@ -137,7 +145,8 @@ REVERSED=0
 FAILED=0
 CHECKS=0
 
-adbd() { "$ADB" -s "$SERIAL" "$@"; }
+# adb shell reads its stdin: without /dev/null it swallows the here-string the scenario loop reads from
+adbd() { "$ADB" -s "$SERIAL" "$@" </dev/null; }
 
 note() { printf 'uc_e2e: %s\n' "$*" >&2; }
 
@@ -543,6 +552,41 @@ for g in "${GROUP_LIST[@]}"; do
         [[ -z "$s" ]] || run_scenario "$g" "$s"
     done <<<"$scenario_list"
 done
+
+# ── comparison with the reference (--compare) ───────────────────
+# The reference is the engine on the host (P7D4): the same scenarios, played by pos-uc-check on a fresh
+# database per group, then compared check by check with the journals just written (UC.md section 6).
+if [[ "$COMPARE" -eq 1 ]]; then
+    UCCHECK_MANIFEST="$ROOT/android/uccheck/Cargo.toml"
+    UCCHECK_BIN="$ROOT/target/uccheck/release/pos-uc-check"
+    bash scripts/android/heavy.sh cargo build --manifest-path "$UCCHECK_MANIFEST" --locked --offline --release \
+        --target-dir "$ROOT/target/uccheck" -p pos-uc-check >"$LOGDIR/uccheck-build.log" 2>&1 ||
+        abort compare "cargo build of pos-uc-check failed, see $LOGDIR/uccheck-build.log"
+    rec_args=(record --scenarios "$ASSETS" --out "$OUT" --repo "$ROOT")
+    if [[ "${#WANT_GROUPS[@]}" -gt 0 ]]; then
+        for g in "${WANT_GROUPS[@]}"; do rec_args+=(--group "$g"); done
+    fi
+    [[ -z "$ONLY" ]] || rec_args+=(--only "$ONLY")
+    rm -rf "$OUT/linux"
+    "$UCCHECK_BIN" "${rec_args[@]}" >"$LOGDIR/uccheck-record.log" 2>&1 </dev/null
+    rec_rc=$?
+    rec_total="$(grep '^UCREC | total | ' "$LOGDIR/uccheck-record.log" | tail -n 1)"
+    if [[ "$rec_rc" -ne 0 || "$rec_total" != "UCREC | total | PASS"* ]]; then
+        grep -E '^UCREC \| .* \| FAIL' "$LOGDIR/uccheck-record.log" | head -n 10
+        abort compare "the reference run failed (exit $rec_rc): ${rec_total:-no total line}, see $LOGDIR/uccheck-record.log"
+    fi
+    note "reference recorded: ${rec_total#UCREC | total | PASS | }"
+    "$UCCHECK_BIN" compare --linux "$OUT/linux" --android "$OUT/android" --fixtures --repo "$ROOT" \
+        --report "$OUT/results.json" >"$LOGDIR/uccheck-compare.log" 2>&1 </dev/null
+    cmp_rc=$?
+    cat "$LOGDIR/uccheck-compare.log"
+    cmp_total="$(grep '^UCCHECK | total | ' "$LOGDIR/uccheck-compare.log" | tail -n 1)"
+    if [[ "$cmp_rc" -eq 0 && "$cmp_total" == "UCCHECK | total | PASS"* ]]; then
+        pass compare "${cmp_total#UCCHECK | total | PASS | } against the reference (engine on the host), report ${OUT#"$ROOT"/}/results.json"
+    else
+        fail compare "exit $cmp_rc: ${cmp_total:-no UCCHECK total line}"
+    fi
+fi
 
 # teardown and the total line come from the EXIT trap
 exit 0

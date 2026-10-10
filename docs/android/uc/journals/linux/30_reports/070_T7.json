@@ -1,0 +1,177 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "30_reports",
+  "scenario": "070_T7",
+  "ids": [
+    "T7"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "P",
+          "eventType": "P",
+          "fdmDatetime": "2026-10-10T06:07:13Z",
+          "fdmId": "MCK00000001",
+          "id": 9,
+          "orderId": 4,
+          "sequenceNumber": 3,
+          "shortSignature": null
+        }
+      ]
+    },
+    {
+      "cmd": "sign_pre_bill",
+      "ok": true,
+      "error": null,
+      "result": "nothing_to_print"
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signPreBill",
+      "request": {
+        "query": "mutation($data: PreBillInput!, $isTraining: Boolean!) { signPreBill(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "costCenter": {
+              "id": "T10",
+              "reference": "O4",
+              "type": "TABLE"
+            },
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:14.101+02:00",
+            "posFiscalTicketNo": 4,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 24.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "10",
+                    "departmentName": "Aperitifs",
+                    "productId": "10006",
+                    "productName": "Dry Martini",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 12.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 24.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 40.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "22",
+                    "departmentName": "Main Dishes",
+                    "productId": "22010",
+                    "productName": "Dish of the day",
+                    "quantity": 2.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 20.0,
+                    "vats": [
+                      {
+                        "label": "B",
+                        "price": 40.0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 35.0,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "15",
+                    "departmentName": "Wines",
+                    "productId": "15001",
+                    "productName": "Bourgogne Red",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 35.0,
+                    "vats": [
+                      {
+                        "label": "A",
+                        "price": 35.0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 99.0
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signPreBill": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctNC0xMC0xNzkxNjEyNDM0",
+            "eventOperation": "PRE_BILL",
+            "fdmRef": {
+              "eventCounter": 4,
+              "eventLabel": "P",
+              "fdmDateTime": "2026-10-10T06:07:14Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 10
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:14.101+02:00",
+            "posFiscalTicketNo": 4,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "                   PRO FORMA\n              ADDITION PROVISOIRE\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Elisa\nTerminal: POS-2-ANDROID\nTicketnr.: 000004\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n2 Dry Martini                           24,00  A\n2 Dish of the day                       40,00  B\n1 Bourgogne Red                         35,00  A\nTOTAL :                                   €99,00\n................................................\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:14Z;\nEvent: P; eventCounter: 4;\ntotalCounter: 10;\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

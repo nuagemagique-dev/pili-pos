@@ -53,9 +53,9 @@ class BuildJournalTest(unittest.TestCase):
         self.assertEqual(journal["fdm"][0]["response"], self.requests[1]["response"])
         self.assertNotIn("at", journal["fdm"][0])
 
-    def test_tickets_follow_the_job_ids_and_leave_out_the_drawer_kick(self):
+    def test_tickets_follow_the_job_ids_and_keep_the_drawer_kick_as_an_empty_entry(self):
         journal = uc_journal.build_journal(self.steps, self.requests, self.jobs)
-        self.assertEqual(journal["tickets"], ["TICKET 1\nPerrier x2", "X REPORT\nTotal 0,00"])
+        self.assertEqual(journal["tickets"], ["TICKET 1\nPerrier x2", "", "X REPORT\nTotal 0,00"])
 
     def test_a_failing_scenario_is_a_fail_verdict_without_the_runner_detail(self):
         journal = uc_journal.build_journal(load("steps_fail.json"), [], [])
@@ -140,7 +140,7 @@ class CommandLineTest(unittest.TestCase):
     def test_the_command_line_writes_the_journal_and_a_summary_line(self):
         proc, written = self.run_cli("steps_pass.json")
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertEqual(proc.stdout.strip(), "JOURNAL PASS fdm=2 status=2 tickets=2")
+        self.assertEqual(proc.stdout.strip(), "JOURNAL PASS fdm=2 status=2 tickets=3")
         self.assertEqual(written[1], load("expected_pass.json"))
         self.assertTrue(written[0].endswith("}\n"))
 

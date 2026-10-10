@@ -1,0 +1,157 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "10_basic",
+  "scenario": "060_M130",
+  "ids": [
+    "M130"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "money_in_out",
+      "ok": true,
+      "error": null,
+      "result": {
+        "error": null,
+        "success": true
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signMoneyInOut",
+      "request": {
+        "query": "mutation($data: MoneyInOutInput!, $isTraining: Boolean!) { signMoneyInOut(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "5aabe8b1-e17b-4023-abb3-7f29ed68a253",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 100.0,
+                "amountType": "MONEY_IN_OUT",
+                "id": "MOV1",
+                "inputMethod": "MANUAL",
+                "name": "Fond de caisse",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T07:59:35.532+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signMoneyInOut": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMS0xMi0xNzkxNjExOTc3",
+            "eventOperation": "MONEY_IN_OUT",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "F",
+              "fdmDateTime": "2026-10-10T05:59:37Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 12
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T07:59:35.532+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T05:59:35Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T05:59:42Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [],
+  "verdict": "PASS"
+}

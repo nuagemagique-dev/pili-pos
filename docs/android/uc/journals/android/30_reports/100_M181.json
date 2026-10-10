@@ -1,0 +1,435 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "30_reports",
+  "scenario": "100_M181",
+  "ids": [
+    "M181"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "generate_z_report",
+      "ok": true,
+      "error": null,
+      "result": {
+        "error": null,
+        "reportNo": 1,
+        "reportType": "Z",
+        "success": true
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signReportTurnoverZ",
+      "request": {
+        "query": "mutation($turnover: ReportTurnoverZInput!, $user: ReportUserZInput!, $isTraining: Boolean!) { signReportTurnoverZ(data: $turnover, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } signReportUserZ(data: $user, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "isTraining": false,
+          "turnover": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "8d1fff9c-8732-48d6-b6c1-cf505fb9f012",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "fdmDevices": [
+              {
+                "fdmId": "MCK00000001",
+                "firstFdmDateTime": "2026-10-10T06:01:57Z",
+                "firstTotalCounter": 1,
+                "lastFdmDateTime": "2026-10-10T06:03:04Z",
+                "lastTotalCounter": 12
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:03:11.144+02:00",
+            "posDevices": [
+              {
+                "firstPosDateTime": "2026-10-10T08:01:55.702+02:00",
+                "lastPosDateTime": "2026-10-10T08:03:02.752+02:00",
+                "posId": "CPOS0031234567",
+                "terminalId": "POS-2-ANDROID"
+              }
+            ],
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "reportBookingDate": "2026-10-10",
+            "reportNo": 1,
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "turnover": {
+              "departments": [
+                {
+                  "amount": 24.0,
+                  "departmentId": "10",
+                  "departmentName": "Aperitifs"
+                },
+                {
+                  "amount": 3.04,
+                  "departmentId": "12",
+                  "departmentName": "Soft Drinks"
+                },
+                {
+                  "amount": 35.0,
+                  "departmentId": "15",
+                  "departmentName": "Wines"
+                },
+                {
+                  "amount": 40.0,
+                  "departmentId": "22",
+                  "departmentName": "Main Dishes"
+                }
+              ],
+              "drawersOpenCount": 0,
+              "invoices": [],
+              "negQuantities": [
+                {
+                  "amount": -52.0,
+                  "negQuantityCount": 2,
+                  "negQuantityReason": "REFUND",
+                  "ticketCount": 1
+                }
+              ],
+              "payments": [
+                {
+                  "amount": [
+                    {
+                      "correctionsCount": 0,
+                      "negativeCorrections": 0.0,
+                      "normalAmount": 99.0,
+                      "positiveCorrections": 0.0,
+                      "totalAmount": 99.0,
+                      "type": "PAYMENT"
+                    }
+                  ],
+                  "id": "1",
+                  "name": "Cash",
+                  "type": "CASH"
+                },
+                {
+                  "amount": [
+                    {
+                      "correctionsCount": 0,
+                      "negativeCorrections": 0.0,
+                      "normalAmount": 3.04,
+                      "positiveCorrections": 0.0,
+                      "totalAmount": 3.04,
+                      "type": "PAYMENT"
+                    }
+                  ],
+                  "id": "2",
+                  "name": "Card",
+                  "type": "CARD_DEBIT"
+                }
+              ],
+              "priceChanges": [],
+              "transactions": [
+                {
+                  "amount": 102.04,
+                  "eventLabel": "N",
+                  "ticketCount": 4
+                },
+                {
+                  "amount": 250.0,
+                  "eventLabel": "P",
+                  "ticketCount": 4
+                }
+              ],
+              "vats": [
+                {
+                  "label": "A",
+                  "rate": 21.0,
+                  "taxableAmount": 48.76,
+                  "totalAmount": 59.0,
+                  "vatAmount": 10.24
+                },
+                {
+                  "label": "B",
+                  "rate": 12.0,
+                  "taxableAmount": 35.71,
+                  "totalAmount": 40.0,
+                  "vatAmount": 4.29
+                },
+                {
+                  "label": "C",
+                  "rate": 6.0,
+                  "taxableAmount": 2.87,
+                  "totalAmount": 3.04,
+                  "vatAmount": 0.17
+                }
+              ]
+            },
+            "vatNo": "BE0000000097"
+          },
+          "user": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "8d1fff9c-8732-48d6-b6c1-cf505fb9f012",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "fdmDevices": [
+              {
+                "fdmId": "MCK00000001",
+                "firstFdmDateTime": "2026-10-10T06:01:57Z",
+                "firstTotalCounter": 1,
+                "lastFdmDateTime": "2026-10-10T06:03:04Z",
+                "lastTotalCounter": 12
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:03:11.144+02:00",
+            "posDevices": [
+              {
+                "firstPosDateTime": "2026-10-10T08:01:55.702+02:00",
+                "lastPosDateTime": "2026-10-10T08:03:02.752+02:00",
+                "posId": "CPOS0031234567",
+                "terminalId": "POS-2-ANDROID"
+              }
+            ],
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "reportBookingDate": "2026-10-10",
+            "reportNo": 1,
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "users": [
+              {
+                "employeeId": "75061189702",
+                "firstPosDateTime": "2026-10-10T08:01:55.702+02:00",
+                "lastPosDateTime": "2026-10-10T08:02:03.962+02:00",
+                "payments": [
+                  {
+                    "amount": [
+                      {
+                        "correctionsCount": 0,
+                        "negativeCorrections": 0.0,
+                        "normalAmount": 52.0,
+                        "positiveCorrections": 0.0,
+                        "totalAmount": 52.0,
+                        "type": "PAYMENT"
+                      }
+                    ],
+                    "id": "1",
+                    "name": "Cash",
+                    "type": "CASH"
+                  }
+                ],
+                "socialEvents": [
+                  {
+                    "inOut": "IN",
+                    "posDateTime": "2026-10-10T08:01:55.702+02:00"
+                  }
+                ],
+                "totalAmount": 52.0
+              },
+              {
+                "employeeId": "84022899837",
+                "firstPosDateTime": "2026-10-10T08:02:20.805+02:00",
+                "lastPosDateTime": "2026-10-10T08:02:54.386+02:00",
+                "payments": [
+                  {
+                    "amount": [
+                      {
+                        "correctionsCount": 0,
+                        "negativeCorrections": 0.0,
+                        "normalAmount": 99.0,
+                        "positiveCorrections": 0.0,
+                        "totalAmount": 99.0,
+                        "type": "PAYMENT"
+                      }
+                    ],
+                    "id": "1",
+                    "name": "Cash",
+                    "type": "CASH"
+                  },
+                  {
+                    "amount": [
+                      {
+                        "correctionsCount": 0,
+                        "negativeCorrections": 0.0,
+                        "normalAmount": 3.04,
+                        "positiveCorrections": 0.0,
+                        "totalAmount": 3.04,
+                        "type": "PAYMENT"
+                      }
+                    ],
+                    "id": "2",
+                    "name": "Card",
+                    "type": "CARD_DEBIT"
+                  }
+                ],
+                "socialEvents": [
+                  {
+                    "inOut": "IN",
+                    "posDateTime": "2026-10-10T08:02:20.805+02:00"
+                  }
+                ],
+                "totalAmount": 102.04
+              },
+              {
+                "employeeId": "94060242576",
+                "firstPosDateTime": "2026-10-10T08:02:12.648+02:00",
+                "lastPosDateTime": "2026-10-10T08:02:12.659+02:00",
+                "payments": [
+                  {
+                    "amount": [
+                      {
+                        "correctionsCount": 0,
+                        "negativeCorrections": 0.0,
+                        "normalAmount": -52.0,
+                        "positiveCorrections": 0.0,
+                        "totalAmount": -52.0,
+                        "type": "PAYMENT"
+                      }
+                    ],
+                    "id": "1",
+                    "name": "Cash",
+                    "type": "CASH"
+                  }
+                ],
+                "socialEvents": [
+                  {
+                    "inOut": "IN",
+                    "posDateTime": "2026-10-10T08:02:12.648+02:00"
+                  }
+                ],
+                "totalAmount": -52.0
+              }
+            ],
+            "vatNo": "BE0000000097"
+          }
+        }
+      },
+      "response": {
+        "data": {
+          "signReportTurnoverZ": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMi0xMy0xNzkxNjEyMTkz",
+            "eventOperation": "REPORT_TURNOVER_Z",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "R",
+              "fdmDateTime": "2026-10-10T06:03:13Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 13
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:03:11.144+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          },
+          "signReportUserZ": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMy0xNC0xNzkxNjEyMTkz",
+            "eventOperation": "REPORT_USER_Z",
+            "fdmRef": {
+              "eventCounter": 3,
+              "eventLabel": "R",
+              "fdmDateTime": "2026-10-10T06:03:13Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 14
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:03:11.144+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:03:10Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:03:18Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "              Z CHIFFRE D'AFFAIRES\n                Restaurant Test\n           1 Rue du Test, 4000 Liege\n               TVA: BE0000000097\n        Unite d'etablissement 2000000042\n------------------------------------------------\nRAPPORT Z                      10/10/26 08:03:11\nRapport nr. 1\nTicket:                                   000002\nEmploye:                             94060242576\n------------------------------------------------\n              Periode d'ouverture\nDate:                                 2026-10-10\nBookingPeriodId:\n8d1fff9c-8732-48d6-b6c1-cf505fb9f012\nDebut                           2026-10-10 08:01\nFin                             2026-10-10 08:03\nPOSID                             CPOS0031234567\nTerminalId                         POS-2-ANDROID\nFDMID                                MCK00000001\nPremier                       1 2026-10-10 06:01\nDernier                      12 2026-10-10 06:03\n------------------------------------------------\nEvent N Ventes 4                          102,04\nEvent P Pro forma 4                       250,00\n------------------------------------------------\n                   Apercu TVA\nTaux                HT          TVA          TTC\n21%              48,76        10,24        59,00\n12%              35,71         4,29        40,00\n6%                2,87         0,17         3,04\n0%                   -            -            -\nTotal            87,34        14,70       102,04\n------------------------------------------------\n       Departements du chiffre d'affaires\nAperitifs                                  24,00\nSoft Drinks                                 3,04\nWines                                      35,00\nMain Dishes                                40,00\n------------------------------------------------\n                  Corrections\nCorrections                                 0,00\n------------------------------------------------\n                 Remboursements\nRemboursements 1                          -52,00\n------------------------------------------------\n                 Tiroir-caisse\nTiroir-caisse 0\n------------------------------------------------\n                   Formation\nTickets de formation 0                      0,00\n------------------------------------------------\n                   Reductions\nReductions de lignes 0                      0,00\nReductions d'evenements 0                   0,00\n------------------------------------------------\n                    FACTURE\nFactures 0\n------------------------------------------------\n             PAIEMENTS ENREGISTRES\nEspeces                                    99,00\nCarte                                       3,04\nTotal des paiements                       102,04\nArrondis                                    0,00\n------------------------------------------------\n       fdmDateTime: 2026-10-10T06:03:13Z;\n================================================\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n",
+    "   RAPPORT UTIL. Z #1\n\n                Restaurant Test\n           1 Rue du Test, 4000 Liege\n               TVA: BE0000000097\n\nDate:                                 2026-10-10\nTerminal:                          POS-2-ANDROID\nEmploye:                             94060242576\nTicket:                                       #3\n================================================\nINSZ 75061189702                           52,00\n  Premier event:                2026-10-10 08:01\n  Dernier event:                2026-10-10 08:02\n  Pointage IN:                  2026-10-10 08:01\n  Especes (1x)                             52,00\n------------------------------------------------\nINSZ 84022899837                          102,04\n  Premier event:                2026-10-10 08:02\n  Dernier event:                2026-10-10 08:02\n  Pointage IN:                  2026-10-10 08:02\n  Especes (1x)                             99,00\n  Carte (1x)                                3,04\n------------------------------------------------\nINSZ 94060242576                          -52,00\n  Premier event:                2026-10-10 08:02\n  Dernier event:                2026-10-10 08:02\n  Pointage IN:                  2026-10-10 08:02\n  Especes (1x)                            -52,00\n------------------------------------------------\nTOTAL                                     102,04\n================================================\n                FDM: MCK00000001\n              2026-10-10T06:03:13Z\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

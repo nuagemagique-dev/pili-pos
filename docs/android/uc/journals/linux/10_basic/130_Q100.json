@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "10_basic",
+  "scenario": "130_Q100",
+  "ids": [
+    "Q100"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "check_fdm_status",
+      "ok": true,
+      "error": null,
+      "result": {
+        "device": {
+          "bufferCapacityUsed": 1.2,
+          "fdmDateTime": "2026-10-10T06:06:38Z",
+          "fdmId": "MCK00000001",
+          "fdmSwVersion": "MOCK-FDM-1.0"
+        },
+        "errors": [],
+        "informations": [],
+        "initialized": true,
+        "warnings": []
+      }
+    }
+  ],
+  "fdm": [],
+  "statusCalls": [],
+  "tickets": [],
+  "verdict": "PASS"
+}

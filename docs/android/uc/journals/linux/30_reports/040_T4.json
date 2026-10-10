@@ -1,0 +1,301 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "30_reports",
+  "scenario": "040_T4",
+  "ids": [
+    "T4"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:12.179386Z",
+        "id": 3,
+        "order_type": "takeaway",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": null,
+        "total_cents": 0,
+        "user_insz": "84022899837"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:12.180117Z",
+        "department_id": "12",
+        "department_name": "Soft Drinks",
+        "id": 5,
+        "menu_item_id": 12009,
+        "modifiers_json": null,
+        "name": "Coca Cola",
+        "order_id": 3,
+        "quantity": 1,
+        "unit_price_cents": 304,
+        "vat_code": "C"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 7,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 7,
+        "kitchen_slip": "nothing_to_print",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 3,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:07:12Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 7
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Coca Cola",
+              "quantity": 1.0,
+              "total": 3.04,
+              "unit_price": 3.04,
+              "vat_code": "C"
+            }
+          ],
+          "operator": "Elisa",
+          "original": null,
+          "payments": [
+            {
+              "amount": 3.04,
+              "method": "Card"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:12.180+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": "cd1f4c8c13f179b9f19062af76d2e46352a36b40",
+          "subtotal": 3.04,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 3,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 3.04,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6.0,
+              "taxableAmount": 2.87,
+              "totalAmount": 3.04,
+              "vatAmount": 0.17
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000300007AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:12.103+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMy02LTE3OTE2MTI0MzI=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 3,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:07:12Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 6
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:12.103+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "ab29aec2-53da-491c-8c61-2d5191b1d93b",
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 3.04,
+                "amountType": "PAYMENT",
+                "id": "2",
+                "inputMethod": "MANUAL",
+                "name": "Card",
+                "type": "CARD_DEBIT"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:12.180+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 3.04,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "12",
+                    "departmentName": "Soft Drinks",
+                    "productId": "12009",
+                    "productName": "Coca Cola",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 3.04,
+                    "vats": [
+                      {
+                        "label": "C",
+                        "price": 3.04
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 3.04
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMy03LTE3OTE2MTI0MzI=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 3,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:12Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 7
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:12.180+02:00",
+            "posFiscalTicketNo": 3,
+            "posId": "CPOS0031234567",
+            "shortSignature": "cd1f4c8c13f179b9f19062af76d2e46352a36b40",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "C",
+                "outOfScope": false,
+                "rate": 6.0,
+                "taxableAmount": 2.87,
+                "totalAmount": 3.04,
+                "vatAmount": 0.17
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000300007AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Elisa\nTerminal: POS-2-ANDROID\nTicketnr.: 000003\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n1 Coca Cola                              3,04  C\nTOTAL :                                    €3,04\n................................................\nMode de paiement :\nCarte                                       3,04\n% TVA   CODE          HT       TVA      Brut\n6,00%   C           2,87      0,17      3,04\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:12Z;\nEvent: N; eventCounter: 3;\ntotalCounter: 7; shortSignature:\ncd1f4c8c13f179b9f19062af76d2e46352a36b40;\n\n [QR: https://www.gs2.be/M0000300007AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

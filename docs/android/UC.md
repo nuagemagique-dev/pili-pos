@@ -195,7 +195,7 @@ Per scenario, one line `UCCHECK | <group>/<scenario> | PASS|FAIL | <checks>`, th
 | `sw-version` | Android `posSwVersion` starts with `pili-pos-android/`, the reference with `pili-pos/`; every request carries its side's value |
 | `tickets` | same number of tickets, equal texts after the normalisation of section 8 |
 | `fixture` | with `--fixtures` and a `fixture` field: the matching request's `business_view` equals the fixture's `GQL-Variables.json` one, except the listed `fixtureDeviations` (a listed deviation that does not occur is a FAIL) |
-| `status-shape` | only when `compare.status` is `shape`: same keys in the Status responses |
+| `status-shape` | only when `compare.status` is `shape`: same keys in the Status responses; the keys of a side are the union over its Status answers (an answer whose list is empty shows no key below it, so a monitor call made before the scenario changed the mock must not make the sides differ) |
 
 What "equal" means (P7D8): per scenario, every step has the expected outcome on both sides; the non-Status FDM calls are the same operations in the same order, with equal `business_view` (`crates/pos-engine-testkit/src/compare.rs`), equal counters and an equal full request once the volatile paths are removed; equal ticket texts after normalisation; and, when the scenario names an official fixture, a `business_view` equal to the fixture's (with the same intended deviations as the Linux test, each with its reason). Status calls are counted and ignored, except in the Q100 and Q110 scenarios, where their shape is compared. A real difference between Android and the reference is an ESCALATE, never a new volatile path.
 
