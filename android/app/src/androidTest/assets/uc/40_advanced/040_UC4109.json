@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "id": "UC4109",
+  "ids": ["UC4109"],
+  "title": "UC4109: table 1 ordered by John (carpaccio, burger and matching wines, the dishes of the business menu all-in, which the seed keeps off the menu), the customer leaves without paying and the manager closes the table unpaid with their PIN",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 1, "user_insz": "75061189702"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 20001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 22001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 15023, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}},
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "close_unpaid", "args": {"orderId": "$order.id", "insz": "94060242576", "pin": "1111"}}
+  ]
+}

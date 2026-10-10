@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "id": "ROUND3",
+  "ids": ["ROUND3"],
+  "title": "ROUND3: both desserts, 14,86 EUR, paid in cash, rounded to 14,85",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 25003, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 28007, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}}
+  ]
+}
