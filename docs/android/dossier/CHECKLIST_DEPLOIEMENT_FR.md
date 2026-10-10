@@ -34,6 +34,11 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       accès Internet sortant (`SCHEMA_ASSEMBLAGE_FR.md` §7).
 - [ ] Réseau : réservations DHCP du terminal, du FDM et de l'imprimante
       (`SCHEMA_ASSEMBLAGE_FR.md` §4) ; aucun port ouvert vers le terminal.
+- [ ] Wi-Fi du site (ou câble) joint **au banc, avant l'import du lot**,
+      débogage USB encore actif : l'application 1.0.0 n'a pas d'écran de
+      réseau et le mode kiosque suspend les Réglages
+      (`MANUEL_INSTALLATION_FR.md` §4.3). Écran du Gérant : cible
+      (EV-10).
 - [ ] Clé USB du lot de mise en service ; carte microSD exFAT de 64 Go
       (128 Go à fort volume) pour exports et mises à jour, la base restant
       sur le stockage interne (`MANUEL_INSTALLATION_FR.md` §8) ; onduleur

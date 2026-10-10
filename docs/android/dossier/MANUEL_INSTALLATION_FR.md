@@ -119,7 +119,12 @@ adb shell dpm list-owners
    capture, sans se connecter pour le faire disparaître**, au rapport
    d'essai : À effectuer (EV-13 : comportement de Play Protect sur le
    terminal avec services Google).
-5. Faire d'abord tout ce qui demande adb : à la fin du provisionnement
+5. Faire d'abord tout ce qui demande adb, et **joindre le réseau Wi-Fi
+   du site avant l'import du lot** (§4.3) : au banc, soit dans
+   l'assistant de configuration d'Android, en passant l'étape du
+   compte Google, soit par adb, par exemple
+   `adb shell cmd wifi connect-network <SSID> wpa2 <mot de passe>`.
+   Le terminal garde ce réseau. À la fin du provisionnement
    d'une version de production, l'application coupe le débogage USB
    (`PLATEFORME_ANDROID_FR.md` §3.5). Un terminal mal provisionné se
    reprend alors au banc (après réinitialisation d'un terminal neuf ou
@@ -206,7 +211,8 @@ Le terminal porte les services Google, la caisse n'en utilise aucun.
 
 - **Jamais de compte Google**, ni au banc ni chez le client : une fois
   propriétaire, l'application interdit d'en ajouter (`no_modify_accounts`).
-  Sur un appareil qui en porte déjà un : réinitialisation d'un terminal neuf ou retiré du service, puis provisionnement au banc (§3.2).
+  Sur un appareil qui en porte déjà un : réinitialisation d'un terminal
+  neuf ou retiré du service, puis provisionnement au banc (§3.2).
 - La boutique Play et les applications Google destinées à l'utilisateur
   doivent être **masquées par le propriétaire de l'appareil**, et toute
   installation bloquée sauf par l'outil de mise à jour déclarée. Comme
@@ -334,10 +340,24 @@ Le terminal, le FDM et l'imprimante sont sur le **même LAN privé**. Plan
 type, subnet `192.168.1.0/24`, réservations DHCP sur le routeur : terminal
 `192.168.1.10`, FDM `192.168.1.20` (HTTPS 443, §7.3), imprimante
 `192.168.1.30` (TCP 9100), box `192.168.1.1` (`SCHEMA_ASSEMBLAGE_FR.md`
-§4). Le terminal n'ouvre aucun port en écoute. Il se relie en Wi-Fi
-(réseau saisi par un Gérant dans l'application, la restriction du Wi-Fi
-n'étant volontairement pas posée) ou par câble si son modèle en offre un.
-Wi-Fi et adresse MAC du vrai terminal : À effectuer (EV-15).
+§4). Le terminal n'ouvre aucun port en écoute. Il se relie en Wi-Fi ou
+par câble si son modèle en offre un.
+
+**Comme construit en 1.0.0, l'application n'a aucun écran de réseau** :
+le mode kiosque suspend les Réglages d'Android
+(`PLATEFORME_ANDROID_FR.md` §3.2) et le Gérant ne peut donc pas saisir
+un réseau sur place. Le Wi-Fi du site (SSID et mot de passe) se prépare
+**au banc, avant l'import du lot** (§3.2 point 5), pendant que le
+débogage USB est encore actif : il est coupé dès qu'un enregistrement de
+provisionnement existe (`PLATEFORME_ANDROID_FR.md` §3.3). Sur un site
+sans Wi-Fi, utiliser le câble si le modèle en offre un. Changer de
+réseau ou de mot de passe après la livraison n'est pas possible sur
+place en 1.0.0, et ne se règle jamais par une réinitialisation ni une
+désinstallation chez le client (§9) : il faut une version déclarée plus
+récente (§6). L'écran de réseau protégé par le code d'un Gérant, qui
+rendrait ce changement possible sur place, est la **cible** et n'est
+pas construit : À effectuer (EV-10 : parcours sur les deux profils du
+D3 Pro). Wi-Fi et adresse MAC du vrai terminal : À effectuer (EV-15).
 
 ### 4.4 Configuration utilisateurs
 
@@ -550,8 +570,8 @@ Chiffres de `PLATEFORME_ANDROID_FR.md` §5, mesurés sur l'émulateur.
   Réglages et `no_uninstall_apps` la désinstallation ; le menu de
   récupération du fabricant n'est pas établi (EV-15,
   `PLATEFORME_ANDROID_FR.md` §3.3). L'interdiction reste absolue : ne pas
-  chercher à contourner ces restrictions. Avant de retirer un terminal, exporter les données (§4.7) et
-  conserver la clé ou la carte.
+  chercher à contourner ces restrictions. Avant de retirer un terminal,
+  exporter les données (§4.7) et conserver la clé ou la carte.
 - **Se connecter à un compte Google**, installer une application ou
   utiliser la boutique Play (§3.5), ou laisser la clé du lot chez le client.
 - Installer un APK autrement que par l'outil de mise à jour (§6), ou une
