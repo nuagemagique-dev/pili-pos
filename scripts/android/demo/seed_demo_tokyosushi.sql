@@ -419,3 +419,10 @@ WHERE category_id = 16 AND id IN (
     SELECT entity_id FROM translations
     WHERE entity_type = 'menu_item' AND field = 'name' AND lang = 'fr'
       AND (value LIKE 'Coca%' OR value LIKE 'Th%'));
+
+-- Demo menu codes: one letter per category (A = first category), the product's place
+-- in it as the number (Sushi saumon = A1). The real codes come from the catalog in
+-- production (HubRise SKU custom_fields.code).
+UPDATE menu_items SET code = (
+    SELECT char(64 + c.sort_order) FROM categories c WHERE c.id = menu_items.category_id
+) || sort_order;

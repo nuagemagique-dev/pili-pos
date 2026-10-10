@@ -7,7 +7,7 @@
     <string name="settings_lang_name_fr">Français</string>
     <string name="settings_lang_name_zh">中文</string>
     <string name="settings_lang_name_en">English</string>
-    <string name="settings_language_note">产品名称保持双语显示。</string>
+    <string name="settings_language_note">产品名称跟随所选语言显示。</string>
     <string name="settings_product_label">商品显示</string>
     <string name="settings_product_label_name">名称</string>
     <string name="settings_product_label_code">编号</string>

@@ -2,11 +2,13 @@ package dev.nuagemagique.pilipos.feature.webshop
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -226,12 +228,12 @@ class WebshopContentTest {
     }
 
     @Test
-    fun itemsShowTheirNamesInBothLanguagesWithOptionsAndNotes() {
+    fun itemsShowTheirNameInTheUiLanguageWithOptionsAndNotes() {
         show(base)
 
         text("webshop_card_2_item_0").assertTextContains("3×", substring = true)
         text("webshop_card_2_item_0").assertTextContains("Maki thon", substring = true)
-        text("webshop_card_2_item_0").assertTextContains("金枪鱼卷", substring = true)
+        text("webshop_card_2_item_0").assert(!hasText("金枪鱼卷", substring = true))
         text("webshop_card_2_item_0").assertTextContains("sans wasabi", substring = true)
         text("webshop_card_2_item_0").assertTextContains("“bien froid”", substring = true)
     }
@@ -241,7 +243,7 @@ class WebshopContentTest {
         show(base, language = AppLanguage.ZH)
 
         text("webshop_card_2_item_0").assertTextContains("金枪鱼卷", substring = true)
-        text("webshop_card_2_item_0").assertTextContains("Maki thon", substring = true)
+        text("webshop_card_2_item_0").assert(!hasText("Maki thon", substring = true))
     }
 
     @Test

@@ -1,6 +1,7 @@
 package dev.nuagemagique.pilipos.feature.order
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -96,11 +98,11 @@ class OrderContentTest {
     }
 
     @Test
-    fun theOtherLanguageIsShownUnderTheNameAndAFreePriceProductShowsItsBadge() {
+    fun onlyTheUiLanguageIsShownAndAFreePriceProductShowsItsBadge() {
         show(base)
 
-        compose.onNodeWithTag("menu_item_10").assertTextContains("三文鱼卷", substring = true)
-        compose.onNodeWithTag("category_1").assertTextContains("寿司", substring = true)
+        compose.onNodeWithTag("menu_item_10").assert(!hasText("三文鱼卷", substring = true))
+        compose.onNodeWithTag("category_1").assert(!hasText("寿司", substring = true))
         compose.onNodeWithTag("menu_item_30").assertTextContains("Prix libre", substring = true)
     }
 

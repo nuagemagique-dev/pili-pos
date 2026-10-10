@@ -19,9 +19,8 @@ export interface BilingualName {
 }
 
 /**
- * Product names are shown in two languages (UX guide §10): the UI
- * language first, then French or Chinese underneath, so French- and
- * Chinese-speaking staff both read the same button.
+ * Product names are shown in the UI language only (user decision
+ * 2026-10-10: no second language underneath).
  *
  * With products shown by code, a product that has one leads with it
  * and keeps its name in the UI language underneath.
@@ -36,7 +35,6 @@ export function useBilingualName() {
     if (pos.productLabel === "code" && code) {
       return { primary: code, secondary: primary, isCode: true };
     }
-    const other = zh ? (item.name_fr ?? null) : (item.name_zh ?? null);
-    return { primary, secondary: other && other !== primary ? other : null, isCode: false };
+    return { primary, secondary: null, isCode: false };
   };
 }

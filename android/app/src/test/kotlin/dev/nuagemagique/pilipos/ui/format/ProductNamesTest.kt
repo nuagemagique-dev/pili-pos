@@ -22,10 +22,10 @@ class ProductNamesTest {
     ) = bilingualName(name, fr, zh, code, language, mode)
 
     @Test
-    fun frenchLeadsWithTheNameAndShowsChineseUnderneath() {
+    fun frenchShowsTheNameOnlyWithoutChineseUnderneath() {
         val n = names(zh = "寿司", language = AppLanguage.FR)
         assertEquals("Sushi", n.primary)
-        assertEquals("寿司", n.secondary)
+        assertNull(n.secondary)
         assertFalse(n.isCode)
     }
 
@@ -33,28 +33,28 @@ class ProductNamesTest {
     fun englishBehavesLikeFrench() {
         val n = names(name = "Sushi", fr = "Sushi FR", zh = "寿司", language = AppLanguage.EN)
         assertEquals("Sushi", n.primary)
-        assertEquals("寿司", n.secondary)
+        assertNull(n.secondary)
     }
 
     @Test
-    fun chineseLeadsWithTheChineseNameAndShowsFrenchUnderneath() {
+    fun chineseShowsTheChineseNameOnly() {
         val n = names(name = "Sushi", fr = "Sushi FR", zh = "寿司", language = AppLanguage.ZH)
         assertEquals("寿司", n.primary)
-        assertEquals("Sushi FR", n.secondary)
+        assertNull(n.secondary)
     }
 
     @Test
     fun chineseFallsBackToTheNameWithoutAChineseName() {
         val n = names(name = "Sushi", fr = "Sushi FR", zh = null, language = AppLanguage.ZH)
         assertEquals("Sushi", n.primary)
-        assertEquals("Sushi FR", n.secondary)
+        assertNull(n.secondary)
     }
 
     @Test
     fun anEmptyChineseNameIsKeptAsThePrimary() {
         val n = names(name = "Sushi", fr = "Sushi FR", zh = "", language = AppLanguage.ZH)
         assertEquals("", n.primary)
-        assertEquals("Sushi FR", n.secondary)
+        assertNull(n.secondary)
     }
 
     @Test
@@ -105,7 +105,7 @@ class ProductNamesTest {
         for (code in listOf(null, "", "   ")) {
             val n = names(zh = "寿司", code = code, language = AppLanguage.FR, mode = ProductLabelMode.CODE)
             assertEquals("Sushi", n.primary)
-            assertEquals("寿司", n.secondary)
+            assertNull(n.secondary)
             assertFalse(n.isCode)
         }
     }
@@ -135,7 +135,7 @@ class ProductNamesTest {
                 sortOrder = 1,
                 active = true,
             )
-        assertEquals(BilingualName("Sushi", "寿司", false), bilingualName(item, AppLanguage.FR, ProductLabelMode.NAME))
+        assertEquals(BilingualName("Sushi", null, false), bilingualName(item, AppLanguage.FR, ProductLabelMode.NAME))
         assertEquals(BilingualName("A2", "寿司", true), bilingualName(item, AppLanguage.ZH, ProductLabelMode.CODE))
     }
 
@@ -159,7 +159,7 @@ class ProductNamesTest {
                 code = "A2",
                 unsentQuantity = 0,
             )
-        assertEquals(BilingualName("寿司", "Sushi FR", false), bilingualName(line, AppLanguage.ZH, ProductLabelMode.NAME))
+        assertEquals(BilingualName("寿司", null, false), bilingualName(line, AppLanguage.ZH, ProductLabelMode.NAME))
         assertEquals(BilingualName("A2", "Sushi", true), bilingualName(line, AppLanguage.EN, ProductLabelMode.CODE))
     }
 
@@ -167,7 +167,7 @@ class ProductNamesTest {
     fun aCategoryHasNoCode() {
         val n = bilingualCategoryName("Boissons", "Boissons FR", "饮料", AppLanguage.ZH)
         assertEquals("饮料", n.primary)
-        assertEquals("Boissons FR", n.secondary)
+        assertNull(n.secondary)
         assertFalse(n.isCode)
     }
 }

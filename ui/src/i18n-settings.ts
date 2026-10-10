@@ -17,9 +17,9 @@ export const settingsMessages: Messages = {
   "settings_lang_name_zh": { fr: "中文", en: "中文", zh: "中文" },
   "settings_lang_name_en": { fr: "English", en: "English", zh: "English" },
   "settings_language_note": {
-    fr: "Les noms des produits restent bilingues.",
-    en: "Product names stay bilingual.",
-    zh: "产品名称保持双语显示。",
+    fr: "Les noms des produits suivent la langue choisie.",
+    en: "Product names follow the chosen language.",
+    zh: "产品名称跟随所选语言显示。",
   },
 
   // Product label panel: what leads a product button and a cart line
