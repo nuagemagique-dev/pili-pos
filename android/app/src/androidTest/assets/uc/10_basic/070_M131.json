@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M131",
+  "ids": ["M131"],
+  "title": "Drawer opened without a sale (signDrawerOpen F)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M131_signDrawerOpen",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "open_drawer_fiscal", "args": {"employeeInsz": "94060242576"}}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M133",
+  "ids": ["M133"],
+  "title": "Drawer declaration: the counted cash declared as typed (signMoneyInOut F)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M133_signMoneyInOut_DrawerDeclaration",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "money_in_out", "args": {"employeeInsz": "94060242576", "amountCents": 100000, "direction": "declaration", "reason": "Declaration tiroir"}}
+  ]
+}

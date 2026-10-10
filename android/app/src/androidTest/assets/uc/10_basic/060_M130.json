@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M130",
+  "ids": ["M130"],
+  "title": "Money in: the float put in the drawer (signMoneyInOut F)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M130_signMoneyInOut",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "money_in_out", "args": {"employeeInsz": "94060242576", "amountCents": 10000, "direction": "in", "reason": "Fond de caisse"}}
+  ]
+}
