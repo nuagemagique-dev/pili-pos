@@ -55,7 +55,7 @@ pub const CASHIER_INSZ: &str = "84022899837";
 pub const WAITER_INSZ: &str = "91051234567";
 pub const POS_ID: &str = "CPOS0031234567";
 pub const TERMINAL_ID: &str = "POS-1-BAR";
-pub const SW_VERSION: &str = "pili-pos/1.1.0";
+pub const SW_VERSION: &str = "pili-pos/1.0.0";
 pub const FDM_ID: &str = "FOD01000001";
 
 /// What the statistics of one sale must say.

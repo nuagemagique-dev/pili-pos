@@ -80,6 +80,6 @@ pub struct PosSettings {
     pub language: String,
     /// What the FDM would refuse in `pos.json`.
     pub config_problems: Vec<String>,
-    /// The software version (`posSwVersion`), for example `pili-pos-android/1.0.0-dev`.
+    /// The software version (`posSwVersion`), for example `pili-pos-android/1.0.0`.
     pub pos_sw_version: String,
 }

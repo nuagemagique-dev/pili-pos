@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lock_parity  # noqa: E402
 
 ROOT_TREE = """\
-pos-engine v1.1.0 (/repo/crates/pos-engine)
+pos-engine v1.0.0 (/repo/crates/pos-engine)
 serde v1.0.228
 serde_derive v1.0.228 (proc-macro)
 tokio v1.48.0
@@ -29,7 +29,7 @@ tokio v1.48.0 (*)
 libc v0.2.177
 serde_derive v1.0.228 (proc-macro) (*)
 serde v1.0.228
-pos-engine v1.1.0 (/other/place/android/rust/../../crates/pos-engine)
+pos-engine v1.0.0 (/other/place/android/rust/../../crates/pos-engine)
 """
 
 
@@ -58,7 +58,7 @@ class LockParity(unittest.TestCase):
         self.assertEqual(
             pairs,
             {
-                ("pos-engine", "1.1.0"),
+                ("pos-engine", "1.0.0"),
                 ("serde", "1.0.228"),
                 ("serde_derive", "1.0.228"),
                 ("tokio", "1.48.0"),

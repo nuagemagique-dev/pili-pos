@@ -74,7 +74,7 @@ class UpdateVerifierTest {
         platformDir = File(tmp.root, "platform")
         updateDir = File(platformDir, "update")
         natives = RealMinisignNatives()
-        audit = PlatformAudit(platformDir, { 1_700_000_000_000L }, dispatcher, { 101L to "1.1.0" }, { 1 })
+        audit = PlatformAudit(platformDir, { 1_700_000_000_000L }, dispatcher, { 101L to "1.0.0" }, { 1 })
     }
 
     private fun verifier(natives: dev.nuagemagique.pilipos.engine.EngineNatives = this.natives) =

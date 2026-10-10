@@ -351,7 +351,7 @@ fn ticket(full: bool) -> EngineFiscalTicket {
             String::new()
         },
         pos_id: "CPOS0031234567".into(),
-        pos_sw_version: "pili-pos-android/1.0.0-dev".into(),
+        pos_sw_version: "pili-pos-android/1.0.0".into(),
         terminal_id: "POS-2-ANDROID".into(),
         device_id: "EMULATOR-TEST-0001".into(),
         operator: "Gerant Test".into(),

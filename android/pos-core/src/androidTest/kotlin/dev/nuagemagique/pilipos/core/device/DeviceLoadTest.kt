@@ -30,7 +30,7 @@ class DeviceLoadTest {
     fun posSwVersionIsTheAndroidBuild() =
         runBlocking(ioDispatcher) {
             uniffiEnsureInitialized()
-            assertEquals("pili-pos-android/1.0.0-dev", withContext(ioDispatcher) { posSwVersion() })
+            assertEquals("pili-pos-android/1.0.0", withContext(ioDispatcher) { posSwVersion() })
         }
 
     @Test

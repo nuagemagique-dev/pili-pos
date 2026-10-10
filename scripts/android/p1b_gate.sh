@@ -14,7 +14,7 @@
 #   --fast     skip the slow UI and tool checks (ui-e2e, ui-e2e-inventory and the
 #              two self-tests) and pass --fast to the P1a gate
 #   --exit     phase exit: also build and test the UI, and run the checks that the
-#              moved rules are gone from ui/src and that the version is 1.1.0
+#              moved rules are gone from ui/src and that the version is 1.0.0
 #   --ui       treat the UI as changed (build and test it whatever the diff says)
 #   --base REF branch the checks compare with (default android/int)
 #
@@ -39,7 +39,7 @@
 #                     FDM polling, explicit work in/out, order leaving wired through
 #                     the router, posSwVersion on the login screen); the detail names
 #                     the first failing rule
-#   version           1.1.0 in Cargo.toml [workspace.package], src-tauri/tauri.conf.json
+#   version           1.0.0 in Cargo.toml [workspace.package], src-tauri/tauri.conf.json
 #                     and ui/package.json
 #
 # Needs jq, node/npm, python3 and cargo. Honours CARGO_TARGET_DIR.
@@ -245,7 +245,7 @@ ui_rules() {
 }
 
 check_version() {
-    local want="1.1.0" ws tauri pkg bad=""
+    local want="1.0.0" ws tauri pkg bad=""
     command -v jq >/dev/null || { echo "jq is not installed"; return 1; }
     ws="$(awk '/^\[/ { in_ws = ($0 == "[workspace.package]") } in_ws && /^version[[:space:]]*=/ { gsub(/.*=[[:space:]]*"/, ""); gsub(/".*/, ""); print; exit }' Cargo.toml)"
     tauri="$(jq -r '.version // empty' src-tauri/tauri.conf.json 2>/dev/null)"

@@ -303,14 +303,14 @@ fn settings_with_every_option_set_or_empty_convert() {
             } else {
                 vec![]
             },
-            pos_sw_version: "pili-pos-android/1.0.0-dev".into(),
+            pos_sw_version: "pili-pos-android/1.0.0".into(),
         };
         let record: ffi::PosSettings = out_equal(&engine);
         assert_eq!(record.config_problems.len(), if full { 2 } else { 0 });
         // The camelCase key of the wire form.
         assert_eq!(
             json_of(&record)["posSwVersion"],
-            "pili-pos-android/1.0.0-dev"
+            "pili-pos-android/1.0.0"
         );
     }
 }
@@ -321,7 +321,7 @@ fn settings_with_every_option_set_or_empty_convert() {
 async fn get_settings_carries_the_ffi_software_version() {
     let t = support::open_seeded().await;
     let settings = t.engine.get_settings().await.unwrap();
-    assert_eq!(settings.pos_sw_version, "pili-pos-android/1.0.0-dev");
+    assert_eq!(settings.pos_sw_version, "pili-pos-android/1.0.0");
     assert_eq!(settings.pos_sw_version, pos_ffi::pos_sw_version().await);
     assert_eq!(settings.pos_id, "CPOS0031234567");
     assert_eq!(settings.terminal_id, "POS-2-ANDROID");

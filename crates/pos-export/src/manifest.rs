@@ -173,7 +173,7 @@ mod tests {
             created_at: "2026-10-08T23:30:00+02:00".into(),
             pos_id: "CFOD0061234567".into(),
             terminal_id: "POS1".into(),
-            pos_sw_version: "1.1.0".into(),
+            pos_sw_version: "1.0.0".into(),
             z_report_no: 42,
             booking_date: "2026-10-08".into(),
             stats_schema_version: 1,

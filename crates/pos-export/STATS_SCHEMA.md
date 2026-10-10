@@ -61,7 +61,7 @@ Keys, all always present:
 | `export_id` | the export id, as in the file name |
 | `pos_id` | fiscal identifier of the POS (`posId`) |
 | `terminal_id` | identifier of the terminal |
-| `pos_sw_version` | software version of the POS, for example `pili-pos/1.1.0` |
+| `pos_sw_version` | software version of the POS, for example `pili-pos/1.0.0` |
 | `z_report_no` | number of the Z report, decimal |
 | `booking_date` | booking date of the closed period, `YYYY-MM-DD` |
 | `period_opened_at` | when the period opened (UTC, RFC 3339) |
