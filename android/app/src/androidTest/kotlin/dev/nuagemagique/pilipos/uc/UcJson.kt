@@ -145,7 +145,10 @@ internal object UcJson {
         val problem =
             when {
                 failure != null && wantedError == null -> "the call failed: ${errorCode(failure)}"
-                failure != null -> errorCode(failure).takeUnless { it == wantedError }?.let { "error '$it', expected '$wantedError'" }
+                failure != null ->
+                    errorCode(failure)
+                        .takeUnless { it == wantedError || namesCode(errorCode(failure), wantedError.orEmpty()) }
+                        ?.let { "error '$it', expected '$wantedError'" }
                 wantedError != null -> errorOfResult(result, wantedError)
                 else -> unsuccessful(result)
             }
@@ -158,7 +161,26 @@ internal object UcJson {
     ): String? {
         val obj = result as? JSONObject
         val text = obj?.takeIf { it.has("success") && !it.optBoolean("success", true) }?.optString("error", "")
-        return if (text != null && text.startsWith(wantedError)) null else "no error '$wantedError' (answer: $result)"
+        return if (text != null && namesCode(text, wantedError)) null else "no error '$wantedError' (answer: $result)"
+    }
+
+    /**
+     * Does [text] carry [code] as a whole word (no letter, digit or underscore around it)? An engine refusal is
+     * `code|k=v`; an FDM refusal is free text that names the FDM code (`FDM error: GraphQL error: FDM_LOCKED: ...`),
+     * as `names_code` of pos-uc-check reads it.
+     */
+    fun namesCode(
+        text: String,
+        code: String,
+    ): Boolean {
+        fun isWord(c: Char?) = c != null && (c == '_' || (c.code < 128 && c.isLetterOrDigit()))
+        var at = text.indexOf(code)
+        while (code.isNotEmpty() && at >= 0) {
+            val bounded = !isWord(text.getOrNull(at - 1)) && !isWord(text.getOrNull(at + code.length))
+            if (bounded) return true
+            at = text.indexOf(code, at + 1)
+        }
+        return false
     }
 
     private fun unsuccessful(result: Any?): String? {
