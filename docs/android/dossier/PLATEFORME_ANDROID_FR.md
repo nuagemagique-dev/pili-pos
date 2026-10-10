@@ -90,7 +90,7 @@ La configuration de la caisse (identité fiscale, FDM, imprimante) arrive ensuit
 4. suspend les autres applications d'accueil et l'application Réglages du système (suspension réversible) ;
 5. masque les barres système (mode immersif) et démarre le Lock Task.
 
-Mesuré sur l'émulateur : après un redémarrage ou un plantage, l'application est de nouveau au premier plan et verrouillée en 1 à 3 secondes. Le comportement avec le lanceur propre au terminal Sunmi et avec ses applications système n'est pas établi : À effectuer (EV-15 : lanceur Sunmi, extension kiosque Sunmi, listes de maintien en vie du fabricant).
+Mesuré sur l'émulateur avec l'application prototype des essais préparatoires (mêmes appels de propriétaire d'appareil et de kiosque, pas pili-pos-android) : après un redémarrage ou un plantage, l'application est de nouveau au premier plan et verrouillée en 1 à 3 secondes. Le même essai avec pili-pos-android : À effectuer (EV-10 : redémarrage et verrouillage du produit dans le manuel d'exécution du D3 Pro). Le comportement avec le lanceur propre au terminal Sunmi et avec ses applications système n'est pas établi : À effectuer (EV-15 : lanceur Sunmi, extension kiosque Sunmi, listes de maintien en vie du fabricant).
 
 ### 3.3 Restrictions utilisateur (tel que construit)
 
@@ -122,7 +122,7 @@ Les treize premières lignes sont appliquées dans toutes les versions ; la dern
 | `DISALLOW_MOUNT_PHYSICAL_MEDIA` (clé `no_physical_media`) | la clé USB ou la carte SD doivent pouvoir se monter pour l'export vers le SPF ; le nom `no_mount_physical_media` est aussi interdit |
 | `DISALLOW_CONFIG_WIFI` (clé `no_config_wifi`) | le gérant doit pouvoir corriger le Wi-Fi sur place depuis l'application |
 
-Mesuré sur l'émulateur : l'écran de réinitialisation d'usine répond « Bloqué par votre administrateur », l'ajout d'un utilisateur est refusé, la désinstallation de l'application est refusée. Le chemin de démarrage en mode sans échec par les touches de volume et le menu de récupération du fabricant ne sont pas établis : À effectuer (EV-15 : menu de récupération du D3 Pro, ce qu'il peut effacer ou installer sous ces restrictions).
+Mesuré sur l'émulateur avec l'application prototype des essais préparatoires (mêmes appels de propriétaire d'appareil) : l'écran de réinitialisation d'usine répond « Bloqué par votre administrateur », l'ajout d'un utilisateur est refusé, la désinstallation de l'application est refusée. Ces refus avec pili-pos-android : À effectuer (EV-10 : manuel d'exécution du D3 Pro). Mesuré sur le produit : les 13 restrictions de l'ensemble constant sont présentes dans le système après le provisionnement. Le chemin de démarrage en mode sans échec par les touches de volume et le menu de récupération du fabricant ne sont pas établis : À effectuer (EV-15 : menu de récupération du D3 Pro, ce qu'il peut effacer ou installer sous ces restrictions).
 
 ### 3.4 Autres mesures du propriétaire (tel que construit)
 
@@ -142,7 +142,7 @@ Quand l'application n'est pas propriétaire de l'appareil, rien n'est appliqué 
 
 ### 3.5 Débogage
 
-Les versions de production coupent adb (restriction `DISALLOW_DEBUGGING_FEATURES`, dernière étape du provisionnement). Mesuré sur l'émulateur : adb passe hors ligne 4 secondes après la commande. Seule l'application pourrait le rétablir ; elle ne le fait pas en production et il n'existe aucune minuterie de réactivation. Le comportement d'adb sur une image `user` du fabricant (installation `adb install -d`, accès root, options pour développeurs) : À effectuer (EV-15 : adb sur l'image de série du D3 Pro).
+Les versions de production coupent adb (restriction `DISALLOW_DEBUGGING_FEATURES`, dernière étape du provisionnement). Mesuré sur l'émulateur avec l'application prototype des essais préparatoires (même appel) : adb passe hors ligne 4 secondes après la commande. Avec pili-pos-android : À effectuer (EV-10 : provisionnement de production complet). Seule l'application pourrait le rétablir ; elle ne le fait pas en production et il n'existe aucune minuterie de réactivation. Le comportement d'adb sur une image `user` du fabricant (installation `adb install -d`, accès root, options pour développeurs) : À effectuer (EV-15 : adb sur l'image de série du D3 Pro).
 
 ### 3.6 Mise à jour du système Android
 
@@ -194,7 +194,7 @@ L'identifiant de l'appareil (`deviceId`) est le **numéro de série matériel du
 
 Le numéro est affiché dans l'écran « À propos », écrit dans le fichier d'identité de l'export vers le SPF et imprimé par le moteur sur les tickets, comme sous Linux où il s'agit de l'adresse MAC.
 
-**Valeur de l'émulateur.** `EMULATOR37X2X12X0` (17 caractères), stable après redémarrage, avec ou sans Wi-Fi. **Format du vrai terminal** et confirmation que son micrologiciel renvoie le numéro au propriétaire : À effectuer (EV-15 : numéro de série réel et sa lecture par `Build.getSerial()`). **Valeur de la machine de test** telle qu'imprimée sur ses tickets : À effectuer (EV-16 : deviceId de la machine de test).
+**Valeur de l'émulateur.** `EMULATOR37X2X12X0` (17 caractères), lue avec l'application prototype des essais préparatoires, stable après redémarrage, avec ou sans Wi-Fi. **Format du vrai terminal** et confirmation que son micrologiciel renvoie le numéro au propriétaire : À effectuer (EV-15 : numéro de série réel et sa lecture par `Build.getSerial()`). **Valeur de la machine de test** telle qu'imprimée sur ses tickets : À effectuer (EV-16 : deviceId de la machine de test).
 
 ---
 
@@ -224,7 +224,7 @@ Mesure sur l'émulateur (essai de bout en bout de la plateforme : 50 ventes d'un
 | une ligne | 6 471 octets par vente |
 | six lignes | 14 336 octets par vente |
 
-Une ligne de plus coûte environ 1,6 Kio (mesuré, non décomposé). Une vraie vente a plusieurs lignes : le chiffre à six lignes sert au dimensionnement, celui d'une ligne est un plancher. La sauvegarde faite après le Z de cet essai pèse 778 240 octets. Ces mesures remplacent une estimation antérieure, non mesurée.
+Une ligne de plus coûte environ 1,6 Ko (1 573 octets, mesuré, non décomposé). Une vraie vente a plusieurs lignes : le chiffre à six lignes sert au dimensionnement, celui d'une ligne est un plancher. La sauvegarde faite après le Z de cet essai pèse 778 240 octets. Ces mesures remplacent une estimation antérieure, non mesurée.
 
 Projection annuelle (octets par vente x ventes par jour x 365) :
 
@@ -283,11 +283,11 @@ Le support se fait **sur place** : écrans du gérant protégés par PIN, lot de
 
 ## 8. Arrêt, panne et reprise
 
-- **Reprise au démarrage.** Au démarrage du terminal, l'application, écran d'accueil persistant, démarre et se verrouille en Lock Task ; le service au premier plan rouvre le moteur. Un récepteur de démarrage consigne l'événement et lance l'activité principale en secours. Mesuré sur l'émulateur : 21 à 23 secondes jusqu'à la fin du démarrage du système, application verrouillée 1 à 3 secondes plus tard.
+- **Reprise au démarrage.** Au démarrage du terminal, l'application, écran d'accueil persistant, démarre et se verrouille en Lock Task ; le service au premier plan rouvre le moteur. Un récepteur de démarrage consigne l'événement et lance l'activité principale en secours. Mesuré sur l'émulateur avec l'application prototype des essais préparatoires : 21 à 23 secondes jusqu'à la fin du démarrage du système, application verrouillée 1 à 3 secondes plus tard. Le même essai avec pili-pos-android : À effectuer (EV-10).
 - **Chien de garde.** Si le moteur passe à l'état fatal (échec d'ouverture ou panique du code Rust), la plateforme consigne l'événement, attend 3 secondes (les journaux s'écrivent), puis met fin à son propre processus ; le système redémarre l'écran d'accueil persistant et le service. Budget : 3 redémarrages en 10 minutes, au-delà l'écran d'erreur reste affiché. Mesuré : environ 3,6 secondes entre le déclenchement et l'état « prêt » du nouveau processus, dont 3 secondes d'attente voulue, sans second import. Un moteur fermé plus de 60 secondes hors opération de plateforme est relancé.
 - **Mise à jour.** Après l'installation d'une nouvelle version, un récepteur relance l'activité principale ; l'application est de nouveau verrouillée en moins de 2 secondes (mesuré).
-- **Coupure de courant.** Sur l'émulateur, un arrêt brutal (processus de l'émulateur tué) laisse l'application verrouillée 3 secondes après la fin du démarrage, la base intacte (contrôle d'intégrité « ok ») et aucune ligne validée perdue (écriture synchrone complète). Cet essai ne modélise pas le cache d'écriture d'une vraie mémoire flash : À effectuer (EV-12 : reprise après coupure de courant sur le profil avec services Google ; coupure réelle sur un vrai D3 Pro, EV-15).
-- **Marche continue.** Un essai de 30 minutes sur l'émulateur a passé tous ses critères (un seul processus, verrouillage maintenu, base intacte). L'essai de 24 heures avec le service au premier plan : À effectuer (EV-11 : essai de 24 heures).
+- **Coupure de courant.** Mesuré avec l'application prototype des essais préparatoires (mêmes appels de propriétaire d'appareil et de kiosque, sa propre base d'essai, pas `pos.db`) : après un arrêt brutal de l'émulateur (processus tué), l'application est verrouillée 3 secondes après la fin du démarrage et la base d'essai est intacte (contrôle d'intégrité « ok »), sans perte de ses lignes d'essai validées (écriture synchrone complète). Ce résultat n'est pas celui du produit. L'essai avec pili-pos-android et `pos.db`, arrêt brutal pendant une transaction puis démarrage à froid : À effectuer (EV-12 : reprise après coupure de courant sur le profil avec services Google). Cet essai ne modélise pas le cache d'écriture d'une vraie mémoire flash : À effectuer (EV-15 : coupure réelle sur un vrai D3 Pro).
+- **Marche continue.** Un essai de 30 minutes avec l'application prototype des essais préparatoires sur l'émulateur a passé tous ses critères (un seul processus, verrouillage maintenu, base d'essai intacte). Ce résultat n'est pas celui du produit. L'essai de 24 heures avec le service au premier plan : À effectuer (EV-11 : essai de 24 heures).
 - **Écran de veille et alimentation.** L'écran reste allumé tant que le terminal est branché (§3.4). Le sommeil profond du processeur, le comportement thermique et la touche d'alimentation en Lock Task sur le vrai matériel : À effectuer (EV-15).
 
 ---
@@ -309,7 +309,7 @@ Les mesures de ce dossier viennent d'un profil émulé. Les points suivants ne p
 | Mise à jour : comportement de l'installateur de paquets Sunmi, durée d'installation sur le processeur réel | À effectuer (EV-15) |
 | Imprimante Epson réelle : latence de la lecture d'état DLE EOT, papier, capot, erreurs, ligne en chinois (la page de codes actuelle imprime « ? ») | À effectuer (EV-15) |
 | Affichage : densité, hauteur utile avec les barres masquées, polices, confort tactile | À effectuer (EV-15) |
-| Durée de hachage bcrypt des codes PIN sur le processeur réel (295 ms sur l'émulateur) | À effectuer (EV-15) |
+| Durée de hachage bcrypt des codes PIN sur le processeur réel (295 ms sur l'émulateur, mesuré avec l'application prototype des essais préparatoires) | À effectuer (EV-15) |
 | Marche continue de 24 heures, coupure de courant réelle, durée de démarrage jusqu'au verrouillage, livraison de l'événement de fin de démarrage | À effectuer (EV-11, EV-12, EV-15) |
 | Racines TLS embarquées sur l'image réelle | À effectuer (EV-15) |
 | Essai réel contre le simulateur en ligne module2 (`CPOS0031234567`, terminal `POS-2-ANDROID`) | À effectuer (EV-14 : essai en direct, sur accord du producteur) |
