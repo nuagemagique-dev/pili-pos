@@ -38,7 +38,8 @@ Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, 
 1. **Connexion** : toucher « Mengmeng Z. », PIN 1111. Montrer les voyants FDM, ticket et cuisine en haut.
 2. **Salle** : toucher une table, ajouter un plateau, des sushis et deux bières (onglet Boisson).
    Les noms suivent la langue de l'interface. Config, « Affichage des produits » : Code affiche
-   les codes (Sushi saumon = A1) avec le nom en dessous ; Nom pour revenir.
+   les codes du restaurant (onglet Sushi : Saumon = A1, Thon = A3) avec le nom en dessous ;
+   les plateaux, bentos, boissons et desserts n'ont pas de code et gardent leur nom. Nom pour revenir.
 3. **Envoyer en cuisine** : le bon de cuisine ne contient que les plats, pas les boissons
    (voir http://127.0.0.1:19393/).
 4. **Addition** : addition provisoire signée par le FDM (événement P).
