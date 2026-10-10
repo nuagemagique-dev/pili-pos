@@ -1,0 +1,5170 @@
+{
+ "categories": [
+  {
+   "ref": "TSB-CAT-1",
+   "name": "Menu plateau",
+   "description": "{\"translations\": {\"fr\": \"Menu plateau\", \"en\": \"Platter menu\", \"nl\": \"\", \"zh\": \"拼盘套餐\"}}"
+  },
+  {
+   "ref": "TSB-CAT-2",
+   "name": "Menu bento box",
+   "description": "{\"translations\": {\"fr\": \"Menu bento box\", \"en\": \"Bento box menu\", \"nl\": \"\", \"zh\": \"便当套餐\"}}"
+  },
+  {
+   "ref": "TSB-CAT-3",
+   "name": "Sushi",
+   "description": "{\"translations\": {\"fr\": \"Sushi\", \"en\": \"Sushi\", \"nl\": \"\", \"zh\": \"寿司\"}}"
+  },
+  {
+   "ref": "TSB-CAT-4",
+   "name": "Maki",
+   "description": "{\"translations\": {\"fr\": \"Maki\", \"en\": \"Maki\", \"nl\": \"\", \"zh\": \"卷寿司\"}}"
+  },
+  {
+   "ref": "TSB-CAT-5",
+   "name": "Gunkan",
+   "description": "{\"translations\": {\"fr\": \"Gunkan\", \"en\": \"Gunkan\", \"nl\": \"\", \"zh\": \"军舰寿司\"}}"
+  },
+  {
+   "ref": "TSB-CAT-6",
+   "name": "Spring roll",
+   "description": "{\"translations\": {\"fr\": \"Spring roll\", \"en\": \"Spring roll\", \"nl\": \"\", \"zh\": \"春卷\"}}"
+  },
+  {
+   "ref": "TSB-CAT-7",
+   "name": "California roll",
+   "description": "{\"translations\": {\"fr\": \"California roll\", \"en\": \"California roll\", \"nl\": \"\", \"zh\": \"加州卷\"}}"
+  },
+  {
+   "ref": "TSB-CAT-8",
+   "name": "Temaki",
+   "description": "{\"translations\": {\"fr\": \"Temaki\", \"en\": \"Temaki\", \"nl\": \"\", \"zh\": \"手卷\"}}"
+  },
+  {
+   "ref": "TSB-CAT-9",
+   "name": "Masago roll",
+   "description": "{\"translations\": {\"fr\": \"Masago roll\", \"en\": \"Masago roll\", \"nl\": \"\", \"zh\": \"鱼子卷\"}}"
+  },
+  {
+   "ref": "TSB-CAT-10",
+   "name": "Spécial roll",
+   "description": "{\"translations\": {\"fr\": \"Spécial roll\", \"en\": \"Special roll\", \"nl\": \"\", \"zh\": \"特色卷\"}}"
+  },
+  {
+   "ref": "TSB-CAT-11",
+   "name": "Chirashi",
+   "description": "{\"translations\": {\"fr\": \"Chirashi\", \"en\": \"Chirashi\", \"nl\": \"\", \"zh\": \"散寿司\"}}"
+  },
+  {
+   "ref": "TSB-CAT-12",
+   "name": "Sashimi",
+   "description": "{\"translations\": {\"fr\": \"Sashimi\", \"en\": \"Sashimi\", \"nl\": \"\", \"zh\": \"刺身\"}}"
+  },
+  {
+   "ref": "TSB-CAT-13",
+   "name": "Poke bowl",
+   "description": "{\"translations\": {\"fr\": \"Poke bowl\", \"en\": \"Poke bowl\", \"nl\": \"\", \"zh\": \"夏威夷鱼生饭\"}}"
+  },
+  {
+   "ref": "TSB-CAT-14",
+   "name": "Tokyo hot",
+   "description": "{\"translations\": {\"fr\": \"Tokyo hot\", \"en\": \"Tokyo hot\", \"nl\": \"\", \"zh\": \"东京热食\"}}"
+  },
+  {
+   "ref": "TSB-CAT-15",
+   "name": "Accompagnement",
+   "description": "{\"translations\": {\"fr\": \"Accompagnement\", \"en\": \"Side dish\", \"nl\": \"\", \"zh\": \"配菜\"}}"
+  },
+  {
+   "ref": "TSB-CAT-16",
+   "name": "Boisson",
+   "description": "{\"translations\": {\"fr\": \"Boisson\", \"en\": \"Drink\", \"nl\": \"\", \"zh\": \"饮品\"}}"
+  },
+  {
+   "ref": "TSB-CAT-17",
+   "name": "Dessert",
+   "description": "{\"translations\": {\"fr\": \"Dessert\", \"en\": \"Dessert\", \"nl\": \"\", \"zh\": \"甜点\"}}"
+  }
+ ],
+ "products": [
+  {
+   "ref": "P-TSB-1",
+   "category_ref": "TSB-CAT-1",
+   "name": "Sushi saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-1",
+     "price": "14.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon sushi"
+       },
+       "fr": {
+        "name": "Sushi saumon"
+       },
+       "zh": {
+        "name": "三文鱼寿司拼盘"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-2",
+   "category_ref": "TSB-CAT-1",
+   "name": "Saumon Time",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-2",
+     "price": "17.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon Time"
+       },
+       "fr": {
+        "name": "Saumon Time"
+       },
+       "zh": {
+        "name": "三文鱼时光"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-3",
+   "category_ref": "TSB-CAT-1",
+   "name": "M1",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-3",
+     "price": "17.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M1"
+       },
+       "fr": {
+        "name": "M1"
+       },
+       "zh": {
+        "name": "M1"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-4",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau 16",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-4",
+     "price": "18.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Platter 16"
+       },
+       "fr": {
+        "name": "Plateau 16"
+       },
+       "zh": {
+        "name": "拼盘16"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-5",
+   "category_ref": "TSB-CAT-1",
+   "name": "M2",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-5",
+     "price": "18.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M2"
+       },
+       "fr": {
+        "name": "M2"
+       },
+       "zh": {
+        "name": "M2"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-6",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-6",
+     "price": "21.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon platter"
+       },
+       "fr": {
+        "name": "Plateau saumon"
+       },
+       "zh": {
+        "name": "三文鱼拼盘"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-7",
+   "category_ref": "TSB-CAT-1",
+   "name": "M3",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-7",
+     "price": "21.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M3"
+       },
+       "fr": {
+        "name": "M3"
+       },
+       "zh": {
+        "name": "M3"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-8",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau sushi grillé",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-8",
+     "price": "24.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Grilled Sushi Platter"
+       },
+       "fr": {
+        "name": "Plateau sushi grillé"
+       },
+       "zh": {
+        "name": "烤寿司拼盘"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-9",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau California 24",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-9",
+     "price": "24.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "California platter 24"
+       },
+       "fr": {
+        "name": "Plateau California 24"
+       },
+       "zh": {
+        "name": "加州卷拼盘24"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-10",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau sushi mix",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-10",
+     "price": "24.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mixed sushi platter"
+       },
+       "fr": {
+        "name": "Plateau sushi mix"
+       },
+       "zh": {
+        "name": "什锦寿司拼盘"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-11",
+   "category_ref": "TSB-CAT-1",
+   "name": "M4",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-11",
+     "price": "26.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M4"
+       },
+       "fr": {
+        "name": "M4"
+       },
+       "zh": {
+        "name": "M4"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-12",
+   "category_ref": "TSB-CAT-1",
+   "name": "M5",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-12",
+     "price": "30.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M5"
+       },
+       "fr": {
+        "name": "M5"
+       },
+       "zh": {
+        "name": "M5"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-13",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau 36",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-13",
+     "price": "42.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Platter 36"
+       },
+       "fr": {
+        "name": "Plateau 36"
+       },
+       "zh": {
+        "name": "拼盘36"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-14",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau 38 Pièces",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-14",
+     "price": "49.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "38 Piece Platter"
+       },
+       "fr": {
+        "name": "Plateau 38 Pièces"
+       },
+       "zh": {
+        "name": "拼盘38"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-15",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau 46",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-15",
+     "price": "50.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Platter 46"
+       },
+       "fr": {
+        "name": "Plateau 46"
+       },
+       "zh": {
+        "name": "拼盘46"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-16",
+   "category_ref": "TSB-CAT-1",
+   "name": "M6",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-16",
+     "price": "50.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M6"
+       },
+       "fr": {
+        "name": "M6"
+       },
+       "zh": {
+        "name": "M6"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-17",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau 42 Pièces",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-17",
+     "price": "52.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "42 Piece Platter"
+       },
+       "fr": {
+        "name": "Plateau 42 Pièces"
+       },
+       "zh": {
+        "name": "拼盘42"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-18",
+   "category_ref": "TSB-CAT-1",
+   "name": "M7",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-18",
+     "price": "56.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "M7"
+       },
+       "fr": {
+        "name": "M7"
+       },
+       "zh": {
+        "name": "M7"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-19",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau 80",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-19",
+     "price": "92.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Platter 80"
+       },
+       "fr": {
+        "name": "Plateau 80"
+       },
+       "zh": {
+        "name": "拼盘80"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-20",
+   "category_ref": "TSB-CAT-1",
+   "name": "Plateau Tokyo",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-20",
+     "price": "98.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Platter Menu"
+       },
+       "fr": {
+        "name": "Plateau Tokyo"
+       },
+       "zh": {
+        "name": "东京拼盘"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-21",
+   "category_ref": "TSB-CAT-2",
+   "name": "Bento végétarien",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-21",
+     "price": "15.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Vegetarian bento"
+       },
+       "fr": {
+        "name": "Bento végétarien"
+       },
+       "zh": {
+        "name": "素食便当"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-22",
+   "category_ref": "TSB-CAT-2",
+   "name": "Bento box 1",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-22",
+     "price": "17.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Bento box 1"
+       },
+       "fr": {
+        "name": "Bento box 1"
+       },
+       "zh": {
+        "name": "便当1"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-23",
+   "category_ref": "TSB-CAT-2",
+   "name": "Bento box 2",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-23",
+     "price": "18.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Bento box 2"
+       },
+       "fr": {
+        "name": "Bento box 2"
+       },
+       "zh": {
+        "name": "便当2"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-24",
+   "category_ref": "TSB-CAT-2",
+   "name": "Bento royal",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-24",
+     "price": "18.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Royal bento"
+       },
+       "fr": {
+        "name": "Bento royal"
+       },
+       "zh": {
+        "name": "皇家便当"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-25",
+   "category_ref": "TSB-CAT-3",
+   "name": "Surimi",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-25",
+     "price": "1.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Surimi"
+       },
+       "fr": {
+        "name": "Surimi"
+       },
+       "zh": {
+        "name": "蟹肉棒"
+       }
+      },
+      "code": "A9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-26",
+   "category_ref": "TSB-CAT-3",
+   "name": "Omelette",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-26",
+     "price": "1.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Omelette"
+       },
+       "fr": {
+        "name": "Omelette"
+       },
+       "zh": {
+        "name": "玉子"
+       }
+      },
+      "code": "A5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-27",
+   "category_ref": "TSB-CAT-3",
+   "name": "Avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-27",
+     "price": "1.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Avocado"
+       },
+       "fr": {
+        "name": "Avocat"
+       },
+       "zh": {
+        "name": "牛油果"
+       }
+      },
+      "code": "A10"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-28",
+   "category_ref": "TSB-CAT-3",
+   "name": "Crevette",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-28",
+     "price": "1.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Shrimp"
+       },
+       "fr": {
+        "name": "Crevette"
+       },
+       "zh": {
+        "name": "虾"
+       }
+      },
+      "code": "A2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-29",
+   "category_ref": "TSB-CAT-3",
+   "name": "Saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-29",
+     "price": "2.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon"
+       },
+       "fr": {
+        "name": "Saumon"
+       },
+       "zh": {
+        "name": "三文鱼"
+       }
+      },
+      "code": "A1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-30",
+   "category_ref": "TSB-CAT-3",
+   "name": "Maquereau",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-30",
+     "price": "2.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mackerel"
+       },
+       "fr": {
+        "name": "Maquereau"
+       },
+       "zh": {
+        "name": "鲭鱼"
+       }
+      },
+      "code": "A8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-31",
+   "category_ref": "TSB-CAT-3",
+   "name": "Dorade",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-31",
+     "price": "2.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Sea bream"
+       },
+       "fr": {
+        "name": "Dorade"
+       },
+       "zh": {
+        "name": "鲷鱼"
+       }
+      },
+      "code": "A4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-32",
+   "category_ref": "TSB-CAT-3",
+   "name": "Tofu",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-32",
+     "price": "2.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tofu"
+       },
+       "fr": {
+        "name": "Tofu"
+       },
+       "zh": {
+        "name": "豆腐"
+       }
+      },
+      "code": "A15"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-33",
+   "category_ref": "TSB-CAT-3",
+   "name": "Poulpe",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-33",
+     "price": "2.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Octopus"
+       },
+       "fr": {
+        "name": "Poulpe"
+       },
+       "zh": {
+        "name": "章鱼"
+       }
+      },
+      "code": "A6"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-34",
+   "category_ref": "TSB-CAT-3",
+   "name": "Thon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-34",
+     "price": "2.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna"
+       },
+       "fr": {
+        "name": "Thon"
+       },
+       "zh": {
+        "name": "金枪鱼"
+       }
+      },
+      "code": "A3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-35",
+   "category_ref": "TSB-CAT-3",
+   "name": "Saumon cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-35",
+     "price": "2.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon cheese"
+       },
+       "fr": {
+        "name": "Saumon cheese"
+       },
+       "zh": {
+        "name": "三文鱼芝士"
+       }
+      },
+      "code": "A16"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-36",
+   "category_ref": "TSB-CAT-3",
+   "name": "Saumon mi-cuit",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-36",
+     "price": "2.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Semi-cooked salmon"
+       },
+       "fr": {
+        "name": "Saumon mi-cuit"
+       },
+       "zh": {
+        "name": "半熟三文鱼"
+       }
+      },
+      "code": "A12"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-37",
+   "category_ref": "TSB-CAT-3",
+   "name": "Saumon cuit caramélisé",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-37",
+     "price": "2.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Caramelized cooked salmon"
+       },
+       "fr": {
+        "name": "Saumon cuit caramélisé"
+       },
+       "zh": {
+        "name": "焦糖熟三文鱼"
+       }
+      },
+      "code": "A19"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-38",
+   "category_ref": "TSB-CAT-3",
+   "name": "Dorade grillée",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-38",
+     "price": "2.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Grilled sea bream"
+       },
+       "fr": {
+        "name": "Dorade grillée"
+       },
+       "zh": {
+        "name": "烤鲷鱼"
+       }
+      },
+      "code": "A7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-39",
+   "category_ref": "TSB-CAT-3",
+   "name": "Saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-39",
+     "price": "2.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado"
+       },
+       "fr": {
+        "name": "Saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼牛油果"
+       }
+      },
+      "code": "A20"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-40",
+   "category_ref": "TSB-CAT-3",
+   "name": "Thon mi-cuit",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-40",
+     "price": "2.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Semi-cooked tuna"
+       },
+       "fr": {
+        "name": "Thon mi-cuit"
+       },
+       "zh": {
+        "name": "半熟金枪鱼"
+       }
+      },
+      "code": "A13"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-41",
+   "category_ref": "TSB-CAT-3",
+   "name": "Anguille",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-41",
+     "price": "2.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Eel"
+       },
+       "fr": {
+        "name": "Anguille"
+       },
+       "zh": {
+        "name": "鳗鱼"
+       }
+      },
+      "code": "A11"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-42",
+   "category_ref": "TSB-CAT-3",
+   "name": "Maquereau grillé",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-42",
+     "price": "2.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Grilled mackerel"
+       },
+       "fr": {
+        "name": "Maquereau grillé"
+       },
+       "zh": {
+        "name": "烤鲭鱼"
+       }
+      },
+      "code": "A18"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-43",
+   "category_ref": "TSB-CAT-3",
+   "name": "Foie gras",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-43",
+     "price": "3.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Foie gras"
+       },
+       "fr": {
+        "name": "Foie gras"
+       },
+       "zh": {
+        "name": "鹅肝"
+       }
+      },
+      "code": "A17"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-44",
+   "category_ref": "TSB-CAT-3",
+   "name": "Saint-Jacques mi-cuit",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-44",
+     "price": "3.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Semi-cooked Saint-Jacques"
+       },
+       "fr": {
+        "name": "Saint-Jacques mi-cuit"
+       },
+       "zh": {
+        "name": "半熟扇贝"
+       }
+      },
+      "code": "A14"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-45",
+   "category_ref": "TSB-CAT-4",
+   "name": "Avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-45",
+     "price": "4.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Avocado"
+       },
+       "fr": {
+        "name": "Avocat"
+       },
+       "zh": {
+        "name": "牛油果"
+       }
+      },
+      "code": "B2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-46",
+   "category_ref": "TSB-CAT-4",
+   "name": "Radis japonais",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-46",
+     "price": "4.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Japanese radish"
+       },
+       "fr": {
+        "name": "Radis japonais"
+       },
+       "zh": {
+        "name": "日式萝卜"
+       }
+      },
+      "code": "B4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-47",
+   "category_ref": "TSB-CAT-4",
+   "name": "Concombre sésame",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-47",
+     "price": "4.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Cucumber sesame"
+       },
+       "fr": {
+        "name": "Concombre sésame"
+       },
+       "zh": {
+        "name": "芝麻黄瓜"
+       }
+      },
+      "code": "B1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-48",
+   "category_ref": "TSB-CAT-4",
+   "name": "Surimi",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-48",
+     "price": "4.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Surimi"
+       },
+       "fr": {
+        "name": "Surimi"
+       },
+       "zh": {
+        "name": "蟹肉棒"
+       }
+      },
+      "code": "B3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-49",
+   "category_ref": "TSB-CAT-4",
+   "name": "Cheese concombre",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-49",
+     "price": "4.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Cucumber cheese"
+       },
+       "fr": {
+        "name": "Cheese concombre"
+       },
+       "zh": {
+        "name": "黄瓜芝士"
+       }
+      },
+      "code": "B5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-50",
+   "category_ref": "TSB-CAT-4",
+   "name": "Saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-50",
+     "price": "4.70 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon"
+       },
+       "fr": {
+        "name": "Saumon"
+       },
+       "zh": {
+        "name": "三文鱼"
+       }
+      },
+      "code": "B8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-51",
+   "category_ref": "TSB-CAT-4",
+   "name": "Saumon spicy",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-51",
+     "price": "4.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Spicy salmon"
+       },
+       "fr": {
+        "name": "Saumon spicy"
+       },
+       "zh": {
+        "name": "辣三文鱼"
+       }
+      },
+      "code": "B11"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-52",
+   "category_ref": "TSB-CAT-4",
+   "name": "Cheese avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-52",
+     "price": "4.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Avocado cheese"
+       },
+       "fr": {
+        "name": "Cheese avocat"
+       },
+       "zh": {
+        "name": "牛油果芝士"
+       }
+      },
+      "code": "B6"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-53",
+   "category_ref": "TSB-CAT-4",
+   "name": "Thon cuit spicy",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-53",
+     "price": "5.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Spicy cooked tuna"
+       },
+       "fr": {
+        "name": "Thon cuit spicy"
+       },
+       "zh": {
+        "name": "辣熟金枪鱼"
+       }
+      },
+      "code": "B13"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-54",
+   "category_ref": "TSB-CAT-4",
+   "name": "Mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-54",
+     "price": "5.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mango"
+       },
+       "fr": {
+        "name": "Mangue"
+       },
+       "zh": {
+        "name": "芒果"
+       }
+      },
+      "code": "B15"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-55",
+   "category_ref": "TSB-CAT-4",
+   "name": "Ciboulette cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-55",
+     "price": "5.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chives cheese"
+       },
+       "fr": {
+        "name": "Ciboulette cheese"
+       },
+       "zh": {
+        "name": "香葱芝士"
+       }
+      },
+      "code": "B16"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-56",
+   "category_ref": "TSB-CAT-4",
+   "name": "Thon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-56",
+     "price": "5.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna"
+       },
+       "fr": {
+        "name": "Thon"
+       },
+       "zh": {
+        "name": "金枪鱼"
+       }
+      },
+      "code": "B9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-57",
+   "category_ref": "TSB-CAT-4",
+   "name": "Dorade mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-57",
+     "price": "5.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Sea bream mango"
+       },
+       "fr": {
+        "name": "Dorade mangue"
+       },
+       "zh": {
+        "name": "鲷鱼芒果"
+       }
+      },
+      "code": "B12"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-58",
+   "category_ref": "TSB-CAT-4",
+   "name": "Tempura crevette",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-58",
+     "price": "5.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Shrimp tempura"
+       },
+       "fr": {
+        "name": "Tempura crevette"
+       },
+       "zh": {
+        "name": "天妇罗虾"
+       }
+      },
+      "code": "B10"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-59",
+   "category_ref": "TSB-CAT-4",
+   "name": "Anguille",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-59",
+     "price": "5.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Eel"
+       },
+       "fr": {
+        "name": "Anguille"
+       },
+       "zh": {
+        "name": "鳗鱼"
+       }
+      },
+      "code": "B7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-60",
+   "category_ref": "TSB-CAT-4",
+   "name": "Saumon roll cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-60",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon roll cheese"
+       },
+       "fr": {
+        "name": "Saumon roll cheese"
+       },
+       "zh": {
+        "name": "三文鱼芝士卷"
+       }
+      },
+      "code": "B19"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-61",
+   "category_ref": "TSB-CAT-4",
+   "name": "Tartare thon ciboulette",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-61",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna and chives tartare"
+       },
+       "fr": {
+        "name": "Tartare thon ciboulette"
+       },
+       "zh": {
+        "name": "金枪鱼香葱他他"
+       }
+      },
+      "code": "B14"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-62",
+   "category_ref": "TSB-CAT-4",
+   "name": "Foie gras",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-62",
+     "price": "7.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Foie gras"
+       },
+       "fr": {
+        "name": "Foie gras"
+       },
+       "zh": {
+        "name": "鹅肝"
+       }
+      },
+      "code": "B17"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-63",
+   "category_ref": "TSB-CAT-5",
+   "name": "Avocat cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-63",
+     "price": "2.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Cheese avocado"
+       },
+       "fr": {
+        "name": "Avocat cheese"
+       },
+       "zh": {
+        "name": "芝士牛油果"
+       }
+      },
+      "code": "T3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-64",
+   "category_ref": "TSB-CAT-5",
+   "name": "Saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-64",
+     "price": "2.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado"
+       },
+       "fr": {
+        "name": "Saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼牛油果"
+       }
+      },
+      "code": "T1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-65",
+   "category_ref": "TSB-CAT-5",
+   "name": "Tartare saumon cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-65",
+     "price": "2.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon-cheese tartare"
+       },
+       "fr": {
+        "name": "Tartare saumon cheese"
+       },
+       "zh": {
+        "name": "三文鱼芝士他他"
+       }
+      },
+      "code": "C5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-66",
+   "category_ref": "TSB-CAT-5",
+   "name": "Oeufs de poisson",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-66",
+     "price": "2.40 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Fish eggs"
+       },
+       "fr": {
+        "name": "Oeufs de poisson"
+       },
+       "zh": {
+        "name": "鱼子"
+       }
+      },
+      "code": "C2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-67",
+   "category_ref": "TSB-CAT-5",
+   "name": "Dorade mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-67",
+     "price": "2.40 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mango bream"
+       },
+       "fr": {
+        "name": "Dorade mangue"
+       },
+       "zh": {
+        "name": "芒果鲷鱼"
+       }
+      },
+      "code": "C4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-68",
+   "category_ref": "TSB-CAT-5",
+   "name": "Thon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-68",
+     "price": "2.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna avocado"
+       },
+       "fr": {
+        "name": "Thon avocat"
+       },
+       "zh": {
+        "name": "金枪鱼牛油果"
+       }
+      },
+      "code": "T2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-69",
+   "category_ref": "TSB-CAT-5",
+   "name": "Tartare thon ciboulette",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-69",
+     "price": "2.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna-chives tartare"
+       },
+       "fr": {
+        "name": "Tartare thon ciboulette"
+       },
+       "zh": {
+        "name": "金枪鱼香葱他他"
+       }
+      },
+      "code": "C3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-70",
+   "category_ref": "TSB-CAT-5",
+   "name": "Oeufs de saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-70",
+     "price": "2.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon eggs"
+       },
+       "fr": {
+        "name": "Oeufs de saumon"
+       },
+       "zh": {
+        "name": "三文鱼子"
+       }
+      },
+      "code": "C1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-71",
+   "category_ref": "TSB-CAT-6",
+   "name": "Saumon cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-71",
+     "price": "5.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon cheese"
+       },
+       "fr": {
+        "name": "Saumon cheese"
+       },
+       "zh": {
+        "name": "三文鱼芝士"
+       }
+      },
+      "code": "D9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-72",
+   "category_ref": "TSB-CAT-6",
+   "name": "Saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-72",
+     "price": "5.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado"
+       },
+       "fr": {
+        "name": "Saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼牛油果"
+       }
+      },
+      "code": "D1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-73",
+   "category_ref": "TSB-CAT-6",
+   "name": "Saumon mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-73",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon mango"
+       },
+       "fr": {
+        "name": "Saumon mangue"
+       },
+       "zh": {
+        "name": "三文鱼芒果"
+       }
+      },
+      "code": "D5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-74",
+   "category_ref": "TSB-CAT-6",
+   "name": "Thon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-74",
+     "price": "6.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna avocado"
+       },
+       "fr": {
+        "name": "Thon avocat"
+       },
+       "zh": {
+        "name": "金枪鱼牛油果"
+       }
+      },
+      "code": "D2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-75",
+   "category_ref": "TSB-CAT-6",
+   "name": "Poulet pané mayo",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-75",
+     "price": "6.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Breaded chicken mayo"
+       },
+       "fr": {
+        "name": "Poulet pané mayo"
+       },
+       "zh": {
+        "name": "炸鸡蛋黄酱"
+       }
+      },
+      "code": "D4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-76",
+   "category_ref": "TSB-CAT-6",
+   "name": "Tempura crevette oignons",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-76",
+     "price": "6.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tempura shrimp fried onions"
+       },
+       "fr": {
+        "name": "Tempura crevette oignons"
+       },
+       "zh": {
+        "name": "天妇罗虾炸洋葱"
+       }
+      },
+      "code": "D6"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-77",
+   "category_ref": "TSB-CAT-6",
+   "name": "Poulet mangue menthe",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-77",
+     "price": "7.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken mango mint"
+       },
+       "fr": {
+        "name": "Poulet mangue menthe"
+       },
+       "zh": {
+        "name": "鸡肉芒果薄荷"
+       }
+      },
+      "code": "D7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-78",
+   "category_ref": "TSB-CAT-6",
+   "name": "Saumon fumé cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-78",
+     "price": "7.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Smoked salmon cheese"
+       },
+       "fr": {
+        "name": "Saumon fumé cheese"
+       },
+       "zh": {
+        "name": "烟熏三文鱼芝士香葱"
+       }
+      },
+      "code": "D3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-79",
+   "category_ref": "TSB-CAT-6",
+   "name": "Foie gras mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-79",
+     "price": "9.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Foie gras mango"
+       },
+       "fr": {
+        "name": "Foie gras mangue"
+       },
+       "zh": {
+        "name": "鹅肝芒果"
+       }
+      },
+      "code": "D8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-80",
+   "category_ref": "TSB-CAT-7",
+   "name": "Végétarien",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-80",
+     "price": "5.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Vegetarian"
+       },
+       "fr": {
+        "name": "Végétarien"
+       },
+       "zh": {
+        "name": "素食"
+       }
+      },
+      "code": "E10"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-81",
+   "category_ref": "TSB-CAT-7",
+   "name": "Saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-81",
+     "price": "5.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado"
+       },
+       "fr": {
+        "name": "Saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼牛油果"
+       }
+      },
+      "code": "E1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-82",
+   "category_ref": "TSB-CAT-7",
+   "name": "Thon cuit pomme spicy",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-82",
+     "price": "5.70 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Cooked tuna spicy apple"
+       },
+       "fr": {
+        "name": "Thon cuit pomme spicy"
+       },
+       "zh": {
+        "name": "辣熟金枪鱼苹果"
+       }
+      },
+      "code": "E9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-83",
+   "category_ref": "TSB-CAT-7",
+   "name": "Saumon mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-83",
+     "price": "5.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon mango"
+       },
+       "fr": {
+        "name": "Saumon mangue"
+       },
+       "zh": {
+        "name": "三文鱼芒果"
+       }
+      },
+      "code": "E6"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-84",
+   "category_ref": "TSB-CAT-7",
+   "name": "Saumon cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-84",
+     "price": "5.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon cheese"
+       },
+       "fr": {
+        "name": "Saumon cheese"
+       },
+       "zh": {
+        "name": "三文鱼芝士"
+       }
+      },
+      "code": "E16"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-85",
+   "category_ref": "TSB-CAT-7",
+   "name": "Tempura crevette cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-85",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tempura shrimp cheese"
+       },
+       "fr": {
+        "name": "Tempura crevette cheese"
+       },
+       "zh": {
+        "name": "天妇罗虾芝士"
+       }
+      },
+      "code": "E5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-86",
+   "category_ref": "TSB-CAT-7",
+   "name": "Tempura crevette avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-86",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tempura shrimp avocado"
+       },
+       "fr": {
+        "name": "Tempura crevette avocat"
+       },
+       "zh": {
+        "name": "天妇罗虾牛油果"
+       }
+      },
+      "code": "E4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-87",
+   "category_ref": "TSB-CAT-7",
+   "name": "Surimi avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-87",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Surimi avocado"
+       },
+       "fr": {
+        "name": "Surimi avocat"
+       },
+       "zh": {
+        "name": "蟹肉棒牛油果"
+       }
+      },
+      "code": "E3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-88",
+   "category_ref": "TSB-CAT-7",
+   "name": "Crevette avocat cheese",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-88",
+     "price": "6.10 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Shrimp avocado cheese"
+       },
+       "fr": {
+        "name": "Crevette avocat cheese"
+       },
+       "zh": {
+        "name": "虾牛油果芝士"
+       }
+      },
+      "code": "E7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-89",
+   "category_ref": "TSB-CAT-7",
+   "name": "Thon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-89",
+     "price": "6.20 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna avocado"
+       },
+       "fr": {
+        "name": "Thon avocat"
+       },
+       "zh": {
+        "name": "金枪鱼牛油果"
+       }
+      },
+      "code": "E2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-90",
+   "category_ref": "TSB-CAT-7",
+   "name": "Oignons frits poulet",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-90",
+     "price": "7.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Fried onions chicken"
+       },
+       "fr": {
+        "name": "Oignons frits poulet"
+       },
+       "zh": {
+        "name": "炸洋葱鸡肉"
+       }
+      },
+      "code": "E8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-91",
+   "category_ref": "TSB-CAT-7",
+   "name": "Poulet frit roquette miel",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-91",
+     "price": "7.10 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Fried chicken salad honey"
+       },
+       "fr": {
+        "name": "Poulet frit roquette miel"
+       },
+       "zh": {
+        "name": "炸鸡沙拉蜂蜜"
+       }
+      },
+      "code": "E17"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-92",
+   "category_ref": "TSB-CAT-7",
+   "name": "Tempura crevette fraise",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-92",
+     "price": "7.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tempura shrimp strawberry"
+       },
+       "fr": {
+        "name": "Tempura crevette fraise"
+       },
+       "zh": {
+        "name": "天妇罗虾牛油果芝士草莓"
+       }
+      },
+      "code": "E20"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-93",
+   "category_ref": "TSB-CAT-7",
+   "name": "Poulet piquant",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-93",
+     "price": "7.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Spicy chicken"
+       },
+       "fr": {
+        "name": "Poulet piquant"
+       },
+       "zh": {
+        "name": "辣鸡肉"
+       }
+      },
+      "code": "E21"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-94",
+   "category_ref": "TSB-CAT-7",
+   "name": "Tempura crevette coriandre",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-94",
+     "price": "7.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tempura shrimp coriander"
+       },
+       "fr": {
+        "name": "Tempura crevette coriandre"
+       },
+       "zh": {
+        "name": "辣天妇罗虾香菜"
+       }
+      },
+      "code": "E19"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-95",
+   "category_ref": "TSB-CAT-7",
+   "name": "Foie gras miel",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-95",
+     "price": "9.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Foie gras honey"
+       },
+       "fr": {
+        "name": "Foie gras miel"
+       },
+       "zh": {
+        "name": "炸洋葱鹅肝蜂蜜"
+       }
+      },
+      "code": "E18"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-96",
+   "category_ref": "TSB-CAT-8",
+   "name": "Saumon avocat concombre",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-96",
+     "price": "4.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado cucumber"
+       },
+       "fr": {
+        "name": "Saumon avocat concombre"
+       },
+       "zh": {
+        "name": "三文鱼牛油果黄瓜"
+       }
+      },
+      "code": "F1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-97",
+   "category_ref": "TSB-CAT-8",
+   "name": "Tempura crevette avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-97",
+     "price": "4.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Shrimp tempura avocado"
+       },
+       "fr": {
+        "name": "Tempura crevette avocat"
+       },
+       "zh": {
+        "name": "天妇罗虾牛油果黄瓜"
+       }
+      },
+      "code": "F3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-98",
+   "category_ref": "TSB-CAT-8",
+   "name": "Thon avocat concombre",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-98",
+     "price": "4.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna avocado cucumber"
+       },
+       "fr": {
+        "name": "Thon avocat concombre"
+       },
+       "zh": {
+        "name": "金枪鱼牛油果黄瓜"
+       }
+      },
+      "code": "F2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-99",
+   "category_ref": "TSB-CAT-8",
+   "name": "Oeufs de saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-99",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon eggs avocado"
+       },
+       "fr": {
+        "name": "Oeufs de saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼子牛油果黄瓜"
+       }
+      },
+      "code": "F4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-100",
+   "category_ref": "TSB-CAT-9",
+   "name": "Tempura crevette",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-100",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Shrimp tempura"
+       },
+       "fr": {
+        "name": "Tempura crevette"
+       },
+       "zh": {
+        "name": "天妇罗虾"
+       }
+      },
+      "code": "E13"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-101",
+   "category_ref": "TSB-CAT-9",
+   "name": "Saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-101",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado"
+       },
+       "fr": {
+        "name": "Saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼牛油果"
+       }
+      },
+      "code": "E11"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-102",
+   "category_ref": "TSB-CAT-9",
+   "name": "Thon mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-102",
+     "price": "6.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna mango"
+       },
+       "fr": {
+        "name": "Thon mangue"
+       },
+       "zh": {
+        "name": "金枪鱼芒果"
+       }
+      },
+      "code": "E12"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-103",
+   "category_ref": "TSB-CAT-10",
+   "name": "Oignon rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-103",
+     "price": "8.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Onion rolls"
+       },
+       "fr": {
+        "name": "Oignon rolls"
+       },
+       "zh": {
+        "name": "洋葱卷"
+       }
+      },
+      "code": "G5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-104",
+   "category_ref": "TSB-CAT-10",
+   "name": "Spicy poulet",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-104",
+     "price": "9.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Spicy chicken"
+       },
+       "fr": {
+        "name": "Spicy poulet"
+       },
+       "zh": {
+        "name": "辣鸡肉"
+       }
+      },
+      "code": "G18"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-105",
+   "category_ref": "TSB-CAT-10",
+   "name": "Miel rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-105",
+     "price": "9.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Honey rolls"
+       },
+       "fr": {
+        "name": "Miel rolls"
+       },
+       "zh": {
+        "name": "蜂蜜卷"
+       }
+      },
+      "code": "G6"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-106",
+   "category_ref": "TSB-CAT-10",
+   "name": "Chips rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-106",
+     "price": "9.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chips rolls"
+       },
+       "fr": {
+        "name": "Chips rolls"
+       },
+       "zh": {
+        "name": "薯片卷"
+       }
+      },
+      "code": "G10"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-107",
+   "category_ref": "TSB-CAT-10",
+   "name": "Saumon royal",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-107",
+     "price": "10.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Royal salmon"
+       },
+       "fr": {
+        "name": "Saumon royal"
+       },
+       "zh": {
+        "name": "皇家三文鱼"
+       }
+      },
+      "code": "G1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-108",
+   "category_ref": "TSB-CAT-10",
+   "name": "Mangue rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-108",
+     "price": "10.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mango rolls"
+       },
+       "fr": {
+        "name": "Mangue rolls"
+       },
+       "zh": {
+        "name": "芒果卷"
+       }
+      },
+      "code": "G2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-109",
+   "category_ref": "TSB-CAT-10",
+   "name": "Délice mangue",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-109",
+     "price": "10.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mango delight"
+       },
+       "fr": {
+        "name": "Délice mangue"
+       },
+       "zh": {
+        "name": "芒果乐"
+       }
+      },
+      "code": "G15"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-110",
+   "category_ref": "TSB-CAT-10",
+   "name": "Crispy saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-110",
+     "price": "10.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Crispy salmon"
+       },
+       "fr": {
+        "name": "Crispy saumon"
+       },
+       "zh": {
+        "name": "脆三文鱼"
+       }
+      },
+      "code": "G9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-111",
+   "category_ref": "TSB-CAT-10",
+   "name": "Anguille rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-111",
+     "price": "10.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Eel rolls"
+       },
+       "fr": {
+        "name": "Anguille rolls"
+       },
+       "zh": {
+        "name": "鳗鱼卷"
+       }
+      },
+      "code": "G4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-112",
+   "category_ref": "TSB-CAT-10",
+   "name": "Avocat rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-112",
+     "price": "10.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Avocado rolls"
+       },
+       "fr": {
+        "name": "Avocat rolls"
+       },
+       "zh": {
+        "name": "牛油果卷"
+       }
+      },
+      "code": "G3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-113",
+   "category_ref": "TSB-CAT-10",
+   "name": "Assortiment rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-113",
+     "price": "10.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mixed rolls"
+       },
+       "fr": {
+        "name": "Assortiment rolls"
+       },
+       "zh": {
+        "name": "什锦卷"
+       }
+      },
+      "code": "G7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-114",
+   "category_ref": "TSB-CAT-10",
+   "name": "Spicy saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-114",
+     "price": "11.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Spicy salmon"
+       },
+       "fr": {
+        "name": "Spicy saumon"
+       },
+       "zh": {
+        "name": "辣三文鱼"
+       }
+      },
+      "code": "G8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-115",
+   "category_ref": "TSB-CAT-10",
+   "name": "Osaka rolls",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-115",
+     "price": "12.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Osaka rolls"
+       },
+       "fr": {
+        "name": "Osaka rolls"
+       },
+       "zh": {
+        "name": "大阪卷"
+       }
+      },
+      "code": "G11"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-116",
+   "category_ref": "TSB-CAT-10",
+   "name": "Foie gras fraise",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-116",
+     "price": "14.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Foie gras strawberry"
+       },
+       "fr": {
+        "name": "Foie gras fraise"
+       },
+       "zh": {
+        "name": "鹅肝草莓卷"
+       }
+      },
+      "code": "G12"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-117",
+   "category_ref": "TSB-CAT-11",
+   "name": "Chirashi saumon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-117",
+     "price": "14.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon avocado chirashi"
+       },
+       "fr": {
+        "name": "Chirashi saumon avocat"
+       },
+       "zh": {
+        "name": "三文鱼牛油果切片"
+       }
+      },
+      "code": "H1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-118",
+   "category_ref": "TSB-CAT-11",
+   "name": "Chirashi thon avocat",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-118",
+     "price": "15.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna avocado chirashi"
+       },
+       "fr": {
+        "name": "Chirashi thon avocat"
+       },
+       "zh": {
+        "name": "金枪鱼牛油果切片"
+       }
+      },
+      "code": "H2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-119",
+   "category_ref": "TSB-CAT-11",
+   "name": "Chirashi assortiment",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-119",
+     "price": "17.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mixed chirashi"
+       },
+       "fr": {
+        "name": "Chirashi assortiment"
+       },
+       "zh": {
+        "name": "什锦"
+       }
+      },
+      "code": "H4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-120",
+   "category_ref": "TSB-CAT-12",
+   "name": "Sashimi saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-120",
+     "price": "8.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon sashimi"
+       },
+       "fr": {
+        "name": "Sashimi saumon"
+       },
+       "zh": {
+        "name": "三文鱼"
+       }
+      },
+      "code": "I1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-121",
+   "category_ref": "TSB-CAT-12",
+   "name": "Sashimi thon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-121",
+     "price": "10.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna sashimi"
+       },
+       "fr": {
+        "name": "Sashimi thon"
+       },
+       "zh": {
+        "name": "金枪鱼"
+       }
+      },
+      "code": "I2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-122",
+   "category_ref": "TSB-CAT-12",
+   "name": "Sashimi saumon thon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-122",
+     "price": "17.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon tuna sashimi"
+       },
+       "fr": {
+        "name": "Sashimi saumon thon"
+       },
+       "zh": {
+        "name": "三文鱼金枪鱼"
+       }
+      },
+      "code": "I3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-123",
+   "category_ref": "TSB-CAT-12",
+   "name": "Sashimi assortiment",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-123",
+     "price": "20.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Mixed sashimi"
+       },
+       "fr": {
+        "name": "Sashimi assortiment"
+       },
+       "zh": {
+        "name": "什锦"
+       }
+      },
+      "code": "I4"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-124",
+   "category_ref": "TSB-CAT-13",
+   "name": "Poke végétarien tofu",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-124",
+     "price": "11.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Vegetarian tofu poke"
+       },
+       "fr": {
+        "name": "Poke végétarien tofu"
+       },
+       "zh": {
+        "name": "素食豆腐"
+       }
+      },
+      "code": "R9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-125",
+   "category_ref": "TSB-CAT-13",
+   "name": "Poke gyoza poulet frit",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-125",
+     "price": "13.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Gyoza fried chicken poke"
+       },
+       "fr": {
+        "name": "Poke gyoza poulet frit"
+       },
+       "zh": {
+        "name": "煎饺炸鸡"
+       }
+      },
+      "code": "R8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-126",
+   "category_ref": "TSB-CAT-13",
+   "name": "Poke poulet",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-126",
+     "price": "13.30 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken poke"
+       },
+       "fr": {
+        "name": "Poke poulet"
+       },
+       "zh": {
+        "name": "鸡肉"
+       }
+      },
+      "code": "R7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-127",
+   "category_ref": "TSB-CAT-13",
+   "name": "Poke saumon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-127",
+     "price": "13.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon poke"
+       },
+       "fr": {
+        "name": "Poke saumon"
+       },
+       "zh": {
+        "name": "三文鱼"
+       }
+      },
+      "code": "R5"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-128",
+   "category_ref": "TSB-CAT-13",
+   "name": "Poke thon",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-128",
+     "price": "15.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tuna poke"
+       },
+       "fr": {
+        "name": "Poke thon"
+       },
+       "zh": {
+        "name": "金枪鱼"
+       }
+      },
+      "code": "R6"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-129",
+   "category_ref": "TSB-CAT-14",
+   "name": "Soupe miso",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-129",
+     "price": "4.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Miso soup"
+       },
+       "fr": {
+        "name": "Soupe miso"
+       },
+       "zh": {
+        "name": "味噌汤"
+       }
+      },
+      "code": "K1"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-130",
+   "category_ref": "TSB-CAT-14",
+   "name": "Soupe nouilles poulet",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-130",
+     "price": "4.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken Noodle Soup"
+       },
+       "fr": {
+        "name": "Soupe nouilles poulet"
+       },
+       "zh": {
+        "name": "鸡肉面汤"
+       }
+      },
+      "code": "K3"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-131",
+   "category_ref": "TSB-CAT-14",
+   "name": "Soupe piquante",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-131",
+     "price": "5.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Spicy soup"
+       },
+       "fr": {
+        "name": "Soupe piquante"
+       },
+       "zh": {
+        "name": "辣汤"
+       }
+      },
+      "code": "K2"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-132",
+   "category_ref": "TSB-CAT-14",
+   "name": "Brochette poulet x2",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-132",
+     "price": "5.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken skewer x2"
+       },
+       "fr": {
+        "name": "Brochette poulet x2"
+       },
+       "zh": {
+        "name": "鸡肉串"
+       }
+      },
+      "code": "K7"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-133",
+   "category_ref": "TSB-CAT-14",
+   "name": "Brochette tofu x2",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-133",
+     "price": "6.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tofu skewers x2"
+       },
+       "fr": {
+        "name": "Brochette tofu x2"
+       },
+       "zh": {
+        "name": "豆腐串"
+       }
+      },
+      "code": "K16"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-134",
+   "category_ref": "TSB-CAT-14",
+   "name": "Tempura scampis x3",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-134",
+     "price": "6.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tempura scampi x3"
+       },
+       "fr": {
+        "name": "Tempura scampis x3"
+       },
+       "zh": {
+        "name": "天妇罗虾"
+       }
+      },
+      "code": "K12"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-135",
+   "category_ref": "TSB-CAT-14",
+   "name": "Boulettes poulpe x4",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-135",
+     "price": "6.60 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Octopus balls x4"
+       },
+       "fr": {
+        "name": "Boulettes poulpe x4"
+       },
+       "zh": {
+        "name": "章鱼小丸子"
+       }
+      },
+      "code": "K9"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-136",
+   "category_ref": "TSB-CAT-14",
+   "name": "Raviolis poulet x6",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-136",
+     "price": "6.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken dumplings x6"
+       },
+       "fr": {
+        "name": "Raviolis poulet x6"
+       },
+       "zh": {
+        "name": "日式鸡肉饺子"
+       }
+      },
+      "code": "K15"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-137",
+   "category_ref": "TSB-CAT-14",
+   "name": "Raviolis scampis vapeur x5",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-137",
+     "price": "7.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Steamed scampi ravioli x5"
+       },
+       "fr": {
+        "name": "Raviolis scampis vapeur x5"
+       },
+       "zh": {
+        "name": "蒸虾饺"
+       }
+      },
+      "code": "K10"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-138",
+   "category_ref": "TSB-CAT-14",
+   "name": "Brochette boeuf fromage x3",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-138",
+     "price": "7.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Beef cheese skewer x3"
+       },
+       "fr": {
+        "name": "Brochette boeuf fromage x3"
+       },
+       "zh": {
+        "name": "芝士牛肉串"
+       }
+      },
+      "code": "K8"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-139",
+   "category_ref": "TSB-CAT-14",
+   "name": "Raviolis crevette x6",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-139",
+     "price": "8.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Shrimp dumplings x6"
+       },
+       "fr": {
+        "name": "Raviolis crevette x6"
+       },
+       "zh": {
+        "name": "日式虾饺"
+       }
+      },
+      "code": "K13"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-140",
+   "category_ref": "TSB-CAT-14",
+   "name": "Katsu poulet x6",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-140",
+     "price": "9.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken katsu x6"
+       },
+       "fr": {
+        "name": "Katsu poulet x6"
+       },
+       "zh": {
+        "name": "香辣蛋黄酱炸鸡排"
+       }
+      },
+      "code": "K11"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-141",
+   "category_ref": "TSB-CAT-14",
+   "name": "Tataki saumon x6",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-141",
+     "price": "10.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Salmon tataki x6"
+       },
+       "fr": {
+        "name": "Tataki saumon x6"
+       },
+       "zh": {
+        "name": "三文鱼他他"
+       }
+      },
+      "code": "K18"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-142",
+   "category_ref": "TSB-CAT-14",
+   "name": "Nouilles sautées légumes",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-142",
+     "price": "11.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Stir-fried veggie noodles"
+       },
+       "fr": {
+        "name": "Nouilles sautées légumes"
+       },
+       "zh": {
+        "name": "蔬菜炒面"
+       }
+      },
+      "code": "K19"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-143",
+   "category_ref": "TSB-CAT-14",
+   "name": "Udon poulet croustillant",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-143",
+     "price": "13.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Crispy chicken udon"
+       },
+       "fr": {
+        "name": "Udon poulet croustillant"
+       },
+       "zh": {
+        "name": "脆鸡炒乌冬面"
+       }
+      },
+      "code": "K20"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-144",
+   "category_ref": "TSB-CAT-14",
+   "name": "Nouilles sautées scampis",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-144",
+     "price": "15.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Stir-fried scampi noodles"
+       },
+       "fr": {
+        "name": "Nouilles sautées scampis"
+       },
+       "zh": {
+        "name": "虾炒面"
+       }
+      },
+      "code": "K22"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-145",
+   "category_ref": "TSB-CAT-14",
+   "name": "Katsu poulet curry",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-145",
+     "price": "16.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Chicken katsu curry"
+       },
+       "fr": {
+        "name": "Katsu poulet curry"
+       },
+       "zh": {
+        "name": "日式炸鸡咖喱"
+       }
+      },
+      "code": "K23"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-146",
+   "category_ref": "TSB-CAT-15",
+   "name": "Riz blanc chaud",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-146",
+     "price": "3.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Hot white rice"
+       },
+       "fr": {
+        "name": "Riz blanc chaud"
+       },
+       "zh": {
+        "name": "热白饭"
+       }
+      },
+      "code": "K35"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-147",
+   "category_ref": "TSB-CAT-15",
+   "name": "Chou vinaigré",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-147",
+     "price": "3.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Pickled cabbage"
+       },
+       "fr": {
+        "name": "Chou vinaigré"
+       },
+       "zh": {
+        "name": "腌卷心菜"
+       }
+      },
+      "code": "K39"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-148",
+   "category_ref": "TSB-CAT-15",
+   "name": "Edamame",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-148",
+     "price": "3.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Edamame"
+       },
+       "fr": {
+        "name": "Edamame"
+       },
+       "zh": {
+        "name": "毛豆"
+       }
+      },
+      "code": "K37"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-149",
+   "category_ref": "TSB-CAT-15",
+   "name": "Riz vinaigré",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-149",
+     "price": "4.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Vinegar rice"
+       },
+       "fr": {
+        "name": "Riz vinaigré"
+       },
+       "zh": {
+        "name": "醋饭"
+       }
+      },
+      "code": "K36"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-150",
+   "category_ref": "TSB-CAT-15",
+   "name": "Kimchi carottes maison",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-150",
+     "price": "4.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Homemade carrot kimchi"
+       },
+       "fr": {
+        "name": "Kimchi carottes maison"
+       },
+       "zh": {
+        "name": "自制胡萝卜泡菜"
+       }
+      },
+      "code": "K48"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-151",
+   "category_ref": "TSB-CAT-15",
+   "name": "Wakame",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-151",
+     "price": "4.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Wakame"
+       },
+       "fr": {
+        "name": "Wakame"
+       },
+       "zh": {
+        "name": "裙带菜"
+       }
+      },
+      "code": "K38"
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-152",
+   "category_ref": "TSB-CAT-16",
+   "name": "Coca-Cola",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-152",
+     "price": "2.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Coca-Cola"
+       },
+       "fr": {
+        "name": "Coca-Cola"
+       },
+       "zh": {
+        "name": "可口可乐"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-153",
+   "category_ref": "TSB-CAT-16",
+   "name": "Coca-Cola zéro",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-153",
+     "price": "2.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Coca-Cola Zero"
+       },
+       "fr": {
+        "name": "Coca-Cola zéro"
+       },
+       "zh": {
+        "name": "零度可乐"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-154",
+   "category_ref": "TSB-CAT-16",
+   "name": "Thé glacé melon",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-154",
+     "price": "3.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Melon Iced Tea"
+       },
+       "fr": {
+        "name": "Thé glacé melon"
+       },
+       "zh": {
+        "name": "蜜瓜冰茶"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-155",
+   "category_ref": "TSB-CAT-16",
+   "name": "Bière Tsingtao",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "21.0",
+    "delivery": "21.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-155",
+     "price": "3.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Tsingtao Beer"
+       },
+       "fr": {
+        "name": "Bière Tsingtao"
+       },
+       "zh": {
+        "name": "青岛啤酒"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-156",
+   "category_ref": "TSB-CAT-16",
+   "name": "Bière Kirin",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "21.0",
+    "delivery": "21.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-156",
+     "price": "3.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Kirin Beer"
+       },
+       "fr": {
+        "name": "Bière Kirin"
+       },
+       "zh": {
+        "name": "麒麟啤酒"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-157",
+   "category_ref": "TSB-CAT-16",
+   "name": "Bière Sapporo",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "21.0",
+    "delivery": "21.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-157",
+     "price": "3.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Sapporo Beer"
+       },
+       "fr": {
+        "name": "Bière Sapporo"
+       },
+       "zh": {
+        "name": "札幌啤酒"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-158",
+   "category_ref": "TSB-CAT-16",
+   "name": "Thé glacé litchi",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-158",
+     "price": "3.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Lychee Iced Tea"
+       },
+       "fr": {
+        "name": "Thé glacé litchi"
+       },
+       "zh": {
+        "name": "荔枝冰茶"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-159",
+   "category_ref": "TSB-CAT-16",
+   "name": "Bière Iki Yuzu",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "21.0",
+    "delivery": "21.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-159",
+     "price": "3.80 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Iki Yuzu Beer"
+       },
+       "fr": {
+        "name": "Bière Iki Yuzu"
+       },
+       "zh": {
+        "name": "柚子啤酒"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-160",
+   "category_ref": "TSB-CAT-16",
+   "name": "Bière Asahi",
+   "tax_rate": {
+    "eat_in": "21.0",
+    "collection": "21.0",
+    "delivery": "21.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-160",
+     "price": "3.90 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Asahi Beer"
+       },
+       "fr": {
+        "name": "Bière Asahi"
+       },
+       "zh": {
+        "name": "朝日啤酒"
+       }
+      }
+     },
+     "tags": [
+      "pos:no_kitchen"
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-161",
+   "category_ref": "TSB-CAT-17",
+   "name": "Cheesecake Yuzu",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-161",
+     "price": "5.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Yuzu Cheesecake"
+       },
+       "fr": {
+        "name": "Cheesecake Yuzu"
+       },
+       "zh": {
+        "name": "柚子芝士蛋糕"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-162",
+   "category_ref": "TSB-CAT-17",
+   "name": "Cheesecake matcha",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-162",
+     "price": "5.00 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Matcha Cheesecake"
+       },
+       "fr": {
+        "name": "Cheesecake matcha"
+       },
+       "zh": {
+        "name": "抹茶芝士蛋糕"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-163",
+   "category_ref": "TSB-CAT-17",
+   "name": "Boule sésame haricots",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-163",
+     "price": "5.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Sesame ball red beans"
+       },
+       "fr": {
+        "name": "Boule sésame haricots"
+       },
+       "zh": {
+        "name": "红豆芝麻球"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "ref": "P-TSB-164",
+   "category_ref": "TSB-CAT-17",
+   "name": "Mochi glacé x3",
+   "tax_rate": {
+    "eat_in": "12.0",
+    "collection": "6.0",
+    "delivery": "6.0"
+   },
+   "skus": [
+    {
+     "ref": "TSB-164",
+     "price": "7.50 EUR",
+     "option_list_refs": [],
+     "custom_fields": {
+      "translations": {
+       "en": {
+        "name": "Frozen mochi x3"
+       },
+       "fr": {
+        "name": "Mochi glacé x3"
+       },
+       "zh": {
+        "name": "冰麻糬"
+       }
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "option_lists": [],
+ "charges": [],
+ "deals": [],
+ "discounts": [],
+ "variants": []
+}

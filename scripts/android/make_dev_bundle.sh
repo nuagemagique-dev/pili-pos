@@ -14,7 +14,7 @@
 #   --seed          also ship src-tauri/seed_spf_test.sql as seed.sql
 #   --seed-file F   ship F as seed.sql instead (implies --seed; e.g. the demo seed)
 # Environment (demo only): PILI_BUNDLE_RESTAURANT_NAME, PILI_BUNDLE_RESTAURANT_ADDRESS, PILI_BUNDLE_KITCHEN_PRINTER (adds
-#   kitchen_printer_address), PILI_BUNDLE_EXPORT_URL + _RECIPIENT + _TOKEN (adds the nightly export section and an
+#   kitchen_printer_address), PILI_BUNDLE_HUBRISE_ENABLED=1 (adds "hubrise_enabled": true), PILI_BUNDLE_EXPORT_URL + _RECIPIENT + _TOKEN (adds the nightly export section and an
 #   export_token file). Defaults keep the test identity.
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
@@ -146,6 +146,8 @@ fi
 mkdir -p "$OUT"
 
 KITCHEN_LINE=""
+HUBRISE_LINE=""
+[[ "${PILI_BUNDLE_HUBRISE_ENABLED:-0}" == 1 ]] && HUBRISE_LINE=$'\n  "hubrise_enabled": true,'
 EXPORT_LINE=""
 if [[ -n "${PILI_BUNDLE_EXPORT_URL:-}" ]]; then
     [[ -n "${PILI_BUNDLE_EXPORT_RECIPIENT:-}" && -n "${PILI_BUNDLE_EXPORT_TOKEN:-}" ]] ||
@@ -164,7 +166,7 @@ cat >"$OUT/pos.json" <<JSON
   "restaurant_vat": "BE0000000097",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",$KITCHEN_LINE$EXPORT_LINE
+  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE
   "table_count": 25
 }
 JSON

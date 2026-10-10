@@ -555,3 +555,20 @@ WITH c(id, code) AS (VALUES
 )
 UPDATE menu_items SET code = (SELECT code FROM c WHERE c.id = menu_items.id)
 WHERE id IN (SELECT id FROM c);
+
+-- HubRise (demo): the till is connected to the local HubRise mock that
+-- scripts/android/demo/demo.sh starts on 127.0.0.1:3001 (dev token of the
+-- mock, never a real account). Every category and product carries a HubRise
+-- ref, and the mock serves this same menu as its catalog
+-- (hubrise_catalog_tokyosushi.json, made by make_hubrise_catalog.py), so the
+-- catalog sync keeps these rows: the menu is managed by HubRise, as in the
+-- restaurant.
+UPDATE categories SET external_id = 'TSB-CAT-' || id;
+UPDATE menu_items SET external_id = 'TSB-' || id;
+INSERT OR REPLACE INTO hubrise_connection
+    (id, access_token, account_id, account_name, location_id, location_name, catalog_id, catalog_name,
+     customer_list_id, customer_list_name, scope, base_url)
+VALUES
+    (1, 'dev-token-pos', 'pili-dev-acc-1', 'Tokyo Sushi Bar', 'pili-dev-loc-1', 'Liège', 'pili-dev-cat-1',
+     'Menu principal', 'pili-dev-cl-1', 'Clients', 'location[orders.write,customer_list.read,catalog.read]',
+     'http://127.0.0.1:3001/v1');

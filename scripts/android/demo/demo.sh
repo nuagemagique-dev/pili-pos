@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────
 # pili-pos - run the Android app as a demo on the D3 Pro (GMS) emulator
 #
-# Usage: scripts/android/demo/demo.sh start [--no-build] | stop | reset | status
+# Usage: scripts/android/demo/demo.sh start [--no-build] | stop | reset | status | order <platform>
 #   start   starts the emulator sunmi_d3_pro_gms_api33 WITH a window (reused when it runs),
 #           builds the debug APK (skipped with --no-build when it exists), starts the FDM and
 #           printer mocks on the host, installs the app as device owner, imports a development
@@ -11,6 +11,12 @@
 #   stop    stops the mocks and the adb reverse rules; the emulator and the app stay.
 #   reset   stop, then release the device owner and uninstall the app (fresh till on next start).
 #   status  shows what runs.
+#   order   sends one online order to the till through the HubRise mock: deliveroo, ubereats,
+#           web (website, paid online) or cash (website, paid in cash at collection). A fresh till
+#           gets one of each at start.
+# HubRise: switched on in the demo pos.json; the till is connected to the local HubRise mock
+# (:3001, dev token, no real account), which serves the Tokyo menu as its catalog: the menu is
+# managed by HubRise, as in the restaurant.
 # Tickets: the printer mock shows every printed ticket at http://127.0.0.1:19391/ (kitchen tickets:
 # http://127.0.0.1:19393/).
 # Nightly export: received files land in ~/.cache/pili-demo/exports (decrypt the backup with
@@ -39,10 +45,12 @@ PRINTER_HTTP=19391
 KITCHEN_PORT=19392
 KITCHEN_HTTP=19393
 EXPORT_PORT=9330
+HUBRISE_PORT=3001
 STATE="$HOME/.cache/pili-demo"
 MOCKS="$ROOT/target/android-mocks/debug"
 APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
 SEED="$ROOT/scripts/android/demo/seed_demo_tokyosushi.sql"
+CATALOG="$ROOT/scripts/android/demo/hubrise_catalog_tokyosushi.json"
 mkdir -p "$STATE"
 
 say() { printf 'demo: %s\n' "$*"; }
@@ -79,9 +87,9 @@ build_apk() {
 }
 
 start_mocks() {
-    if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" || ! -x "$MOCKS/pos-export-mock" ]]; then
+    if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" || ! -x "$MOCKS/pos-export-mock" || ! -x "$MOCKS/pos-hubrise-mock" ]]; then
         say "building the mocks"
-        cargo build --locked -p pos-fdm-mock -p pos-printer-mock -p pos-export-mock --target-dir "$ROOT/target/android-mocks" \
+        cargo build --locked -p pos-fdm-mock -p pos-printer-mock -p pos-export-mock -p pos-hubrise-mock --target-dir "$ROOT/target/android-mocks" \
             >"$STATE/mocks-build.log" 2>&1 || die "mock build failed, see $STATE/mocks-build.log"
     fi
     if ! port_open "$FDM_PORT"; then
@@ -104,14 +112,28 @@ start_mocks() {
             --dir "$STATE/exports" >"$STATE/export-mock.log" 2>&1 &
         echo $! >"$STATE/export-mock.pid"
     fi
-    for _ in $(seq 1 20); do port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && break; sleep 1; done
-    port_open "$FDM_PORT" && port_open "$PRINTER_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
+    local hubrise_new=0
+    if ! port_open "$HUBRISE_PORT"; then
+        HUBRISE_MOCK_PORT="$HUBRISE_PORT" nohup "$MOCKS/pos-hubrise-mock" >"$STATE/hubrise-mock.log" 2>&1 &
+        echo $! >"$STATE/hubrise-mock.pid"
+        hubrise_new=1
+    fi
+    for _ in $(seq 1 20); do port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && port_open "$HUBRISE_PORT" && break; sleep 1; done
+    port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$HUBRISE_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
+    # The HubRise mock starts with its own sample catalog: it serves the Tokyo menu instead (the
+    # till's catalog sync then finds its own menu, every row keyed by the seed).
+    if [[ "$hubrise_new" == 1 ]]; then
+        python3 -I -c 'import json,sys; print(json.dumps({"data": json.load(open(sys.argv[1]))}))' "$CATALOG" |
+            curl -sf -X PUT "http://127.0.0.1:$HUBRISE_PORT/mock/catalog" -H 'content-type: application/json' -d @- >/dev/null ||
+            die "the HubRise mock refused the demo catalog, see $STATE/hubrise-mock.log"
+    fi
     adbd reverse "tcp:$FDM_PORT" "tcp:$FDM_PORT" >/dev/null &&
         adbd reverse "tcp:$PRINTER_PORT" "tcp:$PRINTER_PORT" >/dev/null &&
         adbd reverse "tcp:$PRINTER_HTTP" "tcp:$PRINTER_HTTP" >/dev/null &&
         adbd reverse "tcp:$KITCHEN_PORT" "tcp:$KITCHEN_PORT" >/dev/null &&
-        adbd reverse "tcp:$EXPORT_PORT" "tcp:$EXPORT_PORT" >/dev/null || die "adb reverse failed"
-    say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/"
+        adbd reverse "tcp:$EXPORT_PORT" "tcp:$EXPORT_PORT" >/dev/null &&
+        adbd reverse "tcp:$HUBRISE_PORT" "tcp:$HUBRISE_PORT" >/dev/null || die "adb reverse failed"
+    say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/ , HubRise :$HUBRISE_PORT"
 }
 
 installed() { adbd shell pm list packages 2>/dev/null | tr -d '\r' | grep -qx "package:$PKG"; }
@@ -146,7 +168,7 @@ install_and_provision() {
         say "provisioning the till with the demo seed (Tokyo Sushi Bar menu)"
         rm -rf "$STATE/bundle"
         PILI_BUNDLE_RESTAURANT_NAME="Tokyo Sushi Bar" PILI_BUNDLE_RESTAURANT_ADDRESS="Liège" \
-            PILI_BUNDLE_KITCHEN_PRINTER="127.0.0.1:$KITCHEN_PORT" \
+            PILI_BUNDLE_KITCHEN_PRINTER="127.0.0.1:$KITCHEN_PORT" PILI_BUNDLE_HUBRISE_ENABLED=1 \
             PILI_BUNDLE_EXPORT_URL="http://127.0.0.1:$EXPORT_PORT" \
             PILI_BUNDLE_EXPORT_RECIPIENT="$(grep -o 'age1[a-z0-9]*' "$STATE/age-key.txt" | head -n 1)" \
             PILI_BUNDLE_EXPORT_TOKEN="$(cat "$STATE/export-token")" bash scripts/android/make_dev_bundle.sh --seed-file "$SEED" --out "$STATE/bundle" \
@@ -156,12 +178,67 @@ install_and_provision() {
         for f in "$STATE"/bundle/*; do adbd push "$f" "$INBOX/" >/dev/null 2>&1 || die "adb push $(basename "$f") failed"; done
         for _ in $(seq 1 20); do tap_text "Importer depuis la boîte de réception de test" "Import from the test inbox" && break; sleep 2; done
         sleep 8
+        for p in deliveroo ubereats web cash; do send_order "$p"; done
     fi
     say "app open on the emulator"
 }
 
+# One online order for the demo, through the HubRise mock (its control API), on products of the
+# demo seed (HubRise ref TSB-<menu item id>). Prices are the menu's; the webshop lines carry the
+# takeaway VAT rate (food and soft drinks 6 %, beer 21 %), platform lines none.
+send_order() {
+    local body
+    body="$(python3 -I - "$1" <<'PY'
+import json, sys
+
+def eur(c):
+    return f"{c // 100}.{c % 100:02d} EUR"
+
+def item(ref, name, cents, qty, rate=None):
+    i = {"product_name": name, "sku_ref": ref, "price": eur(cents), "quantity": str(qty), "options": []}
+    if rate:
+        i["tax_rate"] = rate
+    return i
+
+def total(items):
+    return sum(int(i["price"].split()[0].replace(".", "")) * int(i["quantity"]) for i in items)
+
+kind = sys.argv[1]
+if kind == "deliveroo":
+    items = [item("TSB-127", "Poke saumon", 1380, 2), item("TSB-152", "Coca-Cola", 250, 1)]
+    order = {"channel": "Deliveroo", "service_type": "delivery", "collection_code": "DLV-4821",
+             "customer": {"first_name": "Lucie", "last_name": "M."},
+             "payments": [{"ref": "DELIVEROO", "name": "Deliveroo", "amount": eur(total(items))}]}
+elif kind == "ubereats":
+    items = [item("TSB-81", "California saumon avocat", 560, 2), item("TSB-129", "Soupe miso", 400, 2),
+             item("TSB-136", "Raviolis poulet x6", 680, 1)]
+    order = {"channel": "Uber Eats", "service_type": "delivery",
+             "customer": {"first_name": "Thomas"},
+             "payments": [{"ref": "UBER_EATS", "name": "Uber Eats", "amount": eur(total(items))}]}
+elif kind == "web":
+    items = [item("TSB-6", "Plateau saumon", 2180, 1, "6.0"), item("TSB-160", "Bière Asahi", 390, 2, "21.0")]
+    order = {"channel": "Website", "service_type": "collection",
+             "customer": {"first_name": "Sophie", "last_name": "Lambert", "phone": "+32470000000"},
+             "payments": [{"ref": "ONLINE", "name": "Paiement en ligne", "amount": eur(total(items))}]}
+elif kind == "cash":
+    items = [item("TSB-50", "Maki saumon", 470, 2, "6.0"), item("TSB-148", "Edamame", 350, 1, "6.0"),
+             item("TSB-158", "Thé glacé litchi", 380, 1, "6.0")]
+    order = {"channel": "Website", "service_type": "collection",
+             "customer": {"first_name": "Marc", "last_name": "Dubois", "phone": "+32490000000"},
+             "payments": []}
+else:
+    sys.exit(f"unknown platform {kind} (deliveroo, ubereats, web, cash)")
+order.update({"status": "new", "asap": True, "items": items, "charges": [], "discounts": []})
+print(json.dumps({"order": order}))
+PY
+)" || die "unknown platform ${1:-} (deliveroo, ubereats, web, cash)"
+    curl -sf -X POST "http://127.0.0.1:$HUBRISE_PORT/mock/orders" -H 'content-type: application/json' -d "$body" >/dev/null ||
+        die "the HubRise mock refused the $1 order (is it up? see $STATE/hubrise-mock.log)"
+    say "online order sent: $1"
+}
+
 stop_mocks() {
-    for m in fdm-mock printer-mock kitchen-mock export-mock; do
+    for m in fdm-mock printer-mock kitchen-mock export-mock hubrise-mock; do
         [[ -f "$STATE/$m.pid" ]] && kill "$(cat "$STATE/$m.pid")" 2>/dev/null; rm -f "$STATE/$m.pid"
     done
     SERIAL="$(serial)"; [[ -n "$SERIAL" ]] && adbd reverse --remove-all >/dev/null 2>&1
@@ -185,6 +262,10 @@ case "${1:-}" in
         SERIAL="$(serial)"; say "emulator: ${SERIAL:-not running} ($AVD)"
         [[ -n "$SERIAL" ]] && { installed && say "app: installed$(is_owner && echo ', device owner')" || say "app: not installed"; }
         port_open "$FDM_PORT" && say "FDM mock: up" || say "FDM mock: down"
-        port_open "$PRINTER_HTTP" && say "printer mock: up (http://127.0.0.1:$PRINTER_HTTP/)" || say "printer mock: down" ;;
-    *) sed -n 2,17p "$0"; exit 2 ;;
+        port_open "$PRINTER_HTTP" && say "printer mock: up (http://127.0.0.1:$PRINTER_HTTP/)" || say "printer mock: down"
+        port_open "$HUBRISE_PORT" && say "HubRise mock: up" || say "HubRise mock: down" ;;
+    order)
+        port_open "$HUBRISE_PORT" || die "the HubRise mock is down: run start first"
+        send_order "${2:-}" ;;
+    *) sed -n 2,23p "$0"; exit 2 ;;
 esac
