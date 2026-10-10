@@ -1,7 +1,6 @@
 -- pili-pos: DEMO seed (Tokyo Sushi Bar menu) for the Android emulator demo.
 -- Not a certification fixture. Menu from src-tauri/seed.sql, staff and PINs from
--- src-tauri/seed_spf_test.sql (Gerant 1111, Elisa 2222, John 4444, Sammy 5555,
--- Technicien 0097, Apprenti 3333).
+-- src-tauri/seed_spf_test.sql: Mengmeng Z. (manager, PIN 1111), Sa X. (server, PIN 2222).
 
 -- ── Reset (idempotent pour reseed) ───────────────────────────────
 DELETE FROM order_lines;
@@ -18,23 +17,12 @@ DELETE FROM categories;
 INSERT OR IGNORE INTO languages (code, name) VALUES
     ('de', 'Deutsch');
 
--- ── Utilisateurs de test ────────────────────────────────────────
--- Le personnel du jeu de test SPF (UC_TestSetup_20240806) : John
--- (barman), Elisa (chef de salle) et Sammy (sommelier), avec leurs
--- employeeId ; ils enregistrent commandes et ventes (role cashier).
--- S'y ajoutent un profil par role de PROFILS_UTILISATEURS_FR.md
--- (identifiants remis aux agents, REPONSES_MANUEL_CERT_FR.md,
--- "Informations supplementaires"). PIN hashes bcrypt (cout 12) :
--- Technicien 0097, Gerant 1111, Elisa 2222, Apprenti 3333, John 4444,
--- Sammy 5555. Le robot (00000000029) n'a pas de PIN.
+-- ── Demo staff (PIN hashes of the SPF test seed: 1111 and 2222) ──
+DELETE FROM users;
 INSERT OR REPLACE INTO users (insz, name, role, pin_hash) VALUES
     ('00000000029', 'Robot / Kiosk', 'admin', NULL),
-    ('00000000097', 'Technicien', 'admin', '$2y$12$biMjvYoNKdT/dWj40tTyTuO3u/zvao.kwyU01SdyFPwIoxGg6UZR2'),
-    ('94060242576', 'Gérant', 'admin', '$2y$12$XHH6GSKAOw3OBnHXvDlXjeBkBosOS2xDU4xu31O7yUUf6tfiO2ZRy'),
-    ('75061189702', 'John', 'cashier', '$2y$12$J.LaAI2LXHL.3Sn/RxaizO06h/PaFlS4TDN.W67AP/CpJoBRMQ0Ne'),
-    ('84022899837', 'Elisa', 'cashier', '$2y$12$7X94vlUi08Hlaid/ZV2vb.FM3QPpjKHW1vqEXxppYfANN7HCKuKD6'),
-    ('80113078968', 'Sammy', 'cashier', '$2y$12$SBshMmwu2WPvEtC0A7ldpei7uKtYigjta7y6FsmHI8FFnWkQetp5W'),
-    ('99012345667', 'Apprenti', 'waiter', '$2y$12$FxE17eeRfr94ie9p28GF1eD0cB8o5dwy1pNsvKGf3oOq2oE81XqPi');
+    ('94060242576', 'Mengmeng Z.', 'admin', '$2y$12$XHH6GSKAOw3OBnHXvDlXjeBkBosOS2xDU4xu31O7yUUf6tfiO2ZRy'),
+    ('84022899837', 'Sa X.', 'cashier', '$2y$12$7X94vlUi08Hlaid/ZV2vb.FM3QPpjKHW1vqEXxppYfANN7HCKuKD6');
 
 
 -- ── Categories ─────────────────────────────────────────────────

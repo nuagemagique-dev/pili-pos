@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.ui.components.tapScale
@@ -140,14 +141,15 @@ private fun HeaderDivider() {
 internal fun PiliLogo(
     modifier: Modifier = Modifier,
     backdrop: Color = PiliTheme.colors.bgSecondary,
+    height: Dp = LogoHeight,
 ) {
     val c = PiliTheme.colors
     val description = uiText(R.string.ui_common_header_logo)
     Box(
         modifier =
             modifier
-                .height(LogoHeight)
-                .width(LogoHeight * LOGO_ASPECT)
+                .height(height)
+                .width(height * LOGO_ASPECT)
                 .semantics { contentDescription = description },
     ) {
         LogoLayer(R.drawable.ui_logo, ColorFilter.tint(c.textPrimary))

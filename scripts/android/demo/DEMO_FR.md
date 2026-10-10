@@ -22,12 +22,8 @@ Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, 
 
 | Personne | Rôle | PIN |
 |---|---|---|
-| Gérant | gérant (rapports, Z, réglages) | 1111 |
-| Elisa | serveur | 2222 |
-| John | serveur | 4444 |
-| Sammy | serveur | 5555 |
-| Apprenti | apprenti | 3333 |
-| Technicien | gérant | 0097 |
+| Mengmeng Z. | gérante (rapports, Z, réglages) | 1111 |
+| Sa X. | serveuse | 2222 |
 
 ## Voir ce qui est imprimé
 
@@ -39,7 +35,7 @@ Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, 
 
 ## Déroulé conseillé (10 minutes)
 
-1. **Connexion** : toucher « Gérant », PIN 1111. Montrer les voyants FDM, ticket et cuisine en haut.
+1. **Connexion** : toucher « Mengmeng Z. », PIN 1111. Montrer les voyants FDM, ticket et cuisine en haut.
 2. **Salle** : toucher une table, ajouter un plateau, des sushis et deux bières (onglet Boisson).
    Les noms sont en français et en chinois.
 3. **Envoyer en cuisine** : le bon de cuisine ne contient que les plats, pas les boissons

@@ -15,7 +15,7 @@
 # http://127.0.0.1:19393/).
 # Nightly export: received files land in ~/.cache/pili-demo/exports (decrypt the backup with
 # age -d -i ~/.cache/pili-demo/age-key.txt).
-# PINs (demo seed): Gerant 1111, Elisa 2222, John 4444, Sammy 5555, Technicien 0097.
+# PINs (demo seed): Mengmeng Z. (manager) 1111, Sa X. (server) 2222.
 # Not a certification tool: the demo seed is not the SPF test set.
 # ─────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -172,7 +172,7 @@ case "${1:-}" in
     start)
         [[ "${2:-}" == "--no-build" ]] && NO_BUILD=1
         start_emulator; build_apk; start_mocks; install_and_provision
-        say "ready. PIN gerant 1111 (cashiers 2222, 4444, 5555). Tickets: http://127.0.0.1:$PRINTER_HTTP/" ;;
+        say "ready. PIN Mengmeng Z. 1111 (manager), Sa X. 2222 (server). Tickets: http://127.0.0.1:$PRINTER_HTTP/" ;;
     stop) stop_mocks ;;
     reset)
         stop_mocks; SERIAL="$(serial)"

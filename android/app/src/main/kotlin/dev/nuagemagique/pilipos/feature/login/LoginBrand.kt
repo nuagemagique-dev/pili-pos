@@ -22,12 +22,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.ui.scaffold.PiliLogo
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
-/** The wordmark is drawn at four times the big type size, the hanzi and the title at 1.4 times it. */
-private const val WORDMARK_SCALE = 4f
+/** The wordmark is 120 dp high (LoginView.vue), the hanzi and the title 1.4 times the big type size. */
+private val WordmarkHeight = 120.dp
 private const val HEADLINE_SCALE = 1.4f
 
 /** Opacity of the dot of a check without a result, and of the version line. */
@@ -71,16 +72,11 @@ private fun BrandMark() {
     val colors = PiliTheme.colors
     val typography = PiliTheme.typography
     Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        Text(
-            text = uiText(R.string.ui_login_brand),
-            style =
-                typography.body.copy(
-                    fontFamily = typography.familyBrand,
-                    fontSize = typography.sizeXl * WORDMARK_SCALE,
-                    fontWeight = typography.weightHeavy,
-                ),
-            color = colors.textPrimary,
+        // The Pili wordmark, as on the Vue login screen (PiliLogo, 120 px high), over the screen background.
+        PiliLogo(
             modifier = Modifier.testTag("login_brand"),
+            backdrop = colors.bgPrimary,
+            height = WordmarkHeight,
         )
         Text(
             text = uiText(R.string.ui_login_brand_hanzi),
