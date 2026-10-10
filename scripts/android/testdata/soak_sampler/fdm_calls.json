@@ -1,0 +1,14 @@
+[
+  {"at": "2026-10-10T12:00:00.100000+00:00", "operation": "signWorkIn", "request": {"query": "mutation signWorkIn", "variables": {"data": {"posId": "CPOS0031234567", "posFiscalTicketNo": 1}}},
+   "response": {"data": {"signWorkIn": {"posId": "CPOS0031234567", "posFiscalTicketNo": 1, "fdmRef": {"eventLabel": "S", "eventCounter": 1, "totalCounter": 1}}}}},
+  {"at": "2026-10-10T12:00:01.100000+00:00", "operation": "Status", "request": {"query": "status("}, "response": {"data": {"status": {}}}},
+  {"at": "2026-10-10T12:00:02.100000+00:00", "operation": "signSale", "request": {"query": "mutation signSale", "variables": {"data": {"posId": "CPOS0031234567", "posFiscalTicketNo": 1}}},
+   "response": {"data": {"signSale": {"posId": "CPOS0031234567", "posFiscalTicketNo": 1, "fdmRef": {"eventLabel": "N", "eventCounter": 1, "totalCounter": 2}}}}},
+  {"at": "2026-10-10T12:00:03.100000+00:00", "operation": "signSale", "request": {"query": "mutation signSale", "variables": {"data": {"posId": "CPOS0031234567", "posFiscalTicketNo": 2}}},
+   "response": {"data": {"signSale": {"posId": "CPOS0031234567", "posFiscalTicketNo": 2, "fdmRef": {"eventLabel": "N", "eventCounter": 2, "totalCounter": 3}}}}},
+  {"at": "2026-10-10T12:00:04.100000+00:00", "operation": "signReportTurnoverZ", "request": {"query": "mutation signReportTurnoverZ signReportUserZ"},
+   "response": {"data": {"signReportTurnoverZ": {"posId": "CPOS0031234567", "posFiscalTicketNo": 1, "fdmRef": {"eventLabel": "R", "eventCounter": 1, "totalCounter": 4}},
+                          "signReportUserZ": {"posId": "CPOS0031234567", "posFiscalTicketNo": 2, "fdmRef": {"eventLabel": "R", "eventCounter": 2, "totalCounter": 5}}}}},
+  {"at": "2026-10-10T12:00:05.100000+00:00", "operation": "signSale", "request": {"query": "mutation signSale", "variables": {"data": {"posId": "CPOS0031234567", "posFiscalTicketNo": 2}}},
+   "response": {"errors": [{"message": "FDM_LOCKED"}]}}
+]
