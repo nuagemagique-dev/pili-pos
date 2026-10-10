@@ -127,7 +127,7 @@ Status: as built (P6-T4)
 
 The hashes are cached per `(sourceDir, lastUpdateTime)`, so a new install recomputes them and a second report of the same install reads nothing. A failed read of the APK is not cached. `toJson()` has a stable key order (the order above, fields as named in the table) and writes a missing value as JSON `null`, never as an absent key.
 
-The engine reference is `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.1.0, linux-v1.1.0-rc1 (65b567f)`. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update the string.
+The engine reference is `pili-pos <version>, <freeze tag> (<short sha>)`, for example `pili-pos 1.0.0, linux-v1.0.0-rc1 (1a2b3c4)`. Until the tag `linux-v1.0.0-rc1` exists the string holds the placeholder `pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)`, and the tagging step replaces `pending` by the short commit. The gate check `plat-engine-ref` compares it with the freeze tag, so a re-freeze must update the string.
 
 `AboutScreen` has four sections: Version (version, code, engine version, engine reference), Integrity (APK SHA-1 and SHA-256, library SHA-1, signer SHA-256), Device (deviceId, posId, terminalId, Android, model) and Storage (free space, backups count and size). Hashes use the monospace figure style and the text is selectable. A warning line shows under Storage when less than 2 GiB are free or when the backups take more than half of the free space (PD219: the platform deletes nothing; since the 1.0.0 re-freeze the engine keeps only its 7 newest backups, so the backups warning is a safety net). Test tags: `about_root`, `about_apk_sha1`, `about_so_sha1`, `about_device_id`, plus `about_refresh`, `about_free_space`, `about_backups`, `about_warning_low_space`, `about_warning_backups`.
 
@@ -484,7 +484,7 @@ Status: as built (P6-T2)
 | `plat-strings` | every `values/strings_plat_<area>.xml` has a twin in `values-en/` and `values-zh/` with the same names, each starting with `plat_<area>_`, no empty value; `translatable="false"` only in `values/` |
 | `plat-boundary` | under `platform/` (comments ignored): no `EngineHolder`, `force-stop`, `forceStop`, `killBackgroundProcesses`, `settlePreview`, `vatSplit`, `cashDueCents`; `http://` only on a line with `127.0.0.1` or `localhost` |
 | `plat-keys` | SKIP while `plat_update_keys.xml` is absent; else the `debug` key equals the key line of `dev-minisign.pub` and the `release` key is empty or matches `^RW[A-Za-z0-9+/]{54}$` |
-| `plat-engine-ref` | SKIP while `plat_about_engine_ref` does not exist; else it equals `pili-pos <V>, <TAG> (<SHORT>)` for the freeze tag (`PILI_P6_FREEZE_TAG`, default `linux-v1.1.0-rc1`) |
+| `plat-engine-ref` | SKIP while `plat_about_engine_ref` does not exist; else it equals `pili-pos <V>, <TAG> (<SHORT>)` for the freeze tag (`PILI_P6_FREEZE_TAG`, default `linux-v1.0.0-rc1`). While the tag does not exist, the placeholder `pili-pos <V>, <TAG> (pending)` (V from the working tree) is a SKIP and any other value a FAIL; once the tag exists the placeholder is a FAIL |
 | `selftest-p6-gate` | full mode only: `scripts/android/test_p6_gate.sh` |
 | `selftest-declare` | full mode only: `scripts/release/test_declare_android.sh`, SKIP while absent |
 | `plat-e2e` | `--plat-e2e` only: `scripts/android/plat_e2e.sh`, SKIP while absent |

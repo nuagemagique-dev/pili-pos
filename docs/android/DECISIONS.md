@@ -31,7 +31,7 @@ what rested on it was marked PENDING-S4 in the draft and is now settled
 | 7 | No remote support in v1 | DECIDED |
 | 8 | Admission FDM = module2 online simulator | DECIDED; test-machine questions PROPOSED |
 | 9 | Signing-key custody | PROPOSED (technical constraints DECIDED by S5) |
-| 10 | When to file Linux v1.1 | PROPOSED |
+| 10 | Linux filing: version 1.0.0, initial filing (Art. 99), no v1.1 | DECIDED (user, 2026-10-10) |
 | 11 | Other decisions carried from P0 evidence | DECIDED (technical) |
 | 12 | S4 results (was: items waiting for S4) | DECIDED (S4 emulator), HARDWARE RESIDUE or OPEN per item |
 
@@ -77,9 +77,9 @@ creates the Gradle project.
 | Item | Linux | Android |
 |------|-------|---------|
 | Product line in `posSwVersion` | `pili-pos/<X.Y.Z>` (unchanged format) | `pili-pos-android/<X.Y.Z>` |
-| First version | `1.1.0` after the engine extraction | `1.0.0` |
-| Example | `pili-pos/1.1.0` (14 chars) | `pili-pos-android/1.0.0` (22 chars) |
-| Git tag | `vX.Y.Z` (today), `linux-v1.1.0-rc1` / `linux-v1.1.0` for the freeze tags in the plan | `android-vX.Y.Z` (plan P6) |
+| First version | `1.0.0`: the extracted engine is the first Linux filing (user, 2026-10-10; no v1.1) | `1.0.0` |
+| Example | `pili-pos/1.0.0` (14 chars) | `pili-pos-android/1.0.0` (22 chars) |
+| Git tag | `vX.Y.Z` (today), `linux-v1.0.0-rc1` / `linux-v1.0.0` for the freeze tags (the earlier local `linux-v1.1.0-rc1` was misnamed and is deleted at the re-freeze) | `android-vX.Y.Z` (plan P6) |
 | Release artifact | GHCR `:declared` | GHCR `:declared-android`, `"platform":"android"` in `declared.json` |
 
 - **Single source.** The Android version string comes from one place: the
@@ -437,7 +437,14 @@ same key.
 - **Signing step.** `declare.sh --android` (P6) does the signing on the
   producer's machine only.
 
-## 10. When to file Linux v1.1: PROPOSED
+## 10. Linux filing: DECIDED (user, 2026-10-10)
+
+**Decision.** Nothing has been filed for Linux or Android. Both are v1.0
+initial filings (Art. 99), both at version 1.0.0 (`pili-pos/1.0.0`,
+`pili-pos-android/1.0.0`); there is no Linux v1.1 and no Art. 113 update.
+This is option C below. The freeze is redone as `linux-v1.0.0-rc1`, then
+`linux-v1.0.0`; both filings cite that engine tag. The text below is the
+proposal as it was written at P0, kept for the record.
 
 **Facts.**
 - The engine extraction (P1) changes the Linux binary, so it ships as Linux
@@ -616,7 +623,7 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **Q3 Version scheme:** `pili-pos-android/X.Y.Z` from 1.0.0, versionCode `MAJOR*10000 + MINOR*100 + PATCH`, `-dev` suffix for development builds.
 - **Q4 deviceId:** Sunmi serial as device owner, read at provisioning and checked at every open, no generated fallback. S4 also evaluates the device-owner Wi-Fi MAC (`getWifiMacAddress`) and records which one the dossier names.
 - **Q5 TLS:** bundled roots (B1c) accepted; a root refresh ships as a new declared APK.
-- **Q6 Linux v1.1:** option B, filed together with Android at P8. Whether v1.0 was filed from `cert/v1.0` or main stays for the user.
+- **Q6 Linux filing:** superseded by the user on 2026-10-10 (section 10): nothing was filed, so the Linux build is filed as version 1.0.0, an initial filing (Art. 99), together with Android; there is no Linux v1.1 and no Art. 113 update. (Was: option B, Linux v1.1 filed together with Android at P8.)
 - **Q7 Signing key:** constraints as proposed (RSA 4096, 30 years, offline, two encrypted backups, never in CI). Creation, holder and whether `declared-android` reuses the minisign key stay with the user. Until then only a throwaway dev keystore is used and never committed.
 - **Q8 Updater sources:** the USB stick through SAF is accepted as a second source, with the same signature and hash checks.
 - **Q9 Spike evidence:** spike branches kept locally and tagged `android/p0-spike-S1`, `-S2`, `-S3`, `-S5` (local tags, not pushed).
@@ -1002,7 +1009,7 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
     The tag scheme is `android-vX.Y.Z` = versionName. The script refuses `-dev` versions and EC keys. The chain only runs it with `--dry-run` against throwaway keys in `mktemp` dirs, with stub `oras` and `gh`.
   - **PD217 APK reproducibility on `:app`.** The container build (`android/docker/build_in_container.sh`) builds `:app:assembleRelease` instead of `:smoke` (PD80, PD114). `check_repro.sh` compares two `app-release-unsigned.apk`; `:smoke` stays in the host gates. `android.yml` builds and checks the `:app` APK too (never triggered by the chain). `REPRO.md` records the SHA-1 and the image digest.
   - **PD218 Emulator.** Only P6-T11 and the phase exit start or reuse `sunmi_d3_pro_api33`, never while another AVD runs (`scripts/android/emulator.sh ensure`). The removable volume is vold's virtual SD disk (S4-T4, Q20; `sm set-virtual-disk true` if absent). Teardown as in `app_e2e.sh`: no owner, no package, no reverse rule, export folders removed. The AVD is never wiped.
-  - **PD219 Backup retention.** The engine keeps every post-Z backup forever (`signing.rs:761`) and P6 deletes none. The About screen shows the free space and the backups total, and the export copies the 7 newest. Retention is a question for the user (engine change, re-freeze).
+  - **PD219 Backup retention.** The engine keeps every post-Z backup forever (`signing.rs:761`) and P6 deletes none. The About screen shows the free space and the backups total, and the export copies the 7 newest. Retention is a question for the user (engine change, re-freeze). Resolved by the user on 2026-10-10: the engine keeps the 7 newest backups (see "Decided by the user").
   - **PD220 Storage location.** The database, backups, logs and provisioning bundle stay in app-private internal storage. No `android:installLocation` (internalOnly) and no storage permissions; gate check `plat-manifest`. Removable media are reached only through SAF grants (export, update from a stick).
   - **PD221 Exit without the user.** With the user away, the planner writes `P6-exit.md` and the lane waits for the integrator's merge into `android/int`. Merging into main, freezes, pushes, the release keys and `declare_android.sh` for real wait for the user.
 
@@ -1022,6 +1029,11 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 
 ## Decided by the user
 
+- **User (2026-10-10, about 09:00), version and re-freeze.** Question: "Should I set it back to 1.0.0 (Linux pili-pos/1.0.0, Android pili-pos-android/1.0.0), rebuild twice to confirm the new SHA-1, and tag linux-v1.0.0-rc1 locally (deleting the misnamed linux-v1.1.0-rc1)?" Answer: "Yes, 1.0.0 + re-freeze". Nothing has been filed for Linux or Android: both are v1.0 initial filings (Art. 99); there is no Linux v1.1 and no Art. 113 update (section 10, Q6). It is the go-ahead that PD121, X1D3, X1D27, PD228, PD247 and UI-PD320 waited for.
+  - Done on `android/lane-freeze`: version 1.0.0 in `Cargo.toml` `[workspace.package]` (and the workspace crates of both `Cargo.lock` files), `src-tauri/tauri.conf.json`, `ui/package.json` and `ui/package-lock.json`; `android/rust/pos-ffi` 1.0.0, so `posSwVersion` `pili-pos-android/1.0.0`, versionName `1.0.0` and versionCode 10000 (the same code as `1.0.0-dev`, which never shipped: monotonic, not increased). `plat_about_engine_ref` is `pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)`. `check_linux_frozen.sh` defaults to `linux-v1.0.0`, then `linux-v1.0.0-rc1`; the p1a, p4 and p6 freeze checks SKIP with a clear message while that tag does not exist.
+  - Left for the tagging step (after the merge into `android/int`): two clean builds with `scripts/check_repro.sh`, the tag `linux-v1.0.0-rc1`, deleting `linux-v1.1.0-rc1`, replacing `pending` in `plat_about_engine_ref` by the short commit, `FREEZE_SHA_RECORDED` in `scripts/android/p4_gate.sh`, and the new freeze record in `docs/android/LINUX_FREEZE.md`.
+- **User (2026-10-10, about 13:30), backup retention (resolves PD219).** Question: "The engine keeps a full database copy after every Z and never deletes them (would fill the till in months). Add a retention rule in the engine before the 1.0.0 re-freeze?" Answer: "Keep the 7 newest".
+  - Done in `crates/pos-engine/src/commands/report.rs` (`BACKUPS_KEPT = 7`): after a backup is complete and `PRAGMA quick_check` answers `ok`, the engine deletes the oldest of its own `pos-<UTC timestamp>.db` files so that 7 remain, the new one always among them, and logs each deletion. It never touches `pos.db`, the nightly export folder or a copy made by someone else (`manual-*.db`, `pre-update-*.db`). Backup names carry milliseconds, so two backups never share a name. Same code on Linux and Android (no platform conditional). Tests: `nine_z_in_a_row_leave_the_seven_newest_backups` (`crates/pos-engine/tests/export_nightly.rs`) and five unit tests in `report.rs`. `PLATFORM.md` section 12 and the dossier (`FEUILLE_ACQUISITION_DONNEES_FR.md`, `FLUX_DONNEES_FR.md`, `DOCUMENT_PROCESSUS_TECHNIQUE_FR.md`, `DECLARATION_FONCTIONS_INTERDITES_FR.md`, `MANUEL_INSTALLATION_FR.md`, `MANUEL_PROGRAMMATION_FR.md`) and the export's `LISEZMOI.txt` say so; the dossier PDFs are regenerated with the submission.
 - **User (2026-10-08):** the two questions left open for the soft freeze. Record of the freeze in `docs/android/LINUX_FREEZE.md`.
   - PD47 resolved: the mutation scan covers the source compiled into the cert binary. Step 3/5 of `scripts/build_and_hash.sh` keeps scanning every `*.rs` and `*.sql` file of `crates` and `src-tauri/src` for a DELETE or UPDATE on `fiscal_events`, keeps the `#[cfg(test)]` exclusion, and prunes the Cargo integration-test directories (a `tests` directory directly under a crate root, so `crates/*/tests`), which only `cargo test` builds. This restores the v1.0 scope in practice (the integration tests lived in `src-tauri/tests`, never scanned, until P1a moved them to `crates/pos-engine/tests`); it is not a weakening of the control and there is no allowlist of lines. The two flagged test lines (`spf_e2e_crash_safety.rs:154`, `spf_e2e_peripherals.rs:415`) are unchanged. The scan still catches a mutation planted in `crates/pos-fiscal/src` (a new file, a line in `archive.rs`, a `src/tests/` module), in `src-tauri/src` and in a `.sql` file (checked by hand, plants removed). The dossier sentence (`GARANTIE_MAJ_LANGUES_FR.md` section 1.2) and the manual check of `CHECKLIST_DEPLOIEMENT_KIOSK_FR.md` describe the new scope, PDFs regenerated. Commit `228c562`. With it `scripts/check_repro.sh` passes from a clean clone of `8dec93a`: both builds give SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`, and PD44 applies (soft freeze tag `linux-v1.1.0-rc1`, set by the orchestrator after review). PD48 and PD63 (provisional freeze point `042d911`) end with the tag: the chain checks `check_linux_frozen.sh` against the tag from then on.
   - PD71 resolved: fixed before the soft freeze. `pos_catalog::ApplyOutcome::Rejected` is a struct variant `Rejected { issues: Vec<Issue> }`, serialized as `{"outcome": "rejected", "issues": [...]}` (the shape the FFI record already had), so `hubrise_sync_catalog` and `hubrise_adopt_catalog` answer the rejection, not a serialization error. Tests: `every_outcome_serializes_with_its_tag` and `a_rejected_outcome_serializes_the_issues_it_stored` (pos-catalog), `a_resync_of_a_bad_catalog_answers_the_rejection_not_an_error` (pos-engine). The Vue UI types the outcome (`CatalogApplyOutcome` in `ui/src/api/ipc.ts`) and shows "Catalogue refusé" as an error for a rejected resync or adoption (Settings and the online board), the Settings banner listing the issues; a Playwright test covers it. The `catalog-rejected` event payload (a HubRise `CallbackEvent`) is unchanged. The FFI drops its `// contract: custom` conversion of `ApplyOutcome` for `convert::out`, and the tripwire `the_engine_cannot_serialize_a_rejected_outcome` is replaced by the contract test `a_rejected_outcome_converts_with_its_issues`; the record and the Kotlin API are unchanged (`apiCheck` passes, `android/pos-core/api/pos-core.api` not touched). Commits `2e1e3ad` and `8dec93a`.

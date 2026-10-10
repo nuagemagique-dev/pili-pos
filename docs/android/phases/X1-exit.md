@@ -1,5 +1,7 @@
 # X1 exit report: Nightly export (export lane)
 
+> Correction (2026-10-10): the Linux build is not filed as v1.1 under Art. 113. Nothing was filed, so Linux and Android are both version 1.0.0 initial filings (Art. 99), and the freeze tag is `linux-v1.0.0-rc1`, not `linux-v1.1.0-rc1` (`docs/android/DECISIONS.md`, "Decided by the user"). The report below is unchanged.
+
 Written by the X1 planner on 2026-10-09, at the end of the X1 run, with the user away.
 
 - **Base (fork point):** `ba57adf06191a1f386863f98f24930b6f5aa543c` (`docs(android): P4 phase cards, exit report and exit decisions`).
