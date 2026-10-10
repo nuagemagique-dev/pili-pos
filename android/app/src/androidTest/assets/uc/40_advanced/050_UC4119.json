@@ -3,7 +3,7 @@
   "id": "UC4119",
   "ids": ["UC4119"],
   "title": "UC4119: table 1 ordered by John, then paid by Elisa in three parts on one VAT ticket: the rest in cash, then card and meal vouchers",
-  "fixture": "docs/20260821_UC_AdvancedSet_POS_FDM_1.6/UC4119_SplitPayment/UC4119_2_Sale",
+  "fixture": "docs/20260821_UC_AdvancedSet_POS_FDM_1.6/UC4119_SplitPayment",
   "fixtureDeviations": [
     {"path": "financials[0].type", "reason": "the operator does not tell debit from credit cards: CARD_DEBIT"}
   ],
