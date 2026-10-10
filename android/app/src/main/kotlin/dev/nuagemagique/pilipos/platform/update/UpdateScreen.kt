@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -28,6 +29,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.EntryPointAccessors
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.platform.PlatformBackButton
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
 @Composable
@@ -52,7 +54,10 @@ private fun rememberUpdateViewModel(): UpdateViewModel {
  * with the volume's own intent (never with `FLAG_ACTIVITY_NEW_TASK`, which Lock Task refuses).
  */
 @Composable
-fun UpdateScreen(viewModel: UpdateViewModel = rememberUpdateViewModel()) {
+fun UpdateScreen(
+    onBack: () -> Unit = {},
+    viewModel: UpdateViewModel = rememberUpdateViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -64,6 +69,7 @@ fun UpdateScreen(viewModel: UpdateViewModel = rememberUpdateViewModel()) {
     }
     UpdateContent(
         state = state,
+        onBack = onBack,
         actions =
             UpdateActions(
                 onCheckOnline = viewModel::checkOnline,
@@ -85,6 +91,7 @@ internal class UpdateActions(
 internal fun UpdateContent(
     state: UpdateUiState,
     actions: UpdateActions,
+    onBack: () -> Unit = {},
 ) {
     val colors = PiliTheme.colors
     val dimens = PiliTheme.dimens
@@ -93,7 +100,10 @@ internal fun UpdateContent(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(dimens.spaceLg),
             verticalArrangement = Arrangement.spacedBy(dimens.spaceMd),
         ) {
-            Text(text = stringResource(R.string.plat_update_title), style = PiliTheme.typography.title, color = colors.textPrimary)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimens.spaceMd)) {
+                PlatformBackButton(onBack = onBack, tag = "update_back")
+                Text(text = stringResource(R.string.plat_update_title), style = PiliTheme.typography.title, color = colors.textPrimary)
+            }
             state.installed?.let { InstalledPanel(it) }
             if (state.notManager) {
                 Message(R.string.plat_update_not_manager, "update_not_manager", warning = true)

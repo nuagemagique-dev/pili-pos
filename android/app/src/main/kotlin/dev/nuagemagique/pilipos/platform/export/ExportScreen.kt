@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -27,6 +29,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.EntryPointAccessors
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.platform.PlatformBackButton
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import kotlinx.coroutines.delay
 
@@ -45,7 +48,10 @@ private fun rememberExportViewModel(): ExportViewModel {
  * activity with the volume's own intent (never with `FLAG_ACTIVITY_NEW_TASK`, which Lock Task refuses).
  */
 @Composable
-fun ExportScreen(viewModel: ExportViewModel = rememberExportViewModel()) {
+fun ExportScreen(
+    onBack: () -> Unit = {},
+    viewModel: ExportViewModel = rememberExportViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -63,6 +69,7 @@ fun ExportScreen(viewModel: ExportViewModel = rememberExportViewModel()) {
     }
     ExportContent(
         state = state,
+        onBack = onBack,
         actions =
             ExportActions(
                 onPick = { viewModel.pickerIntent()?.let(picker::launch) },
@@ -88,6 +95,7 @@ internal class ExportActions(
 internal fun ExportContent(
     state: ExportUiState,
     actions: ExportActions,
+    onBack: () -> Unit = {},
 ) {
     val colors = PiliTheme.colors
     val dimens = PiliTheme.dimens
@@ -96,7 +104,10 @@ internal fun ExportContent(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(dimens.spaceLg),
             verticalArrangement = Arrangement.spacedBy(dimens.spaceMd),
         ) {
-            Text(text = stringResource(R.string.plat_export_title), style = PiliTheme.typography.title, color = colors.textPrimary)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimens.spaceMd)) {
+                PlatformBackButton(onBack = onBack, tag = "export_back")
+                Text(text = stringResource(R.string.plat_export_title), style = PiliTheme.typography.title, color = colors.textPrimary)
+            }
             when (state) {
                 ExportUiState.Checking -> Message(R.string.plat_export_checking, "export_checking")
                 ExportUiState.NotManager -> Message(R.string.plat_export_not_manager, "export_not_manager", warning = true)

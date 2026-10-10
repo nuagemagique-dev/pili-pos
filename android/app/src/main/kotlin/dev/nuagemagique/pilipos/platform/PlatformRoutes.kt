@@ -40,9 +40,9 @@ internal class PlatformEntry
             builder.composable(PlatformRoutes.ABOUT) {
                 // The outer tag is the one the nav-level FeatureEntriesTest still looks for ("placeholder_platform");
                 // it goes away with that test's update at integration.
-                Box(Modifier.testTag(LEGACY_PLACEHOLDER_TAG)) { AboutScreen() }
+                Box(Modifier.testTag(LEGACY_PLACEHOLDER_TAG)) { AboutScreen(onBack = navigator::back) }
             }
-            builder.composable(PlatformRoutes.EXPORT) { ExportScreen() }
-            builder.composable(PlatformRoutes.UPDATE) { UpdateScreen() }
+            builder.composable(PlatformRoutes.EXPORT) { ExportScreen(onBack = navigator::back) }
+            builder.composable(PlatformRoutes.UPDATE) { UpdateScreen(onBack = navigator::back) }
         }
     }

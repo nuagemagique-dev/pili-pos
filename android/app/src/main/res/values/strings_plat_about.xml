@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="plat_about_title">À propos</string>
+    <string name="plat_back">Retour</string>
     <string name="plat_about_loading">Lecture de l\'identité de la caisse…</string>
     <string name="plat_about_refresh">Actualiser</string>
     <string name="plat_about_unavailable">Indisponible</string>
