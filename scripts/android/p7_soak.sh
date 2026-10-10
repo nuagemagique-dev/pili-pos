@@ -8,15 +8,18 @@
 #   scripts/android/p7_soak.sh stop   [--run ID]
 #   scripts/android/p7_soak.sh status
 #
-# start    takes the P7 emulator lock, makes sure the emulator runs (emulator.sh ensure, never
+# start    starts a detached supervisor (its own process group, wrapped in caffeinate -i -w <pid>
+#          so the Mac stays awake) and returns after the first sample. The supervisor takes the P7
+#          emulator lock and keeps it until the end of the run (the lock is held by the process
+#          tree of the supervisor, so a lock taken by `start` itself would be released when `start`
+#          returns). Under the lock it makes sure the emulator runs (emulator.sh ensure, never
 #          wiped), prechecks it (no device owner, one user, no pilipos package), builds the debug
 #          and androidTest APKs, builds and starts pos-fdm-mock and pos-printer-mock, provisions
 #          the app exactly as app_e2e.sh does (device owner, development bundle, adb reverse on
 #          19380, 19390, 19391, ProvisioningE2eTest), keeps the screen awake (svc power stayon
-#          true, restored at the end) and starts the driver (SoakDriverTest) with `am instrument`
-#          WITHOUT -w, so that it survives an adb disconnect. A detached supervisor (its own
-#          process group, wrapped in caffeinate -i -w <pid> so the Mac stays awake) keeps the lock,
-#          runs soak_sampler.py and tears down at the end. start returns after the first sample.
+#          true, restored at the end), starts the driver (SoakDriverTest) with `am instrument`
+#          WITHOUT -w, so that it survives an adb disconnect, then runs soak_sampler.py and tears
+#          down at the end.
 #          H is decimal (0.34 = 20 minutes). Defaults: 60 minutes per compressed day, 100 sales a
 #          day. The driver plays: login (clock-in), the sales (70 percent takeaway paid in cash,
 #          20 percent table with order, pre-bill and card, 5 percent split payment, 5 percent
@@ -146,7 +149,7 @@ running_run() {
     for d in "$SOAKROOT"/*/; do
         f="${d}state.json"
         [[ -f "$f" ]] || continue
-        [[ "$(state_get "$f" status)" == running ]] || continue
+        case "$(state_get "$f" status)" in queued | starting | running) ;; *) continue ;; esac
         sup="$(state_get "$f" supervisor_pid)"
         if alive "$sup" p7_soak; then
             basename "$d"
@@ -245,31 +248,9 @@ teardown_run() {
 # ══ start ═════════════════════════════════════════════════════════
 RUN_ID=""
 RUN=""
-HANDOFF=0
-START_PROBLEM=""
-
-start_fail() { # <detail>
-    START_PROBLEM="$1"
-    exit 1
-}
-
-start_finish() {
-    local rc=$? problems
-    trap - EXIT INT TERM
-    if [[ "$HANDOFF" -eq 0 && -n "$RUN" && -f "$RUN/state.json" ]]; then
-        problems="$(teardown_run "$RUN")"
-        state_set "$RUN/state.json" status=failed "teardown=${problems:-ok}" >/dev/null 2>&1
-        [[ -z "$problems" ]] || note "teardown left: $problems"
-    fi
-    if [[ "$rc" -ne 0 ]]; then
-        printf 'SOAK | start | FAIL | %s\n' "${START_PROBLEM:-start failed (exit $rc)}"
-        exit 1
-    fi
-    exit 0
-}
 
 cmd_start() {
-    local hours="" day_minutes=60 sales=100 seed gap warm
+    local hours="" day_minutes=60 sales=100 seed gap sup deadline status failure
     while [[ $# -gt 0 ]]; do
         case "$1" in
         --hours) hours="${2:-}"; shift ;;
@@ -286,6 +267,7 @@ cmd_start() {
     [[ "$RUN_ID" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "start: --run-id may hold letters, digits, dot, dash and underscore" >&2; exit 2; }
     seed="${PILI_SOAK_SEED:-$((RANDOM * 32768 + RANDOM))}"
     gap="${PILI_SOAK_IDLE_GAP_MINUTES:-6}"
+    [[ -n "$ADB" && -x "$ADB" ]] || { printf 'SOAK | start | FAIL | adb not found (ANDROID_HOME=%s)\n' "$ANDROID_HOME"; exit 1; }
 
     local busy
     if busy="$(running_run)"; then
@@ -297,28 +279,108 @@ cmd_start() {
         printf 'SOAK | start | FAIL | run %s exists already (%s), pick another --run-id\n' "$RUN_ID" "$RUN"
         exit 1
     fi
-
-    # The lock is taken here, and kept by the supervisor after this process has returned.
-    # shellcheck source=/dev/null
-    source "$ROOT/scripts/android/p7_emulator_lock.sh"
-    p7_emulator_lock p7_soak "$SELF" start --hours "$hours" --day-minutes "$day_minutes" --sales-per-day "$sales" --run-id "$RUN_ID"
-
     mkdir -p "$RUN" || exit 2
     RUN="$(cd "$RUN" && pwd -P)"
-    trap start_finish EXIT
-    trap 'exit 130' INT TERM
-    [[ -n "$ADB" && -x "$ADB" ]] || start_fail "adb not found (ANDROID_HOME=$ANDROID_HOME)"
-    state_set "$RUN/state.json" "run_id=\"$RUN_ID\"" status=starting "package=\"$PKG\"" "test_package=\"$TEST_PKG\"" \
-        "hours=$hours" "day_minutes=$day_minutes" "sales_per_day=$sales" "seed=$seed" "start_pid=$$" >/dev/null || start_fail "cannot write state.json"
     # the memory slope needs an hour of warm-up on a long run; a short run keeps a quarter of its length
-    warm="$(python3 -I -c "print(int(min(3600, $hours * 3600 / 4)))")"
-    state_set "$RUN/state.json" "warmup_s=$warm" >/dev/null
+    state_set "$RUN/state.json" "run_id=\"$RUN_ID\"" status=queued "package=\"$PKG\"" "test_package=\"$TEST_PKG\"" \
+        "hours=$hours" "day_minutes=$day_minutes" "sales_per_day=$sales" "seed=$seed" "idle_gap_minutes=$gap" \
+        "warmup_s=$(python3 -I -c "print(int(min(3600, $hours * 3600 / 4)))")" >/dev/null || { echo "start: cannot write state.json" >&2; exit 2; }
+
+    # The supervisor does everything else under the P7 lock and keeps it until the end of the run.
+    sup="$(detach "$RUN/supervisor.log" bash "$SELF" _supervise --run-id "$RUN_ID")"
+    [[ "$sup" =~ ^[0-9]+$ ]] || { printf 'SOAK | start | FAIL | could not start the supervisor\n'; exit 1; }
+    state_set "$RUN/state.json" "supervisor_pid=$sup" >/dev/null
+    detach /dev/null caffeinate -i -w "$sup" >/dev/null
+    note "supervisor $sup: lock, emulator, build, provisioning and driver start (log $RUN/supervisor.log)"
+
+    # start returns after the first sample (or when the supervisor gave up)
+    deadline=$(($(date +%s) + ${PILI_P7_EMU_WAIT:-5400} + 3600))
+    while [[ "$(date +%s)" -lt "$deadline" ]]; do
+        status="$(state_get "$RUN/state.json" status)"
+        case "$status" in
+        running)
+            if [[ -s "$RUN/samples.jsonl" ]]; then
+                printf 'SOAK | start | PASS | run %s on %s: %s h, %s min a day, %s sales a day; supervisor pid %s, state %s\n' \
+                    "$RUN_ID" "$(state_get "$RUN/state.json" serial)" "$hours" "$day_minutes" "$sales" "$sup" "$RUN/state.json"
+                exit 0
+            fi
+            ;;
+        failed | ended)
+            failure="$(state_get "$RUN/state.json" failure)"
+            printf 'SOAK | start | FAIL | %s (teardown: %s)\n' "${failure:-the run ended before the first sample}" "$(state_get "$RUN/state.json" teardown)"
+            exit 1
+            ;;
+        esac
+        if ! alive "$sup" p7_soak; then
+            sleep 2
+            status="$(state_get "$RUN/state.json" status)"
+            [[ "$status" == running || "$status" == failed || "$status" == ended ]] && continue
+            printf 'SOAK | start | FAIL | the supervisor stopped before the first sample: %s\n' "$(tail -n 3 "$RUN/supervisor.log" 2>/dev/null | tr '\n' ' ')"
+            exit 1
+        fi
+        sleep 3
+    done
+    printf 'SOAK | start | FAIL | no first sample within the wait; the supervisor (pid %s) keeps going, see %s\n' "$sup" "$RUN/supervisor.log"
+    exit 1
+}
+
+# ══ supervisor ═════════════════════════════════════════════════════
+SUP_PROBLEM=""
+SUP_DONE=0
+
+sup_fail() { # <detail>
+    SUP_PROBLEM="$1"
+    exit 1
+}
+
+# EXIT trap of the supervisor: teardown, final state, holder line. The lock goes with the process.
+sup_finish() {
+    local rc=$? problems status=ended
+    trap - EXIT INT TERM
+    problems="$(teardown_run "$RUN")"
+    [[ "$SUP_DONE" -eq 1 ]] || status=failed
+    [[ -z "$problems" ]] || note "teardown left: $problems"
+    if [[ "$status" == failed ]]; then
+        state_set "$RUN/state.json" status=failed "failure=\"${SUP_PROBLEM:-the supervisor failed (exit $rc)}\"" "teardown=\"${problems:-ok}\"" >/dev/null 2>&1
+    else
+        state_set "$RUN/state.json" status=ended "end=$(date +%s)" "teardown=\"${problems:-ok}\"" >/dev/null 2>&1
+    fi
+    p7_emulator_lock_cleanup
+    exit 0
+}
+
+cmd_supervise() {
+    local run_id=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --run-id) run_id="${2:-}"; shift ;;
+        *) usage ;;
+        esac
+        shift
+    done
+    RUN="$SOAKROOT/$run_id"
+    [[ -f "$RUN/state.json" ]] || { echo "supervisor: no state for $run_id" >&2; exit 2; }
+    local sf="$RUN/state.json" hours day_minutes sales seed gap
+    hours="$(state_get "$sf" hours)"
+    day_minutes="$(state_get "$sf" day_minutes)"
+    sales="$(state_get "$sf" sales_per_day)"
+    seed="$(state_get "$sf" seed)"
+    gap="$(state_get "$sf" idle_gap_minutes)"
+
+    # The lock: this returns only in the re-run under the lock, which then lives as long as the run.
+    # shellcheck source=/dev/null
+    source "$ROOT/scripts/android/p7_emulator_lock.sh"
+    p7_emulator_lock p7_soak "$SELF" _supervise --run-id "$run_id"
+    p7_emulator_lock_note p7_soak
+    state_set "$sf" status=starting "worker_pid=$$" >/dev/null
+    trap sup_finish EXIT
+    trap 'exit 130' INT TERM
 
     # emulator
     SERIAL="$(bash scripts/android/emulator.sh ensure 2>"$RUN/emulator.err")" || {
         cat "$RUN/emulator.err" >&2
         SERIAL=""
-        start_fail "emulator.sh ensure failed (exit 3 means another AVD runs)"
+        sup_fail "emulator.sh ensure failed (exit 3 means another AVD runs)"
     }
     export ANDROID_SERIAL="$SERIAL"
     state_set "$RUN/state.json" "serial=\"$SERIAL\"" >/dev/null
@@ -329,11 +391,11 @@ cmd_start() {
     local users_now
     users_now="$(adbd shell pm list users 2>/dev/null | tr -d '\r' | grep -c 'UserInfo{')"
     if ! no_owner; then
-        start_fail "precheck: the device already has an owner, left alone: $(owners | tr '\n' ' ')"
+        sup_fail "precheck: the device already has an owner, left alone: $(owners | tr '\n' ' ')"
     elif [[ "$users_now" -ne 1 ]]; then
-        start_fail "precheck: $users_now users on the device, one expected; left alone"
+        sup_fail "precheck: $users_now users on the device, one expected; left alone"
     elif adbd shell pm list packages 2>/dev/null | tr -d '\r' | grep -q 'dev.nuagemagique.pilipos'; then
-        start_fail "precheck: a pilipos package is already installed (an earlier run?)"
+        sup_fail "precheck: a pilipos package is already installed (an earlier run?)"
     fi
 
     # screen awake (restored in the teardown)
@@ -353,15 +415,15 @@ cmd_start() {
                 "-Dorg.gradle.jvmargs=$JVMARGS" :app:assembleDebug :app:assembleDebugAndroidTest
     ) >"$RUN/gradle.log" 2>&1 || {
         grep -E "FAILED|What went wrong|error:|e: " "$RUN/gradle.log" | head -n 20 >&2
-        start_fail "build: gradle failed, see $RUN/gradle.log"
+        sup_fail "build: gradle failed, see $RUN/gradle.log"
     }
-    [[ -f "$APP_APK" && -f "$TEST_APK" ]] || start_fail "build: APK missing: $APP_APK or $TEST_APK"
+    [[ -f "$APP_APK" && -f "$TEST_APK" ]] || sup_fail "build: APK missing: $APP_APK or $TEST_APK"
 
     # mocks
     if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" ]]; then
         bash scripts/android/heavy.sh cargo build --locked --manifest-path "$ROOT/Cargo.toml" -p pos-fdm-mock -p pos-printer-mock \
             --target-dir "$ROOT/target/android-mocks" >"$RUN/mocks-build.log" 2>&1 ||
-            start_fail "mocks: cargo build failed, see $RUN/mocks-build.log"
+            sup_fail "mocks: cargo build failed, see $RUN/mocks-build.log"
     fi
     local fdm_port printer_port printer_http fdm_pid printer_pid
     fdm_port="$(free_port)"
@@ -372,11 +434,11 @@ cmd_start() {
     state_set "$RUN/state.json" "fdm_pid=$fdm_pid" "printer_pid=$printer_pid" "fdm_port=$fdm_port" "printer_port=$printer_port" \
         "printer_http_port=$printer_http" >/dev/null
     wait_port "$fdm_port" 20 && wait_port "$printer_port" 20 && wait_port "$printer_http" 20 ||
-        start_fail "mocks: a mock does not accept connections, see $RUN/*-mock.log"
+        sup_fail "mocks: a mock does not accept connections, see $RUN/*-mock.log"
     state_set "$RUN/state.json" reversed=1 >/dev/null # whatever of the three rules exists is removed in the teardown
     adbd reverse "tcp:$FDM_DEV_PORT" "tcp:$fdm_port" >/dev/null &&
         adbd reverse "tcp:$PRINTER_DEV_PORT" "tcp:$printer_port" >/dev/null &&
-        adbd reverse "tcp:$PRINTER_HTTP_DEV_PORT" "tcp:$printer_http" >/dev/null || start_fail "mocks: adb reverse failed"
+        adbd reverse "tcp:$PRINTER_HTTP_DEV_PORT" "tcp:$printer_http" >/dev/null || sup_fail "mocks: adb reverse failed"
     local tunnel_ok=0 _
     for _ in 1 2 3; do
         if adbd shell "(printf 'GET /graphql HTTP/1.0\\r\\n\\r\\n'; sleep 1) | nc -w 3 127.0.0.1 $FDM_DEV_PORT" 2>/dev/null | grep -q '^HTTP/'; then
@@ -384,23 +446,23 @@ cmd_start() {
             break
         fi
     done
-    [[ "$tunnel_ok" -eq 1 ]] || start_fail "mocks: the FDM mock does not answer through the device port $FDM_DEV_PORT"
+    [[ "$tunnel_ok" -eq 1 ]] || sup_fail "mocks: the FDM mock does not answer through the device port $FDM_DEV_PORT"
 
     # bundle (outside the repository)
     local bundle bundle_out
-    bundle="$(mktemp -d "${TMPDIR:-/tmp}/pili-soak-bundle.XXXXXX")" || start_fail "bundle: mktemp failed"
+    bundle="$(mktemp -d "${TMPDIR:-/tmp}/pili-soak-bundle.XXXXXX")" || sup_fail "bundle: mktemp failed"
     bundle="$(cd "$bundle" && pwd -P)"
     state_set "$RUN/state.json" "bundle_dir=\"$bundle\"" >/dev/null
     bundle_out="$(bash scripts/android/make_dev_bundle.sh --seed --out "$bundle/bundle" \
         --fdm-url "http://127.0.0.1:$FDM_DEV_PORT/graphql" --printer "127.0.0.1:$PRINTER_DEV_PORT" 2>&1)" ||
-        start_fail "bundle: make_dev_bundle.sh failed: $(echo "$bundle_out" | tail -n 3 | tr '\n' ' ')"
+        sup_fail "bundle: make_dev_bundle.sh failed: $(echo "$bundle_out" | tail -n 3 | tr '\n' ' ')"
 
     # install and device owner
     state_set "$RUN/state.json" installed=1 >/dev/null
     local apk out owner_out
     for apk in "$APP_APK" "$TEST_APK"; do
         out="$(adbd install -r "$apk" 2>&1 | tr -d '\r')"
-        [[ "$out" == *Success* ]] || start_fail "install: adb install $(basename "$apk"): $out"
+        [[ "$out" == *Success* ]] || sup_fail "install: adb install $(basename "$apk"): $out"
     done
     owner_out=""
     for _ in 1 2 3 4 5 6 7 8; do
@@ -408,7 +470,7 @@ cmd_start() {
         [[ "$owner_out" == *Success* ]] && break
         sleep 3
     done
-    [[ "$owner_out" == *Success* ]] || start_fail "install: dpm set-device-owner refused: $(echo "$owner_out" | head -n 2 | tr '\n' ' ')"
+    [[ "$owner_out" == *Success* ]] || sup_fail "install: dpm set-device-owner refused: $(echo "$owner_out" | head -n 2 | tr '\n' ' ')"
     state_set "$RUN/state.json" owner_set=1 >/dev/null
 
     # launch, then push the bundle
@@ -424,15 +486,15 @@ cmd_start() {
         fi
         sleep 1
     done
-    [[ "$found" -eq 1 ]] || start_fail "launch: no 'PiliShell state=NotProvisioned' within 60 s of the launch"
-    adbd shell mkdir -p "$INBOX" || start_fail "push: mkdir $INBOX failed"
+    [[ "$found" -eq 1 ]] || sup_fail "launch: no 'PiliShell state=NotProvisioned' within 60 s of the launch"
+    adbd shell mkdir -p "$INBOX" || sup_fail "push: mkdir $INBOX failed"
     pushed=0
     for f in "$bundle"/bundle/*; do
         out="$(adbd push "$f" "$INBOX/" 2>&1 | tr -d '\r')"
-        [[ "$out" == *"1 file pushed"* ]] || start_fail "push: adb push $(basename "$f"): $out"
+        [[ "$out" == *"1 file pushed"* ]] || sup_fail "push: adb push $(basename "$f"): $out"
         pushed=$((pushed + 1))
     done
-    [[ "$pushed" -ge 3 ]] || start_fail "push: only $pushed files in the bundle"
+    [[ "$pushed" -ge 3 ]] || sup_fail "push: only $pushed files in the bundle"
 
     # provisioning, as app_e2e.sh does
     note "am instrument ProvisioningE2eTest (log $RUN/provision.log)"
@@ -442,7 +504,7 @@ cmd_start() {
     instr="$(tr -d '\r' <"$RUN/provision.log")"
     if ! { echo "$instr" | grep -q '^OK (1 test)' && ! echo "$instr" | grep -qE 'INSTRUMENTATION_STATUS_CODE: -[0-9]|FAILURES!!!|shortMsg='; }; then
         echo "$instr" | grep -E "stack=|Failed|AssertionError|Exception|FAILURES|Tests run" | head -n 12 >&2
-        start_fail "provisioning: ProvisioningE2eTest did not pass, see $RUN/provision.log"
+        sup_fail "provisioning: ProvisioningE2eTest did not pass, see $RUN/provision.log"
     fi
 
     # the system restarts the app (persistent HOME) when the instrumentation ends: let it settle and reach Ready
@@ -454,7 +516,7 @@ cmd_start() {
     done
     sleep 3
     pid="$(adbd shell pidof "$PKG" | tr -d '\r' | awk '{print $1}')"
-    [[ -n "$pid" ]] || start_fail "provisioning: no running process for $PKG after the provisioning test"
+    [[ -n "$pid" ]] || sup_fail "provisioning: no running process for $PKG after the provisioning test"
     deadline=$(($(date +%s) + 40))
     found=0
     while [[ "$(date +%s)" -lt "$deadline" ]]; do
@@ -464,7 +526,7 @@ cmd_start() {
         fi
         sleep 1
     done
-    [[ "$found" -eq 1 ]] || start_fail "provisioning: pid $pid never logged state=Ready"
+    [[ "$found" -eq 1 ]] || sup_fail "provisioning: pid $pid never logged state=Ready"
 
     # the driver: am instrument WITHOUT -w, it keeps running when adb goes away
     adbd shell rm -rf "$SOAKDIR" >/dev/null 2>&1
@@ -484,80 +546,38 @@ cmd_start() {
     done
     if [[ "$found" -ne 1 ]]; then
         adbd logcat -d -s PiliSoak:I AndroidRuntime:E 2>/dev/null | tail -n 20 >&2
-        start_fail "driver: no start record in driver.jsonl within 150 s (am instrument: $(tr -d '\r' <"$RUN/instrument.log" | head -n 3 | tr '\n' ' '))"
+        sup_fail "driver: no start record in driver.jsonl within 150 s (am instrument: $(tr -d '\r' <"$RUN/instrument.log" | head -n 3 | tr '\n' ' '))"
     fi
     state_set "$RUN/state.json" "start=$start_epoch" >/dev/null
 
-    # the supervisor: own session, keeps the lock descriptor, tears down at the end
-    local sup
-    sup="$(DETACH_KEEP_FDS=1 detach "$RUN/supervisor.log" bash "$SELF" _supervise --run-id "$RUN_ID" --start-pid "$$")"
-    [[ "$sup" =~ ^[0-9]+$ ]] || start_fail "supervisor: could not start it"
-    state_set "$RUN/state.json" "supervisor_pid=$sup" status=running >/dev/null
-    detach /dev/null caffeinate -i -w "$sup" >/dev/null
-    HANDOFF=1
-
-    # start returns after the first sample
-    deadline=$(($(date +%s) + 180))
-    while [[ ! -s "$RUN/samples.jsonl" && "$(date +%s)" -lt "$deadline" ]]; do
-        alive "$sup" p7_soak || break
-        sleep 2
-    done
-    if [[ ! -s "$RUN/samples.jsonl" ]]; then
-        printf 'SOAK | start | FAIL | no first sample within 180 s; the supervisor (pid %s) tears the run down, see %s/supervisor.log\n' "$sup" "$RUN"
-        kill -TERM "$sup" 2>/dev/null
-        trap - EXIT INT TERM
-        exit 1
-    fi
-    trap - EXIT INT TERM
-    printf 'SOAK | start | PASS | run %s on %s: %s h, %s min a day, %s sales a day; supervisor pid %s, state %s\n' \
-        "$RUN_ID" "$SERIAL" "$hours" "$day_minutes" "$sales" "$sup" "$RUN/state.json"
-    exit 0
-}
-
-# ══ supervisor ═════════════════════════════════════════════════════
-cmd_supervise() {
-    local run_id="" start_pid=""
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --run-id) run_id="${2:-}"; shift ;;
-        --start-pid) start_pid="${2:-}"; shift ;;
-        *) usage ;;
-        esac
-        shift
-    done
-    RUN="$SOAKROOT/$run_id"
-    [[ -f "$RUN/state.json" ]] || { echo "supervisor: no state for $run_id" >&2; exit 2; }
-    # shellcheck source=/dev/null
-    source "$ROOT/scripts/android/p7_emulator_lock.sh"
-    # wait for `start` to be gone: the lock wrapper removes its holder line then, and ours replaces it
-    local i
-    for i in $(seq 1 60); do
-        alive "$start_pid" || break
-        sleep 1
-    done
-    sleep 2
-    p7_emulator_lock_note p7_soak
-    local sf="$RUN/state.json" sampler_pid="" rc=0 problems stop_requested=0
-    SERIAL="$(state_get "$sf" serial)"
-    state_set "$sf" "supervisor_pid=$$" status=running >/dev/null
+    # the driver is running: sample it until it ends
+    local sampler_pid="" stop_requested=0 deadline
     on_term() { stop_requested=1; [[ -z "$sampler_pid" ]] || kill -TERM "$sampler_pid" 2>/dev/null; }
     trap on_term TERM INT
     python3 -B -I "$SAMPLER" run --dir "$RUN" >"$RUN/sampler.log" 2>&1 &
     sampler_pid=$!
     state_set "$sf" "sampler_pid=$sampler_pid" >/dev/null
+    deadline=$(($(date +%s) + 180))
+    while [[ ! -s "$RUN/samples.jsonl" && "$(date +%s)" -lt "$deadline" ]]; do
+        kill -0 "$sampler_pid" 2>/dev/null || break
+        sleep 2
+    done
+    [[ -s "$RUN/samples.jsonl" ]] || sup_fail "the sampler wrote no sample within 180 s, see $RUN/sampler.log"
+    state_set "$sf" status=running >/dev/null
+    local rc=0
     while kill -0 "$sampler_pid" 2>/dev/null; do
         wait "$sampler_pid"
         rc=$?
     done
-    # if the sampler stopped before the driver did, ask the driver to wind down and give it a minute
-    if [[ "$stop_requested" -eq 0 && -n "$SERIAL" ]] && ! grep -q '"type":"end"' "$RUN/driver.jsonl" 2>/dev/null; then
+    trap 'exit 130' INT TERM
+    # if the sampler stopped before the driver did, ask the driver to wind down and give it a moment
+    if [[ "$stop_requested" -eq 0 ]] && ! grep -q '"type":"end"' "$RUN/driver.jsonl" 2>/dev/null; then
         adbd shell "mkdir -p $SOAKDIR && touch $SOAKDIR/stop" >/dev/null 2>&1
         sleep 20
     fi
     [[ -s "$RUN/report.txt" ]] || python3 -B -I "$SAMPLER" report --dir "$RUN" >"$RUN/report.txt" 2>&1
-    problems="$(teardown_run "$RUN")"
-    state_set "$sf" status=ended "end=$(date +%s)" "sampler_rc=$rc" "teardown=${problems:-ok}" >/dev/null
-    p7_emulator_lock_cleanup
+    state_set "$sf" "sampler_rc=$rc" >/dev/null
+    SUP_DONE=1
     exit 0
 }
 
@@ -624,8 +644,8 @@ cmd_stop() {
     sup="$(state_get "$sf" supervisor_pid)"
     if alive "$sup" p7_soak; then
         SERIAL="$(state_get "$sf" serial)"
-        if ! adbd shell "mkdir -p $SOAKDIR && touch $SOAKDIR/stop" >/dev/null 2>&1; then
-            note "could not write the stop file through adb: asking the supervisor to stop"
+        if [[ -z "$SERIAL" ]] || ! adbd shell "mkdir -p $SOAKDIR && touch $SOAKDIR/stop" >/dev/null 2>&1; then
+            note "no stop file through adb (the run has not reached the device, or adb is down): asking the supervisor to stop"
             kill -TERM "$sup" 2>/dev/null
         fi
         deadline=$(($(date +%s) + 600))

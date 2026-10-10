@@ -281,7 +281,8 @@ class Verdicts(unittest.TestCase):
 
     def test_storage_needs_one_gib_and_reports_growth(self):
         run = self.healthy()
-        run.samples[-1].update(db_bytes=300_000 + 2 * 6471, backup_kb=100)
+        run.samples[0]["db_bytes"] = 300_000
+        run.samples[-1].update(backup_kb=100, backup_last=300_000 + 2 * 6471)
         check = ss.check_storage(run)
         self.assertTrue(check.ok)
         self.assertIn("6471 B/sale", check.detail)

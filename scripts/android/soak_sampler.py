@@ -471,7 +471,11 @@ def check_memory(run: Run, warmup_s: float = SLOPE_WARMUP_S) -> Check:
         every = _series(run, "pss_kb")
         info = slope_per_hour(every)
         note = f"slope over the whole run {info / 1024:.1f} MB/h (information)" if info is not None else "too few samples"
-        return Check("memory", True, f"not evaluated: {span / 60:.0f} min of samples after the first hour, {SLOPE_MIN_SPAN_S // 60} needed; {note}")
+        return Check(
+            "memory",
+            True,
+            f"not evaluated: {span / 60:.0f} min of samples after the {warmup_s / 60:.0f} min warm-up, {SLOPE_MIN_SPAN_S // 60} needed; {note}",
+        )
     pss_slope = slope_per_hour(pss)
     native_slope = slope_per_hour(native)
     if pss_slope is None or native_slope is None:
@@ -510,18 +514,28 @@ def check_beats(run: Run) -> Check:
 
 
 def check_storage(run: Run) -> Check:
+    """Free space of /data, and what the data costs: pos.db bytes per sale and backup bytes per Z.
+
+    The pos.db file lags behind its write-ahead log, so the growth is read from the newest backup (a full copy
+    of the database that the engine makes after every Z) against the first size of pos.db.
+    """
     samples = run.samples
     free = [int(s["free_kb"]) for s in samples if isinstance(s.get("free_kb"), int)]
     if not free:
         return Check("storage", False, "no df samples")
-    sales_ok = sum(1 for r in run.of_type("sale") if r.get("ok"))
-    z_ok = sum(1 for r in run.of_type("z") if r.get("ok"))
+    sales = [r for r in run.of_type("sale") if r.get("ok")]
+    zs = [r for r in run.of_type("z") if r.get("ok")]
     dbs = [int(s["db_bytes"]) for s in samples if isinstance(s.get("db_bytes"), int)]
-    backups = [int(s["backup_kb"]) for s in samples if isinstance(s.get("backup_kb"), int)]
-    per_sale = f"{(dbs[-1] - dbs[0]) / sales_ok:.0f} B/sale" if dbs and sales_ok else "n/a"
-    per_z = f"{backups[-1] * 1024 / z_ok:.0f} B/Z" if backups and z_ok else "n/a"
+    newest = [int(s["backup_last"]) for s in samples if isinstance(s.get("backup_last"), int) and s["backup_last"] > 0]
+    totals = [int(s["backup_kb"]) for s in samples if isinstance(s.get("backup_kb"), int)]
+    per_sale = "n/a"
+    if dbs and newest and zs:
+        before_z = sum(1 for r in sales if r.get("ts", 0) <= zs[-1].get("ts", 0)) or len(sales)
+        if before_z:
+            per_sale = f"{(newest[-1] - dbs[0]) / before_z:.0f} B/sale"
+    per_z = f"{totals[-1] * 1024 / len(zs):.0f} B/Z" if totals and zs else "n/a"
     low = min(free)
-    detail = f"free /data min {low / 1048576:.2f} GiB (limit 1); pos.db growth {per_sale}; backups {per_z}"
+    detail = f"free /data min {low / 1048576:.2f} GiB (limit 1); pos.db growth {per_sale}; backups {per_z} ({len(zs)} Z)"
     return Check("storage", low >= FREE_MIN_KB, detail)
 
 
@@ -613,6 +627,7 @@ class Device:
             "echo db=$(stat -c %s files/engine/pos.db 2>/dev/null); echo wal=$(stat -c %s files/engine/pos.db-wal 2>/dev/null); "
             "echo backup_kb=$(du -sk files/engine/backups 2>/dev/null | cut -f1); "
             "echo backup_files=$(ls files/engine/backups 2>/dev/null | wc -l); "
+            "echo backup_last=$(stat -c %s files/engine/backups/$(ls -t files/engine/backups 2>/dev/null | head -n 1) 2>/dev/null); "
             f"echo fds=$(ls /proc/{pid}/fd 2>/dev/null | wc -l)"
         )
         _, out = self._run(["shell", f"run-as {self.package} sh -c '{inner}'"])
@@ -622,6 +637,7 @@ class Device:
             "wal_bytes": kv.get("wal"),
             "backup_kb": kv.get("backup_kb"),
             "backup_files": kv.get("backup_files"),
+            "backup_last": kv.get("backup_last"),
             "fds": kv.get("fds"),
         }
 
