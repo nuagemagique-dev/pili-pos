@@ -288,6 +288,70 @@ class Checks(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 2)
 
 
+class DeviceTests(unittest.TestCase):
+    """The engine status counts only the tests that the device run executes."""
+
+    def _tauri_only_uc201(self, fake):
+        fake.write(
+            "crates/pos-engine/tests/sample.rs",
+            fake.path("crates/pos-engine/tests/sample.rs").read_text().replace(
+                "#[test]\nfn uc201_rounding() {}\n", ""
+            ),
+        )
+
+    def test_test_in_the_tauri_shell_does_not_count_as_a_device_test(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.write("src-tauri/src/lib.rs", "#[test]\nfn uc201_shell() {}\n")
+        row = fake.row("UC201")
+        self.assertEqual(row.status, uca.ST_MISSING)
+        self.assertEqual(row.rust_tests, [])
+
+    def test_test_in_a_mock_crate_does_not_count_as_a_device_test(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.write("crates/pos-fdm-mock/src/lib.rs", "#[test]\nfn uc201_mock() {}\n")
+        self.assertEqual(fake.row("UC201").status, uca.ST_MISSING)
+
+    def test_ignored_test_does_not_count_as_a_device_test(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.write("crates/pos-engine/tests/live.rs", "#[test]\n#[ignore = \"live\"]\nfn uc201_live() {}\n")
+        self.assertEqual(fake.row("UC201").status, uca.ST_MISSING)
+
+    def test_test_in_another_cert_graph_crate_counts(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.write("crates/pos-fiscal/src/lib.rs", "#[test]\nfn uc201_fiscal() {}\n")
+        row = fake.row("UC201")
+        self.assertEqual(row.status, uca.ST_ENGINE)
+        self.assertEqual(row.rust_tests, ["uc201_fiscal"])
+
+    def test_android_exclusion_is_accepted_for_an_id_with_only_shell_tests(self):
+        fake = Fake(self)
+        self._tauri_only_uc201(fake)
+        fake.write("src-tauri/src/lib.rs", "#[test]\nfn uc201_shell() {}\n")
+        fake.write(uca.SCOPE_ANDROID, fake.path(uca.SCOPE_ANDROID).read_text() + '\n[UC201]\nreason = "r"\n')
+        self.assertEqual(fake.row("UC201").status, uca.ST_EXCLU)
+        code, lines = fake.run("--check", "--allow-pending")
+        self.assertEqual(code, 0, lines)
+
+    def test_exclusion_already_excluded_on_linux_is_stale(self):
+        fake = Fake(self)
+        fake.write(uca.SCOPE_ANDROID, fake.path(uca.SCOPE_ANDROID).read_text() + '\n[M122]\nreason = "r"\n')
+        code, lines = fake.run("--check", "--allow-pending")
+        self.assertEqual(code, 1)
+        self.assertIn("M122 (already excluded on Linux as hors_perimetre)", check_line(lines, "exclusions"))
+
+    def test_one_pass_and_one_fail_scenario_count_as_covered(self):
+        fake = Fake(self)
+        fake.scenario("10_basic/030_M110_bis.json", ["M110"])
+        fake.results([("10_basic", "010_M110", "PASS"), ("10_basic", "030_M110_bis", "FAIL")])
+        row = fake.row("M110")
+        self.assertEqual(row.status, uca.ST_SCENARIO)
+        self.assertEqual(row.result_label, "FAIL, PASS")
+
+
 class Document(unittest.TestCase):
     def test_write_creates_a_french_document_with_summary_and_sections(self):
         fake = Fake(self)

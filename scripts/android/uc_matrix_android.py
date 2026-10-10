@@ -10,8 +10,9 @@ every id, how the Android port covers it:
                                that scenario
   En attente                   the id is required (REQUIRED, 47 ids of P7D9) and has no scenario
                                or no PASS result yet (accepted only with --allow-pending)
-  Couvert (tests moteur ...)   not required, and Rust tests carry the id: the device run executes
-                               every engine test (docs/android/DEVICE_TESTS.md)
+  Couvert (tests moteur ...)   not required, and Rust tests carry the id that the device run executes
+                               (docs/android/DEVICE_TESTS.md: pos-engine and the other crates of the
+                               cert graph, not the Tauri shell, the mocks, pos-peppol or #[ignore])
   Hors périmètre, Non applicable, Couvert par <id>
                                the Linux exclusions of scripts/uc_scope.toml, mirrored
   Exclu sur Android            a declared exclusion of scripts/android/uc_scope_android.toml, for
@@ -42,6 +43,7 @@ import argparse
 import datetime
 import importlib.util
 import json
+import re
 import sys
 import tomllib
 from dataclasses import dataclass, field
@@ -240,6 +242,67 @@ class Matrix:
         return counts
 
 
+# Crates whose tests the device run executes (docs/android/DEVICE_TESTS.md): the pos-engine crate
+# and the other crates of the cert build graph. Not run: the Tauri shell (src-tauri), pos-peppol,
+# the mock crates, the export crates and the #[ignore] tests.
+DEVICE_CRATES = (
+    "pos-engine",
+    "pos-core",
+    "pos-db",
+    "pos-fiscal",
+    "pos-print",
+    "pos-mail",
+    "pos-hubrise",
+    "pos-catalog",
+    "pos-hubrise-types",
+)
+IGNORE_ATTR_RE = re.compile(r"#\[\s*ignore\b")
+
+
+def _is_ignored(repo: Path, rt, ucm) -> bool:
+    """True when a `#[ignore]` attribute sits among the attribute lines above the fn `rt`."""
+    try:
+        lines = (repo / rt.file).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return False
+    for i, line in enumerate(lines):
+        m = ucm.FN_RE.match(line)
+        if not m or m.group(1) != rt.fn_name:
+            continue
+        j = i - 1
+        while j >= 0 and j > i - 1 - ucm.BACKWARD_SCAN_LIMIT:
+            stripped = lines[j].strip()
+            if IGNORE_ATTR_RE.search(stripped):
+                return True
+            if stripped == "" or stripped.startswith("#[") or stripped.startswith("//"):
+                j -= 1
+                continue
+            break
+    return False
+
+
+def device_rust_tests(repo: Path, ucm) -> list:
+    """The Rust tests of ucm.scan_rust_tests that the device run executes: those under
+    crates/<device crate>/ that are not #[ignore] (the Linux scan also reads src-tauri/src and
+    every other crate)."""
+    prefixes = tuple(f"crates/{c}/" for c in DEVICE_CRATES)
+    out = []
+    for rt in ucm.scan_rust_tests(repo):
+        if rt.file.startswith(prefixes) and not _is_ignored(repo, rt, ucm):
+            out.append(rt)
+    return out
+
+
+def device_tests_for(id_: str, tests: list, ucm) -> list:
+    """Names of the device tests that carry `id_` (same matching rule as scripts/uc_matrix.py)."""
+    token = id_.lower()
+    names = []
+    for t in tests:
+        if ucm.token_present(t.fn_name.lower(), token) or id_.upper() in {c.strip().upper() for c in t.covers}:
+            names.append(t.fn_name)
+    return names
+
+
 def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
     required = list(REQUIRED if required is None else required)
     ucm = ucm or load_ucm(repo)
@@ -247,6 +310,7 @@ def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
     scenarios = load_scenarios(repo)
     results = load_results(repo)
     scope_android = load_scope_android(repo, required)
+    device_tests = device_rust_tests(repo, ucm)
 
     for s in scenarios:
         s.verdict = results.get((s.group, s.stem), "")
@@ -262,20 +326,23 @@ def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
         out = []
         for lr in rows:
             scs = by_id.get(lr.id, [])
+            dev = device_tests_for(lr.id, device_tests, ucm)
             row = ARow(
                 id=lr.id,
                 label=lr.label,
                 scenarios=scs,
-                rust_tests=list(lr.rust_tests),
+                rust_tests=dev,
                 required=lr.id in required,
             )
+            # any(PASS): one PASS and one FAIL scenario for the same id counts as covered here;
+            # the replay gate (uc-replay, --exit mode) fails on any FAIL verdict anyway.
             if any(s.verdict == "PASS" for s in scs):
                 row.status = ST_SCENARIO
             elif row.required:
                 row.status = ST_PENDING
             elif lr.status == "hors_perimetre":
                 row.status = ST_HORS
-            elif lr.rust_tests:
+            elif dev:
                 row.status = ST_ENGINE
             elif lr.id in scope_android:
                 row.status = ST_EXCLU
@@ -286,9 +353,13 @@ def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
                 row.couvert_par = lr.couvert_par
             else:
                 row.status = ST_MISSING
-            if lr.id in scope_android and (scs or lr.rust_tests):
-                why = "has a scenario" if scs else "is covered by Rust tests"
-                stale.append(f"{lr.id} ({why})")
+            if lr.id in scope_android:
+                if scs:
+                    stale.append(f"{lr.id} (has a scenario)")
+                elif dev:
+                    stale.append(f"{lr.id} (is covered by Rust tests)")
+                elif lr.status in ("hors_perimetre", "non_applicable", "couvert_par"):
+                    stale.append(f"{lr.id} (already excluded on Linux as {lr.status})")
             out.append(row)
         sections.append((name, out))
     for id_ in sorted(scope_android):
