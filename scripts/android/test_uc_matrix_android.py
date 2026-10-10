@@ -316,16 +316,16 @@ class Document(unittest.TestCase):
         fake = Fake(self)
         fake.run("--write")
         text = fake.path(uca.OUTPUT_MD).read_text(encoding="utf-8")
-        self.assertNotIn("—", text)
-        self.assertNotIn("–", text)
+        self.assertNotIn(chr(0x2014), text)
+        self.assertNotIn(chr(0x2013), text)
         self.assertIsNone(re.search(r"tokyo|sushi|pili", text, re.I))
 
     def test_committed_real_document_lists_the_47_required_ids(self):
         text = (REPO / uca.OUTPUT_MD).read_text(encoding="utf-8")
         for id_ in uca.REQUIRED:
             self.assertRegex(text, rf"(?m)^\| {re.escape(id_)} \|", f"{id_} is not in the document")
-        self.assertNotIn("—", text)
-        self.assertNotIn("–", text)
+        self.assertNotIn(chr(0x2014), text)
+        self.assertNotIn(chr(0x2013), text)
 
     def _complete_fake(self):
         """A fake repository with nothing pending: only M110 is required."""
