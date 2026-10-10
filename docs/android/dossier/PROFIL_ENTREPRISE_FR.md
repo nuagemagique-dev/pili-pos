@@ -65,8 +65,9 @@ l'unique développeur.
   `.github/workflows/android.yml`).
 - **Toolchain Rust** : épinglée à une version stable spécifique
   (`rust-toolchain.toml` à la racine du dépôt). Les outils Android (NDK,
-  Gradle, JDK, build-tools) sont épinglés dans l'image de construction
-  (`android/docker/Dockerfile`).
+  JDK, build-tools) sont épinglés dans l'image de construction
+  (`android/docker/Dockerfile`) et Gradle par le wrapper, avec somme de
+  contrôle (`android/gradle/wrapper/gradle-wrapper.properties`).
 - **Build reproductible** : `Cargo.lock` committé ; même hash binaire
   pour deux builds successifs sur la même machine et même
   toolchain. L'APK non signé est construit deux fois en conteneur et

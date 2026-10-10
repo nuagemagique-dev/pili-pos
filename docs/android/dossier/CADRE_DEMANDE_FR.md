@@ -52,9 +52,9 @@ L'article 47 impose un numéro de version : « Ce numéro de version doit être 
 
 Les deux lignes de produit portent des chaînes différentes : une version du produit Android ne peut jamais être confondue avec une version du produit Linux, ni sur un ticket, ni dans le journal du FDM.
 
-Sur Android, la version vient d'une seule source : le numéro de version de la bibliothèque du moteur (`android/rust/pos-ffi/Cargo.toml`). La construction échoue si le nom de version de l'APK diffère de cette valeur. Elle n'est lue dans aucun fichier de configuration et ne peut donc pas être modifiée sur un terminal. Une construction de développement porte le suffixe -dev et n'est jamais une version déclarée.
+Sur Android, la version vient d'une seule source : le numéro de version de la bibliothèque du moteur (`android/rust/pos-ffi/Cargo.toml`). Le nom de version et le versionCode de l'APK sont calculés à partir de cette valeur unique, et la construction échoue si elle n'a pas la forme MAJEUR.MINEUR.CORRECTIF avec un suffixe -dev facultatif. Elle n'est lue dans aucun fichier de configuration et ne peut donc pas être modifiée sur un terminal. Une construction de développement porte le suffixe -dev et n'est jamais une version déclarée.
 
-Le terminal montre la version à deux endroits : l'écran de connexion, sous les contrôles de démarrage (article 47), et l'écran À propos, ouvert depuis les réglages. L'écran À propos montre aussi la version du moteur, l'identifiant d'application, le versionCode, les empreintes de l'APK et de la bibliothèque du moteur, l'empreinte du certificat de signature et l'identifiant de l'appareil (`PLATEFORME_ANDROID_FR.md` §4).
+Le terminal montre la version à deux endroits : l'écran de connexion, sous les contrôles de démarrage (article 47), et l'écran À propos, ouvert depuis les réglages. L'écran À propos montre aussi la version du moteur, le versionCode, les empreintes de l'APK et de la bibliothèque du moteur, l'empreinte du certificat de signature et l'identifiant de l'appareil (`PLATEFORME_ANDROID_FR.md` §4). L'identifiant d'application figure dans le fichier identity.json de l'export destiné au SPF.
 
 ## 4. Moteur fiscal commun
 
