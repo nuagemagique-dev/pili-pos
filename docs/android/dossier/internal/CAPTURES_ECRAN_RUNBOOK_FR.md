@@ -3,7 +3,7 @@
 
 **Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve `À effectuer (EV-09 : captures du profil sunmi_d3_pro_gms_api33)`.
 
-Liste des 92 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A92. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
+Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 
 ## Méthode
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
@@ -107,7 +107,13 @@ Liste des 92 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A90 | `A90_fdm_not_initialized.png` | MOCK_FDM_INITIALIZED=false : voyant orange, « La boîte noire n'est pas encore initialisée. » | 14.1 |
 | A91 | `A91_en_ligne_retarder.png` | « En ligne », commande acceptée, « Retarder » : fenêtre « +15 min », « +30 min », « +45 min » | 12.8 |
 | A92 | `A92_mise_a_jour_bloquee.png` | Réglages, « Mise à jour », une commande ouverte : « La mise à jour ne peut pas démarrer maintenant : » et la liste | 12.12 |
+| A93 | `A93_fdm_certificate_refused.png` | Banc : MOCK_FDM_TLS_DIR=crates/pos-fdm-mock/fixtures/tls avec un certificat serveur non reconnu par la caisse, ou MOCK_FDM_TLS_REQUIRE_CLIENT=1 sans certificat client valide : « Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. » | 14.1 |
+| A94 | `A94_pointage_non_enregistre.png` | Arrêter le mock FDM, puis ouvrir un service (ou y mettre fin) : message rouge « Pointage non enregistré » et la raison | 3 |
+| A95 | `A95_bandeau_rapport_z.png` | Journée ouverte, horloge de l'AVD après 22 h (ou journée précédente restée ouverte) : bandeau « Rapport Z non effectué aujourd'hui » sur l'écran de commande | 4 |
+| A96 | `A96_export_spf_aucun_support.png` | Réglages, « Export pour le SPF », aucun support inséré : « Insérez la clé USB ou la carte SD. » | 12.11 |
+| A97 | `A97_export_spf_interrompu.png` | Retirer le support pendant l'export : « Export interrompu » avec l'étape, le fichier et le détail | 12.11 |
+| A98 | `A98_remboursement_support_ticket.png` | Rapports, « Tickets », « Rembourser », lignes choisies, étape du support : Papier / E-mail / Les deux, puis « Rembourser » avec le montant | 9 |
 
-Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A92 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
+Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A98 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 
 **Compilation finale.** Une fois toutes les captures dans le dossier screenshots, `scripts/make_captures_pdf.sh` (adapté au dossier Android en P8b) les assemble dans l'ordre du nom de fichier en CAPTURES_ECRAN_FR.pdf. Vérifier ensuite que ce PDF figure dans les annexes de REPONSES_MANUEL_CERT_FR.md §V et §VII.D.

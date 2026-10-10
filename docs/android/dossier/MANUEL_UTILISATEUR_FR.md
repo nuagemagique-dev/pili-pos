@@ -187,6 +187,7 @@ application ni aux réglages de l'appareil.
 Si le FDM ne répond pas, la connexion ou la fin de service se fait quand
 même, mais un message rouge l'indique : "Pointage non enregistré", suivi
 de la raison. Prévenir le Gérant pour qu'il régularise.
+À effectuer (EV-09 : capture A94 message Pointage non enregistré).
 
 ## 4. L'écran de commande
 
@@ -232,7 +233,7 @@ L'en-tête montre en permanence :
 **Rappel du rapport Z** : un bandeau "Rapport Z non effectué
 aujourd'hui" s'affiche sur l'écran de commande quand une journée est
 ouverte et qu'il est plus de 22 h, ou qu'une journée précédente est
-restée ouverte (§10.2). L'onglet "Journée" des rapports affiche aussi
+restée ouverte (§10.2). À effectuer (EV-09 : capture A95 bandeau Rapport Z non effectué aujourd'hui). L'onglet "Journée" des rapports affiche aussi
 "Rapport Z pas encore fait aujourd'hui".
 
 ## 5. Tables, à emporter et prise de commande
@@ -567,6 +568,7 @@ déjà signée ; c'est la seule façon d'annuler une vente après coup.
 3. Étape du support du ticket (§7.1) : choisir Papier / E-mail / Les
    deux, puis "Rembourser" avec le montant de nouveau. "Retour" revient
    à la sélection des articles.
+   À effectuer (EV-09 : capture A98 support du ticket de remboursement).
 4. "Communication FDM...", puis le résultat ; "Terminer" ferme la
    fenêtre.
 
@@ -931,9 +933,10 @@ l'identité de la caisse, puis relit et vérifie chaque fichier (voir
 `FEUILLE_ACQUISITION_DONNEES_FR.md`).
 
 1. Insérer la clé USB ou la carte SD. Tant que rien n'est détecté,
-   l'écran affiche « Insérez la clé USB ou la carte SD. » (ports et
+   l'écran affiche « Insérez la clé USB ou la carte SD. » (À effectuer
+   (EV-09 : capture A96 export pour le SPF, aucun support)). Ports et
    lecteur du matériel réel : À effectuer (EV-15 : ports USB et lecteur
-   de carte du D3 Pro réel)).
+   de carte du D3 Pro réel).
 2. À la première utilisation d'un support, « Choisir le dossier » : créer
    sur la clé ou la carte un dossier nommé PILI-EXPORT, puis le choisir.
    La racine du support et un dossier d'un autre support sont refusés.
@@ -957,7 +960,8 @@ interrompu » avec l'étape, le fichier et le détail), les fichiers déjà
 fichier de 4 Go ou plus, le support est probablement en FAT32 : utiliser
 un support formaté en exFAT. Si un fichier relu ne correspond pas à ce
 qui a été écrit, l'export est invalide : le recommencer avec un autre
-support.
+support. Écran de l'arrêt :
+À effectuer (EV-09 : capture A97 export pour le SPF, interrompu).
 
 ### 12.12 Mise à jour de l'application
 
@@ -1059,7 +1063,7 @@ sont indiqués dans la colonne "Capture" du premier tableau
 | `FDM_ANSWER_PENDING` | La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. | Opération refusée, renvoi automatique | Attendre une minute, réessayer (§7.4) | À effectuer (EV-09 : capture A79 FDM_ANSWER_PENDING) |
 | `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. | Opération refusée | Appeler le distributeur | À effectuer (EV-09 : capture A78 FDM_RESPONSE_MISMATCH) |
 | `FDM_NOT_INITIALIZED` | La boîte noire n'est pas encore initialisée. | Voyant orange | Appeler le distributeur | À effectuer (EV-09 : capture A90 FDM_NOT_INITIALIZED) |
-| `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur | Pas de capture : le FDM simulé du banc répond en HTTP, sans certificat à refuser |
+| `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur | À effectuer (EV-09 : capture A93 FDM_CERTIFICATE_REFUSED) |
 | (réseau coupé) | Connexion perdue avec la boîte noire. Vérifiez le câble réseau. | Bloquant | Vérifier le câble réseau et l'alimentation du FDM | À effectuer (EV-09 : capture A77 réseau coupé) |
 
 Les autres codes du FDM (erreurs de communication, d'horloge, de mise à
