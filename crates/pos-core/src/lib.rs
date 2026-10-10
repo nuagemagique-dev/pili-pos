@@ -5,5 +5,6 @@ pub mod menu;
 pub mod money;
 pub mod order;
 pub mod table;
+pub mod table_plan;
 pub mod user;
 pub mod vat;

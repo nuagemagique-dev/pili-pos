@@ -12,6 +12,12 @@
     <string name="settings_product_label_name">名称</string>
     <string name="settings_product_label_code">编号</string>
     <string name="settings_product_label_note">选择“编号”后，菜单编号（A2、B14）代替名称显示，名称显示在下方。没有编号的商品仍显示名称。票据不变。</string>
+    <string name="settings_tables">桌位</string>
+    <string name="settings_tables_current">{count}张桌：{plan}</string>
+    <string name="settings_tables_placeholder">1-12, 20-25</string>
+    <string name="settings_tables_save">保存</string>
+    <string name="settings_tables_saved">桌位已保存</string>
+    <string name="settings_tables_note">用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。</string>
     <string name="settings_support_idle">无会话</string>
     <string name="settings_support_running">会话进行中</string>
     <string name="settings_support_unavailable">不可用</string>

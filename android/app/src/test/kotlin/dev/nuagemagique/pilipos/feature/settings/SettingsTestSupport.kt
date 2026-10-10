@@ -35,6 +35,7 @@ import uniffi.pos_ffi.DeliveryView
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
+import uniffi.pos_ffi.TablePlan
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import java.io.File
@@ -104,6 +105,7 @@ internal fun stubReads(
     coEvery { engine.getSettings() } returns engineSettings()
     coEvery { engine.getIntegrations() } returns integrationsOf(hubrise)
     coEvery { engine.hubriseListWebshopOrders() } returns emptyList()
+    coEvery { engine.getTablePlan() } returns TablePlan(plan = "1-20", tableCount = 20L, log = emptyList())
 }
 
 /** Three settings rows: one open to every role, two for managers, in a mixed order to prove the sort. */

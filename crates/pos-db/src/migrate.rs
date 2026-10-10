@@ -36,7 +36,7 @@ use crate::schema::{
     MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY, MIGRATION_005_TICKET_DELIVERIES,
     MIGRATION_006_ORIGINAL_PRINTS, MIGRATION_007_GERMAN_LANGUAGE,
     MIGRATION_008_MEAL_VOUCHER_PAYMENTS, MIGRATION_009_SHIFTS_AND_PRE_BILL,
-    MIGRATION_010_PENDING_SIGNS, SCHEMA_SQL,
+    MIGRATION_010_PENDING_SIGNS, MIGRATION_011_TABLE_PLAN, SCHEMA_SQL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -98,8 +98,13 @@ const MIGRATIONS: &[Migration] = &[
         name: "pending-signs",
         sql: MIGRATION_010_PENDING_SIGNS,
     },
+    Migration {
+        version: 11,
+        name: "table-plan",
+        sql: MIGRATION_011_TABLE_PLAN,
+    },
     // Future schema diffs go here, as a new entry rather than an edit
-    // of an existing one. Versions 11 to 19 are kept for the certified
+    // of an existing one. Versions 12 to 19 are kept for the certified
     // build; the HubRise integration starts at 20 (`HUBRISE_MIGRATIONS`).
 ];
 
@@ -285,8 +290,16 @@ mod tests {
 
     #[test]
     fn the_certified_migrations_are_1_to_10() {
-        let certified: Vec<i64> = MIGRATIONS.iter().map(|m| m.version).collect();
+        let certified: Vec<i64> = MIGRATIONS.iter().map(|m| m.version).take(10).collect();
         assert_eq!(certified, (1..=10).collect::<Vec<_>>());
+    }
+
+    /// Migration 11 (the table plan) follows them, still below HubRise's 20.
+    #[test]
+    fn the_certified_migrations_end_with_the_table_plan() {
+        let certified: Vec<(i64, &str)> = MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+        assert_eq!(certified.len(), 11);
+        assert_eq!(certified[10], (11, "table-plan"));
     }
 
     #[test]

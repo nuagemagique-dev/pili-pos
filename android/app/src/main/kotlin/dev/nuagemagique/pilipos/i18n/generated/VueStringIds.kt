@@ -95,6 +95,7 @@ internal object VueStringIds {
         this["err_operator_invalid"] = R.string.err_operator_invalid
         this["err_dine_in_needs_table"] = R.string.err_dine_in_needs_table
         this["err_takeaway_has_no_table"] = R.string.err_takeaway_has_no_table
+        this["err_table_plan_invalid"] = R.string.err_table_plan_invalid
         this["err_quantity_positive"] = R.string.err_quantity_positive
         this["err_order_not_open"] = R.string.err_order_not_open
         this["err_price_positive"] = R.string.err_price_positive
@@ -265,10 +266,10 @@ internal object VueStringIds {
         this["qty_less"] = R.string.qty_less
         this["qty_more"] = R.string.qty_more
         this["line_remove"] = R.string.line_remove
-        this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
         this["send_to_kitchen"] = R.string.send_to_kitchen
         this["sent_to_kitchen"] = R.string.sent_to_kitchen
         this["takeaway_started_at"] = R.string.takeaway_started_at
@@ -344,6 +345,12 @@ internal object VueStringIds {
         this["settings_product_label_name"] = R.string.settings_product_label_name
         this["settings_product_label_code"] = R.string.settings_product_label_code
         this["settings_product_label_note"] = R.string.settings_product_label_note
+        this["settings_tables"] = R.string.settings_tables
+        this["settings_tables_current"] = R.string.settings_tables_current
+        this["settings_tables_placeholder"] = R.string.settings_tables_placeholder
+        this["settings_tables_save"] = R.string.settings_tables_save
+        this["settings_tables_saved"] = R.string.settings_tables_saved
+        this["settings_tables_note"] = R.string.settings_tables_note
         this["settings_support_idle"] = R.string.settings_support_idle
         this["settings_support_running"] = R.string.settings_support_running
         this["settings_support_unavailable"] = R.string.settings_support_unavailable

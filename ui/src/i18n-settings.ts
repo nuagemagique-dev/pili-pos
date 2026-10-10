@@ -32,6 +32,18 @@ export const settingsMessages: Messages = {
     zh: "选择“编号”后，菜单编号（A2、B14）代替名称显示，名称显示在下方。没有编号的商品仍显示名称。票据不变。",
   },
 
+  // Table plan panel (managers): the table numbers the Tables screen shows
+  "settings_tables": { fr: "Plan de salle", en: "Table plan", zh: "桌位" },
+  "settings_tables_current": { fr: "{count} tables : {plan}", en: "{count} tables: {plan}", zh: "{count}张桌：{plan}" },
+  "settings_tables_placeholder": { fr: "1-12, 20-25", en: "1-12, 20-25", zh: "1-12, 20-25" },
+  "settings_tables_save": { fr: "Enregistrer", en: "Save", zh: "保存" },
+  "settings_tables_saved": { fr: "Plan de salle enregistré", en: "Table plan saved", zh: "桌位已保存" },
+  "settings_tables_note": {
+    fr: "Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.",
+    en: "Numbers and ranges separated by commas. A table that still has an open order stays on screen.",
+    zh: "用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。",
+  },
+
   // Remote support panel
   "settings_support_idle": { fr: "aucune session", en: "no session", zh: "无会话" },
   "settings_support_running": { fr: "session en cours", en: "session running", zh: "会话进行中" },

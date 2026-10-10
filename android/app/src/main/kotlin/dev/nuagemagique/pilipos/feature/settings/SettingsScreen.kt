@@ -76,6 +76,8 @@ internal data class SettingsCallbacks(
     val onToggleTraining: () -> Unit = {},
     val onLanguage: (AppLanguage) -> Unit = {},
     val onProductLabel: (ProductLabel) -> Unit = {},
+    val onTablePlanInput: (String) -> Unit = {},
+    val onSaveTablePlan: () -> Unit = {},
     val onRow: (SettingsEntry) -> Unit = {},
     val onNewName: (String) -> Unit = {},
     val onNewInsz: (String) -> Unit = {},
@@ -169,6 +171,8 @@ private fun settingsCallbacks(
         onToggleTraining = model::toggleTraining,
         onLanguage = model::setLanguage,
         onProductLabel = model::setProductLabel,
+        onTablePlanInput = model::setTablePlanInput,
+        onSaveTablePlan = model::saveTablePlan,
         onRow = { navigator.navigate(it.route) },
         onNewName = model::setNewName,
         onNewInsz = model::setNewInsz,
@@ -248,6 +252,7 @@ private fun WideLayout(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
+            if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
             InfoPanel(state.info)
             IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
             if (state.hubrise.visible) hubriseSection()
@@ -271,6 +276,7 @@ private fun NarrowLayout(
         TrainingPanel(state.training, callbacks.onToggleTraining)
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
+        if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
@@ -334,6 +340,49 @@ private fun ProductLabelPanel(
             tag = "settings_label",
         )
         PanelText(vueText("settings_product_label_note"))
+    }
+}
+
+/** The table plan of a manager: the plan in use, a field and its save button (`.table-plan`). */
+@Composable
+private fun TablePlanPanel(
+    plan: TablePlanState,
+    callbacks: SettingsCallbacks,
+) {
+    Panel(modifier = Modifier.testTag("settings_tables")) {
+        PanelTitle(vueText("settings_tables"))
+        if (plan.plan != null) {
+            Text(
+                vueText("settings_tables_current", "count" to plan.count, "plan" to plan.plan),
+                style = PiliTheme.typography.body,
+                color = PiliTheme.colors.textPrimary,
+                modifier = Modifier.testTag("settings_tables_current"),
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SettingsTextField(
+                value = plan.input,
+                onValueChange = callbacks.onTablePlanInput,
+                placeholder = vueText("settings_tables_placeholder"),
+                modifier = Modifier.weight(1f).testTag("settings_tables_input"),
+                mono = true,
+                onDone = callbacks.onSaveTablePlan,
+            )
+            ActionButton(vueText("settings_tables_save"), callbacks.onSaveTablePlan, Modifier.testTag("settings_tables_save"))
+        }
+        if (plan.error != null) {
+            Text(
+                plan.error,
+                style = PiliTheme.typography.body,
+                color = PiliTheme.colors.accentDanger,
+                modifier = Modifier.testTag("settings_tables_error"),
+            )
+        }
+        PanelText(vueText("settings_tables_note"))
     }
 }
 

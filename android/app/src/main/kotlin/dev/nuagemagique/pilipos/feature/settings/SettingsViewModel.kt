@@ -107,6 +107,13 @@ internal class SettingsViewModel(
         loadUsers()
         refreshMailStatus()
         loadDeliveries()
+        loadTablePlan()
+    }
+
+    /** Reads the table plan; a failure keeps the panel as it was. */
+    suspend fun loadTablePlan() {
+        attempt { entry.gateway().call { engine -> engine.getTablePlan() } }
+            .onSuccess { plan -> own.update { it.copy(tablePlan = TablePlanState(plan.plan, plan.tableCount, plan.plan)) } }
     }
 
     /** Lists the employees; a failure keeps the previous list (`loadWorkers`). */
@@ -285,6 +292,25 @@ internal class SettingsViewModel(
     fun onPinDone() {
         own.update { it.copy(pin = null) }
         viewModelScope.launch { loadUsers() }
+    }
+
+    // ── Table plan ────────────────────────────────────────────────
+
+    /** The table plan field. */
+    fun setTablePlanInput(text: String) {
+        own.update { it.copy(tablePlan = it.tablePlan.copy(input = text, error = null)) }
+    }
+
+    /** Saves the field as the table plan (managers only, the engine checks it); a refusal shows under the field. */
+    fun saveTablePlan() {
+        val input = own.value.tablePlan.input
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.setTablePlan(input) } }
+                .onSuccess { plan ->
+                    own.update { it.copy(tablePlan = TablePlanState(plan.plan, plan.tableCount, plan.plan)) }
+                    entry.toasts().show(text("settings_tables_saved"), ToastVariant.Success)
+                }.onFailure { error -> own.update { it.copy(tablePlan = it.tablePlan.copy(error = describe(error))) } }
+        }
     }
 
     // ── HubRise switch ────────────────────────────────────────────

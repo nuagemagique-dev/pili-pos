@@ -165,6 +165,29 @@ const languages: AppLanguage[] = ["fr", "zh", "en"];
 
 const productLabels: ProductLabel[] = ["name", "code"];
 
+// ── Table plan (managers) ────────────────────────────────────────
+const tablePlan = ref<ipc.TablePlan | null>(null);
+const tablePlanInput = ref("");
+const tablePlanError = ref<string | null>(null);
+
+async function loadTablePlan() {
+  try {
+    tablePlan.value = await ipc.getTablePlan();
+    tablePlanInput.value = tablePlan.value.plan;
+  } catch { /* the panel stays empty */ }
+}
+
+async function saveTablePlan() {
+  tablePlanError.value = null;
+  try {
+    tablePlan.value = await ipc.setTablePlan(tablePlanInput.value);
+    tablePlanInput.value = tablePlan.value.plan;
+    toast.show(t("settings_tables_saved"), "success");
+  } catch (e) {
+    tablePlanError.value = describeError(e);
+  }
+}
+
 async function switchLanguage(lang: AppLanguage) {
   pos.setLanguage(lang);
   await menu.reloadWithLanguage();
@@ -195,6 +218,7 @@ onMounted(() => {
   delivery.refreshMailStatus();
   loadDeliveries();
   void support.refresh();
+  if (auth.isManager) void loadTablePlan();
 });
 </script>
 
@@ -243,6 +267,25 @@ onMounted(() => {
             >{{ t(`settings_product_label_${label}`) }}</button>
           </div>
           <p class="panel-note">{{ t('settings_product_label_note') }}</p>
+        </section>
+
+        <!-- Table plan (manager only; the engine refuses the change to the others) -->
+        <section v-if="auth.isManager" class="panel table-plan">
+          <h2>{{ t('settings_tables') }}</h2>
+          <p v-if="tablePlan" class="table-plan-current">
+            {{ t('settings_tables_current', { count: tablePlan.table_count, plan: tablePlan.plan }) }}
+          </p>
+          <div class="add-fields">
+            <input
+              v-model="tablePlanInput"
+              class="field mono"
+              :placeholder="t('settings_tables_placeholder')"
+              @keyup.enter="saveTablePlan"
+            />
+            <button class="add-btn table-plan-save" @click="saveTablePlan">{{ t('settings_tables_save') }}</button>
+          </div>
+          <p v-if="tablePlanError" class="add-error">{{ tablePlanError }}</p>
+          <p class="panel-note">{{ t('settings_tables_note') }}</p>
         </section>
 
         <!-- Nightly export (manager only; the engine refuses it to the others) -->
@@ -545,6 +588,8 @@ onMounted(() => {
   transition: transform var(--tap-duration) ease;
 }
 .add-btn:active { transform: scale(var(--tap-scale)); }
+.table-plan-current { font-size: 16px; color: var(--text-primary); }
+.table-plan-save { height: 56px; }
 
 /* ── Information ────────────────────────────────────────────── */
 .info-section { flex-shrink: 0; }

@@ -2492,6 +2492,26 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeTableInfo : uniffi/pos
 	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeTablePlanChange : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeTablePlanChange;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeTakeawayInfo : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeTakeawayInfo;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -4607,6 +4627,46 @@ public final class uniffi/pos_ffi/FfiConverterTypeTableInfo : uniffi/pos_ffi/Ffi
 	public fun write (Luniffi/pos_ffi/TableInfo;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeTablePlan : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTablePlan;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/TablePlan;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TablePlan;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TablePlan;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/TablePlan;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/TablePlan;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TablePlan;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/TablePlan;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeTablePlanChange : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTablePlanChange;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/TablePlanChange;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TablePlanChange;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/TablePlanChange;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/TablePlanChange;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/TablePlanChange;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/TablePlanChange;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/TablePlanChange;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeTakeawayInfo : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeTakeawayInfo;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -5807,6 +5867,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getUniffiIsDestroyed ()Z
 	public fun hubriseAdoptCatalog (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun hubriseAdoptionPreview (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -5851,6 +5912,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTrainingMode (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun shutdown (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun signPreBill (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -5905,6 +5967,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseAdoptCatalog (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseAdoptionPreview (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseCompleteOauth (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -5948,6 +6011,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTrainingMode (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun shutdown (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun signPreBill (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6691,6 +6755,53 @@ public final class uniffi/pos_ffi/TableInfo {
 }
 
 public final class uniffi/pos_ffi/TableInfo$Companion {
+}
+
+public final class uniffi/pos_ffi/TablePlan {
+	public static final field Companion Luniffi/pos_ffi/TablePlan$Companion;
+	public fun <init> (Ljava/lang/String;JLjava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;JLjava/util/List;)Luniffi/pos_ffi/TablePlan;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TablePlan;Ljava/lang/String;JLjava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/TablePlan;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLog ()Ljava/util/List;
+	public final fun getPlan ()Ljava/lang/String;
+	public final fun getTableCount ()J
+	public fun hashCode ()I
+	public final fun setLog (Ljava/util/List;)V
+	public final fun setPlan (Ljava/lang/String;)V
+	public final fun setTableCount (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/TablePlan$Companion {
+}
+
+public final class uniffi/pos_ffi/TablePlanChange {
+	public static final field Companion Luniffi/pos_ffi/TablePlanChange$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/TablePlanChange;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/TablePlanChange;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/TablePlanChange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChangedAt ()Ljava/lang/String;
+	public final fun getChangedBy ()Ljava/lang/String;
+	public final fun getPlan ()Ljava/lang/String;
+	public final fun getSource ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setChangedAt (Ljava/lang/String;)V
+	public final fun setChangedBy (Ljava/lang/String;)V
+	public final fun setPlan (Ljava/lang/String;)V
+	public final fun setSource (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/TablePlanChange$Companion {
 }
 
 public final class uniffi/pos_ffi/TakeawayInfo {

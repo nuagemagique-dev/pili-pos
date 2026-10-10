@@ -1062,6 +1062,12 @@
       "zh": "系统身份无法登录。",
       "area": "errors"
     },
+    "err_table_plan_invalid": {
+      "fr": "Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).",
+      "en": "Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).",
+      "zh": "请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。",
+      "area": "errors"
+    },
     "err_takeaway_has_no_table": {
       "fr": "Une commande à emporter n'a pas de table.",
       "en": "A takeaway order has no table.",
@@ -2286,6 +2292,42 @@
       "zh": "不可用",
       "area": "settings"
     },
+    "settings_tables": {
+      "fr": "Plan de salle",
+      "en": "Table plan",
+      "zh": "桌位",
+      "area": "settings"
+    },
+    "settings_tables_current": {
+      "fr": "{count} tables : {plan}",
+      "en": "{count} tables: {plan}",
+      "zh": "{count}张桌：{plan}",
+      "area": "settings"
+    },
+    "settings_tables_note": {
+      "fr": "Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.",
+      "en": "Numbers and ranges separated by commas. A table that still has an open order stays on screen.",
+      "zh": "用逗号分隔号码和范围。仍有未结订单的桌位会继续显示。",
+      "area": "settings"
+    },
+    "settings_tables_placeholder": {
+      "fr": "1-12, 20-25",
+      "en": "1-12, 20-25",
+      "zh": "1-12, 20-25",
+      "area": "settings"
+    },
+    "settings_tables_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "settings_tables_saved": {
+      "fr": "Plan de salle enregistré",
+      "en": "Table plan saved",
+      "zh": "桌位已保存",
+      "area": "settings"
+    },
     "settings_terminal_label": {
       "fr": "Terminal",
       "en": "Terminal",
@@ -2956,6 +2998,7 @@
     "operator_invalid",
     "dine_in_needs_table",
     "takeaway_has_no_table",
+    "table_plan_invalid",
     "takeaway_not_registered",
     "quantity_positive",
     "order_not_open",

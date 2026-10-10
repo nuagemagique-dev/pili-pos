@@ -382,6 +382,10 @@ function defaultHandlers(): Record<string, Handler> {
     set_training_mode: () => undefined,
     new_booking_period: () => undefined,
 
+    // Table plan: 1 to 20 until a spec changes it.
+    get_table_plan: () => ({ plan: '1-20', table_count: 20, log: [] }),
+    set_table_plan: (args: any) => ({ plan: args.plan, table_count: 0, log: [] }),
+
     // HubRise: switched on by default (the webshop specs use it).
     get_integrations: () => ({ hubrise_enabled: true, online_orders_open: 0, hubrise_log: [] }),
     set_hubrise_enabled: (args: any) => ({

@@ -70,9 +70,15 @@ pub struct PosConfig {
     /// automatic Z (producers FAQ Q501c).
     #[serde(default = "default_day_end_hour")]
     pub day_end_hour: u32,
-    /// Number of tables on the table plan, numbered from 1.
+    /// Number of tables on the table plan, numbered from 1. Used when
+    /// `tables` is absent.
     #[serde(default = "default_table_count")]
     pub table_count: u32,
+    /// The table numbers as ranges ("1-12, 20-25", see
+    /// [`crate::table_plan`]): the starting plan, which a manager can
+    /// change in the settings. Absent: 1 to `table_count`.
+    #[serde(default)]
+    pub tables: Option<String>,
     /// Training mode flag
     #[serde(default)]
     pub training_mode: bool,
@@ -116,6 +122,21 @@ fn default_day_end_hour() -> u32 {
 
 fn default_table_count() -> u32 {
     20
+}
+
+impl PosConfig {
+    /// The starting table plan in its canonical form: `tables` when it
+    /// reads, else 1 to `table_count` (within the plan's limits).
+    pub fn table_plan(&self) -> String {
+        if let Some(text) = &self.tables
+            && let Ok(plan) = crate::table_plan::normalize(text)
+        {
+            return plan;
+        }
+        let count = self.table_count.min(crate::table_plan::MAX_TABLES as u32);
+        let numbers: Vec<u32> = (1..=count).collect();
+        crate::table_plan::format(&numbers)
+    }
 }
 
 impl PosConfig {
@@ -186,6 +207,13 @@ impl PosConfig {
     /// installation, not as refused sales on opening day.
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
+        if let Some(text) = &self.tables
+            && let Err(e) = crate::table_plan::parse(text)
+        {
+            out.push(format!(
+                "tables: ranges such as \"1-12, 20-25\" expected: {e}"
+            ));
+        }
         let pos_id_ok = self.pos_id.len() == 14
             && self
                 .pos_id
@@ -330,6 +358,7 @@ impl Default for PosConfig {
     fn default() -> Self {
         Self {
             table_count: default_table_count(),
+            tables: None,
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),

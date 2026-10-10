@@ -11,4 +11,5 @@ pub mod price_changes;
 pub mod prints;
 pub mod reports;
 pub mod shifts;
+pub mod table_plan;
 pub mod users;

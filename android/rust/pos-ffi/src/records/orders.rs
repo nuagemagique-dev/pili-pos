@@ -268,3 +268,25 @@ pub struct VatSplitRow {
     /// The VAT included in the total, rounded as `VatSummary.vue` does.
     pub vat_cents: i64,
 }
+
+/// `pos_db::queries::table_plan::PlanChange`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct TablePlanChange {
+    pub plan: String,
+    /// `config` (pos.json) or `admin` (a manager).
+    pub source: String,
+    pub changed_by: Option<String>,
+    pub changed_at: String,
+}
+
+/// `pos_engine::commands::table_plan::TablePlan`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct TablePlan {
+    /// The table numbers as ranges, canonical form ("1-12, 20-25").
+    pub plan: String,
+    pub table_count: i64,
+    /// The latest changes first.
+    pub log: Vec<TablePlanChange>,
+}

@@ -309,6 +309,8 @@ impl Engine {
                 tracing::warn!(%e, "export: cannot empty the work area");
             }
         }
+        let table_plan = pos_db::queries::table_plan::at_start(&conn, &config.table_plan())?;
+        tracing::info!(%table_plan, "table plan");
         #[cfg(feature = "hubrise")]
         let hubrise_on =
             pos_db::queries::integrations::hubrise_at_start(&conn, config.hubrise_enabled)?;

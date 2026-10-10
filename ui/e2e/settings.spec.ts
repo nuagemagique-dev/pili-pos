@@ -28,6 +28,27 @@ test.describe('Settings View', () => {
     await expect(page.locator('.label-btn.active')).toHaveText('Nom');
   });
 
+  test('a manager sets the table plan as ranges', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    const panel = page.locator('.table-plan');
+    await expect(panel.locator('h2')).toHaveText('Plan de salle');
+    await expect(panel.locator('.table-plan-current')).toHaveText('20 tables : 1-20');
+    await overrideIPC(page, 'set_table_plan', { plan: '1-12, 20-25', table_count: 18, log: [] });
+    await panel.locator('input').fill('20-25,1-12');
+    await panel.locator('.table-plan-save').click();
+    await expect(panel.locator('.table-plan-current')).toHaveText('18 tables : 1-12, 20-25');
+    await expect(panel.locator('input')).toHaveValue('1-12, 20-25');
+  });
+
+  test('a wrong table plan says how to write it', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    const panel = page.locator('.table-plan');
+    await overrideIPC(page, 'set_table_plan', { __reject: 'table_plan_invalid' });
+    await panel.locator('input').fill('A1');
+    await panel.locator('.table-plan-save').click();
+    await expect(panel.locator('.add-error')).toContainText('1-12, 20-25');
+  });
+
   test('an employee without a PIN is flagged', async ({ page }) => {
     await mockTauriIPC(page, {
       login: () => DEFAULT_USER,

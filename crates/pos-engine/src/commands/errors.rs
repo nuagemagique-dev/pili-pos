@@ -40,6 +40,8 @@ pub const DEACTIVATE_SELF: &str = "deactivate_self";
 pub const OPERATOR_INVALID: &str = "operator_invalid";
 pub const DINE_IN_NEEDS_TABLE: &str = "dine_in_needs_table";
 pub const TAKEAWAY_HAS_NO_TABLE: &str = "takeaway_has_no_table";
+/// The table plan is not a list of table numbers and ranges ("1-12, 20-25").
+pub const TABLE_PLAN_INVALID: &str = "table_plan_invalid";
 /// A takeaway is a direct sale: it ends in a sale, never in an order
 /// registration (FAQ Q205).
 pub const TAKEAWAY_NOT_REGISTERED: &str = "takeaway_not_registered";
@@ -153,6 +155,7 @@ pub const ALL: &[&str] = &[
     OPERATOR_INVALID,
     DINE_IN_NEEDS_TABLE,
     TAKEAWAY_HAS_NO_TABLE,
+    TABLE_PLAN_INVALID,
     TAKEAWAY_NOT_REGISTERED,
     QUANTITY_POSITIVE,
     ORDER_NOT_OPEN,

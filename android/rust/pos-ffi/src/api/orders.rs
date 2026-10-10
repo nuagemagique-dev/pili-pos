@@ -2,7 +2,7 @@
 //! and session): one async method per Tauri command, each one converting its arguments, making the
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
-use pos_engine::commands::{menu, modifiers, order, session, tables};
+use pos_engine::commands::{menu, modifiers, order, session, table_plan, tables};
 
 use crate::convert;
 use crate::core::PosEngine;
@@ -10,8 +10,8 @@ use crate::error::PosError;
 use crate::records::common::{SlipOutcome, VatCode};
 use crate::records::orders::{
     AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, LeaveReason,
-    LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo, TakeawayInfo, VatLine,
-    VatSplitRow,
+    LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo, TablePlan, TakeawayInfo,
+    VatLine, VatSplitRow,
 };
 
 #[uniffi::export]
@@ -134,6 +134,23 @@ impl PosEngine {
             .blocking(|st| tables::do_list_configured_tables(st))
             .await?;
         convert::out(&infos)
+    }
+
+    /// The table plan (the table numbers in use) and its changes.
+    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    pub async fn get_table_plan(&self) -> Result<TablePlan, PosError> {
+        let plan = self
+            .blocking(|st| table_plan::do_get_table_plan(st))
+            .await?;
+        convert::out(&plan)
+    }
+
+    /// Set the table plan ("1-12, 20-25"); managers only.
+    pub async fn set_table_plan(&self, plan: String) -> Result<TablePlan, PosError> {
+        let value = self
+            .blocking(move |st| table_plan::do_set_table_plan(st, &plan))
+            .await?;
+        convert::out(&value)
     }
 
     /// The takeaways left open.

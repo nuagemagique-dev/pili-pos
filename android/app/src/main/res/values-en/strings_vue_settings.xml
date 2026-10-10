@@ -12,6 +12,12 @@
     <string name="settings_product_label_name">Name</string>
     <string name="settings_product_label_code">Code</string>
     <string name="settings_product_label_note">With “Code”, the menu code (A2, B14) replaces the name, shown underneath. A product without a code keeps its name. Tickets do not change.</string>
+    <string name="settings_tables">Table plan</string>
+    <string name="settings_tables_current">{count} tables: {plan}</string>
+    <string name="settings_tables_placeholder">1-12, 20-25</string>
+    <string name="settings_tables_save">Save</string>
+    <string name="settings_tables_saved">Table plan saved</string>
+    <string name="settings_tables_note">Numbers and ranges separated by commas. A table that still has an open order stays on screen.</string>
     <string name="settings_support_idle">no session</string>
     <string name="settings_support_running">session running</string>
     <string name="settings_support_unavailable">unavailable</string>

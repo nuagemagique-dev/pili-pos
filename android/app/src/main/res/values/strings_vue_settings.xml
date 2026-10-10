@@ -12,6 +12,12 @@
     <string name="settings_product_label_name">Nom</string>
     <string name="settings_product_label_code">Code</string>
     <string name="settings_product_label_note">Avec « Code », le code du menu (A2, B14) remplace le nom, affiché en dessous. Un produit sans code garde son nom. Les tickets ne changent pas.</string>
+    <string name="settings_tables">Plan de salle</string>
+    <string name="settings_tables_current">{count} tables : {plan}</string>
+    <string name="settings_tables_placeholder">1-12, 20-25</string>
+    <string name="settings_tables_save">Enregistrer</string>
+    <string name="settings_tables_saved">Plan de salle enregistré</string>
+    <string name="settings_tables_note">Numéros et plages séparés par des virgules. Une table qui a encore une commande ouverte reste affichée.</string>
     <string name="settings_support_idle">aucune session</string>
     <string name="settings_support_running">session en cours</string>
     <string name="settings_support_unavailable">indisponible</string>

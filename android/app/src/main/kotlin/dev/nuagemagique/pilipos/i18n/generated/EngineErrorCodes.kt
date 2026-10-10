@@ -25,6 +25,7 @@ object EngineErrorCodes {
             "operator_invalid",
             "dine_in_needs_table",
             "takeaway_has_no_table",
+            "table_plan_invalid",
             "takeaway_not_registered",
             "quantity_positive",
             "order_not_open",

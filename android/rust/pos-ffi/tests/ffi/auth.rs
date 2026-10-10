@@ -603,6 +603,42 @@ async fn the_hubrise_switch_round_trips() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn the_table_plan_round_trips() {
+    let te = open_seeded().await;
+    let e = &te.engine;
+
+    let start = e.get_table_plan().await.unwrap();
+    assert_eq!(start.plan, format!("1-{}", start.table_count));
+    assert_eq!(
+        code_of(e.set_table_plan("1-4".into()).await),
+        "not_logged_in"
+    );
+
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .unwrap();
+    assert_eq!(
+        code_of(e.set_table_plan("0-3".into()).await),
+        "table_plan_invalid"
+    );
+    let plan = e.set_table_plan("20-22,1-3".into()).await.unwrap();
+    assert_eq!(plan.plan, "1-3, 20-22");
+    assert_eq!(plan.table_count, 6);
+    assert_eq!(plan.log[0].source, "admin");
+    assert_eq!(plan.log[0].changed_by.as_deref(), Some(MANAGER_INSZ));
+    assert_eq!(e.get_table_plan().await.unwrap(), plan);
+    let numbers: Vec<i32> = e
+        .list_tables()
+        .await
+        .unwrap()
+        .iter()
+        .map(|t| t.table_number)
+        .collect();
+    assert_eq!(numbers, vec![1, 2, 3, 20, 21, 22]);
+    e.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn remote_support_is_not_available_on_android() {
     let te = open_seeded().await;
     let e = &te.engine;

@@ -50,6 +50,8 @@ class SettingsContentTest {
             onToggleTraining = { taps += "training" },
             onLanguage = { taps += "language:${it.code}" },
             onProductLabel = { taps += "label:${it.code}" },
+            onTablePlanInput = { taps += "tables:$it" },
+            onSaveTablePlan = { taps += "tables:save" },
             onRow = { navigator.navigate(it.route) },
             onNewName = { taps += "name:$it" },
             onNewInsz = { taps += "insz:$it" },
@@ -200,6 +202,31 @@ class SettingsContentTest {
         compose.onNodeWithTag("settings_label_code").performClick()
 
         assertEquals(listOf("label:code"), taps)
+    }
+
+    // ── Table plan ────────────────────────────────────────────────
+
+    @Test
+    fun aManagerSeesTheTablePlanAndSavesWhatTheFieldHolds() {
+        show(managerState().copy(tablePlan = TablePlanState(plan = "1-12, 20-25", count = 18L, input = "1-12, 20-25")))
+
+        compose.onNodeWithTag("settings_tables_current").assertTextEquals("18 tables : 1-12, 20-25")
+        compose.onNodeWithTag("settings_tables_input").performTextInput("9")
+        compose.onNodeWithTag("settings_tables_save").performClick()
+
+        assertEquals(listOf("tables:91-12, 20-25", "tables:save"), taps)
+    }
+
+    @Test
+    fun aRefusedTablePlanShowsItsReason() {
+        show(managerState().copy(tablePlan = TablePlanState(plan = "1-20", count = 20L, input = "A1", error = "format")))
+        compose.onNodeWithTag("settings_tables_error").assertTextEquals("format")
+    }
+
+    @Test
+    fun aWorkerSeesNoTablePlan() {
+        show(workerState())
+        compose.onNodeWithTag("settings_tables").assertDoesNotExist()
     }
 
     // ── Employees ─────────────────────────────────────────────────

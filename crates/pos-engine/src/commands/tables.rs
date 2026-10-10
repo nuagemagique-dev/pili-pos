@@ -35,16 +35,45 @@ pub struct TableInfo {
 /// tap-and-walk-away) are treated as free so the TablesView doesn't
 /// surface ghost "0.00 €" cards that add cognitive load for zero
 /// informational value (UX Guide §2.1).
+///
+/// The tables are those of the table plan ([`super::table_plan`]), plus
+/// any table left out of it that still has an open order, so no unpaid
+/// order is hidden.
 pub fn do_list_configured_tables(state: &AppState) -> Result<Vec<TableInfo>, String> {
-    let table_count = state.config.lock().map_err(|e| e.to_string())?.table_count;
-    do_list_tables(state, table_count as i32)
+    let mut numbers = super::table_plan::plan_numbers(state)?;
+    {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let mut stmt = db
+            .prepare(
+                "SELECT DISTINCT o.table_number FROM orders o
+                 JOIN order_lines ol ON ol.order_id = o.id
+                 WHERE o.status = 'open' AND o.order_type = 'dine_in'
+                   AND o.table_number IS NOT NULL",
+            )
+            .map_err(|e| e.to_string())?;
+        let open: Vec<i32> = stmt
+            .query_map([], |r| r.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|e| e.to_string())?;
+        numbers.extend(open);
+    }
+    numbers.sort_unstable();
+    numbers.dedup();
+    list_tables_numbered(state, &numbers)
 }
 
+/// Tables 1 to `table_count`.
 pub fn do_list_tables(state: &AppState, table_count: i32) -> Result<Vec<TableInfo>, String> {
+    let numbers: Vec<i32> = (1..=table_count).collect();
+    list_tables_numbered(state, &numbers)
+}
+
+fn list_tables_numbered(state: &AppState, numbers: &[i32]) -> Result<Vec<TableInfo>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut tables = Vec::new();
 
-    for t in 1..=table_count {
+    for &t in numbers {
         let row: Option<(i64, i64, i64, String, bool)> = db
             .query_row(
                 "SELECT o.id, o.total_cents, COUNT(ol.id), o.created_at, o.pre_bill_at IS NOT NULL

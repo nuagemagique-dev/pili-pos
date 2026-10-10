@@ -76,6 +76,17 @@ internal data class HubriseSwitchState(
     val busy: Boolean = false,
 )
 
+/** The table plan panel of a manager (the table numbers the Tables screen shows). */
+internal data class TablePlanState(
+    /** The plan in use, canonical form ("1-12, 20-25"); null until the engine answered. */
+    val plan: String? = null,
+    val count: Long = 0L,
+    /** What the field holds. */
+    val input: String = "",
+    /** The refusal of the last save, as screen text. */
+    val error: String? = null,
+)
+
 /** Everything the settings screen draws, except the HubRise panel ([HubriseUiState]). */
 internal data class SettingsUiState(
     /** The settings rows the logged-in role may see, in order (UI-PD308). */
@@ -101,6 +112,7 @@ internal data class SettingsUiState(
     /** The mail service state; null until the first answer. */
     val mailStatus: MailStatus? = null,
     val hubrise: HubriseSwitchState = HubriseSwitchState(),
+    val tablePlan: TablePlanState = TablePlanState(),
 ) {
     /** True when the user [insz] is the operator himself (no deactivate button, own PIN flow). */
     fun isSelf(insz: String): Boolean = insz == currentInsz

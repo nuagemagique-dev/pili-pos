@@ -798,3 +798,27 @@ export function getIntegrations(): Promise<Integrations> {
 export function setHubriseEnabled(enabled: boolean): Promise<Integrations> {
   return invoke("set_hubrise_enabled", { enabled });
 }
+
+/** One change of the table plan. */
+export interface TablePlanChange {
+  plan: string;
+  source: "config" | "admin";
+  changed_by: string | null;
+  changed_at: string;
+}
+
+/** The table numbers in use, as ranges ("1-12, 20-25"). */
+export interface TablePlan {
+  plan: string;
+  table_count: number;
+  log: TablePlanChange[];
+}
+
+export function getTablePlan(): Promise<TablePlan> {
+  return invoke("get_table_plan");
+}
+
+/** Managers only. A table left out that still has an open order stays on the Tables screen. */
+export function setTablePlan(plan: string): Promise<TablePlan> {
+  return invoke("set_table_plan", { plan });
+}

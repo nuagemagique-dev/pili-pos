@@ -121,6 +121,7 @@ const coreMessages: Messages = {
   "err_operator_invalid": { fr: "Employé invalide : reconnectez-vous.", en: "Invalid employee: log in again.", zh: "员工无效：请重新登录。" },
   "err_dine_in_needs_table": { fr: "Une commande sur place a besoin d'une table.", en: "A dine-in order needs a table.", zh: "堂食订单需要桌号。" },
   "err_takeaway_has_no_table": { fr: "Une commande à emporter n'a pas de table.", en: "A takeaway order has no table.", zh: "外带订单没有桌号。" },
+  "err_table_plan_invalid": { fr: "Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).", en: "Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).", zh: "请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。" },
   "err_quantity_positive": { fr: "La quantité doit être d'au moins 1.", en: "The quantity must be at least 1.", zh: "数量至少为1。" },
   "err_order_not_open": { fr: "Cette commande est déjà clôturée.", en: "This order is already closed.", zh: "该订单已结束。" },
   "err_price_positive": { fr: "Saisissez un prix supérieur à zéro.", en: "Enter a price greater than zero.", zh: "请输入大于零的价格。" },

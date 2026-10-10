@@ -1,6 +1,7 @@
 use tauri::State;
 
 use pos_engine::commands::bar_slip::SlipOutcome;
+use pos_engine::commands::table_plan::TablePlan;
 use pos_engine::commands::tables::{TableInfo, TakeawayInfo};
 
 use super::Managed;
@@ -46,4 +47,16 @@ pub async fn sign_pre_bill(
     order_id: i64,
 ) -> Result<SlipOutcome, String> {
     pos_engine::commands::tables::do_sign_pre_bill(state.inner(), order_id).await
+}
+
+/// The table plan (the table numbers in use) and its changes.
+#[tauri::command]
+pub fn get_table_plan(state: State<'_, Managed>) -> Result<TablePlan, String> {
+    pos_engine::commands::table_plan::do_get_table_plan(state.inner())
+}
+
+/// Set the table plan ("1-12, 20-25"); managers only.
+#[tauri::command]
+pub fn set_table_plan(state: State<'_, Managed>, plan: String) -> Result<TablePlan, String> {
+    pos_engine::commands::table_plan::do_set_table_plan(state.inner(), &plan)
 }

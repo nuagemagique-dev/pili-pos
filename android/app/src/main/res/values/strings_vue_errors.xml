@@ -22,6 +22,7 @@
     <string name="err_operator_invalid">Employé invalide : reconnectez-vous.</string>
     <string name="err_dine_in_needs_table">Une commande sur place a besoin d\'une table.</string>
     <string name="err_takeaway_has_no_table">Une commande à emporter n\'a pas de table.</string>
+    <string name="err_table_plan_invalid">Écrivez les numéros de table comme ceci : 1-12, 20-25 (de 1 à 999, 200 tables au plus).</string>
     <string name="err_quantity_positive">La quantité doit être d\'au moins 1.</string>
     <string name="err_order_not_open">Cette commande est déjà clôturée.</string>
     <string name="err_price_positive">Saisissez un prix supérieur à zéro.</string>

@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.CreateUserInput
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.TablePlan
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 
@@ -212,6 +213,38 @@ class SettingsViewModelTest {
             runCurrent()
 
             assertFalse(r.state.training)
+        }
+
+    @Test
+    fun theTablePlanIsLoadedThenSavedWithASuccessToast() =
+        runTest {
+            val r = start()
+            assertEquals(TablePlanState(plan = "1-20", count = 20L, input = "1-20"), r.state.tablePlan)
+            coEvery { r.engine.setTablePlan("20-25,1-12") } returns TablePlan("1-12, 20-25", 18L, emptyList())
+
+            r.model.setTablePlanInput("20-25,1-12")
+            r.model.saveTablePlan()
+            runCurrent()
+
+            assertEquals(TablePlanState(plan = "1-12, 20-25", count = 18L, input = "1-12, 20-25"), r.state.tablePlan)
+            assertEquals(ToastVariant.Success, r.env.lastToast().variant)
+            assertEquals(r.env.text("settings_tables_saved"), r.env.lastToast().message)
+        }
+
+    @Test
+    fun aRefusedTablePlanKeepsTheFieldAndShowsWhy() =
+        runTest {
+            val r = start()
+            val refusal = PosException.Coded("table_plan_invalid", emptyMap())
+            coEvery { r.engine.setTablePlan("A1") } throws refusal
+
+            r.model.setTablePlanInput("A1")
+            r.model.saveTablePlan()
+            runCurrent()
+
+            assertEquals("A1", r.state.tablePlan.input)
+            assertEquals("1-20", r.state.tablePlan.plan)
+            assertEquals(r.env.describe(refusal), r.state.tablePlan.error)
         }
 
     @Test

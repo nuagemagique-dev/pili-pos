@@ -22,6 +22,7 @@
     <string name="err_operator_invalid">员工无效：请重新登录。</string>
     <string name="err_dine_in_needs_table">堂食订单需要桌号。</string>
     <string name="err_takeaway_has_no_table">外带订单没有桌号。</string>
+    <string name="err_table_plan_invalid">请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。</string>
     <string name="err_quantity_positive">数量至少为1。</string>
     <string name="err_order_not_open">该订单已结束。</string>
     <string name="err_price_positive">请输入大于零的价格。</string>
