@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "id": "T4",
+  "ids": ["T4"],
+  "title": "T4: a Coca Cola to take away sold by Elisa, paid by card",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T4",
+  "fixtureDeviations": [
+    {"path": "financials[0].type", "reason": "the operator does not tell debit from credit cards: CARD_DEBIT"},
+    {"path": "transaction.transactionLines[0].vats[0].label", "reason": "the manual's product table labels a Coca Cola to take away C, the scenario A"}
+  ],
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12009, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "card", "amount_cents": 304}]}}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "format": 1,
+  "id": "M183",
+  "ids": ["M183"],
+  "title": "M183: the Z report that closes the day of M182 (it carries the user Z with the turnover Z)",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "generate_z_report", "args": {"employeeInsz": "94060242576"}, "expect": {"fields": {"success": true, "reportType": "Z", "reportNo": 2}}}
+  ]
+}
