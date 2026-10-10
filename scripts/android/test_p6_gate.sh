@@ -85,7 +85,7 @@ version = "0.0.1"
 members = []
 
 [workspace.package]
-version = "1.1.0"
+version = "1.0.0"
 edition = "2021"
 EOF
     write "$r/android/app/src/main/AndroidManifest.xml" <<'EOF'
@@ -161,12 +161,13 @@ EOF
         tgit "$r" add -A
         tgit "$r" commit -q -m "chore: base"
         tgit "$r" tag base
-        tgit "$r" tag linux-v1.1.0-rc1
+        tgit "$r" tag linux-v1.0.0-rc1
     } >/dev/null 2>&1
 }
 build_pristine
-SHORT="$(tgit "$PRISTINE" rev-parse 'linux-v1.1.0-rc1^{commit}' | cut -c1-7)"
-GOOD_REF="pili-pos 1.1.0, linux-v1.1.0-rc1 (${SHORT})"
+SHORT="$(tgit "$PRISTINE" rev-parse 'linux-v1.0.0-rc1^{commit}' | cut -c1-7)"
+GOOD_REF="pili-pos 1.0.0, linux-v1.0.0-rc1 (${SHORT})"
+PLACEHOLDER_REF="pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)"
 
 # new_repo: a copy of the pristine repository. Prints its path.
 new_repo() {
@@ -488,7 +489,7 @@ fast "$r"
 expect "plat-engine-ref PASS when the string equals 'pili-pos V, TAG (SHORT)'" plat-engine-ref PASS
 expect "plat-strings still PASS with the engine ref string" plat-strings PASS
 check "the PASS detail is the reference" "$([[ "$(detail_of plat-engine-ref)" == "$GOOD_REF" ]] && echo 0 || echo 1)" "detail=$(detail_of plat-engine-ref)"
-for wrong in "pili-pos 1.1.1, linux-v1.1.0-rc1 (${SHORT})" "pili-pos 1.1.0, linux-v1.1.0-rc1 (0000000)" "pili-pos 1.1.0, linux-v1.0.0-rc1 (${SHORT})" "pili-pos 0.0.1, linux-v1.1.0-rc1 (${SHORT})" "pili-pos 1.1.0 , linux-v1.1.0-rc1 (${SHORT})"; do
+for wrong in "pili-pos 1.0.1, linux-v1.0.0-rc1 (${SHORT})" "pili-pos 1.0.0, linux-v1.0.0-rc1 (0000000)" "pili-pos 1.0.0, linux-v1.1.0-rc1 (${SHORT})" "pili-pos 0.0.1, linux-v1.0.0-rc1 (${SHORT})" "pili-pos 1.0.0 , linux-v1.0.0-rc1 (${SHORT})" "$PLACEHOLDER_REF"; do
     r="$(new_repo)"
     subst "$r/$RES/values/strings_plat_about.xml" '</resources>' "<string name=\"plat_about_engine_ref\" translatable=\"false\">$wrong</string></resources>"
     fast "$r"
@@ -497,7 +498,7 @@ done
 r="$(new_repo)"
 tgit "$r" tag custom-freeze >/dev/null 2>&1
 printf '\n' >>"$r/Cargo.toml"
-subst "$r/Cargo.toml" 'version = "1.1.0"' 'version = "2.0.0"'
+subst "$r/Cargo.toml" 'version = "1.0.0"' 'version = "2.0.0"'
 tgit "$r" commit -q -am "chore: bump" >/dev/null 2>&1
 tgit "$r" tag custom-freeze-2 >/dev/null 2>&1
 short2="$(tgit "$r" rev-parse 'custom-freeze-2^{commit}' | cut -c1-7)"
@@ -506,6 +507,20 @@ run_gate "$r" PILI_P6_FREEZE_TAG=custom-freeze-2 -- --fast
 expect "plat-engine-ref follows PILI_P6_FREEZE_TAG" plat-engine-ref PASS
 run_gate "$r" PILI_P6_FREEZE_TAG=no-such-tag -- --fast
 expect "plat-engine-ref FAIL when the freeze tag does not exist" plat-engine-ref FAIL
+# Before the 1.0.0 re-freeze: no tag yet, the string holds the placeholder.
+r="$(new_repo)"
+tgit "$r" tag -d linux-v1.0.0-rc1 >/dev/null 2>&1
+subst "$r/$RES/values/strings_plat_about.xml" '</resources>' "<string name=\"plat_about_engine_ref\" translatable=\"false\">$PLACEHOLDER_REF</string></resources>"
+fast "$r"
+expect "plat-engine-ref SKIP on the placeholder while the tag does not exist" plat-engine-ref SKIP
+check "the SKIP detail says the placeholder is filled at tagging" "$([[ "$(detail_of plat-engine-ref)" == *"no tag linux-v1.0.0-rc1 yet"*"filled at tagging"* ]] && echo 0 || echo 1)" "detail=$(detail_of plat-engine-ref)"
+for wrong in "pili-pos 1.0.0, linux-v1.0.0-rc1 (${SHORT})" "pili-pos 1.1.0, linux-v1.0.0-rc1 (pending)" "pili-pos 1.0.0, linux-v1.1.0-rc1 (pending)"; do
+    r="$(new_repo)"
+    tgit "$r" tag -d linux-v1.0.0-rc1 >/dev/null 2>&1
+    subst "$r/$RES/values/strings_plat_about.xml" '</resources>' "<string name=\"plat_about_engine_ref\" translatable=\"false\">$wrong</string></resources>"
+    fast "$r"
+    expect "plat-engine-ref FAIL on '$wrong' while the tag does not exist" plat-engine-ref FAIL
+done
 
 # ── full mode: self-tests ───────────────────────────────────────
 r="$(new_repo)"
