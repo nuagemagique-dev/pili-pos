@@ -19,13 +19,13 @@ test.describe('Settings View', () => {
     await expect(page.locator('.lang-btn.active')).toHaveText('Français');
   });
 
-  test('products can be shown by their menu code', async ({ page }) => {
+  test('products are shown by their menu code by default, names are a switch away', async ({ page }) => {
     await expect(page.locator('.label-btn')).toHaveText(['Nom', 'Code']);
+    await expect(page.locator('.label-btn.active')).toHaveText('Code');
+    await page.locator('.label-btn', { hasText: 'Nom' }).click();
     await expect(page.locator('.label-btn.active')).toHaveText('Nom');
-    await page.locator('.label-btn', { hasText: 'Code' }).click();
-    await expect(page.locator('.label-btn.active')).toHaveText('Code');
     await page.reload();
-    await expect(page.locator('.label-btn.active')).toHaveText('Code');
+    await expect(page.locator('.label-btn.active')).toHaveText('Nom');
   });
 
   test('an employee without a PIN is flagged', async ({ page }) => {

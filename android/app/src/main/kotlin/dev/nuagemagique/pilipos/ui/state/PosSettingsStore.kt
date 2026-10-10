@@ -29,8 +29,8 @@ enum class ProductLabel(
     ;
 
     companion object {
-        /** The label stored as [code]; null, blank or unknown gives [NAME]. */
-        fun fromCode(code: String?): ProductLabel = entries.firstOrNull { it.code == code?.trim()?.lowercase() } ?: NAME
+        /** The label stored as [code]; null, blank or unknown gives [CODE], the default (user decision 2026-10-10). */
+        fun fromCode(code: String?): ProductLabel = entries.firstOrNull { it.code == code?.trim()?.lowercase() } ?: CODE
     }
 }
 

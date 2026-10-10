@@ -86,7 +86,7 @@ internal data class SettingsUiState(
     val currentInsz: String? = null,
     val training: Boolean = false,
     val language: AppLanguage = AppLanguage.FR,
-    val productLabel: ProductLabel = ProductLabel.NAME,
+    val productLabel: ProductLabel = ProductLabel.CODE,
     /** The info panel; null until the engine settings are loaded. */
     val info: PosSettings? = null,
     /** The employees, as the engine listed them (active and inactive). */
