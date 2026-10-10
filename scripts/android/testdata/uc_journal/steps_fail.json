@@ -1,0 +1,26 @@
+{
+  "scenario": "002_FAIL",
+  "group": "00_smoke",
+  "ids": [
+    "M110"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "insz": "94060242576"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": false,
+      "error": "FDM_LOCKED",
+      "result": null,
+      "detail": "the call failed: FDM_LOCKED"
+    }
+  ],
+  "verdict": "FAIL"
+}

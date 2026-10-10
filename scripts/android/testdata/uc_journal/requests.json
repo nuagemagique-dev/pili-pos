@@ -1,0 +1,62 @@
+[
+  {
+    "at": "2026-10-10T10:00:00+00:00",
+    "operation": "Status",
+    "request": {
+      "query": "status"
+    },
+    "response": {
+      "data": {
+        "status": {
+          "initialized": true
+        }
+      }
+    }
+  },
+  {
+    "at": "2026-10-10T10:00:01+00:00",
+    "operation": "signSale",
+    "request": {
+      "query": "mutation signSale",
+      "variables": {
+        "posId": "CPOS1"
+      }
+    },
+    "response": {
+      "data": {
+        "signSale": {
+          "fdmRef": {
+            "eventCounter": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "at": "2026-10-10T10:00:02+00:00",
+    "operation": "Status",
+    "request": {
+      "query": "status"
+    },
+    "response": {
+      "data": {
+        "status": {
+          "initialized": true
+        }
+      }
+    }
+  },
+  {
+    "at": "2026-10-10T10:00:03+00:00",
+    "operation": "signReportTurnoverX",
+    "request": {
+      "query": "mutation x",
+      "variables": {}
+    },
+    "response": {
+      "data": {
+        "signReportTurnoverX": {}
+      }
+    }
+  }
+]
