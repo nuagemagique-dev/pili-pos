@@ -47,7 +47,7 @@ L'article 47 impose un numéro de version : « Ce numéro de version doit être 
 | posSwVersion envoyé au FDM | pili-pos/1.0.0 | pili-pos-android/1.0.0 (22 caractères, la limite de la spécification est 36) |
 | Identifiant d'application | sans objet | dev.nuagemagique.pilipos |
 | versionCode | sans objet | 10000 (MAJOR x 10000 + MINOR x 100 + PATCH) |
-| Étiquette git de la version | vX.Y.Z (`PROFIL_ENTREPRISE_FR.md` §3.3) | android-v1.0.0 |
+| Étiquette git de la version | vX.Y.Z (`PROFIL_ENTREPRISE_FR.md` §4.2) | android-v1.0.0 |
 | Artefact déclaré | le binaire, par son SHA-1 | l'APK signé, par son SHA-1 (`GARANTIE_MAJ_LANGUES_FR.md` §1.2) |
 
 Les deux lignes de produit portent des chaînes différentes : une version du produit Android ne peut jamais être confondue avec une version du produit Linux, ni sur un ticket, ni dans le journal du FDM.
