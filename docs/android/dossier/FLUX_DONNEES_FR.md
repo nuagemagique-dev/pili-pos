@@ -13,8 +13,8 @@ d'un parcours utilisateur.
 moteur commun (`crates/pos-engine`), identique à celui de `pili-pos`.
 L'interface est en Kotlin et Compose ; elle appelle le moteur par
 UniFFI (`libpos_ffi.so`, `docs/android/FFI.md`) : chaque commande
-`commands::<module>::do_<fonction>` citée ci-dessous est la méthode de
-même nom de `PosEngine` (`login`, `addOrderLine`, `checkout`,
+`commands::<module>::do_<fonction>` citée ci-dessous est la méthode
+correspondante de `PosEngine` (`login`, `addOrderLine`, `checkout`,
 `generateZReport`...), table de correspondance de `FFI.md` §11 ; les
 événements du moteur (`fdm-status`, `presence-failed`...) arrivent par
 `events()`. Aucune règle fiscale ni calcul de montant n'est en Kotlin.
@@ -29,11 +29,11 @@ L'opérateur entre 11 chiffres sur le pavé numérique.
 
 **Circulation des données.**
 
-1. Écran de login (`LoginScreen`) → `commands::auth::do_login(insz, pin)` (`PosEngine.login`).
+1. Écran de login (`LoginRoute`) → `commands::auth::do_login(insz, pin)` (`PosEngine.login`).
 2. `pos-db::queries::users::get_user` → ligne SQLite `users` ; le PIN
    est comparé à son hash bcrypt.
 3. L'état de session de l'application enregistre `(insz, name, role)`.
-4. L'interface ouvre l'écran des tables (`TablesScreen`). Le pointage d'entrée est fait
+4. L'interface ouvre l'écran des tables (`TablesRoute`). Le pointage d'entrée est fait
    par le moteur, pas par l'UI : `do_login` (`commands/auth.rs`) met
    l'entrée en file et un processus de présence
    (`crates/pos-engine/src/background.rs`) appelle
@@ -61,7 +61,7 @@ se charge. Les clients commandent trois plats ; l'opérateur appuie sur
 
 **Circulation des données.**
 
-1. L'écran de commande (`OrderScreen`) appelle `commands::order::do_add_order_line` une
+1. L'écran de commande (`OrderRoute`) appelle `commands::order::do_add_order_line` une
    fois par plat. Chaque appel écrit une ligne `order_lines` avec le
    nom dénormalisé, le label TVA, le prix unitaire (depuis
    `menu_items`), et les éventuels modificateurs.
@@ -95,7 +95,7 @@ OK. L'opérateur confirme.
    validée à l'écran (`delivery::resolve`). Un choix refusé (adresse
    invalide, terminal non configuré) s'arrête ici, avant tout appel
    FDM.
-1. Écran d'encaissement (`CheckoutScreen`) → `commands::checkout::do_checkout_split` (`PosEngine.checkout`) avec
+1. Écran d'encaissement (`CheckoutRoute`) → `commands::checkout::do_checkout_split` (`PosEngine.checkout`) avec
    `{order_id, payment_method: "card", amount_cents, delivery}`.
 2. **Pas de pré-contrôle du statut FDM.** La vente passe par
    `checkout::sell` puis `signing::sign`. Si le FDM n'est pas joignable,
@@ -152,7 +152,7 @@ rapports pour voir les totaux en cours.
 
 **Circulation des données.**
 
-1. Écran des rapports (`ReportsScreen`) → `commands::report::do_generate_x_report`.
+1. Écran des rapports (`ReportsRoute`) → `commands::report::do_generate_x_report`.
 2. Les événements de la période de réservation ouverte sont relus
    dans `fiscal_events` et agrégés par
    `pos-fiscal::report_totals::turnover`.

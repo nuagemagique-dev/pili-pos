@@ -1,5 +1,5 @@
 <!-- Dérivé de docs/SUBMISSION_ARTIFACTS/COMMANDES_EN_LIGNE_FR.md @ 86088e4 -->
-# Commandes en ligne (plateformes de livraison et webshop) - pili-pos-android
+# Commandes en ligne (plateformes de livraison et webshop)
 
 **Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
 **Date :** À effectuer (EV-18 : date de dépôt)

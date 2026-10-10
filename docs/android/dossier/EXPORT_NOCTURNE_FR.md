@@ -1,5 +1,5 @@
 <!-- Dérivé de docs/SUBMISSION_ARTIFACTS/EXPORT_NOCTURNE_FR.md @ 86088e4 -->
-# Export nocturne : sauvegarde chiffrée et copie statistique - pili-pos-android
+# Export nocturne : sauvegarde chiffrée et copie statistique
 
 **Plateforme :** Android 13 (API 33), terminal Sunmi D3 Pro (variante avec services Google)
 
