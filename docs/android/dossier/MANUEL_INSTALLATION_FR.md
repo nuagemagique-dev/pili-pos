@@ -402,7 +402,7 @@ Avant de quitter le site :
 
 1. Éteindre et rallumer le terminal : l'application revient seule au
    premier plan, verrouillée, en quelques secondes (émulateur : EV-10 ;
-   vrai terminal : À effectuer, EV-15).
+   vrai terminal : À effectuer (EV-15 : redémarrage sur le D3 Pro réel)).
 2. À l'écran de connexion, contrôle du FDM « connecté » et version
    pili-pos-android/1.0.0 ; se connecter ; le pointage S doit signer.
 3. Ouvrir une table, ajouter un article, « Envoyer en cuisine » : le bon
@@ -549,7 +549,7 @@ Chiffres de `PLATEFORME_ANDROID_FR.md` §5, mesurés sur l'émulateur.
 - **Besoin interne.** Après chaque rapport Z, la caisse écrit une copie de
   `pos.db` et **conserve les 7 plus récentes**, en supprimant les plus
   anciennes ; le journal fiscal de `pos.db` n'est jamais supprimé (commit
-  du moteur : À effectuer, EV-19). Elle occupe environ 8 fois la base :
+  du moteur : À effectuer (EV-19 : commit du changement du moteur)). Elle occupe environ 8 fois la base :
   environ 4 Go après un an à 100 ventes par jour, environ 13 Go à 300.
   « À propos » affiche l'espace libre et avertit sous 2 Gio. Espace libre
   du vrai D3 Pro : À effectuer (EV-15).

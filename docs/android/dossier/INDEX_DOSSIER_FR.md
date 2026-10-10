@@ -12,7 +12,7 @@
 
 Ce document est la liste des pièces remises à l'appui de la demande (article 101 de l'arrêté ministériel du 29 avril 2024 : « une liste avec un aperçu des documents et informations remis »). Le cadrage de la demande est dans `CADRE_DEMANDE_FR.md` (annexe 35). Le fichier exact du ZIP, pièce par pièce, est `MANIFEST.txt`.
 
-Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pdf` du même nom.
+Dans le texte des annexes, un renvoi à un fichier `.md` du dossier désigne l'annexe PDF du même nom.
 
 Natures : **variante Android** (document propre à ce dossier, dérivé du dossier Linux ou nouveau), **document commun** (moteur seul, repris du dossier Linux au même état du moteur, section 2), **preuve** (pièce remplie avec les résultats des tests et captures).
 

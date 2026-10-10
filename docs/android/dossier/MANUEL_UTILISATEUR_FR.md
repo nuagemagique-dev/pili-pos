@@ -123,7 +123,7 @@ s'affiche et personne n'est connecté. Le PIN est ensuite demandé à chaque
 connexion. Dès qu'un Gérant a un PIN, un autre Gérant sans PIN ne peut
 plus le choisir lui-même : la caisse répond "Un gérant doit choisir le
 PIN de ce compte dans Paramètres." et un Gérant déjà connecté le fixe
-(§2.2, §12.3). À effectuer (EV-09 : capture A04 choix du PIN à la première connexion).
+(§2.2, §12.3). À effectuer (EV-09 : capture A04 choix du PIN à la première connexion ; capture A07 refus du second Gérant sans PIN).
 
 ### 2.2 Le PIN
 
@@ -142,7 +142,6 @@ connexion : "PIN non configuré : touchez votre nom en haut de l'écran".
   le nouveau PIN de l'employé (deux fois), puis la caisse demande
   "Confirmez avec votre PIN de gérant" : le Gérant tape son propre PIN.
   Sans ce PIN, rien n'est enregistré.
-  À effectuer (EV-09 : capture A06 confirmation par le PIN du Gérant).
 
 Le PIN est enregistré sous forme de hachage (bcrypt), jamais en clair.
 
@@ -152,14 +151,14 @@ caisse refuse tout essai, même avec le bon PIN, pendant 30 secondes. Elle
 affiche "Trop de PIN incorrects : réessayez dans {seconds} s.", avec le
 temps restant. Chaque nouvel échec double l'attente, jusqu'à 15 minutes.
 Un PIN correct remet le compteur à zéro. Un redémarrage de la caisse le
-remet aussi à zéro. À effectuer (EV-09 : capture A07 verrou après des PIN erronés).
+remet aussi à zéro. À effectuer (EV-09 : capture A06 verrou après des PIN erronés).
 
 ### 2.3 Verrouiller, fin de service et verrouillage automatique
 
 - "Verrouiller" (en haut à droite) ferme la session et revient à l'écran
   de connexion. L'employé **reste en service** : sa tuile affiche "en
   service". Quand il se reconnecte, aucune nouvelle arrivée n'est
-  pointée.
+  pointée. À effectuer (EV-09 : capture A08 retour à la connexion, tuile "en service").
 - Après **5 minutes sans toucher l'écran**, la caisse se verrouille
   d'elle-même, de la même façon. L'employé reste en service.
 - Le départ de l'employé se signe uniquement depuis l'écran de connexion
@@ -181,14 +180,14 @@ application ni aux réglages de l'appareil.
   termine le service"). La caisse signe le départ, ferme la session et
   affiche "Service terminé · <nom>". La tuile repasse à "hors service".
   Un employé sans PIN touche sa tuile puis "Fin de service" sans PIN.
-  À effectuer (EV-09 : capture A08 fin de service).
+  À effectuer (EV-09 : capture A09 fin de service).
 - "Verrouiller" et le verrouillage automatique ne pointent **pas** le
   départ (§2.3).
 
 Si le FDM ne répond pas, la connexion ou la fin de service se fait quand
 même, mais un message rouge l'indique : "Pointage non enregistré", suivi
 de la raison. Prévenir le Gérant pour qu'il régularise.
-À effectuer (EV-09 : capture A09 message Pointage non enregistré).
+À effectuer (EV-09 : capture A94 message Pointage non enregistré).
 
 ## 4. L'écran de commande
 
@@ -234,9 +233,8 @@ L'en-tête montre en permanence :
 **Rappel du rapport Z** : un bandeau "Rapport Z non effectué
 aujourd'hui" s'affiche sur l'écran de commande quand une journée est
 ouverte et qu'il est plus de 22 h, ou qu'une journée précédente est
-restée ouverte (§10.2). L'onglet "Journée" des rapports affiche aussi
+restée ouverte (§10.2). À effectuer (EV-09 : capture A95 bandeau Rapport Z non effectué aujourd'hui). L'onglet "Journée" des rapports affiche aussi
 "Rapport Z pas encore fait aujourd'hui".
-À effectuer (EV-09 : capture A11 bandeau Rapport Z non effectué aujourd'hui).
 
 ## 5. Tables, à emporter et prise de commande
 
@@ -247,7 +245,7 @@ connexion). Une table **libre** porte la
 mention "Libre". Une table **occupée** affiche son total, son nombre
 d'articles et depuis combien de minutes elle est ouverte ("3 art. · 12
 min"), et la mention "Addition" quand l'addition provisoire a été
-imprimée. À effectuer (EV-09 : capture A12 plan des tables).
+imprimée. À effectuer (EV-09 : capture A11 plan des tables).
 
 - Toucher une table libre ouvre une nouvelle commande pour cette table.
 - Toucher une table occupée reprend sa commande en cours, avec tous ses
@@ -265,7 +263,7 @@ commande reste en cours, listée sur l'écran "Tables" sous "À emporter en
 cours" ("Commencée à 14:05", nombre d'articles, total) ; la toucher la
 reprend. "Nouvelle vente à emporter" en ouvre une autre. Elle se termine
 par l'encaissement (§7) ou, si le client est parti sans payer, par une
-vente sans paiement (§7.5). À effectuer (EV-09 : capture A13 ventes à emporter en cours).
+vente sans paiement (§7.5). À effectuer (EV-09 : capture A12 ventes à emporter en cours).
 
 ### 5.3 Ajouter, modifier, retirer
 
@@ -299,7 +297,7 @@ rembourser (§9).
 dans cette version : le POS n'émet que des tickets de caisse TVA.
 
 Le panier affiche en permanence le total et le détail de la TVA par
-taux.
+taux. À effectuer (EV-09 : capture A13 panier rempli).
 
 ## 6. Commande enregistrée et addition (événements P)
 
@@ -310,7 +308,7 @@ sous la mention **"Pas encore en cuisine"**. "Envoyer en cuisine"
 (avec le nombre d'articles concernés) les enregistre auprès du FDM
 (événement P, `signOrder`) et imprime un **bon de commande** pour le bar
 ou la cuisine, sans quitter la table. "Envoyé en cuisine · n articles"
-confirme. À effectuer (EV-09 : capture A16 panier avec Pas encore en cuisine et Envoyer en cuisine).
+confirme. À effectuer (EV-09 : capture A16 Envoyé en cuisine).
 
 La même chose se produit **dès que l'on quitte la commande d'une table**
 (jamais pour une vente à emporter, §5.2) : "Tables", "À emporter",
@@ -390,7 +388,7 @@ ticket** (un seul événement N, même payée en plusieurs parts).
   toucher "Exact" ou un raccourci de billet. La caisse affiche le montant
   à rendre ("Rendu"). Le montant en espèces est **arrondi aux 5 cents**
   (règle belge) ; le montant exact avant arrondi reste affiché
-  ("exact 3,34 · arrondi 5 cts"). "Valider".
+  ("exact 3,34 · arrondi 5 cts"). "Valider". À effectuer (EV-09 : capture A22 paiement en espèces).
 - **Carte** : le pavé propose le montant à payer ; le laisser ou taper
   un montant plus petit (jamais plus que le reste : "Plus que le reste à
   payer"). Encaisser ce montant sur le terminal de paiement ("Encaisser
@@ -408,7 +406,7 @@ avec une coche une fois la part prise. Le bouton devient "Valider part
 n" ; chaque part se paie par le moyen de son choix (par exemple une part
 en espèces et l'autre par carte). La vente n'est signée qu'une fois la
 dernière part validée, sur **un seul ticket**.
-À effectuer (EV-09 : capture A22 paiement partagé en parts).
+À effectuer (EV-09 : capture A23 paiement partagé en parts).
 
 **Une seule part en espèces** au plus : une fois qu'une part est payée en
 espèces, le bouton "Espèces" est grisé et la caisse rappelle "Une part
@@ -417,8 +415,8 @@ chèques-repas." Les espèces prennent ce qui reste après les parts payées
 par carte ou chèques-repas.
 
 Tant qu'il reste un montant, chaque paiement pris s'affiche avec son
-montant et la caisse affiche le "Reste à payer". La vente est signée
-dès que le reste est payé. Exemple : 14,86 € payés 11,52 € en
+montant et la caisse affiche le "Reste à payer". La vente est signée dès que le reste est payé.
+À effectuer (EV-09 : capture A24 reste à payer). Exemple : 14,86 € payés 11,52 € en
 chèques-repas, puis 3,34 € en espèces, encaissés 3,35 € (arrondi
 +0,01 €).
 
@@ -438,14 +436,14 @@ enregistrée qu'une fois signée par le FDM.
 L'écran "OK" rappelle le type de ticket, le total, le rendu éventuel et
 l'identifiant du FDM, puis ce qui est arrivé au ticket :
 
-- "Ticket imprimé" ; écran : À effectuer (EV-09 : capture A23 fin de vente, ticket imprimé) ;
+- "Ticket imprimé" ; écran : À effectuer (EV-09 : capture A25 fin de vente, ticket imprimé) ;
 - "Ticket envoyé à j\*\*\*@e\*\*\*.be" (adresse masquée) ; écran :
-  À effectuer (EV-09 : capture A24 fin de vente, ticket envoyé par e-mail) ;
+  À effectuer (EV-09 : capture A26 fin de vente, ticket envoyé par e-mail) ;
 - "E-mail en attente, nouvel essai automatique" : l'envoi n'a pas abouti
   tout de suite, la caisse réessaie seule. Si le client avait choisi
   "E-mail" seul et que l'envoi échoue, la caisse imprime le ticket
   papier à la place : le client repart toujours avec son ticket. Écran
-  du repli : À effectuer (EV-09 : capture A25 fin de vente, repli sur le ticket papier).
+  du repli : À effectuer (EV-09 : capture A27 fin de vente, repli sur le ticket papier).
 - **"Imprimer le ticket"** : ce bouton apparaît sur cet écran de fin
   (de vente, de remboursement ou de copie) quand un ticket papier était
   prévu mais n'a pas pu sortir (ex. papier épuisé). Il est réservé au
@@ -456,7 +454,7 @@ l'identifiant du FDM, puis ce qui est arrivé au ticket :
   ticket a été envoyé par e-mail : imprimez une copie."). Le bouton
   n'existe que sur cet écran : après "Terminer", il disparaît. Pour toute
   autre reproduction, faire une copie (§8). Écran :
-  À effectuer (EV-09 : capture A26 fin de vente avec le bouton Imprimer le ticket).
+  À effectuer (EV-09 : capture A28 fin de vente avec le bouton Imprimer le ticket).
 
 Le tiroir-caisse s'ouvre quand une partie est payée en espèces (jamais
 pour une carte ou des chèques-repas seuls). La table redevient libre.
@@ -470,7 +468,7 @@ bouton "Réessayer maintenant" ; la caisse réessaie aussi seule ("nouvel
 essai automatique dans {s} s", de moins en moins souvent, jusqu'à 5
 minutes). "Rapports" et "Config" restent accessibles au Gérant. Rien
 n'est enregistré, la commande reste ouverte, le tiroir reste fermé.
-À effectuer (EV-09 : capture A27 voile rouge, FDM indisponible).
+À effectuer (EV-09 : capture A29 voile rouge, FDM indisponible).
 
 Vérifier le câble réseau et l'alimentation du FDM, que la caisse reste
 connectée au réseau de l'établissement, puis réessayer.
@@ -507,13 +505,14 @@ est tout de même vendu : la commande ne doit pas rester ouverte.
 2. Dans le panier, toucher "**Client parti sans payer**".
 3. Confirmer avec son PIN ("La vente sera enregistrée sans paiement et
    son ticket imprimé. Confirmez avec votre PIN.").
-   À effectuer (EV-09 : capture A28 confirmation par PIN de la vente sans paiement).
+   À effectuer (EV-09 : capture A30 confirmation par PIN de la vente sans paiement).
 
 Le FDM signe la vente (événement N) sans aucun paiement. Le ticket de
 caisse TVA est imprimé, avec "**Non paye**" à la place des paiements.
 Le tiroir ne s'ouvre pas et aucun paiement n'est compté dans les
 rapports ; le chiffre d'affaires, lui, compte la vente. La table
-redevient libre ("Vente clôturée sans paiement").
+redevient libre ("Vente clôturée sans paiement"). À effectuer (EV-09 :
+capture A31 vente clôturée sans paiement).
 
 Une vente sans paiement ne se rembourse pas (rien n'a été encaissé : "Cette
 vente n'a pas été payée : rien à rembourser.") et n'apparaît pas dans la
@@ -533,10 +532,10 @@ ou qui demande un double :
    additions et tickets de formation, avec leur numéro, leur type ("Vente",
    "Remboursement", "Addition", "Formation"), la table, l'heure et le
    montant ("Choisissez un ticket pour en faire une copie ou le
-   rembourser."). À effectuer (EV-09 : capture A29 onglet Tickets).
+   rembourser."). À effectuer (EV-09 : capture A32 onglet Tickets).
 2. Toucher "Copie" sur la ligne du ticket, choisir le support (Papier /
    E-mail / Les deux, §7.1) puis "Valider". "Retour" annule.
-   À effectuer (EV-09 : capture A30 copie, choix du support).
+   À effectuer (EV-09 : capture A33 copie, choix du support).
 3. "Communication FDM..." s'affiche, puis l'écran de résultat ; "Terminer"
    ferme la fenêtre.
 
@@ -565,10 +564,11 @@ déjà signée ; c'est la seule façon d'annuler une vente après coup.
    espèces". Si le montant d'une ligne ne peut pas être calculé à
    l'écran, la fenêtre indique "Montant calculé par le moteur à la
    signature." et le montant exact figure sur le ticket.
-   À effectuer (EV-09 : capture A31 sélection des articles à rembourser).
+   À effectuer (EV-09 : capture A34 sélection des articles à rembourser).
 3. Étape du support du ticket (§7.1) : choisir Papier / E-mail / Les
    deux, puis "Rembourser" avec le montant de nouveau. "Retour" revient
-   à la sélection des articles. À effectuer (EV-09 : capture A32 support du ticket de remboursement).
+   à la sélection des articles.
+   À effectuer (EV-09 : capture A98 support du ticket de remboursement).
 4. "Communication FDM...", puis le résultat ; "Terminer" ferme la
    fenêtre.
 
@@ -598,7 +598,7 @@ La caisse refuse :
   ligne soit choisie : "Le produit {produit} a été vendu à plusieurs
   prix : choisissez la ligne à rembourser." (choisir la ligne exacte
   dans la liste) ; écran :
-  À effectuer (EV-09 : capture A33 remboursement d'un produit vendu à plusieurs prix) ;
+  À effectuer (EV-09 : capture A35 remboursement d'un produit vendu à plusieurs prix) ;
 - une ligne vendue avec une remise (commande en ligne) : "Ligne vendue
   avec une remise : remboursez la commande entière." ;
 - de valider sans article choisi ("Choisissez au moins un article à
@@ -624,7 +624,7 @@ Un rapport X ne clôture rien : il peut être tiré à tout moment, autant
 de fois que nécessaire. Il est signé par le FDM et imprimé ; "Rapport
 généré (X)" confirme. Le résultat du dernier rapport reste affiché dans
 un cadre sous les boutons (le texte de l'erreur s'y affiche en cas de
-refus). À effectuer (EV-09 : capture A34 onglet Journée, rapports X).
+refus). À effectuer (EV-09 : capture A36 onglet Journée ; capture A37 rapport X généré).
 
 ### 10.2 Rapport Z (clôture de la journée)
 
@@ -633,13 +633,13 @@ zéro. Le premier appui arme le bouton, le second dans les 5 secondes
 confirme.") :
 
 1. "Clôturer la journée (Z)". Le bouton affiche alors "Confirmer la
-   clôture ?". À effectuer (EV-09 : capture A35 bouton Z armé).
+   clôture ?". À effectuer (EV-09 : capture A38 bouton Z armé).
 2. Toucher à nouveau dans les 5 secondes pour clôturer. Sans second
    appui, ou en changeant d'onglet, le bouton revient à son état normal
    et rien ne se passe.
 
 Le Z est signé par le FDM, imprimé, et "Rapport généré (Z #n)"
-confirme. La journée est close ; la suivante commence au prochain
+confirme. À effectuer (EV-09 : capture A39 rapport Z généré). La journée est close ; la suivante commence au prochain
 enregistrement. Terminer **chaque** journée par un Z.
 
 Une journée restée ouverte au-delà de l'heure de fin de journée du
@@ -655,7 +655,7 @@ clôturée : rien n'a été enregistré.").
 La carte "Réimprimer un Z" indique le dernier Z ("Dernier : Z #n ·
 date"). La toucher ouvre "Historique Z" (numéro et date de chaque Z
 passé). "Réimprimer" en produit une copie (événement C, §8) : choisir le
-support, "Valider". À effectuer (EV-09 : capture A36 Historique Z).
+support, "Valider". À effectuer (EV-09 : capture A40 Historique Z).
 
 ## 11. Mouvements de caisse, tiroir et comptage (événements F)
 
@@ -674,14 +674,15 @@ L'écran suit trois étapes, puis un "Récapitulatif" :
 Le bouton "Enregistrer l'entrée" (ou "Enregistrer la sortie") reste
 grisé tant qu'aucun montant n'est choisi. Le mouvement
 est signé par le FDM (événement F) ; "Mouvement enregistré" confirme.
-À effectuer (EV-09 : capture A37 onglet Caisse, mouvement d'espèces).
+À effectuer (EV-09 : capture A41 onglet Caisse, saisie du mouvement ; capture A42 mouvement enregistré).
 
 ### 11.2 Ouvrir le tiroir hors vente
 
 "Ouvrir le tiroir" ouvre le tiroir en dehors d'une vente. Chaque
 ouverture est signée par le FDM (événement F) et figure dans les
 rapports ("Tiroir ouvert"). En dehors de ce bouton, le tiroir ne s'ouvre
-que pour un encaissement ou un remboursement en espèces.
+que pour un encaissement ou un remboursement en espèces. À effectuer
+(EV-09 : capture A43 tiroir ouvert).
 
 ### 11.3 Déclarer le contenu du tiroir (comptage)
 
@@ -691,7 +692,7 @@ du tiroir" ("Montant compté dans le tiroir") demande le montant ; taper
 0 pour un tiroir vide, puis "Valider". La caisse fait signer la
 déclaration par le FDM (événement F, cas d'usage M133) : "Contenu du
 tiroir déclaré" confirme. La déclaration ne modifie aucun solde : elle
-consigne ce que le Gérant a compté. À effectuer (EV-09 : capture A38 déclaration du contenu du tiroir).
+consigne ce que le Gérant a compté. À effectuer (EV-09 : capture A44 déclaration du contenu du tiroir).
 
 ## 12. Configuration (Gérant)
 
@@ -700,7 +701,7 @@ le mode formation, la langue, les employés, les informations, les
 intégrations et les envois par e-mail ; sous "Autres réglages", elle
 liste les écrans propres au terminal : "Export nocturne", "À propos",
 "Export pour le SPF" et "Mise à jour" (§12.9 à §12.12).
-À effectuer (EV-09 : capture A39 page Paramètres).
+À effectuer (EV-09 : capture A45 page Paramètres).
 
 ### 12.1 Mode formation
 
@@ -716,14 +717,14 @@ fixée à l'installation, pas ce choix.
 ### 12.3 Employés
 
 La liste montre chaque employé (nom, profil, "PIN défini" ou "sans
-PIN") avec deux boutons : À effectuer (EV-09 : capture A40 liste des employés).
+PIN") avec deux boutons : À effectuer (EV-09 : capture A46 liste des employés).
 
 - **"Code PIN"** : fixer ou changer son PIN (§2.2).
 - **"Désactiver"** : pour un employé qui quitte l'établissement. Une
   fenêtre demande confirmation ("Désactiver {nom} ? Cet employé ne
   pourra plus se connecter.") : "Désactiver" confirme, "Retour" annule.
   Son historique reste dans l'archive ; il ne peut plus se connecter. On
-  ne peut pas se désactiver soi-même. À effectuer (EV-09 : capture A41 confirmation de désactivation).
+  ne peut pas se désactiver soi-même.
 
 "Ajouter" : taper le nom et l'INSZ (11 chiffres), choisir le profil
 (Gérant, Serveur ou Apprenti), puis "Ajouter l’employé". Pour un Serveur
@@ -731,19 +732,19 @@ ou un Apprenti, demander ensuite à l'employé de fixer son PIN (§2.2).
 Pour un **nouveau Gérant**, la caisse demande d'abord le PIN du nouveau
 Gérant (deux fois), puis "Confirmez avec votre PIN de gérant" : le
 Gérant qui le crée tape son propre PIN. Le nouveau Gérant a donc son PIN
-dès sa création. À effectuer (EV-09 : capture A42 ajout d'un employé).
+dès sa création.
 
 ### 12.4 Informations
 
 Identifiant du POS ("POS ID"), "Terminal", "Restaurant", "FDM" (adresse)
 et "Imprimante", tels que configurés à l'installation (lecture seule).
-À effectuer (EV-09 : capture A43 panneau Informations).
 
 Si cette configuration contient une erreur que le FDM refuserait (ex.
 un numéro de TVA mal formé), un **bandeau rouge** s'affiche en bas de
 l'écran : "Configuration invalide : le FDM refusera les tickets.
 Appelez l'installateur." suivi de la liste des champs en cause. Il reste
 affiché tant que l'erreur n'est pas corrigée.
+À effectuer (EV-09 : capture A47 configuration invalide).
 
 ### 12.5 Tickets par email
 
@@ -752,7 +753,7 @@ le service d'envoi est "Configuré" ou "Non configuré", puis "Joignable"
 ou "Injoignable", et liste les derniers envois : adresse **masquée**
 (ex. `j***@e***.be`), statut ("En attente", "Envoi…", "Envoyé", "Échec",
 "Imprimé (secours)", "Purgé"), nombre de tentatives ("Tentatives") et
-dernière erreur. "Actualiser" recharge la liste. À effectuer (EV-09 : capture A44 panneau Tickets par email).
+dernière erreur. "Actualiser" recharge la liste. À effectuer (EV-09 : capture A48 panneau Tickets par email).
 
 L'adresse complète n'est jamais affichée ; elle est effacée dès l'envoi
 réussi, et au plus tard après 72 h (`TICKET_NUMERIQUE_FR.md`).
@@ -770,7 +771,7 @@ Panneau "Intégrations". Les commandes des plateformes de livraison et
 du webshop ne sont reçues que si HubRise est activé sur cette caisse
 (désactivé à l'installation, sauf demande du client). HubRise est
 inclus dans le programme certifié : seul l'interrupteur décide s'il
-fonctionne. À effectuer (EV-09 : capture A45 panneau Intégrations).
+fonctionne. À effectuer (EV-09 : capture A49 panneau Intégrations).
 
 - **"Activer" / "Désactiver"** : réservé au Gérant. Chaque changement
   est inscrit dans "Historique" (date, gérant ou fichier de
@@ -788,7 +789,7 @@ Une fois HubRise activé, le panneau "HubRise" apparaît dans "Config" :
   catalogue ; "Déconnecter" demande d'abord confirmation ("Les
   commandes en ligne ne seront plus reçues tant que HubRise n'est pas
   reconnecté.") puis met fin à la connexion.
-  À effectuer (EV-09 : capture A46 connexion à HubRise par QR code).
+  À effectuer (EV-09 : capture A50 connexion à HubRise par QR code ; capture A51 HubRise connecté).
 - **Catalogue** : la date de la dernière synchronisation ("Synchronisé
   …") et "Resynchroniser". Si HubRise refuse un catalogue, "Catalogue
   refusé : le menu précédent reste en place." et la liste des anomalies
@@ -814,7 +815,7 @@ ouvre le tableau des commandes reçues, en trois colonnes : "Nouvelles",
 closes. Une alarme s'affiche quand des commandes attendent depuis plus
 de 5 minutes. Chaque carte porte l'heure, le canal, le type de service
 ("Livraison", "À emporter", "Sur place"), les articles et le total, et
-l'étiquette "Payée" ou "À encaisser". À effectuer (EV-09 : capture A47 tableau des commandes en ligne).
+l'étiquette "Payée" ou "À encaisser". À effectuer (EV-09 : capture A52 tableau des commandes en ligne).
 
 L'avancement d'une commande suit ces boutons :
 
@@ -830,7 +831,7 @@ L'avancement d'une commande suit ces boutons :
 - **"Retarder"** (commande acceptée ou en préparation) : une fenêtre
   propose "+15 min", "+30 min" et "+45 min" ; un appui repousse l'heure
   promise de ce nombre de minutes (message "Délai appliqué") et ferme la
-  fenêtre. À effectuer (EV-09 : capture A48 fenêtre Retarder).
+  fenêtre. À effectuer (EV-09 : capture A91 fenêtre Retarder).
 - Pour une livraison du webshop, **"En livraison"** précède
   **"Terminer"** (commande déjà payée). Pour une commande "À encaisser",
   la remise se fait par **"Encaisser espèces"** ou **"Encaisser carte"** :
@@ -889,7 +890,7 @@ exports en attente ; il n'est affiché que si l'export est actif. Si
 « Abandonnés » augmente, prévenir l'installateur : la caisse n'a pas pu
 joindre le point de réception pendant toute la durée de conservation.
 
-Écrans : À effectuer (EV-09 : capture A49 export nocturne, état À jour) ; À effectuer (EV-09 : capture A50 export nocturne, exports en attente).
+Écrans : À effectuer (EV-09 : capture A53 export nocturne, état À jour) ; À effectuer (EV-09 : capture A54 export nocturne, exports en attente).
 
 Un Z de formation (§13) ne produit aucun export.
 
@@ -921,7 +922,7 @@ et « Indisponible » remplace une valeur illisible. Quatre blocs :
   sauvegardes occupent plus de la moitié de l'espace libre. Prévenez le
   support. » ; dans les deux cas, prévenir le distributeur.
 
-Écran : À effectuer (EV-09 : capture A51 À propos).
+Écran : À effectuer (EV-09 : capture A82 À propos).
 
 ### 12.11 Export pour le SPF (clé USB ou carte SD)
 
@@ -932,23 +933,23 @@ l'identité de la caisse, puis relit et vérifie chaque fichier (voir
 `FEUILLE_ACQUISITION_DONNEES_FR.md`).
 
 1. Insérer la clé USB ou la carte SD. Tant que rien n'est détecté,
-   l'écran affiche « Insérez la clé USB ou la carte SD. » (ports et
+   l'écran affiche « Insérez la clé USB ou la carte SD. » (À effectuer
+   (EV-09 : capture A96 export pour le SPF, aucun support)). Ports et
    lecteur du matériel réel : À effectuer (EV-15 : ports USB et lecteur
-   de carte du D3 Pro réel)). Écran :
-   À effectuer (EV-09 : capture A52 export pour le SPF, aucun support).
+   de carte du D3 Pro réel).
 2. À la première utilisation d'un support, « Choisir le dossier » : créer
    sur la clé ou la carte un dossier nommé PILI-EXPORT, puis le choisir.
    La racine du support et un dossier d'un autre support sont refusés.
    L'écran rappelle ensuite « Support : » et « Dossier : » ; « Changer de
    dossier » en choisit un autre.
-3. « Exporter » (écran : À effectuer (EV-09 : capture A53 export pour le SPF, prêt)).
+3. « Exporter » (écran : À effectuer (EV-09 : capture A83 export pour le SPF, prêt)).
    Pendant l'export (« Export en cours. Ne retirez pas la clé ou la
    carte. »), l'écran compte les fichiers et la taille copiés.
 4. « Export terminé » : le dossier créé, le nombre de fichiers, la taille
    et l'empreinte SHA-256 de MANIFEST.sha256. On peut alors retirer le
    support ; le contrôleur vérifie l'export sur un ordinateur avec
    « shasum -a 256 -c MANIFEST.sha256 ». Écran :
-   À effectuer (EV-09 : capture A54 export pour le SPF, terminé).
+   À effectuer (EV-09 : capture A84 export pour le SPF, terminé).
 
 L'export ne démarre pas tant qu'une commande ou une vente à emporter est
 ouverte (« Une commande ou une vente à emporter est ouverte. Terminez-la
@@ -959,7 +960,8 @@ interrompu » avec l'étape, le fichier et le détail), les fichiers déjà
 fichier de 4 Go ou plus, le support est probablement en FAT32 : utiliser
 un support formaté en exFAT. Si un fichier relu ne correspond pas à ce
 qui a été écrit, l'export est invalide : le recommencer avec un autre
-support. Écran : À effectuer (EV-09 : capture A55 export pour le SPF, interrompu).
+support. Écran de l'arrêt :
+À effectuer (EV-09 : capture A97 export pour le SPF, interrompu).
 
 ### 12.12 Mise à jour de l'application
 
@@ -969,7 +971,7 @@ caisse n'installe qu'une version déclarée et signée par le producteur
 (`GARANTIE_MAJ_LANGUES_FR.md`).
 
 1. L'écran rappelle « Version installée : … (code …) » et « SHA-1 de
-   l'APK installé : … ». Écran : À effectuer (EV-09 : capture A56 mise à jour, écran initial).
+   l'APK installé : … ». Écran : À effectuer (EV-09 : capture A85 mise à jour, écran initial).
 2. « Vérifier en ligne » cherche la version déclarée sur Internet ;
    « Depuis une clé USB » la lit sur la clé ou la carte (« Aucune clé USB
    ni carte SD détectée. Insérez celle qui contient la mise à jour, puis
@@ -981,14 +983,14 @@ caisse n'installe qu'une version déclarée et signée par le producteur
    (SHA-256) ». Sinon « Mise à jour refusée » donne la cause (« Détail : … »)
    et rien n'est installé : par exemple version pas plus récente que celle
    installée, ou APK signé par une autre clé. Écran :
-   À effectuer (EV-09 : capture A57 mise à jour vérifiée).
+   À effectuer (EV-09 : capture A86 mise à jour vérifiée ; capture A87 mise à jour refusée).
 4. « Installer la mise à jour » n'est possible que si la caisse est prête.
    Sinon « La mise à jour ne peut pas démarrer maintenant : » liste ce qu'il
    faut faire : une commande ou une vente à emporter est encore ouverte
    (l'encaisser ou l'annuler) ; un rapport Z est dû ou n'a pas été fait
    depuis les dernières opérations fiscales (le faire, §10.2) ; le moteur
    n'est pas prêt (attendre quelques secondes) ; ou la personne connectée
-   n'est pas Gérant. Écran : À effectuer (EV-09 : capture A58 mise à jour bloquée).
+   n'est pas Gérant. Écran : À effectuer (EV-09 : capture A92 mise à jour bloquée).
 5. L'installation sauvegarde d'abord la base, ferme la caisse, installe la
    nouvelle version puis la redémarre seule, sur l'écran de connexion
    (« Installation en cours, la caisse redémarre. » : ne toucher à rien
@@ -1017,7 +1019,7 @@ encaisser (§1), et tout ce qu'un Serveur ou un Gérant encaisse est un
    bouton passe de "Inactif" à "Actif".
 3. Un bandeau violet "MODE FORMATION · Les transactions ne sont PAS
    enregistrées" et un filigrane "TRAINING" restent affichés.
-   À effectuer (EV-09 : capture A59 mode formation actif).
+   À effectuer (EV-09 : capture A55 mode formation actif).
 
 En formation, tout ce qui est signé est un événement **T** : compteur à
 part, tickets marqués "**TRAINING**" et "**CECI N'EST PAS UN TICKET DE
@@ -1047,26 +1049,31 @@ sont indiqués dans la colonne "Capture" du premier tableau
 
 | Code | Message affiché | Effet | Que faire | Capture |
 |---|---|---|---|---|
-| `BUFFER_FULL` | La boîte noire est pleine. Contactez votre technicien. | Bloquant : plus de vente | Appeler le distributeur | À effectuer (EV-09 : capture A60 BUFFER_FULL) |
-| `FDM_LOCKED` | La boîte noire est verrouillée. Contactez votre technicien. | Bloquant | Appeler le distributeur | À effectuer (EV-09 : capture A61 FDM_LOCKED) |
-| `FDM_NOT_OPERATIONAL` | La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. | Bloquant | Vérifier câble et alimentation, puis appeler le distributeur | À effectuer (EV-09 : capture A62 FDM_NOT_OPERATIONAL) |
-| `UNKNOWN_POS` | Cette caisse n'est pas reconnue par la boîte noire. | Bloquant | Appeler le distributeur | À effectuer (EV-09 : capture A63 UNKNOWN_POS) |
-| `BUFFER_NEAR_FULL` | La boîte noire est presque pleine. Programmez une intervention. | Avertissement obligatoire | Prévenir le distributeur | À effectuer (EV-09 : capture A64 BUFFER_NEAR_FULL) |
-| `CLIENT_CERT_EXPIRED` | Le certificat de la boîte noire a expiré. Contactez votre technicien. | Avertissement obligatoire | Appeler le distributeur | À effectuer (EV-09 : capture A65 CLIENT_CERT_EXPIRED) |
-| `UPDATE_POS_VATNO` | Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. | Avertissement obligatoire | Appeler l'installateur | À effectuer (EV-09 : capture A66 UPDATE_POS_VATNO) |
-| `UPDATE_POS_ESTNO` | Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. | Avertissement obligatoire | Appeler l'installateur | À effectuer (EV-09 : capture A67 UPDATE_POS_ESTNO) |
-| `CLIENT_CERT_NEAR_EXPIRATION` | Le certificat de la boîte noire expire bientôt. | Avertissement | Prévenir le distributeur | À effectuer (EV-09 : capture A68 CLIENT_CERT_NEAR_EXPIRATION) |
-| `UNAUTHORIZED` | La caisse n'est pas autorisée à parler à la boîte noire. | Avertissement | Appeler le distributeur | À effectuer (EV-09 : capture A69 UNAUTHORIZED) |
-| `TRANSACTION_UPLOAD_FAILED` | La boîte noire échoue à transmettre les transactions au SPF Finances. | Avertissement | Vérifier la connexion Internet du FDM | À effectuer (EV-09 : capture A70 TRANSACTION_UPLOAD_FAILED) |
-| `FDM_ANSWER_PENDING` | La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. | Opération refusée, renvoi automatique | Attendre une minute, réessayer (§7.4) | À effectuer (EV-09 : capture A71 FDM_ANSWER_PENDING) |
-| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. | Opération refusée | Appeler le distributeur | À effectuer (EV-09 : capture A72 FDM_RESPONSE_MISMATCH) |
-| `FDM_NOT_INITIALIZED` | La boîte noire n'est pas encore initialisée. | Voyant orange | Appeler le distributeur | À effectuer (EV-09 : capture A73 FDM_NOT_INITIALIZED) |
-| `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur | À effectuer (EV-09 : capture A74 FDM_CERTIFICATE_REFUSED) |
-| (réseau coupé) | Connexion perdue avec la boîte noire. Vérifiez le câble réseau. | Bloquant | Vérifier le câble réseau et l'alimentation du FDM | À effectuer (EV-09 : capture A75 réseau coupé) |
+| `BUFFER_FULL` | La boîte noire est pleine. Contactez votre technicien. | Bloquant : plus de vente | Appeler le distributeur | À effectuer (EV-09 : capture A56 BUFFER_FULL) |
+| `FDM_LOCKED` | La boîte noire est verrouillée. Contactez votre technicien. | Bloquant | Appeler le distributeur | À effectuer (EV-09 : capture A57 FDM_LOCKED) |
+| `FDM_NOT_OPERATIONAL` | La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. | Bloquant | Vérifier câble et alimentation, puis appeler le distributeur | À effectuer (EV-09 : capture A58 FDM_NOT_OPERATIONAL) |
+| `UNKNOWN_POS` | Cette caisse n'est pas reconnue par la boîte noire. | Bloquant | Appeler le distributeur | À effectuer (EV-09 : capture A59 UNKNOWN_POS) |
+| `BUFFER_NEAR_FULL` | La boîte noire est presque pleine. Programmez une intervention. | Avertissement obligatoire | Prévenir le distributeur | À effectuer (EV-09 : capture A60 BUFFER_NEAR_FULL) |
+| `CLIENT_CERT_EXPIRED` | Le certificat de la boîte noire a expiré. Contactez votre technicien. | Avertissement obligatoire | Appeler le distributeur | À effectuer (EV-09 : capture A61 CLIENT_CERT_EXPIRED) |
+| `UPDATE_POS_VATNO` | Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. | Avertissement obligatoire | Appeler l'installateur | À effectuer (EV-09 : capture A88 UPDATE_POS_VATNO) |
+| `UPDATE_POS_ESTNO` | Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. | Avertissement obligatoire | Appeler l'installateur | À effectuer (EV-09 : capture A89 UPDATE_POS_ESTNO) |
+| `CLIENT_CERT_NEAR_EXPIRATION` | Le certificat de la boîte noire expire bientôt. | Avertissement | Prévenir le distributeur | À effectuer (EV-09 : capture A62 CLIENT_CERT_NEAR_EXPIRATION) |
+| `UNAUTHORIZED` | La caisse n'est pas autorisée à parler à la boîte noire. | Avertissement | Appeler le distributeur | À effectuer (EV-09 : capture A63 UNAUTHORIZED) |
+| `TRANSACTION_UPLOAD_FAILED` | La boîte noire échoue à transmettre les transactions au SPF Finances. | Avertissement | Vérifier la connexion Internet du FDM | À effectuer (EV-09 : capture A75 TRANSACTION_UPLOAD_FAILED) |
+| `FDM_ANSWER_PENDING` | La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. | Opération refusée, renvoi automatique | Attendre une minute, réessayer (§7.4) | À effectuer (EV-09 : capture A79 FDM_ANSWER_PENDING) |
+| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. | Opération refusée | Appeler le distributeur | À effectuer (EV-09 : capture A78 FDM_RESPONSE_MISMATCH) |
+| `FDM_NOT_INITIALIZED` | La boîte noire n'est pas encore initialisée. | Voyant orange | Appeler le distributeur | À effectuer (EV-09 : capture A90 FDM_NOT_INITIALIZED) |
+| `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur | À effectuer (EV-09 : capture A93 FDM_CERTIFICATE_REFUSED) |
+| (réseau coupé) | Connexion perdue avec la boîte noire. Vérifiez le câble réseau. | Bloquant | Vérifier le câble réseau et l'alimentation du FDM | À effectuer (EV-09 : capture A77 réseau coupé) |
 
 Les autres codes du FDM (erreurs de communication, d'horloge, de mise à
 jour des certificats ou des tâches...) s'affichent avec un message
 analogue ; leur liste complète est dans le manuel de certification, §V.
+Écrans à capturer : À effectuer (EV-09 : captures A64 INVALID_REQUEST, A65
+INTERNAL_ERROR, A66 UNDEFINED_ERROR, A67 UNDEFINED_OTHER, A68
+RTC_SYNC_FAILED, A69 UPDATE_URLS_FAILED, A70 UPDATE_TRUST_CERT_FAILED,
+A71 UPDATE_TASK_LIST_FAILED, A72 TASK_FEEDBACK_FAILED, A73 NOP_FAILED, A74
+SERVER_CERT_RESOLVE_FAILED, A76 INITIALIZATION_FAILED).
 
 Messages de la caisse elle-même :
 
@@ -1097,7 +1104,7 @@ Messages de la caisse elle-même :
 | Bandeau rouge "Configuration invalide" | Appeler l'installateur (§12.4). |
 | "La caisse démarre, veuillez patienter." | Le moteur de la caisse n'est pas encore prêt : attendre quelques secondes, puis réessayer. Si le message reste, redémarrer la caisse (ligne "L'écran ne réagit plus"), puis appeler le distributeur. |
 | Écran "La caisse doit redémarrer" | Une erreur interne a arrêté le moteur. La caisse redémarre seule en quelques secondes ; après trois redémarrages en dix minutes, elle reste sur cet écran : l'éteindre et la rallumer. Si le problème se répète, appeler le technicien en lui lisant la ligne de détail affichée sous le message. |
-| Écran "Mise en service de la caisse", "Appareil non préparé", "Configuration d'un autre appareil", "Numéro de série illisible" ou "Caisse non verrouillée" | Ces écrans concernent la préparation de l'appareil par l'installateur. Ne pas insister : appeler le distributeur. |
+| Écran "Mise en service de la caisse", "Appareil non préparé", "Configuration d'un autre appareil", "Numéro de série illisible" ou "Caisse non verrouillée" | Ces écrans concernent la préparation de l'appareil par l'installateur. Ne pas insister : appeler le distributeur. Écrans : À effectuer (EV-09 : capture A80 mise en service de la caisse ; capture A81 paquet de configuration refusé). |
 
 En cas de doute : **ne jamais vendre sans le FDM**, et **terminer chaque
 journée par un rapport Z**.
