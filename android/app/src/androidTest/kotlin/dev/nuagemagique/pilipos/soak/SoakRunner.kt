@@ -63,6 +63,7 @@ internal class SoakRunner(
         val rng = Random(config.seed)
         var failedDays = 0
         var day = 0
+        pacer.tick()
         while (!pacer.finished() && failedDays < MAX_FAILED_DAYS) {
             day++
             try {

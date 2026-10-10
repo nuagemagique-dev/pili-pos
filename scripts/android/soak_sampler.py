@@ -44,6 +44,7 @@ Verdicts (P7D12), in the order they are printed:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -683,7 +684,9 @@ class FdmMock:
 
 
 def call_key(call: dict) -> str:
-    return json.dumps([call.get("at"), call.get("operation"), call.get("request")], sort_keys=True)[:4000]
+    """A short identity of a logged call (a day of calls would otherwise keep every request in memory)."""
+    text = json.dumps([call.get("at"), call.get("operation"), call.get("request")], sort_keys=True)
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
 # ── the sampler ───────────────────────────────────────────────────────────────
