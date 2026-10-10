@@ -178,6 +178,38 @@ Modes limités à `cash`, `card`, `meal_voucher` (migration `008`) et
 | `amount_cents` | INTEGER | Montant en centimes (positif) |
 | `created_at` | TEXT | Date / heure du paiement |
 
+### 2.4 `table_plan`, `table_plan_log` (migration `011`)
+
+Plan de salle : les numéros de table que l'établissement utilise,
+écrits en nombres et plages séparés par des virgules (`1-12, 20-25`),
+de 1 à 999, 200 tables au plus. Aucune donnée fiscale n'en dépend : le
+numéro de table figurait déjà sur la commande et ne change ni le
+ticket, ni la charge utile envoyée au FDM.
+
+`table_plan` (une seule ligne, `id` = 1) :
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire, toujours 1 (`CHECK(id = 1)`) |
+| `plan` | TEXT | Plan en vigueur, sous sa forme canonique (`1-12, 20-25`) |
+| `config_plan` | TEXT | Plan que `pos.json` (clé `tables`, ou 1 à `table_count`) donnait au dernier démarrage |
+| `changed_at` | TEXT | Date du dernier changement |
+| `changed_by` | TEXT (nullable) | INSZ du Gérant ; NULL pour un changement venu de `pos.json` (pas de clé étrangère) |
+
+`table_plan_log` (ajout seul) : une ligne par changement. Champs `id`,
+`plan`, `source` (`config` ou `admin`, contraint), `changed_by` (INSZ du
+Gérant, NULL pour `config`) et `changed_at` (défaut `datetime('now')`).
+Les déclencheurs `table_plan_log_no_update` et `table_plan_log_no_delete`
+refusent `UPDATE` et `DELETE`.
+
+Même règle que l'interrupteur HubRise (§5.4) : au premier démarrage, ou
+quand `pos.json` donne un plan nouveau, ce plan s'applique et est
+journalisé (source `config`) ; sinon la dernière valeur reste, y compris
+celle qu'un Gérant a fixée dans Réglages (source `admin`). L'écran des
+tables affiche les tables du plan, plus toute table hors plan qui a
+encore une commande ouverte : aucune commande non réglée n'est donc
+masquée.
+
 ## 3. Tables fiscales (append-only)
 
 ### 3.1 `fiscal_events` Attention : APPEND-ONLY
@@ -602,8 +634,8 @@ dans `order_lines` et `order_entries`.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **seize
-migrations** existent (1 à 10, puis 20 à 25 ; 11 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **dix-sept
+migrations** existent (1 à 11, puis 20 à 25 ; 12 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -619,6 +651,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 8 | `meal-voucher-payments` | Autorise le moyen de paiement `meal_voucher` dans `payments` (table reconstruite avec ses lignes, SQLite ne modifiant pas un CHECK). |
 | 9 | `shifts-and-pre-bill` | Ajoute `staff_shifts` (index local des prestations ouvertes par un S WorkIn) et `orders.pre_bill_at`. |
 | 10 | `pending-signs` | Ajoute `pending_signs` (requêtes de signature stockées avant envoi, §3.9) et le déclencheur `fiscal_events_period_open` (§3.10). |
+| 11 | `table-plan` | Ajoute `table_plan`, `table_plan_log` et ses déclencheurs (§2.4, plan de salle). |
 | 20 | `hubrise-transport` | Colonnes de nouvelle tentative et d'erreur sur `hubrise_connection`, `hubrise_events`, `hubrise_outbox` (§5.5). |
 | 21 | `catalog-sync` | Menu reflet d'un catalogue externe, `catalog_sync_state` (§5.5). |
 | 22 | `webshop-orders` | `webshop_orders`, `hubrise_channels`, `hubrise_cash_payment_refs` (§5.1, §5.2). |

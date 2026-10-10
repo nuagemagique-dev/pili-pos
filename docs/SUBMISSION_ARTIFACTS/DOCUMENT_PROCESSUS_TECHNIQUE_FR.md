@@ -276,6 +276,13 @@ SQLite qui archive l'événement signé, de sorte que :
   table `_migrations_applied` suit `(version, name, applied_at)`.
   Le chemin de rétro-compatibilité pour la migration one-shot
   d'origine est dans `migrate::backfill_legacy_db`.
+- Plan de salle : les numéros de table en usage sont stockés dans
+  `table_plan` (valeur de départ : clé `tables` de `pos.json`, ou 1 à
+  `table_count`), puis modifiables par un Gérant ; chaque changement est
+  inscrit dans `table_plan_log` (ajout seul, migration 11). Le plan ne
+  touche à aucune donnée fiscale : il décide seulement des tables que
+  l'écran des tables affiche, plus toute table hors plan qui a encore une
+  commande ouverte.
 - Log fiscal append-only : table `fiscal_events`. Le schéma impose
   la contrainte CHECK sur `event_type` et des triggers SQLite
   refusent tout `DELETE` et toute réécriture
@@ -324,6 +331,7 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | Harnais de tests (hors binaire certifié) | `crates/pos-engine-testkit/` |
 | Flux checkout | `crates/pos-engine/src/commands/checkout.rs` |
 | Tables / split / merge | `crates/pos-engine/src/commands/tables.rs` |
+| Plan de salle (lecture, changement par un Gérant) | `crates/pos-engine/src/commands/table_plan.rs` |
 | Remboursement + note de crédit | `crates/pos-engine/src/commands/refund.rs` |
 | Rapports (X/Z) | `crates/pos-engine/src/commands/report.rs` |
 | Social (événements S) | `crates/pos-engine/src/commands/social.rs` |

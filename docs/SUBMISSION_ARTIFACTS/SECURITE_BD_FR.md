@@ -90,8 +90,8 @@ la suppression, même par un accès direct à la base :
   (migration 3) ;
 - `pending_signs_request_immutable`, `pending_signs_context_on_resolution`,
   `pending_signs_no_reopen` et `pending_signs_no_delete` (migration 10) ;
-- `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*` et
-  `integration_switch_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
+- `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*`,
+  `integration_switch_log_*` et `table_plan_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
 
 **Revue de code (niveau applicatif).** Le code applicatif ne contient
 AUCUNE instruction `DELETE FROM fiscal_events` ni `UPDATE fiscal_events

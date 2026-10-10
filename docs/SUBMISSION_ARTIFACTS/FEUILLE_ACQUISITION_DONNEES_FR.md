@@ -248,8 +248,8 @@ soumise au SPF Finances.
 - INSZ stocké dans les colonnes `users.insz`, `orders.user_insz`,
   `fiscal_events.user_insz`, `pending_signs.user_insz`,
   `staff_shifts.user_insz`, `webshop_orders.accepted_by`,
-  `integration_switches.changed_by` et `integration_switch_log.changed_by`,
-  ainsi que dans les JSON `fiscal_events.event_data_json` (payload
+  `integration_switches.changed_by`, `integration_switch_log.changed_by`,
+  `table_plan.changed_by` et `table_plan_log.changed_by`, ainsi que dans les JSON `fiscal_events.event_data_json` (payload
   envoyé au FDM, obligation fiscale), `pending_signs.request_body`,
   `pending_signs.archive_json` et `pending_signs.context_json`, et
   `z_reports.data_json` (rapport par utilisateur). Les rapports

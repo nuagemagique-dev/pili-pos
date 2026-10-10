@@ -114,7 +114,13 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 
 - Plan de tables (`TablesView.vue`) avec statut "libre" / "occupée" ;
   nombre de tables réglé par `table_count` (20 par défaut, 25 sur
-  l'image d'admission, comme le jeu de test SPF).
+  l'image d'admission, comme le jeu de test SPF), ou numéros choisis
+  par la clé `tables` de `pos.json` (nombres et plages, de 1 à 999,
+  200 tables au plus).
+- Plan de salle modifiable par un Gérant dans "Config", panneau "Plan
+  de salle" ; chaque changement est journalisé en ajout seul
+  (`table_plan_log`). Une table hors plan qui a encore une commande
+  ouverte reste affichée : aucune commande non réglée n'est masquée.
 - Grille catégories + items (`OrderView.vue`) optimisée tactile (boutons
   ≥ 48 × 48 px).
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.

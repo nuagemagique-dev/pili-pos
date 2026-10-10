@@ -44,7 +44,7 @@ refuse de toute façon une action interdite au profil
 | Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
 | Clôturer une vente sans paiement (client parti sans payer, §7.5, avec son PIN) | - | - | ☑ |
 | Commandes en ligne : "Rembourser" | - | - | ☑ |
-| Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), configuration | - | - | ☑ |
+| Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), plan de salle (§12.9), configuration | - | - | ☑ |
 | Démarrer l'assistance à distance (§12.6, avec son PIN) | - | - | ☑ |
 
 ## 2. Démarrage, connexion et PIN
@@ -216,7 +216,10 @@ restée ouverte (§10.2). L'onglet "Journée" des rapports affiche aussi
 
 ### 5.1 Choisir une table
 
-"Tables" affiche le plan des tables. Une table **libre** porte la
+"Tables" affiche le plan des tables, tel que fixé à l'installation et
+modifiable par le Gérant (§12.9). Une table hors plan qui a encore une
+commande ouverte reste affichée, pour qu'aucune commande non réglée ne
+soit masquée. Une table **libre** porte la
 mention "Libre". Une table **occupée** affiche son total, son nombre
 d'articles et depuis combien de minutes elle est ouverte ("3 art. · 12
 min"), et la mention "Addition" quand l'addition provisoire a été
@@ -802,6 +805,23 @@ Si le FDM ne répond pas, rien n'est signé et la commande reste à
 accepter (§7.4). Une commande en ligne ne se prend pas en mode formation
 ("Pas de commande en ligne en mode formation."). Le détail fiscal est
 dans `COMMANDES_EN_LIGNE_FR.md`.
+
+### 12.9 Plan de salle
+
+Panneau "Plan de salle", réservé au Gérant. Il indique le plan en
+vigueur ("20 tables : 1-20"). Pour le changer, taper les numéros de
+table séparés par des virgules, avec des plages si l'on veut (ex.
+"1-12, 20-25"), de 1 à 999, 200 tables au plus, puis **"Enregistrer"**
+("Plan de salle enregistré"). Un plan mal écrit est refusé avec le
+message qui indique le format.
+
+- Le plan de départ vient de la configuration de l'installation (clés
+  `tables` ou `table_count`). Le dernier changement l'emporte ; chaque
+  changement est inscrit dans un historique qui ne peut pas être effacé.
+- Une table retirée du plan qui a encore une commande ouverte reste
+  affichée sur l'écran "Tables" (§5.1) jusqu'à son règlement.
+- Le plan ne change ni les commandes déjà prises, ni les tickets, ni ce
+  qui est signé par le FDM.
 
 ## 13. Mode formation (événements T)
 

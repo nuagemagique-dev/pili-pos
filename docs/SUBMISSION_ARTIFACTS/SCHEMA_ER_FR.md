@@ -2,7 +2,7 @@
 
 **Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs` et `schema_catalog.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 10, puis 20 à 25).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs` et `schema_catalog.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 25).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
@@ -19,7 +19,7 @@ retiré. Le lien est applicatif.
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 10 domaines logiques :
+La base est organisée en 11 domaines logiques :
 
 ```
 +-----------------+   +---------------+   +----------------+
@@ -64,6 +64,12 @@ La base est organisée en 10 domaines logiques :
 |  hubrise_connection/events/   |   +--------------------------+
 |  outbox, order_price_changes, |
 |  integration_switches/_log    |
++-------------------------------+
+
++-------------------------------+
+|  PLAN DE SALLE (migration 11) |
+|  table_plan (plan en vigueur),|
+|  table_plan_log (append-only) |
 +-------------------------------+
 ```
 
@@ -439,6 +445,27 @@ La base est organisée en 10 domaines logiques :
  build cert : l'événement I est hors périmètre de la v1.0.0)
 ```
 
+### 2.8 Plan de salle (migration 11)
+
+```
++---------------------------+  +---------------------------+
+|        table_plan         |  |      table_plan_log       |
+|---------------------------|  |---------------------------|
+| id INT PK (toujours 1)    |  | id INT PK                 |
+| plan TEXT ("1-12, 20-25") |  | plan TEXT                 |
+| config_plan TEXT          |  | source config|admin       |
+| changed_at TEXT           |  | changed_by TEXT           |
+| changed_by TEXT (INSZ ou  |  | changed_at TEXT           |
+|   NULL pour pos.json)     |  +---------------------------+
++---------------------------+  (append-only par triggers)
+```
+
+Aucune clé étrangère : le plan ne porte que des numéros de table, et
+`changed_by` est l'INSZ du Gérant (lien applicatif). Les commandes
+gardent leur numéro de table (`orders.table_number`) ; le plan ne
+détermine que les tables que l'écran des tables affiche, plus toute table
+hors plan qui a une commande ouverte.
+
 ---
 
 ## 3. Relations principales (verbalisées)
@@ -487,8 +514,9 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `pending_signs` | `pending_signs_request_immutable`, `pending_signs_context_on_resolution`, `pending_signs_no_reopen`, `pending_signs_no_delete` | Ce qui a été envoyé est immuable ; une ligne résolue ne change plus ; pas de DELETE |
 | `order_price_changes` | `order_price_changes_no_delete`, `order_price_changes_no_update` | Ni DELETE, ni UPDATE |
 | `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
+| `table_plan_log` | `table_plan_log_no_update`, `table_plan_log_no_delete` | Ni DELETE, ni UPDATE |
 
-Soit 21 triggers.
+Soit 23 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 
@@ -544,12 +572,12 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `10`, puis `20` à `25`
-(seize migrations ; 11 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, puis `20` à `25`
+(dix-sept migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
-`shifts-and-pre-bill`, `pending-signs`, `hubrise-transport`,
+`shifts-and-pre-bill`, `pending-signs`, `table-plan`, `hubrise-transport`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
 `platform-charges`, `integration-switch` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`

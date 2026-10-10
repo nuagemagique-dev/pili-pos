@@ -6,7 +6,7 @@ Status: written at the end of phase P2. English, internal, not part of the dossi
 
 `android/rust/pos-ffi` is a Rust crate (UniFFI 0.32.2, proc-macro mode, no UDL) that wraps `crates/pos-engine` for Kotlin. It depends on `pos-engine` with `default-features = false, features = ["cert"]`: HubRise in, Peppol out, no Tauri. It adds no fiscal logic: every command of the Linux shell has one wrapper here that calls the same engine function (PD52).
 
-- `PosEngine` (an `Object`): `open` (the only synchronous export, a constructor), `shutdown`, `events`, and one `suspend` method per cert command (86, section 11).
+- `PosEngine` (an `Object`): `open` (the only synchronous export, a constructor), `shutdown`, `events`, and one `suspend` method per cert command (88, section 11).
 - `EventStream` (an `Object`): `next()` returns the next `PosEvent`, or `null` once the engine is gone.
 - Free functions: `initLogging`, `posSwVersion`, `installInitDb`, `checkConfigBundle`, `qrMatrix`, `verifyMinisign`, `verifyBundle`, `settlePreview`, `cashDueCents`, `vatSplit`.
 - Records, enums and errors mirror the engine types (section 7); Kotlin never sees SQL, JSON of the engine or a Rust type.
@@ -139,7 +139,7 @@ Free functions, all `suspend`:
 
 ## 11. Command parity
 
-The parity script (`scripts/android/check_command_parity.py`) checks that each of the 86 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
+The parity script (`scripts/android/check_command_parity.py`) checks that each of the 88 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
 
 <!-- parity:begin -->
 | Command | Engine function | Call | FFI method (Kotlin) |
@@ -172,6 +172,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_menu_items | menu::do_get_menu_items | blocking | posEngine.getMenuItems() |
 | get_order | order::do_get_order | blocking | posEngine.getOrder() |
 | get_settings | settings::do_get_settings | blocking | posEngine.getSettings() |
+| get_table_plan | table_plan::do_get_table_plan | blocking | posEngine.getTablePlan() |
 | hubrise_adopt_catalog | hubrise::do_adopt_catalog | blocking | posEngine.hubriseAdoptCatalog() |
 | hubrise_adoption_preview | hubrise::do_adoption_preview | blocking | posEngine.hubriseAdoptionPreview() |
 | hubrise_complete_oauth | hubrise::do_hubrise_complete_oauth | spawn | posEngine.hubriseCompleteOauth() |
@@ -215,6 +216,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
+| set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
 | sign_pre_bill | tables::do_sign_pre_bill | spawn | posEngine.signPreBill() |
 | sign_table_order | tables::do_sign_table_order | spawn | posEngine.signTableOrder() |
@@ -231,7 +233,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 86/86.
+Parity: 88/88.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

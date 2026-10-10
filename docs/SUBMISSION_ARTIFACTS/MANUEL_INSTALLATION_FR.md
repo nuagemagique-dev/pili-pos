@@ -240,7 +240,8 @@ Champs :
 | `kitchen_printer_address` | Facultatif. IP:port de l'imprimante du bar ou de la cuisine, qui reçoit le « BON DE COMMANDE » (sans prix, avec la mention « ceci n'est pas un ticket de caisse TVA valable ») des lignes que l'écran de commande envoie en cuisine (§4.6, `MANUEL_UTILISATEUR_FR.md` §6.1). Absent : le bon sort sur `printer_address`. Le voyant "Cuisine" de l'en-tête reste gris tant qu'il est absent. | Configuration imprimante |
 | `training_mode` | `false` en production. À NE JAMAIS laisser `true` après installation. C'est la valeur de départ : un Gérant peut changer le mode dans "Config" (§4.7). | Distributeur |
 | `hubrise_enabled` | Facultatif, `false` par défaut. `true` : les commandes en ligne (plateformes de livraison, webshop, par HubRise) sont activées dès le démarrage. Un Gérant peut ensuite les activer ou les couper dans "Config", panneau "Intégrations" ; chaque changement est journalisé et le dernier l'emporte. Voir `COMMANDES_EN_LIGNE_FR.md`. | Client |
-| `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. | Client |
+| `table_count` | Nombre de tables du plan de salle, numérotées à partir de 1 ; défaut `20`. Ignoré quand `tables` est présent. | Client |
+| `tables` | Facultatif. Numéros de table du plan de salle, en nombres et plages séparés par des virgules (ex. `"1-12, 20-25"`) : de 1 à 999, 200 tables au plus. Absent : les tables 1 à `table_count`. C'est la valeur de départ : un Gérant peut changer le plan dans "Config", panneau "Plan de salle" ; chaque changement est journalisé et le dernier l'emporte (une nouvelle valeur de `pos.json`, lue au démarrage, compte comme un changement). Une valeur invalide est signalée par `--check-config`. | Client |
 | `day_end_hour` | Heure (0 à 12, heure belge) à laquelle la journée commerciale se termine ; défaut `5`. Un service qui dépasse minuit reste sur sa journée jusqu'à cette heure. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr` / `nl` / `de` / `en` / `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte aux langues nationales (fr/nl/de) - toute autre valeur émet le ticket en FR. | Client |
 | `backup_dir` | Répertoire des sauvegardes (défaut : `/var/lib/pili-pos/backups`) | Distributeur |
@@ -257,7 +258,7 @@ Le FDM refuse tout événement dont l'identification est mal formée
 La commande lit `pos.json` comme le POS et affiche `configuration OK`,
 ou la liste des champs à corriger (code de sortie 1) : format du
 `pos_id`, numéros de TVA et d'établissement (longueur, premier chiffre,
-modulo 97), champs vides, URL du FDM, langue, bloc `digital_ticket`.
+modulo 97), champs vides, URL du FDM, langue, clé `tables`, bloc `digital_ticket`.
 Tant qu'un champ est refusé, le POS le signale aussi dans un bandeau
 rouge au bas de l'écran et dans le journal (`journalctl -u pili-pos`).
 
@@ -471,10 +472,11 @@ ou sur celle des tickets si `kitchen_printer_address` est absent).
 
 | Paramètre | Valeur d'origine | Qui le modifie | Où |
 |---|---|---|---|
-| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
+| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `tables`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
 | `device_id` | Adresse MAC, inscrite au premier démarrage | Personne (sauf changement de la carte réseau) | `/etc/pili-pos/pos.json` |
 | `training_mode` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Mode Formation" | Le réglage de "Config" est en mémoire : il vaut jusqu'au redémarrage, qui revient à la valeur du fichier |
 | `hubrise_enabled` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Intégrations" | Chaque changement est journalisé, ne s'efface pas, et le dernier l'emporte |
+| `tables` (ou `table_count`) | Plan de 1 à `table_count` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Plan de salle" | Chaque changement est journalisé (`table_plan_log`), ne s'efface pas, et le dernier l'emporte |
 | Langue d'affichage de l'interface | Clé `language` | Le Gérant, dans "Config", panneau "Langue" | Sans effet sur la langue des mentions imprimées |
 | Employés et PIN | Aucun employé à l'origine (§4.4) | Le technicien (premiers comptes) puis le Gérant, dans "Config" | Table `users` de `pos.db` |
 | Catalogue (catégories, articles, TVA) | Vide en production | Le technicien (`MANUEL_PROGRAMMATION_FR.md`), ou HubRise si celui-ci gère le menu | `pos.db` |

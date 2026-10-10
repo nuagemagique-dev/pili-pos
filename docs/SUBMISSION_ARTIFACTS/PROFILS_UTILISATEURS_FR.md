@@ -56,6 +56,8 @@ Accès complet. Concrètement, peut :
   reprendre le catalogue et régler les canaux ; rembourser une commande
   en ligne annulée. Chaque changement de l'interrupteur HubRise est
   journalisé.
+- Changer le plan de salle (les numéros de table, panneau "Plan de
+  salle"). Chaque changement est journalisé en ajout seul.
 - Accéder à la page Paramètres (bouton "Config", `SettingsView.vue`) et
   à la vue Rapports.
 - Créer des utilisateurs (Gérant, Serveur ou Apprenti), en désactiver

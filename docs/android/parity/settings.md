@@ -12,6 +12,7 @@ screen only calls it through the shared stores and the gateway.
 | --- | --- | --- |
 | ui/src/views/SettingsView.vue (employees: list, add, deactivate, PIN) | feature/settings/SettingsScreen.kt (SettingsRoute, SettingsContent, SettingsDialogs), SettingsViewModel.kt | `list_users` `create_user` `deactivate_user` `set_pin` |
 | SettingsView.vue (training mode) | feature/settings/SettingsScreen.kt (TrainingPanel) over ui/state/PosSettingsStore.kt | `set_training_mode` |
+| SettingsView.vue (table plan, managers) | feature/settings/SettingsScreen.kt (TablePlanPanel), SettingsViewModel.kt | `get_table_plan` `set_table_plan` |
 | SettingsView.vue (ticket deliveries and the mail status) | feature/settings/SettingsScreen.kt (DeliveriesPanel) over ui/state/DeliveryStore.kt | `list_ticket_deliveries` `check_mail_status` |
 | ui/src/components/IntegrationSwitch.vue | feature/settings/SettingsScreen.kt (IntegrationPanel) over ui/state/IntegrationsStore.kt | `set_hubrise_enabled` |
 | ui/src/components/HubriseSettings.vue (connection, health, catalog, adoption, channels) | feature/settings/HubriseSection.kt, HubriseViewModel.kt | `hubrise_get_connection_status` `hubrise_status` `hubrise_disconnect` `hubrise_sync_catalog` `hubrise_adoption_preview` `hubrise_adopt_catalog` `hubrise_list_channels` `hubrise_set_channel` |
