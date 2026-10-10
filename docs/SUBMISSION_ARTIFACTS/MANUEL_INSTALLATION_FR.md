@@ -486,7 +486,9 @@ l'interface. L'archive fiscale, la table `fiscal_events` de `pos.db`,
 n'est pas un journal : la base refuse toute modification ou suppression
 de ses lignes (déclencheurs SQL), elle est donc en ajout seul. Des
 sauvegardes de `pos.db` sont écrites dans `/var/lib/pili-pos/backups/`
-après chaque rapport Z et avant chaque mise à jour.
+après chaque rapport Z et avant chaque mise à jour. La caisse garde les
+7 sauvegardes les plus récentes qu'elle a faites ; elle ne supprime
+jamais les copies d'avant mise à jour ni les copies manuelles.
 
 **Réseau.** Le terminal est raccordé en Ethernet (RJ45) ; NetworkManager
 gère la connexion et son adresse (DHCP, ou adresse fixe réservée sur

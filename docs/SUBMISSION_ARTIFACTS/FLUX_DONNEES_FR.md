@@ -176,9 +176,11 @@ rapports pour voir les totaux en cours.
      tour si la signature est occupée et revérifie sous le verrou que
      la journée est toujours en retard : pas de second Z vide.
 4. Une fois le Z archivé, sauvegarde de la DB SQLite vers
-   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS.db` (heure UTC) via
+   `/var/lib/pili-pos/backups/pos-YYYYMMDD-HHMMSS-mmm.db` (heure UTC) via
    l'API Online Backup (`signing::follow_up` →
-   `backup_database_impl`), avant l'impression.
+   `backup_database_impl`), avant l'impression. La copie est vérifiée
+   (`PRAGMA quick_check`), puis seules les 7 sauvegardes les plus
+   récentes du moteur sont gardées.
 5. Deux tickets de rapport Z sont imprimés.
 
 ## 6. Fin de service - Pointage sortie (Événement S)

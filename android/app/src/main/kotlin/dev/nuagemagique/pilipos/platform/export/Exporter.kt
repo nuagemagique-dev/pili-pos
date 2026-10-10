@@ -33,7 +33,7 @@ import javax.inject.Singleton
  * an export without it is incomplete.
  *
  * On any error the export stops, keeps what was written and reports the step, the file and the reason. It
- * never deletes anything, neither on the volume nor in the till. A write error on a file of 4 GiB or more is
+ * deletes nothing itself, neither on the volume nor in the till (the engine's backup keeps its 7 newest copies). A write error on a file of 4 GiB or more is
  * reported as [ExportProblem.FAT32]. Each run is audited (kind `export`: started, done or failed; a refusal
  * is audited as `refused`), and runs inside [PlatformOps] as `export` so that the watchdog stays out of the way.
  */
