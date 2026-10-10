@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "id": "M110",
+  "ids": [
+    "M110"
+  ],
+  "title": "Sale of two Dry Martini paid in cash",
+  "steps": [
+    {
+      "cmd": "login",
+      "args": {
+        "insz": "11111111111",
+        "pin": "1111"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "args": {
+        "input": {
+          "order_type": "takeaway",
+          "table_number": null,
+          "user_insz": "94060242576"
+        }
+      },
+      "save": "order"
+    },
+    {
+      "cmd": "add_order_line",
+      "args": {
+        "input": {
+          "order_id": "$order.id",
+          "menu_item_id": 10006,
+          "quantity": 2,
+          "modifiers_json": null
+        }
+      }
+    },
+    {
+      "cmd": "checkout",
+      "args": {
+        "orderId": "$order.id",
+        "payments": [
+          {
+            "method": "cash"
+          }
+        ]
+      },
+      "save": "sale",
+      "expect": {
+        "fields": {
+          "success": true
+        }
+      }
+    }
+  ]
+}
