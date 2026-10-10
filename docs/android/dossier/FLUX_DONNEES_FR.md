@@ -13,7 +13,8 @@ d'un parcours utilisateur.
 moteur commun (`crates/pos-engine`), identique à celui de `pili-pos`.
 L'interface est en Kotlin et Compose ; elle appelle le moteur par
 UniFFI (`libpos_ffi.so`, `docs/android/FFI.md`) : chaque commande
-`commands::<module>::do_<fonction>` citée ci-dessous est la méthode
+`commands::<module>::do_<fonction>` citée ci-dessous (sauf le flux du
+§7, absent de la build certifiée) est la méthode
 correspondante de `PosEngine` (`login`, `addOrderLine`, `checkout`,
 `generateZReport`...), table de correspondance de `FFI.md` §11 ; les
 événements du moteur (`fdm-status`, `presence-failed`...) arrivent par
@@ -437,9 +438,10 @@ mTLS, clés publiques et jeton de l'export), éventuellement `seed.sql`,
    pas encore ; le moteur le refuse dès que la base contient un événement fiscal.
 5. Le dossier devient `provisioning/bundle/` et `record.json` du dossier `provisioning/`
    garde le deviceId, le SHA-256 du manifeste et l'heure ; le moteur est rouvert.
-   Il compare à chaque ouverture le numéro de série lu par le propriétaire de
-   l'appareil à celui du dossier : s'ils diffèrent, il reste fermé
-   (`PLATEFORME_ANDROID_FR.md` §4).
+   À chaque démarrage, avant d'ouvrir le moteur, l'application compare le
+   numéro de série lu par le propriétaire de l'appareil à celui de
+   `record.json` : s'ils diffèrent, le moteur n'est pas ouvert
+   (`docs/android/APP.md` §3, `PLATEFORME_ANDROID_FR.md` §4).
 
 Un échec à une étape garde le lot précédent et ne laisse aucun dossier
 temporaire. Cette étape n'écrit aucun événement fiscal et n'appelle pas le FDM.
@@ -457,7 +459,7 @@ clé USB ou une carte SD, choisit un dossier et lance l'export
    emporter ouverte (`listOpenOrders`, `listOpenTakeaways`). Sinon rien n'est écrit.
 2. Le moteur produit une copie cohérente de `pos.db` (`backupDatabase`, API
    Online Backup) ; elle reste dans `files/engine/backups/`.
-3. Sont copiés dans `pili-export-<date>-<deviceId>` : cette copie, les 7
+3. Sont copiés dans `pili-export-<date>-<heure>-<deviceId>` : cette copie, les 7
    sauvegardes les plus récentes, les journaux, le journal d'audit de la
    plateforme, `identity.json` (empreintes de l'application), `LISEZMOI.txt`.
    Les copies de l'export nocturne (`exports/`) n'en font pas partie.
