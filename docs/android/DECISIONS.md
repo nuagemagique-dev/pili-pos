@@ -1066,6 +1066,12 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
     - *Reproducibility.* `scripts/check_repro.sh` from a clean local clone of `android/lane-p7` (it fails inside a linked worktree, as noted for wave 2): SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed` twice, equal to the export lane candidate. `scripts/android/check_repro.sh`: two byte-identical unsigned APKs.
     - *Environment.* `ui/dist` (git-ignored) was copied from the `android/int` worktree because `ui/node_modules` of this worktree has no `vue-tsc`; the frozen `ui` sources are identical.
 
+- **P7 wave 4 integration (integrator, 2026-10-10):** P7-T10 (full UC run on the emulator, host comparison `uc_e2e.sh --compare`, device engine tests) merged with `--no-ff` into `android/lane-p7`, no conflict. The task worktree was removed and its branch kept.
+    - *Gate result (base `602544c`).* `p7_gate.sh --exit --root --allow '^docs/android/LANES\.md$'`: 21 of 21 checks PASS (scope 274 paths, linux-frozen, frozen-paths, Kotlin tests 1957 to 1960 with none removed, command and UI parity strict, uccheck fmt/clippy/test, uccheck-lock 339 packages, uc-scenarios 48, uc-replay 48, uc-matrix 155 ids, gradle plan, selftests, root inventory ws 1640 >= 1355). Without the `--allow` the only scope failure is `docs/android/LANES.md`, changed by earlier P7 cards (the e2e-parity owner), not by this merge. `p7_gate.sh --fast --uc-e2e` 18 of 18 PASS (uc-e2e 61 checks, 0 failed) on the already running `emulator-5554`.
+    - *Soak.* `p7_soak.sh report --latest --min-hours 4` FAIL ("no soak run found") and `status` says "no soak runs": the soak proof (24 h, accepted on 4 h) is still open and is the only item left before the P7 exit report. No soak held the emulator.
+    - *Reproducibility.* `scripts/check_repro.sh` from a clean local clone of `android/lane-p7` (it fails inside a linked worktree): SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed` twice, equal to the export lane candidate. `scripts/android/check_repro.sh`: two byte-identical unsigned `:app` APKs (commit `3cb744981ed3`, 18.0 MB).
+    - *Environment.* `ui/dist` (git-ignored) was rebuilt with `npm ci && npm run build` because `test_inventory.sh --diff` needs it. The emulator was already running and was not started by this run.
+
 ## Decided by the user
 
 - **User (2026-10-08):** the two questions left open for the soft freeze. Record of the freeze in `docs/android/LINUX_FREEZE.md`.
