@@ -157,13 +157,15 @@ fn resolution_of(outcome: Outcome, amount_cents: i64) -> Resolution {
     match outcome {
         // The drivers never ask for a partial approval: an approval for
         // another amount is for a person to sort out, not to sign.
-        Outcome::Approved(a) if a.amount_cents != amount_cents => Resolution::Unknown {
-            detail: format!(
-                "the terminal approved {} instead of {}",
+        Outcome::Approved(a) if a.amount_cents != amount_cents => {
+            let detail = format!(
+                "approved amount {} differs from {}, check the terminal",
                 pos_eft::amount_text(a.amount_cents),
                 pos_eft::amount_text(amount_cents)
-            ),
-        },
+            );
+            tracing::error!(%detail, "card payment approved for another amount: kept unknown");
+            Resolution::Unknown { detail }
+        }
         Outcome::Approved(a) => Resolution::Approved {
             card_type: card_kind(a.card_type),
             brand: a.brand,
