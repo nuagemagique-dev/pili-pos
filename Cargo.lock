@@ -3686,11 +3686,31 @@ name = "pos-eft"
 version = "1.0.0"
 dependencies = [
  "chrono",
+ "chrono-tz",
  "pos-core",
+ "pos-eft-mock",
+ "quick-xml",
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "pos-eft-mock"
+version = "1.0.0"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "chrono",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "uuid",
