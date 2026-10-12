@@ -875,3 +875,14 @@ async fn a_bad_payment_terminal_section_is_reported_by_the_config_check() {
             .any(|p| p.starts_with("payment_terminal.timeout_seconds"))
     );
 }
+
+#[tokio::test]
+async fn a_training_sale_never_charges_a_real_card() {
+    let (app, script) = app().await;
+    let order = app.order_of(1250);
+    app.state.config.lock().unwrap().training_mode = true;
+    let err = do_eft_pay(&app.state, order, 1250).await.unwrap_err();
+    assert_eq!(err, errors::EFT_TRAINING);
+    assert!(script.calls().is_empty(), "the terminal was never asked");
+    assert!(app.eft_rows().is_empty(), "nothing stored");
+}

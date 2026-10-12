@@ -99,6 +99,9 @@ pub const UNPAID_NOTHING_DUE: &str = "unpaid_nothing_due";
 // Payment terminal (EFT). Nothing was charged unless a code says otherwise.
 /// `pos.json` has no `payment_terminal`: cards are typed by hand.
 pub const EFT_NOT_CONFIGURED: &str = "eft_not_configured";
+/// Training mode: a training sale never charges a real card; cards are
+/// typed by hand.
+pub const EFT_TRAINING: &str = "eft_training";
 /// Zero or less, or more than what is still due on the order after its
 /// other approved terminal payments.
 pub const EFT_AMOUNT_INVALID: &str = "eft_amount_invalid";
@@ -207,6 +210,7 @@ pub const ALL: &[&str] = &[
     PAYMENT_INCOMPLETE,
     UNPAID_NOTHING_DUE,
     EFT_NOT_CONFIGURED,
+    EFT_TRAINING,
     EFT_AMOUNT_INVALID,
     EFT_PENDING,
     EFT_BUSY,

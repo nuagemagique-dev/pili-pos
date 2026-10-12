@@ -165,6 +165,7 @@ const coreMessages: Messages = {
     zh: "切换模式前请结清或清空未结订单",
   },
   "err_eft_not_configured": { fr: "Aucun terminal de paiement n'est relié à cette caisse.", en: "No payment terminal is linked to this till.", zh: "此收银机未连接支付终端。" },
+  "err_eft_training": { fr: "Mode formation : aucune carte réelle n'est débitée. Encodez le paiement par carte à la main.", en: "Training mode: no real card is charged. Enter the card payment by hand.", zh: "培训模式：不会从真实银行卡扣款。请手动登记刷卡付款。" },
   "err_eft_amount_invalid": { fr: "Montant invalide : il doit être positif et ne pas dépasser ce qu'il reste à payer.", en: "Invalid amount: it must be positive and not more than what is left to pay.", zh: "金额无效：必须为正数，且不得超过剩余应付金额。" },
   "err_eft_pending": { fr: "Un paiement par carte attend encore sa réponse : vérifiez-le d'abord. Rien d'autre n'est encaissé ni enregistré.", en: "A card payment is still waiting for its answer: check it first. Nothing else is charged or recorded.", zh: "有一笔刷卡付款仍在等待结果：请先查询。在此之前不会收取或登记其他款项。" },
   "err_eft_busy": { fr: "Le terminal de paiement est occupé avec un autre paiement. Rien n'a été débité.", en: "The payment terminal is busy with another payment. Nothing was charged.", zh: "支付终端正忙于另一笔付款。未扣款。" },

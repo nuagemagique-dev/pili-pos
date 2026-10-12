@@ -106,6 +106,15 @@ fn terminal_config(state: &AppState) -> Result<PaymentTerminalConfig, String> {
         .ok_or_else(|| errors::EFT_NOT_CONFIGURED.to_string())
 }
 
+/// A training sale never charges a real card (its card parts are typed
+/// by hand, as without a terminal).
+fn refuse_in_training(state: &AppState) -> Result<(), String> {
+    if state.config.lock().map_err(errors::internal)?.training_mode {
+        return Err(errors::EFT_TRAINING.to_string());
+    }
+    Ok(())
+}
+
 /// The error a failed terminal call shows. Nothing was charged.
 fn eft_error(e: &EftError) -> String {
     match e {
@@ -226,6 +235,7 @@ pub async fn do_eft_pay(
 ) -> Result<EftPayment, String> {
     let operator = access::operator(state, Access::Cashier)?;
     let terminal_config = terminal_config(state)?;
+    refuse_in_training(state)?;
     // Fail fast, before the FDM is asked.
     {
         let db = state.db.lock().map_err(errors::internal)?;
