@@ -2,7 +2,7 @@
 
 Démo sur l'émulateur `sunmi_d3_pro_gms_api33` du Mac, avec la carte de Tokyo Sushi Bar.
 Ce n'est pas l'environnement de certification : FDM, imprimantes, HubRise et réception de
-l'export sont des simulateurs locaux (aucun compte HubRise réel).
+l'export, terminal de paiement par carte sont des simulateurs locaux (aucun compte HubRise réel).
 
 ## Lancer, arrêter
 
@@ -14,6 +14,7 @@ scripts/android/demo/demo.sh status
 scripts/android/demo/demo.sh stop               # arrête les simulateurs, l'émulateur reste ouvert
 scripts/android/demo/demo.sh reset              # efface l'appli : la caisse repart de zéro au prochain start
 scripts/android/demo/demo.sh order deliveroo    # nouvelle commande en ligne : deliveroo, ubereats, web ou cash
+scripts/android/demo/demo.sh card decline       # règle la fin du PROCHAIN paiement par carte : approve, decline ou unknown
 ```
 
 Sans `--no-build`, l'APK est reconstruit (quelques minutes).
@@ -21,6 +22,25 @@ Une caisse neuve démarre avec HubRise activé (voyant HUBRISE vert) et quatre c
 en attente : Deliveroo et Uber Eats (payées sur la plateforme), webshop payé en ligne, webshop
 à encaisser au retrait.
 Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, car un seul émulateur à la fois est possible.
+
+## Payer par carte sur le terminal
+
+Une caisse neuve est liée à un terminal Worldline simulé (`pos-eft-mock`, port 19400). Aucun vrai
+terminal, aucun vrai paiement. Une caisse déjà installée garde son ancien réglage : `reset` puis `start`.
+À l'étape PAYER, choisir Carte : « Terminal » (par défaut) ou « Saisie manuelle » (le terminal est en panne).
+Valider envoie le montant au terminal ; un écran bloquant « Paiement sur le terminal » montre le montant et
+« Le client présente sa carte sur le terminal », avec Annuler. Le simulateur répond après 3 secondes.
+
+| Commande avant de valider | Ce qui se passe |
+|---|---|
+| `demo.sh card approve` (ou rien) | Accepté : la part est verrouillée avec la marque de la carte (Bancontact par défaut, ou `card approve Visa`). |
+| `demo.sh card decline` | Refusé : la raison s'affiche, la part reste modifiable, on peut réessayer ou passer en saisie manuelle. |
+| `demo.sh card unknown` | « Réponse du terminal inconnue » : la vente est bloquée ; « Vérifier » interroge le terminal et trouve le paiement accepté. |
+
+Chaque commande `card` ne vaut que pour un paiement. Quitter l'application pendant un paiement ne l'annule pas :
+à la réouverture du paiement, la part acceptée revient verrouillée, ou « Vérifier » est proposé.
+Commandes en ligne payables par carte (webshop « À encaisser ») : « Encaisser carte » passe aussi par le terminal.
+En mode formation, la saisie manuelle reste la seule voie.
 
 ## Codes PIN
 
@@ -33,6 +53,8 @@ Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, 
 
 - Tickets de caisse et additions : http://127.0.0.1:19391/
 - Bons de cuisine : http://127.0.0.1:19393/
+- Terminal de paiement (simulateur) : http://127.0.0.1:19400/ (page des paiements), échanges sur
+  http://127.0.0.1:19400/mock/requests
 - Échanges avec HubRise (simulateur) : http://127.0.0.1:3001/mock/requests
 - Export nocturne reçu : `~/.cache/pili-demo/exports/` (sauvegarde chiffrée `.db.age`,
   fichier de statistiques `.sqlite`, manifeste). Déchiffrer :
@@ -52,6 +74,8 @@ Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, 
    FDM et le QR code. Le tiroir-caisse s'ouvre.
 6. **À emporter** : « Nouvelle vente à emporter », un poke bowl, un Coca et une bière, paiement par carte.
    La TVA passe à 6 % sur la nourriture et le Coca, et reste à 21 % sur la bière.
+   La caisse est liée à un terminal de paiement simulé (Config, À propos : « Terminal de paiement :
+   Worldline ») : la carte part au terminal à la validation (voir « Payer par carte sur le terminal »).
 7. **Commandes en ligne** : bouton « En ligne ». Accepter la commande Deliveroo : elle est déjà
    payée, le ticket T.V.A. (événement N) est signé à l'acceptation et le bon part en cuisine.
    Accepter la commande webshop « À encaisser » : addition provisoire (P), puis Préparer, Prête,

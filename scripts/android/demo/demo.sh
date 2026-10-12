@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────
 # pili-pos - run the Android app as a demo on the D3 Pro (GMS) emulator
 #
-# Usage: scripts/android/demo/demo.sh start [--no-build] | stop | reset | status | order <platform>
+# Usage: scripts/android/demo/demo.sh start [--no-build] | stop | reset | status | order <platform> | card <result> [brand]
 #   start   starts the emulator sunmi_d3_pro_gms_api33 WITH a window (reused when it runs),
 #           builds the debug APK (skipped with --no-build when it exists), starts the FDM and
 #           printer mocks on the host, installs the app as device owner, imports a development
@@ -14,6 +14,13 @@
 #   order   sends one online order to the till through the HubRise mock: deliveroo, ubereats,
 #           web (website, paid online) or cash (website, paid in cash at collection). A fresh till
 #           gets one of each at start.
+#   card    sets how the NEXT payment on the card terminal mock ends: approve (default brand
+#           Bancontact), decline or unknown (the answer is lost: the till shows "Réponse du
+#           terminal inconnue" and Vérifier then finds the payment approved). An optional brand
+#           (Visa, Maestro, Mastercard...) follows. Without a card command the next payment is approved.
+# Card terminal: the demo pos.json links a Worldline terminal (cloud API) that points at the local
+# mock pos-eft-mock (:19400, page http://127.0.0.1:19400/ , requests at /mock/requests); no real
+# terminal. A till that already runs keeps its old pos.json: use reset to get the terminal.
 # HubRise: switched on in the demo pos.json; the till is connected to the local HubRise mock
 # (:3001, dev token, no real account), which serves the Tokyo menu as its catalog: the menu is
 # managed by HubRise, as in the restaurant.
@@ -46,6 +53,7 @@ KITCHEN_PORT=19392
 KITCHEN_HTTP=19393
 EXPORT_PORT=9330
 HUBRISE_PORT=3001
+EFT_PORT="${PILI_EFT_MOCK_PORT:-19400}"
 STATE="$HOME/.cache/pili-demo"
 MOCKS="$ROOT/target/android-mocks/debug"
 APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
@@ -87,9 +95,9 @@ build_apk() {
 }
 
 start_mocks() {
-    if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" || ! -x "$MOCKS/pos-export-mock" || ! -x "$MOCKS/pos-hubrise-mock" ]]; then
+    if [[ ! -x "$MOCKS/pos-fdm-mock" || ! -x "$MOCKS/pos-printer-mock" || ! -x "$MOCKS/pos-export-mock" || ! -x "$MOCKS/pos-hubrise-mock" || ! -x "$MOCKS/pos-eft-mock" ]]; then
         say "building the mocks"
-        cargo build --locked -p pos-fdm-mock -p pos-printer-mock -p pos-export-mock -p pos-hubrise-mock --target-dir "$ROOT/target/android-mocks" \
+        cargo build --locked -p pos-fdm-mock -p pos-printer-mock -p pos-export-mock -p pos-hubrise-mock -p pos-eft-mock --target-dir "$ROOT/target/android-mocks" \
             >"$STATE/mocks-build.log" 2>&1 || die "mock build failed, see $STATE/mocks-build.log"
     fi
     if ! port_open "$FDM_PORT"; then
@@ -118,8 +126,12 @@ start_mocks() {
         echo $! >"$STATE/hubrise-mock.pid"
         hubrise_new=1
     fi
-    for _ in $(seq 1 20); do port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && port_open "$HUBRISE_PORT" && break; sleep 1; done
-    port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$HUBRISE_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
+    if ! port_open "$EFT_PORT"; then
+        PILI_EFT_MOCK_PORT="$EFT_PORT" nohup "$MOCKS/pos-eft-mock" >"$STATE/eft-mock.log" 2>&1 &
+        echo $! >"$STATE/eft-mock.pid"
+    fi
+    for _ in $(seq 1 20); do port_open "$EFT_PORT" && port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && port_open "$HUBRISE_PORT" && break; sleep 1; done
+    port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$HUBRISE_PORT" && port_open "$EFT_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
     # The HubRise mock starts with its own sample catalog: it serves the Tokyo menu instead (the
     # till's catalog sync then finds its own menu, every row keyed by the seed).
     if [[ "$hubrise_new" == 1 ]]; then
@@ -132,8 +144,9 @@ start_mocks() {
         adbd reverse "tcp:$PRINTER_HTTP" "tcp:$PRINTER_HTTP" >/dev/null &&
         adbd reverse "tcp:$KITCHEN_PORT" "tcp:$KITCHEN_PORT" >/dev/null &&
         adbd reverse "tcp:$EXPORT_PORT" "tcp:$EXPORT_PORT" >/dev/null &&
-        adbd reverse "tcp:$HUBRISE_PORT" "tcp:$HUBRISE_PORT" >/dev/null || die "adb reverse failed"
-    say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/ , HubRise :$HUBRISE_PORT"
+        adbd reverse "tcp:$HUBRISE_PORT" "tcp:$HUBRISE_PORT" >/dev/null &&
+        adbd reverse "tcp:$EFT_PORT" "tcp:$EFT_PORT" >/dev/null || die "adb reverse failed"
+    say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/ , HubRise :$HUBRISE_PORT, card terminal http://127.0.0.1:$EFT_PORT/"
 }
 
 installed() { adbd shell pm list packages 2>/dev/null | tr -d '\r' | grep -qx "package:$PKG"; }
@@ -170,6 +183,7 @@ install_and_provision() {
         PILI_BUNDLE_RESTAURANT_NAME="Tokyo Sushi Bar" PILI_BUNDLE_RESTAURANT_ADDRESS="Liège" \
             PILI_BUNDLE_KITCHEN_PRINTER="127.0.0.1:$KITCHEN_PORT" PILI_BUNDLE_HUBRISE_ENABLED=1 \
             PILI_BUNDLE_EXPORT_URL="http://127.0.0.1:$EXPORT_PORT" \
+            PILI_BUNDLE_PAYMENT_TERMINAL_URL="http://127.0.0.1:$EFT_PORT" \
             PILI_BUNDLE_EXPORT_RECIPIENT="$(grep -o 'age1[a-z0-9]*' "$STATE/age-key.txt" | head -n 1)" \
             PILI_BUNDLE_EXPORT_TOKEN="$(cat "$STATE/export-token")" bash scripts/android/make_dev_bundle.sh --seed-file "$SEED" --out "$STATE/bundle" \
             --fdm-url "http://127.0.0.1:$FDM_PORT/graphql" --printer "127.0.0.1:$PRINTER_PORT" >"$STATE/bundle.log" 2>&1 ||
@@ -237,8 +251,26 @@ PY
     say "online order sent: $1"
 }
 
+# How the next payment on the card terminal mock ends (its control API, one answer per payment).
+# unknown = the answer is lost (the mock's "timeout"); the check then finds the payment approved.
+set_card() {
+    local result="${1:-}" brand="${2:-}" body
+    case "$result" in
+        approve | decline) ;;
+        unknown) result=timeout ;;
+        *) die "usage: demo.sh card approve|decline|unknown [brand]" ;;
+    esac
+    [[ -z "$brand" || "$brand" =~ ^[A-Za-z0-9\ ._-]+$ ]] || die "unsafe brand '$brand'"
+    body="{\"result\":\"$result\",\"delay_ms\":3000"
+    [[ -n "$brand" ]] && body="$body,\"brand\":\"$brand\""
+    body="$body}"
+    curl -sf -X POST "http://127.0.0.1:$EFT_PORT/mock/next" -H 'content-type: application/json' -d "$body" >/dev/null ||
+        die "the card terminal mock refused the answer (is it up? see $STATE/eft-mock.log)"
+    say "next card payment: ${1}${brand:+ ($brand)}"
+}
+
 stop_mocks() {
-    for m in fdm-mock printer-mock kitchen-mock export-mock hubrise-mock; do
+    for m in fdm-mock printer-mock kitchen-mock export-mock hubrise-mock eft-mock; do
         [[ -f "$STATE/$m.pid" ]] && kill "$(cat "$STATE/$m.pid")" 2>/dev/null; rm -f "$STATE/$m.pid"
     done
     SERIAL="$(serial)"; [[ -n "$SERIAL" ]] && adbd reverse --remove-all >/dev/null 2>&1
@@ -263,9 +295,13 @@ case "${1:-}" in
         [[ -n "$SERIAL" ]] && { installed && say "app: installed$(is_owner && echo ', device owner')" || say "app: not installed"; }
         port_open "$FDM_PORT" && say "FDM mock: up" || say "FDM mock: down"
         port_open "$PRINTER_HTTP" && say "printer mock: up (http://127.0.0.1:$PRINTER_HTTP/)" || say "printer mock: down"
-        port_open "$HUBRISE_PORT" && say "HubRise mock: up" || say "HubRise mock: down" ;;
+        port_open "$HUBRISE_PORT" && say "HubRise mock: up" || say "HubRise mock: down"
+        port_open "$EFT_PORT" && say "card terminal mock: up (http://127.0.0.1:$EFT_PORT/)" || say "card terminal mock: down" ;;
     order)
         port_open "$HUBRISE_PORT" || die "the HubRise mock is down: run start first"
         send_order "${2:-}" ;;
-    *) sed -n 2,23p "$0"; exit 2 ;;
+    card)
+        port_open "$EFT_PORT" || die "the card terminal mock is down: run start first"
+        set_card "${2:-}" "${3:-}" ;;
+    *) sed -n 2,20p "$0"; exit 2 ;;
 esac

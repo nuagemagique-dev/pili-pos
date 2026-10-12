@@ -8,7 +8,8 @@
 # committed public key (PILI_DEV_PUB), so the real development key is never touched. Cases: a bundle is
 # created, verified and prehashed; --seed adds seed.sql to the manifest; an --out or --keydir inside a git
 # work tree is refused; a different public key is refused; a non-empty foreign --out is refused; the
-# manifest is sorted and identical between two runs; pos.json carries the given fdm url and printer.
+# manifest is sorted and identical between two runs; pos.json carries the given fdm url and printer; the demo
+# payment terminal section appears only with PILI_BUNDLE_PAYMENT_TERMINAL_URL and the URL is checked.
 # Prints one line per case and a summary; exits 1 when a case fails.
 # ─────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -102,7 +103,26 @@ out7="$(bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/d1" 2>&1)"
 rc=$?
 if [[ $rc -eq 0 && ! -e "$TMP/d1/seed.sql" ]]; then ok "rerun-replaces-bundle"; else bad "rerun-replaces-bundle" "rc=$rc: $out7"; fi
 
-# Case 8: a usage error.
+# Case 8: the demo terminal: PILI_BUNDLE_PAYMENT_TERMINAL_URL adds a worldline payment_terminal section, valid JSON,
+# next to the other optional sections; without it pos.json has none; a malformed URL is refused.
+out8="$(PILI_BUNDLE_PAYMENT_TERMINAL_URL=http://127.0.0.1:19400 PILI_BUNDLE_HUBRISE_ENABLED=1 PILI_BUNDLE_KITCHEN_PRINTER=127.0.0.1:19392 \
+    bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t1" 2>&1)"
+rc=$?
+if [[ $rc -eq 0 && "$out8" == *"DEVBUNDLE | PASS"* ]] && python3 -I - "$TMP/t1" <<'PY'
+import json, sys
+pos = json.load(open(sys.argv[1] + "/pos.json"))
+t = pos["payment_terminal"]
+assert t == {"kind": "worldline_terminal_api", "base_url": "http://127.0.0.1:19400", "merchant_id": "DEMO-UMID",
+             "terminal_id": "DEMO-UTID", "integrator_id": "pili-demo", "timeout_seconds": 60}, t
+assert pos["hubrise_enabled"] is True and pos["kitchen_printer_address"] == "127.0.0.1:19392" and pos["table_count"] == 25
+PY
+then ok "payment-terminal-section"; else bad "payment-terminal-section" "rc=$rc: $out8"; fi
+if python3 -I -c 'import json,sys; sys.exit("payment_terminal" in json.load(open(sys.argv[1]))) ' "$TMP/b2/pos.json"; then ok "no-payment-terminal-by-default"; else bad "no-payment-terminal-by-default" "pos.json has a terminal"; fi
+out8b="$(PILI_BUNDLE_PAYMENT_TERMINAL_URL='http://x"y' bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t2" 2>&1)"
+rc=$?
+if [[ $rc -ne 0 && "$out8b" == *"PILI_BUNDLE_PAYMENT_TERMINAL_URL"* && ! -e "$TMP/t2/MANIFEST.json" ]]; then ok "payment-terminal-url-checked"; else bad "payment-terminal-url-checked" "rc=$rc: $out8b"; fi
+
+# Case 9: a usage error.
 bash "$SCRIPT" --nonsense >/dev/null 2>&1
 rc=$?
 if [[ $rc -eq 2 ]]; then ok "usage-error-2"; else bad "usage-error-2" "rc=$rc"; fi

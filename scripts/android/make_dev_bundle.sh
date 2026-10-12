@@ -15,7 +15,8 @@
 #   --seed-file F   ship F as seed.sql instead (implies --seed; e.g. the demo seed)
 # Environment (demo only): PILI_BUNDLE_RESTAURANT_NAME, PILI_BUNDLE_RESTAURANT_ADDRESS, PILI_BUNDLE_KITCHEN_PRINTER (adds
 #   kitchen_printer_address), PILI_BUNDLE_HUBRISE_ENABLED=1 (adds "hubrise_enabled": true), PILI_BUNDLE_EXPORT_URL + _RECIPIENT + _TOKEN (adds the nightly export section and an
-#   export_token file). Defaults keep the test identity.
+#   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_URL (adds a payment_terminal section of kind worldline_terminal_api
+#   whose base_url is that URL, with the demo ids DEMO-UMID / DEMO-UTID / pili-demo; the pos-eft-mock). Defaults keep the test identity.
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
 #
@@ -155,6 +156,12 @@ if [[ -n "${PILI_BUNDLE_EXPORT_URL:-}" ]]; then
     printf '%s\n' "$PILI_BUNDLE_EXPORT_TOKEN" >"$OUT/export_token"
     EXPORT_LINE=$'\n  "export": {"url": "'"$PILI_BUNDLE_EXPORT_URL"'", "token_file": "export_token", "owner_recipient": "'"$PILI_BUNDLE_EXPORT_RECIPIENT"'", "keep_days": 7},'
 fi
+TERMINAL_LINE=""
+if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_URL:-}" ]]; then
+    [[ "$PILI_BUNDLE_PAYMENT_TERMINAL_URL" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] ||
+        die "PILI_BUNDLE_PAYMENT_TERMINAL_URL must look like http://127.0.0.1:19400, got '$PILI_BUNDLE_PAYMENT_TERMINAL_URL'"
+    TERMINAL_LINE=$'\n  "payment_terminal": {"kind": "worldline_terminal_api", "base_url": "'"$PILI_BUNDLE_PAYMENT_TERMINAL_URL"'", "merchant_id": "DEMO-UMID", "terminal_id": "DEMO-UTID", "integrator_id": "pili-demo", "timeout_seconds": 60},'
+fi
 [[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
 cat >"$OUT/pos.json" <<JSON
 {
@@ -166,7 +173,7 @@ cat >"$OUT/pos.json" <<JSON
   "restaurant_vat": "BE0000000097",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE
+  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE
   "table_count": 25
 }
 JSON
