@@ -200,7 +200,7 @@ pili-pos/
 │   ├── src/
 │   │   ├── main.rs             # Tauri entry point: CLI, logging, window, health check, EngineConfig
 │   │   ├── lib.rs              # Library facade (cli, events, ipc, paths)
-│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 90 in all, 88 in the cert build)
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 94 in all, 92 in the cert build)
 │   │   ├── events.rs           # TauriEventSink (engine events to the webview)
 │   │   ├── cli.rs              # --version, --init-db, --check-config
 │   │   └── paths.rs            # Linux install paths
@@ -547,7 +547,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 ## What This POS Does NOT Do (Out of Scope for MVP)
 
 - **Own webshop frontend** - separate project (tsb-customer, Nuxt 3 SSR); its orders reach the POS only through the HubRise integration (see below)
-- **Payment terminal integration** - cash + manual card entry for MVP
+- **Payment terminal integration** - cash + manual card entry for MVP (a linked card terminal is an optional installation setting, see "Payment terminal (EFT)")
 - **Multi-terminal sync** - single terminal for MVP
 - **Inventory management** - not in MVP
 - **Customer loyalty** - not in MVP
@@ -557,11 +557,16 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - One binary for every installation (decided 2026-10-03): the `cert` feature includes `hubrise`; only invoicing (`peppol`) stays out. Whether HubRise runs is the installation's switch: `hubrise_enabled` in `pos.json` (default off), then an admin in Settings; every change in the append-only `integration_switch_log` (migration 25, `commands/integrations.rs`). Off: no poller pass, no outbox pass, no till sale echoed, accept/reject/sync/connect refused (`hubrise_disabled`); settling an already signed order (handover, refund, closing) always works. Switching off is refused while online orders are unsettled. The UI reads the switch at runtime (`stores/integrations.ts`), no build-time flag. The installation's OAuth client is the `hubrise` section of `pos.json` (`client_id`, `client_secret_file`, URLs default to the real HubRise; `commands/hubrise.rs::oauth_config`): without it a release build refuses to connect (`hubrise_not_configured`), a debug build falls back to the `HUBRISE_*` variables of `.env`, else the local mock.
 - Every online order (Deliveroo, Uber Eats, own webshop) must end in an N event signed by the FDM (SPF FAQ Q203). Prepaid: N at acceptance (APP for platforms, ONLINE for the webshop). Unpaid: P at acceptance, N at handover. Rejected orders are never signed; a cancellation after N is a manager-confirmed refund N.
 - The POS menu mirrors the HubRise catalog (`crates/pos-catalog`, source-neutral; HubRise mapping in `pos-hubrise/src/catalog_map.rs`). Stable ids by `external_id`, deactivate never delete, invalid catalogs refused whole. Local menu editing is locked while a source manages the menu.
-- Migrations: 1 to 9 base, 10 pending_signs (signing recovery), 11 table plan (`table_plan`, `table_plan_log` append-only; `commands/table_plan.rs`), 12 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`, 25 the integration switch), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`).
+- Migrations: 1 to 9 base, 10 pending_signs (signing recovery), 11 table plan (`table_plan`, `table_plan_log` append-only; `commands/table_plan.rs`), 12 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`, 25 the integration switch), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 27 payment terminal (`schema_eft.rs`, not feature-gated: `eft_payments`, never deleted, a final answer never changes), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`).
 - Tests run against `pos-hubrise-mock` in-process (`crates/pos-engine/tests/hubrise_*.rs`).
 
 ### Table plan (in the certified binary)
 - Table plan (decided 2026-10-10): which table numbers the Tables screen shows, as numbers and ranges ("1-12, 20-25", 1 to 999, at most 200). `pos.json` gives the starting value (`tables`, else 1 to `table_count`); a manager changes it in Settings, panel "Plan de salle" (`get_table_plan` anyone, `set_table_plan` managers, error `table_plan_invalid`). Same switch semantics as HubRise: first start or a NEW `pos.json` plan sets it, otherwise the last value stays; every change in the append-only `table_plan_log`. A table out of the plan with an open order stays visible. No fiscal data depends on it (`crates/pos-core/src/table_plan.rs`).
+
+### Payment terminal (EFT)
+- With a `payment_terminal` section in `pos.json` (`worldline_terminal_api`, `ccv_payment_api` or `ccv_opi`; drivers in `crates/pos-eft`) the till asks the card terminal for the amount instead of the operator typing the card: `eft_pay`, `eft_abort`, `eft_check` (any user), `list_eft_payments` (`commands/eft.rs`; errors `eft_not_configured`, `eft_amount_invalid`, `eft_pending`, `eft_busy`, `eft_unreachable`, `eft_rejected`, `eft_payment_not_usable`). `get_settings` tells the UI which kind is linked (`paymentTerminal`); without it nothing changes (manual card, `MANUAL`, `CARD_DEBIT`).
+- Every payment is stored in `eft_payments` (migration 27) BEFORE the terminal is called; at start a `sent` row becomes `unknown`. Nothing is charged unless the FDM is operational right now (AM art. 14). A payment waiting for its answer (`sent`, `unknown`) blocks other payments and its order's sale until `eft_check`; an approved payment must be used by the sale (`PaymentPart.eft_payment_id`, exact amount) or the sale is refused. The signed line is `AUTOMATIC` with the terminal's card type (ids 2/6/7), the brand as `provider`, the terminal's id as `reference`; payments are marked used in the sale's commit. Card payments are never rounded; refunds stay cash; reversing an approved payment is not supported yet.
+- Tests use `Terminal::scripted` through the `eft-scripted` feature of `pos-engine` (testkit only): `crates/pos-engine/tests/eft_*.rs`.
 
 ---
 

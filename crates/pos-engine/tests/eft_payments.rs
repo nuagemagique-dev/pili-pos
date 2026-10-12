@@ -743,6 +743,15 @@ async fn a_slow_payment_can_be_aborted_from_the_screen() {
                 break;
             }
         }
+        // The abort goes to the instance running the payment.
+        let running = app
+            .state
+            .eft_in_flight
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|(reference, _)| reference.clone());
+        assert_eq!(running, Some(app.eft_rows()[0].reference.clone()));
         do_eft_abort(&app.state).await
     };
     let (payment, aborted) = tokio::join!(pay, abort);
@@ -759,6 +768,7 @@ async fn a_slow_payment_can_be_aborted_from_the_screen() {
             Call::Abort { reference }
         ]
     );
+    assert!(app.state.eft_in_flight.lock().unwrap().is_none());
     // Nothing in flight any more: an abort is a no-op.
     do_eft_abort(&app.state).await.unwrap();
     assert_eq!(script.calls().len(), 2);

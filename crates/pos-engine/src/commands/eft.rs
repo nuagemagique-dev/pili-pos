@@ -26,6 +26,7 @@
 //! `eft-scripted`, never in a shipped build).
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use pos_core::config::PaymentTerminalConfig;
 use pos_core::order::OrderStatus;
@@ -282,7 +283,12 @@ pub async fn do_eft_pay(
         language: language.to_string(),
     };
     let result = match build_terminal(state, &terminal_config) {
-        Ok(terminal) => terminal.pay(&request).await,
+        Ok(terminal) => {
+            // An abort reaches this very instance while it waits.
+            let terminal = Arc::new(terminal);
+            let _in_flight = InFlight::set(state, &reference, terminal.clone());
+            terminal.pay(&request).await
+        }
         Err(e) => Err(e),
     };
     let (resolution, failure) = match result {
@@ -342,11 +348,43 @@ pub async fn do_eft_abort(state: &AppState) -> Result<(), String> {
     let Some(row) = in_flight else {
         return Ok(());
     };
-    let terminal = build_terminal(state, &terminal_config).map_err(|e| eft_error(&e))?;
+    // The instance running the payment, else (after a restart) a new one.
+    let running = state
+        .eft_in_flight
+        .lock()
+        .map_err(errors::internal)?
+        .as_ref()
+        .filter(|(reference, _)| *reference == row.reference)
+        .map(|(_, terminal)| terminal.clone());
+    let terminal = match running {
+        Some(terminal) => terminal,
+        None => Arc::new(build_terminal(state, &terminal_config).map_err(|e| eft_error(&e))?),
+    };
     terminal
         .abort(&row.reference)
         .await
         .map_err(|e| eft_error(&e))
+}
+
+/// The terminal running a payment, known to [`do_eft_abort`] until the
+/// payment's call returns (or is dropped).
+struct InFlight<'a>(&'a AppState);
+
+impl<'a> InFlight<'a> {
+    fn set(state: &'a AppState, reference: &str, terminal: Arc<Terminal>) -> Self {
+        if let Ok(mut slot) = state.eft_in_flight.lock() {
+            *slot = Some((reference.to_string(), terminal));
+        }
+        Self(state)
+    }
+}
+
+impl Drop for InFlight<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut slot) = self.0.eft_in_flight.lock() {
+            *slot = None;
+        }
+    }
 }
 
 /// Ask the terminal where the payment `id` stands (`sent` or

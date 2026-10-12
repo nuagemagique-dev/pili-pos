@@ -361,6 +361,7 @@ impl Engine {
                 session_rules: Default::default(),
                 fdm_monitor: Default::default(),
                 export,
+                eft_in_flight: Mutex::new(None),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,
             }),
