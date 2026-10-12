@@ -15,6 +15,8 @@ import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderUiState
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffoldContent
 import dev.nuagemagique.pilipos.ui.scaffold.StatusLights
+import dev.nuagemagique.pilipos.ui.state.EFT_UNKNOWN
+import dev.nuagemagique.pilipos.ui.state.eftPayment
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Rule
@@ -163,5 +165,36 @@ class CheckoutScreenshotTest {
                 fiscalEventId = 99L,
             )
         capture(base.copy(step = CheckoutStep.DONE, hasOrder = false, done = done), "checkout_done")
+    }
+
+    @Test
+    fun terminalLockedPartAndWaitingPayment() {
+        val locked = TakenPart(PaymentMethod.CARD, 1_064L, 0L, eftPaymentId = 12L, brand = "Bancontact")
+        val chips =
+            listOf(
+                PartChip(ChipState.PAID, PaymentMethod.CARD, 1_064L),
+                PartChip(ChipState.CURRENT, PaymentMethod.CARD, 1_063L),
+                PartChip(ChipState.NEXT, null, 1_063L),
+            )
+        capture(
+            base.copy(
+                splitCount = 3,
+                method = PaymentMethod.CARD,
+                eftActive = true,
+                taken = listOf(locked),
+                eftOpen = listOf(eftPayment(33, EFT_UNKNOWN, 1_063L)),
+                entry = AmountEntryState("1063"),
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 2_126L,
+                        dueCents = 1_063L,
+                        roundedDueCents = 1_063L,
+                        restShownCents = 2_126L,
+                        shares = listOf(1_064L, 1_063L, 1_063L),
+                        chips = chips,
+                    ),
+            ),
+            "checkout_eft_locked",
+        )
     }
 }
