@@ -10,6 +10,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.format.CartAmounts
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -18,6 +19,7 @@ import dev.nuagemagique.pilipos.ui.state.SessionStore
  * What the checkout screen reads from the Hilt graph (PD205: no Hilt view model factory, the foundation tests host
  * the screen in a plain activity). The screen builds [CheckoutViewModel] from these with `viewModel { }`.
  */
+@Suppress("TooManyFunctions") // One accessor per store the screen reads.
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 internal interface CheckoutEntryPoint {
@@ -47,6 +49,9 @@ internal interface CheckoutEntryPoint {
 
     /** The Vue texts used outside a composition (the slip warning). */
     fun catalog(): MessageCatalog
+
+    /** The linked card payment terminal: charging a card part, recovery, the blocking overlay. */
+    fun eft(): EftStore
 
     /** The line amounts and the VAT rows of the recap, from the engine VAT split. */
     fun amounts(): CartAmounts

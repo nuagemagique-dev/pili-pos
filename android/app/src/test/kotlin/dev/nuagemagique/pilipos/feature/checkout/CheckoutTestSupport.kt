@@ -16,6 +16,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.format.CartAmounts
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -219,6 +220,7 @@ internal class TestCheckoutEntry(
     private val toasts: ToastStore,
     private val catalog: MessageCatalog,
     private val amounts: CartAmounts,
+    private val eft: EftStore,
 ) : CheckoutEntryPoint {
     override fun gateway() = gateway
 
@@ -239,6 +241,8 @@ internal class TestCheckoutEntry(
     override fun catalog() = catalog
 
     override fun amounts() = amounts
+
+    override fun eft() = eft
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -324,6 +328,7 @@ internal suspend fun TestScope.startCheckout(
     val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
     val order = OrderStore(gateway, f.events, backgroundScope)
     val delivery = DeliveryStore(gateway, errors, settings)
+    val eft = EftStore(gateway, errors, settings, backgroundScope)
     val natives = CheckoutNatives()
     val helpers = EngineHelpers(natives, f.dispatcher)
     if (open) {
@@ -335,7 +340,7 @@ internal suspend fun TestScope.startCheckout(
         session.login(user.insz, "1234")
     }
     val entry =
-        TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers))
+        TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers), eft)
     val model = CheckoutViewModel(entry, orderId)
     val seen = mutableListOf<CheckoutEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }

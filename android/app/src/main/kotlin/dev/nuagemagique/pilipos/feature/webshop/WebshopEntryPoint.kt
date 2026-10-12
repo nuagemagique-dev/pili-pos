@@ -6,6 +6,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
 import dev.nuagemagique.pilipos.ui.state.SessionStore
@@ -32,6 +33,9 @@ internal interface WebshopEntryPoint {
 
     /** The text of a refusal that did not come from the store. */
     fun errors(): ErrorPresenter
+
+    /** The linked card terminal: the overlay of a card collected on it. */
+    fun eft(): EftStore
 
     /** The warning shown when a refund is asked without a manager. */
     fun toasts(): ToastStore

@@ -67,6 +67,7 @@ class WebshopOrdersStore
         integrations: IntegrationsStore,
         private val settings: PosSettingsStore,
         private val catalog: MessageCatalog,
+        private val eft: EftStore,
         @ApplicationScope scope: CoroutineScope,
     ) {
         private val mutableOrders = MutableStateFlow<List<WebshopOrderSummary>>(emptyList())
@@ -204,9 +205,39 @@ class WebshopOrdersStore
             order: WebshopOrderSummary,
             method: PaymentMethod,
         ): Boolean {
+            // A linked terminal charges the card first (the overlay of the checkout); the handover then carries it.
+            if (method == PaymentMethod.CARD && eft.active()) return collectOnTerminal(order)
             val part = PaymentPart(method, if (method == PaymentMethod.CASH) null else order.totalCents)
             val request = HandoverRequest(order.id, listOf(part), null)
             return runSale(order.id) { gateway.call { engine -> engine.webshopHandoverOrder(request) } }
+        }
+
+        /**
+         * Collects an unpaid order by card on the linked terminal. Recovery first: a payment of the order still
+         * waiting for its answer is checked, an approved unused one is used as is (a charged card is never
+         * forgotten); only what is left is asked of the terminal. Declined, cancelled or unanswered: nothing is
+         * signed and the operator may try again.
+         */
+        private suspend fun collectOnTerminal(order: WebshopOrderSummary): Boolean =
+            try {
+                eft.load(order.id)
+                if (chargeWhatIsLeft(order)) {
+                    val parts = eft.approved().map { PaymentPart(PaymentMethod.CARD, it.amountCents, it.id) }
+                    val request = HandoverRequest(order.id, parts, null)
+                    runSale(order.id) { gateway.call { engine -> engine.webshopHandoverOrder(request) } }
+                } else {
+                    false
+                }
+            } finally {
+                eft.clear()
+            }
+
+        /** True when the card payments of [order] cover its total: waiting ones checked, then the rest charged. */
+        private suspend fun chargeWhatIsLeft(order: WebshopOrderSummary): Boolean {
+            val checked = eft.open().all { waiting -> eft.verify(waiting) != null }
+            if (!checked) return false
+            val paid = eft.approved().sumOf { it.amountCents }
+            return paid >= order.totalCents || eft.charge(order.id, order.totalCents - paid) != null
         }
 
         /** A prepaid order leaves: its sale is already signed. */

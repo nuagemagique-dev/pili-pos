@@ -20,6 +20,7 @@ import dev.nuagemagique.pilipos.ui.components.QrMatrices
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.EventFeed
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
@@ -230,7 +231,8 @@ internal fun TestScope.settingsEnv(
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
     val helpers = EngineHelpers(f.natives, f.dispatcher)
     val delivery = DeliveryStore(gateway, errors, settings)
-    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, backgroundScope)
+    val eft = EftStore(gateway, errors, settings, backgroundScope)
+    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, eft, backgroundScope)
     val entry =
         TestSettingsEntryPoint(
             gateway, f.events, helpers, session, settings, integrations, errors, toasts, catalog, testRegistry(), delivery, webshop,

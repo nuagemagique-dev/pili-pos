@@ -41,12 +41,14 @@ import dev.nuagemagique.pilipos.ui.components.defaultDeliveryOutcomeTexts
 import dev.nuagemagique.pilipos.ui.components.defaultEmailKeypadTexts
 import dev.nuagemagique.pilipos.ui.components.rememberTicketMediumPickerState
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
+import dev.nuagemagique.pilipos.ui.eft.EftOverlayHost
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffold
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import uniffi.pos_ffi.EftPayment
 import uniffi.pos_ffi.PaymentMethod
 
 private val DoneBadge = 96.dp
@@ -66,6 +68,8 @@ internal data class CheckoutCallbacks(
     val onValidate: () -> Unit = {},
     val onFinish: () -> Unit = {},
     val onPaper: () -> Unit = {},
+    val onCardManual: (Boolean) -> Unit = {},
+    val onVerify: (EftPayment) -> Unit = {},
     val onPrintMissing: suspend (fiscalEventId: Long) -> Boolean = { false },
 )
 
@@ -106,6 +110,8 @@ internal fun CheckoutRoute(
             onValidate = model::validate,
             onFinish = model::finish,
             onPaper = model::chooseDeliveryPaper,
+            onCardManual = model::setCardManual,
+            onVerify = model::verifyOpen,
             onPrintMissing = model::printMissingOriginal,
         )
     PosScaffold(
@@ -119,6 +125,7 @@ internal fun CheckoutRoute(
                 onEmail = model::chooseDeliveryEmail,
                 onPaper = model::chooseDeliveryPaper,
             )
+            EftOverlayHost(entry.eft())
         },
     ) {
         CheckoutContent(state, callbacks, picker)

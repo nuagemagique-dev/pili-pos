@@ -14,6 +14,7 @@ import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
@@ -243,7 +244,8 @@ internal suspend fun TestScope.startScaffold(
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
     val order = OrderStore(gateway, f.events, backgroundScope)
     val fdm = FdmStore(gateway, f.events, errors, toasts, FdmTexts(catalog), settings, backgroundScope)
-    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, backgroundScope)
+    val eft = EftStore(gateway, errors, settings, backgroundScope)
+    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, eft, backgroundScope)
     if (open) {
         f.holder.open()
         runCurrent()

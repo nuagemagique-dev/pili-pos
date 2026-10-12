@@ -556,6 +556,7 @@ private fun InfoPanel(info: PosSettings?) {
                 InfoRow(vueText("settings_restaurant_label"), info.restaurantName)
                 InfoRow(vueText("settings_fdm_label"), info.fdmUrl)
                 InfoRow(vueText("settings_printer_label"), info.printerAddress ?: vueText("printer_none"))
+                InfoRow(uiText(R.string.ui_eft_terminal_label), paymentTerminalLabel(info.paymentTerminal))
             }
         }
     }
@@ -778,3 +779,14 @@ private fun SettingsPinDialog(
         modifier = Modifier.testTag("settings_pin_dialog"),
     )
 }
+
+/** "Worldline", "CCV (cloud)", "CCV (reseau local)", or "Aucun (saisie manuelle)" for a till whose cards are typed by hand. */
+@Composable
+internal fun paymentTerminalLabel(kind: String?): String =
+    when (kind) {
+        null -> uiText(R.string.ui_eft_terminal_none)
+        "worldline_terminal_api" -> uiText(R.string.ui_eft_kind_worldline_terminal_api)
+        "ccv_payment_api" -> uiText(R.string.ui_eft_kind_ccv_payment_api)
+        "ccv_opi" -> uiText(R.string.ui_eft_kind_ccv_opi)
+        else -> kind
+    }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Linked card payment terminal (EFT): the waiting overlay, the locked card parts, the manual entry choice and the settings row. -->
+    <string name="ui_eft_title">Payment on the terminal</string>
+    <string name="ui_eft_part">Payment {n} of {count}</string>
+    <string name="ui_eft_present_card">The customer presents the card on the terminal</string>
+    <string name="ui_eft_cancel">Cancel</string>
+    <string name="ui_eft_cancel_requested">Cancellation requested...</string>
+    <string name="ui_eft_checking">Asking the terminal...</string>
+    <string name="ui_eft_declined">Payment declined</string>
+    <string name="ui_eft_cancelled">Payment cancelled</string>
+    <string name="ui_eft_not_charged">Nothing was charged.</string>
+    <string name="ui_eft_refused">Payment not possible</string>
+    <string name="ui_eft_unknown_title">Terminal answer unknown</string>
+    <string name="ui_eft_unknown_explain">The card may have been charged. The sale waits for the terminal\'s answer: check the payment to continue.</string>
+    <string name="ui_eft_check">Check</string>
+    <string name="ui_eft_close">Close</string>
+    <string name="ui_eft_ok">OK</string>
+    <string name="ui_eft_approved">Approved</string>
+    <string name="ui_eft_unknown_row">Answer unknown</string>
+    <string name="ui_eft_blocking">A card payment is waiting for the terminal\'s answer: check it to continue.</string>
+    <string name="ui_eft_mode_terminal">Terminal</string>
+    <string name="ui_eft_mode_manual">Manual entry</string>
+    <string name="ui_eft_hint_terminal">The amount is sent to the terminal on confirmation</string>
+    <string name="ui_eft_locked_part">{part} · {method} · {brand}</string>
+    <string name="ui_eft_terminal_label">Payment terminal</string>
+    <string name="ui_eft_terminal_none">None (manual entry)</string>
+    <string name="ui_eft_kind_worldline_terminal_api">Worldline</string>
+    <string name="ui_eft_kind_ccv_payment_api">CCV (cloud)</string>
+    <string name="ui_eft_kind_ccv_opi">CCV (local network)</string>
+</resources>

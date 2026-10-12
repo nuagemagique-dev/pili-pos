@@ -130,16 +130,23 @@ class WebshopOrdersStoreTest {
         coEvery { f.engine.hubriseListWebshopOrders() } returns orders
         val gateway = f.gateway(this)
         val toasts = ToastStore(backgroundScope)
-        val settings = mockk<PosSettingsStore> { every { language } returns MutableStateFlow(AppLanguage.EN) }
+        val settings =
+            mockk<PosSettingsStore> {
+                every { language } returns MutableStateFlow(AppLanguage.EN)
+                every { this@mockk.settings } returns MutableStateFlow(null)
+                every { trainingMode } returns MutableStateFlow(false)
+            }
+        val errors = ErrorPresenter(toasts, I18nTestSupport.errorTexts())
         val store =
             WebshopOrdersStore(
                 gateway,
                 f.events,
-                ErrorPresenter(toasts, I18nTestSupport.errorTexts()),
+                errors,
                 toasts,
                 IntegrationsStore(gateway, f.events, backgroundScope),
                 settings,
                 I18nTestSupport.catalog(),
+                EftStore(gateway, errors, settings, backgroundScope),
                 backgroundScope,
             )
         store.clock = Clock.fixed(now, ZoneOffset.UTC)

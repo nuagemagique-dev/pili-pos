@@ -9,6 +9,8 @@ import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
+import dev.nuagemagique.pilipos.ui.state.isOpen
+import dev.nuagemagique.pilipos.ui.state.isUsable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.EftPayment
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.PaymentMethod
@@ -66,12 +69,16 @@ internal class CheckoutViewModel(
     private val helpers = entry.helpers()
     private val delivery = entry.delivery()
     private val settings = entry.settings()
+    private val eft = entry.eft()
     private val own = MutableStateFlow(Own())
     private val effectChannel = Channel<CheckoutEffect>(Channel.BUFFERED)
 
     // Computing the amounts talks to the engine: one computation at a time, always from the latest state.
     private val work = Mutex()
     private val loading = AtomicBoolean(false)
+
+    // One terminal payment at a time: a second tap while the overlay is up does nothing.
+    private val eftBusy = AtomicBoolean(false)
 
     /** What is local to the screen: the choices of the operator and the amounts derived from them. */
     private data class Own(
@@ -86,6 +93,7 @@ internal class CheckoutViewModel(
         val amounts: CheckoutAmounts = CheckoutAmounts(),
         val summary: CheckoutSummary = CheckoutSummary(),
         val loadTried: Boolean = false,
+        val cardManual: Boolean = false,
     )
 
     private data class OrderInputs(
@@ -93,15 +101,24 @@ internal class CheckoutViewModel(
         val canTakePayment: Boolean,
         val labelMode: ProductLabelMode,
         val itemCount: Int,
+        val eftActive: Boolean,
     )
 
+    // A terminal is linked and the till is not in training: card parts go to the terminal.
+    private val eftActive: Flow<Boolean> =
+        combine(settings.settings, settings.trainingMode) { current, training -> current?.paymentTerminal != null && !training }
+
+    private val labelAndTerminal: Flow<Pair<ProductLabel, Boolean>> =
+        combine(settings.productLabel, eftActive) { label, active -> label to active }
+
     private val orderInputs: Flow<OrderInputs> =
-        combine(order.current, order.lines, session.canTakePayment, settings.productLabel) { current, lines, may, label ->
+        combine(order.current, order.lines, session.canTakePayment, labelAndTerminal) { current, lines, may, (label, terminal) ->
             OrderInputs(
                 order = current,
                 canTakePayment = may,
                 labelMode = if (label == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
                 itemCount = lines.sumOf { it.quantity },
+                eftActive = terminal,
             )
         }
 
@@ -111,14 +128,16 @@ internal class CheckoutViewModel(
             canTakePayment = session.canTakePayment.value,
             labelMode = if (settings.productLabel.value == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
             itemCount = order.lines.value.sumOf { it.quantity },
+            eftActive = eft.active(),
         )
 
-    private fun snapshot(): CheckoutUiState = build(own.value, inputsNow(), delivery.mailStatus.value, delivery.request.value)
+    private fun snapshot(): CheckoutUiState =
+        build(own.value, inputsNow(), delivery.mailStatus.value, delivery.request.value, eft.payments.value)
 
     /** What the screen draws. */
     val state: StateFlow<CheckoutUiState> =
-        combine(own, orderInputs, delivery.mailStatus, delivery.request) { local, inputs, mail, request ->
-            build(local, inputs, mail, request)
+        combine(own, orderInputs, delivery.mailStatus, delivery.request, eft.payments) { local, inputs, mail, request, payments ->
+            build(local, inputs, mail, request, payments)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
@@ -137,6 +156,7 @@ internal class CheckoutViewModel(
                     if (usable) {
                         ensureOrder()
                         refreshMail()
+                        refreshEft()
                     }
                 }
         }
@@ -150,6 +170,16 @@ internal class CheckoutViewModel(
         viewModelScope.launch {
             order.lines.collect { lines -> if (own.value.step == CheckoutStep.PAY) summarize(lines) }
         }
+        // An approved payment the engine knows (after a crash, a restart or a check) must be used by this sale: it
+        // becomes a locked card part (`watch eft.approved` of the Vue view).
+        viewModelScope.launch {
+            eft.payments.collect { list -> list.filter { it.isUsable() }.forEach { adopt(it) } }
+        }
+    }
+
+    override fun onCleared() {
+        // The payments are the order's: the next screen reads them again from the engine.
+        eft.clear()
     }
 
     // ── Choices of the operator ───────────────────────────────────
@@ -202,11 +232,25 @@ internal class CheckoutViewModel(
         own.update { it.copy(digits = digitsOf(cents), fresh = true) }
     }
 
-    /** Forgets the parts taken and goes back to cash (Vue `clearParts`). */
+    /** Forgets the parts taken and goes back to cash (Vue `clearParts`); a card the terminal charged stays. */
     fun clearParts() {
         if (own.value.step != CheckoutStep.PAY) return
-        own.update { it.copy(taken = emptyList(), error = null, method = PaymentMethod.CASH) }
+        own.update { it.copy(taken = it.taken.filter { part -> part.locked }, error = null, method = PaymentMethod.CASH) }
         launchRecompute(prefill = true)
+    }
+
+    /** "Terminal" or "Saisie manuelle" for a card part: the card is charged on the terminal, or typed by hand. */
+    fun setCardManual(manual: Boolean) {
+        if (own.value.step != CheckoutStep.PAY) return
+        own.update { it.copy(cardManual = manual) }
+    }
+
+    /** "Verifier": asks the terminal where the waiting payment [payment] stands; an approval becomes a locked part. */
+    fun verifyOpen(payment: EftPayment) {
+        viewModelScope.launch {
+            eft.verify(payment)?.let { adopt(it) }
+            recompute(prefill = true)
+        }
     }
 
     /** The back button of the pay step: the order screen of the order being paid. */
@@ -226,9 +270,14 @@ internal class CheckoutViewModel(
      * Takes the current part: the sale is signed once nothing is left to pay, otherwise on to the next part
      * (Vue `validate`). Only for a role that may take a payment.
      */
+    @Suppress("ReturnCount")
     fun validate() {
         val snapshot = snapshot()
         if (!snapshot.canValidate) return
+        if (snapshot.amounts.allPaid) {
+            startCheckout(snapshot.taken, snapshot.totalCents)
+            return
+        }
         val isCash = snapshot.method == PaymentMethod.CASH
         val part =
             if (isCash) {
@@ -240,6 +289,10 @@ internal class CheckoutViewModel(
             } else {
                 TakenPart(snapshot.method, snapshot.entryCents, 0L)
             }
+        if (snapshot.viaTerminal) {
+            takeOnTerminal(snapshot, part.cents)
+            return
+        }
         if (part.cents >= snapshot.amounts.restCents) {
             startCheckout(snapshot.taken + part, snapshot.totalCents)
             return
@@ -254,6 +307,59 @@ internal class CheckoutViewModel(
             }
         own.update { it.copy(taken = next, method = nextMethod) }
         launchRecompute(prefill = true)
+    }
+
+    /**
+     * Charges the card part on the terminal (the overlay waits for the card). An approved payment becomes a locked
+     * part, and the sale is signed when nothing is left; a refusal leaves the part to be typed again (or entered by
+     * hand with "Saisie manuelle").
+     */
+    private fun takeOnTerminal(
+        snapshot: CheckoutUiState,
+        cents: Long,
+    ) {
+        if (!eftBusy.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                val count = if (snapshot.splitCount > 1) snapshot.splitCount else 1
+                val paid = eft.charge(routeOrderId, cents, snapshot.partIndex + 1, count) ?: return@launch
+                adopt(paid)
+                recompute(prefill = true)
+                val now = snapshot()
+                if (now.amounts.allPaid) {
+                    startCheckout(now.taken, now.totalCents)
+                } else {
+                    // One cash part at most; otherwise back to cash, the default.
+                    val method = if (now.hasCashPart) PaymentMethod.CARD else PaymentMethod.CASH
+                    own.update { it.copy(method = method) }
+                    recompute(prefill = true)
+                }
+            } finally {
+                eftBusy.set(false)
+            }
+        }
+    }
+
+    /** An approved payment becomes a locked card part, once. */
+    private fun adopt(payment: EftPayment) {
+        if (!payment.isUsable()) return
+        var added = false
+        own.update { local ->
+            if (local.taken.any { it.eftPaymentId == payment.id }) {
+                added = false
+                local
+            } else {
+                added = true
+                local.copy(
+                    taken = local.taken + TakenPart(PaymentMethod.CARD, payment.amountCents, 0L, payment.id, payment.brand),
+                )
+            }
+        }
+        if (added && own.value.step == CheckoutStep.PAY) launchRecompute(prefill = true)
+    }
+
+    private suspend fun refreshEft() {
+        if (gateway.ready.value && routeOrderId >= 0L) eft.load(routeOrderId)
     }
 
     private fun startCheckout(
@@ -297,6 +403,7 @@ internal class CheckoutViewModel(
             )
         // The order leaves the store at once so it cannot be submitted twice; the done step reads from `done`.
         order.clearOrder()
+        eft.clear()
         // The next customer starts from paper.
         delivery.reset()
         own.update { it.copy(step = CheckoutStep.DONE, taken = emptyList(), done = done) }
@@ -305,12 +412,15 @@ internal class CheckoutViewModel(
     private fun failCheckout(text: String) {
         own.update { it.copy(error = text, step = CheckoutStep.PAY) }
         launchRecompute(prefill = false)
-        viewModelScope.launch { refreshMail() }
+        viewModelScope.launch {
+            refreshMail()
+            refreshEft()
+        }
     }
 
     /** The parts as `checkout` takes them: the non-cash parts with their amount, then the cash part without one. */
     private fun payload(parts: List<TakenPart>): List<PaymentPart> {
-        val list = parts.filter { it.method != PaymentMethod.CASH }.map { PaymentPart(it.method, it.cents) }
+        val list = parts.filter { it.method != PaymentMethod.CASH }.map { PaymentPart(it.method, it.cents, it.eftPaymentId) }
         return if (parts.any { it.method == PaymentMethod.CASH }) list + PaymentPart(PaymentMethod.CASH, null) else list
     }
 
@@ -426,6 +536,7 @@ internal class CheckoutViewModel(
             shares = shares,
             chips = chipsFor(total, local, shares, rest),
             quickAmountsCents = if (cash) CashDisplay.quickAmountsCents(rounded) else emptyList(),
+            allPaid = local.taken.isNotEmpty() && rest == 0L,
         )
     }
 
@@ -481,6 +592,7 @@ internal class CheckoutViewModel(
         inputs: OrderInputs,
         mail: MailStatus?,
         request: TicketDeliveryRequest?,
+        payments: List<EftPayment>,
     ): CheckoutUiState {
         val current = inputs.order
         return CheckoutUiState(
@@ -505,6 +617,9 @@ internal class CheckoutViewModel(
             deliveryRequest = request,
             labelMode = inputs.labelMode,
             itemCount = inputs.itemCount,
+            eftActive = inputs.eftActive,
+            cardManual = local.cardManual,
+            eftOpen = payments.filter { it.isOpen() },
         )
     }
 

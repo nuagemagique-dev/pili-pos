@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.di.rememberEntryPoint
+import dev.nuagemagique.pilipos.ui.eft.EftOverlayHost
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffold
 import dev.nuagemagique.pilipos.ui.text.uiText
@@ -94,7 +95,10 @@ internal fun WebshopRoute(navigator: AppNavigator) {
         area = HeaderArea.WEBSHOP,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_webshop"),
-        overlay = { WebshopDialogs(state, callbacks) },
+        overlay = {
+            WebshopDialogs(state, callbacks)
+            EftOverlayHost(entry.eft())
+        },
     ) {
         WebshopContent(state, callbacks)
     }

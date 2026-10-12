@@ -6,6 +6,7 @@ import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.DeliveryOutcome
+import uniffi.pos_ffi.EftPayment
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.PaymentMethod
@@ -29,7 +30,14 @@ internal data class TakenPart(
     val method: PaymentMethod,
     val cents: Long,
     val changeCents: Long,
-)
+    /** A card part taken on the linked terminal: the approved payment it settles (`EftPayment.id`). */
+    val eftPaymentId: Long? = null,
+    /** The card brand the terminal gave ("Bancontact"). */
+    val brand: String? = null,
+) {
+    /** The card was charged: the part cannot be removed and its amount is fixed. */
+    val locked: Boolean get() = eftPaymentId != null
+}
 
 /** Whether a chip of the part row is paid, the current part, or one to come. */
 internal enum class ChipState { PAID, CURRENT, NEXT }
@@ -68,6 +76,8 @@ internal data class CheckoutAmounts(
     val chips: List<PartChip> = emptyList(),
     /** The likely cash amounts above the rounded due. */
     val quickAmountsCents: List<Long> = emptyList(),
+    /** Parts are taken and nothing is left to pay: the sale only waits to be signed (the engine's rest is 0). */
+    val allPaid: Boolean = false,
 )
 
 /** What the done screen shows; the cart and its total are gone by then, so everything is fixed at the sale. */
@@ -122,6 +132,12 @@ internal data class CheckoutUiState(
     val deliveryRequest: TicketDeliveryRequest? = null,
     val labelMode: ProductLabelMode = ProductLabelMode.NAME,
     val itemCount: Int = 0,
+    /** A card terminal is linked and the till is not in training: card parts can go to the terminal. */
+    val eftActive: Boolean = false,
+    /** The operator chose to type the card by hand although a terminal is linked ("Saisie manuelle"). */
+    val cardManual: Boolean = false,
+    /** The order's payments that wait for the terminal's answer: no sale until they are checked. */
+    val eftOpen: List<EftPayment> = emptyList(),
 ) {
     /** The amount being typed, in cents (no arithmetic: the digits are the cents). */
     val entryCents: Long get() = entry.cents
@@ -144,13 +160,20 @@ internal data class CheckoutUiState(
     /** True when a card or meal voucher amount is above what is left (refused by the screen). */
     val exactTooHigh: Boolean get() = method != PaymentMethod.CASH && entryCents > amounts.restCents
 
-    /** True when the current part can be validated. */
+    /** The card part being taken goes to the linked terminal (not typed by hand). */
+    val viaTerminal: Boolean get() = method == PaymentMethod.CARD && eftActive && !cardManual
+
+    /** A terminal payment waits for its answer: the sale is blocked until it is checked. */
+    val eftBlocked: Boolean get() = eftOpen.isNotEmpty()
+
+    /** True when something can be validated: the sale itself when everything is paid, else the current part. */
     val canValidate: Boolean
         get() =
             canTakePayment &&
                 hasOrder &&
                 step == CheckoutStep.PAY &&
-                if (method == PaymentMethod.CASH) canPayCash else entryCents > 0L && !exactTooHigh
+                !eftBlocked &&
+                (amounts.allPaid || if (method == PaymentMethod.CASH) canPayCash else entryCents > 0L && !exactTooHigh)
 
     /** True when the "exact" shortcut is the current entry. */
     val exactActive: Boolean
