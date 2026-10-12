@@ -97,6 +97,7 @@
 //! | `CopyResult` | `pos_engine::commands::copy::CopyResult` | checkout | copy_ticket |
 //! | `CopyableTicket` | `pos_db::queries::fiscal::CopyableTicket` | checkout | list_copyable_tickets |
 //! | `DeliveryView` | `pos_engine::commands::delivery::DeliveryView` | checkout | list_ticket_deliveries |
+//! | `EftPayment` | `pos_engine::commands::eft::EftPayment` | eft | eft_pay, eft_check, list_eft_payments |
 //! | `FdmDevice` | `pos_fiscal::response::FdmDevice` | checkout | check_fdm_status (inside FdmStatusReport) |
 //! | `FdmStatusReport` | `json: pos_engine::commands::checkout::do_check_fdm_status` | checkout | check_fdm_status (typed form of its serde_json::Value) |
 //! | `FiscalEventSummary` | `json: pos_engine::commands::copy::do_list_fiscal_events` | checkout | list_fiscal_events (typed form of its serde_json::Value) |
@@ -149,6 +150,7 @@
 pub mod auth;
 pub mod checkout;
 pub mod common;
+pub mod eft;
 pub mod export;
 pub mod hubrise;
 pub mod orders;

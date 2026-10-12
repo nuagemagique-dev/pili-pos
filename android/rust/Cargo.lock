@@ -2330,6 +2330,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-eft"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "pos-core",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "pos-eft-mock"
+version = "1.0.0"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "chrono",
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "pos-engine"
 version = "1.0.0"
 dependencies = [
@@ -2340,6 +2372,7 @@ dependencies = [
  "pos-catalog",
  "pos-core",
  "pos-db",
+ "pos-eft",
  "pos-export",
  "pos-fiscal",
  "pos-hubrise",
@@ -2365,6 +2398,7 @@ dependencies = [
  "base64 0.23.1",
  "pos-core",
  "pos-db",
+ "pos-eft",
  "pos-engine",
  "pos-fdm-mock",
  "pos-fiscal",
@@ -2449,6 +2483,7 @@ dependencies = [
  "pos-catalog",
  "pos-core",
  "pos-db",
+ "pos-eft-mock",
  "pos-engine",
  "pos-engine-testkit",
  "pos-export",
@@ -2665,6 +2700,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
 dependencies = [
  "image",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.42.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41b1177fdf999d2321d3fb46ff47159d9c1fb9ad66a4879f8c50a0b504615e9b"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

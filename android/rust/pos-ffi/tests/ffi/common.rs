@@ -379,6 +379,7 @@ fn ticket(full: bool) -> EngineFiscalTicket {
         payments: vec![EngineTicketPayment {
             method: "Cash".into(),
             amount: 42.0,
+            brand: full.then(|| "Bancontact".into()),
         }],
         rounding: full.then_some(-0.01),
         fdm_ref: full.then(|| fdm_ref(EngineEventLabel::N)),
@@ -804,6 +805,7 @@ fn a_payment_part_with_every_field_set_reaches_the_engine() {
     let record = ffi::PaymentPart {
         method: ffi::PaymentMethod::MealVoucher,
         amount_cents: Some(1250),
+        eft_payment_id: None,
     };
     let engine: EnginePaymentPart = contract_inp(&record).unwrap();
     assert_eq!(engine.method, EnginePaymentMethod::MealVoucher);
@@ -815,6 +817,7 @@ fn a_cash_payment_part_has_no_amount() {
     let record = ffi::PaymentPart {
         method: ffi::PaymentMethod::Cash,
         amount_cents: None,
+        eft_payment_id: None,
     };
     let engine: EnginePaymentPart = contract_inp(&record).unwrap();
     assert_eq!(engine, EnginePaymentPart::cash());
@@ -839,6 +842,7 @@ fn every_payment_method_reaches_the_engine_in_a_part() {
         let engine: EnginePaymentPart = contract_inp(&ffi::PaymentPart {
             method: record,
             amount_cents: Some(1),
+            eft_payment_id: None,
         })
         .unwrap();
         assert_eq!(engine, EnginePaymentPart::of(expected, 1));

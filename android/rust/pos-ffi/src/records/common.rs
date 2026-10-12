@@ -58,6 +58,10 @@ pub struct PaymentPart {
     pub method: PaymentMethod,
     #[serde(default)]
     pub amount_cents: Option<i64>,
+    /// The card payment the linked terminal approved for this part (`eft_payments.id`); `None`
+    /// for a card typed by hand.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eft_payment_id: Option<i64>,
 }
 
 // ───────────────────────────── Ticket delivery ─────────────────────────────
@@ -241,6 +245,9 @@ pub struct TicketLine {
 pub struct TicketPayment {
     pub method: String,
     pub amount: f64,
+    /// The card brand a linked terminal returned ("Bancontact"); `None` for every other payment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
 }
 
 /// `pos_fiscal::ticket::OriginalControlData`: control data of the event a refund or copy refers to.

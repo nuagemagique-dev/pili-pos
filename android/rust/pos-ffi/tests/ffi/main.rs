@@ -4,6 +4,7 @@
 mod auth;
 mod checkout;
 mod common;
+mod eft;
 mod events;
 mod export;
 mod helpers;

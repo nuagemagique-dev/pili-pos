@@ -304,6 +304,7 @@ fn settings_with_every_option_set_or_empty_convert() {
                 vec![]
             },
             pos_sw_version: "pili-pos-android/1.0.0".into(),
+            payment_terminal: full.then(|| "worldline_terminal_api".to_string()),
         };
         let record: ffi::PosSettings = out_equal(&engine);
         assert_eq!(record.config_problems.len(), if full { 2 } else { 0 });

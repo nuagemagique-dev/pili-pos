@@ -216,6 +216,7 @@ async fn sell(engine: &PosEngine) {
             vec![PaymentPart {
                 method: PaymentMethod::Cash,
                 amount_cents: None,
+                eft_payment_id: None,
             }],
             None,
         )
