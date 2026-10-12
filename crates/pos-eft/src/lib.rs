@@ -20,6 +20,8 @@
 pub mod brand;
 pub mod ccv_cloud;
 pub mod ccv_opi;
+#[cfg(feature = "scripted")]
+pub mod scripted;
 pub mod worldline;
 
 use std::time::Duration;
@@ -128,6 +130,8 @@ enum Driver {
     Worldline(worldline::WorldlineTerminalApi),
     CcvCloud(ccv_cloud::CcvPaymentApi),
     CcvOpi(ccv_opi::CcvOpi),
+    #[cfg(feature = "scripted")]
+    Scripted(std::sync::Arc<scripted::Script>),
 }
 
 impl Terminal {
@@ -156,6 +160,14 @@ impl Terminal {
         Ok(Self { driver })
     }
 
+    /// A terminal that answers from `script` (tests only).
+    #[cfg(feature = "scripted")]
+    pub fn scripted(script: std::sync::Arc<scripted::Script>) -> Self {
+        Self {
+            driver: Driver::Scripted(script),
+        }
+    }
+
     /// Charge `request.amount_cents` on the terminal and wait for the
     /// answer, at most the configured timeout. `Err` only when nothing
     /// can have been charged; once the request may have reached the
@@ -165,6 +177,8 @@ impl Terminal {
             Driver::Worldline(d) => d.pay(request).await,
             Driver::CcvCloud(d) => d.pay(request).await,
             Driver::CcvOpi(d) => d.pay(request).await,
+            #[cfg(feature = "scripted")]
+            Driver::Scripted(s) => s.pay(request).await,
         }
     }
 
@@ -176,6 +190,8 @@ impl Terminal {
             Driver::Worldline(d) => d.status(reference).await,
             Driver::CcvCloud(d) => d.status(reference).await,
             Driver::CcvOpi(d) => d.status(reference).await,
+            #[cfg(feature = "scripted")]
+            Driver::Scripted(s) => s.status(reference).await,
         }
     }
 
@@ -188,6 +204,8 @@ impl Terminal {
             Driver::Worldline(d) => d.abort(reference).await,
             Driver::CcvCloud(d) => d.abort(reference).await,
             Driver::CcvOpi(d) => d.abort(reference).await,
+            #[cfg(feature = "scripted")]
+            Driver::Scripted(s) => s.abort(reference).await,
         }
     }
 }

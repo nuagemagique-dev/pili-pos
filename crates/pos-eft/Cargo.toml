@@ -21,3 +21,7 @@ tokio = { workspace = true, features = ["net", "io-util"] }
 uuid = { workspace = true }
 chrono = { workspace = true }
 tracing = "0.1"
+
+[features]
+# Terminal::scripted, a terminal answering from a script: tests only.
+scripted = []
