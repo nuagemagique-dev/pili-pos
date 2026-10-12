@@ -24,6 +24,14 @@ pub mod ccv_opi;
 pub mod scripted;
 pub mod worldline;
 
+mod http;
+mod receipt;
+mod util;
+mod xml;
+
+#[cfg(test)]
+mod mock_tests;
+
 use std::time::Duration;
 
 use pos_core::config::{PaymentTerminalConfig, PaymentTerminalKind};

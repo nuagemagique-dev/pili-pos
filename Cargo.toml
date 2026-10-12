@@ -19,6 +19,7 @@ members = [
     "crates/pos-export",
     "crates/pos-export-mock",
     "crates/pos-eft",
+    "crates/pos-eft-mock",
 ]
 # The Android Rust workspace lives in android/rust (from phase P2): its own
 # workspace, never a member of this one.
