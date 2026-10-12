@@ -140,6 +140,11 @@ pub struct TicketLine {
 pub struct TicketPayment {
     pub method: String,
     pub amount: f64,
+    /// The card brand a linked terminal returned ("Bancontact"):
+    /// printed after the method. Absent for every other payment, and in
+    /// tickets stored before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
 }
 
 /// Parameters for building a FiscalTicket.
@@ -360,6 +365,13 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .map(|f| TicketPayment {
             method: printed_method(f),
             amount: cents(&f["amount"]) as f64 / 100.0,
+            // The provider of a card line is the brand its terminal gave.
+            brand: f["type"]
+                .as_str()
+                .filter(|t| t.starts_with("CARD"))
+                .and_then(|_| f["provider"].as_str())
+                .filter(|b| !b.trim().is_empty())
+                .map(str::to_string),
         })
         .collect();
     let rounding: i64 = financials
@@ -490,6 +502,24 @@ mod tests {
     }
 
     #[test]
+    fn a_copy_of_a_terminal_card_sale_prints_the_brand_too() {
+        let request = json!({"financials": [
+            {"id": "2", "name": "Card", "type": "CARD_DEBIT", "provider": "Bancontact",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 12.5},
+            {"id": "6", "name": "Credit card", "type": "CARD_CREDIT", "provider": "Visa",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 3.0},
+            {"id": "7", "name": "Card (type unknown)", "type": "CARD_UNKNOWN",
+             "inputMethod": "AUTOMATIC", "amountType": "PAYMENT", "amount": 1.0},
+            {"id": "3", "type": "CHEQUE_MEAL", "provider": "Edenred",
+             "amountType": "PAYMENT", "amount": 2.0},
+        ]});
+        let (payments, _) = printed_payments(&request);
+        let brands: Vec<_> = payments.iter().map(|p| p.brand.as_deref()).collect();
+        assert_eq!(brands, [Some("Bancontact"), Some("Visa"), None, None]);
+        assert_eq!(payments[1].method, "Card");
+    }
+
+    #[test]
     fn an_unpaid_sale_has_no_payment_line_and_something_sold() {
         let sale = |financials: serde_json::Value, total: f64| {
             serde_json::json!({
@@ -610,6 +640,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 10.0,
+                brand: None,
             }],
             total: 10.0,
             is_training: false,
@@ -770,6 +801,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 12.55,
+                brand: None,
             }],
             total: 12.53,
             is_training: false,

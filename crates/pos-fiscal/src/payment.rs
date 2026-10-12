@@ -9,7 +9,12 @@
 //! - cash pays what is left; the 5-cent rounding applies to that rest
 //!   only and goes on its own ROUNDING line;
 //! - the payments add up to the sale total, the rounding apart;
-//! - a sale of 0,00 EUR is a cash payment of 0 (FAQ Q206).
+//! - a sale of 0,00 EUR is a cash payment of 0 (FAQ Q206);
+//! - a card part taken on a linked terminal (`eft_payment_id`) carries
+//!   what the terminal returned ([`TerminalCard`]): the payment line is
+//!   `AUTOMATIC` (spec v2.2, `inputMethod`), of the card type the
+//!   terminal gave, with the brand as `provider`. It is an exact amount
+//!   like any card part.
 
 use serde::{Deserialize, Serialize};
 
@@ -56,10 +61,20 @@ impl PaymentMethod {
 /// The `id` and `name` of a payment line (spec §2.2.2
 /// `financials.id`). The reports total the payments per id, name and
 /// type, so each method keeps the same pair on every event.
+///
+/// Cards: a card typed by hand is `CARD_DEBIT` ("2", "Card", `MANUAL`).
+/// A linked terminal returns its own card type; a debit card from the
+/// terminal is the same method as the manual one ("2", "Card": the Z
+/// report counts both in one row, they differ by `inputMethod` only),
+/// while credit and unspecified cards get a pair of their own, so the
+/// reports (which count the lines of a payment by id and name) never
+/// mix two card types in one count.
 pub fn payment_line_identity(payment_type: PaymentType) -> (&'static str, &'static str) {
     match payment_type {
         PaymentType::Cash => ("1", "Cash"),
         PaymentType::CardDebit => ("2", "Card"),
+        PaymentType::CardCredit => ("6", "Credit card"),
+        PaymentType::CardUnknown => ("7", "Card (type unknown)"),
         PaymentType::ChequeMeal => ("3", "Meal voucher"),
         PaymentType::App => ("4", "App"),
         PaymentType::Online => ("5", "Online"),
@@ -69,11 +84,16 @@ pub fn payment_line_identity(payment_type: PaymentType) -> (&'static str, &'stat
 
 /// One part of a payment as the operator takes it. A cash part has no
 /// amount: it pays the rest.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PaymentPart {
     pub method: PaymentMethod,
     #[serde(default)]
     pub amount_cents: Option<i64>,
+    /// The card payment the linked terminal approved for this part
+    /// (`eft_payments.id`). Absent: the card was typed by hand on a
+    /// standalone terminal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eft_payment_id: Option<i64>,
 }
 
 impl PaymentPart {
@@ -81,6 +101,7 @@ impl PaymentPart {
         Self {
             method: PaymentMethod::Cash,
             amount_cents: None,
+            eft_payment_id: None,
         }
     }
 
@@ -88,15 +109,72 @@ impl PaymentPart {
         Self {
             method,
             amount_cents: Some(amount_cents),
+            eft_payment_id: None,
+        }
+    }
+
+    /// A card part settling the terminal payment `eft_payment_id`.
+    pub fn terminal(amount_cents: i64, eft_payment_id: i64) -> Self {
+        Self {
+            eft_payment_id: Some(eft_payment_id),
+            ..Self::of(PaymentMethod::Card, amount_cents)
         }
     }
 }
 
+/// What a linked terminal returned for a card payment, as it goes on
+/// the payment line.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalCard {
+    /// `CARD_DEBIT`, `CARD_CREDIT` or `CARD_UNKNOWN`.
+    pub card_type: PaymentType,
+    /// The card brand: the payment line's `provider`.
+    pub brand: Option<String>,
+    /// The terminal's transaction id: the payment line's `reference`.
+    pub reference: Option<String>,
+}
+
 /// A settled payment line: the amount this method pays of the sale.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SettledPayment {
     pub method: PaymentMethod,
     pub amount_cents: i64,
+    /// The terminal payment it settles, from [`PaymentPart::eft_payment_id`].
+    pub eft_payment_id: Option<i64>,
+    /// What that terminal payment returned; the caller fills it in
+    /// (this module knows nothing of the database).
+    pub terminal: Option<TerminalCard>,
+}
+
+impl SettledPayment {
+    /// The payment type of its line: the method's, or, for a card the
+    /// linked terminal took, the card type it returned (a terminal card
+    /// type that is not a card type is `CARD_UNKNOWN`).
+    pub fn payment_type(&self) -> PaymentType {
+        match (&self.terminal, self.method) {
+            (Some(t), PaymentMethod::Card) => match t.card_type {
+                PaymentType::CardDebit | PaymentType::CardCredit => t.card_type,
+                _ => PaymentType::CardUnknown,
+            },
+            _ => self.method.payment_type(),
+        }
+    }
+
+    /// What the terminal returned, for a card it took.
+    pub fn terminal_card(&self) -> Option<&TerminalCard> {
+        self.terminal
+            .as_ref()
+            .filter(|_| self.method == PaymentMethod::Card)
+    }
+
+    fn plain(method: PaymentMethod, amount_cents: i64) -> Self {
+        Self {
+            method,
+            amount_cents,
+            eft_payment_id: None,
+            terminal: None,
+        }
+    }
 }
 
 /// How a sale is settled: its payment lines (non-cash parts first, in
@@ -116,10 +194,7 @@ impl Settlement {
             other => PaymentPart::of(other, total_cents),
         };
         settle(total_cents, &[part]).unwrap_or_else(|_| Settlement {
-            payments: vec![SettledPayment {
-                method,
-                amount_cents: total_cents,
-            }],
+            payments: vec![SettledPayment::plain(method, total_cents)],
             rounding_cents: 0,
         })
     }
@@ -157,10 +232,7 @@ pub enum PaymentError {
 pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, PaymentError> {
     if total_cents == 0 {
         return Ok(Settlement {
-            payments: vec![SettledPayment {
-                method: PaymentMethod::Cash,
-                amount_cents: 0,
-            }],
+            payments: vec![SettledPayment::plain(PaymentMethod::Cash, 0)],
             rounding_cents: 0,
         });
     }
@@ -177,7 +249,7 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
     let mut non_cash = 0_i64;
     for part in parts {
         match (part.method, part.amount_cents) {
-            (PaymentMethod::Cash, None) if !cash => cash = true,
+            (PaymentMethod::Cash, None) if !cash && part.eft_payment_id.is_none() => cash = true,
             (PaymentMethod::Cash, _) => return Err(PaymentError::Invalid),
             (method, Some(amount)) if amount > 0 => {
                 // Checked per part so the sum cannot wrap past the total.
@@ -186,8 +258,8 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
                     .filter(|sum| *sum <= total_cents)
                     .ok_or(PaymentError::ExceedsTotal)?;
                 payments.push(SettledPayment {
-                    method,
-                    amount_cents: amount,
+                    eft_payment_id: part.eft_payment_id,
+                    ..SettledPayment::plain(method, amount)
                 });
             }
             _ => return Err(PaymentError::Invalid),
@@ -200,10 +272,7 @@ pub fn settle(total_cents: i64, parts: &[PaymentPart]) -> Result<Settlement, Pay
             return Err(PaymentError::Incomplete);
         }
         rounding_cents = round_to_5_cents(rest);
-        payments.push(SettledPayment {
-            method: PaymentMethod::Cash,
-            amount_cents: rest,
-        });
+        payments.push(SettledPayment::plain(PaymentMethod::Cash, rest));
     }
     Ok(Settlement {
         payments,
@@ -324,7 +393,8 @@ mod tests {
                 1000,
                 &[PaymentPart {
                     method: Card,
-                    amount_cents: None
+                    amount_cents: None,
+                    eft_payment_id: None,
                 }]
             ),
             Err(Invalid)
@@ -363,5 +433,66 @@ mod tests {
             .map(|m| payment_line_identity(m.payment_type()))
             .collect();
         assert_eq!(ids, [("1", "Cash"), ("2", "Card"), ("3", "Meal voucher")]);
+    }
+
+    #[test]
+    fn a_terminal_part_is_an_exact_card_amount_that_keeps_its_payment_id() {
+        let s = settle(1486, &[PaymentPart::terminal(1000, 7), PaymentPart::cash()]).unwrap();
+        assert_eq!(lines(&s), [(Card, 1000), (Cash, 486)]);
+        assert_eq!(s.payments[0].eft_payment_id, Some(7));
+        assert_eq!(s.payments[1].eft_payment_id, None);
+        assert!(s.payments.iter().all(|p| p.terminal.is_none()));
+        assert_eq!(s.rounding_cents, -1, "only the cash rest is rounded");
+        // The whole sale on the terminal: exact, no cash needed.
+        let s = settle(1152, &[PaymentPart::terminal(1152, 3)]).unwrap();
+        assert_eq!(lines(&s), [(Card, 1152)]);
+        assert_eq!(s.rounding_cents, 0);
+    }
+
+    #[test]
+    fn a_cash_part_cannot_name_a_terminal_payment() {
+        let cash = PaymentPart {
+            eft_payment_id: Some(1),
+            ..PaymentPart::cash()
+        };
+        assert_eq!(settle(1000, &[cash]), Err(PaymentError::Invalid));
+    }
+
+    #[test]
+    fn the_terminal_id_is_not_written_when_absent() {
+        let json = serde_json::to_value(PaymentPart::of(Card, 100)).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({"method": "card", "amount_cents": 100})
+        );
+        let json = serde_json::to_value(PaymentPart::terminal(100, 4)).unwrap();
+        assert_eq!(json["eft_payment_id"], 4);
+        let part: PaymentPart =
+            serde_json::from_str(r#"{"method":"card","amount_cents":100}"#).unwrap();
+        assert_eq!(part, PaymentPart::of(Card, 100));
+    }
+
+    #[test]
+    fn card_types_have_their_own_line_identity_except_the_manual_debit() {
+        use PaymentType::*;
+        assert_eq!(payment_line_identity(CardDebit), ("2", "Card"));
+        assert_eq!(payment_line_identity(CardCredit), ("6", "Credit card"));
+        assert_eq!(
+            payment_line_identity(CardUnknown),
+            ("7", "Card (type unknown)")
+        );
+        let ids: std::collections::HashSet<_> = [
+            Cash,
+            CardDebit,
+            CardCredit,
+            CardUnknown,
+            ChequeMeal,
+            App,
+            Online,
+        ]
+        .into_iter()
+        .map(payment_line_identity)
+        .collect();
+        assert_eq!(ids.len(), 7, "one pair per payment type");
     }
 }

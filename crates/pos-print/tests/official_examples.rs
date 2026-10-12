@@ -99,6 +99,7 @@ fn vat_ticket() -> FiscalTicket {
         payments: vec![TicketPayment {
             method: "Cash".to_string(),
             amount: 3.04,
+            brand: None,
         }],
         rounding: Some(0.01),
         fdm_ref: Some(fdm_ref(EventLabel::N, 214, 1587, "2026-06-23T11:35:18.472")),

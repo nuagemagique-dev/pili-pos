@@ -404,6 +404,7 @@ pub(crate) async fn refund_sale(
                     .1
                     .to_string(),
                 amount: refund_order.total_cents as f64 / 100.0,
+                brand: None,
             }],
             refund_order.total_cents as f64 / 100.0,
             &operator,

@@ -212,6 +212,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".into(),
                 amount: 10.0,
+                brand: None,
             }],
             total: 10.0,
             is_training: false,

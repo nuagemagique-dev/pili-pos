@@ -287,6 +287,7 @@ pub(crate) fn original_ticket(
                 vec![TicketPayment {
                     method: "-".to_string(),
                     amount: total,
+                    brand: None,
                 }],
                 total,
                 &operator,

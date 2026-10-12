@@ -395,12 +395,7 @@ async fn sell_locked(
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()
-            .map(|p| {
-                (
-                    payment_line_identity(p.method.payment_type()).1,
-                    p.amount_cents,
-                )
-            })
+            .map(|p| (payment_line_identity(p.payment_type()).1, p.amount_cents))
             .collect();
         let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments);
         serde_json::to_string(&body).unwrap_or_default()
@@ -470,8 +465,12 @@ fn ticket_payments(settlement: &Settlement) -> Vec<TicketPayment> {
         .payments
         .iter()
         .map(|p| TicketPayment {
-            method: payment_line_identity(p.method.payment_type()).1.to_string(),
+            method: payment_line_identity(p.payment_type()).1.to_string(),
             amount: p.amount_cents as f64 / 100.0,
+            brand: p
+                .terminal_card()
+                .and_then(|t| t.brand.clone())
+                .filter(|b| !b.trim().is_empty()),
         })
         .collect()
 }

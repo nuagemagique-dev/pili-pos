@@ -149,6 +149,11 @@ pub fn format_receipt(ticket: &FiscalTicket) -> Vec<u8> {
         p.textln(l.payment_header);
         for pay in &ticket.payments {
             let method = payment_label(&pay.method, ticket.lang);
+            // A card the linked terminal took says its brand.
+            let method = match pay.brand.as_deref() {
+                Some(brand) => format!("{method} {brand}"),
+                None => method,
+            };
             p.text_columns(&method, &format_price(pay.amount));
         }
         if let Some(rounding) = ticket.rounding {
@@ -361,6 +366,7 @@ mod tests {
             payments: vec![TicketPayment {
                 method: "Cash".to_string(),
                 amount: 29.50,
+                brand: None,
             }],
             rounding: None,
             fdm_ref: None,
@@ -374,6 +380,40 @@ mod tests {
             copy_made_at: None,
             unpaid: false,
         }
+    }
+
+    #[test]
+    fn a_terminal_card_prints_its_brand_after_the_method() {
+        for (lang, card) in [
+            (ReceiptLanguage::Fr, "Carte Bancontact"),
+            (ReceiptLanguage::Nl, "Kaart Bancontact"),
+            (ReceiptLanguage::De, "Karte Bancontact"),
+        ] {
+            let mut t = sample_ticket();
+            t.lang = lang;
+            t.payments = vec![
+                TicketPayment {
+                    method: "Card".to_string(),
+                    amount: 20.0,
+                    brand: Some("Bancontact".to_string()),
+                },
+                TicketPayment {
+                    method: "Cash".to_string(),
+                    amount: 9.5,
+                    brand: None,
+                },
+            ];
+            let text = crate::render::render_plain_text(&format_receipt(&t));
+            assert!(text.contains(card), "{lang:?}: {text}");
+        }
+        // A card typed by hand prints as before: the method alone.
+        let mut t = sample_ticket();
+        t.payments[0].method = "Card".to_string();
+        let text = crate::render::render_plain_text(&format_receipt(&t));
+        assert!(
+            text.contains("Carte") && !text.contains("Carte Bancontact"),
+            "{text}"
+        );
     }
 
     #[test]

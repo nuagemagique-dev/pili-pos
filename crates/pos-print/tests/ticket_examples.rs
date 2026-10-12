@@ -89,6 +89,7 @@ fn base_ticket(label: EventLabel) -> FiscalTicket {
         payments: vec![TicketPayment {
             method: "Espèces".to_string(),
             amount: 52.00,
+            brand: None,
         }],
         rounding: None,
         fdm_ref: Some(fdm_ref(label, 15, 59)),
@@ -170,6 +171,7 @@ fn example_n_split_payment() {
         .map(|(method, amount)| TicketPayment {
             method: method.to_string(),
             amount,
+            brand: None,
         })
         .collect();
     ticket.rounding = Some(-0.01);
