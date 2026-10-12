@@ -47,6 +47,9 @@ pos-printer-mock = { path = "../pos-printer-mock" }
 pos-hubrise-mock = { path = "../pos-hubrise-mock" }
 # The export receiver, served in-process by tests/export_nightly.rs.
 pos-export-mock = { path = "../pos-export-mock" }
+# The payment terminals (Worldline, CCV cloud, OPI), served in-process by
+# tests/eft_drivers.rs.
+pos-eft-mock = { path = "../pos-eft-mock" }
 axum = "0.8"
 base64 = "0.23"
 

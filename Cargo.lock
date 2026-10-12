@@ -3730,6 +3730,7 @@ dependencies = [
  "pos-core",
  "pos-db",
  "pos-eft",
+ "pos-eft-mock",
  "pos-engine-testkit",
  "pos-export",
  "pos-export-mock",
