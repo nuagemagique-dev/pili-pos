@@ -85,5 +85,6 @@ pub struct PosSettings {
     /// The kind of the linked card payment terminal (`worldline_terminal_api`,
     /// `ccv_payment_api`, `ccv_opi`); `None` when cards are typed by hand.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[uniffi(default = None)]
     pub payment_terminal: Option<String>,
 }
