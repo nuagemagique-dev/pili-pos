@@ -9,6 +9,7 @@ import TrainingBanner from "./components/TrainingBanner.vue";
 import ToastStack from "./components/ToastStack.vue";
 import ConfigProblemsBanner from "./components/ConfigProblemsBanner.vue";
 import SupportBanner from "./components/SupportBanner.vue";
+import EftOverlay from "./components/EftOverlay.vue";
 import { useSupportStore } from "./stores/support";
 import { useFdmStore } from "./stores/fdm";
 import { useOrderStore } from "./stores/order";
@@ -88,6 +89,7 @@ onUnmounted(() => {
   <TrainingBanner v-if="route.name === 'login'" />
   <RouterView />
   <div v-if="pos.trainingMode" class="training-watermark" aria-hidden="true">TRAINING</div>
+  <EftOverlay />
   <ToastStack />
   <ConfigProblemsBanner />
   <SupportBanner />

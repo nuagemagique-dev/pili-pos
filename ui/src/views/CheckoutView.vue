@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { describeError } from "../utils/errorMessages";
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore, warnIfSlipFailed } from "../stores/order";
 import { useDeliveryStore } from "../stores/delivery";
 import { usePosStore } from "../stores/pos";
-import type { CartLine, CheckoutResult, PaymentPart } from "../types";
+import { useEftStore } from "../stores/eft";
+import type { CartLine, CheckoutResult, EftPayment, PaymentPart } from "../types";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
 import { formatPrice, round5 } from "../utils/format";
@@ -18,6 +19,7 @@ const router = useRouter();
 const order = useOrderStore();
 const delivery = useDeliveryStore();
 const pos = usePosStore();
+const eft = useEftStore();
 const bilingual = useBilingualName();
 const { t } = useI18n();
 
@@ -42,6 +44,12 @@ interface TakenPart {
   cents: number;
   /** Change handed back for a cash part, in cents. */
   changeCents: number;
+  /** A card part taken on the linked terminal: the approved payment it
+   * settles. Such a part is locked (the card is charged): it cannot be
+   * removed and its amount is fixed. */
+  eftPaymentId?: number;
+  /** The card brand the terminal gave ("Bancontact"). */
+  brand?: string | null;
 }
 
 const step = ref<"pay" | "processing" | "done">("pay");
@@ -60,6 +68,8 @@ const parts = ref<TakenPart[]>([]);
 // next key replaces it instead of appending to it.
 const entry = ref("");
 const fresh = ref(false);
+// Card parts: sent to the linked terminal, or typed by hand when it is down.
+const cardManual = ref(false);
 
 // The picker needs a fresh mail probe every time it's about to be
 // shown - cheap, the backend caches the probe for 60s.
@@ -69,6 +79,14 @@ const totalCents = computed(() => order.totalCents);
 const paidCents = computed(() => parts.value.reduce((sum, p) => sum + p.cents, 0));
 const restCents = computed(() => Math.max(0, totalCents.value - paidCents.value));
 const hasCashPart = computed(() => parts.value.some((p) => p.method === "cash"));
+/** A card part goes to the linked terminal (not typed by hand). */
+const viaTerminal = computed(() => eft.active && !cardManual.value);
+/** Every part is taken (card parts approved by the terminal): the sale
+ * only waits to be signed, for instance after a failed signature or a
+ * restart. */
+const allPaid = computed(() => parts.value.length > 0 && restCents.value === 0);
+/** A terminal payment waits for its answer: no sale until it is checked. */
+const eftBlocked = computed(() => eft.open.length > 0);
 
 /** `total` in `n` parts, the remainder cents on the first parts:
  * 6030 / 4 -> 1508 1508 1507 1507. */
@@ -122,7 +140,9 @@ const changeCents = computed(() => Math.max(0, entryCents.value - roundedDueCent
 const exactTooHigh = computed(() => method.value !== "cash" && entryCents.value > restCents.value);
 const canConfirmExact = computed(() => entryCents.value > 0 && !exactTooHigh.value);
 
-const canValidate = computed(() => (method.value === "cash" ? canPayCash.value : canConfirmExact.value));
+const canValidate = computed(
+  () => !eftBlocked.value && (allPaid.value || (method.value === "cash" ? canPayCash.value : canConfirmExact.value)),
+);
 
 /** Likely amounts handed over (§7.3): the next 5 / 10 € above the
  * amount due, then bank notes above it. */
@@ -245,7 +265,8 @@ function selectSplit(n: number) {
 }
 
 function clearParts() {
-  parts.value = [];
+  // A card the terminal approved is charged: its part stays.
+  parts.value = parts.value.filter((p) => p.eftPaymentId !== undefined);
   error.value = null;
   method.value = "cash";
 }
@@ -255,27 +276,86 @@ function clearParts() {
 function payload(all: TakenPart[]): PaymentPart[] {
   const list: PaymentPart[] = all
     .filter((p) => p.method !== "cash")
-    .map((p) => ({ method: p.method, amount_cents: p.cents }));
+    .map((p) =>
+      p.eftPaymentId === undefined
+        ? { method: p.method, amount_cents: p.cents }
+        : { method: p.method, amount_cents: p.cents, eft_payment_id: p.eftPaymentId },
+    );
   if (all.some((p) => p.method === "cash")) list.push({ method: "cash" });
   return list;
 }
 
 /** Take the current part: the sale is signed once nothing is left to
  * pay, otherwise on to the next part. */
-function validate() {
+async function validate() {
   if (!canValidate.value) return;
+  if (allPaid.value) {
+    await doCheckout(parts.value);
+    return;
+  }
   const isCash = method.value === "cash";
   const part: TakenPart = isCash
     ? { method: "cash", cents: dueCents.value, changeCents: changeCents.value }
     : { method: method.value, cents: entryCents.value, changeCents: 0 };
+  if (method.value === "card" && viaTerminal.value) {
+    // The terminal charges the card; its approved payment becomes a
+    // locked part. A refusal leaves the part editable.
+    const paid = await takeOnTerminal(part.cents);
+    if (!paid) return;
+    if (restCents.value === 0) {
+      await doCheckout(parts.value);
+      return;
+    }
+    method.value = hasCashPart.value ? method.value : "cash";
+    return;
+  }
   if (part.cents >= restCents.value) {
-    doCheckout([...parts.value, part]);
+    await doCheckout([...parts.value, part]);
     return;
   }
   parts.value.push(part);
   // One cash part at most; otherwise back to cash, the default.
   method.value = hasCashPart.value ? (isCash ? "card" : method.value) : "cash";
 }
+
+// ── Linked card terminal ──
+
+/** An approved payment becomes a locked card part, once. */
+function adopt(p: EftPayment) {
+  if (p.status !== "approved" || p.used) return;
+  if (parts.value.some((x) => x.eftPaymentId === p.id)) return;
+  parts.value.push({ method: "card", cents: p.amount_cents, changeCents: 0, eftPaymentId: p.id, brand: p.brand });
+}
+
+/** Charge `cents` on the terminal (the overlay waits for the card). */
+async function takeOnTerminal(cents: number): Promise<EftPayment | null> {
+  if (!order.currentOrder) return null;
+  const paid = await eft.charge(order.currentOrder.id, cents);
+  if (paid) adopt(paid);
+  return paid;
+}
+
+/** Vérifier: ask the terminal where a waiting payment stands. */
+async function verifyOpen(p: EftPayment) {
+  const answer = await eft.verify(p);
+  if (answer) adopt(answer);
+}
+
+async function refreshEft() {
+  if (eft.linked && order.currentOrder) await eft.load(order.currentOrder.id);
+}
+
+// An approved payment the engine knows (after a crash, a restart or a
+// check) must be used by this sale: it appears as a locked part.
+watch(() => eft.approved, (list) => list.forEach(adopt));
+
+onMounted(async () => {
+  if (!pos.settings) {
+    try { await pos.loadSettings(); } catch { /* the card stays manual */ }
+  }
+  await refreshEft();
+});
+onUnmounted(() => eft.clear());
 
 async function doCheckout(all: TakenPart[]) {
   if (!order.currentOrder) return;
@@ -291,16 +371,19 @@ async function doCheckout(all: TakenPart[]) {
       // re-submitted. The "done" screen reads from result.value.
       order.clearOrder();
       parts.value = [];
+      eft.clear();
       // Next customer starts from Papier.
       delivery.reset();
       step.value = "done";
     } else {
       error.value = describeError(result.value.error);
       step.value = "pay";
+      void refreshEft();
     }
   } catch (e) {
     error.value = describeError(e);
     step.value = "pay";
+    void refreshEft();
   }
 }
 
@@ -381,7 +464,11 @@ function finish() {
             </template>
             <template v-else>
               <p v-if="exactTooHigh" class="exact-too-high">{{ t('amount_over_rest') }}</p>
-              <p class="card-hint">{{ t('card_wait') }}</p>
+              <div v-if="method === 'card' && eft.active" class="segmented eft-mode" data-testid="eft-mode">
+                <button class="seg-btn" :class="{ active: !cardManual }" data-testid="eft-mode-terminal" @click="cardManual = false">{{ t('eft_mode_terminal') }}</button>
+                <button class="seg-btn" :class="{ active: cardManual }" data-testid="eft-mode-manual" @click="cardManual = true">{{ t('eft_mode_manual') }}</button>
+              </div>
+              <p class="card-hint">{{ method === 'card' && eft.active && !cardManual ? t('eft_hint_terminal') : t('card_wait') }}</p>
               <p v-if="hasCashPart" class="card-hint">{{ t('cash_part_taken') }}</p>
             </template>
           </div>
@@ -429,19 +516,35 @@ function finish() {
           <div class="foot-row total-row">
             <span>{{ t('total') }}</span><span>{{ formatPrice(totalCents) }} €</span>
           </div>
-          <div v-for="(p, i) in parts" :key="i" class="foot-row paid-part">
-            <span>{{ t('part_n', { n: i + 1 }) }} · {{ methodLabel(p.method) }}</span>
+          <div
+            v-for="(p, i) in parts"
+            :key="p.eftPaymentId ?? `m${i}`"
+            class="foot-row paid-part"
+            :class="{ locked: p.eftPaymentId !== undefined }"
+          >
+            <span>
+              {{ t('part_n', { n: i + 1 }) }} · {{ methodLabel(p.method) }}
+              <template v-if="p.eftPaymentId !== undefined">
+                <template v-if="p.brand"> · {{ p.brand }}</template>
+                <span class="eft-badge" data-testid="eft-approved">{{ t('eft_approved') }}</span>
+              </template>
+            </span>
             <span>− {{ formatPrice(p.cents) }} €</span>
+          </div>
+          <div v-for="p in eft.open" :key="`open${p.id}`" class="foot-row eft-open" data-testid="eft-open">
+            <span>{{ methodLabel('card') }} · {{ formatPrice(p.amount_cents) }} € · {{ t('eft_unknown_row') }}</span>
+            <button class="eft-verify" data-testid="eft-verify" @click="verifyOpen(p)">{{ t('eft_check') }}</button>
           </div>
           <div class="rest-row">
             <span class="total-label">{{ t('rest_to_pay') }}</span>
             <span class="rest-amount"><span class="total-value">{{ formatPrice(restShownCents) }}</span> €</span>
           </div>
 
+          <p v-if="eftBlocked" class="error-msg" data-testid="eft-blocking">{{ t('eft_blocking') }}</p>
           <p v-if="error" class="error-msg shake">{{ error }}</p>
 
           <div class="foot-actions">
-            <button v-if="parts.length" class="back-btn parts-clear" @click="clearParts">{{ t('clear_payments') }}</button>
+            <button v-if="parts.some((p) => p.eftPaymentId === undefined)" class="back-btn parts-clear" @click="clearParts">{{ t('clear_payments') }}</button>
             <button v-else class="back-btn" @click="router.push({ name: 'order' })">{{ t('back') }}</button>
             <button
               class="validate-btn"
@@ -564,6 +667,29 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 }
 .seg-btn.active { background: var(--selected-bg); color: var(--selected-fg); }
 .seg-btn:disabled { color: var(--text-secondary); opacity: 0.5; }
+
+.eft-mode { width: 420px; }
+.eft-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-success);
+  color: var(--text-on-accent);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.eft-open { align-items: center; color: var(--accent-warning); }
+.eft-verify {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  background: var(--accent-warning);
+  color: var(--text-on-accent);
+  font-size: 17px;
+  font-weight: 800;
+}
 
 .part-chips { display: flex; gap: 8px; }
 .part-chip {
