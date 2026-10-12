@@ -6,7 +6,7 @@ import dev.nuagemagique.pilipos.R
 /** Vue message key to Android string resource id, in the order of the Vue dictionary. */
 internal object VueStringIds {
     private val ids: Map<String, Int> by lazy {
-        buildMap { part0(); part1() }
+        buildMap { part0(); part1(); part2() }
     }
 
     /** Every Vue key, in dictionary order. */
@@ -317,6 +317,31 @@ internal object VueStringIds {
         this["ticket_medium"] = R.string.ticket_medium
         this["validate_part"] = R.string.validate_part
         this["received_amount"] = R.string.received_amount
+        this["eft_overlay_title"] = R.string.eft_overlay_title
+        this["eft_present_card"] = R.string.eft_present_card
+        this["eft_cancel"] = R.string.eft_cancel
+        this["eft_cancel_requested"] = R.string.eft_cancel_requested
+        this["eft_checking"] = R.string.eft_checking
+        this["eft_declined"] = R.string.eft_declined
+        this["eft_cancelled"] = R.string.eft_cancelled
+        this["eft_not_charged"] = R.string.eft_not_charged
+        this["eft_refused"] = R.string.eft_refused
+        this["eft_unknown_title"] = R.string.eft_unknown_title
+        this["eft_unknown_explain"] = R.string.eft_unknown_explain
+        this["eft_check"] = R.string.eft_check
+        this["eft_close"] = R.string.eft_close
+        this["eft_ok"] = R.string.eft_ok
+        this["eft_approved"] = R.string.eft_approved
+        this["eft_unknown_row"] = R.string.eft_unknown_row
+        this["eft_blocking"] = R.string.eft_blocking
+        this["eft_mode_terminal"] = R.string.eft_mode_terminal
+        this["eft_mode_manual"] = R.string.eft_mode_manual
+        this["eft_hint_terminal"] = R.string.eft_hint_terminal
+        this["settings_payment_terminal_label"] = R.string.settings_payment_terminal_label
+        this["settings_payment_terminal_none"] = R.string.settings_payment_terminal_none
+        this["eft_kind_worldline_terminal_api"] = R.string.eft_kind_worldline_terminal_api
+        this["eft_kind_ccv_payment_api"] = R.string.eft_kind_ccv_payment_api
+        this["eft_kind_ccv_opi"] = R.string.eft_kind_ccv_opi
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
@@ -494,6 +519,9 @@ internal object VueStringIds {
         this["catalog_issue_name_too_long"] = R.string.catalog_issue_name_too_long
         this["catalog_issue_unknown_language"] = R.string.catalog_issue_unknown_language
         this["catalog_issue_negative_price"] = R.string.catalog_issue_negative_price
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["catalog_issue_min_above_max"] = R.string.catalog_issue_min_above_max
         this["catalog_issue_nothing_to_sell"] = R.string.catalog_issue_nothing_to_sell
         this["catalog_issue_bad_price"] = R.string.catalog_issue_bad_price

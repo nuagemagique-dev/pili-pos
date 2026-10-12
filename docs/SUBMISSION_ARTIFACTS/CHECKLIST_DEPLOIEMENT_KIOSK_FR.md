@@ -223,7 +223,7 @@ série ; capture d'écran finale et journal publiés en artefact CI `boot-smoke-
    espèces, l'autre par carte - **un seul** événement **N** (un ticket,
    deux paiements). Si l'installation a un terminal de paiement relié
    (`payment_terminal`), payer la part carte sur ce terminal (fenêtre
-   "En attente du terminal", marque de la carte imprimée sur le ticket) ;
+   "Paiement sur le terminal", marque de la carte imprimée sur le ticket) ;
    sans terminal relié, la carte se saisit à la main.
 5. Rapports, onglet "Tickets" : "Copie" du ticket de la vente - événement
    **C** avec `fdmRef`.

@@ -376,10 +376,11 @@ terminal de paiement est relié à la caisse (réglage de l'installation,
 `MANUEL_INSTALLATION_FR.md` §4.2), l'opérateur ne tape plus la carte :
 la caisse envoie le montant au terminal et reçoit sa réponse.
 
-1. Choisir "Carte", laisser ou taper le montant (comme ci-dessus), puis
-   toucher "Encaisser sur le terminal". Une fenêtre s'ouvre avec le
-   montant et le message "En attente du terminal" ; le client présente
-   sa carte sur le terminal. La caisse n'envoie le montant que si le
+1. Choisir "Carte" (le choix "Terminal" est actif, l'écran indique "Le
+   montant est envoyé au terminal à la validation"), laisser ou taper le
+   montant (comme ci-dessus), puis toucher "Valider". Une fenêtre
+   "Paiement sur le terminal" s'ouvre avec le montant et le message "Le
+   client présente sa carte sur le terminal". La caisse n'envoie le montant que si le
    FDM est opérationnel à cet instant : sinon le message "FDM not
    connected" s'affiche et rien n'est débité.
 2. Le terminal répond. Paiement accepté : la fenêtre se ferme et la part
@@ -393,7 +394,7 @@ la caisse envoie le montant au terminal et reçoit sa réponse.
    l'emporte : le paiement accepté reste, il faut l'utiliser.
 4. Si la réponse du terminal est inconnue (câble ou réseau coupé,
    terminal éteint, panne de courant de la caisse), la fenêtre affiche
-   "Réponse inconnue" : un débit est peut-être passé. **Tant que la
+   "Réponse du terminal inconnue" : un débit est peut-être passé. **Tant que la
    réponse n'est pas connue, la vente de cette commande est bloquée.**
    Toucher "Vérifier" redemande le résultat au terminal (tout
    utilisateur peut le faire) ; la fenêtre affiche alors accepté, refusé
@@ -406,7 +407,8 @@ la caisse envoie le montant au terminal et reçoit sa réponse.
    chèques-repas, ou une autre carte).
 6. Si le terminal est injoignable et que rien n'a été débité, l'opérateur
    peut aussi saisir la carte à la main, comme sans terminal relié
-   ("Encaisser sur le terminal" sur un terminal autonome puis "Valider") :
+   (choix "Saisie manuelle" pour la part carte, paiement tapé sur le
+   terminal, puis "Valider") :
    la ligne est alors `MANUAL`. Ce repli est refusé tant qu'un paiement de
    cette commande attend sa réponse ou qu'un paiement accepté n'est pas
    encore utilisé par la vente.
