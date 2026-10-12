@@ -17,6 +17,7 @@ import {
 } from '../api/ipc'
 import { useI18n } from '../i18n'
 import { useToastStore } from './toast'
+import { useEftStore } from './eft'
 import type { CheckoutResult, CheckoutPaymentMethod } from '../types'
 import { describeError, errorCode } from '../utils/errorMessages'
 
@@ -131,9 +132,43 @@ export const useWebshopOrdersStore = /* #__PURE__ */ defineStore('webshopOrders'
 
     /** Encaisser an unpaid order, cash or card for its total. */
     async collectOrder(order: WebshopOrderSummary, method: CheckoutPaymentMethod) {
+      // A linked terminal charges the card first (same overlay as the
+      // checkout); the handover then carries the approved payment.
+      if (method === 'card' && useEftStore().active) {
+        await this.collectOnTerminal(order)
+        return
+      }
       const payments =
         method === 'cash' ? [{ method }] : [{ method, amount_cents: order.total_cents }]
       await this.runSale(() => webshopHandoverOrder(order.id, payments))
+    },
+
+    /**
+     * Encaisser carte on the linked terminal. Recovery first: a payment
+     * of the order still waiting for its answer is checked, an approved
+     * unused one is used as is (it must be: a charged card is never
+     * forgotten). Only what is left is asked of the terminal. Declined,
+     * cancelled or unanswered: nothing is signed, the operator may try
+     * again.
+     */
+    async collectOnTerminal(order: WebshopOrderSummary) {
+      const eft = useEftStore()
+      try {
+        await eft.load(order.id)
+        for (const waiting of [...eft.open]) {
+          if (!(await eft.verify(waiting))) return
+        }
+        const paid = eft.approved.reduce((sum, p) => sum + p.amount_cents, 0)
+        if (paid < order.total_cents && !(await eft.charge(order.id, order.total_cents - paid))) return
+        const payments = eft.approved.map((p) => ({
+          method: 'card' as const,
+          amount_cents: p.amount_cents,
+          eft_payment_id: p.id,
+        }))
+        await this.runSale(() => webshopHandoverOrder(order.id, payments))
+      } finally {
+        eft.clear()
+      }
     },
 
     /** A prepaid order leaves: its sale is already signed. */

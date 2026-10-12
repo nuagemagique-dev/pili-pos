@@ -14,7 +14,7 @@ import * as ipc from "../api/ipc";
 import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
-import { useI18n } from "../i18n";
+import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
 
@@ -212,6 +212,13 @@ function formatDeliveryDate(iso: string): string {
   return formatTimestamp(iso, formatDayTime);
 }
 
+/** "Worldline", "CCV cloud", "CCV réseau local", or none. */
+const paymentTerminalLabel = computed(() => {
+  const kind = pos.settings?.paymentTerminal;
+  if (!kind) return t("settings_payment_terminal_none");
+  return hasMessage(`eft_kind_${kind}`) ? t(`eft_kind_${kind}`) : kind;
+});
+
 onMounted(() => {
   pos.loadSettings();
   loadWorkers();
@@ -377,6 +384,10 @@ onMounted(() => {
             <div class="info-row"><span>{{ t('settings_restaurant_label') }}</span><span class="info-value">{{ pos.settings.restaurantName }}</span></div>
             <div class="info-row"><span>{{ t('settings_fdm_label') }}</span><span class="info-value">{{ pos.settings.fdmUrl }}</span></div>
             <div class="info-row"><span>{{ t('settings_printer_label') }}</span><span class="info-value">{{ pos.settings.printerAddress ?? t('printer_none') }}</span></div>
+            <div class="info-row" data-testid="payment-terminal">
+              <span>{{ t('settings_payment_terminal_label') }}</span>
+              <span class="info-value">{{ paymentTerminalLabel }}</span>
+            </div>
           </div>
         </section>
 

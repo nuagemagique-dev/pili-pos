@@ -368,17 +368,69 @@ function defaultHandlers(): Record<string, Handler> {
     export_run_now: () => EXPORT_STATUS_DISABLED,
 
     // Linked card terminal: none unless a spec overrides get_settings.paymentTerminal.
-    list_eft_payments: () => [],
-    eft_abort: () => undefined,
-    eft_pay: (args: any) => ({
-      id: 1, order_id: args.orderId, amount_cents: args.amountCents, status: 'approved',
-      card_type: 'debit', brand: 'Bancontact', terminal_reference: 'T-1', authorisation_code: 'A1',
-      masked_pan: 'XXXX XXXX XXXX 1234', detail: null, created_at: '2026-10-12 10:00:00', used: false,
+    // The commands follow the script of `eftScript` (window.__eft), else approve.
+    list_eft_payments: live((args: any = {}) => {
+      const e = (window as any).__eft;
+      if (!e) return [];
+      return Object.values(e.payments).filter(
+        (p: any) =>
+          p.order_id === args.orderId && !p.used &&
+          (p.status === 'approved' || p.status === 'sent' || p.status === 'unknown'),
+      );
     }),
-    eft_check: (args: any) => ({
-      id: args.id, order_id: 1, amount_cents: 0, status: 'approved',
-      card_type: 'debit', brand: 'Bancontact', terminal_reference: 'T-1', authorisation_code: 'A1',
-      masked_pan: 'XXXX XXXX XXXX 1234', detail: null, created_at: '2026-10-12 10:00:00', used: false,
+    eft_abort: live(() => {
+      const e = (window as any).__eft;
+      if (e) {
+        e.aborted = true;
+        if (e.release) e.release();
+      }
+      return undefined;
+    }),
+    eft_pay: live((args: any = {}) => {
+      const e = (window as any).__eft;
+      function make(step: any, id: number) {
+        const ok = step.status === 'approved';
+        return {
+          id, order_id: args.orderId, amount_cents: args.amountCents, status: step.status,
+          card_type: ok ? 'debit' : null, brand: ok ? (step.brand ?? 'Bancontact') : null,
+          terminal_reference: ok ? `T-${id}` : null, authorisation_code: ok ? 'A1' : null,
+          masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, detail: step.detail ?? null,
+          created_at: '2026-10-12 10:00:00', used: false,
+        };
+      }
+      if (!e) return make({ status: 'approved' }, 1);
+      const step = e.pay.shift() ?? { status: 'approved' };
+      e.payCalls.push({ orderId: args.orderId, amountCents: args.amountCents });
+      if (step.reject) return Promise.reject(step.reject);
+      const id = e.nextId++;
+      if (step.hold) {
+        // The terminal waits for the card until eft_abort (or a test) releases it.
+        return new Promise((resolve) => {
+          e.release = () => {
+            e.release = null;
+            const after = step.afterAbort ?? { status: 'cancelled' };
+            e.payments[id] = make(after, id);
+            resolve(e.payments[id]);
+          };
+        });
+      }
+      e.payments[id] = make(step, id);
+      return e.payments[id];
+    }),
+    eft_check: live((args: any = {}) => {
+      const e = (window as any).__eft;
+      const known = e ? e.payments[args.id] : null;
+      const step = (e && e.check.shift()) || { status: 'approved' };
+      const ok = step.status === 'approved';
+      const base = known ?? { id: args.id, order_id: 1, amount_cents: 0, created_at: '2026-10-12 10:00:00', used: false };
+      const next = {
+        ...base, status: step.status,
+        card_type: ok ? 'debit' : null, brand: ok ? (step.brand ?? 'Bancontact') : null,
+        terminal_reference: ok ? `T-${args.id}` : null, authorisation_code: ok ? 'A1' : null,
+        masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, detail: step.detail ?? null,
+      };
+      if (e) e.payments[args.id] = next;
+      return next;
     }),
 
     // Settings
@@ -582,6 +634,63 @@ export async function ipcCalls(page: Page, cmd: string): Promise<any[]> {
       .map((call) => call.args),
     cmd,
   );
+}
+
+/** One scripted answer of the terminal. */
+export interface EftStep {
+  status: 'approved' | 'declined' | 'cancelled' | 'unknown' | 'sent';
+  brand?: string;
+  detail?: string;
+  /** `eft_pay` rejects with this error (nothing was charged). */
+  reject?: string;
+  /** `eft_pay` waits (the terminal waits for the card) until `eft_abort`. */
+  hold?: boolean;
+  /** With `hold`: what the abort ends with (default cancelled). */
+  afterAbort?: EftStep;
+}
+
+/** A payment already known to the engine (crash recovery). */
+export interface EftKnown {
+  id: number;
+  order_id: number;
+  amount_cents: number;
+  status: 'approved' | 'unknown' | 'sent';
+  brand?: string | null;
+}
+
+/**
+ * The terminal's scripted answers: `pay` for each `eft_pay` in turn,
+ * `check` for each `eft_check`, `known` for payments that already exist
+ * (`list_eft_payments`). Call before the page loads.
+ */
+export async function eftScript(
+  page: Page,
+  script: { pay?: EftStep[]; check?: EftStep[]; known?: EftKnown[] },
+) {
+  await page.addInitScript((s) => {
+    const payments: Record<number, unknown> = {};
+    for (const k of s.known ?? []) {
+      const ok = k.status === 'approved';
+      payments[k.id] = {
+        ...k, card_type: ok ? 'debit' : null, brand: ok ? (k.brand ?? 'Bancontact') : null,
+        terminal_reference: ok ? `T-${k.id}` : null, authorisation_code: null, masked_pan: null,
+        detail: null, created_at: '2026-10-12 09:00:00', used: false,
+      };
+    }
+    (window as any).__eft = {
+      pay: [...(s.pay ?? [])], check: [...(s.check ?? [])], payments, nextId: 100,
+      payCalls: [], release: null, aborted: false,
+    };
+  }, script);
+}
+
+/** The settings of a till with a linked card terminal (or training). */
+export function settingsWith(over: Record<string, unknown>) {
+  return () => ({
+    posId: 'CPOS0031234567', terminalId: 'POS-1-BAR', restaurantName: 'The FPS Finances Experience',
+    fdmUrl: 'http://localhost:8081/graphql', printerAddress: null, trainingMode: false,
+    language: 'fr', posSwVersion: 'pili-pos/1.0.0', configProblems: [], ...over,
+  });
 }
 
 /** PIN typed by `tapUserTile` (the mocked `login` accepts any). */
