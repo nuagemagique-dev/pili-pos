@@ -216,6 +216,12 @@ pub(crate) enum PendingContext {
         webshop_order_id: Option<i64>,
         /// The till sale echoed to HubRise.
         hubrise_echo: Option<String>,
+        /// The card payments the linked terminal took that this sale
+        /// settles (`eft_payments.id`): marked used with the sale, in
+        /// its archive transaction, also when the answer comes late.
+        /// Absent in requests stored before the terminal existed.
+        #[serde(default)]
+        eft_payment_ids: Vec<i64>,
     },
     Refund {
         refund_order_id: i64,
@@ -327,7 +333,7 @@ impl From<String> for SignFailure {
     }
 }
 
-fn answer_pending(label: &str, ticket_no: i64, cause: &dyn std::fmt::Display) -> String {
+pub(crate) fn answer_pending(label: &str, ticket_no: i64, cause: &dyn std::fmt::Display) -> String {
     format!(
         "FDM error: {}",
         errors::coded(
@@ -538,9 +544,11 @@ fn apply(
             delivery,
             ticket,
             hubrise_echo,
+            eft_payment_ids,
             ..
         } => {
             close_order(*order_id)?;
+            crate::commands::eft::mark_used(tx, eft_payment_ids, event_ids[0])?;
             // Training moves no real money: no payment row.
             if !training {
                 for p in payments {

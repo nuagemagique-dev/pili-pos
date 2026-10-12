@@ -12,6 +12,30 @@ export type CheckoutPaymentMethod = "cash" | "card" | "meal_voucher";
 export interface PaymentPart {
   method: CheckoutPaymentMethod;
   amount_cents?: number;
+  /** A card part taken on the linked terminal: the approved payment it settles (`EftPayment.id`). */
+  eft_payment_id?: number;
+}
+
+/** Where a card payment asked of the linked terminal stands. */
+export type EftStatus = "sent" | "approved" | "declined" | "cancelled" | "unknown" | "not_sent";
+
+/** A card payment asked of the linked terminal (commands `eft_pay`, `eft_check`, `list_eft_payments`). */
+export interface EftPayment {
+  id: number;
+  order_id: number;
+  amount_cents: number;
+  status: EftStatus;
+  /** Set once approved. */
+  card_type: "debit" | "credit" | "unknown" | null;
+  brand: string | null;
+  terminal_reference: string | null;
+  authorisation_code: string | null;
+  masked_pan: string | null;
+  /** Why it was declined, what is missing for an unknown one. */
+  detail: string | null;
+  created_at: string;
+  /** A sale has settled it. */
+  used: boolean;
 }
 
 export interface Category {

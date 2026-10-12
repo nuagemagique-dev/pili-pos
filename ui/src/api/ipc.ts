@@ -9,6 +9,7 @@ import type {
   CreateOrderInput,
   AddOrderLineInput,
   PaymentPart,
+  EftPayment,
   CheckoutResult,
   FiscalTicket,
   TicketDeliveryRequest,
@@ -154,6 +155,30 @@ export function checkout(
   return invoke("checkout", { orderId, payments, delivery });
 }
 
+// Linked card payment terminal (EFT): only with a payment_terminal in pos.json
+// (see PosSettings.paymentTerminal).
+
+/** Charge `amountCents` of the order on the terminal; resolves with the payment whatever
+ * the terminal said (approved, declined, cancelled, unknown). Rejects when nothing was charged. */
+export function eftPay(orderId: number, amountCents: number): Promise<EftPayment> {
+  return invoke("eft_pay", { orderId, amountCents });
+}
+
+/** Ask the terminal to stop the payment in progress (a request, not a guarantee). */
+export function eftAbort(): Promise<void> {
+  return invoke("eft_abort");
+}
+
+/** Ask the terminal where a `sent` or `unknown` payment stands. */
+export function eftCheck(id: number): Promise<EftPayment> {
+  return invoke("eft_check", { id });
+}
+
+/** An order's approved payments not yet settled and those still waiting for an answer, oldest first. */
+export function listEftPayments(orderId: number): Promise<EftPayment[]> {
+  return invoke("list_eft_payments", { orderId });
+}
+
 /** Close an order the customer left without paying (manager, PIN):
  * the sale is signed with no payment line (UC4109). */
 export function closeUnpaid(orderId: number, insz: string, pin: string): Promise<CheckoutResult> {
@@ -235,6 +260,8 @@ export interface PosSettings {
   posSwVersion: string;
   /** What the FDM would refuse in pos.json; empty when usable. */
   configProblems: string[];
+  /** Kind of the linked card payment terminal (as in pos.json); absent when cards are typed by hand. */
+  paymentTerminal?: string;
 }
 
 export function getSettings(): Promise<PosSettings> {

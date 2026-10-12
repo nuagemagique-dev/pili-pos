@@ -279,6 +279,15 @@ impl Engine {
         if recovered > 0 {
             tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
         }
+        // Card payments whose answer was lost with a crash.
+        match crate::commands::eft::recover_after_crash(&conn) {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(
+                n,
+                "boot: card payment(s) left without an answer, to be checked"
+            ),
+            Err(e) => tracing::error!(%e, "boot: card payment recovery failed"),
+        }
         // Online orders a crash left half-signed.
         #[cfg(feature = "hubrise")]
         match crate::commands::webshop::recover_webshop_orders(&conn) {
@@ -352,6 +361,8 @@ impl Engine {
                 session_rules: Default::default(),
                 fdm_monitor: Default::default(),
                 export,
+                #[cfg(feature = "eft-scripted")]
+                eft_terminal_override: None,
             }),
             tasks: Mutex::new(Vec::new()),
             ticks: Arc::new(BackgroundTicks::default()),

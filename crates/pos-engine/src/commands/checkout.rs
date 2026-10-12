@@ -9,6 +9,7 @@ use pos_fiscal::types::EventLabel;
 use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
+use crate::commands::eft;
 use crate::commands::errors;
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
@@ -307,7 +308,22 @@ async fn sell_locked(
     // The payment: card and meal voucher parts are exact, cash pays the
     // rest, rounded to 5 cents (a sale at 0,00 EUR is a cash payment of
     // 0, FAQ Q206). Refused before anything is signed.
-    let settlement = match payment {
+    //
+    // Card parts taken on the linked terminal are checked first: a card
+    // that was charged is settled by this sale, to the cent, or the sale
+    // is refused (`commands::eft`).
+    let terminal_cards = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        let parts: &[PaymentPart] = match payment {
+            Payment::Parts(parts) => parts,
+            Payment::Unpaid => &[],
+        };
+        match eft::terminal_cards(&db, order_id, parts) {
+            Ok(cards) => cards,
+            Err(e) => return Ok(Err(CheckoutResult::refused(e))),
+        }
+    };
+    let mut settlement = match payment {
         Payment::Parts(parts) => match pos_fiscal::payment::settle(order.total_cents, parts) {
             Ok(s) => s,
             Err(e) => return Ok(Err(CheckoutResult::refused(payment_error(e)))),
@@ -320,6 +336,7 @@ async fn sell_locked(
         },
         Payment::Unpaid => return Ok(Err(CheckoutResult::refused(errors::UNPAID_NOTHING_DUE))),
     };
+    eft::attach_cards(&mut settlement, &terminal_cards);
     let unpaid = matches!(payment, Payment::Unpaid);
 
     // The number this sale takes; the counter advances only when the
@@ -417,6 +434,7 @@ async fn sell_locked(
         }),
         webshop_order_id,
         hubrise_echo,
+        eft_payment_ids: terminal_cards.iter().map(|(id, _)| *id).collect(),
     };
     let prepared = Prepared {
         op,
@@ -511,6 +529,14 @@ pub async fn do_check_fdm_status(state: &AppState) -> Result<serde_json::Value, 
         *cache = Some((key, std::time::Instant::now(), value.clone()));
     }
     Ok(value)
+}
+
+/// Whether the FDM answers now and has no blocking condition: the
+/// answer is never taken from the cache, a card is charged on it.
+pub(crate) async fn fdm_operational_now(state: &AppState) -> Result<bool, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?.clone();
+    let status = query_fdm_status(state, &config).await?;
+    Ok(super::fdm_monitor::classify(&status).connected)
 }
 
 async fn query_fdm_status(

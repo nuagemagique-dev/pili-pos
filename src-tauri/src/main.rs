@@ -218,6 +218,10 @@ fn main() {
         // Checkout
         ipc::checkout::checkout,
         ipc::unpaid::close_unpaid,
+        ipc::eft::eft_pay,
+        ipc::eft::eft_abort,
+        ipc::eft::eft_check,
+        ipc::eft::list_eft_payments,
         ipc::checkout::check_fdm_status,
         ipc::fdm_monitor::fdm_health,
         ipc::fdm_monitor::fdm_check_now,
@@ -329,6 +333,10 @@ fn main() {
         // Checkout
         ipc::checkout::checkout,
         ipc::unpaid::close_unpaid,
+        ipc::eft::eft_pay,
+        ipc::eft::eft_abort,
+        ipc::eft::eft_check,
+        ipc::eft::list_eft_payments,
         ipc::checkout::check_fdm_status,
         ipc::fdm_monitor::fdm_health,
         ipc::fdm_monitor::fdm_check_now,
