@@ -466,13 +466,76 @@ ou sur celle des tickets si `kitchen_printer_address` est absent).
 
 7. Tirer un rapport X pour validation finale ("Rapports", onglet "Journée", "Rapport X").
 
+**Terminal de paiement par carte relié (facultatif).** Sans bloc
+`payment_terminal`, rien ne change : la carte est payée sur un terminal
+de paiement autonome, que l'opérateur saisit à la caisse (méthode
+`MANUAL`, type `CARD_DEBIT`). Avec ce bloc, la caisse envoie le montant
+au terminal et enregistre sa réponse (ligne de paiement `AUTOMATIC`,
+`MANUEL_UTILISATEUR_FR.md` §7.2). Trois protocoles sont pris en charge,
+chacun d'après une spécification publique ; `kind` choisit l'un d'eux :
+
+| `kind` | Protocole | Chemin |
+|---|---|---|
+| `worldline_terminal_api` | Worldline Terminal API (nexo Retailer, JSON sur HTTPS) | La caisse parle au nuage Worldline, qui joint le terminal (terminal Android Worldline avec l'application "Terminal API") |
+| `ccv_payment_api` | CCV Payment API, méthode `terminal` (JSON sur HTTPS) | La caisse parle au nuage CCV, qui joint le terminal |
+| `ccv_opi` | OPI (Open Payment Initiative, XML sur TCP) | Directement sur le LAN du restaurant, sans nuage |
+
+Le terminal Worldline C-TEP (gamme Yomani / Yoximo) n'est pas pris en
+charge : son protocole est fermé (bibliothèque et certification
+Worldline).
+
+```json
+"payment_terminal": {
+  "kind": "worldline_terminal_api",
+  "merchant_id": "<UMID>",
+  "terminal_id": "<UTID>",
+  "integrator_id": "<identifiant d'intégrateur>",
+  "api_key_file": "/etc/pili-pos/secrets/terminal.key"
+}
+```
+
+| Champ | Description |
+|---|---|
+| `kind` | `worldline_terminal_api`, `ccv_payment_api` ou `ccv_opi`. Obligatoire. |
+| `base_url` | Types nuage seulement. Absent : l'adresse de production du fournisseur. À renseigner pour l'environnement de test du fournisseur ou pour un relais (voir plus bas). |
+| `api_key_file` | Types nuage seulement. Fichier contenant la seule clé d'API, jamais la clé elle-même dans `pos.json`. Absent seulement quand `base_url` est un relais qui authentifie la caisse lui-même. |
+| `merchant_id`, `terminal_id`, `integrator_id` | Worldline, tous trois obligatoires : identifiant du commerçant (UMID), du terminal (UTID) et de l'intégrateur que Worldline délivre au producteur. |
+| `terminal_id`, `management_system_id` | CCV Payment API, tous deux obligatoires : identifiant du terminal attribué par CCV et identifiant du système de gestion du terminal. |
+| `access_protocol` | CCV Payment API, facultatif : protocole d'accès du terminal, `OPI_NL` si absent. |
+| `address` | OPI, obligatoire : `hôte:port` du terminal sur le LAN (canal 0, en général le port 4100). |
+| `device_port` | OPI, facultatif : port d'écoute de la caisse pour le canal 1 du terminal (affichage et impression), 4102 si absent. |
+| `terminal_id` | OPI, facultatif : identifiant de poste envoyé au terminal. |
+| `timeout_seconds` | Facultatif, 30 à 600, 180 si absent : attente la plus longue de la réponse du terminal pour un paiement. Passé ce délai, le résultat est redemandé (statut inconnu, voir `MANUEL_UTILISATEUR_FR.md` §7.2). |
+
+Règle CCV : la clé d'API CCV ne doit pas se trouver sur un appareil du
+restaurant. Pour `ccv_payment_api`, renseigner alors `base_url` avec
+l'adresse d'un relais du distributeur, qui détient la clé et
+authentifie la caisse, et ne pas mettre `api_key_file`. Pour Worldline,
+la clé est un fichier de secret comme les autres :
+
+```bash
+(umask 027; cat > /etc/pili-pos/secrets/terminal.key)   # coller la clé, Entrée, puis Ctrl+D
+chown root:pos /etc/pili-pos/secrets/terminal.key
+pili-pos --check-config        # signale un champ manquant ou un fichier vide
+systemctl restart pili-pos
+```
+
+Le seul trafic sortant ajouté est HTTPS (443) vers le nuage du
+fournisseur (types nuage), ou une connexion TCP vers le terminal sur le
+LAN (`ccv_opi` : la caisse ouvre le canal 0 vers `address` et écoute
+sur `device_port` pour le canal 1 ; aucun autre port entrant).
+Chaque fournisseur certifie lui-même l'intégration avant tout usage
+réel et délivre les identifiants nécessaires : la configuration d'un
+établissement n'est livrée qu'avec ces éléments. Les paiements par carte
+ne sont jamais arrondis, pour toute installation.
+
 ### 4.7 Paramètres de l'installation, journaux, réseau et comptes
 
 **Qui peut modifier quoi.**
 
 | Paramètre | Valeur d'origine | Qui le modifie | Où |
 |---|---|---|---|
-| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `tables`, `backup_dir`, `digital_ticket`, `hubrise` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
+| Identité et réseau : `pos_id`, `restaurant_*`, `fdm_*`, `printer_address`, `kitchen_printer_address`, `language`, `day_end_hour`, `table_count`, `tables`, `backup_dir`, `digital_ticket`, `hubrise`, `payment_terminal` | Gabarit d'usine (`CHANGE_ME_14CH` pour `pos_id`, `terminal_id` `POS1`) | Le technicien seul, en `root` sur la console `tty2` | `/etc/pili-pos/pos.json`, puis `systemctl restart pili-pos` (la configuration est lue au démarrage) |
 | `device_id` | Adresse MAC, inscrite au premier démarrage | Personne (sauf changement de la carte réseau) | `/etc/pili-pos/pos.json` |
 | `training_mode` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Mode Formation" | Le réglage de "Config" est en mémoire : il vaut jusqu'au redémarrage, qui revient à la valeur du fichier |
 | `hubrise_enabled` | `false` | Valeur de départ : le technicien. Ensuite le Gérant, dans "Config", panneau "Intégrations" | Chaque changement est journalisé, ne s'efface pas, et le dernier l'emporte |

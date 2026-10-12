@@ -99,7 +99,7 @@ Intégration activée, le POS traite des données de clients (voir
 | Commande payée (plateforme) | Acceptation | N | `APP` | Ticket de caisse TVA papier |
 | Commande payée (webshop) | Acceptation | N | `ONLINE` | Ticket de caisse TVA papier |
 | Commande à payer | Acceptation | P (`signOrder`) | aucun | Bon de cuisine (« ceci n'est pas un ticket de caisse TVA valable ») |
-| Commande à payer | Remise et encaissement | N, qui clôt le P (FAQ Q203 b) | espèces, carte, titres-repas, comme à la caisse | Ticket de caisse TVA papier |
+| Commande à payer | Remise et encaissement | N, qui clôt le P (FAQ Q203 b) | espèces, carte, titres-repas, comme à la caisse ("Encaisser carte" passe par le terminal de paiement relié quand l'installation en a un : `MANUEL_UTILISATEUR_FR.md` §7.2) | Ticket de caisse TVA papier |
 | Commande refusée | Refus | aucun | aucun | aucun |
 
 Chaque commande porte un `costCenter` :

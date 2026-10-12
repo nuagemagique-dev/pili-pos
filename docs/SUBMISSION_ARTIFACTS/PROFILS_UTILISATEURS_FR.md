@@ -81,7 +81,11 @@ Profil d'opérateur de caisse standard. Peut :
 - Imprimer un pré-ticket (Événement P - `signPreBill`).
 - Encaisser : encaissement comptant ou carte (Événement N -
   `signSale`). Tiroir s'ouvre automatiquement pour les paiements
-  comptant.
+  comptant. Avec un terminal de paiement relié, "Encaisser sur le
+  terminal" (`eft_pay`) et "Annuler" (`eft_abort`) demandent les mêmes
+  droits que l'encaissement (Gérant, Serveur) ; "Vérifier" un paiement
+  dont la réponse est inconnue (`eft_check`) et la liste des paiements
+  d'une commande sont ouverts à tout utilisateur connecté.
 - Réimprimer une seule fois l'original manquant d'un ticket (bouton
   "Imprimer le ticket" de l'écran de fin).
 - Traiter les commandes en ligne : accepter, refuser, terminer,

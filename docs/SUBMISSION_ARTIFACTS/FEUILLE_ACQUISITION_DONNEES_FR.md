@@ -83,6 +83,21 @@ Voir `TICKET_NUMERIQUE_FR.md` pour le détail du cycle de vie de
 `ticket_deliveries` et `SCHEMA_BD_FR.md` §3.6-3.7 pour le schéma
 complet.
 
+### 1.5 bis Connexion au terminal de paiement (facultatif)
+
+Réglage `payment_terminal` de `pos.json`. Absent, la caisse n'échange
+aucune donnée avec un terminal de paiement : l'opérateur saisit le
+résultat d'un terminal autonome.
+
+| Élément | Valeur |
+|---|---|
+| Fournisseurs (protocoles) | Worldline Terminal API (nuage Worldline), CCV Payment API (nuage CCV), OPI (LAN du restaurant, terminaux CCV) |
+| Données envoyées au terminal ou à son fournisseur | Le montant, la référence du paiement (UUID propre à la caisse, clé d'idempotence), un libellé (nom de l'établissement et numéro de table), la langue d'affichage, l'identifiant du terminal et les identifiants de l'installation chez le fournisseur. Aucune donnée de client, aucun INSZ. |
+| Données reçues | Le résultat (accepté, refusé, abandonné), le type de carte (débit, crédit, inconnu), la marque de la carte, le numéro de carte **masqué**, le code d'autorisation, l'identifiant de transaction du terminal et le ticket client du terminal. Le numéro de carte complet, la date d'expiration et le code de sécurité n'arrivent jamais à la caisse. |
+| Où c'est conservé | Table `eft_payments` de `pos.db` (`SCHEMA_BD_FR.md` §2.5), en ajout seul ; la ligne de paiement signée de l'événement N porte le type de carte, la marque (`provider`) et l'identifiant de transaction (`reference`) |
+| Secrets | La clé d'API du fournisseur est lue dans un fichier du dossier `/etc/pili-pos/secrets` (`payment_terminal.api_key_file`), jamais dans `pos.json` ; une clé CCV n'est pas placée sur l'appareil du restaurant, la caisse parle alors à un relais du distributeur (`MANUEL_INSTALLATION_FR.md` §4.2) |
+| Trafic | HTTPS (443) sortant vers le nuage du fournisseur, ou TCP vers le terminal sur le LAN (OPI) ; aucun port entrant autre que le canal 1 d'OPI sur le LAN |
+
 ### 1.6 Données de configuration
 
 | Élément | Valeur |
@@ -205,6 +220,7 @@ GROUP BY method;
 | Logs applicatifs | Indéfinie (rotation quotidienne sans purge) | Permettre un audit de comportement applicatif a posteriori |
 | `payments`, `orders`, `order_lines` | Indéfinie | Données de support nécessaires à la reconstruction d'un ticket |
 | Translations, menu_items, modifier_groups, modifiers | Indéfinie | Données de référence. Le menu est mis à jour en place (y compris par la synchronisation du catalogue, qui désactive sans supprimer) ; l'historique fiscal n'en dépend pas : nom, prix et TVA sont figés dans `order_lines` et `order_entries` |
+| `eft_payments` (paiements du terminal relié) | Indéfinie, jamais supprimée (triggers) | Preuve d'un débit de carte et de son rattachement à la vente ; ne contient que le numéro de carte masqué (§6) |
 | `orders.raw_hubrise_json`, `hubrise_events` (commandes en ligne) | Indéfinie, sans purge automatique | Contiennent des données de clients (§6) |
 
 **Aucune purge automatique n'est implémentée.** Le passage à un
@@ -219,7 +235,7 @@ soumise au SPF Finances.
   triggers SQLite refusent toute suppression ou réécriture, même par un
   accès direct à la base (`fiscal_events_no_delete`,
   `fiscal_events_no_rewrite` ; idem `z_reports_*`, `order_entries_*`,
-  `pending_signs_*`, `booking_periods_*` ; liste dans `SCHEMA_ER_FR.md`
+  `pending_signs_*`, `booking_periods_*`, `eft_payments_*` ; liste dans `SCHEMA_ER_FR.md`
   §4).
 - Les sauvegardes journalières sont stockées en fichiers indépendants,
   jamais écrasés (le nom inclut le timestamp à la seconde).
@@ -247,7 +263,7 @@ soumise au SPF Finances.
   identifiante.
 - INSZ stocké dans les colonnes `users.insz`, `orders.user_insz`,
   `fiscal_events.user_insz`, `pending_signs.user_insz`,
-  `staff_shifts.user_insz`, `webshop_orders.accepted_by`,
+  `staff_shifts.user_insz`, `eft_payments.user_insz`, `webshop_orders.accepted_by`,
   `integration_switches.changed_by`, `integration_switch_log.changed_by`,
   `table_plan.changed_by` et `table_plan_log.changed_by`, ainsi que dans les JSON `fiscal_events.event_data_json` (payload
   envoyé au FDM, obligation fiscale), `pending_signs.request_body`,
@@ -272,6 +288,12 @@ soumise au SPF Finances.
   (`list_ticket_deliveries` n'expose que l'indice masqué). Sous-traité
   à Scaleway (Transactional Email, UE, région `fr-par`) pour l'envoi
   uniquement - aucun usage marketing.
+- Données de carte du terminal de paiement relié (§1.5 bis) : la caisse
+  ne reçoit et ne conserve que le numéro de carte masqué, la marque, le
+  type, le code d'autorisation et le ticket client du terminal, qui
+  portent le même masque. Le numéro complet, la date d'expiration et le
+  code de sécurité restent dans le terminal : la caisse n'est pas dans
+  le périmètre de saisie de la carte.
 - Données de clients des commandes en ligne (si l'intégration HubRise
   est activée pour l'installation, désactivée par défaut) :
   `orders.raw_hubrise_json` et `hubrise_events.payload_json` conservent
