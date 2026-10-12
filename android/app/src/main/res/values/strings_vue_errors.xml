@@ -53,6 +53,14 @@
     <string name="err_refund_in_training">Une vente réelle ne se rembourse pas en mode formation.</string>
     <string name="err_refund_of_refund">Un remboursement ne se rembourse pas.</string>
     <string name="err_open_orders_training">Encaissez ou videz les commandes ouvertes avant de changer de mode</string>
+    <string name="err_eft_not_configured">Aucun terminal de paiement n\'est relié à cette caisse.</string>
+    <string name="err_eft_training">Mode formation : aucune carte réelle n\'est débitée. Encodez le paiement par carte à la main.</string>
+    <string name="err_eft_amount_invalid">Montant invalide : il doit être positif et ne pas dépasser ce qu\'il reste à payer.</string>
+    <string name="err_eft_pending">Un paiement par carte attend encore sa réponse : vérifiez-le d\'abord. Rien d\'autre n\'est encaissé ni enregistré.</string>
+    <string name="err_eft_busy">Le terminal de paiement est occupé avec un autre paiement. Rien n\'a été débité.</string>
+    <string name="err_eft_unreachable">Le terminal de paiement est injoignable. Rien n\'a été débité. ({detail})</string>
+    <string name="err_eft_rejected">Le terminal de paiement a refusé la demande. Rien n\'a été débité. ({detail})</string>
+    <string name="err_eft_payment_not_usable">Ce paiement par carte ne peut pas être utilisé ici : utilisez chaque paiement approuvé de cette commande, pour son montant exact.</string>
     <string name="err_digital_unavailable">Le ticket par e-mail n\'est pas configuré sur cette caisse.</string>
     <string name="err_email_invalid">Adresse e-mail invalide.</string>
     <string name="err_already_printed">Le ticket original est déjà imprimé : imprimez une copie.</string>

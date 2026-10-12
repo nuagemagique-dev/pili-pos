@@ -126,6 +126,14 @@ internal object VueStringIds {
         this["err_refund_in_training"] = R.string.err_refund_in_training
         this["err_refund_of_refund"] = R.string.err_refund_of_refund
         this["err_open_orders_training"] = R.string.err_open_orders_training
+        this["err_eft_not_configured"] = R.string.err_eft_not_configured
+        this["err_eft_training"] = R.string.err_eft_training
+        this["err_eft_amount_invalid"] = R.string.err_eft_amount_invalid
+        this["err_eft_pending"] = R.string.err_eft_pending
+        this["err_eft_busy"] = R.string.err_eft_busy
+        this["err_eft_unreachable"] = R.string.err_eft_unreachable
+        this["err_eft_rejected"] = R.string.err_eft_rejected
+        this["err_eft_payment_not_usable"] = R.string.err_eft_payment_not_usable
         this["err_digital_unavailable"] = R.string.err_digital_unavailable
         this["err_email_invalid"] = R.string.err_email_invalid
         this["err_already_printed"] = R.string.err_already_printed
@@ -258,6 +266,9 @@ internal object VueStringIds {
         this["delivery_status_purged"] = R.string.delivery_status_purged
         this["sw_version"] = R.string.sw_version
         this["lock"] = R.string.lock
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["status_kitchen"] = R.string.status_kitchen
         this["fdm_closes_in"] = R.string.fdm_closes_in
         this["fdm_retry_in"] = R.string.fdm_retry_in
@@ -266,9 +277,6 @@ internal object VueStringIds {
         this["qty_less"] = R.string.qty_less
         this["qty_more"] = R.string.qty_more
         this["line_remove"] = R.string.line_remove
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["not_sent_to_kitchen"] = R.string.not_sent_to_kitchen
         this["send_to_kitchen"] = R.string.send_to_kitchen
         this["sent_to_kitchen"] = R.string.sent_to_kitchen

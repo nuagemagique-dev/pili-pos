@@ -53,6 +53,14 @@
     <string name="err_refund_in_training">A real sale cannot be refunded in training mode.</string>
     <string name="err_refund_of_refund">A refund cannot be refunded.</string>
     <string name="err_open_orders_training">Pay or empty the open orders before switching mode</string>
+    <string name="err_eft_not_configured">No payment terminal is linked to this till.</string>
+    <string name="err_eft_training">Training mode: no real card is charged. Enter the card payment by hand.</string>
+    <string name="err_eft_amount_invalid">Invalid amount: it must be positive and not more than what is left to pay.</string>
+    <string name="err_eft_pending">A card payment is still waiting for its answer: check it first. Nothing else is charged or recorded.</string>
+    <string name="err_eft_busy">The payment terminal is busy with another payment. Nothing was charged.</string>
+    <string name="err_eft_unreachable">The payment terminal cannot be reached. Nothing was charged. ({detail})</string>
+    <string name="err_eft_rejected">The payment terminal refused the request. Nothing was charged. ({detail})</string>
+    <string name="err_eft_payment_not_usable">This card payment cannot be used here: use every approved payment of this order, for its exact amount.</string>
     <string name="err_digital_unavailable">Email tickets are not set up on this terminal.</string>
     <string name="err_email_invalid">Invalid email address.</string>
     <string name="err_already_printed">The original ticket is already printed: print a copy.</string>
