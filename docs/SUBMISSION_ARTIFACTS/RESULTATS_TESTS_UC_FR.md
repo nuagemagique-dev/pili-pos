@@ -24,6 +24,8 @@ ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 
 **Preuves generees par l'implementation :** chaque UC rejoue se termine par un bloc « Preuve pili-pos (build `cert`) ». Le rejeu construit la commande a partir des produits, quantites et paiements de la fixture, la fait passer par les vraies commandes du binaire de certification (`--no-default-features --features cert`) et compare champ par champ la requete archivee a celle de la fixture : champs metier egaux, champs d'identification (posId, deviceId, numero de ticket, dates, periode de booking) controles sur leur format, ecarts assumes listes et motives. Le bloc reprend la requete **reellement construite par pili-pos** (colonne `event_data_json` de l'archive fiscale) et le resultat de la comparaison ; les fichiers sont dans `evidence/uc/` (`<UC>_event<N>_<label>_request.json`, `_response.json`, `<UC>_check.json`). Regeneration : `scripts/capture_uc_evidence.sh`. Le FDM y est un mock qui rejoue la reponse de la fixture ; une journee d'exploitation est signee par le simulateur en ligne module2 lors de la repetition (*JOURNAL_TESTS_PRE_SOUMISSION_FR.md*).
 
+**Note, terminal de paiement relie :** les resultats ci-dessous sont ceux d'une caisse sans terminal de paiement relie (carte saisie par l'operateur, ligne de paiement `MANUAL`). Les lignes de paiement `AUTOMATIC` d'un terminal relie (type de carte fourni par le terminal, marque dans `provider`, identifiant de transaction dans `reference`) ne figurent pas dans les fixtures du SPF ; elles sont couvertes par les tests du moteur `crates/pos-engine/tests/eft_payments.rs` et `crates/pos-engine/tests/eft_signing.rs`. Aucun resultat enregistre ci-dessous n'est modifie.
+
 ---
 
 # Basic Set v1.8 (22 UC)

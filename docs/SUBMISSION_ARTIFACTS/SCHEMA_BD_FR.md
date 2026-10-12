@@ -9,7 +9,7 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
 **Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
-`schema_hubrise.rs` et `schema_catalog.rs` (lecture machine via
+`schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs` (lecture machine via
 `sqlite3 pos.db ".schema"`).
 
 ## 1. Tables de référence
@@ -209,6 +209,49 @@ celle qu'un Gérant a fixée dans Réglages (source `admin`). L'écran des
 tables affiche les tables du plan, plus toute table hors plan qui a
 encore une commande ouverte : aucune commande non réglée n'est donc
 masquée.
+
+### 2.5 `eft_payments` Attention : APPEND-ONLY (migration `027`)
+
+Paiements par carte demandés au terminal de paiement relié (réglage
+facultatif `payment_terminal` de `pos.json`). Une ligne par paiement
+demandé, écrite **avant** l'appel du terminal (statut `sent`) : un
+arrêt entre l'appel et la réponse laisse la trace qu'une carte a peut-être
+été débitée. La table n'est écrite que si l'installation a un terminal
+relié ; elle fait partie du binaire certifié de toute installation.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `reference` | TEXT | Unique. UUID v4 envoyé au terminal (clé d'idempotence, clé de relecture du statut) |
+| `order_id` | INTEGER (FK → `orders.id`) | Commande payée |
+| `terminal_kind` | TEXT | `worldline_terminal_api`, `ccv_payment_api` ou `ccv_opi` |
+| `amount_cents` | INTEGER | Montant demandé en centimes (strictement positif) |
+| `status` | TEXT | `sent` (attend la réponse), `approved`, `declined`, `cancelled`, `unknown` (réponse perdue, à redemander) ou `not_sent` (rien n'a été débité) ; contraint |
+| `card_type` | TEXT (nullable) | `debit`, `credit` ou `unknown` ; obligatoire pour un paiement `approved` (`CHECK`) |
+| `brand` | TEXT (nullable) | Marque de la carte rendue par le terminal (par exemple Bancontact) |
+| `terminal_reference` | TEXT (nullable) | Identifiant de transaction du terminal (devient la `reference` de la ligne de paiement signée) |
+| `authorisation_code` | TEXT (nullable) | Code d'autorisation |
+| `masked_pan` | TEXT (nullable) | Numéro de carte masqué par le terminal ; le numéro complet n'arrive jamais à la caisse |
+| `customer_receipt` | TEXT (nullable) | Ticket client du terminal, conservé avec l'approbation |
+| `detail` | TEXT (nullable) | Motif du refus, ce qui manque pour un paiement `unknown`, erreur d'un `not_sent` |
+| `user_insz` | TEXT | INSZ de l'opérateur qui a demandé le paiement (pas de clé étrangère) |
+| `created_at` | TEXT | Date / heure de la demande (défaut `datetime('now')`) |
+| `resolved_at` | TEXT (nullable) | Date / heure de la réponse définitive |
+| `used_event_id` | INTEGER (FK → `fiscal_events.id`, nullable) | La vente (événement N) qui a réglé ce paiement ; une seule fois |
+
+Index : `idx_eft_payments_order` (`order_id`) et `idx_eft_payments_open`
+(partiel, `WHERE status IN ('sent','unknown')`, les paiements qui
+attendent encore leur réponse).
+
+Six déclencheurs (`RAISE(ABORT, ...)`), détaillés dans
+`SECURITE_BD_FR.md` : `eft_payments_no_delete` (jamais de `DELETE`),
+`eft_payments_starts_sent` (une ligne naît `sent` et non utilisée),
+`eft_payments_request_fixed` (ce qui a été demandé ne change jamais),
+`eft_payments_status_moves` (seuls `sent` et `unknown` évoluent, jamais
+vers `sent`), `eft_payments_answer_final` (une réponse `approved`,
+`declined`, `cancelled` ou `not_sent` ne change plus) et
+`eft_payments_used_once` (seul un paiement `approved` est utilisé, une
+fois).
 
 ## 3. Tables fiscales (append-only)
 
@@ -634,8 +677,8 @@ dans `order_lines` et `order_entries`.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **dix-sept
-migrations** existent (1 à 11, puis 20 à 25 ; 12 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **dix-neuf
+migrations** existent (1 à 11, puis 20 à 27 ; 12 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -658,6 +701,8 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 23 | `price-changes` | `order_price_changes` et ses déclencheurs (§5.3). |
 | 24 | `platform-charges` | Frais des plateformes exclus par défaut (§5.2). |
 | 25 | `integration-switch` | `integration_switches`, `integration_switch_log` et ses déclencheurs (§5.4). |
+| 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
+| 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

@@ -129,8 +129,24 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 
 ### 2.2 Encaissement
 
-- Modes de paiement : espèces, carte et chèques-repas électroniques
-  (saisie manuelle - pas de terminal intégré dans cette version).
+- Modes de paiement : espèces, carte et chèques-repas électroniques.
+  Par défaut la carte est saisie à la main (terminal autonome, méthode
+  `MANUAL`, `CARD_DEBIT`).
+- **Terminal de paiement relié (facultatif, par installation)** : réglage
+  `payment_terminal` de `pos.json`. La caisse envoie le montant au
+  terminal (Worldline Terminal API, CCV Payment API ou OPI) et enregistre
+  sa réponse dans `eft_payments` avant et après l'appel. Rien n'est
+  débité si le FDM n'est pas opérationnel. La ligne de paiement signée
+  est `AUTOMATIC` : le type de carte vient du terminal (`CARD_DEBIT`
+  id "2", `CARD_CREDIT` id "6", `CARD_UNKNOWN` id "7"), la marque est
+  dans `provider`, l'identifiant de transaction dans `reference` ; le
+  ticket imprime la marque. Une réponse inconnue bloque la vente de la
+  commande jusqu'à vérification ; un paiement accepté doit être repris
+  par la vente. Pas d'arrondi des paiements par carte EFT, pour toute
+  installation. Mode formation : aucune vraie carte n'est débitée.
+  Remboursement toujours en espèces. Terminal Worldline C-TEP (Yomani,
+  Yoximo) non pris en charge (protocole fermé). Voir
+  `MANUEL_UTILISATEUR_FR.md` §7.2 et `MANUEL_INSTALLATION_FR.md` §4.2.
 - Paiement en plusieurs moyens sur un seul ticket : carte et
   chèques-repas pour un montant exact, espèces pour le reste
   (`crates/pos-fiscal/src/payment.rs::settle`).

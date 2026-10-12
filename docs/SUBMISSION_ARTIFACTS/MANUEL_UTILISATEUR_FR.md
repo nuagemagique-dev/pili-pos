@@ -363,12 +363,59 @@ ticket** (un seul événement N, même payée en plusieurs parts).
   ("exact 3,34 · arrondi 5 cts"). "Valider".
 - **Carte** : le pavé propose le montant à payer ; le laisser ou taper
   un montant plus petit (jamais plus que le reste : "Plus que le reste à
-  payer"). Encaisser ce montant sur le terminal de paiement ("Encaisser
-  sur le terminal"), qui n'est pas relié à la caisse, puis "Valider" une
-  fois le paiement accepté. Pas d'arrondi pour une carte.
+  payer"). Sans terminal de paiement relié à la caisse : encaisser ce
+  montant sur le terminal de paiement ("Encaisser sur le terminal"), puis
+  "Valider" une fois le paiement accepté. Avec un terminal relié, voir
+  "Carte sur le terminal relié" ci-dessous. Pas d'arrondi pour une carte.
 - **Chèques-repas** (chèques-repas électroniques, payés sur le terminal
   de paiement) : comme la carte, pour le montant payé en chèques-repas.
   Pas d'arrondi, pas de rendu sur des chèques-repas.
+
+**Carte sur le terminal relié (si l'installation en a un).** Quand le
+terminal de paiement est relié à la caisse (réglage de l'installation,
+`MANUEL_INSTALLATION_FR.md` §4.2), l'opérateur ne tape plus la carte :
+la caisse envoie le montant au terminal et reçoit sa réponse.
+
+1. Choisir "Carte", laisser ou taper le montant (comme ci-dessus), puis
+   toucher "Encaisser sur le terminal". Une fenêtre s'ouvre avec le
+   montant et le message "En attente du terminal" ; le client présente
+   sa carte sur le terminal. La caisse n'envoie le montant que si le
+   FDM est opérationnel à cet instant : sinon le message "FDM not
+   connected" s'affiche et rien n'est débité.
+2. Le terminal répond. Paiement accepté : la fenêtre se ferme et la part
+   est prise, avec le type de carte et la marque que le terminal
+   rend (la marque s'imprime sur le ticket, par exemple "Carte
+   Bancontact"). Paiement refusé ou abandonné par le client : la fenêtre
+   le dit, rien n'est débité et l'opérateur peut recommencer ou prendre
+   un autre moyen de paiement.
+3. "Annuler" dans la fenêtre demande au terminal d'abandonner le
+   paiement en cours. Si le terminal l'avait déjà accepté, c'est lui qui
+   l'emporte : le paiement accepté reste, il faut l'utiliser.
+4. Si la réponse du terminal est inconnue (câble ou réseau coupé,
+   terminal éteint, panne de courant de la caisse), la fenêtre affiche
+   "Réponse inconnue" : un débit est peut-être passé. **Tant que la
+   réponse n'est pas connue, la vente de cette commande est bloquée.**
+   Toucher "Vérifier" redemande le résultat au terminal (tout
+   utilisateur peut le faire) ; la fenêtre affiche alors accepté, refusé
+   ou toujours inconnu. Après un redémarrage de la caisse, un paiement
+   envoyé et sans réponse devient lui aussi "inconnu" et se vérifie de
+   la même façon.
+5. Un paiement accepté **doit être utilisé par la vente** de sa commande,
+   pour son montant exact : la caisse refuse de signer la vente autrement
+   et le reste à payer se prend par un autre moyen (espèces,
+   chèques-repas, ou une autre carte).
+6. Si le terminal est injoignable et que rien n'a été débité, l'opérateur
+   peut aussi saisir la carte à la main, comme sans terminal relié
+   ("Encaisser sur le terminal" sur un terminal autonome puis "Valider") :
+   la ligne est alors `MANUAL`. Ce repli est refusé tant qu'un paiement de
+   cette commande attend sa réponse ou qu'un paiement accepté n'est pas
+   encore utilisé par la vente.
+
+Une carte payée sur le terminal relié n'est jamais arrondie. En mode
+formation (§13), aucune vraie carte n'est jamais débitée : la caisse
+refuse d'envoyer le montant au terminal, la carte se saisit à la main.
+Le remboursement reste rendu en espèces (§9) : l'annulation d'un
+paiement carte déjà accepté n'est pas prise en charge par la caisse.
 
 **Partager la note en parts égales.** Sous les moyens de paiement, la
 ligne "Partager en" propose 1 à 5 "parts égales". Les centimes de reste
@@ -789,7 +836,9 @@ L'avancement d'une commande suit ces boutons :
 - Pour une livraison du webshop, **"En livraison"** précède
   **"Terminer"** (commande déjà payée). Pour une commande "À encaisser",
   la remise se fait par **"Encaisser espèces"** ou **"Encaisser carte"** :
-  vente (événement N) et ticket, comme au §7.
+  vente (événement N) et ticket, comme au §7. Avec un terminal de
+  paiement relié, "Encaisser carte" envoie le montant au terminal et suit
+  les mêmes étapes qu'au §7.2 ("Carte sur le terminal relié").
 - **"Réimprimer"** ouvre "Ticket cuisine" et "Ticket client" pour
   réimprimer les bons ("Ticket envoyé à l'imprimante").
 - **"À vérifier"** : la commande ne correspond pas au menu (produit

@@ -2,7 +2,7 @@
 
 **Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs` et `schema_catalog.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 25).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 27).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
@@ -19,7 +19,7 @@ retiré. Le lien est applicatif.
 
 ## 1. Vue d'ensemble par domaines
 
-La base est organisée en 11 domaines logiques :
+La base est organisée en 12 domaines logiques :
 
 ```
 +-----------------+   +---------------+   +----------------+
@@ -66,11 +66,11 @@ La base est organisée en 11 domaines logiques :
 |  integration_switches/_log    |
 +-------------------------------+
 
-+-------------------------------+
-|  PLAN DE SALLE (migration 11) |
-|  table_plan (plan en vigueur),|
-|  table_plan_log (append-only) |
-+-------------------------------+
++-------------------------------+   +--------------------------------+
+|  PLAN DE SALLE (migration 11) |   |  TERMINAL DE PAIEMENT RELIÉ    |
+|  table_plan (plan en vigueur),|   |  (migration 27)                |
+|  table_plan_log (append-only) |   |  eft_payments (append-only)    |
++-------------------------------+   +--------------------------------+
 ```
 
 `_migrations_applied` (suivi des migrations) est hors domaine.
@@ -466,6 +466,35 @@ gardent leur numéro de table (`orders.table_number`) ; le plan ne
 détermine que les tables que l'écran des tables affiche, plus toute table
 hors plan qui a une commande ouverte.
 
+### 2.9 Terminal de paiement relié (migration 27)
+
+```
++----------------------------------+
+|           eft_payments           |
+|----------------------------------|
+| id INT PK                        |
+| reference TEXT UNIQUE (UUID)     |
+| order_id INT FK ---------------------> orders
+| terminal_kind TEXT               |
+| amount_cents INT > 0             |
+| status sent|approved|declined|   |
+|   cancelled|unknown|not_sent     |
+| card_type debit|credit|unknown   |
+| brand, terminal_reference,       |
+| authorisation_code, masked_pan,  |
+| customer_receipt, detail TEXT    |
+| user_insz TEXT (pas de FK)       |
+| created_at, resolved_at TEXT     |
+| used_event_id INT FK ----------------> fiscal_events (nullable)
++----------------------------------+
+ ajout seul par triggers (voir §4)
+```
+
+Une ligne par paiement demandé au terminal, écrite avant l'appel. Elle
+référence sa commande et, une fois la vente signée, l'événement N qui l'a
+réglée (`used_event_id`, une seule fois). Un paiement `approved` impose
+un `card_type` (`CHECK`).
+
 ---
 
 ## 3. Relations principales (verbalisées)
@@ -480,6 +509,8 @@ hors plan qui a une commande ouverte.
 | `orders` → `order_entries` | 1 → N | Le journal chronologique de la commande (ajouts, corrections, remboursements) |
 | `order_entries` → `fiscal_events` | N → 0..1 | `sent_event_id` : l'événement P ou N qui a transmis l'entrée |
 | `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, titres-repas) |
+| `orders` → `eft_payments` | 1 → 0..N | Les paiements demandés au terminal relié pour cette commande (aucun sans terminal relié) |
+| `eft_payments` → `fiscal_events` | N → 0..1 | `used_event_id` : l'événement N qui a réglé le paiement accepté |
 | `orders` → `fiscal_events` | 1 → 0..N | Une commande peut générer 0 (open) à plusieurs events fiscaux (P → N, ou N + C copie, etc.) |
 | `fiscal_events` → `orders` | N → 0..1 | Un event fiscal référence 0 (events système comme S, F-WAR) ou 1 commande |
 | `users` → `orders` / `fiscal_events` / `pending_signs` / `staff_shifts` | 1 → N | Par la valeur de `user_insz` ; **aucune clé étrangère** (lien applicatif) |
@@ -515,8 +546,9 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `order_price_changes` | `order_price_changes_no_delete`, `order_price_changes_no_update` | Ni DELETE, ni UPDATE |
 | `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
 | `table_plan_log` | `table_plan_log_no_update`, `table_plan_log_no_delete` | Ni DELETE, ni UPDATE |
+| `eft_payments` | `eft_payments_no_delete`, `eft_payments_starts_sent`, `eft_payments_request_fixed`, `eft_payments_status_moves`, `eft_payments_answer_final`, `eft_payments_used_once` | Pas de DELETE ; une ligne naît `sent` et non utilisée ; la demande (commande, montant, référence, opérateur) est immuable ; seuls `sent` et `unknown` changent de statut ; une réponse définitive ne change plus (hors `used_event_id`, posé une fois pour un paiement `approved`) |
 
-Soit 23 triggers.
+Soit 29 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 
@@ -545,6 +577,8 @@ Index explicites (hors index implicites des clés primaires et des contraintes U
 | `hubrise_outbox` | `idx_hubrise_outbox_order` (partiel, `WHERE sent_at IS NULL`) | `hubrise_order_id, id` | Envoi dans l'ordre, par commande |
 | `webshop_orders` | `idx_webshop_orders_state` | `fiscal_state, resolution` | Liste des commandes en ligne par état |
 | `order_price_changes` | `idx_order_price_changes_order` | `order_id, entry_id` | Remises d'une commande |
+| `eft_payments` | `idx_eft_payments_order` | `order_id` | Paiements carte d'une commande |
+| `eft_payments` | `idx_eft_payments_open` (partiel, `WHERE status IN ('sent','unknown')`) | `status` | Paiements qui attendent encore leur réponse |
 
 Index implicites utiles : `fiscal_events` (`id`, `UNIQUE(event_type, sequence_number)`), `users` (`insz`), `translations` (`UNIQUE(entity_type, entity_id, field, lang)`), `webshop_orders` (`order_id`, `hubrise_order_id`).
 
@@ -572,14 +606,15 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `11`, puis `20` à `25`
-(dix-sept migrations ; 12 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, puis `20` à `27`
+(dix-neuf migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
 `shifts-and-pre-bill`, `pending-signs`, `table-plan`, `hubrise-transport`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
-`platform-charges`, `integration-switch` - liste exacte dans
+`platform-charges`, `integration-switch`, `product-codes`,
+`eft-payments` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
 (`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
-migrations 20 à 25 font partie du binaire certifié.
+migrations 20 à 27 font partie du binaire certifié.

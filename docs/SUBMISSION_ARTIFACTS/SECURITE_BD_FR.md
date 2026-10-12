@@ -52,6 +52,10 @@ Au niveau colonne :
   code TVA invalide.
 - `payments.method IN ('cash','card','meal_voucher','other')`
   (migration 8) - restreint les modes de paiement.
+- `eft_payments.status IN ('sent','approved','declined','cancelled','unknown','not_sent')`
+  et `eft_payments.card_type IN ('debit','credit','unknown')` (migration
+  27) ; un paiement `approved` impose un `card_type` renseigné ;
+  `eft_payments.amount_cents > 0`.
 - `users.role IN ('admin','cashier','waiter')` - restreint les
   rôles à ceux mappés sur les profils SCE 2.0.
 - `peppol_deliveries.status IN ('queued','accepted','failed')` -
@@ -90,6 +94,15 @@ la suppression, même par un accès direct à la base :
   (migration 3) ;
 - `pending_signs_request_immutable`, `pending_signs_context_on_resolution`,
   `pending_signs_no_reopen` et `pending_signs_no_delete` (migration 10) ;
+- `eft_payments_no_delete`, `eft_payments_starts_sent`,
+  `eft_payments_request_fixed`, `eft_payments_status_moves`,
+  `eft_payments_answer_final` et `eft_payments_used_once` (migration 27,
+  paiements par carte du terminal relié) : jamais de `DELETE` ; une ligne
+  naît `sent` et non utilisée ; la demande (commande, montant,
+  référence, opérateur) ne change jamais ; seuls `sent` et `unknown`
+  changent de statut, jamais vers `sent` ; une réponse `approved`,
+  `declined`, `cancelled` ou `not_sent` ne change plus ; `used_event_id`
+  se pose une seule fois, pour un paiement `approved` ;
 - `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*`,
   `integration_switch_log_*` et `table_plan_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
 

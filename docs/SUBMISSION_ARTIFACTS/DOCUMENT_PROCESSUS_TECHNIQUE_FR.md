@@ -196,6 +196,9 @@ SQLite qui archive l'événement signé, de sorte que :
   l'interface), rien
   n'est archivé, aucun compteur n'avance, la commande reste ouverte et
   le tiroir reste fermé. L'opérateur réessaie une fois le FDM revenu.
+  Avec un terminal de paiement relié, le même principe s'applique en
+  amont : la carte n'est demandée au terminal que si le FDM est
+  opérationnel à cet instant (§6quater).
   Si la requête avait été envoyée et que la réponse est perdue, la
   requête est conservée et renvoyée à l'identique avant toute autre
   signature (§4) : l'événement n'est ni perdu ni doublé.
@@ -266,6 +269,47 @@ SQLite qui archive l'événement signé, de sorte que :
   au nom de l'employé qui l'accepte (P puis N si elle est payée à la
   remise). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 
+## 6quater. Terminal de paiement par carte relié (facultatif)
+
+- Crates : `crates/pos-eft` (contrat, trois pilotes, terminal de test),
+  commandes du moteur `crates/pos-engine/src/commands/eft.rs`
+  (enveloppes IPC : `src-tauri/src/ipc/eft.rs`), table `eft_payments`
+  (`crates/pos-db/src/schema_eft.rs`, migration 27). Présent dans la
+  build certifiée de toute installation, mais inactif sans section
+  `payment_terminal` dans `pos.json` : la carte se saisit alors à la
+  main (ligne de paiement `MANUAL`, `CARD_DEBIT`) et rien ne change.
+- Trois protocoles, tous d'après une spécification publique : Worldline
+  Terminal API (nexo Retailer 5.1, JSON sur HTTPS, par le nuage
+  Worldline), CCV Payment API (méthode `terminal`, JSON sur HTTPS, par le
+  nuage CCV) et OPI (XML sur TCP, sur le LAN du restaurant). Le terminal
+  Worldline C-TEP (Yomani, Yoximo) n'est pas pris en charge : protocole
+  fermé, bibliothèque et certification Worldline requises. Chaque
+  fournisseur certifie son intégration avant tout usage réel.
+- Étapes d'un paiement (`do_eft_pay`) : contrôle de la demande, **FDM
+  opérationnel à cet instant** (rien n'est débité pour une vente qui ne
+  pourrait pas être signée, AM art. 14), **ligne `eft_payments` écrite
+  avant l'appel du terminal**, appel (la référence UUID est la clé
+  d'idempotence du fournisseur), enregistrement de la réponse. Une
+  réponse inconnue (coupure, délai dépassé) se redemande avec
+  `do_eft_check` ; un paiement resté `sent` lors d'un arrêt brutal
+  devient `unknown` au démarrage et se vérifie de la même façon.
+- Règles de la vente : un paiement qui attend sa réponse bloque la vente
+  de sa commande (`eft_pending`) ; un paiement accepté doit être repris
+  par la vente pour son montant exact, sinon la vente est refusée
+  (`eft_payment_not_usable`) ; le paiement est marqué utilisé dans la
+  transaction qui archive l'événement N.
+- Ligne de paiement signée (POS spec v2.2, `paymentLine.inputMethod` :
+  « le terminal de paiement renvoie lui-même le type de carte
+  utilisé ») : `inputMethod` `AUTOMATIC`, type fourni par le terminal
+  (`CARD_DEBIT` id "2" "Card", `CARD_CREDIT` id "6" "Credit card",
+  `CARD_UNKNOWN` id "7" "Card (type unknown)"), `provider` = marque de la
+  carte, `reference` = identifiant de transaction du terminal
+  (`crates/pos-fiscal/src/payment.rs`). Les paiements carte ne sont
+  jamais arrondis, pour toute installation. Le remboursement reste rendu
+  en espèces ; l'annulation d'un paiement carte accepté n'est pas prise
+  en charge.
+- Le mode formation ne débite jamais une vraie carte (`eft_training`).
+
 ## 7. Persistance
 
 - Moteur : **SQLite** (DB en un seul fichier dans
@@ -283,6 +327,9 @@ SQLite qui archive l'événement signé, de sorte que :
   touche à aucune donnée fiscale : il décide seulement des tables que
   l'écran des tables affiche, plus toute table hors plan qui a encore une
   commande ouverte.
+- Paiements sur le terminal relié : table `eft_payments` (migration 27,
+  ajout seul : jamais supprimée, une réponse définitive ne change plus ;
+  voir `SCHEMA_BD_FR.md` et `SECURITE_BD_FR.md`).
 - Log fiscal append-only : table `fiscal_events`. Le schéma impose
   la contrainte CHECK sur `event_type` et des triggers SQLite
   refusent tout `DELETE` et toute réécriture
@@ -337,6 +384,10 @@ $ nm target/release/pili-pos | grep -c pos_peppol                    # facturati
 | Social (événements S) | `crates/pos-engine/src/commands/social.rs` |
 | Financier (événements F) | `crates/pos-engine/src/commands/financial.rs` |
 | Copie (événements C) | `crates/pos-engine/src/commands/copy.rs` |
+| Paiement par terminal relié (`do_eft_pay`, `do_eft_check`, `do_eft_abort`) | `crates/pos-engine/src/commands/eft.rs` |
+| Pilotes du terminal (Worldline, CCV Payment API, OPI) | `crates/pos-eft/src/` |
+| Table `eft_payments` (migration 27) | `crates/pos-db/src/schema_eft.rs` |
+| Ligne de paiement carte (types, `AUTOMATIC`) | `crates/pos-fiscal/src/payment.rs` |
 | Sérialiseur UBL Peppol | `crates/pos-peppol/src/ubl.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
 | Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |

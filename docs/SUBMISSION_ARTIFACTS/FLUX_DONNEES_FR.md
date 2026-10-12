@@ -72,6 +72,12 @@ jusqu'à ce que le client paie effectivement.
 "Payer" sur la table 12. Choisit "Carte". Le terminal carte renvoie
 OK. L'opérateur confirme.
 
+Ce scénario est celui d'une installation sans terminal de paiement
+relié : le terminal carte est autonome et l'opérateur saisit le
+résultat. Avec un terminal relié (réglage `payment_terminal`), la caisse
+envoie elle-même le montant au terminal ; voir la variante à la fin de
+cette section.
+
 **Circulation des données.**
 
 0. **Choix du support du ticket** (si `pos.json::digital_ticket` est
@@ -129,6 +135,53 @@ OK. L'opérateur confirme.
    la ligne `ticket_deliveries` passe à `sent` et l'adresse en clair
    est aussitôt effacée. Sinon, elle reste `pending` et le papier de
    secours part (§10 ci-dessous, remise en file en tâche de fond).
+
+**Variante : carte payée sur le terminal relié.** Pour une part payée par
+carte sur un terminal relié (`payment_terminal` de `pos.json`), la
+carte n'est pas saisie par l'opérateur mais demandée au terminal, avant
+l'étape 1 :
+
+a. UI → `commands::eft::do_eft_pay` avec `{order_id, amount_cents}`.
+   La demande est refusée d'emblée si l'installation n'a pas de
+   terminal relié (`eft_not_configured`), en mode formation
+   (`eft_training`), si le montant n'est pas valable
+   (`eft_amount_invalid`) ou si un paiement attend encore sa réponse
+   (`eft_pending`).
+b. **Contrôle du FDM avant le débit** (AM art. 14) : rien n'est envoyé
+   au terminal si le FDM n'est pas opérationnel à cet instant, ni si une
+   requête de signature attend encore la réponse du FDM. Le message est
+   celui de la vente (« FDM not connected - cannot complete
+   transaction »).
+c. **Enregistrement avant l'appel** : une ligne `eft_payments` (statut
+   `sent`, référence UUID, montant, commande, type de terminal,
+   identité de l'opérateur) est écrite et validée **avant** que le
+   terminal soit appelé. Un arrêt de la caisse entre l'appel et la
+   réponse laisse donc la trace qu'une carte a peut-être été débitée.
+d. Le moteur envoie le montant au terminal (Worldline ou CCV par le
+   nuage du fournisseur, OPI sur le LAN) avec la même référence, qui sert
+   de clé d'idempotence : le même paiement envoyé deux fois n'est jamais
+   débité deux fois. Données envoyées : le montant, la référence, le
+   nom de l'établissement et la table, la langue d'affichage.
+e. La réponse (accepté, refusé, abandonné, inconnu) est enregistrée dans
+   la même ligne : type de carte (débit, crédit, inconnu), marque, numéro
+   masqué, code d'autorisation, référence du terminal, ticket client du
+   terminal. Une réponse définitive (accepté, refusé, abandonné, non
+   envoyé) ne change plus jamais. Une réponse inconnue se redemande au
+   terminal (`do_eft_check`, tout utilisateur) ; au redémarrage de la
+   caisse, un paiement resté `sent` devient `unknown`.
+f. À l'étape 1, la part carte porte l'identifiant du paiement
+   (`eft_payment_id`). À l'étape 5, la ligne de paiement signée est
+   `AUTOMATIC` : type fourni par le terminal (`CARD_DEBIT` id "2",
+   `CARD_CREDIT` id "6" ou `CARD_UNKNOWN` id "7"), `provider` = marque
+   de la carte, `reference` = identifiant de transaction du terminal. Le
+   paiement est marqué utilisé dans la même transaction SQLite que
+   l'événement N. Une vente est refusée tant qu'un paiement de la
+   commande attend sa réponse (`eft_pending`) et si un paiement accepté
+   n'est pas repris, pour son montant exact, par une part de la vente
+   (`eft_payment_not_usable`) : une carte débitée n'est jamais oubliée.
+g. Le ticket imprime la marque (par exemple « Carte Bancontact »). Le
+   tiroir-caisse n'est pas ouvert. Aucun arrondi n'est appliqué à une
+   carte.
 
 ## 4. Rapport X en cours de service
 
