@@ -156,9 +156,18 @@ internal class CheckoutViewModel(
                     if (usable) {
                         ensureOrder()
                         refreshMail()
-                        refreshEft()
                     }
                 }
+        }
+        // The terminal's payments of the order (recovery after a crash): once the settings say a terminal is linked.
+        viewModelScope.launch {
+            combine(
+                gateway.ready,
+                session.currentUser.map { it != null },
+                settings.settings.map { it?.paymentTerminal != null },
+            ) { ready, signedIn, linked -> ready && signedIn && linked }
+                .distinctUntilChanged()
+                .collect { if (it) refreshEft() }
         }
         // A new order total (the order was read again): the amounts and the entry start over (Vue `watch totalCents`).
         viewModelScope.launch {
@@ -359,7 +368,7 @@ internal class CheckoutViewModel(
     }
 
     private suspend fun refreshEft() {
-        if (gateway.ready.value && routeOrderId >= 0L) eft.load(routeOrderId)
+        if (gateway.ready.value && routeOrderId >= 0L && eft.linked()) eft.load(routeOrderId)
     }
 
     private fun startCheckout(

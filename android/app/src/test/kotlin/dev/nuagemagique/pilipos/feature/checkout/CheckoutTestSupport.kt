@@ -280,6 +280,7 @@ internal class CheckoutRig(
     val natives: CheckoutNatives,
     val effects: List<CheckoutEffect>,
     private val collector: Job,
+    val eft: EftStore,
 ) {
     val state get() = model.state.value
 
@@ -345,7 +346,7 @@ internal suspend fun TestScope.startCheckout(
     val seen = mutableListOf<CheckoutEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }
     runCurrent()
-    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector)
+    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector, eft)
 }
 
 /** A row of the VAT summary, for the content tests. */

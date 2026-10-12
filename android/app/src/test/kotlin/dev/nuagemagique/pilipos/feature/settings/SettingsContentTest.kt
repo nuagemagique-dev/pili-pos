@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
@@ -315,6 +316,31 @@ class SettingsContentTest {
         compose.onNodeWithText("Chez Pili").assertIsDisplayed()
         compose.onNodeWithText("http://fdm").assertIsDisplayed()
         compose.onNodeWithText(text("printer_none")).assertIsDisplayed()
+    }
+
+    private fun terminalRow(
+        kind: String,
+        label: String,
+    ) {
+        show(managerState().copy(info = engineSettings().copy(paymentTerminal = kind)))
+        compose.onNodeWithText(catalog.text(R.string.ui_eft_terminal_label, AppLanguage.FR)).assertIsDisplayed()
+        compose.onNodeWithText(label).assertIsDisplayed()
+    }
+
+    @Test
+    fun theInformationPanelShowsAWorldlineTerminal() = terminalRow("worldline_terminal_api", "Worldline")
+
+    @Test
+    fun theInformationPanelShowsACcvCloudTerminal() = terminalRow("ccv_payment_api", "CCV (cloud)")
+
+    @Test
+    fun theInformationPanelShowsACcvLocalNetworkTerminal() = terminalRow("ccv_opi", "CCV (réseau local)")
+
+    @Test
+    fun withoutATerminalTheInformationPanelSaysCardsAreEnteredByHand() {
+        show(managerState())
+
+        compose.onNodeWithText(catalog.text(R.string.ui_eft_terminal_none, AppLanguage.FR)).assertIsDisplayed()
     }
 
     @Test
