@@ -285,7 +285,9 @@ case "${1:-}" in
     stop) stop_mocks ;;
     reset)
         stop_mocks; SERIAL="$(serial)"
-        if [[ -n "$SERIAL" ]] && installed; then
+        # The app lives in the emulator: without it running, nothing can be removed.
+        [[ -n "$SERIAL" ]] || die "the emulator is not running: run start, then reset, then start again"
+        if installed; then
             adbd shell am broadcast -a "$TEARDOWN_ACTION" -n "$TEARDOWN_COMPONENT" >/dev/null 2>&1; sleep 4
             adbd uninstall "$PKG" >/dev/null 2>&1
         fi
