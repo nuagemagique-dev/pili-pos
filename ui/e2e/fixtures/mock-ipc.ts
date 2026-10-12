@@ -367,6 +367,20 @@ function defaultHandlers(): Record<string, Handler> {
     export_status: () => EXPORT_STATUS_DISABLED,
     export_run_now: () => EXPORT_STATUS_DISABLED,
 
+    // Linked card terminal: none unless a spec overrides get_settings.paymentTerminal.
+    list_eft_payments: () => [],
+    eft_abort: () => undefined,
+    eft_pay: (args: any) => ({
+      id: 1, order_id: args.orderId, amount_cents: args.amountCents, status: 'approved',
+      card_type: 'debit', brand: 'Bancontact', terminal_reference: 'T-1', authorisation_code: 'A1',
+      masked_pan: 'XXXX XXXX XXXX 1234', detail: null, created_at: '2026-10-12 10:00:00', used: false,
+    }),
+    eft_check: (args: any) => ({
+      id: args.id, order_id: 1, amount_cents: 0, status: 'approved',
+      card_type: 'debit', brand: 'Bancontact', terminal_reference: 'T-1', authorisation_code: 'A1',
+      masked_pan: 'XXXX XXXX XXXX 1234', detail: null, created_at: '2026-10-12 10:00:00', used: false,
+    }),
+
     // Settings
     get_settings: () => ({
       posId: 'CPOS0031234567',

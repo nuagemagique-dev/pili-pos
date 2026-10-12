@@ -11,6 +11,8 @@ pos-db = { path = "../pos-db" }
 pos-mail = { path = "../pos-mail" }
 # The nightly export after each real Z (phase X1).
 pos-export = { path = "../pos-export" }
+# The card payment terminal linked to the till (commands/eft.rs).
+pos-eft = { path = "../pos-eft" }
 pos-hubrise = { path = "../pos-hubrise", optional = true }
 pos-catalog = { path = "../pos-catalog", optional = true }
 pos-hubrise-types = { path = "../pos-hubrise-types", optional = true }
@@ -65,3 +67,7 @@ hubrise = [
 peppol = ["dep:pos-peppol", "hubrise"]
 # The certification build: HubRise in, invoicing (peppol) out.
 cert = ["hubrise"]
+# `AppState::eft_terminal_override`: a terminal answering from a script,
+# for the engine's tests. Only the test harness turns it on; no shipped
+# build has the field or the scripted terminal.
+eft-scripted = ["pos-eft/scripted"]

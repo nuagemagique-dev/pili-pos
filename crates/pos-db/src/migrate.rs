@@ -108,6 +108,15 @@ const MIGRATIONS: &[Migration] = &[
     // build; the HubRise integration starts at 20 (`HUBRISE_MIGRATIONS`).
 ];
 
+/// Migrations of the linked card payment terminal (EFT), in the
+/// certified binary on every installation: the table exists everywhere
+/// and is written only when `pos.json` has a `payment_terminal`.
+const EFT_MIGRATIONS: &[Migration] = &[Migration {
+    version: 27,
+    name: "eft-payments",
+    sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
+}];
+
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
@@ -159,6 +168,7 @@ const CATALOG_MIGRATIONS: &[Migration] = &[
 fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
+    all.extend_from_slice(EFT_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -300,6 +310,16 @@ mod tests {
         let certified: Vec<(i64, &str)> = MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
         assert_eq!(certified.len(), 11);
         assert_eq!(certified[10], (11, "table-plan"));
+    }
+
+    /// The payment terminal's table is migration 27, in every build.
+    #[test]
+    fn the_eft_migration_is_27_and_in_every_build() {
+        let eft: Vec<(i64, &str)> = EFT_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+        assert_eq!(eft, vec![(27, "eft-payments")]);
+        assert!(all_versions().contains(&27));
+        // It keeps clear of the reserved 12 to 19.
+        assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
     }
 
     #[test]

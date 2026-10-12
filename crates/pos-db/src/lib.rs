@@ -5,5 +5,6 @@ pub mod queries;
 pub mod schema;
 #[cfg(feature = "catalog-sync")]
 mod schema_catalog;
+mod schema_eft;
 #[cfg(feature = "hubrise")]
 mod schema_hubrise;

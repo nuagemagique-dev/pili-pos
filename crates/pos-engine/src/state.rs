@@ -76,6 +76,15 @@ pub struct AppState {
     /// client and the wake-up of its background loop
     /// (`commands::export`). Disabled without an `export` section.
     pub export: crate::commands::export::ExportState,
+    /// The terminal running the payment in progress, with its reference
+    /// (`commands::eft`): an abort goes to the same instance, which
+    /// keeps the state of the call (a cancel ends as Cancelled).
+    pub eft_in_flight: Mutex<Option<(String, std::sync::Arc<pos_eft::Terminal>)>>,
+    /// A terminal that answers from a script, used in place of the
+    /// configured one (`commands::eft`). Tests only: the field exists
+    /// under the `eft-scripted` feature, which no shipped build enables.
+    #[cfg(feature = "eft-scripted")]
+    pub eft_terminal_override: Option<std::sync::Arc<pos_eft::scripted::Script>>,
 }
 
 /// One cached FDM status answer: the key of everything that reaches the

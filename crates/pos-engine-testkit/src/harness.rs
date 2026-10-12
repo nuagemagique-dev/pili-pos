@@ -162,6 +162,8 @@ impl TestApp {
             session_rules: Default::default(),
             fdm_monitor: Default::default(),
             export: pos_engine::commands::export::ExportState::disabled(),
+            eft_in_flight: Mutex::new(None),
+            eft_terminal_override: None,
         };
 
         let app = Self {

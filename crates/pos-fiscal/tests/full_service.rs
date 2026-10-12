@@ -765,6 +765,7 @@ async fn test_full_service_day_e2e() {
         payments: vec![TicketPayment {
             method: "Cash".to_string(),
             amount: 50.10,
+            brand: None,
         }],
         total: 50.10,
         is_training: false,

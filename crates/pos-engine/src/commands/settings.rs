@@ -21,6 +21,12 @@ pub struct PosSettings {
     /// The software version (`posSwVersion`, for example
     /// `pili-pos/1.0.0`): shown on the login screen, AM Art. 47.
     pub pos_sw_version: String,
+    /// The kind of the linked card payment terminal, as in `pos.json`
+    /// (`worldline_terminal_api`, `ccv_payment_api`, `ccv_opi`); absent
+    /// when cards are typed by hand on a standalone terminal. The
+    /// checkout asks the terminal for the amount when it is there.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_terminal: Option<String>,
 }
 
 pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
@@ -35,6 +41,10 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         language: config.language.clone(),
         config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config),
         pos_sw_version: state.identity.as_str().to_string(),
+        payment_terminal: config
+            .payment_terminal
+            .as_ref()
+            .map(|t| t.kind.as_str().to_string()),
     })
 }
 

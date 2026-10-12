@@ -96,6 +96,27 @@ pub const PAYMENT_INCOMPLETE: &str = "payment_incomplete";
 /// 0,00 EUR is paid normally (a cash payment of 0, FAQ Q206).
 pub const UNPAID_NOTHING_DUE: &str = "unpaid_nothing_due";
 
+// Payment terminal (EFT). Nothing was charged unless a code says otherwise.
+/// `pos.json` has no `payment_terminal`: cards are typed by hand.
+pub const EFT_NOT_CONFIGURED: &str = "eft_not_configured";
+/// Zero or less, or more than what is still due on the order after its
+/// other approved terminal payments.
+pub const EFT_AMOUNT_INVALID: &str = "eft_amount_invalid";
+/// A terminal payment of the till waits for its answer (sent or
+/// unknown): check it first, nothing else is charged or signed meanwhile.
+pub const EFT_PENDING: &str = "eft_pending";
+/// The terminal is busy with another payment.
+pub const EFT_BUSY: &str = "eft_busy";
+/// The terminal or its provider cannot be reached (`detail`).
+pub const EFT_UNREACHABLE: &str = "eft_unreachable";
+/// The terminal or its provider refused the request itself, or the
+/// `payment_terminal` section of `pos.json` cannot drive it (`detail`).
+pub const EFT_REJECTED: &str = "eft_rejected";
+/// The payment named by a card part is not an approved, unused payment
+/// of this order for that amount, or an approved payment of the order
+/// was left out of the parts.
+pub const EFT_PAYMENT_NOT_USABLE: &str = "eft_payment_not_usable";
+
 // Settings.
 pub const OPEN_ORDERS_TRAINING: &str = "open_orders_training";
 
@@ -185,6 +206,13 @@ pub const ALL: &[&str] = &[
     PAYMENT_EXCEEDS_TOTAL,
     PAYMENT_INCOMPLETE,
     UNPAID_NOTHING_DUE,
+    EFT_NOT_CONFIGURED,
+    EFT_AMOUNT_INVALID,
+    EFT_PENDING,
+    EFT_BUSY,
+    EFT_UNREACHABLE,
+    EFT_REJECTED,
+    EFT_PAYMENT_NOT_USABLE,
     OPEN_ORDERS_TRAINING,
     DIGITAL_UNAVAILABLE,
     EMAIL_INVALID,

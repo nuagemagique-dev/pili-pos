@@ -17,7 +17,9 @@ pos-db = { path = "../pos-db" }
 pos-mail = { path = "../pos-mail" }
 # Every shipped build has HubRise, so the harness always builds the
 # AppState with its HubRise fields.
-pos-engine = { path = "../pos-engine", default-features = false, features = ["hubrise"] }
+pos-engine = { path = "../pos-engine", default-features = false, features = ["hubrise", "eft-scripted"] }
+# The scripted payment terminal the EFT tests drive.
+pos-eft = { path = "../pos-eft", features = ["scripted"] }
 pos-hubrise = { path = "../pos-hubrise" }
 pos-fdm-mock = { path = "../pos-fdm-mock" }
 pos-printer-mock = { path = "../pos-printer-mock" }

@@ -4,6 +4,7 @@ pub mod bar_slip;
 pub mod checkout;
 pub mod copy;
 pub mod delivery;
+pub mod eft;
 pub mod errors;
 pub mod export;
 pub mod fdm_monitor;

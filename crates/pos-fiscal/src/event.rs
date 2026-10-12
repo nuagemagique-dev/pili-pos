@@ -2,7 +2,7 @@ use chrono::Utc;
 
 use crate::identity::SoftwareIdentity;
 use crate::inputs::*;
-use crate::payment::{Settlement, payment_line_identity};
+use crate::payment::{Settlement, TerminalCard, payment_line_identity};
 use crate::response::FdmReference;
 use crate::types::*;
 use pos_core::config::PosConfig;
@@ -210,7 +210,13 @@ pub fn build_sale_input(
 
     let (id, name) = payment_line_identity(payment_type);
     let financials = financial_lines(
-        &[(id, name, payment_type, payment_amount_cents)],
+        &[PaymentSpec {
+            id,
+            name,
+            payment_type,
+            amount_cents: payment_amount_cents,
+            terminal: None,
+        }],
         rounding_cents,
     );
 
@@ -258,52 +264,61 @@ pub fn build_sale_input_split(
         .payments
         .iter()
         .map(|p| {
-            let payment_type = p.method.payment_type();
+            // A card the linked terminal took says its own type.
+            let payment_type = p.payment_type();
             let (id, name) = payment_line_identity(payment_type);
-            (id, name, payment_type, p.amount_cents)
+            PaymentSpec {
+                id,
+                name,
+                payment_type,
+                amount_cents: p.amount_cents,
+                terminal: p.terminal_card(),
+            }
         })
         .collect();
     sale.financials = financial_lines(&parts, settlement.rounding_cents);
     sale
 }
 
-/// The `financials` of a sale: a PAYMENT line per `(id, name, type,
-/// amount)`, and `rounding_cents` (if any) on a ROUNDING line of the
-/// cash payment, right after it (FAQ Q403). Only cash is rounded.
-fn financial_lines(
-    payments: &[(&str, &str, PaymentType, i64)],
-    rounding_cents: i64,
-) -> Vec<PaymentLineInput> {
-    let line =
-        |id: &str, name: &str, payment_type, amount_cents: i64, amount_type| PaymentLineInput {
-            id: id.to_string(),
-            name: name.to_string(),
-            payment_type,
-            provider: None,
-            input_method: InputMethod::Manual,
-            amount: eur(amount_cents),
-            amount_type,
-            foreign_currency: None,
-            reference: None,
-            drawer: None,
-        };
+/// One payment line to write: its identity and amount, and what the
+/// linked terminal returned for it (a card taken on the terminal).
+struct PaymentSpec<'a> {
+    id: &'a str,
+    name: &'a str,
+    payment_type: PaymentType,
+    amount_cents: i64,
+    terminal: Option<&'a TerminalCard>,
+}
+
+/// The `financials` of a sale: a PAYMENT line per payment, and
+/// `rounding_cents` (if any) on a ROUNDING line of the cash payment,
+/// right after it (FAQ Q403). Only cash is rounded.
+///
+/// A payment typed by the operator is `MANUAL`. A card the linked
+/// terminal took is `AUTOMATIC` ("EFT, autres liens"): the brand is the
+/// `provider` and the terminal's transaction id the `reference`.
+fn financial_lines(payments: &[PaymentSpec<'_>], rounding_cents: i64) -> Vec<PaymentLineInput> {
+    let line = |spec: &PaymentSpec<'_>, amount_cents: i64, amount_type| PaymentLineInput {
+        id: spec.id.to_string(),
+        name: spec.name.to_string(),
+        payment_type: spec.payment_type,
+        provider: spec.terminal.and_then(|t| t.brand.clone()),
+        input_method: if spec.terminal.is_some() {
+            InputMethod::Automatic
+        } else {
+            InputMethod::Manual
+        },
+        amount: eur(amount_cents),
+        amount_type,
+        foreign_currency: None,
+        reference: spec.terminal.and_then(|t| t.reference.clone()),
+        drawer: None,
+    };
     let mut out = Vec::new();
-    for &(id, name, payment_type, amount_cents) in payments {
-        out.push(line(
-            id,
-            name,
-            payment_type,
-            amount_cents,
-            PaymentLineType::Payment,
-        ));
-        if rounding_cents != 0 && payment_type == PaymentType::Cash {
-            out.push(line(
-                id,
-                name,
-                payment_type,
-                rounding_cents,
-                PaymentLineType::Rounding,
-            ));
+    for spec in payments {
+        out.push(line(spec, spec.amount_cents, PaymentLineType::Payment));
+        if rounding_cents != 0 && spec.payment_type == PaymentType::Cash {
+            out.push(line(spec, rounding_cents, PaymentLineType::Rounding));
         }
     }
     out
@@ -831,6 +846,77 @@ mod tests {
                 row("1", "CASH", "ROUNDING", -0.02),
             ]
         );
+    }
+
+    #[test]
+    fn a_terminal_card_is_an_automatic_line_with_its_brand_and_reference() {
+        use crate::payment::{PaymentMethod, PaymentPart, settle};
+        let (config, order, lines) = (test_config(), test_order(), test_lines());
+        let bp_id = Uuid::new_v4().to_string();
+        let mut settlement =
+            settle(2502, &[PaymentPart::terminal(1000, 5), PaymentPart::cash()]).unwrap();
+        settlement.payments[0].terminal = Some(TerminalCard {
+            card_type: PaymentType::CardDebit,
+            brand: Some("Bancontact".into()),
+            reference: Some("TXN-42".into()),
+        });
+        let sale = build_sale_input_split(
+            &config,
+            &ident(),
+            &order,
+            &lines,
+            1,
+            &bk(&bp_id),
+            &settlement,
+        );
+        let f = serde_json::to_value(&sale.financials).unwrap();
+        assert_eq!(f[0]["id"], "2");
+        assert_eq!(f[0]["name"], "Card");
+        assert_eq!(f[0]["type"], "CARD_DEBIT");
+        assert_eq!(f[0]["inputMethod"], "AUTOMATIC");
+        assert_eq!(f[0]["provider"], "Bancontact");
+        assert_eq!(f[0]["reference"], "TXN-42");
+        // The cash rest stays a manual line, rounded alone.
+        assert_eq!(f[1]["type"], "CASH");
+        assert_eq!(f[1]["inputMethod"], "MANUAL");
+        assert!(f[1].get("provider").is_none());
+        assert_eq!(f[2]["amountType"], "ROUNDING");
+
+        // Credit and unspecified cards have a line identity of their own.
+        for (card_type, id, name, wire) in [
+            (PaymentType::CardCredit, "6", "Credit card", "CARD_CREDIT"),
+            (
+                PaymentType::CardUnknown,
+                "7",
+                "Card (type unknown)",
+                "CARD_UNKNOWN",
+            ),
+        ] {
+            let mut s = settle(1000, &[PaymentPart::terminal(1000, 5)]).unwrap();
+            s.payments[0].terminal = Some(TerminalCard {
+                card_type,
+                brand: None,
+                reference: None,
+            });
+            let sale =
+                build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &s);
+            let f = serde_json::to_value(&sale.financials).unwrap();
+            assert_eq!(
+                (f[0]["id"].as_str(), f[0]["name"].as_str()),
+                (Some(id), Some(name))
+            );
+            assert_eq!(f[0]["type"], wire);
+            assert_eq!(f[0]["inputMethod"], "AUTOMATIC");
+            assert!(f[0].get("provider").is_none() && f[0].get("reference").is_none());
+        }
+        // A part without terminal data is the manual card, unchanged.
+        let manual = settle(1000, &[PaymentPart::of(PaymentMethod::Card, 1000)]).unwrap();
+        let sale =
+            build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &manual);
+        let f = serde_json::to_value(&sale.financials).unwrap();
+        assert_eq!(f[0]["id"], "2");
+        assert_eq!(f[0]["inputMethod"], "MANUAL");
+        assert_eq!(f[0]["type"], "CARD_DEBIT");
     }
 
     #[test]
