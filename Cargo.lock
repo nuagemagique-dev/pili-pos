@@ -3682,6 +3682,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-eft"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "pos-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "pos-engine"
 version = "1.0.0"
 dependencies = [

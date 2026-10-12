@@ -1,0 +1,23 @@
+[package]
+name = "pos-eft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# The card payment terminal linked to the till (EFT): send an amount,
+# read the terminal's answer. Source-neutral outcome model plus one
+# driver per protocol (Worldline Terminal API, CCV Payment API, OPI on
+# the LAN). No database, no fiscal logic: the engine records the
+# answer and signs the sale.
+
+[dependencies]
+pos-core = { path = "../pos-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true, features = ["net", "io-util"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = "0.1"

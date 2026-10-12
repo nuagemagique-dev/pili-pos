@@ -107,6 +107,7 @@ impl TestApp {
         let config = PosConfig {
             table_count: 25,
             tables: None,
+            payment_terminal: None,
             pos_id: "CPOS0031234567".to_string(),
             terminal_id: "POS-1-BAR".to_string(),
             // The terminal's MAC address, as install fills it (§VI row VII).

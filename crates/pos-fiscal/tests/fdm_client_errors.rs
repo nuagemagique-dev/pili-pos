@@ -30,6 +30,7 @@ fn config(fdm_url: &str) -> PosConfig {
     PosConfig {
         table_count: 20,
         tables: None,
+        payment_terminal: None,
         pos_id: "CFOD0061234567".to_string(),
         terminal_id: "POS1".to_string(),
         device_id: "DEV001".to_string(),

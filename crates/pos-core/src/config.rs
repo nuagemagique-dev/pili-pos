@@ -110,6 +110,12 @@ pub struct PosConfig {
     /// no export.
     #[serde(default)]
     pub export: Option<ExportConfig>,
+    /// The card payment terminal linked to the till (EFT): the till
+    /// sends the amount and records the terminal's answer, payment lines
+    /// `AUTOMATIC`. Absent: card payments are typed on a standalone
+    /// terminal and confirmed by the operator (`MANUAL`).
+    #[serde(default)]
+    pub payment_terminal: Option<PaymentTerminalConfig>,
 }
 
 fn default_language() -> String {
@@ -156,7 +162,8 @@ impl PosConfig {
     /// required - a fiscal terminal must not boot with a partial
     /// identity. Only printer_address, kitchen_printer_address,
     /// training_mode, language, day_end_hour, backup_dir,
-    /// digital_ticket, export, hubrise_enabled and hubrise may be omitted.
+    /// digital_ticket, export, hubrise_enabled, hubrise and
+    /// payment_terminal may be omitted.
     pub fn load_from_file(path: &Path) -> Result<Self, ConfigError> {
         let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Io {
             path: path.display().to_string(),
@@ -171,8 +178,8 @@ impl PosConfig {
     /// Make every relative file or directory path of the configuration
     /// absolute by joining it to `base`: `fdm_token_file`, `fdm_ca_file`,
     /// `fdm_client_cert_file`, `fdm_client_key_file`, `backup_dir`,
-    /// `hubrise.client_secret_file`, `digital_ticket.api_key_file` and
-    /// `export.token_file`.
+    /// `hubrise.client_secret_file`, `digital_ticket.api_key_file`,
+    /// `export.token_file` and `payment_terminal.api_key_file`.
     /// An absolute path, an empty value, a URL or any other field is left
     /// as it is. Used for a configuration bundle that names its files
     /// relative to its own directory.
@@ -197,6 +204,13 @@ impl PosConfig {
         }
         if let Some(e) = &mut self.export {
             resolve_path(&mut e.token_file, base);
+        }
+        if let Some(path) = self
+            .payment_terminal
+            .as_mut()
+            .and_then(|t| t.api_key_file.as_mut())
+        {
+            resolve_path(path, base);
         }
     }
 
@@ -314,6 +328,9 @@ impl PosConfig {
         if let Some(e) = &self.export {
             out.extend(e.problems());
         }
+        if let Some(t) = &self.payment_terminal {
+            out.extend(t.problems());
+        }
         out
     }
 }
@@ -359,6 +376,7 @@ impl Default for PosConfig {
         Self {
             table_count: default_table_count(),
             tables: None,
+            payment_terminal: None,
             pos_id: String::new(),
             terminal_id: String::new(),
             device_id: String::new(),
@@ -519,6 +537,161 @@ pub struct ExportConfig {
     /// Days the exports stay in the local outbox (1 to 365).
     #[serde(default = "default_keep_days")]
     pub keep_days: u32,
+}
+
+/// Which protocol the linked payment terminal speaks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentTerminalKind {
+    /// Worldline Terminal API (nexo Retailer 5.1 JSON over HTTPS, the
+    /// terminal reached through the Worldline cloud): Worldline Android
+    /// terminals running the Terminal API app.
+    WorldlineTerminalApi,
+    /// CCV Payment API, method `terminal` (HTTPS, through the CCV cloud).
+    CcvPaymentApi,
+    /// OPI (Open Payment Initiative XML) over the shop's LAN, as CCV
+    /// terminals speak it: channel 0 to the terminal, channel 1 back.
+    CcvOpi,
+}
+
+impl PaymentTerminalKind {
+    /// The `pos.json` spelling, also stored with each terminal payment.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::WorldlineTerminalApi => "worldline_terminal_api",
+            Self::CcvPaymentApi => "ccv_payment_api",
+            Self::CcvOpi => "ccv_opi",
+        }
+    }
+}
+
+fn default_terminal_timeout_seconds() -> u64 {
+    180
+}
+
+/// The card payment terminal linked to the till, from `pos.json` as
+/// `payment_terminal`. Which fields a terminal needs depends on `kind`
+/// (see [`PaymentTerminalConfig::problems`]); secrets live in files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PaymentTerminalConfig {
+    pub kind: PaymentTerminalKind,
+    /// Cloud kinds: the API base URL. Absent: the vendor's production
+    /// URL. Set for the vendor's test environment, a relay that holds
+    /// the API key, or the local mock.
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Cloud kinds: file holding the API key and nothing else
+    /// (whitespace trimmed). Absent when `base_url` is a relay that
+    /// authenticates the till itself.
+    #[serde(default)]
+    pub api_key_file: Option<String>,
+    /// Worldline: the merchant id (UMID).
+    #[serde(default)]
+    pub merchant_id: Option<String>,
+    /// Worldline: the terminal id (UTID). CCV Payment API: the terminal
+    /// id assigned by CCV. OPI: the workstation id sent to the terminal.
+    #[serde(default)]
+    pub terminal_id: Option<String>,
+    /// Worldline: the integrator id Worldline issues to the producer.
+    #[serde(default)]
+    pub integrator_id: Option<String>,
+    /// CCV Payment API: the terminal's management system id.
+    #[serde(default)]
+    pub management_system_id: Option<String>,
+    /// CCV Payment API: the terminal's access protocol (`OPI_NL` when
+    /// absent).
+    #[serde(default)]
+    pub access_protocol: Option<String>,
+    /// OPI: the terminal on the LAN, `host:port` (channel 0, usually
+    /// port 4100).
+    #[serde(default)]
+    pub address: Option<String>,
+    /// OPI: the till's port for the terminal's channel 1 (display and
+    /// printing requests), 4102 when absent.
+    #[serde(default)]
+    pub device_port: Option<u16>,
+    /// Longest wait for the terminal's answer to one payment, 30 to 600
+    /// seconds (180 when absent). Past it the outcome is asked again.
+    #[serde(default = "default_terminal_timeout_seconds")]
+    pub timeout_seconds: u64,
+}
+
+impl PaymentTerminalConfig {
+    /// The API key, read from `api_key_file`; `Ok(None)` without one.
+    pub fn api_key(&self) -> Result<Option<String>, String> {
+        let Some(path) = &self.api_key_file else {
+            return Ok(None);
+        };
+        match std::fs::read_to_string(path) {
+            Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+            Ok(_) => Err(format!("payment_terminal.api_key_file: {path:?} is empty")),
+            Err(e) => Err(format!(
+                "payment_terminal.api_key_file: cannot read {path:?}: {e}"
+            )),
+        }
+    }
+
+    /// What would make the terminal unusable. Each message starts with
+    /// `payment_terminal.<field>: `.
+    pub fn problems(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let missing = |out: &mut Vec<String>, key: &str, v: &Option<String>| {
+            if v.as_deref().is_none_or(|s| s.trim().is_empty()) {
+                out.push(format!(
+                    "payment_terminal.{key}: required for {}",
+                    self.kind.as_str()
+                ));
+            }
+        };
+        match self.kind {
+            PaymentTerminalKind::WorldlineTerminalApi => {
+                missing(&mut out, "merchant_id", &self.merchant_id);
+                missing(&mut out, "terminal_id", &self.terminal_id);
+                missing(&mut out, "integrator_id", &self.integrator_id);
+            }
+            PaymentTerminalKind::CcvPaymentApi => {
+                missing(&mut out, "terminal_id", &self.terminal_id);
+                missing(&mut out, "management_system_id", &self.management_system_id);
+            }
+            PaymentTerminalKind::CcvOpi => {
+                missing(&mut out, "address", &self.address);
+                if let Some(a) = &self.address
+                    && !a.trim().is_empty()
+                    && a.rsplit_once(':')
+                        .is_none_or(|(h, p)| h.is_empty() || p.parse::<u16>().is_err())
+                {
+                    out.push(format!(
+                        "payment_terminal.address: host:port expected, got {a:?}"
+                    ));
+                }
+            }
+        }
+        if self.kind != PaymentTerminalKind::CcvOpi {
+            if let Some(url) = &self.base_url
+                && !(url.starts_with("https://") || url.starts_with("http://"))
+            {
+                out.push(format!(
+                    "payment_terminal.base_url: http(s) URL expected, got {url:?}"
+                ));
+            }
+            if self.api_key_file.is_none() && self.base_url.is_none() {
+                out.push(format!(
+                    "payment_terminal.api_key_file: required for {} without a relay base_url",
+                    self.kind.as_str()
+                ));
+            }
+            if let Err(e) = self.api_key() {
+                out.push(e);
+            }
+        }
+        if !(30..=600).contains(&self.timeout_seconds) {
+            out.push(format!(
+                "payment_terminal.timeout_seconds: 30 to 600 expected, got {}",
+                self.timeout_seconds
+            ));
+        }
+        out
+    }
 }
 
 /// Lowercase bech32 data alphabet (no 1, b, i, o).
