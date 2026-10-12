@@ -1,0 +1,8 @@
+<DeviceRequest RequestType="Output" ApplicationSender="TILL SW" WorkstationID="POS001" TerminalID="832632" RequestID="1" SequenceID="9">
+  <Output OutDeviceTarget="PrinterReceipt" Immediate="true">
+    <TextLine>CUSTOMER RECEIPT </TextLine>
+    <TextLine>MASTERCARD</TextLine>
+    <TextLine>361709*****900</TextLine>
+    <TextLine PaperCut="true"></TextLine>
+  </Output>
+</DeviceRequest>

@@ -1,0 +1,18 @@
+{
+  "amount": 12.5,
+  "created": 1776151734603,
+  "currency": "eur",
+  "lastUpdate": 1776151740000,
+  "merchantOrderReference": "R1",
+  "method": "terminal",
+  "reference": "TL260414072854599CB87E19B.4",
+  "status": "failed",
+  "failureCode": "cancelled",
+  "cancelledBy": "merchant",
+  "type": "sale",
+  "details": {
+    "terminalId": "1234567",
+    "managementSystemId": "1234567",
+    "accessProtocol": "OPI_NL"
+  }
+}

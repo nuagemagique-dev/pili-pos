@@ -1,0 +1,4 @@
+<CardServiceRequest RequestType="CardPayment" WorkstationID="0" RequestID="1">
+   <POSdata><POSTimeStamp>2026-10-12T11:00:00+02:00</POSTimeStamp></POSdata>
+   <TotalAmount>12.50</TotalAmount>
+</CardServiceRequest>

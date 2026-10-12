@@ -1,0 +1,39 @@
+{
+  "data": {
+    "SaleToPOIMessageRejection": {
+      "Header": {
+        "MessageFunction": "Rejection",
+        "ProtocolVersion": "5.1-WL2.1.1",
+        "ExchangeIdentification": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "CreationDateTime": "2020-05-04T18:13:51.0+01:00",
+        "InitiatingParty": {
+          "Identification": "WL000D5T0000004",
+          "Type": "Merchant"
+        },
+        "SalesSystemInfo": {
+          "IntegratorId": "9b2e6f1a1c3d4e5f8a7b0c1d2e3f4a5b",
+          "SaleSoftware": [
+            {
+              "Type": "ECR",
+              "SubTypeInformation": "Checkout",
+              "Identification": {
+                "ProviderIdentification": "YourSoftware",
+                "Identification": "YourPOS",
+                "SerialNumber": "SN-0001"
+              },
+              "Status": {
+                "VersionNumber": "1.4.2"
+              }
+            }
+          ]
+        },
+        "WebhookUrl": "https://example.com/webhook?transactionId=a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "NumberOfRetries": 3
+      },
+      "Reject": {
+        "RejectReason": "UnableToProcess"
+      }
+    }
+  },
+  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+}
