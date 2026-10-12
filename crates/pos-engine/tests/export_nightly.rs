@@ -1012,6 +1012,16 @@ fn column_names(conn: &Connection, table: &str) -> Vec<String> {
         .collect()
 }
 
+/// True when `s` is a user pseudonym of the statistics file: `u-` and 16
+/// lowercase hex characters (`pos_export::pseudonym`).
+fn is_pseudonym(s: &str) -> bool {
+    s.strip_prefix("u-").is_some_and(|h| {
+        h.len() == 16
+            && h.chars()
+                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+    })
+}
+
 /// True when `s` holds a run of at least `n` ASCII digits.
 fn has_digit_run(s: &str, n: usize) -> bool {
     let mut run = 0;
@@ -1062,8 +1072,10 @@ fn assert_no_personal_data(path: &Path, secrets: &[String]) {
                 .map(Result::unwrap)
                 .collect();
             for value in values {
+                // A pseudonym is 16 random hex characters: about one in 30
+                // holds 11 digits in a row, which is not an INSZ.
                 assert!(
-                    !has_digit_run(&value, 11),
+                    is_pseudonym(&value) || !has_digit_run(&value, 11),
                     "{table}.{column} holds 11 digits: {value:?}"
                 );
                 assert!(
