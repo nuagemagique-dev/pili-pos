@@ -521,6 +521,23 @@ async fn a_worldline_terminal_not_connected_fails_the_check() {
 }
 
 #[tokio::test]
+async fn the_worldline_check_falls_back_to_v1_when_v2_has_no_terminal_list() {
+    let rig = Rig::new(Kind::Worldline);
+    rig.mock.set_merchant_v1_only(true);
+    rig.t().check().await.unwrap();
+    let paths: Vec<String> = rig.mock.requests().iter().map(|r| r.path.clone()).collect();
+    assert!(
+        paths.iter().any(|p| p.starts_with("/api/v2/merchants/")),
+        "{paths:?}"
+    );
+    assert!(
+        paths.iter().any(|p| p.starts_with("/api/v1/merchants/")),
+        "{paths:?}"
+    );
+    assert!(rig.mock.payments().is_empty());
+}
+
+#[tokio::test]
 async fn an_unlisted_worldline_terminal_id_fails_the_check() {
     let mut rig = Rig::new(Kind::Worldline);
     rig.config.terminal_id = Some("99999999".into());

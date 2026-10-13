@@ -277,24 +277,12 @@ impl WorldlineTerminalApi {
     /// describe the same answer (`{data: {umid, connectedTerminals}}`)
     /// but its path is not in the v2 OpenAPI, so it is not verified live.
     pub async fn check(&self) -> Result<(), EftError> {
-        let mut request = self
-            .http
-            .get(format!(
-                "{}/api/v2/merchants/{}",
-                self.base,
-                path_segment(&self.merchant_id)
-            ))
-            .header("Accept", "application/json")
-            .timeout(CHECK_TIMEOUT);
-        if let Some(key) = &self.api_key {
-            request = request.bearer_auth(key);
+        let mut reply = self.merchant(2).await?;
+        // The v1 API documents this terminal list; v2 is not confirmed to
+        // serve it, so a 404 on v2 asks v1.
+        if reply.status == 404 {
+            reply = self.merchant(1).await?;
         }
-        let reply = match send(request).await {
-            Ok(r) => r,
-            Err(SendError::NotSent(e) | SendError::Lost(e)) => {
-                return Err(EftError::Unreachable(e));
-            }
-        };
         if !(200..300).contains(&reply.status) {
             return match Self::refuse_or_unknown(reply.status, &reply.body) {
                 Err(e) => Err(e),
@@ -320,6 +308,26 @@ impl WorldlineTerminalApi {
                 "unreadable Worldline answer to the terminal list".into(),
             )),
         }
+    }
+
+    /// `GET /api/v{version}/merchants/{umid}`: the merchant and its
+    /// connected terminals.
+    async fn merchant(&self, version: u8) -> Result<Reply, EftError> {
+        let mut request = self
+            .http
+            .get(format!(
+                "{}/api/v{version}/merchants/{}",
+                self.base,
+                path_segment(&self.merchant_id)
+            ))
+            .header("Accept", "application/json")
+            .timeout(CHECK_TIMEOUT);
+        if let Some(key) = &self.api_key {
+            request = request.bearer_auth(key);
+        }
+        send(request).await.map_err(|e| match e {
+            SendError::NotSent(e) | SendError::Lost(e) => EftError::Unreachable(e),
+        })
     }
 
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {
