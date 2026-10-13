@@ -128,6 +128,20 @@ ok_app=1
 [[ "$(status_of stub-one)" == "PASS" && "$(status_of app-only-scope)" == "PASS" ]] && ok_app=0
 check "--app runs the hygiene sub-gate and app-only-scope" "$ok_app" "out=$OUT"
 
+# PD223: both gates let hygiene-paths accept scripts/release/ next to the workflow.
+pd223_re='--extra-paths '"'"'^(\.github/workflows/android\.yml|scripts/release/.*)$'"'"
+pd223=0
+grep -qF -- "$pd223_re" "$GATE" || pd223=1
+grep -qF -- "$pd223_re" "$ROOT/scripts/android/p3_gate.sh" || pd223=1
+check "p4 and p3 gates pass --extra-paths for scripts/release to hygiene-paths" "$pd223" "regex missing in p4_gate.sh or p3_gate.sh"
+# The regex accepts the release scripts and the workflow, and refuses other paths.
+pd223_match=0
+for f in scripts/release/declare_android.sh scripts/release/test_declare_android.sh .github/workflows/android.yml; do
+    [[ "$f" =~ ^(\.github/workflows/android\.yml|scripts/release/.*)$ ]] || pd223_match=1
+done
+[[ "scripts/other/x.sh" =~ ^(\.github/workflows/android\.yml|scripts/release/.*)$ ]] && pd223_match=1
+check "the PD223 regex accepts scripts/release and refuses scripts/other" "$pd223_match" "regex mismatch"
+
 total_lines="$(printf '%s\n' "$OUT" | grep -c '^GATE | total | ')"
 last="$(printf '%s\n' "$OUT" | tail -n 1)"
 fmt=1

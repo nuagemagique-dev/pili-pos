@@ -27,7 +27,7 @@
 #
 # Checks, in order
 #   p2_gate.sh   every check line of p2_gate.sh with the same --fast/--android/--root/
-#                --exit/--base/--allow and --extra-paths '^\.github/workflows/android\.yml$'
+#                --exit/--base/--allow and --extra-paths '^(\.github/workflows/android\.yml|scripts/release/.*)$'
 #                (its total line is not printed; its checks and failures are counted)
 #   Full mode only (not --fast); each Gradle command runs as
 #   (cd android && ./gradlew --no-daemon --console=plain <tasks>):
@@ -222,7 +222,7 @@ skip() { # <check> <detail>
 # ── p2_gate.sh ──────────────────────────────────────────────────
 # Its check lines are passed through, its total line is dropped.
 P2_OUT="$TMP/p2.out"
-bash scripts/android/p2_gate.sh ${p2_args[@]+"${p2_args[@]}"} --extra-paths '^\.github/workflows/android\.yml$' >"$P2_OUT"
+bash scripts/android/p2_gate.sh ${p2_args[@]+"${p2_args[@]}"} --extra-paths '^(\.github/workflows/android\.yml|scripts/release/.*)$' >"$P2_OUT"
 p2_rc=$?
 p2_total=0
 while IFS= read -r line; do

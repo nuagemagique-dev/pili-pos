@@ -314,6 +314,8 @@ if [[ "$app_mode" -eq 1 ]]; then
     else
         hy_args=(--hygiene-only --base "$base")
         [[ -z "$allow_re" ]] || hy_args+=(--allow "$allow_re")
+        # PD223: the release scripts are platform files, accepted by hygiene-paths like the workflow.
+        hy_args+=(--extra-paths '^(\.github/workflows/android\.yml|scripts/release/.*)$')
         run_subgate p2-gate bash "$TOOLS/p2_gate.sh" "${hy_args[@]}"
     fi
     gate app-only-scope app_only_scope
