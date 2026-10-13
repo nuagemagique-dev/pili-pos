@@ -7,7 +7,7 @@ import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useDeliveryStore } from "../stores/delivery";
 import { formatPrice, round5 } from "../utils/format";
-import type { CheckoutResult, OrderLine } from "../types";
+import type { CheckoutResult, OrderLine, UnsettledCardPayment } from "../types";
 import type { CopyResult, RefundableEvent, RefundItem } from "../api/ipc";
 import * as ipc from "../api/ipc";
 import { useI18n } from "../i18n";
@@ -35,6 +35,9 @@ const loading = ref(false);
 const loadingKind = ref<"x" | "userx" | "z" | null>(null);
 const zHistory = ref<ipc.ZReportSummary[]>([]);
 const zPending = ref(false);
+// Card payments taken on the terminal that no sale records yet: told to
+// the operator at the Z, which they never block.
+const unsettled = ref<UnsettledCardPayment[]>([]);
 
 async function loadHistory() {
   try {
@@ -53,6 +56,27 @@ async function loadZPending() {
   }
 }
 
+async function loadUnsettled() {
+  try {
+    unsettled.value = await ipc.listUnsettledCardPayments();
+  } catch {
+    /* only a warning: the Z does not depend on it */
+    unsettled.value = [];
+  }
+}
+
+function unsettledWhere(p: UnsettledCardPayment): string {
+  return p.table_number != null ? `${t('table')} ${p.table_number}` : t('takeaway_badge');
+}
+
+function unsettledLine(p: UnsettledCardPayment): string {
+  return t('reports_z_unsettled_item', {
+    where: unsettledWhere(p),
+    amount: formatPrice(p.amount_cents),
+    brand: p.brand ? ` · ${p.brand}` : '',
+  });
+}
+
 onMounted(() => {
   if (!auth.currentUser) {
     router.push({ name: "login" });
@@ -60,6 +84,7 @@ onMounted(() => {
   }
   loadHistory();
   loadZPending();
+  loadUnsettled();
 });
 
 const lastZ = computed(() => zHistory.value[0] ?? null);
@@ -117,6 +142,7 @@ watch(tab, () => {
 async function generateZ() {
   if (!auth.currentUser || loading.value) return;
   if (!zArmed.value) {
+    loadUnsettled();
     zArmed.value = true;
     zDisarm = setTimeout(() => { zArmed.value = false; }, 5000);
     return;
@@ -134,6 +160,7 @@ async function generateZ() {
       toast.show(label, "success", 4000);
       await loadHistory();
       await loadZPending();
+      await loadUnsettled();
     } else {
       toast.show(describeError(result.error), "error", 5000);
     }
@@ -529,6 +556,13 @@ function formatRefundTime(iso: string): string {
         <div class="spacer"></div>
 
         <div class="z-bar">
+          <div v-if="unsettled.length" class="z-unsettled" role="status" data-testid="z-unsettled">
+            <p class="z-unsettled-title">{{ t('reports_z_unsettled') }}</p>
+            <ul>
+              <li v-for="p in unsettled" :key="p.payment_id">{{ unsettledLine(p) }}</li>
+            </ul>
+            <p class="z-unsettled-note">{{ t('reports_z_unsettled_note') }}</p>
+          </div>
           <p class="z-explain">{{ t('reports_z_explain') }}</p>
           <button class="z-btn" :class="{ armed: zArmed }" :disabled="loading" @click="generateZ">
             <span v-if="loadingKind === 'z'" class="spinner" aria-hidden="true"></span>
@@ -811,6 +845,16 @@ function formatRefundTime(iso: string): string {
   background: var(--accent-warning); color: var(--text-on-accent);
   font-size: 18px; font-weight: var(--font-weight-bold);
 }
+
+/* Charged cards waiting for their sale: told, never blocking. */
+.z-unsettled {
+  padding: 14px 20px; border-radius: var(--radius-md);
+  background: var(--accent-warning); color: var(--text-on-accent);
+  font-size: 18px;
+}
+.z-unsettled-title { font-weight: var(--font-weight-bold); }
+.z-unsettled ul { margin: 6px 0; padding-left: 22px; font-family: var(--font-mono); }
+.z-unsettled-note { font-size: 16px; }
 
 .report-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .report-card {

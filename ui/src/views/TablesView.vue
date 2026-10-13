@@ -20,6 +20,8 @@ const toast = useToastStore();
 const tables = ref<ipc.TableInfo[]>([]);
 // Takeaways left unpaid: each one must still end in a sale (FAQ Q205).
 const takeaways = ref<ipc.TakeawayInfo[]>([]);
+// Orders whose card was charged and not yet settled by a sale.
+const cardCharged = ref(new Set<number>());
 
 // Minutes open, refreshed while the screen is shown.
 const now = ref(new Date());
@@ -30,6 +32,11 @@ onMounted(async () => {
   nowTimer = setInterval(() => (now.value = new Date()), 30_000);
   tables.value = await ipc.listTables();
   takeaways.value = await ipc.listOpenTakeaways();
+  try {
+    cardCharged.value = new Set((await ipc.listUnsettledCardPayments()).map((p) => p.order_id));
+  } catch {
+    /* only a badge */
+  }
 });
 onUnmounted(() => clearInterval(nowTimer));
 
@@ -88,6 +95,7 @@ async function selectTable(table: ipc.TableInfo) {
           <span class="table-top">
             <span class="table-num">{{ tbl.tableNumber }}</span>
             <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
+            <span v-if="tbl.orderId && cardCharged.has(tbl.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
           </span>
           <span v-if="tbl.status === 'occupied'" class="table-info">
             <span class="table-total">{{ formatPrice(tbl.totalCents) }} €</span>
@@ -116,6 +124,7 @@ async function selectTable(table: ipc.TableInfo) {
             <span class="takeaway-text">
               <span class="takeaway-time">{{ t('takeaway_started_at', { time: formatTimestamp(tk.createdAt, formatTime) }) }}</span>
               <span class="takeaway-meta">{{ tk.lineCount }} {{ t('items_short') }}</span>
+              <span v-if="cardCharged.has(tk.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
             </span>
             <span class="takeaway-total">{{ formatPrice(tk.totalCents) }} €</span>
           </button>
@@ -198,6 +207,7 @@ async function selectTable(table: ipc.TableInfo) {
   line-height: 1;
 }
 /* A provisional bill is on the table (signPreBill, P). */
+.charged-tag { align-self: flex-start; }
 .bill-tag {
   padding: 2px 8px;
   border-radius: 6px;

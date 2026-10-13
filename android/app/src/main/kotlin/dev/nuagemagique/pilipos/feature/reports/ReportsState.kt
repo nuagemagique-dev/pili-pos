@@ -6,6 +6,7 @@ import uniffi.pos_ffi.CopyableTicket
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
+import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.ZReportSummary
 
 /** The three tabs of the reports screen (`Tab` of `ReportsView.vue`, UX guide 2.1). */
@@ -67,6 +68,8 @@ internal data class DayState(
     val zHistory: List<ZReportSummary> = emptyList(),
     /** True when the end-of-day Z is due (`needs_z_report`). */
     val zPending: Boolean = false,
+    /** Card payments taken on the terminal that no sale records yet: told at the Z, which they never block. */
+    val unsettled: List<UnsettledCardPayment> = emptyList(),
     /** The report being generated, or null: while set, every report button is disabled. */
     val loadingKind: ReportKind? = null,
     /** True after the first tap on the Z button; the second tap within [Z_ARM_WINDOW_MS] generates it. */

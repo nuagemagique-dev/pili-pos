@@ -17,6 +17,18 @@ export const reportsMessages: Messages = {
     en: "Closing resets the counters. The first tap arms the button, a second tap within 5 seconds confirms.",
     zh: "日结会将计数器清零。第一次点击启用按钮，5秒内再次点击确认。",
   },
+  "reports_z_unsettled": {
+    fr: "Paiements par carte encaissés mais pas encore enregistrés dans une vente :",
+    en: "Card payments taken but not yet recorded in a sale:",
+    zh: "已刷卡收款但尚未登记到销售中的付款：",
+  },
+  "reports_z_unsettled_item": { fr: "{where} · {amount} €{brand}", en: "{where} · {amount} €{brand}", zh: "{where} · {amount} €{brand}" },
+  "reports_z_unsettled_note": {
+    fr: "La clôture reste possible : chaque paiement sera enregistré avec la vente de sa commande.",
+    en: "Closing is still possible: each payment will be recorded with the sale of its order.",
+    zh: "仍可日结：每笔付款将随其订单的销售一并登记。",
+  },
+  "card_charged_badge": { fr: "Carte encaissée", en: "Card charged", zh: "已刷卡" },
   "reports_z_close": { fr: "Clôturer la journée (Z)", en: "Close the day (Z)", zh: "日结 (Z)" },
 
   // Cash tab

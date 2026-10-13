@@ -8,6 +8,10 @@
     <string name="reports_reprint_z">Reprint a Z</string>
     <string name="reports_last_z">Last: Z #{no} · {date}</string>
     <string name="reports_z_explain">Closing resets the counters. The first tap arms the button, a second tap within 5 seconds confirms.</string>
+    <string name="reports_z_unsettled">Card payments taken but not yet recorded in a sale:</string>
+    <string name="reports_z_unsettled_item">{where} · {amount} €{brand}</string>
+    <string name="reports_z_unsettled_note">Closing is still possible: each payment will be recorded with the sale of its order.</string>
+    <string name="card_charged_badge">Card charged</string>
     <string name="reports_z_close">Close the day (Z)</string>
     <string name="reports_step_direction">1 · Direction</string>
     <string name="reports_step_reason">2 · Reason</string>

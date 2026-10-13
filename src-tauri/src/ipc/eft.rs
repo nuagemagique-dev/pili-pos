@@ -1,6 +1,6 @@
 use tauri::State;
 
-use pos_engine::commands::eft::{EftPayment, PaymentTerminalStatus};
+use pos_engine::commands::eft::{EftPayment, PaymentTerminalStatus, UnsettledCardPayment};
 
 use super::Managed;
 
@@ -42,4 +42,13 @@ pub async fn check_payment_terminal(
     state: State<'_, Managed>,
 ) -> Result<PaymentTerminalStatus, String> {
     pos_engine::commands::eft::do_check_payment_terminal(state.inner()).await
+}
+
+/// The approved card payments no sale has settled yet, of every order:
+/// the Z warns about them and the order lists mark them.
+#[tauri::command]
+pub fn list_unsettled_card_payments(
+    state: State<'_, Managed>,
+) -> Result<Vec<UnsettledCardPayment>, String> {
+    pos_engine::commands::eft::do_list_unsettled_card_payments(state.inner())
 }

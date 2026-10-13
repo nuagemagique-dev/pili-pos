@@ -200,7 +200,7 @@ pili-pos/
 │   ├── src/
 │   │   ├── main.rs             # Tauri entry point: CLI, logging, window, health check, EngineConfig
 │   │   ├── lib.rs              # Library facade (cli, events, ipc, paths)
-│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 95 in all, 93 in the cert build)
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 96 in all, 94 in the cert build)
 │   │   ├── events.rs           # TauriEventSink (engine events to the webview)
 │   │   ├── cli.rs              # --version, --init-db, --check-config
 │   │   └── paths.rs            # Linux install paths
@@ -565,6 +565,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ### Payment terminal (EFT)
 - With a `payment_terminal` section in `pos.json` (`worldline_terminal_api`, `ccv_payment_api` or `ccv_opi`; drivers in `crates/pos-eft`) the till asks the card terminal for the amount instead of the operator typing the card: `eft_pay`, `eft_abort`, `eft_check` (any user), `list_eft_payments` (`commands/eft.rs`; errors `eft_not_configured`, `eft_amount_invalid`, `eft_pending`, `eft_busy`, `eft_unreachable`, `eft_rejected`, `eft_payment_not_usable`, `eft_below_charged`, `eft_edit_pending`; an order edit may not bring the total under its approved unused card payments). `get_settings` tells the UI which kind is linked (`paymentTerminal`); without it nothing changes (manual card, `MANUAL`, `CARD_DEBIT`).
+- `list_unsettled_card_payments` (`UnsettledCardPayment`: payment_id, order_id, order_type, table_number, amount_cents, brand, created_at) lists the approved card payments no sale has settled yet: the Z step of both UIs warns about them (never blocks) and the table plan / takeaway list mark their orders.
 - `check_payment_terminal` (`PaymentTerminalStatus`: configured, kind, connected, busy, detail) feeds the header light and the start-up row, only when configured; it never charges and never probes while a payment holds `AppState::eft_line` (answers busy).
 - Every payment is stored in `eft_payments` (migration 27) BEFORE the terminal is called; at start a `sent` row becomes `unknown`. Nothing is charged unless the FDM is operational right now (AM art. 14). A payment waiting for its answer (`sent`, `unknown`) blocks other payments and its order's sale until `eft_check`; an approved payment must be used by the sale (`PaymentPart.eft_payment_id`, exact amount) or the sale is refused. The signed line is `AUTOMATIC` with the terminal's card type (ids 2/6/7), the brand as `provider`, the terminal's id as `reference`; payments are marked used in the sale's commit. Card payments are never rounded; refunds stay cash; reversing an approved payment is not supported yet.
 - Tests use `Terminal::scripted` through the `eft-scripted` feature of `pos-engine` (testkit only): `crates/pos-engine/tests/eft_*.rs`.

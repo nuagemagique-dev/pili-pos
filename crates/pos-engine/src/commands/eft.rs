@@ -505,6 +505,48 @@ pub fn do_list_eft_payments(state: &AppState, order_id: i64) -> Result<Vec<EftPa
         .collect())
 }
 
+/// A card payment approved by the terminal that no sale has settled
+/// yet: money taken that no ticket records. It is settled later by the
+/// sale of its order, which can come after a Z.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct UnsettledCardPayment {
+    pub payment_id: i64,
+    pub order_id: i64,
+    /// `dine_in` or `takeaway`.
+    pub order_type: String,
+    /// The table of a dine-in order.
+    pub table_number: Option<i32>,
+    pub amount_cents: i64,
+    pub brand: Option<String>,
+    pub created_at: String,
+}
+
+/// The approved card payments of every order that no sale has settled,
+/// oldest first. The Z lists them to the operator (it is never blocked
+/// by them); the table plan and the takeaway list mark their orders.
+/// Any logged-in user.
+pub fn do_list_unsettled_card_payments(
+    state: &AppState,
+) -> Result<Vec<UnsettledCardPayment>, String> {
+    access::operator(state, Access::Staff)?;
+    let db = state.db.lock().map_err(errors::internal)?;
+    let mut out = Vec::new();
+    for row in eft::unsettled(&db).map_err(errors::internal)? {
+        let order =
+            pos_db::queries::orders::get_order(&db, row.order_id).map_err(errors::internal)?;
+        out.push(UnsettledCardPayment {
+            payment_id: row.id,
+            order_id: row.order_id,
+            order_type: order.order_type.as_str().to_string(),
+            table_number: order.table_number,
+            amount_cents: row.amount_cents,
+            brand: row.brand,
+            created_at: row.created_at,
+        });
+    }
+    Ok(out)
+}
+
 // ── The sale ───────────────────────────────────────────────────
 
 /// Check the card parts a sale of `order_id` takes against the

@@ -299,6 +299,16 @@ pub fn usable_for_order(conn: &Connection, order_id: i64) -> rusqlite::Result<Ve
     )
 }
 
+/// Every approved payment of the till no sale has settled, oldest
+/// first: money taken that no ticket records yet.
+pub fn unsettled(conn: &Connection) -> rusqlite::Result<Vec<EftPaymentRow>> {
+    many(
+        conn,
+        "WHERE status = 'approved' AND used_event_id IS NULL",
+        &[],
+    )
+}
+
 /// What the checkout screen shows of an order: its approved payments
 /// not yet settled and those still waiting for an answer, oldest first.
 pub fn pending_for_order(conn: &Connection, order_id: i64) -> rusqlite::Result<Vec<EftPaymentRow>> {

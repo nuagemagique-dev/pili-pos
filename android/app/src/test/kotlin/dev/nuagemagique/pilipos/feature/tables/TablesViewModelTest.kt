@@ -86,6 +86,38 @@ class TablesViewModelTest {
         }
 
     @Test
+    fun theOrdersWithAChargedCardAreMarked() =
+        runTest {
+            val f = fixture()
+            val charged = uniffi.pos_ffi.UnsettledCardPayment(1L, 40L, "dine_in", 2, 1_700L, "Bancontact", "2026-10-13 12:00:00")
+            val takeawayCharged = charged.copy(paymentId = 2L, orderId = 50L, orderType = "takeaway", tableNumber = null)
+            coEvery { f.engine.listUnsettledCardPayments() } returns listOf(charged, takeawayCharged)
+            val r = startTables(f, context)
+            r.login()
+
+            r.model.load()
+            runCurrent()
+
+            assertEquals(setOf(40L, 50L), r.state.cardCharged)
+        }
+
+    @Test
+    fun withoutAnAnswerForTheCardsThereIsNoBadgeAndTheListsStillLoad() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listUnsettledCardPayments() } throws refusal
+            val r = startTables(f, context)
+            r.login()
+
+            r.model.load()
+            runCurrent()
+
+            assertTrue(r.state.cardCharged.isEmpty())
+            assertEquals(listOf(free, busy), r.state.tables)
+            assertTrue(r.state.loaded)
+        }
+
+    @Test
     fun theEngineTurningReadyAfterTheLoginLoadsTheLists() =
         runTest {
             val f = fixture()

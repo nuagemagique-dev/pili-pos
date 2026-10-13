@@ -11,6 +11,7 @@ import type {
   PaymentPart,
   EftPayment,
   PaymentTerminalStatus,
+  UnsettledCardPayment,
   CheckoutResult,
   FiscalTicket,
   TicketDeliveryRequest,
@@ -183,6 +184,11 @@ export function listEftPayments(orderId: number): Promise<EftPayment[]> {
 /** Whether the linked terminal answers. Charges nothing; "busy" (and connected) while a payment runs. */
 export function checkPaymentTerminal(): Promise<PaymentTerminalStatus> {
   return invoke("check_payment_terminal");
+}
+
+/** The approved card payments of every order that no sale has settled yet, oldest first: money taken that no ticket records. */
+export function listUnsettledCardPayments(): Promise<UnsettledCardPayment[]> {
+  return invoke("list_unsettled_card_payments");
 }
 
 /** Close an order the customer left without paying (manager, PIN):

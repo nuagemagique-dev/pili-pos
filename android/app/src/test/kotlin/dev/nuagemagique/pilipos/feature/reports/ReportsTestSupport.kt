@@ -33,6 +33,7 @@ import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
 import uniffi.pos_ffi.RequestedMedium
 import uniffi.pos_ffi.TicketDeliveryRequest
+import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import uniffi.pos_ffi.VatCode
@@ -198,6 +199,7 @@ internal class ReportsRig(
 internal fun stubReportReads(engine: DisposableEngine) {
     coEvery { engine.listZReports() } returns emptyList()
     coEvery { engine.needsZReport() } returns false
+    coEvery { engine.listUnsettledCardPayments() } returns emptyList()
     coEvery { engine.listCopyableTickets(any()) } returns emptyList()
     coEvery { engine.listRefundableEvents(any()) } returns emptyList()
     coEvery { engine.login(any(), any()) } returns operatorUser
@@ -240,3 +242,21 @@ internal suspend fun TestScope.startReports(
     runCurrent()
     return ReportsRig(f, model, toasts, catalog, feed, errorTexts, delivery, helpers)
 }
+
+/** A card payment approved and not yet settled: at table [table], or a takeaway when it is null. */
+internal fun unsettled(
+    paymentId: Long,
+    orderId: Long = paymentId + 40L,
+    table: Int? = null,
+    amountCents: Long = 1_700L,
+    brand: String? = "Bancontact",
+): UnsettledCardPayment =
+    UnsettledCardPayment(
+        paymentId = paymentId,
+        orderId = orderId,
+        orderType = if (table != null) "dine_in" else "takeaway",
+        tableNumber = table,
+        amountCents = amountCents,
+        brand = brand,
+        createdAt = "2026-10-13 12:00:00",
+    )

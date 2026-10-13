@@ -36,6 +36,8 @@ internal data class TablesUiState(
     val signedIn: Boolean = false,
     /** True once the lists were read for the engine that is running. */
     val loaded: Boolean = false,
+    /** The orders whose card was charged and not yet settled by a sale (`list_unsettled_card_payments`). */
+    val cardCharged: Set<Long> = emptySet(),
 )
 
 /** What the view model asks of the navigation: the order screen of the order that was just opened. */
@@ -72,6 +74,7 @@ internal class TablesViewModel(
     private data class Lists(
         val tables: List<TableInfo> = emptyList(),
         val takeaways: List<TakeawayInfo> = emptyList(),
+        val cardCharged: Set<Long> = emptySet(),
         val loaded: Boolean = false,
     )
 
@@ -107,7 +110,7 @@ internal class TablesViewModel(
         lists: Lists,
         instant: Instant,
         signedIn: Boolean,
-    ) = TablesUiState(lists.tables, lists.takeaways, instant, signedIn, lists.loaded)
+    ) = TablesUiState(lists.tables, lists.takeaways, instant, signedIn, lists.loaded, lists.cardCharged)
 
     // ── Loading ───────────────────────────────────────────────────
 
@@ -123,7 +126,11 @@ internal class TablesViewModel(
         attempt {
             gateway.call { engine -> engine.listTables() to engine.listOpenTakeaways() }
         }.fold(
-            onSuccess = { (tables, takeaways) -> own.value = Lists(tables, takeaways, loaded = true) },
+            onSuccess = { (tables, takeaways) ->
+                // Only a badge: no answer means no badge.
+                val charged = attempt { gateway.call { engine -> engine.listUnsettledCardPayments() } }.getOrDefault(emptyList())
+                own.value = Lists(tables, takeaways, charged.map { it.orderId }.toSet(), loaded = true)
+            },
             // The lists stay as they were: the next resume or resync reads them again.
             onFailure = { Timber.d(it, "Tables not loaded") },
         )

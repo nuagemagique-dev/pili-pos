@@ -8,6 +8,10 @@
     <string name="reports_reprint_z">Réimprimer un Z</string>
     <string name="reports_last_z">Dernier : Z #{no} · {date}</string>
     <string name="reports_z_explain">La clôture remet les compteurs à zéro. Le premier appui arme le bouton, le second dans les 5 secondes confirme.</string>
+    <string name="reports_z_unsettled">Paiements par carte encaissés mais pas encore enregistrés dans une vente :</string>
+    <string name="reports_z_unsettled_item">{where} · {amount} €{brand}</string>
+    <string name="reports_z_unsettled_note">La clôture reste possible : chaque paiement sera enregistré avec la vente de sa commande.</string>
+    <string name="card_charged_badge">Carte encaissée</string>
     <string name="reports_z_close">Clôturer la journée (Z)</string>
     <string name="reports_step_direction">1 · Sens</string>
     <string name="reports_step_reason">2 · Motif</string>

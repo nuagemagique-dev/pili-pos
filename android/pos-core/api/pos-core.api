@@ -2641,6 +2641,26 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeTicketPayment : uniffi
 	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeUnsettledCardPayment : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeUnsettledCardPayment;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeUser : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeUser;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -4876,6 +4896,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeTicketPayment : uniffi/pos_ffi
 	public fun write (Luniffi/pos_ffi/TicketPayment;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeUnsettledCardPayment : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeUnsettledCardPayment;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/UnsettledCardPayment;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/UnsettledCardPayment;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/UnsettledCardPayment;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/UnsettledCardPayment;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/UnsettledCardPayment;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/UnsettledCardPayment;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/UnsettledCardPayment;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeUser : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeUser;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -6039,6 +6079,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun listRefundableEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listTables (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listTicketDeliveries (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listUnsettledCardPayments (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listUsers (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listZReports (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun lockSession (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6143,6 +6184,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun listRefundableEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listTables (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listTicketDeliveries (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listUnsettledCardPayments (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listUsers (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listZReports (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun lockSession (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -7092,6 +7134,40 @@ public abstract interface class uniffi/pos_ffi/UniffiRustCallStatusErrorHandler 
 
 public final class uniffi/pos_ffi/UniffiWithHandle {
 	public static final field INSTANCE Luniffi/pos_ffi/UniffiWithHandle;
+}
+
+public final class uniffi/pos_ffi/UnsettledCardPayment {
+	public static final field Companion Luniffi/pos_ffi/UnsettledCardPayment$Companion;
+	public fun <init> (JJLjava/lang/String;Ljava/lang/Integer;JLjava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun component5 ()J
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (JJLjava/lang/String;Ljava/lang/Integer;JLjava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/UnsettledCardPayment;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/UnsettledCardPayment;JJLjava/lang/String;Ljava/lang/Integer;JLjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/UnsettledCardPayment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAmountCents ()J
+	public final fun getBrand ()Ljava/lang/String;
+	public final fun getCreatedAt ()Ljava/lang/String;
+	public final fun getOrderId ()J
+	public final fun getOrderType ()Ljava/lang/String;
+	public final fun getPaymentId ()J
+	public final fun getTableNumber ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public final fun setAmountCents (J)V
+	public final fun setBrand (Ljava/lang/String;)V
+	public final fun setCreatedAt (Ljava/lang/String;)V
+	public final fun setOrderId (J)V
+	public final fun setOrderType (Ljava/lang/String;)V
+	public final fun setPaymentId (J)V
+	public final fun setTableNumber (Ljava/lang/Integer;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/UnsettledCardPayment$Companion {
 }
 
 public final class uniffi/pos_ffi/User {

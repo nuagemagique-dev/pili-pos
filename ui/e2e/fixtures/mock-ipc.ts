@@ -370,6 +370,9 @@ function defaultHandlers(): Record<string, Handler> {
     // Not linked unless a spec answers `check_payment_terminal` (overrides / overrideIPC).
     check_payment_terminal: () => ({ configured: false, kind: null, connected: false, busy: false, detail: null }),
 
+    // Card payments charged and not yet settled by a sale: none unless a spec overrides it.
+    list_unsettled_card_payments: () => [],
+
     // Linked card terminal: none unless a spec overrides get_settings.paymentTerminal.
     // The commands follow the script of `eftScript` (window.__eft), else approve.
     list_eft_payments: live((args: any = {}) => {

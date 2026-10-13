@@ -6,7 +6,7 @@ Status: written at the end of phase P2. English, internal, not part of the dossi
 
 `android/rust/pos-ffi` is a Rust crate (UniFFI 0.32.2, proc-macro mode, no UDL) that wraps `crates/pos-engine` for Kotlin. It depends on `pos-engine` with `default-features = false, features = ["cert"]`: HubRise in, Peppol out, no Tauri. It adds no fiscal logic: every command of the Linux shell has one wrapper here that calls the same engine function (PD52).
 
-- `PosEngine` (an `Object`): `open` (the only synchronous export, a constructor), `shutdown`, `events`, and one `suspend` method per cert command (88, section 11).
+- `PosEngine` (an `Object`): `open` (the only synchronous export, a constructor), `shutdown`, `events`, and one `suspend` method per cert command (89, section 11).
 - `EventStream` (an `Object`): `next()` returns the next `PosEvent`, or `null` once the engine is gone.
 - Free functions: `initLogging`, `posSwVersion`, `installInitDb`, `checkConfigBundle`, `qrMatrix`, `verifyMinisign`, `verifyBundle`, `settlePreview`, `cashDueCents`, `vatSplit`.
 - Records, enums and errors mirror the engine types (section 7); Kotlin never sees SQL, JSON of the engine or a Rust type.
@@ -198,6 +198,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | list_refundable_events | refund::do_list_refundable_events | blocking | posEngine.listRefundableEvents() |
 | list_tables | tables::do_list_configured_tables | blocking | posEngine.listTables() |
 | list_ticket_deliveries | delivery::do_list_ticket_deliveries | blocking | posEngine.listTicketDeliveries() |
+| list_unsettled_card_payments | eft::do_list_unsettled_card_payments | blocking | posEngine.listUnsettledCardPayments() |
 | list_users | auth::do_list_users | blocking | posEngine.listUsers() |
 | list_z_reports | report::do_list_z_reports | blocking | posEngine.listZReports() |
 | lock_session | session::do_lock_session | spawn | posEngine.lockSession() |

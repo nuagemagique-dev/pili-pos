@@ -38,6 +38,18 @@ export interface EftPayment {
   used: boolean;
 }
 
+/** A card payment the terminal approved that no sale has settled yet (command `list_unsettled_card_payments`). */
+export interface UnsettledCardPayment {
+  payment_id: number;
+  order_id: number;
+  order_type: "dine_in" | "takeaway";
+  /** The table of a dine-in order. */
+  table_number: number | null;
+  amount_cents: number;
+  brand: string | null;
+  created_at: string;
+}
+
 /** Whether the linked card terminal answers (command `check_payment_terminal`). */
 export interface PaymentTerminalStatus {
   configured: boolean;

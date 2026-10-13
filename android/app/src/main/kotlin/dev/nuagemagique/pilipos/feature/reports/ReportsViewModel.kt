@@ -85,6 +85,7 @@ internal class ReportsViewModel(
     private suspend fun loadDay() {
         loadHistory()
         loadZPending()
+        loadUnsettled()
     }
 
     private suspend fun loadHistory() {
@@ -98,6 +99,12 @@ internal class ReportsViewModel(
         // The notice is only a reminder: a failure means no notice.
         val pending = attempt { entry.gateway().call { engine -> engine.needsZReport() } }.getOrDefault(false)
         own.update { it.copy(day = it.day.copy(zPending = pending)) }
+    }
+
+    private suspend fun loadUnsettled() {
+        // Only a warning: a failure means none, and the Z does not depend on it.
+        val list = attempt { entry.gateway().call { engine -> engine.listUnsettledCardPayments() } }.getOrDefault(emptyList())
+        own.update { it.copy(day = it.day.copy(unsettled = list)) }
     }
 
     // ── Day: X, user X, Z ─────────────────────────────────────────
@@ -119,6 +126,7 @@ internal class ReportsViewModel(
     fun generateZ() {
         if (operatorInsz() == null || own.value.day.busy) return
         if (!own.value.day.zArmed) {
+            viewModelScope.launch { loadUnsettled() }
             own.update { it.copy(day = it.day.copy(zArmed = true)) }
             zDisarm?.cancel()
             zDisarm =

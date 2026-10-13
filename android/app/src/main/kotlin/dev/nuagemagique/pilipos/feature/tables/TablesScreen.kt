@@ -207,7 +207,7 @@ private fun TableCard(
             modifier = Modifier.fillMaxSize().padding(horizontal = d.spaceMd + d.spaceXs, vertical = 18.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            TableTop(table)
+            TableTop(table, state.cardCharged)
             if (occupied) OccupiedInfo(table, state) else FreeLabel()
         }
     }
@@ -229,7 +229,10 @@ private fun DrawScope.dashedOutline(
 }
 
 @Composable
-private fun TableTop(table: TableInfo) {
+private fun TableTop(
+    table: TableInfo,
+    cardCharged: Set<Long>,
+) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
     val occupied = table.status == STATUS_OCCUPIED
@@ -239,20 +242,36 @@ private fun TableTop(table: TableInfo) {
             style = t.figure.copy(fontSize = t.sizeXl * TABLE_NUMBER_SCALE, fontWeight = t.weightBold),
             color = if (occupied) c.textPrimary else c.textSecondary,
         )
-        // A provisional bill is on the table (sign_pre_bill, P).
-        if (table.preBillPrinted) {
-            Text(
-                text = vueText("pre_bill"),
-                style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
-                color = c.textOnAccent,
-                modifier =
-                    Modifier.background(
-                        c.accentWarning,
-                        RoundedCornerShape(6.dp),
-                    ).padding(horizontal = 8.dp, vertical = 2.dp).testTag("table_${table.tableNumber}_bill"),
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // A provisional bill is on the table (sign_pre_bill, P).
+            if (table.preBillPrinted) {
+                Tag(vueText("pre_bill"), Modifier.testTag("table_${table.tableNumber}_bill"))
+            }
+            // The customer's card was charged and no sale records it yet.
+            if (table.orderId?.let { it in cardCharged } == true) {
+                Tag(vueText("card_charged_badge"), Modifier.testTag("table_${table.tableNumber}_card"))
+            }
         }
     }
+}
+
+/** A small amber tag on a table or a takeaway (`bill-tag` in `TablesView.vue`). */
+@Composable
+private fun Tag(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    val t = PiliTheme.typography
+    Text(
+        text = text,
+        style = t.body.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
+        color = PiliTheme.colors.textOnAccent,
+        modifier =
+            modifier.background(
+                PiliTheme.colors.accentWarning,
+                RoundedCornerShape(6.dp),
+            ).padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }
 
 @Composable
@@ -332,7 +351,7 @@ private fun TakeawayPanel(
                 ).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = d.spaceMd, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(d.spaceSm),
         ) {
-            state.takeaways.forEach { TakeawayCard(it, { callbacks.onTakeaway(it) }) }
+            state.takeaways.forEach { TakeawayCard(it, it.orderId in state.cardCharged, { callbacks.onTakeaway(it) }) }
         }
         Box(Modifier.fillMaxWidth().drawTopLine(c.border).padding(d.spaceMd)) {
             PiliButton(
@@ -355,6 +374,7 @@ private fun TakeawayPanel(
 @Composable
 private fun TakeawayCard(
     takeaway: TakeawayInfo,
+    cardCharged: Boolean,
     onClick: () -> Unit,
 ) {
     val c = PiliTheme.colors
@@ -391,6 +411,9 @@ private fun TakeawayCard(
                     style = t.figure.copy(fontSize = t.sizeMd),
                     color = c.textSecondary,
                 )
+                if (cardCharged) {
+                    Tag(vueText("card_charged_badge"), Modifier.testTag("takeaway_${takeaway.orderId}_card"))
+                }
             }
             Text(
                 text = formatEuro(takeaway.totalCents),

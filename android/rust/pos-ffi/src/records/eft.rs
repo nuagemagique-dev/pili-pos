@@ -38,3 +38,19 @@ pub struct PaymentTerminalStatus {
     /// Why it is not connected.
     pub detail: Option<String>,
 }
+
+/// `pos_engine::commands::eft::UnsettledCardPayment`: a card payment the terminal approved that no
+/// sale has settled yet.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct UnsettledCardPayment {
+    pub payment_id: i64,
+    pub order_id: i64,
+    /// `dine_in` or `takeaway`.
+    pub order_type: String,
+    /// The table of a dine-in order.
+    pub table_number: Option<i32>,
+    pub amount_cents: i64,
+    pub brand: Option<String>,
+    pub created_at: String,
+}

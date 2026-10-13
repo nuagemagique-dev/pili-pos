@@ -428,6 +428,11 @@ n'empêche pas de se connecter ni de vendre.
    cette commande attend sa réponse ou qu'un paiement accepté n'est pas
    encore utilisé par la vente.
 
+Tant qu'un paiement accepté n'est pas enregistré dans la vente de sa
+commande, la table ou la vente à emporter porte la pastille "Carte
+encaissée", et la clôture Z (§10.2) le signale ; la commande ne peut
+alors pas descendre sous le montant déjà débité.
+
 Une carte payée sur le terminal relié n'est jamais arrondie. En mode
 formation (§13), aucune vraie carte n'est jamais débitée : la caisse
 refuse d'envoyer le montant au terminal, la carte se saisit à la main.
@@ -656,6 +661,12 @@ confirme.") :
 2. Toucher à nouveau dans les 5 secondes pour clôturer. Sans second
    appui, ou en changeant d'onglet, le bouton revient à son état normal
    et rien ne se passe.
+
+Si un paiement par carte a été encaissé sur le terminal relié mais pas
+encore enregistré dans une vente, la caisse l'indique au-dessus du bouton
+("Paiements par carte encaissés mais pas encore enregistrés dans une
+vente : ...") : le Z reste possible, ce paiement sera enregistré avec la
+vente de sa commande.
 
 Le Z est signé par le FDM, imprimé, et "Rapport généré (Z #n)"
 confirme. La journée est close ; la suivante commence au prochain

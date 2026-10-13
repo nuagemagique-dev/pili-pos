@@ -157,6 +157,25 @@ class ReportsContentTest {
     }
 
     @Test
+    fun theUnsettledCardPaymentsAreListedAboveTheCloseButton() {
+        show(day { copy(unsettled = listOf(unsettled(1L, table = 4), unsettled(2L, amountCents = 950L, brand = null))) })
+
+        compose.onNodeWithTag("report_z_unsettled").assertIsDisplayed()
+        compose.onNodeWithText("Paiements par carte encaissés mais pas encore enregistrés dans une vente :").assertIsDisplayed()
+        compose.onNodeWithTag("report_z_unsettled_1", useUnmergedTree = true).assertTextEquals("- Table 4 · 17,00 € · Bancontact")
+        compose.onNodeWithTag("report_z_unsettled_2", useUnmergedTree = true).assertTextEquals("- À emporter · 9,50 €")
+        // Only a warning: the Z button stays usable.
+        compose.onNodeWithTag("report_z").assertIsEnabled()
+    }
+
+    @Test
+    fun withEveryCardSettledThereIsNoWarning() {
+        show(day { this })
+
+        compose.onNodeWithTag("report_z_unsettled").assertDoesNotExist()
+    }
+
+    @Test
     fun theReprintCardNamesTheNewestZInBrusselsTime() {
         // 22:00 UTC on the 9th is midnight on the 10th in Brussels.
         show(day { copy(zHistory = listOf(zSummary(5L), zSummary(4L))) })

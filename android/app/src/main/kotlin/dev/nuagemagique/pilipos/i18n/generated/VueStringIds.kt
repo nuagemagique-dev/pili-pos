@@ -354,6 +354,10 @@ internal object VueStringIds {
         this["reports_reprint_z"] = R.string.reports_reprint_z
         this["reports_last_z"] = R.string.reports_last_z
         this["reports_z_explain"] = R.string.reports_z_explain
+        this["reports_z_unsettled"] = R.string.reports_z_unsettled
+        this["reports_z_unsettled_item"] = R.string.reports_z_unsettled_item
+        this["reports_z_unsettled_note"] = R.string.reports_z_unsettled_note
+        this["card_charged_badge"] = R.string.card_charged_badge
         this["reports_z_close"] = R.string.reports_z_close
         this["reports_step_direction"] = R.string.reports_step_direction
         this["reports_step_reason"] = R.string.reports_step_reason
@@ -515,13 +519,13 @@ internal object VueStringIds {
         this["hubrise_channel_saved"] = R.string.hubrise_channel_saved
         this["hubrise_health_auth"] = R.string.hubrise_health_auth
         this["hubrise_health_outbox"] = R.string.hubrise_health_outbox
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["hubrise_health_parked"] = R.string.hubrise_health_parked
         this["webshop_stale_alarm"] = R.string.webshop_stale_alarm
         this["catalog_issue_empty_key"] = R.string.catalog_issue_empty_key
         this["catalog_issue_duplicate_key"] = R.string.catalog_issue_duplicate_key
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["catalog_issue_unknown_category"] = R.string.catalog_issue_unknown_category
         this["catalog_issue_missing_name"] = R.string.catalog_issue_missing_name
         this["catalog_issue_name_too_long"] = R.string.catalog_issue_name_too_long

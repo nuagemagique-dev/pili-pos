@@ -23,7 +23,7 @@ use pos_eft::{CardType, EftError, Outcome};
 use pos_engine::commands::checkout::{PaymentPart, do_checkout, do_checkout_split};
 use pos_engine::commands::eft::{
     EftPayment, PaymentTerminalStatus, do_check_payment_terminal, do_eft_abort, do_eft_check,
-    do_eft_pay, do_list_eft_payments,
+    do_eft_pay, do_list_eft_payments, do_list_unsettled_card_payments,
 };
 use pos_engine::commands::errors;
 use pos_engine::commands::order::{
@@ -1183,4 +1183,64 @@ async fn an_order_without_a_card_payment_is_edited_freely() {
     do_update_order_line_quantity(&app.state, line, 1).unwrap();
     do_remove_order_line(&app.state, line).unwrap();
     assert_eq!(total_of(&app, order), 0);
+}
+
+#[tokio::test]
+async fn a_charged_card_is_listed_until_a_sale_settles_it() {
+    let (app, script) = app().await;
+    assert!(
+        do_list_unsettled_card_payments(&app.state)
+            .unwrap()
+            .is_empty()
+    );
+    let order = app.order_of(1000);
+    // Nothing charged yet: a declined card is not money taken.
+    script.on_pay(Ok(Outcome::Declined {
+        reason: "refused".into(),
+    }));
+    do_eft_pay(&app.state, order, 1000).await.unwrap();
+    assert!(
+        do_list_unsettled_card_payments(&app.state)
+            .unwrap()
+            .is_empty()
+    );
+
+    let payment = approved(&app, &script, order, 600, "Bancontact", CardType::Debit).await;
+    let other = app.order_of(500);
+    let listed = do_list_unsettled_card_payments(&app.state).unwrap();
+    assert_eq!(listed.len(), 1);
+    let one = &listed[0];
+    assert_eq!(one.payment_id, payment.id);
+    assert_eq!(one.order_id, order);
+    assert_eq!(one.order_type, "takeaway");
+    assert_eq!(one.table_number, None);
+    assert_eq!(one.amount_cents, 600);
+    assert_eq!(one.brand.as_deref(), Some("Bancontact"));
+    assert!(!one.created_at.is_empty());
+
+    // Another order's sale does not settle it; its own sale does.
+    assert!(
+        do_checkout_split(&app.state, other, &[PaymentPart::cash()], None)
+            .await
+            .unwrap()
+            .success
+    );
+    assert_eq!(
+        do_list_unsettled_card_payments(&app.state).unwrap().len(),
+        1
+    );
+    let sale = do_checkout_split(
+        &app.state,
+        order,
+        &[PaymentPart::terminal(600, payment.id), PaymentPart::cash()],
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    assert!(
+        do_list_unsettled_card_payments(&app.state)
+            .unwrap()
+            .is_empty()
+    );
 }

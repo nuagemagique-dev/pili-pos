@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,8 +24,10 @@ import androidx.compose.ui.unit.dp
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.format.PosDateTime
+import dev.nuagemagique.pilipos.ui.format.formatCents
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import uniffi.pos_ffi.UnsettledCardPayment
 import uniffi.pos_ffi.ZReportSummary
 
 private val ReportCardHeight = 160.dp
@@ -164,28 +167,86 @@ private fun ZBar(
     onZ: () -> Unit,
 ) {
     val d = PiliTheme.dimens
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(d.spaceLg), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = vueText("reports_z_explain"),
-            style = PiliTheme.typography.body,
-            color = PiliTheme.colors.textSecondary,
-            modifier = Modifier.weight(1f).testTag("report_z_explain"),
-        )
-        PiliButton(
-            onClick = onZ,
-            modifier = Modifier.width(ZButtonWidth).height(ZButtonHeight).testTag("report_z"),
-            variant = if (day.zArmed) PiliButtonVariant.Danger else PiliButtonVariant.Secondary,
-            enabled = !day.busy,
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(d.spaceMd)) {
+        if (day.unsettled.isNotEmpty()) UnsettledWarning(day.unsettled)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(d.spaceLg),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (day.loadingKind == ReportKind.Z) {
-                Spinner()
-            } else {
-                Text(
-                    text = if (day.zArmed) vueText("confirm_z") else vueText("reports_z_close"),
-                    style = PiliTheme.typography.title.copy(fontSize = PiliTheme.typography.sizeLg),
-                    textAlign = TextAlign.Center,
-                )
-            }
+            ZExplainAndButton(day, onZ)
+        }
+    }
+}
+
+/**
+ * The card payments the terminal approved that no sale records yet, listed above the Z button. Only a warning: the Z
+ * is never blocked, each payment is recorded with the sale of its order.
+ */
+@Composable
+private fun UnsettledWarning(unsettled: List<UnsettledCardPayment>) {
+    val c = PiliTheme.colors
+    val shape = RoundedCornerShape(PiliTheme.dimens.radiusMd)
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(c.bgSecondary, shape)
+                .border(1.dp, c.accentWarning, shape)
+                .padding(PiliTheme.dimens.spaceMd)
+                .testTag("report_z_unsettled"),
+        verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs),
+    ) {
+        Text(
+            text = vueText("reports_z_unsettled"),
+            style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
+            color = c.accentWarning,
+        )
+        unsettled.forEach { payment ->
+            Text(
+                text = "- " + unsettledLine(payment),
+                style = PiliTheme.typography.figure,
+                color = c.textPrimary,
+                modifier = Modifier.testTag("report_z_unsettled_${payment.paymentId}"),
+            )
+        }
+        Text(vueText("reports_z_unsettled_note"), style = PiliTheme.typography.body, color = c.textSecondary)
+    }
+}
+
+/** One payment of the warning: where it was taken, the amount and the card brand (`unsettledLine` of `ReportsView.vue`). */
+@Composable
+internal fun unsettledLine(payment: UnsettledCardPayment): String {
+    val place = payment.tableNumber?.let { vueText("table") + " " + it } ?: vueText("takeaway_badge")
+    val brand = payment.brand?.let { " · $it" } ?: ""
+    return vueText("reports_z_unsettled_item", "where" to place, "amount" to formatCents(payment.amountCents), "brand" to brand)
+}
+
+@Composable
+private fun RowScope.ZExplainAndButton(
+    day: DayState,
+    onZ: () -> Unit,
+) {
+    Text(
+        text = vueText("reports_z_explain"),
+        style = PiliTheme.typography.body,
+        color = PiliTheme.colors.textSecondary,
+        modifier = Modifier.weight(1f).testTag("report_z_explain"),
+    )
+    PiliButton(
+        onClick = onZ,
+        modifier = Modifier.width(ZButtonWidth).height(ZButtonHeight).testTag("report_z"),
+        variant = if (day.zArmed) PiliButtonVariant.Danger else PiliButtonVariant.Secondary,
+        enabled = !day.busy,
+    ) {
+        if (day.loadingKind == ReportKind.Z) {
+            Spinner()
+        } else {
+            Text(
+                text = if (day.zArmed) vueText("confirm_z") else vueText("reports_z_close"),
+                style = PiliTheme.typography.title.copy(fontSize = PiliTheme.typography.sizeLg),
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

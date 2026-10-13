@@ -77,6 +77,63 @@ class ReportsViewModelTest {
         }
 
     @Test
+    fun loadReadsTheCardPaymentsNoSaleRecordsYet() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            r.model.load()
+            runCurrent()
+            assertTrue(r.state.day.unsettled.isEmpty())
+
+            coEvery { f.engine.listUnsettledCardPayments() } returns
+                listOf(unsettled(1L, table = 4), unsettled(2L, amountCents = 950L, brand = null))
+            r.model.load()
+            runCurrent()
+
+            assertEquals(listOf(1L, 2L), r.state.day.unsettled.map { it.paymentId })
+        }
+
+    @Test
+    fun theZIsNeverBlockedByUnsettledCardsAndTheListIsReadAgainWhenArmedAndAfterwards() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listUnsettledCardPayments() } returnsMany
+                listOf(emptyList(), listOf(unsettled(1L, table = 4)), emptyList())
+            coEvery { f.engine.generateZReport(OPERATOR_INSZ) } returns reportResult(reportNo = 3L, type = "Z")
+            val r = start(f)
+            r.model.load()
+            runCurrent()
+            assertTrue(r.state.day.unsettled.isEmpty())
+
+            // The first tap arms the button and reads the list again: the warning is fresh.
+            r.model.generateZ()
+            runCurrent()
+            assertTrue(r.state.day.zArmed)
+            assertEquals(listOf(1L), r.state.day.unsettled.map { it.paymentId })
+
+            // The second tap closes the day all the same.
+            r.model.generateZ()
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.generateZReport(OPERATOR_INSZ) }
+            assertEquals(ReportKind.Z, r.state.day.lastReport?.kind)
+            assertTrue(r.state.day.unsettled.isEmpty())
+        }
+
+    @Test
+    fun anUnreadableListMeansNoWarning() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.listUnsettledCardPayments() } throws refused
+            val r = start(f)
+
+            r.model.load()
+            runCurrent()
+
+            assertTrue(r.state.day.unsettled.isEmpty())
+            assertTrue(r.toastTexts().isEmpty())
+        }
+
+    @Test
     fun failingReadsDegradeSilently() =
         runTest {
             val f = fixture()

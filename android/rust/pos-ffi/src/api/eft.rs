@@ -1,4 +1,4 @@
-//! The card payment terminal facade (engine module eft): five cert commands as async methods of
+//! The card payment terminal facade (engine module eft): six cert commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/eft.rs`): the same parameter names
@@ -10,12 +10,13 @@
 
 use pos_engine::commands::eft::{
     EftPayment as EngineEftPayment, PaymentTerminalStatus as EnginePaymentTerminalStatus,
+    UnsettledCardPayment as EngineUnsettledCardPayment,
 };
 
 use crate::convert;
 use crate::core::PosEngine;
 use crate::error::PosError;
-use crate::records::eft::{EftPayment, PaymentTerminalStatus};
+use crate::records::eft::{EftPayment, PaymentTerminalStatus, UnsettledCardPayment};
 
 #[uniffi::export]
 impl PosEngine {
@@ -65,5 +66,17 @@ impl PosEngine {
             })
             .await?;
         convert::out(&status)
+    }
+
+    /// The approved card payments no sale has settled yet, of every order, oldest first: the Z
+    /// warns about them and the order lists mark their orders.
+    #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
+    pub async fn list_unsettled_card_payments(
+        &self,
+    ) -> Result<Vec<UnsettledCardPayment>, PosError> {
+        let payments: Vec<EngineUnsettledCardPayment> = self
+            .blocking(|state| pos_engine::commands::eft::do_list_unsettled_card_payments(state))
+            .await?;
+        convert::out(&payments)
     }
 }

@@ -93,6 +93,23 @@ class TablesContentTest {
     }
 
     @Test
+    fun anOrderWhoseCardWasChargedIsFlaggedOnItsTableAndItsTakeaway() {
+        show(base.copy(cardCharged = setOf(40L, 50L)))
+
+        compose.onNodeWithTag("table_2_card", useUnmergedTree = true).assertTextEquals("Carte encaissée")
+        compose.onNodeWithTag("table_3_card", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("takeaway_50_card", useUnmergedTree = true).assertTextEquals("Carte encaissée")
+    }
+
+    @Test
+    fun withNoChargedCardNothingIsFlagged() {
+        show(base)
+
+        compose.onNodeWithTag("table_2_card", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("takeaway_50_card", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
     fun theTakeawayListShowsTheCountTheStartTimeInBrusselsAndTheAmount() {
         show(base)
 

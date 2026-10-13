@@ -194,6 +194,7 @@ internal fun TestScope.tablesFixture(
     coEvery { f.engine.getSettings() } returns posSettings()
     coEvery { f.engine.listTables() } returns tables
     coEvery { f.engine.listOpenTakeaways() } returns takeaways
+    coEvery { f.engine.listUnsettledCardPayments() } returns emptyList()
     coEvery { f.engine.listCartLines(any()) } returns emptyList()
     coEvery { f.engine.setActiveOrder(any()) } returns Unit
     return f

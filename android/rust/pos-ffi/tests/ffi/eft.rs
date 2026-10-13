@@ -18,7 +18,7 @@ use std::time::Duration;
 use pos_eft_mock::{Behaviour, Mock, Next};
 use pos_engine::commands::eft::EftPayment as EngineEftPayment;
 use pos_ffi::records::common::{PaymentMethod, PaymentPart, contract_inp, contract_out};
-use pos_ffi::records::eft::{EftPayment, PaymentTerminalStatus};
+use pos_ffi::records::eft::{EftPayment, PaymentTerminalStatus, UnsettledCardPayment};
 use pos_ffi::records::orders::{AddOrderLineInput, CreateOrderInput, OrderType};
 use pos_ffi::{EngineOptions, PosEngine, PosError};
 use serde_json::{json, to_value};
@@ -127,6 +127,30 @@ fn a_terminal_status_converts_and_refuses_unknown_keys() {
 }
 
 #[test]
+fn an_unsettled_payment_converts_and_refuses_unknown_keys() {
+    let wire = json!({
+        "payment_id": 7, "order_id": 3, "order_type": "dine_in", "table_number": 12,
+        "amount_cents": 1250, "brand": "Bancontact", "created_at": "2026-10-12T10:00:00+02:00"
+    });
+    let record: UnsettledCardPayment = contract_out(&wire).expect("convert::out");
+    assert_eq!(record.table_number, Some(12));
+    assert_eq!(to_value(&record).unwrap(), wire);
+    let takeaway = json!({
+        "payment_id": 8, "order_id": 4, "order_type": "takeaway", "table_number": null,
+        "amount_cents": 500, "brand": null, "created_at": "2026-10-12T10:05:00+02:00"
+    });
+    let record: UnsettledCardPayment = contract_out(&takeaway).expect("convert::out");
+    assert_eq!((record.table_number, record.brand), (None, None));
+    let mut extra = wire;
+    extra["somethingNew"] = json!(1);
+    let result: Result<UnsettledCardPayment, PosError> = contract_out(&extra);
+    assert!(
+        matches!(result, Err(PosError::Internal { .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
 fn a_payment_part_carries_the_terminal_payment_id() {
     let part = PaymentPart {
         method: PaymentMethod::Card,
@@ -169,6 +193,7 @@ async fn without_a_terminal_every_method_is_eft_not_configured() {
         "eft_payment_not_usable"
     );
     assert_eq!(e.list_eft_payments(1).await.unwrap(), vec![]);
+    assert_eq!(e.list_unsettled_card_payments().await.unwrap(), vec![]);
     // Nothing linked: the header shows no light, nothing is probed.
     assert_eq!(
         e.check_payment_terminal().await.unwrap(),
@@ -196,6 +221,10 @@ async fn without_an_operator_the_methods_refuse() {
     assert_eq!(coded(&e.eft_check(1).await.unwrap_err()), "not_logged_in");
     assert_eq!(
         coded(&e.list_eft_payments(1).await.unwrap_err()),
+        "not_logged_in"
+    );
+    assert_eq!(
+        coded(&e.list_unsettled_card_payments().await.unwrap_err()),
         "not_logged_in"
     );
     e.shutdown().await.unwrap();
@@ -339,6 +368,12 @@ async fn an_approved_payment_is_listed_then_settled_by_the_checkout() {
         e.list_eft_payments(order_id).await.unwrap(),
         vec![payment.clone()]
     );
+    // The Z warns about the money no ticket records yet.
+    let unsettled = e.list_unsettled_card_payments().await.unwrap();
+    assert_eq!(unsettled.len(), 1, "{unsettled:?}");
+    assert_eq!(unsettled[0].payment_id, payment.id);
+    assert_eq!(unsettled[0].order_id, order_id);
+    assert_eq!(unsettled[0].amount_cents, 250);
     // An approved payment answers eft_check as it is.
     assert_eq!(e.eft_check(payment.id).await.unwrap(), payment);
     // Nothing runs: abort is Ok.
@@ -361,6 +396,7 @@ async fn an_approved_payment_is_listed_then_settled_by_the_checkout() {
     assert!(sale.success, "{:?}", sale.error);
     // Settled: no longer listed.
     assert_eq!(e.list_eft_payments(order_id).await.unwrap(), vec![]);
+    assert_eq!(e.list_unsettled_card_payments().await.unwrap(), vec![]);
     e.shutdown().await.unwrap();
 }
 
