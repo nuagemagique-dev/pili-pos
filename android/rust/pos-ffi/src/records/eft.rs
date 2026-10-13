@@ -23,3 +23,18 @@ pub struct EftPayment {
     /// A sale has settled it.
     pub used: bool,
 }
+
+/// `pos_engine::commands::eft::PaymentTerminalStatus`: whether the linked terminal answers.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentTerminalStatus {
+    pub configured: bool,
+    /// The driver; `None` when not configured.
+    pub kind: Option<String>,
+    /// The terminal answered (or a payment is running on it).
+    pub connected: bool,
+    /// A payment holds the terminal's line: it was not probed.
+    pub busy: bool,
+    /// Why it is not connected.
+    pub detail: Option<String>,
+}

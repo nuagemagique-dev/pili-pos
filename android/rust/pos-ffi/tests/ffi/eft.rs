@@ -1,5 +1,5 @@
 //! Tests of the card payment terminal facade (engine module eft): `eft_pay`, `eft_abort`,
-//! `eft_check`, `list_eft_payments`.
+//! `eft_check`, `list_eft_payments`, `check_payment_terminal`.
 //!
 //! (a) Contract: the FFI `EftPayment` is the engine's field by field, with every option set and
 //! with every option `None`; an unknown key is a contract error; `PaymentPart` carries the
@@ -18,7 +18,7 @@ use std::time::Duration;
 use pos_eft_mock::{Behaviour, Mock, Next};
 use pos_engine::commands::eft::EftPayment as EngineEftPayment;
 use pos_ffi::records::common::{PaymentMethod, PaymentPart, contract_inp, contract_out};
-use pos_ffi::records::eft::EftPayment;
+use pos_ffi::records::eft::{EftPayment, PaymentTerminalStatus};
 use pos_ffi::records::orders::{AddOrderLineInput, CreateOrderInput, OrderType};
 use pos_ffi::{EngineOptions, PosEngine, PosError};
 use serde_json::{json, to_value};
@@ -108,6 +108,25 @@ fn a_payment_with_an_unknown_key_is_a_contract_error() {
 }
 
 #[test]
+fn a_terminal_status_converts_and_refuses_unknown_keys() {
+    let wire = json!({
+        "configured": true, "kind": "ccv_opi", "connected": false, "busy": false,
+        "detail": "connection refused"
+    });
+    let record: PaymentTerminalStatus = contract_out(&wire).expect("convert::out");
+    assert_eq!(record.kind.as_deref(), Some("ccv_opi"));
+    assert_eq!(record.detail.as_deref(), Some("connection refused"));
+    assert_eq!(to_value(&record).unwrap(), wire);
+    let mut extra = wire;
+    extra["somethingNew"] = json!(1);
+    let result: Result<PaymentTerminalStatus, PosError> = contract_out(&extra);
+    assert!(
+        matches!(result, Err(PosError::Internal { .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
 fn a_payment_part_carries_the_terminal_payment_id() {
     let part = PaymentPart {
         method: PaymentMethod::Card,
@@ -150,6 +169,17 @@ async fn without_a_terminal_every_method_is_eft_not_configured() {
         "eft_payment_not_usable"
     );
     assert_eq!(e.list_eft_payments(1).await.unwrap(), vec![]);
+    // Nothing linked: the header shows no light, nothing is probed.
+    assert_eq!(
+        e.check_payment_terminal().await.unwrap(),
+        PaymentTerminalStatus {
+            configured: false,
+            kind: None,
+            connected: false,
+            busy: false,
+            detail: None,
+        }
+    );
     assert_eq!(e.get_settings().await.unwrap().payment_terminal, None);
     e.shutdown().await.unwrap();
 }
@@ -292,6 +322,10 @@ async fn an_approved_payment_is_listed_then_settled_by_the_checkout() {
         e.get_settings().await.unwrap().payment_terminal.as_deref(),
         Some("worldline_terminal_api")
     );
+    let status = e.check_payment_terminal().await.expect("status");
+    assert!(status.configured && !status.busy, "{status:?}");
+    assert_eq!(status.kind.as_deref(), Some("worldline_terminal_api"));
+    assert_eq!(status.connected, status.detail.is_none());
     let order_id = order(e).await;
 
     let payment = e.eft_pay(order_id, 250).await.expect("eft_pay");

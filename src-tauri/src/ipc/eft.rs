@@ -1,6 +1,6 @@
 use tauri::State;
 
-use pos_engine::commands::eft::EftPayment;
+use pos_engine::commands::eft::{EftPayment, PaymentTerminalStatus};
 
 use super::Managed;
 
@@ -33,4 +33,13 @@ pub fn list_eft_payments(
     order_id: i64,
 ) -> Result<Vec<EftPayment>, String> {
     pos_engine::commands::eft::do_list_eft_payments(state.inner(), order_id)
+}
+
+/// Whether the linked card terminal answers. Charges nothing; while a
+/// payment runs it says "busy" without probing.
+#[tauri::command]
+pub async fn check_payment_terminal(
+    state: State<'_, Managed>,
+) -> Result<PaymentTerminalStatus, String> {
+    pos_engine::commands::eft::do_check_payment_terminal(state.inner()).await
 }

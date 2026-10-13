@@ -1,4 +1,4 @@
-//! The card payment terminal facade (engine module eft): four cert commands as async methods of
+//! The card payment terminal facade (engine module eft): five cert commands as async methods of
 //! [`PosEngine`].
 //!
 //! Each method mirrors its Tauri wrapper (`src-tauri/src/ipc/eft.rs`): the same parameter names
@@ -8,12 +8,14 @@
 //! payment: the runtime task is detached and still stores the terminal's answer; the operator
 //! stops a payment with `eft_abort`.
 
-use pos_engine::commands::eft::EftPayment as EngineEftPayment;
+use pos_engine::commands::eft::{
+    EftPayment as EngineEftPayment, PaymentTerminalStatus as EnginePaymentTerminalStatus,
+};
 
 use crate::convert;
 use crate::core::PosEngine;
 use crate::error::PosError;
-use crate::records::eft::EftPayment;
+use crate::records::eft::{EftPayment, PaymentTerminalStatus};
 
 #[uniffi::export]
 impl PosEngine {
@@ -52,5 +54,16 @@ impl PosEngine {
             .blocking(move |state| pos_engine::commands::eft::do_list_eft_payments(state, order_id))
             .await?;
         convert::out(&payments)
+    }
+
+    /// Whether the linked card terminal answers. Charges nothing; while a payment runs it
+    /// answers busy (and connected) without probing the terminal.
+    pub async fn check_payment_terminal(&self) -> Result<PaymentTerminalStatus, PosError> {
+        let status: EnginePaymentTerminalStatus = self
+            .spawn(|engine| async move {
+                pos_engine::commands::eft::do_check_payment_terminal(&engine).await
+            })
+            .await?;
+        convert::out(&status)
     }
 }

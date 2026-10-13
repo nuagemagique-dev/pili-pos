@@ -4238,6 +4238,26 @@ public final class uniffi/pos_ffi/FfiConverterTypePaymentPart : uniffi/pos_ffi/F
 	public fun write (Luniffi/pos_ffi/PaymentPart;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypePaymentTerminalStatus : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypePaymentTerminalStatus;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/PaymentTerminalStatus;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/PaymentTerminalStatus;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/PaymentTerminalStatus;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/PaymentTerminalStatus;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/PaymentTerminalStatus;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/PaymentTerminalStatus;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/PaymentTerminalStatus;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypePosEngine : uniffi/pos_ffi/FfiConverter {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypePosEngine;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -5923,6 +5943,34 @@ public final class uniffi/pos_ffi/PaymentPart {
 public final class uniffi/pos_ffi/PaymentPart$Companion {
 }
 
+public final class uniffi/pos_ffi/PaymentTerminalStatus {
+	public static final field Companion Luniffi/pos_ffi/PaymentTerminalStatus$Companion;
+	public fun <init> (ZLjava/lang/String;ZZLjava/lang/String;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;ZZLjava/lang/String;)Luniffi/pos_ffi/PaymentTerminalStatus;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/PaymentTerminalStatus;ZLjava/lang/String;ZZLjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/PaymentTerminalStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBusy ()Z
+	public final fun getConfigured ()Z
+	public final fun getConnected ()Z
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setBusy (Z)V
+	public final fun setConfigured (Z)V
+	public final fun setConnected (Z)V
+	public final fun setDetail (Ljava/lang/String;)V
+	public final fun setKind (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/PaymentTerminalStatus$Companion {
+}
+
 public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/Disposable, uniffi/pos_ffi/PosEngineInterface {
 	public static final field Companion Luniffi/pos_ffi/PosEngine$Companion;
 	public fun <init> (Luniffi/pos_ffi/NoHandle;)V
@@ -5933,6 +5981,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun checkFdmStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkKitchenPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkMailStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun checkPaymentTerminal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkout (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun close ()V
@@ -6041,6 +6090,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun checkFdmStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkKitchenPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkMailStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun checkPaymentTerminal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkout (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun closeUnpaid (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
