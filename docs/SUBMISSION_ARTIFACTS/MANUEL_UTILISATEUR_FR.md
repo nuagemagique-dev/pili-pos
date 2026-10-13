@@ -59,9 +59,12 @@ L'écran de connexion est coupé en deux.
 - À gauche, le panneau "Démarrage" donne l'état des appareils : "FDM"
   ("connecté", "avertissement" ou "hors ligne"), "Imprimante ticket"
   et "Imprimante cuisine" ("prête", "injoignable" ou "non configuré"),
+  "Terminal de paiement" (seulement si un terminal est relié à la
+  caisse : "connecté", "paiement en cours" ou "injoignable"),
   "HubRise" (seulement s'il est activé : "connecté" ou "non connecté")
-  et "Email tickets" ("joignable", "injoignable" ou "non configuré"). Le
-  nom de l'établissement et l'identifiant du terminal sont en bas, avec
+  et "Email tickets" ("joignable", "injoignable" ou "non configuré"). Ces
+  lignes informent seulement : un appareil qui ne répond pas n'empêche
+  jamais de se connecter. Le nom de l'établissement et l'identifiant du terminal sont en bas, avec
   la version du logiciel ("Version pili-pos/<numéro>").
 - À droite, "Qui êtes-vous ?" affiche une tuile par employé (initiale,
   nom, profil) et son état : "en service · 11:42" ou "hors service".
@@ -192,13 +195,18 @@ L'en-tête montre en permanence :
 
 - les voyants des appareils : **FDM** (la "boîte noire"), **Ticket**
   (imprimante de tickets), **Cuisine** (imprimante du bar ou de la
-  cuisine) et **HubRise** (seulement s'il est activé). Vert : tout va
+  cuisine), **Terminal** (le terminal de paiement relié, seulement s'il
+  y en a un) et **HubRise** (seulement s'il est activé). Vert : tout va
   bien. Orange ou rouge : un problème. Gris : appareil non configuré. Le
   FDM est interrogé toutes les 30 secondes (moins souvent tant qu'il ne
   répond pas) ; son message en clair s'affiche dans un bandeau sous
   l'en-tête (ex. "Connexion perdue avec la boîte noire. Vérifiez le
-  câble réseau."). Les imprimantes sont vérifiées toutes les 30
-  secondes ;
+  câble réseau."). Les imprimantes et le terminal de paiement sont
+  vérifiés toutes les 30 secondes (le voyant "Terminal" est orange
+  pendant qu'un paiement est en cours sur le terminal, et rouge quand le
+  terminal ne répond pas ; le toucher ou le survoler en donne la raison
+  quand la caisse la connaît). Cette vérification ne débite jamais rien
+  et ne dérange pas un paiement en cours ;
 - le nom de l'employé connecté, son profil et "PIN" (le toucher pour
   changer son PIN, §2.2), puis la table ("Table 4") ou "À emporter", et
   l'heure ;
@@ -375,6 +383,13 @@ ticket** (un seul événement N, même payée en plusieurs parts).
 terminal de paiement est relié à la caisse (réglage de l'installation,
 `MANUEL_INSTALLATION_FR.md` §4.2), l'opérateur ne tape plus la carte :
 la caisse envoie le montant au terminal et reçoit sa réponse.
+
+La caisse montre aussi si le terminal relié est joignable : le voyant
+"Terminal" de l'en-tête (§4) et la ligne "Terminal de paiement" du
+panneau "Démarrage" (§2.1). Cette vérification se contente de demander
+au terminal s'il répond : elle ne débite jamais rien, elle n'est jamais
+faite pendant un paiement (le voyant est alors orange) et elle
+n'empêche pas de se connecter ni de vendre.
 
 1. Choisir "Carte" (le choix "Terminal" est actif, l'écran indique "Le
    montant est envoyé au terminal à la validation"), laisser ou taper le
@@ -957,6 +972,7 @@ Messages de la caisse elle-même :
 |---|---|
 | Voyant "FDM" orange ou rouge, vente refusée | Lire le message affiché (§14.1). Vérifier le câble réseau et l'alimentation du FDM, puis réessayer. Si le problème persiste, appeler le distributeur. **Ne jamais vendre en dehors de la caisse.** |
 | Voyant "Ticket" rouge, ou "Papier épuisé", "Capot ouvert", "Vérifiez l'imprimante" | Vérifier l'imprimante. Plus de papier : charger un rouleau thermique de 80 mm, puis toucher "Imprimer le ticket" sur l'écran de fin de vente (§7.3). Rien n'est réimprimé automatiquement. |
+| Voyant "Terminal" rouge | La caisse ne joint pas le terminal de paiement. Vérifier son alimentation et son câble ou son réseau. Tant qu'il ne répond pas, les cartes se prennent à la main (saisie manuelle, §7.2) ; rien n'est débité par cette vérification. |
 | Imprimante hors ligne | La vente est quand même enregistrée. Toucher "Imprimer le ticket" une fois l'imprimante revenue (§7.3), ou faire plus tard une copie (§8). |
 | "Bon de commande non imprimé : prévenez le bar ou la cuisine." | Vérifier l'imprimante de la cuisine (voyant "Cuisine") ; la commande est enregistrée, prévenir le bar ou la cuisine (§6.1). |
 | "Pointage non enregistré" | Le FDM n'a pas répondu à la connexion ou à la fin de service. Prévenir le Gérant. |

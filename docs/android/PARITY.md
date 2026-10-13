@@ -66,7 +66,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | components/TrainingBanner.vue and the App.vue watermark | ui/components/TrainingBanner.kt, TrainingWatermarkOverlay | - |
 | components/ConfigProblemsBanner.vue | ui/components/ConfigProblemsBanner.kt | - |
 | components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (AppHeader, PiliLogo), PosScaffold.kt, HeaderViewModel.kt | `set_pin` |
-| components/StatusLights.vue | ui/scaffold/StatusLights.kt | `check_printer` `check_kitchen_printer` `hubrise_status` |
+| components/StatusLights.vue | ui/scaffold/StatusLights.kt | `check_printer` `check_kitchen_printer` `check_payment_terminal` `hubrise_status` |
 | stores/delivery.ts | ui/state/DeliveryStore.kt | `check_mail_status` `print_missing_original` |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt | - |

@@ -150,6 +150,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | check_fdm_status | checkout::do_check_fdm_status | spawn | posEngine.checkFdmStatus() |
 | check_kitchen_printer | print::do_check_kitchen_printer | spawn | posEngine.checkKitchenPrinter() |
 | check_mail_status | delivery::do_check_mail_status | spawn | posEngine.checkMailStatus() |
+| check_payment_terminal | eft::do_check_payment_terminal | spawn | posEngine.checkPaymentTerminal() |
 | check_printer | print::do_check_printer | spawn | posEngine.checkPrinter() |
 | checkout | checkout::do_checkout_split | spawn | posEngine.checkout() |
 | close_unpaid | unpaid::do_close_unpaid | spawn | posEngine.closeUnpaid() |
