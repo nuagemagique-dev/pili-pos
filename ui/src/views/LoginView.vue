@@ -71,7 +71,14 @@ async function loadShifts() {
 }
 
 // ── Start-up checks (§2.3, §8.1): the devices, before the users ──
-type Check = { key: string; label: string; state: "ok" | "warn" | "err" | "none"; text: string };
+type Check = {
+  key: string;
+  label: string;
+  state: "ok" | "warn" | "err" | "none";
+  text: string;
+  /** Why a device is not reachable (tooltip). */
+  detail?: string;
+};
 const checks = ref<Check[]>([]);
 
 async function runChecks() {
@@ -100,6 +107,18 @@ async function runChecks() {
     state: kitchen == null ? "none" : kitchen ? "ok" : "err",
     text: kitchen == null ? t("check_not_configured") : kitchen ? t("check_ready") : t("check_unreachable"),
   });
+
+  // Informative like the printers: a terminal that does not answer never blocks the login.
+  const terminal = await ipc.checkPaymentTerminal().catch(() => null);
+  if (terminal?.configured) {
+    list.push({
+      key: "terminal",
+      label: t("check_payment_terminal"),
+      state: terminal.busy ? "warn" : terminal.connected ? "ok" : "err",
+      text: terminal.busy ? t("check_payment_busy") : terminal.connected ? t("check_connected") : t("check_unreachable"),
+      detail: terminal.detail ?? undefined,
+    });
+  }
 
   if (integrations.hubriseEnabled) {
     const hub = await ipc.hubriseGetConnectionStatus().catch(() => null);
@@ -283,7 +302,7 @@ async function submitInsz() {
       </div>
       <div class="checks">
         <div class="checks-label">{{ t('check_title') }}</div>
-        <div v-for="c in checks" :key="c.key" class="check" :class="c.state">
+        <div v-for="c in checks" :key="c.key" class="check" :class="c.state" :title="c.detail">
           <span class="dot" />
           <span class="check-label">{{ c.label }}</span>
           <span class="check-text">{{ c.text }}</span>

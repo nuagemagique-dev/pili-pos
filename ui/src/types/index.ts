@@ -38,6 +38,19 @@ export interface EftPayment {
   used: boolean;
 }
 
+/** Whether the linked card terminal answers (command `check_payment_terminal`). */
+export interface PaymentTerminalStatus {
+  configured: boolean;
+  /** The driver, as in pos.json; null when not configured. */
+  kind: string | null;
+  /** The terminal answered (or a payment is running on it). */
+  connected: boolean;
+  /** A payment holds the terminal's line: it was not probed. */
+  busy: boolean;
+  /** Why it is not connected. */
+  detail: string | null;
+}
+
 export interface Category {
   id: number;
   name: string;

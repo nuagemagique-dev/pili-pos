@@ -367,6 +367,9 @@ function defaultHandlers(): Record<string, Handler> {
     export_status: () => EXPORT_STATUS_DISABLED,
     export_run_now: () => EXPORT_STATUS_DISABLED,
 
+    // Not linked unless a spec answers `check_payment_terminal` (overrides / overrideIPC).
+    check_payment_terminal: () => ({ configured: false, kind: null, connected: false, busy: false, detail: null }),
+
     // Linked card terminal: none unless a spec overrides get_settings.paymentTerminal.
     // The commands follow the script of `eftScript` (window.__eft), else approve.
     list_eft_payments: live((args: any = {}) => {

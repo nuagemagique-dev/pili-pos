@@ -10,6 +10,7 @@ import type {
   AddOrderLineInput,
   PaymentPart,
   EftPayment,
+  PaymentTerminalStatus,
   CheckoutResult,
   FiscalTicket,
   TicketDeliveryRequest,
@@ -177,6 +178,11 @@ export function eftCheck(id: number): Promise<EftPayment> {
 /** An order's approved payments not yet settled and those still waiting for an answer, oldest first. */
 export function listEftPayments(orderId: number): Promise<EftPayment[]> {
   return invoke("list_eft_payments", { orderId });
+}
+
+/** Whether the linked terminal answers. Charges nothing; "busy" (and connected) while a payment runs. */
+export function checkPaymentTerminal(): Promise<PaymentTerminalStatus> {
+  return invoke("check_payment_terminal");
 }
 
 /** Close an order the customer left without paying (manager, PIN):

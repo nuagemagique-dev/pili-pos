@@ -112,6 +112,19 @@ test.describe('card payment on the linked terminal', () => {
     await expect(page.getByTestId('eft-approved')).toHaveCount(0);
   });
 
+  test('the terminal light is asked again when a payment starts and when it ends', async ({ page }) => {
+    await toCheckout(page, { terminal: 'worldline_terminal_api', pay: [{ status: 'approved', hold: true }] });
+    const asked = async () => (await ipcCalls(page, 'check_payment_terminal')).length;
+    const before = await asked();
+    await payByCard(page);
+    await expect(overlay(page)).toBeVisible();
+    await expect.poll(asked).toBeGreaterThan(before);
+    const running = await asked();
+    await page.getByTestId('eft-cancel').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Paiement annulé');
+    await expect.poll(asked).toBeGreaterThan(running);
+  });
+
   test('an abort that came too late ends approved: the sale goes on', async ({ page }) => {
     await toCheckout(page, {
       terminal: 'ccv_payment_api',

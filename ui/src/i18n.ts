@@ -346,6 +346,7 @@ const coreMessages: Messages = {
   // Pili header, device lights and FDM alerts
   "sw_version": { fr: "Version", en: "Version", zh: "版本" },
   "lock": { fr: "Verrouiller", en: "Lock", zh: "锁屏" },
+  "status_terminal": { fr: "Terminal", en: "Terminal", zh: "刷卡机" },
   "status_kitchen": { fr: "Cuisine", en: "Kitchen", zh: "厨房" },
   "fdm_closes_in": { fr: "se ferme dans {s} s", en: "closes in {s} s", zh: "{s} 秒后关闭" },
   "fdm_retry_in": { fr: "nouvel essai automatique dans {s} s", en: "automatic retry in {s} s", zh: "{s} 秒后自动重试" },
@@ -378,6 +379,8 @@ const coreMessages: Messages = {
   "check_title": { fr: "Démarrage", en: "Start-up", zh: "启动检查" },
   "check_ticket_printer": { fr: "Imprimante ticket", en: "Ticket printer", zh: "小票打印机" },
   "check_kitchen_printer": { fr: "Imprimante cuisine", en: "Kitchen printer", zh: "厨房打印机" },
+  "check_payment_terminal": { fr: "Terminal de paiement", en: "Payment terminal", zh: "支付终端" },
+  "check_payment_busy": { fr: "paiement en cours", en: "payment in progress", zh: "支付进行中" },
   "check_email": { fr: "Email tickets", en: "Email receipts", zh: "电子小票" },
   "check_connected": { fr: "connecté", en: "connected", zh: "已连接" },
   "check_not_connected": { fr: "non connecté", en: "not connected", zh: "未连接" },
