@@ -22,3 +22,5 @@ login.spec.ts › Shifts (clock-in / clock-out, event S) › an employee off shi
 fdm-polling.spec.ts › the FDM status is polled every 30 s while the FDM answers	fdm-polling.spec.ts › the FDM indicator follows the fdm-status events of the engine
 fdm-polling.spec.ts › an FDM that does not answer is polled less and less often	fdm-polling.spec.ts › the blocking veil counts down to the next check of the engine
 fdm-polling.spec.ts › changing screens keeps the one poller going, without a second one	fdm-polling.spec.ts › changing screens makes no FDM call from the UI
+order.spec.ts › Order View - kitchen and cart lines › names show in the UI language first, Chinese underneath	order.spec.ts › Order View - kitchen and cart lines › names show in the UI language only, no second language underneath
+settings.spec.ts › Settings View › products can be shown by their menu code	settings.spec.ts › Settings View › products are shown by their menu code by default, names are a switch away
