@@ -3718,6 +3718,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-eft-probe"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "pos-core",
+ "pos-eft",
+ "pos-eft-mock",
+ "reqwest",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "pos-engine"
 version = "1.0.0"
 dependencies = [
