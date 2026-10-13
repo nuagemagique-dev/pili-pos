@@ -527,3 +527,54 @@ async fn an_unlisted_worldline_terminal_id_fails_the_check() {
     let out = rig.t().check().await;
     assert!(matches!(out, Err(EftError::Unreachable(_))), "{out:?}");
 }
+
+/// A tracing writer into a shared buffer.
+#[derive(Clone, Default)]
+struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for Sink {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn the_wire_trace_shows_bodies_but_never_keys_or_queries() {
+    for kind in ALL {
+        let mut rig = Rig::new(kind);
+        if kind != Kind::Opi {
+            rig.mock.set_api_key(Some("secret-key-123"));
+            rig.set_key("secret-key-123");
+        }
+        let sink = Sink::default();
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .with_writer({
+                let sink = sink.clone();
+                move || sink.clone()
+            })
+            .finish();
+        let guard = tracing::subscriber::set_default(subscriber);
+        let req = request(700);
+        rig.t().pay(&req).await.unwrap();
+        rig.t().status(&req.reference).await.unwrap();
+        drop(guard);
+        let trace = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert!(trace.contains("pos_eft::wire"), "{kind:?}: {trace}");
+        assert!(trace.contains("recv"), "{kind:?}");
+        assert!(!trace.contains("secret-key-123"), "{kind:?}");
+        assert!(!trace.contains("Bearer"), "{kind:?}");
+        assert!(!trace.contains("merchantOrderReference="), "{kind:?}");
+        let marker = match kind {
+            Kind::Worldline => "payments/sync",
+            Kind::Ccv => "/api/v1/payment",
+            Kind::Opi => "CardServiceRequest",
+        };
+        assert!(trace.contains(marker), "{kind:?}: {trace}");
+    }
+}

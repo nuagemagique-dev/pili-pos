@@ -48,7 +48,7 @@ use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::{Instant, timeout, timeout_at};
 use tracing::{debug, info, warn};
 
-use crate::util::{cents_from_text, truncate};
+use crate::util::{cents_from_text, trace_wire, truncate, wire_enabled};
 use crate::xml::{Elem, escape, parse};
 use crate::{Approval, EftError, Outcome, PaymentRequest, amount_text, brand, receipt};
 
@@ -108,10 +108,17 @@ async fn read_frame<R: AsyncReadExt + Unpin>(stream: &mut R) -> io::Result<Strin
     }
     let mut body = vec![0u8; len];
     stream.read_exact(&mut body).await?;
-    Ok(decode(body))
+    let xml = decode(body);
+    if wire_enabled() {
+        trace_wire("recv", &xml);
+    }
+    Ok(xml)
 }
 
 async fn write_frame<W: AsyncWriteExt + Unpin>(stream: &mut W, xml: &str) -> io::Result<()> {
+    if wire_enabled() {
+        trace_wire("send", xml);
+    }
     let bytes = xml.as_bytes();
     let len = u32::try_from(bytes.len())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "message too long"))?;

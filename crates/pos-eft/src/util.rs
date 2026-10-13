@@ -115,6 +115,80 @@ pub(crate) fn truncate(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
 
+/// Whether the wire trace is on (target `pos_eft::wire`, TRACE level:
+/// every frame or body exchanged with a terminal or a provider, card
+/// numbers masked), to skip building its strings otherwise.
+pub(crate) fn wire_enabled() -> bool {
+    tracing::enabled!(target: "pos_eft::wire", tracing::Level::TRACE)
+}
+
+/// `text` with every run of 13 to 19 digits (single spaces between
+/// digits allowed: "4111 1111 1111 1111") replaced by asterisks except
+/// its last 4 digits. A run of other lengths is left alone, unless it is
+/// made of digit groups of which one has 13 to 19 digits on its own.
+pub fn mask_pan(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if !chars[i].is_ascii_digit() {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        // The run: digits, with a single space allowed between two digits.
+        let mut end = i;
+        while end < chars.len() {
+            let c = chars[end];
+            let joined_by_space =
+                c == ' ' && end > i && chars.get(end + 1).is_some_and(char::is_ascii_digit);
+            if c.is_ascii_digit() || joined_by_space {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+        let run = &chars[i..end];
+        let digits = run.iter().filter(|c| c.is_ascii_digit()).count();
+        if (13..=19).contains(&digits) {
+            mask_run(run, &mut out);
+        } else {
+            // Not a card number as a whole: still mask a single long group.
+            for (n, group) in run.split(|c| *c == ' ').enumerate() {
+                if n > 0 {
+                    out.push(' ');
+                }
+                if (13..=19).contains(&group.len()) {
+                    mask_run(group, &mut out);
+                } else {
+                    out.extend(group);
+                }
+            }
+        }
+        i = end;
+    }
+    out
+}
+
+fn mask_run(run: &[char], out: &mut String) {
+    let digits = run.iter().filter(|c| c.is_ascii_digit()).count();
+    let mut seen = 0;
+    for &c in run {
+        if c.is_ascii_digit() {
+            seen += 1;
+            out.push(if seen > digits - 4 { c } else { '*' });
+        } else {
+            out.push(c);
+        }
+    }
+}
+
+/// One wire trace event: `direction` is `send` or `recv`, `text` is
+/// masked here.
+pub(crate) fn trace_wire(direction: &str, text: &str) {
+    tracing::trace!(target: "pos_eft::wire", direction, "{}", mask_pan(text));
+}
+
 /// The JSON `body` with `AMOUNT_MARK` written as the number
 /// `amount_text(cents)`: the amount goes out as the exact decimal text,
 /// never as a float.
@@ -167,6 +241,44 @@ mod tests {
         assert_eq!(language_iso3("de"), "deu");
         assert_eq!(language_iso3("EN"), "eng");
         assert_eq!(language_iso3("fr"), "fra");
+    }
+
+    #[test]
+    fn long_digit_runs_are_masked_but_the_last_four() {
+        assert_eq!(mask_pan("4111111111111111"), "************1111");
+        assert_eq!(
+            mask_pan("PAN 4111 1111 1111 1111 end"),
+            "PAN **** **** **** 1111 end"
+        );
+        assert_eq!(mask_pan("a5555555555554444b"), "a************4444b");
+        assert_eq!(mask_pan("1234567890123"), "*********0123");
+        assert_eq!(
+            mask_pan("<P>6703 0000 0000 0119 0</P>"),
+            "<P>**** **** **** *119 0</P>"
+        );
+    }
+
+    #[test]
+    fn short_numbers_and_other_text_are_left_alone() {
+        let text = r#"RequestID="123456789" Amount="12.50" at 2026-10-13T10:11:12 code 1234 5678"#;
+        assert_eq!(mask_pan(text), text);
+        // 12 and 20 digits are not card numbers.
+        assert_eq!(mask_pan("123456789012"), "123456789012");
+        assert_eq!(mask_pan("12345678901234567890"), "12345678901234567890");
+        assert_eq!(mask_pan(""), "");
+        assert_eq!(
+            mask_pan("épée 4111111111111111 é"),
+            "épée ************1111 é"
+        );
+    }
+
+    #[test]
+    fn a_long_group_next_to_other_numbers_is_still_masked() {
+        // 22 digits in total, one group of 16.
+        assert_eq!(
+            mask_pan("123456 4111111111111111"),
+            "123456 ************1111"
+        );
     }
 
     #[test]
