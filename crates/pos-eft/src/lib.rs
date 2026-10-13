@@ -203,6 +203,23 @@ impl Terminal {
         }
     }
 
+    /// Whether the terminal can be reached now, without charging
+    /// anything: what the till's status light shows. `Ok` when it is
+    /// reachable; `Err(EftError::Unreachable)` when it is not,
+    /// `Err(EftError::Rejected)` when the provider refuses the
+    /// credentials. What is checked depends on the protocol (see each
+    /// driver's `check`). Never call it while a payment of this terminal
+    /// runs: a terminal may serve one connection at a time.
+    pub async fn check(&self) -> Result<(), EftError> {
+        match &self.driver {
+            Driver::Worldline(d) => d.check().await,
+            Driver::CcvCloud(d) => d.check().await,
+            Driver::CcvOpi(d) => d.check().await,
+            #[cfg(feature = "scripted")]
+            Driver::Scripted(s) => s.check().await,
+        }
+    }
+
     /// Ask the terminal to stop the payment `reference` in progress.
     /// The payment's own [`Terminal::pay`] then returns
     /// [`Outcome::Cancelled`], or an approval when the abort came too

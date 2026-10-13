@@ -17,6 +17,7 @@ pub struct Script {
 struct Inner {
     pay: VecDeque<Result<Outcome, EftError>>,
     status: VecDeque<Result<Outcome, EftError>>,
+    check: VecDeque<Result<(), EftError>>,
     pay_delay: Duration,
     calls: Vec<Call>,
 }
@@ -34,6 +35,7 @@ pub enum Call {
     Abort {
         reference: String,
     },
+    Check,
 }
 
 impl Script {
@@ -49,6 +51,12 @@ impl Script {
     /// The next answer to [`crate::Terminal::status`].
     pub fn on_status(&self, answer: Result<Outcome, EftError>) {
         self.inner.lock().unwrap().status.push_back(answer);
+    }
+
+    /// The next answer to [`crate::Terminal::check`] (reachable when
+    /// none is scripted).
+    pub fn on_check(&self, answer: Result<(), EftError>) {
+        self.inner.lock().unwrap().check.push_back(answer);
     }
 
     /// How long each payment takes before its answer (an abort test
@@ -88,6 +96,12 @@ impl Script {
         i.status
             .pop_front()
             .unwrap_or_else(|| Err(EftError::Unreachable("no scripted answer".into())))
+    }
+
+    pub(crate) async fn check(&self) -> Result<(), EftError> {
+        let mut i = self.inner.lock().unwrap();
+        i.calls.push(Call::Check);
+        i.check.pop_front().unwrap_or(Ok(()))
     }
 
     pub(crate) async fn abort(&self, reference: &str) -> Result<(), EftError> {

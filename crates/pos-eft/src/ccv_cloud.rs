@@ -354,6 +354,11 @@ impl CcvPaymentApi {
         })
     }
 
+    /// Stub of the reachability check (to be implemented).
+    pub async fn check(&self) -> Result<(), EftError> {
+        Err(EftError::Unreachable("check not implemented".into()))
+    }
+
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {
         lock(&self.aborted).insert(reference.to_string());
         let known = lock(&self.in_flight).get(reference).cloned();

@@ -268,6 +268,11 @@ impl WorldlineTerminalApi {
         }
     }
 
+    /// Stub of the reachability check (to be implemented).
+    pub async fn check(&self) -> Result<(), EftError> {
+        Err(EftError::Unreachable("check not implemented".into()))
+    }
+
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {
         let body = json!({"SaleToPOIAbort": {
             "Header": self.header("Abort", &uuid::Uuid::new_v4().to_string()),
