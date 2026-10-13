@@ -4,12 +4,18 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.scaffold.PRINTER_POLL_MS
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -24,6 +30,8 @@ import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.UserRole
+
+private const val SLOW_TERMINAL_MS = 45_000L
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -238,6 +246,76 @@ class LoginViewModelTest {
             val failed = fixture()
             coEvery { failed.engine.checkPaymentTerminal() } throws PosException.Coded("boom", emptyMap())
             assertNull(start(failed).state.checks.firstOrNull { it.id == CheckId.Terminal })
+        }
+
+    @Test
+    fun theDevicesAreCheckedAgainEvery30SecondsWhileTheScreenIsShown() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkPaymentTerminal() } returns terminalStatus()
+            coEvery { f.engine.checkPrinter() } returns true
+            val r = start(f)
+            val polling = launch { r.model.pollChecks() }
+            runCurrent()
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Terminal }.state)
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Ticket }.state)
+
+            // The terminal and the printer drop; nothing changes before the tick.
+            coEvery { f.engine.checkPaymentTerminal() } returns terminalStatus(connected = false, detail = "connection refused")
+            coEvery { f.engine.checkPrinter() } returns false
+            advanceTimeBy(PRINTER_POLL_MS - 1)
+            runCurrent()
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Terminal }.state)
+
+            advanceTimeBy(1)
+            runCurrent()
+            val down = r.state.checks.single { it.id == CheckId.Terminal }
+            assertEquals(StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused"), down)
+            assertEquals(CheckState.Err, r.state.checks.single { it.id == CheckId.Ticket }.state)
+
+            // And back.
+            coEvery { f.engine.checkPaymentTerminal() } returns terminalStatus()
+            advanceTimeBy(PRINTER_POLL_MS)
+            runCurrent()
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Terminal }.state)
+            polling.cancel()
+        }
+
+    @Test
+    fun theDevicesAreNotCheckedWhenThePollingIsNotRunning() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            val before = r.state.checks
+            coEvery { f.engine.checkPrinter() } returns false
+            advanceTimeBy(PRINTER_POLL_MS * 3)
+            runCurrent()
+            assertEquals(before, r.state.checks)
+            coVerify(exactly = 1) { f.engine.checkPrinter() }
+        }
+
+    @Test
+    fun theTerminalIsNeverCheckedTwiceAtOnce() =
+        runTest {
+            val f = fixture()
+            // The terminal takes 45 s to answer.
+            coEvery { f.engine.checkPaymentTerminal() } coAnswers
+                {
+                    delay(SLOW_TERMINAL_MS)
+                    terminalStatus()
+                }
+            val r = start(f)
+            val polling = launch { r.model.pollChecks() }
+            // The first check is still waiting at the tick of 30 s: no second probe.
+            advanceTimeBy(PRINTER_POLL_MS + 1)
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.checkPaymentTerminal() }
+            // It answered at 45 s; the tick of 60 s probes again.
+            advanceTimeBy(PRINTER_POLL_MS)
+            runCurrent()
+            coVerify(exactly = 2) { f.engine.checkPaymentTerminal() }
+            polling.cancel()
+            advanceUntilIdle()
         }
 
     @Test

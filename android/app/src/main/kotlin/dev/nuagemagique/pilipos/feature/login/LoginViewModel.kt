@@ -8,8 +8,10 @@ import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadState
 import dev.nuagemagique.pilipos.ui.feedback.DEFAULT_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.scaffold.PRINTER_POLL_MS
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +25,7 @@ import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Lifetime of the toast that warns about an operator without a PIN, in milliseconds (5000 in `LoginView.vue`). */
 private const val NO_PIN_TOAST_MS: Long = 5000L
@@ -56,6 +59,9 @@ internal class LoginViewModel(
     private val own = MutableStateFlow(LoginUiState())
     private val effectChannel = Channel<LoginEffect>(Channel.BUFFERED)
 
+    /** One run at a time: a slow device (the card terminal waits for its answer) is never probed twice at once. */
+    private val checking = AtomicBoolean(false)
+
     /** What the screen draws. */
     val state: StateFlow<LoginUiState> =
         combine(own, settings.settings, settings.language, settings.trainingMode) { base, engine, language, training ->
@@ -78,10 +84,27 @@ internal class LoginViewModel(
     // ── Start-up loading ──────────────────────────────────────────
 
     private suspend fun runChecks() {
-        // The HubRise switch loads when the engine turns ready: make sure it has before reading it.
-        if (entry.integrations().state.value == null) entry.integrations().load()
-        val list = checks.run(entry.integrations().hubriseEnabled.value)
-        own.update { it.copy(checks = list) }
+        if (!checking.compareAndSet(false, true)) return
+        try {
+            // The HubRise switch loads when the engine turns ready: make sure it has before reading it.
+            if (entry.integrations().state.value == null) entry.integrations().load()
+            val list = checks.run(entry.integrations().hubriseEnabled.value)
+            own.update { it.copy(checks = list) }
+        } finally {
+            checking.set(false)
+        }
+    }
+
+    /**
+     * Checks the devices again every [PRINTER_POLL_MS] until cancelled, as the header lights are: a device that drops
+     * while the login screen stays open must not stay green. The first check ran when the screen opened. The screen
+     * runs this only while it is shown.
+     */
+    suspend fun pollChecks() {
+        while (true) {
+            delay(PRINTER_POLL_MS)
+            runChecks()
+        }
     }
 
     private suspend fun loadShifts() {

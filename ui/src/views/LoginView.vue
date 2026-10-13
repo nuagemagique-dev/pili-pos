@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useIntegrationsStore } from "../stores/integrations";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
@@ -81,7 +81,21 @@ type Check = {
 };
 const checks = ref<Check[]>([]);
 
+// One run at a time: a slow device (the payment terminal waits for its
+// answer) must not be probed again by the next tick.
+let checking = false;
+
 async function runChecks() {
+  if (checking) return;
+  checking = true;
+  try {
+    await probeDevices();
+  } finally {
+    checking = false;
+  }
+}
+
+async function probeDevices() {
   const list: Check[] = [];
 
   await fdm.checkNow();
@@ -145,8 +159,15 @@ const footerPlace = computed(() =>
   [pos.settings?.restaurantName, pos.settings?.terminalId].filter(Boolean).join(" · "),
 );
 
+// A device that drops while the login screen stays open must not stay
+// green: the list is checked again every 30 s, as the header lights are.
+const CHECKS_EVERY_MS = 30_000;
+let checksTimer: ReturnType<typeof setInterval> | undefined;
+onUnmounted(() => clearInterval(checksTimer));
+
 onMounted(async () => {
   void runChecks();
+  checksTimer = setInterval(() => void runChecks(), CHECKS_EVERY_MS);
   void loadShifts();
   try {
     savedUsers.value = await ipc.listUsers();

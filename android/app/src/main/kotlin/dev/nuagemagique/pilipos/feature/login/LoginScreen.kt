@@ -85,6 +85,7 @@ internal fun LoginRoute(navigator: AppNavigator) {
     val model = viewModel { LoginViewModel(entry) }
     val state by model.state.collectAsState()
     LaunchedEffect(model) { model.effects.collect { it.perform(navigator) } }
+    LaunchedEffect(model) { model.pollChecks() }
     val callbacks =
         LoginCallbacks(
             onTile = model::onTile,

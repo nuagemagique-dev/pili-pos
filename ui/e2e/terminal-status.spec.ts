@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { mockTauriIPC, ipcCalls, tapUserTile, overrideIPC, DEFAULT_USER } from './fixtures/mock-ipc';
+import { mockTauriIPC, ipcCalls, tapUserTile, overrideIPC, live, DEFAULT_USER } from './fixtures/mock-ipc';
 
 // The linked card terminal in the header lights and the start-up checks
 // (command check_payment_terminal, crates/pos-engine/src/commands/eft.rs).
@@ -94,5 +94,71 @@ test.describe('Terminal row in the start-up checks', () => {
     await expect(row).toHaveAttribute('title', 'connection refused');
     await tapUserTile(page);
     await expect(page).toHaveURL(/tables/);
+  });
+});
+
+test.describe('Start-up checks follow the devices while the login screen is open', () => {
+  test('a terminal that drops turns red, and green again when it is back', async ({ page }) => {
+    await page.clock.install();
+    await open(page, CONNECTED);
+    const row = page.locator('.check', { hasText: 'Terminal de paiement' });
+    await expect(row).toHaveClass(/ok/);
+
+    await overrideIPC(page, 'check_payment_terminal', UNREACHABLE);
+    await page.clock.runFor(30_000);
+    await expect(row).toHaveClass(/err/);
+    await expect(row.locator('.check-text')).toHaveText('injoignable');
+
+    await overrideIPC(page, 'check_payment_terminal', CONNECTED);
+    await page.clock.runFor(30_000);
+    await expect(row).toHaveClass(/ok/);
+  });
+
+  test('a printer that drops turns red at the next check', async ({ page }) => {
+    await page.clock.install();
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      check_printer: () => true,
+    });
+    await page.goto('/');
+    const row = page.locator('.check', { hasText: 'Imprimante ticket' });
+    await expect(row).toHaveClass(/ok/);
+    await overrideIPC(page, 'check_printer', false);
+    await page.clock.runFor(30_000);
+    await expect(row).toHaveClass(/err/);
+  });
+
+  test('never two terminal checks at once', async ({ page }) => {
+    await page.clock.install();
+    // The terminal takes 45 s to answer.
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      check_payment_terminal: live(() => new Promise((resolve) => setTimeout(
+        () => resolve({ configured: true, kind: 'ccv_opi', connected: true, busy: false, detail: null }),
+        45_000,
+      ))),
+    });
+    await page.goto('/');
+    await expect.poll(async () => (await ipcCalls(page, 'check_payment_terminal')).length).toBe(1);
+    // The tick at 30 s finds the first run still waiting: no second probe.
+    await page.clock.runFor(30_000);
+    expect(await ipcCalls(page, 'check_payment_terminal')).toHaveLength(1);
+    // It answers at 45 s; the tick at 60 s probes again.
+    await page.clock.runFor(30_000);
+    await expect.poll(async () => (await ipcCalls(page, 'check_payment_terminal')).length).toBe(2);
+  });
+
+  test('stops once the login screen is left', async ({ page }) => {
+    await page.clock.install();
+    await open(page, CONNECTED);
+    await expect(page.locator('.check', { hasText: 'Terminal de paiement' })).toHaveClass(/ok/);
+    await tapUserTile(page);
+    await expect(page).toHaveURL(/tables/);
+    const mails = async () => (await ipcCalls(page, 'check_mail_status')).length;
+    const before = await mails();
+    await page.clock.runFor(120_000);
+    expect(await mails()).toBe(before);
   });
 });
