@@ -276,6 +276,18 @@
       "zh": "离线",
       "area": "core"
     },
+    "check_payment_busy": {
+      "fr": "paiement en cours",
+      "en": "payment in progress",
+      "zh": "支付进行中",
+      "area": "core"
+    },
+    "check_payment_terminal": {
+      "fr": "Terminal de paiement",
+      "en": "Payment terminal",
+      "zh": "支付终端",
+      "area": "core"
+    },
     "check_reachable": {
       "fr": "joignable",
       "en": "reachable",
@@ -2584,6 +2596,12 @@
       "fr": "Caisse",
       "en": "Register",
       "zh": "收银",
+      "area": "core"
+    },
+    "status_terminal": {
+      "fr": "Terminal",
+      "en": "Terminal",
+      "zh": "刷卡机",
       "area": "core"
     },
     "support_banner": {

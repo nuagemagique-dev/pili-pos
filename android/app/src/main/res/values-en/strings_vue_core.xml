@@ -177,6 +177,7 @@
     <string name="delivery_status_purged">Purged</string>
     <string name="sw_version">Version</string>
     <string name="lock">Lock</string>
+    <string name="status_terminal">Terminal</string>
     <string name="status_kitchen">Kitchen</string>
     <string name="fdm_closes_in">closes in {s} s</string>
     <string name="fdm_retry_in">automatic retry in {s} s</string>
@@ -203,6 +204,8 @@
     <string name="check_title">Start-up</string>
     <string name="check_ticket_printer">Ticket printer</string>
     <string name="check_kitchen_printer">Kitchen printer</string>
+    <string name="check_payment_terminal">Payment terminal</string>
+    <string name="check_payment_busy">payment in progress</string>
     <string name="check_email">Email receipts</string>
     <string name="check_connected">connected</string>
     <string name="check_not_connected">not connected</string>

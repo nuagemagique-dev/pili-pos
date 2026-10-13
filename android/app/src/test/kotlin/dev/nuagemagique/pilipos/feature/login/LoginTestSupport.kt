@@ -30,6 +30,7 @@ import uniffi.pos_ffi.HubriseConnectionInfo
 import uniffi.pos_ffi.Integrations
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.OpenShift
+import uniffi.pos_ffi.PaymentTerminalStatus
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -95,6 +96,20 @@ internal fun mailStatus(
     reachable: Boolean,
 ): MailStatus = MailStatus(configured = configured, reachable = reachable, allowDigitalOnly = false)
 
+internal fun terminalStatus(
+    configured: Boolean = true,
+    connected: Boolean = true,
+    busy: Boolean = false,
+    detail: String? = null,
+): PaymentTerminalStatus =
+    PaymentTerminalStatus(
+        configured = configured,
+        kind = if (configured) "ccv_opi" else null,
+        connected = connected,
+        busy = busy,
+        detail = detail,
+    )
+
 internal fun shift(
     insz: String,
     startedAt: String = "2026-10-09 09:05:00",
@@ -112,6 +127,7 @@ internal fun stubReads(
     coEvery { engine.checkPrinter() } returns true
     coEvery { engine.checkKitchenPrinter() } returns null
     coEvery { engine.checkMailStatus() } returns mailStatus(configured = false, reachable = false)
+    coEvery { engine.checkPaymentTerminal() } returns terminalStatus(configured = false, connected = false)
     coEvery { engine.hubriseGetConnectionStatus() } returns hubriseInfo(true)
     coEvery { engine.fdmHealth() } returns null
     coEvery { engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.INFO)

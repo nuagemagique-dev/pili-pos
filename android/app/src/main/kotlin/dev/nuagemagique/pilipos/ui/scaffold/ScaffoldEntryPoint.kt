@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
+import dev.nuagemagique.pilipos.ui.state.EftStore
 import dev.nuagemagique.pilipos.ui.state.IntegrationsStore
 import dev.nuagemagique.pilipos.ui.state.OrderStore
 import dev.nuagemagique.pilipos.ui.state.PosSettingsStore
@@ -18,6 +19,7 @@ import dev.nuagemagique.pilipos.ui.state.WebshopOrdersStore
  * What the staff scaffold reads from the Hilt graph (PD205: no Hilt view model factory, the foundation tests host
  * the screens in a plain activity). [PosScaffold] builds [HeaderViewModel] from these with `viewModel { }`.
  */
+@Suppress("TooManyFunctions") // One accessor per store the scaffold reads.
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 internal interface ScaffoldEntryPoint {
@@ -35,6 +37,9 @@ internal interface ScaffoldEntryPoint {
 
     /** The FDM health: the light and the blocking veil. */
     fun fdm(): FdmStore
+
+    /** The linked card terminal: the header light is checked again when a payment starts or ends. */
+    fun eft(): EftStore
 
     /** The pending online orders for the badge. */
     fun webshop(): WebshopOrdersStore

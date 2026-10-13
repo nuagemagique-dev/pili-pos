@@ -197,6 +197,50 @@ class LoginViewModelTest {
         }
 
     @Test
+    fun theTerminalHasALineOnlyWhenOneIsConfigured() =
+        runTest {
+            val f = fixture()
+            val none = start(f)
+            assertNull(none.state.checks.firstOrNull { it.id == CheckId.Terminal })
+
+            val g = fixture()
+            coEvery { g.engine.checkPaymentTerminal() } returns terminalStatus()
+            val ok = start(g)
+            val line = ok.state.checks.single { it.id == CheckId.Terminal }
+            assertEquals(StartupCheck(CheckId.Terminal, CheckState.Ok, "check_connected"), line)
+            // After the printers, before the mail line.
+            assertEquals(
+                listOf(CheckId.Fdm, CheckId.Ticket, CheckId.Kitchen, CheckId.Terminal, CheckId.Mail),
+                ok.state.checks.map { it.id },
+            )
+        }
+
+    @Test
+    fun theTerminalStatesAndItsReason() =
+        runTest {
+            val busy = fixture()
+            coEvery { busy.engine.checkPaymentTerminal() } returns terminalStatus(busy = true)
+            assertEquals(
+                StartupCheck(CheckId.Terminal, CheckState.Warn, "check_payment_busy"),
+                start(busy).state.checks.single { it.id == CheckId.Terminal },
+            )
+
+            val down = fixture()
+            coEvery { down.engine.checkPaymentTerminal() } returns terminalStatus(connected = false, detail = "connection refused")
+            val r = start(down)
+            assertEquals(
+                StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused"),
+                r.state.checks.single { it.id == CheckId.Terminal },
+            )
+            // Informative: the users are still there to log in.
+            assertTrue(r.state.users.isNotEmpty() || r.state.numpadMode)
+
+            val failed = fixture()
+            coEvery { failed.engine.checkPaymentTerminal() } throws PosException.Coded("boom", emptyMap())
+            assertNull(start(failed).state.checks.firstOrNull { it.id == CheckId.Terminal })
+        }
+
+    @Test
     fun theMailStates() =
         runTest {
             val f = fixture()

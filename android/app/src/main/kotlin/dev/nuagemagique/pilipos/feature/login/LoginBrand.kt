@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -119,7 +121,11 @@ private fun CheckRow(check: StartupCheck) {
     val colors = PiliTheme.colors
     val typography = PiliTheme.typography
     val tint = check.state.tint()
-    Column(Modifier.testTag("login_check_${check.id.name.lowercase()}")) {
+    Column(
+        Modifier
+            .testTag("login_check_${check.id.name.lowercase()}")
+            .then(check.detail?.let { detail -> Modifier.semantics { contentDescription = detail } } ?: Modifier),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().height(CheckRowHeight),
             verticalAlignment = Alignment.CenterVertically,

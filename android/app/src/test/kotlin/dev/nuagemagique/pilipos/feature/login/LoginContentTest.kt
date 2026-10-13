@@ -1,5 +1,8 @@
 package dev.nuagemagique.pilipos.feature.login
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -257,6 +260,22 @@ class LoginContentTest {
         compose.onNodeWithText("FDM").assertIsDisplayed()
         compose.onNodeWithText("HubRise").assertIsDisplayed()
         compose.onNodeWithText("Imprimante ticket").assertIsDisplayed()
+    }
+
+    @Test
+    fun theTerminalLineSaysWhyItDoesNotAnswer() {
+        val checks =
+            listOf(
+                StartupCheck(CheckId.Fdm, CheckState.Ok, "check_connected"),
+                StartupCheck(CheckId.Terminal, CheckState.Err, "check_unreachable", "connection refused"),
+            )
+        show(base.copy(checks = checks))
+
+        compose.onNodeWithText("Terminal de paiement").assertIsDisplayed()
+        compose.onNodeWithTag("login_check_text_terminal").assertTextEquals("injoignable")
+        compose.onNodeWithTag("login_check_terminal").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("connection refused")),
+        )
     }
 
     @Test

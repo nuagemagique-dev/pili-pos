@@ -29,15 +29,20 @@ internal enum class CheckId(
     Fdm(null),
     Ticket("check_ticket_printer"),
     Kitchen("check_kitchen_printer"),
+    Terminal("check_payment_terminal"),
     Hubrise(null),
     Mail("check_email"),
 }
 
-/** One line of the checks panel: the device, its [state] and the Vue key of the [textKey] shown on the right. */
+/**
+ * One line of the checks panel: the device, its [state] and the Vue key of the [textKey] shown on the right. [detail]
+ * is why a device does not answer (the tooltip of the Vue row), when the engine said.
+ */
 internal data class StartupCheck(
     val id: CheckId,
     val state: CheckState,
     val textKey: String,
+    val detail: String? = null,
 )
 
 /**

@@ -177,6 +177,7 @@
     <string name="delivery_status_purged">已清除</string>
     <string name="sw_version">版本</string>
     <string name="lock">锁屏</string>
+    <string name="status_terminal">刷卡机</string>
     <string name="status_kitchen">厨房</string>
     <string name="fdm_closes_in">{s} 秒后关闭</string>
     <string name="fdm_retry_in">{s} 秒后自动重试</string>
@@ -203,6 +204,8 @@
     <string name="check_title">启动检查</string>
     <string name="check_ticket_printer">小票打印机</string>
     <string name="check_kitchen_printer">厨房打印机</string>
+    <string name="check_payment_terminal">支付终端</string>
+    <string name="check_payment_busy">支付进行中</string>
     <string name="check_email">电子小票</string>
     <string name="check_connected">已连接</string>
     <string name="check_not_connected">未连接</string>

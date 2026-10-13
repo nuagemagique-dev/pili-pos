@@ -82,6 +82,27 @@ class ScaffoldScreenshotTest {
     }
 
     @Test
+    fun statusLightsWithTerminal() {
+        val lights =
+            DeviceLights(
+                probe().apply {
+                    terminalAnswer = { noTerminal().copy(configured = true, kind = "ccv_opi", detail = "connection refused") }
+                },
+            )
+        rule.setContent {
+            PiliTheme {
+                ProvideUiText(AppLanguage.FR, catalog) {
+                    Box(Modifier.background(PiliTheme.colors.bgSecondary).padding(PiliTheme.dimens.spaceMd)) {
+                        StatusLights(FdmUiState(connected = true, severity = FdmSeverity.INFO), lights, hubriseVisible = true)
+                    }
+                }
+            }
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("status_lights").captureRoboImage("src/test/screenshots/components/status_lights_terminal.png")
+    }
+
+    @Test
     fun scaffoldTraining() {
         val lights = DeviceLights(probe())
         rule.setContent {

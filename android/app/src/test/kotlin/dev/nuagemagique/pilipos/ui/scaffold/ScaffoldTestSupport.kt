@@ -40,6 +40,7 @@ import uniffi.pos_ffi.LockOutcome
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderStatus
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PaymentTerminalStatus
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.User
@@ -111,6 +112,7 @@ internal fun stubScaffold(
     coEvery { engine.hubriseListWebshopOrders() } returns emptyList()
     coEvery { engine.checkPrinter() } returns true
     coEvery { engine.checkKitchenPrinter() } returns null
+    coEvery { engine.checkPaymentTerminal() } returns noTerminal()
     coEvery { engine.listCartLines(any()) } returns emptyList<CartLine>()
     coEvery { engine.setActiveOrder(any()) } returns Unit
     coEvery { engine.leaveOrder(any(), any()) } returns SlipOutcome.NOTHING_TO_PRINT
@@ -126,6 +128,7 @@ internal class TestScaffoldEntry(
     private val order: OrderStore,
     private val fdm: FdmStore,
     private val webshop: WebshopOrdersStore,
+    private val eft: EftStore,
     private val gateway: EngineGateway,
     private val errors: ErrorPresenter,
     private val toasts: ToastStore,
@@ -142,6 +145,8 @@ internal class TestScaffoldEntry(
     override fun fdm(): FdmStore = fdm
 
     override fun webshop(): WebshopOrdersStore = webshop
+
+    override fun eft(): EftStore = eft
 
     override fun gateway(): EngineGateway = gateway
 
@@ -250,13 +255,17 @@ internal suspend fun TestScope.startScaffold(
         f.holder.open()
         runCurrent()
     }
-    val entry = TestScaffoldEntry(session, settings, integrations, order, fdm, webshop, gateway, errors, toasts, catalog)
+    val entry = TestScaffoldEntry(session, settings, integrations, order, fdm, webshop, eft, gateway, errors, toasts, catalog)
     val model = HeaderViewModel(entry, area)
     val seen = mutableListOf<HeaderEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }
     runCurrent()
     return ScaffoldRig(f, model, entry, session, order, toasts, catalog, errorTexts, seen, collector)
 }
+
+/** What a till without a linked card terminal answers. */
+internal fun noTerminal(): PaymentTerminalStatus =
+    PaymentTerminalStatus(configured = false, kind = null, connected = false, busy = false, detail = null)
 
 /** A hubrise status with everything quiet; a test copies it to change one field. */
 internal fun quietHubrise(): HubriseStatus =

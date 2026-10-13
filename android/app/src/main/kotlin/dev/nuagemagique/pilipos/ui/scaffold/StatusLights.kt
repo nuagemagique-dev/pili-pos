@@ -22,12 +22,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
+import dev.nuagemagique.pilipos.ui.state.EftPhase
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliColors
@@ -40,8 +43,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.HubriseStatus
+import uniffi.pos_ffi.PaymentTerminalStatus
 
-/** How often the two printers are checked, in milliseconds (30 s in `StatusLights.vue`). */
+/** How often the two printers and the linked card terminal are checked, in milliseconds (30 s in `StatusLights.vue`). */
 internal const val PRINTER_POLL_MS: Long = 30_000L
 
 /** How often HubRise is checked, in milliseconds (60 s in `StatusLights.vue`). */
@@ -92,6 +96,24 @@ internal fun hubriseLight(status: HubriseStatus): LightState {
     }
 }
 
+/**
+ * The light of the linked card terminal (`terminalLight` of `StatusLights.vue`), or null when none is configured: green
+ * when it answers, amber while a payment runs on it (it was not probed), red when it does not answer. [detail] is the
+ * tooltip of the Vue light.
+ */
+internal data class TerminalLight(
+    val state: LightState,
+    val detail: String?,
+)
+
+internal fun terminalLight(status: PaymentTerminalStatus): TerminalLight? =
+    when {
+        !status.configured -> null
+        status.busy -> TerminalLight(LightState.WARN, null)
+        status.connected -> TerminalLight(LightState.OK, null)
+        else -> TerminalLight(LightState.ERR, status.detail)
+    }
+
 /** What the lights ask of the engine; the seam of the tests. A failure of any call turns its light grey. */
 internal interface LightProbe {
     /** True while the engine is ready: the only time the lights are polled. */
@@ -105,6 +127,9 @@ internal interface LightProbe {
 
     /** The health of the HubRise link (`hubrise_status`). */
     suspend fun hubrise(): HubriseStatus
+
+    /** Whether the linked card terminal answers; it charges nothing (`check_payment_terminal`). */
+    suspend fun paymentTerminal(): PaymentTerminalStatus
 }
 
 /** The [LightProbe] of the running app: every question is one engine command through the gateway. */
@@ -118,10 +143,12 @@ internal class GatewayLightProbe(
     override suspend fun kitchenPrinter(): Boolean? = gateway.call { engine -> engine.checkKitchenPrinter() }
 
     override suspend fun hubrise(): HubriseStatus = gateway.call { engine -> engine.hubriseStatus() }
+
+    override suspend fun paymentTerminal(): PaymentTerminalStatus = gateway.call { engine -> engine.checkPaymentTerminal() }
 }
 
 /**
- * The lights of the ticket printer, the kitchen printer and HubRise, and the loops that keep them current.
+ * The lights of the ticket printer, the kitchen printer, the card terminal and HubRise, and the loops that keep them current.
  *
  * Nothing here runs by itself: the loops are suspend functions that [StatusLights] starts with a `LaunchedEffect`
  * only while it is on screen and the engine is ready, so there is no polling with the engine closed or on a
@@ -133,6 +160,7 @@ internal class DeviceLights(
     private val mutableTicket = MutableStateFlow(LightState.NONE)
     private val mutableKitchen = MutableStateFlow(LightState.NONE)
     private val mutableHubrise = MutableStateFlow(LightState.NONE)
+    private val mutableTerminal = MutableStateFlow<TerminalLight?>(null)
 
     /** True while the engine is ready: the only time the lights are polled. */
     val ready: StateFlow<Boolean> get() = probe.ready
@@ -146,10 +174,21 @@ internal class DeviceLights(
     /** HubRise. */
     val hubrise: StateFlow<LightState> = mutableHubrise.asStateFlow()
 
+    /** The linked card terminal; null (no light) when none is configured or the engine did not answer. */
+    val terminal: StateFlow<TerminalLight?> = mutableTerminal.asStateFlow()
+
     /** Checks the two printers every [PRINTER_POLL_MS] until cancelled. */
     suspend fun pollPrinters() {
         while (true) {
             checkPrinters()
+            delay(PRINTER_POLL_MS)
+        }
+    }
+
+    /** Checks the card terminal every [PRINTER_POLL_MS] until cancelled (the first check is at once). */
+    suspend fun pollTerminal() {
+        while (true) {
+            checkTerminal()
             delay(PRINTER_POLL_MS)
         }
     }
@@ -182,6 +221,15 @@ internal class DeviceLights(
             )
     }
 
+    /** One check of the linked card terminal (`checkTerminal`). */
+    suspend fun checkTerminal() {
+        mutableTerminal.value =
+            attempt { probe.paymentTerminal() }.fold(
+                onSuccess = ::terminalLight,
+                onFailure = { null },
+            )
+    }
+
     /** One check of HubRise (`checkHubrise`). */
     suspend fun checkHubrise() {
         mutableHubrise.value =
@@ -195,6 +243,11 @@ internal class DeviceLights(
     fun clearPrinters() {
         mutableTicket.value = LightState.NONE
         mutableKitchen.value = LightState.NONE
+    }
+
+    /** The terminal is not known any more (the engine went away). */
+    fun clearTerminal() {
+        mutableTerminal.value = null
     }
 
     /** HubRise is not known any more (the engine went away or HubRise is hidden). */
@@ -215,10 +268,12 @@ internal class DeviceLights(
 }
 
 /**
- * The device lights of the header (`StatusLights.vue`, UX guide section 8.1): FDM, ticket printer, kitchen printer
- * and, while HubRise is visible, HubRise. The printers are checked every 30 s and HubRise every 60 s, only while
- * this is composed and the engine is ready. The FDM dot pulses once (180 ms) when the FDM degrades. Test tags:
- * `status_light_<fdm|ticket|kitchen|hubrise>` on a light and `status_dot_<name>_<ok|warn|err|none>` on its dot.
+ * The device lights of the header (`StatusLights.vue`, UX guide section 8.1): FDM, ticket printer, kitchen printer,
+ * the linked card terminal (only when one is configured) and, while HubRise is visible, HubRise. The printers and the
+ * terminal are checked every 30 s and HubRise every 60 s, only while this is composed and the engine is ready. The
+ * terminal is also checked when [eftPhase] changes (a payment starts or ends). The FDM dot pulses once (180 ms) when
+ * the FDM degrades. Test tags: `status_light_<fdm|ticket|kitchen|terminal|hubrise>` on a light and
+ * `status_dot_<name>_<ok|warn|err|none>` on its dot.
  */
 @Composable
 internal fun StatusLights(
@@ -226,10 +281,14 @@ internal fun StatusLights(
     lights: DeviceLights,
     hubriseVisible: Boolean,
     modifier: Modifier = Modifier,
+    eftPhase: EftPhase = EftPhase.IDLE,
 ) {
     val ready by lights.ready.collectAsState()
     LaunchedEffect(lights, ready) {
         if (ready) lights.pollPrinters() else lights.clearPrinters()
+    }
+    LaunchedEffect(lights, ready, eftPhase) {
+        if (ready) lights.pollTerminal() else lights.clearTerminal()
     }
     LaunchedEffect(lights, ready, hubriseVisible) {
         if (ready && hubriseVisible) lights.pollHubrise() else lights.clearHubrise()
@@ -237,6 +296,7 @@ internal fun StatusLights(
     val ticket by lights.ticket.collectAsState()
     val kitchen by lights.kitchen.collectAsState()
     val hubrise by lights.hubrise.collectAsState()
+    val terminal by lights.terminal.collectAsState()
     val fdmState = fdmLight(fdm)
     Row(
         modifier = modifier.testTag("status_lights"),
@@ -246,9 +306,19 @@ internal fun StatusLights(
         StatusLight("fdm", uiText(R.string.ui_common_light_fdm), fdmState, pulseOnDegrade = true)
         StatusLight("ticket", vueText("status_printer"), ticket)
         StatusLight("kitchen", vueText("status_kitchen"), kitchen)
+        terminal?.let { StatusLight("terminal", vueText("status_terminal"), it.state, description = terminalDescription(it)) }
         if (hubriseVisible) StatusLight("hubrise", uiText(R.string.ui_common_light_hubrise), hubrise)
     }
 }
+
+/** The tooltip of the Vue terminal light, as the accessibility description of this one. */
+@Composable
+private fun terminalDescription(light: TerminalLight): String =
+    when (light.state) {
+        LightState.WARN -> vueText("check_payment_busy")
+        LightState.OK -> vueText("check_connected")
+        else -> listOfNotNull(vueText("check_unreachable"), light.detail).joinToString(": ")
+    }
 
 /** One light: a dot and its label in the figure font. The FDM label turns red with its light: sales are blocked. */
 @Composable
@@ -257,6 +327,7 @@ private fun StatusLight(
     label: String,
     state: LightState,
     pulseOnDegrade: Boolean = false,
+    description: String? = null,
 ) {
     val c = PiliTheme.colors
     val t = PiliTheme.typography
@@ -267,7 +338,10 @@ private fun StatusLight(
         label = "lightPulse",
     )
     Row(
-        modifier = Modifier.testTag("status_light_$name"),
+        modifier =
+            Modifier
+                .testTag("status_light_$name")
+                .then(if (description == null) Modifier else Modifier.semantics { contentDescription = description }),
         horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
         verticalAlignment = Alignment.CenterVertically,
     ) {

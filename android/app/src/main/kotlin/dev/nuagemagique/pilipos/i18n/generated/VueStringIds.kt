@@ -269,6 +269,7 @@ internal object VueStringIds {
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["status_terminal"] = R.string.status_terminal
         this["status_kitchen"] = R.string.status_kitchen
         this["fdm_closes_in"] = R.string.fdm_closes_in
         this["fdm_retry_in"] = R.string.fdm_retry_in
@@ -295,6 +296,8 @@ internal object VueStringIds {
         this["check_title"] = R.string.check_title
         this["check_ticket_printer"] = R.string.check_ticket_printer
         this["check_kitchen_printer"] = R.string.check_kitchen_printer
+        this["check_payment_terminal"] = R.string.check_payment_terminal
+        this["check_payment_busy"] = R.string.check_payment_busy
         this["check_email"] = R.string.check_email
         this["check_connected"] = R.string.check_connected
         this["check_not_connected"] = R.string.check_not_connected
@@ -516,12 +519,12 @@ internal object VueStringIds {
         this["catalog_issue_duplicate_key"] = R.string.catalog_issue_duplicate_key
         this["catalog_issue_unknown_category"] = R.string.catalog_issue_unknown_category
         this["catalog_issue_missing_name"] = R.string.catalog_issue_missing_name
-        this["catalog_issue_name_too_long"] = R.string.catalog_issue_name_too_long
-        this["catalog_issue_unknown_language"] = R.string.catalog_issue_unknown_language
-        this["catalog_issue_negative_price"] = R.string.catalog_issue_negative_price
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["catalog_issue_name_too_long"] = R.string.catalog_issue_name_too_long
+        this["catalog_issue_unknown_language"] = R.string.catalog_issue_unknown_language
+        this["catalog_issue_negative_price"] = R.string.catalog_issue_negative_price
         this["catalog_issue_min_above_max"] = R.string.catalog_issue_min_above_max
         this["catalog_issue_nothing_to_sell"] = R.string.catalog_issue_nothing_to_sell
         this["catalog_issue_bad_price"] = R.string.catalog_issue_bad_price
