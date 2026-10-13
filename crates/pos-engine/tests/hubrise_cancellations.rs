@@ -12,10 +12,12 @@ use common::hubrise::{HubriseMock, connected_app, drain_outbox, poller};
 use common::{PrinterSink, TestApp};
 use pos_core::user::UserRole;
 use pos_engine::commands::checkout::PaymentPart;
+use pos_engine::commands::eft::do_eft_pay;
 use pos_engine::commands::errors;
+use pos_engine::commands::order::do_list_order_lines;
 use pos_engine::commands::webshop::{
     do_accept_webshop_order, do_close_cancelled_webshop_order, do_handover_webshop_order,
-    do_refund_webshop_order, recover_webshop_orders,
+    do_refund_webshop_order, do_reject_webshop_order, recover_webshop_orders,
 };
 use pos_hubrise::poller::{poll_once, start};
 use serde_json::{Value, json};
@@ -494,4 +496,55 @@ async fn a_cancellation_while_the_pos_was_off_is_found_at_start() {
     start(&poller(&w.app)).await.unwrap();
     assert_eq!(w.state_of(id).fiscal_state, "refund_pending");
     assert_eq!(w.labels(), vec!["N"], "nothing signed on its own");
+}
+
+/// Charge `cents` of `order` on a scripted terminal.
+async fn charge(w: &mut World, order: i64, cents: i64) {
+    let script = w.app.link_terminal();
+    script.on_pay(Ok(common::approval(
+        cents,
+        "Bancontact",
+        common::pos_eft::CardType::Debit,
+    )));
+    let payment = do_eft_pay(&w.app.state, order, cents).await.unwrap();
+    assert_eq!(payment.status, "approved");
+}
+
+#[tokio::test]
+async fn an_order_with_a_charged_card_cannot_be_rejected() {
+    let mut w = world().await;
+    let (id, _) = w.order("deliveroo_prepaid").await;
+    let lines = do_list_order_lines(&w.app.state, id).unwrap().len();
+    charge(&mut w, id, 100).await;
+
+    let refused = do_reject_webshop_order(&w.app.state, id).unwrap_err();
+    assert_eq!(refused, "eft_below_charged|amount=1,00");
+    assert_eq!(w.state_of(id).fiscal_state, "pending");
+    assert_eq!(w.app.order_status(id).as_deref(), Some("open"));
+    assert_eq!(do_list_order_lines(&w.app.state, id).unwrap().len(), lines);
+}
+
+#[tokio::test]
+async fn a_cancelled_order_with_a_charged_card_keeps_its_lines() {
+    let mut w = world().await;
+    let (id, _) = w
+        .cancelled_after_acceptance("webshop_cash_collection")
+        .await;
+    let lines = do_list_order_lines(&w.app.state, id).unwrap().len();
+    assert!(lines > 0);
+    charge(&mut w, id, 100).await;
+
+    let closed = do_close_cancelled_webshop_order(&w.app.state, id)
+        .await
+        .unwrap();
+    assert!(!closed.success);
+    assert_eq!(
+        closed.error.as_deref(),
+        Some("eft_below_charged|amount=1,00")
+    );
+    // Refused before any correction: the order is as it was.
+    assert_eq!(w.state_of(id).fiscal_state, "cancel_pending");
+    assert_eq!(w.app.order_status(id).as_deref(), Some("open"));
+    assert_eq!(do_list_order_lines(&w.app.state, id).unwrap().len(), lines);
+    assert_eq!(w.labels(), vec!["P"]);
 }
