@@ -158,6 +158,9 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | create_order | order::do_create_order | blocking | posEngine.createOrder() |
 | create_user | auth::do_create_user | blocking | posEngine.createUser() |
 | deactivate_user | auth::do_deactivate_user | blocking | posEngine.deactivateUser() |
+| eft_abort | eft::do_eft_abort | spawn | posEngine.eftAbort() |
+| eft_check | eft::do_eft_check | spawn | posEngine.eftCheck() |
+| eft_pay | eft::do_eft_pay | spawn | posEngine.eftPay() |
 | end_shift | social::do_end_shift | spawn | posEngine.endShift() |
 | export_run_now | export::do_export_run_now | spawn | posEngine.exportRunNow() |
 | export_status | export::do_export_status | spawn | posEngine.exportStatus() |
@@ -190,6 +193,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | leave_order | session::do_leave_order | spawn | posEngine.leaveOrder() |
 | list_cart_lines | order::do_list_cart_lines | blocking | posEngine.listCartLines() |
 | list_copyable_tickets | copy::do_list_copyable_tickets | blocking | posEngine.listCopyableTickets() |
+| list_eft_payments | eft::do_list_eft_payments | blocking | posEngine.listEftPayments() |
 | list_fiscal_events | copy::do_list_fiscal_events | blocking | posEngine.listFiscalEvents() |
 | list_open_orders | order::do_list_open_orders | blocking | posEngine.listOpenOrders() |
 | list_open_shifts | social::do_list_open_shifts | blocking | posEngine.listOpenShifts() |
@@ -235,7 +239,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 88/88.
+Parity: 94/94.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates
