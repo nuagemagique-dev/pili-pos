@@ -22,6 +22,9 @@ interface DevicePolicies {
     /** Adds a user restriction. */
     fun addUserRestriction(key: String)
 
+    /** Clears a user restriction this admin set. */
+    fun clearUserRestriction(key: String)
+
     /** The restrictions this admin has set at the moment. */
     fun getUserRestrictions(): Set<String>
 
@@ -52,8 +55,23 @@ interface DevicePolicies {
     /** Disables or enables the status bar; false when the system refused it. */
     fun setStatusBarDisabled(disabled: Boolean): Boolean
 
-    /** Sets the system update policy to "postpone": the till never updates its OS on its own. */
-    fun setSystemUpdatePolicyPostpone()
+    /** True when [packageName] is hidden for the user (false for a package that is not installed). */
+    fun isApplicationHidden(packageName: String): Boolean
+
+    /** Hides or shows [packageName]; false when the system did nothing (the package is not installed). */
+    fun setApplicationHidden(
+        packageName: String,
+        hidden: Boolean,
+    ): Boolean
+
+    /**
+     * Sets the system update policy to a daily install window from [startMinute] to [endMinute] (minutes
+     * after local midnight): the OS only installs updates inside it.
+     */
+    fun setSystemUpdatePolicyWindowed(
+        startMinute: Int,
+        endMinute: Int,
+    )
 
     /** Sets the Lock Task features (a `LOCK_TASK_FEATURE_*` bit mask; 0 is none). */
     fun setLockTaskFeatures(features: Int)
@@ -76,6 +94,8 @@ class AndroidDevicePolicies
         override fun isDeviceOwner(): Boolean = deviceOwner.isDeviceOwner()
 
         override fun addUserRestriction(key: String) = manager.addUserRestriction(admin, key)
+
+        override fun clearUserRestriction(key: String) = manager.clearUserRestriction(admin, key)
 
         override fun getUserRestrictions(): Set<String> {
             val bundle = manager.getUserRestrictions(admin)
@@ -102,8 +122,17 @@ class AndroidDevicePolicies
 
         override fun setStatusBarDisabled(disabled: Boolean): Boolean = manager.setStatusBarDisabled(admin, disabled)
 
-        override fun setSystemUpdatePolicyPostpone() =
-            manager.setSystemUpdatePolicy(admin, SystemUpdatePolicy.createPostponeInstallPolicy())
+        override fun isApplicationHidden(packageName: String): Boolean = manager.isApplicationHidden(admin, packageName)
+
+        override fun setApplicationHidden(
+            packageName: String,
+            hidden: Boolean,
+        ): Boolean = manager.setApplicationHidden(admin, packageName, hidden)
+
+        override fun setSystemUpdatePolicyWindowed(
+            startMinute: Int,
+            endMinute: Int,
+        ) = manager.setSystemUpdatePolicy(admin, SystemUpdatePolicy.createWindowedInstallPolicy(startMinute, endMinute))
 
         override fun setLockTaskFeatures(features: Int) = manager.setLockTaskFeatures(admin, features)
     }

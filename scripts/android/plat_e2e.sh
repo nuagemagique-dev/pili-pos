@@ -592,7 +592,7 @@ note "am instrument step=provision_and_policies (log $OUTDIR/step-provision_and_
 run_step provision_and_policies 240
 policy_line="$(step_line provision_and_policies POLICIES)"
 if [[ "$STEP_OK" -eq 1 && "$policy_line" == "PLATE2E_POLICIES ok"* ]]; then
-    pass policies "$policy_line; restrictions, lock task features 0, auto time on, zone off, uninstall blocked, keyguard"
+    pass policies "$policy_line; restrictions (install apps included), lock task features 0, auto time on, zone off, uninstall blocked, Google apps hidden, update window 03:00-05:00, keyguard"
 else
     abort policies "step provision_and_policies did not pass: $(step_failure provision_and_policies)"
 fi

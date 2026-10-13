@@ -6,6 +6,9 @@ class FakeDevicePolicies(
     var present: Set<String> = emptySet(),
     val failing: MutableSet<String> = mutableSetOf(),
     var refuseBooleans: Set<String> = emptySet(),
+    /** The packages of [PolicySet.HIDDEN_PACKAGES] that are on the device; the others answer false. */
+    val installed: MutableSet<String> = mutableSetOf(),
+    val hidden: MutableSet<String> = mutableSetOf(),
 ) : DevicePolicies {
     /** Every call, as `name` or `name(arg)`, in the order it happened. */
     val calls = mutableListOf<String>()
@@ -23,6 +26,8 @@ class FakeDevicePolicies(
     override fun isDeviceOwner(): Boolean = owner
 
     override fun addUserRestriction(key: String) = call("addUserRestriction", key)
+
+    override fun clearUserRestriction(key: String) = call("clearUserRestriction", key)
 
     override fun getUserRestrictions(): Set<String> {
         call("getUserRestrictions")
@@ -58,7 +63,25 @@ class FakeDevicePolicies(
         return "setStatusBarDisabled" !in refuseBooleans
     }
 
-    override fun setSystemUpdatePolicyPostpone() = call("setSystemUpdatePolicyPostpone")
+    override fun isApplicationHidden(packageName: String): Boolean {
+        call("isApplicationHidden", packageName)
+        return packageName in hidden
+    }
+
+    override fun setApplicationHidden(
+        packageName: String,
+        hidden: Boolean,
+    ): Boolean {
+        call("setApplicationHidden", "$packageName,$hidden")
+        if (packageName !in installed) return false
+        if (hidden) this.hidden += packageName else this.hidden -= packageName
+        return true
+    }
+
+    override fun setSystemUpdatePolicyWindowed(
+        startMinute: Int,
+        endMinute: Int,
+    ) = call("setSystemUpdatePolicyWindowed", "$startMinute,$endMinute")
 
     override fun setLockTaskFeatures(features: Int) = call("setLockTaskFeatures", features.toString())
 }

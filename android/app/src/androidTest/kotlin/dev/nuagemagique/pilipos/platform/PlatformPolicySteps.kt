@@ -2,6 +2,8 @@ package dev.nuagemagique.pilipos.platform
 
 import android.app.KeyguardManager
 import android.app.admin.DevicePolicyManager
+import android.app.admin.SystemUpdatePolicy
+import android.content.pm.PackageManager
 import android.os.UserManager
 import android.provider.Settings
 import dev.nuagemagique.pilipos.platform.policy.PolicySet
@@ -37,12 +39,32 @@ internal object PlatformPolicySteps {
         assertEquals(PolicySet.TIME_ZONE, systemZone())
         assertTrue("uninstall must be blocked", dpm.isUninstallBlocked(admin, context.packageName))
 
+        val update = dpm.getSystemUpdatePolicy()
+        assertEquals("system update policy", SystemUpdatePolicy.TYPE_INSTALL_WINDOWED, update?.policyType)
+        assertEquals("update window start", PolicySet.UPDATE_WINDOW_START_MINUTE, update?.installWindowStart)
+        assertEquals("update window end", PolicySet.UPDATE_WINDOW_END_MINUTE, update?.installWindowEnd)
+        val stillVisible =
+            PolicySet.HIDDEN_PACKAGES.filter { isInstalled(context.packageManager, it) && !dpm.isApplicationHidden(admin, it) }
+        assertTrue("Google apps still visible: $stillVisible", stillVisible.isEmpty())
+
         val stayOn = Settings.Global.getString(context.contentResolver, PolicySet.STAY_ON_SETTING)
         assertEquals("stay awake while plugged in", PolicySet.STAY_ON_VALUE, stayOn)
         val keyguard = context.getSystemService(KeyguardManager::class.java)
         assertFalse("the keyguard must be disabled", keyguard.isKeyguardLocked)
         PlatformE2eEnv.line("PLATE2E_POLICIES ok restrictions=${PolicySet.RESTRICTIONS.size} zone=${systemZone()}")
     }
+
+    /** True when [pkg] is on the device and not hidden yet (a hidden package no longer resolves). */
+    private fun isInstalled(
+        packageManager: PackageManager,
+        pkg: String,
+    ): Boolean =
+        try {
+            packageManager.getPackageInfo(pkg, 0)
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
 
     /** The zone the system holds now: the cached default of the process is dropped first. */
     private fun systemZone(): String {

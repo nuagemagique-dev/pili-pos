@@ -11,6 +11,8 @@ import dev.nuagemagique.pilipos.platform.PlatformOps
 import dev.nuagemagique.pilipos.platform.audit.PlatformAudit
 import dev.nuagemagique.pilipos.platform.audit.PlatformClock
 import dev.nuagemagique.pilipos.platform.audit.SystemPlatformClock
+import dev.nuagemagique.pilipos.platform.policy.DevicePolicies
+import dev.nuagemagique.pilipos.platform.policy.PolicySet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -103,7 +105,12 @@ sealed interface InstallOutcome {
  *    [InstallRefusal.ENGINE_BUSY] and reopens the engine;
  * 5. the fsynced marker `pending.json` ([UpdateMarkerStore]);
  * 6. the audit row `started`;
- * 7. the PackageInstaller session ([PackageSessions]): create, write the APK, commit.
+ * 7. `DISALLOW_INSTALL_APPS` cleared (PD230; some Android versions block the owner's own session with it),
+ *    then the PackageInstaller session ([PackageSessions]): create, write the APK, commit.
+ *
+ * The restriction is set again in a `finally`, once the system answered or the hold ran out, whatever the
+ * outcome. When the install succeeds the process is killed before that and the next start of
+ * [dev.nuagemagique.pilipos.platform.policy.PolicyApplier] sets it again, as it does after a crash.
  *
  * Any exception from step 5 on, before the commit returns, abandons the session, deletes the marker, reopens
  * the engine and audits `failed`. After the commit the result is not awaited: a successful install kills this
@@ -121,6 +128,7 @@ class UpdateInstaller internal constructor(
     private val audit: PlatformAudit,
     private val markers: UpdateMarkerStore,
     private val sessions: PackageSessions,
+    private val policies: DevicePolicies,
     private val restarter: EngineRestarter,
     private val signal: InstallSignal,
     private val versionCode: () -> Long,
@@ -137,6 +145,7 @@ class UpdateInstaller internal constructor(
         audit: PlatformAudit,
         markers: UpdateMarkerStore,
         sessions: PackageSessions,
+        policies: DevicePolicies,
         restarter: EngineRestarter,
         signal: InstallSignal,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
@@ -147,6 +156,7 @@ class UpdateInstaller internal constructor(
         audit = audit,
         markers = markers,
         sessions = sessions,
+        policies = policies,
         restarter = restarter,
         signal = signal,
         versionCode = { installedVersionCode(context) },
@@ -208,7 +218,17 @@ class UpdateInstaller internal constructor(
         return InstallOutcome.Refused(reason, detail)
     }
 
+    /** Lifts `DISALLOW_INSTALL_APPS` for the session and sets it again at the end, whatever happens. */
     private suspend fun commit(verified: VerifiedUpdate): InstallOutcome {
+        withContext(ioDispatcher) { setInstallAllowed(policies, true) }
+        try {
+            return commitSession(verified)
+        } finally {
+            withContext(NonCancellable + ioDispatcher) { setInstallAllowed(policies, false) }
+        }
+    }
+
+    private suspend fun commitSession(verified: VerifiedUpdate): InstallOutcome {
         var session: InstallSession? = null
         try {
             signal.begin()
@@ -269,16 +289,6 @@ class UpdateInstaller internal constructor(
         audit.append(KIND, "failed", mapOf("code" to InstallRefusal.INSTALL_FAILED.id, "detail" to detail))
     }
 
-    private fun closeQuietly(session: InstallSession) {
-        try {
-            session.close()
-        } catch (
-            @Suppress("TooGenericExceptionCaught") e: RuntimeException,
-        ) {
-            Timber.d(e, "UpdateInstaller: the session could not be closed")
-        }
-    }
-
     companion object {
         /** Name of the operation in [PlatformOps]. */
         const val OPERATION = "update"
@@ -291,5 +301,30 @@ class UpdateInstaller internal constructor(
 
         private fun installedVersionCode(context: Context): Long =
             context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0L)).longVersionCode
+    }
+}
+
+/** Never throws: a refusal is logged, the install then reports its own status and the next start repairs the set. */
+private fun setInstallAllowed(
+    policies: DevicePolicies,
+    allowed: Boolean,
+) {
+    try {
+        if (!policies.isDeviceOwner()) return
+        if (allowed) policies.clearUserRestriction(PolicySet.INSTALL_APPS) else policies.addUserRestriction(PolicySet.INSTALL_APPS)
+    } catch (
+        @Suppress("TooGenericExceptionCaught") e: RuntimeException,
+    ) {
+        Timber.w(e, "UpdateInstaller: %s could not be %s", PolicySet.INSTALL_APPS, if (allowed) "cleared" else "set again")
+    }
+}
+
+private fun closeQuietly(session: InstallSession) {
+    try {
+        session.close()
+    } catch (
+        @Suppress("TooGenericExceptionCaught") e: RuntimeException,
+    ) {
+        Timber.d(e, "UpdateInstaller: the session could not be closed")
     }
 }
