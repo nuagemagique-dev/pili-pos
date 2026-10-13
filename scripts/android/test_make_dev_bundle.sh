@@ -9,7 +9,7 @@
 # created, verified and prehashed; --seed adds seed.sql to the manifest; an --out or --keydir inside a git
 # work tree is refused; a different public key is refused; a non-empty foreign --out is refused; the
 # manifest is sorted and identical between two runs; pos.json carries the given fdm url and printer; the demo
-# payment terminal section appears only with PILI_BUNDLE_PAYMENT_TERMINAL_URL and the URL is checked.
+# payment terminal section appears only with PILI_BUNDLE_PAYMENT_TERMINAL_OPI and its address and device port are checked.
 # Prints one line per case and a summary; exits 1 when a case fails.
 # ─────────────────────────────────────────────────────────────────
 set -uo pipefail
@@ -103,24 +103,29 @@ out7="$(bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/d1" 2>&1)"
 rc=$?
 if [[ $rc -eq 0 && ! -e "$TMP/d1/seed.sql" ]]; then ok "rerun-replaces-bundle"; else bad "rerun-replaces-bundle" "rc=$rc: $out7"; fi
 
-# Case 8: the demo terminal: PILI_BUNDLE_PAYMENT_TERMINAL_URL adds a worldline payment_terminal section, valid JSON,
-# next to the other optional sections; without it pos.json has none; a malformed URL is refused.
-out8="$(PILI_BUNDLE_PAYMENT_TERMINAL_URL=http://127.0.0.1:19400 PILI_BUNDLE_HUBRISE_ENABLED=1 PILI_BUNDLE_KITCHEN_PRINTER=127.0.0.1:19392 \
+# Case 8: the demo terminal: PILI_BUNDLE_PAYMENT_TERMINAL_OPI adds a ccv_opi payment_terminal section, valid JSON,
+# next to the other optional sections; without it pos.json has none; a malformed address or port is refused.
+out8="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI=127.0.0.1:19410 PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT=19412 PILI_BUNDLE_HUBRISE_ENABLED=1 PILI_BUNDLE_KITCHEN_PRINTER=127.0.0.1:19392 \
     bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t1" 2>&1)"
 rc=$?
 if [[ $rc -eq 0 && "$out8" == *"DEVBUNDLE | PASS"* ]] && python3 -I - "$TMP/t1" <<'PY'
 import json, sys
 pos = json.load(open(sys.argv[1] + "/pos.json"))
 t = pos["payment_terminal"]
-assert t == {"kind": "worldline_terminal_api", "base_url": "http://127.0.0.1:19400", "merchant_id": "DEMO-UMID",
-             "terminal_id": "DEMO-UTID", "integrator_id": "pili-demo", "timeout_seconds": 60}, t
+assert t == {"kind": "ccv_opi", "address": "127.0.0.1:19410", "device_port": 19412, "timeout_seconds": 60}, t
 assert pos["hubrise_enabled"] is True and pos["kitchen_printer_address"] == "127.0.0.1:19392" and pos["table_count"] == 25
 PY
 then ok "payment-terminal-section"; else bad "payment-terminal-section" "rc=$rc: $out8"; fi
 if python3 -I -c 'import json,sys; sys.exit("payment_terminal" in json.load(open(sys.argv[1]))) ' "$TMP/b2/pos.json"; then ok "no-payment-terminal-by-default"; else bad "no-payment-terminal-by-default" "pos.json has a terminal"; fi
-out8b="$(PILI_BUNDLE_PAYMENT_TERMINAL_URL='http://x"y' bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t2" 2>&1)"
+out8b="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI='x"y:1' bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t2" 2>&1)"
 rc=$?
-if [[ $rc -ne 0 && "$out8b" == *"PILI_BUNDLE_PAYMENT_TERMINAL_URL"* && ! -e "$TMP/t2/MANIFEST.json" ]]; then ok "payment-terminal-url-checked"; else bad "payment-terminal-url-checked" "rc=$rc: $out8b"; fi
+if [[ $rc -ne 0 && "$out8b" == *"PILI_BUNDLE_PAYMENT_TERMINAL_OPI"* && ! -e "$TMP/t2/MANIFEST.json" ]]; then ok "payment-terminal-address-checked"; else bad "payment-terminal-address-checked" "rc=$rc: $out8b"; fi
+out8c="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI=127.0.0.1:19410 PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT=70000 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t3" 2>&1)"
+rc=$?
+if [[ $rc -ne 0 && "$out8c" == *"PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT"* && ! -e "$TMP/t3/MANIFEST.json" ]]; then ok "payment-terminal-device-port-checked"; else bad "payment-terminal-device-port-checked" "rc=$rc: $out8c"; fi
+out8d="$(PILI_BUNDLE_PAYMENT_TERMINAL_OPI=192.168.1.50:4100 bash "$SCRIPT" --keydir "$KEYS" --out "$TMP/t4" 2>&1)"
+rc=$?
+if [[ $rc -eq 0 ]] && python3 -I -c 'import json,sys; t=json.load(open(sys.argv[1]))["payment_terminal"]; sys.exit(0 if t=={"kind":"ccv_opi","address":"192.168.1.50:4100","timeout_seconds":60} else 1)' "$TMP/t4/pos.json"; then ok "payment-terminal-device-port-optional"; else bad "payment-terminal-device-port-optional" "rc=$rc: $out8d"; fi
 
 # Case 9: a usage error.
 bash "$SCRIPT" --nonsense >/dev/null 2>&1
