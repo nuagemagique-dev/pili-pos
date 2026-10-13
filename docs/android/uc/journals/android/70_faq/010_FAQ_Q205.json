@@ -1,0 +1,417 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "70_faq",
+  "scenario": "010_FAQ_Q205",
+  "ids": [
+    "FAQ_Q205"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "94060242576",
+        "name": "Gerant Test",
+        "role": "admin"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:06:18.275212997Z",
+        "id": 1,
+        "order_type": "takeaway",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": null,
+        "total_cents": 0,
+        "user_insz": "94060242576"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:06:18.279933413Z",
+        "department_id": "12",
+        "department_name": "Soft Drinks",
+        "id": 1,
+        "menu_item_id": 12007,
+        "modifiers_json": null,
+        "name": "Perrier",
+        "order_id": 1,
+        "quantity": 1,
+        "unit_price_cents": 250,
+        "vat_code": "C"
+      }
+    },
+    {
+      "cmd": "sign_table_order",
+      "ok": true,
+      "error": "takeaway_not_registered",
+      "result": null
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "S",
+          "eventType": "S",
+          "fdmDatetime": "2026-10-10T06:06:20Z",
+          "fdmId": "MCK00000001",
+          "id": 1,
+          "orderId": null,
+          "sequenceNumber": 1,
+          "shortSignature": null
+        }
+      ]
+    },
+    {
+      "cmd": "leave_order",
+      "ok": true,
+      "error": null,
+      "result": "nothing_to_print"
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "S",
+          "eventType": "S",
+          "fdmDatetime": "2026-10-10T06:06:20Z",
+          "fdmId": "MCK00000001",
+          "id": 1,
+          "orderId": null,
+          "sequenceNumber": 1,
+          "shortSignature": null
+        }
+      ]
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 2,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 2,
+        "kitchen_slip": "nothing_to_print",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "EMULATOR37X2X12X0",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 1,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:06:20Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 2
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Perrier",
+              "quantity": 1,
+              "total": 2.5,
+              "unit_price": 2.5,
+              "vat_code": "C"
+            }
+          ],
+          "operator": "Gerant Test",
+          "original": null,
+          "payments": [
+            {
+              "amount": 2.5,
+              "method": "Card"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:06:18.292+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos-android/1.0.0-dev",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": null,
+          "short_signature": "8d7248800b653ca81b636d271e4417b5d7c9c66b",
+          "subtotal": 2.5,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 1,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 2.5,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6,
+              "taxableAmount": 2.36,
+              "totalAmount": 2.5,
+              "vatAmount": 0.14
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000100002AbCdEfGhI"
+        }
+      }
+    },
+    {
+      "cmd": "list_fiscal_events",
+      "ok": true,
+      "error": null,
+      "result": [
+        {
+          "eventLabel": "N",
+          "eventType": "N",
+          "fdmDatetime": "2026-10-10T06:06:20Z",
+          "fdmId": "MCK00000001",
+          "id": 2,
+          "orderId": 1,
+          "sequenceNumber": 1,
+          "shortSignature": "8d7248800b653ca81b636d271e4417b5d7c9c66b"
+        }
+      ]
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signWorkIn",
+      "request": {
+        "query": "mutation($data: WorkInOutInput!, $isTraining: Boolean!) { signWorkIn(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "927abecc-afd4-43f3-861b-69c30a96a03b",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:06:18.275+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "NONE",
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signWorkIn": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMS0xLTE3OTE2MTIzODA=",
+            "eventOperation": "WORK_IN",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "S",
+              "fdmDateTime": "2026-10-10T06:06:20Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 1
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:06:18.275+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": null,
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": null,
+            "verificationUrl": null,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "927abecc-afd4-43f3-861b-69c30a96a03b",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "94060242576",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 2.5,
+                "amountType": "PAYMENT",
+                "id": "2",
+                "inputMethod": "MANUAL",
+                "name": "Card",
+                "type": "CARD_DEBIT"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:06:18.292+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 2.5,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "12",
+                    "departmentName": "Soft Drinks",
+                    "productId": "12007",
+                    "productName": "Perrier",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 2.5,
+                    "vats": [
+                      {
+                        "label": "C",
+                        "price": 2.5
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 2.5
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctMS0yLTE3OTE2MTIzODA=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 1,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:06:20Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 2
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:06:18.292+02:00",
+            "posFiscalTicketNo": 1,
+            "posId": "CPOS0031234567",
+            "shortSignature": "8d7248800b653ca81b636d271e4417b5d7c9c66b",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "C",
+                "outOfScope": false,
+                "rate": 6.0,
+                "taxableAmount": 2.36,
+                "totalAmount": 2.5,
+                "vatAmount": 0.14
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000100002AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:06:18Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:06:25Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:06\nUtilisateur: Gerant Test\nTerminal: POS-2-ANDROID\nTicketnr.: 000001\nPOS Serial: CPOS0031234567\nInput device MAC: EMULATOR37X2X12X0\nLogiciel de caisse v.: pili-pos-android/1.0.0-dev\n................................................\n1 Perrier                                2,50  C\nTOTAL :                                    €2,50\n................................................\nMode de paiement :\nCarte                                       2,50\n% TVA   CODE          HT       TVA      Brut\n6,00%   C           2,36      0,14      2,50\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:06:20Z;\nEvent: N; eventCounter: 1;\ntotalCounter: 2; shortSignature:\n8d7248800b653ca81b636d271e4417b5d7c9c66b;\n\n [QR: https://www.gs2.be/M0000100002AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

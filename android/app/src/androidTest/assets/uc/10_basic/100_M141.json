@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M141",
+  "ids": ["M141"],
+  "title": "Work out of an employee (signWorkOut S)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M141_signWorkOut",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "work_out", "args": {"employeeInsz": "84022899837"}}
+  ]
+}

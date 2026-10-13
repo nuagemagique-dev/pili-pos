@@ -1,0 +1,376 @@
+{
+  "format": 1,
+  "side": "android",
+  "group": "50_rounding",
+  "scenario": "050_ROUND5",
+  "ids": [
+    "ROUND5"
+  ],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:05:14.274003883Z",
+        "id": 5,
+        "order_type": "takeaway",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": null,
+        "total_cents": 0,
+        "user_insz": "84022899837"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:05:14.277217966Z",
+        "department_id": "25",
+        "department_name": "Desserts",
+        "id": 7,
+        "menu_item_id": 25003,
+        "modifiers_json": null,
+        "name": "Dame Blanche",
+        "order_id": 5,
+        "quantity": 1,
+        "unit_price_cents": 1152,
+        "vat_code": "C"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:05:14.281195174Z",
+        "department_id": "28",
+        "department_name": "Tapas",
+        "id": 8,
+        "menu_item_id": 28007,
+        "modifiers_json": null,
+        "name": "Tapas variation",
+        "order_id": 5,
+        "quantity": 1,
+        "unit_price_cents": 334,
+        "vat_code": "C"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 6,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 6,
+        "kitchen_slip": "printed",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "EMULATOR37X2X12X0",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 5,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:05:16Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 6
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Dame Blanche",
+              "quantity": 1,
+              "total": 11.52,
+              "unit_price": 11.52,
+              "vat_code": "C"
+            },
+            {
+              "description": "Tapas variation",
+              "quantity": 1,
+              "total": 3.34,
+              "unit_price": 3.34,
+              "vat_code": "C"
+            }
+          ],
+          "operator": "Elisa",
+          "original": null,
+          "payments": [
+            {
+              "amount": 3.13,
+              "method": "Meal voucher"
+            },
+            {
+              "amount": 3.97,
+              "method": "Card"
+            },
+            {
+              "amount": 7.76,
+              "method": "Cash"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:05:14.284+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos-android/1.0.0-dev",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": -0.01,
+          "short_signature": "a73db62b30c56ac0324bba339ca79c2183c8f4a4",
+          "subtotal": 14.86,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 5,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 14.85,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6,
+              "taxableAmount": 14.02,
+              "totalAmount": 14.86,
+              "vatAmount": 0.84
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000500006AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "4bb268c8-d13d-4a53-a22b-60b660f65892",
+            "deviceId": "EMULATOR37X2X12X0",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 3.13,
+                "amountType": "PAYMENT",
+                "id": "3",
+                "inputMethod": "MANUAL",
+                "name": "Meal voucher",
+                "type": "CHEQUE_MEAL"
+              },
+              {
+                "amount": 3.97,
+                "amountType": "PAYMENT",
+                "id": "2",
+                "inputMethod": "MANUAL",
+                "name": "Card",
+                "type": "CARD_DEBIT"
+              },
+              {
+                "amount": 7.76,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              },
+              {
+                "amount": -0.01,
+                "amountType": "ROUNDING",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:05:14.284+02:00",
+            "posFiscalTicketNo": 5,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos-android/1.0.0-dev",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 11.52,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "25",
+                    "departmentName": "Desserts",
+                    "productId": "25003",
+                    "productName": "Dame Blanche",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 11.52,
+                    "vats": [
+                      {
+                        "label": "C",
+                        "price": 11.52
+                      }
+                    ]
+                  }
+                },
+                {
+                  "lineTotal": 3.34,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "28",
+                    "departmentName": "Tapas",
+                    "productId": "28007",
+                    "productName": "Tapas variation",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 3.34,
+                    "vats": [
+                      {
+                        "label": "C",
+                        "price": 3.34
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 14.86
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "EMULATOR37X2X12X0",
+            "digitalSignature": "bW9jay1zaWctNS02LTE3OTE2MTIzMTY=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 5,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:05:16Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 6
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:05:14.284+02:00",
+            "posFiscalTicketNo": 5,
+            "posId": "CPOS0031234567",
+            "shortSignature": "a73db62b30c56ac0324bba339ca79c2183c8f4a4",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "C",
+                "outOfScope": false,
+                "rate": 6.0,
+                "taxableAmount": 14.02,
+                "totalAmount": 14.86,
+                "vatAmount": 0.84
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000500006AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:05:14Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "query": "query { fdmStatus: status(language: FR) { device { fdmId fdmSwVersion fdmDateTime bufferCapacityUsed } initialized informations { message extensions { category code showPos } } warnings { message extensions { category code showPos } } errors { message extensions { category code showPos } } } }",
+        "variables": null
+      },
+      "response": {
+        "data": {
+          "fdmStatus": {
+            "device": {
+              "bufferCapacityUsed": 1.2,
+              "fdmDateTime": "2026-10-10T06:05:21Z",
+              "fdmId": "MCK00000001",
+              "fdmSwVersion": "MOCK-FDM-1.0"
+            },
+            "errors": [],
+            "informations": [],
+            "initialized": true,
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:05\nUtilisateur: Elisa\nTerminal: POS-2-ANDROID\nTicketnr.: 000005\nPOS Serial: CPOS0031234567\nInput device MAC: EMULATOR37X2X12X0\nLogiciel de caisse v.: pili-pos-android/1.0.0-dev\n................................................\n1 Dame Blanche                          11,52  C\n1 Tapas variation                        3,34  C\nTOTAL :                                   €14,86\n................................................\nMode de paiement :\nCheques-repas                               3,13\nCarte                                       3,97\nEspeces                                     7,76\nArrondi                                    -0,01\n% TVA   CODE          HT       TVA      Brut\n6,00%   C          14,02      0,84     14,86\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:05:16Z;\nEvent: N; eventCounter: 5;\ntotalCounter: 6; shortSignature:\na73db62b30c56ac0324bba339ca79c2183c8f4a4;\n\n [QR: https://www.gs2.be/M0000500006AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n",
+    "",
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:05:14\nOperateur:                                 Elisa\nVente directe\n------------------------------------------------\nQte   Article\n1 x Tapas variation\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

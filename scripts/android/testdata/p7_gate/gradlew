@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stub gradlew: records its arguments, fails when STUB_GRADLE_FAIL=1.
+printf 'gradlew %s\n' "$*" >>"${STUB_LOG:-/dev/null}"
+[[ "${STUB_GRADLE_FAIL:-0}" != "1" ]] || { echo "BUILD FAILED (stub)"; exit 1; }
+echo "BUILD SUCCESSFUL (stub)"

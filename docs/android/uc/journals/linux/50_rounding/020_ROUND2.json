@@ -1,0 +1,255 @@
+{
+  "format": 1,
+  "side": "linux",
+  "group": "50_rounding",
+  "scenario": "020_ROUND2",
+  "ids": [
+    "ROUND2"
+  ],
+  "posSwVersion": "pili-pos/1.1.0",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "active": true,
+        "has_pin": true,
+        "insz": "84022899837",
+        "name": "Elisa",
+        "role": "cashier"
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "closed_at": null,
+        "created_at": "2026-10-10T06:07:24.139330Z",
+        "id": 2,
+        "order_type": "takeaway",
+        "status": "open",
+        "subtotal_cents": 0,
+        "table_number": null,
+        "total_cents": 0,
+        "user_insz": "84022899837"
+      }
+    },
+    {
+      "cmd": "add_order_line",
+      "ok": true,
+      "error": null,
+      "result": {
+        "created_at": "2026-10-10T06:07:24.140688Z",
+        "department_id": "28",
+        "department_name": "Tapas",
+        "id": 2,
+        "menu_item_id": 28007,
+        "modifiers_json": null,
+        "name": "Tapas variation",
+        "order_id": 2,
+        "quantity": 1,
+        "unit_price_cents": 334,
+        "vat_code": "C"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "delivery": {
+          "deliveryId": null,
+          "email": "not_requested",
+          "fiscalEventId": 3,
+          "medium": "PAPER",
+          "needsPaper": false,
+          "paperPrinted": true,
+          "recipientHint": null
+        },
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 3,
+        "kitchen_slip": "printed",
+        "success": true,
+        "ticket": {
+          "copy_made_at": null,
+          "device_id": "pos-json-device",
+          "event_label": "N",
+          "fdm_ref": {
+            "eventCounter": 2,
+            "eventLabel": "N",
+            "fdmDateTime": "2026-10-10T06:07:24Z",
+            "fdmId": "MCK00000001",
+            "totalCounter": 3
+          },
+          "footer": [],
+          "is_refund": false,
+          "is_training": false,
+          "lang": "fr",
+          "lines": [
+            {
+              "description": "Tapas variation",
+              "quantity": 1.0,
+              "total": 3.34,
+              "unit_price": 3.34,
+              "vat_code": "C"
+            }
+          ],
+          "operator": "Elisa",
+          "original": null,
+          "payments": [
+            {
+              "amount": 3.34,
+              "method": "Cash"
+            }
+          ],
+          "pos_datetime": "2026-10-10T08:07:24.141+02:00",
+          "pos_id": "CPOS0031234567",
+          "pos_sw_version": "pili-pos/1.1.0",
+          "restaurant_address": "1 Rue du Test, 4000 Liege",
+          "restaurant_est_no": "2000000042",
+          "restaurant_legal_name": "Restaurant Test",
+          "restaurant_name": "Restaurant Test",
+          "restaurant_vat": "BE0000000097",
+          "rounding": 0.01,
+          "short_signature": "ef02279b3e34d57fa4ac39a4e8b7c4a3f7abbfab",
+          "subtotal": 3.34,
+          "terminal_id": "POS-2-ANDROID",
+          "ticket_number": 2,
+          "ticket_type_label": "TICKET DE CAISSE T.V.A.",
+          "total": 3.3499999999999996,
+          "unpaid": false,
+          "vat_breakdown": [
+            {
+              "label": "C",
+              "outOfScope": false,
+              "rate": 6.0,
+              "taxableAmount": 3.15,
+              "totalAmount": 3.34,
+              "vatAmount": 0.19
+            }
+          ],
+          "verification_url": "https://www.gs2.be/M0000200003AbCdEfGhI"
+        }
+      }
+    }
+  ],
+  "fdm": [
+    {
+      "operation": "signSale",
+      "request": {
+        "query": "mutation($data: SaleInput!, $isTraining: Boolean!) { signSale(data: $data, isTraining: $isTraining) { posId posFiscalTicketNo posDateTime terminalId deviceId eventOperation fdmRef { fdmId fdmDateTime eventLabel eventCounter totalCounter } fdmSwVersion digitalSignature shortSignature verificationUrl vatCalc { label rate taxableAmount vatAmount totalAmount outOfScope } bufferCapacityUsed warnings { message extensions { category code showPos } } informations { message extensions { category code showPos } } footer } }",
+        "variables": {
+          "data": {
+            "bookingDate": "2026-10-10",
+            "bookingPeriodId": "e11354ea-311d-495c-9ed0-78cde7a806f3",
+            "deviceId": "pos-json-device",
+            "employeeId": "84022899837",
+            "estNo": "2000000042",
+            "financials": [
+              {
+                "amount": 3.34,
+                "amountType": "PAYMENT",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              },
+              {
+                "amount": 0.01,
+                "amountType": "ROUNDING",
+                "id": "1",
+                "inputMethod": "MANUAL",
+                "name": "Cash",
+                "type": "CASH"
+              }
+            ],
+            "language": "FR",
+            "posDateTime": "2026-10-10T08:07:24.141+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "posSwVersion": "pili-pos/1.1.0",
+            "terminalId": "POS-2-ANDROID",
+            "ticketMedium": "PAPER",
+            "transaction": {
+              "transactionLines": [
+                {
+                  "lineTotal": 3.34,
+                  "lineType": "SINGLE_PRODUCT",
+                  "mainProduct": {
+                    "departmentId": "28",
+                    "departmentName": "Tapas",
+                    "productId": "28007",
+                    "productName": "Tapas variation",
+                    "quantity": 1.0,
+                    "quantityType": "PIECE",
+                    "unitPrice": 3.34,
+                    "vats": [
+                      {
+                        "label": "C",
+                        "price": 3.34
+                      }
+                    ]
+                  }
+                }
+              ],
+              "transactionTotal": 3.34
+            },
+            "vatNo": "BE0000000097"
+          },
+          "isTraining": false
+        }
+      },
+      "response": {
+        "data": {
+          "signSale": {
+            "bufferCapacityUsed": 1.2,
+            "deviceId": "pos-json-device",
+            "digitalSignature": "bW9jay1zaWctMi0zLTE3OTE2MTI0NDQ=",
+            "eventOperation": "SALE",
+            "fdmRef": {
+              "eventCounter": 2,
+              "eventLabel": "N",
+              "fdmDateTime": "2026-10-10T06:07:24Z",
+              "fdmId": "MCK00000001",
+              "totalCounter": 3
+            },
+            "fdmSwVersion": "MOCK-FDM-1.0",
+            "footer": [],
+            "informations": [],
+            "posDateTime": "2026-10-10T08:07:24.141+02:00",
+            "posFiscalTicketNo": 2,
+            "posId": "CPOS0031234567",
+            "shortSignature": "ef02279b3e34d57fa4ac39a4e8b7c4a3f7abbfab",
+            "terminalId": "POS-2-ANDROID",
+            "vatCalc": [
+              {
+                "label": "C",
+                "outOfScope": false,
+                "rate": 6.0,
+                "taxableAmount": 3.15,
+                "totalAmount": 3.34,
+                "vatAmount": 0.19
+              }
+            ],
+            "verificationUrl": "https://www.gs2.be/M0000200003AbCdEfGhI",
+            "warnings": []
+          }
+        },
+        "info": {
+          "https": false,
+          "version": "MOCK-FDM-1.0"
+        }
+      }
+    }
+  ],
+  "statusCalls": [],
+  "tickets": [
+    "            TICKET DE CAISSE T.V.A.\nRestaurant Test\nUnite d'etablissement 2000000042\n10.10.2026                                 08:07\nUtilisateur: Elisa\nTerminal: POS-2-ANDROID\nTicketnr.: 000002\nPOS Serial: CPOS0031234567\nInput device MAC: pos-json-device\nLogiciel de caisse v.: pili-pos/1.1.0\n................................................\n1 Tapas variation                        3,34  C\nTOTAL :                                    €3,34\n................................................\nMode de paiement :\nEspeces                                     3,34\nArrondi                                     0,01\n% TVA   CODE          HT       TVA      Brut\n6,00%   C           3,15      0,19      3,34\n------------------------------------------------\n                INFORMATIONS FDM\n------------------------------------------------\nfdmId: MCK00000001;\nfdmDateTime: 2026-10-10T06:07:24Z;\nEvent: N; eventCounter: 2;\ntotalCounter: 3; shortSignature:\nef02279b3e34d57fa4ac39a4e8b7c4a3f7abbfab;\n\n [QR: https://www.gs2.be/M0000200003AbCdEfGhI]  \n\n\nDenomination legale : Restaurant Test\n1 Rue du Test, 4000 Liege\nTVA: BE0000000097\n\n\n\n\n✂-----------------------------------------------\n",
+    "",
+    "                BON DE COMMANDE\n================================================\nDate:                        10/10/2026 08:07:24\nOperateur:                                 Elisa\nVente directe\n------------------------------------------------\nQte   Article\n1 x Tapas variation\n------------------------------------------------\n   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.\n                    VALABLE\n\n\n\n\n✂-----------------------------------------------\n"
+  ],
+  "verdict": "PASS"
+}

@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "id": "UC4119",
+  "ids": ["UC4119"],
+  "title": "UC4119: table 1 ordered by John, then paid by Elisa in three parts on one VAT ticket: the rest in cash, then card and meal vouchers",
+  "fixture": "docs/20260821_UC_AdvancedSet_POS_FDM_1.6/UC4119_SplitPayment",
+  "fixtureDeviations": [
+    {"path": "financials[0].type", "reason": "the operator does not tell debit from credit cards: CARD_DEBIT"}
+  ],
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 1, "user_insz": "75061189702"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 20001, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 22001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 15003, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12009, "quantity": 3, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}},
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}, {"method": "card", "amount_cents": 3104}, {"method": "meal_voucher", "amount_cents": 3104}]}}
+  ]
+}

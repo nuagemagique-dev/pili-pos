@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "id": "M184",
+  "ids": ["M184"],
+  "title": "M184: a third service day, one Coca Cola sold by Elisa, then the combined Z (turnover Z and user Z in one operation)",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "84022899837", "pin": "2222"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "84022899837"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 12009, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "card", "amount_cents": 304}]}},
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "generate_z_report", "args": {"employeeInsz": "94060242576"}, "expect": {"fields": {"success": true, "reportType": "Z", "reportNo": 3}}}
+  ]
+}

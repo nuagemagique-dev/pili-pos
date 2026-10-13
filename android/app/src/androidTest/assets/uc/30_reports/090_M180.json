@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M180",
+  "ids": ["M180"],
+  "title": "M180: the turnover X report of the service day T1 to T8, run by the manager",
+  "fixture": "docs/20260821_UC_Reports_1.3/M180_signReportTurnoverX",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "generate_x_report", "args": {"employeeInsz": "94060242576"}, "expect": {"fields": {"success": true, "reportType": "X"}}}
+  ]
+}

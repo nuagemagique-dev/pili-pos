@@ -1,0 +1,53 @@
+{
+  "scenario": "001_SMOKE",
+  "group": "00_smoke",
+  "ids": [],
+  "posSwVersion": "pili-pos-android/1.0.0-dev",
+  "steps": [
+    {
+      "cmd": "login",
+      "ok": true,
+      "error": null,
+      "result": {
+        "insz": "94060242576",
+        "name": "Gerant",
+        "role": "admin",
+        "active": true,
+        "has_pin": true
+      }
+    },
+    {
+      "cmd": "create_order",
+      "ok": true,
+      "error": null,
+      "result": {
+        "id": 1,
+        "order_type": "takeaway",
+        "status": "open"
+      }
+    },
+    {
+      "cmd": "checkout",
+      "ok": true,
+      "error": null,
+      "result": {
+        "success": true,
+        "error": null,
+        "fdm_connected": true,
+        "fiscal_event_id": 3
+      }
+    },
+    {
+      "cmd": "generate_x_report",
+      "ok": true,
+      "error": null,
+      "result": {
+        "success": true,
+        "reportType": "X",
+        "reportNo": 1,
+        "error": null
+      }
+    }
+  ],
+  "verdict": "PASS"
+}

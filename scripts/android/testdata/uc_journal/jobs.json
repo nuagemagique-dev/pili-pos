@@ -1,0 +1,26 @@
+[
+  {
+    "id": 2,
+    "at": "t2",
+    "bytes": 10,
+    "printed": true,
+    "drawerKick": true,
+    "text": ""
+  },
+  {
+    "id": 3,
+    "at": "t3",
+    "bytes": 900,
+    "printed": true,
+    "drawerKick": false,
+    "text": "X REPORT\nTotal 0,00"
+  },
+  {
+    "id": 1,
+    "at": "t1",
+    "bytes": 1200,
+    "printed": true,
+    "drawerKick": false,
+    "text": "TICKET 1\nPerrier x2"
+  }
+]

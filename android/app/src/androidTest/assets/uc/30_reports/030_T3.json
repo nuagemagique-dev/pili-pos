@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "id": "T3",
+  "ids": ["T3"],
+  "title": "T3: the whole T2 sale is refunded; DIVERGENCE: signed by the Gerant (94060242576), not by John (75061189702) the official operator, because refund_checkout needs an Admin and John is a cashier in the seed, so the user block of the day Z differs from the published one",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T3",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "list_fiscal_events", "args": {"limit": 1}, "save": "last"},
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "refund_checkout", "args": {"originalFiscalEventId": "$last.0.id", "items": [{"menuItemId": 10006, "quantity": 2}, {"menuItemId": 22001, "quantity": 1}], "employeeInsz": "94060242576"}}
+  ]
+}

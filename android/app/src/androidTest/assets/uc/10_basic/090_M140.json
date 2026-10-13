@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "id": "M140",
+  "ids": ["M140"],
+  "title": "Work in of an employee (signWorkIn S)",
+  "fixture": "docs/20260821_UC_BasicSet_POS_FDM_1.8/M140_signWorkIn",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "80113078968", "pin": "5555"}},
+    {"cmd": "work_in", "args": {"employeeInsz": "80113078968"}}
+  ]
+}

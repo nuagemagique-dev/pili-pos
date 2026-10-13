@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "id": "T1",
+  "ids": ["T1"],
+  "title": "T1: table 1 ordered by John, 2 Dry Martini and 1 Burger of the Chef, registered when the waiter leaves the table",
+  "fixture": "docs/20260821_UC_Reports_1.3/InputReport/T1",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "75061189702", "pin": "4444"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "dine_in", "table_number": 1, "user_insz": "75061189702"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 2, "modifiers_json": null}}},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 22001, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "sign_table_order", "args": {"orderId": "$order.id"}}
+  ]
+}

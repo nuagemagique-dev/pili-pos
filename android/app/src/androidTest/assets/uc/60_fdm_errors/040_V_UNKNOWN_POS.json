@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "id": "V_UNKNOWN_POS",
+  "ids": ["V_UNKNOWN_POS"],
+  "title": "A POS missing from the FDM allow list is refused; after the reset the sale is signed",
+  "steps": [
+    {"cmd": "login", "args": {"insz": "94060242576", "pin": "1111"}},
+    {"cmd": "create_order", "args": {"input": {"order_type": "takeaway", "table_number": null, "user_insz": "94060242576"}}, "save": "order"},
+    {"cmd": "add_order_line", "args": {"input": {"order_id": "$order.id", "menu_item_id": 10006, "quantity": 1, "modifiers_json": null}}},
+    {"cmd": "fdm_control", "args": {"allowedPos": ["CPOS0000000000"]}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}, "expect": {"error": "UNKNOWN_POS"}},
+    {"cmd": "fdm_control_reset", "args": {}},
+    {"cmd": "checkout", "args": {"orderId": "$order.id", "payments": [{"method": "cash"}]}, "save": "sale"}
+  ]
+}

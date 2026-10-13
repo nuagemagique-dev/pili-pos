@@ -1,0 +1,5 @@
+Name:	dev.nuagemagique.pi
+Threads:	41
+VmPeak:	 2000000 kB
+VmRSS:	  412344 kB
+VmSwap:	       0 kB
