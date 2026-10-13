@@ -1,6 +1,91 @@
-# Linux soft freeze: linux-v1.1.0-rc1
+# Linux freeze: linux-v1.0.0-rc1
 
-> **Superseded (2026-10-10).** The user set the version back to 1.0.0 and asked for a re-freeze ("Yes, 1.0.0 + re-freeze"): nothing has been filed, so the Linux build is a v1.0 initial filing (Art. 99), not a v1.1 under Art. 113, and the tag `linux-v1.1.0-rc1` below was misnamed. The new freeze is `linux-v1.0.0-rc1`, set after `android/lane-freeze` is merged into `android/int`; its record (two clean `scripts/check_repro.sh` builds, the new SHA-1, the tag commit) replaces this file at tagging. Until then this file is history: its SHA-1 `9d230ef...` is that of the 1.1.0 build and is not the reference of `p4_gate.sh --linux-repro`, which needs the new record first. See `docs/android/DECISIONS.md`, "Decided by the user".
+The engine freeze both initial filings cite (Linux `pili-pos` 1.0.0 and
+Android `pili-pos-android` 1.0.0, Art. 99, P8aD2). It replaces the misnamed
+`linux-v1.1.0-rc1` (see History below), as the user decided on 2026-10-10
+("Yes, 1.0.0 + re-freeze"). Set on 2026-10-13 after the nightly export, the
+menu code default, the one-language names, the 7 kept backups, the linked
+card terminal (EFT, migration 27, `pos-eft`) and its terminal light, Z
+warning and order-edit guards were merged into `android/int`.
+
+## Tag
+
+| Item | Value |
+|------|-------|
+| tag | `linux-v1.0.0-rc1` (local annotated tag, never pushed without the user) |
+| tag target | the commit that adds this file, on `android/int` |
+| built commit | `400143947dd89d19a0c7b810ab017d75d6e8531e` (`test(android): keep the PolicySetTest name stable for the test inventory`) |
+| version | 1.0.0 (`Cargo.toml` `[workspace.package]`, `src-tauri/tauri.conf.json`, `ui/package.json`) |
+
+The tag target adds only `docs/android/LINUX_FREEZE.md` on top of the built
+commit. It is not a build input and the binary embeds no git metadata, so
+the tag target builds the same binary; only the `Git commit` and `Git tag`
+lines of a `build_info_*.txt` report name the commit.
+
+## Reproducible build
+
+`scripts/check_repro.sh` ran on 2026-10-13 from a clean local clone of
+`4001439` (`~/.cache/pili-freeze/rc1-clone`, outside the worktrees: Docker
+in the build container cannot follow a worktree's `.git` file). It runs
+`deploy/build-release.sh --docker` twice, deleting the build outputs between
+the runs, in a linux/amd64 container under emulation on the macOS host
+(Docker Desktop, kernel `Linux 7.0.14-linuxkit x86_64`). Both runs passed
+all five steps of `scripts/build_and_hash.sh`, the mutation scan included.
+
+| | run 1 | run 2 |
+|---|---|---|
+| report | `build_info_20261013-203227.txt` | `build_info_20261013-204656.txt` |
+| SHA-1 | `838cf603b10822cc171bc6a314e8ed0a94d41580` | `838cf603b10822cc171bc6a314e8ed0a94d41580` |
+| SHA-256 | `b42d34b67d4d1d1715d90f295d278a22451714d7d7af3395bd085e6c10a33e79` | `b42d34b67d4d1d1715d90f295d278a22451714d7d7af3395bd085e6c10a33e79` |
+| MD5 | `b9528da6355daf82108f04cf54969c29` | `b9528da6355daf82108f04cf54969c29` |
+| size | 41568672 bytes | 41568672 bytes |
+| working tree | clean | clean |
+
+Result: `✓ Reproducible: SHA-1 838cf603b10822cc171bc6a314e8ed0a94d41580`
+(exit 0). The reports say `Git tag: (untagged)`: the tag is set after the
+build. Checks of both reports: HubRise integration present (installation
+switch, off by default), 0 `pos_peppol` symbols, no `fiscal_events`
+DELETE/UPDATE in the source compiled into the binary.
+
+## Build inputs
+
+| Item | Value |
+|------|-------|
+| `Cargo.lock` sha256 | `27fb81d1de147d3623f72d9b0e8ff916f6fc2ca4d4c55c6f50685ec5e667f2d1` |
+| rustc (in the container, both reports) | `rustc 1.99.0 (b940084d7 2026-09-28)` |
+| `rust-toolchain.toml` | `channel = "1.99.0"`, components rustfmt, clippy |
+| build image | `rust:1.99.0-trixie@sha256:9d5e02aa6c7e9c112ed7a4c438900b41f519a792959cd5445c25de42bfb8388b` (`deploy/build-release.sh`) |
+| Node.js | `v24.21.0`, tarball sha256 `fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6` |
+| build command | `cargo build --release --no-default-features --features cert` |
+
+## Gates on the built commit (2026-10-13)
+
+All green on `4001439` in the `int` worktree: `cargo fmt --check`,
+workspace clippy and cert clippy with `-D warnings`, `cargo test
+--workspace` 1788 passed, cert tests 659 passed, `test_inventory.sh --diff`
+(ws 1801 >= 1355, none removed), command parity 96/96 single-call, UI parity
+strict, `vue_to_android.mjs --check`, `check_dossier.py`, Vue build and
+`vue-tsc`, Playwright 347 passed (inventory: none removed), `android/rust`
+clippy and 257 tests, the Android gate (`lintDebug ktlintCheck detekt test
+koverVerifyDebug :app:verifyRoborazziDebug :pos-core:apiCheck
+:app:assembleDebug`), Kotlin test inventory 2069 (none removed).
+
+## Checking the freeze
+
+```bash
+scripts/android/check_linux_frozen.sh            # against linux-v1.0.0-rc1
+```
+
+An engine or Linux build input change after this tag needs the user and a
+new freeze (both filings cite the tag).
+
+## Open before filing
+
+- The on-site trace of the restaurant's CCV terminal
+  (`crates/pos-eft-probe/ESSAI_SUR_SITE_FR.md`): a driver fix it calls for
+  changes `crates/pos-eft`, so a new freeze (`-rc2`).
+
+## History: the misnamed linux-v1.1.0-rc1
 
 The soft freeze of the certified Linux build (plan P1b, PD44) after the
 user's two decisions of 2026-10-08 (PD47, PD71). From this tag on, the
@@ -8,7 +93,7 @@ Linux build inputs that `scripts/android/check_linux_frozen.sh` guards do
 not change while the Android port lands; a change there is a Linux v1.2
 change and needs the user.
 
-## Tag
+### Tag
 
 | Item | Value |
 |------|-------|
@@ -26,7 +111,7 @@ scripts/build_and_hash.sh crates` is empty) and the binary embeds no git
 metadata, so the tag target builds the same binary. Only the `Git commit`
 and `Git tag` lines of a `build_info_*.txt` report name the commit.
 
-## Reproducible build
+### Reproducible build
 
 `scripts/check_repro.sh` ran on 2026-10-08 from a clean local clone of
 `8dec93a` (`~/.cache/pili-freeze/clone`, outside the worktrees: Docker in
@@ -54,7 +139,7 @@ Checks of both reports: HubRise integration present (installation
 switch, off by default), 0 `pos_peppol` symbols, no `fiscal_events`
 DELETE/UPDATE in the source compiled into the binary.
 
-## Build inputs
+### Build inputs
 
 | Item | Value |
 |------|-------|
@@ -69,7 +154,7 @@ The baseline Linux SHA-1 (P0.1, main `96728e1`, version 1.0) was
 `83313be28027d2e8d9e84cbddff4e584799c2fbc`; the 1.1.0 binary differs, as
 expected (engine extraction, version 1.1.0, the P1b rules and the PD71 fix).
 
-## Decisions by the user (2026-10-08)
+### Decisions by the user (2026-10-08)
 
 1. **Mutation scan scope (PD47).** Step 3/5 of `scripts/build_and_hash.sh`
    scans the source compiled into the cert binary, as v1.0 did in
@@ -87,7 +172,7 @@ expected (engine extraction, version 1.1.0, the P1b rules and the PD71 fix).
    serialization error. Commits `2e1e3ad` (engine and FFI) and `8dec93a`
    (UI).
 
-## Commits of the freeze branch
+### Commits of the freeze branch
 
 | Commit | Subject |
 |--------|---------|
@@ -96,7 +181,7 @@ expected (engine extraction, version 1.1.0, the P1b rules and the PD71 fix).
 | `8dec93a` | fix(ui): a refused catalog resync says so instead of reporting a sync |
 | (tag target) | docs(android): Linux soft freeze record and the user's decisions on PD47 and PD71 |
 
-## Checking the freeze
+### Checking the freeze
 
 ```bash
 scripts/android/check_linux_frozen.sh            # against linux-v1.1.0-rc1 once tagged
@@ -105,7 +190,7 @@ scripts/check_repro.sh                           # from a clean clone of the tag
 
 The hard freeze `linux-v1.1.0` (signed by the user) is still to come.
 
-## P4 exit check (2026-10-08)
+### P4 exit check (2026-10-08)
 
 At the end of P4 (`android/int` at `96c99f1`, `chore(android): merge P4-T12 restart-check fixes`):
 
@@ -113,7 +198,7 @@ At the end of P4 (`android/int` at `96c99f1`, `chore(android): merge P4-T12 rest
 - `scripts/android/p4_gate.sh --fast --linux-repro --base 30b32a0` (integrator, same commit) built the tag twice in Docker from a clean clone and reproduced SHA-1 `9d230ef1bba90a4edde0157bcb107e4bb4d23d6e`.
 - No tag was set. The plan requires no freeze step at the end of P4, and the plan's update of 2026-10-08 renames the freeze: the local tag `linux-v1.1.0-rc1` was misnamed, and the freeze is redone as `linux-v1.0.0-rc1` after the nightly export feature is merged. That feature is not merged yet and a re-freeze needs the user (PD121). Until then the chain keeps checking `linux-v1.1.0-rc1`.
 
-## X1 exit check (2026-10-09, export lane)
+### X1 exit check (2026-10-09, export lane)
 
 At the end of X1 (`android/lane-export` at `a364ad7`, `docs(android): record the X1 wave 6 integration`; fork point `ba57adf`):
 
@@ -121,7 +206,7 @@ At the end of X1 (`android/lane-export` at `a364ad7`, `docs(android): record the
 - `x1_gate.sh --fast --linux-repro` (integrator, integrate-6, same commit) built the Linux cert binary twice in Docker from a clean clone: SHA-1 `d4fb09a2ae2cf2501fe4d6847eb72e954d0b95ed`, two identical builds. It needed `rust-embed` with `deterministic-timestamps` on pos-export (`dc29f43`, X1D20); keep it.
 - No tag was set (X1D27). The version is still 1.1.0. The re-freeze as `linux-v1.0.0-rc1` (and the rename to 1.0.0 if wanted) is the user's, after `android/lane-export` is merged into `android/int` and the Linux build is reproduced there again. Until then the foundation gates keep `linux-v1.1.0-rc1`, and their freeze checks fail on `android/int` once the export lane is merged.
 
-## P6 exit check (2026-10-09, platform lane)
+### P6 exit check (2026-10-09, platform lane)
 
 At the end of P6 (`android/lane-plat` at `4cfe0b3`, `docs(android): record the P6 wave 7 merge and the open gate items`, base `ba57adf`):
 
