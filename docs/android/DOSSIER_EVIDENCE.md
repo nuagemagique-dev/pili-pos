@@ -1,0 +1,77 @@
+# Android dossier: evidence registry
+
+Internal, English, never in the submission ZIP. It tracks every piece of evidence the French Android dossier (`docs/android/dossier/`) still lacks. Each missing value is written in the dossier as a placeholder `À effectuer (EV-NN : what is missing)`, with an id from the table below. The ids are fixed by the P8a plan (`docs/android/phases/P8a.md` section 6); the dossier check of the cards refuses any other id.
+
+Nothing in this registry is produced by the documentation lane. The values come from P7, P8b, the engine re-freeze (`linux-v1.0.0-rc1`) and the user (release key, filing date, real device facts). The release declaration script and every live call to a module2 or HubRise service stay with the user.
+
+## Registry
+
+The "Cited in" column lists the documents of `docs/android/dossier/` (file name without `_FR.md`; `MANIFEST.txt` and `internal/` as written) that carry the id. It was filled by the consistency pass (P8a-T12) from `grep -rnoE 'EV-[0-9]{2}' docs/android/dossier`, on the dossier as it stands with the three documents of card P8a-T5 (`EXPORT_NOCTURNE`, `FLUX_DONNEES`, `COMMANDES_EN_LIGNE`, read from the branch android/P8a-P8a-T5). Every id of the registry is cited by at least one document: no id is uncited. The column is a map for the filling work; it is not a proof that a value was filled (see step 5 below).
+
+| Id | Evidence | Produced by | Notes | Cited in |
+|----|----------|-------------|-------|----------|
+| EV-01 | SHA-1 and SHA-256 of the signed release APK `pili-pos-android 1.0.0` | `scripts/release/declare_android.sh` on the release commit | user go-ahead; never run by the chain | CHECKLIST_DEPLOIEMENT, DOCUMENT_PROCESSUS_TECHNIQUE, FEUILLE_ACQUISITION_DONNEES, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, JOURNAL_TESTS_PRE_SOUMISSION, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, MAPPING_CONFORMITE, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-02 | SHA-1 of the entry `lib/arm64-v8a/libpos_ffi.so` of that APK | same run, About screen | | CHECKLIST_DEPLOIEMENT, DECISION_PEPPOL_AP, DOCUMENT_PROCESSUS_TECHNIQUE, FEUILLE_ACQUISITION_DONNEES, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, MAPPING_CONFORMITE, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-03 | SHA-256 digest of the release signing certificate | user creates the RSA release key (DECISIONS §9) | | CHECKLIST_DEPLOIEMENT, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-04 | commit of the engine freeze tag `linux-v1.0.0-rc1` (then the final tag) and the Linux binary SHA-1 of the same engine | re-freeze on the branch android/lane-freeze, values filled in P8 | the tag name may be written; never write a candidate SHA-1 | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, EXPORT_NOCTURNE, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_UTILISATEUR, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, SECURITE_BD |
+| EV-05 | build image digest and the two identical unsigned APK SHA-1 at the release commit | `scripts/android/check_repro.sh` | | CHECKLIST_DEPLOIEMENT, DOCUMENT_PROCESSUS_TECHNIQUE, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANIFEST.txt, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT |
+| EV-06 | UC results (Basic Set 1.8, Advanced Set 1.6, Reports 1.3) on the Android emulator, JSON request and response per UC | P7 UC instrumented suite | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, COUVERTURE_ADVANCED_SET, FLUX_REMBOURSEMENT, INDEX_DOSSIER, MANIFEST.txt, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, RESULTATS_TESTS_UC |
+| EV-07 | journal and FDM request comparison Android vs Linux for the same scenarios | P7 `pos-uc-check` | | CADRE_DEMANDE, INDEX_DOSSIER, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, RESULTATS_TESTS_UC |
+| EV-08 | ticket examples printed on `pos-printer-mock` (DLE EOT bytes stripped), real Epson if available | P7 or P8b | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, INDEX_DOSSIER, MANIFEST.txt, RAPPORT_TESTS_BASELINE, TICKETS_EXEMPLES, internal/CAPTURES_ECRAN_RUNBOOK |
+| EV-09 | screen captures from `sunmi_d3_pro_gms_api33` | P8b | list in `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` | CHECKLIST_DEPLOIEMENT, COMMANDES_EN_LIGNE, INDEX_DOSSIER, MANIFEST.txt, MANUEL_UTILISATEUR, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, internal/CAPTURES_ECRAN_RUNBOOK |
+| EV-10 | D3 Pro runbook on both AVDs: provisioning, sale, refund and Z printed, SPF export, update, kiosk lock | P7 | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, INDEX_DOSSIER, MANUEL_INSTALLATION, MANUEL_PROGRAMMATION, MAPPING_CONFORMITE, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE, SECURITE_BD |
+| EV-11 | 24 h run of the app with the foreground service | P7 | | INDEX_DOSSIER, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE |
+| EV-12 | power-cut recovery (`adb emu kill` in a transaction, cold boot) | P7 | | INDEX_DOSSIER, MANUEL_UTILISATEUR, PLATEFORME_ANDROID, PROFIL_ENTREPRISE, RAPPORT_TESTS_BASELINE |
+| EV-13 | GMS D3 Pro: Play Store and user-facing Google apps hidden, install restrictions, windowed system update policy outside service hours, Play Protect behaviour | platform card for PD230, then the GMS run on `sunmi_d3_pro_gms_api33` | as built today: postpone update policy, no app hidden; the rest is the target until built | CHECKLIST_DEPLOIEMENT, DECLARATION_FONCTIONS_INTERDITES, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, MANUEL_INSTALLATION, PLATEFORME_ANDROID, PROFIL_ENTREPRISE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, SCHEMA_ASSEMBLAGE, SECURITE_BD |
+| EV-14 | live run against the module2 online simulator (`CPOS0031234567`, terminal `POS-2-ANDROID`) | user go-ahead | | CADRE_DEMANDE, JOURNAL_TESTS_PRE_SOUMISSION, MANUEL_INSTALLATION, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE, SCHEMA_ASSEMBLAGE |
+| EV-15 | facts of a real D3 Pro (serial format, storage, card slot, Verified Boot, storage encryption, Epson, timings), or the statement that the test machine is the emulated profile | real device if available | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, DECLARATION_FONCTIONS_INTERDITES, EXPORT_NOCTURNE, FEUILLE_ACQUISITION_DONNEES, GARANTIE_MAJ_LANGUES, JOURNAL_TESTS_PRE_SOUMISSION, LISTE_FONCTIONNALITES, MANUEL_INSTALLATION, MANUEL_UTILISATEUR, MAPPING_CONFORMITE, PLATEFORME_ANDROID, PROFIL_ENTREPRISE, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, SCHEMA_ASSEMBLAGE, SECURITE_BD, TICKETS_EXEMPLES |
+| EV-16 | deviceId of the test machine as printed on its tickets | P7 or P8b | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, LIGNES_PRODUITS, MANUEL_INSTALLATION, MAPPING_CONFORMITE, PLATEFORME_ANDROID, SCHEMA_ASSEMBLAGE, TICKETS_EXEMPLES |
+| EV-17 | final test counts at the release commit (Rust ws and cert, `android/rust`, Kotlin inventory, UC suite) | P8b | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, COUVERTURE_ADVANCED_SET, GARANTIE_MAJ_LANGUES, MAPPING_CONFORMITE, RAPPORT_TESTS_BASELINE |
+| EV-18 | filing date and document dates | user at filing | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, COMMANDES_EN_LIGNE, COUVERTURE_ADVANCED_SET, DECISION_PEPPOL_AP, DECLARATION_FONCTIONS_INTERDITES, DOCUMENT_PROCESSUS_TECHNIQUE, FLUX_REMBOURSEMENT, GARANTIE_MAJ_LANGUES, INDEX_DOSSIER, JOURNAL_TESTS_PRE_SOUMISSION, PLATEFORME_ANDROID, RAPPORT_TESTS_BASELINE, REPONSES_MANUEL_CERT, RESULTATS_TESTS_UC, SCHEMA_ASSEMBLAGE, TICKETS_EXEMPLES |
+| EV-19 | commit of the engine change that keeps the 7 newest post-Z backups (user decision 2026-10-10) inside the freeze tag | the branch android/lane-freeze, checked in P8 | the rule itself is written as the product's rule; only the commit is pending | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, FEUILLE_ACQUISITION_DONNEES, FLUX_DONNEES, GARANTIE_MAJ_LANGUES, MANUEL_INSTALLATION, MANUEL_PROGRAMMATION, PLATEFORME_ANDROID, SECURITE_BD |
+| EV-20 | nightly export on the test machine: enabled or not, holders of the age keys, receiver operator | user (X1 questions 3 and 5) | | CADRE_DEMANDE, CHECKLIST_DEPLOIEMENT, EXPORT_NOCTURNE |
+
+## How to fill a placeholder
+
+1. Find every use of the id: `grep -rn 'À effectuer (EV-NN' docs/android/dossier` (replace NN). The text between the parentheses says what is missing.
+2. Obtain the value from the producer listed in the registry row (for example the SHA-1 printed by `scripts/release/declare_android.sh` for the id EV-01, never run by the chain).
+3. Replace the whole marker, from `À effectuer (` to the closing parenthesis, with the value and its source in one sentence (command, file, commit or date). Do not leave the words "À effectuer" next to a value.
+4. Write the value the same way in every document that cites the id (grep the id again: the hash of record, the tag commit and the deviceId appear in several annexes).
+5. Run the grep of step 1 again: no marker for the id may remain. The "Cited in" column lists every document that carries the id, as a marker or as a plain reference; P8b refreshes it from `grep -rnoE 'EV-[0-9]{2}' docs/android/dossier` once the values are filled.
+6. A value that cannot be obtained is not invented: a hardware fact stays a placeholder (EV-15) or the sentence is rewritten to state that the test machine is the emulated profile.
+
+The final check (`python3 scripts/check_dossier.py --final`, rule `pending`) refuses any "À effectuer" left in a document listed in `MANIFEST.txt`. It is the gate that proves every placeholder was filled before the ZIP is built.
+
+## Linux source
+
+Every derived document names its Linux source on line 1: `<!-- Dérivé de docs/SUBMISSION_ARTIFACTS/<NAME>.md @ 86088e4 -->`. The commit `86088e4` is the tip of the branch android/X1-X1-T10 (the lane base dossier plus the nightly export annex and its updates). Read a source file with:
+
+    git show 86088e4:docs/SUBMISSION_ARTIFACTS/<NAME>.md
+
+Never derive from the working-tree copy, which lacks the export annex. Nothing in `docs/SUBMISSION_ARTIFACTS` changed on the integration branch since that branch forked, so `86088e4` is the single Linux source.
+
+The derived files of the first card are `PROFIL_ENTREPRISE_FR.md` and `LISTE_DISTRIBUTEURS_FR.md`. The other cards add theirs. The new documents (`INDEX_DOSSIER_FR.md`, `CADRE_DEMANDE_FR.md`, `PLATEFORME_ANDROID_FR.md`, `CHECKLIST_DEPLOIEMENT_FR.md`) start with `<!-- Variante Android, sans équivalent Linux -->`.
+
+When that branch changes after its re-review (a new tip, or a merge into the integration branch):
+
+1. For each derived file, list what changed in its Linux source between `86088e4` and the new tip: `git diff 86088e4 <new tip> -- docs/SUBMISSION_ARTIFACTS/<NAME>.md`.
+2. Port each change that does not concern the platform into the Android file, and update the commit named on line 1.
+3. Measure the size again: `git show <new tip>:docs/SUBMISSION_ARTIFACTS/<NAME>.md | diff - docs/android/dossier/<NAME>.md | grep -c '^[<>]'` (the card budgets are in the P8a plan, section 9).
+4. Rerun the card gate of the P8a plan (section 7.1), the Linux dossier check and the cross-reference check (section 7.2).
+
+The six common documents (`SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.md`, `STRATEGIE_COMPTEURS_FR.md`, `COUVERTURE_FIXTURES_FR.md`, `COUVERTURE_RAPPORTS_FR.md`, `TICKET_NUMERIQUE_FR.md`) are not copied. After a change of their Linux source, check the table of `INDEX_DOSSIER_FR.md` section 3 again with the search given there (words Linux, Debian, Tauri, Vue, systemd, RustDesk, USB, system paths, interface screens).
+
+## Writing pitfalls found by the dossier check
+
+- The default check (`scripts/check_dossier.py` run on `docs/android/dossier`) reads a backticked token that contains a slash and ends in a dot and 1 to 10 letters or digits as a repository path. A backticked posSwVersion such as pili-pos-android/1.0.0, a data path such as files/engine/pos.db and a library path inside the APK are therefore reported as missing paths. Write them without backticks (or with a space inside the span). The P8a plan prints the identity block with backticks; the cards write that line without them.
+- A backticked `android/...` path must exist on the branch (card gate, step 4).
+- The markers refused by the placeholder rule are listed in the P8a plan (section 3, rule 4); write a masked identifier as a description, not with letters standing for digits.
+
+## Known differences left for P8b
+
+- **PDFs.** P8a writes Markdown only. P8b builds `pdf_out/` and `CAPTURES_ECRAN_FR.pdf` (the capture list is `docs/android/dossier/internal/CAPTURES_ECRAN_RUNBOOK_FR.md`, written by P8a-T10).
+- **ZIP builder.** `scripts/make_submission_zip.sh` and `scripts/check_dossier.py` are hard-wired to `docs/SUBMISSION_ARTIFACTS`. P8b adds the Android variant (a directory option or a copy) that reads `docs/android/dossier/MANIFEST.txt`, understands the `commun:` prefix (the PDF of the Linux dossier at the engine tag, placed at the ZIP root under its own name) and builds the `Report_Testing` folder from `evidence/uc`, `evidence/tickets` and `evidence/build`.
+- **Final check.** `python3 scripts/check_dossier.py --final` (rules `screenshots`, `pdf-freshness`, `manifest`, `pending`, `captures-pdf`) must pass on the Android directory. Today the manifest lists PDFs that do not exist yet and names the evidence directories only as comments, and every proof document still holds placeholders; that is expected until P8b and P8.
+- **Evidence directories.** `evidence/uc`, `evidence/tickets`, `evidence/build` and `screenshots` do not exist yet. In `MANIFEST.txt` they are comments.
+- **Freeze values.** The commit of `linux-v1.0.0-rc1` (EV-04), the Linux binary SHA-1 of the same engine and the commit of the 7-backup retention change (EV-19) are known only after the re-freeze lane lands. Until then the dossier states the rule and names the tag, and the values stay placeholders.
+- **Hashes of record.** The APK SHA-1 and SHA-256 (EV-01), the library SHA-1 (EV-02), the signing certificate digest (EV-03) and the image digest (EV-05) need the user's release key and a real declaration run.
