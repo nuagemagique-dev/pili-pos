@@ -119,6 +119,14 @@ pub const EFT_REJECTED: &str = "eft_rejected";
 /// of this order for that amount, or an approved payment of the order
 /// was left out of the parts.
 pub const EFT_PAYMENT_NOT_USABLE: &str = "eft_payment_not_usable";
+/// The customer's card was charged `{amount}` (euros) on this order:
+/// an edit may not bring the total under it, since the sale must settle
+/// the payment to the cent. Nothing was changed.
+pub const EFT_BELOW_CHARGED: &str = "eft_below_charged";
+/// A terminal payment of the order waits for its answer (sent or
+/// unknown): its amount is not final, so the order cannot be edited
+/// until it is checked. Nothing was changed.
+pub const EFT_EDIT_PENDING: &str = "eft_edit_pending";
 
 // Settings.
 pub const OPEN_ORDERS_TRAINING: &str = "open_orders_training";
@@ -217,6 +225,8 @@ pub const ALL: &[&str] = &[
     EFT_UNREACHABLE,
     EFT_REJECTED,
     EFT_PAYMENT_NOT_USABLE,
+    EFT_BELOW_CHARGED,
+    EFT_EDIT_PENDING,
     OPEN_ORDERS_TRAINING,
     DIGITAL_UNAVAILABLE,
     EMAIL_INVALID,

@@ -492,6 +492,7 @@ pub fn do_reject_webshop_order(state: &AppState, order_id: i64) -> Result<(), St
     access::operator(state, Access::Cashier)?;
     let ws = load(state, order_id)?;
     let db = state.db.lock().map_err(errors::internal)?;
+    super::eft::refuse_if_charged(&db, order_id)?;
     let tx = db.unchecked_transaction().map_err(errors::internal)?;
     let n = tx
         .execute(
@@ -653,6 +654,14 @@ pub async fn do_close_cancelled_webshop_order(
     let ws = load(state, order_id)?;
     if ws.fiscal_state != "cancel_pending" {
         return Ok(CheckoutResult::refused(errors::hubrise::NOT_CANCELLED));
+    }
+    // Every line is corrected below: a card already charged on the
+    // order would be left without a sale to settle it.
+    {
+        let db = state.db.lock().map_err(errors::internal)?;
+        if let Err(e) = super::eft::refuse_if_charged(&db, order_id) {
+            return Ok(CheckoutResult::refused(e));
+        }
     }
     if !transition(state, order_id, "cancel_pending", "signing")? {
         return Ok(CheckoutResult::refused(errors::hubrise::ALREADY_HANDLED));

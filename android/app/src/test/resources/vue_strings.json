@@ -798,10 +798,22 @@
       "zh": "金额无效：必须为正数，且不得超过剩余应付金额。",
       "area": "errors"
     },
+    "err_eft_below_charged": {
+      "fr": "La carte du client a déjà été débitée de {amount} € : la commande ne peut pas descendre sous ce montant.",
+      "en": "The customer's card has already been charged {amount} €: the order cannot go below that amount.",
+      "zh": "客户的银行卡已被扣款 {amount} €：订单金额不能低于此数。",
+      "area": "errors"
+    },
     "err_eft_busy": {
       "fr": "Le terminal de paiement est occupé avec un autre paiement. Rien n'a été débité.",
       "en": "The payment terminal is busy with another payment. Nothing was charged.",
       "zh": "支付终端正忙于另一笔付款。未扣款。",
+      "area": "errors"
+    },
+    "err_eft_edit_pending": {
+      "fr": "Un paiement par carte attend encore sa réponse : vérifiez-le d'abord. La commande ne peut pas être modifiée entre-temps.",
+      "en": "A card payment is still waiting for its answer: check it first. The order cannot be changed meanwhile.",
+      "zh": "有一笔刷卡付款仍在等待结果：请先查询。在此之前不能修改订单。",
       "area": "errors"
     },
     "err_eft_not_configured": {
@@ -3252,6 +3264,8 @@
     "eft_unreachable",
     "eft_rejected",
     "eft_payment_not_usable",
+    "eft_below_charged",
+    "eft_edit_pending",
     "open_orders_training",
     "digital_unavailable",
     "email_invalid",

@@ -134,6 +134,8 @@ internal object VueStringIds {
         this["err_eft_unreachable"] = R.string.err_eft_unreachable
         this["err_eft_rejected"] = R.string.err_eft_rejected
         this["err_eft_payment_not_usable"] = R.string.err_eft_payment_not_usable
+        this["err_eft_below_charged"] = R.string.err_eft_below_charged
+        this["err_eft_edit_pending"] = R.string.err_eft_edit_pending
         this["err_digital_unavailable"] = R.string.err_digital_unavailable
         this["err_email_invalid"] = R.string.err_email_invalid
         this["err_already_printed"] = R.string.err_already_printed
@@ -264,11 +266,11 @@ internal object VueStringIds {
         this["delivery_status_failed"] = R.string.delivery_status_failed
         this["delivery_status_fallback_printed"] = R.string.delivery_status_fallback_printed
         this["delivery_status_purged"] = R.string.delivery_status_purged
-        this["sw_version"] = R.string.sw_version
-        this["lock"] = R.string.lock
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["sw_version"] = R.string.sw_version
+        this["lock"] = R.string.lock
         this["status_terminal"] = R.string.status_terminal
         this["status_kitchen"] = R.string.status_kitchen
         this["fdm_closes_in"] = R.string.fdm_closes_in
@@ -517,11 +519,11 @@ internal object VueStringIds {
         this["webshop_stale_alarm"] = R.string.webshop_stale_alarm
         this["catalog_issue_empty_key"] = R.string.catalog_issue_empty_key
         this["catalog_issue_duplicate_key"] = R.string.catalog_issue_duplicate_key
-        this["catalog_issue_unknown_category"] = R.string.catalog_issue_unknown_category
-        this["catalog_issue_missing_name"] = R.string.catalog_issue_missing_name
     }
 
     private fun MutableMap<String, Int>.part2() {
+        this["catalog_issue_unknown_category"] = R.string.catalog_issue_unknown_category
+        this["catalog_issue_missing_name"] = R.string.catalog_issue_missing_name
         this["catalog_issue_name_too_long"] = R.string.catalog_issue_name_too_long
         this["catalog_issue_unknown_language"] = R.string.catalog_issue_unknown_language
         this["catalog_issue_negative_price"] = R.string.catalog_issue_negative_price

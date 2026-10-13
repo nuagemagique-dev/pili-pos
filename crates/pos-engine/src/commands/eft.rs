@@ -568,6 +568,62 @@ pub(crate) fn terminal_cards(
     Ok(cards)
 }
 
+/// Before an edit that may lower the total of `order_id`: refuse while
+/// a terminal payment of the order waits for its answer (its amount is
+/// not final), and return what approved payments no sale has settled
+/// hold of the order (0 without any). The order's total may not drop
+/// under it ([`keep_charged`]), since the sale settles each payment for
+/// its exact amount.
+pub(crate) fn charged_floor(db: &Connection, order_id: i64) -> Result<i64, String> {
+    if !eft::open_for_order(db, order_id)
+        .map_err(errors::internal)?
+        .is_empty()
+    {
+        return Err(errors::EFT_EDIT_PENDING.into());
+    }
+    Ok(eft::usable_for_order(db, order_id)
+        .map_err(errors::internal)?
+        .iter()
+        .map(|p| p.amount_cents)
+        .sum())
+}
+
+/// The error of a total under what the card was charged.
+fn below_charged(charged_cents: i64) -> String {
+    errors::coded(
+        errors::EFT_BELOW_CHARGED,
+        &[(
+            "amount",
+            &format!("{},{:02}", charged_cents / 100, charged_cents % 100),
+        )],
+    )
+}
+
+/// After an edit, inside its transaction: the order's total must still
+/// cover `floor` ([`charged_floor`]). The caller rolls back on `Err`.
+pub(crate) fn keep_charged(db: &Connection, order_id: i64, floor: i64) -> Result<(), String> {
+    if floor == 0 {
+        return Ok(());
+    }
+    let total = pos_db::queries::orders::get_order(db, order_id)
+        .map_err(errors::internal)?
+        .total_cents;
+    if total < floor {
+        return Err(below_charged(floor));
+    }
+    Ok(())
+}
+
+/// Before an action that drops the whole order (reject, close as
+/// cancelled): refused while a payment waits for its answer or an
+/// approved one is not settled, the card having been charged.
+pub(crate) fn refuse_if_charged(db: &Connection, order_id: i64) -> Result<(), String> {
+    match charged_floor(db, order_id)? {
+        0 => Ok(()),
+        charged => Err(below_charged(charged)),
+    }
+}
+
 /// Give each settled payment the terminal data of its card.
 pub(crate) fn attach_cards(settlement: &mut Settlement, cards: &[(i64, TerminalCard)]) {
     for payment in &mut settlement.payments {

@@ -61,6 +61,8 @@
     <string name="err_eft_unreachable">无法连接支付终端。未扣款。（{detail}）</string>
     <string name="err_eft_rejected">支付终端拒绝了请求。未扣款。（{detail}）</string>
     <string name="err_eft_payment_not_usable">此刷卡付款无法在此使用：请按准确金额使用本订单的每一笔已批准付款。</string>
+    <string name="err_eft_below_charged">客户的银行卡已被扣款 {amount} €：订单金额不能低于此数。</string>
+    <string name="err_eft_edit_pending">有一笔刷卡付款仍在等待结果：请先查询。在此之前不能修改订单。</string>
     <string name="err_digital_unavailable">此收银机未配置电子邮件票据。</string>
     <string name="err_email_invalid">电子邮件地址无效。</string>
     <string name="err_already_printed">原始票据已打印：请打印副本。</string>

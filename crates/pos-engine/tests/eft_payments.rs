@@ -26,6 +26,9 @@ use pos_engine::commands::eft::{
     do_eft_pay, do_list_eft_payments,
 };
 use pos_engine::commands::errors;
+use pos_engine::commands::order::{
+    AddOrderLineInput, do_add_order_line, do_remove_order_line, do_update_order_line_quantity,
+};
 use pos_engine::commands::settings::do_get_settings;
 use serde_json::Value;
 
@@ -1035,4 +1038,149 @@ async fn the_probe_guard_does_not_block_an_abort() {
     aborted.unwrap();
     assert_eq!(payment.unwrap().status, "cancelled");
     assert!(app.state.eft_line.try_lock().is_ok());
+}
+
+/// A new product at `price_cents` added to `order`; the id of its line.
+fn add_line(app: &TestApp, order: i64, price_cents: i64) -> i64 {
+    let item = {
+        let db = app.state.db.lock().unwrap();
+        db.execute(
+            "INSERT INTO menu_items (category_id, price_cents, vat_code, sort_order, active)
+             VALUES (1, ?1, 'B', 0, 1)",
+            [price_cents],
+        )
+        .unwrap();
+        db.last_insert_rowid()
+    };
+    do_add_order_line(
+        &app.state,
+        AddOrderLineInput {
+            order_id: order,
+            menu_item_id: item,
+            quantity: 1,
+            modifiers_json: None,
+            unit_price_cents: None,
+        },
+    )
+    .unwrap()
+    .id
+}
+
+fn total_of(app: &TestApp, order: i64) -> i64 {
+    pos_engine::commands::order::do_get_order(&app.state, order)
+        .unwrap()
+        .total_cents
+}
+
+fn first_line_of(app: &TestApp, order: i64) -> i64 {
+    pos_engine::commands::order::do_list_order_lines(&app.state, order).unwrap()[0].id
+}
+
+#[tokio::test]
+async fn a_line_cannot_be_removed_under_what_the_card_was_charged() {
+    let (app, script) = app().await;
+    let order = app.order_of(1000);
+    let big = first_line_of(&app, order);
+    let small = add_line(&app, order, 400);
+    approved(&app, &script, order, 1000, "Bancontact", CardType::Debit).await;
+
+    // 1400 - 1000 = 400 < 1000: refused, nothing changed.
+    assert_eq!(
+        do_remove_order_line(&app.state, big).unwrap_err(),
+        "eft_below_charged|amount=10,00"
+    );
+    assert_eq!(total_of(&app, order), 1400);
+    assert_eq!(
+        pos_engine::commands::order::do_list_order_lines(&app.state, order)
+            .unwrap()
+            .len(),
+        2
+    );
+    // 1400 - 400 = 1000: the card is still covered to the cent.
+    do_remove_order_line(&app.state, small).unwrap();
+    assert_eq!(total_of(&app, order), 1000);
+    let payment = &do_list_eft_payments(&app.state, order).unwrap()[0];
+    let sale = do_checkout_split(
+        &app.state,
+        order,
+        &[PaymentPart::terminal(1000, payment.id)],
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    assert!(app.eft_rows().iter().all(|r| r.used_event_id.is_some()));
+}
+
+#[tokio::test]
+async fn a_quantity_cannot_be_lowered_under_what_the_card_was_charged() {
+    let (app, script) = app().await;
+    let order = app.order_of(1000);
+    let line = first_line_of(&app, order);
+    // More is always fine.
+    do_update_order_line_quantity(&app.state, line, 2).unwrap();
+    approved(&app, &script, order, 1500, "Visa", CardType::Credit).await;
+
+    assert_eq!(
+        do_update_order_line_quantity(&app.state, line, 1).unwrap_err(),
+        "eft_below_charged|amount=15,00"
+    );
+    assert_eq!(total_of(&app, order), 2000);
+    // Adding lines is always fine, and lowering is while 1500 is covered.
+    let extra = add_line(&app, order, 600);
+    do_update_order_line_quantity(&app.state, line, 1).unwrap();
+    assert_eq!(total_of(&app, order), 1600);
+    do_remove_order_line(&app.state, extra).unwrap_err();
+    assert_eq!(total_of(&app, order), 1600);
+}
+
+#[tokio::test]
+async fn the_order_is_frozen_while_a_card_payment_waits_for_its_answer() {
+    let (app, script) = app().await;
+    let order = app.order_of(1000);
+    let line = first_line_of(&app, order);
+    let extra = add_line(&app, order, 400);
+    script.on_pay(Ok(Outcome::Unknown {
+        detail: "no answer within 180 s".into(),
+    }));
+    let payment = do_eft_pay(&app.state, order, 500).await.unwrap();
+    assert_eq!(payment.status, "unknown");
+
+    for result in [
+        do_remove_order_line(&app.state, extra),
+        do_update_order_line_quantity(&app.state, line, 3),
+    ] {
+        assert_eq!(result.unwrap_err(), errors::EFT_EDIT_PENDING);
+    }
+    assert_eq!(total_of(&app, order), 1400);
+    // Once the terminal answered, the amount is final: the edit is
+    // judged against it.
+    script.on_status(Ok(approval(500, "Bancontact", CardType::Debit)));
+    assert_eq!(
+        do_eft_check(&app.state, payment.id).await.unwrap().status,
+        "approved"
+    );
+    do_remove_order_line(&app.state, extra).unwrap();
+    assert_eq!(total_of(&app, order), 1000);
+}
+
+#[tokio::test]
+async fn an_order_without_a_card_payment_is_edited_freely() {
+    let (app, script) = app().await;
+    let order = app.order_of(1000);
+    let line = first_line_of(&app, order);
+    let extra = add_line(&app, order, 400);
+    do_remove_order_line(&app.state, extra).unwrap();
+    do_update_order_line_quantity(&app.state, line, 2).unwrap();
+    // A declined card charged nothing.
+    script.on_pay(Ok(Outcome::Declined {
+        reason: "refused".into(),
+    }));
+    assert_eq!(
+        do_eft_pay(&app.state, order, 2000).await.unwrap().status,
+        "declined"
+    );
+    do_update_order_line_quantity(&app.state, line, 1).unwrap();
+    do_remove_order_line(&app.state, line).unwrap();
+    assert_eq!(total_of(&app, order), 0);
 }

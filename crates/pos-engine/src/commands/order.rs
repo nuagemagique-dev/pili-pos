@@ -3,6 +3,7 @@ use rusqlite::OptionalExtension;
 use serde::Deserialize;
 
 use crate::commands::access::{self, Access};
+use crate::commands::eft;
 use crate::commands::errors;
 use crate::state::AppState;
 
@@ -132,16 +133,24 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
 }
 
 /// Remove a line from an open order (journalled as a correction).
+/// Refused when the total would fall under what the customer's card
+/// was charged (`eft::charged_floor`).
 pub fn do_remove_order_line(state: &AppState, line_id: i64) -> Result<(), String> {
     access::operator(state, Access::Staff)?;
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    unchanged_while_pending(&db, order_of_line(&db, line_id)?)?;
-    pos_db::queries::orders::remove_order_line(&db, line_id).map_err(line_error)
+    let order_id = order_of_line(&db, line_id)?;
+    unchanged_while_pending(&db, order_id)?;
+    let floor = eft::charged_floor(&db, order_id)?;
+    let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    pos_db::queries::orders::remove_order_line(&tx, line_id).map_err(line_error)?;
+    eft::keep_charged(&tx, order_id, floor)?;
+    tx.commit().map_err(errors::internal)
 }
 
 /// Set a line's quantity on an open order. Zero or less is refused:
 /// removing a line is [`do_remove_order_line`], and a sale line is
-/// never negative (refunds are their own ticket).
+/// never negative (refunds are their own ticket). Refused like a
+/// removal when the total would fall under what the card was charged.
 pub fn do_update_order_line_quantity(
     state: &AppState,
     line_id: i64,
@@ -152,8 +161,14 @@ pub fn do_update_order_line_quantity(
         return Err(errors::QUANTITY_POSITIVE.into());
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    unchanged_while_pending(&db, order_of_line(&db, line_id)?)?;
-    pos_db::queries::orders::update_order_line_quantity(&db, line_id, quantity).map_err(line_error)
+    let order_id = order_of_line(&db, line_id)?;
+    unchanged_while_pending(&db, order_id)?;
+    let floor = eft::charged_floor(&db, order_id)?;
+    let tx = db.unchecked_transaction().map_err(errors::internal)?;
+    pos_db::queries::orders::update_order_line_quantity(&tx, line_id, quantity)
+        .map_err(line_error)?;
+    eft::keep_charged(&tx, order_id, floor)?;
+    tx.commit().map_err(errors::internal)
 }
 
 /// An order whose event waits for the FDM's answer keeps what was sent

@@ -63,6 +63,8 @@ object EngineErrorCodes {
             "eft_unreachable",
             "eft_rejected",
             "eft_payment_not_usable",
+            "eft_below_charged",
+            "eft_edit_pending",
             "open_orders_training",
             "digital_unavailable",
             "email_invalid",

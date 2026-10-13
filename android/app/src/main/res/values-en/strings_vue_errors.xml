@@ -61,6 +61,8 @@
     <string name="err_eft_unreachable">The payment terminal cannot be reached. Nothing was charged. ({detail})</string>
     <string name="err_eft_rejected">The payment terminal refused the request. Nothing was charged. ({detail})</string>
     <string name="err_eft_payment_not_usable">This card payment cannot be used here: use every approved payment of this order, for its exact amount.</string>
+    <string name="err_eft_below_charged">The customer\'s card has already been charged {amount} €: the order cannot go below that amount.</string>
+    <string name="err_eft_edit_pending">A card payment is still waiting for its answer: check it first. The order cannot be changed meanwhile.</string>
     <string name="err_digital_unavailable">Email tickets are not set up on this terminal.</string>
     <string name="err_email_invalid">Invalid email address.</string>
     <string name="err_already_printed">The original ticket is already printed: print a copy.</string>
