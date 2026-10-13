@@ -8,8 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PolicySetTest {
+    // The 12 measured ones, the error dialogs one and, since PD231, no_install_apps (14 in all).
     @Test
-    fun theSetHoldsTheTwelveMeasuredRestrictionsTheErrorDialogOneAndInstallApps() {
+    fun theSetHoldsTheTwelveMeasuredRestrictionsAndTheErrorDialogOne() {
         assertEquals(
             listOf(
                 "no_factory_reset",
