@@ -170,6 +170,8 @@ pub struct Inner {
     pub requests: Vec<RequestLog>,
     pub api_key: Option<String>,
     pub device_port: u16,
+    /// Whether the Worldline terminals show as connected to the cloud.
+    pub terminals_online: bool,
     /// The OPI payment `RepeatLastMessage` repeats.
     pub opi_last: Option<String>,
     seq: u64,
@@ -185,6 +187,7 @@ pub fn new_shared(api_key: Option<String>, device_port: u16) -> Shared {
         requests: Vec::new(),
         api_key,
         device_port,
+        terminals_online: true,
         opi_last: None,
         seq: 0,
     }))

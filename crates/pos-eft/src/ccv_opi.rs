@@ -56,6 +56,8 @@ const DEFAULT_DEVICE_PORT: u16 = 4102;
 /// Largest message accepted from the terminal.
 const MAX_FRAME: usize = 1 << 20;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// Connect timeout of [`CcvOpi::check`].
+const CHECK_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// A CCV terminal on the LAN, spoken to in OPI.
 pub struct CcvOpi {
@@ -432,9 +434,25 @@ impl CcvOpi {
         }
     }
 
-    /// Stub of the reachability check (to be implemented).
+    /// Reachability check: a TCP connection to the terminal's channel 0
+    /// address, closed at once. No message is sent, so nothing can be
+    /// charged and the terminal's payment state is untouched. It proves
+    /// the terminal listens, not that it is ready for a card.
     pub async fn check(&self) -> Result<(), EftError> {
-        Err(EftError::Unreachable("check not implemented".into()))
+        match timeout(CHECK_TIMEOUT, TcpStream::connect(&self.address)).await {
+            Ok(Ok(mut stream)) => {
+                let _ = stream.shutdown().await;
+                Ok(())
+            }
+            Ok(Err(e)) => Err(EftError::Unreachable(format!(
+                "cannot connect to the terminal at {}: {e}",
+                self.address
+            ))),
+            Err(_) => Err(EftError::Unreachable(format!(
+                "the terminal at {} does not answer",
+                self.address
+            ))),
+        }
     }
 
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {

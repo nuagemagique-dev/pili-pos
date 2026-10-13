@@ -459,3 +459,71 @@ fn a_terminal_needs_its_configuration() {
     let err = Terminal::new(&config, reqwest::Client::new(), "pili-pos/1.0.0");
     assert!(matches!(err, Err(EftError::Config(_))));
 }
+
+#[tokio::test]
+async fn a_reachable_terminal_checks_ok_and_charges_nothing() {
+    for kind in ALL {
+        let rig = Rig::new(kind);
+        rig.t()
+            .check()
+            .await
+            .unwrap_or_else(|e| panic!("{kind:?}: {e}"));
+        assert!(rig.mock.payments().is_empty(), "{kind:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_closed_port_checks_unreachable() {
+    for kind in ALL {
+        let mut rig = Rig::new(kind);
+        let closed = format!("127.0.0.1:{}", free_port());
+        match kind {
+            Kind::Opi => rig.config.address = Some(closed),
+            _ => rig.config.base_url = Some(format!("http://{closed}")),
+        }
+        let out = rig.t().check().await;
+        assert!(
+            matches!(out, Err(EftError::Unreachable(_))),
+            "{kind:?}: {out:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_bad_api_key_fails_the_check_as_rejected() {
+    for kind in [Kind::Worldline, Kind::Ccv] {
+        let mut rig = Rig::new(kind);
+        rig.mock.set_api_key(Some("the-real-key"));
+        rig.set_key("a-wrong-key");
+        let out = rig.t().check().await;
+        assert!(
+            matches!(out, Err(EftError::Rejected(_))),
+            "{kind:?}: {out:?}"
+        );
+        rig.set_key("the-real-key");
+        rig.t().check().await.unwrap();
+        assert!(rig.mock.payments().is_empty(), "{kind:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_worldline_terminal_not_connected_fails_the_check() {
+    let rig = Rig::new(Kind::Worldline);
+    rig.mock.set_terminals_online(false);
+    let out = rig.t().check().await;
+    let Err(EftError::Unreachable(why)) = out else {
+        panic!("{out:?}")
+    };
+    assert!(why.contains("not connected"), "{why}");
+    rig.mock.set_terminals_online(true);
+    rig.t().check().await.unwrap();
+    assert!(rig.mock.payments().is_empty());
+}
+
+#[tokio::test]
+async fn an_unlisted_worldline_terminal_id_fails_the_check() {
+    let mut rig = Rig::new(Kind::Worldline);
+    rig.config.terminal_id = Some("99999999".into());
+    let out = rig.t().check().await;
+    assert!(matches!(out, Err(EftError::Unreachable(_))), "{out:?}");
+}

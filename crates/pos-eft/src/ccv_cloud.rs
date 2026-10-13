@@ -41,6 +41,8 @@ use crate::{Approval, EftError, Outcome, PaymentRequest, brand, receipt};
 /// CCV's production and test API (the key's mode decides).
 const PRODUCTION_URL: &str = "https://api.psp.ccv.eu";
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// Total timeout of [`CcvPaymentApi::check`].
+const CHECK_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A CCV terminal reached through the CCV cloud.
 pub struct CcvPaymentApi {
@@ -354,9 +356,35 @@ impl CcvPaymentApi {
         })
     }
 
-    /// Stub of the reachability check (to be implemented).
+    /// Reachability check of the CCV service, not of the terminal: CCV
+    /// has no terminal-presence endpoint. A read of a transaction with a
+    /// random reference proves the service answers and the key is
+    /// accepted (200 or 404 is `Ok`, 401 and 403 are rejected). Nothing
+    /// is created, so nothing can be charged.
     pub async fn check(&self) -> Result<(), EftError> {
-        Err(EftError::Unreachable("check not implemented".into()))
+        let query = format!(
+            "/api/v1/transaction?reference={}",
+            uuid::Uuid::new_v4().simple()
+        );
+        let request = self
+            .request(reqwest::Method::GET, &query)
+            .timeout(CHECK_TIMEOUT);
+        match send(request).await {
+            Ok(r) => match r.status {
+                200 | 404 => Ok(()),
+                401 | 403 => Err(EftError::Rejected(format!(
+                    "CCV refused the API key (HTTP {})",
+                    r.status
+                ))),
+                400..=499 => Err(EftError::Rejected(format!(
+                    "HTTP {}: {}",
+                    r.status,
+                    error_message(&r.body)
+                ))),
+                code => Err(EftError::Unreachable(format!("CCV answered HTTP {code}"))),
+            },
+            Err(SendError::NotSent(e) | SendError::Lost(e)) => Err(EftError::Unreachable(e)),
+        }
     }
 
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {
