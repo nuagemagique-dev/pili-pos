@@ -362,6 +362,7 @@ impl Engine {
                 fdm_monitor: Default::default(),
                 export,
                 eft_in_flight: Mutex::new(None),
+                eft_line: tokio::sync::Mutex::new(()),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,
             }),

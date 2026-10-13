@@ -80,6 +80,12 @@ pub struct AppState {
     /// (`commands::eft`): an abort goes to the same instance, which
     /// keeps the state of the call (a cancel ends as Cancelled).
     pub eft_in_flight: Mutex<Option<(String, std::sync::Arc<pos_eft::Terminal>)>>,
+    /// The terminal's line: a terminal serves one connection at a time,
+    /// so a payment and a status question hold it for their whole
+    /// exchange and the reachability probe only looks at it
+    /// (`commands::eft`). An abort never takes it: it reaches the
+    /// payment's own instance, or opens its own connection.
+    pub eft_line: tokio::sync::Mutex<()>,
     /// A terminal that answers from a script, used in place of the
     /// configured one (`commands::eft`). Tests only: the field exists
     /// under the `eft-scripted` feature, which no shipped build enables.

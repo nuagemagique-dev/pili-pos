@@ -22,7 +22,8 @@ use pos_eft::scripted::{Call, Script};
 use pos_eft::{CardType, EftError, Outcome};
 use pos_engine::commands::checkout::{PaymentPart, do_checkout, do_checkout_split};
 use pos_engine::commands::eft::{
-    EftPayment, do_eft_abort, do_eft_check, do_eft_pay, do_list_eft_payments,
+    EftPayment, PaymentTerminalStatus, do_check_payment_terminal, do_eft_abort, do_eft_check,
+    do_eft_pay, do_list_eft_payments,
 };
 use pos_engine::commands::errors;
 use pos_engine::commands::settings::do_get_settings;
@@ -885,4 +886,153 @@ async fn a_training_sale_never_charges_a_real_card() {
     assert_eq!(err, errors::EFT_TRAINING);
     assert!(script.calls().is_empty(), "the terminal was never asked");
     assert!(app.eft_rows().is_empty(), "nothing stored");
+}
+
+// ── Reachability of the linked terminal ────────────────────────
+
+#[tokio::test]
+async fn the_terminal_check_of_an_unlinked_till_probes_nothing() {
+    let mut app = TestApp::new().await;
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert_eq!(
+        status,
+        PaymentTerminalStatus {
+            configured: false,
+            kind: None,
+            connected: false,
+            busy: false,
+            detail: None,
+        }
+    );
+    // Still no script to call, even once linked and then unlinked.
+    let script = app.link_terminal();
+    app.state.config.lock().unwrap().payment_terminal = None;
+    assert!(
+        !do_check_payment_terminal(&app.state)
+            .await
+            .unwrap()
+            .configured
+    );
+    assert!(script.calls().is_empty());
+}
+
+#[tokio::test]
+async fn a_reachable_terminal_is_connected() {
+    let (app, script) = app().await;
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert_eq!(
+        status,
+        PaymentTerminalStatus {
+            configured: true,
+            kind: Some("ccv_opi".into()),
+            connected: true,
+            busy: false,
+            detail: None,
+        }
+    );
+    assert_eq!(script.calls(), vec![Call::Check]);
+    // Nothing was stored, nothing charged.
+    assert!(app.eft_rows().is_empty());
+}
+
+#[tokio::test]
+async fn an_unreachable_terminal_says_why() {
+    let (app, script) = app().await;
+    script.on_check(Err(EftError::Unreachable("connection refused".into())));
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert!(status.configured && !status.connected && !status.busy);
+    assert_eq!(status.detail.as_deref(), Some("connection refused"));
+    // The next probe finds it again.
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert!(status.connected && status.detail.is_none());
+}
+
+#[tokio::test]
+async fn a_terminal_busy_elsewhere_still_counts_as_there() {
+    let (app, script) = app().await;
+    script.on_check(Err(EftError::Busy));
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert!(status.connected && status.busy);
+    assert!(status.detail.is_none());
+}
+
+#[tokio::test]
+async fn the_check_works_before_login_and_in_training() {
+    let (app, script) = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    *app.state.session.lock().unwrap() = None;
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert!(status.connected);
+    assert_eq!(script.calls(), vec![Call::Check]);
+}
+
+#[tokio::test]
+async fn no_probe_while_a_payment_runs() {
+    let (app, script) = app().await;
+    let order = app.order_of(1500);
+    script.set_pay_delay(std::time::Duration::from_millis(400));
+    script.on_pay(Ok(approval(1500, "Bancontact", CardType::Debit)));
+
+    let pay = do_eft_pay(&app.state, order, 1500);
+    let check = async {
+        for _ in 0..100 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            if app
+                .eft_rows()
+                .first()
+                .is_some_and(|r| r.status.as_str() == "sent")
+            {
+                break;
+            }
+        }
+        // Past the stored row the guard is taken within a moment.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        do_check_payment_terminal(&app.state).await.unwrap()
+    };
+    let (payment, status) = tokio::join!(pay, check);
+    assert_eq!(payment.unwrap().status, "approved");
+    assert!(status.configured && status.connected && status.busy);
+    assert!(status.detail.is_none());
+    let calls = script.calls();
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    assert!(matches!(calls[0], Call::Pay { .. }));
+    // The line is free again: the next probe goes through.
+    let status = do_check_payment_terminal(&app.state).await.unwrap();
+    assert!(status.connected && !status.busy);
+    assert_eq!(script.calls().last(), Some(&Call::Check));
+}
+
+#[tokio::test]
+async fn the_probe_guard_does_not_block_an_abort() {
+    let (app, script) = app().await;
+    let order = app.order_of(1500);
+    script.set_pay_delay(std::time::Duration::from_millis(400));
+    script.on_pay(Ok(Outcome::Cancelled));
+
+    let pay = do_eft_pay(&app.state, order, 1500);
+    let abort = async {
+        for _ in 0..100 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            if app
+                .eft_rows()
+                .first()
+                .is_some_and(|r| r.status.as_str() == "sent")
+            {
+                break;
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        // The line is held by the payment: the abort answers anyway.
+        assert!(app.state.eft_line.try_lock().is_err());
+        tokio::time::timeout(
+            std::time::Duration::from_millis(300),
+            do_eft_abort(&app.state),
+        )
+        .await
+        .expect("the abort must not wait for the line")
+    };
+    let (payment, aborted) = tokio::join!(pay, abort);
+    aborted.unwrap();
+    assert_eq!(payment.unwrap().status, "cancelled");
+    assert!(app.state.eft_line.try_lock().is_ok());
 }

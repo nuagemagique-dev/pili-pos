@@ -163,6 +163,7 @@ impl TestApp {
             fdm_monitor: Default::default(),
             export: pos_engine::commands::export::ExportState::disabled(),
             eft_in_flight: Mutex::new(None),
+            eft_line: tokio::sync::Mutex::new(()),
             eft_terminal_override: None,
         };
 

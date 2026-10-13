@@ -294,6 +294,8 @@ pub async fn do_eft_pay(
     };
     let result = match build_terminal(state, &terminal_config) {
         Ok(terminal) => {
+            // The terminal serves one connection: no probe meanwhile.
+            let _line = state.eft_line.lock().await;
             // An abort reaches this very instance while it waits.
             let terminal = Arc::new(terminal);
             let _in_flight = InFlight::set(state, &reference, terminal.clone());
@@ -402,6 +404,8 @@ impl Drop for InFlight<'_> {
 /// returned as it is. Any logged-in user.
 pub async fn do_eft_check(state: &AppState, id: i64) -> Result<EftPayment, String> {
     access::operator(state, Access::Staff)?;
+    // Behind a payment in progress, whose answer is then the stored one.
+    let _line = state.eft_line.lock().await;
     let row = {
         let db = state.db.lock().map_err(errors::internal)?;
         eft::get(&db, id).map_err(errors::internal)?
@@ -419,6 +423,73 @@ pub async fn do_eft_check(state: &AppState, id: i64) -> Result<EftPayment, Strin
     let row = store(state, id, &resolution_of(outcome, row.amount_cents))?;
     tracing::info!(id, status = row.status.as_str(), "card payment checked");
     Ok(EftPayment::of(row))
+}
+
+/// Whether the linked terminal is configured and answers, as the
+/// header light and the start-up checks show it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PaymentTerminalStatus {
+    pub configured: bool,
+    /// The driver (`PaymentTerminalKind::as_str`); `None` when not
+    /// configured.
+    pub kind: Option<String>,
+    /// The terminal answered (or a payment is running on it).
+    pub connected: bool,
+    /// A payment or a status question holds the terminal's line: it was
+    /// not probed.
+    pub busy: bool,
+    /// Why it is not connected.
+    pub detail: Option<String>,
+}
+
+/// Ask the linked terminal whether it is reachable. Charges nothing and
+/// never disturbs a payment: while one holds the terminal's line
+/// (`AppState::eft_line`) the answer is "busy, connected" without a
+/// probe. A training till probes too. No login needed: the start-up
+/// checks ask before anyone is in, like the printers'.
+pub async fn do_check_payment_terminal(state: &AppState) -> Result<PaymentTerminalStatus, String> {
+    let configured = state
+        .config
+        .lock()
+        .map_err(errors::internal)?
+        .payment_terminal
+        .clone();
+    let Some(config) = configured else {
+        return Ok(PaymentTerminalStatus {
+            configured: false,
+            kind: None,
+            connected: false,
+            busy: false,
+            detail: None,
+        });
+    };
+    let kind = Some(config.kind.as_str().to_string());
+    let Ok(_line) = state.eft_line.try_lock() else {
+        return Ok(PaymentTerminalStatus {
+            configured: true,
+            kind,
+            connected: true,
+            busy: true,
+            detail: None,
+        });
+    };
+    let result = match build_terminal(state, &config) {
+        Ok(terminal) => terminal.check().await,
+        Err(e) => Err(e),
+    };
+    // A terminal busy with a payment of another till answers: it is there.
+    let busy = matches!(result, Err(EftError::Busy));
+    let detail = match result {
+        Err(EftError::Unreachable(d) | EftError::Rejected(d) | EftError::Config(d)) => Some(d),
+        Ok(()) | Err(EftError::Busy) => None,
+    };
+    Ok(PaymentTerminalStatus {
+        configured: true,
+        kind,
+        connected: detail.is_none(),
+        busy,
+        detail,
+    })
 }
 
 /// The order's payments the checkout screen shows: those approved and
