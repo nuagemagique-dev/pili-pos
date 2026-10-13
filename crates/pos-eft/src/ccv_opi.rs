@@ -58,6 +58,9 @@ const MAX_FRAME: usize = 1 << 20;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Connect timeout of [`CcvOpi::check`].
 const CHECK_TIMEOUT: Duration = Duration::from_secs(3);
+/// How long [`CcvOpi::check`] keeps the connection open to see it is not
+/// dropped at once.
+const CHECK_HOLD: Duration = Duration::from_millis(500);
 
 /// A CCV terminal on the LAN, spoken to in OPI.
 pub struct CcvOpi {
@@ -442,24 +445,44 @@ impl CcvOpi {
     }
 
     /// Reachability check: a TCP connection to the terminal's channel 0
-    /// address, closed at once. No message is sent, so nothing can be
-    /// charged and the terminal's payment state is untouched. It proves
-    /// the terminal listens, not that it is ready for a card.
+    /// address, held for [`CHECK_HOLD`] then closed. No message is sent,
+    /// so nothing can be charged and the terminal's payment state is
+    /// untouched. A connection the other side closes at once counts as
+    /// unreachable: a relay that accepts then drops (`adb reverse` with
+    /// nothing behind it, a port forward to a switched-off terminal)
+    /// would otherwise look connected. It proves the terminal listens,
+    /// not that it is ready for a card.
     pub async fn check(&self) -> Result<(), EftError> {
-        match timeout(CHECK_TIMEOUT, TcpStream::connect(&self.address)).await {
-            Ok(Ok(mut stream)) => {
-                let _ = stream.shutdown().await;
-                Ok(())
+        let mut stream = match timeout(CHECK_TIMEOUT, TcpStream::connect(&self.address)).await {
+            Ok(Ok(stream)) => stream,
+            Ok(Err(e)) => {
+                return Err(EftError::Unreachable(format!(
+                    "cannot connect to the terminal at {}: {e}",
+                    self.address
+                )));
             }
+            Err(_) => {
+                return Err(EftError::Unreachable(format!(
+                    "the terminal at {} does not answer",
+                    self.address
+                )));
+            }
+        };
+        let mut byte = [0u8; 1];
+        let held = match timeout(CHECK_HOLD, stream.read(&mut byte)).await {
+            // Still open after the hold, or the terminal spoke: alive.
+            Err(_) | Ok(Ok(1..)) => Ok(()),
+            Ok(Ok(0)) => Err(EftError::Unreachable(format!(
+                "the connection to the terminal at {} was closed at once",
+                self.address
+            ))),
             Ok(Err(e)) => Err(EftError::Unreachable(format!(
-                "cannot connect to the terminal at {}: {e}",
+                "the connection to the terminal at {} failed: {e}",
                 self.address
             ))),
-            Err(_) => Err(EftError::Unreachable(format!(
-                "the terminal at {} does not answer",
-                self.address
-            ))),
-        }
+        };
+        let _ = stream.shutdown().await;
+        held
     }
 
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {

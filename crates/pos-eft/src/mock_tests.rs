@@ -490,6 +490,27 @@ async fn a_closed_port_checks_unreachable() {
 }
 
 #[tokio::test]
+async fn an_opi_port_that_drops_the_connection_checks_unreachable() {
+    // What `adb reverse` does with nothing behind it: accept, then close.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let relay = tokio::spawn(async move {
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            drop(stream);
+        }
+    });
+    let mut rig = Rig::new(Kind::Opi);
+    rig.config.address = Some(address);
+    let out = rig.t().check().await;
+    relay.abort();
+    let Err(EftError::Unreachable(why)) = out else {
+        panic!("{out:?}")
+    };
+    assert!(why.contains("closed at once"), "{why}");
+}
+
+#[tokio::test]
 async fn a_bad_api_key_fails_the_check_as_rejected() {
     for kind in [Kind::Worldline, Kind::Ccv] {
         let mut rig = Rig::new(kind);
