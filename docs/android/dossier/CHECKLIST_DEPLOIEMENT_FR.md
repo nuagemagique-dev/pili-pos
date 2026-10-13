@@ -64,19 +64,21 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       redémarrage (`PLATEFORME_ANDROID_FR.md` §3.2). Essai sur le produit :
       À effectuer (EV-10 : manuel d'exécution du D3 Pro sur les deux
       profils).
-- [ ] Les 13 restrictions de l'ensemble constant sont présentes
+- [ ] Les 14 restrictions de l'ensemble constant sont présentes
       (`PLATEFORME_ANDROID_FR.md` §3.3) ; débogage USB coupé sur la version
       de production (§3.5) ; ni le montage des supports amovibles ni le
       réglage du Wi-Fi ne sont restreints.
 - [ ] Fuseau Europe/Brussels fixé, heure automatique active, horloge
       exacte à la seconde (`PLATEFORME_ANDROID_FR.md` §3.4) ; mise à jour
-      du système en report (comme construit).
+      du système à fenêtre horaire de nuit, 03:00 à 05:00 (comme construit).
 - [ ] **Boutique Play et applications Google destinées à l'utilisateur
       masquées**, installations bloquées sauf par l'outil de mise à jour
       déclarée ; tout message de Play Protect noté. Comme construit :
-      aucune application masquée ; À effectuer (EV-13 : paquets masqués,
-      restriction d'installation, fenêtre de mise à jour système, Play
-      Protect, sur le profil avec services Google).
+      applications Google masquées (liste au `PLATEFORME_ANDROID_FR.md`
+      §3.7), `DISALLOW_INSTALL_APPS` posée ; À effectuer (EV-13 : paquets
+      réellement masqués, session de l'outil de mise à jour sous la
+      restriction, fenêtre de mise à jour système, Play Protect, sur le
+      profil avec services Google).
 - [ ] Aucun accès à distance (`PLATEFORME_ANDROID_FR.md` §7).
 
 ## Couche application

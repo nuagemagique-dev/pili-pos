@@ -101,6 +101,7 @@ Ensemble constant appliqué par `PolicySet.kt` (`android/app/src/main/kotlin/dev
 | `DISALLOW_FACTORY_RESET` | `no_factory_reset` | bloque la réinitialisation d'usine depuis les Réglages |
 | `DISALLOW_SAFE_BOOT` | `no_safe_boot` | interdit le démarrage en mode sans échec (invite du menu d'alimentation) |
 | `DISALLOW_UNINSTALL_APPS` | `no_uninstall_apps` | interdit la désinstallation d'applications |
+| `DISALLOW_INSTALL_APPS` | `no_install_apps` | interdit toute installation d'application (boutique Play comprise) ; l'outil de mise à jour la lève pour sa seule session d'installation et la repose ensuite (§3.7) |
 | `DISALLOW_INSTALL_UNKNOWN_SOURCES` | `no_install_unknown_sources` | interdit l'installation depuis des sources inconnues |
 | `DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY` | `no_install_unknown_sources_globally` | idem pour tous les profils |
 | `DISALLOW_CONFIG_DATE_TIME` | `no_config_date_time` | verrouille la date, l'heure et le fuseau |
@@ -113,7 +114,7 @@ Ensemble constant appliqué par `PolicySet.kt` (`android/app/src/main/kotlin/dev
 | `DISALLOW_SYSTEM_ERROR_DIALOGS` | `no_system_error_dialogs` | supprime les fenêtres de plantage ; un second plantage ne fige pas la caisse derrière une fenêtre |
 | `DISALLOW_DEBUGGING_FEATURES` | `no_debugging_features` | coupe adb. **Versions de production uniquement**, appliquée en dernier et seulement quand un enregistrement de provisionnement existe ; les versions de développement ne l'appliquent jamais |
 
-Les treize premières lignes sont appliquées dans toutes les versions ; la dernière est propre aux versions de production.
+Les quatorze premières lignes sont appliquées dans toutes les versions ; la dernière est propre aux versions de production.
 
 **Jamais appliquées** (le code refuse de les appliquer et un test le vérifie) :
 
@@ -122,7 +123,7 @@ Les treize premières lignes sont appliquées dans toutes les versions ; la dern
 | `DISALLOW_MOUNT_PHYSICAL_MEDIA` (clé `no_physical_media`) | la clé USB ou la carte SD doivent pouvoir se monter pour l'export vers le SPF ; le nom `no_mount_physical_media` est aussi interdit |
 | `DISALLOW_CONFIG_WIFI` (clé `no_config_wifi`) | le Wi-Fi du site se prépare au banc avant l'import du lot ; un écran de réseau protégé par le code d'un Gérant est la cible, non construite en 1.0.0 (`MANUEL_INSTALLATION_FR.md` §4.3) |
 
-Mesuré sur l'émulateur avec l'application prototype des essais préparatoires (mêmes appels de propriétaire d'appareil) : l'écran de réinitialisation d'usine répond « Bloqué par votre administrateur », l'ajout d'un utilisateur est refusé, la désinstallation de l'application est refusée. Ces refus avec pili-pos-android : À effectuer (EV-10 : manuel d'exécution du D3 Pro). Mesuré sur le produit : les 13 restrictions de l'ensemble constant sont présentes dans le système après le provisionnement. Le chemin de démarrage en mode sans échec par les touches de volume et le menu de récupération du fabricant ne sont pas établis : À effectuer (EV-15 : menu de récupération du D3 Pro, ce qu'il peut effacer ou installer sous ces restrictions).
+Mesuré sur l'émulateur avec l'application prototype des essais préparatoires (mêmes appels de propriétaire d'appareil) : l'écran de réinitialisation d'usine répond « Bloqué par votre administrateur », l'ajout d'un utilisateur est refusé, la désinstallation de l'application est refusée. Ces refus avec pili-pos-android : À effectuer (EV-10 : manuel d'exécution du D3 Pro). Mesuré sur le produit : les restrictions de l'ensemble constant sont présentes dans le système après le provisionnement. Le chemin de démarrage en mode sans échec par les touches de volume et le menu de récupération du fabricant ne sont pas établis : À effectuer (EV-15 : menu de récupération du D3 Pro, ce qu'il peut effacer ou installer sous ces restrictions).
 
 ### 3.4 Autres mesures du propriétaire (tel que construit)
 
@@ -135,7 +136,8 @@ Chaque étape s'exécute isolément : un refus est consigné et les suivantes co
 | `stay_awake` | écran allumé tant que le terminal est branché (`STAY_ON_WHILE_PLUGGED_IN`, valeur 7) |
 | `keyguard_off` | écran de verrouillage du système désactivé (l'application possède son propre verrouillage par code PIN) |
 | `status_bar_off` | barre d'état désactivée |
-| `update_policy` | politique de mise à jour du système en report (§3.6) |
+| `hide:<paquet>` | une étape par application Google de la liste du §3.7, masquée par `setApplicationHidden` ; un paquet absent de l'appareil ou déjà masqué est ignoré |
+| `update_policy` | politique de mise à jour du système à fenêtre horaire de nuit, 03:00 à 05:00 (§3.6) |
 | `lock_task_features` | fonctions de Lock Task à « aucune » (§3.2) |
 
 Quand l'application n'est pas propriétaire de l'appareil, rien n'est appliqué et l'état est consigné.
@@ -146,21 +148,19 @@ Les versions de production coupent adb (restriction `DISALLOW_DEBUGGING_FEATURES
 
 ### 3.6 Mise à jour du système Android
 
-**Tel que construit.** Le propriétaire fixe la politique de mise à jour du système sur « report » (`DevicePolicies.kt`, méthode `setSystemUpdatePolicyPostpone`, étape `update_policy` de `PolicyApplier.kt`) : le terminal n'installe pas de mise à jour du système de sa propre initiative. Une mise à jour du système ne modifie jamais l'APK déclaré. La durée maximale de report imposée par Android et le comportement de l'image du fabricant : À effectuer (EV-13 : comportement de la politique en report sur l'image avec services Google).
-
-**Cible (EV-13).** Une politique à fenêtre horaire, hors des heures de service : les mises à jour du système ne peuvent s'installer et ne peuvent redémarrer le terminal que dans une plage définie en dehors du service, jamais pendant un service. À effectuer (EV-13 : construction de la politique à fenêtre horaire et essai sur le profil avec services Google).
+**Tel que construit.** Le propriétaire fixe une politique de mise à jour du système à fenêtre horaire (`DevicePolicies.kt`, méthode `setSystemUpdatePolicyWindowed`, étape `update_policy` de `PolicyApplier.kt`) : le système n'installe ses mises à jour que de 03:00 à 05:00, heure locale du terminal. Le fuseau étant verrouillé sur Europe/Brussels (§3.4), la fenêtre est celle de Bruxelles, en dehors des heures de service. Une politique de report ne repousserait une mise à jour que de trente jours, après quoi le système se mettrait à jour quand il l'entend, éventuellement pendant un service. Une mise à jour du système ne modifie jamais l'APK déclaré. Le comportement de l'image du fabricant face à cette politique (mises à jour du système proposées par le fabricant, redémarrage dans la fenêtre) : À effectuer (EV-13 : comportement de la politique à fenêtre horaire sur l'image avec services Google).
 
 ### 3.7 Services Google (variante avec services Google)
 
 Le terminal cible porte les services Google et la boutique Play. L'application n'est pas distribuée par la boutique : elle est installée par le producteur (§3.1) puis mise à jour par le seul outil de mise à jour déclarée (`GARANTIE_MAJ_LANGUES_FR.md` §2.1). Le tableau distingue ce que le code fait aujourd'hui de la cible.
 
-| Mesure | Tel que construit (1.0.0) | Cible |
-|---|---|---|
-| Aucun compte Google | provisionnement sans compte (§3.1) et `DISALLOW_MODIFY_ACCOUNTS` | inchangé |
-| Boutique Play et applications Google visibles par l'utilisateur | **aucune application n'est masquée**, mais le mode kiosque suspend les autres écrans d'accueil et les Réglages et l'utilisateur n'a accès qu'à l'application | boutique Play et applications Google destinées à l'utilisateur masquées par le propriétaire (`setApplicationHidden`) ; À effectuer (EV-13 : liste des paquets masqués, essai sur le profil avec services Google) |
-| Installations | `DISALLOW_INSTALL_UNKNOWN_SOURCES` et `DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY` ; la session d'installation du propriétaire reste possible (mesuré) | toute installation bloquée (`DISALLOW_INSTALL_APPS`) sauf la session de l'outil de mise à jour ; À effectuer (EV-13 : la session du propriétaire doit rester possible sous cette restriction) |
-| Politique de mise à jour du système | report (§3.6) | fenêtre horaire hors service ; À effectuer (EV-13) |
-| Play Protect | non piloté par l'application | À effectuer (EV-13 : ce que Play Protect affiche à l'installation et à la mise à jour d'un APK installé hors boutique, enregistré au rapport d'essai) |
+| Mesure | Tel que construit |
+|---|---|
+| Aucun compte Google | provisionnement sans compte (§3.1) et `DISALLOW_MODIFY_ACCOUNTS` |
+| Boutique Play et applications Google visibles par l'utilisateur | masquées par le propriétaire (`setApplicationHidden`, étapes `hide:<paquet>`) : `com.android.vending` (boutique Play), `com.android.chrome`, `com.google.android.googlequicksearchbox` (application Google et Assistant), `com.google.android.youtube`, `com.google.android.apps.youtube.music`, `com.google.android.videos`, `com.google.android.gm`, `com.google.android.apps.maps`, `com.google.android.apps.photos`, `com.google.android.apps.docs`, `com.google.android.apps.nbu.files`, `com.google.android.apps.tachyon`, `com.google.android.apps.messaging` et `com.google.android.calendar`. Un paquet absent de l'appareil est ignoré. Les services Google Play (`com.google.android.gms`, `com.google.android.gsf`), l'interface système, les Réglages, l'installateur de paquets, le WebView, le clavier et la synthèse vocale ne sont jamais masqués (le code refuse de les masquer et un test le vérifie). Le mode kiosque suspend en plus les autres écrans d'accueil et les Réglages. Liste des paquets réellement présents et masqués sur le terminal : À effectuer (EV-13 : essai sur le profil avec services Google) |
+| Installations | `DISALLOW_INSTALL_APPS`, `DISALLOW_INSTALL_UNKNOWN_SOURCES` et `DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY` sont posées. L'outil de mise à jour lève `DISALLOW_INSTALL_APPS` pour sa seule session d'installation (la session du propriétaire est bloquée par cette restriction sur certaines versions d'Android) et la repose dès que le système a répondu ou que l'attente de 90 secondes est écoulée, quoi qu'il arrive ; si l'installation réussit, le processus est remplacé et le démarrage suivant la repose, comme après un plantage. Session du propriétaire sous cette restriction sur le terminal : À effectuer (EV-13) |
+| Politique de mise à jour du système | fenêtre horaire de 03:00 à 05:00 (§3.6) ; comportement sur l'image : À effectuer (EV-13) |
+| Play Protect | non piloté par l'application ; À effectuer (EV-13 : ce que Play Protect affiche à l'installation et à la mise à jour d'un APK installé hors boutique, enregistré au rapport d'essai) |
 
 Si Play Protect bloque ou avertit, la parade est l'enregistrement du paquet et de la clé de signature auprès de Google, démarche du producteur.
 

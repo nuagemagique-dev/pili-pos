@@ -53,11 +53,11 @@ Status: as built (P6-T3)
 Order inside `apply`, each step in its own try/catch (a refusal is recorded and the next step still runs):
 
 1. `setAutoTimeZoneEnabled(false)`, then `setTimeZone("Europe/Brussels")` (the zone is set only once the automatic zone is off), then `setAutoTimeEnabled(true)`;
-2. the 13 restrictions one by one: `no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`, `no_system_error_dialogs`. One `getUserRestrictions` read comes first, and a restriction already listed is not added again (the step counts as ok and is marked skipped), so a normal start makes few calls;
-3. `setUninstallBlocked` for the own package;
+2. the 14 restrictions one by one: `no_factory_reset`, `no_safe_boot`, `no_uninstall_apps`, `no_install_apps`, `no_install_unknown_sources`, `no_install_unknown_sources_globally`, `no_config_date_time`, `no_add_user`, `no_user_switch`, `no_remove_user`, `no_modify_accounts`, `no_usb_file_transfer`, `no_network_reset`, `no_system_error_dialogs`. One `getUserRestrictions` read comes first, and a restriction already listed is not added again (the step counts as ok and is marked skipped), so a normal start makes few calls;
+3. `setUninstallBlocked` for the own package, then one `hide:<package>` step per entry of `PolicySet.HIDDEN_PACKAGES` (PD231: the Play Store and the user-facing Google apps, `setApplicationHidden`; a missing or already hidden package is a skipped step, never an error; `NEVER_HIDDEN` and the own package are refused);
 4. stay awake while plugged in (`STAY_ON_WHILE_PLUGGED_IN` = "7");
 5. keyguard disabled, status bar disabled (a `false` return from the system is a failed step);
-6. the postpone system update policy;
+6. the windowed system update policy, 03:00 to 05:00 local (Europe/Brussels) (PD231; a postpone policy only delays 30 days);
 7. `setLockTaskFeatures(0)`;
 8. last, only when the build is release and a provisioning record exists: `no_debugging_features` (adb off).
 
@@ -310,10 +310,13 @@ UpdateScreen            UpdateInstaller                 engine / disk / system
                         gateway.close()  -> Closed          (StillOpen: Refused engine_busy, EngineService.start)
                         write filesDir/platform/update/pending.json  (tmp file, fsync, rename)
                         audit update/started {from, to, version, sha1}
+                        clearUserRestriction(no_install_apps)   (PD231; set again in a finally, after the system answered or the hold ended)
                         PackageInstaller session: MODE_FULL_INSTALL, own package, INSTALL_REASON_POLICY,
                           USER_ACTION_NOT_REQUIRED, setSize, openWrite + fsync, commit(broadcast to InstallResultReceiver)
                         returns Committed (the result is not awaited)
 ```
+
+`DISALLOW_INSTALL_APPS` (PD231) is lifted only around the session. If the install succeeds the process is replaced before the restriction is set again, and the next `PolicyApplier.apply` at application start adds it back (the same repair as after a crash). A refused clear or re-set is logged and does not change the outcome.
 
 Any exception from the marker on, before the commit returns: abandon the session, delete the marker, `EngineService.start`, audit `failed` (code `install_failed`), result `Refused(INSTALL_FAILED)`. A cancellation does the same, then rethrows. After the commit the call only keeps the `update` operation open for at most 90 s (or until the receiver reports), so that the watchdog does not reopen the engine while the system installs; it decides nothing from the answer. The screen then shows "installing, the till restarts".
 
@@ -442,7 +445,7 @@ Status: as built (P6-T11)
 | `build`, `newer-apk` | `:app:assembleDebug :app:assembleDebugAndroidTest`; then the same debug app as versionCode + 1 and the next patch version (`1.0.1`, no `-dev`, as the descriptor wants) |
 | `mocks` | FDM and printer mocks as `app_e2e.sh`, plus `plat_registry_mock.py` (device ports 19392, and 19393 for its redirect target) |
 | `bundle`, `install`, `launch`, `push` | as `app_e2e.sh` |
-| `policies` | step `provision_and_policies`: import from the inbox, Ready, then through the system: the 13 restrictions of PD206, `no_debugging_features` absent in debug, `no_physical_media` and `no_config_wifi` absent, lock task features 0, auto time on, auto time zone off, zone Europe/Brussels, uninstall blocked, stay awake 7, keyguard off |
+| `policies` | step `provision_and_policies`: import from the inbox, Ready, then through the system: the 14 restrictions of PD206 and PD231, `no_debugging_features` absent in debug, `no_physical_media` and `no_config_wifi` absent, lock task features 0, auto time on, auto time zone off, zone Europe/Brussels, uninstall blocked, stay awake 7, keyguard off |
 | `sales` | step `sales`: manager login, 50 sales of one line then 10 of 6 lines, each `createOrder` (takeaway), `addOrderLine`, `checkout` with one cash part without an amount (the engine settles it, no arithmetic in the test), then `generateZReport`; the PASS detail carries `bytes_per_sale` and the sizes of section 12 |
 | `export` | step `export`: `Exporter` with a `FileTarget` on the app-specific directory of the removable volume, every `MANIFEST.sha256` entry hashed again in the app; then `sha256sum -c` on the device, the folder pulled and `shasum -a 256 -c` on the host, and `PRAGMA integrity_check` of the exported `pos.db` |
 | `declared` | the host copies the newer APK to the registry directory and writes `declared.json` (PD211) with the hashes and the signer from `apksigner verify --print-certs`, signed with the development minisign key (read in place) and verified with `dev-minisign.pub` |
@@ -459,7 +462,7 @@ Choices to know:
 - The instrumented steps do not use `am force-stop` (PD118). The install and the watchdog end the instrumented process on purpose, so the restart checks compare pids and read only the log of the new pid.
 
 **Run of 2026-10-09 (this card), after the fix of `UpdatePreconditions.zIsDone`: `PLATE2E | total | PASS | 0 failed (19 checks)`.** Every check passes, `emulator` to `teardown`. Lines (detail shortened; the full output of the run is kept in `target/android-plat-e2e/final2.out` of the work tree):
-- `policies | PASS | PLATE2E_POLICIES ok restrictions=13 zone=Europe/Brussels`
+- `policies | PASS | PLATE2E_POLICIES ok restrictions=14 zone=Europe/Brussels`
 - `sales | PASS | sales=50 ... bytes_per_sale=88544 (file sizes, WAL included); logical: bytes_per_sale=6471; multi-line: sales=10 lines=6 bytes_per_sale=14336; backups: after_z files=1 bytes=778240`
 - `export | PASS | 8 files, 1562220 bytes ...; MANIFEST.sha256 verified on the device (sha256sum -c: 7 OK) and on the host (shasum -a 256 -c: 7 OK); pos.db integrity_check ok`
 - `declared | PASS | pili-pos-android-1.0.1.apk ... declared.json signed with the development key and verified with dev-minisign.pub`

@@ -78,7 +78,7 @@ Le premier déploiement se fait par le producteur, qui installe l'APK sur le ter
 Le terminal est configuré lors de la mise en service pour constituer un environnement verrouillé (détail : `PLATEFORME_ANDROID_FR.md` §3) :
 
 - L'application est propriétaire de l'appareil (device owner) et tourne seule en mode Lock Task : l'écran ne montre que pili-pos-android, aucun terminal ni lanceur accessible à l'opérateur.
-- Restrictions posées par le propriétaire de l'appareil : installation depuis des sources inconnues interdite, désinstallation de l'application interdite, mode sans échec et réinitialisation d'usine interdits, changement de la date et de l'heure interdit (fuseau `Europe/Brussels`), ajout de comptes et d'utilisateurs interdits.
+- Restrictions posées par le propriétaire de l'appareil : installation d'applications interdite (levée par l'outil de mise à jour pour sa seule session) et installation depuis des sources inconnues interdite, désinstallation de l'application interdite, mode sans échec et réinitialisation d'usine interdits, changement de la date et de l'heure interdit (fuseau `Europe/Brussels`), ajout de comptes et d'utilisateurs interdits.
 - Débogage USB coupé sur une caisse de production : dernière étape de la mise en service, appliquée dès qu'un paquet de mise en service est installé.
 - Aucun serveur n'écoute sur le terminal.
 - La base de données, les sauvegardes, les journaux et la configuration sont dans le stockage privé de l'application (`files/engine/`, `PLATEFORME_ANDROID_FR.md` §5), inaccessible aux autres applications. Le chiffrement du stockage et l'état du démarrage vérifié (Verified Boot) du terminal réel : À effectuer (EV-15 : chiffrement du stockage et Verified Boot du D3 Pro).
@@ -161,7 +161,7 @@ Le manuel recommande l'usage d'une solution d'accès à distance (TeamViewer, An
 
 **Assistance sur place :** pour l'assistance et le diagnostic d'un problème reporté par le client (jamais pour installer un APK hors de l'outil de mise à jour), le producteur se déplace. Il dispose des écrans de la caisse sous PIN de Gérant, du paquet de mise en service signé (configuration, jeton et certificats du FDM) et de l'export des journaux et des sauvegardes vers une clé USB ou une carte SD (*PLATEFORME_ANDROID_FR.md* §5).
 
-**Mises à jour du système Android.** Elles sont distinctes de celles de l'application et ne changent jamais l'APK déclaré ni la base de données. Comme construit, le propriétaire de l'appareil applique la politique de report des mises à jour système. Cible pour le terminal avec services Google : mises à jour du système installées dans une fenêtre fixée hors des heures de service, jamais pendant un service : À effectuer (EV-13 : politique de mise à jour système avec fenêtre hors service).
+**Mises à jour du système Android.** Elles sont distinctes de celles de l'application et ne changent jamais l'APK déclaré ni la base de données. Comme construit, le propriétaire de l'appareil applique une politique de mise à jour du système à fenêtre horaire : les mises à jour ne s'installent que de 03:00 à 05:00, hors des heures de service. Comportement de l'image du fabricant face à cette fenêtre : À effectuer (EV-13 : politique de mise à jour système avec fenêtre hors service).
 
 **Au rendez-vous d'admission SPF Finances :**
 

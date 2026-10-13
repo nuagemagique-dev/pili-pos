@@ -215,11 +215,12 @@ Le terminal porte les services Google, la caisse n'en utilise aucun.
   neuf ou retiré du service, puis provisionnement au banc (§3.2).
 - La boutique Play et les applications Google destinées à l'utilisateur
   doivent être **masquées par le propriétaire de l'appareil**, et toute
-  installation bloquée sauf par l'outil de mise à jour déclarée. Comme
-  construit en 1.0.0, aucune application n'est masquée, mais le mode
-  kiosque suspend les autres écrans d'accueil et les Réglages
-  (`PLATEFORME_ANDROID_FR.md` §3.7) : À effectuer (EV-13 : paquets
-  masqués, restriction d'installation, essai avec services Google). Tout
+  installation bloquée sauf par l'outil de mise à jour déclarée. Le code
+  le fait au démarrage de l'application (liste des paquets au
+  `PLATEFORME_ANDROID_FR.md` §3.7) ; le mode kiosque suspend en plus les
+  autres écrans d'accueil et les Réglages. À effectuer (EV-13 : paquets
+  réellement masqués, restriction d'installation, essai avec services
+  Google). Tout
   message de Play Protect est noté tel quel au rapport d'essai (EV-13).
 
 ## 4. Configuration initiale

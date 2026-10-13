@@ -173,7 +173,7 @@ Aucun accès à distance n'est implémenté ni autorisé
 | Action de l'écran en attente derrière un Z automatique ou un renvoi | Faible | Faible | Attente de 30 s au plus, puis message `signing_busy` ; l'opérateur réessaie. |
 | Coupure réseau internet du FDM | Moyenne | Variable | Hors du périmètre POS (responsabilité du FDM). Le POS continue à enregistrer localement et le FDM rejoue ses propres données à reconnexion. |
 | Erreur d'horloge système | Faible | Moyen | Heure automatique et fuseau Europe/Brussels imposés par le propriétaire de l'appareil ; changement de date interdit (`no_config_date_time`). |
-| Mise à jour du système Android pendant le service | Faible | Moyen | Politique de mise à jour du propriétaire de l'appareil : différée ; hors des heures de service sur l'appareil avec services Google : À effectuer (EV-13 : politique de mise à jour système fenêtrée). |
+| Mise à jour du système Android pendant le service | Faible | Moyen | Politique de mise à jour du propriétaire de l'appareil : fenêtre de nuit de 03:00 à 05:00, hors des heures de service ; comportement sur l'appareil avec services Google : À effectuer (EV-13 : politique de mise à jour système fenêtrée). |
 | Vulnérabilité dans une dépendance Rust | Moyenne | Variable | Audit `cargo audit` mensuel. Patch & rebuild & recertification mineure si nécessaire. |
 | Bug dans le code applicatif | Faible | Variable | Tests automatisés unitaires, d'intégration et e2e applicatifs (totaux dans `RAPPORT_TESTS_BASELINE_FR.md`). Régressions attrapées en CI. |
 

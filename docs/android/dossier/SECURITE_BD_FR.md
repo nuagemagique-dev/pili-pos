@@ -197,11 +197,12 @@ laissées libres : la carte SD ou la clé sert à l'export SPF (§8) et le
 Wi-Fi se prépare au banc avant l'import du lot
 (`MANUEL_INSTALLATION_FR.md` §4.3).
 
-Les mesures propres à la variante avec services Google (Play Store et
-applications Google masqués, politique de mise à jour système hors des
-heures de service, Play Protect) : À effectuer (EV-13 : mesures GMS du
-D3 Pro). La politique de mise à jour appliquée aujourd'hui est la
-politique de report.
+Les mesures propres à la variante avec services Google sont construites
+(Play Store et applications Google masqués, `DISALLOW_INSTALL_APPS` levée
+pour la seule session de l'outil de mise à jour, politique de mise à jour
+système à fenêtre de nuit de 03:00 à 05:00 : `PLATEFORME_ANDROID_FR.md`
+§3.7). Leur mesure sur le terminal et le comportement de Play Protect :
+À effectuer (EV-13 : mesures GMS du D3 Pro).
 
 ### 3.3 Environnement verrouillé
 
