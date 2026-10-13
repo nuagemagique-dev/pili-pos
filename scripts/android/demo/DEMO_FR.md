@@ -25,7 +25,9 @@ Si l'émulateur de test `sunmi_d3_pro_api33` tourne, il faut d'abord le fermer, 
 
 ## Payer par carte sur le terminal
 
-Une caisse neuve est liée à un terminal Worldline simulé (`pos-eft-mock`, port 19400). Aucun vrai
+Une caisse neuve est liée à un terminal CCV simulé, joint par le réseau local en OPI comme le CCV A920
+du restaurant (`pos-eft-mock` : la caisse s'y connecte sur le port 19410, le terminal rappelle la caisse
+sur le port 19412 pour le ticket client ; `demo.sh` ouvre les deux ponts adb). Aucun vrai
 terminal, aucun vrai paiement. Une caisse déjà installée garde son ancien réglage : `reset` puis `start`.
 À l'étape PAYER, choisir Carte : « Terminal » (par défaut) ou « Saisie manuelle » (le terminal est en panne).
 Valider envoie le montant au terminal ; un écran bloquant « Paiement sur le terminal » montre le montant et
@@ -53,7 +55,7 @@ En mode formation, la saisie manuelle reste la seule voie.
 
 - Tickets de caisse et additions : http://127.0.0.1:19391/
 - Bons de cuisine : http://127.0.0.1:19393/
-- Terminal de paiement (simulateur) : http://127.0.0.1:19400/ (page des paiements), échanges sur
+- Terminal de paiement CCV (simulateur, OPI sur le port 19410) : http://127.0.0.1:19400/ (page des paiements), échanges sur
   http://127.0.0.1:19400/mock/requests
 - Échanges avec HubRise (simulateur) : http://127.0.0.1:3001/mock/requests
 - Export nocturne reçu : `~/.cache/pili-demo/exports/` (sauvegarde chiffrée `.db.age`,
@@ -75,7 +77,7 @@ En mode formation, la saisie manuelle reste la seule voie.
 6. **À emporter** : « Nouvelle vente à emporter », un poke bowl, un Coca et une bière, paiement par carte.
    La TVA passe à 6 % sur la nourriture et le Coca, et reste à 21 % sur la bière.
    La caisse est liée à un terminal de paiement simulé (Config, À propos : « Terminal de paiement :
-   Worldline ») : la carte part au terminal à la validation (voir « Payer par carte sur le terminal »).
+   CCV réseau local ») : la carte part au terminal à la validation (voir « Payer par carte sur le terminal »).
 7. **Commandes en ligne** : bouton « En ligne ». Accepter la commande Deliveroo : elle est déjà
    payée, le ticket T.V.A. (événement N) est signé à l'acceptation et le bon part en cuisine.
    Accepter la commande webshop « À encaisser » : addition provisoire (P), puis Préparer, Prête,

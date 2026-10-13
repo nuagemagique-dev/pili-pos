@@ -45,6 +45,8 @@ use crate::{Approval, EftError, Outcome, PaymentRequest, brand, receipt};
 /// Worldline's production API.
 const PRODUCTION_URL: &str = "https://api.terminal.global.worldline-solutions.com";
 const PROTOCOL_VERSION: &str = "5.1-WL2.1.1";
+/// Total timeout of [`WorldlineTerminalApi::check`].
+const CHECK_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A Worldline terminal reached through the Terminal API.
 pub struct WorldlineTerminalApi {
@@ -268,9 +270,64 @@ impl WorldlineTerminalApi {
         }
     }
 
-    /// Stub of the reachability check (to be implemented).
+    /// Reachability check: `GET {base}/api/v2/merchants/{umid}` answers
+    /// the merchant's `connectedTerminals`; the terminal must be listed.
+    /// Nothing is charged. The v1 API documents this call ("verify that a
+    /// terminal is connected before sending requests"); the v2 notes
+    /// describe the same answer (`{data: {umid, connectedTerminals}}`)
+    /// but its path is not in the v2 OpenAPI, so it is not verified live.
     pub async fn check(&self) -> Result<(), EftError> {
-        Err(EftError::Unreachable("check not implemented".into()))
+        let mut reply = self.merchant(2).await?;
+        // The v1 API documents this terminal list; v2 is not confirmed to
+        // serve it, so a 404 on v2 asks v1.
+        if reply.status == 404 {
+            reply = self.merchant(1).await?;
+        }
+        if !(200..300).contains(&reply.status) {
+            return match Self::refuse_or_unknown(reply.status, &reply.body) {
+                Err(e) => Err(e),
+                Ok(_) => Err(EftError::Unreachable(format!(
+                    "Worldline answered HTTP {}",
+                    reply.status
+                ))),
+            };
+        }
+        let listed = serde_json::from_str::<Value>(&reply.body)
+            .ok()
+            .and_then(|v| {
+                at(payload(&v), &["connectedTerminals"])
+                    .and_then(Value::as_array)
+                    .map(|list| list.iter().any(|t| t.as_str() == Some(&self.terminal_id)))
+            });
+        match listed {
+            Some(true) => Ok(()),
+            Some(false) => Err(EftError::Unreachable(
+                "terminal not connected to Worldline".into(),
+            )),
+            None => Err(EftError::Unreachable(
+                "unreadable Worldline answer to the terminal list".into(),
+            )),
+        }
+    }
+
+    /// `GET /api/v{version}/merchants/{umid}`: the merchant and its
+    /// connected terminals.
+    async fn merchant(&self, version: u8) -> Result<Reply, EftError> {
+        let mut request = self
+            .http
+            .get(format!(
+                "{}/api/v{version}/merchants/{}",
+                self.base,
+                path_segment(&self.merchant_id)
+            ))
+            .header("Accept", "application/json")
+            .timeout(CHECK_TIMEOUT);
+        if let Some(key) = &self.api_key {
+            request = request.bearer_auth(key);
+        }
+        send(request).await.map_err(|e| match e {
+            SendError::NotSent(e) | SendError::Lost(e) => EftError::Unreachable(e),
+        })
     }
 
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {

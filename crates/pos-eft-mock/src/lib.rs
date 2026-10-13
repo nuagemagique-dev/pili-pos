@@ -181,6 +181,18 @@ impl Mock {
         lock(&self.state).device_port = port;
     }
 
+    /// Whether the Worldline terminals appear in the merchant's
+    /// connected terminals (default true); false makes them look offline.
+    pub fn set_terminals_online(&self, online: bool) {
+        lock(&self.state).terminals_online = online;
+    }
+
+    /// Whether the merchant's terminal list is served only on v1, v2
+    /// answering 404 (default false).
+    pub fn set_merchant_v1_only(&self, v1_only: bool) {
+        lock(&self.state).merchant_v1_only = v1_only;
+    }
+
     /// Every request received, oldest first.
     pub fn requests(&self) -> Vec<RequestLog> {
         lock(&self.state).requests.clone()
@@ -219,11 +231,15 @@ fn reset(shared: &Shared) {
     inner.default = Next::default();
     inner.payments.clear();
     inner.requests.clear();
+    inner.terminals_online = true;
+    inner.merchant_v1_only = false;
     inner.opi_last = None;
 }
 
 fn router(shared: Shared) -> Router {
     Router::new()
+        .route("/api/v1/merchants/{umid}", get(worldline::merchant_v1))
+        .route("/api/v2/merchants/{umid}", get(worldline::merchant))
         .route(
             "/api/v2/merchants/{umid}/terminals/{utid}/payments/sync",
             post(worldline::payments_sync),

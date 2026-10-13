@@ -18,9 +18,10 @@
 #           Bancontact), decline or unknown (the answer is lost: the till shows "Réponse du
 #           terminal inconnue" and Vérifier then finds the payment approved). An optional brand
 #           (Visa, Maestro, Mastercard...) follows. Without a card command the next payment is approved.
-# Card terminal: the demo pos.json links a Worldline terminal (cloud API) that points at the local
-# mock pos-eft-mock (:19400, page http://127.0.0.1:19400/ , requests at /mock/requests); no real
-# terminal. A till that already runs keeps its old pos.json: use reset to get the terminal.
+# Card terminal: the demo pos.json links a CCV terminal over the LAN (OPI, as the restaurant's CCV A920)
+# that is the local mock pos-eft-mock: OPI channel 0 on :19410 (the till connects, adb reverse), channel 1
+# on :19412 (the mock connects back to the till for the receipt, adb forward); the page
+# http://127.0.0.1:19400/ and /mock/requests are its HTTP side; no real terminal. A till that already runs keeps its old pos.json: use reset to get the terminal.
 # HubRise: switched on in the demo pos.json; the till is connected to the local HubRise mock
 # (:3001, dev token, no real account), which serves the Tokyo menu as its catalog: the menu is
 # managed by HubRise, as in the restaurant.
@@ -54,6 +55,8 @@ KITCHEN_HTTP=19393
 EXPORT_PORT=9330
 HUBRISE_PORT=3001
 EFT_PORT="${PILI_EFT_MOCK_PORT:-19400}"
+EFT_OPI_PORT="${PILI_EFT_MOCK_OPI_PORT:-19410}"
+EFT_DEVICE_PORT="${PILI_EFT_MOCK_OPI_DEVICE_PORT:-19412}"
 STATE="$HOME/.cache/pili-demo"
 MOCKS="$ROOT/target/android-mocks/debug"
 APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
@@ -127,11 +130,12 @@ start_mocks() {
         hubrise_new=1
     fi
     if ! port_open "$EFT_PORT"; then
-        PILI_EFT_MOCK_PORT="$EFT_PORT" nohup "$MOCKS/pos-eft-mock" >"$STATE/eft-mock.log" 2>&1 &
+        PILI_EFT_MOCK_PORT="$EFT_PORT" PILI_EFT_MOCK_OPI_PORT="$EFT_OPI_PORT" PILI_EFT_MOCK_OPI_DEVICE_PORT="$EFT_DEVICE_PORT" \
+            nohup "$MOCKS/pos-eft-mock" >"$STATE/eft-mock.log" 2>&1 &
         echo $! >"$STATE/eft-mock.pid"
     fi
-    for _ in $(seq 1 20); do port_open "$EFT_PORT" && port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && port_open "$HUBRISE_PORT" && break; sleep 1; done
-    port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$HUBRISE_PORT" && port_open "$EFT_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
+    for _ in $(seq 1 20); do port_open "$EFT_PORT" && port_open "$EFT_OPI_PORT" && port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$PRINTER_HTTP" && port_open "$KITCHEN_PORT" && port_open "$HUBRISE_PORT" && break; sleep 1; done
+    port_open "$FDM_PORT" && port_open "$PRINTER_PORT" && port_open "$HUBRISE_PORT" && port_open "$EFT_PORT" && port_open "$EFT_OPI_PORT" || die "a mock does not listen, see $STATE/*-mock.log"
     # The HubRise mock starts with its own sample catalog: it serves the Tokyo menu instead (the
     # till's catalog sync then finds its own menu, every row keyed by the seed).
     if [[ "$hubrise_new" == 1 ]]; then
@@ -145,8 +149,10 @@ start_mocks() {
         adbd reverse "tcp:$KITCHEN_PORT" "tcp:$KITCHEN_PORT" >/dev/null &&
         adbd reverse "tcp:$EXPORT_PORT" "tcp:$EXPORT_PORT" >/dev/null &&
         adbd reverse "tcp:$HUBRISE_PORT" "tcp:$HUBRISE_PORT" >/dev/null &&
-        adbd reverse "tcp:$EFT_PORT" "tcp:$EFT_PORT" >/dev/null || die "adb reverse failed"
-    say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/ , HubRise :$HUBRISE_PORT, card terminal http://127.0.0.1:$EFT_PORT/"
+        adbd reverse "tcp:$EFT_PORT" "tcp:$EFT_PORT" >/dev/null &&
+        adbd reverse "tcp:$EFT_OPI_PORT" "tcp:$EFT_OPI_PORT" >/dev/null &&
+        adbd forward "tcp:$EFT_DEVICE_PORT" "tcp:$EFT_DEVICE_PORT" >/dev/null || die "adb reverse or forward failed"
+    say "mocks up: FDM :$FDM_PORT, printer :$PRINTER_PORT, tickets http://127.0.0.1:$PRINTER_HTTP/ , kitchen http://127.0.0.1:$KITCHEN_HTTP/ , HubRise :$HUBRISE_PORT, card terminal (CCV, OPI) :$EFT_OPI_PORT, page http://127.0.0.1:$EFT_PORT/"
 }
 
 installed() { adbd shell pm list packages 2>/dev/null | tr -d '\r' | grep -qx "package:$PKG"; }
@@ -183,7 +189,7 @@ install_and_provision() {
         PILI_BUNDLE_RESTAURANT_NAME="Tokyo Sushi Bar" PILI_BUNDLE_RESTAURANT_ADDRESS="Liège" \
             PILI_BUNDLE_KITCHEN_PRINTER="127.0.0.1:$KITCHEN_PORT" PILI_BUNDLE_HUBRISE_ENABLED=1 \
             PILI_BUNDLE_EXPORT_URL="http://127.0.0.1:$EXPORT_PORT" \
-            PILI_BUNDLE_PAYMENT_TERMINAL_URL="http://127.0.0.1:$EFT_PORT" \
+            PILI_BUNDLE_PAYMENT_TERMINAL_OPI="127.0.0.1:$EFT_OPI_PORT" PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT="$EFT_DEVICE_PORT" \
             PILI_BUNDLE_EXPORT_RECIPIENT="$(grep -o 'age1[a-z0-9]*' "$STATE/age-key.txt" | head -n 1)" \
             PILI_BUNDLE_EXPORT_TOKEN="$(cat "$STATE/export-token")" bash scripts/android/make_dev_bundle.sh --seed-file "$SEED" --out "$STATE/bundle" \
             --fdm-url "http://127.0.0.1:$FDM_PORT/graphql" --printer "127.0.0.1:$PRINTER_PORT" >"$STATE/bundle.log" 2>&1 ||
@@ -273,7 +279,7 @@ stop_mocks() {
     for m in fdm-mock printer-mock kitchen-mock export-mock hubrise-mock eft-mock; do
         [[ -f "$STATE/$m.pid" ]] && kill "$(cat "$STATE/$m.pid")" 2>/dev/null; rm -f "$STATE/$m.pid"
     done
-    SERIAL="$(serial)"; [[ -n "$SERIAL" ]] && adbd reverse --remove-all >/dev/null 2>&1
+    SERIAL="$(serial)"; [[ -n "$SERIAL" ]] && { adbd reverse --remove-all; adbd forward --remove "tcp:$EFT_DEVICE_PORT"; } >/dev/null 2>&1
     say "mocks stopped"
 }
 
@@ -298,7 +304,7 @@ case "${1:-}" in
         port_open "$FDM_PORT" && say "FDM mock: up" || say "FDM mock: down"
         port_open "$PRINTER_HTTP" && say "printer mock: up (http://127.0.0.1:$PRINTER_HTTP/)" || say "printer mock: down"
         port_open "$HUBRISE_PORT" && say "HubRise mock: up" || say "HubRise mock: down"
-        port_open "$EFT_PORT" && say "card terminal mock: up (http://127.0.0.1:$EFT_PORT/)" || say "card terminal mock: down" ;;
+        port_open "$EFT_PORT" && say "card terminal mock (CCV, OPI :$EFT_OPI_PORT): up (http://127.0.0.1:$EFT_PORT/)" || say "card terminal mock: down" ;;
     order)
         port_open "$HUBRISE_PORT" || die "the HubRise mock is down: run start first"
         send_order "${2:-}" ;;

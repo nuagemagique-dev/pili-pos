@@ -47,6 +47,64 @@ fn text<'a>(v: &'a Value, path: &[&str]) -> Option<&'a str> {
         .filter(|s| !s.trim().is_empty())
 }
 
+/// The terminals the mock knows (the ids of Worldline's documentation).
+const DEMO_TERMINALS: [&str; 2] = ["26197214", "26197215"];
+
+/// `GET /merchants/{umid}`: the merchant and its connected terminals,
+/// which is empty while the terminals are switched offline.
+pub async fn merchant(
+    State(shared): State<Shared>,
+    headers: HeaderMap,
+    Path(umid): Path<String>,
+) -> Response {
+    let v1_only = lock(&shared).merchant_v1_only;
+    merchant_list(&shared, &headers, &umid, 2, v1_only)
+}
+
+/// `GET /api/v1/merchants/{umid}`: the same list on the v1 path.
+pub async fn merchant_v1(
+    State(shared): State<Shared>,
+    headers: HeaderMap,
+    Path(umid): Path<String>,
+) -> Response {
+    merchant_list(&shared, &headers, &umid, 1, false)
+}
+
+fn merchant_list(
+    shared: &Shared,
+    headers: &HeaderMap,
+    umid: &str,
+    version: u8,
+    missing: bool,
+) -> Response {
+    let log = lock(shared).log(
+        Protocol::Worldline,
+        "GET",
+        &format!("/api/v{version}/merchants/{umid}"),
+        Value::Null,
+    );
+    let response = if missing {
+        error(404, "Not Found")
+    } else if !bearer_ok(shared, headers) {
+        error(401, "Unauthorized")
+    } else {
+        let connected: &[&str] = if lock(shared).terminals_online {
+            &DEMO_TERMINALS
+        } else {
+            &[]
+        };
+        json_response(
+            200,
+            &json!({
+                "data": {"umid": umid, "connectedTerminals": connected},
+                "requestId": uuid::Uuid::new_v4().to_string(),
+            }),
+        )
+    };
+    lock(shared).set_status(log, response.status().as_u16());
+    response
+}
+
 /// The nexo header rules of v2.
 fn check_header(h: &Value) -> Result<String, String> {
     let exchange =

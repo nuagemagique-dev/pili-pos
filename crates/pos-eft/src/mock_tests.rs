@@ -459,3 +459,139 @@ fn a_terminal_needs_its_configuration() {
     let err = Terminal::new(&config, reqwest::Client::new(), "pili-pos/1.0.0");
     assert!(matches!(err, Err(EftError::Config(_))));
 }
+
+#[tokio::test]
+async fn a_reachable_terminal_checks_ok_and_charges_nothing() {
+    for kind in ALL {
+        let rig = Rig::new(kind);
+        rig.t()
+            .check()
+            .await
+            .unwrap_or_else(|e| panic!("{kind:?}: {e}"));
+        assert!(rig.mock.payments().is_empty(), "{kind:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_closed_port_checks_unreachable() {
+    for kind in ALL {
+        let mut rig = Rig::new(kind);
+        let closed = format!("127.0.0.1:{}", free_port());
+        match kind {
+            Kind::Opi => rig.config.address = Some(closed),
+            _ => rig.config.base_url = Some(format!("http://{closed}")),
+        }
+        let out = rig.t().check().await;
+        assert!(
+            matches!(out, Err(EftError::Unreachable(_))),
+            "{kind:?}: {out:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_bad_api_key_fails_the_check_as_rejected() {
+    for kind in [Kind::Worldline, Kind::Ccv] {
+        let mut rig = Rig::new(kind);
+        rig.mock.set_api_key(Some("the-real-key"));
+        rig.set_key("a-wrong-key");
+        let out = rig.t().check().await;
+        assert!(
+            matches!(out, Err(EftError::Rejected(_))),
+            "{kind:?}: {out:?}"
+        );
+        rig.set_key("the-real-key");
+        rig.t().check().await.unwrap();
+        assert!(rig.mock.payments().is_empty(), "{kind:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_worldline_terminal_not_connected_fails_the_check() {
+    let rig = Rig::new(Kind::Worldline);
+    rig.mock.set_terminals_online(false);
+    let out = rig.t().check().await;
+    let Err(EftError::Unreachable(why)) = out else {
+        panic!("{out:?}")
+    };
+    assert!(why.contains("not connected"), "{why}");
+    rig.mock.set_terminals_online(true);
+    rig.t().check().await.unwrap();
+    assert!(rig.mock.payments().is_empty());
+}
+
+#[tokio::test]
+async fn the_worldline_check_falls_back_to_v1_when_v2_has_no_terminal_list() {
+    let rig = Rig::new(Kind::Worldline);
+    rig.mock.set_merchant_v1_only(true);
+    rig.t().check().await.unwrap();
+    let paths: Vec<String> = rig.mock.requests().iter().map(|r| r.path.clone()).collect();
+    assert!(
+        paths.iter().any(|p| p.starts_with("/api/v2/merchants/")),
+        "{paths:?}"
+    );
+    assert!(
+        paths.iter().any(|p| p.starts_with("/api/v1/merchants/")),
+        "{paths:?}"
+    );
+    assert!(rig.mock.payments().is_empty());
+}
+
+#[tokio::test]
+async fn an_unlisted_worldline_terminal_id_fails_the_check() {
+    let mut rig = Rig::new(Kind::Worldline);
+    rig.config.terminal_id = Some("99999999".into());
+    let out = rig.t().check().await;
+    assert!(matches!(out, Err(EftError::Unreachable(_))), "{out:?}");
+}
+
+/// A tracing writer into a shared buffer.
+#[derive(Clone, Default)]
+struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for Sink {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn the_wire_trace_shows_bodies_but_never_keys_or_queries() {
+    for kind in ALL {
+        let mut rig = Rig::new(kind);
+        if kind != Kind::Opi {
+            rig.mock.set_api_key(Some("secret-key-123"));
+            rig.set_key("secret-key-123");
+        }
+        let sink = Sink::default();
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .with_writer({
+                let sink = sink.clone();
+                move || sink.clone()
+            })
+            .finish();
+        let guard = tracing::subscriber::set_default(subscriber);
+        let req = request(700);
+        rig.t().pay(&req).await.unwrap();
+        rig.t().status(&req.reference).await.unwrap();
+        drop(guard);
+        let trace = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+        assert!(trace.contains("pos_eft::wire"), "{kind:?}: {trace}");
+        assert!(trace.contains("recv"), "{kind:?}");
+        assert!(!trace.contains("secret-key-123"), "{kind:?}");
+        assert!(!trace.contains("Bearer"), "{kind:?}");
+        assert!(!trace.contains("merchantOrderReference="), "{kind:?}");
+        let marker = match kind {
+            Kind::Worldline => "payments/sync",
+            Kind::Ccv => "/api/v1/payment",
+            Kind::Opi => "CardServiceRequest",
+        };
+        assert!(trace.contains(marker), "{kind:?}: {trace}");
+    }
+}

@@ -3697,6 +3697,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
@@ -3713,6 +3714,23 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "pos-eft-probe"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "pos-core",
+ "pos-eft",
+ "pos-eft-mock",
+ "reqwest",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

@@ -48,7 +48,7 @@ use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::{Instant, timeout, timeout_at};
 use tracing::{debug, info, warn};
 
-use crate::util::{cents_from_text, truncate};
+use crate::util::{cents_from_text, trace_wire, truncate, wire_enabled};
 use crate::xml::{Elem, escape, parse};
 use crate::{Approval, EftError, Outcome, PaymentRequest, amount_text, brand, receipt};
 
@@ -56,6 +56,8 @@ const DEFAULT_DEVICE_PORT: u16 = 4102;
 /// Largest message accepted from the terminal.
 const MAX_FRAME: usize = 1 << 20;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+/// Connect timeout of [`CcvOpi::check`].
+const CHECK_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// A CCV terminal on the LAN, spoken to in OPI.
 pub struct CcvOpi {
@@ -106,10 +108,17 @@ async fn read_frame<R: AsyncReadExt + Unpin>(stream: &mut R) -> io::Result<Strin
     }
     let mut body = vec![0u8; len];
     stream.read_exact(&mut body).await?;
-    Ok(decode(body))
+    let xml = decode(body);
+    if wire_enabled() {
+        trace_wire("recv", &xml);
+    }
+    Ok(xml)
 }
 
 async fn write_frame<W: AsyncWriteExt + Unpin>(stream: &mut W, xml: &str) -> io::Result<()> {
+    if wire_enabled() {
+        trace_wire("send", xml);
+    }
     let bytes = xml.as_bytes();
     let len = u32::try_from(bytes.len())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "message too long"))?;
@@ -432,9 +441,25 @@ impl CcvOpi {
         }
     }
 
-    /// Stub of the reachability check (to be implemented).
+    /// Reachability check: a TCP connection to the terminal's channel 0
+    /// address, closed at once. No message is sent, so nothing can be
+    /// charged and the terminal's payment state is untouched. It proves
+    /// the terminal listens, not that it is ready for a card.
     pub async fn check(&self) -> Result<(), EftError> {
-        Err(EftError::Unreachable("check not implemented".into()))
+        match timeout(CHECK_TIMEOUT, TcpStream::connect(&self.address)).await {
+            Ok(Ok(mut stream)) => {
+                let _ = stream.shutdown().await;
+                Ok(())
+            }
+            Ok(Err(e)) => Err(EftError::Unreachable(format!(
+                "cannot connect to the terminal at {}: {e}",
+                self.address
+            ))),
+            Err(_) => Err(EftError::Unreachable(format!(
+                "the terminal at {} does not answer",
+                self.address
+            ))),
+        }
     }
 
     pub async fn abort(&self, reference: &str) -> Result<(), EftError> {

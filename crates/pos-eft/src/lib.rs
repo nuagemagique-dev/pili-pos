@@ -34,6 +34,8 @@ mod mock_tests;
 
 use std::time::Duration;
 
+pub use util::mask_pan;
+
 use pos_core::config::{PaymentTerminalConfig, PaymentTerminalKind};
 use serde::{Deserialize, Serialize};
 

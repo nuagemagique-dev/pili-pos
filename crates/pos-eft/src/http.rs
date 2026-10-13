@@ -2,6 +2,8 @@
 
 use reqwest::RequestBuilder;
 
+use crate::util::{trace_wire, wire_enabled};
+
 /// The provider answered.
 pub(crate) struct Reply {
     pub status: u16,
@@ -20,7 +22,22 @@ pub(crate) enum SendError {
 }
 
 pub(crate) async fn send(request: RequestBuilder) -> Result<Reply, SendError> {
-    let response = match request.send().await {
+    let (client, built) = request.build_split();
+    let request = built.map_err(|e| SendError::NotSent(describe(&e)))?;
+    // The wire trace: method, path without query, body, status, answer.
+    // Never the headers (API key), the query or the URL's userinfo.
+    let trace = wire_enabled();
+    if trace {
+        let body = request
+            .body()
+            .and_then(reqwest::Body::as_bytes)
+            .map_or_else(String::new, |b| String::from_utf8_lossy(b).into_owned());
+        trace_wire(
+            "send",
+            &format!("{} {} {body}", request.method(), request.url().path()),
+        );
+    }
+    let response = match client.execute(request).await {
         Ok(r) => r,
         Err(e) if e.is_connect() || e.is_builder() => {
             return Err(SendError::NotSent(describe(&e)));
@@ -29,7 +46,12 @@ pub(crate) async fn send(request: RequestBuilder) -> Result<Reply, SendError> {
     };
     let status = response.status().as_u16();
     match response.text().await {
-        Ok(body) => Ok(Reply { status, body }),
+        Ok(body) => {
+            if trace {
+                trace_wire("recv", &format!("HTTP {status} {body}"));
+            }
+            Ok(Reply { status, body })
+        }
         Err(e) => Err(SendError::Lost(format!(
             "answer cut after HTTP {status}: {}",
             describe(&e)

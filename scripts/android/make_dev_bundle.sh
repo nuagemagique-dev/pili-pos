@@ -15,8 +15,9 @@
 #   --seed-file F   ship F as seed.sql instead (implies --seed; e.g. the demo seed)
 # Environment (demo only): PILI_BUNDLE_RESTAURANT_NAME, PILI_BUNDLE_RESTAURANT_ADDRESS, PILI_BUNDLE_KITCHEN_PRINTER (adds
 #   kitchen_printer_address), PILI_BUNDLE_HUBRISE_ENABLED=1 (adds "hubrise_enabled": true), PILI_BUNDLE_EXPORT_URL + _RECIPIENT + _TOKEN (adds the nightly export section and an
-#   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_URL (adds a payment_terminal section of kind worldline_terminal_api
-#   whose base_url is that URL, with the demo ids DEMO-UMID / DEMO-UTID / pili-demo; the pos-eft-mock). Defaults keep the test identity.
+#   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_OPI (host:port; adds a payment_terminal
+#   section of kind ccv_opi whose address is that value, a CCV terminal on the LAN; the pos-eft-mock OPI side) with
+#   PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT (the till's channel 1 port, optional: 4102 when absent). Defaults keep the test identity.
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
 #
@@ -157,10 +158,16 @@ if [[ -n "${PILI_BUNDLE_EXPORT_URL:-}" ]]; then
     EXPORT_LINE=$'\n  "export": {"url": "'"$PILI_BUNDLE_EXPORT_URL"'", "token_file": "export_token", "owner_recipient": "'"$PILI_BUNDLE_EXPORT_RECIPIENT"'", "keep_days": 7},'
 fi
 TERMINAL_LINE=""
-if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_URL:-}" ]]; then
-    [[ "$PILI_BUNDLE_PAYMENT_TERMINAL_URL" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] ||
-        die "PILI_BUNDLE_PAYMENT_TERMINAL_URL must look like http://127.0.0.1:19400, got '$PILI_BUNDLE_PAYMENT_TERMINAL_URL'"
-    TERMINAL_LINE=$'\n  "payment_terminal": {"kind": "worldline_terminal_api", "base_url": "'"$PILI_BUNDLE_PAYMENT_TERMINAL_URL"'", "merchant_id": "DEMO-UMID", "terminal_id": "DEMO-UTID", "integrator_id": "pili-demo", "timeout_seconds": 60},'
+if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_OPI:-}" ]]; then
+    [[ "$PILI_BUNDLE_PAYMENT_TERMINAL_OPI" =~ ^[A-Za-z0-9._-]+:[0-9]+$ ]] ||
+        die "PILI_BUNDLE_PAYMENT_TERMINAL_OPI must look like 127.0.0.1:19410, got '$PILI_BUNDLE_PAYMENT_TERMINAL_OPI'"
+    DEVICE_PORT_PART=""
+    if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT:-}" ]]; then
+        [[ "$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT" =~ ^[0-9]{1,5}$ && "$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT" -le 65535 ]] ||
+            die "PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT must be a port, got '$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT'"
+        DEVICE_PORT_PART=', "device_port": '"$PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT"
+    fi
+    TERMINAL_LINE=$'\n  "payment_terminal": {"kind": "ccv_opi", "address": "'"$PILI_BUNDLE_PAYMENT_TERMINAL_OPI"'"'"$DEVICE_PORT_PART"', "timeout_seconds": 60},'
 fi
 [[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
 cat >"$OUT/pos.json" <<JSON
