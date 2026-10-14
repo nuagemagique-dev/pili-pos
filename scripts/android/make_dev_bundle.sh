@@ -18,6 +18,9 @@
 #   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_OPI (host:port; adds a payment_terminal
 #   section of kind ccv_opi whose address is that value, a CCV terminal on the LAN; the pos-eft-mock OPI side) with
 #   PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT (the till's channel 1 port, optional: 4102 when absent). Defaults keep the test identity.
+#   PILI_BUNDLE_DIGITAL_TICKET_API (base URL of the Scaleway TEM API, e.g. the pos-fdm-mock on http://127.0.0.1:19380; adds a
+#   digital_ticket section with allow_digital_only and a tem_key file), PILI_BUNDLE_HUBRISE_MOCK (base URL of pos-hubrise-mock,
+#   e.g. http://127.0.0.1:3001; adds a hubrise section pointing at it with a hubrise_secret file).
 #   --write-pub     copy keydir/minisign.pub to android/app/provisioning/dev-minisign.pub (the committed
 #                   public key); used once when the development key is (re)generated
 #
@@ -169,6 +172,18 @@ if [[ -n "${PILI_BUNDLE_PAYMENT_TERMINAL_OPI:-}" ]]; then
     fi
     TERMINAL_LINE=$'\n  "payment_terminal": {"kind": "ccv_opi", "address": "'"$PILI_BUNDLE_PAYMENT_TERMINAL_OPI"'"'"$DEVICE_PORT_PART"', "timeout_seconds": 60},'
 fi
+DIGITAL_LINE=""
+if [[ -n "${PILI_BUNDLE_DIGITAL_TICKET_API:-}" ]]; then
+    [[ "$PILI_BUNDLE_DIGITAL_TICKET_API" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] || die "PILI_BUNDLE_DIGITAL_TICKET_API must look like http://127.0.0.1:19380"
+    printf 'dev-tem-key\n' >"$OUT/tem_key"
+    DIGITAL_LINE=$'\n  "digital_ticket": {"project_id": "11111111-1111-1111-1111-111111111111", "from_email": "tickets@restaurant-test.be", "from_name": "Restaurant Test", "api_base": "'"$PILI_BUNDLE_DIGITAL_TICKET_API"'", "api_key_file": "tem_key", "allow_digital_only": true},'
+fi
+HUBRISE_MOCK_LINE=""
+if [[ -n "${PILI_BUNDLE_HUBRISE_MOCK:-}" ]]; then
+    [[ "$PILI_BUNDLE_HUBRISE_MOCK" =~ ^http://[A-Za-z0-9._-]+:[0-9]+$ ]] || die "PILI_BUNDLE_HUBRISE_MOCK must look like http://127.0.0.1:3001"
+    printf 'dev-hubrise-secret\n' >"$OUT/hubrise_secret"
+    HUBRISE_MOCK_LINE=$'\n  "hubrise": {"client_id": "pili-pos", "client_secret_file": "hubrise_secret", "oauth_base_url": "'"$PILI_BUNDLE_HUBRISE_MOCK"'/oauth2/v1", "api_base_url": "'"$PILI_BUNDLE_HUBRISE_MOCK"'/v1"},'
+fi
 [[ -n "${PILI_BUNDLE_KITCHEN_PRINTER:-}" ]] && KITCHEN_LINE=$'\n  "kitchen_printer_address": "'"$PILI_BUNDLE_KITCHEN_PRINTER"'",'
 cat >"$OUT/pos.json" <<JSON
 {
@@ -180,7 +195,7 @@ cat >"$OUT/pos.json" <<JSON
   "restaurant_vat": "BE0000000097",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
-  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE
+  "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE
   "table_count": 25
 }
 JSON
