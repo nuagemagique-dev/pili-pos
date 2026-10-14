@@ -89,7 +89,7 @@ Six annexes décrivent le moteur fiscal seul : `SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.
 | `TICKET_NUMERIQUE_FR.md` | Configuration : bloc `digital_ticket` du pos.json, selon le MANUEL_INSTALLATION_FR.md §4.2 | Le fichier pos.json est le même. Sur Android, il voyage dans le paquet de configuration signé importé depuis une clé USB (`MANUEL_INSTALLATION_FR.md` Android, section de configuration du ticket numérique). |
 | `TICKET_NUMERIQUE_FR.md` | Saisie de l'adresse sur un clavier virtuel à l'écran | Clavier à l'écran de l'application Android. Mêmes règles de validation, mêmes codes d'erreur (`email_invalid`, `digital_unavailable`). |
 | `TICKET_NUMERIQUE_FR.md` | « Écran de support » qui liste les envois sans adresse en clair, écran « Copie de ticket » du MANUEL_UTILISATEUR_FR.md | Panneau des envois de tickets des réglages Android et écran de copie de l'application, décrits dans le `MANUEL_UTILISATEUR_FR.md` Android. Seul l'indice masqué est affiché, comme sur Linux. |
-| `TICKET_NUMERIQUE_FR.md` | Renvoi à la capture `09e` de *CAPTURES_ECRAN_FR.pdf* (écran de repli papier avec `MOCK_TEM_FAIL=1`) | Le renvoi désigne le *CAPTURES_ECRAN_FR.pdf* Android, dont les identifiants sont de la forme A<nn> et ne comprennent pas de 09e. Capture équivalente : À effectuer (EV-09 : capture A<nn> repli papier du ticket numérique). |
+| `TICKET_NUMERIQUE_FR.md` | Renvoi à la capture `09e` de *CAPTURES_ECRAN_FR.pdf* (écran de repli papier avec `MOCK_TEM_FAIL=1`) | Le renvoi désigne le *CAPTURES_ECRAN_FR.pdf* Android, dont les identifiants sont de la forme A<nn> et ne comprennent pas de 09e. Captures équivalentes : A27 (repli papier) et A117 (e-mail en attente). |
 
 Ces passages ont été relevés en cherchant dans chaque document commun les mots « Linux », « Debian », « Tauri », « Vue », « systemd », « RustDesk », « USB », les chemins système et les écrans de l'interface. Un chiffre de test d'un document commun (par exemple un total de tests de `COUVERTURE_RAPPORTS_FR.md`) est celui du moteur ; les totaux propres à Android sont dans `RAPPORT_TESTS_BASELINE_FR.md`.
 
@@ -100,9 +100,9 @@ Le dossier Report_Testing suit le point 3.2 de la procédure du 3 septembre 2026
 | Pièce | Contenu | Valeur |
 |---|---|---|
 | Report_Testing/uc | requête et réponse JSON de chaque cas d'utilisation (Basic Set 1.8, Advanced Set 1.6, Reports 1.3), jouées sur l'émulateur Android | À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC) |
-| Report_Testing/tickets | tickets imprimés sur l'imprimante simulée, octets de statut retirés, imprimante Epson réelle si disponible | À effectuer (EV-08 : exemples de tickets imprimés) |
+| Report_Testing/tickets | tickets imprimés sur l'imprimante simulée, octets de statut retirés, imprimante Epson réelle si disponible | fait : `TICKETS_EXEMPLES_FR.md` et `evidence/tickets/` (impression sur l'Epson réelle : À effectuer (EV-15 : imprimante réelle)) |
 | Report_Testing/build | rapports de construction : empreinte de l'image de construction et SHA-1 de deux APK non signés identiques au commit de la version | À effectuer (EV-05 : empreinte de l'image de construction et SHA-1 des deux APK non signés identiques) |
-| CAPTURES_ECRAN_FR.pdf (annexe 28) | captures d'écran du profil sunmi_d3_pro_gms_api33 | À effectuer (EV-09 : captures d'écran du profil D3 Pro émulé) |
+| CAPTURES_ECRAN_FR.pdf (annexe 28) | captures d'écran du profil sunmi_d3_pro_gms_api33 | 122 captures A01 à A122 du profil D3 Pro émulé, liste dans `internal/CAPTURES_ECRAN_RUNBOOK_FR.md` |
 | RESULTATS_TESTS_UC_FR.pdf (annexe 27) | résultats par cas d'utilisation et comparaison avec le journal Linux | À effectuer (EV-07 : comparaison des journaux et requêtes FDM entre Android et Linux) |
 | JOURNAL_TESTS_PRE_SOUMISSION_FR.pdf (annexe 29) | déroulement complet sur l'appareil, 24 h de fonctionnement, reprise après coupure | À effectuer (EV-10 : déroulement sur les profils D3 Pro émulés), À effectuer (EV-11 : essai de 24 h du service au premier plan), À effectuer (EV-12 : reprise après coupure d'alimentation) |
 

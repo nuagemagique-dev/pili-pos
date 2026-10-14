@@ -26,7 +26,7 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
 - [ ] Numéro de série du terminal relevé et consigné : c'est son
       deviceId, imprimé sur chaque ticket
       (`PLATEFORME_ANDROID_FR.md` §4). Valeur de la machine de test :
-      À effectuer (EV-16 : deviceId de la machine de test).
+      `EMULATOR37X2X12X0` pour le profil émulé (EV-16 : tickets et capture A82).
 - [ ] Imprimante thermique Epson TM-m30III raccordée au LAN (TCP 9100,
       ni USB ni Bluetooth), tiroir-caisse RJ11 raccordé à l'imprimante.
 - [ ] FDM module2 sur le LAN, ou, pour la machine de test, simulateur en
@@ -170,7 +170,7 @@ Sans adb : tout se lit à l'écran de la caisse.
    SHA-1 et SHA-256 de `base.apk` égaux à EV-01, SHA-1 de `libpos_ffi.so`
    égal à EV-02, SHA-256 du certificat égal à EV-03, version et code de
    version 1.0.0 / 10000, « Version logicielle du moteur »
-   pili-pos-android/1.0.0, deviceId égal à EV-16.
+   pili-pos-android/1.0.0, deviceId égal à `EMULATOR37X2X12X0` pour le profil émulé (EV-16).
 2. **Politiques.** Restrictions et kiosque de la couche Android : essai de
    sortie du kiosque sans résultat (retour, accueil, applications
    récentes), ajout de compte refusé.

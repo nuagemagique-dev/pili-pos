@@ -194,7 +194,7 @@ L'identifiant de l'appareil (`deviceId`) est le **numéro de série matériel du
 
 Le numéro est affiché dans l'écran « À propos », écrit dans le fichier d'identité de l'export vers le SPF et imprimé par le moteur sur les tickets, comme sous Linux où il s'agit de l'adresse MAC.
 
-**Valeur de l'émulateur.** `EMULATOR37X2X12X0` (17 caractères), lue avec l'application prototype des essais préparatoires, stable après redémarrage, avec ou sans Wi-Fi. **Format du vrai terminal** et confirmation que son micrologiciel renvoie le numéro au propriétaire : À effectuer (EV-15 : numéro de série réel et sa lecture par `Build.getSerial()`). **Valeur de la machine de test** telle qu'imprimée sur ses tickets : À effectuer (EV-16 : deviceId de la machine de test).
+**Valeur de l'émulateur.** `EMULATOR37X2X12X0` (17 caractères), lue avec l'application prototype des essais préparatoires, stable après redémarrage, avec ou sans Wi-Fi. **Format du vrai terminal** et confirmation que son micrologiciel renvoie le numéro au propriétaire : À effectuer (EV-15 : numéro de série réel et sa lecture par `Build.getSerial()`). **Valeur de la machine de test** telle qu'imprimée sur ses tickets : `EMULATOR37X2X12X0`, relevée sur les tickets de `TICKETS_EXEMPLES_FR.md` avec l'application 1.0.0 (« Input device MAC ») et sur l'écran « À propos » (capture A82).
 
 ---
 

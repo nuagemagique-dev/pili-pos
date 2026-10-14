@@ -737,24 +737,24 @@ Les tickets correspondants figurent dans *TICKETS_EXEMPLES_FR.md*.
 
 **Essai sur le simulateur module2 :** les quatre conditions de l'onglet Developer du simulateur FDM02000425 ont été rejouées le 27/09/2026 (un status et une vente chacune). BUFFER_FULL et FDM_LOCKED refusent la vente avec leur code, sans consommer de numéro de ticket. BUFFER_NEAR_FULL et TRANSACTION_UPLOAD_FAILED (compteur de tentatives d'envoi) laissent la vente signée, l'avertissement figurant dans le status et dans la réponse de signature. Les réponses sont jointes dans le dossier Report_Testing/module2 (fichiers LIVE_condition_*.json). Les réponses du simulateur (journée complète, refus de jeton, posId inconnu, requête invalide, conditions de buffer) ont aussi été enregistrées une fois : le mock FDM utilisé pour les preuves JSON ci-dessus répond dans la même forme (test `module2_shape.rs`), et le POS accepte chacune de ces réponses (test `module2_recorded.rs`). Un jeton refusé, que module2 signale sans code, affiche le message UNAUTHORIZED.
 
-**Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.8). Les **captures d'écran** de l'application Android pour chaque message sont dans *CAPTURES_ECRAN_FR.pdf* : À effectuer (EV-09 : captures A<nn> de chaque message FDM sur le profil D3 Pro émulé). Les numéros d'écran 20 à 42 de la colonne Capture ci-dessous sont ceux des scénarios du dossier Linux, repris sous des identifiants A<nn> dans le PDF Android, avec la table de correspondance.
+**Statut tests/captures :** l'injection d'erreurs runtime est implémentée dans le mock FDM (`crates/pos-fdm-mock`, variables d'environnement `MOCK_FDM_ERROR` / `MOCK_FDM_WARNING`, codes séparés par des virgules). Les **preuves JSON** (requête signSale + réponse d'erreur GraphQL, requête status + réponse avec le message) sont capturées par `scripts/capture_fdm_error_evidence.sh` et archivées sous `evidence/fdm_errors/` pour les 4 erreurs à affichage obligatoire (BUFFER_FULL, FDM_LOCKED, FDM_NOT_OPERATIONAL, UNKNOWN_POS), les 2 avertissements à affichage obligatoire (CLIENT_CERT_EXPIRED, BUFFER_NEAR_FULL) et 2 codes optionnels (UNAUTHORIZED, RTC_SYNC_FAILED). Le payload signSale utilisé est la fixture officielle M110 (Basic Set v1.8). Les **captures d'écran** de l'application Android pour chaque message sont dans *CAPTURES_ECRAN_FR.pdf* : captures A56 à A79, A88 à A90 et A93 (profil D3 Pro émulé). Sur une vente, les codes INTERNAL_ERROR, UNDEFINED_ERROR et UNDEFINED_OTHER et une réponse non conforme à la requête donnent à l'écran le message de `FDM_ANSWER_PENDING` (le moteur les classe en résultat inconnu ; un nouvel essai avec un FDM sain conclut la vente), voir les captures A65 à A67 et A78. La colonne Capture du tableau ci-dessous donne l'identifiant A<nn> de chaque écran.
 
-Tableau de réponse (JSON fournis dans `evidence/fdm_errors/` ; numéros d'écran des scénarios de capture, voir ci-dessus) :
+Tableau de réponse (JSON fournis dans `evidence/fdm_errors/` ; identifiants des captures du profil D3 Pro émulé) :
 
 | Code | Nature | Affichage requis | Affichage pili-pos-android | Capture |
 |---|---|---|---|---|
-| CLIENT_CERT_NEAR_EXPIRATION | Warning | O | ☑ (mappé « Le certificat de la boîte noire expire bientôt. ») | écran 26 |
-| CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé « Le certificat de la boîte noire a expiré. Contactez votre technicien. ») | JSON : `evidence/fdm_errors/CLIENT_CERT_EXPIRED_*.json` ; écran 25 |
-| RTC_SYNC_FAILED | Warning | O | ☑ (mappé « L'horloge de la boîte noire n'a pas pu se synchroniser. ») | JSON : `evidence/fdm_errors/RTC_SYNC_FAILED_*.json` ; écran 32 |
-| UPDATE_URLS_FAILED | Warning | O | ☑ (mappé « Mise à jour des URLs de la boîte noire échouée. ») | écran 33 |
-| UPDATE_TRUST_CERT_FAILED | Warning | O | ☑ (mappé « Mise à jour des certificats de confiance échouée. ») | écran 34 |
-| UPDATE_TASK_LIST_FAILED | Warning | O | ☑ (mappé « Téléchargement des tâches FDM échoué. ») | écran 35 |
-| TASK_FEEDBACK_FAILED | Warning | O | ☑ (mappé « La boîte noire n'a pas pu signaler le résultat d'une tâche. ») | écran 36 |
-| NOP_FAILED | Warning | O | ☑ (mappé « Communication intermédiaire avec la boîte noire échouée. ») | écran 37 |
-| BUFFER_NEAR_FULL | Warning | M | ☑ (mappé « La boîte noire est presque pleine. Programmez une intervention. ») | JSON : `evidence/fdm_errors/BUFFER_NEAR_FULL_*.json` ; écran 24 |
-| SERVER_CERT_RESOLVE_FAILED | Warning | O | ☑ (mappé « Impossible de résoudre le certificat du serveur FDM. ») | écran 38 |
-| TRANSACTION_UPLOAD_FAILED | Warning | O | ☑ (mappé « La boîte noire échoue à transmettre les transactions au SPF Finances. ») | écran 39 |
-| INITIALIZATION_FAILED | Warning | O | ☑ (mappé « L'initialisation de la boîte noire a échoué. ») | écran 40 |
+| CLIENT_CERT_NEAR_EXPIRATION | Warning | O | ☑ (mappé « Le certificat de la boîte noire expire bientôt. ») | capture A62 |
+| CLIENT_CERT_EXPIRED | Warning | M | ☑ (mappé « Le certificat de la boîte noire a expiré. Contactez votre technicien. ») | JSON : `evidence/fdm_errors/CLIENT_CERT_EXPIRED_*.json` ; capture A61 |
+| RTC_SYNC_FAILED | Warning | O | ☑ (mappé « L'horloge de la boîte noire n'a pas pu se synchroniser. ») | JSON : `evidence/fdm_errors/RTC_SYNC_FAILED_*.json` ; capture A68 |
+| UPDATE_URLS_FAILED | Warning | O | ☑ (mappé « Mise à jour des URLs de la boîte noire échouée. ») | capture A69 |
+| UPDATE_TRUST_CERT_FAILED | Warning | O | ☑ (mappé « Mise à jour des certificats de confiance échouée. ») | capture A70 |
+| UPDATE_TASK_LIST_FAILED | Warning | O | ☑ (mappé « Téléchargement des tâches FDM échoué. ») | capture A71 |
+| TASK_FEEDBACK_FAILED | Warning | O | ☑ (mappé « La boîte noire n'a pas pu signaler le résultat d'une tâche. ») | capture A72 |
+| NOP_FAILED | Warning | O | ☑ (mappé « Communication intermédiaire avec la boîte noire échouée. ») | capture A73 |
+| BUFFER_NEAR_FULL | Warning | M | ☑ (mappé « La boîte noire est presque pleine. Programmez une intervention. ») | JSON : `evidence/fdm_errors/BUFFER_NEAR_FULL_*.json` ; capture A60 |
+| SERVER_CERT_RESOLVE_FAILED | Warning | O | ☑ (mappé « Impossible de résoudre le certificat du serveur FDM. ») | capture A74 |
+| TRANSACTION_UPLOAD_FAILED | Warning | O | ☑ (mappé « La boîte noire échoue à transmettre les transactions au SPF Finances. ») | capture A75 |
+| INITIALIZATION_FAILED | Warning | O | ☑ (mappé « L'initialisation de la boîte noire a échoué. ») | capture A76 |
 | RTC_NOT_INITIALIZED | Warning | N (non-affichable) | - | - |
 | CORRUPT_RECORD_ENCOUNTERED | Warning | N | - | - |
 | UPDATE_PARAMS_FAILED | Warning | N | - | - |
@@ -762,16 +762,16 @@ Tableau de réponse (JSON fournis dans `evidence/fdm_errors/` ; numéros d'écra
 | UPDATE_VAT_RATES_FAILED | Warning | N | - | - |
 | UPDATE_POS_ALLOWLIST_FAILED | Warning | N | - | - |
 | DUPLICATE_REQUEST | Warning | N | - | - |
-| BUFFER_FULL | Erreur | M | ☑ (mappé « La boîte noire est pleine. Contactez votre technicien. ») + modale bloquante au checkout | JSON : `evidence/fdm_errors/BUFFER_FULL_*.json` ; écran 20 |
-| FDM_LOCKED | Erreur | M | ☑ (mappé « La boîte noire est verrouillée. Contactez votre technicien. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_LOCKED_*.json` ; écran 21 |
+| BUFFER_FULL | Erreur | M | ☑ (mappé « La boîte noire est pleine. Contactez votre technicien. ») + modale bloquante au checkout | JSON : `evidence/fdm_errors/BUFFER_FULL_*.json` ; capture A56 |
+| FDM_LOCKED | Erreur | M | ☑ (mappé « La boîte noire est verrouillée. Contactez votre technicien. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_LOCKED_*.json` ; capture A57 |
 | TOO_MANY_MEMORY_ERRORS | Erreur | N | - | - |
-| UNAUTHORIZED | Erreur | O | ☑ (mappé « La caisse n'est pas autorisée à parler à la boîte noire. ») | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; écran 27 |
-| INVALID_REQUEST | Erreur | O | ☑ (mappé « Erreur de communication avec la boîte noire. Contactez votre technicien. ») | écran 28 |
-| INTERNAL_ERROR | Erreur | O | ☑ (mappé « Erreur technique de la boîte noire. Contactez votre technicien. ») | écran 29 |
-| UNDEFINED_ERROR | Erreur | O | ☑ (mappé « Erreur indéfinie de la boîte noire. Contactez votre technicien. ») | écran 30 |
-| UNDEFINED_OTHER | Erreur | O | ☑ (mappé « Erreur de la boîte noire. Contactez votre technicien. ») | écran 31 |
-| FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran 22 |
-| UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran 23 |
+| UNAUTHORIZED | Erreur | O | ☑ (mappé « La caisse n'est pas autorisée à parler à la boîte noire. ») | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; capture A63 |
+| INVALID_REQUEST | Erreur | O | ☑ (mappé « Erreur de communication avec la boîte noire. Contactez votre technicien. ») | capture A64 |
+| INTERNAL_ERROR | Erreur | O | ☑ (mappé « Erreur technique de la boîte noire. Contactez votre technicien. ») | capture A65 |
+| UNDEFINED_ERROR | Erreur | O | ☑ (mappé « Erreur indéfinie de la boîte noire. Contactez votre technicien. ») | capture A66 |
+| UNDEFINED_OTHER | Erreur | O | ☑ (mappé « Erreur de la boîte noire. Contactez votre technicien. ») | capture A67 |
+| FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; capture A58 |
+| UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; capture A59 |
 
 La description détaillée POS v2.2 (`tb_messages`) liste en plus deux avertissements à affichage obligatoire, absents du tableau §V du manuel : `UPDATE_POS_VATNO` (« Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. ») et `UPDATE_POS_ESTNO` (« Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. »). Tous deux sont mappés et testés (`android/app/src/test/kotlin/dev/nuagemagique/pilipos/i18n/FdmTextsTest.kt`).
 
@@ -779,14 +779,14 @@ Quatre contrôles propres à la caisse (liste `POS_CHECK` de `FdmMessageTables.k
 
 | Code POS | Message affiché | Capture |
 |---|---|---|
-| `FDM_ANSWER_PENDING` | « La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. » | - |
-| `FDM_RESPONSE_MISMATCH` | « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. » | écran 42 |
-| `FDM_NOT_INITIALIZED` | « La boîte noire n'est pas encore initialisée. » | - |
-| `FDM_CERTIFICATE_REFUSED` | « Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. » | - |
+| `FDM_ANSWER_PENDING` | « La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. » (affiché aussi pour INTERNAL_ERROR, UNDEFINED_ERROR, UNDEFINED_OTHER et pour une réponse non conforme à la requête : le moteur les classe en résultat inconnu) | capture A79 (et A65 à A67, A78) |
+| `FDM_RESPONSE_MISMATCH` | « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. » (message prévu par la table ; sur l'appareil, une réponse non conforme est traitée comme résultat inconnu, voir `FDM_ANSWER_PENDING`) | capture A78 |
+| `FDM_NOT_INITIALIZED` | « La boîte noire n'est pas encore initialisée. » | capture A90 |
+| `FDM_CERTIFICATE_REFUSED` | « Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. » | capture A93 |
 
-En complément des codes ci-dessus, `FdmMessageTables.kt` prévoit deux messages génériques non listés dans la spec §V : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » (si le message brut contient `connect`/`timeout`) et « Erreur boîte noire. Contactez votre technicien. » (repli final pour tout code FDM non reconnu par le mapping ci-dessus ; l'écran 41 montre la perte de connexion) - ceci garantit qu'aucune erreur FDM ne s'affiche jamais sans message FR compréhensible par l'opérateur.
+En complément des codes ci-dessus, `FdmMessageTables.kt` prévoit deux messages génériques non listés dans la spec §V : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. » (si le message brut contient `connect`/`timeout`) et « Erreur boîte noire. Contactez votre technicien. » (repli final pour tout code FDM non reconnu par le mapping ci-dessus ; l'capture A77 montre la perte de connexion) - ceci garantit qu'aucune erreur FDM ne s'affiche jamais sans message FR compréhensible par l'opérateur.
 
-**☑ Le test a été effectué sur le moteur commun, JSON ajoutés** (`evidence/fdm_errors/`, 8 codes × 4 fichiers, mêmes fichiers que dans le dossier Linux puisque le moteur et le mock FDM sont communs). Captures d'écran de l'application Android : À effectuer (EV-09 : captures A<nn> des messages FDM sur le profil D3 Pro émulé).
+**☑ Le test a été effectué sur le moteur commun, JSON ajoutés** (`evidence/fdm_errors/`, 8 codes × 4 fichiers, mêmes fichiers que dans le dossier Linux puisque le moteur et le mock FDM sont communs). Captures d'écran de l'application Android : A56 à A79, A88 à A90 et A93.
 
 ---
 
@@ -909,7 +909,7 @@ Le Gérant (rôle Admin) ouvre l'écran "Rapports" par le bouton de l'en-tête (
 
 *Voir : MANUEL_UTILISATEUR_FR.md §10 "Rapports X et Z" et TICKETS_EXEMPLES_FR.md §6 (rapport X) et §7 (rapport Z) pour le rendu papier.*
 
-**Captures d'écran à fournir** : oui, *CAPTURES_ECRAN_FR.pdf* (écrans 14 et 15 du dossier Linux, repris dans le PDF Android : À effectuer (EV-09 : captures A<nn> des rapports X et Z)).
+**Captures d'écran à fournir** : oui, *CAPTURES_ECRAN_FR.pdf* (écrans 14 et 15 du dossier Linux, repris dans le PDF Android : captures A36 à A40, rapports X et Z).
 
 **Comment les rapports d'utilisateur X/Z sont-ils visibles/imprimables ?**
 

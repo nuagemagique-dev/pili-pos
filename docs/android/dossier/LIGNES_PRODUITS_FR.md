@@ -93,7 +93,7 @@ Le lot de la machine de test reprend aussi le reste de
 | Élément du jeu de test | Dans le lot de la machine de test |
 |---|---|
 | Établissement | "The FPS Finances Experience", Boulevard Albert II 33, 1030 Brussels, TVA `BE0000000097`, unité d'établissement `2000000042` (`pos.json` du lot, `MANUEL_INSTALLATION_FR.md` §4.2) |
-| POS de la machine de test | `pos_id` `CPOS0031234567`, `terminal_id` `POS-2-ANDROID` ; `device_id` = numéro de série matériel du terminal (FAQ producteurs Q505 b), lu à chaque ouverture du moteur (`PLATEFORME_ANDROID_FR.md` §4). Valeur de la machine de test : À effectuer (EV-16 : deviceId de la machine de test) |
+| POS de la machine de test | `pos_id` `CPOS0031234567`, `terminal_id` `POS-2-ANDROID` ; `device_id` = numéro de série matériel du terminal (FAQ producteurs Q505 b), lu à chaque ouverture du moteur (`PLATEFORME_ANDROID_FR.md` §4). Valeur de la machine de test : `EMULATOR37X2X12X0` (profil émulé, capture A82) |
 | Personnel | John (barman, `75061189702`), Elisa (chef de salle, `84022899837`), Sammy (sommelier, `80113078968`), rôle Serveur, avec les PIN de REPONSES_MANUEL_CERT_FR.md ; s'y ajoutent les comptes Technicien, Gérant et Apprenti |
 | Tables | 25 tables (`table_count`), BAR 1 à 4, DINING ROOM 5 à 15, TERRACE 16 à 25 |
 | Tiroir | un tiroir, sur le POS de la machine de test |

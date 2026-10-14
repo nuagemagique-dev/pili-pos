@@ -200,8 +200,7 @@ voir le début du paragraphe).
    « À propos » et le consigner au formulaire d'installation avec la
    version et le SHA-1 affichés (`PLATEFORME_ANDROID_FR.md` §4). Format
    réel : À effectuer (EV-15 : numéro de série réel). Valeur de la
-   machine de test : À effectuer (EV-16 : deviceId de la machine de
-   test).
+   machine de test : `EMULATOR37X2X12X0` (profil émulé).
 5. L'application est désormais l'écran d'accueil verrouillé du terminal
    (Lock Task, `PLATEFORME_ANDROID_FR.md` §3.2).
 

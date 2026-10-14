@@ -1,7 +1,7 @@
 <!-- Dérivé de docs/internal/CAPTURES_ECRAN_RUNBOOK_FR.md @ 86088e4 -->
 # Runbook de capture d'écrans pour le dossier de certification - pili-pos-android
 
-**Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve `À effectuer (EV-09 : captures du profil sunmi_d3_pro_gms_api33)`.
+**Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve EV-09 : captures du profil sunmi_d3_pro_gms_api33, prises le 15.10.2026.
 
 Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A122. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 

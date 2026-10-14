@@ -228,8 +228,7 @@ enregistrées servent à vérifier que le HubRise simulé a la même forme
 (`crates/pos-hubrise-mock/tests/hubrise_shape.rs`). Aucun appel réel à
 HubRise n'est fait depuis l'application Android pour ce dossier. Les tests
 de l'écran sont dans `android/app/src/test/kotlin/dev/nuagemagique/pilipos/feature/`
-(`settings`, `webshop`). Captures des deux écrans sur le D3 Pro émulé : À effectuer
-(EV-09 : captures d'écran).
+(`settings`, `webshop`). Captures des deux écrans sur le D3 Pro émulé : A52 et A112 à A114 de *CAPTURES_ECRAN_FR.pdf*.
 
 ## 11. Connexion à HubRise sur Android
 

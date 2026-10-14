@@ -78,7 +78,7 @@ Les tests ignorés de `live_fdm`, `live_hubrise`, `live_combined` et `e2e_stagin
 | Rejeu des UC officiels par les commandes réelles | hôte (build cert) ; émulateur avec `--fixtures` ; UC joués par l'interface : `À effectuer (EV-06 : résultats des UC)` |
 | Numérotation sans trou, pannes FDM, crash, concurrence | hôte et émulateur (`spf_e2e_*`) |
 | Profils utilisateurs, validation des entrées, remboursements | hôte et émulateur |
-| Ticket numérique, impression, tiroir | hôte et émulateur ; tickets imprimés sur l'imprimante simulée : `À effectuer (EV-08 : tickets imprimés)` |
+| Ticket numérique, impression, tiroir | hôte et émulateur ; tickets imprimés sur l'imprimante simulée : `TICKETS_EXEMPLES_FR.md` |
 | Liaison moteur-Kotlin (méthodes, flux d'événements, arrêt) | `android/rust` (242) et module `:pos-core` |
 | Écrans Compose, navigation, kiosque, plateforme | tests unitaires du module `:app` (1913) et captures de référence |
 | Mise en service, verrouillage, mise à jour, export vers le SPF | `app_e2e.sh` et `plat_e2e.sh` sur l'émulateur |
@@ -102,7 +102,7 @@ Sans objet sur Android : le périmètre cert du moteur est celui du rapport Linu
 - **Test instable sous charge.** Un test de la liaison (`lifecycle`, arrêt annulé puis arrêt) a échoué une fois sous forte charge de la machine de construction et passe seul (`X1-exit.md`, X1D22).
 - **Parcours de longue durée.** Marche de 24 h avec le service d'avant-plan : `À effectuer (EV-11 : marche de 24 h)`. Reprise après coupure de courant : `À effectuer (EV-12 : coupure en pleine transaction)`. Parcours du terminal complet sur les deux profils : `À effectuer (EV-10 : parcours D3 Pro)`.
 - **Comparaison avec Linux.** Journaux et requêtes FDM comparés pour les mêmes scénarios : `À effectuer (EV-07 : comparaison Android et Linux)`.
-- **Interface.** Les captures de référence des écrans Compose servent de garde contre les régressions visuelles ; les captures du dossier sont listées pour la livraison (`À effectuer (EV-09 : captures du profil avec services Google)`).
+- **Interface.** Les captures de référence des écrans Compose servent de garde contre les régressions visuelles ; les 122 captures du dossier (profil avec services Google, A01 à A122) sont dans `CAPTURES_ECRAN_FR.pdf`.
 
 ---
 

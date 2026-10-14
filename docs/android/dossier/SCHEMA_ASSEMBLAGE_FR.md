@@ -202,7 +202,7 @@ En cas d'audit SPF Finances, le SCE peut être réassemblé à l'identique à pa
 
 Pour la machine de test livrée au rendez-vous d'admission SPF Finances :
 
-- Terminal : profil émulé du D3 Pro avec services Google, sauf si un vrai D3 Pro est disponible au dépôt (À effectuer (EV-15 : terminal réel, ou déclaration du profil émulé)). Numéro de série de la machine de test : À effectuer (EV-16 : deviceId de la machine de test).
+- Terminal : profil émulé du D3 Pro avec services Google, sauf si un vrai D3 Pro est disponible au dépôt (À effectuer (EV-15 : terminal réel, ou déclaration du profil émulé)). Numéro de série de la machine de test : `EMULATOR37X2X12X0`.
 - Routeur fourni par le distributeur (mini-routeur de prêt).
 - **Pas de FDM physique : le simulateur en ligne module2 est fourni avec la machine de test.** Le manuel de certification (§IV « Procédure de communication GraphQL », procédure de test, étape 1) demande d'appliquer les scénarios « à l'aide d'un simulateur FDM » et de fournir « un simulateur avec la machine test » ; le guide d'introduction (section « Intake », « Machine de test ») précise : « Si un simulateur de FDM est utilisé, sa méthode de connexion et ses ports doivent être clairement documentés. » Connexion du simulateur :
 
