@@ -12,6 +12,10 @@ import {
   DEFAULT_MENU_ITEM,
   fdmHealth,
   fdmMocks,
+  eftScript,
+  settingsWith,
+  DEFAULT_ORDER,
+  DEFAULT_ORDER_LINE,
 } from './fixtures/mock-ipc';
 
 // Certification dossier screenshot tour (docs/SUBMISSION_ARTIFACTS/
@@ -800,5 +804,115 @@ test.describe('Écrans additionnels (45-49, 09g)', () => {
     await expect(page.locator('.success-icon')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Imprimer le ticket' })).toBeVisible();
     await capture(page, '09g_checkout_done_print_ticket');
+  });
+});
+
+// ── Terminal de paiement lié (EFT) ─────────────────────────────────
+// Captures 01a, 03a, 03b, 09h-09k, 15a. The terminal is scripted
+// through eftScript / settingsWith / check_payment_terminal /
+// list_unsettled_card_payments (mock-ipc.ts); nothing is charged.
+
+const TERMINAL_OK = { configured: true, kind: 'worldline_terminal_api', connected: true, busy: false, detail: null };
+const EFT_LINE = { ...DEFAULT_ORDER_LINE, id: 1, unit_price_cents: 1200 };
+
+/** The checkout of a 12,00 EUR order with a linked terminal. */
+async function eftCheckout(page: Page, script: Parameters<typeof eftScript>[1]) {
+  await eftScript(page, script);
+  await mockTauriIPC(page, {
+    login: () => GERANT,
+    list_users: () => STAFF,
+    get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+    list_cart_lines: () => [EFT_LINE],
+    get_categories: () => [DEFAULT_CATEGORY],
+    get_menu_items: () => [DEFAULT_MENU_ITEM],
+    get_settings: settingsWith({ paymentTerminal: 'worldline_terminal_api' }),
+    check_payment_terminal: () => TERMINAL_OK,
+  });
+  await page.goto('/');
+  await tapUserTile(page, 'Gérant Test');
+  await page.waitForURL(/tables/);
+  await page.locator('.table-card').first().click();
+  await page.waitForURL(/order/);
+  await page.locator('.checkout-btn').click();
+  await page.waitForURL(/checkout/);
+}
+
+test.describe('Terminal de paiement lié (EFT)', () => {
+  test('01a - démarrage : ligne « Terminal de paiement »', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => STAFF, check_payment_terminal: () => TERMINAL_OK, check_printer: () => true });
+    await page.goto('/');
+    const row = page.locator('.check', { hasText: 'Terminal de paiement' });
+    await expect(row).toHaveClass(/ok/);
+    await expect(row.locator('.check-text')).toHaveText('connecté');
+    await capture(page, '01a_login_terminal_row');
+  });
+
+  test('03a-03b - voyant TERMINAL, tables et « Carte encaissée »', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      list_tables: () => TABLES_AFTER,
+      check_payment_terminal: () => TERMINAL_OK,
+      check_printer: () => true,
+      list_unsettled_card_payments: () => [
+        { payment_id: 1, order_id: TABLE4_ORDER_ID, order_type: 'dine_in', table_number: 4, amount_cents: FILLED_TOTAL_CENTS, brand: 'Bancontact', created_at: '2026-10-13 12:00:00' },
+      ],
+    });
+    await page.goto('/');
+    await tapUserTile(page, 'Gérant Test');
+    await page.waitForURL(/tables/);
+    await expect(page.getByTestId('light-terminal')).toHaveClass(/ok/);
+    await expect(page.getByTestId('light-terminal')).toContainText('Terminal');
+    await expect(page.locator('.table-card').nth(3).getByTestId('card-charged')).toHaveText('Carte encaissée');
+    await capture(page, '03a_tables_terminal_card_charged');
+  });
+
+  test('09h - encaissement : Terminal ou Saisie manuelle', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'approved' }] });
+    await page.locator('.card-btn').click();
+    await expect(page.getByTestId('eft-mode')).toBeVisible();
+    await expect(page.locator('.card-hint')).toHaveText('Le montant est envoyé au terminal à la validation');
+    await capture(page, '09h_checkout_eft_mode');
+  });
+
+  test('09i - « Paiement sur le terminal »', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'approved', hold: true }] });
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Paiement sur le terminal');
+    await expect(page.getByTestId('eft-overlay')).toContainText('Le client présente sa carte sur le terminal');
+    await capture(page, '09i_eft_overlay');
+  });
+
+  test('09j - paiement refusé', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'declined', detail: 'Carte refusée par la banque' }] });
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Paiement refusé');
+    await expect(page.getByTestId('eft-detail')).toHaveText('Carte refusée par la banque');
+    await capture(page, '09j_eft_declined');
+  });
+
+  test('09k - réponse inconnue : Vérifier', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'unknown', detail: 'no answer' }], check: [{ status: 'approved' }] });
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('eft-title')).toHaveText('Réponse du terminal inconnue');
+    await expect(page.getByTestId('eft-check')).toBeVisible();
+    await capture(page, '09k_eft_unknown');
+  });
+
+  test('15a - Z : cartes encaissées pas encore enregistrées', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => GERANT,
+      list_users: () => STAFF,
+      list_unsettled_card_payments: () => [
+        { payment_id: 1, order_id: 42, order_type: 'dine_in', table_number: 4, amount_cents: 1700, brand: 'Bancontact', created_at: '2026-10-13 12:00:00' },
+        { payment_id: 2, order_id: 43, order_type: 'takeaway', table_number: null, amount_cents: 950, brand: null, created_at: '2026-10-13 12:05:00' },
+      ],
+    });
+    await loginAndGoto(page, '/reports');
+    await expect(page.getByTestId('z-unsettled')).toContainText('Paiements par carte encaissés mais pas encore enregistrés dans une vente :');
+    await capture(page, '15a_reports_z_unsettled_cards');
   });
 });

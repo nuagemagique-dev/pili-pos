@@ -13,7 +13,7 @@ produire. Les fichiers vont dans
 
 ## Méthode
 
-Les sections 1 et 2 (captures `01` à `49`, `09a` à `09g`) sont produites
+Les sections 1 et 2 (captures `01` à `49`, `01a`, `03a`, `09a` à `09k`, `15a`) sont produites
 automatiquement par une visite Playwright de l'interface, la couche
 IPC Tauri étant simulée (comme le reste de la suite e2e de `ui/`) :
 pas de FDM simulé, pas de base SQLite, pas de `cargo tauri dev`.
@@ -47,7 +47,7 @@ l'écran via le socket QMP de l'instance en cours.
 La section 3 (tickets imprimés) reste manuelle - voir plus bas.
 
 **Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09g_` :
-ticket numérique ; `20_` à `49_` : messages du FDM (§V) et écrans
+ticket numérique ; `09h_` à `09k_`, `01a_`, `03a_`, `15a_` : terminal de paiement lié (EFT) ; `20_` à `49_` : messages du FDM (§V) et écrans
 additionnels (`45_` à `49_` : assistance à distance, PIN, FDM_ANSWER_PENDING, remboursement par ligne) ; `50_` à `56_` : tickets imprimés.
 
 ---
@@ -142,6 +142,47 @@ capture.
 - **Mock :** une vente dont le ticket papier n'est pas encore sorti (`needsPaper`, ex. imprimante hors ligne au moment de l'encaissement).
 - **Action :** payer en espèces.
 - **Écran attendu :** écran de fin d'encaissement avec le bouton « Imprimer le ticket » (une seule action d'impression : l'original manquant, jamais un second original) et « Terminer ».
+- **Capture :** plein écran.
+
+### Terminal de paiement lié (EFT), `payment_terminal` configuré
+
+Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`,
+`check_payment_terminal`, `list_unsettled_card_payments` de
+`ui/e2e/fixtures/mock-ipc.ts`) : aucun débit réel.
+
+### `09h_checkout_eft_mode.png`
+- **Action :** "PAYER", "CARTE" avec un terminal relié.
+- **Écran attendu :** choix "Terminal" (actif) / "Saisie manuelle" et l'aide « Le montant est envoyé au terminal à la validation ».
+- **Capture :** plein écran.
+
+### `09i_eft_overlay.png`
+- **Action :** "Valider" sur une part carte, le terminal attend la carte.
+- **Écran attendu :** fenêtre « Paiement sur le terminal », le montant, « Le client présente sa carte sur le terminal », bouton "Annuler".
+- **Capture :** plein écran.
+
+### `09j_eft_declined.png`
+- **Action :** le terminal refuse le paiement.
+- **Écran attendu :** « Paiement refusé », le motif du terminal, « Rien n'a été débité. », bouton "OK".
+- **Capture :** plein écran.
+
+### `09k_eft_unknown.png`
+- **Action :** le terminal ne répond pas (réponse inconnue).
+- **Écran attendu :** « Réponse du terminal inconnue », le message « La carte a peut-être été débitée... », boutons "Vérifier" et "Fermer" ; la vente reste bloquée (« Un paiement par carte attend la réponse du terminal »).
+- **Capture :** plein écran.
+
+### `01a_login_terminal_row.png`
+- **Action :** écran de connexion avec un terminal relié et joignable.
+- **Écran attendu :** panneau "Démarrage" avec la ligne « Terminal de paiement : connecté ».
+- **Capture :** plein écran.
+
+### `03a_tables_terminal_card_charged.png`
+- **Action :** écran des tables, terminal joignable, un paiement carte accepté pas encore enregistré dans une vente (table 4).
+- **Écran attendu :** voyant "Terminal" vert dans l'en-tête et pastille « Carte encaissée » sur la table 4.
+- **Capture :** plein écran.
+
+### `15a_reports_z_unsettled_cards.png`
+- **Action :** "Rapports", onglet "Journée", avec deux paiements carte encaissés mais pas encore enregistrés (une table, une vente à emporter).
+- **Écran attendu :** l'avertissement « Paiements par carte encaissés mais pas encore enregistrés dans une vente : » avec ses lignes, et « La clôture reste possible » ; le bouton Z n'est pas bloqué.
 - **Capture :** plein écran.
 
 ### `10_pre_bill.png`
@@ -450,7 +491,7 @@ Puis vérifier que `CAPTURES_ECRAN_FR.pdf` figure dans les annexes de
 
 ## Estimation de temps
 
-- Sections 1 et 2 (50 écrans) : quelques secondes, `npm run captures`.
+- Sections 1 et 2 (57 écrans) : quelques secondes, `npm run captures`.
 - `00_boot_admission` (QEMU, CI) : automatique, aucune action manuelle.
 - Section 3 (7 tickets) : 20 à 30 minutes (impression et photo).
 - Compilation (`scripts/make_captures_pdf.sh`) : quelques secondes.

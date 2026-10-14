@@ -65,7 +65,8 @@ L'écran de connexion est coupé en deux.
   et "Email tickets" ("joignable", "injoignable" ou "non configuré"). Ces
   lignes informent seulement : un appareil qui ne répond pas n'empêche
   jamais de se connecter. Le nom de l'établissement et l'identifiant du terminal sont en bas, avec
-  la version du logiciel ("Version pili-pos/<numéro>").
+  la version du logiciel ("Version pili-pos/<numéro>"). Capture
+  `01a` de `CAPTURES_ECRAN_FR.pdf` (terminal de paiement relié et connecté).
 - À droite, "Qui êtes-vous ?" affiche une tuile par employé (initiale,
   nom, profil) et son état : "en service · 11:42" ou "hors service".
 
@@ -206,7 +207,7 @@ L'en-tête montre en permanence :
   pendant qu'un paiement est en cours sur le terminal, et rouge quand le
   terminal ne répond pas ; le toucher ou le survoler en donne la raison
   quand la caisse la connaît). Cette vérification ne débite jamais rien
-  et ne dérange pas un paiement en cours ;
+  et ne dérange pas un paiement en cours (capture `03a` : voyant "Terminal" vert) ;
 - le nom de l'employé connecté, son profil et "PIN" (le toucher pour
   changer son PIN, §2.2), puis la table ("Table 4") ou "À emporter", et
   l'heure ;
@@ -390,6 +391,10 @@ panneau "Démarrage" (§2.1). Cette vérification se contente de demander
 au terminal s'il répond : elle ne débite jamais rien, elle n'est jamais
 faite pendant un paiement (le voyant est alors orange) et elle
 n'empêche pas de se connecter ni de vendre.
+
+Captures : `09h` (choix "Terminal" ou "Saisie manuelle"), `09i` (fenêtre
+"Paiement sur le terminal"), `09j` (paiement refusé) et `09k` (réponse
+inconnue et bouton "Vérifier").
 
 1. Choisir "Carte" (le choix "Terminal" est actif, l'écran indique "Le
    montant est envoyé au terminal à la validation"), laisser ou taper le
@@ -666,7 +671,9 @@ Si un paiement par carte a été encaissé sur le terminal relié mais pas
 encore enregistré dans une vente, la caisse l'indique au-dessus du bouton
 ("Paiements par carte encaissés mais pas encore enregistrés dans une
 vente : ...") : le Z reste possible, ce paiement sera enregistré avec la
-vente de sa commande.
+vente de sa commande (capture `15a`). Sur l'écran des tables et la liste
+des ventes à emporter, la commande concernée porte la pastille "Carte
+encaissée" (capture `03a`).
 
 Le Z est signé par le FDM, imprimé, et "Rapport généré (Z #n)"
 confirme. La journée est close ; la suivante commence au prochain
