@@ -454,6 +454,9 @@ class HubriseViewModelTest {
 
             assertEquals(r.env.describe(refusal), r.state.error)
             assertEquals(listOf(one), r.state.adoptions)
+            // The refusal is also toasted: the error line of the panel is far down.
+            assertEquals(ToastVariant.Error, r.env.lastToast().variant)
+            assertEquals(r.env.describe(refusal), r.env.lastToast().message)
         }
 
     @Test

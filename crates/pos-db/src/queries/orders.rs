@@ -397,6 +397,35 @@ pub fn get_order_lines(
     rows.collect()
 }
 
+/// Void an open POS order that never held anything: no line, no signed
+/// event, no payment (cash, card or terminal), not an online order.
+/// Returns whether it was voided. Such an order is what opening a table
+/// or the takeaway tab and leaving again leaves behind; it must not
+/// block the SPF export, an update or a menu refresh. An order with any
+/// fiscal event or terminal payment is never touched.
+pub fn void_if_empty(conn: &Connection, order_id: i64) -> Result<bool, rusqlite::Error> {
+    Ok(void_empty(conn, Some(order_id))? > 0)
+}
+
+/// [`void_if_empty`] for every open order, at start-up: orders left
+/// empty by a session that ended without leaving them (a crash, a kill).
+/// Returns how many were voided.
+pub fn void_all_empty(conn: &Connection) -> Result<usize, rusqlite::Error> {
+    void_empty(conn, None)
+}
+
+fn void_empty(conn: &Connection, order_id: Option<i64>) -> Result<usize, rusqlite::Error> {
+    conn.execute(
+        "UPDATE orders SET status = 'voided', closed_at = datetime('now')
+         WHERE (?1 IS NULL OR id = ?1) AND status = 'open' AND hubrise_order_id IS NULL
+           AND NOT EXISTS (SELECT 1 FROM order_lines WHERE order_id = orders.id)
+           AND NOT EXISTS (SELECT 1 FROM fiscal_events WHERE order_id = orders.id)
+           AND NOT EXISTS (SELECT 1 FROM payments WHERE order_id = orders.id)
+           AND NOT EXISTS (SELECT 1 FROM eft_payments WHERE order_id = orders.id)",
+        params![order_id],
+    )
+}
+
 /// Open POS orders. Online orders (`hubrise_order_id`) have their own
 /// board and never show among tables and takeaways.
 pub fn list_open_orders(conn: &Connection) -> Result<Vec<Order>, rusqlite::Error> {

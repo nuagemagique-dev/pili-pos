@@ -279,6 +279,13 @@ impl Engine {
         if recovered > 0 {
             tracing::warn!(recovered, "boot: recovered orphaned checkout(s)");
         }
+        // Orders a session left empty (a crash on a fresh table): not to
+        // block the SPF export, an update or a menu refresh.
+        match pos_db::queries::orders::void_all_empty(&conn) {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(voided = n, "boot: voided empty open order(s)"),
+            Err(e) => tracing::warn!(%e, "boot: empty open orders not voided"),
+        }
         // Card payments whose answer was lost with a crash.
         match crate::commands::eft::recover_after_crash(&conn) {
             Ok(0) => {}

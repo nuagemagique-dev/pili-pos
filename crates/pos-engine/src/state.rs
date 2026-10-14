@@ -216,6 +216,35 @@ mod tests {
     }
 
     #[test]
+    fn empty_open_orders_are_voided_at_boot_and_the_others_kept() {
+        let conn = db();
+        let empty = order(&conn, "open");
+        let signed = order(&conn, "open");
+        event(&conn, 1, "P", Some(signed));
+        let with_line = order(&conn, "open");
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order, active) VALUES (1, 0, 1);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code, sort_order, active)
+                VALUES (1, 1, 1000, 'B', 0, 1);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO order_lines (order_id, menu_item_id, quantity, unit_price_cents, vat_code, name)
+             VALUES (?1, 1, 1, 1000, 'B', 'x')",
+            [with_line],
+        )
+        .unwrap();
+        let closed = order(&conn, "closed");
+
+        assert_eq!(pos_db::queries::orders::void_all_empty(&conn).unwrap(), 1);
+        assert_eq!(status(&conn, empty), "voided");
+        assert_eq!(status(&conn, signed), "open");
+        assert_eq!(status(&conn, with_line), "open");
+        assert_eq!(status(&conn, closed), "closed");
+        assert_eq!(pos_db::queries::orders::void_all_empty(&conn).unwrap(), 0);
+    }
+
+    #[test]
     fn recovery_is_idempotent() {
         let conn = db();
         let id = order(&conn, "open");

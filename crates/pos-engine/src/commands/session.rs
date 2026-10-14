@@ -41,6 +41,7 @@ use pos_core::order::{OrderStatus, OrderType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::SlipOutcome;
+use crate::commands::errors;
 use crate::events::EngineEvent;
 use crate::state::AppState;
 
@@ -241,6 +242,17 @@ pub async fn do_leave_order(
         crate::commands::tables::do_sign_table_order(state, order_id).await?
     };
     if reason != LeaveReason::SendToKitchen {
+        // Opening a table or the takeaway tab creates the order: leaving
+        // it with nothing on it must not leave an open order behind (it
+        // would block the SPF export, the update and the menu refresh).
+        // An order with a line, a signed event or a payment is kept.
+        let voided = {
+            let db = state.db.lock().map_err(errors::internal)?;
+            pos_db::queries::orders::void_if_empty(&db, order_id).map_err(errors::internal)?
+        };
+        if voided {
+            tracing::info!(order_id, "empty order voided on leaving");
+        }
         state.session_rules.clear_if(order_id)?;
     }
     Ok(outcome)
