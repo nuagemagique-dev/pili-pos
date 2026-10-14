@@ -413,7 +413,8 @@ ticket** (un seul événement N, même payée en plusieurs parts).
 **Carte sur le terminal relié (si l'installation en a un).** Quand le
 terminal de paiement est relié à la caisse (réglage de l'installation :
 section `payment_terminal` du fichier `pos.json` du lot de mise en
-service), l'opérateur ne tape plus la carte : la caisse envoie le montant
+service, `MANUEL_INSTALLATION_FR.md` §4.2, « Terminal de paiement par
+carte relié »), l'opérateur ne tape plus la carte : la caisse envoie le montant
 au terminal et reçoit sa réponse. La caisse montre aussi si le terminal
 relié est joignable : le voyant "Terminal" de l'en-tête (§4) et la ligne
 "Terminal de paiement" du panneau "Démarrage" (§2.1). Cette vérification
