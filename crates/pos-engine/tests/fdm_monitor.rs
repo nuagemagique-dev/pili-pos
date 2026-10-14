@@ -432,3 +432,37 @@ async fn a_check_now_with_a_session_promises_the_next_check() {
     );
     assert_eq!(recorder.health().len(), 1);
 }
+
+/// The path of the FDM mock the captures run against: its warnings reach
+/// the engine monitor with their `showPos`, so a mandatory code gives a
+/// mandatory reading and an optional one does not.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_mock_marks_mandatory_and_optional_warnings_as_the_monitor_reads_them() {
+    let (state, _fdm, _recorder, _dir) = app_without_session(Duration::from_secs(30)).await;
+    for (code, mandatory) in [
+        ("BUFFER_NEAR_FULL", true),
+        ("CLIENT_CERT_EXPIRED", true),
+        ("UPDATE_POS_VATNO", true),
+        ("UPDATE_POS_ESTNO", true),
+        ("CLIENT_CERT_NEAR_EXPIRATION", false),
+        ("RTC_SYNC_FAILED", false),
+        ("UPDATE_URLS_FAILED", false),
+    ] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let mock = pos_fdm_mock::app_with(pos_fdm_mock::Control {
+            warnings: vec![code.to_string()],
+            ..Default::default()
+        });
+        tokio::spawn(async move {
+            axum::serve(listener, mock).await.unwrap();
+        });
+        state.config.lock().unwrap().fdm_url = format!("http://{addr}/graphql");
+        *state.fdm_status_cache.lock().unwrap() = None;
+
+        let health = do_fdm_check_now(&state).await.unwrap();
+        assert_eq!(health.severity, FdmSeverity::Warning, "{code}");
+        assert_eq!(health.code.as_deref(), Some(code), "{code}");
+        assert_eq!(health.mandatory, mandatory, "{code}");
+    }
+}

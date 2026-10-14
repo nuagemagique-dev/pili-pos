@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import uniffi.pos_ffi.FdmHealth
+import uniffi.pos_ffi.FdmMessageDisplay
 import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.MessageItem
 import uniffi.pos_ffi.PosEvent
@@ -146,10 +147,18 @@ class FdmStore
                 val code = item.extensions.code.name
                 if (!shownSignMessages.add("${bookingDate.orEmpty()}|$code")) continue
                 toasts.show(textOf(code, item), variant, SIGN_MESSAGE_TOAST_MS)
-                // The header indicator shows a warning too, until the next status.
+                // The header indicator shows a warning too, until the next status. A MANDATORY one keeps its banner
+                // open, as the monitor's reading of the same code would (a sale can bring it before the next check).
                 if (variant == ToastVariant.Warning) {
+                    val keep = item.extensions.showPos == FdmMessageDisplay.MANDATORY
                     mutableState.update {
-                        if (it.severity == FdmSeverity.INFO) it.copy(severity = FdmSeverity.WARNING, code = code) else it
+                        when {
+                            it.severity == FdmSeverity.INFO ->
+                                it.copy(severity = FdmSeverity.WARNING, code = code, mandatory = keep)
+                            it.severity == FdmSeverity.WARNING && keep && !it.mandatory ->
+                                it.copy(code = code, mandatory = true)
+                            else -> it
+                        }
                     }
                 }
             }

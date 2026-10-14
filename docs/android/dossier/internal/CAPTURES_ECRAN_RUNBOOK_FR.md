@@ -9,7 +9,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
 - **Mise en service.** Paquet signé de développement fait par `scripts/android/make_dev_bundle.sh --seed --fdm-url http://10.0.2.2:8081/graphql --printer 10.0.2.2:9100` (jeu de test SPF ; sans ces options le paquet vise 127.0.0.1:19380 et 127.0.0.1:19390, injoignables depuis l'émulateur ; 10.0.2.2 est l'hôte, 8081 et 9100 sont les ports par défaut des mocks), importé comme dans `scripts/android/app_e2e.sh`. Employés du jeu : « Gerant Test » (gérant, PIN 1111), « Elisa » (serveur, PIN 2222), « Apprenti Test » (apprenti, PIN 3333).
 - **Mocks de l'hôte.** `cargo run --package pos-fdm-mock` et `cargo run --package pos-printer-mock`. Les codes du FDM se règlent par `MOCK_FDM_ERROR` ou `MOCK_FDM_WARNING`, ou sans redémarrage par `POST /mock/control`.
-- **Prise.** `adb exec-out screencap -p` plein écran, un PNG par id, nom `A<nn>_<ecran>.png` ; ne jamais recadrer. Vérifier à l'œil le texte attendu avant de garder le fichier. Un avertissement non obligatoire se referme seul après 10 s : capturer avant.
+- **Prise.** `adb exec-out screencap -p` plein écran, un PNG par id, nom `A<nn>_<ecran>.png` ; ne jamais recadrer. Vérifier à l'œil le texte attendu avant de garder le fichier. Un avertissement non obligatoire se referme seul après 10 s : capturer avant. Un avertissement obligatoire (BUFFER_NEAR_FULL, CLIENT_CERT_EXPIRED, UPDATE_POS_VATNO, UPDATE_POS_ESTNO) reste affiché sans compte à rebours : si le bandeau en montre un, la caisse a lu le code dans une réponse de vente avant la prochaine lecture de l'état de la boîte noire (cause trouvée en P8b, corrigée : le bandeau reste alors ouvert). Pour la capture, régler le code par `POST /mock/control` AVANT l'ouverture de session (ou toucher « Réessayer » sur l'état de la boîte noire), puis attendre la lecture de l'état (30 s au plus) sans passer de vente.
 - **Tickets imprimés.** Les tickets se lisent dans TICKETS_EXEMPLES_FR.md (EV-08), non dans cette liste. Assistance à distance : sans objet sur Android, aucune capture.
 
 ## Captures
@@ -74,8 +74,8 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A57 | `A57_fdm_locked.png` | MOCK_FDM_ERROR=FDM_LOCKED : bloquant | 14.1 |
 | A58 | `A58_fdm_not_operational.png` | MOCK_FDM_ERROR=FDM_NOT_OPERATIONAL : bloquant | 14.1 |
 | A59 | `A59_unknown_pos.png` | MOCK_FDM_ERROR=UNKNOWN_POS : bloquant | 14.1 |
-| A60 | `A60_buffer_near_full.png` | MOCK_FDM_WARNING=BUFFER_NEAR_FULL : avertissement obligatoire | 14.1 |
-| A61 | `A61_client_cert_expired.png` | MOCK_FDM_WARNING=CLIENT_CERT_EXPIRED : avertissement obligatoire | 14.1 |
+| A60 | `A60_buffer_near_full.png` | MOCK_FDM_WARNING=BUFFER_NEAR_FULL : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
+| A61 | `A61_client_cert_expired.png` | MOCK_FDM_WARNING=CLIENT_CERT_EXPIRED : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
 | A62 | `A62_client_cert_near_expiration.png` | MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION : avertissement | 14.1 |
 | A63 | `A63_unauthorized.png` | MOCK_FDM_ERROR=UNAUTHORIZED : erreur du FDM, vente refusée | 14.1 |
 | A64 | `A64_invalid_request.png` | MOCK_FDM_ERROR=INVALID_REQUEST : erreur du FDM, vente refusée | 14.1 |
@@ -102,8 +102,8 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A85 | `A85_mise_a_jour_accueil.png` | Réglages, « Mise à jour » : version installée, « Vérifier en ligne », « Depuis une clé USB » | 12.12 |
 | A86 | `A86_mise_a_jour_verifiee.png` | Mise à jour déclarée vérifiée : « Mise à jour disponible et vérifiée », « Installer la mise à jour » | 12.12 |
 | A87 | `A87_mise_a_jour_refusee.png` | Version non plus récente ou empreinte fausse : « Mise à jour refusée » et le détail | 12.12 |
-| A88 | `A88_update_pos_vatno.png` | MOCK_FDM_WARNING=UPDATE_POS_VATNO : avertissement obligatoire | 14.1 |
-| A89 | `A89_update_pos_estno.png` | MOCK_FDM_WARNING=UPDATE_POS_ESTNO : avertissement obligatoire | 14.1 |
+| A88 | `A88_update_pos_vatno.png` | MOCK_FDM_WARNING=UPDATE_POS_VATNO : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
+| A89 | `A89_update_pos_estno.png` | MOCK_FDM_WARNING=UPDATE_POS_ESTNO : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
 | A90 | `A90_fdm_not_initialized.png` | MOCK_FDM_INITIALIZED=false : voyant orange, « La boîte noire n'est pas encore initialisée. » | 14.1 |
 | A91 | `A91_en_ligne_retarder.png` | « En ligne », commande acceptée, « Retarder » : fenêtre « +15 min », « +30 min », « +45 min » | 12.8 |
 | A92 | `A92_mise_a_jour_bloquee.png` | Réglages, « Mise à jour », une commande ouverte : « La mise à jour ne peut pas démarrer maintenant : » et la liste | 12.12 |
