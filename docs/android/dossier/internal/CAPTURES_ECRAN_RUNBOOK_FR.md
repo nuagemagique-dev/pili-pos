@@ -3,7 +3,7 @@
 
 **Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve `À effectuer (EV-09 : captures du profil sunmi_d3_pro_gms_api33)`.
 
-Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
+Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A122. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 
 ## Méthode
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
@@ -29,7 +29,7 @@ Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A12 | `A12_tables_emporter_en_cours.png` | Vente à emporter commencée puis quittée : liste « À emporter en cours », « Nouvelle vente à emporter » | 5.2 |
 | A13 | `A13_commande_remplie.png` | Ajouter des articles dont un en double : panier, « Pas encore en cuisine », détail de TVA, total, « Envoyer en cuisine », « Addition », « PAYER » | 5.3 |
 | A14 | `A14_prix_libre.png` | Toucher un article à prix libre : fenêtre « Prix libre », pavé lu en cents | 5.3 |
-| A15 | `A15_options_produit.png` | HubRise activé, article à options : fenêtre « Options », règles de groupe, « Ajouter » grisé | 5.3 |
+| A15 | `A15_options_produit.png` | Article à groupe d'options obligatoire (catalogue du mock) : fenêtre « Options », « Choisir 1 », « Ajouter » grisé | 5.3 |
 | A16 | `A16_envoye_cuisine.png` | « Envoyer en cuisine » : « Envoyé en cuisine · n articles » | 6.1 |
 | A17 | `A17_addition_imprimee.png` | Sur une autre table, « Addition » : « Addition provisoire imprimée » | 6.2 |
 | A18 | `A18_paiement_moyens.png` | « PAYER » : total à payer, « Espèces », « Carte », « Chèques-repas » (espèces choisi d'office) | 7 |
@@ -41,7 +41,7 @@ Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A24 | `A24_paiement_reste.png` | Un paiement pris (chèques-repas) : montant pris, « Reste à payer », « Annuler les paiements » | 7.2 |
 | A25 | `A25_fin_vente.png` | « Valider » : « OK », type de ticket, total, rendu, identifiant FDM, « Ticket imprimé », « Terminer » | 7.3 |
 | A26 | `A26_fin_vente_email.png` | Vente payée avec ticket par e-mail : « Ticket envoyé à » et l'adresse masquée | 7.3 |
-| A27 | `A27_fin_vente_repli_papier.png` | Service d'e-mail en panne (MOCK_TEM_FAIL=1), vente en « E-mail » seul : le papier sort à la place, l'écran le dit | 7.3 |
+| A27 | `A27_fin_vente_repli_papier.png` | Service d'e-mail en panne (MOCK_TEM_FAIL=1), vente en « E-mail » seul : le bouton « E-mail » disparaît et l'écran annonce « Service e-mail indisponible : le ticket papier sera imprimé, l'e-mail sera envoyé dès que possible » ; la panne survenue à l'envoi n'affiche que « Ticket imprimé » | 7.3 |
 | A28 | `A28_fin_vente_imprimer.png` | Imprimante hors ligne à l'encaissement, en espèces : bouton « Imprimer le ticket » et « Terminer » | 7.3 |
 | A29 | `A29_fdm_voile.png` | FDM simulé arrêté : voile rouge sur Tables, Commande et Paiement, message, « Réessayer maintenant » | 7.4 |
 | A30 | `A30_sans_paiement_pin.png` | Gérant, panier non vide, « Client parti sans payer » : « Confirmez avec votre PIN » | 7.5 |
@@ -60,15 +60,15 @@ Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A43 | `A43_tiroir_ouvert.png` | « Ouvrir le tiroir » : « Tiroir ouvert » | 11.2 |
 | A44 | `A44_tiroir_declaration.png` | « Déclarer le tiroir » : fenêtre « Déclarer le contenu du tiroir », pavé | 11.3 |
 | A45 | `A45_reglages.png` | « Config » (gérant) : page Paramètres, panneaux mode formation, langue, informations (POS ID, Terminal, FDM, Imprimante), section « Autres réglages » | 12 |
-| A46 | `A46_employes.png` | Panneau « Employés » : nom, profil, « PIN défini », « Code PIN », « Désactiver », formulaire « Ajouter » | 12.3 |
+| A46 | `A46_employes.png` | Panneau « Employés » : nom, profil, « PIN défini », « Code PIN », « Désactiver », formulaire « Ajouter » (même vue d'écran que A45, qui contient déjà le panneau) | 12.3 |
 | A47 | `A47_config_invalide.png` | Configuration avec un numéro de TVA mal formé : bandeau rouge « Configuration invalide : le FDM refusera les tickets. Appelez l'installateur. » | 12.4 |
 | A48 | `A48_tickets_email.png` | Panneau « Tickets par email » : « Configuré », « Joignable », envois avec adresse masquée | 12.5 |
 | A49 | `A49_integrations.png` | Panneau « Intégrations » : « Activer » ou « Désactiver », « Historique » | 12.7 |
 | A50 | `A50_hubrise_connexion.png` | « Se connecter à HubRise » : QR code et champ « Code d'autorisation » | 12.7 |
 | A51 | `A51_hubrise_catalogue.png` | HubRise connecté : « Connecté », compte, catalogue, « Resynchroniser », canaux | 12.7 |
 | A52 | `A52_commandes_en_ligne.png` | « En ligne » : colonnes « Nouvelles », « En cuisine », « Prêtes », filtre « Terminées » | 12.8 |
-| A53 | `A53_export_nocturne_a_jour.png` | Réglages, « Export nocturne », export configuré : état « À jour », destination, dernier envoi | 12.9 |
-| A54 | `A54_export_nocturne_attente.png` | Récepteur arrêté : « n exports en attente », « Dernière erreur », « Réessayer maintenant » | 12.9 |
+| A53 | `A53_export_nocturne_a_jour.png` | Réglages, « Export nocturne », export configuré : état « À jour », destination, dernier envoi | 12.8 |
+| A54 | `A54_export_nocturne_attente.png` | Récepteur arrêté : « n exports en attente », « Dernière erreur », « Réessayer maintenant » | 12.8 |
 | A55 | `A55_formation_actif.png` | « Mode Formation » actif (commandes vidées avant) : bandeau violet, filigrane « TRAINING » | 13 |
 | A56 | `A56_buffer_full.png` | MOCK_FDM_ERROR=BUFFER_FULL : bloquant | 14.1 |
 | A57 | `A57_fdm_locked.png` | MOCK_FDM_ERROR=FDM_LOCKED : bloquant | 14.1 |
@@ -79,9 +79,9 @@ Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A62 | `A62_client_cert_near_expiration.png` | MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION : avertissement | 14.1 |
 | A63 | `A63_unauthorized.png` | MOCK_FDM_ERROR=UNAUTHORIZED : erreur du FDM, vente refusée | 14.1 |
 | A64 | `A64_invalid_request.png` | MOCK_FDM_ERROR=INVALID_REQUEST : erreur du FDM, vente refusée | 14.1 |
-| A65 | `A65_internal_error.png` | MOCK_FDM_ERROR=INTERNAL_ERROR : erreur du FDM, vente refusée | 14.1 |
-| A66 | `A66_undefined_error.png` | MOCK_FDM_ERROR=UNDEFINED_ERROR : erreur du FDM, vente refusée | 14.1 |
-| A67 | `A67_undefined_other.png` | MOCK_FDM_ERROR=UNDEFINED_OTHER : erreur du FDM, vente refusée | 14.1 |
+| A65 | `A65_internal_error.png` | MOCK_FDM_ERROR=INTERNAL_ERROR : FDM_ANSWER_PENDING : « La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. » (le moteur traite cette réponse comme un résultat inconnu ; un nouvel essai avec un FDM sain conclut la vente) | 14.1 |
+| A66 | `A66_undefined_error.png` | MOCK_FDM_ERROR=UNDEFINED_ERROR : même écran que A65 | 14.1 |
+| A67 | `A67_undefined_other.png` | MOCK_FDM_ERROR=UNDEFINED_OTHER : même écran que A65 | 14.1 |
 | A68 | `A68_rtc_sync_failed.png` | MOCK_FDM_WARNING=RTC_SYNC_FAILED : avertissement | 14.1 |
 | A69 | `A69_update_urls_failed.png` | MOCK_FDM_WARNING=UPDATE_URLS_FAILED : avertissement | 14.1 |
 | A70 | `A70_update_trust_cert_failed.png` | MOCK_FDM_WARNING=UPDATE_TRUST_CERT_FAILED : avertissement | 14.1 |
@@ -92,7 +92,7 @@ Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A75 | `A75_transaction_upload_failed.png` | MOCK_FDM_WARNING=TRANSACTION_UPLOAD_FAILED : avertissement | 14.1 |
 | A76 | `A76_initialization_failed.png` | MOCK_FDM_WARNING=INITIALIZATION_FAILED : avertissement | 14.1 |
 | A77 | `A77_fdm_unreachable.png` | FDM simulé arrêté puis tentative d'encaissement : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. », vente refusée | 14.1 |
-| A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. » | 14.1 |
+| A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : le moteur la classe aussi en résultat inconnu, même écran que A65 (le message « Réponse de la boîte noire incohérente » n'est pas atteignable) | 14.1 |
 | A79 | `A79_fdm_answer_pending.png` | Réponse du FDM à une vente perdue (FDM_ANSWER_PENDING) : « La caisse attend la réponse de la boîte noire pour l'opération précédente. » | 14.1 |
 | A80 | `A80_mise_en_service.png` | Caisse sans configuration : « Mise en service de la caisse », « Choisir le dossier » | 14.2 |
 | A81 | `A81_mise_en_service_refusee.png` | Paquet de configuration à signature invalide : « La signature du paquet de configuration est absente ou invalide. » | 14.2 |
@@ -113,7 +113,31 @@ Liste des 98 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR
 | A96 | `A96_export_spf_aucun_support.png` | Réglages, « Export pour le SPF », aucun support inséré : « Insérez la clé USB ou la carte SD. » | 12.11 |
 | A97 | `A97_export_spf_interrompu.png` | Retirer le support pendant l'export : « Export interrompu » avec l'étape, le fichier et le détail | 12.11 |
 | A98 | `A98_remboursement_support_ticket.png` | Rapports, « Tickets », « Rembourser », lignes choisies, étape du support : Papier / E-mail / Les deux, puis « Rembourser » avec le montant | 9 |
+| A99 | `A99_demarrage_terminal_paiement.png` | Terminal de paiement lié, écran de connexion : ligne « Terminal de paiement : connecté » du panneau « Démarrage » | 2.1 |
+| A100 | `A100_voyant_terminal.png` | Connecté, terminal lié : voyant « TERMINAL » vert dans l'en-tête | 4 |
+| A101 | `A101_paiement_carte_terminal.png` | Écran de paiement, « Carte » : choix « Terminal » ou « Saisie manuelle » | 7.2 |
+| A102 | `A102_paiement_sur_le_terminal.png` | « Valider » avec « Terminal » : fenêtre « Paiement sur le terminal », montant, « Annuler » ; voyant TERMINAL orange | 7.2 |
+| A103 | `A103_carte_acceptee_vente_non_enregistree.png` | Carte acceptée puis FDM hors service : ligne « Carte · Visa Accepté », reste à payer 0,00, message rouge de la boîte noire | 7.2 |
+| A104 | `A104_carte_acceptee_boite_noire_hs_modale.png` | Même cas : fenêtre « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. », « Réessayer maintenant » | 7.2 |
+| A105 | `A105_pastille_carte_encaissee.png` | Retour au plan des tables : la table porte la pastille « Carte encaissée » | 5.1 |
+| A106 | `A106_z_cartes_non_enregistrees.png` | Rapports, « Journée » : « Paiements par carte encaissés mais pas encore enregistrés dans une vente : » avec la table, le montant et la marque ; la clôture reste possible | 10.2 |
+| A107 | `A107_carte_refusee.png` | Terminal qui refuse : « Paiement refusé », motif, « Rien n'a été débité. », « OK » | 7.2 |
+| A108 | `A108_reponse_terminal_inconnue.png` | Terminal sans réponse exploitable : « Réponse du terminal inconnue », « Vérifier », « Fermer » | 7.2 |
+| A109 | `A109_paiement_carte_a_verifier.png` | Après « Fermer » : ligne « Carte · Réponse inconnue » avec « Vérifier », « Valider » grisé, message rouge | 7.2 |
+| A110 | `A110_verification_terminal.png` | Après « Vérifier » : ligne « Carte · Bancontact Accepté », reste à payer 0,00, « Valider » disponible | 7.2 |
+| A111 | `A111_config_terminal_paiement.png` | Réglages, panneau « Informations » : ligne « Terminal de paiement » (type de terminal lié) | 12 |
+| A112 | `A112_en_ligne_a_vérifier.png` | Onglet « En ligne », colonne « Nouvelles » : commandes Webshop et Deliveroo marquées « À vérifier » (« Produit absent du menu. »), boutons « Refuser » et « Resynchroniser » | 12.8 |
+| A113 | `A113_en_ligne_refuser_confirmation.png` | Commande en ligne, « Refuser » : confirmation | 12.8 |
+| A114 | `A114_en_ligne_terminees.png` | Onglet « En ligne », colonne « Terminées » (bouton « Terminées · 2 ») : commandes terminées | 12.8 |
+| A115 | `A115_export_spf_bloque_commande_ouverte.png` | « Export pour le SPF » refusé : « Une commande ou une vente à emporter est ouverte » | 12.11 |
+| A116 | `A116_export_spf_pret.png` | « Export pour le SPF » prêt : support détecté, « Exporter » | 12.11 |
+| A117 | `A117_fin_vente_email_en_attente.png` | « Les deux » avec service d'e-mail en panne : « E-mail en attente, nouvel essai automatique » | 7.3 |
+| A118 | `A118_mise_a_jour_rapport_z_du.png` | Écran de mise à jour avec rapport Z dû : blocage de la mise à jour | 12.12 |
+| A119 | `A119_mise_en_service_config_invalide.png` | Mise en service avec paquet refusé (TVA du restaurant invalide) : détail de la configuration invalide | 14.2 |
+| A120 | `A120_options_groupe_facultatif.png` | Article à groupe d'options facultatif : fenêtre « Options », « Ajouter » disponible | 5.3 |
+| A121 | `A121_paiement_email_indisponible.png` | Paiement avec service d'e-mail en panne : mention « Service e-mail indisponible » | 7.3 |
+| A122 | `A122_rapport_z_pas_encore_fait.png` | Écran de commande ou de rapports : « Rapport Z pas encore fait aujourd'hui » | 10.2 |
 
-Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A98 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
+Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A122 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 
 **Compilation finale.** Une fois toutes les captures dans le dossier screenshots, `scripts/make_captures_pdf.sh` (adapté au dossier Android en P8b) les assemble dans l'ordre du nom de fichier en CAPTURES_ECRAN_FR.pdf. Vérifier ensuite que ce PDF figure dans les annexes de REPONSES_MANUEL_CERT_FR.md §V et §VII.D.
