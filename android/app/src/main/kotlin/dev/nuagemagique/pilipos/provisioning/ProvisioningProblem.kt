@@ -90,6 +90,8 @@ data class ProvisioningProblem(
         private const val MAX_DETAIL = 400
         private const val CONFIG_INVALID = "config_invalid"
 
+        // The code names the string (`err_config_*`) only at run time: the lookup by name is the point here.
+        @Suppress("DiscouragedApi")
         private fun describeConfigProblem(
             resources: Resources,
             line: String,

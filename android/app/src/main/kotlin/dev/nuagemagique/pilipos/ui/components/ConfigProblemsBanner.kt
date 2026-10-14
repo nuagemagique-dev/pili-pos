@@ -40,8 +40,8 @@ private val ListIndent = 20.dp
 /**
  * `ConfigProblemsBanner.vue`: a red band when `pos.json` holds an identity the FDM would refuse, so that every
  * sale would fail. The headline and the [problems] are translated (the overlay turns the engine's coded problems
- * into texts, each ending with the installer's English detail). The caller draws it only when [problems] is not empty. Test tags: `config_problems` (the band),
- * `config_problem_<index>`.
+ * into texts, each ending with the installer's English detail). The caller draws it only when [problems] is not
+ * empty. Test tags: `config_problems` (the band), `config_problem_<index>`.
  */
 @Composable
 fun ConfigProblemsBanner(
