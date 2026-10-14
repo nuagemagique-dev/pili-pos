@@ -149,6 +149,22 @@ internal object VueStringIds {
         this["err_order_sign_pending"] = R.string.err_order_sign_pending
         this["err_period_closed"] = R.string.err_period_closed
         this["err_concurrent_operation"] = R.string.err_concurrent_operation
+        this["err_config_tables"] = R.string.err_config_tables
+        this["err_config_pos_id"] = R.string.err_config_pos_id
+        this["err_config_restaurant_vat"] = R.string.err_config_restaurant_vat
+        this["err_config_restaurant_est_no"] = R.string.err_config_restaurant_est_no
+        this["err_config_identity"] = R.string.err_config_identity
+        this["err_config_ticket_header"] = R.string.err_config_ticket_header
+        this["err_config_fdm_url"] = R.string.err_config_fdm_url
+        this["err_config_fdm_files"] = R.string.err_config_fdm_files
+        this["err_config_language"] = R.string.err_config_language
+        this["err_config_day_end_hour"] = R.string.err_config_day_end_hour
+        this["err_config_missing"] = R.string.err_config_missing
+        this["err_config_hubrise"] = R.string.err_config_hubrise
+        this["err_config_digital_ticket"] = R.string.err_config_digital_ticket
+        this["err_config_export"] = R.string.err_config_export
+        this["err_config_payment_terminal"] = R.string.err_config_payment_terminal
+        this["err_config_other"] = R.string.err_config_other
         this["err_internal_error"] = R.string.err_internal_error
         this["pin_choose"] = R.string.pin_choose
         this["pin_chosen"] = R.string.pin_chosen
@@ -250,6 +266,9 @@ internal object VueStringIds {
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
         this["delivery_outcome_queued"] = R.string.delivery_outcome_queued
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["delivery_print_missing"] = R.string.delivery_print_missing
         this["delivery_settings_title"] = R.string.delivery_settings_title
         this["delivery_settings_refresh"] = R.string.delivery_settings_refresh
@@ -266,9 +285,6 @@ internal object VueStringIds {
         this["delivery_status_failed"] = R.string.delivery_status_failed
         this["delivery_status_fallback_printed"] = R.string.delivery_status_fallback_printed
         this["delivery_status_purged"] = R.string.delivery_status_purged
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["sw_version"] = R.string.sw_version
         this["lock"] = R.string.lock
         this["status_terminal"] = R.string.status_terminal
@@ -503,6 +519,9 @@ internal object VueStringIds {
         this["hubrise_catalog_title"] = R.string.hubrise_catalog_title
         this["hubrise_catalog_synced"] = R.string.hubrise_catalog_synced
         this["hubrise_catalog_never"] = R.string.hubrise_catalog_never
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["hubrise_catalog_rejected"] = R.string.hubrise_catalog_rejected
         this["hubrise_catalog_sync_ok"] = R.string.hubrise_catalog_sync_ok
         this["hubrise_adoption_title"] = R.string.hubrise_adoption_title
@@ -519,9 +538,6 @@ internal object VueStringIds {
         this["hubrise_channel_saved"] = R.string.hubrise_channel_saved
         this["hubrise_health_auth"] = R.string.hubrise_health_auth
         this["hubrise_health_outbox"] = R.string.hubrise_health_outbox
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_health_parked"] = R.string.hubrise_health_parked
         this["webshop_stale_alarm"] = R.string.webshop_stale_alarm
         this["catalog_issue_empty_key"] = R.string.catalog_issue_empty_key
@@ -549,6 +565,7 @@ internal object VueStringIds {
         this["err_hubrise_disabled"] = R.string.err_hubrise_disabled
         this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
         this["err_hubrise_secret_unreadable"] = R.string.err_hubrise_secret_unreadable
+        this["err_hubrise_oauth_failed"] = R.string.err_hubrise_oauth_failed
         this["err_hubrise_online_orders_open"] = R.string.err_hubrise_online_orders_open
         this["err_refund_discounted_line"] = R.string.err_refund_discounted_line
         this["err_modifier_open_price"] = R.string.err_modifier_open_price

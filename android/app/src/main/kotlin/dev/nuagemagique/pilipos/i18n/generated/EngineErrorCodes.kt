@@ -6,6 +6,22 @@ object EngineErrorCodes {
     /** errors::ALL. */
     val ALL: List<String> =
         listOf(
+            "config_tables",
+            "config_pos_id",
+            "config_restaurant_vat",
+            "config_restaurant_est_no",
+            "config_identity",
+            "config_ticket_header",
+            "config_fdm_url",
+            "config_fdm_files",
+            "config_language",
+            "config_day_end_hour",
+            "config_missing",
+            "config_hubrise",
+            "config_digital_ticket",
+            "config_export",
+            "config_payment_terminal",
+            "config_other",
             "not_logged_in",
             "forbidden",
             "not_the_operator",
@@ -107,5 +123,6 @@ object EngineErrorCodes {
             "hubrise_online_orders_open",
             "hubrise_not_configured",
             "hubrise_secret_unreadable",
+            "hubrise_oauth_failed",
         )
 }

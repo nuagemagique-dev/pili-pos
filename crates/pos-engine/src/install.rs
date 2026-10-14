@@ -60,6 +60,16 @@ pub fn check_config(env_path: Option<&str>, production_path: &Path) -> Vec<Strin
     check_config_source(&config_source_from(env_path, production_path))
 }
 
+/// [`check_config_source`] with each problem as a coded error
+/// (`config_<setting>|detail=<English text>`), for the screens that show
+/// the problems of a provisioning bundle in the operator's language.
+pub fn check_config_source_coded(source: &ConfigSource) -> Vec<String> {
+    check_config_source(source)
+        .iter()
+        .map(|p| crate::commands::errors::config_problem(p))
+        .collect()
+}
+
 /// What the FDM would refuse in the configuration `source` gives, or
 /// why it cannot be loaded; empty when it is usable. The files the
 /// configuration names (token, CA, client certificate) must exist, a

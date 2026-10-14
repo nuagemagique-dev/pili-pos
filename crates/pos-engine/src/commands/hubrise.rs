@@ -110,6 +110,13 @@ fn installation_oauth_config(state: &AppState) -> Result<OAuthConfig, String> {
     oauth_config(&config, cfg!(debug_assertions))
 }
 
+/// HubRise refused the connection code or did not answer: said in the
+/// screen's language, its own words kept as the detail.
+fn oauth_failed(e: impl std::fmt::Display) -> String {
+    tracing::warn!(error = %e, "hubrise: connection refused");
+    errors::coded(errors::hubrise::OAUTH_FAILED, &[("detail", &e)])
+}
+
 pub fn do_hubrise_get_connection_status(state: &AppState) -> Result<HubriseConnectionInfo, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     match token_store::load(&db).map_err(|e| e.to_string())? {
@@ -141,7 +148,7 @@ pub struct AuthorizeLink {
 pub fn do_hubrise_start_oauth_flow(state: &AppState) -> Result<AuthorizeLink, String> {
     crate::commands::integrations::require_hubrise(state)?;
     let cfg = installation_oauth_config(state)?;
-    let url = build_authorize_url(&cfg, None).map_err(|e| e.to_string())?;
+    let url = build_authorize_url(&cfg, None).map_err(oauth_failed)?;
     let qr_svg = qr_svg(&url)?;
     Ok(AuthorizeLink { url, qr_svg })
 }
@@ -174,7 +181,7 @@ pub async fn do_hubrise_complete_oauth(
     let cfg = installation_oauth_config(state)?;
     let tok = exchange_code(&state.shared_http, &cfg, code)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(oauth_failed)?;
 
     let stored = StoredConnection {
         access_token: tok.access_token.clone(),

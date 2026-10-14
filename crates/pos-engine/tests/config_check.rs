@@ -26,9 +26,23 @@ async fn a_bad_identity_is_reported_key_by_key() {
         config.pos_id = "cfod0061234567".into();
     }
     let problems = do_get_settings(&app.state).unwrap().config_problems;
-    let keys: Vec<_> = problems
+    // Each is a coded error: the setting's code, then the English text
+    // of the problem as the detail for the installer.
+    let codes: Vec<_> = problems
         .iter()
-        .map(|p| p.split(':').next().unwrap())
+        .map(|p| p.split('|').next().unwrap())
         .collect();
-    assert_eq!(keys, ["pos_id", "restaurant_vat", "restaurant_est_no"]);
+    assert_eq!(
+        codes,
+        [
+            "config_pos_id",
+            "config_restaurant_vat",
+            "config_restaurant_est_no"
+        ]
+    );
+    assert!(
+        problems[1].starts_with("config_restaurant_vat|detail=restaurant_vat: BE followed by"),
+        "{}",
+        problems[1]
+    );
 }

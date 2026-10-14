@@ -61,7 +61,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A44 | `A44_tiroir_declaration.png` | « Déclarer le tiroir » : fenêtre « Déclarer le contenu du tiroir », pavé | 11.3 |
 | A45 | `A45_reglages.png` | « Config » (gérant) : page Paramètres, panneaux mode formation, langue, informations (POS ID, Terminal, FDM, Imprimante), section « Autres réglages » | 12 |
 | A46 | `A46_employes.png` | Panneau « Employés » : nom, profil, « PIN défini », « Code PIN », « Désactiver », formulaire « Ajouter » (même vue d'écran que A45, qui contient déjà le panneau) | 12.3 |
-| A47 | `A47_config_invalide.png` | Configuration avec un numéro de TVA mal formé : bandeau rouge « Configuration invalide : le FDM refusera les tickets. Appelez l'installateur. » | 12.4 |
+| A47 | `A47_config_invalide.png` | Configuration avec un numéro de TVA mal formé : bandeau rouge « Configuration invalide : le FDM refusera les tickets. Appelez l'installateur. » (À REPRENDRE : le détail s'affiche maintenant en français, suivi du texte technique anglais) | 12.4 |
 | A48 | `A48_tickets_email.png` | Panneau « Tickets par email » : « Configuré », « Joignable », envois avec adresse masquée | 12.5 |
 | A49 | `A49_integrations.png` | Panneau « Intégrations » : « Activer » ou « Désactiver », « Historique » | 12.7 |
 | A50 | `A50_hubrise_connexion.png` | « Se connecter à HubRise » : QR code et champ « Code d'autorisation » | 12.7 |
@@ -133,7 +133,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A116 | `A116_export_spf_pret.png` | « Export pour le SPF » prêt : support détecté, « Exporter » | 12.11 |
 | A117 | `A117_fin_vente_email_en_attente.png` | « Les deux » avec service d'e-mail en panne : « E-mail en attente, nouvel essai automatique » | 7.3 |
 | A118 | `A118_mise_a_jour_rapport_z_du.png` | Écran de mise à jour avec rapport Z dû : blocage de la mise à jour | 12.12 |
-| A119 | `A119_mise_en_service_config_invalide.png` | Mise en service avec paquet refusé (TVA du restaurant invalide) : détail de la configuration invalide | 14.2 |
+| A119 | `A119_mise_en_service_config_invalide.png` | Mise en service avec paquet refusé (TVA du restaurant invalide) : détail de la configuration invalide (À REPRENDRE : chaque problème est dit en français, suivi de « Détail : » et du texte technique anglais) | 14.2 |
 | A120 | `A120_options_groupe_facultatif.png` | Article à groupe d'options facultatif : fenêtre « Options », « Ajouter » disponible | 5.3 |
 | A121 | `A121_paiement_email_indisponible.png` | Paiement avec service d'e-mail en panne : mention « Service e-mail indisponible » | 7.3 |
 | A122 | `A122_rapport_z_pas_encore_fait.png` | Écran de commande ou de rapports : « Rapport Z pas encore fait aujourd'hui » | 10.2 |

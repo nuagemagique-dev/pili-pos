@@ -867,16 +867,20 @@ async fn a_bad_payment_terminal_section_is_reported_by_the_config_check() {
     }
     let problems = do_get_settings(&app.state).unwrap().config_problems;
     assert_eq!(problems.len(), 2, "{problems:?}");
-    assert!(problems.iter().all(|p| p.starts_with("payment_terminal.")));
     assert!(
         problems
             .iter()
-            .any(|p| p.starts_with("payment_terminal.address"))
+            .all(|p| p.starts_with("config_payment_terminal|detail=payment_terminal."))
     );
     assert!(
         problems
             .iter()
-            .any(|p| p.starts_with("payment_terminal.timeout_seconds"))
+            .any(|p| p.contains("|detail=payment_terminal.address"))
+    );
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.contains("|detail=payment_terminal.timeout_seconds"))
     );
 }
 

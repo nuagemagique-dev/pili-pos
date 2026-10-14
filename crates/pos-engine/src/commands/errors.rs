@@ -170,8 +170,54 @@ pub const CONCURRENT_OPERATION: &str = "concurrent_operation";
 /// `detail`: what went wrong, for the technician. Also logged.
 pub const INTERNAL_ERROR: &str = "internal_error";
 
+// Configuration problems (`pos.json`), shown in the screen's language
+// with the English text of the problem as `detail` for the installer.
+// One code per setting, see `pos_core::config::problem_code`.
+pub const CONFIG_TABLES: &str = "config_tables";
+pub const CONFIG_POS_ID: &str = "config_pos_id";
+pub const CONFIG_RESTAURANT_VAT: &str = "config_restaurant_vat";
+pub const CONFIG_RESTAURANT_EST_NO: &str = "config_restaurant_est_no";
+pub const CONFIG_IDENTITY: &str = "config_identity";
+pub const CONFIG_TICKET_HEADER: &str = "config_ticket_header";
+pub const CONFIG_FDM_URL: &str = "config_fdm_url";
+pub const CONFIG_FDM_FILES: &str = "config_fdm_files";
+pub const CONFIG_LANGUAGE: &str = "config_language";
+pub const CONFIG_DAY_END_HOUR: &str = "config_day_end_hour";
+pub const CONFIG_MISSING: &str = "config_missing";
+pub const CONFIG_HUBRISE: &str = "config_hubrise";
+pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
+pub const CONFIG_EXPORT: &str = "config_export";
+pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
+pub const CONFIG_OTHER: &str = "config_other";
+
+/// A problem of `pos.json` (an English text of
+/// `PosConfig::problems`) as a coded error: its `config_<setting>` code
+/// and the text as `detail`.
+pub fn config_problem(problem: &str) -> String {
+    coded(
+        &format!("config_{}", pos_core::config::problem_code(problem)),
+        &[("detail", &problem)],
+    )
+}
+
 /// Every code, for the translation check.
 pub const ALL: &[&str] = &[
+    CONFIG_TABLES,
+    CONFIG_POS_ID,
+    CONFIG_RESTAURANT_VAT,
+    CONFIG_RESTAURANT_EST_NO,
+    CONFIG_IDENTITY,
+    CONFIG_TICKET_HEADER,
+    CONFIG_FDM_URL,
+    CONFIG_FDM_FILES,
+    CONFIG_LANGUAGE,
+    CONFIG_DAY_END_HOUR,
+    CONFIG_MISSING,
+    CONFIG_HUBRISE,
+    CONFIG_DIGITAL_TICKET,
+    CONFIG_EXPORT,
+    CONFIG_PAYMENT_TERMINAL,
+    CONFIG_OTHER,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,
@@ -301,6 +347,9 @@ pub mod hubrise {
     /// Switching off waits until every online order is settled
     /// ({count}).
     pub const ONLINE_ORDERS_OPEN: &str = "hubrise_online_orders_open";
+    /// HubRise refused the code of the connection, or did not answer
+    /// (`detail`: what it said, for the installer).
+    pub const OAUTH_FAILED: &str = "hubrise_oauth_failed";
 
     pub const ALL: &[&str] = &[
         NOT_CONNECTED,
@@ -325,6 +374,7 @@ pub mod hubrise {
         ONLINE_ORDERS_OPEN,
         NOT_CONFIGURED,
         SECRET_UNREADABLE,
+        OAUTH_FAILED,
     ];
 }
 

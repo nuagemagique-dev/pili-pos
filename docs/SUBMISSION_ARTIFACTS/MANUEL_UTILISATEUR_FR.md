@@ -770,7 +770,7 @@ et "Imprimante", tels que configurés à l'installation (lecture seule).
 Si cette configuration contient une erreur que le FDM refuserait (ex.
 un numéro de TVA mal formé), un **bandeau rouge** s'affiche en bas de
 l'écran : "Configuration invalide : le FDM refusera les tickets.
-Appelez l'installateur." suivi de la liste des champs en cause. Il reste
+Appelez l'installateur." suivi de la liste des champs en cause. Chaque ligne dit en français (ou dans la langue de l'écran) quel réglage est en cause, par exemple « Numéro de TVA du restaurant invalide : BE suivi de 10 chiffres (par exemple BE0499999960). », puis, après « Détail : », le texte technique anglais pour l'installateur. Il reste
 affiché tant que l'erreur n'est pas corrigée.
 
 ### 12.5 Tickets par email

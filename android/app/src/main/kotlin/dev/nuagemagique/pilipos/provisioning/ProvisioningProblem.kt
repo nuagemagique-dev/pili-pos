@@ -17,8 +17,23 @@ data class ProvisioningProblem(
     @StringRes val textRes: Int,
 ) {
     /** The text in the language of [resources], placeholders replaced (never `getString` format arguments). */
-    fun render(resources: Resources): String =
-        params.entries.fold(resources.getString(textRes)) { text, (key, value) -> text.replace("{$key}", value) }
+    fun render(resources: Resources): String {
+        val shown = if (code == CONFIG_INVALID) params + ("detail" to configLines(resources)) else params
+        return shown.entries.fold(resources.getString(textRes)) { text, (key, value) -> text.replace("{$key}", value) }
+    }
+
+    /**
+     * The problems of `pos.json`, one per line: the engine reports each as `config_<setting>|detail=<English text>`
+     * (the `detail` param holds them, one per line). The setting is said in the language of [resources] (the
+     * `err_config_*` texts of the Vue dictionary), the English text stays as its detail; a line that is not a
+     * known code is shown as it is.
+     */
+    private fun configLines(resources: Resources): String =
+        params["detail"]
+            .orEmpty()
+            .lines()
+            .filter { it.isNotBlank() }
+            .joinToString("\n") { "• " + describeConfigProblem(resources, it) }
 
     companion object {
         /** Every code that has a text, engine codes first. */
@@ -73,5 +88,17 @@ data class ProvisioningProblem(
         }
 
         private const val MAX_DETAIL = 400
+        private const val CONFIG_INVALID = "config_invalid"
+
+        private fun describeConfigProblem(
+            resources: Resources,
+            line: String,
+        ): String {
+            val code = line.substringBefore('|')
+            val detail = line.substringAfter("|detail=", missingDelimiterValue = "")
+            val id = resources.getIdentifier("err_$code", "string", resources.getResourcePackageName(R.string.prov_title))
+            if (!code.startsWith("config_") || id == 0) return line
+            return resources.getString(id).replace("{detail}", detail)
+        }
     }
 }

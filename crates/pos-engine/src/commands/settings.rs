@@ -14,7 +14,9 @@ pub struct PosSettings {
     pub restaurant_name: String,
     pub language: String,
     /// What the FDM would refuse in `pos.json` ([`PosConfig::problems`]):
-    /// shown as a banner so a bad identity is fixed before opening.
+    /// shown as a banner so a bad identity is fixed before opening. Each
+    /// is a coded error (`config_<setting>|detail=<English text>`), shown
+    /// in the screen's language with the text as detail.
     ///
     /// [`PosConfig::problems`]: pos_core::config::PosConfig::problems
     pub config_problems: Vec<String>,
@@ -39,7 +41,10 @@ pub fn do_get_settings(state: &AppState) -> Result<PosSettings, String> {
         terminal_id: config.terminal_id.clone(),
         restaurant_name: config.restaurant_name.clone(),
         language: config.language.clone(),
-        config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config),
+        config_problems: pos_fiscal::fdm_client::FdmClient::config_problems(&config)
+            .iter()
+            .map(|p| crate::commands::errors::config_problem(p))
+            .collect(),
         pos_sw_version: state.identity.as_str().to_string(),
         payment_terminal: config
             .payment_terminal

@@ -44,14 +44,17 @@ test.describe('Login View', () => {
         trainingMode: false,
         language: 'fr',
         posSwVersion: 'pili-pos/1.0.0',
-        configProblems: ['restaurant_vat: BE followed by 10 digits, got "BE123"'],
+        configProblems: ['config_restaurant_vat|detail=restaurant_vat: BE followed by 10 digits, got "BE123"'],
       }),
     });
     await page.goto('/');
     const banner = page.locator('.config-problems');
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('Configuration invalide');
-    await expect(banner.locator('li')).toHaveText(['restaurant_vat: BE followed by 10 digits, got "BE123"']);
+    // The setting in French, then the installer's English detail.
+    await expect(banner.locator('li')).toHaveText([
+      'Numéro de TVA du restaurant invalide : BE suivi de 10 chiffres (par exemple BE0499999960). Détail : restaurant_vat: BE followed by 10 digits, got "BE123"',
+    ]);
   });
 
   test('shows the software version declared to the FDM', async ({ page }) => {

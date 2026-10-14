@@ -335,6 +335,59 @@ impl PosConfig {
     }
 }
 
+/// The stable code of one text of [`PosConfig::problems`] (without the
+/// `config_` prefix the screens' texts carry): the setting it is about.
+/// The texts are English, for the installer; screens show a translated
+/// headline chosen by this code and keep the text as a detail. Every
+/// problem names its setting first (`key: ...`); an unknown one is
+/// `other`.
+pub fn problem_code(problem: &str) -> &'static str {
+    let key = problem.split([':', ' ']).next().unwrap_or_default();
+    match key {
+        "tables" => "tables",
+        "pos_id" => "pos_id",
+        "restaurant_vat" => "restaurant_vat",
+        "restaurant_est_no" => "restaurant_est_no",
+        "terminal_id" | "device_id" => "identity",
+        "restaurant_name" | "restaurant_address" => "ticket_header",
+        "fdm_url" if problem.starts_with("fdm_url is https") => "fdm_files",
+        "fdm_url" => "fdm_url",
+        "language" => "language",
+        "fdm_token_file"
+        | "fdm_ca_file"
+        | "fdm_client_cert_file"
+        | "fdm_client_key_file"
+        | "FDM" => "fdm_files",
+        "day_end_hour" => "day_end_hour",
+        "no" if problem.starts_with("no configuration") => "missing",
+        k if k.starts_with("hubrise.") => "hubrise",
+        k if k.starts_with("digital_ticket.") => "digital_ticket",
+        k if k.starts_with("export.") => "export",
+        k if k.starts_with("payment_terminal.") => "payment_terminal",
+        _ => "other",
+    }
+}
+
+/// Every code [`problem_code`] can return, for the translation check.
+pub const PROBLEM_CODES: &[&str] = &[
+    "tables",
+    "pos_id",
+    "restaurant_vat",
+    "restaurant_est_no",
+    "identity",
+    "ticket_header",
+    "fdm_url",
+    "fdm_files",
+    "language",
+    "day_end_hour",
+    "missing",
+    "hubrise",
+    "digital_ticket",
+    "export",
+    "payment_terminal",
+    "other",
+];
+
 /// Join `path` to `base` when it is a non-empty relative path.
 fn resolve_path(path: &mut String, base: &Path) {
     if path.is_empty() || !Path::new(path.as_str()).is_relative() {
@@ -910,6 +963,72 @@ mod tests {
             ..valid()
         };
         assert!(spf.problems().is_empty(), "{:?}", spf.problems());
+    }
+
+    #[test]
+    fn every_problem_text_has_a_known_code() {
+        for (text, code) in [
+            ("tables: ranges such as \"1-12\" expected: x", "tables"),
+            ("pos_id: 14 upper-case letters", "pos_id"),
+            ("restaurant_vat: BE followed by 10 digits", "restaurant_vat"),
+            ("restaurant_est_no: 10 digits", "restaurant_est_no"),
+            ("terminal_id: 1 to 600 characters expected", "identity"),
+            ("device_id: 1 to 600 characters expected", "identity"),
+            ("restaurant_name: printed on every ticket", "ticket_header"),
+            (
+                "restaurant_address: printed on every ticket",
+                "ticket_header",
+            ),
+            ("fdm_url: http(s) URL expected", "fdm_url"),
+            (
+                "fdm_url is https: set fdm_ca_file to the FDM's CA",
+                "fdm_files",
+            ),
+            ("language: one of fr", "language"),
+            ("fdm_token_file: \"x\" is empty", "fdm_files"),
+            ("fdm_ca_file: cannot read", "fdm_files"),
+            (
+                "fdm_client_cert_file and fdm_client_key_file go together",
+                "fdm_files",
+            ),
+            ("FDM HTTPS: bad CA", "fdm_files"),
+            ("day_end_hour: 0 to 12 expected", "day_end_hour"),
+            ("hubrise.client_id: must not be empty", "hubrise"),
+            (
+                "digital_ticket.project_id: must not be empty",
+                "digital_ticket",
+            ),
+            ("export.keep_days: 1 to 365", "export"),
+            (
+                "payment_terminal.address: host:port expected",
+                "payment_terminal",
+            ),
+            ("no configuration: the development identity", "missing"),
+            ("expected value at line 1", "other"),
+        ] {
+            assert_eq!(problem_code(text), code, "{text}");
+            assert!(PROBLEM_CODES.contains(&code), "{code}");
+        }
+    }
+
+    #[test]
+    fn the_problems_of_a_very_bad_config_all_have_a_code() {
+        let bad = PosConfig {
+            pos_id: "x".into(),
+            restaurant_vat: "x".into(),
+            restaurant_est_no: "x".into(),
+            terminal_id: String::new(),
+            restaurant_name: String::new(),
+            fdm_url: "ftp://x".into(),
+            language: "xx".into(),
+            day_end_hour: 20,
+            ..valid()
+        };
+        let problems = bad.problems();
+        assert!(problems.len() >= 8, "{problems:?}");
+        for p in &problems {
+            assert_ne!(problem_code(p), "other", "{p}");
+        }
     }
 
     /// The key a problem must name, and the typo that causes it.
