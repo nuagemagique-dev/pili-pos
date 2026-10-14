@@ -1,0 +1,47 @@
+            TICKET DE CAISSE T.V.A.
+                     COPIE
+Restaurant Test
+Unite d'etablissement 2000000042
+15.10.2026                                 00:46
+Utilisateur: Gerant Test
+Terminal: POS-2-ANDROID
+Ticketnr.: 000001
+POS Serial: CPOS0031234567
+Input device MAC: EMULATOR37X2X12X0
+Logiciel de caisse v.: pili-pos-android/1.0.0
+................................................
+2 Dry Martini                           24,00  A
+1 Burger of the CHEF                    28,00  B
+TOTAL :                                   €52,00
+................................................
+Mode de paiement :
+Especes                                    52,00
+% TVA   CODE          HT       TVA      Brut
+21,00%  A          19,83      4,17     24,00
+12,00%  B          25,00      3,00     28,00
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-14T22:46:42Z;
+Event: C; eventCounter: 1;
+totalCounter: 5;
+
+ [QR: https://www.gs2.be/M0000100004AbCdEfGhI]  
+
+Informations FDM d'origine :
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-14T22:46:04Z;
+Event: N; eventCounter: 1;
+totalCounter: 4; shortSignature:
+0bf0f4adefa87f77457a0995208ffca905958e31;
+Copie etablie le 15.10.2026 00:46
+
+Denomination legale : Restaurant Test
+1 Rue du Test, 4000 Liege
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------

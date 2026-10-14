@@ -1,0 +1,69 @@
+                    Z OMZET
+                Restaurant Test
+           1 Rue du Test, 4000 Liege
+               BTW: BE0000000097
+          Vestigingseenheid 2000000042
+------------------------------------------------
+RAPPORT Z                      15/10/26 00:53:30
+Rapport nr. 2
+Ticket:                                   000004
+Werknemer:                           94060242576
+------------------------------------------------
+                Openingsperiode
+Datum:                                2026-10-14
+BookingPeriodId:
+369a5777-2b22-4ba8-8321-01ea3bb0abd9
+Begin                           2026-10-15 00:51
+Einde                           2026-10-15 00:53
+POSID                             CPOS0031234567
+TerminalId                         POS-2-ANDROID
+FDMID                                MCK00000001
+Eerste                       12 2026-10-14 22:51
+Laatste                      13 2026-10-14 22:53
+------------------------------------------------
+Event N Verkoop 1                          12,00
+Event T Opleiding 1                        52,00
+------------------------------------------------
+                 BTW-overzicht
+Tarief           Excl.          BTW        Incl.
+21%               9,92         2,08        12,00
+12%                  -            -            -
+6%                   -            -            -
+0%                   -            -            -
+Totaal            9,92         2,08        12,00
+------------------------------------------------
+               Omzet per afdeling
+Aperitifs                                  12,00
+------------------------------------------------
+                   Correcties
+Correcties                                  0,00
+------------------------------------------------
+                Terugbetalingen
+Terugbetalingen 0                           0,00
+------------------------------------------------
+                   Kassalade
+Kassalade 0
+------------------------------------------------
+                   Opleiding
+Opleidingstickets 1                        52,00
+------------------------------------------------
+                   Kortingen
+Lijnkortingen 0                             0,00
+Ticketkortingen 0                           0,00
+------------------------------------------------
+                    FACTUUR
+Facturen 0
+------------------------------------------------
+           GEREGISTREERDE BETALINGEN
+Contant                                    12,00
+Totaal betalingen                          12,00
+Afrondingen                                 0,00
+------------------------------------------------
+       fdmDateTime: 2026-10-14T22:53:30Z;
+================================================
+        DIT IS GEEN GELDIG BTW-KASTICKET
+
+
+
+
+✂-----------------------------------------------

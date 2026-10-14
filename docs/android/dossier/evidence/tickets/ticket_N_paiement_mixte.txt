@@ -1,0 +1,42 @@
+            TICKET DE CAISSE T.V.A.
+Restaurant Test
+Unite d'etablissement 2000000042
+15.10.2026                                 00:50
+Utilisateur: Gerant Test
+Terminal: POS-2-ANDROID
+Ticketnr.: 000004
+POS Serial: CPOS0031234567
+Input device MAC: EMULATOR37X2X12X0
+Logiciel de caisse v.: pili-pos-android/1.0.0
+................................................
+1 Dame Blanche                          11,52  B
+1 Tapas variation                        3,34  B
+TOTAL :                                   €14,86
+................................................
+Mode de paiement :
+Cheques-repas                              11,52
+Carte Visa                                  0,88
+Especes                                     2,46
+Arrondi                                    -0,01
+% TVA   CODE          HT       TVA      Brut
+12,00%  B          13,27      1,59     14,86
+------------------------------------------------
+                INFORMATIONS FDM
+------------------------------------------------
+fdmId: MCK00000001;
+fdmDateTime: 2026-10-14T22:50:14Z;
+Event: N; eventCounter: 4;
+totalCounter: 8; shortSignature:
+b9d7bbea8214876a11f8b2d3c78fb9c9a7f39854;
+
+ [QR: https://www.gs2.be/M0000400008AbCdEfGhI]  
+
+
+Denomination legale : Restaurant Test
+1 Rue du Test, 4000 Liege
+TVA: BE0000000097
+
+
+
+
+✂-----------------------------------------------

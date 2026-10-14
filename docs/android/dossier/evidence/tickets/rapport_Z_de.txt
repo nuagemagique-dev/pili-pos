@@ -1,0 +1,68 @@
+                    Z UMSATZ
+                Restaurant Test
+           1 Rue du Test, 4000 Liege
+               MwSt: BE0000000097
+        Niederlassungseinheit 2000000042
+------------------------------------------------
+BERICHT Z                      15/10/26 00:54:30
+Bericht Nr. 3
+Bon:                                      000006
+Mitarbeiter:                         94060242576
+------------------------------------------------
+               Oeffnungszeitraum
+Datum:                                2026-10-14
+BookingPeriodId:
+bc64d77a-1105-415b-821c-f3994cbc9eaf
+Beginn                          2026-10-15 00:54
+Ende                            2026-10-15 00:54
+POSID                             CPOS0031234567
+TerminalId                         POS-2-ANDROID
+FDMID                                MCK00000001
+Erstes                       16 2026-10-14 22:54
+Letztes                      16 2026-10-14 22:54
+------------------------------------------------
+Event N Umsaetze 1                         12,00
+------------------------------------------------
+                MwSt-Uebersicht
+Satz             Netto         MwSt       Brutto
+21%               9,92         2,08        12,00
+12%                  -            -            -
+6%                   -            -            -
+0%                   -            -            -
+Gesamt            9,92         2,08        12,00
+------------------------------------------------
+             Umsatz nach Abteilung
+Aperitifs                                  12,00
+------------------------------------------------
+                  Korrekturen
+Korrekturen                                 0,00
+------------------------------------------------
+               Rueckerstattungen
+Rueckerstattungen 0                         0,00
+------------------------------------------------
+                Kassenschublade
+Kassenschublade 0
+------------------------------------------------
+                    Schulung
+Schulungsbons 0                             0,00
+------------------------------------------------
+                    Rabatte
+Zeilenrabatte 0                             0,00
+Bonrabatte 0                                0,00
+------------------------------------------------
+                    RECHNUNG
+Rechnungen 0
+------------------------------------------------
+               ERFASSTE ZAHLUNGEN
+Bar                                        12,00
+Summe Zahlungen                            12,00
+Rundungen                                   0,00
+------------------------------------------------
+       fdmDateTime: 2026-10-14T22:54:29Z;
+================================================
+   DIES IST KEIN GUELTIGER MWST.-KASSENZETTEL
+
+
+
+
+✂-----------------------------------------------
