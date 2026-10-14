@@ -126,7 +126,7 @@ MANIFEST_INTERNAL_SUBSTRINGS = (
     "dossier_review",
 )
 
-SCREENSHOT_RE = re.compile(r"\d\d[a-z]?_[a-z0-9_]+\.(?:png|jpg)")
+SCREENSHOT_RE = re.compile(r"(?:A\d{2,3}|\d\d[a-z]?)_[a-z0-9_]+\.(?:png|jpg)")
 
 
 @dataclass(order=True)
@@ -641,8 +641,8 @@ def rule_placeholder(md_files: list, allowlist: dict) -> list:
 def rule_screenshots(root: Path) -> list:
     candidates = [
         root / DOSSIER_REL / "CAPTURES_ECRAN_RUNBOOK_FR.md",
-        root / "docs" / "internal" / "CAPTURES_ECRAN_RUNBOOK_FR.md",
         root / DOSSIER_REL / "internal" / "CAPTURES_ECRAN_RUNBOOK_FR.md",
+        root / "docs" / "internal" / "CAPTURES_ECRAN_RUNBOOK_FR.md",
     ]
     runbook = next((c for c in candidates if c.is_file()), None)
     if runbook is None:

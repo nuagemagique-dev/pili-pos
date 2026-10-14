@@ -117,8 +117,7 @@ adb shell dpm list-owners
 4. Tout message d'Android ou de Play Protect pendant l'installation
    (application non reconnue, analyse proposée) est **noté avec une
    capture, sans se connecter pour le faire disparaître**, au rapport
-   d'essai : À effectuer (EV-13 : comportement de Play Protect sur le
-   terminal avec services Google).
+   d'essai. Sur le profil émulé avec services Google, aucun message de Play Protect n'est apparu à l'installation ni à la mise à jour (EV-13, `evidence/gms/EV13_2026-10-15.md`) ; sur un vrai terminal : À effectuer (EV-15 : Play Protect sur le D3 Pro réel).
 5. Faire d'abord tout ce qui demande adb, et **joindre le réseau Wi-Fi
    du site avant l'import du lot** (§4.3) : au banc, soit dans
    l'assistant de configuration d'Android, en passant l'étape du
@@ -204,7 +203,7 @@ voir le début du paragraphe).
 5. L'application est désormais l'écran d'accueil verrouillé du terminal
    (Lock Task, `PLATEFORME_ANDROID_FR.md` §3.2).
 
-### 3.5 Services Google : aucun compte, masquage de la boutique et des applications (cible)
+### 3.5 Services Google : aucun compte, masquage de la boutique et des applications
 
 Le terminal porte les services Google, la caisse n'en utilise aucun.
 
@@ -213,14 +212,14 @@ Le terminal porte les services Google, la caisse n'en utilise aucun.
   Sur un appareil qui en porte déjà un : réinitialisation d'un terminal
   neuf ou retiré du service, puis provisionnement au banc (§3.2).
 - La boutique Play et les applications Google destinées à l'utilisateur
-  doivent être **masquées par le propriétaire de l'appareil**, et toute
-  installation bloquée sauf par l'outil de mise à jour déclarée. Le code
+  sont **masquées par le propriétaire de l'appareil**, et toute
+  installation est bloquée sauf par l'outil de mise à jour déclarée. Le code
   le fait au démarrage de l'application (liste des paquets au
   `PLATEFORME_ANDROID_FR.md` §3.7) ; le mode kiosque suspend en plus les
-  autres écrans d'accueil et les Réglages. À effectuer (EV-13 : paquets
-  réellement masqués, restriction d'installation, essai avec services
-  Google). Tout
-  message de Play Protect est noté tel quel au rapport d'essai (EV-13).
+  autres écrans d'accueil et les Réglages. Mesuré sur le profil avec
+  services Google : onze paquets Google présents et masqués, restrictions
+  d'installation posées (EV-13, `evidence/gms/EV13_2026-10-15.md`). Tout
+  message de Play Protect est noté tel quel au rapport d'essai.
 
 ## 4. Configuration initiale
 

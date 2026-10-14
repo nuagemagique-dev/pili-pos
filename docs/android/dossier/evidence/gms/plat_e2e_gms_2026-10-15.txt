@@ -1,0 +1,20 @@
+PLATE2E | emulator | PASS | emulator-5554
+PLATE2E | precheck | PASS | no device owner, one user, no pilipos package
+PLATE2E | removable-volume | PASS | public volume 05C6-0825 mounted (created: sm set-virtual-disk true, sm partition disk:7,256 public)
+PLATE2E | build | PASS | app-debug.apk 1.0.0 (10000) and app-debug-androidTest.apk
+PLATE2E | newer-apk | PASS | 1.0.1 (10001) built with a throwaway export of HEAD in /Users/brunomoyse/Development/applications/PERSO/tokyosushi/moyun-pos-wt/int/target/p6-newer (removed at the end)
+PLATE2E | mocks | PASS | fdm 54441, printer 54442, jobs 54443, registry 54444 (redirect target 54445); device ports 19380 19390 19391 19392 19393
+PLATE2E | bundle | PASS | DEVBUNDLE | PASS | /private/var/folders/11/z3yp89vx3pjdsx2swbll8wd80000gn/T/pili-plat-e2e.MCKeu1/bundle
+PLATE2E | install | PASS | both APKs installed; Success: Device owner set to package dev.nuagemagique.pilipos.debug/dev.nuagemagique.pilipos.provisioning.PiliAdminReceiver
+PLATE2E | launch | PASS | PiliShell state=NotProvisioned
+PLATE2E | push | PASS | 4 files in /sdcard/Android/data/dev.nuagemagique.pilipos.debug/files/provisioning-inbox
+PLATE2E | policies | PASS | PLATE2E_POLICIES ok restrictions=14 zone=Europe/Brussels; restrictions (install apps included), lock task features 0, auto time on, zone off, uninstall blocked, Google apps hidden, update window 03:00-05:00, keyguard
+PLATE2E | sales | PASS | sales=50 bytes_before=356576 bytes_after=4746720 bytes_per_sale=87802 item=10006; logical: sales=50 bytes_before=323584 bytes_after=647168 bytes_per_sale=6471 page_size=4096 free_bytes=0; multi-line: sales=10 lines=6 bytes_per_sale=14336; z: bytes_after_z=4746720 z_delta=0 report_no=1; backups: after_z files=3 bytes=839680
+PLATE2E | export | PASS | 8 files, 1620375 bytes on volume 05C6-0825; MANIFEST.sha256 verified on the device (sha256sum -c: 7 OK) and on the host (shasum -a 256 -c: 7 OK); pos.db integrity_check ok
+PLATE2E | declared | PASS | pili-pos-android-1.0.1.apk sha1 284a75cef445.. sha256 baf1536739a5.. signer 6afe06e269d7.., declared.json signed with the development key and verified with dev-minisign.pub
+PLATE2E | update | PASS | versionCode 10000 -> 10001, pid 31879 -> 31935, 18005 ms from the commit line to state=Ready of the new pid, mLockTaskModeState=LOCKED within 1s of the end of the instrumentation; registry: 3 blob request(s) with the bearer redirected, 3 on the redirect target, 0 with Authorization
+PLATE2E | refusals | PASS | installed versionCode 10001; case=not_newer code=not_newer case=sha256_mismatch code=sha256_mismatch; the refused download left no APK in filesDir/platform/update
+PLATE2E | watchdog | PASS | fatal sent, pid 32321 -> 32373, 3605 ms from markFatal to state=Ready of the new pid (3000 ms of it is the watchdog's wait), new pid seen 0s after the process died, mLockTaskModeState=LOCKED within 1s (state=Opening state=Opening state=Ready state=Ready )
+PLATE2E | audit | PASS | rows=32 kinds=13 update_done_version=1.0.1 versions=[10000, 10001]; policy, export, update (verified, refused, started, package_replaced, done) and watchdog (fatal, restart, restarted) rows
+PLATE2E | teardown | PASS | owner cleared, packages uninstalled, export folder, reverse rules, mocks, temp dirs and newer-apk copy removed
+PLATE2E | total | PASS | 0 failed (19 checks)

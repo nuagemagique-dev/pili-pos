@@ -65,11 +65,14 @@ pdf_out/PLATEFORME_ANDROID_FR.pdf
 # Preuves brutes (Report_Testing dans le ZIP). Pour P8b : les preuves
 # restent dans evidence/ du dépôt ; le constructeur du ZIP les place sous
 # Report_Testing/ (evidence/uc -> Report_Testing/uc, evidence/tickets ->
-# Report_Testing/tickets, evidence/build -> Report_Testing/build). Aucun
-# fichier dupliqué. Les trois répertoires n'existent pas encore : les
-# lignes sont des commentaires tant que P8b ne les a pas produits.
+# Report_Testing/tickets, evidence/build -> Report_Testing/build,
+# evidence/gms -> Report_Testing/gms). Aucun fichier dupliqué.
+# evidence/tickets et evidence/gms existent (P8b, 15.10.2026) ; evidence/uc
+# et evidence/build restent des commentaires tant que P7 et P8b ne les ont
+# pas produits.
 # evidence/uc : requête et réponse JSON de chaque UC (EV-06)
 # evidence/tickets : tickets imprimés sur l'imprimante simulée (EV-08)
+# evidence/gms : mesures du profil avec services Google (EV-13)
 # evidence/build : rapports de construction, empreinte de l'image et SHA-1
 #   des deux APK non signés identiques (EV-05)
 # screenshots : captures du profil sunmi_d3_pro_gms_api33 (EV-09)

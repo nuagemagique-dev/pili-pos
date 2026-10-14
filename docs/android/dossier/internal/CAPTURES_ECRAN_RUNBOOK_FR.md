@@ -68,7 +68,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A51 | `A51_hubrise_catalogue.png` | HubRise connecté : « Connecté », compte, catalogue, « Resynchroniser », canaux | 12.7 |
 | A52 | `A52_commandes_en_ligne.png` | « En ligne » : colonnes « Nouvelles », « En cuisine », « Prêtes », filtre « Terminées » | 12.8 |
 | A53 | `A53_export_nocturne_a_jour.png` | Réglages, « Export nocturne », export configuré : état « À jour », destination, dernier envoi | 12.8 |
-| A54 | `A54_export_nocturne_attente.png` | Récepteur arrêté : « n exports en attente », « Dernière erreur », « Réessayer maintenant » | 12.8 |
+| A54 | `A54_export_nocturne_en_attente.png` | Récepteur arrêté : « n exports en attente », « Dernière erreur », « Réessayer maintenant » | 12.8 |
 | A55 | `A55_formation_actif.png` | « Mode Formation » actif (commandes vidées avant) : bandeau violet, filigrane « TRAINING » | 13 |
 | A56 | `A56_buffer_full.png` | MOCK_FDM_ERROR=BUFFER_FULL : bloquant | 14.1 |
 | A57 | `A57_fdm_locked.png` | MOCK_FDM_ERROR=FDM_LOCKED : bloquant | 14.1 |
