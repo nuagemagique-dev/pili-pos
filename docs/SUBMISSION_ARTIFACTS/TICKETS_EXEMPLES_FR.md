@@ -62,7 +62,7 @@ colonne par type de ticket émis par pili-pos.
 
 Le remboursement et la copie référencent le ticket original dans l'événement envoyé au FDM (champ `fdmRef` : fdmId, fdmDateTime, eventLabel, compteurs de l'original) et l'impriment sous « Informations FDM d'origine », comme les tickets d'exemple du SPF du 24/09/2026. La copie reproduit le ticket original (tous les champs, données de contrôle comprises) et réimprime le QR code de l'événement N original (spec POS v2.2 §1.8, §6.5). La mise en page suit les tickets d'exemple du SPF ; `crates/pos-print/tests/official_examples.rs` imprime les données de chacun des six exemples et vérifie chaque mention, dans l'ordre de l'exemple.
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). La langue des tickets et celle de l'interface sont toutes deux fixées par installation, par le paramètre `pos.json::language` (`fr`, `nl`, `de`, `en` ou `zh` pour l'écran ; les tickets suivent cette clé restreinte à FR/NL/DE, toute autre valeur imprime en FR) : il n'y a pas de langue par utilisateur. Les désignations de produits sont rendues dans cette langue à partir de la table `translations`.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE, paramètre `pos.json::language`, cf. *GARANTIE_MAJ_LANGUES_FR.md* §3.2). Les exemples de tickets (sections 1 à 5) sont présentés en français ; le rapport Z (section 7) est aussi présenté en néerlandais et en allemand pour illustrer la règle, les rapports X/Z, les rapports utilisateur (M182/M183/M184) et les noms de moyen de paiement imprimés (Especes/Contant/Bar, Carte/Kaart/Karte) suivant tous la même langue de ticket que les reçus (`crates/pos-print/src/labels.rs`). Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples ci-dessous reprennent donc « Especes » et « Cheques-repas » tels qu'imprimés. La langue des tickets et celle de l'interface sont toutes deux fixées par installation, par le paramètre `pos.json::language` (`fr`, `nl`, `de`, `en` ou `zh` pour l'écran ; les tickets suivent cette clé restreinte à FR/NL/DE, toute autre valeur imprime en FR) : il n'y a pas de langue par utilisateur. Les désignations de produits sont rendues dans cette langue à partir de la table `translations`.
 
 ---
 
@@ -89,7 +89,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €52,00
 ................................................
 Mode de paiement :
-Espèces                                    52,00
+Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
 21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00
@@ -188,7 +188,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                  €-52,00
 ................................................
 Mode de paiement :
-Espèces                                   -52,00
+Especes                                   -52,00
 % TVA   CODE          HT       TVA      Brut
 21,00%  A         -19,83     -4,17    -24,00
 12,00%  B         -25,00     -3,00    -28,00
@@ -244,7 +244,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €52,00
 ................................................
 Mode de paiement :
-Espèces                                    52,00
+Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
 21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00
@@ -301,7 +301,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €52,00
 ................................................
 Mode de paiement :
-Espèces                                    52,00
+Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
 21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00
@@ -707,7 +707,7 @@ Logiciel de caisse v.: pili-pos/1.0.0
 TOTAL :                                   €52,00
 ................................................
 Mode de paiement :
-Espèces                                    52,00
+Especes                                    52,00
 % TVA   CODE          HT       TVA      Brut
 21,00%  A          19,83      4,17     24,00
 12,00%  B          25,00      3,00     28,00

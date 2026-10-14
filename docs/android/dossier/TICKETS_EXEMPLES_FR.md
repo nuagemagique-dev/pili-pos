@@ -56,7 +56,7 @@ Réponse au tableau « Contenu du ticket » du manuel §VI. Une ligne par élém
 
 Cases relevées sur les transcriptions des sections 1 à 8 ci-dessous.
 
-**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE), fixée par installation (GARANTIE_MAJ_LANGUES_FR.md §3.2). Les exemples sont présentés en français ; le rapport Z l'est aussi en néerlandais et en allemand (section 7), obtenus en réglant `language` du fichier `pos.json` de l'appareil de test puis en redémarrant l'application.
+**Règles de langue :** les mentions fiscales sont imprimées dans la langue officielle de la région linguistique de l'établissement (FR/NL/DE), fixée par installation (GARANTIE_MAJ_LANGUES_FR.md §3.2). Les exemples sont présentés en français ; le rapport Z l'est aussi en néerlandais et en allemand (section 7), obtenus en réglant `language` du fichier `pos.json` de l'appareil de test puis en redémarrant l'application. Les libellés fixes (moyens de paiement, « Unite d'etablissement », « Denomination legale »...) sont imprimés sans accents, à dessein : `labels.rs` les garde en ASCII pour qu'ils s'impriment de la même façon quelle que soit la page de codes de l'imprimante (seuls les textes saisis, comme les produits et l'adresse, passent par CP858). Les exemples reprennent donc « Especes » et « Cheques-repas » tels qu'imprimés.
 
 ---
 
