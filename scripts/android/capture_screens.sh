@@ -23,7 +23,8 @@
 #              must refuse the connection, otherwise a dead host behind adb reverse looks like a printer that accepts the job.
 #   fdmproc off|on  stops or restarts the FDM mock process and its adb reverse rule (the till then sees a refused connection).
 #   card ...   sets how the NEXT card terminal payment ends (pos-eft-mock /mock/next), as demo.sh card.
-# Environment: PILI_SHOTS, ANDROID_HOME, JAVA_HOME (not needed here). The APK is android/app/build/outputs/apk/debug/app-debug.apk
+# Environment: PILI_UP_IMPORT=0 (up stops before the bundle import: the "Mise en service" screen), PILI_UP_SEED_FILE (a seed
+#   SQL file instead of the SPF test seed), PILI_BUNDLE_* (read by make_dev_bundle.sh, see its header), PILI_SHOTS, ANDROID_HOME, JAVA_HOME (not needed here). The APK is android/app/build/outputs/apk/debug/app-debug.apk
 # and the mocks target/android-mocks/debug (built by demo.sh or by `cargo build -p pos-fdm-mock ... --target-dir target/android-mocks`).
 # State, pids and logs: $HOME/.cache/pili-capture. Mocks only: no call to a real vendor.
 # ─────────────────────────────────────────────────────────────────
@@ -142,6 +143,10 @@ cmd_up() {
     adbd shell cmd locale set-app-locales "$PKG" --locales fr-FR >/dev/null 2>&1
     adbd shell am start -n "$MAIN" >/dev/null 2>&1
     sleep 6
+    if [[ "${PILI_UP_IMPORT:-1}" == 0 ]]; then
+        say "up (no bundle imported: PILI_UP_IMPORT=0)"
+        return 0
+    fi
     if [[ "$fresh" == 1 ]] || adbd logcat -d -s PiliShell:I 2>/dev/null | tail -n 3 | grep -q 'state=NotProvisioned'; then
         say "importing the SPF test bundle"
         rm -rf "$STATE/bundle"
@@ -151,7 +156,7 @@ cmd_up() {
             PILI_BUNDLE_EXPORT_RECIPIENT="$(grep -o 'age1[a-z0-9]*' "$STATE/age-key.txt" | head -n 1)" \
             PILI_BUNDLE_EXPORT_TOKEN="$(cat "$STATE/export-token")" \
             PILI_BUNDLE_PAYMENT_TERMINAL_OPI="$opi" PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT="$EFT_DEVICE_PORT" \
-            bash scripts/android/make_dev_bundle.sh --seed --out "$STATE/bundle" \
+            bash scripts/android/make_dev_bundle.sh ${PILI_UP_SEED_FILE:+--seed-file "$PILI_UP_SEED_FILE"} --seed --out "$STATE/bundle" \
             --fdm-url "http://127.0.0.1:$FDM_PORT/graphql" --printer "127.0.0.1:$PRINTER_PORT" >"$STATE/bundle.log" 2>&1 ||
             die "make_dev_bundle failed, see $STATE/bundle.log"
         adbd shell mkdir -p "$INBOX"

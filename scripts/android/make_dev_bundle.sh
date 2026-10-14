@@ -18,6 +18,7 @@
 #   export_token file), PILI_BUNDLE_PAYMENT_TERMINAL_OPI (host:port; adds a payment_terminal
 #   section of kind ccv_opi whose address is that value, a CCV terminal on the LAN; the pos-eft-mock OPI side) with
 #   PILI_BUNDLE_PAYMENT_TERMINAL_DEVICE_PORT (the till's channel 1 port, optional: 4102 when absent). Defaults keep the test identity.
+#   PILI_BUNDLE_VAT (restaurant_vat, default BE0000000097; a malformed value makes the import refuse the bundle: capture bench),
 #   PILI_BUNDLE_DIGITAL_TICKET_API (base URL of the Scaleway TEM API, e.g. the pos-fdm-mock on http://127.0.0.1:19380; adds a
 #   digital_ticket section with allow_digital_only and a tem_key file), PILI_BUNDLE_HUBRISE_MOCK (base URL of pos-hubrise-mock,
 #   e.g. http://127.0.0.1:3001; adds a hubrise section pointing at it with a hubrise_secret file).
@@ -192,7 +193,7 @@ cat >"$OUT/pos.json" <<JSON
   "device_id": "pos-json-device",
   "restaurant_name": "${PILI_BUNDLE_RESTAURANT_NAME:-Restaurant Test}",
   "restaurant_address": "${PILI_BUNDLE_RESTAURANT_ADDRESS:-1 Rue du Test, 4000 Liege}",
-  "restaurant_vat": "BE0000000097",
+  "restaurant_vat": "${PILI_BUNDLE_VAT:-BE0000000097}",
   "restaurant_est_no": "2000000042",
   "fdm_url": "$FDM_URL",
   "printer_address": "$PRINTER",$KITCHEN_LINE$HUBRISE_LINE$EXPORT_LINE$TERMINAL_LINE$DIGITAL_LINE$HUBRISE_MOCK_LINE
