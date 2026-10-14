@@ -567,9 +567,32 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
     { num: '23', file: '23_unknown_pos', code: 'UNKNOWN_POS', message: "Cette caisse n'est pas reconnue par la boîte noire." },
     { num: '27', file: '27_unauthorized', code: 'UNAUTHORIZED', message: "La caisse n'est pas autorisée à parler à la boîte noire." },
     { num: '28', file: '28_invalid_request', code: 'INVALID_REQUEST', message: 'Erreur de communication avec la boîte noire. Contactez votre technicien.' },
+  ];
+
+  // Group A2: the codes that leave the outcome unknown (the FDM may have
+  // signed the sale). The engine keeps the request to send it again
+  // (commands/signing.rs) and the error carries the FDM's code: its
+  // message first, then the retry note. The text mocked here is the one
+  // the engine returns (spf_e2e_fdm_failures.rs, ticket 1).
+  const RETRY_NOTE =
+    "La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.";
+  const GROUP_A2: { num: string; file: string; code: string; message: string }[] = [
     { num: '29', file: '29_internal_error', code: 'INTERNAL_ERROR', message: 'Erreur technique de la boîte noire. Contactez votre technicien.' },
     { num: '30', file: '30_undefined_error', code: 'UNDEFINED_ERROR', message: 'Erreur indéfinie de la boîte noire. Contactez votre technicien.' },
+    { num: '31', file: '31_undefined_other', code: 'UNDEFINED_OTHER', message: 'Erreur de la boîte noire. Contactez votre technicien.' },
   ];
+
+  for (const { num, file, code, message } of GROUP_A2) {
+    test(`${num} - ${code} : encaissement en attente de renvoi`, async ({ page }) => {
+      await openCheckoutRefused(
+        page,
+        `FDM error: FDM_ANSWER_PENDING|label=N|ticket=1|fdm=${code}|cause=GraphQL error: ${code}: Error simulated by the mock`,
+      );
+      await expect(page.locator('.checkout .error-msg')).toHaveText(`${message} ${RETRY_NOTE}`);
+      await expect(page.locator('.card-btn')).toBeVisible();
+      await capture(page, file);
+    });
+  }
 
   for (const { num, file, code, message } of GROUP_A) {
     test(`${num} - ${code} : encaissement refusé`, async ({ page }) => {
@@ -586,7 +609,6 @@ test.describe('Section 2 - messages du FDM (§V)', () => {
     { num: '24', file: '24_buffer_near_full', code: 'BUFFER_NEAR_FULL', showPos: 'MANDATORY', message: 'La boîte noire est presque pleine. Programmez une intervention.' },
     { num: '25', file: '25_client_cert_expired', code: 'CLIENT_CERT_EXPIRED', showPos: 'MANDATORY', message: 'Le certificat de la boîte noire a expiré. Contactez votre technicien.' },
     { num: '26', file: '26_client_cert_near_expiration', code: 'CLIENT_CERT_NEAR_EXPIRATION', showPos: 'RECOMMENDED', message: 'Le certificat de la boîte noire expire bientôt.' },
-    { num: '31', file: '31_undefined_other', code: 'UNDEFINED_OTHER', showPos: 'RECOMMENDED', message: 'Erreur de la boîte noire. Contactez votre technicien.' },
     { num: '32', file: '32_rtc_sync_failed', code: 'RTC_SYNC_FAILED', showPos: 'RECOMMENDED', message: "L'horloge de la boîte noire n'a pas pu se synchroniser." },
     { num: '33', file: '33_update_urls_failed', code: 'UPDATE_URLS_FAILED', showPos: 'RECOMMENDED', message: 'Mise à jour des URLs de la boîte noire échouée.' },
     { num: '34', file: '34_update_trust_cert_failed', code: 'UPDATE_TRUST_CERT_FAILED', showPos: 'RECOMMENDED', message: 'Mise à jour des certificats de confiance échouée.' },
@@ -627,7 +649,8 @@ test.describe('Écrans additionnels (42-44)', () => {
       checkout: () => ({
         success: false,
         ticket: null,
-        error: 'FDM error: FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41',
+        error:
+          'FDM error: FDM_ANSWER_PENDING|label=N|ticket=42|fdm=FDM_RESPONSE_MISMATCH|cause=FDM_RESPONSE_MISMATCH: posFiscalTicketNo attendu 42, reçu 41',
         fdm_connected: false,
         fiscal_event_id: null,
         delivery: null,
@@ -644,7 +667,7 @@ test.describe('Écrans additionnels (42-44)', () => {
     await page.locator('.card-btn').click();
     await page.locator('.card-confirm').click();
     await expect(page.locator('.checkout .error-msg')).toHaveText(
-      'Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien.',
+      "Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire.",
     );
     await capture(page, '42_fdm_response_mismatch');
   });

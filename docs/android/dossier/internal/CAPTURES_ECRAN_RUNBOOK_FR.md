@@ -79,9 +79,9 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A62 | `A62_client_cert_near_expiration.png` | MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION : avertissement | 14.1 |
 | A63 | `A63_unauthorized.png` | MOCK_FDM_ERROR=UNAUTHORIZED : erreur du FDM, vente refusée | 14.1 |
 | A64 | `A64_invalid_request.png` | MOCK_FDM_ERROR=INVALID_REQUEST : erreur du FDM, vente refusée | 14.1 |
-| A65 | `A65_internal_error.png` | MOCK_FDM_ERROR=INTERNAL_ERROR : FDM_ANSWER_PENDING : « La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. » (le moteur traite cette réponse comme un résultat inconnu ; un nouvel essai avec un FDM sain conclut la vente) | 14.1 |
-| A66 | `A66_undefined_error.png` | MOCK_FDM_ERROR=UNDEFINED_ERROR : même écran que A65 | 14.1 |
-| A67 | `A67_undefined_other.png` | MOCK_FDM_ERROR=UNDEFINED_OTHER : même écran que A65 | 14.1 |
+| A65 | `A65_internal_error.png` | MOCK_FDM_ERROR=INTERNAL_ERROR, tentative d'encaissement : résultat inconnu, la caisse garde la requête. Texte attendu : « Erreur technique de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE après le correctif : l'ancienne capture montre le seul message de FDM_ANSWER_PENDING) | 14.1 |
+| A66 | `A66_undefined_error.png` | MOCK_FDM_ERROR=UNDEFINED_ERROR : « Erreur indéfinie de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE) | 14.1 |
+| A67 | `A67_undefined_other.png` | MOCK_FDM_ERROR=UNDEFINED_OTHER : « Erreur de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE) | 14.1 |
 | A68 | `A68_rtc_sync_failed.png` | MOCK_FDM_WARNING=RTC_SYNC_FAILED : avertissement | 14.1 |
 | A69 | `A69_update_urls_failed.png` | MOCK_FDM_WARNING=UPDATE_URLS_FAILED : avertissement | 14.1 |
 | A70 | `A70_update_trust_cert_failed.png` | MOCK_FDM_WARNING=UPDATE_TRUST_CERT_FAILED : avertissement | 14.1 |
@@ -92,7 +92,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A75 | `A75_transaction_upload_failed.png` | MOCK_FDM_WARNING=TRANSACTION_UPLOAD_FAILED : avertissement | 14.1 |
 | A76 | `A76_initialization_failed.png` | MOCK_FDM_WARNING=INITIALIZATION_FAILED : avertissement | 14.1 |
 | A77 | `A77_fdm_unreachable.png` | FDM simulé arrêté puis tentative d'encaissement : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. », vente refusée | 14.1 |
-| A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : le moteur la classe aussi en résultat inconnu, même écran que A65 (le message « Réponse de la boîte noire incohérente » n'est pas atteignable) | 14.1 |
+| A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : résultat inconnu, la caisse garde la requête. Texte attendu : « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE) | 14.1 |
 | A79 | `A79_fdm_answer_pending.png` | Réponse du FDM à une vente perdue (FDM_ANSWER_PENDING) : « La caisse attend la réponse de la boîte noire pour l'opération précédente. » | 14.1 |
 | A80 | `A80_mise_en_service.png` | Caisse sans configuration : « Mise en service de la caisse », « Choisir le dossier » | 14.2 |
 | A81 | `A81_mise_en_service_refusee.png` | Paquet de configuration à signature invalide : « La signature du paquet de configuration est absente ou invalide. » | 14.2 |

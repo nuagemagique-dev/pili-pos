@@ -964,7 +964,8 @@ sont les captures 20 à 42 de `CAPTURES_ECRAN_FR.pdf`.
 | `UNAUTHORIZED` | La caisse n'est pas autorisée à parler à la boîte noire. | Avertissement | Appeler le distributeur |
 | `TRANSACTION_UPLOAD_FAILED` | La boîte noire échoue à transmettre les transactions au SPF Finances. | Avertissement | Vérifier la connexion Internet du FDM |
 | `FDM_ANSWER_PENDING` | La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. | Opération refusée, renvoi automatique | Attendre une minute, réessayer (§7.4) |
-| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. | Opération refusée | Appeler le distributeur |
+| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. | Opération en attente, renvoi à l'identique | Appeler le distributeur |
+| `INTERNAL_ERROR`, `UNDEFINED_ERROR`, `UNDEFINED_OTHER` (sur une vente) | Le message de la boîte noire (« Erreur technique de la boîte noire. Contactez votre technicien. », « Erreur indéfinie de la boîte noire. Contactez votre technicien. », « Erreur de la boîte noire. Contactez votre technicien. »), suivi de : La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. | Opération en attente, renvoi à l'identique | Réessayer ; si cela persiste, appeler le distributeur |
 | `FDM_NOT_INITIALIZED` | La boîte noire n'est pas encore initialisée. | Voyant orange | Appeler le distributeur |
 | `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur |
 | (réseau coupé) | Connexion perdue avec la boîte noire. Vérifiez le câble réseau. | Bloquant | Vérifier le câble réseau et l'alimentation du FDM |

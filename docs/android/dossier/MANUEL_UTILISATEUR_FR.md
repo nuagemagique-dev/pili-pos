@@ -1143,7 +1143,7 @@ sont indiqués dans la colonne "Capture" du premier tableau
 | `UNAUTHORIZED` | La caisse n'est pas autorisée à parler à la boîte noire. | Avertissement | Appeler le distributeur | (capture A63) |
 | `TRANSACTION_UPLOAD_FAILED` | La boîte noire échoue à transmettre les transactions au SPF Finances. | Avertissement | Vérifier la connexion Internet du FDM | (capture A75) |
 | `FDM_ANSWER_PENDING` | La caisse attend la réponse de la boîte noire pour l'opération précédente. Vérifiez la connexion et réessayez. | Opération refusée, renvoi automatique | Attendre une minute, réessayer (§7.4) | (capture A79) |
-| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. | Opération refusée | Appeler le distributeur | (capture A78 : sur l'appareil, une réponse non conforme est traitée comme une réponse inconnue et affiche le message de `FDM_ANSWER_PENDING`) |
+| `FDM_RESPONSE_MISMATCH` | Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. | Opération en attente, renvoi à l'identique | Appeler le distributeur | (capture A78) |
 | `FDM_NOT_INITIALIZED` | La boîte noire n'est pas encore initialisée. | Voyant orange | Appeler le distributeur | (capture A90) |
 | `FDM_CERTIFICATE_REFUSED` | Connexion sécurisée à la boîte noire refusée (certificat). Contactez votre technicien. | Bloquant | Appeler l'installateur | (capture A93) |
 | (réseau coupé) | Connexion perdue avec la boîte noire. Vérifiez le câble réseau. | Bloquant | Vérifier le câble réseau et l'alimentation du FDM | (capture A77 : réseau coupé) |
@@ -1151,7 +1151,7 @@ sont indiqués dans la colonne "Capture" du premier tableau
 Les autres codes du FDM (erreurs de communication, d'horloge, de mise à
 jour des certificats ou des tâches...) s'affichent avec un message
 analogue ; leur liste complète est dans le manuel de certification, §V.
-Écrans : captures A64 (INVALID_REQUEST), A65 (INTERNAL_ERROR), A66 (UNDEFINED_ERROR), A67 (UNDEFINED_OTHER), A68 (RTC_SYNC_FAILED), A69 (UPDATE_URLS_FAILED), A70 (UPDATE_TRUST_CERT_FAILED), A71 (UPDATE_TASK_LIST_FAILED), A72 (TASK_FEEDBACK_FAILED), A73 (NOP_FAILED), A74 (SERVER_CERT_RESOLVE_FAILED), A76 (INITIALIZATION_FAILED). Pour A65 à A67, la caisse affiche le message de `FDM_ANSWER_PENDING` (réponse inconnue, nouvel essai possible).
+Écrans : captures A64 (INVALID_REQUEST), A65 (INTERNAL_ERROR), A66 (UNDEFINED_ERROR), A67 (UNDEFINED_OTHER), A68 (RTC_SYNC_FAILED), A69 (UPDATE_URLS_FAILED), A70 (UPDATE_TRUST_CERT_FAILED), A71 (UPDATE_TASK_LIST_FAILED), A72 (TASK_FEEDBACK_FAILED), A73 (NOP_FAILED), A74 (SERVER_CERT_RESOLVE_FAILED), A76 (INITIALIZATION_FAILED). Pour A65 à A67, sur une vente, la boîte noire a peut-être signé l'événement (résultat inconnu) : la caisse affiche d'abord le message de la boîte noire (par exemple « Erreur technique de la boîte noire. Contactez votre technicien. »), puis « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » ; le nouvel essai renvoie la même requête et la vente n'est jamais perdue ni doublée.
 
 Messages de la caisse elle-même :
 

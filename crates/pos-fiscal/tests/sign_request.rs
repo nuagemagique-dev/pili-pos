@@ -214,6 +214,26 @@ async fn failures_say_whether_the_event_may_be_signed() {
         SignOutcome::Unknown
     );
     assert_eq!(refused(&[]).outcome(), SignOutcome::Unknown);
+    // The code the operator is told about: the one that makes the
+    // outcome unknown.
+    assert_eq!(
+        refused(&["BUFFER_FULL", "INTERNAL_ERROR"])
+            .fdm_code()
+            .as_deref(),
+        Some("INTERNAL_ERROR")
+    );
+    assert_eq!(
+        refused(&["BUFFER_FULL"]).fdm_code().as_deref(),
+        Some("BUFFER_FULL")
+    );
+    assert_eq!(refused(&[]).fdm_code(), None);
+    assert_eq!(
+        FdmError::ResponseMismatch("posId".into())
+            .fdm_code()
+            .as_deref(),
+        Some("FDM_RESPONSE_MISMATCH")
+    );
+    assert_eq!(FdmError::BadResponse("no data".into()).fdm_code(), None);
     assert_eq!(
         FdmError::BadResponse("no data".into()).outcome(),
         SignOutcome::Unknown

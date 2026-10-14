@@ -331,6 +331,7 @@ fn refuse_while_fdm_answer_awaited(state: &AppState) -> Result<(), String> {
         Some(row) => Err(crate::commands::signing::answer_pending(
             &row.event_label,
             row.first_ticket_no,
+            None,
             &"the FDM has not answered yet",
         )),
         None => Ok(()),

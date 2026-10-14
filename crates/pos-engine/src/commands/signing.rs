@@ -333,13 +333,24 @@ impl From<String> for SignFailure {
     }
 }
 
-pub(crate) fn answer_pending(label: &str, ticket_no: i64, cause: &dyn std::fmt::Display) -> String {
+/// `fdm`: what the FDM said (its error code, or `FDM_RESPONSE_MISMATCH`),
+/// when it answered: the screens show its message first, then the
+/// instruction that the same request is sent again.
+pub(crate) fn answer_pending(
+    label: &str,
+    ticket_no: i64,
+    fdm: Option<&str>,
+    cause: &dyn std::fmt::Display,
+) -> String {
+    let mut values: Vec<(&str, &dyn std::fmt::Display)> =
+        vec![("label", &label), ("ticket", &ticket_no)];
+    if let Some(code) = &fdm {
+        values.push(("fdm", code));
+    }
+    values.push(("cause", cause));
     format!(
         "FDM error: {}",
-        errors::coded(
-            errors::FDM_ANSWER_PENDING,
-            &[("label", &label), ("ticket", &ticket_no), ("cause", cause)]
-        )
+        errors::coded(errors::FDM_ANSWER_PENDING, &values)
     )
 }
 
@@ -430,7 +441,7 @@ fn failed(
     match e.outcome() {
         SignOutcome::Unknown => {
             tracing::error!(%detail, label, ticket_no, "FDM answer lost: request kept to send again");
-            answer_pending(label, ticket_no, &detail).into()
+            answer_pending(label, ticket_no, e.fdm_code().as_deref(), &detail).into()
         }
         _ => SignFailure {
             error: format!("FDM error: {e}"),
@@ -894,7 +905,12 @@ pub(crate) async fn resolve_open(
             pending_signs::record_attempt(&db, row.id, Some(&e.to_string()))
                 .map_err(errors::internal)?;
             tracing::warn!(%e, label = %row.event_label, ticket = row.first_ticket_no, "pending request still unanswered");
-            return Err(answer_pending(&row.event_label, row.first_ticket_no, &e));
+            return Err(answer_pending(
+                &row.event_label,
+                row.first_ticket_no,
+                e.fdm_code().as_deref(),
+                &e,
+            ));
         }
     };
 

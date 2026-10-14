@@ -154,7 +154,11 @@ pub const ORDER_SIGN_PENDING: &str = "order_sign_pending";
 /// The event names a booking period its Z closed.
 pub const PERIOD_CLOSED: &str = "period_closed";
 /// A sign request waits for the FDM's answer (`label`, `ticket`): no
-/// other event is signed until it comes. Starts with "FDM", so the
+/// other event is signed until it comes. `fdm`, when the FDM did answer
+/// but not with a signature (INTERNAL_ERROR, UNDEFINED_ERROR,
+/// UNDEFINED_OTHER, or `FDM_RESPONSE_MISMATCH` for an answer that does
+/// not echo the request): the screens show that code's message first,
+/// then say the same request is sent again. Starts with "FDM", so the
 /// screen shows it as an FDM message.
 pub const FDM_ANSWER_PENDING: &str = "FDM_ANSWER_PENDING";
 

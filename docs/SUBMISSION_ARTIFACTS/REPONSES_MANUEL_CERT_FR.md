@@ -756,11 +756,13 @@ Tableau de réponse (JSON fournis dans `evidence/fdm_errors/` ; captures d'écra
 | TOO_MANY_MEMORY_ERRORS | Erreur | N | - | - |
 | UNAUTHORIZED | Erreur | O | ☑ (mappé « La caisse n'est pas autorisée à parler à la boîte noire. ») | JSON : `evidence/fdm_errors/UNAUTHORIZED_*.json` ; écran 27 |
 | INVALID_REQUEST | Erreur | O | ☑ (mappé « Erreur de communication avec la boîte noire. Contactez votre technicien. ») | écran 28 |
-| INTERNAL_ERROR | Erreur | O | ☑ (mappé « Erreur technique de la boîte noire. Contactez votre technicien. ») | écran 29 |
-| UNDEFINED_ERROR | Erreur | O | ☑ (mappé « Erreur indéfinie de la boîte noire. Contactez votre technicien. ») | écran 30 |
-| UNDEFINED_OTHER | Erreur | O | ☑ (mappé « Erreur de la boîte noire. Contactez votre technicien. ») | écran 31 |
+| INTERNAL_ERROR | Erreur | O | ☑ (sur une vente : « Erreur technique de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | écran 29 |
+| UNDEFINED_ERROR | Erreur | O | ☑ (sur une vente : « Erreur indéfinie de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | écran 30 |
+| UNDEFINED_OTHER | Erreur | O | ☑ (sur une vente : « Erreur de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | écran 31 |
 | FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; écran 22 |
 | UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; écran 23 |
+
+Sur une vente, les codes INTERNAL_ERROR, UNDEFINED_ERROR et UNDEFINED_OTHER, et une réponse qui ne reprend pas la requête (`FDM_RESPONSE_MISMATCH`, message « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. »), laissent l'issue inconnue : la boîte noire a peut-être signé l'événement. La caisse garde la requête et la renvoie telle quelle (règle des doublons), mais l'opérateur lit d'abord ce que la boîte noire a répondu (le message du code, ci-dessus), puis que la vente n'est pas encore enregistrée et que le prochain essai renvoie la même demande. Le moteur joint le code de la boîte noire à l'erreur (`FDM_ANSWER_PENDING|label=..|ticket=..|fdm=<code>|cause=..`) ; les écrans 29, 30, 31 et 42 montrent ce texte tel que le moteur le renvoie (`crates/pos-engine/tests/spf_e2e_fdm_failures.rs`).
 
 La description détaillée POS v2.2 (`tb_messages`) liste en plus deux avertissements à affichage obligatoire, absents du tableau §V du manuel : `UPDATE_POS_VATNO` (« Le numéro de TVA de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. ») et `UPDATE_POS_ESTNO` (« Le numéro d'unité d'établissement de la caisse ne correspond pas à celui de la boîte noire. Contactez votre technicien. »). Tous deux sont mappés et testés (`ui/e2e/fdm-messages.spec.ts`).
 
