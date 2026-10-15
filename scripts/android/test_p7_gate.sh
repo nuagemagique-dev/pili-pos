@@ -296,9 +296,9 @@ check frozen-ref-default $(grep -q '^frozen --ref 8a678ff$' "$STUB_LOG" && echo 
 PILI_P7_FREEZE_REF=abc1234 run_gate --fast "${BASE[@]}"
 check frozen-ref-override $(grep -q '^frozen --ref abc1234$' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
 : >"$STUB_LOG"
-tgit "$REPO" tag linux-v1.0.0-rc1 base
+tgit "$REPO" tag linux-v1.0.0-rc2 base
 run_gate --fast "${BASE[@]}"
-check frozen-tag-preferred $(grep -q '^frozen --tag linux-v1.0.0-rc1$' "$STUB_LOG" && ! grep -q -- '--ref' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
+check frozen-tag-preferred $(grep -q '^frozen --tag linux-v1.0.0-rc2$' "$STUB_LOG" && ! grep -q -- '--ref' "$STUB_LOG" && echo 0 || echo 1) "log: $(cat "$STUB_LOG")"
 export STUB_FROZEN_FAIL=1
 run_gate --fast "${BASE[@]}"
 expect frozen-failure-fails linux-frozen FAIL

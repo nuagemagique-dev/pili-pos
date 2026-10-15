@@ -75,7 +75,7 @@ new_repo() {
         tgit "$r" add -A
         tgit "$r" commit -q -m "chore: base"
         tgit "$r" tag base
-        tgit "$r" tag linux-v1.0.0-rc1
+        tgit "$r" tag linux-v1.0.0-rc2
     } >/dev/null 2>&1
     printf '%s' "$r"
 }
@@ -91,7 +91,7 @@ run_gate() {
     shift
     local sha
     [[ "$repo" == "$TMP"/* && -d "$repo/.git" ]] || { echo "run_gate: bad repo '$repo'" >&2; exit 1; }
-    sha="$(tgit "$repo" rev-parse 'linux-v1.0.0-rc1^{commit}' 2>/dev/null)"
+    sha="$(tgit "$repo" rev-parse 'linux-v1.0.0-rc2^{commit}' 2>/dev/null)"
     OUT="$(env PILI_P4_ROOT="$repo" PILI_P4_SUBGATE="$STUB_SUBGATE" PILI_P4_FREEZE_SHA="$sha" STUB_LOG="$TMP/stub.log" ${envs[@]+"${envs[@]}"} \
         bash "$GATE" "$@" 2>"$TMP/err.txt")"
     RC=$?
@@ -183,15 +183,15 @@ check "app-only-scope sees committed changes of BASE...HEAD" "$([[ "$(status_of 
 R="$(new_repo)"
 run_gate "$R" -- --fast --base base
 check "freeze-tag passes with the tag, the commit and a clean tag-mode check" "$([[ "$(status_of freeze-tag)" == "PASS" ]] && echo 0 || echo 1)" "out=$OUT"
-tgit "$R" tag -d linux-v1.0.0-rc1 >/dev/null
+tgit "$R" tag -d linux-v1.0.0-rc2 >/dev/null
 OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" bash "$GATE" --fast --base base 2>/dev/null)"
 RC=$?
-check "freeze-tag is SKIP with a clear message while the 1.0.0 tag does not exist" "$([[ "$(status_of freeze-tag)" == "SKIP" && "$(detail_of freeze-tag)" == *"no tag linux-v1.0.0-rc1 yet"* && $RC -eq 0 ]] && echo 0 || echo 1)" "rc=$RC out=$OUT"
+check "freeze-tag is SKIP with a clear message while the 1.0.0 tag does not exist" "$([[ "$(status_of freeze-tag)" == "SKIP" && "$(detail_of freeze-tag)" == *"no tag linux-v1.0.0-rc2 yet"* && $RC -eq 0 ]] && echo 0 || echo 1)" "rc=$RC out=$OUT"
 tgit "$R" tag linux-v1.1.0-rc1
 OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" bash "$GATE" --fast --base base 2>/dev/null)"
 check "the misnamed linux-v1.1.0-rc1 tag is not a freeze tag any more" "$([[ "$(status_of freeze-tag)" == "SKIP" ]] && echo 0 || echo 1)" "out=$OUT"
 tgit "$R" tag -d linux-v1.1.0-rc1 >/dev/null
-tgit "$R" tag linux-v1.0.0-rc1
+tgit "$R" tag linux-v1.0.0-rc2
 OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" PILI_P4_FREEZE_SHA= bash "$GATE" --fast --base base 2>/dev/null)"
 check "freeze-tag fails when the tag exists and the recorded commit is not filled in" "$([[ "$(status_of freeze-tag)" == "FAIL" && "$(detail_of freeze-tag)" == *"FREEZE_SHA_RECORDED"*"not filled in"* ]] && echo 0 || echo 1)" "out=$OUT"
 OUT="$(env PILI_P4_ROOT="$R" PILI_P4_SUBGATE="$STUB_SUBGATE" PILI_P4_FREEZE_SHA=65b567fdd2497277300340979c2c61ff17abc918 bash "$GATE" --fast --base base 2>/dev/null)"
@@ -199,7 +199,7 @@ check "freeze-tag fails when the tag points at another commit" "$([[ "$(status_o
 printf '#!/bin/sh\necho "not frozen" >&2\nexit 1\n' >"$R/scripts/android/check_linux_frozen.sh"
 tgit "$R" add -A
 tgit "$R" commit -q -m "chore: change"
-tgit "$R" tag -f linux-v1.0.0-rc1 >/dev/null
+tgit "$R" tag -f linux-v1.0.0-rc2 >/dev/null
 run_gate "$R" -- --fast --base base
 check "freeze-tag fails when check_linux_frozen.sh --tag fails" "$([[ "$(status_of freeze-tag)" == "FAIL" ]] && echo 0 || echo 1)" "out=$OUT"
 
@@ -493,7 +493,7 @@ exit \${REPRO_RC:-0}
 STUB
 tgit "$R" add -A
 tgit "$R" commit -q -m "chore: repro stub"
-tgit "$R" tag -f linux-v1.0.0-rc1 >/dev/null
+tgit "$R" tag -f linux-v1.0.0-rc2 >/dev/null
 tgit "$R" tag -f base >/dev/null HEAD~1
 run_gate "$R" PATH="$TMP/bin:$PATH" -- --fast --linux-repro --base base
 okr=1

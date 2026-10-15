@@ -43,8 +43,8 @@
 #                 the working tree, is under android/rust/, android/pos-core/,
 #                 android/smoke/ or android/docker/ ('use the full gate')
 #   Always:
-#   freeze-tag    tag linux-v1.0.0-rc1 exists, its commit is FREEZE_SHA and
-#                 check_linux_frozen.sh --tag linux-v1.0.0-rc1 exits 0 (PD100). SKIP while
+#   freeze-tag    tag linux-v1.0.0-rc2 exists, its commit is FREEZE_SHA and
+#                 check_linux_frozen.sh --tag linux-v1.0.0-rc2 exits 0 (PD100). SKIP while
 #                 the tag does not exist yet (the 1.0.0 re-freeze, user decision
 #                 2026-10-10); FAIL when the tag exists and FREEZE_SHA is still empty
 #   hygiene-keys  no tracked or untracked-not-ignored file under android/,
@@ -112,9 +112,9 @@ TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SELF="$TOOLS/$(basename "${BASH_SOURCE[0]}")"
 HEAVY="$TOOLS/heavy.sh"
 
-FREEZE_TAG=linux-v1.0.0-rc1
-# TAGGING: fill FREEZE_SHA_RECORDED with the full commit of linux-v1.0.0-rc1
-# (git rev-parse 'linux-v1.0.0-rc1^{commit}') when the tag is set.
+FREEZE_TAG=linux-v1.0.0-rc2
+# TAGGING: fill FREEZE_SHA_RECORDED with the full commit of linux-v1.0.0-rc2
+# (git rev-parse 'linux-v1.0.0-rc2^{commit}') when the tag is set.
 FREEZE_SHA_RECORDED=""
 FREEZE_SHA="${PILI_P4_FREEZE_SHA:-$FREEZE_SHA_RECORDED}"
 JVMARGS="${PILI_GRADLE_JVMARGS:--Xmx2g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8}"

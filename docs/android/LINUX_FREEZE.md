@@ -1,31 +1,31 @@
-# Linux freeze: linux-v1.0.0-rc1
+# Linux freeze: linux-v1.0.0-rc2
 
 The engine freeze both initial filings cite (Linux `pili-pos` 1.0.0 and
-Android `pili-pos-android` 1.0.0, Art. 99, P8aD2). It replaces the misnamed
-`linux-v1.1.0-rc1` (see History below), as the user decided on 2026-10-10
-("Yes, 1.0.0 + re-freeze"). Set on 2026-10-13 after the nightly export, the
-menu code default, the one-language names, the 7 kept backups, the linked
-card terminal (EFT, migration 27, `pos-eft`) and its terminal light, Z
-warning and order-edit guards were merged into `android/int`.
+Android `pili-pos-android` 1.0.0, Art. 99, P8aD2). It replaces `linux-v1.0.0-rc1`
+(History below) after the fixes found by the Android captures of P8b: the FDM
+message shown with a pending sign (`fdm=` param of `fdm_answer_pending`),
+mandatory warnings of a sign response, empty orders voided when left and at
+start, configuration problems as coded errors, `hubrise_oauth_failed`. Set on
+2026-10-15.
 
 ## Tag
 
 | Item | Value |
 |------|-------|
-| tag | `linux-v1.0.0-rc1` (local annotated tag, never pushed without the user) |
+| tag | `linux-v1.0.0-rc2` (local annotated tag, never pushed without the user) |
 | tag target | the commit that adds this file, on `android/int` |
-| built commit | `400143947dd89d19a0c7b810ab017d75d6e8531e` (`test(android): keep the PolicySetTest name stable for the test inventory`) |
+| built commit | `f0c3078d2063ab685e4c1727bd35eac8cd9dfa18` (`docs(android): soak record rc1-soak-3, ...`) |
 | version | 1.0.0 (`Cargo.toml` `[workspace.package]`, `src-tauri/tauri.conf.json`, `ui/package.json`) |
 
-The tag target adds only `docs/android/LINUX_FREEZE.md` on top of the built
-commit. It is not a build input and the binary embeds no git metadata, so
+The tag target adds only documentation on top of the built commit (the
+P8b capture retakes and `docs/android/LINUX_FREEZE.md`). It is not a build input and the binary embeds no git metadata, so
 the tag target builds the same binary; only the `Git commit` and `Git tag`
 lines of a `build_info_*.txt` report name the commit.
 
 ## Reproducible build
 
-`scripts/check_repro.sh` ran on 2026-10-13 from a clean local clone of
-`4001439` (`~/.cache/pili-freeze/rc1-clone`, outside the worktrees: Docker
+`scripts/check_repro.sh` ran on 2026-10-15 from a clean local clone of
+`f0c3078` (`~/.cache/pili-freeze/rc2-clone`, outside the worktrees: Docker
 in the build container cannot follow a worktree's `.git` file). It runs
 `deploy/build-release.sh --docker` twice, deleting the build outputs between
 the runs, in a linux/amd64 container under emulation on the macOS host
@@ -34,14 +34,14 @@ all five steps of `scripts/build_and_hash.sh`, the mutation scan included.
 
 | | run 1 | run 2 |
 |---|---|---|
-| report | `build_info_20261013-203227.txt` | `build_info_20261013-204656.txt` |
-| SHA-1 | `838cf603b10822cc171bc6a314e8ed0a94d41580` | `838cf603b10822cc171bc6a314e8ed0a94d41580` |
-| SHA-256 | `b42d34b67d4d1d1715d90f295d278a22451714d7d7af3395bd085e6c10a33e79` | `b42d34b67d4d1d1715d90f295d278a22451714d7d7af3395bd085e6c10a33e79` |
-| MD5 | `b9528da6355daf82108f04cf54969c29` | `b9528da6355daf82108f04cf54969c29` |
-| size | 41568672 bytes | 41568672 bytes |
+| report | `build_info_20261015-094132.txt` | `build_info_20261015-095533.txt` |
+| SHA-1 | `ed9489009301cf909d60bbef46d7348da0be9323` | `ed9489009301cf909d60bbef46d7348da0be9323` |
+| SHA-256 | `764f41727900e1e5d1c427f4447c857ade2a5dd383f81f0efe10c630d5b10a00` | `764f41727900e1e5d1c427f4447c857ade2a5dd383f81f0efe10c630d5b10a00` |
+| MD5 | `14402ea39b42b1a95a9006b39c41e318` | `14402ea39b42b1a95a9006b39c41e318` |
+| size | 41576856 bytes | 41576856 bytes |
 | working tree | clean | clean |
 
-Result: `✓ Reproducible: SHA-1 838cf603b10822cc171bc6a314e8ed0a94d41580`
+Result: `✓ Reproducible: SHA-1 ed9489009301cf909d60bbef46d7348da0be9323`
 (exit 0). The reports say `Git tag: (untagged)`: the tag is set after the
 build. Checks of both reports: HubRise integration present (installation
 switch, off by default), 0 `pos_peppol` symbols, no `fiscal_events`
@@ -58,22 +58,21 @@ DELETE/UPDATE in the source compiled into the binary.
 | Node.js | `v24.21.0`, tarball sha256 `fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6` |
 | build command | `cargo build --release --no-default-features --features cert` |
 
-## Gates on the built commit (2026-10-13)
+## Gates on the built commit (2026-10-15)
 
-All green on `4001439` in the `int` worktree: `cargo fmt --check`,
-workspace clippy and cert clippy with `-D warnings`, `cargo test
---workspace` 1788 passed, cert tests 659 passed, `test_inventory.sh --diff`
-(ws 1801 >= 1355, none removed), command parity 96/96 single-call, UI parity
-strict, `vue_to_android.mjs --check`, `check_dossier.py`, Vue build and
-`vue-tsc`, Playwright 347 passed (inventory: none removed), `android/rust`
-clippy and 257 tests, the Android gate (`lintDebug ktlintCheck detekt test
-koverVerifyDebug :app:verifyRoborazziDebug :pos-core:apiCheck
-:app:assembleDebug`), Kotlin test inventory 2069 (none removed).
+All green on `6a7b5fc` plus the fixes of `5b3f0b6` (Kotlin and FFI test only,
+rerun): `cargo fmt --check`, workspace clippy and cert clippy with `-D warnings`,
+`cargo test --workspace` 1800 passed, cert tests 669 passed, `test_inventory.sh
+--diff` (ws 1813, none removed), command parity 96/96, UI parity strict,
+`vue_to_android.mjs --check`, `check_dossier.py` on both dossiers, Vue build and
+`vue-tsc`, Playwright 354 passed (inventory: none removed), `android/rust`
+clippy and 257 tests, the Android gate, Kotlin test inventory 2081 (none
+removed). The 10 h soak `rc1-soak-3` ran on `f0c3078` (`docs/android/SOAK.md`).
 
 ## Checking the freeze
 
 ```bash
-scripts/android/check_linux_frozen.sh            # against linux-v1.0.0-rc1
+scripts/android/check_linux_frozen.sh            # against linux-v1.0.0-rc2
 ```
 
 An engine or Linux build input change after this tag needs the user and a
@@ -83,7 +82,14 @@ new freeze (both filings cite the tag).
 
 - The on-site trace of the restaurant's CCV terminal
   (`crates/pos-eft-probe/ESSAI_SUR_SITE_FR.md`): a driver fix it calls for
-  changes `crates/pos-eft`, so a new freeze (`-rc2`).
+  changes `crates/pos-eft`, so a new freeze (`-rc3`).
+
+## History: linux-v1.0.0-rc1 (2026-10-13)
+
+Built commit `4001439`, tag target `758ff4a`, reproducible SHA-1
+`838cf603b10822cc171bc6a314e8ed0a94d41580` (two clean `check_repro.sh` runs,
+reports `build_info_20261013-203227.txt` and `build_info_20261013-204656.txt`).
+Superseded by rc2 on 2026-10-15; the tag is deleted.
 
 ## History: the misnamed linux-v1.1.0-rc1
 

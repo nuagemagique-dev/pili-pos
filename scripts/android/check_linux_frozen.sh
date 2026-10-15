@@ -17,7 +17,7 @@
 #   - a path package of that graph lives outside crates/ (src-tauri aside).
 #
 # Usage: scripts/android/check_linux_frozen.sh [--tag TAG | --ref COMMIT]
-#   TAG defaults to linux-v1.0.0 when it exists, else linux-v1.0.0-rc1 (the
+#   TAG defaults to linux-v1.0.0 when it exists, else linux-v1.0.0-rc2 (the
 #   1.0.0 re-freeze; the misnamed linux-v1.1.0-rc1 is not a freeze tag).
 #   --ref COMMIT compares with any commit-ish instead of a tag (the provisional
 #   freeze point of PD48); same paths, same checks. --tag and --ref exclude
@@ -75,10 +75,10 @@ else
     if [[ -z "$tag" ]]; then
         if tag_exists linux-v1.0.0; then
             tag=linux-v1.0.0
-        elif tag_exists linux-v1.0.0-rc1; then
-            tag=linux-v1.0.0-rc1
+        elif tag_exists linux-v1.0.0-rc2; then
+            tag=linux-v1.0.0-rc2
         else
-            echo "no freeze tag yet (neither linux-v1.0.0 nor linux-v1.0.0-rc1): nothing to check against" >&2
+            echo "no freeze tag yet (neither linux-v1.0.0 nor linux-v1.0.0-rc2): nothing to check against" >&2
             exit 2
         fi
     elif ! tag_exists "$tag"; then

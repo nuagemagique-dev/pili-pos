@@ -38,7 +38,7 @@
 #                     --porcelain --untracked-files=all) matches 'lane_paths.py --regex
 #                     e2e-parity', 'lane_paths.py --regex shared' or an --allow
 #   lanes             lane_paths.py --check
-#   linux-frozen      check_linux_frozen.sh --tag linux-v1.0.0-rc1 when that tag exists, else
+#   linux-frozen      check_linux_frozen.sh --tag linux-v1.0.0-rc2 when that tag exists, else
 #                     --ref ${PILI_P7_FREEZE_REF:-8a678ff}
 #   frozen-paths      no diff against BASE and no untracked file in Cargo.toml Cargo.lock
 #                     rust-toolchain.toml src-tauri ui crates deploy scripts/build_and_hash.sh
@@ -168,7 +168,7 @@ trap 'rm -rf "$TMP"' EXIT
 n_checks=0
 n_failed=0
 
-FREEZE_TAG="linux-v1.0.0-rc1"
+FREEZE_TAG="linux-v1.0.0-rc2"
 FREEZE_REF="${PILI_P7_FREEZE_REF:-8a678ff}"
 UCCHECK=android/uccheck/Cargo.toml
 JOURNALS=docs/android/uc/journals/android
