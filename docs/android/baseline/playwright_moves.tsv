@@ -24,3 +24,4 @@ fdm-polling.spec.ts › an FDM that does not answer is polled less and less ofte
 fdm-polling.spec.ts › changing screens keeps the one poller going, without a second one	fdm-polling.spec.ts › changing screens makes no FDM call from the UI
 order.spec.ts › Order View - kitchen and cart lines › names show in the UI language first, Chinese underneath	order.spec.ts › Order View - kitchen and cart lines › names show in the UI language only, no second language underneath
 settings.spec.ts › Settings View › products can be shown by their menu code	settings.spec.ts › Settings View › products are shown by their menu code by default, names are a switch away
+fdm-errors.spec.ts › an FDM answer that does not match the sale is explained	fdm-errors.spec.ts › an FDM answer that does not match the sale is explained, then the retry

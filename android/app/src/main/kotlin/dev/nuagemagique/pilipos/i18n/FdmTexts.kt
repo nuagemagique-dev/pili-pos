@@ -29,38 +29,46 @@ class FdmTexts
         /** `translateFdmError`: the French text of [raw], or null for a null or empty [raw]. */
         fun translate(raw: String?): String? {
             if (raw.isNullOrEmpty()) return null
-            // What the FDM said first, then that the same request goes again.
-            pendingFdmCode(raw)?.let { said ->
-                val shown = (FdmMessageTables.ERRORS + FdmMessageTables.POS_CHECK).firstOrNull { it.first == said }
-                if (shown != null) {
-                    return catalog.text(shown.second, AppLanguage.FR) + " " + retryNote(FdmMessageTables.POS_CHECK, AppLanguage.FR)
-                }
+            return pendingFr(raw) ?: run {
+                val known =
+                    FdmMessageTables.POS_CHECK.firstOrNull { raw.contains(it.first) }
+                        ?: FdmMessageTables.ERRORS.firstOrNull { raw.contains(it.first) }
+                        ?: FdmMessageTables.VENDOR.firstOrNull { raw.contains(it.first) }
+                val id =
+                    when {
+                        known != null -> known.second
+                        isConnectionLoss(raw) -> FdmMessageTables.FALLBACK_CONNECTION
+                        else -> FdmMessageTables.FALLBACK_GENERIC
+                    }
+                catalog.text(id, AppLanguage.FR)
             }
-            val known =
-                FdmMessageTables.POS_CHECK.firstOrNull { raw.contains(it.first) }
-                    ?: FdmMessageTables.ERRORS.firstOrNull { raw.contains(it.first) }
-                    ?: FdmMessageTables.VENDOR.firstOrNull { raw.contains(it.first) }
-            val id =
-                when {
-                    known != null -> known.second
-                    isConnectionLoss(raw) -> FdmMessageTables.FALLBACK_CONNECTION
-                    else -> FdmMessageTables.FALLBACK_GENERIC
-                }
-            return catalog.text(id, AppLanguage.FR)
         }
+
+        /** What the FDM said first, then that the same request goes again; null when [raw] names no known FDM code. */
+        private fun pendingFr(raw: String): String? =
+            pendingFdmCode(raw)
+                ?.let { said -> (FdmMessageTables.ERRORS + FdmMessageTables.POS_CHECK).firstOrNull { it.first == said } }
+                ?.let { shown ->
+                    catalog.text(shown.second, AppLanguage.FR) + " " + retryNote(FdmMessageTables.POS_CHECK, AppLanguage.FR)
+                }
 
         /** `translateFdmErrorZh`: the Chinese line of [raw], or null for a null or empty [raw]. */
         fun translateZh(raw: String?): String? {
             if (raw.isNullOrEmpty()) return null
+            return pendingZh(raw) ?: run {
+                val id =
+                    FdmMessageTables.ZH.firstOrNull { raw.contains(it.first) }?.second
+                        ?: if (isConnectionLoss(raw)) FdmMessageTables.ZH_FALLBACK_CONNECTION else FdmMessageTables.ZH_FALLBACK_GENERIC
+                catalog.text(id, AppLanguage.ZH)
+            }
+        }
+
+        /** The Chinese line of what the FDM said, then the retry note; null when [raw] names no FDM code. */
+        private fun pendingZh(raw: String): String? =
             pendingFdmCode(raw)?.let { said ->
                 val line = FdmMessageTables.ZH.firstOrNull { it.first == said }?.second ?: FdmMessageTables.ZH_FALLBACK_GENERIC
-                return catalog.text(line, AppLanguage.ZH) + " " + retryNote(FdmMessageTables.ZH, AppLanguage.ZH)
+                catalog.text(line, AppLanguage.ZH) + " " + retryNote(FdmMessageTables.ZH, AppLanguage.ZH)
             }
-            val id =
-                FdmMessageTables.ZH.firstOrNull { raw.contains(it.first) }?.second
-                    ?: if (isConnectionLoss(raw)) FdmMessageTables.ZH_FALLBACK_CONNECTION else FdmMessageTables.ZH_FALLBACK_GENERIC
-            return catalog.text(id, AppLanguage.ZH)
-        }
 
         /** `fdmCode`: the first known POS check or FDM error code found in [raw], for the technician. */
         fun fdmCode(raw: String?): String? {
