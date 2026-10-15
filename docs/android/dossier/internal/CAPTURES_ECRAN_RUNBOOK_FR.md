@@ -3,7 +3,7 @@
 
 **Référence :** §V (comportement aux réponses du FDM) et §VII.D (rapports X/Z visibles et imprimables) du manuel de certification. Preuve EV-09 : captures du profil sunmi_d3_pro_gms_api33, prises le 15.10.2026.
 
-Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A122. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
+Liste des 123 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_FR.md (numérotation Linux du manuel) ; les écrans propres à Android viennent après A79, puis les compléments A88 à A98, les écrans du terminal de paiement A99 à A111 et des compléments A112 à A123. Chaque id est cité dans MANUEL_UTILISATEUR_FR.md pour le même écran. Les fichiers vont dans le dossier screenshots du dossier Android, puis sont réunis dans CAPTURES_ECRAN_FR.pdf. Les libellés cités sont ceux de l'écran (français).
 
 ## Méthode
 - **Terminal.** AVD `sunmi_d3_pro_gms_api33` (1920x1080 paysage, 160 dpi, Android 13), démarré par `PILI_AVD=sunmi_d3_pro_gms_api33 scripts/android/emulator.sh ensure` (profil à créer s'il manque ; un seul émulateur à la fois). Aucune capture de l'interface Linux n'est réutilisée.
@@ -61,7 +61,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A44 | `A44_tiroir_declaration.png` | « Déclarer le tiroir » : fenêtre « Déclarer le contenu du tiroir », pavé | 11.3 |
 | A45 | `A45_reglages.png` | « Config » (gérant) : page Paramètres, panneaux mode formation, langue, informations (POS ID, Terminal, FDM, Imprimante), section « Autres réglages » | 12 |
 | A46 | `A46_employes.png` | Panneau « Employés » : nom, profil, « PIN défini », « Code PIN », « Désactiver », formulaire « Ajouter » (même vue d'écran que A45, qui contient déjà le panneau) | 12.3 |
-| A47 | `A47_config_invalide.png` | Configuration avec un numéro de TVA mal formé : bandeau rouge « Configuration invalide : le FDM refusera les tickets. Appelez l'installateur. » (À REPRENDRE : le détail s'affiche maintenant en français, suivi du texte technique anglais) | 12.4 |
+| A47 | `A47_config_invalide.png` | Configuration avec un numéro de TVA mal formé : bandeau rouge « Configuration invalide : le FDM refusera les tickets. Appelez l'installateur. » | 12.4 |
 | A48 | `A48_tickets_email.png` | Panneau « Tickets par email » : « Configuré », « Joignable », envois avec adresse masquée | 12.5 |
 | A49 | `A49_integrations.png` | Panneau « Intégrations » : « Activer » ou « Désactiver », « Historique » | 12.7 |
 | A50 | `A50_hubrise_connexion.png` | « Se connecter à HubRise » : QR code et champ « Code d'autorisation » | 12.7 |
@@ -74,14 +74,14 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A57 | `A57_fdm_locked.png` | MOCK_FDM_ERROR=FDM_LOCKED : bloquant | 14.1 |
 | A58 | `A58_fdm_not_operational.png` | MOCK_FDM_ERROR=FDM_NOT_OPERATIONAL : bloquant | 14.1 |
 | A59 | `A59_unknown_pos.png` | MOCK_FDM_ERROR=UNKNOWN_POS : bloquant | 14.1 |
-| A60 | `A60_buffer_near_full.png` | MOCK_FDM_WARNING=BUFFER_NEAR_FULL : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
-| A61 | `A61_client_cert_expired.png` | MOCK_FDM_WARNING=CLIENT_CERT_EXPIRED : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
+| A60 | `A60_buffer_near_full.png` | MOCK_FDM_WARNING=BUFFER_NEAR_FULL : avertissement obligatoire | 14.1 |
+| A61 | `A61_client_cert_expired.png` | MOCK_FDM_WARNING=CLIENT_CERT_EXPIRED : avertissement obligatoire | 14.1 |
 | A62 | `A62_client_cert_near_expiration.png` | MOCK_FDM_WARNING=CLIENT_CERT_NEAR_EXPIRATION : avertissement | 14.1 |
 | A63 | `A63_unauthorized.png` | MOCK_FDM_ERROR=UNAUTHORIZED : erreur du FDM, vente refusée | 14.1 |
 | A64 | `A64_invalid_request.png` | MOCK_FDM_ERROR=INVALID_REQUEST : erreur du FDM, vente refusée | 14.1 |
-| A65 | `A65_internal_error.png` | MOCK_FDM_ERROR=INTERNAL_ERROR, tentative d'encaissement : résultat inconnu, la caisse garde la requête. Texte attendu : « Erreur technique de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE après le correctif : l'ancienne capture montre le seul message de FDM_ANSWER_PENDING) | 14.1 |
-| A66 | `A66_undefined_error.png` | MOCK_FDM_ERROR=UNDEFINED_ERROR : « Erreur indéfinie de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE) | 14.1 |
-| A67 | `A67_undefined_other.png` | MOCK_FDM_ERROR=UNDEFINED_OTHER : « Erreur de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE) | 14.1 |
+| A65 | `A65_internal_error.png` | MOCK_FDM_ERROR=INTERNAL_ERROR, tentative d'encaissement : résultat inconnu, la caisse garde la requête. Texte attendu : « Erreur technique de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » | 14.1 |
+| A66 | `A66_undefined_error.png` | MOCK_FDM_ERROR=UNDEFINED_ERROR : « Erreur indéfinie de la boîte noire. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » | 14.1 |
+| A67 | `A67_undefined_other.png` | MOCK_FDM_ERROR=UNDEFINED_OTHER : avec le simulateur, la vente aboutit (il ne refuse pas la signature pour ce code) ; le bandeau « Erreur de la boîte noire. Contactez votre technicien. » s'affiche avec son compte à rebours (erreur facultative) | 14.1 |
 | A68 | `A68_rtc_sync_failed.png` | MOCK_FDM_WARNING=RTC_SYNC_FAILED : avertissement | 14.1 |
 | A69 | `A69_update_urls_failed.png` | MOCK_FDM_WARNING=UPDATE_URLS_FAILED : avertissement | 14.1 |
 | A70 | `A70_update_trust_cert_failed.png` | MOCK_FDM_WARNING=UPDATE_TRUST_CERT_FAILED : avertissement | 14.1 |
@@ -92,7 +92,7 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A75 | `A75_transaction_upload_failed.png` | MOCK_FDM_WARNING=TRANSACTION_UPLOAD_FAILED : avertissement | 14.1 |
 | A76 | `A76_initialization_failed.png` | MOCK_FDM_WARNING=INITIALIZATION_FAILED : avertissement | 14.1 |
 | A77 | `A77_fdm_unreachable.png` | FDM simulé arrêté puis tentative d'encaissement : « Connexion perdue avec la boîte noire. Vérifiez le câble réseau. », vente refusée | 14.1 |
-| A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : résultat inconnu, la caisse garde la requête. Texte attendu : « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » (À REPRENDRE) | 14.1 |
+| A78 | `A78_fdm_response_mismatch.png` | Réponse du FDM qui ne correspond pas à la requête : résultat inconnu, la caisse garde la requête. Texte attendu : « Réponse de la boîte noire incohérente. Vente non enregistrée. Contactez votre technicien. La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » | 14.1 |
 | A79 | `A79_fdm_answer_pending.png` | Réponse du FDM à une vente perdue (FDM_ANSWER_PENDING) : « La caisse attend la réponse de la boîte noire pour l'opération précédente. » | 14.1 |
 | A80 | `A80_mise_en_service.png` | Caisse sans configuration : « Mise en service de la caisse », « Choisir le dossier » | 14.2 |
 | A81 | `A81_mise_en_service_refusee.png` | Paquet de configuration à signature invalide : « La signature du paquet de configuration est absente ou invalide. » | 14.2 |
@@ -102,8 +102,8 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A85 | `A85_mise_a_jour_accueil.png` | Réglages, « Mise à jour » : version installée, « Vérifier en ligne », « Depuis une clé USB » | 12.12 |
 | A86 | `A86_mise_a_jour_verifiee.png` | Mise à jour déclarée vérifiée : « Mise à jour disponible et vérifiée », « Installer la mise à jour » | 12.12 |
 | A87 | `A87_mise_a_jour_refusee.png` | Version non plus récente ou empreinte fausse : « Mise à jour refusée » et le détail | 12.12 |
-| A88 | `A88_update_pos_vatno.png` | MOCK_FDM_WARNING=UPDATE_POS_VATNO : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
-| A89 | `A89_update_pos_estno.png` | MOCK_FDM_WARNING=UPDATE_POS_ESTNO : avertissement obligatoire (À REPRENDRE : l'ancienne capture montre un compte à rebours) | 14.1 |
+| A88 | `A88_update_pos_vatno.png` | MOCK_FDM_WARNING=UPDATE_POS_VATNO : avertissement obligatoire | 14.1 |
+| A89 | `A89_update_pos_estno.png` | MOCK_FDM_WARNING=UPDATE_POS_ESTNO : avertissement obligatoire | 14.1 |
 | A90 | `A90_fdm_not_initialized.png` | MOCK_FDM_INITIALIZED=false : voyant orange, « La boîte noire n'est pas encore initialisée. » | 14.1 |
 | A91 | `A91_en_ligne_retarder.png` | « En ligne », commande acceptée, « Retarder » : fenêtre « +15 min », « +30 min », « +45 min » | 12.8 |
 | A92 | `A92_mise_a_jour_bloquee.png` | Réglages, « Mise à jour », une commande ouverte : « La mise à jour ne peut pas démarrer maintenant : » et la liste | 12.12 |
@@ -133,10 +133,11 @@ Liste des 122 captures de P8b, dans l'ordre des sections de MANUEL_UTILISATEUR_F
 | A116 | `A116_export_spf_pret.png` | « Export pour le SPF » prêt : support détecté, « Exporter » | 12.11 |
 | A117 | `A117_fin_vente_email_en_attente.png` | « Les deux » avec service d'e-mail en panne : « E-mail en attente, nouvel essai automatique » | 7.3 |
 | A118 | `A118_mise_a_jour_rapport_z_du.png` | Écran de mise à jour avec rapport Z dû : blocage de la mise à jour | 12.12 |
-| A119 | `A119_mise_en_service_config_invalide.png` | Mise en service avec paquet refusé (TVA du restaurant invalide) : détail de la configuration invalide (À REPRENDRE : chaque problème est dit en français, suivi de « Détail : » et du texte technique anglais) | 14.2 |
+| A119 | `A119_mise_en_service_config_invalide.png` | Mise en service avec paquet refusé (TVA du restaurant invalide) : détail de la configuration invalide | 14.2 |
 | A120 | `A120_options_groupe_facultatif.png` | Article à groupe d'options facultatif : fenêtre « Options », « Ajouter » disponible | 5.3 |
 | A121 | `A121_paiement_email_indisponible.png` | Paiement avec service d'e-mail en panne : mention « Service e-mail indisponible » | 7.3 |
 | A122 | `A122_rapport_z_pas_encore_fait.png` | Écran de commande ou de rapports : « Rapport Z pas encore fait aujourd'hui » | 10.2 |
+| A123 | `A123_reprise_menu_refusee.png` | HubRise connecté, une commande ouverte, Config, « Reprendre le menu » : message « Clôturez d'abord toutes les commandes ouvertes. » | 12.7 |
 
 Lignes A80 à A87 : écrans propres à Android, sans équivalent Linux (mise en service, à propos, export pour le SPF, mise à jour), décrits dans MANUEL_INSTALLATION_FR.md et MANUEL_UTILISATEUR_FR.md. Lignes A88 à A122 : compléments pour les écrans que le manuel décrit et qu'aucune ligne plus haut ne couvrait.
 

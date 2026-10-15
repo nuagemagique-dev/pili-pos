@@ -879,7 +879,7 @@ Une fois HubRise activé, le panneau "HubRise" apparaît dans "Config" :
   refusé : le menu précédent reste en place." et la liste des anomalies
   s'affichent. À la première connexion, "Reprise du menu" permet au Gérant
   de cocher les produits locaux qui gardent leur historique, puis
-  "Reprendre le menu" ; les autres sont désactivés.
+  "Reprendre le menu" ; les autres sont désactivés. Tant qu'une commande est ouverte, la reprise est refusée avec le message « Clôturez d'abord toutes les commandes ouvertes. » (capture A123).
 - **Menu géré par HubRise** : une fois le catalogue repris, le bandeau
   "Menu géré par HubRise : les produits se modifient dans HubRise."
   s'affiche. Les produits se modifient dans HubRise, pas à la caisse.
@@ -1152,7 +1152,7 @@ sont indiqués dans la colonne "Capture" du premier tableau
 Les autres codes du FDM (erreurs de communication, d'horloge, de mise à
 jour des certificats ou des tâches...) s'affichent avec un message
 analogue ; leur liste complète est dans le manuel de certification, §V.
-Écrans : captures A64 (INVALID_REQUEST), A65 (INTERNAL_ERROR), A66 (UNDEFINED_ERROR), A67 (UNDEFINED_OTHER), A68 (RTC_SYNC_FAILED), A69 (UPDATE_URLS_FAILED), A70 (UPDATE_TRUST_CERT_FAILED), A71 (UPDATE_TASK_LIST_FAILED), A72 (TASK_FEEDBACK_FAILED), A73 (NOP_FAILED), A74 (SERVER_CERT_RESOLVE_FAILED), A76 (INITIALIZATION_FAILED). Pour A65 à A67, sur une vente, la boîte noire a peut-être signé l'événement (résultat inconnu) : la caisse affiche d'abord le message de la boîte noire (par exemple « Erreur technique de la boîte noire. Contactez votre technicien. »), puis « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » ; le nouvel essai renvoie la même requête et la vente n'est jamais perdue ni doublée.
+Écrans : captures A64 (INVALID_REQUEST), A65 (INTERNAL_ERROR), A66 (UNDEFINED_ERROR), A67 (UNDEFINED_OTHER), A68 (RTC_SYNC_FAILED), A69 (UPDATE_URLS_FAILED), A70 (UPDATE_TRUST_CERT_FAILED), A71 (UPDATE_TASK_LIST_FAILED), A72 (TASK_FEEDBACK_FAILED), A73 (NOP_FAILED), A74 (SERVER_CERT_RESOLVE_FAILED), A76 (INITIALIZATION_FAILED). Pour A65 et A66, sur une vente, la boîte noire a peut-être signé l'événement (résultat inconnu) : la caisse affiche d'abord le message de la boîte noire (par exemple « Erreur technique de la boîte noire. Contactez votre technicien. »), puis « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. » ; le nouvel essai renvoie la même requête et la vente n'est jamais perdue ni doublée. Pour A67 (UNDEFINED_OTHER), le simulateur ne refuse pas la signature : la vente aboutit et le bandeau d'erreur facultative s'affiche.
 
 Messages de la caisse elle-même :
 

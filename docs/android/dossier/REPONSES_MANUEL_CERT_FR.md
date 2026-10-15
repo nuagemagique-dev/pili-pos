@@ -769,7 +769,7 @@ Tableau de réponse (JSON fournis dans `evidence/fdm_errors/` ; identifiants des
 | INVALID_REQUEST | Erreur | O | ☑ (mappé « Erreur de communication avec la boîte noire. Contactez votre technicien. ») | capture A64 |
 | INTERNAL_ERROR | Erreur | O | ☑ (sur une vente : « Erreur technique de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | capture A65 |
 | UNDEFINED_ERROR | Erreur | O | ☑ (sur une vente : « Erreur indéfinie de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | capture A66 |
-| UNDEFINED_OTHER | Erreur | O | ☑ (sur une vente : « Erreur de la boîte noire. Contactez votre technicien. » suivi de « La vente n'est pas encore enregistrée : le prochain essai envoie à nouveau la même demande à la boîte noire. ») | capture A67 |
+| UNDEFINED_OTHER | Erreur | O | ☑ (bandeau « Erreur de la boîte noire. Contactez votre technicien. » ; avec le simulateur de la boîte noire, la signature de la vente n'est pas refusée pour ce code) | capture A67 |
 | FDM_NOT_OPERATIONAL | Erreur | M | ☑ (mappé « La boîte noire ne fonctionne pas. Impossible d'enregistrer les ventes. ») + modale bloquante | JSON : `evidence/fdm_errors/FDM_NOT_OPERATIONAL_*.json` ; capture A58 |
 | UNKNOWN_POS | Erreur | M | ☑ (mappé « Cette caisse n'est pas reconnue par la boîte noire. ») | JSON : `evidence/fdm_errors/UNKNOWN_POS_*.json` ; capture A59 |
 
