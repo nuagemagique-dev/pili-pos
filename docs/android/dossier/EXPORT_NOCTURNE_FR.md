@@ -12,7 +12,7 @@ renseignée. Cette fonction est déclarée dans les deux demandes
 initiales (`pili-pos` 1.0.0 sur Linux et `pili-pos-android` 1.0.0 sur
 Android, `CADRE_DEMANDE_FR.md` §7) : le code est celui du moteur
 commun (`crates/pos-export`), identique sur les deux plateformes au
-même tag de gel `linux-v1.0.0-rc1` (commit : À effectuer (EV-04 : commit du tag de gel)). Seuls changent l'emplacement des copies locales (§9),
+même tag de gel `linux-v1.0.0-rc2` (commit : À effectuer (EV-04 : commit du tag de gel)). Seuls changent l'emplacement des copies locales (§9),
 l'écran d'état (§10) et la voie de configuration (§11).
 
 > Cette annexe est la description du producteur. Elle ne rapporte

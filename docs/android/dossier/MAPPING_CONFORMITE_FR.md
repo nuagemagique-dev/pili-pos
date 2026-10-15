@@ -10,7 +10,7 @@ du dossier cert : c'est ce que le relecteur utilisera pour vérifier
 la couverture de chaque règle obligatoire.
 
 Le moteur fiscal est le même code source que sous Linux (étiquette de
-gel `linux-v1.0.0-rc1`, `CADRE_DEMANDE_FR.md` §4) : les lignes du moteur
+gel `linux-v1.0.0-rc2`, `CADRE_DEMANDE_FR.md` §4) : les lignes du moteur
 (1 à 20) sont celles du dossier Linux, avec les mêmes fichiers et les
 mêmes tests. Seules changent les lignes qui touchent l'interface, la
 plateforme et la construction (10, 19, 21, hygiène de build) ; les

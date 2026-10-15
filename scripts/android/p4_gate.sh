@@ -115,8 +115,8 @@ HEAVY="$TOOLS/heavy.sh"
 FREEZE_TAG=linux-v1.0.0-rc2
 # TAGGING: fill FREEZE_SHA_RECORDED with the full commit of linux-v1.0.0-rc2
 # (git rev-parse 'linux-v1.0.0-rc2^{commit}') when the tag is set.
-FREEZE_SHA_RECORDED=""
-FREEZE_SHA="${PILI_P4_FREEZE_SHA:-$FREEZE_SHA_RECORDED}"
+FREEZE_SHA_RECORDED="922a158cad1bbd7ae080b4be5658ac7aaf08ae5d"
+FREEZE_SHA="${PILI_P4_FREEZE_SHA-$FREEZE_SHA_RECORDED}"
 JVMARGS="${PILI_GRADLE_JVMARGS:--Xmx2g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8}"
 
 # ── helper mode ─────────────────────────────────────────────────

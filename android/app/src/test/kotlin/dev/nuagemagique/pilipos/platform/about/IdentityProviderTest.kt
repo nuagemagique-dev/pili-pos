@@ -75,7 +75,7 @@ class IdentityProviderTest {
             applicationId = "dev.nuagemagique.pilipos",
             versionName = "1.0.0",
             versionCode = 10000,
-            engineRef = "pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)",
+            engineRef = "pili-pos 1.0.0, linux-v1.0.0-rc2 (pending)",
             sourceDir = apk.path,
             lastUpdateTime = updated,
             filesDir = filesDir(),
@@ -145,7 +145,7 @@ class IdentityProviderTest {
             assertEquals("1.0.0", report.versionName)
             assertEquals(10000L, report.versionCode)
             assertEquals("pili-pos-android/1.0.0", report.posSwVersion)
-            assertEquals("pili-pos 1.0.0, linux-v1.0.0-rc1 (pending)", report.engineRef)
+            assertEquals("pili-pos 1.0.0, linux-v1.0.0-rc2 (pending)", report.engineRef)
             assertEquals("SN-0001", report.deviceId)
             assertEquals("POS-01", report.posId)
             assertEquals("TERM-01", report.terminalId)

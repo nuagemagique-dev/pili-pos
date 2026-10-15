@@ -211,7 +211,7 @@ La base de données du moteur est `pos.db`, dans le dossier `files/engine` du st
 
 ### 5.2 Ce que la caisse conserve
 
-Après chaque rapport Z, le moteur écrit une copie complète de `pos.db` dans `files/engine/backups` et **conserve les 7 copies les plus récentes**, en supprimant les plus anciennes (règle du produit). Le journal fiscal contenu dans `pos.db` n'est jamais supprimé. Le commit du moteur qui porte cette règle, à l'intérieur de l'étiquette de gel : À effectuer (EV-19 : commit de la conservation des 7 sauvegardes dans `linux-v1.0.0-rc1`).
+Après chaque rapport Z, le moteur écrit une copie complète de `pos.db` dans `files/engine/backups` et **conserve les 7 copies les plus récentes**, en supprimant les plus anciennes (règle du produit). Le journal fiscal contenu dans `pos.db` n'est jamais supprimé. Le commit du moteur qui porte cette règle, à l'intérieur de l'étiquette de gel : À effectuer (EV-19 : commit de la conservation des 7 sauvegardes dans `linux-v1.0.0-rc2`).
 
 La caisse conserve donc environ **8 fois la taille de la base** (la base et 7 sauvegardes). Aux taux mesurés (§5.3) : environ 4 Go après un an à 100 ventes par jour et environ 13 Go à 300 ventes par jour. L'écran « À propos » affiche l'espace interne libre et la taille des sauvegardes, avec un avertissement sous 2 Gio libres ou quand les sauvegardes dépassent la moitié de l'espace libre ; la plateforme ne supprime rien elle-même.
 

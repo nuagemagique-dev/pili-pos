@@ -68,7 +68,7 @@ Plus :
 
 Six annexes décrivent le moteur fiscal seul : `SCHEMA_BD_FR.md`, `SCHEMA_ER_FR.md`, `STRATEGIE_COMPTEURS_FR.md`, `COUVERTURE_FIXTURES_FR.md`, `COUVERTURE_RAPPORTS_FR.md` et `TICKET_NUMERIQUE_FR.md`. Le moteur est le même code source dans les deux produits (`CADRE_DEMANDE_FR.md` §4). Ces six documents sont donc les mêmes pour le dossier Linux et pour le dossier Android, et ne sont pas recopiés.
 
-- Le PDF de chacun est celui du dossier Linux, produit au même état du moteur : l'étiquette de gel `linux-v1.0.0-rc1`, puis l'étiquette finale. Commit de cette étiquette : À effectuer (EV-04 : commit de l'étiquette de gel du moteur et SHA-1 du binaire Linux du même moteur).
+- Le PDF de chacun est celui du dossier Linux, produit au même état du moteur : l'étiquette de gel `linux-v1.0.0-rc2`, puis l'étiquette finale. Commit de cette étiquette : À effectuer (EV-04 : commit de l'étiquette de gel du moteur et SHA-1 du binaire Linux du même moteur).
 - Le ZIP Android contient ces six PDF sous leur nom habituel. Dans `MANIFEST.txt`, ils portent le préfixe commun: pour les distinguer des documents propres au dossier Android.
 - Un document commun est vrai pour les deux produits, y compris ses tests, ses chemins de code et ses commandes (`cargo test` sur les crates du moteur). Seuls quelques passages citent la plateforme Linux ; la section 3 donne leur lecture sur Android.
 - Un renvoi, dans un document commun, vers une annexe qui existe en deux versions (par exemple `MANUEL_INSTALLATION_FR.md` ou `MANUEL_UTILISATEUR_FR.md`) désigne, dans le ZIP Android, l'annexe Android du même nom. Le mot « binaire » d'un document commun désigne, sur Android, le moteur contenu dans l'APK.

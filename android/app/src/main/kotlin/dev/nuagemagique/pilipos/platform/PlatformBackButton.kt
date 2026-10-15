@@ -21,7 +21,7 @@ internal fun PlatformBackButton(
 ) {
     TextButton(onClick = onBack, modifier = modifier.testTag(tag)) {
         Text(
-            text = stringResource(R.string.plat_back),
+            text = stringResource(R.string.plat_about_back),
             style = PiliTheme.typography.label,
             color = PiliTheme.colors.textPrimary,
         )

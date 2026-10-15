@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="plat_about_title">关于</string>
-    <string name="plat_back">返回</string>
+    <string name="plat_about_back">返回</string>
     <string name="plat_about_loading">正在读取收银机标识…</string>
     <string name="plat_about_refresh">刷新</string>
     <string name="plat_about_unavailable">不可用</string>

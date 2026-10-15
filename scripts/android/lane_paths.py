@@ -127,7 +127,7 @@ def check_strings_file(root, rel, problems):
     prefix = None
     if name in FIXED_PREFIX:
         prefix = FIXED_PREFIX[name]
-    elif name.startswith("ui_") and name[3:] in ("common",) + VIEWS:
+    elif name.startswith("ui_") and name[3:] in ("common", "eft") + VIEWS:
         prefix = name + "_"
     elif re.match(r"^plat_[a-z]+$", name):
         prefix = name + "_"

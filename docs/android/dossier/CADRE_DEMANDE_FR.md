@@ -60,7 +60,7 @@ Le terminal montre la version à deux endroits : l'écran de connexion, sous les
 
 Les deux produits embarquent le même moteur fiscal, avec les mêmes règles, le même schéma de base de données et les mêmes tickets : la caisse `crates/pos-engine` et les crates de la build de certification (`pos-core`, `pos-fiscal`, `pos-db`, `pos-print`, `pos-mail`, `pos-hubrise`, `pos-catalog`, `pos-export`).
 
-- Les deux dossiers citent le même état du moteur : l'étiquette de gel `linux-v1.0.0-rc1`, puis l'étiquette finale. Valeurs de cette étiquette : À effectuer (EV-04 : commit de l'étiquette et SHA-1 du binaire Linux du même moteur).
+- Les deux dossiers citent le même état du moteur : l'étiquette de gel `linux-v1.0.0-rc2`, puis l'étiquette finale. Valeurs de cette étiquette : À effectuer (EV-04 : commit de l'étiquette et SHA-1 du binaire Linux du même moteur).
 - Sur Linux, le moteur est lié au binaire Tauri. Sur Android, il est compilé dans la bibliothèque libpos_ffi.so, à l'intérieur de l'APK, et appelé par l'interface Kotlin au travers de la couche UniFFI. Aucune règle fiscale ou monétaire n'existe côté Kotlin : le moteur seul décide des événements envoyés au FDM, des totaux, des compteurs et des tickets (`PLATEFORME_ANDROID_FR.md` §2).
 - Le producteur le prouve de trois façons :
   1. le gel du moteur : un contrôle compare, à chaque modification, les chemins du moteur et de la build Linux avec l'étiquette de gel (`scripts/android/check_linux_frozen.sh`) ; il échoue si l'un d'eux a changé ;

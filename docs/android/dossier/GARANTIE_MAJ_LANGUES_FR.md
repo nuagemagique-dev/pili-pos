@@ -47,7 +47,7 @@ Procédure, dans l'ordre :
 3. **SHA-1 de l'APK signé de record** : À effectuer (EV-01 : SHA-1 et SHA-256 de l'APK signé `pili-pos-android 1.0.0`). C'est la valeur déclarée au formulaire §I.D et au tableau §VII.F.
 4. **SHA-1 de la bibliothèque du moteur** lib/arm64-v8a/libpos_ffi.so extraite de cet APK : À effectuer (EV-02 : SHA-1 de `libpos_ffi.so`).
 5. **Empreinte SHA-256 du certificat de signature** (celui de la clé de release) : À effectuer (EV-03 : SHA-256 du certificat de signature). Android n'installe une mise à jour que si elle porte la même clé : cette empreinte est aussi copiée dans le descripteur de mise à jour déclaré (§2.1).
-6. **Version du moteur** : le moteur est celui du tag `linux-v1.0.0-rc1` (§1.4), dont le commit est À effectuer (EV-04 : commit du tag du moteur et SHA-1 du binaire Linux du même moteur).
+6. **Version du moteur** : le moteur est celui du tag `linux-v1.0.0-rc2` (§1.4), dont le commit est À effectuer (EV-04 : commit du tag du moteur et SHA-1 du binaire Linux du même moteur).
 
 La signature se fait après la vérification de reproductibilité (§1.1), et le script de déclaration refuse tout APK dont le SHA-1 signé diffère de la valeur acceptée par le SPF Finances.
 
@@ -87,7 +87,7 @@ Une fois la mise en service effectuée, toute modification de l'APK passe obliga
 
 ### 1.4 Tags git
 
-Le commit du build de certification est tagué `android-v1.0.0` (le nom du tag est la `versionName` de l'APK, vérifiée par le script de déclaration) ; le code de version est 10000. Le moteur fiscal commun est celui du tag `linux-v1.0.0-rc1` (puis du tag final) : À effectuer (EV-04 : commit du tag du moteur). Le SHA git du tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
+Le commit du build de certification est tagué `android-v1.0.0` (le nom du tag est la `versionName` de l'APK, vérifiée par le script de déclaration) ; le code de version est 10000. Le moteur fiscal commun est celui du tag `linux-v1.0.0-rc2` (puis du tag final) : À effectuer (EV-04 : commit du tag du moteur). Le SHA git du tag est consigné dans le rapport de build et permet à tout moment de reproduire le build à l'identique à partir du dépôt source.
 
 Toute mise à jour ultérieure (correction de bug, nouvelle fonctionnalité) passe par :
 - Un nouveau tag `android-vX.Y.Z+1` et un code de version strictement supérieur.

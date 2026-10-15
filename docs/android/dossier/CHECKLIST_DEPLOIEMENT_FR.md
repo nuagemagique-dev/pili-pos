@@ -90,7 +90,7 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       `-dev`. Empreintes : À effectuer (EV-01 : SHA-1 et SHA-256 de l'APK
       signé ; EV-02 : SHA-1 de `libpos_ffi.so` ; EV-03 : SHA-256 du
       certificat de signature).
-- [ ] Moteur fiscal de l'étiquette de gel `linux-v1.0.0-rc1` (puis
+- [ ] Moteur fiscal de l'étiquette de gel `linux-v1.0.0-rc2` (puis
       l'étiquette finale), embarqué sous forme de `libpos_ffi.so` : À
       effectuer (EV-04 : commit de l'étiquette et SHA-1 du binaire Linux
       du même moteur).
