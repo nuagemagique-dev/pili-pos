@@ -106,7 +106,11 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
         let stamp_now = stamp(now);
 
         // 1. Is the recipient on the network?
-        if delivery.lookup_status == "unknown" {
+        // A customer cached as `not_registered` is asked again (they may have
+        // joined since); unless the network now says `registered`, the
+        // delivery is parked, never sent.
+        let cached_not_registered = delivery.lookup_status == "not_registered";
+        if delivery.lookup_status == "unknown" || cached_not_registered {
             let answer =
                 tokio::time::timeout(LOOKUP_TIMEOUT, ap.lookup(&delivery.customer_endpoint_id))
                     .await;
@@ -137,7 +141,28 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
                         let _ = q::set_delivery_lookup(&db, delivery.id, "registered");
                     }
                 }
-                // A lookup that fails or is slow never blocks the delivery.
+                // A lookup that fails or is slow never blocks the delivery,
+                // except for a recipient already known as not registered.
+                _ if cached_not_registered => {
+                    if let Ok(db) = state.db.lock() {
+                        let _ = q::log_attempt(
+                            &db,
+                            delivery.id,
+                            attempt,
+                            "not_registered",
+                            None,
+                            Some("recipient is not registered on Peppol"),
+                        );
+                        let _ = q::park(
+                            &db,
+                            delivery.id,
+                            attempt,
+                            "recipient is not registered on Peppol",
+                            &stamp_now,
+                        );
+                    }
+                    continue;
+                }
                 _ => {}
             }
         }
@@ -145,7 +170,26 @@ pub async fn run_pass_at(state: &AppState, now: DateTime<Utc>) -> usize {
         // 2. Submit.
         let ubl = match state.db.lock().map(|db| q::delivery_ubl(&db, delivery.id)) {
             Ok(Ok(Some(ubl))) => ubl,
-            _ => continue,
+            _ => {
+                if let Ok(db) = state.db.lock() {
+                    let _ = q::log_attempt(
+                        &db,
+                        delivery.id,
+                        attempt,
+                        "rejected",
+                        None,
+                        Some("invoice UBL could not be read"),
+                    );
+                    let _ = q::park(
+                        &db,
+                        delivery.id,
+                        attempt,
+                        "invoice UBL could not be read",
+                        &stamp_now,
+                    );
+                }
+                continue;
+            }
         };
         let sent = tokio::time::timeout(
             SUBMIT_TIMEOUT,

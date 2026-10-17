@@ -229,6 +229,21 @@ async fn a_recipient_who_is_not_registered_is_parked_without_sending() {
 }
 
 #[tokio::test]
+async fn a_cached_not_registered_customer_is_parked_without_sending() {
+    let r = rig().await;
+    r.mock.set_not_registered(PARTICIPANT);
+    let lookup = do_lookup_b2b_customer(&r.app.state, VAT).await.unwrap();
+    assert_eq!(lookup.peppol_status, "not_registered");
+    let id = r.invoice().await;
+
+    run_pass_at(&r.app.state, soon()).await;
+    let d = r.delivery(id);
+    assert_eq!(d.status, "failed", "{d:?}");
+    assert!(r.mock.submissions().is_empty());
+    assert_eq!(r.log(id)[0].1, "not_registered");
+}
+
+#[tokio::test]
 async fn an_offline_lookup_is_unknown_and_the_invoice_is_still_signed() {
     let r = rig().await;
     // The lookup fails: the answer is "unknown", not an error.

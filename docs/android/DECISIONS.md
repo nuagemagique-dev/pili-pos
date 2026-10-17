@@ -1484,3 +1484,9 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   recorded in the dossier draft. (b) Sold-out rows set while HubRise is off are not pushed when HubRise is switched on
   (`queue_inventory` runs at set and clear time only): to resync in a later round. (c) The English design notes
   `WAITER_HANDHELD_SYNC.md` and `QR_TABLE_ORDERING.md` name sibling products: drop the names if they join a dossier.
+- **V11-D53 Fix round 2: cached `not_registered` recipients.** The Peppol queue asks the network again for a delivery
+  whose customer is cached as `not_registered` (they may have joined since). Unless the answer is `registered`
+  (including on a failed or slow lookup), the delivery is parked with reason "recipient is not registered on Peppol"
+  and nothing is sent. A delivery whose UBL cannot be read is now logged and parked instead of retried silently.
+  The UC4121/UC4122 replay limits (generic cash sales) are stated in the update note. Not fixed: VAT X vs
+  VATEX-EU-O (V11-D24, confirm on the Storecove sandbox), sold-out resync on HubRise switch-on (V11-D52b).

@@ -105,7 +105,7 @@ La commande de contrôle de configuration signale chaque réglage invalide sous 
 ## 8. Tests associés
 
 Cas M150 rejoué (champs métier identiques, différences voulues : identifiant du centre de coût, numéro de facture, compteurs) ; cas UC4121 (facture de trois ventes) et UC4122 (facture d'un
-remboursement et de deux ventes) ; règles (une vente une facture, formation refusée, numérotation
+remboursement et de deux ventes), rejoués avec des ventes au comptant génériques à la place des étapes de vente du fixture (crédit client hors périmètre), seule la requête I étant comparée champ par champ ; règles (une vente une facture, formation refusée, numérotation
 continue, perte de réponse récupérée, rapport Z, copie de facture) ; file d'envoi contre le
 simulateur (accepté, 503 puis accepté, refus 422, clé refusée, non inscrit, relance, réseau
 absent, rien sans section `peppol`, client étranger, journal immuable) ; tests de contrat des
