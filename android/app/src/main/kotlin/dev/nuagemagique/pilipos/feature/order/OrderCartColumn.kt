@@ -66,8 +66,8 @@ private const val OPENED_TICK_MS = 30_000L
  * nothing is unsent or while it runs. Refusals are the screen's, shown by the view model through `ErrorPresenter`.
  *
  * Test tags: `cart_column`, `cart_title`, `cart_opened`, `cart_empty`, `cart_pending_label`, `cart_unpaid`,
- * `cart_transfer`, `cart_discount`, `cart_discount_remove`, `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and
- * those of [OrderLineItem].
+ * `cart_transfer`, `cart_discount`, `cart_discount_remove`, `cart_total`, `vat_summary`, `cart_send`,
+ * `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and those of [OrderLineItem].
  */
 @Composable
 internal fun OrderCartColumn(

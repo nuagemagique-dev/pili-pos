@@ -34,7 +34,10 @@ class CartAmounts
         /** The VAT summary rows of [lines], in the engine order (A, B, C, D, only the codes present). */
         suspend fun vatRows(lines: List<CartLine>): List<VatSplitRow> = helpers.vatSplit(lines.flatMap(::vatLines))
 
-        /** The net price of [line] (its discounts taken off): [LineAmount.Total] from a one-line VAT split, [LineAmount.PerUnit] when it gives no row. */
+        /**
+         * The net price of [line] (its discounts taken off): [LineAmount.Total] from a one-line VAT split,
+         * [LineAmount.PerUnit] when it gives no row.
+         */
         suspend fun lineAmount(line: CartLine): LineAmount {
             val row = helpers.vatSplit(vatLines(line)).firstOrNull()
             return if (row != null) {

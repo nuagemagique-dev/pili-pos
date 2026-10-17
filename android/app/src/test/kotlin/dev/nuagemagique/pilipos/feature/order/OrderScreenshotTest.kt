@@ -178,6 +178,7 @@ class OrderScreenshotTest {
         capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canTransfer = true), dialog = dialog), "order_table_picker")
     }
 
+    @Suppress("LongParameterList")
     private fun half(
         id: Long,
         menuItemId: Long,

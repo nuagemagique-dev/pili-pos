@@ -45,6 +45,7 @@ import uniffi.pos_ffi.DiscountReason
 import uniffi.pos_ffi.DiscountTarget
 
 /** The quick percents (`QUICK_PERCENTS` of `DiscountDialog.vue`). */
+@Suppress("MagicNumber")
 internal val QuickPercents: List<Long> = listOf(5L, 10L, 15L, 20L, 50L)
 
 /** The longest free text of a reason, as the engine takes it. */
@@ -110,8 +111,8 @@ internal data class DiscountEntry(
         lineId: Long?,
         baseCents: Long,
     ): DiscountInput? {
-        val picked = reason ?: return null
-        if (!canConfirm(baseCents)) return null
+        val picked = reason
+        if (picked == null || !canConfirm(baseCents)) return null
         val text = reasonText.trim()
         return DiscountInput(
             target = if (lineId != null) DiscountTarget.Line(lineId) else DiscountTarget.Order,
