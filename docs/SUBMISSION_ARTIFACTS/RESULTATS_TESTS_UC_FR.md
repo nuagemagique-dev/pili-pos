@@ -2707,7 +2707,7 @@ développement et les tests, pas pour la build cert). Les preuves de
 `evidence/uc/` sont produites par la build cert, qui ne peut pas
 émettre cet événement : M150 n'y figure donc pas.
 
-Mise à jour certifiée prévue v1.1. *Voir : DECISION_PEPPOL_AP_FR.md*.
+Mise à jour certifiée ultérieure. *Voir : DECISION_PEPPOL_AP_FR.md*.
 
 ## M160_signCopy_Sale
 

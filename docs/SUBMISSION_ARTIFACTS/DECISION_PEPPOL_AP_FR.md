@@ -7,7 +7,7 @@ mais **non activés dans la build de certification v1.0.0**
 n'active pas le feature flag `peppol` - voir `src-tauri/Cargo.toml`).
 L'événement fiscal **I (Invoice)** n'est donc pas disponible en
 v1.0.0. L'e-facturation B2B Peppol est planifiée comme **mise à jour
-certifiée v1.1**, suivant la procédure officielle de mise à jour
+certifiée ultérieure**, suivant la procédure officielle de mise à jour
 (REPONSES_MANUEL_CERT_FR.md §II.E).
 
 ## Contexte réglementaire
@@ -31,15 +31,15 @@ emporter.
 Le dossier de certification déclare donc Peppol / l'événement I
 comme :
 
-> **Hors périmètre v1.0.0, mise à jour certifiée prévue v1.1.** La
+> **Hors périmètre v1.0.0, mise à jour certifiée ultérieure.** La
 > génération UBL 2.1 BIS Billing 3.0 est implémentée et testée contre
 > un jeu d'échantillons interne, mais le feature flag `peppol` n'est
 > pas activé dans la build cert soumise. Le transport AS4 sera délégué
-> à un Peppol Access Point lors de la mise à jour v1.1 ; le choix de
+> à un Peppol Access Point lors de cette mise à jour ; le choix de
 > l'AP et l'enregistrement du Peppol endpoint-ID resteront des
 > formalités côté opérateur indépendantes de la revue SCE-2.0.
 >
-> **En attendant v1.1**, les factures B2B de l'établissement sont
+> **En attendant cette mise à jour**, les factures B2B de l'établissement sont
 > émises en dehors de `pili-pos`, via son outil de
 > comptabilité/facturation.
 
@@ -51,7 +51,7 @@ comme :
 | **Unifiedpost** | REST | Sur contrat | Oui | Acteur plus important, onboarding plus enterprise. |
 | **Doccle** | REST | Sur contrat | Oui | Belge, orienté B2C-friendly. |
 
-**Recommandation :** **Storecove** pour le premier déploiement v1.1 -
+**Recommandation :** **Storecove** pour le premier déploiement de cette mise à jour -
 API REST la plus simple, onboarding le plus rapide, prix par facture
 compatible avec le volume attendu d'un restaurant (< 5 factures B2B
 par mois).
@@ -91,9 +91,9 @@ Feature flag : `peppol` (existe dans le workspace, **non activé** dans
 la build `cert` v1.0.0 - `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` dans
 `src-tauri/Cargo.toml` : HubRise (commandes en ligne) est dans la build
 cert, seul `peppol` en est absent. Sera activé pour la mise à jour
-certifiée v1.1).
+certifiée ultérieure).
 
-## Plan de déploiement (côté opérateur, pour la mise à jour v1.1)
+## Plan de déploiement (côté opérateur, pour cette mise à jour)
 
 1. **Enregistrer le Peppol endpoint-ID de l'établissement.** Le TVA
    belge utilise le schéma `0208` (numéro d'entreprise BCE, 10 chiffres
@@ -125,11 +125,11 @@ certifiée v1.1).
   N/P/T/C/F/S/R), pas sur le transport AS4 ni sur l'événement I.
 - L'UBL est **déjà généré et testé** au niveau du code ; seul le
   câblage HTTP vers l'AP et l'activation du feature flag `peppol`
-  restent à faire pour la mise à jour v1.1.
+  restent à faire pour cette mise à jour.
 - La table d'audit `peppol_deliveries` est déjà dans le schéma, prête
   à recevoir des lignes le jour où l'AP est câblé et le flag activé.
 - Le périmètre déclaré dans le formulaire de demande cert est
-  "E-facturation B2B Peppol : NON, prévu v1.1" - pleinement véridique
+  "E-facturation B2B Peppol : NON, prévu dans une mise à jour certifiée ultérieure" - pleinement véridique
   et vérifiable (`nm pili-pos | grep -c pos_peppol` → `0` sur le
   binaire cert v1.0.0).
 

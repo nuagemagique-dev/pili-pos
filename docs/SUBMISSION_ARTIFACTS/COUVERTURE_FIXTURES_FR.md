@@ -85,7 +85,7 @@ Peppol) est bien implémenté et couvert par le parse fixture et l'e2e
 (feature `peppol` activée par défaut pour les tests), mais ce feature
 flag n'est **pas** activé dans la build de certification v1.0.0
 (`cert = ["custom-protocol"]`) - événement I reporté en mise à jour
-certifiée v1.1, voir *DECISION_PEPPOL_AP_FR.md*.
+certifiée ultérieure, voir *DECISION_PEPPOL_AP_FR.md*.
 
 ### Enveloppe Q100/Q110 - divergence résolue
 
