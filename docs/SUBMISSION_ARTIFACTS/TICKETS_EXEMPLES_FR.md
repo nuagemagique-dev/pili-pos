@@ -676,6 +676,59 @@ Qte   Article
 ✂-----------------------------------------------
 ```
 
+### Bon de commande avec note de cuisine
+
+Scénario : la ligne « Burger du chef » porte la note « allergie arachide
+- sans oignons ». La note s'imprime en retrait sous l'article, sans prix ;
+elle n'a aucun effet sur le message envoyé au FDM.
+
+```
+                BON DE COMMANDE
+================================================
+Date:                        03/07/2026 12:31:05
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Qte   Article
+2 x Dry Martini
+1 x Burger du chef
+   > allergie arachide - sans oignons
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
+### Bon de modification de note (note changée après l'envoi)
+
+Scénario : la note du « Burger du chef », déjà en cuisine, devient « bien
+cuit ». Le bon sort tout de suite, sans quantité ni prix, avec la mention
+d'invalidité en bas ; ce n'est ni une commande ni un ticket TVA, et il
+n'envoie rien au FDM. Une note effacée imprime « Note supprimee ».
+
+```
+                  MODIFICATION
+================================================
+Date:                        03/07/2026 12:38:12
+Operateur:                          Marie Dupont
+Table 4
+------------------------------------------------
+Burger du chef
+Note : bien cuit
+------------------------------------------------
+   CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+                    VALABLE
+
+
+
+
+✂-----------------------------------------------
+```
+
 ### Bon de transfert de table (M122 - Événement P)
 
 Scénario : une commande ouverte passe de la table 4 à la table 9

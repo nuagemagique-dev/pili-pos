@@ -159,6 +159,14 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
 - Changement de table : « Changer de table » dans la commande, ou « Déplacer une table » sur le plan ;
   la commande garde son contenu et sa référence et passe à une table libre. Une table occupée est
   refusée (pas de fusion) ; un bon de transfert sans prix est imprimé au bar.
+- Note de cuisine par ligne (« Note » dans le panier, tout le personnel) :
+  60 caractères au plus, imprimables par l'imprimante du bar ou de la
+  cuisine ; la note s'imprime sous l'article sur le bon de commande, et une
+  note modifiée après l'envoi imprime un bon « MODIFICATION » sans quantité
+  ni prix (`crates/pos-engine/src/commands/order.rs::do_set_line_note`). La
+  note reste dans la base locale (`order_lines`, migration 31) : elle n'est
+  jamais envoyée au FDM ni imprimée sur un ticket TVA, une addition, une
+  copie ou un export.
 
 ### 2.2 Encaissement
 

@@ -78,6 +78,8 @@ Profil d'opérateur de caisse standard. Peut :
   `signWorkOut`).
 - Ouvrir / réutiliser une table en cours.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte.
+- Écrire une note de cuisine sur une ligne (donnée locale, jamais envoyée
+  au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
   `signOrder`, bon de commande imprimé).
 - Imprimer un pré-ticket (Événement P - `signPreBill`).
@@ -105,6 +107,8 @@ Profil restreint. Peut :
 - Ouvrir / réutiliser une table.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte
   (chaque correction est journalisée et transmise au FDM).
+- Écrire une note de cuisine sur une ligne (donnée locale, jamais envoyée
+  au FDM).
 - Enregistrer la commande et l'envoyer en cuisine (Événement P -
   `signOrder`).
 - Changer une commande de table (Événement P - `signCostCenterChange`), comme un Serveur : le

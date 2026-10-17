@@ -118,6 +118,16 @@ est une paire dans le journal (`PRICE_CHANGE`) : la pose et, le cas
 échéant, son retrait, qui rétablit le prix d'origine. Le motif n'est
 pas dans la transaction signée.
 
+## Notes de cuisine (hors données produit)
+
+La note qu'un membre du personnel écrit sur une ligne (« sans wasabi »)
+n'est pas une donnée de produit : elle ne fait partie ni du nom du
+produit, ni des modificateurs, ni d'aucune ligne de transaction signée
+(réponse de l'administration aux producteurs, FAQ Q210 b). Elle reste dans
+la colonne locale `order_lines.kitchen_note` (migration 31), n'entre pas
+dans le journal `order_entries` et ne part qu'à l'imprimante du bar ou de
+la cuisine.
+
 ## Codes TVA
 
 - **A = 21%** - alcools, boissons rafraîchissantes

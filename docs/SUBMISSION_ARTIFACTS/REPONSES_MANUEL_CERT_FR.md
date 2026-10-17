@@ -508,7 +508,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Mensualités | ☐ | - | Idem |
 | Prix libre / "prix du jour" | ☑ | - | Implémenté : colonne `menu_items.open_price` ; le produit `22010` (« Dish of the day » dans le manuel et le seed, affiché « Plat du jour » en français) du seed de certification est marqué `open_price = 1`, le prix est saisi par l'opérateur à l'ajout au lieu du prix catalogue. |
 | Prix au poids | ☐ | - | Pas de balance |
-| Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix |
+| Ticket de service (bar / cuisine) | ☑ | - | Imprimante cuisine dédiée, ticket non-fiscal sans prix. La note de cuisine d'une ligne (60 caractères) s'imprime sous l'article et, si elle change après l'envoi, sur un bon « MODIFICATION » sans quantité ni prix ; elle reste locale (`order_lines.kitchen_note`) et n'entre dans aucun message FDM ni ticket TVA (FAQ producteurs Q210 b). Test `crates/pos-engine/tests/kitchen_notes.rs` |
 | Autres | ☐ | - | - |
 
 ### Remarque importante - facturation B2B Peppol

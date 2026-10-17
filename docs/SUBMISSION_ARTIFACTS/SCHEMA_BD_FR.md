@@ -157,6 +157,8 @@ historique).
 | `department_name` | TEXT (nullable, migration `002`) | Nom du département au moment de l'ajout, envoyé comme `departmentName` |
 | `modifiers_json` | TEXT (nullable) | Modificateurs sélectionnés en JSON |
 | `created_at` | TEXT | Date / heure d'ajout |
+| `kitchen_note` | TEXT (nullable, migration `031`) | Note de cuisine de la ligne (« sans wasabi »), 60 caractères au plus, écrite par le personnel sur une commande ouverte. Donnée locale : jamais envoyée au FDM, jamais copiée dans `order_entries`, jamais imprimée sur un ticket TVA |
+| `kitchen_note_printed` | TEXT (nullable, migration `031`) | Dernière note imprimée sur un bon du bar ou de la cuisine (NULL si aucune) ; une note différente n'est pas encore arrivée en cuisine |
 
 `order_lines` reste la vue consolidée affichée/imprimée ; le journal
 chronologique des ajouts/corrections/remboursements est `order_entries`
@@ -720,6 +722,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
 | 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
 | 30 | `till-discounts` | `till_discounts`, ses déclencheurs et la colonne `order_entries.till_op` (§5.3 bis). |
+| 31 | `kitchen-notes` | Colonnes `kitchen_note` et `kitchen_note_printed` de `order_lines` (§2.2), notes de cuisine locales. |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

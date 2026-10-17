@@ -506,6 +506,7 @@ un `card_type` (`CHECK`).
 | `modifier_groups` → `modifiers` | 1 → N | Chaque groupe contient N options (Soja, Wasabi, ...) |
 | `orders` → `order_lines` | 1 → N | Une commande contient N lignes |
 | `order_lines` → `menu_items` | N → 1 | Référence vers l'article (nom + prix copiés, figés) |
+| `order_lines` (note de cuisine) | - | Colonnes locales `kitchen_note` et `kitchen_note_printed` (migration 31), sans clé : jamais copiées dans `order_entries`, jamais envoyées au FDM |
 | `orders` → `order_entries` | 1 → N | Le journal chronologique de la commande (ajouts, corrections, remboursements) |
 | `order_entries` → `fiscal_events` | N → 0..1 | `sent_event_id` : l'événement P ou N qui a transmis l'entrée |
 | `orders` → `payments` | 1 → N | Une commande peut être réglée par N paiements (split, titres-repas) |

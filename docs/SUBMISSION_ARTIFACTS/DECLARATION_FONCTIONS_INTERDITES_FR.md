@@ -73,6 +73,13 @@ et chaque retrait s'inscrit dans la table `till_discounts`, qui refuse
 `UPDATE` et `DELETE` (déclencheurs `till_discounts_no_update` et
 `till_discounts_no_delete`), avec le Gérant et le motif.
 
+La note de cuisine d'une ligne (60 caractères au plus) ne modifie aucun
+enregistrement fiscal : elle est écrite dans une colonne locale de
+`order_lines` (`kitchen_note`), ne passe ni dans un message au FDM, ni dans
+le journal `order_entries`, ni sur un ticket TVA ; elle n'est possible que
+sur une commande ouverte et jamais sur une commande en ligne ou déjà
+signée.
+
 ## 3. Ajout rétroactif d'enregistrements antidatés
 
 Le système **ne permet pas** l'ajout d'un événement fiscal portant

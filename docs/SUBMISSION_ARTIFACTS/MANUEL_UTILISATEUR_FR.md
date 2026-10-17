@@ -305,6 +305,22 @@ vente sans paiement (§7.5).
   s'affiche et l'envoi est refait à la commande suivante. Le motif reste dans
   le journal local de la caisse et n'est jamais envoyé au FDM. Les
   remises d'une commande en ligne viennent de la plateforme (§12.8).
+- **Note pour la cuisine** : chaque ligne du panier a un bouton « Note »
+  (tout le personnel). Il ouvre la fenêtre « Note pour la cuisine » avec le
+  clavier à l'écran : taper la note (« sans wasabi », « allergie
+  arachide »), 60 caractères au plus, le compteur affiche « n/60 », puis
+  « Valider ». Une note vide efface la note. La fenêtre rappelle quand la
+  note sort : « Imprimée en cuisine avec la commande » si la ligne n'est
+  pas encore partie, « Imprimée en cuisine maintenant » si elle est déjà
+  en cuisine (un bon « MODIFICATION » sort aussitôt sur l'imprimante de la
+  cuisine). La note s'affiche en italique sous le nom de l'article. Seuls
+  les caractères que l'imprimante sait imprimer sont acceptés (lettres
+  latines, chiffres, accents, ponctuation usuelle) : une note en chinois
+  est refusée (« La note a un caractère que l'imprimante de cuisine ne sait
+  pas imprimer »). Ajouter le même article à une ligne qui porte une note
+  crée une nouvelle ligne, pour que « un avec, un sans » restent deux
+  lignes. La note ne figure sur aucun ticket TVA, addition ou copie et
+  n'est jamais envoyée au FDM.
 - **Prix libre** : certains articles n'ont pas de prix fixe (ex. "Plat
   du jour"). En les touchant, la fenêtre "Prix libre" demande le
   prix : taper les chiffres comme sur un terminal de paiement
@@ -351,6 +367,15 @@ catalogue ; il ne porte pas de prix et la mention "CECI N'EST PAS UN
 TICKET DE CAISSE T.V.A. VALABLE". Il sort sur
 l'imprimante de la cuisine si elle est configurée, sinon sur celle des
 tickets. Pour une vente à emporter, le bon sort à l'encaissement.
+
+La note d'une ligne (§5.3) s'imprime sur le bon, en retrait sous l'article
+(« > sans wasabi »), sans prix. Une note écrite, changée ou effacée après
+l'envoi de la ligne sort sur son propre bon « MODIFICATION » : le nom de
+l'article et « Note : ... » (ou « Note supprimee »), sans quantité ni
+prix, avec la mention « CECI N'EST PAS UN TICKET DE CAISSE T.V.A.
+VALABLE ». Ce n'est pas une commande et aucun événement n'est envoyé au
+FDM. Si ce bon ne s'imprime pas, le message « Bon de commande non
+imprimé » s'affiche ; valider de nouveau la même note le réimprime.
 
 Si l'impression du bon échoue, la commande est quand même enregistrée et
 le message "Bon de commande non imprimé : prévenez le bar ou la cuisine."

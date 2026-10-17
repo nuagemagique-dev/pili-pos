@@ -113,6 +113,15 @@ la vente (N) ; sur une commande déjà enregistrée en salle elle signe un
 événement P immédiat, repris par `pending_signs` si le FDM ne répond pas.
 Le motif et le Gérant restent dans `till_discounts` (migration 30).
 
+**Note de cuisine.** La commande `set_line_note` (tout le personnel)
+vérifie la note (60 caractères au plus, imprimables en CP858 :
+`pos_print::escpos::is_cp858_printable`), la range dans la colonne locale
+`order_lines.kitchen_note` (migration 31) et, si la ligne est déjà partie en
+cuisine et que la note diffère de celle déjà imprimée, imprime un bon
+« MODIFICATION » (`crates/pos-print/src/bar_ticket.rs::format_note_slip`).
+Aucune signature, aucun événement : la note reste locale et les
+constructeurs des messages FDM ne la lisent pas.
+
 ## 3. Signature / vérification
 
 ### 3.1 Transport
@@ -239,7 +248,8 @@ SQLite qui archive l'événement signé, de sorte que :
   `TICKET_NUMERIQUE_FR.md` §11).
 - Tickets de commande P (bar / cuisine) : layout séparé
   (`crates/pos-print/src/bar_ticket.rs::format_bar_ticket`, envoyé par
-  `commands/bar_slip.rs`). Le ticket cuisine
+  `commands/bar_slip.rs`), qui imprime aussi la note de cuisine de la
+  ligne sous l'article. Le ticket cuisine
   `kitchen_ticket::format_kitchen_ticket` ne sert qu'aux commandes en
   ligne.
 - Texte externe (noms de produits, notes, adresses) : passé par

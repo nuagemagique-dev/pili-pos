@@ -117,6 +117,21 @@ le même effet.
 4. « Retirer la remise » (même PIN) inscrit un retrait et rétablit le
    prix d'origine. Le motif ne quitte jamais la caisse.
 
+## 2 quater. Note de cuisine (donnée locale)
+
+1. Le personnel touche « Note » sur une ligne et tape la note (60
+   caractères au plus).
+2. `commands::order::do_set_line_note` vérifie la note et l'écrit dans
+   `order_lines.kitchen_note` ; rien n'est journalisé, rien n'est signé.
+3. Avant l'envoi de la ligne, la note part avec l'article sur le bon de
+   commande (`commands/bar_slip.rs`), qui note ensuite la valeur imprimée
+   dans `order_lines.kitchen_note_printed`.
+4. Après l'envoi, une note différente de la note imprimée sort sur un
+   bon « MODIFICATION » ; si l'impression échoue, la valeur imprimée ne
+   change pas et valider de nouveau la même note réimprime le bon.
+5. Aucun message au FDM, aucun ticket TVA, aucune addition, aucune
+   copie et aucun export ne contient la note.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape
@@ -451,7 +466,8 @@ n'est mis en file.
 | Login | `users` (lecture) |
 | Pointage entrée/sortie | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S) |
 | Ajout ligne commande | `orders` (insert/update), `order_lines` (insert) |
-| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées) |
+| Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées), `order_lines.kitchen_note_printed` (note imprimée) |
+| Note de cuisine | `order_lines.kitchen_note` (mise à jour locale, aucun événement) |
 | Paiement | `fiscal_events` (append N), `payments` (insert), `orders` (close), `fiscal_counters` (advance N) |
 | Rapport X | `fiscal_events` (append R, `ReportTurnoverX`) |
 | Rapport Z | `fiscal_events` (append R, `ReportTurnoverZ` + `ReportUserZ`), `z_reports` (insert), fichier de backup DB (7 conservés) |
