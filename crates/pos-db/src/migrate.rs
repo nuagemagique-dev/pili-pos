@@ -355,9 +355,24 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         for (table, expected) in [
-            ("b2b_customers", vec!["vat_number", "peppol_status", "peppol_checked_at"]),
-            ("invoices", vec!["invoice_seq", "invoice_no", "fiscal_event_id", "customer_json", "vat_json"]),
-            ("invoice_sales", vec!["invoice_id", "sale_fiscal_event_id", "position"]),
+            (
+                "b2b_customers",
+                vec!["vat_number", "peppol_status", "peppol_checked_at"],
+            ),
+            (
+                "invoices",
+                vec![
+                    "invoice_seq",
+                    "invoice_no",
+                    "fiscal_event_id",
+                    "customer_json",
+                    "vat_json",
+                ],
+            ),
+            (
+                "invoice_sales",
+                vec!["invoice_id", "sale_fiscal_event_id", "position"],
+            ),
             (
                 "peppol_deliveries",
                 vec![
@@ -371,7 +386,17 @@ mod tests {
                     "lookup_status",
                 ],
             ),
-            ("peppol_delivery_log", vec!["delivery_id", "attempt", "outcome", "http_status", "detail", "at"]),
+            (
+                "peppol_delivery_log",
+                vec![
+                    "delivery_id",
+                    "attempt",
+                    "outcome",
+                    "http_status",
+                    "detail",
+                    "at",
+                ],
+            ),
         ] {
             let cols = columns(&conn, table);
             for c in expected {
@@ -419,10 +444,15 @@ mod tests {
         assert!(insert_invoice(2, "20260001", inv2).is_err());
         insert_invoice(2, "20260002", inv2).unwrap();
 
-        conn.execute("INSERT INTO invoice_sales VALUES (1, ?, 1)", [sale1]).unwrap();
+        conn.execute("INSERT INTO invoice_sales VALUES (1, ?, 1)", [sale1])
+            .unwrap();
         // The same sale cannot be on a second invoice.
-        assert!(conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale1]).is_err());
-        conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale2]).unwrap();
+        assert!(
+            conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale1])
+                .is_err()
+        );
+        conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale2])
+            .unwrap();
 
         for sql in [
             "UPDATE invoices SET total_cents = 1",
@@ -442,7 +472,10 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .unwrap();
-        assert_eq!((no.as_str(), vat.as_str(), base_b, fdm.as_str()), ("20260001", "BE0308357159", 1000, "FDM1"));
+        assert_eq!(
+            (no.as_str(), vat.as_str(), base_b, fdm.as_str()),
+            ("20260001", "BE0308357159", 1000, "FDM1")
+        );
     }
 
     #[test]
@@ -461,8 +494,15 @@ mod tests {
         )
         .unwrap();
         // The queue row moves on; the log does not.
-        conn.execute("UPDATE peppol_deliveries SET status='accepted', attempts=1", []).unwrap();
-        assert!(conn.execute("UPDATE peppol_delivery_log SET outcome='x'", []).is_err());
+        conn.execute(
+            "UPDATE peppol_deliveries SET status='accepted', attempts=1",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.execute("UPDATE peppol_delivery_log SET outcome='x'", [])
+                .is_err()
+        );
         assert!(conn.execute("DELETE FROM peppol_delivery_log", []).is_err());
         // Lookup status is bounded.
         assert!(

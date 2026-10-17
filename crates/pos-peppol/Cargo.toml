@@ -4,11 +4,11 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-pos-core = { path = "../pos-core" }
 serde = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }
-quick-xml = { version = "0.42", features = ["serialize"] }
+serde_json = { workspace = true }
+base64 = "0.23"
 reqwest = { workspace = true }
 uuid = { version = "1", features = ["v4"] }
 async-trait = "0.1"
@@ -16,3 +16,4 @@ tracing = "0.1"
 
 [dev-dependencies]
 tokio = { workspace = true }
+axum = { workspace = true }

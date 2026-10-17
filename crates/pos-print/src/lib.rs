@@ -4,6 +4,7 @@ pub mod bar_ticket;
 pub mod customer_slip;
 pub mod drawer;
 pub mod escpos;
+pub mod invoice;
 pub mod kitchen_ticket;
 mod labels;
 pub mod receipt;

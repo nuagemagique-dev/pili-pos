@@ -4,6 +4,7 @@ pub mod eft;
 pub mod fiscal;
 #[cfg(feature = "hubrise")]
 pub mod integrations;
+pub mod invoicing;
 pub mod menu;
 pub mod orders;
 pub mod pending_signs;

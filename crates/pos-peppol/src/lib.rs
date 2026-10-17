@@ -1,38 +1,28 @@
-//! Belgian Peppol B2B e-invoicing.
+//! Belgian Peppol B2B e-invoicing (V11-D1: in every build).
 //!
-//! From 2026-01-01 every B2B invoice issued by a Belgian VAT-registered
-//! seller must be a **structured electronic invoice** delivered via the
-//! Peppol network (Royal Decree, OECD/Peppol BIS Billing 3.0 schema).
-//! This crate covers two responsibilities:
+//! From 2026-01-01 a B2B invoice between Belgian VAT-registered parties is a structured
+//! electronic invoice delivered over the Peppol network (BIS Billing 3.0). This crate holds
+//! the three pieces the engine's invoice commands (`pos_engine::commands::invoice`) need:
 //!
-//! 1. **`ubl` module** - serialize an SCE-2.0 [`pos_fiscal::inputs::InvoiceInput`]
-//!    (the fiscal record we ALREADY produce when the operator chooses
-//!    "B2B invoice" at checkout) into a UBL 2.1 Invoice XML document
-//!    compliant with the Peppol BIS Billing 3.0 profile.
-//! 2. **`access_point` module** - `AccessPoint` trait describing how
-//!    we hand the signed UBL to a Peppol AP for AS4 transport to the
-//!    receiver. Two implementations are sketched: `StorecoveAccessPoint`
-//!    (simplest API, JSON-over-HTTPS) and `UnifiedpostAccessPoint`.
+//! 1. [`participant`]: offline VAT checks and the `0208:` participant id.
+//! 2. [`ubl`]: the UBL 2.1 Invoice document, built and summed in i64 eurocents.
+//! 3. [`access_point`]: the [`AccessPoint`] trait with the Storecove API v2 implementation
+//!    ([`StorecoveAccessPoint`], tested against a local mock) and the logging provider
+//!    ([`LoggingAccessPoint`]). Failures are classified for the delivery queue
+//!    ([`PeppolError`]).
 //!
-//! ## Scope of this crate at submission time
-//!
-//! - **UBL serialization**: minimum-viable BIS Billing 3.0. Produces
-//!   valid XML for simple line-item invoices with a single VAT category.
-//!   Multi-VAT and credit-note variants are stub'd.
-//! - **AccessPoint**: the trait is wired and there is a no-op
-//!   `LoggingAccessPoint` for tests. Live providers require a contract,
-//!   an API key, and sender `endpointID` registration on the Peppol
-//!   network, which is operator-side paperwork tracked in
-//!   `docs/SUBMISSION_ARTIFACTS/PEPPOL_AP_DECISION.md`.
-//!
-//! Tokyo Sushi Bar is B2C-dominant; B2B invoices are exceptional. So
-//! the crate exists to satisfy the spec without blocking the main
-//! dine-in flow on Peppol-AP procurement.
+//! The crate does no queueing and no I/O of its own beyond the access point's HTTP calls:
+//! the queue, the retries and the audit rows live in the engine.
 
 pub mod access_point;
 pub mod errors;
+pub mod participant;
 pub mod ubl;
 
-pub use access_point::{AccessPoint, DeliveryReceipt, LoggingAccessPoint};
+pub use access_point::{
+    AccessPoint, DeliveryReceipt, LOOKUP_TIMEOUT, LoggingAccessPoint, LookupResult, SUBMIT_TIMEOUT,
+    StorecoveAccessPoint,
+};
 pub use errors::PeppolError;
-pub use ubl::{Address, InvoiceUbl, LineItem, Party};
+pub use participant::{VatNumber, be_participant_id, parse_vat_number};
+pub use ubl::{Address, InvoiceSource, InvoiceUbl, LineItem, Party, to_ubl_xml};
