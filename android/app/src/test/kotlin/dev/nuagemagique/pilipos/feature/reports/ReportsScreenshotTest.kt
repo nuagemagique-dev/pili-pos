@@ -27,7 +27,10 @@ import uniffi.pos_ffi.PaymentMethod
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.VatSplitRow
 
-/** Goldens of the reports screen at 1920 x 1080 dp: the day tab, the cash tab, the tickets tab (for a user and for a manager), the refund confirmation and the payment correction. */
+/**
+ * Goldens of the reports screen at 1920 x 1080 dp: the day tab, the cash tab, the tickets tab (for a user and for a
+ * manager), the refund confirmation and the payment correction.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1920dp-h1080dp-mdpi")
 class ReportsScreenshotTest {
