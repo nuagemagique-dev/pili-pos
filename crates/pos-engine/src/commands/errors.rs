@@ -60,6 +60,18 @@ pub const AMOUNT_NEGATIVE: &str = "amount_negative";
 pub const PREVIOUS_DAY_OPEN: &str = "previous_day_open";
 pub const ORDER_ALREADY_CLOSED: &str = "order_already_closed";
 
+// Table transfer (a P event, signCostCenterChange).
+/// The target is the table the order is already on.
+pub const TABLE_TRANSFER_SAME_TABLE: &str = "table_transfer_same_table";
+/// The target table has an open order with lines: merging two tables is
+/// not supported.
+pub const TABLE_TRANSFER_TARGET_BUSY: &str = "table_transfer_target_busy";
+/// The target is not a table of the plan (1 to 999).
+pub const TABLE_TRANSFER_TARGET_INVALID: &str = "table_transfer_target_invalid";
+/// Only the open order of a table in the room moves: not a takeaway, not
+/// an online order.
+pub const TABLE_TRANSFER_NOT_A_TABLE: &str = "table_transfer_not_a_table";
+
 // Tickets: copies and refunds.
 pub const EVENT_NOT_FOUND: &str = "event_not_found";
 /// `field`: what the archived original lacks.
@@ -203,6 +215,10 @@ pub fn config_problem(problem: &str) -> String {
 /// Every code, for the translation check.
 pub const ALL: &[&str] = &[
     CONFIG_TABLES,
+    TABLE_TRANSFER_SAME_TABLE,
+    TABLE_TRANSFER_TARGET_BUSY,
+    TABLE_TRANSFER_TARGET_INVALID,
+    TABLE_TRANSFER_NOT_A_TABLE,
     CONFIG_POS_ID,
     CONFIG_RESTAURANT_VAT,
     CONFIG_RESTAURANT_EST_NO,

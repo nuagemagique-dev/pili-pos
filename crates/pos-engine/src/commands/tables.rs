@@ -186,11 +186,11 @@ pub async fn do_sign_table_order(state: &AppState, order_id: i64) -> Result<Slip
 }
 
 /// An order's entries registered by a P, to print on the bar slip.
-type Registered = Option<(PendingContext, signing::Committed)>;
+pub(crate) type Registered = Option<(PendingContext, signing::Committed)>;
 
 /// Register the order's unsent entries (event P) in `operator`'s name.
 /// `None` when nothing changed since the last registration.
-async fn sign_table_order_locked(
+pub(crate) async fn sign_table_order_locked(
     state: &AppState,
     guard: &SignGuard<'_>,
     config: &pos_core::config::PosConfig,
@@ -259,7 +259,7 @@ async fn sign_table_order_locked(
 }
 
 /// The bar / kitchen slip of what a P registered.
-async fn print_registered(
+pub(crate) async fn print_registered(
     state: &AppState,
     config: &pos_core::config::PosConfig,
     registered: Registered,

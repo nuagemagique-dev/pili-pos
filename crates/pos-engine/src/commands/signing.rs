@@ -70,6 +70,7 @@ pub(crate) enum Kind {
     Refund,
     TableOrder,
     PreBill,
+    TableTransfer,
     WebshopOrder,
     ReportX,
     ReportUserX,
@@ -83,11 +84,12 @@ pub(crate) enum Kind {
 }
 
 impl Kind {
-    const ALL: [Kind; 14] = [
+    const ALL: [Kind; 15] = [
         Kind::Sale,
         Kind::Refund,
         Kind::TableOrder,
         Kind::PreBill,
+        Kind::TableTransfer,
         Kind::WebshopOrder,
         Kind::ReportX,
         Kind::ReportUserX,
@@ -106,6 +108,7 @@ impl Kind {
             Kind::Refund => "refund",
             Kind::TableOrder => "table_order",
             Kind::PreBill => "pre_bill",
+            Kind::TableTransfer => "table_transfer",
             Kind::WebshopOrder => "webshop_order",
             Kind::ReportX => "report_x",
             Kind::ReportUserX => "report_user_x",
@@ -239,6 +242,13 @@ pub(crate) enum PendingContext {
     PreBill {
         order_id: i64,
         ticket: TicketDraft,
+    },
+    /// An open order moved to another table (`signCostCenterChange`).
+    TableTransfer {
+        order_id: i64,
+        from_table: i32,
+        to_table: i32,
+        operator_insz: String,
     },
     WebshopOrder {
         order_id: i64,
@@ -604,6 +614,33 @@ fn apply(
                 .map_err(errors::internal)?;
             Ok((None, None))
         }
+        PendingContext::TableTransfer {
+            order_id, to_table, ..
+        } => {
+            // A ghost order (opened and left empty) on the target does
+            // not block the move; one that holds a signed event stays.
+            let mut stmt = tx
+                .prepare(
+                    "SELECT id FROM orders
+                     WHERE status = 'open' AND order_type = 'dine_in' AND table_number = ?1
+                       AND id <> ?2 AND hubrise_order_id IS NULL",
+                )
+                .map_err(errors::internal)?;
+            let ghosts: Vec<i64> = stmt
+                .query_map(rusqlite::params![to_table, order_id], |r| r.get(0))
+                .map_err(errors::internal)?
+                .collect::<Result<_, _>>()
+                .map_err(errors::internal)?;
+            for ghost in ghosts {
+                pos_db::queries::orders::void_if_empty(tx, ghost).map_err(errors::internal)?;
+            }
+            tx.execute(
+                "UPDATE orders SET table_number = ?1 WHERE id = ?2 AND status = 'open'",
+                rusqlite::params![to_table, order_id],
+            )
+            .map_err(errors::internal)?;
+            Ok((None, None))
+        }
         PendingContext::ReportZ {
             period_id,
             booking_date,
@@ -743,6 +780,17 @@ pub(crate) async fn follow_up(
         }
         PendingContext::TableOrder { bar_slip } => {
             done.slip = Some(print_slip_of(state, config, bar_slip, committed.event_id()).await);
+        }
+        PendingContext::TableTransfer {
+            from_table,
+            to_table,
+            operator_insz,
+            ..
+        } => {
+            done.slip = Some(
+                bar_slip::print_transfer_slip(state, config, operator_insz, *from_table, *to_table)
+                    .await,
+            );
         }
         PendingContext::PreBill { ticket, .. } => {
             if let Some(addr) = config.printer_address.as_deref() {

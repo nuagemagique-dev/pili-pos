@@ -38,6 +38,7 @@ use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_d
 use pos_engine::commands::order::{AddOrderLineInput, do_add_order_line};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::social::{do_work_in, do_work_out};
+use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 
 // ── Setup ──────────────────────────────────────────────────────────
@@ -147,6 +148,11 @@ fn requests(app: &TestApp) -> Vec<Value> {
         .filter_map(|e| e.event_data_json.as_deref())
         .map(|j| serde_json::from_str(j).unwrap())
         .collect()
+}
+
+/// The latest archived request.
+fn requests_last(app: &TestApp) -> Value {
+    requests(app).pop().expect("an archived request")
 }
 
 // ── Comparison ─────────────────────────────────────────────────────
@@ -425,6 +431,57 @@ async fn m123_pre_bill() {
     assert_eq!(requests.len(), 2, "order, then pre-bill");
     assert_matches_fixture("M123", &requests[1], &vars, &[]);
     app.dump_evidence("M123");
+}
+
+#[tokio::test]
+async fn m122_cost_center_change() {
+    let vars = variables("M122");
+    let app = spf_app(&operator(&vars)).await;
+    // The order of M122 is its `to` side: the lines that end on T5.
+    let order_lines = json!({
+        "employeeId": vars["employeeId"],
+        "transaction": vars["transfer"]["to"][0]["transaction"],
+    });
+    let order_id = order_from(&app, &order_lines, OrderType::DineIn, Some(1));
+    // Unregistered lines are sent as an order before the move.
+    mock_uc(&app, "M121", None).await;
+    mock_uc(&app, "M122", None).await;
+
+    let moved = do_transfer_table(&app.state, order_id, 5).await.unwrap();
+    assert_eq!((moved.from_table, moved.to_table), (1, 5));
+
+    let requests = requests(&app);
+    assert_eq!(requests.len(), 2, "order, then cost center change");
+    assert!(
+        requests[0].get("transaction").is_some(),
+        "the P ORDER first"
+    );
+    let transfer = &requests[1];
+    assert_matches_fixture("M122", transfer, &vars, &[]);
+
+    // One reference for the whole order on both sides, two table ids.
+    let (from, to) = (
+        &transfer["transfer"]["from"][0]["costCenter"],
+        &transfer["transfer"]["to"][0]["costCenter"],
+    );
+    assert_eq!(from["reference"], to["reference"]);
+    assert_eq!(from["reference"], format!("O{order_id}"));
+    assert_ne!(from["id"], to["id"]);
+    assert_eq!(
+        (from["id"].as_str(), to["id"].as_str()),
+        (Some("T01"), Some("T05"))
+    );
+
+    // The sale that follows is on T05, same reference.
+    mock_uc(&app, "M110", None).await;
+    let sale = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    let sale = requests_last(&app);
+    assert_eq!(sale["costCenter"]["id"], "T05");
+    assert_eq!(sale["costCenter"]["reference"], format!("O{order_id}"));
+    app.dump_evidence("M122");
 }
 
 // ── Financial (F) ──────────────────────────────────────────────────

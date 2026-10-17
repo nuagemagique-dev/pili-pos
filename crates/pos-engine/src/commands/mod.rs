@@ -32,6 +32,7 @@ pub mod signing;
 pub mod social;
 pub mod support;
 pub mod table_plan;
+pub mod table_transfer;
 pub mod tables;
 pub mod unpaid;
 #[cfg(feature = "hubrise")]

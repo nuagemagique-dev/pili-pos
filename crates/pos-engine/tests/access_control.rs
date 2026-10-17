@@ -39,6 +39,7 @@ use pos_engine::commands::report::{
 };
 use pos_engine::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_training_mode};
 use pos_engine::commands::social::{do_work_in, do_work_out};
+use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_engine::commands::unpaid::do_close_unpaid;
 
@@ -245,6 +246,10 @@ async fn nothing_is_signed_without_a_logged_in_operator() {
     );
     assert_eq!(
         do_sign_pre_bill(&app.state, open).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_transfer_table(&app.state, open, 2).await.unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(

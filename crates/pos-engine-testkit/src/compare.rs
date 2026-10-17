@@ -10,30 +10,29 @@ pub fn business_view(d: &Value) -> Value {
     let mut view = serde_json::Map::new();
     view.insert("ticketMedium".into(), d["ticketMedium"].clone());
     if let Some(t) = d.get("transaction") {
-        let lines: Vec<Value> = t["transactionLines"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|l| {
-                let p = &l["mainProduct"];
-                json!({
-                    "lineType": l["lineType"],
-                    "productId": p["productId"],
-                    "departmentId": p["departmentId"],
-                    "quantity": p["quantity"],
-                    "quantityType": p["quantityType"],
-                    "negQuantityReason": p.get("negQuantityReason").cloned().unwrap_or(Value::Null),
-                    "unitPrice": p["unitPrice"],
-                    "vats": p["vats"].as_array().unwrap().iter()
-                        .map(|v| json!({ "label": v["label"], "price": v["price"] }))
-                        .collect::<Vec<_>>(),
-                    "lineTotal": l["lineTotal"],
-                })
-            })
-            .collect();
+        view.insert("transaction".into(), transaction_view(t));
+    }
+    // A table transfer: each side's cost center type and transaction.
+    if let Some(transfer) = d.get("transfer") {
+        let side = |name: &str| -> Value {
+            Value::Array(
+                transfer[name]
+                    .as_array()
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|item| {
+                        json!({
+                            "costCenter.type": item["costCenter"]["type"],
+                            "transaction": transaction_view(&item["transaction"]),
+                        })
+                    })
+                    .collect(),
+            )
+        };
         view.insert(
-            "transaction".into(),
-            json!({ "transactionLines": lines, "transactionTotal": t["transactionTotal"] }),
+            "transfer".into(),
+            json!({ "from": side("from"), "to": side("to") }),
         );
     }
     if let Some(f) = d.get("financials").and_then(Value::as_array) {
@@ -56,6 +55,32 @@ pub fn business_view(d: &Value) -> Value {
         view.insert("drawer".into(), json!(true));
     }
     Value::Object(view)
+}
+
+/// The business content of a `transaction` object.
+fn transaction_view(t: &Value) -> Value {
+    let lines: Vec<Value> = t["transactionLines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| {
+            let p = &l["mainProduct"];
+            json!({
+                "lineType": l["lineType"],
+                "productId": p["productId"],
+                "departmentId": p["departmentId"],
+                "quantity": p["quantity"],
+                "quantityType": p["quantityType"],
+                "negQuantityReason": p.get("negQuantityReason").cloned().unwrap_or(Value::Null),
+                "unitPrice": p["unitPrice"],
+                "vats": p["vats"].as_array().unwrap().iter()
+                    .map(|v| json!({ "label": v["label"], "price": v["price"] }))
+                    .collect::<Vec<_>>(),
+                "lineTotal": l["lineTotal"],
+            })
+        })
+        .collect();
+    json!({ "transactionLines": lines, "transactionTotal": t["transactionTotal"] })
 }
 
 pub fn diff(path: &str, ours: &Value, fixture: &Value, out: &mut Vec<(String, Value, Value)>) {

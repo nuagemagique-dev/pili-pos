@@ -128,6 +128,10 @@ const coreMessages: Messages = {
   "err_fixed_price": { fr: "Le produit {product} a un prix fixe.", en: "Product {product} has a fixed price.", zh: "商品{product}为固定价格。" },
   "err_product_unavailable": { fr: "Le produit {product} n'est pas disponible.", en: "Product {product} is not available.", zh: "商品{product}不可用。" },
   "err_line_not_found": { fr: "Cette ligne n'existe plus.", en: "This line no longer exists.", zh: "该行已不存在。" },
+  "err_table_transfer_same_table": { fr: "La commande est déjà à cette table.", en: "The order is already at this table.", zh: "订单已在这张桌子上。" },
+  "err_table_transfer_target_busy": { fr: "Cette table a déjà une commande en cours : choisissez une table libre.", en: "This table already has an open order: pick a free table.", zh: "这张桌子已有进行中的订单：请选择空桌。" },
+  "err_table_transfer_target_invalid": { fr: "Cette table n'existe pas dans le plan de salle.", en: "This table is not in the floor plan.", zh: "这张桌子不在餐厅布局中。" },
+  "err_table_transfer_not_a_table": { fr: "Seule une commande en salle peut changer de table.", en: "Only a dine-in order can change table.", zh: "只有堂食订单才能换桌。" },
   "err_order_no_lines": { fr: "La commande est vide.", en: "The order is empty.", zh: "订单为空。" },
   "err_payment_invalid": { fr: "Paiement non valable : vérifiez les montants.", en: "Invalid payment: check the amounts.", zh: "付款无效：请检查金额。" },
   "err_payment_exceeds_total": { fr: "Les paiements dépassent le total.", en: "The payments exceed the total.", zh: "付款超过总额。" },
@@ -378,6 +382,16 @@ const coreMessages: Messages = {
   "not_sent_to_kitchen": { fr: "Pas encore en cuisine", en: "Not sent to the kitchen yet", zh: "未送厨房" },
   "send_to_kitchen": { fr: "Envoyer en cuisine", en: "Send to kitchen", zh: "送厨房" },
   "sent_to_kitchen": { fr: "Envoyé en cuisine · {n} articles", en: "Sent to the kitchen · {n} items", zh: "已送厨房 · {n} 件" },
+
+  // Moving an order to another table (event P, cost center change)
+  "transfer_table": { fr: "Changer de table", en: "Change table", zh: "换桌" },
+  "transfer_pick_target": { fr: "Choisissez la table libre", en: "Pick the free table", zh: "请选择空桌" },
+  "transfer_no_free": { fr: "Aucune table libre", en: "No free table", zh: "没有空桌" },
+  "transfer_confirm": { fr: "Déplacer la table {from} vers la table {to} ?", en: "Move table {from} to table {to}?", zh: "将 {from} 号桌移到 {to} 号桌？" },
+  "transfer_done": { fr: "Commande déplacée vers la table {to}", en: "Order moved to table {to}", zh: "订单已移到 {to} 号桌" },
+  "transfer_mode": { fr: "Déplacer une table", en: "Move a table", zh: "移动桌子" },
+  "transfer_pick_source": { fr: "Touchez la table à déplacer", en: "Tap the table to move", zh: "点按要移动的桌子" },
+  "transfer_pick_free": { fr: "Table {from} : touchez la table libre", en: "Table {from}: tap the free table", zh: "{from} 号桌：点按空桌" },
 
   // Tables screen (Pili)
   "takeaway_started_at": { fr: "Commencée à {time}", en: "Started at {time}", zh: "{time} 开始" },

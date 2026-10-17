@@ -12,7 +12,9 @@ use pos_core::config::PosConfig;
 use pos_core::order::OrderLine;
 use pos_fiscal::event::now_in_belgium;
 use pos_fiscal::ticket::ReceiptLanguage;
-use pos_print::bar_ticket::{BarItem, BarTicket, format_bar_ticket};
+use pos_print::bar_ticket::{
+    BarItem, BarTicket, TransferSlip, format_bar_ticket, format_transfer_slip,
+};
 
 use crate::state::AppState;
 
@@ -80,12 +82,36 @@ pub(crate) async fn print_bar_slip(
         lang: ReceiptLanguage::from_code(&config.language),
         is_training: config.training_mode,
     };
-    match pos_print::transport::send_to_printer_with(
-        addr,
-        &format_bar_ticket(&ticket),
-        state.timers.printer_status_read,
-    )
-    .await
+    send(state, addr, &format_bar_ticket(&ticket)).await
+}
+
+/// Print the notice that the order of table `from_table` moved to
+/// `to_table`: no item, no amount, the kitchen only learns where the
+/// dishes go.
+pub(crate) async fn print_transfer_slip(
+    state: &AppState,
+    config: &PosConfig,
+    operator_insz: &str,
+    from_table: i32,
+    to_table: i32,
+) -> SlipOutcome {
+    let Some(addr) = slip_printer(config) else {
+        return SlipOutcome::NoPrinter;
+    };
+    let slip = TransferSlip {
+        date_time: now_in_belgium().format("%d/%m/%Y %H:%M:%S").to_string(),
+        operator: super::operator_name(state, operator_insz),
+        from_table,
+        to_table,
+        lang: ReceiptLanguage::from_code(&config.language),
+        is_training: config.training_mode,
+    };
+    send(state, addr, &format_transfer_slip(&slip)).await
+}
+
+async fn send(state: &AppState, addr: &str, bytes: &[u8]) -> SlipOutcome {
+    match pos_print::transport::send_to_printer_with(addr, bytes, state.timers.printer_status_read)
+        .await
     {
         Ok(status) if status.ready() => SlipOutcome::Printed,
         Ok(status) => {
