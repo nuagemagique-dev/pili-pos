@@ -726,6 +726,37 @@ mod tests {
     }
 
     #[test]
+    fn a_meal_voucher_circuit_or_receipt_gives_the_issuer() {
+        let api = terminal();
+        // The circuit says it.
+        for (circuit, brand) in [
+            ("EDENRED", "Edenred"),
+            ("Ticket Restaurant", "Edenred"),
+            ("SODEXO", "Pluxee"),
+        ] {
+            let text = SUCCESS.replace("\\\"BCMC\\\"", &format!("\\\"{circuit}\\\""));
+            assert_ne!(text, SUCCESS);
+            let tx: Value = serde_json::from_str(&text).unwrap();
+            let Reading::Final(Outcome::Approved(a)) = api.read(&tx, "R1", Some(1250)) else {
+                panic!("not an approval")
+            };
+            assert_eq!(a.brand.as_deref(), Some(brand), "{circuit}");
+        }
+        // No circuit: the receipt names it.
+        let mut tx: Value = serde_json::from_str(SUCCESS).unwrap();
+        tx["details"].as_object_mut().unwrap().remove("cardCircuit");
+        let receipt = tx["details"]["customerReceipt"]
+            .as_str()
+            .unwrap()
+            .replace("BANCONTACT", "EDENRED");
+        tx["details"]["customerReceipt"] = Value::String(receipt);
+        let Reading::Final(Outcome::Approved(a)) = api.read(&tx, "R1", Some(1250)) else {
+            panic!("not an approval")
+        };
+        assert_eq!(a.brand.as_deref(), Some("Edenred"));
+    }
+
+    #[test]
     fn card_circuit_and_receipt_layouts_are_read_defensively() {
         let d = json!({"cardCircuit": "\"MAESTRO\""});
         assert_eq!(circuit_of(&d).as_deref(), Some("MAESTRO"));

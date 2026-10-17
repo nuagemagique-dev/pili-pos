@@ -176,6 +176,26 @@ async fn a_credit_brand_is_credit() {
 }
 
 #[tokio::test]
+async fn a_meal_voucher_brand_comes_back_as_its_issuer_on_every_protocol() {
+    for kind in ALL {
+        let rig = Rig::new(kind);
+        rig.mock.next(Next {
+            brand: "Edenred".into(),
+            delay_ms: 10,
+            ..Next::default()
+        });
+        let Outcome::Approved(a) = rig.t().pay(&request(1180)).await.unwrap() else {
+            panic!("{kind:?}")
+        };
+        assert_eq!(a.brand.as_deref(), Some("Edenred"), "{kind:?}");
+        assert!(
+            crate::brand::is_meal_voucher(a.brand.as_deref()),
+            "{kind:?}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn a_refused_payment_is_declined() {
     for kind in ALL {
         let rig = Rig::new(kind);

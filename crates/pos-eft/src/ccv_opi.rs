@@ -770,6 +770,29 @@ mod tests {
         assert!(matches!(wrong, Outcome::Unknown { .. }), "{wrong:?}");
     }
 
+    #[test]
+    fn a_meal_voucher_circuit_gives_the_issuer() {
+        for (raw, brand) in [
+            ("EDENRED", "Edenred"),
+            ("Ticket Restaurant", "Edenred"),
+            ("SODEXO", "Pluxee"),
+            ("MONIZZE", "Monizze"),
+        ] {
+            let text = RESPONSE.replace(
+                "CardCircuit=\"MASTERCARD\"",
+                &format!("CardCircuit=\"{raw}\""),
+            );
+            assert_ne!(text, RESPONSE);
+            let root = parse(&text).unwrap();
+            let out = interpret_response(&root, "1", Some(100_000), false, true).unwrap();
+            let Outcome::Approved(a) = out else {
+                panic!("{out:?}")
+            };
+            assert_eq!(a.brand.as_deref(), Some(brand), "{raw}");
+            assert!(crate::brand::is_meal_voucher(a.brand.as_deref()), "{raw}");
+        }
+    }
+
     fn answer(result: &str) -> Elem {
         parse(&format!(
             "<CardServiceResponse RequestType=\"CardPayment\" RequestID=\"1\" OverallResult=\"{result}\" \
