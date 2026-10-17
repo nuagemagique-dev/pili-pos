@@ -117,6 +117,16 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
 }];
 
+/// Migrations of the v1.2 owner features (60 to 63, `schema_v12.rs`),
+/// in every build: 60 owner settings and alerts. The later tasks of the
+/// lane append 61 allergens, 62 courses and 63 gift vouchers. Renumbering
+/// at merge touches only `schema_v12.rs`, this slice and its test.
+const V12_MIGRATIONS: &[Migration] = &[Migration {
+    version: 60,
+    name: "owner-settings-alerts",
+    sql: crate::schema_v12::MIGRATION_060_OWNER_SETTINGS_ALERTS,
+}];
+
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
@@ -169,6 +179,7 @@ fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
+    all.extend_from_slice(V12_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -320,6 +331,60 @@ mod tests {
         assert!(all_versions().contains(&27));
         // It keeps clear of the reserved 12 to 19.
         assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
+    }
+
+    /// The v1.2 owner features are migrations 60 to 63, in every build
+    /// (60 owner settings and alerts for now; 61 to 63 follow).
+    #[test]
+    fn the_v12_migrations_are_60_to_63_and_in_every_build() {
+        let v12: Vec<(i64, &str)> = V12_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+        assert_eq!(v12, vec![(60, "owner-settings-alerts")]);
+        for (version, _) in &v12 {
+            assert!(all_versions().contains(version), "{version}");
+            assert!((60..=63).contains(version), "{version}");
+        }
+    }
+
+    #[test]
+    fn migration_60_makes_the_settings_and_the_alert_log_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO owner_settings_log (key, value_json) VALUES ('alerts', '{}')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO owner_alert_log (kind, transition, outcome) VALUES ('fdm', 'raised', 'sent')",
+            [],
+        )
+        .unwrap();
+        for sql in [
+            "UPDATE owner_settings_log SET key = 'x'",
+            "DELETE FROM owner_settings_log",
+            "UPDATE owner_alert_log SET detail = 'x'",
+            "DELETE FROM owner_alert_log",
+        ] {
+            assert!(conn.execute(sql, []).is_err(), "{sql}");
+        }
+    }
+
+    #[test]
+    fn migration_60_checks_the_alert_log_values() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let insert = |kind: &str, transition: &str, outcome: &str| {
+            conn.execute(
+                "INSERT INTO owner_alert_log (kind, transition, outcome) VALUES (?1, ?2, ?3)",
+                rusqlite::params![kind, transition, outcome],
+            )
+        };
+        assert!(insert("fdm", "raised", "sent").is_ok());
+        assert!(insert("test", "test", "failed").is_ok());
+        assert!(insert("online_waiting", "reminder", "suppressed").is_ok());
+        assert!(insert("nope", "raised", "sent").is_err());
+        assert!(insert("fdm", "nope", "sent").is_err());
+        assert!(insert("fdm", "raised", "nope").is_err());
     }
 
     #[test]

@@ -6,6 +6,7 @@ pub mod fiscal;
 pub mod integrations;
 pub mod menu;
 pub mod orders;
+pub mod owner_settings;
 pub mod pending_signs;
 #[cfg(feature = "hubrise")]
 pub mod price_changes;

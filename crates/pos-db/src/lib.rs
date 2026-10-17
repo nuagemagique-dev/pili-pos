@@ -8,3 +8,4 @@ mod schema_catalog;
 mod schema_eft;
 #[cfg(feature = "hubrise")]
 mod schema_hubrise;
+mod schema_v12;
