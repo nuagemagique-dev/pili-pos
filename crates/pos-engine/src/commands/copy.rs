@@ -208,6 +208,19 @@ pub(crate) fn original_ticket(
     config: &PosConfig,
     event: &FiscalEventRef,
 ) -> Result<Option<CopyTicket>, String> {
+    // An invoice (event I) has no order: it is rebuilt from its invoice rows.
+    if event.event_type == "I" {
+        let mut print = crate::commands::invoice::print_of_event(state, config, event)?;
+        // The copy's own control data is known once it is signed (`signing::follow_up`).
+        if let Some(control) = print.control.clone() {
+            print.copy = Some(pos_print::invoice::InvoiceCopy {
+                made_at: control.pos_date_time.clone(),
+                control,
+            });
+            return Ok(Some(CopyTicket::Invoice(Box::new(print))));
+        }
+        return Ok(None);
+    }
     let Some(order_id) = event.order_id else {
         return Ok(None);
     };
@@ -321,7 +334,7 @@ pub(crate) fn printable_original(
     let sale_ticket = |event: &FiscalEventRef| match original_ticket(state, &config, event)? {
         Some(CopyTicket::Original(ticket)) => Ok(*ticket),
         Some(CopyTicket::Draft(_)) => Err(incomplete("fdmResponse")),
-        None => Err(unsupported()),
+        Some(CopyTicket::Invoice(_)) | None => Err(unsupported()),
     };
     match result.event_operation {
         EventOperation::Sale => sale_ticket(&event),

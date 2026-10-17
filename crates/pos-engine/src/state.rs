@@ -76,6 +76,9 @@ pub struct AppState {
     /// client and the wake-up of its background loop
     /// (`commands::export`). Disabled without an `export` section.
     pub export: crate::commands::export::ExportState,
+    /// Wakes the Peppol delivery queue: an invoice was signed or a
+    /// parked delivery re-queued (`commands::peppol_queue`).
+    pub peppol_wake: tokio::sync::Notify,
     /// The terminal running the payment in progress, with its reference
     /// (`commands::eft`): an abort goes to the same instance, which
     /// keeps the state of the call (a cancel ends as Cancelled).

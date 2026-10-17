@@ -40,8 +40,9 @@ use pos_db::queries::orders::NewOrderLine;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
-#[cfg(feature = "peppol")]
-use pos_engine::commands::invoice::do_sign_invoice_fiscal;
+use pos_engine::commands::invoice::{
+    B2bCustomerInput, do_save_b2b_customer, do_sign_invoice_fiscal,
+};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::social::{do_work_in, do_work_out};
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
@@ -482,8 +483,24 @@ async fn m171_sale_in_training_uses_t_counter_and_keeps_n_at_zero() {
 
 // ── M150 - Invoice (event I) referencing prior sales ───────────────
 
-// Invoices ship with the `peppol` feature, outside the v1.0.0 cert build.
-#[cfg(feature = "peppol")]
+/// A saved Belgian customer, for the invoice tests.
+fn save_customer(app: &TestApp) -> i64 {
+    do_save_b2b_customer(
+        &app.state,
+        B2bCustomerInput {
+            id: None,
+            vat_number: "BE0308357159".to_string(),
+            name: "Client Test SRL".to_string(),
+            street: "Rue du Test 1".to_string(),
+            postal_code: "4000".to_string(),
+            city: "Liege".to_string(),
+            country_code: "BE".to_string(),
+        },
+    )
+    .unwrap()
+    .id
+}
+
 #[tokio::test]
 async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
     let app = TestApp::new().await;
@@ -496,11 +513,12 @@ async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
         .await
         .unwrap();
     let sale_event_id = app.fiscal_events()[0].id;
+    let customer_id = save_customer(&app);
 
     let result = do_sign_invoice_fiscal(
         &app.state,
         vec![sale_event_id],
-        "BE0308357159".to_string(),
+        customer_id,
         TEST_INSZ.to_string(),
     )
     .await
@@ -530,8 +548,6 @@ async fn m150_sign_invoice_archives_i_event_referencing_the_sale() {
     app.dump_evidence("M150");
 }
 
-// Invoices ship with the `peppol` feature, outside the v1.0.0 cert build.
-#[cfg(feature = "peppol")]
 #[tokio::test]
 async fn m150_invoice_fdm_failure_does_not_advance_i_counter() {
     let app = TestApp::new().await;
@@ -544,11 +560,12 @@ async fn m150_invoice_fdm_failure_does_not_advance_i_counter() {
         .await
         .unwrap();
     let sale_event_id = app.fiscal_events()[0].id;
+    let customer_id = save_customer(&app);
 
     let result = do_sign_invoice_fiscal(
         &app.state,
         vec![sale_event_id],
-        "BE0308357159".to_string(),
+        customer_id,
         TEST_INSZ.to_string(),
     )
     .await

@@ -188,7 +188,30 @@ pub const CONFIG_HUBRISE: &str = "config_hubrise";
 pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
 pub const CONFIG_EXPORT: &str = "config_export";
 pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
+pub const CONFIG_PEPPOL: &str = "config_peppol";
 pub const CONFIG_OTHER: &str = "config_other";
+
+// B2B invoices (event I) and the Peppol delivery queue (V11).
+/// No sale was chosen for the invoice.
+pub const INVOICE_NO_SALES: &str = "invoice_no_sales";
+/// `event`: a sale event id the archive does not hold.
+pub const INVOICE_SALE_NOT_FOUND: &str = "invoice_sale_not_found";
+/// `event`: an event that is not a normal sale N (training, copy, order...).
+pub const INVOICE_NOT_A_SALE: &str = "invoice_not_a_sale";
+/// `event`, `invoice`: the sale is on an invoice already (V11-D4).
+pub const INVOICE_SALE_ALREADY_INVOICED: &str = "invoice_sale_already_invoiced";
+/// No invoice in training mode (V11-D7).
+pub const INVOICE_TRAINING_MODE: &str = "invoice_training_mode";
+/// The VAT number does not pass the offline check (V11-D10).
+pub const CUSTOMER_VAT_INVALID: &str = "customer_vat_invalid";
+/// `field`: a customer field that is empty.
+pub const CUSTOMER_INCOMPLETE: &str = "customer_incomplete";
+pub const CUSTOMER_NOT_FOUND: &str = "customer_not_found";
+/// `pos.json` has no `peppol` section.
+pub const PEPPOL_NOT_CONFIGURED: &str = "peppol_not_configured";
+pub const PEPPOL_DELIVERY_NOT_FOUND: &str = "peppol_delivery_not_found";
+/// Only a parked (failed) delivery is re-queued.
+pub const PEPPOL_DELIVERY_NOT_PARKED: &str = "peppol_delivery_not_parked";
 
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
@@ -217,7 +240,19 @@ pub const ALL: &[&str] = &[
     CONFIG_DIGITAL_TICKET,
     CONFIG_EXPORT,
     CONFIG_PAYMENT_TERMINAL,
+    CONFIG_PEPPOL,
     CONFIG_OTHER,
+    INVOICE_NO_SALES,
+    INVOICE_SALE_NOT_FOUND,
+    INVOICE_NOT_A_SALE,
+    INVOICE_SALE_ALREADY_INVOICED,
+    INVOICE_TRAINING_MODE,
+    CUSTOMER_VAT_INVALID,
+    CUSTOMER_INCOMPLETE,
+    CUSTOMER_NOT_FOUND,
+    PEPPOL_NOT_CONFIGURED,
+    PEPPOL_DELIVERY_NOT_FOUND,
+    PEPPOL_DELIVERY_NOT_PARKED,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

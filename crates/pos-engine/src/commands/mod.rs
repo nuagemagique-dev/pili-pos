@@ -15,12 +15,12 @@ pub mod hubrise;
 pub mod hubrise_push;
 #[cfg(feature = "hubrise")]
 pub mod integrations;
-#[cfg(feature = "peppol")]
 pub mod invoice;
 pub mod menu;
 #[cfg(feature = "hubrise")]
 pub mod modifiers;
 pub mod order;
+pub mod peppol_queue;
 #[cfg(feature = "hubrise")]
 pub(crate) mod price_changes;
 pub mod print;
