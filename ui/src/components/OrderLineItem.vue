@@ -4,6 +4,7 @@ import type { CartLine } from "../types";
 import { formatPrice } from "../utils/format";
 import { useBilingualName } from "../utils/names";
 import { useI18n } from "../i18n";
+import { GIFT_VOUCHER_DEPARTMENT } from "../stores/giftVouchers";
 
 const props = defineProps<{
   line: CartLine;
@@ -23,6 +24,8 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const bilingual = useBilingualName();
 const names = computed(() => bilingual(props.line));
+/** A gift voucher sold: the quantity is fixed (one line per voucher). */
+const isVoucher = computed(() => props.line.department_id === GIFT_VOUCHER_DEPARTMENT);
 
 /** Notes on the line ("Sans sésame"), when the line carries any:
  * `modifiers_json` holds a string or a list of strings. */
@@ -56,7 +59,8 @@ defineExpose({
 <template>
   <!-- One 64 px row: quantity, names, price, delete (UX guide §4.1). -->
   <div ref="lineRef" class="order-line" :class="{ pending }">
-    <div class="qty-controls">
+    <div v-if="isVoucher" class="voucher-badge" data-testid="voucher-badge">{{ t('gv_line_badge') }}</div>
+    <div v-else class="qty-controls">
       <!-- §4.3: "−" stops at 1; removing a line is its own button. -->
       <button
         class="qty-btn"
@@ -73,7 +77,7 @@ defineExpose({
       <span v-if="notes" class="line-notes">{{ notes }}</span>
       <!-- Course chip: tap opens the picker; locked once a slip carried the line. -->
       <button
-        v-if="showCourse"
+        v-if="showCourse && !isVoucher"
         class="course-chip"
         :class="line.kitchen_state"
         :disabled="line.kitchen_state === 'printed'"
@@ -106,6 +110,17 @@ defineExpose({
 .order-line.pending {
   padding-left: 12px;
   border-left: 3px solid var(--accent-warning);
+}
+
+.voucher-badge {
+  min-width: 96px;
+  padding: 12px 0;
+  border-radius: var(--radius-md);
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  text-align: center;
 }
 
 .qty-controls {

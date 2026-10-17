@@ -16,6 +16,7 @@ import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
 import OwnerAlertsSettings from "../components/OwnerAlertsSettings.vue";
 import CoursesSettings from "../components/CoursesSettings.vue";
+import GiftVoucherSettings from "../components/GiftVoucherSettings.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -377,6 +378,7 @@ onMounted(() => {
           </div>
         </section>
         <CoursesSettings v-if="auth.isManager" class="panel courses-section" />
+        <GiftVoucherSettings v-if="auth.isManager" class="panel courses-section" />
       </div>
 
       <!-- Column 3: info, email tickets, HubRise -->

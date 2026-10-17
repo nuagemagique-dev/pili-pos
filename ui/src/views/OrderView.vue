@@ -14,6 +14,7 @@ import CartSidebar from "../components/CartSidebar.vue";
 import PriceDialog from "../components/PriceDialog.vue";
 import AllergenSheetDialog from "../components/AllergenSheetDialog.vue";
 import { useAllergensStore } from "../stores/allergens";
+import { useGiftVouchersStore } from "../stores/giftVouchers";
 import type { MenuItem } from "../types";
 
 const router = useRouter();
@@ -22,12 +23,14 @@ const order = useOrderStore();
 const auth = useAuthStore();
 const { t } = useI18n();
 const allergens = useAllergensStore();
+const giftVouchers = useGiftVouchersStore();
 
 onMounted(async () => {
   if (!auth.currentUser) {
     router.push({ name: "login" });
     return;
   }
+  void giftVouchers.load();
   await menu.loadCategories();
   if (menu.selectedCategoryId) {
     await menu.loadItems(menu.selectedCategoryId);
@@ -71,6 +74,14 @@ async function checkZReport() {
   } catch {
     // Non-critical - degrade silently.
   }
+}
+
+// Selling a gift voucher: PriceDialog open for its amount.
+const sellingVoucher = ref(false);
+
+async function handleVoucherAmount(cents: number) {
+  sellingVoucher.value = false;
+  await order.addGiftVoucher(cents);
 }
 
 // Free-price product waiting for its price (PriceDialog open).
@@ -139,6 +150,14 @@ async function handlePriceConfirmed(priceCents: number) {
           >
             {{ t('allergens_mode') }}
           </button>
+          <button
+            v-if="giftVouchers.enabled && order.currentOrder"
+            class="allergen-toggle"
+            data-testid="gift-voucher-sell"
+            @click="sellingVoucher = true"
+          >
+            {{ t('gv_sell_button') }}
+          </button>
           <template v-if="allergens.mode">
             <span class="allergen-hint">{{ t('allergens_hint') }}</span>
             <ul class="allergen-legend" data-testid="allergen-legend" :aria-label="t('allergens_legend')">
@@ -168,6 +187,14 @@ async function handlePriceConfirmed(priceCents: number) {
     />
 
     <AllergenSheetDialog />
+
+    <PriceDialog
+      v-if="sellingVoucher"
+      :title="t('gv_sell_title')"
+      :item-name="t('gv_sell_item')"
+      @confirm="handleVoucherAmount"
+      @cancel="sellingVoucher = false"
+    />
 
     <PriceDialog
       v-if="pricing"

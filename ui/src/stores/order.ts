@@ -194,6 +194,25 @@ export const useOrderStore = defineStore("order", () => {
     await refreshCourses();
   }
 
+  /** Sell a gift voucher: a fixed-quantity line of the system product. */
+  function addGiftVoucher(amountCents: number) {
+    return reported(async () => {
+      const current = currentOrder.value;
+      if (!current) throw new Error("No active order");
+      const line = await ipc.addGiftVoucherLine(current.id, amountCents);
+      lines.value.push({
+        ...line,
+        name_fr: null,
+        name_zh: null,
+        unsent_quantity: 0,
+        course: 0,
+        kitchen_state: "printed",
+      });
+      currentOrder.value = await ipc.getOrder(current.id);
+      await refreshCourses();
+    });
+  }
+
   function removeLine(lineId: number) {
     return reported(() => removeLineUnreported(lineId));
   }
@@ -311,6 +330,7 @@ export const useOrderStore = defineStore("order", () => {
     loadOrder,
     addItem,
     addLineWith,
+    addGiftVoucher,
     removeLine,
     updateQuantity,
     loadOpenOrders,

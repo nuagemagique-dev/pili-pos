@@ -1,0 +1,277 @@
+import { test, expect, type Page } from '@playwright/test';
+import {
+  mockTauriIPC, ipcCalls, live, DEFAULT_USER, DEFAULT_ORDER, DEFAULT_ORDER_LINE, DEFAULT_CATEGORY,
+  DEFAULT_MENU_ITEM, tapUserTile, loginAndGoto,
+} from './fixtures/mock-ipc';
+
+// Multi-purpose gift vouchers (v1.2): the Settings panel, the "Bon
+// cadeau" button and the voucher line on the order screen, paying with a
+// voucher at checkout, the print outcomes on the done screen, and the
+// Reports tab (lookup, list, DUPLICATA reprint).
+
+const ON = { enabled: true, validity_months: 12, max_amount_cents: 50000 };
+
+const VOUCHER = {
+  id: 7,
+  code_masked: '**** **** 9095',
+  face_value_cents: 5000,
+  balance_cents: 3000,
+  issued_on: '2026-10-01',
+  expires_on: '2027-10-01',
+  status: 'active',
+  training: false,
+  movements: [
+    { kind: 'issue', amount_cents: 5000, date: '2026-10-01', ticket: 'N 12' },
+    { kind: 'redeem', amount_cents: 2000, date: '2026-10-05', ticket: 'N 40' },
+  ],
+};
+
+const VOUCHER_LINE = {
+  ...DEFAULT_ORDER_LINE, id: 5, menu_item_id: 990001, unit_price_cents: 2500, vat_code: 'X',
+  name: 'Bon cadeau', department_id: 'GV', department_name: 'Bon cadeau',
+};
+
+const SALE = {
+  success: true,
+  ticket: {
+    restaurant_name: 'The FPS Finances Experience', restaurant_address: 'Boulevard Albert II 33, 1030 Brussels', restaurant_vat: 'BE0000000097',
+    pos_id: 'CPOS0031234567', terminal_id: 'POS-1-BAR', pos_datetime: new Date().toISOString(),
+    ticket_number: 1, event_label: 'N', is_training: false, lines: [], subtotal: 12, total: 12,
+    vat_breakdown: [], payments: [], rounding: null, fdm_ref: null, short_signature: null,
+    verification_url: null, footer: [], ticket_type_label: 'TICKET DE CAISSE T.V.A.', is_refund: false, lang: 'fr',
+  },
+  error: null, fdm_connected: true, fiscal_event_id: 1, delivery: null, kitchen_slip: 'printed',
+};
+
+async function toOrder(page: Page, extra: Record<string, unknown> = {}) {
+  await mockTauriIPC(page, {
+    login: () => DEFAULT_USER,
+    list_users: () => [DEFAULT_USER],
+    get_order: () => ({ ...DEFAULT_ORDER, total_cents: 1200 }),
+    list_cart_lines: () => [],
+    get_categories: () => [DEFAULT_CATEGORY],
+    get_menu_items: () => [DEFAULT_MENU_ITEM],
+    get_gift_voucher_settings: () => ON,
+    ...extra,
+  } as any);
+  await page.goto('/');
+  await tapUserTile(page);
+  await page.waitForURL(/tables/);
+  await page.locator('.table-card').first().click();
+  await page.waitForURL(/order/);
+}
+
+test.describe('Selling a gift voucher', () => {
+  test('the button is absent while the setting is off', async ({ page }) => {
+    await toOrder(page, { get_gift_voucher_settings: () => ({ ...ON, enabled: false }) });
+    await expect(page.getByTestId('gift-voucher-sell')).toHaveCount(0);
+  });
+
+  test('the button asks for an amount and adds a voucher line without quantity buttons', async ({ page }) => {
+    await toOrder(page, {
+      list_cart_lines: live(() => ((window as any).__sold ? [(window as any).__line] : [])),
+      add_gift_voucher_line: live((args: any) => {
+        const w = window as any;
+        w.__line = {
+          id: 5, order_id: args.orderId, menu_item_id: 990001, quantity: 1, unit_price_cents: args.amountCents,
+          vat_code: 'X', name: 'Bon cadeau', modifiers_json: null, created_at: new Date().toISOString(),
+          department_id: 'GV', department_name: 'Bon cadeau', name_fr: null, name_zh: null,
+          unsent_quantity: 0, course: 0, kitchen_state: 'printed',
+        };
+        w.__sold = true;
+        return w.__line;
+      }),
+    });
+    await page.getByTestId('gift-voucher-sell').click();
+    await expect(page.getByRole('dialog', { name: 'Vendre un bon cadeau' })).toBeVisible();
+    for (const d of '2500') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await expect(page.getByTestId('open-price-amount')).toContainText('25,00');
+    await page.getByRole('button', { name: 'Valider' }).click();
+
+    const calls = await ipcCalls(page, 'add_gift_voucher_line');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].amountCents).toBe(2500);
+    await expect(page.getByTestId('voucher-badge')).toHaveText('Bon');
+    await expect(page.locator('.qty-btn')).toHaveCount(0);
+  });
+
+  test('an engine refusal is shown', async ({ page }) => {
+    await toOrder(page, { add_gift_voucher_line: live(() => { throw 'gift_voucher_amount_invalid|max=500,00'; }) });
+    await page.getByTestId('gift-voucher-sell').click();
+    for (const d of '99999') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await page.getByRole('button', { name: 'Valider' }).click();
+    await expect(page.getByText('500,00')).toBeVisible();
+  });
+});
+
+async function toCheckout(page: Page, lines: unknown[], extra: Record<string, unknown> = {}) {
+  await toOrder(page, {
+    list_cart_lines: () => lines,
+    checkout: () => SALE,
+    ...extra,
+  });
+  await page.locator('.checkout-btn').click();
+  await page.waitForURL(/checkout/);
+}
+
+test.describe('Paying with a gift voucher', () => {
+  const LINES = [{ ...DEFAULT_ORDER_LINE, id: 1, unit_price_cents: 1200 }];
+
+  test('the method is hidden while the setting is off', async ({ page }) => {
+    await toCheckout(page, LINES, { get_gift_voucher_settings: () => ({ ...ON, enabled: false }) });
+    await expect(page.getByTestId('method-gift_voucher')).toHaveCount(0);
+    await expect(page.getByTestId('method-meal_voucher')).toBeVisible();
+  });
+
+  test('the method is hidden, with the meal vouchers, when the sale sells a voucher', async ({ page }) => {
+    await toCheckout(page, [...LINES, VOUCHER_LINE]);
+    await expect(page.getByTestId('method-cash')).toBeVisible();
+    await expect(page.getByTestId('method-card')).toBeVisible();
+    await expect(page.getByTestId('method-gift_voucher')).toHaveCount(0);
+    await expect(page.getByTestId('method-meal_voucher')).toHaveCount(0);
+  });
+
+  test('a voucher found by its code pays the smaller of balance and rest, the rest goes in cash', async ({ page }) => {
+    await toCheckout(page, [{ ...DEFAULT_ORDER_LINE, id: 1, unit_price_cents: 4500 }], {
+      get_order: () => ({ ...DEFAULT_ORDER, total_cents: 4500 }),
+      lookup_gift_voucher: () => VOUCHER,
+    });
+    await page.getByTestId('method-gift_voucher').click();
+    await expect(page.getByTestId('gv-dialog')).toBeVisible();
+    for (const d of '123456789095') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await expect(page.getByTestId('gv-code')).toHaveText('1234 5678 9095');
+    await page.getByTestId('gv-lookup').click();
+    await expect(page.getByTestId('gv-status')).toHaveText('Valide');
+    await expect(page.getByTestId('gv-balance')).toContainText('30,00');
+    await expect(page.getByTestId('gv-amount')).toContainText('30,00');
+    await page.getByTestId('gv-apply').click();
+
+    await expect(page.locator('.paid-part').nth(0)).toContainText('**** **** 9095');
+    await expect(page.locator('.total-value')).toHaveText('15,00');
+    await page.locator('.cash-btn').click();
+    await page.locator('.shortcut.exact').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+
+    const call = (await ipcCalls(page, 'checkout'))[0];
+    expect(call.payments).toEqual([
+      { method: 'gift_voucher', amount_cents: 3000, gift_voucher_id: 7 },
+      { method: 'cash' },
+    ]);
+  });
+
+  test('a voucher that covers the sale closes it and the balance slip is told', async ({ page }) => {
+    await toCheckout(page, LINES, {
+      lookup_gift_voucher: () => VOUCHER,
+      checkout: () => ({ ...SALE, gift_voucher_prints: [{ voucher_id: 7, kind: 'balance', outcome: 'printed' }] }),
+    });
+    await page.getByTestId('method-gift_voucher').click();
+    for (const d of '123456789095') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await page.getByTestId('gv-lookup').click();
+    await page.getByTestId('gv-apply').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+    await expect(page.getByTestId('gv-prints')).toContainText('Solde imprimé');
+    expect((await ipcCalls(page, 'checkout'))[0].payments).toEqual([
+      { method: 'gift_voucher', amount_cents: 1200, gift_voucher_id: 7 },
+    ]);
+  });
+
+  test('an unknown, expired or throttled code is shown and nothing is added', async ({ page }) => {
+    await toCheckout(page, LINES);
+    await page.getByTestId('method-gift_voucher').click();
+    for (const d of '000000000000') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await page.getByTestId('gv-lookup').click();
+    await expect(page.getByTestId('gv-error')).toBeVisible();
+    await expect(page.getByTestId('gv-apply')).toHaveCount(0);
+  });
+
+  test('an expired voucher cannot be applied', async ({ page }) => {
+    await toCheckout(page, LINES, { lookup_gift_voucher: () => ({ ...VOUCHER, status: 'expired' }) });
+    await page.getByTestId('method-gift_voucher').click();
+    for (const d of '123456789095') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await page.getByTestId('gv-lookup').click();
+    await expect(page.getByTestId('gv-status')).toHaveText('Expiré');
+    await expect(page.getByTestId('gv-apply')).toHaveCount(0);
+  });
+
+  test('a slip that did not print is told on the done screen', async ({ page }) => {
+    await toCheckout(page, [...LINES, VOUCHER_LINE], {
+      checkout: () => ({ ...SALE, gift_voucher_prints: [{ voucher_id: 8, kind: 'voucher', outcome: 'failed' }] }),
+    });
+    await page.locator('.shortcut.exact').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.getByTestId('gv-prints')).toContainText('Bon non imprimé');
+  });
+});
+
+test.describe('Gift voucher settings', () => {
+  test('a manager switches vouchers on and saves the validity and the maximum', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_gift_voucher_settings: live(() => (window as any).__gv ?? { enabled: false, validity_months: 12, max_amount_cents: 50000 }),
+      set_gift_voucher_settings: live((args: any) => { (window as any).__gv = args.input; return args.input; }),
+    } as any);
+    await loginAndGoto(page, '/settings');
+    const panel = page.getByTestId('gv-settings');
+    await expect(panel.locator('h2')).toHaveText('Bons cadeaux');
+    await expect(panel.getByTestId('gv-enabled')).toContainText('Inactif');
+    await expect(panel.getByTestId('gv-settings-save')).toBeDisabled();
+
+    await panel.getByTestId('gv-enabled').click();
+    await panel.getByTestId('gv-validity').fill('24');
+    await panel.getByTestId('gv-max').fill('250');
+    await panel.getByTestId('gv-settings-save').click();
+    await expect(panel.getByTestId('gv-settings-saved')).toBeVisible();
+    expect((await ipcCalls(page, 'set_gift_voucher_settings'))[0].input).toEqual({
+      enabled: true, validity_months: 24, max_amount_cents: 25000,
+    });
+  });
+});
+
+test.describe('Gift vouchers in the reports', () => {
+  async function openTab(page: Page, extra: Record<string, unknown> = {}) {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_gift_voucher_settings: () => ON,
+      ...extra,
+    } as any);
+    await loginAndGoto(page, '/reports');
+    await page.getByRole('tab', { name: 'Bons cadeaux' }).click();
+  }
+
+  test('the tab is absent while the setting is off', async ({ page }) => {
+    await mockTauriIPC(page, { login: () => DEFAULT_USER, list_users: () => [DEFAULT_USER] } as any);
+    await loginAndGoto(page, '/reports');
+    await expect(page.getByRole('tab', { name: 'Bons cadeaux' })).toHaveCount(0);
+  });
+
+  test('a code is looked up and its masked form shown', async ({ page }) => {
+    await openTab(page, { lookup_gift_voucher: () => VOUCHER });
+    for (const d of '123456789095') await page.locator('.numpad .key', { hasText: new RegExp(`^${d}$`) }).click();
+    await page.getByTestId('gv-report-lookup').click();
+    await expect(page.getByTestId('gv-report-found')).toContainText('**** **** 9095');
+    await expect(page.getByTestId('gv-report-found')).toContainText('30,00');
+  });
+
+  test('the manager sees the list, filters it and reprints a voucher', async ({ page }) => {
+    await openTab(page, {
+      list_gift_vouchers: live((args: any) => (args.status && args.status !== 'active' ? [] : [{
+        id: 7, code_masked: '**** **** 9095', face_value_cents: 5000, balance_cents: 3000, issued_on: '2026-10-01',
+        expires_on: '2027-10-01', status: 'active', training: false,
+        movements: [{ kind: 'issue', amount_cents: 5000, date: '2026-10-01', ticket: 'N 12' }, { kind: 'redeem', amount_cents: 2000, date: '2026-10-05', ticket: 'N 40' }],
+      }])),
+    });
+    await expect(page.getByTestId('gv-row-7')).toContainText('30,00 / 50,00');
+    await page.getByTestId('gv-row-7').locator('.voucher-head').click();
+    await expect(page.getByTestId('gv-row-7')).toContainText('N 40');
+    await page.getByTestId('gv-reprint-7').click();
+    expect(await ipcCalls(page, 'print_gift_voucher')).toEqual([{ voucherId: 7 }]);
+    await expect(page.getByText('Bon réimprimé (DUPLICATA)')).toBeVisible();
+
+    await page.getByTestId('gv-filter-used').click();
+    await expect(page.getByTestId('gv-empty')).toBeVisible();
+    expect((await ipcCalls(page, 'list_gift_vouchers')).at(-1)).toEqual({ status: 'used' });
+  });
+});

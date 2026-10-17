@@ -6,7 +6,7 @@ export type OrderStatus = "open" | "closed" | "voided";
 
 export type UserRole = "admin" | "cashier" | "waiter";
 
-export type CheckoutPaymentMethod = "cash" | "card" | "meal_voucher";
+export type CheckoutPaymentMethod = "cash" | "card" | "meal_voucher" | "gift_voucher";
 
 /** One part of a sale's payment. Cash has no amount: it pays the rest. */
 export interface PaymentPart {
@@ -14,6 +14,8 @@ export interface PaymentPart {
   amount_cents?: number;
   /** A card part taken on the linked terminal: the approved payment it settles (`EftPayment.id`). */
   eft_payment_id?: number;
+  /** A gift voucher part: the voucher it redeems (`GiftVoucherView.id`). */
+  gift_voucher_id?: number;
 }
 
 /** Where a card payment asked of the linked terminal stands. */
@@ -239,6 +241,16 @@ export interface CheckoutResult {
   delivery: DeliveryOutcome | null;
   /** The bar / kitchen slip of the lines not yet sent (sales only). */
   kitchen_slip?: SlipOutcome | null;
+  /** The gift voucher slips of the sale (vouchers sold, balances left). */
+  gift_voucher_prints?: GiftVoucherPrint[];
+}
+
+/** What became of one gift voucher slip after a sale. */
+export interface GiftVoucherPrint {
+  voucher_id: number;
+  /** `voucher` (the voucher itself) or `balance` (what is left on it). */
+  kind: "voucher" | "balance";
+  outcome: SlipOutcome;
 }
 
 /** What became of the bar / kitchen order slip. */

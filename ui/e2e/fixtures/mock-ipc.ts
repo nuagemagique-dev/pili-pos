@@ -498,6 +498,18 @@ function defaultHandlers(): Record<string, Handler> {
     send_next_course: () => ({ course: null, signed: null, slip: 'nothing_to_print' }),
     reprint_course_slip: () => 'printed',
 
+    // Gift vouchers: off until a spec says otherwise.
+    get_gift_voucher_settings: () => ({ enabled: false, validity_months: 12, max_amount_cents: 50000 }),
+    set_gift_voucher_settings: live((args: any) => args.input),
+    add_gift_voucher_line: (args: any) => ({
+      id: 900, order_id: args.orderId, menu_item_id: 990001, quantity: 1,
+      unit_price_cents: args.amountCents, vat_code: 'X', name: 'Bon cadeau', modifiers_json: null,
+      created_at: '2026-10-17T10:00:00+02:00', department_id: 'GV', department_name: 'Bon cadeau',
+    }),
+    lookup_gift_voucher: live(() => { throw 'gift_voucher_not_found'; }),
+    list_gift_vouchers: () => [],
+    print_gift_voucher: () => 'printed',
+
     // The 14 EU allergens: the legend, and an undeclared product by default.
     list_allergens: () => ALLERGEN_LEGEND,
     get_allergen_sheet: live((args: any) => ({

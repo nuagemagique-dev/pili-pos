@@ -1039,3 +1039,63 @@ export function sendNextCourse(orderId: number): Promise<NextCourse> {
 export function reprintCourseSlip(orderId: number, course: number): Promise<SlipOutcome> {
   return invoke("reprint_course_slip", { orderId, course });
 }
+
+// ── Multi-purpose gift vouchers (v1.2) ─────────────────────────────
+
+export interface GiftVoucherSettings {
+  enabled: boolean;
+  /** 12 to 36. */
+  validity_months: number;
+  /** Largest voucher sold, in cents. */
+  max_amount_cents: number;
+}
+
+export interface GiftVoucherMovement {
+  /** `issue`, `redeem` or `cancel`. */
+  kind: "issue" | "redeem" | "cancel";
+  amount_cents: number;
+  date: string;
+  /** The ticket that made it (`N 1234`). */
+  ticket: string;
+}
+
+export interface GiftVoucherView {
+  id: number;
+  /** The code is masked: it is printed in full on the voucher only. */
+  code_masked: string;
+  face_value_cents: number;
+  balance_cents: number;
+  issued_on: string;
+  expires_on: string;
+  status: "active" | "used" | "expired" | "cancelled";
+  training: boolean;
+  movements: GiftVoucherMovement[];
+}
+
+export function getGiftVoucherSettings(): Promise<GiftVoucherSettings> {
+  return invoke("get_gift_voucher_settings");
+}
+
+export function setGiftVoucherSettings(input: GiftVoucherSettings): Promise<GiftVoucherSettings> {
+  return invoke("set_gift_voucher_settings", { input });
+}
+
+/** Sells a voucher: a fixed-quantity line of the system product. */
+export function addGiftVoucherLine(orderId: number, amountCents: number): Promise<OrderLine> {
+  return invoke("add_gift_voucher_line", { orderId, amountCents });
+}
+
+/** Finds a voucher by its 12-digit code (5 failures a minute, then a wait). */
+export function lookupGiftVoucher(code: string): Promise<GiftVoucherView> {
+  return invoke("lookup_gift_voucher", { code });
+}
+
+/** Managers only; `status` filters on active, used, expired or cancelled. */
+export function listGiftVouchers(status?: string): Promise<GiftVoucherView[]> {
+  return invoke("list_gift_vouchers", { status: status ?? null });
+}
+
+/** Prints a voucher again, marked DUPLICATA (managers only). */
+export function printGiftVoucher(voucherId: number): Promise<SlipOutcome> {
+  return invoke("print_gift_voucher", { voucherId });
+}

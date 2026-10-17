@@ -127,4 +127,18 @@ export const settingsMessages: Messages = {
   "alerts_outcome_failed": { fr: "Échec", en: "Failed", zh: "失败" },
   "alerts_outcome_suppressed": { fr: "Retenu (limite horaire)", en: "Held back (hourly limit)", zh: "已拦截（每小时上限）" },
   "alerts_minus": { fr: "Groupe (signe -)", en: "Group (minus sign)", zh: "群组（负号）" },
+
+  // Gift vouchers panel (managers)
+  "gv_settings_title": { fr: "Bons cadeaux", en: "Gift vouchers", zh: "礼品券" },
+  "gv_settings_on": { fr: "Actif", en: "On", zh: "已开启" },
+  "gv_settings_off": { fr: "Inactif", en: "Off", zh: "未开启" },
+  "gv_settings_note": {
+    fr: "Bon cadeau multi-usage : vendu sans TVA, la TVA est due à l'achat des produits. Le bon est imprimé à la vente.",
+    en: "Multi-purpose gift voucher: sold without VAT, the VAT is due when goods are bought with it. The voucher is printed at the sale.",
+    zh: "多用途礼品券：出售时不计增值税，购买商品时再计税。出售时打印礼品券。",
+  },
+  "gv_settings_validity": { fr: "Validité (mois)", en: "Validity (months)", zh: "有效期（月）" },
+  "gv_settings_max": { fr: "Montant maximum (€)", en: "Maximum amount (€)", zh: "最高金额（€）" },
+  "gv_settings_save": { fr: "Enregistrer", en: "Save", zh: "保存" },
+  "gv_settings_saved": { fr: "Réglage enregistré", en: "Setting saved", zh: "已保存" },
 };

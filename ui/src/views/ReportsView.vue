@@ -15,20 +15,24 @@ import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 import PriceDialog from "../components/PriceDialog.vue";
+import GiftVouchersReport from "../components/GiftVouchersReport.vue";
+import { useGiftVouchersStore } from "../stores/giftVouchers";
 
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToastStore();
 const delivery = useDeliveryStore();
+const giftVouchers = useGiftVouchersStore();
 const { t } = useI18n();
 
 // §2.1: three tabs, never more than 6-8 actions visible at once.
-type Tab = "day" | "cash" | "tickets";
-const TABS: { id: Tab; label: string }[] = [
+type Tab = "day" | "cash" | "tickets" | "vouchers";
+const TABS = computed<{ id: Tab; label: string }[]>(() => [
   { id: "day", label: "reports_tab_day" },
   { id: "cash", label: "reports_tab_cash" },
   { id: "tickets", label: "reports_tab_tickets" },
-];
+  ...(giftVouchers.enabled ? [{ id: "vouchers" as const, label: "reports_tab_vouchers" }] : []),
+]);
 const tab = ref<Tab>("day");
 
 const loading = ref(false);
@@ -78,6 +82,7 @@ function unsettledLine(p: UnsettledCardPayment): string {
 }
 
 onMounted(() => {
+  void giftVouchers.load();
   if (!auth.currentUser) {
     router.push({ name: "login" });
     return;
@@ -637,6 +642,8 @@ function formatRefundTime(iso: string): string {
       </section>
 
       <!-- ── Tickets: copy and refund from one list ─────────────── -->
+      <GiftVouchersReport v-else-if="tab === 'vouchers'" />
+
       <section v-else class="tab-body tickets">
         <div class="panel tickets-panel">
           <div class="tickets-head">
