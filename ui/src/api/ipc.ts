@@ -507,6 +507,119 @@ export function listOpenShifts(): Promise<OpenShift[]> {
   return invoke("list_open_shifts");
 }
 
+// ── Staff badges (NFC or USB reader) ────────────────────────────────
+
+export type BadgeReader = "off" | "nfc" | "usb";
+
+/** The reader setting, as the screens read it (no personal data). */
+export interface BadgeSettings {
+  reader: BadgeReader;
+  loginEnabled: boolean;
+  wedgeMaxGapMs: number;
+  wedgeMinLen: number;
+  wedgeMaxLen: number;
+  /** True after the badge key changed, until a badge is linked again. */
+  relinkNeeded: boolean;
+}
+
+export interface BadgeSettingsInput {
+  reader: BadgeReader;
+  loginEnabled: boolean;
+  wedgeMaxGapMs: number;
+  wedgeMinLen: number;
+  wedgeMaxLen: number;
+}
+
+/** An active badge in the manager's list (never the badge number). */
+export interface ActiveBadge {
+  insz: string;
+  name: string;
+  /** UTC, `YYYY-MM-DD HH:MM:SS`. */
+  linkedAt: string;
+  linkedBy: string;
+  linkedByName: string | null;
+}
+
+export interface BadgeLogEntry {
+  /** `link`, `revoke` or `settings`. */
+  action: "link" | "revoke" | "settings";
+  insz: string | null;
+  name: string | null;
+  by: string | null;
+  byName: string | null;
+  /** UTC, `YYYY-MM-DD HH:MM:SS`. */
+  at: string;
+  /** Revoke: the reason; settings: the new values as JSON. */
+  detail: string | null;
+}
+
+export interface BadgeOverview {
+  badges: ActiveBadge[];
+  log: BadgeLogEntry[];
+}
+
+export interface BadgeLink {
+  insz: string;
+  name: string;
+  linkedAt: string;
+}
+
+export type BadgeOutcomeKind =
+  | "ignored"
+  | "clock_in"
+  | "clock_out"
+  | "presence_failed"
+  | "logged_in"
+  | "pin_required";
+
+/** What a scan did. Refusals are thrown error codes, not outcomes. */
+export interface BadgeOutcome {
+  kind: BadgeOutcomeKind;
+  insz: string | null;
+  name: string | null;
+  /** RFC 3339 UTC time of a registered presence. */
+  at: string | null;
+  /** The FDM text of `presence_failed`. */
+  error: string | null;
+  /** The session opened by `logged_in`. */
+  user: User | null;
+}
+
+/** The badge reader setting. No session needed (the login screen reads it). */
+export function getBadgeSettings(): Promise<BadgeSettings> {
+  return invoke("get_badge_settings");
+}
+
+/** Change the badge reader setting (managers only, logged). */
+export function setBadgeSettings(input: BadgeSettingsInput): Promise<BadgeSettings> {
+  return invoke("set_badge_settings", { input });
+}
+
+/** The active badges and the latest log rows (managers only). */
+export function listBadges(): Promise<BadgeOverview> {
+  return invoke("list_badges");
+}
+
+/** Link a badge to an employee: a manager, confirmed by their own PIN. */
+export function linkBadge(
+  employeeInsz: string,
+  token: string,
+  operatorPin?: string,
+): Promise<BadgeLink> {
+  return invoke("link_badge", { employeeInsz, token, operatorPin: operatorPin ?? null });
+}
+
+/** Remove an employee's badge (managers only, no PIN). */
+export function revokeBadge(employeeInsz: string): Promise<void> {
+  return invoke("revoke_badge", { employeeInsz });
+}
+
+/** A badge scan: the engine decides (presence, login or a PIN request).
+ * `endShift` is true while the login screen is in its end-of-shift mode. */
+export function badgeTap(token: string, endShift: boolean): Promise<BadgeOutcome> {
+  return invoke("badge_tap", { token, endShift });
+}
+
 // ── Financial (Event F - cash in/out, drawer) ───────────────────────
 
 export interface FinancialResult {

@@ -94,4 +94,10 @@ list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else with clock_in_employee from the employees panel (own presence stays login and end of shift, so no UI calls work_in)
 work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else out with clock_out_employee from the employees panel (no UI calls work_out)
+get_badge_settings pending:P5b-settings staff badges (lane 5): the badge settings section and the login screen read it
+set_badge_settings pending:P5b-settings staff badges (lane 5): the badge settings section
+list_badges pending:P5b-settings staff badges (lane 5): the employees panel and the badge log
+link_badge pending:P5b-settings staff badges (lane 5): the enrolment dialog
+revoke_badge pending:P5b-settings staff badges (lane 5): the employees panel
+badge_tap pending:P5b-settings staff badges (lane 5): the global scan handling
 ```
