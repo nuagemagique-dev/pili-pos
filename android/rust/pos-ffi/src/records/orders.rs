@@ -18,7 +18,7 @@
 //! `flatten` with `deny_unknown_fields`, so the record lists the `OrderLine` fields itself; the
 //! serde form is the same.
 
-use super::common::VatCode;
+use super::common::{SlipOutcome, VatCode};
 
 /// `pos_core::order::OrderType`.
 #[derive(
@@ -210,6 +210,18 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+}
+
+/// `pos_engine::commands::table_transfer::TableTransferResult`: what moving an order to another
+/// table did (the kitchen slip of what was registered first, the transfer notice).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TableTransferResult {
+    pub order_id: i64,
+    pub from_table: i32,
+    pub to_table: i32,
+    pub kitchen_slip: SlipOutcome,
+    pub transfer_slip: SlipOutcome,
 }
 
 /// `pos_engine::commands::tables::TakeawayInfo`.

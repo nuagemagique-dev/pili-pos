@@ -93,6 +93,7 @@
 //! | `TableInfo` | `pos_engine::commands::tables::TableInfo` | orders | list_tables |
 //! | `TablePlan` | `pos_engine::commands::table_plan::TablePlan` | orders | get_table_plan, set_table_plan |
 //! | `TablePlanChange` | `pos_db::queries::table_plan::PlanChange` | orders | get_table_plan, set_table_plan |
+//! | `TableTransferResult` | `pos_engine::commands::table_transfer::TableTransferResult` | orders | transfer_table |
 //! | `TakeawayInfo` | `pos_engine::commands::tables::TakeawayInfo` | orders | list_open_takeaways |
 //! | `CopyResult` | `pos_engine::commands::copy::CopyResult` | checkout | copy_ticket |
 //! | `CopyableTicket` | `pos_db::queries::fiscal::CopyableTicket` | checkout | list_copyable_tickets |

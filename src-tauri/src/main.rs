@@ -256,6 +256,7 @@ fn main() {
         ipc::tables::list_open_takeaways,
         ipc::tables::sign_table_order,
         ipc::tables::sign_pre_bill,
+        ipc::tables::transfer_table,
         // Reports
         ipc::report::generate_x_report,
         ipc::report::generate_user_x_report,
@@ -371,6 +372,7 @@ fn main() {
         ipc::tables::list_open_takeaways,
         ipc::tables::sign_table_order,
         ipc::tables::sign_pre_bill,
+        ipc::tables::transfer_table,
         // Reports
         ipc::report::generate_x_report,
         ipc::report::generate_user_x_report,

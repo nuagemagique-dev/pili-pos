@@ -772,6 +772,10 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
         code_of(e.sign_pre_bill(1).await.unwrap_err()),
         "not_logged_in"
     );
+    assert_eq!(
+        code_of(e.transfer_table(1, 4).await.unwrap_err()),
+        "not_logged_in"
+    );
 
     // Nothing was written.
     let lines = e.list_order_lines(1).await.unwrap();

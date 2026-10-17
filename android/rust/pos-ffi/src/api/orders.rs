@@ -2,7 +2,7 @@
 //! and session): one async method per Tauri command, each one converting its arguments, making the
 //! wrapper's single engine call and converting the answer. Plus the `vat_split` helper (PD62).
 
-use pos_engine::commands::{menu, modifiers, order, session, table_plan, tables};
+use pos_engine::commands::{menu, modifiers, order, session, table_plan, table_transfer, tables};
 
 use crate::convert;
 use crate::core::PosEngine;
@@ -10,8 +10,8 @@ use crate::error::PosError;
 use crate::records::common::{SlipOutcome, VatCode};
 use crate::records::orders::{
     AddOrderLineInput, AddWithModifiersInput, CartLine, Category, CreateOrderInput, LeaveReason,
-    LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo, TablePlan, TakeawayInfo,
-    VatLine, VatSplitRow,
+    LockOutcome, MenuItem, ModifierGroup, Order, OrderLine, TableInfo, TablePlan,
+    TableTransferResult, TakeawayInfo, VatLine, VatSplitRow,
 };
 
 #[uniffi::export]
@@ -176,6 +176,20 @@ impl PosEngine {
             .spawn(move |e| async move { tables::do_sign_pre_bill(&e, order_id).await })
             .await?;
         convert::out(&outcome)
+    }
+
+    /// Move the open order of a table to a free table (event P, cost center change).
+    pub async fn transfer_table(
+        &self,
+        order_id: i64,
+        to_table: i32,
+    ) -> Result<TableTransferResult, PosError> {
+        let result = self
+            .spawn(move |e| async move {
+                table_transfer::do_transfer_table(&e, order_id, to_table).await
+            })
+            .await?;
+        convert::out(&result)
     }
 
     /// Tell the engine which order the screen shows (`None`: none).
@@ -521,6 +535,27 @@ mod flow {
         e.sign_pre_bill(order.id).await.unwrap();
         let tables = e.list_tables().await.unwrap();
         assert!(tables[6].pre_bill_printed);
+
+        // Moving the order to a free table: refusals are coded, the move keeps the order.
+        assert_eq!(
+            coded(e.transfer_table(order.id, 7).await.unwrap_err()),
+            "table_transfer_same_table"
+        );
+        assert_eq!(
+            coded(e.transfer_table(order.id, 99).await.unwrap_err()),
+            "table_transfer_target_invalid"
+        );
+        let moved = e.transfer_table(order.id, 20).await.unwrap();
+        assert_eq!(
+            (moved.order_id, moved.from_table, moved.to_table),
+            (order.id, 7, 20)
+        );
+        assert_eq!(moved.kitchen_slip, SlipOutcome::NothingToPrint);
+        assert_eq!(moved.transfer_slip, SlipOutcome::Printed);
+        let tables = e.list_tables().await.unwrap();
+        assert_eq!(tables[6].status, "free");
+        assert_eq!(tables[19].order_id, Some(order.id));
+        assert!(tables[19].pre_bill_printed);
 
         // A takeaway is a direct sale: leaving it registers nothing.
         let takeaway = e
