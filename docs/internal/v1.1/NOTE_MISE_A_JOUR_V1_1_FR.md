@@ -121,3 +121,27 @@ hors ligne ; l'absence de réseau ne bloque jamais la facture. La saisie du text
 clavier à l'écran sur Linux et au clavier du système sur Android, avec les mêmes règles
 (majuscules, longueurs maximales). Aucune règle fiscale n'est portée par l'écran : il envoie des
 identifiants de ventes et de client, le moteur calcule et signe.
+
+## 10. Produit épuisé
+
+**Ce qui change.** Un caissier ou un gérant peut déclarer un produit « Épuisé » jusqu'à la fin de
+la journée commerciale ou jusqu'à réactivation. La caisse refuse alors de l'ajouter à une
+commande ou d'augmenter sa quantité (code `product_sold_out`) ; les lignes déjà saisies, les
+diminutions et les commandes en ligne ne sont pas concernées. Avec HubRise activé et un produit
+qui possède une référence de SKU, l'état est transmis à l'inventaire HubRise (stock zéro avec
+ou sans fin de validité, ou retrait de l'entrée à la levée).
+
+**Pourquoi.** Éviter de vendre ce qui n'est plus disponible, au comptoir comme en ligne, sans
+modifier la carte.
+
+**Impact fiscal.** Aucun : pas d'événement, pas de compteur, pas de ticket ni de rapport
+modifié. La règle ne s'applique qu'à la saisie de la commande, avant toute signature, et ne
+change pas la manière de signer (le principe de l'article 44 de l'arrêté ministériel du
+29 avril 2024 n'est pas touché : aucune donnée déjà signée ne change).
+
+**Journal.** Chaque déclaration, levée et expiration est conservée dans un journal en ajout
+seulement. Le détail est dans le document `PRODUIT_EPUISE_FR.md`.
+
+**Tests.** Voir la section 5 de `PRODUIT_EPUISE_FR.md`. Aucun cas du jeu d'essais de
+l'administration n'est concerné.
+

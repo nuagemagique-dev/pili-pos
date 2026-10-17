@@ -22,6 +22,7 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | components/PriceDialog.vue | ui/components/AmountDialog.kt, opened by feature/order/OrderScreen.kt (OrderDialogs) | - |
 | components/CartSidebar.vue | feature/order/OrderCartColumn.kt (OrderCartColumn), MenuViewModel.kt (sendToKitchen, printPreBill, askCloseUnpaid, closeUnpaid, unpaidClosed), OrderScreen.kt (CloseUnpaidDialog over ui/components/PinDialog.kt) over ui/state/OrderStore.kt | `leave_order` `sign_pre_bill` `close_unpaid` |
 | components/OrderLineItem.vue | feature/order/OrderLineItem.kt (OrderLineItem, lineNotes), MenuViewModel.kt (incrementLine, decrementLine, removeLine) over ui/state/OrderStore.kt | `update_order_line_quantity` `remove_order_line` |
+| components/SoldOutDialog.vue, components/SoldOutList.vue, utils/soldOut.ts, the "Épuisé" bar of OrderView.vue, stores/menu.ts (loadSoldOut, setAvailability) | feature/order/SoldOutDialog.kt (SoldOutBar, SoldOutDialog, SoldOutList, endOfDayLabel), MenuViewModel.kt (toggleSoldOutMode, openSoldOutList, setAvailability, the sold-out branches of addItem), OrderState.kt (OrderDialog.SoldOut, SoldOutList, SoldOutChoice) | `list_sold_out` `set_sold_out` `clear_sold_out` |
 | components/VatSummary.vue | ui/components/VatSummary.kt over ui/format/CartAmounts.kt (vatRows), drawn by feature/order/OrderCartColumn.kt | - |
 
 ## Differences
@@ -83,3 +84,20 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   clock is replaceable (`LocalOrderNow`) so that the goldens are stable.
 - **Sizes and flash.** Text sizes use the theme tokens (the 40 px total becomes the 28 sp `sizeXl`); the green flash
   of a new line is not reproduced (the quantity badge of the product button shows the change).
+
+## Differences of the sold-out switch (v1.1, V11-D16)
+
+- **Same behaviour.** An "Épuisé" button above the product grid (cashier and manager only) turns a mode on: a tap on a
+  product opens its availability dialog (until the end of the day, until re-enabled, available) instead of adding it.
+  Out of the mode a sold-out product is greyed with an "Épuisé" badge and a tap shows the refusal toast
+  (`err_product_sold_out`) without adding anything; the grid is read again in case the end of the day has passed.
+  "Produits épuisés (n)" lists the sold-out products and puts one back on sale; the list stays open. No long press.
+- **Refusal.** A refused change (the engine answers `forbidden`, for example) is shown as an error toast and the
+  availability dialog stays open, as in Vue. A choice equal to the current state just closes the dialog.
+- **Role.** `SessionStore.canTakePayment` gates the bar and the sold-out reads (the engine refuses the others); a
+  waiter still sees the greyed products and the refusal.
+- **End of day label.** `18/10 04:00` in Brussels time: `endOfDayLabel` over `PosDateTime` (Vue: `utils/soldOut.ts`
+  over `utils/datetime.ts`), whatever the device zone. The engine computes the end of the day; neither UI does.
+- **Reads.** The list is read with the menu (language change, `CatalogUpdated`, `Resync`) and again when the list opens;
+  every change returns the new list, and the grid is read again.
+

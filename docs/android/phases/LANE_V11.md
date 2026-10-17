@@ -665,3 +665,26 @@ three Peppol statuses; Settings Peppol panel with a parked delivery. Vue: the sa
 `TextKeyboard` open on each field. The golden PNGs under `android/app/src/test/screenshots/`
 are Robolectric renders, not device captures. The existing captures of the Reports Tickets tab
 changed (checkbox column) and must be retaken too.
+
+### V11-T3 (B sold-out), 2026-10-17
+
+**Delivered.** Migration 41 (`menu_item_sold_out`, `sold_out_log` with triggers, `hubrise_inventory_sync`),
+`pos_db::queries::sold_out`, `commands/sold_out.rs` (`set_sold_out`, `clear_sold_out`, `list_sold_out`), the
+`product_sold_out` refusal in add, quantity increase and add with options, `MenuItem.sold_out` and
+`sold_out_until` (core, FFI record, TS type), `pos_hubrise::inventory` (drain pass called by the outbox loop),
+Tauri wrappers, FFI facade and `SoldOutItem` record, Vue (`SoldOutDialog.vue`, `SoldOutList.vue`, bar and mode in
+`OrderView.vue`, greyed tile with badge, store, `utils/soldOut.ts`, Playwright `sold-out.spec.ts`), Android
+(`SoldOutDialog.kt`, state, view model, grid badge, unit and content tests, three goldens), parity doc, French
+documents `PRODUIT_EPUISE_FR.md` and section 10 of the update note, decisions V11-D14 to D16 and D36.
+
+**Deviations from the plan text.** `hubrise_inventory_sync.version` added; one HubRise request per product; the
+commands return the sold-out list; the default HubRise scope is not changed (V11-D15a, owner to verify the permission
+name and the sandbox behaviour); `err_product_sold_out` has no `{product}` placeholder (the code still carries the id).
+
+**Captures to retake (no emulator in the lane).** Both UIs, French (zh where the runbook asks): order screen in
+"Épuisé" mode with the hint; the availability dialog of an available product and of a product sold out for the day
+(status line); a greyed product with its badge; the refusal toast; "Produits épuisés (n)" with two rows and the
+empty list. The existing order screen captures changed (the "Épuisé" and "Produits épuisés" bar sits between the
+category tabs and the grid for cashiers and managers) and must be retaken. Android goldens recorded:
+`order_soldout_mode`, `order_soldout_dialog`, `order_soldout_list` (Robolectric renders, not device captures).
+

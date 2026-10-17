@@ -1360,3 +1360,37 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **V11-D35 Goldens of the invoice screens (T2).** The Peppol settings golden is recorded at 1920 x 1500 dp so
   that the parked rows below the integration panels are visible. The existing goldens of the tickets tab change
   with the new checkbox column and the Facture button and are recorded again.
+- **V11-D14 Sold-out model (T3).** Implemented as planned: `menu_item_sold_out` (current state, `until` as RFC 3339
+  text with the Brussels offset, NULL for "until re-enabled"), append-only `sold_out_log` (set, clear, expired),
+  migration 41. Expiry is by time: `julianday(until) <= julianday('now')` ends the state (the menu read, the refusal and
+  the HubRise state all read it the same way), and the `expired` log row is written lazily by `expire_due`, called on
+  `get_menu_items`, `list_sold_out`, `set_sold_out` and `clear_sold_out`. The end of the day is the next
+  `day_end_hour` o'clock in Brussels after the business day of "now" (`business_date`); a local time inside the spring
+  gap is read one hour later. No fiscal event, no counter.
+- **V11-D14a Commands return the list (T3).** `set_sold_out` and `clear_sold_out` return the updated list of sold-out
+  products, so a UI refreshes in one call. `list_sold_out`, `set_sold_out` and `clear_sold_out` are `Access::Cashier`
+  and take the UI language for the product names. Clearing a product that is not sold out writes no log row.
+- **V11-D14b Refusal order (T3).** `product_sold_out|product=<id>` is checked before the catalogue is read in
+  `do_add_order_line` and `do_add_order_line_with_modifiers`, and in `do_update_order_line_quantity` only when the new
+  quantity is greater than the current one (same quantity, decrease and removal pass). Orders from webshop or HubRise
+  ingestion do not go through these commands and are not affected.
+- **V11-D15 Sold-out to HubRise (T3).** One request per product (not one array) so that a refusal of one SKU parks only
+  that row. `hubrise_inventory_sync` gains a `version` column (not in the plan): a change made while a send is in
+  flight bumps it, and the send then leaves the row dirty instead of marking it synced. A new change of a parked
+  product clears the park (attempts, backoff and reason reset). The existing outbox loop calls
+  `inventory::process_pending` after its order pass; the engine wakes it through `hubrise_outbox_wake`. Retries have no
+  maximum (like order PATCHes). An end of day already past at send time is sent as `stock: null`.
+- **V11-D15a HubRise scope (T3).** The installation default scope (`location[orders.write,customer_list.read,catalog.read]`)
+  is NOT changed: it is cited by the v1.0.0 installation manual and a change forces every installation to consent
+  again. The inventory push needs the inventory write right on the token; the owner must add it to `scope` in the
+  installation configuration and verify the exact permission name in the HubRise sandbox before the first live use.
+  Without it HubRise answers 403, the row is parked with that reason, and the till keeps refusing the product
+  locally. The HubRise inventory API was exercised against the local mock only.
+- **V11-D16 Sold-out UI (T3).** Implemented as planned on both UIs. Tapping a sold-out product out of the mode shows
+  the refusal toast locally (no engine call) and reads the grid again, so a stale flag (end of day passed) corrects
+  itself. The Épuisé bar is drawn for cashier and manager (`canTakePayment`); the sold-out list is read for them only.
+  A waiter sees the flags (they come with the menu) but cannot change them. Strings are the `soldout_*` keys of
+  `ui/src/i18n.ts` and the `err_product_sold_out` text, shared with Android through `vue_to_android.mjs`.
+- **V11-D36 Error count (T3).** `errors::ALL` now has 126 codes (one more: `product_sold_out`); the FFI test
+  `every_code_of_both_lists_maps_to_coded` follows.
+
