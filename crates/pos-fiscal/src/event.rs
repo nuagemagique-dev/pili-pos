@@ -395,6 +395,7 @@ pub fn build_pre_bill_input(
 /// with it: same id, name, scope, type and groupingId on both sides
 /// (producers FAQ Q304 d), negated on the from side. Nothing is
 /// printed (`ticketMedium` NONE, as the fixture).
+#[allow(clippy::too_many_arguments)]
 pub fn build_cost_center_change_input(
     config: &PosConfig,
     identity: &SoftwareIdentity,
