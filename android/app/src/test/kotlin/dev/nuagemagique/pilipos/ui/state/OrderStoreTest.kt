@@ -101,6 +101,8 @@ class OrderStoreTest {
         kitchenPrinter = true,
         sortOrder = 1,
         active = true,
+        soldOut = false,
+        soldOutUntil = null,
     )
 
     private fun orderLine(menuItemId: Long) =

@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -91,7 +92,8 @@ internal fun MenuGrid(
 /**
  * One product button (`MenuItemButton.vue`): the name in the UI language with the other one underneath (or the menu
  * code when the till shows codes), the price or the open-price badge, the category colour as a band on the left and
- * the quantity already in the cart bottom right. Test tags: `menu_item_<id>`, `menu_item_<id>_qty`.
+ * the quantity already in the cart bottom right. A sold-out product is greyed with an "Épuisé" badge top right. Test
+ * tags: `menu_item_<id>`, `menu_item_<id>_qty`, `menu_item_<id>_soldout`.
  */
 @Composable
 @Suppress("LongParameterList")
@@ -112,12 +114,27 @@ private fun MenuItemButton(
                 .heightIn(min = ButtonMinHeight)
                 .tapScale(source)
                 .clip(RoundedCornerShape(PiliTheme.dimens.radiusMd))
-                .background(c.bgSecondary)
+                .alpha(if (item.soldOut) SOLD_OUT_ALPHA else 1f)
+                .background(if (item.soldOut) c.bgSurface else c.bgSecondary)
                 .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
                 .testTag("menu_item_${item.id}"),
     ) {
         Box(Modifier.width(ColorBand).fillMaxHeight().background(categoryColor ?: c.border))
         ItemLabel(item, language, labelMode)
+        if (item.soldOut) {
+            Text(
+                text = vueText("soldout_badge"),
+                style = PiliTheme.typography.body.copy(fontSize = PiliTheme.typography.sizeSm, fontWeight = FontWeight.Bold),
+                color = c.textOnAccent,
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(PiliTheme.dimens.spaceSm)
+                        .background(c.accentWarning, RoundedCornerShape(6.dp))
+                        .padding(horizontal = PiliTheme.dimens.spaceSm, vertical = 2.dp)
+                        .testTag("menu_item_${item.id}_soldout"),
+            )
+        }
         if (inCart > 0) {
             Text(
                 text = inCart.toString(),
@@ -194,3 +211,6 @@ private fun ItemLabel(
 }
 
 private val QtyBadge = 15.dp
+
+/** A sold-out product button is greyed (`.item-btn.sold-out` of `MenuItemButton.vue`). */
+private const val SOLD_OUT_ALPHA = 0.55f

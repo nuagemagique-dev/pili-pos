@@ -48,6 +48,18 @@ internal object VueStringIds {
         this["card_wait"] = R.string.card_wait
         this["back"] = R.string.back
         this["open_price_title"] = R.string.open_price_title
+        this["soldout_mode"] = R.string.soldout_mode
+        this["soldout_mode_hint"] = R.string.soldout_mode_hint
+        this["soldout_badge"] = R.string.soldout_badge
+        this["soldout_list_button"] = R.string.soldout_list_button
+        this["soldout_list_title"] = R.string.soldout_list_title
+        this["soldout_list_empty"] = R.string.soldout_list_empty
+        this["soldout_until_day"] = R.string.soldout_until_day
+        this["soldout_until_reenabled"] = R.string.soldout_until_reenabled
+        this["soldout_available"] = R.string.soldout_available
+        this["soldout_status_day"] = R.string.soldout_status_day
+        this["soldout_status_reenabled"] = R.string.soldout_status_reenabled
+        this["soldout_reenable"] = R.string.soldout_reenable
         this["open_price_badge"] = R.string.open_price_badge
         this["to_pay"] = R.string.to_pay
         this["received"] = R.string.received
@@ -254,6 +266,9 @@ internal object VueStringIds {
         this["cash_in"] = R.string.cash_in
         this["cash_out"] = R.string.cash_out
         this["cash_open_drawer"] = R.string.cash_open_drawer
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["cash_declaration"] = R.string.cash_declaration
         this["cash_declaration_hint"] = R.string.cash_declaration_hint
         this["kitchen_slip_failed"] = R.string.kitchen_slip_failed
@@ -266,9 +281,6 @@ internal object VueStringIds {
         this["cash_err_amount"] = R.string.cash_err_amount
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_email"] = R.string.delivery_email
         this["delivery_both"] = R.string.delivery_both
         this["delivery_unreachable_note"] = R.string.delivery_unreachable_note
@@ -507,6 +519,9 @@ internal object VueStringIds {
         this["integrations_turn_off"] = R.string.integrations_turn_off
         this["integrations_log"] = R.string.integrations_log
         this["integrations_source_config"] = R.string.integrations_source_config
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["integrations_source_admin"] = R.string.integrations_source_admin
         this["integrations_settle_first"] = R.string.integrations_settle_first
         this["settings_hubrise_pending"] = R.string.settings_hubrise_pending
@@ -519,9 +534,6 @@ internal object VueStringIds {
         this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_delay_label"] = R.string.webshop_delay_label
         this["webshop_action_reprint"] = R.string.webshop_action_reprint
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
