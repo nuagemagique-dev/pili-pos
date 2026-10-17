@@ -2,6 +2,7 @@ package dev.nuagemagique.pilipos.feature.order
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode

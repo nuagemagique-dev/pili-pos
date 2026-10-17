@@ -168,4 +168,10 @@ class OrderScreenshotTest {
     fun empty() {
         capture(OrderUiState(signedIn = true), "order_empty")
     }
+
+    @Test
+    fun tablePicker() {
+        val dialog = OrderDialog.TablePicker(4, listOf(1, 2, 3, 6, 7, 9, 10, 12))
+        capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart.copy(canTransfer = true), dialog = dialog), "order_table_picker")
+    }
 }
