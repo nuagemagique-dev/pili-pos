@@ -134,6 +134,31 @@ class KeyWedgeSourceTest {
     }
 
     @Test
+    fun aNewTimingReleasesTheHeldKeysThenAppliesTheNewGap() {
+        source.start()
+        assertTrue(down(KeyEvent.KEYCODE_4))
+        assertTrue(delivered.isEmpty())
+
+        source.configure(WedgeConfig(maxGapMs = 150L, minLen = 6, maxLen = 32))
+
+        // The held key left at once, before the new gap is applied.
+        assertEquals(listOf(KeyEvent.ACTION_DOWN to KeyEvent.KEYCODE_4, KeyEvent.ACTION_UP to KeyEvent.KEYCODE_4), delivered)
+        assertTrue(down(KeyEvent.KEYCODE_5))
+        shadowOf(Looper.getMainLooper()).idleFor(60, TimeUnit.MILLISECONDS)
+        assertEquals("still held after 60 ms (gap 150 ms)", 2, delivered.size)
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+        assertEquals(
+            listOf(
+                KeyEvent.ACTION_DOWN to KeyEvent.KEYCODE_4,
+                KeyEvent.ACTION_UP to KeyEvent.KEYCODE_4,
+                KeyEvent.ACTION_DOWN to KeyEvent.KEYCODE_5,
+                KeyEvent.ACTION_UP to KeyEvent.KEYCODE_5,
+            ),
+            delivered,
+        )
+    }
+
+    @Test
     fun theReplayIsNotSeenByTheDetectorAgain() {
         source.start()
         val scans =

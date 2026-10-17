@@ -1,6 +1,9 @@
 package dev.nuagemagique.pilipos.feature.login
 
 import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import dev.nuagemagique.pilipos.engine.EngineFixture
@@ -226,6 +229,35 @@ class LoginBadgeTest {
             r.model.cancelPin()
             runCurrent()
             assertFalse(r.badges.store.endShiftMode.value)
+        }
+
+    @Test
+    fun leavingTheLoginScreenResetsTheEndShiftModeOfTheStore() =
+        runTest {
+            val (r, f) = start()
+            coEvery { f.engine.badgeTap("0A0B0C", false) } returns outcome(BadgeOutcomeKind.IGNORED)
+            r.model.onTile(cashier)
+            r.model.toggleEndShift()
+            runCurrent()
+            assertTrue(r.badges.store.endShiftMode.value)
+
+            // The screen goes away: the view model is cleared by its owner.
+            val owner = ViewModelStore()
+            ViewModelProvider.create(
+                owner,
+                object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T = r.model as T
+                },
+            )[LoginViewModel::class.java]
+            owner.clear()
+
+            assertFalse(r.badges.store.endShiftMode.value)
+            // A scan on another screen is an ordinary scan, not a clock-out only.
+            r.badges.usb.scan("0A0B0C")
+            runCurrent()
+            coVerify(exactly = 1) { f.engine.badgeTap("0A0B0C", false) }
+            coVerify(exactly = 0) { f.engine.badgeTap(any(), true) }
         }
 
     @Test

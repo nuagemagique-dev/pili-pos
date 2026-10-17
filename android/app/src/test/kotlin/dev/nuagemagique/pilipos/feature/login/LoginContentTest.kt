@@ -164,6 +164,47 @@ class LoginContentTest {
         compose.onNodeWithText("le code PIN termine le service").assertIsDisplayed()
     }
 
+    // ── The badge hints (lane 5) ──────────────────────────────────
+
+    @Test
+    fun theTilesHintAtTheBadgeOnlyWithBadgeLoginAndNotInInszMode() {
+        show(base.copy(badgeReaderOn = true, badgeLoginOn = true))
+        compose.onNodeWithTag("login_badge_hint").assertIsDisplayed().assertTextEquals(catalog.text("login_badge_hint", AppLanguage.FR))
+    }
+
+    @Test
+    fun noBadgeHintInInszMode() {
+        show(base.copy(badgeReaderOn = true, badgeLoginOn = true, numpadMode = true))
+        compose.onNodeWithTag("login_badge_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun noBadgeHintWithoutBadgeLogin() {
+        show(base.copy(badgeReaderOn = true, badgeLoginOn = false))
+        compose.onNodeWithTag("login_badge_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun thePinPadHintsAtTheBadgeInEndShiftModeWithAReader() {
+        show(base.copy(badgeReaderOn = true, pin = PinPanel(cashier, endShift = true)))
+        compose
+            .onNodeWithTag("login_end_shift_badge_hint")
+            .assertIsDisplayed()
+            .assertTextEquals(catalog.text("end_shift_badge_hint", AppLanguage.FR))
+    }
+
+    @Test
+    fun noEndShiftBadgeHintOutsideEndShiftMode() {
+        show(base.copy(badgeReaderOn = true, pin = PinPanel(cashier, endShift = false)))
+        compose.onNodeWithTag("login_end_shift_badge_hint").assertDoesNotExist()
+    }
+
+    @Test
+    fun noEndShiftBadgeHintWithTheReaderOff() {
+        show(base.copy(badgeReaderOn = false, pin = PinPanel(cashier, endShift = true)))
+        compose.onNodeWithTag("login_end_shift_badge_hint").assertDoesNotExist()
+    }
+
     @Test
     fun anOperatorWithoutAPinOnShiftGetsLoginBackAndEndShift() {
         show(base.copy(shifts = listOf(shift(WAITER_INSZ)), pin = PinPanel(waiterNoPin, error = "PIN incorrect")))

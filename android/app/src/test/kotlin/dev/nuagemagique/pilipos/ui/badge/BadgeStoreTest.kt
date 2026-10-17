@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.i18n.FdmTexts
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.state.EventFeed
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +34,7 @@ import uniffi.pos_ffi.BadgeLink
 import uniffi.pos_ffi.BadgeOutcomeKind
 import uniffi.pos_ffi.BadgeOverview
 import uniffi.pos_ffi.BadgeSettingsInput
+import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -252,8 +255,61 @@ class BadgeStoreTest {
             assertEquals(ToastVariant.Error, toast.variant)
             assertTrue(toast.message.contains("Bob"))
             assertTrue(toast.message.startsWith("Pointage refusé"))
+            // The FDM's own text, as the FDM message table words it, reaches the toast (L5-D8).
+            val fdmText = FdmTexts(r.catalog).describe("FDM unreachable", AppLanguage.FR)!!.french
+            assertTrue(fdmText.isNotBlank())
+            assertTrue(toast.message, toast.message.contains(fdmText))
             assertEquals(listOf("refused"), r.cue.played)
             assertEquals(0, r.store.presenceVersion.value)
+        }
+
+    @Test
+    fun presenceFailedWithAKnownCodeShowsItsTextNotTheCode() =
+        runTest {
+            val (r, f) = start(badgeView(reader = "usb"))
+            coEvery { f.engine.badgeTap("112233", false) } returns
+                outcome(BadgeOutcomeKind.PRESENCE_FAILED, CASHIER, "Bob", error = "previous_day_open")
+
+            r.store.onScan("112233")
+
+            val toast = r.toasts.toasts.value.single()
+            assertEquals(ToastVariant.Error, toast.variant)
+            assertTrue(toast.message, toast.message.contains(r.catalog.text("err_previous_day_open", AppLanguage.FR)))
+            assertFalse(toast.message, toast.message.contains("previous_day_open"))
+            assertEquals(listOf("refused"), r.cue.played)
+            assertEquals(0, r.store.presenceVersion.value)
+        }
+
+    // ── The setting follows the engine ────────────────────────────
+
+    @Test
+    fun aResyncReadsTheSettingAgain() =
+        runTest {
+            lateinit var feed: EventFeed
+            val (r, f) = start(badgeView(reader = "off")) { feed = EventFeed(it) }
+            assertFalse(r.usb.calls.contains("start"))
+            coEvery { f.engine.getBadgeSettings() } returns badgeView(reader = "usb")
+
+            feed.send(PosEvent.Resync(missed = 1L))
+            runCurrent()
+
+            assertEquals("usb", r.store.settings.value?.reader)
+            assertEquals("start", r.usb.calls.last())
+        }
+
+    @Test
+    fun aFailedReadKeepsThePreviousSettingAndTheReaderRunning() =
+        runTest {
+            val (r, f) = start(badgeView(reader = "usb"))
+            assertEquals("start", r.usb.calls.last())
+            val callsBefore = r.usb.calls.toList()
+            coEvery { f.engine.getBadgeSettings() } throws PosException.Coded("engine_unavailable", emptyMap())
+
+            r.store.load()
+
+            assertEquals("usb", r.store.settings.value?.reader)
+            assertEquals(callsBefore, r.usb.calls.toList())
+            assertFalse(r.usb.calls.contains("stop"))
         }
 
     @Test

@@ -1,6 +1,9 @@
 package dev.nuagemagique.pilipos.feature.settings
 
 import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.ui.badge.FakeNfcSupport
 import dev.nuagemagique.pilipos.ui.badge.badgeView
@@ -287,6 +290,32 @@ class SettingsBadgeModelTest {
             val toast = r.env.lastToast()
             assertEquals(r.env.text("badge_linked_done", mapOf("name" to "Chen")), toast.message)
             assertEquals(ToastVariant.Success, toast.variant)
+        }
+
+    @Test
+    fun leavingSettingsWhileTheDialogWaitsCancelsTheCapture() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.badgeTap(any(), any()) } returns outcome(BadgeOutcomeKind.IGNORED)
+            r.model.badge.startEnrol(waiter)
+            assertTrue(r.env.badges.store.capturing.value)
+
+            // The view model goes away with the screen: onCleared clears the badge model.
+            val owner = ViewModelStore()
+            ViewModelProvider.create(
+                owner,
+                object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T = r.model as T
+                },
+            )[SettingsViewModel::class.java]
+            owner.clear()
+
+            assertFalse(r.env.badges.store.capturing.value)
+            // The next scan is an ordinary scan: not swallowed by a dead capture.
+            r.env.badges.usb.scan("0001")
+            runCurrent()
+            coVerify(exactly = 1) { r.engine.badgeTap("0001", false) }
         }
 
     @Test

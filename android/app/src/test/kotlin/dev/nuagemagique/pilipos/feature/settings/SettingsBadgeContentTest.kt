@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.settings
 
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -14,11 +15,14 @@ import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.BadgeLogEntry
+import uniffi.pos_ffi.BadgeOverview
 import uniffi.pos_ffi.User
 
 /** The badge reader panel and the badge parts of the employee rows (`BadgeSettings.vue`, `SettingsView.vue`). */
@@ -208,6 +212,62 @@ class SettingsBadgeContentTest {
         compose.onNodeWithTag("badge_log_0").assertTextContains(text("badge_log_link"), substring = true)
         compose.onNodeWithTag("badge_log_0").assertTextContains("Bob", substring = true)
         compose.onNodeWithTag("badge_log_1").assertTextContains(text("badge_log_settings"), substring = true)
+    }
+
+    @Test
+    fun theLogShowsAtMostSixRowsNewestFirst() {
+        val rows =
+            (0 until 8).map {
+                BadgeLogEntry("link", CASHIER_INSZ, "N$it", ADMIN_INSZ, "Alice", "2026-10-17 10:00:00", null)
+            }
+        val state = panel(badgePanel(reader = "usb"))
+        show(state.copy(badge = state.badge.copy(overview = BadgeOverview(listOf(bobBadge), rows))))
+
+        for (i in 0..5) compose.onNodeWithTag("badge_log_$i").assertTextContains("N$i", substring = true)
+        compose.onNodeWithTag("badge_log_6").assertDoesNotExist()
+        compose.onNodeWithTag("badge_log_7").assertDoesNotExist()
+    }
+
+    @Test
+    fun aLogRowNamesTheManagerAndTheBrusselsTime() {
+        show(panel(badgePanel(reader = "usb")))
+
+        // 10:00 UTC on 17 October is 12:00 in Brussels (CEST).
+        compose.onNodeWithTag("badge_log_0").assertTextContains("Alice", substring = true)
+        compose.onNodeWithTag("badge_log_0").assertTextContains("17/10 12:00", substring = true)
+    }
+
+    @Test
+    fun aRevocationRowShowsItsLabelAndTheEmployee() {
+        val revoke = BadgeLogEntry("revoke", CASHIER_INSZ, "Bob", ADMIN_INSZ, "Alice", "2026-10-17 11:00:00", "manager")
+        val state = panel(badgePanel(reader = "usb"))
+        show(state.copy(badge = state.badge.copy(overview = BadgeOverview(emptyList(), listOf(revoke)))))
+
+        compose.onNodeWithTag("badge_log_0").assertTextContains(text("badge_log_revoke"), substring = true)
+        compose.onNodeWithTag("badge_log_0").assertTextContains("Bob", substring = true)
+    }
+
+    // ── The narrow (handheld) layout ──────────────────────────────
+
+    @Test
+    @Config(qualifiers = "w320dp-h470dp-mdpi")
+    fun onANarrowWindowAManagerGetsTheBadgePanelBetweenThePlanAndTheEmployees() {
+        show(panel(badgePanel(reader = "usb", open = false)))
+
+        compose.onNodeWithTag("settings_badges").assertExists()
+        val plan = compose.onNodeWithTag("settings_tables").fetchSemanticsNode().positionInRoot.y
+        val badges = compose.onNodeWithTag("settings_badges").fetchSemanticsNode().positionInRoot.y
+        val workers = compose.onNodeWithTag("settings_workers").fetchSemanticsNode().positionInRoot.y
+        assertTrue("plan $plan, badges $badges", plan < badges)
+        assertTrue("badges $badges, workers $workers", badges < workers)
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h470dp-mdpi")
+    fun onANarrowWindowAWorkerGetsNoBadgePanel() {
+        show(workerState())
+
+        compose.onNodeWithTag("settings_badges").assertDoesNotExist()
     }
 
     @Test
