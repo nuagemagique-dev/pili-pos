@@ -54,6 +54,8 @@ internal data class CheckoutSummary(
     val lines: List<CartLine> = emptyList(),
     val amounts: List<LineAmount> = emptyList(),
     val vatRows: List<VatSplitRow> = emptyList(),
+    /** Σ of the lines' discounts (zero or negative), from the engine's cart lines; 0 without a discount. */
+    val discountCents: Long = 0L,
 )
 
 /**

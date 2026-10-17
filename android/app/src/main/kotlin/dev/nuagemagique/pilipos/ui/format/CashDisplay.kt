@@ -1,5 +1,7 @@
 package dev.nuagemagique.pilipos.ui.format
 
+import uniffi.pos_ffi.DiscountKind
+
 /** Cents of 5 EUR: the step of the first quick amount. */
 private const val STEP_FIVE_EUROS = 500L
 
@@ -14,6 +16,14 @@ private const val NOTE_500_EUROS = 50000L
 
 /** The bank notes offered after the two steps, in cents (Vue: 20, 50, 100, 200, 500 EUR). */
 private val BANK_NOTES_CENTS = listOf(NOTE_20_EUROS, NOTE_50_EUROS, NOTE_100_EUROS, NOTE_200_EUROS, NOTE_500_EUROS)
+
+/** The largest percent a discount takes off. */
+private const val MAX_PERCENT = 99L
+
+/** Half of [PERCENT_DIVISOR]: the rounding of a percent half up. */
+private const val HALF_PERCENT = 50L
+
+private const val PERCENT_DIVISOR = 100L
 
 /** How many quick amounts the till shows at most. */
 private const val QUICK_AMOUNTS_MAX = 3
@@ -67,6 +77,37 @@ object CashDisplay {
             .sorted()
             .take(QUICK_AMOUNTS_MAX)
     }
+
+    /**
+     * The total shown in the discount dialog after a discount of [kind] with [value] (a percent from 1 to 99, or
+     * cents) off [baseCents]: a percent rounded half up, an amount, or everything, as the engine computes it
+     * (`do_apply_discount`). A value out of range, which the dialog refuses to confirm, leaves [baseCents]. Display
+     * only: the engine recomputes and signs the discount.
+     */
+    fun totalAfterDiscountCents(
+        baseCents: Long,
+        kind: DiscountKind,
+        value: Long,
+    ): Long {
+        val off =
+            when (kind) {
+                DiscountKind.FREE -> baseCents
+                DiscountKind.PERCENT ->
+                    if (value in 1L..MAX_PERCENT) {
+                        (baseCents * value + HALF_PERCENT) / PERCENT_DIVISOR // money-display-only
+                    } else {
+                        0L
+                    }
+                DiscountKind.AMOUNT -> if (value in 1L..baseCents) value else 0L
+            }
+        return baseCents - off // money-display-only
+    }
+
+    /** The subtotal before a discount: the net [netCents] with the (negative) [discountCents] put back. Display only. */
+    fun subtotalBeforeDiscountCents(
+        netCents: Long,
+        discountCents: Long,
+    ): Long = netCents - discountCents // money-display-only
 
     /** The sum of [values] (the refund preview: the line totals of the selection). Fails on overflow. */
     fun sumCents(values: List<Long>): Long = values.fold(0L) { acc, value -> Math.addExact(acc, value) } // money-display-only

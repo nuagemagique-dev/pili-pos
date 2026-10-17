@@ -66,7 +66,7 @@ private const val OPENED_TICK_MS = 30_000L
  * nothing is unsent or while it runs. Refusals are the screen's, shown by the view model through `ErrorPresenter`.
  *
  * Test tags: `cart_column`, `cart_title`, `cart_opened`, `cart_empty`, `cart_pending_label`, `cart_unpaid`,
- * `cart_transfer`, `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and
+ * `cart_transfer`, `cart_discount`, `cart_discount_remove`, `cart_total`, `vat_summary`, `cart_send`, `cart_send_count`, `cart_prebill`, `cart_pay`, `cart_pay_amount`, and
  * those of [OrderLineItem].
  */
 @Composable
@@ -192,23 +192,38 @@ private fun TotalRow(
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-        if (state.canCloseUnpaid) {
-            Box(
-                modifier =
-                    Modifier
-                        .defaultMinSize(minHeight = UnpaidHeight)
-                        .border(Hairline, c.accentDanger, RoundedCornerShape(d.radiusMd))
-                        .clickable(role = Role.Button, onClick = actions.onCloseUnpaid)
-                        .padding(horizontal = d.spaceMd)
-                        .testTag("cart_unpaid"),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = vueText("unpaid_close"),
-                    style = t.body.copy(fontWeight = t.weightBold),
-                    color = c.accentDanger,
-                    textAlign = TextAlign.Center,
-                )
+        if (state.canCloseUnpaid || state.canDiscount) {
+            Column(verticalArrangement = Arrangement.spacedBy(d.spaceSm)) {
+                if (state.canDiscount) {
+                    PiliButton(
+                        text = vueText(if (state.orderDiscounted) "discount_remove" else "discount_button"),
+                        onClick = if (state.orderDiscounted) actions.onRemoveOrderDiscount else actions.onDiscount,
+                        variant = PiliButtonVariant.Secondary,
+                        modifier =
+                            Modifier.defaultMinSize(
+                                minHeight = UnpaidHeight,
+                            ).testTag(if (state.orderDiscounted) "cart_discount_remove" else "cart_discount"),
+                    )
+                }
+                if (state.canCloseUnpaid) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .defaultMinSize(minHeight = UnpaidHeight)
+                                .border(Hairline, c.accentDanger, RoundedCornerShape(d.radiusMd))
+                                .clickable(role = Role.Button, onClick = actions.onCloseUnpaid)
+                                .padding(horizontal = d.spaceMd)
+                                .testTag("cart_unpaid"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = vueText("unpaid_close"),
+                            style = t.body.copy(fontWeight = t.weightBold),
+                            color = c.accentDanger,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {

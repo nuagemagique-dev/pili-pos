@@ -19,6 +19,8 @@ import kotlinx.coroutines.sync.withLock
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CreateOrderInput
+import uniffi.pos_ffi.DiscountInput
+import uniffi.pos_ffi.DiscountResult
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
@@ -67,6 +69,8 @@ class OrderStore
             MutableSharedFlow<Throwable>(extraBufferCapacity = BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val mutableSlipFailures =
             MutableSharedFlow<Unit>(extraBufferCapacity = BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        private val mutableDiscountWarnings =
+            MutableSharedFlow<Unit>(extraBufferCapacity = BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val categories = ConcurrentHashMap<Long, Long>()
         private val mutex = Mutex()
 
@@ -95,6 +99,12 @@ class OrderStore
 
         /** A bar or kitchen slip did not print: the order is signed, the slip must be told by hand. */
         val slipFailures: SharedFlow<Unit> = mutableSlipFailures.asSharedFlow()
+
+        /**
+         * A discount was recorded but the P that registers it could not be signed (FDM down, say): it goes with the
+         * next registration or the sale, the screen shows a warning.
+         */
+        val discountWarnings: SharedFlow<Unit> = mutableDiscountWarnings.asSharedFlow()
 
         init {
             // Undispatched: the collector is subscribed when the constructor returns (events have no replay).
@@ -245,6 +255,39 @@ class OrderStore
         suspend fun transferTable(toTable: Int): TableTransferResult = transferOrder(requireCurrent().id, toTable)
 
         /**
+         * Gives a discount on the current order, confirmed by the manager's [pin] (a percent, an amount or "Offert"
+         * for the order, or one line for free). The order and its lines are read again (net amounts, price changes,
+         * what the P registered); a refusal is thrown to the PIN dialog.
+         */
+        suspend fun applyDiscount(
+            input: DiscountInput,
+            userInsz: String,
+            pin: String,
+        ) = mutex.withLock {
+            val order = requireCurrent()
+            discountDone(order.id, gateway.call { engine -> engine.applyDiscount(order.id, input, userInsz, pin) })
+        }
+
+        /** Removes the order discount ([lineId] null) or the free line [lineId], confirmed by the manager's [pin]. */
+        suspend fun removeDiscount(
+            lineId: Long?,
+            userInsz: String,
+            pin: String,
+        ) = mutex.withLock {
+            val order = requireCurrent()
+            discountDone(order.id, gateway.call { engine -> engine.removeDiscount(order.id, lineId, userInsz, pin) })
+        }
+
+        private suspend fun discountDone(
+            orderId: Long,
+            result: DiscountResult,
+        ) {
+            warnIfSlipFailed(result.kitchenSlip)
+            if (result.registrationError != null) mutableDiscountWarnings.tryEmit(Unit)
+            refresh(orderId)
+        }
+
+        /**
          * Closes the current order unpaid, confirmed by the manager's [pin]. When the engine does not report
          * success, [OrderRefusedException] carries its error text. On success the local order is cleared.
          */
@@ -286,12 +329,15 @@ class OrderStore
             unitPriceCents: Long?,
         ) {
             val order = requireCurrent()
-            // A line with options is never merged into (its options differ), nor is an open-price line.
+            // A line with options is never merged into (its options differ), nor is an open-price line, nor a line with
+            // a price change (a till discount): the engine refuses a quantity change on it, so the product gets a new line.
             val existing =
                 if (item.openPrice) {
                     null
                 } else {
-                    mutableLines.value.firstOrNull { it.menuItemId == item.id && it.modifiersJson.isNullOrEmpty() }
+                    mutableLines.value.firstOrNull {
+                        it.menuItemId == item.id && it.modifiersJson.isNullOrEmpty() && it.priceChanges.isEmpty()
+                    }
                 }
             if (existing != null) {
                 val merged = existing.quantity + quantity

@@ -31,6 +31,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
@@ -154,6 +155,8 @@ internal fun cartLine(
     unitPriceCents: Long = 500L,
     vat: VatCode = VatCode.C,
     modifiersJson: String? = null,
+    discountCents: Long = 0L,
+    priceChanges: List<CartPriceChange> = emptyList(),
 ): CartLine =
     CartLine(
         id = id,
@@ -171,8 +174,8 @@ internal fun cartLine(
         nameZh = null,
         code = null,
         unsentQuantity = 0,
-        discountCents = 0,
-        priceChanges = emptyList(),
+        discountCents = discountCents,
+        priceChanges = priceChanges,
     )
 
 internal fun posSettings(): PosSettings =

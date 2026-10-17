@@ -26,6 +26,7 @@ import timber.log.Timber
 import uniffi.pos_ffi.AddWithModifiersInput
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
+import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
@@ -37,8 +38,29 @@ import uniffi.pos_ffi.VatSplitRow
 /** How long the error toast of a refused send or bill stays, in milliseconds (6 s in `CartSidebar.vue`). */
 private const val ERROR_TTL_MS: Long = 6_000L
 
+/** How long the warning of a discount that could not be registered stays, in milliseconds (8 s in `order.ts`). */
+private const val WARNING_TTL_MS: Long = 8_000L
+
 /** The `status` the engine gives a table without an open order. */
 private const val STATUS_FREE = "free"
+
+/** The scope of an order discount's price change (`EVENT`); a free line's is `LINE`. */
+private const val SCOPE_EVENT = "EVENT"
+private const val SCOPE_LINE = "LINE"
+
+/** A cart row with what a manager may do with the line: give it free (no change, no order discount) or remove its change. */
+private fun cartRow(
+    line: CartLine,
+    amount: LineAmount?,
+    manager: Boolean,
+    orderDiscounted: Boolean,
+): CartRow =
+    CartRow(
+        line = line,
+        amount = amount,
+        canOffer = manager && !orderDiscounted && line.priceChanges.isEmpty(),
+        canRemoveDiscount = manager && line.priceChanges.any { it.scope == SCOPE_LINE },
+    )
 
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
@@ -164,6 +186,7 @@ internal class MenuViewModel(
         // The order store is shared by every screen: another order than the one of the route is not this screen's (PD205).
         val current = shared?.takeIf { it.id == routeOrderId }
         val lines = if (current != null) sharedLines else emptyList()
+        val orderDiscounted = lines.any { line -> line.priceChanges.any { it.scope == SCOPE_EVENT } }
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
@@ -171,7 +194,7 @@ internal class MenuViewModel(
             cart =
                 OrderCartState(
                     order = current,
-                    rows = lines.map { CartRow(it, d.amounts[it.id]) },
+                    rows = lines.map { cartRow(it, d.amounts[it.id], l.isManager && current?.status == OrderStatus.OPEN, orderDiscounted) },
                     language = l.language,
                     labelMode = l.labelMode,
                     canPay = l.canPay,
@@ -186,6 +209,8 @@ internal class MenuViewModel(
                             current.tableNumber != null &&
                             lines.isNotEmpty() &&
                             !d.transferring,
+                    canDiscount = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty(),
+                    orderDiscounted = orderDiscounted,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
@@ -203,6 +228,16 @@ internal class MenuViewModel(
     suspend fun run() =
         coroutineScope {
             launch { order.failures.collect { entry.errors().show(it, settings.language.value) } }
+            launch {
+                order.discountWarnings.collect {
+                    val language = settings.language.value
+                    entry.toasts().show(
+                        entry.catalog().text("discount_registration_failed", language),
+                        ToastVariant.Warning,
+                        WARNING_TTL_MS,
+                    )
+                }
+            }
             active.collectLatest { on -> if (on) opened() }
         }
 
@@ -467,6 +502,59 @@ internal class MenuViewModel(
     fun unpaidClosed() {
         data.update { it.copy(dialog = OrderDialog.None) }
         entry.toasts().show(entry.catalog().text("unpaid_closed", settings.language.value), ToastVariant.Success)
+    }
+
+    // ── Discount at the till ──────────────────────────────────────
+
+    /**
+     * Opens the discount dialog (`discountStep` "ask" of `CartSidebar.vue`): a discount on the order's total, or
+     * "Offrir" on [lineId] (the line's amount). Ignored unless a manager may discount this order.
+     */
+    fun askDiscount(lineId: Long? = null) {
+        if (!isRouteOrderCurrent() || !state.value.cart.canDiscount) return
+        val base =
+            if (lineId == null) {
+                order.current.value?.totalCents ?: 0L
+            } else {
+                (data.value.amounts[lineId] as? LineAmount.Total)?.cents ?: 0L
+            }
+        data.update { it.copy(dialog = OrderDialog.Discount(lineId, base)) }
+    }
+
+    /** The input of the dialog: the manager PIN confirms it next. */
+    fun chooseDiscount(input: DiscountInput) {
+        if (data.value.dialog !is OrderDialog.Discount) return
+        val name = session.currentUser.value?.name.orEmpty()
+        data.update { it.copy(dialog = OrderDialog.DiscountPin(name, DiscountAction.Apply(input))) }
+    }
+
+    /** "Retirer la remise" on the order ([lineId] null) or on an offered line: the manager PIN confirms it. */
+    fun askRemoveDiscount(lineId: Long? = null) {
+        if (!isRouteOrderCurrent() || !state.value.cart.canDiscount) return
+        val name = session.currentUser.value?.name.orEmpty()
+        data.update { it.copy(dialog = OrderDialog.DiscountPin(name, DiscountAction.Remove(lineId))) }
+    }
+
+    /**
+     * The PIN typed in the discount dialog: the engine applies or removes the discount for the logged-in manager,
+     * or refuses and the error is thrown to the dialog, which shows it on the pad.
+     */
+    suspend fun confirmDiscountPin(pin: String) {
+        val insz = session.currentUser.value?.insz ?: error("No user")
+        when (val action = (data.value.dialog as? OrderDialog.DiscountPin)?.action ?: error("No discount to confirm")) {
+            is DiscountAction.Apply -> order.applyDiscount(action.input, insz, pin)
+            is DiscountAction.Remove -> order.removeDiscount(action.lineId, insz, pin)
+        }
+    }
+
+    /** The discount was applied or removed (`onDiscountDone`): the dialog closes and the toast says so. */
+    fun discountDone() {
+        val removed = (data.value.dialog as? OrderDialog.DiscountPin)?.action is DiscountAction.Remove
+        data.update { it.copy(dialog = OrderDialog.None) }
+        entry.toasts().show(
+            entry.catalog().text(if (removed) "discount_removed" else "discount_applied", settings.language.value),
+            ToastVariant.Success,
+        )
     }
 
     /** The VAT summary rows of the cart from the engine VAT helper; none when it cannot answer. */

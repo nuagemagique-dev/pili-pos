@@ -38,6 +38,7 @@ import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
 
 /** What the operator can do on the menu part of the order screen. */
@@ -54,6 +55,12 @@ internal data class OrderCallbacks(
     val onUnpaidDone: () -> Unit = {},
     /** The free table picked in the table picker. */
     val onTransferTarget: (Int) -> Unit = {},
+    /** The input of the discount dialog. */
+    val onDiscountChosen: (DiscountInput) -> Unit = {},
+    /** The manager PIN of a discount or its removal; throws what the engine refused. */
+    val onDiscountPin: suspend (String) -> Unit = {},
+    /** The discount was applied or removed. */
+    val onDiscountDone: () -> Unit = {},
 )
 
 /**
@@ -86,6 +93,9 @@ internal fun OrderRoute(
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
             onTransferTarget = model::confirmTransfer,
+            onDiscountChosen = model::chooseDiscount,
+            onDiscountPin = model::confirmDiscountPin,
+            onDiscountDone = model::discountDone,
             onUnpaidDone = {
                 model.unpaidClosed()
                 navigator.navigate(TablesRoutes.TABLES)
@@ -101,6 +111,10 @@ internal fun OrderRoute(
             onPreBill = model::printPreBill,
             onCloseUnpaid = model::askCloseUnpaid,
             onTransfer = model::askTransfer,
+            onDiscount = { model.askDiscount() },
+            onRemoveOrderDiscount = { model.askRemoveDiscount() },
+            onOffer = { model.askDiscount(it) },
+            onRemoveLineDiscount = { model.askRemoveDiscount(it) },
         )
     PosScaffold(
         area = HeaderArea.ORDER,
@@ -191,7 +205,27 @@ internal fun BoxScope.OrderDialogs(
         is OrderDialog.TablePicker ->
             TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
+        is OrderDialog.Discount ->
+            DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)
+        is OrderDialog.DiscountPin -> DiscountPinDialog(dialog, callbacks)
     }
+}
+
+/** The manager PIN of a discount or of its removal (`PinDialog.vue` with `discount_hint` or `discount_remove_hint`). */
+@Composable
+private fun DiscountPinDialog(
+    dialog: OrderDialog.DiscountPin,
+    callbacks: OrderCallbacks,
+) {
+    val hint = vueText(if (dialog.action is DiscountAction.Remove) "discount_remove_hint" else "discount_hint")
+    PinDialog(
+        mode = PinMode.Verify,
+        texts = pinTexts(if (dialog.userName.isBlank()) hint else dialog.userName + "\n" + hint),
+        onSubmit = callbacks.onDiscountPin,
+        describeError = callbacks.describeError,
+        onDone = callbacks.onDiscountDone,
+        onCancel = callbacks.onDismiss,
+    )
 }
 
 /** The manager PIN of "customer left without paying" (`PinDialog.vue` with the hint `unpaid_hint`). */
@@ -201,17 +235,7 @@ private fun CloseUnpaidDialog(
     callbacks: OrderCallbacks,
 ) {
     val hint = vueText("unpaid_hint")
-    val texts =
-        PinPadTexts(
-            title = vueText("pin_enter"),
-            hint = if (userName.isBlank()) hint else userName + "\n" + hint,
-            enterPrompt = vueText("pin_enter"),
-            confirmPrompt = vueText("pin_confirm"),
-            mismatch = vueText("pin_mismatch"),
-            cancel = vueText("back"),
-            clearLabel = uiText(R.string.ui_common_numpad_clear),
-            backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
-        )
+    val texts = pinTexts(if (userName.isBlank()) hint else userName + "\n" + hint)
     PinDialog(
         mode = PinMode.Verify,
         texts = texts,
@@ -221,3 +245,17 @@ private fun CloseUnpaidDialog(
         onCancel = callbacks.onDismiss,
     )
 }
+
+/** The captions of the manager PIN pad, with [hint] under the title. */
+@Composable
+private fun pinTexts(hint: String): PinPadTexts =
+    PinPadTexts(
+        title = vueText("pin_enter"),
+        hint = hint,
+        enterPrompt = vueText("pin_enter"),
+        confirmPrompt = vueText("pin_confirm"),
+        mismatch = vueText("pin_mismatch"),
+        cancel = vueText("back"),
+        clearLabel = uiText(R.string.ui_common_numpad_clear),
+        backspaceLabel = uiText(R.string.ui_common_numpad_backspace),
+    )

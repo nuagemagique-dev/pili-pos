@@ -23,8 +23,14 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CreateOrderInput
+import uniffi.pos_ffi.DiscountInput
+import uniffi.pos_ffi.DiscountKind
+import uniffi.pos_ffi.DiscountReason
+import uniffi.pos_ffi.DiscountResult
+import uniffi.pos_ffi.DiscountTarget
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.Order
@@ -66,6 +72,7 @@ class OrderStoreTest {
         unsent: Long = 0,
         modifiers: String? = null,
         unitPriceCents: Long = 500,
+        priceChanges: List<CartPriceChange> = emptyList(),
     ) = CartLine(
         id = id,
         orderId = 1,
@@ -83,7 +90,7 @@ class OrderStoreTest {
         code = null,
         unsentQuantity = unsent,
         discountCents = 0,
-        priceChanges = emptyList(),
+        priceChanges = priceChanges,
     )
 
     private fun item(
@@ -862,6 +869,140 @@ class OrderStoreTest {
                 assertSame(refusal, e)
             }
             assertEquals(3, r.store.current.value?.tableNumber)
+        }
+
+    private fun halfOff() = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", -250))
+
+    private fun discount(
+        kind: DiscountKind = DiscountKind.PERCENT,
+        value: Long? = 50,
+    ) = DiscountInput(DiscountTarget.Order, kind, value, DiscountReason.STAFF_MEAL, null)
+
+    @Test
+    fun addingTheSameProductAgainOpensANewLineWhenTheLineHasAPriceChange() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, priceChanges = halfOff())))
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(10)
+
+            r.store.addItem(item(10))
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun addingTheSameProductAgainStillMergesIntoAPlainLine() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            coEvery { r.f.engine.updateOrderLineQuantity(1L, 2) } returns Unit
+
+            r.store.addItem(item(10))
+
+            coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(1L, 2) }
+            coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun applyingADiscountSendsTheInputWithThePinAndReadsTheOrderAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 250), SlipOutcome.NOTHING_TO_PRINT, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+
+            r.store.applyDiscount(input, "insz", "4321")
+
+            assertEquals(250L, r.store.current.value?.totalCents)
+            assertEquals(1, r.store.lines.value.single().priceChanges.size)
+            coVerify(exactly = 1) { r.f.engine.applyDiscount(1L, input, "insz", "4321") }
+        }
+
+    @Test
+    fun aDiscountThatCouldNotBeRegisteredIsWarnedAndKept() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable")
+            r.stubReads(order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+
+            r.store.discountWarnings.test {
+                r.store.applyDiscount(input, "insz", "4321")
+                awaitItem()
+            }
+            assertEquals(250L, r.store.current.value?.totalCents)
+        }
+
+    @Test
+    fun aDiscountSlipThatDidNotPrintIsEmittedOnSlipFailures() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val input = discount()
+            coEvery { r.f.engine.applyDiscount(1L, input, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.FAILED, null)
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10)))
+
+            r.store.slipFailures.test {
+                r.store.applyDiscount(input, "insz", "4321")
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun aDiscountRefusalIsThrownAndTheCartKeepsItsLines() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+            val refusal = PosException.Coded("pin_wrong", emptyMap())
+            coEvery { r.f.engine.applyDiscount(any(), any(), any(), any()) } throws refusal
+
+            try {
+                r.store.applyDiscount(discount(), "insz", "0000")
+                fail("expected the refusal")
+            } catch (e: PosException.Coded) {
+                assertSame(refusal, e)
+            }
+            assertEquals(500L, r.store.current.value?.totalCents)
+            assertTrue(r.store.lines.value.single().priceChanges.isEmpty())
+        }
+
+    @Test
+    fun removingAnOrderDiscountPassesNoLineAndReadsTheOrderAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3, totalCents = 250), listOf(line(1, 10, priceChanges = halfOff())))
+            coEvery { r.f.engine.removeDiscount(1L, null, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3, totalCents = 500), SlipOutcome.NOTHING_TO_PRINT, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(1, 10)))
+
+            r.store.removeDiscount(null, "insz", "4321")
+
+            assertEquals(500L, r.store.current.value?.totalCents)
+            assertTrue(r.store.lines.value.single().priceChanges.isEmpty())
+        }
+
+    @Test
+    fun removingAnOfferedLinePassesTheLineId() =
+        runTest {
+            val r = rig()
+            r.store.seed(
+                r,
+                order(id = 1, table = 3),
+                listOf(line(4, 10, priceChanges = listOf(CartPriceChange("TILL-FREE-LINE", "Offert", "LINE", -500)))),
+            )
+            coEvery { r.f.engine.removeDiscount(1L, 4L, "insz", "4321") } returns
+                DiscountResult(order(id = 1, table = 3), SlipOutcome.NOTHING_TO_PRINT, null)
+            r.stubReads(order(id = 1, table = 3, totalCents = 500), listOf(line(4, 10)))
+
+            r.store.removeDiscount(4L, "insz", "4321")
+
+            coVerify(exactly = 1) { r.f.engine.removeDiscount(1L, 4L, "insz", "4321") }
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

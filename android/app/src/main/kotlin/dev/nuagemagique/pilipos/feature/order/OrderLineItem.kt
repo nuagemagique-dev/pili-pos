@@ -31,9 +31,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.nuagemagique.pilipos.ui.components.PiliButton
+import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.format.BilingualName
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
+import dev.nuagemagique.pilipos.ui.format.formatCents
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -56,8 +59,9 @@ private val Hairline = 1.dp
  * (amber mark on the left). The amount is the engine's (PD208): the line total from `CartAmounts.lineAmount`, or
  * the quantity and the unit price as text for a line the VAT split leaves out (code X); nothing is computed here.
  *
- * Test tags: `cart_line_<id>`, `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_amount`,
- * `_remove`.
+ * Under the line each public price change is a row (`_change_<n>`), with the manager's `_offer` and
+ * `_remove_discount` buttons. Test tags: `cart_line_<id>`, `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`,
+ * `_notes`, `_amount`, `_remove`.
  */
 @Composable
 internal fun OrderLineItem(
@@ -72,42 +76,90 @@ internal fun OrderLineItem(
     val t = PiliTheme.typography
     val id = row.line.id
     val names = bilingualName(row.line, state.language, state.labelMode)
-    Row(
+    Column(
         modifier =
             modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = LineMinHeight)
                 .drawBehind {
                     drawRect(c.border, topLeft = Offset(0f, size.height - Hairline.toPx()), size = Size(size.width, Hairline.toPx()))
                     if (pending) drawRect(c.accentWarning, size = Size(PendingMark.toPx(), size.height))
                 }.padding(vertical = d.spaceXs)
                 .padding(start = if (pending) PendingInset else 0.dp)
                 .testTag("cart_line_$id"),
-        horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
+    ) {
+        Row(
+            // The line is 64 dp high with its vertical padding, as before the change rows existed.
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = LineMinHeight - d.spaceXs * 2),
+            horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            QuantityStepper(id, row.line.quantity, actions)
+            LineNames(id, names, lineNotes(row.line.modifiersJson), Modifier.weight(1f))
+            Text(
+                text = amountText(row.amount),
+                style = t.figure.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
+                color = c.textPrimary,
+                maxLines = 1,
+                modifier = Modifier.testTag("cart_line_${id}_amount"),
+            )
+            // Destructive: set apart by a rule, never where the minus is.
+            Box(
+                modifier =
+                    Modifier
+                        .padding(start = d.spaceSm)
+                        .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) },
+            ) {
+                LineControl(
+                    icon = Icons.Filled.Close,
+                    description = vueText("line_remove"),
+                    enabled = true,
+                    modifier = Modifier.testTag("cart_line_${id}_remove"),
+                ) { actions.onRemove(id) }
+            }
+        }
+        LineChanges(row, actions)
+    }
+}
+
+/** The public price changes of the line ("Remise 50 %  -20,00"), then the manager's "Offrir" or "Retirer la remise". */
+@Composable
+private fun LineChanges(
+    row: CartRow,
+    actions: OrderCartActions,
+) {
+    val changes = row.line.priceChanges
+    if (changes.isEmpty() && !row.canOffer && !row.canRemoveDiscount) return
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    val id = row.line.id
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = PiliTheme.dimens.spaceXs),
+        horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuantityStepper(id, row.line.quantity, actions)
-        LineNames(id, names, lineNotes(row.line.modifiersJson), Modifier.weight(1f))
-        Text(
-            text = amountText(row.amount),
-            style = t.figure.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
-            color = c.textPrimary,
-            maxLines = 1,
-            modifier = Modifier.testTag("cart_line_${id}_amount"),
-        )
-        // Destructive: set apart by a rule, never where the minus is.
-        Box(
-            modifier =
-                Modifier
-                    .padding(start = d.spaceSm)
-                    .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) },
-        ) {
-            LineControl(
-                icon = Icons.Filled.Close,
-                description = vueText("line_remove"),
-                enabled = true,
-                modifier = Modifier.testTag("cart_line_${id}_remove"),
-            ) { actions.onRemove(id) }
+        Column(Modifier.weight(1f)) {
+            changes.forEachIndexed { index, change ->
+                Row(Modifier.fillMaxWidth().testTag("cart_line_${id}_change_$index"), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(change.name, style = t.body.copy(fontSize = t.sizeSm), color = c.accentWarning)
+                    Text(formatCents(change.amountCents), style = t.figure.copy(fontSize = t.sizeSm), color = c.accentWarning)
+                }
+            }
+        }
+        if (row.canOffer) {
+            PiliButton(
+                text = vueText("discount_offer"),
+                onClick = { actions.onOffer(id) },
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.testTag("cart_line_${id}_offer"),
+            )
+        }
+        if (row.canRemoveDiscount) {
+            PiliButton(
+                text = vueText("discount_remove"),
+                onClick = { actions.onRemoveLineDiscount(id) },
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.testTag("cart_line_${id}_remove_discount"),
+            )
         }
     }
 }

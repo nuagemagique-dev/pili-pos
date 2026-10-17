@@ -5,6 +5,7 @@ import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
+import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
@@ -32,16 +33,48 @@ internal sealed interface OrderDialog {
         val tables: List<Int>,
     ) : OrderDialog
 
+    /**
+     * "Discount": the dialog of a manager's discount on the order ([lineId] null) or for one line free. [baseCents]
+     * is what it applies to: the order's total, or the line's amount.
+     */
+    data class Discount(
+        val lineId: Long?,
+        val baseCents: Long,
+    ) : OrderDialog
+
+    /** The manager PIN that confirms a discount or its removal; [userName] is shown as the hint. */
+    data class DiscountPin(
+        val userName: String,
+        val action: DiscountAction,
+    ) : OrderDialog
+
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
     data class CloseUnpaid(
         val userName: String,
     ) : OrderDialog
 }
 
+/** What the PIN of a discount confirms. */
+internal sealed interface DiscountAction {
+    /** Apply [input] to the order or to a line. */
+    data class Apply(
+        val input: DiscountInput,
+    ) : DiscountAction
+
+    /** Remove the order discount ([lineId] null) or the offered line [lineId]. */
+    data class Remove(
+        val lineId: Long?,
+    ) : DiscountAction
+}
+
 /** One line of the cart column: the engine line and its amount, null until the VAT helper answered. */
 internal data class CartRow(
     val line: CartLine,
     val amount: LineAmount?,
+    /** A manager may give the line for free ("Offrir"): no change on it and no order discount. */
+    val canOffer: Boolean = false,
+    /** A manager may remove the line's own change (an offered line). */
+    val canRemoveDiscount: Boolean = false,
 )
 
 /**
@@ -68,6 +101,10 @@ internal data class OrderCartState(
     val canCloseUnpaid: Boolean = false,
     /** A dine-in order with lines may move to another table (`canTransfer`). */
     val canTransfer: Boolean = false,
+    /** A manager may give an order discount (`canDiscount`). */
+    val canDiscount: Boolean = false,
+    /** An order discount applies: the button removes it instead (`orderDiscounted`). */
+    val orderDiscounted: Boolean = false,
 )
 
 /** What the cart column can ask for. */
@@ -80,6 +117,10 @@ internal data class OrderCartActions(
     val onPreBill: () -> Unit = {},
     val onCloseUnpaid: () -> Unit = {},
     val onTransfer: () -> Unit = {},
+    val onDiscount: () -> Unit = {},
+    val onRemoveOrderDiscount: () -> Unit = {},
+    val onOffer: (lineId: Long) -> Unit = {},
+    val onRemoveLineDiscount: (lineId: Long) -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */

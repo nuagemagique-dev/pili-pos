@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.feature.tables.table
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
 import dev.nuagemagique.pilipos.ui.state.EventFeed
@@ -28,8 +29,16 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import uniffi.pos_ffi.CartPriceChange
+import uniffi.pos_ffi.DiscountInput
+import uniffi.pos_ffi.DiscountKind
+import uniffi.pos_ffi.DiscountReason
+import uniffi.pos_ffi.DiscountResult
+import uniffi.pos_ffi.DiscountTarget
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.SlipOutcome
+import uniffi.pos_ffi.UserRole
 import uniffi.pos_ffi.VatCode
 import uniffi.pos_ffi.VatSplitRow
 
@@ -599,5 +608,249 @@ class MenuViewModelTest {
 
             assertEquals(dev.nuagemagique.pilipos.ui.feedback.ToastVariant.Error, r.lastToast().variant)
             assertTrue(r.state.cart.canTransfer)
+        }
+
+    // ── Discount at the till ──────────────────────────────────────
+
+    private val waiter = admin.copy(insz = "85010100456", name = "Wei", role = UserRole.WAITER)
+
+    private fun halfOff() = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", -325))
+
+    private fun offered() = listOf(CartPriceChange("TILL-FREE-LINE", "Offert", "LINE", -650))
+
+    private val staffMeal = DiscountInput(DiscountTarget.Order, DiscountKind.PERCENT, 50L, DiscountReason.STAFF_MEAL, null)
+
+    @Test
+    fun aManagerMayDiscountAnOrderWithLinesAndOfferAPlainLine() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            assertTrue(r.state.cart.canDiscount)
+            assertFalse(r.state.cart.orderDiscounted)
+            assertTrue(r.state.cart.rows.single().canOffer)
+            assertFalse(r.state.cart.rows.single().canRemoveDiscount)
+        }
+
+    @Test
+    fun aWaiterGetsNoDiscountAction() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            coEvery { f.engine.login(waiter.insz, any()) } returns waiter
+            r.session.login(waiter.insz, "1234")
+            runCurrent()
+
+            assertFalse(r.state.cart.canDiscount)
+            assertFalse(r.state.cart.rows.single().canOffer)
+            r.model.askDiscount()
+            assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    @Test
+    fun anEmptyOrderCannotBeDiscounted() =
+        runTest {
+            val world = OrderWorld()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            assertFalse(r.state.cart.canDiscount)
+        }
+
+    @Test
+    fun anOrderDiscountHidesOfferAndSwitchesTheButtonToRemoval() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", priceChanges = halfOff(), discountCents = -325)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            assertTrue(r.state.cart.orderDiscounted)
+            assertFalse(r.state.cart.rows.single().canOffer)
+            // An order discount is not the line's own change.
+            assertFalse(r.state.cart.rows.single().canRemoveDiscount)
+        }
+
+    @Test
+    fun anOfferedLineCanHaveItsChangeRemoved() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", priceChanges = offered(), discountCents = -650)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            assertFalse(r.state.cart.orderDiscounted)
+            assertFalse(r.state.cart.rows.single().canOffer)
+            assertTrue(r.state.cart.rows.single().canRemoveDiscount)
+        }
+
+    @Test
+    fun askingForAnOrderDiscountOpensTheDialogOnTheEngineTotal() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            coEvery { f.engine.getOrder(any()) } answers { order(firstArg(), totalCents = 650) }
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askDiscount()
+
+            assertEquals(OrderDialog.Discount(null, 650L), r.state.dialog)
+        }
+
+    @Test
+    fun offeringALineOpensTheDialogOnTheLineAmount() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            f.natives.vatRows = listOf(VatSplitRow(VatCode.B, 12, 650L, 70L))
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askDiscount(1L)
+
+            assertEquals(OrderDialog.Discount(1L, 650L), r.state.dialog)
+        }
+
+    @Test
+    fun theChosenInputWaitsForTheManagerPin() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.model.askDiscount()
+
+            r.model.chooseDiscount(staffMeal)
+
+            assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Apply(staffMeal)), r.state.dialog)
+        }
+
+    @Test
+    fun anInputWithoutTheDialogIsIgnored() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.chooseDiscount(staffMeal)
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    @Test
+    fun thePinAppliesTheDiscountForTheLoggedInManagerAndTheToastSaysSo() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            coEvery { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, "4321") } returns
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null)
+
+            r.model.confirmDiscountPin("4321")
+            r.model.discountDone()
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.applyDiscount(ORDER_ID, staffMeal, ADMIN_INSZ, "4321") }
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(ToastVariant.Success, r.lastToast().variant)
+        }
+
+    @Test
+    fun aWrongPinIsThrownToThePadAndTheDialogStaysOpen() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            coEvery { f.engine.applyDiscount(any(), any(), any(), any()) } throws PosException.Coded("pin_wrong", emptyMap())
+
+            var thrown: PosException? = null
+            try {
+                r.model.confirmDiscountPin("0000")
+            } catch (e: PosException) {
+                thrown = e
+            }
+
+            assertTrue(thrown != null)
+            assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Apply(staffMeal)), r.state.dialog)
+        }
+
+    @Test
+    fun removingTheOrderDiscountAsksForThePinAndRemovesWithNoLine() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", priceChanges = halfOff(), discountCents = -325)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.removeDiscount(ORDER_ID, null, ADMIN_INSZ, "4321") } returns
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null)
+
+            r.model.askRemoveDiscount()
+            assertEquals(OrderDialog.DiscountPin("Alice", DiscountAction.Remove(null)), r.state.dialog)
+            r.model.confirmDiscountPin("4321")
+            r.model.discountDone()
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.removeDiscount(ORDER_ID, null, ADMIN_INSZ, "4321") }
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals(ToastVariant.Success, r.lastToast().variant)
+        }
+
+    @Test
+    fun removingAnOfferedLinePassesItsId() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(3, 10, "Maki saumon", priceChanges = offered(), discountCents = -650)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.removeDiscount(ORDER_ID, 3L, ADMIN_INSZ, "4321") } returns
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, null)
+
+            r.model.askRemoveDiscount(3L)
+            r.model.confirmDiscountPin("4321")
+
+            coVerify(exactly = 1) { f.engine.removeDiscount(ORDER_ID, 3L, ADMIN_INSZ, "4321") }
+        }
+
+    @Test
+    fun aDiscountThatCouldNotBeRegisteredShowsAWarningToast() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            r.model.askDiscount()
+            r.model.chooseDiscount(staffMeal)
+            coEvery { f.engine.applyDiscount(any(), any(), any(), any()) } returns
+                DiscountResult(order(), SlipOutcome.NOTHING_TO_PRINT, "fdm_unreachable")
+
+            r.model.confirmDiscountPin("4321")
+            runCurrent()
+
+            assertEquals(ToastVariant.Warning, r.lastToast().variant)
         }
 }

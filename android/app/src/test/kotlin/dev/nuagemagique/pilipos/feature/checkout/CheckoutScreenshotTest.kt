@@ -24,6 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import uniffi.pos_ffi.CartPriceChange
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EmailStatus
 import uniffi.pos_ffi.MailStatus
@@ -195,6 +196,55 @@ class CheckoutScreenshotTest {
                     ),
             ),
             "checkout_eft_locked",
+        )
+    }
+
+    @Test
+    fun discount() {
+        fun discounted(
+            id: Long,
+            name: String,
+            quantity: Int,
+            unit: Long,
+            off: Long,
+            vat: VatCode = VatCode.C,
+        ) = cartLine(
+            id,
+            name = name,
+            quantity = quantity,
+            unitPriceCents = unit,
+            vat = vat,
+            discountCents = off,
+            priceChanges = listOf(CartPriceChange("TILL-DISCOUNT", "Remise 50 %", "EVENT", off)),
+        )
+        val discounted =
+            listOf(
+                discounted(1, "Saumon roll x8", 2, 950L, -950L),
+                discounted(2, "Edamame", 1, 450L, -225L),
+                discounted(3, "Thé vert", 3, 280L, -420L, VatCode.A),
+            )
+        capture(
+            base.copy(
+                totalCents = 1_595L,
+                summary =
+                    CheckoutSummary(
+                        lines = discounted,
+                        amounts = listOf(LineAmount.Total(950L), LineAmount.Total(225L), LineAmount.Total(420L)),
+                        vatRows = listOf(vatRow(VatCode.C, 6, 66L), vatRow(VatCode.A, 21, 73L)),
+                        discountCents = -1_595L,
+                    ),
+                entry = AmountEntryState("2000"),
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 1_595L,
+                        dueCents = 1_595L,
+                        roundedDueCents = 1_595L,
+                        restShownCents = 1_595L,
+                        shares = listOf(1_595L),
+                        quickAmountsCents = listOf(2_000L, 5_000L),
+                    ),
+            ),
+            "checkout_discount",
         )
     }
 }
