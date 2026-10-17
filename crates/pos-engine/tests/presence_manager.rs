@@ -40,7 +40,11 @@ const KITCHEN: &str = "12345678958";
 const CASHIER: &str = "84022899837";
 
 async fn app() -> TestApp {
-    let app = TestApp::new().await;
+    with_kitchen(TestApp::new().await)
+}
+
+/// Add the presence-only kitchen employee to `app`.
+fn with_kitchen(app: TestApp) -> TestApp {
     do_create_user(
         &app.state,
         CreateUserInput {
@@ -53,6 +57,13 @@ async fn app() -> TestApp {
     )
     .expect("create the presence-only employee");
     app
+}
+
+/// An app signing against an FDM that can lose its answers.
+async fn lossy_app(fdm: &LossyFdm) -> TestApp {
+    let app = TestApp::new().await;
+    app.use_lossy_fdm(fdm);
+    with_kitchen(app)
 }
 
 /// One-shot S answers from the published M140 / M141 fixtures.
@@ -571,4 +582,211 @@ async fn the_user_x_report_lists_the_presence_only_employee() {
         .expect("the presence-only employee is listed");
     assert_eq!(kitchen["socialEvents"][0]["inOut"], "IN");
     assert_eq!(kitchen["totalAmount"], 0.0);
+}
+
+// ── Test round 1: refusal order, late answers, legacy contexts ──
+
+const WAITER: &str = "94060242576";
+
+#[tokio::test]
+async fn a_non_manager_is_refused_as_forbidden_before_the_training_check() {
+    let app = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    for (insz, role) in [(CASHIER, UserRole::Cashier), (WAITER, UserRole::Waiter)] {
+        app.login_as(insz, role);
+        for is_in in [true, false] {
+            assert_eq!(
+                clock(&app, is_in, KITCHEN).await.unwrap_err(),
+                ERR_FORBIDDEN,
+                "{insz} in={is_in}: forbidden, not presence_training"
+            );
+        }
+    }
+    // A manager in training is then refused for training (the next step).
+    app.login_as(MANAGER, UserRole::Admin);
+    assert_eq!(
+        do_clock_in_employee(&app.state, KITCHEN.into())
+            .await
+            .unwrap_err(),
+        errors::PRESENCE_TRAINING
+    );
+    assert!(
+        work_requests(&app).await.is_empty(),
+        "nothing reached the FDM"
+    );
+    assert!(app.fiscal_events().is_empty());
+}
+
+#[tokio::test]
+async fn a_late_answered_manager_clock_in_is_committed_with_the_manager_on_retry() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signWorkIn");
+    let app = lossy_app(&fdm).await;
+
+    let first = do_clock_in_employee(&app.state, KITCHEN.into())
+        .await
+        .unwrap();
+    assert!(!first.success);
+    assert!(shifts(&app).is_empty(), "no shift before the answer");
+    assert!(s_events(&app).is_empty());
+    let pending = app.open_pending().expect("the request awaits its answer");
+    assert!(
+        pending.context_json.contains(MANAGER),
+        "the manager is stored with the request: {}",
+        pending.context_json
+    );
+    let ticket = pending.first_ticket_no;
+
+    // The same command again: the stored request is answered and archived.
+    let second = do_clock_in_employee(&app.state, KITCHEN.into())
+        .await
+        .unwrap();
+    assert!(second.success, "{:?}", second.error);
+    let events = s_events(&app);
+    assert_eq!(events.len(), 1, "exactly one S event");
+    assert_eq!(events[0].user_insz, KITCHEN);
+    assert_eq!(
+        shifts(&app),
+        vec![(KITCHEN.into(), Some(MANAGER.into()), None, true)]
+    );
+    assert_eq!(app.counter_for(EventLabel::S), ticket, "number used once");
+    let sent = fdm.sent_op("signWorkIn");
+    assert_eq!(sent.len(), 2);
+    assert_eq!(sent[0].body, sent[1].body, "the same request is resent");
+    assert!(app.open_pending().is_none());
+}
+
+#[tokio::test]
+async fn a_late_answered_manager_clock_out_is_committed_with_the_manager_on_retry() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signWorkOut");
+    let app = lossy_app(&fdm).await;
+    pos_db::queries::shifts::open_shift(&app.state.db.lock().unwrap(), KITCHEN, Some(CASHIER))
+        .unwrap();
+
+    let first = do_clock_out_employee(&app.state, KITCHEN.into())
+        .await
+        .unwrap();
+    assert!(!first.success);
+    assert_eq!(do_list_open_shifts(&app.state).unwrap().len(), 1);
+    assert!(s_events(&app).is_empty());
+    let ticket = app.open_pending().expect("pending").first_ticket_no;
+
+    let second = do_clock_out_employee(&app.state, KITCHEN.into())
+        .await
+        .unwrap();
+    assert!(second.success, "{:?}", second.error);
+    assert_eq!(s_events(&app).len(), 1);
+    assert_eq!(
+        shifts(&app),
+        vec![(
+            KITCHEN.into(),
+            Some(CASHIER.into()),
+            Some(MANAGER.into()),
+            false
+        )],
+        "ended_by is the manager who asked"
+    );
+    assert_eq!(app.counter_for(EventLabel::S), ticket);
+    assert_eq!(fdm.sent_op("signWorkOut").len(), 2);
+}
+
+#[tokio::test]
+async fn a_manager_clock_in_answered_late_through_another_command_keeps_the_manager() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signWorkIn");
+    let app = lossy_app(&fdm).await;
+    assert!(
+        !do_clock_in_employee(&app.state, KITCHEN.into())
+            .await
+            .unwrap()
+            .success
+    );
+    // Another signing command resolves the open request first.
+    let own = do_work_in(&app.state, MANAGER.into()).await.unwrap();
+    assert!(own.success, "{:?}", own.error);
+    assert_eq!(s_events(&app).len(), 2);
+    assert_eq!(
+        shifts(&app),
+        vec![
+            (KITCHEN.into(), Some(MANAGER.into()), None, true),
+            (MANAGER.into(), None, None, true),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_training_work_in_answered_late_opens_no_shift() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signWorkIn");
+    let app = lossy_app(&fdm).await;
+    app.state.config.lock().unwrap().training_mode = true;
+
+    let first = do_work_in(&app.state, MANAGER.into()).await.unwrap();
+    assert!(!first.success);
+    let pending = app.open_pending().expect("pending");
+    assert_eq!(pending.event_label, "T");
+    let second = do_work_in(&app.state, MANAGER.into()).await.unwrap();
+    assert!(second.success, "{:?}", second.error);
+    let events = app.fiscal_events();
+    assert_eq!(events.iter().filter(|e| e.event_type == "T").count(), 1);
+    assert!(events.iter().all(|e| e.event_type != "S"));
+    assert!(shifts(&app).is_empty(), "a T event registers no presence");
+    assert!(do_list_open_shifts(&app.state).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_pending_work_row_stored_before_migration_28_still_recovers() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signWorkIn");
+    let app = lossy_app(&fdm).await;
+    assert!(
+        !do_clock_in_employee(&app.state, KITCHEN.into())
+            .await
+            .unwrap()
+            .success
+    );
+    // Rewrite the context as the version before migration 28 stored it.
+    let pending = app.open_pending().expect("pending");
+    assert!(pending.context_json.contains("\"by\""));
+    let old = format!(r#"{{"type":"work","insz":"{KITCHEN}","is_in":true}}"#);
+    {
+        let db = app.state.db.lock().unwrap();
+        // The schema guards the context; the old row predates the guard
+        // being relevant, so lift it for this fixture only.
+        db.execute("DROP TRIGGER pending_signs_context_on_resolution", [])
+            .unwrap();
+        db.execute(
+            "UPDATE pending_signs SET context_json = ?2 WHERE id = ?1",
+            rusqlite::params![pending.id, old],
+        )
+        .unwrap();
+    }
+
+    // Any signing command runs the recovery first.
+    let own = do_work_in(&app.state, MANAGER.into()).await.unwrap();
+    assert!(own.success, "{:?}", own.error);
+    let kitchen_events: Vec<_> = s_events(&app)
+        .into_iter()
+        .filter(|e| e.user_insz == KITCHEN)
+        .collect();
+    assert_eq!(kitchen_events.len(), 1, "the S event is archived");
+    let rows = shifts(&app);
+    assert_eq!(
+        rows.iter().find(|r| r.0 == KITCHEN),
+        Some(&(KITCHEN.to_string(), None, None, true)),
+        "an open shift, started_by NULL"
+    );
+    let status: String = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT status FROM pending_signs WHERE id = ?1",
+            [pending.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(status, "signed");
 }

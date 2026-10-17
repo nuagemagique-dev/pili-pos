@@ -325,6 +325,82 @@ mod meal_voucher {
     }
 
     #[tokio::test]
+    async fn the_terminal_meal_voucher_part_is_exact_and_only_the_cash_rest_is_rounded() {
+        let (app, script, _printer) = app().await;
+        // 10,03 cannot be paid in exact cash: the rest rounds, the voucher does not.
+        let order = app.order_of(1003);
+        let id = pay_card(&app, &script, order, 600, "Edenred", CardType::Unknown).await;
+        let sale = do_checkout_split(
+            &app.state,
+            order,
+            &[PaymentPart::terminal(600, id), PaymentPart::cash()],
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(sale.success, "{:?}", sale.error);
+        let request = request_of(&app, sale.fiscal_event_id.unwrap());
+        let financials = request["financials"].as_array().unwrap();
+        let amounts: Vec<(String, String, String, f64)> = financials
+            .iter()
+            .map(|f| {
+                (
+                    f["type"].as_str().unwrap().to_string(),
+                    f["inputMethod"].as_str().unwrap().to_string(),
+                    f["amountType"].as_str().unwrap().to_string(),
+                    f["amount"].as_f64().unwrap(),
+                )
+            })
+            .collect();
+        let row =
+            |t: &str, m: &str, a: &str, x: f64| (t.to_string(), m.to_string(), a.to_string(), x);
+        assert_eq!(
+            amounts,
+            [
+                row("CHEQUE_MEAL", "AUTOMATIC", "PAYMENT", 6.0),
+                row("CASH", "MANUAL", "PAYMENT", 4.03),
+                row("CASH", "MANUAL", "ROUNDING", 0.02),
+            ],
+            "the voucher is exact, the cash rest 4,03 rounds to 4,05"
+        );
+        assert_eq!(
+            payment_rows(&app),
+            [("meal_voucher".to_string(), 600), ("cash".to_string(), 405)],
+            "the rounding applies to cash only"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_approved_meal_voucher_charge_is_still_listed_as_unsettled() {
+        use pos_engine::commands::eft::do_list_unsettled_card_payments;
+        let (app, script, _printer) = app().await;
+        let order = app.order_of(1000);
+        let id = pay_card(&app, &script, order, 600, "Edenred", CardType::Unknown).await;
+        let listed = do_list_unsettled_card_payments(&app.state).unwrap();
+        assert_eq!(listed.len(), 1, "money taken must reach the Z warning");
+        assert_eq!(listed[0].payment_id, id);
+        assert_eq!(listed[0].order_id, order);
+        assert_eq!(listed[0].amount_cents, 600);
+        assert_eq!(listed[0].brand.as_deref(), Some("Edenred"));
+
+        // Settled by its sale, it leaves the list.
+        let sale = do_checkout_split(
+            &app.state,
+            order,
+            &[PaymentPart::terminal(600, id), PaymentPart::cash()],
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(sale.success, "{:?}", sale.error);
+        assert!(
+            do_list_unsettled_card_payments(&app.state)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
     async fn a_scheme_branded_card_stays_a_card_and_an_eco_cheque_is_no_meal_voucher() {
         let (app, script, _printer) = app().await;
         let order = app.order_of(1500);
@@ -571,6 +647,58 @@ mod webshop {
         assert_eq!(request["financials"][0]["type"], "CARD_DEBIT");
         assert_eq!(request["financials"][0]["inputMethod"], "AUTOMATIC");
         assert_eq!(request["financials"][0]["provider"], "Bancontact");
+    }
+
+    #[tokio::test]
+    async fn the_hubrise_echo_names_a_terminal_meal_voucher_part_meal_voucher() {
+        let w = world().await;
+        let order = w.app.order_of(1000);
+        let id = {
+            w.script
+                .on_pay(Ok(approval(600, "Edenred", CardType::Unknown)));
+            do_eft_pay(&w.app.state, order, 600).await.unwrap().id
+        };
+        let sale = do_checkout_split(
+            &w.app.state,
+            order,
+            &[PaymentPart::terminal(600, id), PaymentPart::cash()],
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(sale.success, "{:?}", sale.error);
+        let body: String = w
+            .app
+            .state
+            .db
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT body_json FROM hubrise_outbox WHERE kind = 'create_order'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("the till sale is queued for HubRise");
+        let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let payments: Vec<(String, String)> = body["payments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| {
+                (
+                    p["name"].as_str().unwrap().to_string(),
+                    p["amount"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            payments,
+            [
+                ("Meal voucher".to_string(), "6.00 EUR".to_string()),
+                ("Cash".to_string(), "4.00 EUR".to_string()),
+            ],
+            "{body}"
+        );
     }
 
     #[tokio::test]
