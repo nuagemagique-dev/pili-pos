@@ -139,6 +139,8 @@ export interface CartLine extends OrderLine {
   price_changes: CartPriceChange[];
   /** The note for the kitchen ("sans wasabi"): local, never fiscal. */
   kitchen_note?: string | null;
+  /** The line belongs to an online order: the till gives no discount on it. */
+  online?: boolean;
 }
 
 /** Why a manager gives a discount (audit only, never signed). */

@@ -131,6 +131,10 @@ pub struct CartLine {
     /// The note for the kitchen ("sans wasabi"), local only.
     #[serde(default)]
     pub kitchen_note: Option<String>,
+    /// The line belongs to an online order: no till discount.
+    #[serde(default)]
+    #[uniffi(default = false)]
+    pub online: bool,
 }
 
 /// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.

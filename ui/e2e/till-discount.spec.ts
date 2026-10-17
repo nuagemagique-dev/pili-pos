@@ -75,6 +75,14 @@ test.describe('Remise button', () => {
     await toOrder(page, [], 0);
     await expect(page.getByTestId('discount-open')).toHaveCount(0);
   });
+
+  test('is absent on an online order, whatever the role', async ({ page }) => {
+    await toOrder(page, [{ ...PLAIN, online: true }]);
+    await expect(page.locator('.cart-lines')).toBeVisible();
+    await expect(page.getByTestId('discount-open')).toHaveCount(0);
+    await expect(page.getByTestId('discount-remove')).toHaveCount(0);
+    await expect(page.getByTestId('line-offer')).toHaveCount(0);
+  });
 });
 
 test.describe('Order discount', () => {

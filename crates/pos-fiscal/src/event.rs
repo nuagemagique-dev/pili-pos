@@ -1062,8 +1062,7 @@ mod tests {
         let (config, order, lines) = (test_config(), test_order(), test_lines());
         let bp_id = Uuid::new_v4().to_string();
         let zero = settle(0, &[PaymentPart::cash()]).unwrap();
-        let sale =
-            build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &zero);
+        let sale = build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &zero);
         let json = serde_json::to_value(&sale).unwrap();
         assert_eq!(json["financials"], serde_json::json!([]));
         // The refund builder follows the same rule.
@@ -1082,8 +1081,7 @@ mod tests {
         assert!(refund.financials.is_empty());
         // Any money moved keeps its lines.
         let paid = settle(1000, &[PaymentPart::cash()]).unwrap();
-        let sale =
-            build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &paid);
+        let sale = build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &paid);
         assert_eq!(sale.financials.len(), 1);
     }
 

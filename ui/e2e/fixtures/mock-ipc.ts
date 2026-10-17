@@ -104,6 +104,7 @@ const DEFAULT_CART_LINE = {
   discount_cents: 0,
   price_changes: [],
   kitchen_note: null,
+  online: false,
 };
 
 const DEFAULT_TABLE = (n: number) => ({

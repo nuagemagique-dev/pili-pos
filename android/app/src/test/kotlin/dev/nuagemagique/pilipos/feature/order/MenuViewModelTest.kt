@@ -652,6 +652,21 @@ class MenuViewModelTest {
         }
 
     @Test
+    fun anOnlineOrderGetsNoDiscountActionEvenForAManager() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 2, online = true)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            assertFalse(r.state.cart.canDiscount)
+            assertFalse(r.state.cart.rows.single().canOffer)
+            r.model.askDiscount()
+            assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    @Test
     fun anEmptyOrderCannotBeDiscounted() =
         runTest {
             val world = OrderWorld()

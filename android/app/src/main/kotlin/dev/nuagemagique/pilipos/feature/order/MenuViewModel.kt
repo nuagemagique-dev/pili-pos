@@ -189,6 +189,8 @@ internal class MenuViewModel(
         val current = shared?.takeIf { it.id == routeOrderId }
         val lines = if (current != null) sharedLines else emptyList()
         val orderDiscounted = lines.any { line -> line.priceChanges.any { it.scope == SCOPE_EVENT } }
+        // An online order has its own discounts: the engine refuses one at the till (discount_online_order).
+        val canDiscount = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty() && lines.none { it.online }
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
@@ -201,7 +203,7 @@ internal class MenuViewModel(
                             cartRow(
                                 it,
                                 d.amounts[it.id],
-                                l.isManager && current?.status == OrderStatus.OPEN,
+                                l.isManager && current?.status == OrderStatus.OPEN && !it.online,
                                 orderDiscounted,
                                 current?.status == OrderStatus.OPEN,
                             )
@@ -220,7 +222,7 @@ internal class MenuViewModel(
                             current.tableNumber != null &&
                             lines.isNotEmpty() &&
                             !d.transferring,
-                    canDiscount = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty(),
+                    canDiscount = canDiscount,
                     orderDiscounted = orderDiscounted,
                 ),
             zWarning = d.zWarning,

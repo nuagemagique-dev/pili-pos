@@ -166,8 +166,14 @@ async function saveNote(text: string) {
 // Discount at the till (manager, PIN): an order discount, a line for
 // free, or the removal of either. The dialog collects the input, the PIN
 // confirms it, the engine applies every rule.
+// An online order has its own discounts: the engine refuses one at the
+// till (discount_online_order), so the button and the line actions hide.
 const canDiscount = computed(
-  () => auth.isManager && order.currentOrder?.status === "open" && order.lines.length > 0,
+  () =>
+    auth.isManager &&
+    order.currentOrder?.status === "open" &&
+    order.lines.length > 0 &&
+    !order.lines.some((l) => l.online === true),
 );
 type DiscountStep =
   | { kind: "ask"; lineId: number | null }

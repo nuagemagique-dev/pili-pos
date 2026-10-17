@@ -92,6 +92,9 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 - **Who and when.** As Vue: the "Remise" button shows for a manager on an open order with lines; an order discount
   turns it into "Retirer la remise". "Offrir" shows on a line without change while no order discount applies;
   "Retirer la remise" shows on a line that carries its own (LINE scope) change. The engine re-checks every rule.
+  An online order (any line of the cart with `online`, read from the order by `list_cart_lines`) shows none of these
+  actions on either UI (the engine refuses with `discount_online_order`); Vue test "is absent on an online order",
+  Kotlin test `anOnlineOrderGetsNoDiscountActionEvenForAManager`.
 - **Reason text.** Vue types the optional reason on the on-screen keypad (`TextKeypad.vue`, the generalised
   `EmailKeypad.vue`); the Compose dialog uses the system keyboard (a single line, 120 characters at most).
 - **Net amounts without arithmetic (PD208).** A line amount is the `vatSplit` row of the line plus one more line of

@@ -347,6 +347,10 @@ pub struct CartLine {
     /// The note for the kitchen ("sans wasabi"), local only: never part
     /// of a fiscal record (migration 31).
     pub kitchen_note: Option<String>,
+    /// The line belongs to an online order (HubRise): the till gives no
+    /// discount on it (`discount_online_order`), so the screens hide the
+    /// action.
+    pub online: bool,
 }
 
 /// A price change on a cart line (a till discount, an online order's).
@@ -376,7 +380,8 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                     AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'zh'),
                 COALESCE((SELECT SUM(e.quantity) FROM order_entries e
                           WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0),
-                {LINE_CODE}, ol.kitchen_note
+                {LINE_CODE}, ol.kitchen_note,
+                EXISTS (SELECT 1 FROM orders o WHERE o.id = ol.order_id AND o.hubrise_order_id IS NOT NULL)
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
     let rows = stmt.query_map(params![order_id], |row| {
@@ -389,6 +394,7 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             discount_cents: 0,
             price_changes: Vec::new(),
             kitchen_note: row.get(15)?,
+            online: row.get(16)?,
         })
     })?;
     #[allow(unused_mut)]
@@ -701,6 +707,47 @@ mod tests {
 
         let fetched = get_order(&conn, order.id).unwrap();
         assert_eq!(fetched.id, order.id);
+    }
+
+    #[test]
+    fn cart_lines_say_whether_the_order_is_online() {
+        let conn = setup();
+        conn.execute("INSERT INTO categories (id, sort_order) VALUES (1, 0)", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 1000, 'B')",
+            [],
+        )
+        .unwrap();
+        let add = |order_id: i64| {
+            add_order_line(
+                &conn,
+                NewOrderLine {
+                    order_id,
+                    menu_item_id: 1,
+                    quantity: 1,
+                    unit_price_cents: 1000,
+                    vat_code: VatCode::B,
+                    name: "Gyoza",
+                    modifiers_json: None,
+                    department_id: "1",
+                    department_name: "Test",
+                },
+            )
+            .unwrap();
+        };
+        let till = create_order(&conn, OrderType::DineIn, Some(1), "00000000029").unwrap();
+        add(till.id);
+        let online = create_order(&conn, OrderType::Takeaway, None, "00000000029").unwrap();
+        add(online.id);
+        conn.execute(
+            "UPDATE orders SET hubrise_order_id = 'HR1' WHERE id = ?1",
+            [online.id],
+        )
+        .unwrap();
+
+        assert!(!get_cart_lines(&conn, till.id).unwrap()[0].online);
+        assert!(get_cart_lines(&conn, online.id).unwrap()[0].online);
     }
 
     #[test]
