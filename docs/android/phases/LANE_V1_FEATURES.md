@@ -472,3 +472,9 @@ Run the complete gate of the lane brief, in this order, and fix what fails (fix 
 - Command counts after T3: 101 Tauri commands in all, 99 in the cert build.
 - Captures to retake: none new beyond section 11 items 9 to 14 (the screens arrive with T4).
 - Not committed: the untracked per-worktree `.cargo/config.toml`.
+
+### T4 (till discount, screens and dossiers)
+
+- Vue: `DiscountDialog.vue`, `TextKeypad.vue` (shared with `EmailKeypad.vue`), `utils/cartAmounts.ts`, store `applyDiscount` / `removeDiscount`, cart, line, VAT summary and checkout changes; `ui/e2e/till-discount.spec.ts` (20 tests). Android: `feature/order/DiscountDialog.kt`, `OrderStore`, cart, line and checkout panels; unit, Compose and Roborazzi tests (goldens `order_discount_dialog`, `order_cart_discount`, `order_cart_offered`, `checkout_discount`). Parity pages `order.md` and `checkout.md` updated. Decisions V1F-D45 to D50.
+- Dossiers (both): manual 5.3, cert answers (Reductions, Modification de prix ligne and event, Article offert, XV), tickets, lines, refund, profiles, forbidden functions, feature list, process, data flow; schema docs for migration 30 (Linux only).
+- Captures to retake: section 11 items 9 to 14, plus the Vue reason-text keypad (`discount-reason-text`) and the Android discount dialog, cart with a discount, offered line and checkout with a discount.
