@@ -3,6 +3,7 @@
 /// The state object the wrappers manage: the engine (it derefs to the state).
 pub type Managed = pos_engine::engine::Engine;
 
+pub mod alerts;
 pub mod auth;
 pub mod checkout;
 pub mod copy;

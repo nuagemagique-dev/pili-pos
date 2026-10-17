@@ -247,6 +247,11 @@ fn main() {
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
+        // Owner alerts (Telegram)
+        ipc::alerts::get_owner_alerts,
+        ipc::alerts::set_owner_alerts,
+        ipc::alerts::send_test_alert,
+        ipc::alerts::list_owner_alert_log,
         // Tables
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,
@@ -362,6 +367,11 @@ fn main() {
         // Settings
         ipc::settings::get_settings,
         ipc::settings::set_training_mode,
+        // Owner alerts (Telegram)
+        ipc::alerts::get_owner_alerts,
+        ipc::alerts::set_owner_alerts,
+        ipc::alerts::send_test_alert,
+        ipc::alerts::list_owner_alert_log,
         // Tables
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,

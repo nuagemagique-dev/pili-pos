@@ -1,6 +1,7 @@
 //! The FFI integration tests: one test binary, one module per domain. The domain cards fill their
 //! module (and `support.rs` grows helpers); they never add a second test binary.
 
+mod alerts;
 mod auth;
 mod checkout;
 mod common;

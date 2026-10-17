@@ -106,6 +106,11 @@
 //! | `MailStatus` | `pos_engine::commands::delivery::MailStatus` | checkout | check_mail_status |
 //! | `RefundItem` | `pos_engine::commands::refund::RefundItem` | checkout | refund_checkout |
 //! | `RefundableEvent` | `pos_db::queries::fiscal::RefundableEvent` | checkout | list_refundable_events |
+//! | `AlertKinds` | `pos_engine::commands::alerts::AlertKinds` | alerts | get_owner_alerts, set_owner_alerts |
+//! | `AlertLogRow` | `pos_db::queries::owner_settings::AlertLogRow` | alerts | list_owner_alert_log |
+//! | `AlertTestResult` | `pos_engine::commands::alerts::AlertTestResult` | alerts | send_test_alert |
+//! | `OwnerAlerts` | `pos_engine::commands::alerts::OwnerAlerts` | alerts | get_owner_alerts, set_owner_alerts |
+//! | `OwnerAlertsInput` | `pos_engine::commands::alerts::OwnerAlertsInput` | alerts | set_owner_alerts |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
@@ -149,6 +154,7 @@
 //! The FFI records (`#[derive(uniffi::Record)]`), one file per domain, mirroring the engine's serde
 //! shapes; `convert::out` and `convert::inp` move values between the two.
 
+pub mod alerts;
 pub mod auth;
 pub mod checkout;
 pub mod common;
