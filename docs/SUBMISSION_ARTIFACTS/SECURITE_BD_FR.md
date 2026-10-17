@@ -163,6 +163,47 @@ exclusivement, jamais ne diminue). Voir
 - Horloge système **non modifiable** par l'opérateur (image kiosque,
   pas d'accès root, NTP via `chrony`).
 
+### 2.5 Badges du personnel (table `staff_badges` et journaux)
+
+Option désactivée par défaut (`badge_settings.reader = 'off'`), mais les
+quatre tables existent sur toute installation (migration 70
+`staff-badges`) :
+
+| Table | Rôle | Protections au niveau SQLite |
+|---|---|---|
+| `badge_settings` | Réglage unique (ligne `id = 1`) : lecteur (`off`, `nfc` ou `usb`), connexion par badge, réglages du lecteur USB, empreinte de contrôle de la clé | CHECK sur le lecteur, l'interrupteur et chaque borne (écart 10 à 200 ms, longueurs 4 à 32 et 4 à 64, minimum inférieur ou égal au maximum) |
+| `staff_badges` | Un lien badge / employé : empreinte (64 caractères hexadécimaux), INSZ, qui l'a lié et quand, retrait (quand, par qui, motif `manager`, `deactivated` ou `key_changed`) | Deux index uniques partiels : une seule empreinte active, un seul badge actif par employé. Déclencheur `staff_badges_no_delete` : aucune suppression. Déclencheur `staff_badges_revoke_only` : la seule modification possible d'une ligne est son retrait, une fois ; l'empreinte, l'INSZ et les dates de lien ne changent jamais |
+| `badge_log` | Journal des liens, retraits et changements de réglage (qui, quand, détail) | Ajout seul : déclencheurs contre toute modification et toute suppression |
+| `badge_scans` | Journal des passages (heure, INSZ, résultat, référence de 12 caractères de l'empreinte, texte du refus ou du FDM) | Ajout seul, comme `badge_log` |
+
+- **Aucun numéro de badge en base.** Le numéro lu est normalisé puis
+  transformé en empreinte `HMAC-SHA256(clé, "pili-badge/1" + numéro)`
+  avant toute écriture ; ni la base (et son WAL), ni les journaux
+  applicatifs, ni un événement fiscal ne contiennent le numéro (un test lit
+  les octets du fichier de la base après un lien et un passage pour le
+  vérifier). Les journaux ne portent que la référence de 12 caractères.
+- **La clé n'est pas dans la base.** Elle fait 32 octets tirés au hasard
+  (`getrandom`), est créée une seule fois sur l'appareil, dans
+  le répertoire d'état `/var/lib/pili-pos/`, sous le nom `badge.key` (mode 0600, écrite sous un nom provisoire puis liée à sa place,
+  jamais remplacée) et **ne quitte jamais l'appareil** : elle n'est pas
+  dans `pos.db`, donc ni dans les sauvegardes (`backups/`), ni dans l'export
+  de la base remis au SPF. Sans la clé, une base volée ne permet pas de
+  retrouver un numéro de badge, même en énumérant les numéros possibles
+  (4 à 7 octets seulement).
+- **Clé perdue.** `badge_settings.key_check` garde les 16 premiers
+  caractères hexadécimaux de `HMAC(clé, "pili-badge-check/1")`. À
+  l'ouverture du moteur, et avant chaque passage ou lien, si le fichier de
+  la clé manque (restauration d'une sauvegarde sur un autre matériel) ou
+  donne un autre contrôle, tous les badges actifs sont retirés avec le
+  motif `key_changed` (une ligne de `badge_log` chacun) ; un fichier qui
+  existe mais ne se lit pas n'est pas une clé perdue : les commandes
+  répondent `badge_key_unavailable` et rien n'est retiré.
+- **Un Gérant n'est jamais ouvert par un badge seul** : son badge
+  demande son PIN (`pin_required`), si bien que le vol d'un badge de
+  Gérant ne donne accès à aucune action de Gérant.
+- Le badge ne remplace jamais l'INSZ : l'événement S reste signé par le
+  FDM avec l'INSZ de l'employé.
+
 ## 3. Mécanismes au niveau système
 
 ### 3.1 Permissions de fichiers
@@ -172,6 +213,7 @@ exclusivement, jamais ne diminue). Voir
 | `/var/lib/pili-pos/pos.db` | `pos:pos` | `0640` | Lecture/écriture par le service uniquement (le groupe `pos` donne un accès lecture au compte `spf`, voir §3.2) |
 | `/var/lib/pili-pos/pos.db-wal` | `pos:pos` | `0640` | Idem |
 | `/var/lib/pili-pos/pos.db-shm` | `pos:pos` | `0640` | Idem |
+| `badge.key` (dans `/var/lib/pili-pos/`) | `pos:pos` | `0600` | Clé des badges du personnel (§2.5) : 32 octets aléatoires, jamais lisible par le groupe `pos` ni par le compte `spf`, hors de la base, des sauvegardes et des exports |
 | `engine.lock` (dans `/var/lib/pili-pos/`) | `pos:pos` | `0640` | Fichier de verrou vide, sans aucune donnée : le moteur y prend un verrou exclusif à l'ouverture, pour qu'une seule instance écrive dans `pos.db` |
 | `/var/lib/pili-pos/backups/` | `pos:pos` | `0750` | Répertoire des sauvegardes |
 | `/var/lib/pili-pos/backups/pos-*.db` | `pos:pos` | `0640` | Sauvegardes journalières |
@@ -440,6 +482,7 @@ Politique :
   distributeur peut configurer une copie distante si demandé par le
   commerçant, en dehors du périmètre certifié).
 - Rétention indéfinie (au moins 7 ans, exigence légale belge).
+- La clé des badges (§2.5) n'est **pas** sauvegardée avec la base : restaurer une sauvegarde sur un autre appareil retire les badges (motif `key_changed`), à lier de nouveau.
 
 ## 6. Confidentialité (GDPR)
 
@@ -450,6 +493,7 @@ Données de l'équipe :
 
 - INSZ stocké en clair (donnée personnelle obligatoire fiscalement).
 - PIN stocké en hash bcrypt (jamais en clair).
+- Badges (option) : jamais le numéro du badge, seulement une empreinte HMAC-SHA256 avec une clé propre à l'appareil, hors de la base, des sauvegardes et des exports (§2.5) ; usage limité à la présence et à la connexion ; aucune donnée biométrique ; le badge est facultatif pour l'employé.
 - Aucun INSZ n'est écrit dans les journaux applicatifs.
 
 Données de clients. Le binaire certifié contient l'intégration HubRise

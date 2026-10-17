@@ -9,7 +9,7 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
 **Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
-`schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs` (lecture machine via
+`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs` et `schema_badges.rs` (lecture machine via
 `sqlite3 pos.db ".schema"`).
 
 ## 1. Tables de référence
@@ -252,6 +252,61 @@ vers `sent`), `eft_payments_answer_final` (une réponse `approved`,
 `declined`, `cancelled` ou `not_sent` ne change plus) et
 `eft_payments_used_once` (seul un paiement `approved` est utilisé, une
 fois).
+
+### 2.6 `badge_settings`, `staff_badges`, `badge_log`, `badge_scans` (migration `070`)
+
+Badges du personnel (carte ou porte-clés), pour pointer la présence et se
+connecter à la caisse. Option désactivée par défaut ; les quatre tables
+existent sur toute installation. **Le numéro du badge n'est jamais
+stocké** : seulement une empreinte HMAC-SHA256 calculée avec une clé
+(`badge.key`) qui reste hors de la base (`SECURITE_BD_FR.md` §2.5).
+
+`badge_settings` (une seule ligne, `id = 1`) :
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire, CHECK `id = 1` |
+| `reader` | TEXT | `off` (par défaut), `nfc` ou `usb` (CHECK) |
+| `login_enabled` | INTEGER | 0 par défaut, 1 = connexion par badge pour les Serveurs et les Apprentis (CHECK 0 ou 1) |
+| `wedge_max_gap_ms` | INTEGER | Écart maximal entre deux caractères du lecteur USB, 50 par défaut (CHECK 10 à 200) |
+| `wedge_min_len` | INTEGER | Longueur minimale du code lu, 6 par défaut (CHECK 4 à 32) |
+| `wedge_max_len` | INTEGER | Longueur maximale, 32 par défaut (CHECK 4 à 64 ; CHECK minimum inférieur ou égal au maximum) |
+| `key_check` | TEXT (nullable) | 16 premiers caractères hexadécimaux de `HMAC(clé, "pili-badge-check/1")`, qui permet de détecter une clé perdue ; NULL tant qu'aucune clé n'existe |
+| `changed_at`, `changed_by` | TEXT | Dernière modification et INSZ du Gérant |
+
+`staff_badges` (jamais supprimée) :
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `badge_hash` | TEXT (64) | Empreinte HMAC-SHA256 en hexadécimal minuscule (CHECK longueur 64) |
+| `user_insz` | TEXT | INSZ de l'employé, clé étrangère vers `users(insz)` |
+| `linked_at`, `linked_by` | TEXT | Date du lien et INSZ du Gérant qui l'a fait |
+| `revoked_at` | TEXT (nullable) | Date du retrait ; NULL = badge actif |
+| `revoked_by` | TEXT (nullable) | INSZ du Gérant ; NULL avec le motif `key_changed` (retrait par le moteur) |
+| `revoke_reason` | TEXT (nullable) | `manager`, `deactivated` ou `key_changed` (CHECK) |
+
+Index uniques partiels : `staff_badges_active_badge` (une empreinte active
+au plus) et `staff_badges_active_user` (un badge actif au plus par
+employé) ; après un retrait, le même badge peut être lié de nouveau.
+Déclencheurs : `staff_badges_no_delete` (aucune suppression) et
+`staff_badges_revoke_only` (la seule modification possible est un retrait,
+une seule fois ; l'empreinte, l'INSZ et les données de lien ne changent
+jamais).
+
+`badge_log` (ajout seul) : `id`, `action` (`link`, `revoke` ou `settings`),
+`badge_id` (clé étrangère vers `staff_badges`), `user_insz`, `detail` (motif
+d'un retrait, ou JSON des nouvelles valeurs d'un réglage), `changed_by`
+(INSZ du Gérant ; NULL pour le moteur), `changed_at`. Déclencheurs
+`badge_log_no_update` et `badge_log_no_delete`.
+
+`badge_scans` (ajout seul) : `id`, `outcome` (`clock_in`, `clock_out`,
+`presence_failed`, `login`, `pin_required`, `unknown`, `revoked` ou
+`refused`), `user_insz`, `badge_ref` (12 premiers caractères de
+l'empreinte, jamais le numéro), `detail` (code du refus ou texte du FDM),
+`scanned_at`. Un second passage ignoré par l'anti-rebond de 10 secondes
+n'est pas consigné. Déclencheurs `badge_scans_no_update` et
+`badge_scans_no_delete`.
 
 ## 3. Tables fiscales (append-only)
 
@@ -681,8 +736,8 @@ dans `order_lines` et `order_entries`.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **vingt
-migrations** existent (1 à 11, puis 20 à 28 ; 12 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **vingt et une
+migrations** existent (1 à 11, puis 20 à 28, puis 70 ; 12 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -708,6 +763,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
 | 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
 | 28 | `presence-registration` | Colonne `users.presence_only` (profil « Présence seule », §3.8) et colonnes d'audit `staff_shifts.started_by` / `ended_by` (§3.8 bis) : le Gérant qui pointe un autre employé. Non conditionnée par une fonctionnalité de compilation. |
+| 70 | `staff-badges` | Les quatre tables des badges du personnel : `badge_settings`, `staff_badges`, `badge_log`, `badge_scans`, leurs index uniques partiels et leurs six déclencheurs (§2.6). Pas de colonne ajoutée aux tables existantes. Non conditionnée par une fonctionnalité de compilation : les tables existent sur toute installation et ne sont écrites que si le Gérant active le lecteur de badges. |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

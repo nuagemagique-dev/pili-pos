@@ -277,6 +277,58 @@ se pointer lui-même.
    le texte du FDM : rien n'est archivé, `staff_shifts` ne change pas.
 5. L'UI relit les employés et les postes ouverts.
 
+## 6 ter. Pointage par badge (Événement S)
+
+**Action utilisateur.** L'employé présente son badge sur le lecteur,
+depuis n'importe quel écran (option « Lecteur de badges », désactivée par
+défaut). Un Serveur ou un Apprenti peut aussi s'en servir pour se
+connecter (§1), et un employé peut terminer son service par badge depuis
+l'écran de connexion (§6).
+
+**Circulation des données.**
+
+1. Lecteur → interface. Le lecteur USB (qui se comporte comme un clavier : numéro puis Entrée) remet un numéro brut à l'interface. Pour
+   l'USB, l'interface reconnaît une rafale de touches physiques rapides
+   terminée par Entrée (écart et longueur réglables) et la retient : le
+   numéro n'arrive jamais dans un champ de texte. Réglage « Désactivé » :
+   rien n'est lu.
+2. Interface → `commands::badges::do_badge_tap` (numéro brut, indicateur
+   « fin de service »), sans session requise : le badge est
+   l'identification. Le moteur normalise le numéro (4 à 64 caractères
+   hexadécimaux, sinon `badge_token_invalid`), le transforme en empreinte
+   HMAC-SHA256 avec la clé de l'appareil (`badge.key`, hors de `pos.db`) ;
+   **le numéro n'est plus jamais utilisé ni écrit** après ce point.
+3. Anti-rebond : un second passage de la même empreinte pendant le
+   traitement du premier, ou dans les 10 secondes qui suivent sa fin, est
+   ignoré (aucun journal, aucun événement).
+4. Recherche de l'empreinte dans `staff_badges` : inconnue
+   (`badge_unknown`) ou retirée (`badge_revoked`), refus consigné dans
+   `badge_scans`.
+5. Décision (même ordre que dans `REPONSES_MANUEL_CERT_FR.md` §III.E) :
+   session ouverte : bascule de présence de l'employé du badge, sans
+   toucher à la session de l'opérateur (son propre badge est refusé,
+   `presence_self`) ; écran de connexion en fin de service : départ seul
+   (`presence_not_in` s'il n'est pas en service) ; écran de connexion avec
+   la connexion par badge : session ouverte comme une connexion par PIN
+   pour un Serveur ou un Apprenti (`logged_in`), PIN demandé pour un
+   Gérant (`pin_required`, aucune session) ; sinon bascule de présence.
+6. Bascule de présence : refusée en mode formation (`presence_training`) ;
+   sinon `commands::social::sign_work_event` construit l'événement **S**
+   au nom de l'**employé du badge** (`signWorkIn` s'il n'est pas en
+   service, `signWorkOut` s'il l'est), exactement celui des flux §1, §6 et
+   §6 bis : verrou de signature, JSON canonique, FDM, archivage dans
+   `fiscal_events` (`user_insz` : l'INSZ de l'employé), ouverture ou clôture
+   du poste de `staff_shifts` dans la même transaction (`started_by` et
+   `ended_by` vides).
+7. Le passage est consigné dans `badge_scans` (résultat, INSZ, référence de
+   12 caractères de l'empreinte, jamais le numéro).
+8. Si le FDM est injoignable ou refuse : résultat « échec de présence »
+   avec le texte du FDM, rien n'est archivé, `staff_shifts` ne change pas,
+   et rien n'est mis en tampon. L'interface affiche le texte du FDM.
+9. Interface : message (« Arrivée · nom · heure » ou « Départ · nom ·
+   heure », rouge pour un refus) et son ; l'activité de l'opérateur n'est
+   pas renouvelée.
+
 ## 7. Exception - Facture B2B (Événement I + Peppol) - hors binaire certifié v1.0.0
 
 Ce flux n'existe pas dans le binaire certifié de la v1.0.0 : le code
@@ -417,6 +469,8 @@ n'est mis en file.
 |---|---|
 | Login | `users` (lecture) |
 | Pointage entrée/sortie | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S) |
+| Pointage par badge | `staff_shifts` (ouverture / clôture), `fiscal_events` (append S), `badge_scans` (append) ; `staff_badges` (lecture) ; fichier `badge.key` (lecture) |
+| Lier / retirer un badge, régler le lecteur | `staff_badges` (insertion, ou une seule date de retrait), `badge_log` (append), `badge_settings` (mise à jour) |
 | Ajout ligne commande | `orders` (insert/update), `order_lines` (insert) |
 | Envoi cuisine | `fiscal_events` (append P), `order_entries` (lignes marquées envoyées) |
 | Paiement | `fiscal_events` (append N), `payments` (insert), `orders` (close), `fiscal_counters` (advance N) |

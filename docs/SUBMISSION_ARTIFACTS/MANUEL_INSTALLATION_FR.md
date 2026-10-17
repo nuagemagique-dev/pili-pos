@@ -16,6 +16,7 @@ pili-pos chez un client HoReCa.
 | Switch / box internet | 4 ports minimum | 1 |
 | Clé USB d'installation/mise à jour | 8 Go minimum - l'image kiosque complète (`pili-pos-kiosk-<profil>.img.xz`) y est écrite telle quelle (§2), pas un simple installeur FAT32 | 1 |
 | Onduleur (recommandé) | 600 VA minimum | 1 |
+| Lecteur de badges (option) | Lecteur de cartes NFC USB HID de type « clavier » (il tape le numéro de la carte puis Entrée), sans pilote ; le terminal n'a pas de NFC | 0 ou 1 |
 
 **Puce TPM 2.0 obligatoire** (fTPM Intel PTT intégré au J6412, ou
 puce dTPM discrète selon la carte mère) : le premier démarrage chiffre
@@ -429,6 +430,38 @@ de commande. Ne pas créer l'INSZ
 
 (Voir `MANUEL_PROGRAMMATION_FR.md` pour la création/modification
 de menus, modificateurs etc.)
+
+### 4.4 bis Lecteur de badges (option)
+
+Facultatif et **désactivé par défaut** : sans lecteur, rien à faire. Pour
+pointer et se connecter avec un badge (`MANUEL_UTILISATEUR_FR.md`
+§12.10) :
+
+- **Lecteur USB HID « clavier ».** Brancher un lecteur de cartes NFC USB
+  qui se comporte comme un clavier : il « tape » le numéro de la carte
+  (identifiant de série, en hexadécimal si le lecteur le permet, dans
+  l'ordre des octets du lecteur) puis la touche **Entrée**. Aucun pilote ;
+  la disposition du clavier (AZERTY compris) n'a pas d'importance, car la
+  caisse lit les touches physiques. Le lecteur doit envoyer Entrée à la
+  fin (sinon le configurer ainsi) ; préfixes et suffixes autres que
+  Entrée ne sont pas pris en charge.
+- Le terminal Linux n'a pas de NFC : le lecteur USB est la seule source.
+- Un seul type de lecteur par caisse : deux lecteurs peuvent écrire la
+  même carte différemment (hexadécimal ou décimal, ordre des octets).
+  Utiliser le même lecteur pour tous les badges, sans quoi les badges
+  sont à lier de nouveau.
+- Les réglages (Désactivé, Lecteur USB, connexion par badge, délais du
+  lecteur) se font ensuite dans « Config », panneau « Lecteur de badges »,
+  par le Gérant ; la clé qui protège les badges est créée sur l'appareil à
+  la première utilisation, reste sur l'appareil et n'est ni sauvegardée
+  ni exportée (`SECURITE_BD_FR.md` §2.5).
+- **Test après l'installation.** Dans « Config », « Lecteur de badges » :
+  choisir « Lecteur USB », puis « Lier un badge » sur un employé de test (pas le Gérant connecté),
+  présenter la carte, confirmer avec le PIN du Gérant, puis présenter de
+  nouveau la carte depuis l'écran de commande : « Arrivée · nom · heure »
+  (ou « Départ »), l'événement S est signé par le FDM. Retirer ensuite le
+  badge de test et remettre le réglage voulu par l'établissement.
+
 
 ### 4.5 Synchronisation horaire
 
