@@ -377,8 +377,10 @@ onMounted(() => {
             <button class="add-btn" @click="addWorker">{{ t('settings_add_employee') }}</button>
           </div>
         </section>
-        <CoursesSettings v-if="auth.isManager" class="panel courses-section" />
-        <GiftVoucherSettings v-if="auth.isManager" class="panel courses-section" />
+        <div v-if="auth.isManager" class="manager-panels">
+          <CoursesSettings class="panel" />
+          <GiftVoucherSettings class="panel" />
+        </div>
       </div>
 
       <!-- Column 3: info, email tickets, HubRise -->
@@ -624,6 +626,11 @@ onMounted(() => {
 /* ── Email tickets ──────────────────────────────────────────── */
 .column > .workers-section { flex: 1; }
 .courses-section { flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.manager-panels {
+  flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.manager-panels > .panel { flex-shrink: 0; }
 .deliveries-section { flex-shrink: 1; max-height: 45%; }
 .deliveries-section.panel-grow { max-height: none; }
 .refresh-btn {

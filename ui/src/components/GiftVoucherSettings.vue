@@ -93,7 +93,7 @@ async function save() {
           v-model="validity"
           class="input"
           type="number"
-          inputmode="numeric"
+         
           min="12"
           max="36"
           data-testid="gv-validity"
