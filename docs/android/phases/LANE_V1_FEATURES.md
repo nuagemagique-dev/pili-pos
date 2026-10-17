@@ -409,6 +409,7 @@ Counts to keep consistent across both dossiers after T2: Basic Set 22 UCs, 20 wi
 17. Manual §1 profiles table screenshot, if the dossier shows it as a capture.
 18. Vue only: the on-screen text keypad of the discount reason (`discount-reason-text`), the shared `TextKeypad` that now also drives the e-mail entry.
 19. Vue only: the note keypad on a cart line with its character counter and hint under the display (item 15 shows the dialog on both UIs).
+20. Both UIs (review round 2): the message of the refused late transfer `table_transfer_not_moved` ("Le transfert est enregistre mais ..."), shown where the transfer errors show (cart picker and Tables move mode). The Tickets tab, the cart and the order screens are otherwise unchanged by round 2 (the discount actions only disappear on an online order).
 
 ## 12. Follow-ups for the orchestrator (outside the lane)
 
@@ -494,3 +495,9 @@ Run the complete gate of the lane brief, in this order, and fix what fails (fix 
 - Red by design: `linux-frozen`, `freeze-tag` and `hygiene-paths` (same cause: the lane changes Linux paths frozen at `linux-v1.0.0-rc2`, 86 paths under crates/, src-tauri/, ui/, CLAUDE.md, docs/SUBMISSION_ARTIFACTS). `hygiene-paths` was not named in the brief, it is the same class (decision V1F-D58). `p5_gate.sh` additionally reports `app-only-scope` (it is the app-only gate, the lane touches android/rust and pos-core).
 - Pre-existing and outside the lane: `ui-money` of `p5_gate.sh` fails on `WebshopOrdersStore.kt:239-240` (`sumOf` over `amountCents`, `-` on `totalCents`), code of the EFT commit `31908ed6` that the lane never touched; `p6_gate.sh` does not run `ui-money`. Not fixed here (a fix needs an engine helper or a `money-display-only` exemption decision, and `lane-v1-fixes` may edit this store): follow-up F6.
 - Captures to retake: items 18 and 19 added above.
+
+### Review round 2 (fixes)
+
+- Late transfer onto a taken table (V1F-D60), 0,00 EUR sale payload (V1F-D62, FAQ Q206 empty `financials`), no discount action on an online order (V1F-D64), batching limit of the correction marks (V1F-D65), dossier truth items (counts recomputed for the regenerated evidence, M132 comparator limits, uc_scope reasons, UC matrix wording), `CLAUDE.md` transfer entry, PDFs rebuilt. The training-refund gap (item 2) was already closed by V1F-D59 (V1F-D61 records it).
+- Captures to retake: item 20 added above.
+

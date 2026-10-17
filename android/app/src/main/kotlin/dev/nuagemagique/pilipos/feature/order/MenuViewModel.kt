@@ -64,6 +64,16 @@ private fun cartRow(
         canNote = canNote,
     )
 
+/**
+ * A manager may discount an open order with lines. An online order has its own discounts: the engine refuses one at
+ * the till (`discount_online_order`), so its cart offers none (as `canDiscount` of `CartSidebar.vue`).
+ */
+private fun mayDiscount(
+    manager: Boolean,
+    order: Order?,
+    lines: List<CartLine>,
+): Boolean = manager && order?.status == OrderStatus.OPEN && lines.isNotEmpty() && lines.none { it.online }
+
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
 internal const val Z_CHECK_MS: Long = 300_000L
 
@@ -189,8 +199,7 @@ internal class MenuViewModel(
         val current = shared?.takeIf { it.id == routeOrderId }
         val lines = if (current != null) sharedLines else emptyList()
         val orderDiscounted = lines.any { line -> line.priceChanges.any { it.scope == SCOPE_EVENT } }
-        // An online order has its own discounts: the engine refuses one at the till (discount_online_order).
-        val canDiscount = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty() && lines.none { it.online }
+        val canDiscount = mayDiscount(l.isManager, current, lines)
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
