@@ -42,7 +42,7 @@ du ticket), les lignes de ces tickets, la ventilation de la TVA par taux (base, 
 total, la mention « déjà payé » et les données de contrôle de l'événement I **sans** signature
 numérique et sans code QR (art. 43 de l'arrêté ministériel). Le pied de page rappelle que le
 document n'est pas un ticket de caisse TVA valable. La **copie** d'une facture (événement C qui
-référence l'événement I) reprend la même mise en page avec la mention COPIE.
+référence l'événement I) reprend la même mise en page avec la mention COPIE (comme les copies de tickets de vente, et non « COPY TICKET »), et ses propres données de contrôle sous l'intitulé « Informations FDM de la copie ».
 
 ## 4. Journal des factures (art. 33)
 
@@ -74,7 +74,8 @@ qu'elle référence.
   envoi mis de côté.
 - **Point d'accès** : l'implémentation suit l'API Storecove v2 et n'a été exercée que contre un
   simulateur local fourni avec le logiciel. Le fournisseur « logging » (développement) journalise
-  le document sans rien envoyer. Aucun appel réel n'a été fait à un fournisseur.
+  le document sans rien envoyer : il est refusé dans une version de production, où la section
+  `peppol` exige `storecove`. Aucun appel réel n'a été fait à un fournisseur.
 
 ## 6. Paramétrage de l'installation
 
@@ -82,7 +83,7 @@ Section facultative `peppol` du fichier de configuration (`pos.json` ou lot Andr
 
 | Réglage | Rôle |
 |---|---|
-| `provider` | `storecove` ou `logging` (par défaut). |
+| `provider` | `storecove` (obligatoire en production) ou `logging` (développement uniquement, refusé en production). |
 | `base_url`, `api_key_file`, `legal_entity_id` | Requis pour `storecove` ; la clé reste dans un fichier à part. |
 | `sender_id` | Identifiant Peppol du vendeur : `0208:` et dix chiffres. |
 | `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` | Adresse du vendeur dans le document (pays `BE` par défaut). |
@@ -103,7 +104,7 @@ La commande de contrôle de configuration signale chaque réglage invalide sous 
 
 ## 8. Tests associés
 
-Cas M150 rejoué champ par champ ; cas UC4121 (facture de trois ventes) et UC4122 (facture d'un
+Cas M150 rejoué (champs métier identiques, différences voulues : identifiant du centre de coût, numéro de facture, compteurs) ; cas UC4121 (facture de trois ventes) et UC4122 (facture d'un
 remboursement et de deux ventes) ; règles (une vente une facture, formation refusée, numérotation
 continue, perte de réponse récupérée, rapport Z, copie de facture) ; file d'envoi contre le
 simulateur (accepté, 503 puis accepté, refus 422, clé refusée, non inscrit, relance, réseau
@@ -152,7 +153,7 @@ et à emporter, noms en français, néerlandais, anglais et chinois), les groupe
 options directement à la caisse, sans catalogue externe. Rien n'est supprimé : un élément est
 masqué. L'éditeur est verrouillé tant qu'un catalogue externe gère la carte. Le choix des
 options à la vente ne dépend plus de HubRise : il s'ouvre dès qu'un produit possède un groupe
-actif avec au moins une option active.
+actif avec au moins une option active. Conséquence pour une installation qui avait copié un catalogue HubRise puis désactivé HubRise : les groupes d'options restés dans la carte ouvrent désormais le choix des options à la vente ; ils se masquent dans l'éditeur.
 
 **Pourquoi.** Tenir la carte à jour sur une installation sans HubRise, avec un historique de
 qui a changé quoi.

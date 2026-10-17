@@ -54,7 +54,7 @@ d'origine, les lignes, la ventilation de la TVA, le total, la mention « déjà 
 données de contrôle de l'événement I, sans signature numérique ni code QR (article 43 de
 l'arrêté ministériel). Une copie (événement C qui référence l'événement I) reprend la mise en
 page avec la mention COPIE et ses propres données de contrôle ; elle n'est jamais envoyée en
-version numérique.
+version numérique. La mention imprimée est COPIE (comme pour les copies de tickets de vente), et non « COPY TICKET » ; les données de contrôle de la copie sont imprimées sous leur propre intitulé (« Informations FDM de la copie »), celles de la facture d'origine restant dans le bloc principal.
 
 ## 4. Journal des factures (article 33)
 
@@ -92,13 +92,19 @@ des ventes qu'elle référence.
   simulateur local. Un essai sur le bac à sable du fournisseur reste à faire par le propriétaire
   de l'installation avant la mise en service.
 
+Risque connu : dans le document Peppol (UBL), la TVA est recalculée à partir des lignes
+arrondies (arrondi de chaque ligne, puis arrondi de la base par taux multipliée par le taux),
+alors que la facture imprimée reprend la TVA par taux calculée par le module de contrôle pour
+les tickets. Les deux peuvent différer de quelques centimes ; l'écart est absorbé par le montant
+d'arrondi à payer du document. Le total à payer reste celui des tickets.
+
 ## 6. Résultats des cas de test
 
 | Cas | Contenu | Résultat |
 |---|---|---|
-| M150 | Facture référençant une vente | Demande identique champ par champ au scénario du jeu de base 1.8 (centre de coût CUSTOMER, références des ventes) : réussi |
-| UC4121 | Facture de trois ventes | Demande conforme au scénario avancé 1.6 : réussi |
-| UC4122 | Facture d'un remboursement et de deux ventes | Demande conforme au scénario avancé 1.6 : réussi |
+| M150 | Facture référençant deux ventes | Deux ventes, puis une facture. Les champs métier de la demande sont identiques à ceux du scénario du jeu de base 1.8 (type et référence du centre de coût CUSTOMER, numéro de TVA du client, libellés des références). Différences voulues : identifiant du centre de coût (`C` suivi du numéro du client, contre `100` dans le scénario), numéro de facture et compteurs du module de contrôle des références, qui sont ceux de la session de test. Chaque référence est comparée à la réponse du module de contrôle pour la vente correspondante : réussi |
+| UC4121 | Facture de trois ventes | Trois ventes payées en espèces (le scénario les paie en crédit client, hors périmètre). Champs métier identiques au scénario avancé 1.6 ; numéro de facture, identifiant du centre de coût et compteurs différents par construction. Références comparées à la réponse du module de contrôle : réussi |
+| UC4122 | Facture d'un remboursement et de deux ventes | Une vente remboursée (le remboursement est un événement N négatif), puis deux ventes, payées en espèces. Mêmes réserves que UC4121 sur le numéro, le centre de coût et les compteurs. Références comparées à la réponse du module de contrôle : réussi |
 
 Les règles sont couvertes par des tests : une vente une facture, mode formation refusé,
 numérotation continue malgré un échec du module, réponse perdue récupérée, rapport Z, copie de

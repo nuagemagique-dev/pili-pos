@@ -1459,3 +1459,28 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   test run was done with the worktree's own target dir. `pos-eft` `the_wire_trace_shows_bodies_but_never_keys_or_queries`
   failed once under load (global tracing interest cache, crate untouched by the lane) and passed on three reruns and on
   the full rerun. Android `lint` crashed once in the Kotlin analysis of a generated KSP file (as in T4) and passed alone.
+- **V11-D20 Sales reports.** Read-only, never signed, no event, no counter. Computed from the archived N events
+  (training excluded, refunds as negative amounts) of the booking dates in the range (max 92 days, dates are booking
+  dates). Product rows = signed product lines (incl. line price changes); event price changes and payment rounding as
+  separate rows so that the grand total equals the sum of `transactionTotal`, i.e. the turnover N of the X/Z. Each
+  closed booking date shows its Z number and a "concordance" mark (equal / gap with the amount); the open period is
+  marked "periode en cours". Hours are Brussels local hours of the sale's `posDateTime`, listed from `day_end_hour`.
+  Title "RAPPORT DE VENTES", sub-title "DOCUMENT NON FISCAL", footer "CECI N'EST PAS UN RAPPORT FISCAL" and "CECI N'EST
+  PAS UN TICKET DE CAISSE TVA VALABLE"; never the words X, Z or CHIFFRE D'AFFAIRES in the title. A fourth Reports tab
+  "Ventes".
+- **V11-D49 Fix round 1: invoice copy label.** The copy block of an invoice printed the C event's control data under
+  "Informations FDM d'origine", which presented the copy's own fdmRef as the original's. It now has its own label
+  (`copy_fdm`: "Informations FDM de la copie :", NL "FDM-gegevens van de kopie :", DE "FDM-Daten der Kopie :"); the I
+  event's data stays in the main block. The printed mention stays COPIE, as for sale-ticket copies (the spec wording
+  "COPY TICKET" is not used; recorded in the dossier draft).
+- **V11-D50 Fix round 1: no logging Peppol provider in release.** `logging` sends nothing yet the queue marked such
+  deliveries accepted. `PeppolConfig::problems()` now refuses it unless `debug_assertions` (like the HubRise mock), and
+  `access_point()` returns `config_peppol` for it in release. Debug and test builds keep it for development.
+- **V11-D51 Fix round 1: fdmRefs tested by value.** `TestApp::assert_fdm_refs_of` compares each archived `fdmRefs[i]`
+  (fdmId, fdmDateTime, eventLabel, eventCounter, totalCounter) with the fdmRef the FDM answered for the matching sale,
+  in order. Used by M150 (both suites), UC4121 and UC4122 (the refund N included).
+- **V11-D52 Fix round 1: known risks, not fixed.** (a) The UBL VAT is recomputed from rounded line nets (V11-D11)
+  while the paper invoice uses the FDM's VAT per rate: a few cents can differ, absorbed in PayableRoundingAmount;
+  recorded in the dossier draft. (b) Sold-out rows set while HubRise is off are not pushed when HubRise is switched on
+  (`queue_inventory` runs at set and clear time only): to resync in a later round. (c) The English design notes
+  `WAITER_HANDHELD_SYNC.md` and `QR_TABLE_ORDERING.md` name sibling products: drop the names if they join a dossier.
