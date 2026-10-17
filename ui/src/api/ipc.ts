@@ -21,6 +21,8 @@ import type {
   DeliveryView,
   SlipOutcome,
   ExportStatus,
+  DiscountInput,
+  DiscountResult,
 } from "../types";
 
 // Menu
@@ -407,6 +409,19 @@ export interface TableTransferResult {
  * code on a refusal. */
 export function transferTable(orderId: number, toTable: number): Promise<TableTransferResult> {
   return invoke("transfer_table", { orderId, toTable });
+}
+
+/** Give a discount on an open till order (manager, PIN): a percent, an
+ * amount or the whole order off, or one line for free. A table already
+ * registered gets its P signed at once. Throws the error code. */
+export function applyDiscount(orderId: number, input: DiscountInput, insz: string, pin: string): Promise<DiscountResult> {
+  return invoke("apply_discount", { orderId, input, insz, pin });
+}
+
+/** Remove the order discount (no `lineId`) or the free line `lineId`
+ * (manager, PIN). */
+export function removeDiscount(orderId: number, lineId: number | null, insz: string, pin: string): Promise<DiscountResult> {
+  return invoke("remove_discount", { orderId, lineId, insz, pin });
 }
 
 // Reports

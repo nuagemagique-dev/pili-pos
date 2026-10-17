@@ -246,6 +246,11 @@ function defaultHandlers(): Record<string, Handler> {
       transferSlip: 'printed',
     })),
 
+    // Till discount (manager + PIN): the order after the change; specs that
+    // look at the cart afterwards override list_cart_lines / get_order.
+    apply_discount: () => ({ order: DEFAULT_ORDER, kitchenSlip: 'nothing_to_print', registrationError: null }),
+    remove_discount: () => ({ order: DEFAULT_ORDER, kitchenSlip: 'nothing_to_print', registrationError: null }),
+
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),
     work_out: () => ({ success: true, error: null }),

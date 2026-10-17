@@ -139,6 +139,33 @@ export interface CartLine extends OrderLine {
   price_changes: CartPriceChange[];
 }
 
+/** Why a manager gives a discount (audit only, never signed). */
+export type DiscountReason = 'commercial_gesture' | 'staff_meal' | 'service_issue' | 'other';
+
+export type DiscountKind = 'percent' | 'amount' | 'free';
+
+/** What a till discount applies to: the whole order, or one line (for free). */
+export type DiscountTarget = { type: 'order' } | { type: 'line'; line_id: number };
+
+/** Input of the command `apply_discount`. */
+export interface DiscountInput {
+  target: DiscountTarget;
+  kind: DiscountKind;
+  /** The percent (1 to 99) or the amount in cents; absent for "free". */
+  value?: number;
+  reason_code: DiscountReason;
+  reason_text?: string | null;
+}
+
+/** What `apply_discount` / `remove_discount` did. */
+export interface DiscountResult {
+  order: Order;
+  kitchenSlip: SlipOutcome;
+  /** Set when the P that registers the change could not be signed: the
+   * discount is recorded and goes with the next registration or sale. */
+  registrationError: string | null;
+}
+
 export interface User {
   insz: string;
   name: string;

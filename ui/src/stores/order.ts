@@ -6,7 +6,8 @@ import { useAuthStore } from "./auth";
 import { useToastStore } from "./toast";
 import { describeError } from "../utils/errorMessages";
 import { useI18n } from "../i18n";
-import type { SlipOutcome } from "../types";
+import type { SlipOutcome, DiscountInput, DiscountResult } from "../types";
+import { netTotalCents, hasOrderDiscount } from "../utils/cartAmounts";
 
 /** The order is signed either way; a slip that did not print must be
  * told to the bar / kitchen by hand. */
@@ -35,9 +36,11 @@ export const useOrderStore = defineStore("order", () => {
   // Client-side lookup: menu_item_id → category_id
   const itemCategoryMap = ref<Map<number, number>>(new Map());
 
-  const totalCents = computed(() =>
-    lines.value.reduce((sum, line) => sum + line.unit_price_cents * line.quantity, 0)
-  );
+  /** The amount due: the lines' net amounts, till discounts taken off. */
+  const totalCents = computed(() => netTotalCents(lines.value));
+
+  /** An order discount (not a free line) applies to the order. */
+  const orderDiscounted = computed(() => hasOrderDiscount(lines.value));
 
   /** Units ordered but not yet sent to the bar / kitchen (dine-in: they
    * go out with the next P; takeaway: with the sale). */
@@ -89,9 +92,13 @@ export const useOrderStore = defineStore("order", () => {
     // duplicate line - except free-price products, whose lines can
     // carry different prices.
     // A line with options is never merged into: its options differ.
+    // Nor is a line with a price change (a till discount): the engine
+    // refuses a quantity change on it, so the product gets a new line.
     const existing = item.open_price
       ? undefined
-      : lines.value.find((l) => l.menu_item_id === item.id && !l.modifiers_json);
+      : lines.value.find(
+          (l) => l.menu_item_id === item.id && !l.modifiers_json && (l.price_changes?.length ?? 0) === 0,
+        );
     if (existing) {
       await updateQuantityUnreported(existing.id, existing.quantity + quantity);
       return;
@@ -218,6 +225,40 @@ export const useOrderStore = defineStore("order", () => {
     return transferOrder(currentOrder.value.id, toTable);
   }
 
+  /** Take the engine's view of the order again after a discount: the
+   * lines (net amounts, price changes, what the P registered) and the total. */
+  async function reloadFromEngine(orderId: number) {
+    const [order, orderLines] = await Promise.all([ipc.getOrder(orderId), ipc.listCartLines(orderId)]);
+    if (currentOrder.value?.id !== orderId) return;
+    currentOrder.value = order;
+    lines.value = orderLines;
+  }
+
+  async function discountDone(orderId: number, result: DiscountResult) {
+    warnIfSlipFailed(result.kitchenSlip);
+    if (result.registrationError) {
+      useToastStore().show(useI18n().t("discount_registration_failed"), "warning", 8000);
+    }
+    await reloadFromEngine(orderId);
+  }
+
+  /** Give a discount on the order on screen (manager, confirmed by `pin`).
+   * A refusal is thrown (the PIN dialog shows it). */
+  async function applyDiscount(input: DiscountInput, pin: string) {
+    const current = currentOrder.value;
+    const insz = useAuthStore().currentUser?.insz;
+    if (!current || !insz) throw new Error("No active order");
+    await discountDone(current.id, await ipc.applyDiscount(current.id, input, insz, pin));
+  }
+
+  /** Remove the order discount (`lineId` null) or the free line `lineId`. */
+  async function removeDiscount(lineId: number | null, pin: string) {
+    const current = currentOrder.value;
+    const insz = useAuthStore().currentUser?.insz;
+    if (!current || !insz) throw new Error("No active order");
+    await discountDone(current.id, await ipc.removeDiscount(current.id, lineId, insz, pin));
+  }
+
   /** Close the current order unpaid, confirmed by the manager's PIN.
    * A refusal is thrown (the PIN dialog shows it); on success the
    * order is signed and closed, and the cart is cleared. */
@@ -251,6 +292,7 @@ export const useOrderStore = defineStore("order", () => {
     lines,
     openOrders,
     totalCents,
+    orderDiscounted,
     unsentCount,
     startOrder,
     loadOrder,
@@ -263,6 +305,8 @@ export const useOrderStore = defineStore("order", () => {
     preBill,
     transferOrder,
     transferTable,
+    applyDiscount,
+    removeDiscount,
     closeUnpaid,
     clearOrder,
     resetLocal,
