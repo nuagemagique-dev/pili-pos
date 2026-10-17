@@ -46,7 +46,7 @@ binaires de la version 1.0.0 : elle n'est pas réservée à une compilation part
 | Lignes et montants | Les lignes, la TVA et les totaux viennent des archives signées des ventes et des réponses du module de contrôle. L'écran n'envoie que des identifiants de ventes et de client. |
 | Centre de coût | La demande signée porte un centre de coût de type CUSTOMER, dont la référence est le nom du client (600 caractères au plus). |
 | Numéro de TVA | Contrôlé hors ligne : chiffres de contrôle pour un numéro belge, préfixe pays et 2 à 13 caractères pour un numéro étranger. |
-| Droits | Établir une facture, rechercher et enregistrer un client : caissier ou gérant. Panneau Peppol et relance d'un envoi : gérant. Nul ne signe au nom d'un autre opérateur. |
+| Droits | Le moteur accepte, pour établir une facture et pour rechercher et enregistrer un client, un caissier ou un gérant (un apprenti est refusé) ; le panneau Peppol et la relance d'un envoi sont réservés au gérant. L'écran n'y mène que par « Rapports » et « Config », réservés au gérant. Nul ne signe au nom d'un autre opérateur. |
 
 ## 3. Numérotation
 

@@ -23,8 +23,8 @@ Android en offre est décrit au §7.
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
-| C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
-| I | Facture B2B (absente de la build Android 1.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
+| C | Copie de ticket, ou d'une facture (réservée au gérant) | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
+| I | Facture B2B (client professionnel, à partir de ventes déjà encaissées) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` ; impression `crates/pos-print/src/invoice.rs` ; envoi Peppol `crates/pos-engine/src/commands/peppol_queue.rs` (*FACTURATION_PEPPOL_FR.md*) |
 | F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |
 | F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `crates/pos-engine/src/commands/financial.rs::do_open_drawer_fiscal` |
 | S | Pointage entrée | `signWorkIn` | `crates/pos-engine/src/commands/social.rs::do_work_in` |
@@ -154,6 +154,12 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.
 - Réutilisation d'une commande ouverte vide pour la même table
   (anti-doublon, `crates/pos-db/src/queries/orders.rs::create_order`).
+- **Produit épuisé** : un caissier ou un gérant déclare un produit
+  « Épuisé » jusqu'à la fin de la journée commerciale ou jusqu'à
+  réactivation ; la caisse refuse de l'ajouter à une commande ou
+  d'augmenter sa quantité (`product_sold_out`). Journal en ajout seul
+  (`sold_out_log`), transmission à l'inventaire HubRise si l'intégration
+  est activée. Aucun effet fiscal (*PRODUIT_EPUISE_FR.md*).
 
 ### 2.2 Encaissement
 
@@ -191,6 +197,11 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   60 s ; FAQ producteurs Q501c). Une journée sans activité n'a pas de Z.
 - Sauvegarde automatique de la base après chaque Z, juste après son
   archivage.
+- **Rapport de ventes (non fiscal)** : quatrième onglet « Ventes » des
+  Rapports, par produit, par heure et avec la concordance avec les
+  rapports Z ; imprimable sous le titre « RAPPORT DE VENTES - DOCUMENT
+  NON FISCAL ». Il ne signe rien et ne touche à aucun compteur
+  (*RAPPORTS_VENTES_FR.md*).
 
 ### 2.4 Mode formation
 
@@ -207,6 +218,29 @@ Détail complet : `EXPORT_NOCTURNE_FR.md`.
   Français (fr, principale pour les clients et obligation légale),
   Nederlands (nl), Deutsch (de, migration `007`), English (en).
 - Langue des tickets fixée par installation (`pos.json::language`, FR, NL ou DE ; `GARANTIE_MAJ_LANGUES_FR.md` §3) ; pas de choix par utilisateur. L'interface Android est en français, en anglais ou en chinois simplifié.
+
+### 2.6 Édition de la carte
+
+Un gérant crée et modifie les catégories, les produits (prix, TVA sur
+place et à emporter, noms en français, néerlandais, anglais et chinois),
+les groupes d'options et les options directement à la caisse, dans
+"Config", panneau "Carte". Rien n'est supprimé (un élément est masqué),
+chaque modification est journalisée en ajout seul (`menu_change_log`),
+l'éditeur est verrouillé tant qu'un catalogue externe (HubRise) gère la
+carte. Aucun effet fiscal : une commande ouverte et un événement signé
+gardent le nom, le prix, la TVA et le département d'origine (arrêté
+ministériel, art. 44). Voir *EDITEUR_CARTE_FR.md*.
+
+### 2.7 Facturation B2B
+
+Une facture à un client professionnel est établie à partir d'une ou de
+plusieurs ventes déjà encaissées (Rapports, onglet Tickets, « Facture ») :
+choix ou création du client (numéro de TVA contrôlé hors ligne), aperçu,
+signature (événement I), impression papier, copie réservée au gérant,
+liste des factures. Une vente figure sur une seule facture ; numérotation
+continue ; le remboursement (N négatif) peut figurer sur une facture. Le
+journal des factures (art. 33) est la vue `v_invoice_journal`. Voir
+*FACTURATION_PEPPOL_FR.md*.
 
 ## 3. Commandes en ligne (plateformes et webshop)
 
@@ -229,12 +263,32 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 
 ## 3 bis. Fonctionnalités exclues (hors scope cert)
 
-- **Facturation B2B (événement I, Peppol)** : absente de la build Android 1.0 (fonction Cargo `peppol` hors de `cert`, `android/rust/pos-ffi/Cargo.toml`), livrée dans une mise à jour certifiée ultérieure s'il y a lieu. Voir §4.
+- **Crédit client et compte client différé** : absents ; les ventes des
+  cas UC4121 et UC4122 payées « crédit client » sont rejouées au comptant.
+- **Facture en mode formation** : refusée. **Envoi Peppol vers un client
+  étranger** : la facture est imprimée seulement.
+- **Note de crédit autonome** : absente (un remboursement se reprend sur
+  une facture, *FLUX_REMBOURSEMENT_FR.md* §3). **Correction de paiement**
+  (M132) et **changement de centre de coût** (M122) : hors périmètre.
 - **Assistance à distance** : aucun outil d'assistance sur Android ; le support se fait sur place (§7.3).
 
 ## 4. Intégration Peppol (B2B)
 
-Sans objet sur Android : la bibliothèque `libpos_ffi.so` ne contient ni le sérialiseur UBL, ni l'Access Point, ni commande de facture, et l'interface n'appelle aucune commande de facture. Voir `DECISION_PEPPOL_AP_FR.md`.
+Dans tous les binaires, sans fonction Cargo. Voir `FACTURATION_PEPPOL_FR.md` (règles, file d'envoi) et `DECISION_PEPPOL_AP_FR.md` (point d'accès).
+
+- Sérialiseur UBL 2.1 BIS Billing 3.0 (`crates/pos-peppol/src/ubl.rs`).
+- Trait `AccessPoint` (`crates/pos-peppol/src/access_point.rs`) avec
+  `StorecoveAccessPoint` (API Storecove v2, recherche du destinataire et
+  envoi) et `LoggingAccessPoint` (développement, refusé en production).
+- File d'envoi avec nouvelles tentatives et journal en ajout seul
+  (`crates/pos-engine/src/commands/peppol_queue.rs`, tables
+  `peppol_deliveries` et `peppol_delivery_log`) ; panneau Peppol du
+  gérant (envois en attente, remis, bloqués, relance).
+- Réglages : section `peppol` de `pos.json` (*MANUEL_INSTALLATION_FR.md*).
+
+Le déploiement avec un Access Point en production (compte, clé,
+essai sur le bac à sable) est une étape de l'exploitant indépendante de
+la certification SCE 2.0.
 
 ## 5. Versions de spécifications implémentées
 
@@ -265,7 +319,7 @@ Sans objet sur Android : la bibliothèque `libpos_ffi.so` ne contient ni le sér
 
 ## 7. Interface Android et parité avec l'interface Linux
 
-L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 84 commandes que l'interface Linux utilise, **75 sont appelées** par l'interface Android et **9 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Aucune des 75 n'est une commande de facture.
+L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili-pos` et n'ajoute aucune règle fiscale : l'interface affiche et transmet, le moteur décide (`DOCUMENT_PROCESSUS_TECHNIQUE_FR.md` §1). L'index `docs/android/PARITY.md`, contrôlé par `scripts/android/check_ui_parity.py`, rattache chaque composant Vue à son équivalent Compose et chaque commande à son appelant. Sur les 112 commandes que l'interface Linux utilise, **103 sont appelées** par l'interface Android et **9 sont exclues**, avec leurs raisons (§7.2) ; aucune n'est manquante ni en attente. Les commandes de facture, de produit épuisé, d'édition de la carte et de rapport de ventes sont parmi les 103.
 
 ### 7.1 Écrans offerts
 
@@ -275,6 +329,7 @@ L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili
 - Rapports X et Z, copie de ticket, remboursement, mouvements de caisse : §1.1, §2.3.
 - Réglages (employés, mode formation, envois de tickets, interrupteur HubRise) : §2.4, §3.
 - Commandes en ligne : §3. Export nocturne : §1.7.
+- Facturation B2B (choix des ventes, client, aperçu, liste des factures, panneau Peppol) : §2.7. Produit épuisé : §2.1. Édition de la carte : §2.6. Rapport de ventes : §2.3.
 
 ### 7.2 Commandes exclues (9)
 

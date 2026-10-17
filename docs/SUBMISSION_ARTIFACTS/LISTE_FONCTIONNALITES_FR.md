@@ -16,8 +16,8 @@ build `--no-default-features --features cert`).
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
-| C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
-| I | Facture B2B (hors binaire certifié v1.0.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
+| C | Copie de ticket, ou d'une facture (réservée au gérant) | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
+| I | Facture B2B (client professionnel, à partir de ventes déjà encaissées) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` ; impression `crates/pos-print/src/invoice.rs` ; envoi Peppol `crates/pos-engine/src/commands/peppol_queue.rs` (*FACTURATION_PEPPOL_FR.md*) |
 | F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |
 | F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `crates/pos-engine/src/commands/financial.rs::do_open_drawer_fiscal` |
 | S | Pointage entrée | `signWorkIn` | `crates/pos-engine/src/commands/social.rs::do_work_in` |
@@ -126,6 +126,12 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
 - Modificateurs par item (sauces, cuisson...) - table `modifier_groups`.
 - Réutilisation d'une commande ouverte vide pour la même table
   (anti-doublon, `crates/pos-db/src/queries/orders.rs::create_order`).
+- **Produit épuisé** : un caissier ou un gérant déclare un produit
+  « Épuisé » jusqu'à la fin de la journée commerciale ou jusqu'à
+  réactivation ; la caisse refuse de l'ajouter à une commande ou
+  d'augmenter sa quantité (`product_sold_out`). Journal en ajout seul
+  (`sold_out_log`), transmission à l'inventaire HubRise si l'intégration
+  est activée. Aucun effet fiscal (*PRODUIT_EPUISE_FR.md*).
 
 ### 2.2 Encaissement
 
@@ -179,6 +185,11 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   60 s ; FAQ producteurs Q501c). Une journée sans activité n'a pas de Z.
 - Sauvegarde automatique de la base après chaque Z, juste après son
   archivage.
+- **Rapport de ventes (non fiscal)** : quatrième onglet « Ventes » des
+  Rapports, par produit, par heure et avec la concordance avec les
+  rapports Z ; imprimable sous le titre « RAPPORT DE VENTES - DOCUMENT
+  NON FISCAL ». Il ne signe rien et ne touche à aucun compteur
+  (*RAPPORTS_VENTES_FR.md*).
 
 ### 2.4 Mode formation
 
@@ -195,6 +206,29 @@ Chaque ticket contient (cf. `crates/pos-print/src/receipt.rs`) :
   Français (fr, principale pour les clients et obligation légale),
   Nederlands (nl), Deutsch (de, migration `007`), English (en).
 - Langue d'affichage et langue des tickets fixées par installation (`pos.json::language`) ; pas de choix par utilisateur.
+
+### 2.6 Édition de la carte
+
+Un gérant crée et modifie les catégories, les produits (prix, TVA sur
+place et à emporter, noms en français, néerlandais, anglais et chinois),
+les groupes d'options et les options directement à la caisse, dans
+"Config", panneau "Carte". Rien n'est supprimé (un élément est masqué),
+chaque modification est journalisée en ajout seul (`menu_change_log`),
+l'éditeur est verrouillé tant qu'un catalogue externe (HubRise) gère la
+carte. Aucun effet fiscal : une commande ouverte et un événement signé
+gardent le nom, le prix, la TVA et le département d'origine (arrêté
+ministériel, art. 44). Voir *EDITEUR_CARTE_FR.md*.
+
+### 2.7 Facturation B2B
+
+Une facture à un client professionnel est établie à partir d'une ou de
+plusieurs ventes déjà encaissées (Rapports, onglet Tickets, « Facture ») :
+choix ou création du client (numéro de TVA contrôlé hors ligne), aperçu,
+signature (événement I), impression papier, copie réservée au gérant,
+liste des factures. Une vente figure sur une seule facture ; numérotation
+continue ; le remboursement (N négatif) peut figurer sur une facture. Le
+journal des factures (art. 33) est la vue `v_invoice_journal`. Voir
+*FACTURATION_PEPPOL_FR.md*.
 
 ## 3. Commandes en ligne (plateformes et webshop)
 
@@ -217,25 +251,31 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 
 ## 3 bis. Fonctionnalités exclues (hors scope cert)
 
-- **Facturation B2B (événement I, Peppol)** : absente du binaire
-  certifié (feature Cargo `peppol` hors de `cert`), livrée dans une
-  mise à jour certifiée ultérieure. Voir §4.
+- **Crédit client et compte client différé** : absents ; les ventes des
+  cas UC4121 et UC4122 payées « crédit client » sont rejouées au comptant.
+- **Facture en mode formation** : refusée. **Envoi Peppol vers un client
+  étranger** : la facture est imprimée seulement.
+- **Note de crédit autonome** : absente (un remboursement se reprend sur
+  une facture, *FLUX_REMBOURSEMENT_FR.md* §3). **Correction de paiement**
+  (M132) et **changement de centre de coût** (M122) : hors périmètre.
 
 ## 4. Intégration Peppol (B2B)
 
-Hors binaire certifié v1.0.0 (voir §3 bis). Voir `DECISION_PEPPOL_AP_FR.md` pour le détail.
+Dans tous les binaires, sans fonction Cargo. Voir `FACTURATION_PEPPOL_FR.md` (règles, file d'envoi) et `DECISION_PEPPOL_AP_FR.md` (point d'accès).
 
-Implémentation présente :
 - Sérialiseur UBL 2.1 BIS Billing 3.0 (`crates/pos-peppol/src/ubl.rs`).
 - Trait `AccessPoint` (`crates/pos-peppol/src/access_point.rs`) avec
-  implémentation `LoggingAccessPoint` (no-op pour développement) et
-  stub `StorecoveAccessPoint` (intégration commerciale à finaliser).
-- Commande Tauri `issue_b2b_invoice`
-  (`crates/pos-engine/src/commands/invoice.rs`).
-- Table `peppol_deliveries` pour la traçabilité.
+  `StorecoveAccessPoint` (API Storecove v2, recherche du destinataire et
+  envoi) et `LoggingAccessPoint` (développement, refusé en production).
+- File d'envoi avec nouvelles tentatives et journal en ajout seul
+  (`crates/pos-engine/src/commands/peppol_queue.rs`, tables
+  `peppol_deliveries` et `peppol_delivery_log`) ; panneau Peppol du
+  gérant (envois en attente, remis, bloqués, relance).
+- Réglages : section `peppol` de `pos.json` (*MANUEL_INSTALLATION_FR.md*).
 
-Le déploiement avec un Access Point en production est une étape
-contractuelle indépendante de la certification SCE 2.0.
+Le déploiement avec un Access Point en production (compte, clé,
+essai sur le bac à sable) est une étape de l'exploitant indépendante de
+la certification SCE 2.0.
 
 ## 5. Versions de spécifications implémentées
 
