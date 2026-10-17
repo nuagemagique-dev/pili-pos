@@ -1,0 +1,2 @@
+﻿date;rapport_z;numero_facture;ticket;date_heure;tva_client;client;base_A;base_A_centimes;tva_A;tva_A_centimes;base_B;base_B_centimes;tva_B;tva_B_centimes;base_C;base_C_centimes;tva_C;tva_C_centimes;base_D;base_D_centimes;tva_D;tva_D_centimes;base_X;base_X_centimes;tva_X;tva_X_centimes;total;total_centimes;tickets;tickets_introuvables
+2026-10-01;1;20260001;15;2026-10-01 12:00:00;BE0308357159;;0,00;0;0,00;0;35,00;3500;4,20;420;0,00;0;0,00;0;0,00;0;0,00;0;0,00;0;0,00;0;39,20;3920;N2 N4;0

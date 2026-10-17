@@ -1,0 +1,3 @@
+﻿date;rapport_z;ticket;date_heure;sens;moyen;libelle;montant;montant_centimes
+2026-10-01;1;13;2026-10-01 12:00:00;entree;especes;Fond de caisse;100,00;10000
+2026-10-01;1;14;2026-10-01 12:00:00;sortie;especes;'=Banque;-40,00;-4000

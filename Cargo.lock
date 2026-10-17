@@ -3646,6 +3646,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pos-accounting"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "pos-core",
+ "pos-db",
+ "pos-engine",
+ "pos-engine-testkit",
+ "pos-fiscal",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "pos-catalog"
 version = "1.0.0"
 dependencies = [
