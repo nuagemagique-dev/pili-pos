@@ -362,7 +362,7 @@ mod flow {
 
     use super::*;
     use crate::core::EngineOptions;
-    use crate::records::orders::OrderType;
+    use crate::records::orders::{DiscountKind, DiscountReason, DiscountTarget, OrderType};
 
     const MANAGER_INSZ: &str = "94060242576";
 
@@ -440,6 +440,91 @@ mod flow {
             PosError::Coded { code, .. } => code,
             other => panic!("expected a coded error, got {other:?}"),
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_discount_is_applied_and_removed_through_the_facade() {
+        const PIN: &str = "4321";
+        let (e, _dir) = open_logged_in().await;
+        e.blocking(|st| {
+            pos_engine::commands::auth::do_set_pin(st, MANAGER_INSZ.into(), PIN.into(), None)
+        })
+        .await
+        .unwrap();
+        let order = e
+            .create_order(CreateOrderInput {
+                order_type: OrderType::Takeaway,
+                table_number: None,
+                user_insz: MANAGER_INSZ.into(),
+            })
+            .await
+            .unwrap();
+        e.add_order_line(AddOrderLineInput {
+            order_id: order.id,
+            menu_item_id: 10006,
+            quantity: 2,
+            modifiers_json: None,
+            unit_price_cents: None,
+        })
+        .await
+        .unwrap();
+        let percent = |value: i64| DiscountInput {
+            target: DiscountTarget::Order,
+            kind: DiscountKind::Percent,
+            value: Some(value),
+            reason_code: DiscountReason::CommercialGesture,
+            reason_text: None,
+        };
+
+        // A wrong PIN is refused with its code and changes nothing.
+        let wrong = e
+            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), "0000".into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(wrong), "pin_wrong");
+        assert_eq!(e.get_order(order.id).await.unwrap().total_cents, 2400);
+
+        // 50 % of 2 x 12,00.
+        let done = e
+            .apply_discount(order.id, percent(50), MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap();
+        assert_eq!(done.order.id, order.id);
+        assert_eq!(done.order.total_cents, 1200);
+        assert_eq!(done.registration_error, None);
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].discount_cents, -1200);
+        assert_eq!(cart[0].price_changes.len(), 1);
+        assert_eq!(cart[0].price_changes[0].id, "TILL-DISCOUNT");
+        assert_eq!(cart[0].price_changes[0].scope, "EVENT");
+
+        // A second discount waits for the removal.
+        let twice = e
+            .apply_discount(order.id, percent(10), MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(twice), "discount_already_applied");
+
+        // The removal takes the PIN too, and gives the full price back.
+        let wrong = e
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), "0000".into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(wrong), "pin_wrong");
+        let removed = e
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap();
+        assert_eq!(removed.order.total_cents, 2400);
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].discount_cents, 0);
+        // Nothing left to remove.
+        let none = e
+            .remove_discount(order.id, None, MANAGER_INSZ.into(), PIN.into())
+            .await
+            .unwrap_err();
+        assert_eq!(coded(none), "discount_none");
+        e.shutdown().await.unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
