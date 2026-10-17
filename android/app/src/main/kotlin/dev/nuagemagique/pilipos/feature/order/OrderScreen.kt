@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.feature.checkout.CheckoutRoutes
 import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
+import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.AmountDialog
 import dev.nuagemagique.pilipos.ui.components.PinDialog
@@ -46,6 +47,10 @@ internal data class OrderCallbacks(
     val onItem: (MenuItem) -> Unit = {},
     val onPrice: (Long) -> Unit = {},
     val onPicks: (List<Long>) -> Unit = {},
+    /** The "Allergènes" button: allergen mode on or off. */
+    val onAllergenMode: () -> Unit = {},
+    /** Print the open allergen sheet (`false`) or the whole menu's (`true`). */
+    val onAllergenPrint: (Boolean) -> Unit = {},
     val onDismiss: () -> Unit = {},
     /** The manager PIN of "customer left without paying"; throws what the engine refused. */
     val onUnpaidPin: suspend (String) -> Unit = {},
@@ -80,6 +85,8 @@ internal fun OrderRoute(
             onItem = model::addItem,
             onPrice = model::confirmPrice,
             onPicks = model::confirmModifiers,
+            onAllergenMode = model::toggleAllergenMode,
+            onAllergenPrint = model::printAllergenSheet,
             onDismiss = model::dismissDialog,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
@@ -102,7 +109,7 @@ internal fun OrderRoute(
         area = HeaderArea.ORDER,
         navigator = navigator,
         modifier = Modifier.testTag("placeholder_order"),
-        overlay = { OrderDialogs(state.dialog, callbacks) },
+        overlay = { OrderDialogs(state.dialog, callbacks, state.menu.language) },
     ) {
         OrderContent(state, callbacks, cartActions)
     }
@@ -147,6 +154,7 @@ internal fun OrderContent(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
+                AllergenBar(menu, callbacks.onAllergenMode)
                 MenuGrid(
                     items = menu.items,
                     categoryColor = parseCategoryColor(color),
@@ -171,6 +179,7 @@ internal fun OrderContent(
 internal fun BoxScope.OrderDialogs(
     dialog: OrderDialog,
     callbacks: OrderCallbacks,
+    language: AppLanguage = AppLanguage.FR,
 ) {
     when (dialog) {
         OrderDialog.None -> Unit
@@ -184,6 +193,8 @@ internal fun BoxScope.OrderDialogs(
             )
         is OrderDialog.Modifiers ->
             ModifierDialog(dialog.item, dialog.groups, onConfirm = callbacks.onPicks, onCancel = callbacks.onDismiss)
+        is OrderDialog.AllergenSheet ->
+            AllergenSheetDialog(dialog, language, onPrint = callbacks.onAllergenPrint, onClose = callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
     }
 }

@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import uniffi.pos_ffi.AddWithModifiersInput
+import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.LeaveReason
@@ -52,6 +53,8 @@ private data class Data(
     val vatRows: List<VatSplitRow> = emptyList(),
     val sending: Boolean = false,
     val preBilling: Boolean = false,
+    val allergenMode: Boolean = false,
+    val allergenLegend: List<AllergenEntry> = emptyList(),
 )
 
 /** How the screen speaks and what the signed-in user may do. */
@@ -163,7 +166,11 @@ internal class MenuViewModel(
         val quantities = lines.groupingBy { it.menuItemId }.fold(0) { sum, line -> sum + line.quantity }
         return OrderUiState(
             signedIn = l.signedIn,
-            menu = MenuState(d.categories, d.selectedCategoryId, d.items, quantities, l.language, l.labelMode, d.loaded),
+            menu =
+                MenuState(
+                    d.categories, d.selectedCategoryId, d.items, quantities, l.language, l.labelMode, d.loaded,
+                    d.allergenMode, d.allergenLegend,
+                ),
             cart =
                 OrderCartState(
                     order = current,
@@ -280,15 +287,17 @@ internal class MenuViewModel(
 
     /** A tap on a product button (`handleAddItem`). */
     fun addItem(item: MenuItem) {
-        // Only the order of the route takes products: while another one is current the menu does nothing.
-        if (!isRouteOrderCurrent()) return
-        if (item.openPrice) {
-            data.update { it.copy(dialog = OrderDialog.Price(item)) }
-            return
-        }
-        // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
-        viewModelScope.launch {
-            if (entry.integrations().hubriseEnabled.value) askModifiers(item) else order.addItem(item)
+        when {
+            // Allergen mode: a tap shows the product's allergen sheet instead of adding it.
+            data.value.allergenMode -> openAllergenSheet(item)
+            // Only the order of the route takes products: while another one is current the menu does nothing.
+            !isRouteOrderCurrent() -> Unit
+            item.openPrice -> data.update { it.copy(dialog = OrderDialog.Price(item)) }
+            // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
+            else ->
+                viewModelScope.launch {
+                    if (entry.integrations().hubriseEnabled.value) askModifiers(item) else order.addItem(item)
+                }
         }
     }
 
@@ -326,6 +335,65 @@ internal class MenuViewModel(
                     engine.addOrderLineWithModifiers(AddWithModifiersInput(orderId, item.id, 1, modifierIds))
                 }
             }
+        }
+    }
+
+    // ── Allergens ─────────────────────────────────────────────────
+
+    /** The "Allergènes" button: turns the mode on or off; the legend is read the first time (`toggleMode`). */
+    fun toggleAllergenMode() {
+        val on = !data.value.allergenMode
+        data.update { it.copy(allergenMode = on) }
+        if (on && data.value.allergenLegend.isEmpty()) {
+            viewModelScope.launch {
+                attempt { gateway.call { engine -> engine.listAllergens() } }.fold(
+                    onSuccess = { legend -> data.update { it.copy(allergenLegend = legend) } },
+                    onFailure = { Timber.d(it, "Allergen legend not loaded") },
+                )
+            }
+        }
+    }
+
+    /** Opens the allergen sheet of [item]: its sheet in the UI language, and in French when that differs (`openSheet`). */
+    private fun openAllergenSheet(item: MenuItem) {
+        data.update { it.copy(dialog = OrderDialog.AllergenSheet(item)) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            attempt {
+                val own = gateway.call { engine -> engine.getAllergenSheet(item.id, language.code) }
+                val fr =
+                    if (language == AppLanguage.FR) null else gateway.call { engine -> engine.getAllergenSheet(item.id, "fr") }
+                own.products.firstOrNull() to fr?.products?.firstOrNull()
+            }.fold(
+                onSuccess = { (own, fr) -> updateSheet(item) { it.copy(sheet = own, sheetFr = fr, error = null) } },
+                onFailure = { error -> updateSheet(item) { it.copy(error = entry.errors().text(error, language)) } },
+            )
+        }
+    }
+
+    /** Prints the open product's sheet, or the whole menu's ([all]); the printer speaks fr, nl, en and de (zh prints in French). */
+    fun printAllergenSheet(all: Boolean) {
+        val open = data.value.dialog as? OrderDialog.AllergenSheet ?: return
+        if (open.busy) return
+        updateSheet(open.item) { it.copy(busy = true, error = null, printResult = null) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            val lang = if (language == AppLanguage.ZH) "fr" else language.code
+            attempt { gateway.call { engine -> engine.printAllergenSheet(if (all) null else open.item.id, lang) } }.fold(
+                onSuccess = { result -> updateSheet(open.item) { it.copy(busy = false, printResult = result) } },
+                onFailure = { error -> updateSheet(open.item) { it.copy(busy = false, error = entry.errors().text(error, language)) } },
+            )
+        }
+    }
+
+    /** Changes the open allergen sheet of [item] (a sheet closed or replaced meanwhile is left alone). */
+    private fun updateSheet(
+        item: MenuItem,
+        change: (OrderDialog.AllergenSheet) -> OrderDialog.AllergenSheet,
+    ) {
+        data.update {
+            val open = it.dialog as? OrderDialog.AllergenSheet
+            if (open != null && open.item.id == item.id) it.copy(dialog = change(open)) else it
         }
     }
 

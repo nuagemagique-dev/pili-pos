@@ -118,6 +118,15 @@ private fun MenuItemButton(
     ) {
         Box(Modifier.width(ColorBand).fillMaxHeight().background(categoryColor ?: c.border))
         ItemLabel(item, language, labelMode)
+        if (item.allergens.isNotEmpty()) {
+            AllergenBadges(
+                codes = item.allergens,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = ColorBand + PiliTheme.dimens.spaceSm, bottom = PiliTheme.dimens.spaceSm, end = AllergenEndGap),
+            )
+        }
         if (inCart > 0) {
             Text(
                 text = inCart.toString(),
@@ -194,3 +203,6 @@ private fun ItemLabel(
 }
 
 private val QtyBadge = 15.dp
+
+/** Room kept free on the right of the allergen badges for the quantity badge. */
+private val AllergenEndGap = 56.dp

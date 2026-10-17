@@ -68,6 +68,9 @@ internal fun menuItem(
     code: String? = null,
     nameFr: String? = null,
     nameZh: String? = null,
+    allergens: List<String> = emptyList(),
+    traces: List<String> = emptyList(),
+    allergensDeclared: Boolean = allergens.isNotEmpty() || traces.isNotEmpty(),
 ): MenuItem =
     MenuItem(
         id = id,
@@ -83,6 +86,9 @@ internal fun menuItem(
         openPrice = openPrice,
         sortOrder = id.toInt(),
         active = true,
+        allergens = allergens,
+        traces = traces,
+        allergensDeclared = allergensDeclared,
     )
 
 @Suppress("LongParameterList")
@@ -151,7 +157,8 @@ internal fun modifier(
     id: Long,
     name: String,
     priceCents: Long = 0,
-): Modifier = Modifier(id = id, name = name, priceCents = priceCents)
+    allergens: List<String> = emptyList(),
+): Modifier = Modifier(id = id, name = name, priceCents = priceCents, allergens = allergens, allergensDeclared = allergens.isNotEmpty())
 
 internal fun group(
     id: Long,

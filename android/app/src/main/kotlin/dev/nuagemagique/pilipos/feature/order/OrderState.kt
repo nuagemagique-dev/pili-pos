@@ -3,11 +3,14 @@ package dev.nuagemagique.pilipos.feature.order
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import uniffi.pos_ffi.AllergenEntry
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.Category
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.SheetProductView
+import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.VatSplitRow
 
 /** The dialog open over the order screen, if any (`pricing` and `choosing` of `OrderView.vue`). */
@@ -24,6 +27,20 @@ internal sealed interface OrderDialog {
     data class Modifiers(
         val item: MenuItem,
         val groups: List<ModifierGroup>,
+    ) : OrderDialog
+
+    /**
+     * The allergen sheet of [item] (allergen mode, `AllergenSheetDialog.vue`): [sheet] in the UI language and [sheetFr]
+     * in French when that differs, null until read; [error] is the text of a refusal, [printResult] what the last
+     * print came to and [busy] a print running.
+     */
+    data class AllergenSheet(
+        val item: MenuItem,
+        val sheet: SheetProductView? = null,
+        val sheetFr: SheetProductView? = null,
+        val error: String? = null,
+        val printResult: SlipOutcome? = null,
+        val busy: Boolean = false,
     ) : OrderDialog
 
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
@@ -84,6 +101,10 @@ internal data class MenuState(
     val labelMode: ProductLabelMode = ProductLabelMode.NAME,
     /** True once the products of the selected category were read for the engine that is running. */
     val loaded: Boolean = false,
+    /** Allergen mode: a tap on a product opens its allergen sheet instead of adding it. */
+    val allergenMode: Boolean = false,
+    /** The 14 allergens in Annex order (`list_allergens`), read when the mode is first turned on. */
+    val allergenLegend: List<AllergenEntry> = emptyList(),
 )
 
 /** What the order screen shows. */

@@ -213,5 +213,6 @@ private fun OptionButton(
         if (option.priceCents > 0L) {
             Text("+$price", style = t.figure.copy(fontSize = t.sizeSm), color = c.textSecondary)
         }
+        if (option.allergens.isNotEmpty()) AllergenBadges(option.allergens)
     }
 }
