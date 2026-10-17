@@ -15,7 +15,7 @@ use pos_engine::commands::bar_slip::SlipOutcome;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::errors;
 use pos_engine::commands::order::{
-    AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
+    AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
 };
 use pos_engine::commands::report::close_overdue_day;
 use pos_engine::commands::table_transfer::do_transfer_table;
@@ -217,6 +217,70 @@ async fn a_target_with_only_a_ghost_order_is_free_and_the_ghost_is_voided() {
     assert_eq!(table_of(&app, o), Some(6));
     assert_eq!(app.order_status(ghost).as_deref(), Some("voided"));
     assert_eq!(app.order_status(o).as_deref(), Some("open"));
+}
+
+/// An open order on `table` that has no line left but holds a signed
+/// event: a line registered for the kitchen (P ORDER), then removed.
+async fn signed_order_without_lines(app: &TestApp, table: i32) -> i64 {
+    let o = table_order(app, table);
+    let line = add(app, o, 2, 1);
+    do_sign_table_order(&app.state, o).await.unwrap();
+    do_remove_order_line(&app.state, line).unwrap();
+    let lines: i64 = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM order_lines WHERE order_id = ?1",
+            [o],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(lines, 0, "no line left");
+    o
+}
+
+#[tokio::test]
+async fn a_target_whose_order_has_no_line_but_a_signed_event_is_busy() {
+    let fdm = LossyFdm::start().await;
+    let app = app_with(&fdm).await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 1);
+    let taken = signed_order_without_lines(&app, 8).await;
+
+    assert_eq!(
+        refused(&app, o, 8).await,
+        errors::TABLE_TRANSFER_TARGET_BUSY
+    );
+    assert_eq!(table_of(&app, o), Some(4));
+    assert_eq!(app.order_status(taken).as_deref(), Some("open"));
+    assert!(fdm.sent_op("signCostCenterChange").is_empty());
+}
+
+#[tokio::test]
+async fn a_target_whose_order_has_no_line_but_a_payment_is_busy() {
+    let fdm = LossyFdm::start().await;
+    let app = app_with(&fdm).await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 1);
+    let taken = table_order(&app, 8);
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'cash', 500)",
+            [taken],
+        )
+        .unwrap();
+
+    assert_eq!(
+        refused(&app, o, 8).await,
+        errors::TABLE_TRANSFER_TARGET_BUSY
+    );
+    assert_eq!(table_of(&app, o), Some(4));
+    assert_eq!(app.order_status(taken).as_deref(), Some("open"));
 }
 
 // ── Signing ────────────────────────────────────────────────────────
@@ -486,6 +550,35 @@ async fn a_late_answer_never_puts_two_open_orders_on_one_table() {
     // No "table moved" notice for the kitchen.
     let slips = printer.settle_slips(1).await;
     assert!(!slips.iter().any(|s| s.contains("TRANSFERT DE TABLE")));
+}
+
+#[tokio::test]
+async fn a_late_answer_keeps_the_order_put_when_the_target_holds_an_order_without_lines() {
+    let fdm = LossyFdm::start().await;
+    fdm.lose_first("signCostCenterChange");
+    let app = app_with(&fdm).await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 1);
+    assert!(do_transfer_table(&app.state, o, 8).await.is_err());
+    // While the answer is awaited, an order is opened at table 8 and
+    // holds a payment but no line (any signing command would resolve
+    // the waiting move first, so the state is written directly).
+    let taken = table_order(&app, 8);
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'cash', 500)",
+            [taken],
+        )
+        .unwrap();
+
+    assert_eq!(refused(&app, o, 8).await, errors::TABLE_TRANSFER_NOT_MOVED);
+    assert_eq!(table_of(&app, o), Some(4));
+    assert_eq!(table_of(&app, taken), Some(8));
+    assert_eq!(app.order_status(taken).as_deref(), Some("open"));
+    assert!(app.open_pending().is_none());
 }
 
 #[tokio::test]

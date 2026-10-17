@@ -644,42 +644,20 @@ fn apply(
         } => {
             // The signed move is the fiscal truth, but the local state
             // must never hold two open orders on one table. An answer that
-            // arrives late can find the target taken meanwhile: an order
-            // with lines opened there after the check. Then the order
-            // stays on its source table (V1F-D60) and the caller
-            // reports `table_transfer_not_moved`.
-            let busy: bool = tx
-                .query_row(
-                    "SELECT EXISTS (
-                         SELECT 1 FROM orders o
-                         WHERE o.status = 'open' AND o.order_type = 'dine_in'
-                           AND o.table_number = ?1 AND o.id <> ?2 AND o.hubrise_order_id IS NULL
-                           AND EXISTS (SELECT 1 FROM order_lines ol
-                                       WHERE ol.order_id = o.id AND ol.quantity > 0))",
-                    rusqlite::params![to_table, order_id],
-                    |r| r.get(0),
-                )
-                .map_err(errors::internal)?;
-            if busy {
+            // arrives late can find the target taken meanwhile: an open
+            // order there with a line, a signed event or a payment. Then
+            // the order stays on its source table (V1F-D60) and the caller
+            // reports `table_transfer_not_moved`. Same query as the check
+            // before signing (V1F-D68).
+            if pos_db::queries::orders::table_taken(tx, *to_table, *order_id)
+                .map_err(errors::internal)?
+            {
                 return Ok((None, None));
             }
             // A ghost order (opened and left empty) on the target does
-            // not block the move; one that holds a signed event stays.
-            let mut stmt = tx
-                .prepare(
-                    "SELECT id FROM orders
-                     WHERE status = 'open' AND order_type = 'dine_in' AND table_number = ?1
-                       AND id <> ?2 AND hubrise_order_id IS NULL",
-                )
+            // not block the move; it is voided with it.
+            pos_db::queries::orders::void_empty_on_table(tx, *to_table, *order_id)
                 .map_err(errors::internal)?;
-            let ghosts: Vec<i64> = stmt
-                .query_map(rusqlite::params![to_table, order_id], |r| r.get(0))
-                .map_err(errors::internal)?
-                .collect::<Result<_, _>>()
-                .map_err(errors::internal)?;
-            for ghost in ghosts {
-                pos_db::queries::orders::void_if_empty(tx, ghost).map_err(errors::internal)?;
-            }
             tx.execute(
                 "UPDATE orders SET table_number = ?1 WHERE id = ?2 AND status = 'open'",
                 rusqlite::params![to_table, order_id],

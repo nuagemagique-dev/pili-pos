@@ -588,15 +588,61 @@ pub fn void_all_empty(conn: &Connection) -> Result<usize, rusqlite::Error> {
     void_empty(conn, None)
 }
 
-fn void_empty(conn: &Connection, order_id: Option<i64>) -> Result<usize, rusqlite::Error> {
-    conn.execute(
-        "UPDATE orders SET status = 'voided', closed_at = datetime('now')
-         WHERE (?1 IS NULL OR id = ?1) AND status = 'open' AND hubrise_order_id IS NULL
-           AND NOT EXISTS (SELECT 1 FROM order_lines WHERE order_id = orders.id)
+/// The condition of an order that never held anything (the orders row
+/// is `orders`): what [`void_if_empty`] voids, and what never makes a
+/// table taken ([`table_taken`]).
+const NEVER_HELD_ANYTHING: &str =
+    "NOT EXISTS (SELECT 1 FROM order_lines WHERE order_id = orders.id)
            AND NOT EXISTS (SELECT 1 FROM fiscal_events WHERE order_id = orders.id)
            AND NOT EXISTS (SELECT 1 FROM payments WHERE order_id = orders.id)
-           AND NOT EXISTS (SELECT 1 FROM eft_payments WHERE order_id = orders.id)",
+           AND NOT EXISTS (SELECT 1 FROM eft_payments WHERE order_id = orders.id)";
+
+fn void_empty(conn: &Connection, order_id: Option<i64>) -> Result<usize, rusqlite::Error> {
+    conn.execute(
+        &format!(
+            "UPDATE orders SET status = 'voided', closed_at = datetime('now')
+             WHERE (?1 IS NULL OR id = ?1) AND status = 'open' AND hubrise_order_id IS NULL
+               AND {NEVER_HELD_ANYTHING}"
+        ),
         params![order_id],
+    )
+}
+
+/// Whether table `table` holds an open dine-in till order other than
+/// `except` once its empty orders are left aside: any line (whatever
+/// its quantity), any signed event or any payment makes the table
+/// taken. An order that [`void_if_empty`] would void (a table opened and
+/// left) never does. The table transfer reads this both before it signs
+/// and in the archive transaction of the move, so the two never differ.
+pub fn table_taken(conn: &Connection, table: i32, except: i64) -> Result<bool, rusqlite::Error> {
+    conn.query_row(
+        &format!(
+            "SELECT EXISTS (
+                 SELECT 1 FROM orders
+                 WHERE status = 'open' AND order_type = 'dine_in' AND table_number = ?1
+                   AND id <> ?2 AND hubrise_order_id IS NULL
+                   AND NOT ({NEVER_HELD_ANYTHING}))"
+        ),
+        params![table, except],
+        |r| r.get(0),
+    )
+}
+
+/// Void the empty open dine-in till orders of table `table` (other than
+/// `except`), as [`void_if_empty`] would. Returns how many were voided.
+pub fn void_empty_on_table(
+    conn: &Connection,
+    table: i32,
+    except: i64,
+) -> Result<usize, rusqlite::Error> {
+    conn.execute(
+        &format!(
+            "UPDATE orders SET status = 'voided', closed_at = datetime('now')
+             WHERE status = 'open' AND order_type = 'dine_in' AND table_number = ?1
+               AND id <> ?2 AND hubrise_order_id IS NULL
+               AND {NEVER_HELD_ANYTHING}"
+        ),
+        params![table, except],
     )
 }
 
@@ -707,6 +753,51 @@ mod tests {
 
         let fetched = get_order(&conn, order.id).unwrap();
         assert_eq!(fetched.id, order.id);
+    }
+
+    #[test]
+    fn a_table_is_taken_by_any_order_that_void_if_empty_keeps() {
+        let conn = setup();
+        let moving = create_order(&conn, OrderType::DineIn, Some(4), "00000000029").unwrap();
+        // A ghost: opened and left.
+        let ghost = create_order(&conn, OrderType::DineIn, Some(8), "00000000029").unwrap();
+        assert!(!table_taken(&conn, 8, moving.id).unwrap());
+        // The order itself never takes its own table.
+        assert!(!table_taken(&conn, 4, moving.id).unwrap());
+        // A payment and no line: kept by void_if_empty, so taken.
+        let paid = create_order(&conn, OrderType::DineIn, Some(9), "00000000029").unwrap();
+        conn.execute(
+            "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'cash', 500)",
+            [paid.id],
+        )
+        .unwrap();
+        assert!(table_taken(&conn, 9, moving.id).unwrap());
+        // A takeaway or an online order never takes a table.
+        let online = create_order(&conn, OrderType::DineIn, Some(10), "00000000029").unwrap();
+        conn.execute(
+            "UPDATE orders SET hubrise_order_id = 'H-1' WHERE id = ?1",
+            [online.id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO payments (order_id, method, amount_cents) VALUES (?1, 'card', 500)",
+            [online.id],
+        )
+        .unwrap();
+        assert!(!table_taken(&conn, 10, moving.id).unwrap());
+
+        // Voiding the ghosts leaves exactly the orders that take a table.
+        assert_eq!(void_empty_on_table(&conn, 9, moving.id).unwrap(), 0);
+        assert_eq!(void_empty_on_table(&conn, 8, moving.id).unwrap(), 1);
+        assert_eq!(
+            get_order(&conn, ghost.id).unwrap().status,
+            OrderStatus::Voided
+        );
+        assert_eq!(get_order(&conn, paid.id).unwrap().status, OrderStatus::Open);
+        assert_eq!(
+            get_order(&conn, moving.id).unwrap().status,
+            OrderStatus::Open
+        );
     }
 
     #[test]

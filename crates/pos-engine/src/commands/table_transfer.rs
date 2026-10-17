@@ -4,8 +4,9 @@
 //! told that every consolidated line left `T<X>` and arrived on `T<Y>`.
 //!
 //! Merging two tables (UC250/251) is not supported: a target that holds
-//! an order with lines is refused. An order left empty on the target (a
-//! tap and walk away) does not count; it is voided with the move.
+//! an open order is refused, whether it has lines, a signed event or a
+//! payment. Only an order that never held anything (a tap and walk away)
+//! does not count; it is voided with the move.
 
 use serde::Serialize;
 
@@ -165,18 +166,9 @@ fn check(state: &AppState, order_id: i64, to_table: i32) -> Result<i32, String> 
     if lines == 0 {
         return Err(errors::ORDER_NO_LINES.into());
     }
-    let busy: bool = db
-        .query_row(
-            "SELECT EXISTS (
-                 SELECT 1 FROM orders o
-                 WHERE o.status = 'open' AND o.order_type = 'dine_in'
-                   AND o.table_number = ?1 AND o.id <> ?2 AND o.hubrise_order_id IS NULL
-                   AND EXISTS (SELECT 1 FROM order_lines ol WHERE ol.order_id = o.id))",
-            rusqlite::params![to_table, order_id],
-            |r| r.get(0),
-        )
-        .map_err(errors::internal)?;
-    if busy {
+    // Busy as the archive transaction of the move sees it (V1F-D68): any
+    // open order left once the empty ones are voided.
+    if pos_db::queries::orders::table_taken(&db, to_table, order_id).map_err(errors::internal)? {
         return Err(errors::TABLE_TRANSFER_TARGET_BUSY.into());
     }
     if pos_db::queries::pending_signs::order_has_open(&db, order_id).map_err(errors::internal)? {
