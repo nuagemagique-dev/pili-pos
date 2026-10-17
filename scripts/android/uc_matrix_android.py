@@ -12,7 +12,13 @@ every id, how the Android port covers it:
                                or no PASS result yet (accepted only with --allow-pending)
   Couvert (tests moteur ...)   not required, and Rust tests carry the id that the device run executes
                                (docs/android/DEVICE_TESTS.md: pos-engine and the other crates of the
-                               cert graph, not the Tauri shell, the mocks, pos-peppol or #[ignore])
+                               cert graph, not the Tauri shell, the mocks, pos-peppol or #[ignore]),
+                               at least one of them already existed at the last recorded device run
+                               (the commit named in docs/android/uc/device_engine_tests.md, read
+                               with git); the tests added since are listed apart in the row
+  Couvert (tests moteur sur l'hôte ...)
+                               the same, but none of its tests existed at that run (or no run is
+                               recorded): they passed on the host only, the device run is to do
   Hors périmètre, Non applicable, Couvert par <id>
                                the Linux exclusions of scripts/uc_scope.toml, mirrored
   Exclu sur Android            a declared exclusion of scripts/android/uc_scope_android.toml, for
@@ -44,6 +50,7 @@ import datetime
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass, field
@@ -56,6 +63,7 @@ LINUX_SCRIPT = "scripts/uc_matrix.py"
 SCOPE_ANDROID = "scripts/android/uc_scope_android.toml"
 SCENARIOS_DIR = "android/app/src/androidTest/assets/uc"
 RESULTS_JSON = "docs/android/uc/results.json"
+DEVICE_RECORD = "docs/android/uc/device_engine_tests.md"
 OUTPUT_MD = "docs/android/UC_MATRIX_ANDROID.md"
 
 DATE_PREFIX = "Date de génération : "
@@ -71,6 +79,7 @@ REQUIRED = (
 ST_SCENARIO = "scenario"
 ST_PENDING = "pending"
 ST_ENGINE = "engine"
+ST_ENGINE_HOST = "engine_host"
 ST_HORS = "hors_perimetre"
 ST_NA = "non_applicable"
 ST_COUVERT_PAR = "couvert_par"
@@ -81,6 +90,7 @@ ST_MISSING = "missing"
 STATUS_ORDER = [
     ST_SCENARIO,
     ST_ENGINE,
+    ST_ENGINE_HOST,
     ST_PENDING,
     ST_EXCLU,
     ST_HORS,
@@ -92,6 +102,7 @@ STATUS_ORDER = [
 STATUS_LABELS = {
     ST_SCENARIO: "Couvert (scénario Android)",
     ST_ENGINE: "Couvert (tests moteur exécutés sur l'appareil)",
+    ST_ENGINE_HOST: "Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire)",
     ST_PENDING: "En attente",
     ST_EXCLU: "Exclu sur Android",
     ST_HORS: "Hors périmètre",
@@ -203,6 +214,7 @@ class ARow:
     label: str
     scenarios: list = field(default_factory=list)  # Scenario files listing the id
     rust_tests: list = field(default_factory=list)
+    host_only: list = field(default_factory=list)  # rust_tests absent from the last device run
     status: str = ST_MISSING
     couvert_par: str = ""
     required: bool = False
@@ -222,11 +234,21 @@ class ARow:
 
 
 @dataclass
+class DeviceRun:
+    """The last recorded run of the engine tests on the device."""
+
+    commit: str
+    date: str
+    names: frozenset  # fn names of the device crates at `commit`
+
+
+@dataclass
 class Matrix:
     sections: list  # [(name, [ARow])]
     stale: list  # human-readable stale or unknown Android exclusions
     unknown_required: list
     scope_android: dict
+    device_run: DeviceRun | None = None
 
     def rows(self):
         for _, rows in self.sections:
@@ -293,6 +315,37 @@ def device_rust_tests(repo: Path, ucm) -> list:
     return out
 
 
+DEVICE_COMMIT_RE = re.compile(r"on commit `([0-9a-f]{7,40})`")
+DEVICE_DATE_RE = re.compile(r"Run on (\d{4}-\d{2}-\d{2})")
+
+
+def load_device_run(repo: Path) -> DeviceRun | None:
+    """The last device run recorded in DEVICE_RECORD (None when the file is absent): its commit,
+    its date and the names of the fns that the device crates held at that commit (git grep). A
+    test that carries an id and whose name is among them ran on the device."""
+    path = repo / DEVICE_RECORD
+    if not path.is_file():
+        return None
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise InputProblem(f"{DEVICE_RECORD}: {exc}") from exc
+    commit = DEVICE_COMMIT_RE.search(text)
+    date = DEVICE_DATE_RE.search(text)
+    if not commit or not date:
+        raise InputProblem(f"{DEVICE_RECORD}: no 'Run on <date>' or 'on commit `<hash>`'")
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "grep", "-h", "-o", "-E", r"fn [A-Za-z0-9_]+", commit.group(1), "--"]
+        + [f"crates/{c}/" for c in DEVICE_CRATES],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode not in (0, 1):  # 1: no match
+        raise InputProblem(f"{DEVICE_RECORD}: git grep at {commit.group(1)} failed: {proc.stderr.strip()}")
+    names = frozenset(line.split()[1] for line in proc.stdout.splitlines() if line.startswith("fn "))
+    return DeviceRun(commit.group(1), date.group(1), names)
+
+
 def device_tests_for(id_: str, tests: list, ucm) -> list:
     """Names of the device tests that carry `id_` (same matching rule as scripts/uc_matrix.py)."""
     token = id_.lower()
@@ -311,6 +364,8 @@ def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
     results = load_results(repo)
     scope_android = load_scope_android(repo, required)
     device_tests = device_rust_tests(repo, ucm)
+    device_run = load_device_run(repo)
+    ran_names = device_run.names if device_run else frozenset()
 
     for s in scenarios:
         s.verdict = results.get((s.group, s.stem), "")
@@ -343,7 +398,8 @@ def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
             elif lr.status == "hors_perimetre":
                 row.status = ST_HORS
             elif dev:
-                row.status = ST_ENGINE
+                row.host_only = [t for t in dev if t not in ran_names]
+                row.status = ST_ENGINE if len(row.host_only) < len(dev) else ST_ENGINE_HOST
             elif lr.id in scope_android:
                 row.status = ST_EXCLU
             elif lr.status == "non_applicable":
@@ -366,12 +422,31 @@ def build_matrix(repo: Path, required=None, ucm=None) -> Matrix:
         if id_ not in known:
             stale.append(f"{id_} (unknown to the Linux matrix)")
     unknown_required = sorted(i for i in required if i not in known)
-    return Matrix(sections, sorted(stale), unknown_required, scope_android)
+    return Matrix(sections, sorted(stale), unknown_required, scope_android, device_run)
 
 
 # ---------------------------------------------------------------------------
 # Markdown
 # ---------------------------------------------------------------------------
+
+
+def device_paragraph(run: DeviceRun | None) -> str:
+    """The paragraph that says which device run the engine statuses rest on."""
+    if run is None:
+        return (
+            "Passage sur l'appareil : aucun passage des tests du moteur sur l'appareil n'est "
+            f"enregistré (`{DEVICE_RECORD}` absent) ; les identifiants couverts par des tests Rust ont "
+            "le statut Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire)."
+        )
+    return (
+        "Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur date du "
+        f"{run.date} (`{DEVICE_RECORD}`, commit `{run.commit}`). Un test qui n'existait pas encore à "
+        "ce commit a passé sur la machine hôte seulement : son exécution sur l'appareil reste à faire "
+        "(`scripts/android/device_engine_tests.sh`). Un identifiant dont aucun test n'existait à ce "
+        "commit a le statut Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) ; pour "
+        "un identifiant déjà couvert sur l'appareil, les tests ajoutés depuis sont listés à part "
+        "(« sur l'hôte seulement »)."
+    )
 
 
 def render_markdown(matrix: Matrix, ucm, today: str, n_required: int) -> str:
@@ -384,8 +459,9 @@ def render_markdown(matrix: Matrix, ucm, today: str, n_required: int) -> str:
         "Ce document indique, pour chaque identifiant de test décrit par le SPF Finances "
         "(Basic Set, Reports, Advanced Set, checklist du manuel de certification, FAQ producteurs), "
         "comment le port Android de la caisse le couvre : par un scénario de bout en bout rejoué "
-        "sur l'appareil et comparé au moteur de référence, par les tests du moteur exécutés sur "
-        "l'appareil, ou par une exclusion déclarée.",
+        "sur l'appareil et comparé au moteur de référence, par les tests du moteur (exécutés sur "
+        "l'appareil, ou sur la machine hôte en attendant leur passage sur l'appareil), ou par une "
+        "exclusion déclarée.",
         "",
         "Généré automatiquement par `scripts/android/uc_matrix_android.py` à partir de la matrice "
         "Linux (`scripts/uc_matrix.py`, `scripts/uc_scope.toml`), des scénarios "
@@ -401,19 +477,16 @@ def render_markdown(matrix: Matrix, ucm, today: str, n_required: int) -> str:
         "",
         "Légende du statut : Couvert (scénario Android) (un scénario liste l'identifiant et son "
         "résultat est PASS), Couvert (tests moteur exécutés sur l'appareil) (des tests Rust portent "
-        "l'identifiant ; l'exécution sur l'appareil les rejoue tous), En attente (identifiant requis "
+        "l'identifiant et au moins l'un d'eux a passé lors du dernier passage sur l'appareil), "
+        "Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire) (des tests Rust portent "
+        "l'identifiant, mais aucun n'existait lors du dernier passage sur l'appareil : ils ont passé "
+        "sur la machine hôte seulement), En attente (identifiant requis "
         "sans scénario au verdict PASS), Exclu sur Android (comportement d'écran couvert sur Linux "
         "par un test d'interface seulement, prouvé sur Android autrement ; raison en fin de "
         "document), Hors périmètre, Non applicable et Couvert par X (exclusions de la matrice "
         "Linux reprises à l'identique), MANQUANT (aucune couverture ni exclusion).",
         "",
-        "Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur date du "
-        "2026-10-10 (`docs/android/uc/device_engine_tests.md`, commit `778e9968`). Les tests "
-        "ajoutés depuis (transfert de table M122, correction de paiement M132, remise à la caisse "
-        "UC223, UC225A/B et UC229B, notes de cuisine, FAQ Q206 à 0,00 EUR) ont passé sur la "
-        "machine hôte seulement : leur exécution sur l'appareil n'a pas encore eu lieu et reste à "
-        "faire. Les mentions « exécutés sur l'appareil » ci-dessous décrivent le mécanisme "
-        "(`scripts/android/device_engine_tests.sh`), pas un passage déjà effectué pour ces tests.",
+        device_paragraph(matrix.device_run),
         "",
         "## Synthèse",
         "",
@@ -433,9 +506,13 @@ def render_markdown(matrix: Matrix, ucm, today: str, n_required: int) -> str:
         lines.append("|---|---|---|---|---|---|")
         for r in rows:
             files = cell([s.rel for s in r.scenarios])
+            tests = cell(r.rust_tests)
+            if r.status == ST_ENGINE and r.host_only:
+                ran = [t for t in r.rust_tests if t not in r.host_only]
+                tests = f"{cell(ran)} ; sur l'hôte seulement : {cell(r.host_only)}"
             lines.append(
                 f"| {esc(r.id)} | {esc(r.label)} | {files} | {esc(r.result_label)} | "
-                f"{cell(r.rust_tests)} | {r.status_label} |"
+                f"{tests} | {r.status_label} |"
             )
         lines.append("")
 

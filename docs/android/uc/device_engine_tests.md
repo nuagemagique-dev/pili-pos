@@ -42,6 +42,9 @@ they call module2 or HubRise and stay ignored (nothing live is run by the chain)
 P3-T5 (`docs/android/DEVICE_TESTS.md`) ran 88 binaries and 1371 passing tests with `--fixtures`, 13
 ignored. The export lane added one binary and 26 tests since: 1397 passed, 13 ignored, 0 failed.
 The matrix claim "Couvert (tests moteur exécutés sur l'appareil)" of `docs/android/UC_MATRIX_ANDROID.md`
-rests on this run.
+rests on this run: `scripts/android/uc_matrix_android.py` reads the date and the commit above and gives
+that status only to an id with at least one test that existed at this commit. An id whose tests were
+all added later is "Couvert (tests moteur sur l'hôte, passage sur l'appareil à faire)", and the later
+tests of a covered id are listed apart; a new device run updates this file and the matrix follows.
 
 The build output (`target/android-device-tests-fx`, 4.0 GB) was deleted after the run.
