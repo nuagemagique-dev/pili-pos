@@ -113,6 +113,24 @@ const DEFAULT_TABLE = (n: number) => ({
   preBillPrinted: false,
 });
 
+// The 14 allergens of Annex II (what `list_allergens` returns).
+const ALLERGEN_LEGEND = [
+  ['gluten', 'Céréales contenant du gluten', 'Glutenbevattende granen', 'Cereals containing gluten', '含麸质的谷物'],
+  ['crustaceans', 'Crustacés', 'Schaaldieren', 'Crustaceans', '甲壳类'],
+  ['eggs', 'Œufs', 'Eieren', 'Eggs', '蛋'],
+  ['fish', 'Poissons', 'Vis', 'Fish', '鱼'],
+  ['peanuts', 'Arachides', "Pinda's", 'Peanuts', '花生'],
+  ['soybeans', 'Soja', 'Soja', 'Soybeans', '大豆'],
+  ['milk', 'Lait', 'Melk', 'Milk', '奶'],
+  ['nuts', 'Fruits à coque', 'Noten', 'Nuts', '坚果'],
+  ['celery', 'Céleri', 'Selderij', 'Celery', '芹菜'],
+  ['mustard', 'Moutarde', 'Mosterd', 'Mustard', '芥末'],
+  ['sesame', 'Sésame', 'Sesamzaad', 'Sesame', '芝麻'],
+  ['sulphites', 'Sulfites', 'Sulfiet', 'Sulphites', '亚硫酸盐'],
+  ['lupin', 'Lupin', 'Lupine', 'Lupin', '羽扇豆'],
+  ['molluscs', 'Mollusques', 'Weekdieren', 'Molluscs', '软体动物'],
+].map(([code, fr, nl, en, zh], i) => ({ code, number: i + 1, names: { fr, nl, en, zh } }));
+
 // ── Handler registry ────────────────────────────────────────────
 
 type Handler = (args?: any) => any;
@@ -468,6 +486,17 @@ function defaultHandlers(): Record<string, Handler> {
     set_owner_alerts: (args: any) => ({ ...args.input, token_configured: false }),
     send_test_alert: () => ({ sent: true, detail: 'ok' }),
     list_owner_alert_log: () => [],
+
+    // The 14 EU allergens: the legend, and an undeclared product by default.
+    list_allergens: () => ALLERGEN_LEGEND,
+    get_allergen_sheet: live((args: any) => ({
+      lang: args?.lang ?? 'fr',
+      products: [{
+        id: args?.menuItemId ?? 1, name: 'Maki saumon x8', name_fr: 'Maki saumon x8',
+        declared: false, contains: [], traces: [], options: [],
+      }],
+    })),
+    print_allergen_sheet: () => 'printed',
 
     // HubRise: switched on by default (the webshop specs use it).
     get_integrations: () => ({ hubrise_enabled: true, online_orders_open: 0, hubrise_log: [] }),

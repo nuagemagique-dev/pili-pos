@@ -26,6 +26,8 @@ object EngineErrorCodes {
             "alerts_invalid",
             "alerts_token_missing",
             "alerts_send_failed",
+            "allergen_unknown",
+            "allergen_target_not_found",
             "not_logged_in",
             "forbidden",
             "not_the_operator",

@@ -12,6 +12,8 @@ import CategoryTabs from "../components/CategoryTabs.vue";
 import MenuGrid from "../components/MenuGrid.vue";
 import CartSidebar from "../components/CartSidebar.vue";
 import PriceDialog from "../components/PriceDialog.vue";
+import AllergenSheetDialog from "../components/AllergenSheetDialog.vue";
+import { useAllergensStore } from "../stores/allergens";
 import type { MenuItem } from "../types";
 
 const router = useRouter();
@@ -19,6 +21,7 @@ const menu = useMenuStore();
 const order = useOrderStore();
 const auth = useAuthStore();
 const { t } = useI18n();
+const allergens = useAllergensStore();
 
 onMounted(async () => {
   if (!auth.currentUser) {
@@ -82,6 +85,11 @@ const ModifierDialog = defineAsyncComponent(() => import("../components/Modifier
 const choosing = ref<MenuItem | null>(null);
 
 async function handleAddItem(item: MenuItem) {
+  // Allergen mode: a tap shows the product's allergen sheet instead of adding it.
+  if (allergens.mode) {
+    await allergens.openSheet(item);
+    return;
+  }
   if (item.open_price) {
     pricing.value = item;
     return;
@@ -120,6 +128,27 @@ async function handlePriceConfirmed(priceCents: number) {
           :selected-id="menu.selectedCategoryId"
           @select="menu.selectCategory($event)"
         />
+        <!-- Allergen mode (EU Annex II): a tap on a product opens its sheet -->
+        <div class="allergen-bar" data-testid="allergen-bar">
+          <button
+            class="allergen-toggle"
+            :class="{ on: allergens.mode }"
+            :aria-pressed="allergens.mode"
+            data-testid="allergen-mode"
+            @click="allergens.toggleMode()"
+          >
+            {{ t('allergens_mode') }}
+          </button>
+          <template v-if="allergens.mode">
+            <span class="allergen-hint">{{ t('allergens_hint') }}</span>
+            <ul class="allergen-legend" data-testid="allergen-legend" :aria-label="t('allergens_legend')">
+              <li v-for="a in allergens.legend" :key="a.code" class="legend-item">
+                <span class="legend-num">{{ a.number }}</span>
+                <span>{{ t(`allergen_${a.code}`) }}</span>
+              </li>
+            </ul>
+          </template>
+        </div>
         <MenuGrid
           :items="menu.items"
           :category-color="selectedCategoryColor"
@@ -137,6 +166,8 @@ async function handlePriceConfirmed(priceCents: number) {
       :item="choosing"
       @done="choosing = null"
     />
+
+    <AllergenSheetDialog />
 
     <PriceDialog
       v-if="pricing"
@@ -172,6 +203,52 @@ async function handlePriceConfirmed(priceCents: number) {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.allergen-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 16px 0;
+}
+.allergen-toggle {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.allergen-toggle:active { transform: scale(var(--tap-scale)); }
+.allergen-toggle.on { background: var(--selected-bg); color: var(--selected-fg); }
+.allergen-hint { font-size: var(--font-size-sm); color: var(--accent-info); font-weight: var(--font-weight-bold); }
+.allergen-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.legend-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-info);
+  color: var(--text-on-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
 }
 
 .menu-section {

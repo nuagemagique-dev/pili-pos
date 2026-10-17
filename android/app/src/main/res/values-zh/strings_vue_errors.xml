@@ -97,6 +97,8 @@
     <string name="err_config_alerts">店主警报设置无效（令牌文件或地址）。 详情：{detail}</string>
     <string name="err_config_other">配置无效或无法读取。 详情：{detail}</string>
     <string name="err_internal_error">内部错误，请联系技术人员。（{detail}）</string>
+    <string name="err_allergen_unknown">未知过敏原：{code}。</string>
+    <string name="err_allergen_target_not_found">找不到商品或选项（{id}）。</string>
     <string name="err_hubrise_not_connected">HubRise未连接。</string>
     <string name="err_hubrise_order_unknown">未知的在线订单。</string>
     <string name="err_hubrise_status_not_allowed">此处不能设置该状态。</string>

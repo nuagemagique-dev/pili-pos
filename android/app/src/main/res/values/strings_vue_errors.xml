@@ -97,6 +97,8 @@
     <string name="err_config_alerts">Réglage des alertes propriétaire invalide (fichier du jeton ou adresse). Détail : {detail}</string>
     <string name="err_config_other">Configuration invalide ou illisible. Détail : {detail}</string>
     <string name="err_internal_error">Erreur interne. Contactez votre technicien. ({detail})</string>
+    <string name="err_allergen_unknown">Allergène inconnu : {code}.</string>
+    <string name="err_allergen_target_not_found">Produit ou option introuvable ({id}).</string>
     <string name="err_hubrise_not_connected">HubRise n\'est pas connecté.</string>
     <string name="err_hubrise_order_unknown">Commande en ligne inconnue.</string>
     <string name="err_hubrise_status_not_allowed">Ce statut ne peut pas être choisi ici.</string>

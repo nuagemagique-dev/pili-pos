@@ -329,6 +329,39 @@ internal object VueStringIds {
         this["check_unreachable"] = R.string.check_unreachable
         this["check_reachable"] = R.string.check_reachable
         this["check_not_configured"] = R.string.check_not_configured
+        this["allergen_gluten"] = R.string.allergen_gluten
+        this["allergen_crustaceans"] = R.string.allergen_crustaceans
+        this["allergen_eggs"] = R.string.allergen_eggs
+        this["allergen_fish"] = R.string.allergen_fish
+        this["allergen_peanuts"] = R.string.allergen_peanuts
+        this["allergen_soybeans"] = R.string.allergen_soybeans
+        this["allergen_milk"] = R.string.allergen_milk
+        this["allergen_nuts"] = R.string.allergen_nuts
+        this["allergen_celery"] = R.string.allergen_celery
+        this["allergen_mustard"] = R.string.allergen_mustard
+        this["allergen_sesame"] = R.string.allergen_sesame
+        this["allergen_sulphites"] = R.string.allergen_sulphites
+        this["allergen_lupin"] = R.string.allergen_lupin
+        this["allergen_molluscs"] = R.string.allergen_molluscs
+        this["allergens_mode"] = R.string.allergens_mode
+        this["allergens_hint"] = R.string.allergens_hint
+        this["allergens_legend"] = R.string.allergens_legend
+        this["allergens_title"] = R.string.allergens_title
+        this["allergens_contains"] = R.string.allergens_contains
+        this["allergens_traces"] = R.string.allergens_traces
+        this["allergens_none"] = R.string.allergens_none
+        this["allergens_unknown"] = R.string.allergens_unknown
+        this["allergens_options"] = R.string.allergens_options
+        this["allergens_print_one"] = R.string.allergens_print_one
+        this["allergens_print_all"] = R.string.allergens_print_all
+        this["allergens_close"] = R.string.allergens_close
+        this["allergens_printed"] = R.string.allergens_printed
+        this["allergens_print_failed"] = R.string.allergens_print_failed
+        this["allergens_no_printer"] = R.string.allergens_no_printer
+        this["allergens_nothing"] = R.string.allergens_nothing
+        this["allergens_regulation"] = R.string.allergens_regulation
+        this["err_allergen_unknown"] = R.string.err_allergen_unknown
+        this["err_allergen_target_not_found"] = R.string.err_allergen_target_not_found
         this["method_cash"] = R.string.method_cash
         this["method_card"] = R.string.method_card
         this["method_meal_voucher"] = R.string.method_meal_voucher
@@ -486,6 +519,9 @@ internal object VueStringIds {
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
         this["webshop_status_rejected"] = R.string.webshop_status_rejected
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_status_cancelled"] = R.string.webshop_status_cancelled
         this["webshop_service_delivery"] = R.string.webshop_service_delivery
         this["webshop_service_collection"] = R.string.webshop_service_collection
@@ -519,9 +555,6 @@ internal object VueStringIds {
         this["hubrise_complete_connection"] = R.string.hubrise_complete_connection
         this["err_hubrise_not_connected"] = R.string.err_hubrise_not_connected
         this["err_hubrise_order_unknown"] = R.string.err_hubrise_order_unknown
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["err_hubrise_status_not_allowed"] = R.string.err_hubrise_status_not_allowed
         this["err_hubrise_time_invalid"] = R.string.err_hubrise_time_invalid
         this["err_hubrise_menu_managed"] = R.string.err_hubrise_menu_managed
@@ -596,6 +629,7 @@ internal object VueStringIds {
         this["catalog_issue_vat_mismatch"] = R.string.catalog_issue_vat_mismatch
         this["catalog_issue_missing_vat"] = R.string.catalog_issue_missing_vat
         this["catalog_issue_unknown_option_list"] = R.string.catalog_issue_unknown_option_list
+        this["catalog_issue_unknown_allergen"] = R.string.catalog_issue_unknown_allergen
         this["modifier_title"] = R.string.modifier_title
         this["modifier_required"] = R.string.modifier_required
         this["modifier_range"] = R.string.modifier_range

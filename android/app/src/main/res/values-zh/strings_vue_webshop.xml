@@ -119,6 +119,7 @@
     <string name="catalog_issue_vat_mismatch">外送与自取增值税不同</string>
     <string name="catalog_issue_missing_vat">缺少增值税</string>
     <string name="catalog_issue_unknown_option_list">未知选项列表</string>
+    <string name="catalog_issue_unknown_allergen">未知过敏原（allergen: 或 traces: 标签拼写有误）</string>
     <string name="modifier_title">选项</string>
     <string name="modifier_required">请选 {min} 项</string>
     <string name="modifier_range">{min} 至 {max} 项</string>

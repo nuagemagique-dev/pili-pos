@@ -97,6 +97,8 @@
     <string name="err_config_alerts">Invalid owner alerts setting (token file or address). Detail: {detail}</string>
     <string name="err_config_other">Invalid or unreadable configuration. Detail: {detail}</string>
     <string name="err_internal_error">Internal error. Contact your technician. ({detail})</string>
+    <string name="err_allergen_unknown">Unknown allergen: {code}.</string>
+    <string name="err_allergen_target_not_found">Product or option not found ({id}).</string>
     <string name="err_hubrise_not_connected">HubRise is not connected.</string>
     <string name="err_hubrise_order_unknown">Unknown online order.</string>
     <string name="err_hubrise_status_not_allowed">This status cannot be set here.</string>

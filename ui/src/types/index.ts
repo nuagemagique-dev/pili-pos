@@ -91,6 +91,12 @@ export interface MenuItem {
   kitchen_printer: boolean;
   sort_order: number;
   active: boolean;
+  /** Allergen codes (Annex II, `list_allergens`) the product contains. */
+  allergens?: string[];
+  /** Allergen codes it may contain as traces. */
+  traces?: string[];
+  /** The allergen list is complete (possibly empty); false: no information. */
+  allergens_declared?: boolean;
 }
 
 export interface Order {

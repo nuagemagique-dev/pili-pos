@@ -240,6 +240,192 @@
       "zh": "Z 报表截止时间",
       "area": "settings"
     },
+    "allergen_celery": {
+      "fr": "Céleri",
+      "en": "Celery",
+      "zh": "芹菜",
+      "area": "core"
+    },
+    "allergen_crustaceans": {
+      "fr": "Crustacés",
+      "en": "Crustaceans",
+      "zh": "甲壳类",
+      "area": "core"
+    },
+    "allergen_eggs": {
+      "fr": "Œufs",
+      "en": "Eggs",
+      "zh": "蛋",
+      "area": "core"
+    },
+    "allergen_fish": {
+      "fr": "Poissons",
+      "en": "Fish",
+      "zh": "鱼",
+      "area": "core"
+    },
+    "allergen_gluten": {
+      "fr": "Céréales contenant du gluten",
+      "en": "Cereals containing gluten",
+      "zh": "含麸质的谷物",
+      "area": "core"
+    },
+    "allergen_lupin": {
+      "fr": "Lupin",
+      "en": "Lupin",
+      "zh": "羽扇豆",
+      "area": "core"
+    },
+    "allergen_milk": {
+      "fr": "Lait",
+      "en": "Milk",
+      "zh": "奶",
+      "area": "core"
+    },
+    "allergen_molluscs": {
+      "fr": "Mollusques",
+      "en": "Molluscs",
+      "zh": "软体动物",
+      "area": "core"
+    },
+    "allergen_mustard": {
+      "fr": "Moutarde",
+      "en": "Mustard",
+      "zh": "芥末",
+      "area": "core"
+    },
+    "allergen_nuts": {
+      "fr": "Fruits à coque",
+      "en": "Nuts",
+      "zh": "坚果",
+      "area": "core"
+    },
+    "allergen_peanuts": {
+      "fr": "Arachides",
+      "en": "Peanuts",
+      "zh": "花生",
+      "area": "core"
+    },
+    "allergen_sesame": {
+      "fr": "Sésame",
+      "en": "Sesame",
+      "zh": "芝麻",
+      "area": "core"
+    },
+    "allergen_soybeans": {
+      "fr": "Soja",
+      "en": "Soybeans",
+      "zh": "大豆",
+      "area": "core"
+    },
+    "allergen_sulphites": {
+      "fr": "Sulfites",
+      "en": "Sulphites",
+      "zh": "亚硫酸盐",
+      "area": "core"
+    },
+    "allergens_close": {
+      "fr": "Fermer",
+      "en": "Close",
+      "zh": "关闭",
+      "area": "core"
+    },
+    "allergens_contains": {
+      "fr": "Contient",
+      "en": "Contains",
+      "zh": "含有",
+      "area": "core"
+    },
+    "allergens_hint": {
+      "fr": "Touchez un produit pour voir ses allergènes",
+      "en": "Tap a product to see its allergens",
+      "zh": "点击商品查看其过敏原",
+      "area": "core"
+    },
+    "allergens_legend": {
+      "fr": "Légende",
+      "en": "Legend",
+      "zh": "图例",
+      "area": "core"
+    },
+    "allergens_mode": {
+      "fr": "Allergènes",
+      "en": "Allergens",
+      "zh": "过敏原",
+      "area": "core"
+    },
+    "allergens_no_printer": {
+      "fr": "Aucune imprimante configurée",
+      "en": "No printer configured",
+      "zh": "未配置打印机",
+      "area": "core"
+    },
+    "allergens_none": {
+      "fr": "Aucun allergène",
+      "en": "No allergen",
+      "zh": "无过敏原",
+      "area": "core"
+    },
+    "allergens_nothing": {
+      "fr": "Aucun produit à imprimer",
+      "en": "No product to print",
+      "zh": "没有可打印的商品",
+      "area": "core"
+    },
+    "allergens_options": {
+      "fr": "Options",
+      "en": "Options",
+      "zh": "选项",
+      "area": "core"
+    },
+    "allergens_print_all": {
+      "fr": "Imprimer la carte complète",
+      "en": "Print the full menu",
+      "zh": "打印完整菜单",
+      "area": "core"
+    },
+    "allergens_print_failed": {
+      "fr": "Fiche non imprimée",
+      "en": "Sheet not printed",
+      "zh": "未能打印",
+      "area": "core"
+    },
+    "allergens_print_one": {
+      "fr": "Imprimer cette fiche",
+      "en": "Print this sheet",
+      "zh": "打印此单",
+      "area": "core"
+    },
+    "allergens_printed": {
+      "fr": "Fiche imprimée",
+      "en": "Sheet printed",
+      "zh": "已打印",
+      "area": "core"
+    },
+    "allergens_regulation": {
+      "fr": "Règlement (UE) n° 1169/2011, annexe II",
+      "en": "Regulation (EU) No 1169/2011, Annex II",
+      "zh": "欧盟法规 (EU) 1169/2011 附件二",
+      "area": "core"
+    },
+    "allergens_title": {
+      "fr": "Allergènes",
+      "en": "Allergens",
+      "zh": "过敏原",
+      "area": "core"
+    },
+    "allergens_traces": {
+      "fr": "Traces possibles",
+      "en": "May contain traces",
+      "zh": "可能含有微量",
+      "area": "core"
+    },
+    "allergens_unknown": {
+      "fr": "Information non disponible, demandez au responsable",
+      "en": "Information not available, ask the manager",
+      "zh": "暂无信息，请询问负责人",
+      "area": "core"
+    },
     "amount": {
       "fr": "Montant",
       "en": "Amount",
@@ -436,6 +622,12 @@
       "fr": "Rien à vendre",
       "en": "Nothing to sell",
       "zh": "没有可售商品",
+      "area": "webshop"
+    },
+    "catalog_issue_unknown_allergen": {
+      "fr": "Allergène inconnu (une étiquette allergen: ou traces: est mal écrite)",
+      "en": "Unknown allergen (an allergen: or traces: tag is misspelt)",
+      "zh": "未知过敏原（allergen: 或 traces: 标签拼写有误）",
       "area": "webshop"
     },
     "catalog_issue_unknown_category": {
@@ -1006,6 +1198,18 @@
       "fr": "Le jeton du robot Telegram n'est pas configuré sur cette caisse (section alerts de pos.json).",
       "en": "The Telegram bot token is not configured on this till (alerts section of pos.json).",
       "zh": "此收银机未配置 Telegram 机器人令牌（pos.json 的 alerts 部分）。",
+      "area": "errors"
+    },
+    "err_allergen_target_not_found": {
+      "fr": "Produit ou option introuvable ({id}).",
+      "en": "Product or option not found ({id}).",
+      "zh": "找不到商品或选项（{id}）。",
+      "area": "errors"
+    },
+    "err_allergen_unknown": {
+      "fr": "Allergène inconnu : {code}.",
+      "en": "Unknown allergen: {code}.",
+      "zh": "未知过敏原：{code}。",
       "area": "errors"
     },
     "err_already_printed": {
@@ -3607,6 +3811,8 @@
     "alerts_invalid",
     "alerts_token_missing",
     "alerts_send_failed",
+    "allergen_unknown",
+    "allergen_target_not_found",
     "not_logged_in",
     "forbidden",
     "not_the_operator",

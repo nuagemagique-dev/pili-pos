@@ -924,3 +924,59 @@ export function sendTestAlert(): Promise<AlertTestResult> {
 export function listOwnerAlertLog(limit: number): Promise<AlertLogRow[]> {
   return invoke("list_owner_alert_log", { limit });
 }
+
+// ── The 14 EU allergens ────────────────────────────────────────────
+
+/** One of the 14 allergens of Annex II, with its name per language. */
+export interface AllergenEntry {
+  code: string;
+  /** Annex II number, 1 to 14. */
+  number: number;
+  names: { fr: string; nl: string; en: string; zh: string };
+}
+
+/** An allergen on a sheet, named in the sheet's language. */
+export interface AllergenRef {
+  code: string;
+  number: number;
+  name: string;
+}
+
+export interface AllergenSheetOption {
+  group: string;
+  name: string;
+  declared: boolean;
+  contains: AllergenRef[];
+  traces: AllergenRef[];
+}
+
+export interface AllergenSheetProduct {
+  id: number;
+  name: string;
+  name_fr: string;
+  /** False: no information (never "no allergen"). */
+  declared: boolean;
+  contains: AllergenRef[];
+  traces: AllergenRef[];
+  options: AllergenSheetOption[];
+}
+
+export interface AllergenSheet {
+  lang: string;
+  products: AllergenSheetProduct[];
+}
+
+/** The 14 allergens in Annex order, for the legend. */
+export function listAllergens(): Promise<AllergenEntry[]> {
+  return invoke("list_allergens");
+}
+
+/** The sheet of one product, or of the whole active menu (`null`). */
+export function getAllergenSheet(menuItemId: number | null, lang?: string): Promise<AllergenSheet> {
+  return invoke("get_allergen_sheet", { menuItemId, lang });
+}
+
+/** Prints the sheet (fr, nl, en or de); a printer failure is the outcome, not an error. */
+export function printAllergenSheet(menuItemId: number | null, lang?: string): Promise<SlipOutcome> {
+  return invoke("print_allergen_sheet", { menuItemId, lang });
+}
