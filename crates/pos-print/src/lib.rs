@@ -1,5 +1,6 @@
 //! ESC/POS printing: tickets, reports and cash drawer, in CP858.
 
+pub mod allergen_sheet;
 pub mod bar_ticket;
 pub mod customer_slip;
 pub mod drawer;
