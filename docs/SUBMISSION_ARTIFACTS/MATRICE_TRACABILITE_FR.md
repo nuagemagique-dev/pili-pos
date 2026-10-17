@@ -21,7 +21,7 @@ Légende du statut : Couvert (au moins un test automatisé trouvé), Hors périm
 | M123 | Addition provisoire (pre-bill) | `m123_pre_bill`, `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat` | - | Couvert |
 | M130 | Mouvement de caisse (argent entrant/sortant) | `m130_money_in`, `m130_money_in_out_archives_f_event` | - | Couvert |
 | M131 | Ouverture du tiroir-caisse | `m131_drawer_open`, `m131_drawer_open_archives_f_event` | - | Couvert |
-| M132 | Correction de paiement | - | - | Hors périmètre |
+| M132 | Correction de paiement | `m132_payment_correction` | - | Couvert |
 | M133 | Déclaration de fond de caisse (comptage) | `m133_drawer_declaration` | `[M133] an empty drawer is declared as 0`, `[M133] the counted cash is declared with the amount typed` | Couvert |
 | M140 | Entrée en service de l'utilisateur | `m140_work_in`, `m140_work_in_archives_s_event` | - | Couvert |
 | M141 | Sortie de service de l'utilisateur | `m141_work_out`, `m141_work_out_archives_s_event` | - | Couvert |

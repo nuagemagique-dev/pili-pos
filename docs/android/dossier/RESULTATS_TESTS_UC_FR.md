@@ -6,7 +6,7 @@
 **Date :** À effectuer (EV-18 : date de dépôt)
 **Référence :** §IV du manuel de certification (Procédure de communication GraphQL).
 
-Squelette des résultats des UC obligatoires du Basic Set v1.8 (22 UC spec), des 5 UC Reports v1.3 et des cinq situations d'arrondi (ROUND1 à ROUND5), plus trois UC de l'Advanced Set v1.6 rejoués par le même harnais. Hors périmètre v1.0.0, chacun dans sa section : M150 (event I, voir DECISION_PEPPOL_AP_FR.md) et M132 ; M122 (transfert de table) est dans le périmètre ; M112A n'est pas un parcours proposé (parcours M112B). Aucun résultat n'est repris du dossier Linux : chaque bloc ci-dessous attend les résultats des UC joués sur le terminal émulé par la suite instrumentée (`À effectuer (EV-06 : résultats des UC sur le terminal émulé)`).
+Squelette des résultats des UC obligatoires du Basic Set v1.8 (22 UC spec), des 5 UC Reports v1.3 et des cinq situations d'arrondi (ROUND1 à ROUND5), plus trois UC de l'Advanced Set v1.6 rejoués par le même harnais. Hors périmètre v1.0.0, chacun dans sa section : M150 (event I, voir DECISION_PEPPOL_AP_FR.md) ; M122 (transfert de table) et M132 (correction de paiement) sont dans le périmètre ; M112A n'est pas un parcours proposé (parcours M112B). Aucun résultat n'est repris du dossier Linux : chaque bloc ci-dessous attend les résultats des UC joués sur le terminal émulé par la suite instrumentée (`À effectuer (EV-06 : résultats des UC sur le terminal émulé)`).
 
 Pour chaque UC rejoué, le bloc final fournira : le scénario, les champs à vérifier, la requête construite par le moteur et archivée, la réponse du FDM, la comparaison champ par champ avec la fixture officielle et le test automatisé. Les fichiers JSON bruts iront dans `Report_Testing` (`À effectuer (EV-06 : requête et réponse JSON de chaque UC)`). Les tickets sont dans TICKETS_EXEMPLES_FR.md. Le FDM utilisé pour ces essais est nommé dans chaque bloc ; la journée sur le simulateur en ligne module2 est dans JOURNAL_TESTS_PRE_SOUMISSION_FR.md. La comparaison avec les requêtes du dossier Linux est `À effectuer (EV-07 : comparaison Android et Linux)`.
 
@@ -36,7 +36,7 @@ Transfert de table (attribution). Rejeu applicatif côté moteur : `m122_cost_ce
 ## M131_signDrawerOpen
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M132_signPaymentCorrection
-Hors périmètre v1.0.0. À effectuer (EV-06 : lecture de la fixture par le moteur sur le terminal émulé).
+Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correction`, un seul écart déclaré (type de carte `CARD_DEBIT` au lieu de `CARD_CREDIT`). À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture sur le terminal émulé).
 ## M133_signMoneyInOut_DrawerDeclaration
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M140_signWorkIn
@@ -95,8 +95,8 @@ Hors périmètre v1.0.0 (voir DECISION_PEPPOL_AP_FR.md). À effectuer (EV-06 : l
 
 | Famille | UC (spec) | UC dans le périmètre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.8 | 22 | 19 (hors M112A, M132 et M150) | À effectuer (EV-06) | À effectuer (EV-06) |
+| Basic Set v1.8 | 22 | 20 (hors M112A et M150) | À effectuer (EV-06) | À effectuer (EV-06) |
 | Reports v1.3 | 5 | 5 | À effectuer (EV-06) | À effectuer (EV-06) |
-| **Total** | **27** | **24** | À effectuer (EV-06) | À effectuer (EV-06) |
+| **Total** | **27** | **25** | À effectuer (EV-06) | À effectuer (EV-06) |
 
 Pour le détail des couvertures, voir COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md et COUVERTURE_ADVANCED_SET_FR.md.

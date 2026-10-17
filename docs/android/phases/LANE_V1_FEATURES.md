@@ -455,3 +455,12 @@ Run the complete gate of the lane brief, in this order, and fix what fails (fix 
 - `scripts/uc_scope.toml` no longer excludes M122; `MATRICE_TRACABILITE_FR.md` and `docs/android/UC_MATRIX_ANDROID.md` were regenerated (M122 now "Couvert" on Linux, "Couvert (tests moteur exécutés sur l'appareil)" on Android; no device scenario was added, so the lane-final task may add `m122` to a device scenario if wanted).
 - Dossier counts after T1 (both dossiers): Basic Set 19 of 22 with an automated test, 17 fixture replays in `spf_e2e_fixtures.rs`. The evidence blocks (`evidence/uc/M122_*`) are not regenerated here (V1F-D23).
 - Worktree build note: the shared cargo target is clobbered by other lanes' crates of the same names; an untracked per-worktree `.cargo/config.toml` (distinct `codegen-units` for the workspace crates) keeps artifacts apart. It is not committed.
+
+### T2 (payment correction, M132)
+
+- Engine: `crates/pos-engine/src/commands/payment_correction.rs` (`do_list_sale_payments`, `do_correct_payment`), builder `build_payment_correction_input` in `crates/pos-fiscal/src/event.rs`, `Kind::PaymentCorrection` and `PendingContext::PaymentCorrection`, reports in `report_totals.rs` and `commands/report.rs`, label and `ReportDetails.payment_corrections` in `pos-print`. Decisions V1F-D31 to D35.
+- Tests: `crates/pos-engine/tests/payment_correction.rs` (23), `m132_payment_correction` in `spf_e2e_fixtures.rs`, FFI tests, `ui/e2e/payment-correction.spec.ts` (8), Compose view model, content and screenshot tests.
+- Extra Android captures added by T2 beyond section 11: none. Two new Roborazzi goldens (`reports_tickets_manager`, `reports_payment_correction`); the existing `reports_tickets` golden is unchanged (no manager flag).
+- Command counts after T2: 99 Tauri commands in all, 97 in the cert build (`CLAUDE.md`, `check_ipc_wrappers.py`, `docs/android/ENGINE.md` section 6).
+- `scripts/uc_scope.toml` no longer excludes M132; both matrices regenerated. Dossier counts after T2 (both dossiers): Basic Set 20 of 22 with an automated test, 18 fixture replays in `spf_e2e_fixtures.rs`. Evidence blocks (`evidence/uc/M132_*`) are not regenerated here (V1F-D23).
+- Build notes: Compose builds need `ANDROID_HOME=~/Library/Android/sdk`; the Gradle Kotlin checks (`ktlintCheck detekt`) gate the Compose files.

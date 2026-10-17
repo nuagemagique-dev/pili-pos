@@ -58,8 +58,12 @@ fiscal après sa signature par le FDM.
 - La commande Tauri qui "corrige" un encaissement (`refund_checkout`,
   le remboursement) produit un **nouvel événement fiscal séparé**
   référençant l'original via `fdmRef` - la ligne originale reste
-  intacte. Il n'existe pas de commande de correction de paiement
-  (M132, hors périmètre v1.0.0).
+  intacte. La correction de paiement (M132) est une commande de
+  Gérant confirmée par son PIN : elle signe un événement F
+  `signPaymentCorrection` qui référence la vente (`fdmRef`), ne masque
+  ni ne supprime aucune vente, ne vise qu'une ligne de paiement saisie
+  à la main d'une vente de la journée en cours, et n'est possible
+  qu'une fois par vente (`crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment`).
 
 ## 3. Ajout rétroactif d'enregistrements antidatés
 

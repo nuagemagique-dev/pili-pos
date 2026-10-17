@@ -155,6 +155,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | checkout | checkout::do_checkout_split | spawn | posEngine.checkout() |
 | close_unpaid | unpaid::do_close_unpaid | spawn | posEngine.closeUnpaid() |
 | copy_ticket | copy::do_copy_ticket_with | spawn | posEngine.copyTicket() |
+| correct_payment | payment_correction::do_correct_payment | spawn | posEngine.correctPayment() |
 | create_order | order::do_create_order | blocking | posEngine.createOrder() |
 | create_user | auth::do_create_user | blocking | posEngine.createUser() |
 | deactivate_user | auth::do_deactivate_user | blocking | posEngine.deactivateUser() |
@@ -200,6 +201,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | list_open_takeaways | tables::do_list_open_takeaways | blocking | posEngine.listOpenTakeaways() |
 | list_order_lines | order::do_list_order_lines | blocking | posEngine.listOrderLines() |
 | list_refundable_events | refund::do_list_refundable_events | blocking | posEngine.listRefundableEvents() |
+| list_sale_payments | payment_correction::do_list_sale_payments | blocking | posEngine.listSalePayments() |
 | list_tables | tables::do_list_configured_tables | blocking | posEngine.listTables() |
 | list_ticket_deliveries | delivery::do_list_ticket_deliveries | blocking | posEngine.listTicketDeliveries() |
 | list_unsettled_card_payments | eft::do_list_unsettled_card_payments | blocking | posEngine.listUnsettledCardPayments() |

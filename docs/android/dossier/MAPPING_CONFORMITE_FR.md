@@ -69,8 +69,8 @@ Détail complet (34 tests e2e dans `spf_e2e_digital.rs`) : *voir TICKET_NUMERIQU
 ## Basic Set v1.8
 
 Les 22 UC du Basic Set v1.8 sont chargés par les tests de fixtures
-(`crates/pos-fiscal/tests/uc_fixtures.rs`). 19 ont un test automatisé ;
-les 3 autres sont exclus et déclarés : M150 et M132 hors
+(`crates/pos-fiscal/tests/uc_fixtures.rs`). 20 ont un test automatisé ;
+les 2 autres sont exclus et déclarés : M150 hors
 périmètre v1.0.0, M112A non applicable (le remboursement partiel est
 toujours un ticket séparé, M112B). Voir `COUVERTURE_FIXTURES_FR.md`
 pour la matrice pass/fail des fixtures ; les exclusions sont déclarées
@@ -114,7 +114,9 @@ valorisée au prix de la ligne de vente d'origine qu'elle désigne ; si
 le produit a été vendu à plusieurs prix, la ligne doit être désignée
 (code `refund_line_ambiguous`). UC4122 (note de crédit) : reporté avec
 l'event I, hors périmètre v1.0.0. M132 (correction de paiement) :
-reporté, hors périmètre, non déclaré.
+livré pour un moyen de paiement saisi à la main (Gérant + PIN, événement F
+`signPaymentCorrection`, une correction par vente, journée en cours),
+couvert par `m132_payment_correction` et `crates/pos-engine/tests/payment_correction.rs`.
 
 ## Peppol B2B (obligation parallèle, hors SCE-2.0)
 

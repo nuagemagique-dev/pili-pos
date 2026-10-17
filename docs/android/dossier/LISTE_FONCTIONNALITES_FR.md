@@ -24,6 +24,7 @@ Android en offre est décrit au §7.
 | P | Changement de table (transfert d'une commande ouverte) | `signCostCenterChange` | `crates/pos-engine/src/commands/table_transfer.rs::do_transfer_table` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
 | T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
+| F | Correction du moyen de paiement d'une vente (Gérant + PIN) | `signPaymentCorrection` | `crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment` |
 | C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
 | I | Facture B2B (absente de la build Android 1.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
 | F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |

@@ -13,6 +13,7 @@ screen only calls it through the view model and the shared stores.
 | ReportsView.vue (cash tab: money in and out, drawer count, drawer opening) | feature/reports/ReportsCashTab.kt, ReportsDialogs.kt (CashDialogs over ui/components/AmountDialog.kt) | `money_in_out` `open_drawer_fiscal` |
 | ReportsView.vue (tickets tab and the copy flow, event C) | feature/reports/ReportsTicketsTab.kt, ReportsCopyDialog.kt (over ui/components/TicketMediumPicker.kt and DeliveryOutcomePanel.kt), ReportsCallbacks.kt over ui/state/DeliveryStore.kt | `list_copyable_tickets` `copy_ticket` |
 | ReportsView.vue (refund flow: lines, quantity, delivery, result) | feature/reports/ReportsRefundDialog.kt, ReportsRefundLines.kt, RefundPreview.kt, ReportsViewModel.kt | `list_refundable_events` `list_order_lines` `refund_checkout` |
+| ReportsView.vue (tickets tab: payment correction, event F, manager PIN) and components/PaymentCorrectionDialog.vue | feature/reports/ReportsTicketsTab.kt, ReportsPaymentCorrectionDialog.kt, ReportsViewModel.kt, ReportsCallbacks.kt (PIN through ui/components/PinDialog.kt) | `list_sale_payments` `correct_payment` |
 | stores/delivery.ts (reset when a flow opens and closes, the mail probe, the print action of the result) | feature/reports/ReportsCallbacks.kt over ui/state/DeliveryStore.kt | - |
 | components/PriceDialog.vue (other amount, drawer count with zero allowed) | ui/components/AmountDialog.kt, drawn in the overlay slot of the scaffold | - |
 

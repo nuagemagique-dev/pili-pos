@@ -19,6 +19,7 @@ chinois, §12.2). Les écrans correspondants figurent dans
 7. Encaissement (vente, événement N)
 8. Copie de ticket (événement C)
 9. Remboursement
+9 bis. Corriger un moyen de paiement (événement F)
 10. Rapports X et Z (événements R)
 11. Mouvements de caisse, tiroir et comptage (événements F)
 12. Configuration (Gérant)
@@ -42,7 +43,7 @@ refuse de toute façon une action interdite au profil
 | Changer une commande de table (§5.1 bis) | ☑ | ☑ | ☑ |
 | Imprimer l'addition, encaisser, "Imprimer le ticket" (§7.3) | - | ☑ | ☑ |
 | Commandes en ligne : "Accepter", "Refuser", "Terminer", "Encaisser espèces", "Encaisser carte", "Clôturer" | - | ☑ | ☑ |
-| Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
+| Rapports X / Z, copies, remboursements, corrections de paiement (§9 bis), mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
 | Clôturer une vente sans paiement (client parti sans payer, §7.5, avec son PIN) | - | - | ☑ |
 | Commandes en ligne : "Rembourser" | - | - | ☑ |
 | Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), plan de salle (§12.9), configuration | - | - | ☑ |
@@ -662,6 +663,43 @@ La caisse refuse :
   rembourser.").
 
 Si le FDM refuse, rien n'est enregistré et la vente reste remboursable.
+
+## 9 bis. Corriger un moyen de paiement (événement F)
+
+Quand une vente a été encaissée avec le mauvais moyen (par exemple en
+espèces alors que le client a payé par carte), le Gérant corrige la
+ligne de paiement sans rembourser.
+
+1. Rapports > « Tickets ».
+2. Sur la vente, touchez « Corriger le paiement ».
+3. Choisissez la ligne de paiement à corriger (une carte prise sur le
+   terminal de paiement lié porte la mention « Terminal » et ne se
+   choisit pas), puis le moyen réel : « Espèces », « Carte » ou
+   « Titres-repas ».
+4. Le résumé s'affiche (par exemple « Espèces 52,00 € → Carte
+   52,00 € ») ; touchez « Corriger » et saisissez votre PIN.
+
+La caisse signe un événement F qui référence la vente. Aucun ticket ne
+s'imprime et le tiroir ne s'ouvre pas ; « Paiement corrigé » confirme et
+la vente porte désormais la mention « Paiement corrigé : Espèces →
+Carte ». Les rapports X et Z comptent la correction dans les moyens de
+paiement (corrections négatives et positives) et le Z imprimé ajoute une
+ligne « Corrections de paiement ».
+
+Refus (le texte s'affiche dans la fenêtre) :
+
+- seule une vente peut être corrigée (ni remboursement, ni vente non
+  payée, ni commande en ligne) ;
+- la vente doit appartenir à la journée en cours (pas encore clôturée
+  par un Z) ;
+- une vente déjà remboursée, en tout ou en partie, ne se corrige plus ;
+- **une seule correction par vente** ;
+- une carte prise sur le terminal de paiement lié ne se corrige pas ;
+- le nouveau moyen doit différer de celui de la ligne ;
+- une correction qui demanderait un arrondi en espèces est refusée.
+
+Si le FDM ne répond pas, rien n'est enregistré et la vente reste
+corrigeable. Le PIN est celui du Gérant connecté.
 
 ## 10. Rapports X et Z (événements R)
 

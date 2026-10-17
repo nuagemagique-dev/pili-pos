@@ -6,8 +6,8 @@
 Ce document parcourt les UC obligatoires du Basic Set v1.8 (22 UC
 spec) + les 5 UC Reports v1.3 + les cinq situations d'arrondi du manuel (ROUND1 a ROUND5). Sont hors périmètre v1.0.0, chacun
 dans sa section : **M150_signInvoice** (event I, voir
-*DECISION_PEPPOL_AP_FR.md*) et **M132** (correction de paiement) ; **M122**
-(changement de centre de coût, transfert de table) est rejoué, voir sa section ; **M112A** n'est pas un parcours
+*DECISION_PEPPOL_AP_FR.md*) ; **M122** (changement de centre de coût, transfert
+de table) et **M132** (correction de paiement) sont rejoués, voir leur section ; **M112A** n'est pas un parcours
 proposé par pili-pos (le remboursement partiel est toujours émis en
 ticket séparé, parcours M112B). Pour chaque UC, il fournit :
 
@@ -2212,9 +2212,9 @@ Aucun écart.
 
 <!-- pili-pos-evidence:end -->
 
-## M132_signPaymentCorrection - hors périmètre v1.0.0
+## M132_signPaymentCorrection
 
-La correction de paiement n'est **pas disponible en v1.0.0** (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; leur seul controle est la lecture de la fixture par pili-pos.
+La correction de paiement est disponible pour une ligne de paiement saisie a la main d'une vente de la journee en cours (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; le rejeu applicatif la compare a la requete construite par pili-pos. Seul ecart declare : la fixture corrige vers une carte de credit (`CARD_CREDIT`), alors que, sans terminal relie, une carte saisie a la main est toujours `CARD_DEBIT` (*REPONSES_MANUEL_CERT_FR.md* §III.F).
 
 **Mutation invoquee :** `signPaymentCorrection`
 
@@ -2328,7 +2328,7 @@ Payment of N14/50 (total to be paid 52 EUR) was made by CARD_CREDIT (Mastercard 
 }
 ```
 
-**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture uniquement) - fonctionnalite non declaree en v1.0.0.
+**Validation automatisee :** `crates/pos-fiscal/tests/uc_fixtures.rs` (lecture de la fixture) et `crates/pos-engine/tests/spf_e2e_fixtures.rs::m132_payment_correction` (rejeu applicatif, build `cert`, un seul ecart : le type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`).
 
 
 ## M133_signMoneyInOut_DrawerDeclaration
@@ -6025,9 +6025,9 @@ TVA: BE0000000097
 
 | Famille | UC (spec) | UC dans le perimetre v1.0.0 | Lecture des fixtures | Rejeu applicatif (build `cert`) |
 |---|---|---|:-:|:-:|
-| Basic Set v1.8 | 22 | 19 (hors M112A, M132 et M150/event I) | OK (22/22) | OK : 17 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M122, M123, M130, M131, M133, M140, M141, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
+| Basic Set v1.8 | 22 | 20 (hors M112A et M150/event I) | OK (22/22) | OK : 18 UC rejoues et compares a la fixture dans `spf_e2e_fixtures.rs` (M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M160, M161, M170, M171, M171B, M172) ; M112A n'est pas un parcours propose (remboursement partiel toujours en ticket separe, parcours M112B) ; Q100/Q110 : `client_status.rs` |
 | Reports v1.3 | 5 | 5 | OK (5/5) | OK : journee T1–T8 jouee puis M180, M182 et M184 compares a la fixture dans `spf_e2e_report_fixtures.rs` ; M181/M183 signes par le Z combine de M184 |
-| **Total** | **27** | **24** | **OK** | **OK** |
+| **Total** | **27** | **25** | **OK** | **OK** |
 
 Preuves d'annexe : **50 paires requete/reponse** construites et
 archivees par la build `cert` pour le Basic Set et les rapports

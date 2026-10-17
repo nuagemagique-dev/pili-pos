@@ -15,10 +15,10 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 | Statut | Nombre |
 |---|---|
 | Couvert (scénario Android) | 47 |
-| Couvert (tests moteur exécutés sur l'appareil) | 27 |
+| Couvert (tests moteur exécutés sur l'appareil) | 28 |
 | En attente | 0 |
 | Exclu sur Android | 24 |
-| Hors périmètre | 56 |
+| Hors périmètre | 55 |
 | Non applicable | 1 |
 | Couvert par un autre identifiant | 0 |
 | MANQUANT | 0 |
@@ -37,7 +37,7 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 | M123 | Addition provisoire (pre-bill) | `10_basic/050_M123.json` | PASS | `m123_pre_bill`, `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat` | Couvert (scénario Android) |
 | M130 | Mouvement de caisse (argent entrant/sortant) | `10_basic/060_M130.json` | PASS | `m130_money_in`, `m130_money_in_out_archives_f_event` | Couvert (scénario Android) |
 | M131 | Ouverture du tiroir-caisse | `10_basic/070_M131.json` | PASS | `m131_drawer_open`, `m131_drawer_open_archives_f_event` | Couvert (scénario Android) |
-| M132 | Correction de paiement | - | - | - | Hors périmètre |
+| M132 | Correction de paiement | - | - | `m132_payment_correction` | Couvert (tests moteur exécutés sur l'appareil) |
 | M133 | Déclaration de fond de caisse (comptage) | `10_basic/080_M133.json` | PASS | `m133_drawer_declaration` | Couvert (scénario Android) |
 | M140 | Entrée en service de l'utilisateur | `10_basic/090_M140.json` | PASS | `m140_work_in`, `m140_work_in_archives_s_event` | Couvert (scénario Android) |
 | M141 | Sortie de service de l'utilisateur | `10_basic/100_M141.json` | PASS | `m141_work_out`, `m141_work_out_archives_s_event` | Couvert (scénario Android) |

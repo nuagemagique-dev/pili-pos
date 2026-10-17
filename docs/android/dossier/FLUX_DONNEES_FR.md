@@ -168,6 +168,29 @@ OK. L'opérateur confirme.
    est aussitôt effacée. Sinon, elle reste `pending` et le papier de
    secours part (§10 ci-dessous, remise en file en tâche de fond).
 
+## 3 ter. Correction du moyen de paiement (Événement F)
+
+**Action utilisateur.** Une vente a été encaissée avec le mauvais moyen :
+le Gérant ouvre Rapports > Tickets, touche « Corriger le paiement » sur
+la vente, choisit la ligne de paiement et le vrai moyen, puis saisit son
+PIN.
+
+**Circulation des données.**
+
+1. L'interface lit les lignes de paiement (`commands::payment_correction::do_list_sale_payments`,
+   commande `list_sale_payments`) : la caisse dit si la vente est
+   corrigeable et pourquoi sinon.
+2. La commande `correct_payment` vérifie le PIN du Gérant, puis, sous le
+   verrou de signature, les règles (vente de la journée en cours, ni
+   remboursée ni en ligne, pas déjà corrigée, ligne saisie à la main,
+   pas d'arrondi).
+3. La requête (ligne retirée en négatif, même montant sous le nouveau
+   moyen, `fdmRef` de la vente) est stockée dans `pending_signs`, signée
+   par le FDM et archivée (événement F). Une réponse arrivée en retard a
+   le même effet.
+4. Ni ticket ni ouverture du tiroir. Les rapports X et Z suivants
+   comptent la correction dans les moyens de paiement.
+
 ## 4. Rapport X en cours de service
 
 **Action utilisateur.** Le gérant tape "Rapport X" dans la vue

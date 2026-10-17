@@ -48,6 +48,8 @@ Accès complet. Concrètement, peut :
 - Émettre une copie de ticket (Événement C).
 - Effectuer un remboursement complet (Événement N, M111) ou partiel
   (M112B - événement séparé, voir `FLUX_REMBOURSEMENT_FR.md`).
+- Corriger le moyen de paiement d'une vente de la journée (Événement F -
+  `signPaymentCorrection`, M132), avec son PIN ; une seule fois par vente.
 - Activer / désactiver le mode formation (Événements T), uniquement
   lorsqu'aucune commande avec des lignes n'est ouverte : une table
   réelle ne peut ainsi jamais être encaissée en formation, ni une

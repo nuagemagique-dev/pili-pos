@@ -6,9 +6,9 @@
 **Date :** À effectuer (EV-18 : date de dépôt)
 **Code :** `crates/pos-engine/src/commands/refund.rs`
 **Périmètre cert :** M111 (remboursement complet), M112B
-(remboursement partiel - ticket séparé). La correction de paiement
-(M132, UC4118) et la note de crédit (UC4122) ne sont pas dans le
-périmètre de la v1.0.0 (voir §2 et §3).
+(remboursement partiel - ticket séparé), M132 (correction de paiement,
+voir §2). La note de crédit (UC4122) n'est pas dans le périmètre de la
+v1.0.0 (voir §3).
 
 ---
 
@@ -123,13 +123,51 @@ flux UI.
 
 ---
 
-## 2. Correction de paiement (hors périmètre v1.0.0)
+## 2. Correction de paiement (M132)
 
-La correction de paiement (M132, UC4118) n'est pas déclarée dans le
-périmètre de la v1.0.0. `FdmClient::sign_payment_correction` existe
-avec la forme `PaymentCorrectionInput`, mais aucune commande du moteur exposée à l'interface Android ni
-écran ne l'appelle : pour une erreur de moyen de paiement, l'opérateur
-utilise le remboursement puis une nouvelle vente.
+**Code :** `crates/pos-engine/src/commands/payment_correction.rs`
+(`do_list_sale_payments`, `do_correct_payment`) ; requête construite par
+`build_payment_correction_input` (`crates/pos-fiscal/src/event.rs`).
+
+Quand l'opérateur s'est trompé de moyen de paiement (« payé par carte,
+pas en espèces »), un Gérant, confirmé par son PIN, corrige **une ligne
+de paiement** d'une vente de la journée en cours. La caisse signe un
+événement **F** `signPaymentCorrection` : deux lignes de paiement
+saisies à la main, la ligne retirée en négatif et le même montant sous
+le nouveau moyen en positif, avec le `fdmRef` de la vente corrigée. Rien
+ne s'imprime (`ticketMedium` NONE) et le tiroir ne s'ouvre pas.
+
+Règles :
+
+- la vente est un N (ou un T, en mode formation, et seulement en mode
+  formation), de la période comptable en cours (pas encore couverte par
+  un rapport Z) ;
+- refusées : un remboursement, une vente non payée (client parti sans
+  payer), une commande en ligne, une vente déjà remboursée en tout ou en
+  partie ;
+- **une seule correction par vente** ;
+- seule une ligne de paiement saisie à la main se corrige : une carte
+  prise sur le terminal de paiement lié ne se corrige jamais ;
+- le nouveau moyen est espèces, carte ou titres-repas, différent de celui
+  de la ligne ;
+- aucune ligne d'arrondi n'est écrite : la correction est refusée si la
+  ligne est en espèces et que la vente a un arrondi, ou si le nouveau
+  moyen est espèces et que le montant n'est pas un multiple de 5
+  centimes ;
+- si le FDM ne répond pas, rien n'est signé (même circuit qu'une vente).
+
+Dans les rapports X et Z, la ligne retirée va en « corrections
+négatives » et la ligne ajoutée en « corrections positives » du moyen
+concerné (`correctionsCount` compte chaque ligne) ; le total par moyen
+est la somme des trois. Dans le rapport par utilisateur, la correction
+est portée par le Gérant qui l'a signée. Le rapport imprimé ajoute une
+ligne « Corrections de paiement » (nombre et montant ajouté). Pour tout
+autre cas (moyen de paiement non corrigeable, vente d'une journée
+clôturée), l'opérateur utilise le remboursement puis une nouvelle vente.
+
+Fixture M132 : rejeu `m132_payment_correction`, un seul écart déclaré
+(type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`, car sans
+terminal relié l'opérateur ne distingue pas débit et crédit).
 
 ---
 
