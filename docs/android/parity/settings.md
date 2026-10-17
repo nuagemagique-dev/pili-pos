@@ -15,6 +15,8 @@ screen only calls it through the shared stores and the gateway.
 | SettingsView.vue (training mode) | feature/settings/SettingsScreen.kt (TrainingPanel) over ui/state/PosSettingsStore.kt | `set_training_mode` |
 | SettingsView.vue (table plan, managers) | feature/settings/SettingsScreen.kt (TablePlanPanel), SettingsViewModel.kt | `get_table_plan` `set_table_plan` |
 | SettingsView.vue (ticket deliveries and the mail status) | feature/settings/SettingsScreen.kt (DeliveriesPanel) over ui/state/DeliveryStore.kt | `list_ticket_deliveries` `check_mail_status` |
+| ui/src/components/BadgeSettings.vue (reader, badge login, USB timing, log) | feature/settings/SettingsBadgePanel.kt (BadgePanel), SettingsBadgeModel.kt, SettingsBadgeState.kt over ui/badge/BadgeStore.kt | `get_badge_settings` `set_badge_settings` `list_badges` |
+| SettingsView.vue (employees: badge state and button) and ui/src/components/BadgeEnrolDialog.vue (capture, manager PIN, link; removal confirmation) | feature/settings/SettingsBadgePanel.kt (WorkerBadgeLine), SettingsScreen.kt (BadgeEnrolDialog, SettingsDialogs), SettingsBadgeModel.kt | `link_badge` `revoke_badge` `list_badges` |
 | ui/src/components/IntegrationSwitch.vue | feature/settings/SettingsScreen.kt (IntegrationPanel) over ui/state/IntegrationsStore.kt | `set_hubrise_enabled` |
 | ui/src/components/HubriseSettings.vue (connection, health, catalog, adoption, channels) | feature/settings/HubriseSection.kt, HubriseViewModel.kt | `hubrise_get_connection_status` `hubrise_status` `hubrise_disconnect` `hubrise_sync_catalog` `hubrise_adoption_preview` `hubrise_adopt_catalog` `hubrise_list_channels` `hubrise_set_channel` |
 | ui/src/components/HubriseConnectDialog.vue | feature/settings/HubriseConnectDialog.kt, HubriseViewModel.kt | `hubrise_start_oauth_flow` `hubrise_complete_oauth` |
@@ -84,3 +86,18 @@ screen only calls it through the shared stores and the gateway.
   toast. Removing asks a confirmation dialog first (`badge-revoke-dialog`, `badge-revoke-confirm`), then
   `revoke_badge` and the toast "Badge retiré · {name}". The list and the log are read again after every change, and
   the employees are read again after a registered scan (`presenceVersion`).
+- **Badge reader and badges (lane 5-nfc, Android side).** Same content, same rules, same texts (`settings_badges`,
+  `badge_reader_*`, `settings_badge_*`, `badge_*`, the `err_` texts), through `BadgeStore` (`SettingsBadgeModel` holds the
+  screen half). Differences: (1) a third reader choice, "NFC intégré" (`ui_settings_badge_reader_nfc`), drawn only when the
+  device reports `PackageManager.FEATURE_NFC`; a stored `nfc` on a device without NFC gets
+  `settings_badge_nfc_unavailable`, and on a device whose NFC is turned off `ui_settings_badge_nfc_disabled`; the
+  reader mode itself is started by `NfcBadgeSource` only while the setting is `nfc`, the adapter is on and the
+  activity is in the foreground. (2) The panel sits under the table plan at the top of the third column (the column
+  scrolls as a whole), still folded by default. (3) The employees and the badge list are read together
+  (`list_users`, `list_open_shifts`, `list_badges`, all or nothing) and again after a registered scan
+  (`presenceVersion`). (4) The enrolment dialog and the removal confirmation are drawn in the scaffold overlay;
+  the capture waits 30 seconds (`badge_capture_timeout` as a warning toast). Test tags: `settings_badges`,
+  `badge_toggle`, `badge_state`, `badge_reader_<off|nfc|usb>`, `badge_nfc_note`, `badge_login_switch`,
+  `badge_field_<gap|min|max>`, `badge_timing_save`, `badge_relink`, `badge_error`, `badge_log`, `badge_log_<n>`,
+  `worker_<insz>_badge`, `worker_<insz>_badge_button`, `badge_enrol_dialog`, `badge_enrol_present`,
+  `badge_enrol_cancel`, `badge_enrol_pin`, `badge_revoke_dialog`.

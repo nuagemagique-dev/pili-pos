@@ -77,6 +77,9 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | composables/useOrderChime.ts | ui/feedback/OrderChime.kt | - |
 | router/index.ts leave guard | ui/scaffold/HeaderActions.kt and OrderStore.leaveIfActive | `leave_order` |
 | App.vue activity forwarding | foundation kiosk/UserActivityForwarder.kt | `user_activity` |
+| stores/badge.ts, composables/useBadgeReader.ts and utils/badgeWedge.ts (the global scan handling: USB wedge, outcomes, enrolment capture, end-of-shift flag, PIN request) | ui/badge/BadgeStore.kt, KeyWedgeSource.kt, WedgeDetector.kt, BadgeSource.kt, BadgeModule.kt, wired in MainActivity.dispatchKeyEvent | `get_badge_settings` `set_badge_settings` `list_badges` `link_badge` `revoke_badge` `badge_tap` |
+| composables/useBadgeCue.ts | ui/badge/BadgeCue.kt (AudioTrackBadgeCue) | - |
+| (Android only: built-in NFC reader, lane 5-nfc) | ui/badge/NfcBadgeSource.kt (NfcBadgeSource, NfcSupport), wired in MainActivity.onResume and onPause | - |
 
 Not ported: components/SupportBanner.vue and stores/support.ts. There is no remote support in v1 (DECISIONS section 7).
 
@@ -94,10 +97,4 @@ list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
 work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else with clock_in_employee from the employees panel (own presence stays login and end of shift, so no UI calls work_in)
 work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else out with clock_out_employee from the employees panel (no UI calls work_out)
-get_badge_settings pending:P5b-settings staff badges (lane 5): the badge settings section and the login screen read it
-set_badge_settings pending:P5b-settings staff badges (lane 5): the badge settings section
-list_badges pending:P5b-settings staff badges (lane 5): the employees panel and the badge log
-link_badge pending:P5b-settings staff badges (lane 5): the enrolment dialog
-revoke_badge pending:P5b-settings staff badges (lane 5): the employees panel
-badge_tap pending:P5b-settings staff badges (lane 5): the global scan handling
 ```
