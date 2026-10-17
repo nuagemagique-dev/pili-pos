@@ -192,6 +192,9 @@ fn order_of_line(db: &rusqlite::Connection, line_id: i64) -> Result<i64, String>
 fn line_error(e: rusqlite::Error) -> String {
     match e {
         rusqlite::Error::QueryReturnedNoRows => errors::LINE_NOT_FOUND.into(),
+        rusqlite::Error::InvalidParameterName(name) if name == "line_has_price_changes" => {
+            errors::LINE_HAS_PRICE_CHANGES.into()
+        }
         other => errors::internal(other),
     }
 }

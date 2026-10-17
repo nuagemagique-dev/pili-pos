@@ -72,6 +72,7 @@ pub(crate) enum Kind {
     PreBill,
     TableTransfer,
     PaymentCorrection,
+    Discount,
     WebshopOrder,
     ReportX,
     ReportUserX,
@@ -85,13 +86,14 @@ pub(crate) enum Kind {
 }
 
 impl Kind {
-    const ALL: [Kind; 16] = [
+    const ALL: [Kind; 17] = [
         Kind::Sale,
         Kind::Refund,
         Kind::TableOrder,
         Kind::PreBill,
         Kind::TableTransfer,
         Kind::PaymentCorrection,
+        Kind::Discount,
         Kind::WebshopOrder,
         Kind::ReportX,
         Kind::ReportUserX,
@@ -112,6 +114,7 @@ impl Kind {
             Kind::PreBill => "pre_bill",
             Kind::TableTransfer => "table_transfer",
             Kind::PaymentCorrection => "payment_correction",
+            Kind::Discount => "discount",
             Kind::WebshopOrder => "webshop_order",
             Kind::ReportX => "report_x",
             Kind::ReportUserX => "report_user_x",

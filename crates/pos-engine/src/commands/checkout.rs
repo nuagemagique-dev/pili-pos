@@ -361,6 +361,20 @@ async fn sell_locked(
         &settlement,
     );
     pos_fiscal::price_change::apply(&mut sale_input.transaction, &entries, &entry_changes);
+    // The corrections of a PRICE_CHANGE pair (a till discount) say why.
+    #[cfg(feature = "hubrise")]
+    {
+        let pair_entries = {
+            let db = state.db.lock().map_err(|e| e.to_string())?;
+            pos_db::queries::till_discounts::price_change_entry_ids(&db, order_id)
+                .map_err(|e| e.to_string())?
+        };
+        pos_fiscal::price_change::mark_price_change_reason(
+            &mut sale_input.transaction,
+            &entries,
+            &pair_entries,
+        );
+    }
     sale_input.common.ticket_medium = resolved.medium;
     if let Some(cost_center) = options.cost_center.clone() {
         sale_input.cost_center = Some(cost_center);
@@ -414,7 +428,8 @@ async fn sell_locked(
             .iter()
             .map(|p| (payment_line_identity(p.payment_type()).1, p.amount_cents))
             .collect();
-        let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments);
+        let discounts = hubrise_push::order_discounts(&line_changes);
+        let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments, &discounts);
         serde_json::to_string(&body).unwrap_or_default()
     });
     #[cfg(not(feature = "hubrise"))]

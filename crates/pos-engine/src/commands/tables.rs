@@ -3,7 +3,7 @@ use serde::Serialize;
 use pos_core::order::{OrderStatus, OrderType};
 use pos_fiscal::event::{build_order_input, build_pre_bill_input};
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
-use pos_fiscal::ticket::{TicketDraft, TicketLine};
+use pos_fiscal::ticket::TicketDraft;
 use pos_fiscal::types::EventLabel;
 
 use crate::commands::access::{self, Access};
@@ -221,7 +221,8 @@ pub(crate) async fn sign_table_order_locked(
 
     let label = EventLabel::P.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    let order_input = build_order_input(
+    #[allow(unused_mut)]
+    let mut order_input = build_order_input(
         config,
         &state.identity,
         &order,
@@ -229,6 +230,25 @@ pub(crate) async fn sign_table_order_locked(
         ticket_number,
         &bp_id,
     );
+    // A till discount: the changes of each entry, and the reason on the
+    // corrections of a PRICE_CHANGE pair.
+    #[cfg(feature = "hubrise")]
+    {
+        let (entry_changes, pair_entries) = {
+            let db = state.db.lock().map_err(|e| e.to_string())?;
+            (
+                super::price_changes::load(&db, order_id)?.0,
+                pos_db::queries::till_discounts::price_change_entry_ids(&db, order_id)
+                    .map_err(|e| e.to_string())?,
+            )
+        };
+        pos_fiscal::price_change::apply(&mut order_input.transaction, &entries, &entry_changes);
+        pos_fiscal::price_change::mark_price_change_reason(
+            &mut order_input.transaction,
+            &entries,
+            &pair_entries,
+        );
+    }
     let request = SignRequest::new(SignMutation::Order, &order_input, config.training_mode)
         .map_err(errors::internal)?;
     let context = PendingContext::TableOrder {
@@ -317,6 +337,15 @@ async fn sign_pre_bill_locked(
         let bp = super::booking(&db, guard, config)?;
         (order, lines, bp)
     };
+    // The consolidated lines' discounts (a till discount): the pre-bill
+    // shows the net amounts.
+    #[cfg(feature = "hubrise")]
+    let line_changes = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        super::price_changes::load(&db, order_id)?.1
+    };
+    #[cfg(not(feature = "hubrise"))]
+    let line_changes = pos_fiscal::price_change::LineChanges::new();
     order.user_insz = operator.insz.clone();
     if lines.is_empty() {
         return Err(errors::ORDER_NO_LINES.into());
@@ -324,7 +353,8 @@ async fn sign_pre_bill_locked(
 
     let label = EventLabel::P.in_mode(config.training_mode);
     let ticket_number = super::peek_ticket_number(state, guard, label)?;
-    let pre_bill = build_pre_bill_input(
+    #[allow(unused_mut)]
+    let mut pre_bill = build_pre_bill_input(
         config,
         &state.identity,
         &order,
@@ -332,20 +362,13 @@ async fn sign_pre_bill_locked(
         ticket_number,
         &bp_id,
     );
+    pos_fiscal::price_change::apply(&mut pre_bill.transaction, &lines, &line_changes);
     let request = SignRequest::new(SignMutation::PreBill, &pre_bill, config.training_mode)
         .map_err(errors::internal)?;
 
     let operator_name = super::operator_name(state, &order.user_insz);
-    let ticket_lines = lines
-        .iter()
-        .map(|l| TicketLine {
-            quantity: l.quantity as f64,
-            description: l.name.clone(),
-            unit_price: l.unit_price_cents as f64 / 100.0,
-            total: (l.unit_price_cents * l.quantity as i64) as f64 / 100.0,
-            vat_code: l.vat_code.as_str().to_string(),
-        })
-        .collect();
+    // Each line, then its discounts.
+    let ticket_lines = pos_fiscal::price_change::ticket_lines(&lines, &line_changes);
     let context = PendingContext::PreBill {
         order_id,
         ticket: TicketDraft::new(

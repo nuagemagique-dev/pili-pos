@@ -278,11 +278,23 @@ pub(crate) async fn refund_sale(
                     let prior = already_refunded.get(bucket).copied().unwrap_or(0);
                     check_sold(&original_lines, bucket, quantity, prior)?;
                 }
+                // A discount is spread over its lines: a part of one
+                // would refund a share nobody can tell. The whole sale
+                // can go back, each line with its own share negated.
+                #[cfg(feature = "hubrise")]
+                let whole_sale = already_refunded.is_empty()
+                    && original_lines.iter().filter(|l| l.quantity > 0).all(|l| {
+                        let bucket = Bucket::of(l);
+                        let sold: i64 = original_lines
+                            .iter()
+                            .filter(|o| o.quantity > 0 && Bucket::of(o) == bucket)
+                            .map(|o| i64::from(o.quantity))
+                            .sum();
+                        requested.get(&bucket).copied().unwrap_or(0) == sold
+                    });
                 for (quantity, original) in picked {
-                    // A discount is spread over its lines: a part of
-                    // one would refund a share nobody can tell.
                     #[cfg(feature = "hubrise")]
-                    if original_changes.contains_key(&original.id) {
+                    if !whole_sale && original_changes.contains_key(&original.id) {
                         return Err(errors::coded(
                             errors::hubrise::REFUND_DISCOUNTED_LINE,
                             &[("product", &original.menu_item_id)],

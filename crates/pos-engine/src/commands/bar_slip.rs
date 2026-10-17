@@ -52,9 +52,24 @@ pub(crate) async fn print_bar_slip(
         let Ok(db) = state.db.lock() else {
             return SlipOutcome::Failed;
         };
+        // The entries of a PRICE_CHANGE pair (a till discount) order
+        // nothing: they never print.
+        #[cfg(feature = "hubrise")]
+        let price_changes = entries
+            .first()
+            .map(|e| pos_db::queries::till_discounts::price_change_entry_ids(&db, e.order_id))
+            .transpose()
+            .unwrap_or_else(|err| {
+                tracing::warn!(%err, "price change entries unreadable");
+                None
+            })
+            .unwrap_or_default();
+        #[cfg(not(feature = "hubrise"))]
+        let price_changes = std::collections::BTreeSet::<i64>::new();
         entries
             .iter()
             .filter(|e| e.quantity != 0)
+            .filter(|e| !price_changes.contains(&e.id))
             .filter(|e| {
                 pos_db::queries::menu::sends_to_kitchen(&db, e.menu_item_id).unwrap_or_else(|err| {
                     tracing::warn!(%err, menu_item_id = e.menu_item_id, "kitchen flag unreadable");

@@ -74,13 +74,33 @@ fn transaction_view(t: &Value) -> Value {
                 "negQuantityReason": p.get("negQuantityReason").cloned().unwrap_or(Value::Null),
                 "unitPrice": p["unitPrice"],
                 "vats": p["vats"].as_array().unwrap().iter()
-                    .map(|v| json!({ "label": v["label"], "price": v["price"] }))
+                    .map(|v| json!({
+                        "label": v["label"],
+                        "price": v["price"],
+                        "priceChanges": price_changes_view(v),
+                    }))
                     .collect::<Vec<_>>(),
                 "lineTotal": l["lineTotal"],
             })
         })
         .collect();
     json!({ "transactionLines": lines, "transactionTotal": t["transactionTotal"] })
+}
+
+/// The price changes of a VAT entry as `[{scope, type, amount}]`; the
+/// id and the name are free text and only their presence is checked
+/// (by the caller's `check_identification`-style tests), the
+/// `groupingId` is the POS's own counter. Null when the entry has none.
+fn price_changes_view(vat: &Value) -> Value {
+    match vat.get("priceChanges").and_then(Value::as_array) {
+        Some(changes) if !changes.is_empty() => Value::Array(
+            changes
+                .iter()
+                .map(|c| json!({ "scope": c["scope"], "type": c["type"], "amount": c["amount"] }))
+                .collect(),
+        ),
+        _ => Value::Null,
+    }
 }
 
 pub fn diff(path: &str, ours: &Value, fixture: &Value, out: &mut Vec<(String, Value, Value)>) {

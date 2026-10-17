@@ -28,6 +28,10 @@ use pos_engine::commands::auth::{
 };
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
+use pos_engine::commands::discount::{
+    DiscountInput, DiscountKind, DiscountReason, DiscountTarget, do_apply_discount,
+    do_remove_discount,
+};
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
@@ -161,6 +165,31 @@ async fn manager_commands(
             |r| r.get(0),
         )
         .unwrap();
+    // A discount and its removal, before the table is closed unpaid.
+    let discount = do_apply_discount(
+        &app.state,
+        left_unpaid,
+        DiscountInput {
+            target: DiscountTarget::Order,
+            kind: DiscountKind::Percent,
+            value: Some(10),
+            reason_code: DiscountReason::Other,
+            reason_text: None,
+        },
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .map(|_| ());
+    let removal = do_remove_discount(
+        &app.state,
+        left_unpaid,
+        None,
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .map(|_| ());
     let unpaid = do_close_unpaid(&app.state, left_unpaid, insz, MANAGER_PIN)
         .await
         .unwrap();
@@ -180,6 +209,8 @@ async fn manager_commands(
                 .then_some(())
                 .ok_or(correction.error.unwrap_or_default()),
         ),
+        ("discount", discount),
+        ("remove discount", removal),
         (
             "copy",
             copy.success

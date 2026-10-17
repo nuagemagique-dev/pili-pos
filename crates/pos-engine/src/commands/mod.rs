@@ -4,6 +4,8 @@ pub mod bar_slip;
 pub mod checkout;
 pub mod copy;
 pub mod delivery;
+#[cfg(feature = "hubrise")]
+pub mod discount;
 pub mod eft;
 pub mod errors;
 pub mod export;

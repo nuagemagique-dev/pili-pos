@@ -72,6 +72,22 @@ pub const TABLE_TRANSFER_TARGET_INVALID: &str = "table_transfer_target_invalid";
 /// an online order.
 pub const TABLE_TRANSFER_NOT_A_TABLE: &str = "table_transfer_not_a_table";
 
+// Discount at the till (price changes, manager PIN).
+/// An order discount already applies (remove it first), or the line
+/// already carries a change.
+pub const DISCOUNT_ALREADY_APPLIED: &str = "discount_already_applied";
+/// Nothing to remove: no discount applies to that order or line.
+pub const DISCOUNT_NONE: &str = "discount_none";
+/// The percent is not 1 to 99, the amount not 1 cent to the net total,
+/// there is nothing to discount, or the kind does not fit the target.
+pub const DISCOUNT_INVALID: &str = "discount_invalid";
+/// The reason is not one of the list, or its text is too long.
+pub const DISCOUNT_REASON_INVALID: &str = "discount_reason_invalid";
+/// An online order has its own discounts: none is taken at the till.
+pub const DISCOUNT_ONLINE_ORDER: &str = "discount_online_order";
+/// A line with a discount keeps its quantity: remove the discount first.
+pub const LINE_HAS_PRICE_CHANGES: &str = "line_has_price_changes";
+
 // Payment correction (an F event, signPaymentCorrection).
 /// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
 pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
@@ -252,6 +268,12 @@ pub const ALL: &[&str] = &[
     PAYMENT_CORRECTION_SAME_METHOD,
     PAYMENT_CORRECTION_METHOD,
     PAYMENT_CORRECTION_ROUNDING,
+    DISCOUNT_ALREADY_APPLIED,
+    DISCOUNT_NONE,
+    DISCOUNT_INVALID,
+    DISCOUNT_REASON_INVALID,
+    DISCOUNT_ONLINE_ORDER,
+    LINE_HAS_PRICE_CHANGES,
     CONFIG_TABLES,
     TABLE_TRANSFER_SAME_TABLE,
     TABLE_TRANSFER_TARGET_BUSY,
