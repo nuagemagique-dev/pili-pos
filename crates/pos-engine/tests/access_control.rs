@@ -1017,3 +1017,49 @@ async fn only_a_manager_touches_the_owner_alerts() {
     assert!(do_set_owner_alerts(&app.state, input()).is_ok());
     assert!(do_list_owner_alert_log(&app.state, 5).unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn any_operator_reads_the_allergens_and_only_a_manager_edits_them() {
+    use pos_engine::commands::allergens::{
+        SetAllergensInput, do_get_allergen_sheet, do_list_allergens, do_print_allergen_sheet,
+        do_set_allergens,
+    };
+    let app = app().await;
+    let edit = || SetAllergensInput {
+        entity_type: "menu_item".into(),
+        entity_id: 1,
+        declared: true,
+        contains: vec!["milk".into()],
+        may_contain: vec![],
+    };
+    app.logout();
+    assert_eq!(
+        do_list_allergens(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_get_allergen_sheet(&app.state, None, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_allergen_sheet(&app.state, None, None)
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_allergens(&app.state, edit()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_list_allergens(&app.state).unwrap().len(), 14);
+        assert!(do_get_allergen_sheet(&app.state, None, None).is_ok());
+        assert_eq!(
+            do_set_allergens(&app.state, edit()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert_eq!(do_set_allergens(&app.state, edit()), Ok(true));
+}

@@ -1,5 +1,6 @@
 pub mod access;
 pub mod alerts;
+pub mod allergens;
 pub mod auth;
 pub mod bar_slip;
 pub mod checkout;

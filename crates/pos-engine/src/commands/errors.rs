@@ -201,6 +201,14 @@ pub const ALERTS_TOKEN_MISSING: &str = "alerts_token_missing";
 /// kind of transport error, never an address).
 pub const ALERTS_SEND_FAILED: &str = "alerts_send_failed";
 
+// Allergens (v1.2).
+/// A code that is not one of the 14 allergens of Annex II (or a sheet
+/// language that is not offered): `allergen_unknown|code=<code>`.
+pub const ALLERGEN_UNKNOWN: &str = "allergen_unknown";
+/// The product or option to edit, or the product to print, does not
+/// exist: `allergen_target_not_found|id=<id>`.
+pub const ALLERGEN_TARGET_NOT_FOUND: &str = "allergen_target_not_found";
+
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
 /// and the text as `detail`.
@@ -233,6 +241,8 @@ pub const ALL: &[&str] = &[
     ALERTS_INVALID,
     ALERTS_TOKEN_MISSING,
     ALERTS_SEND_FAILED,
+    ALLERGEN_UNKNOWN,
+    ALLERGEN_TARGET_NOT_FOUND,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

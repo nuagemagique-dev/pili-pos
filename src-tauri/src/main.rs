@@ -252,6 +252,11 @@ fn main() {
         ipc::alerts::set_owner_alerts,
         ipc::alerts::send_test_alert,
         ipc::alerts::list_owner_alert_log,
+        // Allergens
+        ipc::allergens::list_allergens,
+        ipc::allergens::get_allergen_sheet,
+        ipc::allergens::print_allergen_sheet,
+        ipc::allergens::set_allergens,
         // Tables
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,
@@ -372,6 +377,11 @@ fn main() {
         ipc::alerts::set_owner_alerts,
         ipc::alerts::send_test_alert,
         ipc::alerts::list_owner_alert_log,
+        // Allergens
+        ipc::allergens::list_allergens,
+        ipc::allergens::get_allergen_sheet,
+        ipc::allergens::print_allergen_sheet,
+        ipc::allergens::set_allergens,
         // Tables
         ipc::tables::list_tables,
         ipc::tables::get_table_plan,
