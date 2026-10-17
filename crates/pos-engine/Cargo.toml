@@ -52,6 +52,9 @@ pos-export-mock = { path = "../pos-export-mock" }
 pos-eft-mock = { path = "../pos-eft-mock" }
 axum = "0.8"
 base64 = "0.23"
+# Captures the engine's logs to prove the owner alert bot token never
+# reaches one (tests/owner_alerts.rs).
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 
 [features]
 # Same feature set as the pili-pos shell, which forwards its own to these.

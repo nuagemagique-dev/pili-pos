@@ -188,7 +188,18 @@ pub const CONFIG_HUBRISE: &str = "config_hubrise";
 pub const CONFIG_DIGITAL_TICKET: &str = "config_digital_ticket";
 pub const CONFIG_EXPORT: &str = "config_export";
 pub const CONFIG_PAYMENT_TERMINAL: &str = "config_payment_terminal";
+pub const CONFIG_ALERTS: &str = "config_alerts";
 pub const CONFIG_OTHER: &str = "config_other";
+
+// Owner alerts (v1.2).
+/// A setting of the owner alerts is out of range: `alerts_invalid|field=<name>`.
+pub const ALERTS_INVALID: &str = "alerts_invalid";
+/// No bot token: `pos.json` has no `alerts.telegram_bot_token_file`, or
+/// the file is missing or empty.
+pub const ALERTS_TOKEN_MISSING: &str = "alerts_token_missing";
+/// The test message did not arrive (`detail`: the HTTP status or the
+/// kind of transport error, never an address).
+pub const ALERTS_SEND_FAILED: &str = "alerts_send_failed";
 
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
@@ -217,7 +228,11 @@ pub const ALL: &[&str] = &[
     CONFIG_DIGITAL_TICKET,
     CONFIG_EXPORT,
     CONFIG_PAYMENT_TERMINAL,
+    CONFIG_ALERTS,
     CONFIG_OTHER,
+    ALERTS_INVALID,
+    ALERTS_TOKEN_MISSING,
+    ALERTS_SEND_FAILED,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

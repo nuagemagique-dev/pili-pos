@@ -973,3 +973,47 @@ async fn wrong_pins_lock_the_user_out_even_for_the_right_pin() {
         .starts_with("pin_locked|")
     );
 }
+
+#[tokio::test]
+async fn only_a_manager_touches_the_owner_alerts() {
+    use pos_engine::commands::alerts::{
+        AlertKinds, OwnerAlertsInput, do_get_owner_alerts, do_list_owner_alert_log,
+        do_send_test_alert, do_set_owner_alerts,
+    };
+    let app = app().await;
+    let input = || OwnerAlertsInput {
+        enabled: false,
+        chat_id: "123".into(),
+        label: String::new(),
+        language: "fr".into(),
+        kinds: AlertKinds::default(),
+        z_deadline_hour: 6,
+        online_wait_minutes: 5,
+        reminder_minutes: 60,
+    };
+    app.logout();
+    assert_eq!(
+        do_get_owner_alerts(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_get_owner_alerts(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_set_owner_alerts(&app.state, input()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_send_test_alert(&app.state).await.unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_list_owner_alert_log(&app.state, 5).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(!do_get_owner_alerts(&app.state).unwrap().enabled);
+    assert!(do_set_owner_alerts(&app.state, input()).is_ok());
+    assert!(do_list_owner_alert_log(&app.state, 5).unwrap().is_empty());
+}

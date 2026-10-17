@@ -1,4 +1,5 @@
 pub mod access;
+pub mod alerts;
 pub mod auth;
 pub mod bar_slip;
 pub mod checkout;
@@ -21,6 +22,7 @@ pub mod menu;
 #[cfg(feature = "hubrise")]
 pub mod modifiers;
 pub mod order;
+pub mod owner_settings;
 #[cfg(feature = "hubrise")]
 pub(crate) mod price_changes;
 pub mod print;

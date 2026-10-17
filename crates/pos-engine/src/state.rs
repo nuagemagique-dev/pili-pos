@@ -86,6 +86,9 @@ pub struct AppState {
     /// (`commands::eft`). An abort never takes it: it reaches the
     /// payment's own instance, or opens its own connection.
     pub eft_line: tokio::sync::Mutex<()>,
+    /// What the owner alert worker remembers between passes
+    /// (`crate::alerts`).
+    pub owner_alerts: crate::alerts::AlertRuntime,
     /// A terminal that answers from a script, used in place of the
     /// configured one (`commands::eft`). Tests only: the field exists
     /// under the `eft-scripted` feature, which no shipped build enables.

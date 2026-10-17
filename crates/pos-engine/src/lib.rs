@@ -7,6 +7,7 @@
 //! functions. There is no platform conditional compilation here: platform differences
 //! are [`EngineConfig`] inputs (paths, configuration source).
 
+pub mod alerts;
 pub mod background;
 pub mod commands;
 pub mod engine;

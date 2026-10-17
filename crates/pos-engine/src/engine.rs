@@ -370,6 +370,7 @@ impl Engine {
                 export,
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
+                owner_alerts: Default::default(),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,
             }),

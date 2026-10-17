@@ -108,6 +108,7 @@ impl TestApp {
             table_count: 25,
             tables: None,
             payment_terminal: None,
+            alerts: None,
             pos_id: "CPOS0031234567".to_string(),
             terminal_id: "POS-1-BAR".to_string(),
             // The terminal's MAC address, as install fills it (§VI row VII).
@@ -164,6 +165,7 @@ impl TestApp {
             export: pos_engine::commands::export::ExportState::disabled(),
             eft_in_flight: Mutex::new(None),
             eft_line: tokio::sync::Mutex::new(()),
+            owner_alerts: Default::default(),
             eft_terminal_override: None,
         };
 

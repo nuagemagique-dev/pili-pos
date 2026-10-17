@@ -246,6 +246,12 @@ impl Engine {
         // The FDM status monitor: polls while a session is open.
         spawned.push(rt.spawn(run_fdm_monitor(state.clone())));
 
+        // The owner alerts (v1.2): one cheap read of the settings per
+        // tick while they are off (the default), no probe and no HTTP
+        // request. It is spawned in every start so that switching the
+        // alerts on in Settings works without a restart.
+        spawned.push(rt.spawn(crate::alerts::run_owner_alerts(state.clone())));
+
         // The HubRise poller and outbox; a build without the `hubrise`
         // feature has no background HTTP workers at all.
         #[cfg(feature = "hubrise")]
