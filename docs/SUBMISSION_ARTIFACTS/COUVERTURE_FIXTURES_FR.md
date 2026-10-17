@@ -74,7 +74,7 @@ Deux colonnes :
 | Q100_Status | - (statut) | ✓ | ✓ au niveau client (`client_status.rs`, voir ci-dessous) |
 | Q110_Status_multi_lang_messages | - (statut) | ✓ | ✓ au niveau client (`client_status.rs`) |
 
-**Parse fixture : 24 / 24 passent. E2e applicatif : 16 orchestrations
+**Parse fixture : 24 / 24 passent. E2e applicatif : 17 orchestrations
 uniques dans `spf_e2e_basic.rs` + 4 Reports dans `spf_e2e_reports.rs`.**
 Les lignes "variante" restantes (M133, M171B) sont couvertes
 transitivement par l'e2e de l'UC parent ; M112A n'est pas un pattern
