@@ -117,6 +117,14 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
 }];
 
+/// Migrations of the v1.1 update (first certified update), in every build (V11-D2): 40 and up,
+/// clear of the v1.0.x lanes. Gaps are allowed by the runner.
+const V11_MIGRATIONS: &[Migration] = &[Migration {
+    version: 40,
+    name: "invoicing",
+    sql: crate::schema_v11::MIGRATION_040_INVOICING,
+}];
+
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
@@ -169,6 +177,7 @@ fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
+    all.extend_from_slice(V11_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -320,6 +329,146 @@ mod tests {
         assert!(all_versions().contains(&27));
         // It keeps clear of the reserved 12 to 19.
         assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
+    }
+
+    /// The v1.1 block starts at 40 and is in every build (V11-D2).
+    #[test]
+    fn the_v11_migrations_are_40_to_42_and_in_every_build() {
+        let v11: Vec<(i64, &str)> = V11_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+        assert_eq!(v11, vec![(40, "invoicing")]);
+        assert!(all_versions().contains(&40));
+        assert!(V11_MIGRATIONS.iter().all(|m| m.version >= 40));
+    }
+
+    fn columns(conn: &Connection, table: &str) -> Vec<String> {
+        let mut stmt = conn
+            .prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))
+            .unwrap();
+        stmt.query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+
+    #[test]
+    fn v40_creates_the_invoicing_tables_and_queue_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        for (table, expected) in [
+            ("b2b_customers", vec!["vat_number", "peppol_status", "peppol_checked_at"]),
+            ("invoices", vec!["invoice_seq", "invoice_no", "fiscal_event_id", "customer_json", "vat_json"]),
+            ("invoice_sales", vec!["invoice_id", "sale_fiscal_event_id", "position"]),
+            (
+                "peppol_deliveries",
+                vec![
+                    "ubl_xml",
+                    "customer_endpoint_id",
+                    "status",
+                    "attempts",
+                    "next_attempt_at",
+                    "last_attempt_at",
+                    "parked_at",
+                    "lookup_status",
+                ],
+            ),
+            ("peppol_delivery_log", vec!["delivery_id", "attempt", "outcome", "http_status", "detail", "at"]),
+        ] {
+            let cols = columns(&conn, table);
+            for c in expected {
+                assert!(cols.contains(&c.to_string()), "{table} lacks {c}");
+            }
+        }
+        let view: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name='v_invoice_journal'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(view, 1);
+    }
+
+    fn seed_event(conn: &Connection, seq: i64, event_type: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO fiscal_events (event_type, sequence_number, pos_id, terminal_id, user_insz, event_data_json, fdm_id, event_label, fdm_datetime)
+             VALUES (?, ?, 'P', 'T1', '00000000029', '{}', 'FDM1', ?, '2026-10-17T10:00:00')",
+            rusqlite::params![event_type, seq, event_type],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn v40_invoice_tables_are_append_only_and_a_sale_is_invoiced_once() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        let sale1 = seed_event(&conn, 1, "N");
+        let sale2 = seed_event(&conn, 2, "N");
+        let inv1 = seed_event(&conn, 3, "I");
+        let inv2 = seed_event(&conn, 4, "I");
+        let insert_invoice = |seq: i64, no: &str, event: i64| {
+            conn.execute(
+                "INSERT INTO invoices (invoice_seq, invoice_no, fiscal_event_id, customer_json, issue_date, total_cents, vat_json, created_by)
+                 VALUES (?, ?, ?, '{\"vat_number\":\"BE0308357159\",\"name\":\"ACME\"}', '2026-10-17', 1210, '{\"B\":{\"base\":1000,\"vat\":210,\"total\":1210}}', '00000000029')",
+                rusqlite::params![seq, no, event],
+            )
+        };
+        insert_invoice(1, "20260001", inv1).unwrap();
+        // Invoice number and sequence are unique.
+        assert!(insert_invoice(1, "20260002", inv2).is_err());
+        assert!(insert_invoice(2, "20260001", inv2).is_err());
+        insert_invoice(2, "20260002", inv2).unwrap();
+
+        conn.execute("INSERT INTO invoice_sales VALUES (1, ?, 1)", [sale1]).unwrap();
+        // The same sale cannot be on a second invoice.
+        assert!(conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale1]).is_err());
+        conn.execute("INSERT INTO invoice_sales VALUES (2, ?, 1)", [sale2]).unwrap();
+
+        for sql in [
+            "UPDATE invoices SET total_cents = 1",
+            "DELETE FROM invoices",
+            "UPDATE invoice_sales SET position = 9",
+            "DELETE FROM invoice_sales",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(err.contains("append-only"), "{sql}: {err}");
+        }
+
+        // The journal reads the invoice, the base per rate and the I event.
+        let (no, vat, base_b, fdm): (String, String, i64, String) = conn
+            .query_row(
+                "SELECT invoice_no, customer_vat_number, base_b_cents, fdm_id FROM v_invoice_journal ORDER BY invoice_no LIMIT 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!((no.as_str(), vat.as_str(), base_b, fdm.as_str()), ("20260001", "BE0308357159", 1000, "FDM1"));
+    }
+
+    #[test]
+    fn v40_delivery_log_is_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO peppol_deliveries (invoice_no, customer_endpoint_id, ap_vendor, ubl_xml)
+             VALUES ('20260001', '0208:0308357159', 'logging', '<x/>')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO peppol_delivery_log (delivery_id, attempt, outcome) VALUES (1, 1, 'accepted')",
+            [],
+        )
+        .unwrap();
+        // The queue row moves on; the log does not.
+        conn.execute("UPDATE peppol_deliveries SET status='accepted', attempts=1", []).unwrap();
+        assert!(conn.execute("UPDATE peppol_delivery_log SET outcome='x'", []).is_err());
+        assert!(conn.execute("DELETE FROM peppol_delivery_log", []).is_err());
+        // Lookup status is bounded.
+        assert!(
+            conn.execute("UPDATE peppol_deliveries SET lookup_status='maybe'", [])
+                .is_err()
+        );
     }
 
     #[test]
