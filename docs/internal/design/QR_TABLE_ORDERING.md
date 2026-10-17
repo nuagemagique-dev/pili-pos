@@ -1,6 +1,6 @@
 # QR table ordering (design note)
 
-Status: design only, no code. Target: a later certified update after v1.1.
+Status: design only, no code. Target: a later certified update after v1.0.0.
 Audience: the planner of the next lane. Language: English (internal).
 
 ## 1. Goal

@@ -1,6 +1,6 @@
 # Deposits and advance payments (design note, UC4110, UC4111, UC4113, UC4114)
 
-Status: design only, no code. Target: a later certified update after v1.1.
+Status: design only, no code. Target: a later certified update after v1.0.0.
 Audience: the planner of the next lane. Language: English (internal).
 
 Note on numbering: `UC4112` of the Advanced Set 1.6 is the weighted product, not a deposit. The four
@@ -98,7 +98,7 @@ The Z already shows the lines by department (prepayments and deposits in their o
 payment appears in `PAYMENT` as a negative amount). Nothing new is needed in `report_totals.rs`, but each
 case needs a fixture test because a prepayment spans two booking dates when the party is another day: the
 deduction is counted on the day it is registered, and the Z of the prepayment day shows the cash, not the
-use. The v1.1 sales report shows the same split (prepayment lines are products of their own).
+use. The sales report (v1.0.0) shows the same split (prepayment lines are products of their own).
 
 ## 5. Data model
 
@@ -172,7 +172,7 @@ VAT label per prepayment product; reports of the sales report on those days.
 
 - Q1. Does the SPF accept a prepayment product at the VAT label of the later meal (UC4111 uses A for a mix)? Ask.
 - Q2. What happens when the prepayment exceeds the bill? Return the balance in the same method, or keep it as a
-  credit? (The spec's `CUSTOMER_CREDIT` payment type and UC4100 customer accounts are non-goals of v1.1.)
+  credit? (The spec's `CUSTOMER_CREDIT` payment type and UC4100 customer accounts are non-goals of v1.0.0.)
 - Q3. How is a cancelled reservation refunded (no original bill)? A refund N with the prepayment product
   quantity -n, payment negative, is the natural reading.
 - Q4. Bottle deposits sold by the platform (HubRise) orders: the catalog must carry the deposit product.
