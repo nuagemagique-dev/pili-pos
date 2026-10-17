@@ -440,6 +440,60 @@ async fn a_refund_and_a_sale_closed_unpaid_are_refused() {
     );
 }
 
+fn last_item(app: &TestApp) -> i64 {
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .query_row("SELECT MAX(id) FROM menu_items", [], |r| r.get(0))
+        .unwrap()
+}
+
+fn one_of(item: i64) -> Vec<RefundItem> {
+    vec![RefundItem {
+        menu_item_id: item,
+        quantity: 1,
+        line_id: None,
+    }]
+}
+
+/// The real refund command in training mode (V1F-D69): it never signs a
+/// training refund, of a training sale or of a real one, so nothing is
+/// archived; the correction of the real sale stays refused in training,
+/// and the training sale, never refunded, stays correctable.
+#[tokio::test]
+async fn a_refund_run_in_training_signs_nothing_and_the_correction_is_refused() {
+    let (app, _fdm) = app().await;
+    let n = cash_sale(&app, 5200).await;
+    let real_item = last_item(&app);
+    app.state.config.lock().unwrap().training_mode = true;
+    let t = cash_sale(&app, 3000).await;
+    let training_item = last_item(&app);
+    let count = event_count(&app);
+
+    // A training sale (label T) is not refundable.
+    let error = do_refund_checkout(&app.state, t, one_of(training_item), MANAGER.into())
+        .await
+        .expect_err("a T sale is not refundable");
+    assert!(error.starts_with(errors::NOT_REFUNDABLE), "{error}");
+    // A real sale is not refunded in training.
+    let r = do_refund_checkout(&app.state, n, one_of(real_item), MANAGER.into())
+        .await
+        .unwrap();
+    assert!(!r.success);
+    assert_eq!(r.error.as_deref(), Some(errors::REFUND_IN_TRAINING));
+    assert_eq!(event_count(&app), count, "no training refund is signed");
+
+    // The correction of the real sale is refused in training.
+    assert_eq!(
+        refused(&app, n, 0, PaymentMethod::Card).await,
+        errors::PAYMENT_CORRECTION_TRAINING
+    );
+    assert_eq!(event_count(&app), count, "nothing signed");
+    assert!(list(&app, t).refusal.is_none(), "{:?}", list(&app, t));
+    assert_eq!(correct(&app, t, 0, PaymentMethod::Card).await, None);
+}
+
 /// In training mode every event is labelled T: a refund and a
 /// correction of a training sale are told apart by their FDM operation,
 /// not by the label.
