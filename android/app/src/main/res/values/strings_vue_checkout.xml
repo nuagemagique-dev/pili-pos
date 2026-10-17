@@ -39,4 +39,6 @@
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV cloud</string>
     <string name="eft_kind_ccv_opi">CCV réseau local</string>
+    <string name="checkout_subtotal">Sous-total</string>
+    <string name="checkout_discount">Remise</string>
 </resources>

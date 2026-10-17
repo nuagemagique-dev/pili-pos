@@ -39,4 +39,6 @@
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV 云端</string>
     <string name="eft_kind_ccv_opi">CCV 局域网</string>
+    <string name="checkout_subtotal">小计</string>
+    <string name="checkout_discount">折扣</string>
 </resources>

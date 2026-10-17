@@ -329,6 +329,33 @@ internal object VueStringIds {
         this["transfer_mode"] = R.string.transfer_mode
         this["transfer_pick_source"] = R.string.transfer_pick_source
         this["transfer_pick_free"] = R.string.transfer_pick_free
+        this["discount_button"] = R.string.discount_button
+        this["discount_title"] = R.string.discount_title
+        this["discount_tab_percent"] = R.string.discount_tab_percent
+        this["discount_tab_amount"] = R.string.discount_tab_amount
+        this["discount_tab_free"] = R.string.discount_tab_free
+        this["discount_custom_percent"] = R.string.discount_custom_percent
+        this["discount_custom_amount"] = R.string.discount_custom_amount
+        this["discount_free_note"] = R.string.discount_free_note
+        this["discount_reason"] = R.string.discount_reason
+        this["discount_reason_commercial_gesture"] = R.string.discount_reason_commercial_gesture
+        this["discount_reason_staff_meal"] = R.string.discount_reason_staff_meal
+        this["discount_reason_service_issue"] = R.string.discount_reason_service_issue
+        this["discount_reason_other"] = R.string.discount_reason_other
+        this["discount_reason_text_add"] = R.string.discount_reason_text_add
+        this["discount_reason_text_title"] = R.string.discount_reason_text_title
+        this["discount_reason_text_placeholder"] = R.string.discount_reason_text_placeholder
+        this["discount_preview"] = R.string.discount_preview
+        this["discount_apply"] = R.string.discount_apply
+        this["discount_hint"] = R.string.discount_hint
+        this["discount_applied"] = R.string.discount_applied
+        this["discount_removed"] = R.string.discount_removed
+        this["discount_remove"] = R.string.discount_remove
+        this["discount_remove_hint"] = R.string.discount_remove_hint
+        this["discount_offer"] = R.string.discount_offer
+        this["discount_offer_title"] = R.string.discount_offer_title
+        this["discount_registration_failed"] = R.string.discount_registration_failed
+        this["keypad_space"] = R.string.keypad_space
         this["takeaway_started_at"] = R.string.takeaway_started_at
         this["takeaway_start"] = R.string.takeaway_start
         this["who_are_you"] = R.string.who_are_you
@@ -393,6 +420,8 @@ internal object VueStringIds {
         this["eft_kind_worldline_terminal_api"] = R.string.eft_kind_worldline_terminal_api
         this["eft_kind_ccv_payment_api"] = R.string.eft_kind_ccv_payment_api
         this["eft_kind_ccv_opi"] = R.string.eft_kind_ccv_opi
+        this["checkout_subtotal"] = R.string.checkout_subtotal
+        this["checkout_discount"] = R.string.checkout_discount
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
@@ -490,6 +519,9 @@ internal object VueStringIds {
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
         this["webshop_status_rejected"] = R.string.webshop_status_rejected
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_status_cancelled"] = R.string.webshop_status_cancelled
         this["webshop_service_delivery"] = R.string.webshop_service_delivery
         this["webshop_service_collection"] = R.string.webshop_service_collection
@@ -519,9 +551,6 @@ internal object VueStringIds {
         this["hubrise_disconnect_action"] = R.string.hubrise_disconnect_action
         this["hubrise_open_authorize_url"] = R.string.hubrise_open_authorize_url
         this["hubrise_authorize_scan"] = R.string.hubrise_authorize_scan
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_code_placeholder"] = R.string.hubrise_code_placeholder
         this["hubrise_complete_connection"] = R.string.hubrise_complete_connection
         this["err_hubrise_not_connected"] = R.string.err_hubrise_not_connected
