@@ -541,4 +541,109 @@ test.describe('Presence registration by the manager (event S)', () => {
     ]);
     await expect(page.locator('.pin-dialog')).toHaveCount(0);
   });
+  test('a cashier sees no presence button and no presence note, but still the state line', async ({ page }) => {
+    const CASHIER = { ...DEFAULT_USER, insz: '12345678958', name: 'Lena', role: 'cashier', has_pin: true };
+    await mockTauriIPC(page, {
+      login: () => CASHIER,
+      list_users: () => [CASHIER, WEI, COOK],
+      ...fdmMocks(fdmHealth({ connected: false, severity: 'blocking', code: 'FDM_DOWN' })),
+    });
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei')).toBeVisible();
+    await expect(page.getByTestId('presence-btn')).toHaveCount(0);
+    await expect(page.getByTestId('presence-block')).toHaveCount(0);
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Hors service');
+  });
+
+  test('one presence call at a time: every button is off while one runs, a second tap is ignored', async ({ page }) => {
+    await loginAndGoto(page, '/settings');
+    // Hold the clock-in until the test releases it.
+    await page.evaluate(() => {
+      const w = window as any;
+      const tauri = w.__TAURI_INTERNALS__;
+      const prev = tauri.invoke;
+      tauri.invoke = (cmd: string, args?: any) => {
+        if (cmd !== 'clock_in_employee') return prev(cmd, args);
+        w.__ipcCalls.push({ cmd, args: args ?? {} });
+        return new Promise((resolve) => {
+          w.__release = () => {
+            w.__shifts = (w.__shifts ?? []).concat([{ userInsz: args.employeeInsz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+            resolve({ success: true, error: null });
+          };
+        });
+      };
+    });
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toBeDisabled();
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeDisabled();
+    // A tap on the disabled button does nothing.
+    await row(page, 'Wei').getByTestId('presence-btn').click({ force: true });
+    expect(await ipcCalls(page, 'clock_in_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+    await page.evaluate(() => (window as any).__release());
+    await expect(page.locator('.toast')).toContainText('Arrivée enregistrée · Chen');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toBeEnabled();
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toBeEnabled();
+    expect(await ipcCalls(page, 'clock_in_employee')).toEqual([{ employeeInsz: COOK.insz }]);
+  });
+
+  test('adding or deactivating an employee re-reads the open shifts and keeps them', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, WEI, COOK], deactivate_user: () => undefined });
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+    const afterLoad = (await ipcCalls(page, 'list_open_shifts')).length;
+
+    await page.getByPlaceholder('Nom').fill('Plongeur');
+    await page.locator('input[inputmode="numeric"]').fill('77010112345');
+    await page.getByRole('radio', { name: 'Présence seule' }).click();
+    await page.getByRole('button', { name: 'Ajouter l’employé' }).click();
+    await expect.poll(() => ipcCalls(page, 'create_user')).toHaveLength(1);
+    await expect.poll(async () => (await ipcCalls(page, 'list_open_shifts')).length).toBe(afterLoad + 1);
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+
+    await row(page, 'Chen').getByRole('button', { name: 'Désactiver' }).click();
+    await row(page, 'Chen').getByRole('button', { name: 'Confirmer ?' }).click();
+    await expect.poll(() => ipcCalls(page, 'deactivate_user')).toEqual([{ insz: COOK.insz }]);
+    await expect.poll(async () => (await ipcCalls(page, 'list_open_shifts')).length).toBe(afterLoad + 2);
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+  });
+
+  test('deactivating an employee on shift is refused with its text and the row stays', async ({ page }) => {
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await overrideIPC(page, 'deactivate_user', { __reject: 'deactivate_on_shift' });
+    await row(page, 'Wei').getByRole('button', { name: 'Désactiver' }).click();
+    await row(page, 'Wei').getByRole('button', { name: 'Confirmer ?' }).click();
+    await expect(page.locator('.add-error')).toHaveText("Cet employé est en service : enregistrez d'abord son départ");
+    await expect(row(page, 'Wei')).toBeVisible();
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('En service depuis 12:02');
+  });
+
+  test('the presence texts follow the language (Chinese)', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'zh'));
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('12:02 起上班中');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('未上班');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toHaveText('下班打卡');
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toHaveText('上班打卡');
+    await expect(row(page, 'Chen').locator('.worker-meta')).toHaveText('仅考勤');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('已登记上班 · Chen');
+  });
+
+  test('the presence texts follow the language (English)', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pili-pos-language', 'en'));
+    await shiftsInit(page, [{ userInsz: WEI.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
+    await loginAndGoto(page, '/settings');
+    await expect(row(page, 'Wei').getByTestId('presence-state')).toHaveText('On shift since 12:02');
+    await expect(row(page, 'Chen').getByTestId('presence-state')).toHaveText('Off shift');
+    await expect(row(page, 'Wei').getByTestId('presence-btn')).toHaveText('Clock out');
+    await expect(row(page, 'Chen').getByTestId('presence-btn')).toHaveText('Clock in');
+    await expect(row(page, 'Chen').locator('.worker-meta')).toHaveText('Presence only');
+    await row(page, 'Chen').getByTestId('presence-btn').click();
+    await expect(page.locator('.toast')).toContainText('Clock-in registered · Chen');
+  });
 });

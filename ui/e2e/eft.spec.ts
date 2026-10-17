@@ -225,6 +225,9 @@ test.describe('card payment on the linked terminal', () => {
     const part = page.locator('.paid-part');
     await expect(part).toContainText('Bancontact');
     await expect(part).toContainText('Accepté');
+    // A terminal card that is no meal voucher keeps the card label.
+    await expect(part).toContainText('Carte');
+    await expect(part).not.toContainText('Chèques-repas');
     await expect(page.locator('.total-value')).toHaveText('0,00');
     // It cannot be cancelled: Retour, not "Annuler les paiements".
     await expect(page.locator('.parts-clear')).toHaveCount(0);
@@ -301,6 +304,9 @@ test.describe('card payment on the linked terminal', () => {
     await expect(page.locator('.paid-part')).toContainText('Chèques-repas');
     await expect(page.locator('.paid-part')).toContainText('Edenred');
     await expect(page.locator('.paid-part')).not.toContainText('Carte');
+    // The paid chip of the split names the meal voucher too, not the card.
+    await expect(page.locator('.part-chip.paid')).toContainText('Chèques-repas · 5,00 €');
+    await expect(page.locator('.part-chip.paid')).not.toContainText('Carte');
     await expect(page.getByTestId('eft-approved')).toBeVisible();
     await page.locator('.card-btn').click();
     await page.locator('.validate-btn').click();
@@ -311,6 +317,38 @@ test.describe('card payment on the linked terminal', () => {
       { method: 'card', amount_cents: 500, eft_payment_id: 100 },
       { method: 'card', amount_cents: 700, eft_payment_id: 101 },
     ]);
+  });
+
+  test('a meal voucher adopted at reopening keeps its label and is still sent as a card part', async ({ page }) => {
+    await toCheckout(page, {
+      terminal: 'worldline_terminal_api',
+      known: [{ id: 7, order_id: ORDER, amount_cents: 1200, status: 'approved', brand: 'Edenred' }],
+    });
+    const part = page.locator('.paid-part');
+    await expect(part).toContainText('Chèques-repas');
+    await expect(part).toContainText('Edenred');
+    await expect(part).not.toContainText('Carte');
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+    const [call] = await ipcCalls(page, 'checkout');
+    expect(call.payments).toEqual([{ method: 'card', amount_cents: 1200, eft_payment_id: 7 }]);
+  });
+
+  test('a meal voucher approved on Vérifier keeps its label', async ({ page }) => {
+    await toCheckout(page, {
+      terminal: 'worldline_terminal_api',
+      pay: [{ status: 'unknown' }],
+      check: [{ status: 'approved', brand: 'Pluxee' }],
+    });
+    await payByCard(page);
+    await page.getByTestId('eft-ok').click();
+    await expect(page.getByTestId('eft-open')).toBeVisible();
+    await page.getByTestId('eft-verify').click();
+    await expect(overlay(page)).toBeHidden();
+    const part = page.locator('.paid-part');
+    await expect(part).toContainText('Chèques-repas');
+    await expect(part).toContainText('Pluxee');
+    await expect(part).not.toContainText('Carte');
   });
 
   test('no terminal linked: the manual card flow is unchanged', async ({ page }) => {

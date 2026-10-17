@@ -235,6 +235,13 @@ test.describe('Presence-only staff', () => {
     await expect(page.locator('.user-name')).toHaveText('Bruno Moyse');
   });
 
+  test('with only presence-only staff the INSZ numpad opens directly', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [COOK] });
+    await page.goto('/');
+    await expect(page.locator('.user-btn')).toHaveCount(0);
+    await expect(page.locator('.numpad-section')).toBeVisible();
+  });
+
   test('typing their INSZ shows the presence_only_user error', async ({ page }) => {
     await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, COOK] });
     await page.goto('/');
