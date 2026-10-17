@@ -128,6 +128,9 @@ pub struct CartLine {
     /// The line's consolidated price changes (a till discount, an online order's).
     #[serde(default)]
     pub price_changes: Vec<CartPriceChange>,
+    /// The note for the kitchen ("sans wasabi"), local only.
+    #[serde(default)]
+    pub kitchen_note: Option<String>,
 }
 
 /// `pos_db::queries::orders::CartPriceChange`: a price change on a cart line.

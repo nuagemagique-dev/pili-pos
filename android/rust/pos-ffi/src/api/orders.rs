@@ -52,6 +52,19 @@ impl PosEngine {
             .await
     }
 
+    /// Set (or clear) the kitchen note of a line; a note changed after the line went to the
+    /// kitchen prints a note slip.
+    pub async fn set_line_note(
+        &self,
+        line_id: i64,
+        note: Option<String>,
+    ) -> Result<SlipOutcome, PosError> {
+        let outcome = self
+            .spawn(move |e| async move { order::do_set_line_note(&e, line_id, note).await })
+            .await?;
+        convert::out(&outcome)
+    }
+
     /// An order by id.
     pub async fn get_order(&self, order_id: i64) -> Result<Order, PosError> {
         let engine_order = self
@@ -529,6 +542,35 @@ mod flow {
             ),
             "quantity_positive"
         );
+        // A kitchen note is stored and shown in the cart; the engine validates it.
+        assert_eq!(
+            e.set_line_note(martini.id, Some("  sans glaçon ".into()))
+                .await
+                .unwrap(),
+            SlipOutcome::NothingToPrint
+        );
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].kitchen_note.as_deref(), Some("sans glaçon"));
+        assert_eq!(cart[1].kitchen_note, None);
+        assert_eq!(
+            coded(
+                e.set_line_note(martini.id, Some("x".repeat(61)))
+                    .await
+                    .unwrap_err()
+            ),
+            "note_too_long"
+        );
+        assert_eq!(
+            coded(
+                e.set_line_note(martini.id, Some("不要".into()))
+                    .await
+                    .unwrap_err()
+            ),
+            "note_unprintable"
+        );
+        e.set_line_note(martini.id, None).await.unwrap();
+        let cart = e.list_cart_lines(order.id).await.unwrap();
+        assert_eq!(cart[0].kitchen_note, None);
         e.remove_order_line(dish.id).await.unwrap();
         let lines = e.list_order_lines(order.id).await.unwrap();
         assert_eq!(

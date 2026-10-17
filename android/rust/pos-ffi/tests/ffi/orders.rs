@@ -828,6 +828,14 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
         "not_logged_in"
     );
     assert_eq!(
+        code_of(
+            e.set_line_note(1, Some("sans wasabi".into()))
+                .await
+                .unwrap_err()
+        ),
+        "not_logged_in"
+    );
+    assert_eq!(
         code_of(e.set_active_order(Some(1)).await.unwrap_err()),
         "not_logged_in"
     );
