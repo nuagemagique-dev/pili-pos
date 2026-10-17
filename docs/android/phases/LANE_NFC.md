@@ -331,6 +331,8 @@ Section 6 and `CLAUDE.md`, `docs/android/ENGINE.md`. Rebuild the PDFs. No code.
 
 (Each task adds one line here: deviations from the plan, decisions added, files touched that the plan did not name.)
 
+- **T1 (Sonnet 5.5).** Engine, database, shell and FFI done as planned. Deviations and additions: `link_badge` takes `operator_pin: Option<String>` (a missing PIN is `pin_required`, as `set_pin`); the lost-key check also runs before every scan and link (`badge_key::key_for_use`), not only at open; a clock-out in "Fin de service" mode is refused with `presence_training` in training mode (L5-D9 refinement); `SessionRules::last_activity` is now public (test of L5-D11); `pos-engine/Cargo.toml` gained `hmac`, `sha2`, `hex` and `getrandom` (so the `pos-engine` entry changed in both `Cargo.lock` files); the testkit `AppState` literal and the FFI `timers_from` list `badge_repeat`; `pos-db` `ActiveBadge` and `LogEntry` serialize camelCase and are the types the shell and the FFI return. Decisions: `docs/android/DECISIONS.md`, section `## Lane 5-nfc (2026-10-17)`.
+
 ## 11. Captures to retake (orchestrator, after the merge)
 
 Linux (`ui/e2e/captures.spec.ts`, `npm run captures`; workers update the scenarios and mock data, not the PNGs):
@@ -351,13 +353,13 @@ Kept up to date by every task (add the real test names when written). "eng" is `
 
 | Feature | Layer | Test(s) (planned names) |
 |---|---|---|
-| Migration 70: tables, defaults, CHECKs, partial unique indexes, revoke-only and append-only triggers, no re-run | db | `pos-db` `staff_badges_migration_*` tests, base-migration list test |
+| Migration 70: tables, defaults, CHECKs, partial unique indexes, revoke-only and append-only triggers, no re-run | db | `pos-db` `schema_badges::tests::staff_badges_migration_*` (7 tests), `migrate::tests::the_base_migrations_are_the_certified_ones_then_presence_then_badges` |
 | Token normalization (trim, uppercase, hex/decimal only, 4 to 64) | core | `pos-core` `badge::tests::normalize_*` |
 | Settings validation (ranges, min <= max, reader values) | core, engine | `pos-core` `badge::tests::settings_*`; eng `badges.rs` `invalid_settings_are_refused_and_not_logged` |
 | Setting off by default; off = no reading: `badge_tap` and `link_badge` refused | engine, Vue, Android | eng `a_fresh_install_has_the_reader_off_and_refuses_every_scan`; Playwright `with the reader off a burst is typed into the field and nothing is sent`; Kotlin `BadgeStoreTest.readerOffStartsNoSource`, `KeyWedgeSourceTest.readerOffPassesEveryKey` |
-| Settings changed by managers only, every change logged | engine, Vue, Android | eng `only_a_manager_changes_the_badge_settings_and_each_change_is_logged`, `access_control.rs`; Playwright `the badge panel is for managers only`; Kotlin `SettingsViewModelTest` badge settings |
-| Hash only: HMAC with the installation key, raw UID never stored (DB file bytes), key file 0600, outside pos.db | engine | `badge_key` unit tests (vector, created once, mode, wrong size); eng `the_raw_badge_number_is_nowhere_in_the_database_file` |
-| Lost key revokes every badge (`key_changed`), unreadable key refuses without revoking | engine | eng `a_new_key_revokes_every_active_badge_with_key_changed`, `an_unreadable_key_refuses_and_revokes_nothing` |
+| Settings changed by managers only, every change logged | engine, Vue, Android | eng `only_a_manager_changes_the_badge_settings_and_each_change_is_logged`, `access_control.rs` `only_a_manager_manages_badges_and_a_scan_needs_no_session`, `error_codes.rs` `the_nine_badge_codes_are_listed_and_translated`; Playwright `the badge panel is for managers only`; Kotlin `SettingsViewModelTest` badge settings |
+| Hash only: HMAC with the installation key, raw UID never stored (DB file bytes), key file 0600, outside pos.db | engine | `badge_key::tests::*` (known HMAC vector, key check, created once, mode 0600 and tightened, wrong size, open check cases); eng `the_raw_badge_number_is_nowhere_in_the_database_file`, `the_token_is_normalized_before_it_is_hashed` |
+| Lost key revokes every badge (`key_changed`), unreadable key refuses without revoking | engine | eng `a_new_key_revokes_every_active_badge_with_key_changed`, `an_unreadable_key_refuses_and_revokes_nothing`, `opening_the_engine_without_the_key_revokes_the_badges` |
 | Enrolment: manager + own PIN, any active user incl. presence-only, refusal order | engine | eng `a_manager_links_a_badge_to_a_presence_only_employee`, `link_refusals_come_in_the_documented_order`, `a_wrong_manager_pin_links_nothing` |
 | Uniqueness: one active badge per employee, one employee per badge | db, engine | db partial index tests; eng `an_employee_cannot_hold_two_badges`, `a_badge_cannot_be_linked_to_two_employees` |
 | Revocation and re-issue; deactivation revokes | engine | eng `a_revoked_badge_is_refused_as_revoked_and_can_be_linked_again`, `deactivating_an_employee_revokes_their_badge`, `revoke_without_badge_is_badge_none` |
@@ -367,7 +369,7 @@ Kept up to date by every task (add the real test names when written). "eng" is `
 | FDM down: `presence_failed`, nothing archived, index unchanged, FDM text shown | engine, Vue, Android | eng `an_fdm_failure_on_a_badge_scan_archives_nothing`; Playwright `an FDM failure shows the FDM text`; Kotlin `presenceFailedShowsTheFdmText` |
 | Training: badge presence refused, badge login allowed (T WorkIn, no shift) | engine | eng `in_training_a_badge_scan_is_refused_and_signs_nothing`, `in_training_a_badge_login_opens_no_shift` |
 | Debounce: same badge in flight or within the window ignored, other badges not, after the window toggles | engine, Android | eng `a_double_tap_never_clocks_in_and_out`, `a_scan_during_a_slow_fdm_answer_is_ignored`, `two_badges_are_not_debounced_together` (short `badge_repeat` in the test timers) |
-| Unknown and revoked badges refused and logged in `badge_scans` | engine, Vue | eng `unknown_and_revoked_badges_are_refused_and_logged`; Playwright refusal texts |
+| Unknown and revoked badges refused and logged in `badge_scans` | engine, Vue | eng `unknown_and_revoked_badges_are_refused_and_logged`, `refusals_are_debounced_too`; Playwright refusal texts |
 | Badge login allowed for cashier/waiter, refused for presence-only (presence toggle instead), off when `login_enabled` is off | engine, Vue, Android | eng `a_cashier_logs_in_with_a_badge_and_is_clocked_in`, `a_presence_only_badge_on_the_login_screen_toggles_presence`, `with_badge_login_off_the_login_screen_toggles_presence`; Playwright `a badge on the login screen logs a cashier in`; Kotlin `LoginViewModelTest.badgeLoginNavigatesLikeAPinLogin` |
 | Manager badge needs the PIN: `pin_required`, no session, admin commands still refused until the PIN login | engine, Vue, Android | eng `a_manager_badge_opens_no_session_and_manager_commands_stay_refused`, then `the_pin_login_after_pin_required_opens_the_manager_session`; Playwright `a manager badge opens the PIN pad for that manager`; Kotlin `LoginViewModelTest.pinRequiredOpensThePinPanel` |
 | End-shift mode: badge clocks out, no session, `presence_not_in` when off shift | engine, Vue, Android | eng `end_shift_mode_clocks_out_without_a_session`; Playwright `in Fin de service mode the badge is sent with end_shift`; Kotlin login VM test |
@@ -377,7 +379,7 @@ Kept up to date by every task (add the real test names when written). "eng" is `
 | NFC source only with FEATURE_NFC; tag id to uppercase hex; reader mode follows the setting | Android | Kotlin `NfcBadgeSourceTest.*`, `SettingsContentTest.theNfcChoiceNeedsFeatureNfc` |
 | Enrolment UI (capture, PIN, link, errors) and revocation UI | Vue, Android | Playwright `linking a badge asks for it then for the manager PIN`, `badge_in_use and already_linked texts`; Kotlin `SettingsViewModelTest.linkBadge*` |
 | Strings FR, ZH, EN | Vue, Android | Playwright language tests; `vue_to_android.mjs --check`; Android-only twins checked by lint |
-| FFI: six methods, records, error count 128 | ffi | `android/rust/pos-ffi/tests/ffi/badges.rs`, `every_code_of_both_lists_maps_to_coded` |
+| FFI: six methods, records, error count 128 | ffi | `android/rust/pos-ffi/tests/ffi/badges.rs` (`the_settings_view_converts`, `the_settings_input_converts_field_by_field`, `the_overview_converts_with_and_without_optional_fields`, `a_link_converts`, `every_outcome_kind_converts_and_keeps_its_wire_name`, `an_outcome_converts_with_its_fields_and_its_user`, `the_reader_is_off_by_default_and_every_badge_command_says_so`, `settings_enrolment_scan_and_revocation_go_through_the_facade`, `a_manager_badge_on_the_login_screen_asks_for_the_pin`), `every_code_of_both_lists_maps_to_coded` (128) |
 | Dossier text consistency | dossier | `scripts/check_dossier.py` both dossiers |
 
 ## Results
