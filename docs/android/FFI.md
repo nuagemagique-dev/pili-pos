@@ -225,6 +225,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
+| set_line_note | order::do_set_line_note | spawn | posEngine.setLineNote() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |
