@@ -13,4 +13,6 @@ pub mod prints;
 pub mod reports;
 pub mod shifts;
 pub mod table_plan;
+#[cfg(feature = "hubrise")]
+pub mod till_discounts;
 pub mod users;

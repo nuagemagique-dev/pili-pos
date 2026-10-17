@@ -258,26 +258,62 @@ fn insert_entry(
     quantity: i32,
     kind: &str,
 ) -> Result<(), rusqlite::Error> {
+    insert_entry_op(conn, line_id, quantity, kind, None).map(|_| ())
+}
+
+/// [`insert_entry`] returning the entry's id, with the `till_op` mark of
+/// a PRICE_CHANGE pair (`Some("price_change")`) when it is one.
+fn insert_entry_op(
+    conn: &Connection,
+    line_id: i64,
+    quantity: i32,
+    kind: &str,
+    till_op: Option<&str>,
+) -> Result<i64, rusqlite::Error> {
     conn.execute(
         "INSERT INTO order_entries (order_id, line_id, menu_item_id, quantity, unit_price_cents,
-                                    vat_code, name, department_id, department_name, kind, created_at)
+                                    vat_code, name, department_id, department_name, kind, created_at,
+                                    till_op)
          SELECT order_id, id, menu_item_id, ?2, unit_price_cents, vat_code, name,
-                COALESCE(department_id, ''), COALESCE(department_name, ''), ?3, ?4
+                COALESCE(department_id, ''), COALESCE(department_name, ''), ?3, ?4, ?5
          FROM order_lines WHERE id = ?1",
         params![
             line_id,
             quantity,
             kind,
-            Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+            Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            till_op
         ],
     )?;
+    let entry_id = conn.last_insert_rowid();
     // A provisional bill no longer matches the order once it changes.
     conn.execute(
         "UPDATE orders SET pre_bill_at = NULL
          WHERE id = (SELECT order_id FROM order_lines WHERE id = ?1)",
         params![line_id],
     )?;
-    Ok(())
+    Ok(entry_id)
+}
+
+/// The two journal entries of a PRICE_CHANGE pair on a line: a
+/// correction of its whole quantity, then the same quantity again, both
+/// marked `till_op` = `price_change`. The caller records the changes on
+/// them (the first carries the line's existing changes negated, the
+/// second the new ones). Returns `(correction_entry_id, reentry_entry_id)`.
+#[cfg(feature = "hubrise")]
+pub fn add_price_change_pair(
+    conn: &Connection,
+    line_id: i64,
+) -> Result<(i64, i64), rusqlite::Error> {
+    let (order_id, quantity): (i64, i32) = conn.query_row(
+        "SELECT order_id, quantity FROM order_lines WHERE id = ?1",
+        params![line_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    ensure_open(conn, order_id)?;
+    let correction = insert_entry_op(conn, line_id, -quantity, "correction", Some("price_change"))?;
+    let reentry = insert_entry_op(conn, line_id, quantity, "entry", Some("price_change"))?;
+    Ok((correction, reentry))
 }
 
 /// Record that a provisional bill of the order was printed.
@@ -304,6 +340,20 @@ pub struct CartLine {
     /// The product's menu code ("A2"), when the catalog gives one.
     pub code: Option<String>,
     pub unsent_quantity: i64,
+    /// Σ of the line's price changes in cents (negative for a discount).
+    pub discount_cents: i64,
+    /// The line's consolidated price changes, as the cart shows them.
+    pub price_changes: Vec<CartPriceChange>,
+}
+
+/// A price change on a cart line (a till discount, an online order's).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct CartPriceChange {
+    pub id: String,
+    pub name: String,
+    /// `LINE` or `EVENT`.
+    pub scope: String,
+    pub amount_cents: i64,
 }
 
 /// The menu code of a line's product, a column of the mirrored catalog.
@@ -333,9 +383,28 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
             name_zh: row.get(12)?,
             unsent_quantity: row.get(13)?,
             code: row.get(14)?,
+            discount_cents: 0,
+            price_changes: Vec::new(),
         })
     })?;
-    rows.collect()
+    #[allow(unused_mut)]
+    let mut lines: Vec<CartLine> = rows.collect::<Result<_, _>>()?;
+    #[cfg(feature = "hubrise")]
+    {
+        let changes = super::price_changes::by_line(conn, order_id)?;
+        for line in &mut lines {
+            for c in changes.get(&line.line.id).into_iter().flatten() {
+                line.discount_cents += c.amount_cents;
+                line.price_changes.push(CartPriceChange {
+                    id: c.change_id.clone(),
+                    name: c.name.clone(),
+                    scope: c.scope.clone(),
+                    amount_cents: c.amount_cents,
+                });
+            }
+        }
+    }
+    Ok(lines)
 }
 
 /// Lines of closed or voided orders are part of a signed record and

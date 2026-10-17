@@ -117,6 +117,14 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
     sql: crate::schema_eft::MIGRATION_027_EFT_PAYMENTS,
 }];
 
+/// Migrations of the discounts at the till, in the certified binary on
+/// every installation (28 and 29 are left free for other work).
+const TILL_MIGRATIONS: &[Migration] = &[Migration {
+    version: 30,
+    name: "till-discounts",
+    sql: crate::schema_till::MIGRATION_030_TILL_DISCOUNTS,
+}];
+
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
 #[cfg(feature = "hubrise")]
@@ -169,6 +177,7 @@ fn registry() -> Vec<Migration> {
     #[allow(unused_mut)]
     let mut all = MIGRATIONS.to_vec();
     all.extend_from_slice(EFT_MIGRATIONS);
+    all.extend_from_slice(TILL_MIGRATIONS);
     #[cfg(feature = "hubrise")]
     all.extend_from_slice(HUBRISE_MIGRATIONS);
     #[cfg(feature = "catalog-sync")]
@@ -320,6 +329,103 @@ mod tests {
         assert!(all_versions().contains(&27));
         // It keeps clear of the reserved 12 to 19.
         assert!(EFT_MIGRATIONS.iter().all(|m| m.version >= 20));
+    }
+
+    /// The till discounts are migration 30, in every build; 28 and 29
+    /// stay free.
+    #[test]
+    fn the_till_migration_is_30_in_every_build() {
+        let till: Vec<(i64, &str)> = TILL_MIGRATIONS
+            .iter()
+            .map(|m| (m.version, m.name))
+            .collect();
+        assert_eq!(till, vec![(30, "till-discounts")]);
+        let versions = all_versions();
+        assert!(versions.contains(&30));
+        assert!(!versions.contains(&28) && !versions.contains(&29));
+    }
+
+    #[test]
+    fn v30_marks_price_change_entries_and_keeps_the_audit_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        // Applied once; a second run is a no-op.
+        run_migrations(&conn).unwrap();
+        let applied: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _migrations_applied WHERE version = 30",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(applied, 1);
+
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 650, 'A');
+             INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                VALUES (1, 1, 'dine_in', 'open', '12345678958', '2026-10-17T10:00:00Z');
+             INSERT INTO order_entries (id, order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                                        vat_code, name, department_id, department_name, kind, created_at)
+                VALUES (1, 1, 1, 1, 2, 650, 'A', 'Sake', '1', 'D', 'entry', '2026-10-17T10:00:00Z');",
+        )
+        .unwrap();
+        // The mark is NULL or `price_change`, nothing else.
+        let entry = |till_op: &str| {
+            conn.execute(
+                &format!(
+                    "INSERT INTO order_entries (order_id, line_id, menu_item_id, quantity,
+                        unit_price_cents, vat_code, name, department_id, department_name, kind,
+                        created_at, till_op)
+                     VALUES (1, 1, 1, -2, 650, 'A', 'Sake', '1', 'D', 'correction',
+                        '2026-10-17T10:00:00Z', {till_op})"
+                ),
+                [],
+            )
+        };
+        assert!(entry("'other'").is_err());
+        assert!(entry("'price_change'").is_ok());
+        // Once set, never rewritten (the older trigger does not list the column).
+        assert!(
+            conn.execute(
+                "UPDATE order_entries SET till_op = NULL WHERE till_op IS NOT NULL",
+                []
+            )
+            .is_err()
+        );
+        assert!(
+            conn.execute(
+                "UPDATE order_entries SET till_op = 'price_change' WHERE id = 1",
+                []
+            )
+            .is_err()
+        );
+
+        let insert = |action: &str, kind: &str| {
+            conn.execute(
+                &format!(
+                    "INSERT INTO till_discounts (order_id, action, kind, amount_cents, change_id,
+                        grouping_id, reason_code, manager_insz)
+                     VALUES (1, {action}, {kind}, -100, 'TILL-DISCOUNT', 1, 'other', '12345678958')"
+                ),
+                [],
+            )
+        };
+        assert!(insert("'apply'", "'percent'").is_ok());
+        assert!(insert("'apply'", "'bogus'").is_err());
+        assert!(insert("'bogus'", "'percent'").is_err());
+        // A removal carries no kind.
+        assert!(insert("'remove'", "'percent'").is_err());
+        assert!(insert("'remove'", "NULL").is_ok());
+        assert!(conn.execute("DELETE FROM till_discounts", []).is_err());
+        assert!(
+            conn.execute("UPDATE till_discounts SET amount_cents = 0", [])
+                .is_err()
+        );
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM till_discounts", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 2);
     }
 
     #[test]
