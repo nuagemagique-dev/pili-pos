@@ -1,8 +1,9 @@
 package dev.nuagemagique.pilipos.feature.settings.vouchers
 
 import uniffi.pos_ffi.GiftVoucherSettings
+import java.math.BigDecimal
+import java.math.RoundingMode
 import kotlin.math.roundToInt
-import kotlin.math.roundToLong
 
 /** Everything the manager can do in the gift voucher panel. */
 internal data class GiftVoucherCallbacks(
@@ -31,18 +32,18 @@ internal data class GiftVoucherUiState(
         GiftVoucherSettings(
             enabled = enabled,
             validityMonths = validity.trim().toDoubleOrNull()?.let { it.roundToInt() } ?: 0,
-            maxAmountCents = maxEuros.trim().replace(',', '.').toDoubleOrNull()?.let { (it * CENTS).roundToLong() } ?: 0L,
+            maxAmountCents = eurosToStored(maxEuros),
         )
 
     /** The draft differs from what the engine holds. */
     val dirty: Boolean get() = stored != null && draft() != stored
 }
 
-private const val CENTS = 100
+/** The euros typed in the input as the engine stores them (decimal shift, no arithmetic); not a number gives 0. */
+private fun eurosToStored(text: String): Long =
+    runCatching {
+        BigDecimal(text.trim().replace(',', '.')).movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
+    }.getOrDefault(0L)
 
 /** The euros of [cents] as the input shows them: whole euros without decimals, else the decimals ("12.5"). */
-internal fun eurosText(cents: Long): String {
-    val whole = cents / CENTS
-    val rest = cents % CENTS
-    return if (rest == 0L) "$whole" else "$whole.${rest.toString().padStart(2, '0').trimEnd('0')}"
-}
+internal fun eurosText(cents: Long): String = BigDecimal.valueOf(cents, 2).stripTrailingZeros().toPlainString()
