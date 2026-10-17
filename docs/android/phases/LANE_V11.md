@@ -589,3 +589,48 @@ asks for it:
     mark; printed sales report.
 11. Settings and Order screens whose layout moved because of the new buttons (check the existing
     captures of these screens and retake those that changed).
+
+## 13. Worker notes
+
+### V11-T1 (A engine), 2026-10-17
+
+**Delivered.** V11-D1 flip (no `peppol` feature; one `generate_handler!` list; parity scripts,
+`p2_gate.sh`, `build_and_hash.sh`, `uc_scope.toml`, `test.yml`, comments and `CLAUDE.md`
+follow); migration 40 (`schema_v11.rs`, `V11_MIGRATIONS`); `PosConfig.peppol` with
+`check_config` problems (`config_peppol`); `pos-peppol` rewritten (cents UBL with golden file,
+participant ids and offline VAT check, `AccessPoint` with `lookup` and `submit_to`, Storecove
+API v2 shape, `LoggingAccessPoint`); Storecove routes in `pos-fdm-mock` and the testkit helper
+`use_admission_mock_with_peppol`; `commands/invoice.rs` (9 commands), `commands/peppol_queue.rs`,
+the `PendingContext::Invoice` path in `signing.rs`, the invoice copy in `copy.rs`, the queue
+loop in `background.rs` (only with a `peppol` section); `pos-print` invoice layout; Tauri
+wrappers; FFI facade `api/invoice.rs` and `records/invoice.rs`; tests of section 6 (M150 in
+`spf_e2e_fixtures.rs` and `spf_e2e_basic.rs`, `invoice_advanced.rs`, `invoice_rules.rs`,
+`peppol_queue.rs`, rows in `access_control.rs`, `error_codes.rs`, `config_check.rs`, FFI
+`tests/ffi/invoice.rs`); French note `docs/internal/v1.1/NOTE_MISE_A_JOUR_V1_1_FR.md`;
+decisions V11-D1 to D13, D21, D22 and the new D23 to D29 in `DECISIONS.md`.
+
+**Deviations from the plan text.**
+
+- The command is `sign_invoice_fiscal` (not `sign_invoice`), see V11-D23. T2 must call that name.
+- X maps to E in the UBL (existing mapping, golden file), not O: V11-D24.
+- `do_issue_b2b_invoice` is an engine function only (queues the delivery of an invoice that has
+  none); the nine commands are `list_invoiceable_sales`, `invoice_preview`, `lookup_b2b_customer`,
+  `search_b2b_customers`, `save_b2b_customer`, `sign_invoice_fiscal`, `list_invoices`,
+  `list_peppol_deliveries`, `retry_peppol_delivery`. Total 103 commands.
+- Numbering across a year change is not simulated (the clock is real): the sequence is global
+  and the year prefix is the year of `posDateTime`; the test asserts continuity across an FDM
+  failure and the shape `<year><4 digits>`.
+
+**Hand-off to T2 (UI).** Records (camelCase) are in `android/rust/pos-ffi/src/records/invoice.rs`
+and `crates/pos-engine/src/commands/invoice.rs`: `InvoiceableSale`, `InvoicePreview` (with
+`problems`, coded errors such as `invoice_sale_already_invoiced|event=..|invoice=..`),
+`CustomerLookup` (`peppolStatus`, `peppolChecked`, `deliverable`), `Customer`,
+`B2bCustomerInput`, `InvoiceResult` (`success`, `fiscalEventId`, `invoiceNo`, `printed`,
+`deliveryStatus`, `error`), `InvoiceSummary`, `PeppolDeliveries` / `Delivery`. The copy of an
+invoice goes through the existing `copy_ticket` command on the I event id (admin only, prints
+COPIE). Error texts `err_invoice_*`, `err_customer_*`, `err_peppol_*`, `err_config_peppol` are
+already in `ui/src/i18n.ts` and in the generated Android strings. `ui/src/api/ipc.ts` is
+unchanged on purpose (UI parity stays green until T2 adds the callers).
+
+**Gate notes.** Targeted per-commit tests were run for each crate; R, F, P, D at the end of the
+task are recorded in the T1 report. `:pos-core:apiDump` is run when `pos-core.api` changes.
