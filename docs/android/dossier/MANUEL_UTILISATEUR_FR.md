@@ -21,14 +21,14 @@ fichier, réalisé sur le terminal D3 Pro émulé (AVD `sunmi_d3_pro_gms_api33`)
 2. Démarrage, connexion et PIN
 3. Pointage d'arrivée et de départ (événement S)
 4. L'écran de commande
-5. Tables, à emporter et prise de commande
+5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
 6. Commande enregistrée et addition (événements P)
 7. Encaissement (vente, événement N)
-8. Copie de ticket (événement C)
+8. Copie de ticket (événement C) ; 8 bis. Facture à un client professionnel (événement I)
 9. Remboursement
-10. Rapports X et Z (événements R)
+10. Rapports X et Z (événements R) et rapport de ventes (§10.4)
 11. Mouvements de caisse, tiroir et comptage (événements F)
-12. Configuration (Gérant)
+12. Configuration (Gérant), dont la carte et le panneau Peppol (§12 bis)
 13. Mode formation (événements T)
 14. Que faire en cas de problème
 
@@ -49,6 +49,9 @@ refuse de toute façon une action interdite au profil
 | Imprimer l'addition, encaisser, "Imprimer le ticket" (§7.3) | - | ☑ | ☑ |
 | Commandes en ligne : "Accepter", "Refuser", "Terminer", "Encaisser espèces", "Encaisser carte", "Clôturer" | - | ☑ | ☑ |
 | Rapports X / Z, copies, remboursements, mouvements de caisse, tiroir, comptage du tiroir | - | - | ☑ |
+| Déclarer un produit épuisé, le remettre en vente (§5.4) | - | ☑ | ☑ |
+| Établir une facture à un client professionnel (§8 bis, par "Rapports") | - | ☑ | ☑ |
+| Rapport de ventes (§10.4), édition de la carte et panneau Peppol (§12 bis) | - | - | ☑ |
 | Clôturer une vente sans paiement (client parti sans payer, §7.5, avec son PIN) | - | - | ☑ |
 | Commandes en ligne : "Rembourser" | - | - | ☑ |
 | Mode formation, employés (ajouter, "Désactiver", PIN des autres), HubRise (activer, catalogue, canaux), configuration | - | - | ☑ |
@@ -244,7 +247,7 @@ ouverte et qu'il est plus de 22 h, ou qu'une journée précédente est
 restée ouverte (§10.2). (capture A95 : bandeau Rapport Z non effectué aujourd'hui ; capture A122 : même mention sur l'écran des rapports). L'onglet "Journée" des rapports affiche aussi
 "Rapport Z pas encore fait aujourd'hui".
 
-## 5. Tables, à emporter et prise de commande
+## 5. Tables, à emporter, prise de commande et produit épuisé (§5.4)
 
 ### 5.1 Choisir une table
 
@@ -303,11 +306,25 @@ vente sans paiement (§7.5). (capture A12 : ventes à emporter en cours).
 la vente signée, elle ne se modifie plus : l'annuler, c'est la
 rembourser (§9).
 
-**Factures B2B.** La facturation entre entreprises n'est pas proposée
-dans cette version : le POS n'émet que des tickets de caisse TVA.
+**Épuisé et facture.** Un produit déclaré épuisé ne s'ajoute plus
+(§5.4). Une facture à un client professionnel s'établit après la vente
+(§8 bis) ; le ticket de caisse reste le document remis au comptoir.
 
 Le panier affiche en permanence le total et le détail de la TVA par
 taux. (capture A13 : panier rempli).
+
+### 5.4 Produit épuisé
+
+Réservé au Serveur et au Gérant. Sur l'écran de commande, le bouton
+"Épuisé" active le mode : toucher un produit ouvre une fenêtre à trois
+choix, "Épuisé jusqu'à la fin de la journée", "Épuisé jusqu'à
+réactivation" et "Disponible". Hors du mode, un produit épuisé est grisé
+et porte la pastille "Épuisé" ; le toucher affiche "Ce produit est
+épuisé." et rien n'est ajouté. Le bouton "Produits épuisés (n)" liste
+les produits concernés, et "Remettre en vente" en rend un disponible.
+Si la caisse est reliée à HubRise, l'état est transmis au stock en
+ligne. La fonction ne produit aucun ticket et ne modifie aucun rapport
+(`PRODUIT_EPUISE_FR.md`).
 
 ## 6. Commande enregistrée et addition (événements P)
 
@@ -597,7 +614,7 @@ refusé ("PIN incorrect") et rien n'est enregistré ; une commande à
 normalement."). En mode formation, la vente est une vente de formation
 (T).
 
-## 8. Copie de ticket (événement C)
+## 8. Copie de ticket (événement C) ; 8 bis. Facture à un client professionnel (événement I)
 
 Réservé au Gérant. Pour un client qui a perdu son ticket ou son e-mail,
 ou qui demande un double :
@@ -621,6 +638,35 @@ C'est la **seule** façon de reproduire un ticket déjà remis : la caisse
 n'imprime jamais un original deux fois.
 
 Un rapport Z se recopie depuis "Réimprimer un Z" (§10.3).
+
+## 8 bis. Facture à un client professionnel (événement I)
+
+Réservé au Serveur et au Gérant pour l'établir ; l'écran y mène par
+"Rapports", réservé au Gérant. Une facture regroupe une ou plusieurs
+ventes déjà signées :
+
+1. "Rapports", onglet "Tickets" : cocher les ventes concernées, puis
+   toucher "Facture". Une vente déjà facturée porte son numéro de
+   facture et ne peut plus être cochée.
+2. Saisir le numéro de TVA du client et toucher "Vérifier", ou chercher
+   un client connu par son nom. Un numéro inconnu ouvre un formulaire
+   (nom, adresse, code postal, ville, pays). Une pastille indique si le
+   client est inscrit sur Peppol, non inscrit ou inconnu (réseau absent).
+3. Contrôler l'aperçu (client, lignes, TVA par taux, total, "déjà
+   payé"), puis toucher "Établir et imprimer la facture". Le FDM signe
+   la facture ; le numéro (année et séquence continue) et l'état de
+   l'impression s'affichent. Un problème détecté (vente déjà facturée,
+   formation) bloque la signature et le message l'explique.
+
+La facture s'imprime sur papier, sans signature ni QR code. Elle ne
+s'établit pas en mode formation. Sous la liste des tickets, le tableau
+des factures indique pour chacune l'état de l'envoi Peppol ("en
+attente", "remise", "bloquée" ou aucun envoi) et propose "Copie" au
+Gérant. Si la caisse est configurée pour Peppol et que le client est
+belge, la facture est envoyée automatiquement, avec nouvel essai
+automatique en cas de panne ; sans réseau, la facture est quand même
+établie et imprimée. Un envoi bloqué se relance depuis le panneau
+Peppol de "Config" (§12 bis). Détails : `FACTURATION_PEPPOL_FR.md`.
 
 ## 9. Remboursement
 
@@ -681,10 +727,10 @@ La caisse refuse :
 
 Si le FDM refuse, rien n'est enregistré et la vente reste remboursable.
 
-## 10. Rapports X et Z (événements R)
+## 10. Rapports X et Z (événements R) et rapport de ventes (§10.4)
 
-Réservé au Gérant : "Rapports". L'écran a trois onglets : "Journée",
-"Caisse" (§11) et "Tickets" (§8, §9).
+Réservé au Gérant : "Rapports". L'écran a quatre onglets : "Journée",
+"Caisse" (§11), "Tickets" (§8, §8 bis, §9) et "Ventes" (§10.4).
 
 ### 10.1 Rapports X
 
@@ -740,6 +786,16 @@ date"). La toucher ouvre "Historique Z" (numéro et date de chaque Z
 passé). "Réimprimer" en produit une copie (événement C, §8) : choisir le
 support, "Valider". (capture A40 : Historique Z).
 
+### 10.4 Rapport de ventes (non fiscal)
+
+Onglet "Ventes", réservé au Gérant. Il présente, pour aujourd'hui, hier,
+la semaine, le mois ou une période saisie (92 jours au plus), les
+ventes par produit (quantité et montant), par heure, le nombre de
+tickets et le total, et la concordance avec le rapport Z de chaque
+journée. Le titre porte "DOCUMENT NON FISCAL" ; "Imprimer" en tire une
+copie papier qui ne signe rien et ne remplace ni le X ni le Z
+(`RAPPORTS_VENTES_FR.md`).
+
 ## 11. Mouvements de caisse, tiroir et comptage (événements F)
 
 Réservé au Gérant : "Rapports", onglet "Caisse".
@@ -776,7 +832,7 @@ déclaration par le FDM (événement F, cas d'usage M133) : "Contenu du
 tiroir déclaré" confirme. La déclaration ne modifie aucun solde : elle
 consigne ce que le Gérant a compté. (capture A44 : déclaration du contenu du tiroir).
 
-## 12. Configuration (Gérant)
+## 12. Configuration (Gérant), dont la carte et le panneau Peppol (§12 bis)
 
 Le bouton "Config" de l'en-tête ouvre la page Paramètres. Elle regroupe
 le mode formation, la langue, les employés, les informations, les
@@ -1084,6 +1140,21 @@ caisse n'installe qu'une version déclarée et signée par le producteur
 
 Il n'existe pas de retour en arrière : une version défectueuse se corrige
 par une version plus récente, déclarée et vérifiée de la même façon.
+
+### 12 bis. Carte et panneau Peppol
+
+**Carte.** Panneau "Carte" (Gérant) : "Édition de la carte". Le Gérant
+crée et modifie catégories, produits (noms, prix, code de TVA sur place
+et à emporter), groupes d'options et options ; rien ne se supprime, un
+élément se masque. "Historique" liste les modifications. Tant qu'un
+catalogue HubRise gère la carte, l'édition est refusée et l'écran
+l'indique (`EDITEUR_CARTE_FR.md`). Une modification s'applique aux
+commandes suivantes ; les ventes déjà signées ne changent pas.
+
+**Peppol.** Le panneau Peppol de "Config" n'apparaît que si
+l'installation contient une section `peppol`. Il indique le fournisseur,
+le nombre d'envois en attente, remis et bloqués, et pour chaque envoi
+bloqué son motif et le bouton "Réessayer".
 
 ## 13. Mode formation (événements T)
 

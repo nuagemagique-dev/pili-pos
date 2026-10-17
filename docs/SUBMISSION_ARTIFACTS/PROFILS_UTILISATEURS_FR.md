@@ -58,6 +58,10 @@ Accès complet. Concrètement, peut :
   journalisé.
 - Changer le plan de salle (les numéros de table, panneau "Plan de
   salle"). Chaque changement est journalisé en ajout seul.
+- Éditer la carte à l'écran (catégories, produits, groupes d'options,
+  options ; rien ne se supprime ; chaque modification est journalisée en
+  ajout seul), tirer le rapport de ventes non fiscal, consulter le
+  panneau Peppol et relancer un envoi bloqué.
 - Accéder à la page Paramètres (bouton "Config", `SettingsView.vue`) et
   à la vue Rapports.
 - Créer des utilisateurs (Gérant, Serveur ou Apprenti), en désactiver
@@ -69,6 +73,12 @@ Accès complet. Concrètement, peut :
 
 Profil d'opérateur de caisse standard. Peut :
 
+- Déclarer un produit épuisé, le remettre en vente et lister les
+  produits épuisés (aucun événement fiscal).
+- Établir une facture à un client professionnel (Événement I, le moteur
+  accepte un Serveur ou un Gérant, jamais un Apprenti), et rechercher
+  ou enregistrer un client. L'écran y mène par « Rapports », réservé au
+  Gérant.
 - Se connecter avec sa tuile (ou son INSZ) + code PIN (Événement S -
   `signWorkIn`, sauf s'il est déjà en service).
 - Verrouiller l'écran, sans pointer son départ ; pointer son départ
