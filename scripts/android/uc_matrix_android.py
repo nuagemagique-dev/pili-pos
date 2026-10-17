@@ -407,6 +407,14 @@ def render_markdown(matrix: Matrix, ucm, today: str, n_required: int) -> str:
         "document), Hors périmètre, Non applicable et Couvert par X (exclusions de la matrice "
         "Linux reprises à l'identique), MANQUANT (aucune couverture ni exclusion).",
         "",
+        "Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur date du "
+        "2026-10-10 (`docs/android/uc/device_engine_tests.md`, commit `778e9968`). Les tests "
+        "ajoutés depuis (transfert de table M122, correction de paiement M132, remise à la caisse "
+        "UC223, UC225A/B et UC229B, notes de cuisine, FAQ Q206 à 0,00 EUR) ont passé sur la "
+        "machine hôte seulement : leur exécution sur l'appareil n'a pas encore eu lieu et reste à "
+        "faire. Les mentions « exécutés sur l'appareil » ci-dessous décrivent le mécanisme "
+        "(`scripts/android/device_engine_tests.sh`), pas un passage déjà effectué pour ces tests.",
+        "",
         "## Synthèse",
         "",
         "| Statut | Nombre |",

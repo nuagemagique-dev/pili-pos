@@ -40,7 +40,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Périmètre identique à celui de la demande Linux : 17 UC (14 du Basic Set : M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172 ; 3 de Reports : M180, M182, M184 ; M150 exclu). Exécution sur l'émulateur Android, JSON sous Report_Testing/uc : À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC). Comparaison avec le journal Linux : À effectuer (EV-07 : journaux et requêtes FDM comparés entre Android et Linux). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Périmètre identique à celui de la demande Linux : 21 UC (18 du Basic Set : M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M160, M161, M170, M171, M171B, M172 ; 3 de Reports : M180, M182, M184 ; M150 exclu), soit 55 paires requête/réponse, plus les 5 situations d'arrondi et 6 UC de l'Advanced Set (UC223, UC225A, UC229B, UC230, UC4109, UC4119). Exécution sur l'émulateur Android, JSON sous Report_Testing/uc : À effectuer (EV-06 : résultats UC sur l'émulateur Android, requête et réponse JSON par UC). Comparaison avec le journal Linux : À effectuer (EV-07 : journaux et requêtes FDM comparés entre Android et Linux). |
 
 ## §I.C Manuels du POS
 

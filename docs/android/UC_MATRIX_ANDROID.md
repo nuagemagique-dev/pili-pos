@@ -10,6 +10,8 @@ Les 47 identifiants requis doivent chacun avoir un scénario Android au verdict 
 
 Légende du statut : Couvert (scénario Android) (un scénario liste l'identifiant et son résultat est PASS), Couvert (tests moteur exécutés sur l'appareil) (des tests Rust portent l'identifiant ; l'exécution sur l'appareil les rejoue tous), En attente (identifiant requis sans scénario au verdict PASS), Exclu sur Android (comportement d'écran couvert sur Linux par un test d'interface seulement, prouvé sur Android autrement ; raison en fin de document), Hors périmètre, Non applicable et Couvert par X (exclusions de la matrice Linux reprises à l'identique), MANQUANT (aucune couverture ni exclusion).
 
+Passage sur l'appareil : le dernier passage des tests du moteur sur l'émulateur date du 2026-10-10 (`docs/android/uc/device_engine_tests.md`, commit `778e9968`). Les tests ajoutés depuis (transfert de table M122, correction de paiement M132, remise à la caisse UC223, UC225A/B et UC229B, notes de cuisine, FAQ Q206 à 0,00 EUR) ont passé sur la machine hôte seulement : leur exécution sur l'appareil n'a pas encore eu lieu et reste à faire. Les mentions « exécutés sur l'appareil » ci-dessous décrivent le mécanisme (`scripts/android/device_engine_tests.sh`), pas un passage déjà effectué pour ces tests.
+
 ## Synthèse
 
 | Statut | Nombre |
@@ -184,7 +186,7 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 |---|---|---|---|---|---|
 | FAQ_Q202 | signPreBill: usage et lien avec un signOrder préalable | - | - | `m123_sign_pre_bill_archives_p_event_and_keeps_order_open`, `pre_bill_fdm_failure_on_the_second_step_does_not_burn_its_ticket_or_resend_the_order` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q205 | Une transaction en cours doit-elle donner lieu à un event P ou N | `70_faq/010_FAQ_Q205.json` | PASS | `faq_q205_a_takeaway_closed_unpaid_is_a_direct_sale`, `faq_q205_a_takeaway_is_never_registered_as_an_order`, `faq_q205_open_takeaways_are_listed_until_paid` | Couvert (scénario Android) |
-| FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | - | - | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | Couvert (tests moteur exécutés sur l'appareil) |
+| FAQ_Q206 | Vente soldée à 0,00 EUR (remise de 100%): enregistrement | - | - | `a_sale_settled_at_zero_sends_empty_financials_faq_q206`, `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | - | - | `faq_q207_a_second_order_carries_only_the_new_lines` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | - | - | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q211 | Unicité de la référence de costCenter | - | - | `faq_q211_each_table_session_has_its_own_reference` | Couvert (tests moteur exécutés sur l'appareil) |

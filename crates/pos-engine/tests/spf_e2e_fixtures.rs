@@ -530,7 +530,7 @@ async fn m132_payment_correction() {
         &vars,
         &[Deviation {
             path: "financials[0].type",
-            reason: "without a linked terminal the operator cannot tell debit from credit: a card typed by hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F)",
+            reason: "without a linked terminal the operator cannot tell debit from credit: a card typed by hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F); the comparator checks only type, amount and amountType, so the MANUAL input method (fixture AUTOMATIC) is not compared",
         }],
     );
     assert_eq!(correction["fdmRef"], vars["fdmRef"]);

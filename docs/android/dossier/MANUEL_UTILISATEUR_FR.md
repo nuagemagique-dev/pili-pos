@@ -750,6 +750,11 @@ La caisse refuse :
 
 Si le FDM refuse, rien n'est enregistré et la vente reste remboursable.
 
+Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande de
+remboursement reste en attente et elle est reprise à l'identique au prochain
+essai ou par la tâche de fond (§7.4). Elle n'est archivée qu'une fois, sans
+second ticket, et la vente n'est pas remboursée deux fois.
+
 ## 9 bis. Corriger un moyen de paiement (événement F)
 
 Quand une vente a été encaissée avec le mauvais moyen (par exemple en

@@ -30,7 +30,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (14 du Basic Set : M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 21 UC dans le périmètre v1.0.0 (18 du Basic Set : M110, M111, M112B, M121, M122, M123, M130, M131, M132, M133, M140, M141, M160, M161, M170, M171, M171B, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu), soit 55 paires requête/réponse, auxquelles s'ajoutent les 5 situations d'arrondi et 6 UC de l'Advanced Set (UC223, UC225A, UC229B, UC230, UC4109, UC4119 ; 10 paires). |
 
 ## §I.C Manuels du POS
 

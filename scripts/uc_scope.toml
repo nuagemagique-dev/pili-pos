@@ -203,15 +203,15 @@ reason = "Le produit composite n'est pas implémenté dans pili-pos v1.0.0."
 kind = "hors_perimetre"
 
 [UC220]
-reason = "Le scénario est rejoué avec une remise de portée EVENT (remise sur le ticket, commande en ligne ou saisie à la caisse, voir UC223) ; la modification de prix de portée ligne de ce scénario n'est pas rejouée de bout en bout (le moteur envoie la portée LINE seulement pour une ligne offerte, voir UC229B)."
+reason = "Le scénario (vente directe, remise de 50 % sur une ligne) n'est pas rejoué : la remise de la caisse porte sur la commande entière (pourcentage ou montant, portée EVENT) ou offre une ligne entière (portée LINE, UC229B), pas une remise partielle sur une ligne. Le moteur reprend la portée LINE des remises d'une commande en ligne, mais ce scénario précis n'a pas de test."
 kind = "hors_perimetre"
 
 [UC221A]
-reason = "Le scénario est rejoué avec une remise de portée EVENT (remise sur le ticket, commande en ligne ou saisie à la caisse, voir UC223) ; la modification de prix de portée ligne de ce scénario n'est pas rejouée de bout en bout (le moteur envoie la portée LINE seulement pour une ligne offerte, voir UC229B)."
+reason = "Le scénario (promotion « le deuxième à moitié prix », qui scinde la ligne de produit en deux lignes dont l'une porte la modification de prix) n'est pas rejoué : la caisse n'applique aucune promotion automatique par quantité et n'a pas de remise partielle sur une ligne."
 kind = "hors_perimetre"
 
 [UC221B]
-reason = "Le scénario est rejoué avec une remise de portée EVENT (remise sur le ticket, commande en ligne ou saisie à la caisse, voir UC223) ; la modification de prix de portée ligne de ce scénario n'est pas rejouée de bout en bout (le moteur envoie la portée LINE seulement pour une ligne offerte, voir UC229B)."
+reason = "Le scénario (promotion « le deuxième à moitié prix », qui scinde la ligne de produit en deux lignes dont l'une porte la modification de prix) n'est pas rejoué : la caisse n'applique aucune promotion automatique par quantité et n'a pas de remise partielle sur une ligne."
 kind = "hors_perimetre"
 
 [UC222]
@@ -243,7 +243,7 @@ reason = "Les libellés de TVA A/B/C combinés à une modification de prix ne so
 kind = "hors_perimetre"
 
 [UC4116]
-reason = "La correction combinée à une modification de prix n'est pas implémentée dans pili-pos v1.0.0 (la modification de prix est absente)."
+reason = "Le scénario (vente avec une remise de 50 % sur une ligne, puis correction de la remise à 5 %) n'est pas rejoué : la caisse n'a pas de remise partielle sur une ligne et ne corrige pas une vente par une seconde vente ; une vente signée se rembourse (M111) et son moyen de paiement se corrige (M132)."
 kind = "hors_perimetre"
 
 [UC4120]
@@ -260,7 +260,7 @@ kind = "hors_perimetre"
 # -- Correction de paiement (avancée) --
 
 [UC4118]
-reason = "La correction de paiement (modification d'un paiement déjà enregistré) n'est pas implémentée dans pili-pos v1.0.0."
+reason = "Le scénario (vente payée en crédit client, corrigée une semaine plus tard en Mastercard) n'est pas rejoué : le type de paiement crédit client n'est pas proposé à la caisse (espèces, carte, titres-repas). La correction de moyen de paiement elle-même existe et est rejouée par M132."
 kind = "hors_perimetre"
 
 # -- Acompte et libellé de TVA X --
