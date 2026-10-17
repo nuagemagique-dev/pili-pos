@@ -11,6 +11,11 @@ import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.AppNavigator
+import dev.nuagemagique.pilipos.ui.badge.BadgeRig
+import dev.nuagemagique.pilipos.ui.badge.BadgeStore
+import dev.nuagemagique.pilipos.ui.badge.badgeRigOver
+import dev.nuagemagique.pilipos.ui.badge.badgeView
+import dev.nuagemagique.pilipos.ui.badge.noBadges
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
@@ -135,6 +140,8 @@ internal fun stubReads(
     coEvery { engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.INFO)
     coEvery { engine.getSettings() } returns settings()
     coEvery { engine.getIntegrations() } returns hubriseSwitch(hubrise)
+    coEvery { engine.getBadgeSettings() } returns badgeView()
+    coEvery { engine.listBadges() } returns noBadges()
 }
 
 /** The login entry point over the given real stores. */
@@ -149,6 +156,7 @@ internal class TestEntryPoint(
     private val toasts: ToastStore,
     private val catalog: MessageCatalog,
     private val errorTexts: ErrorTexts,
+    private val badges: BadgeStore,
 ) : LoginEntryPoint {
     override fun session(): SessionStore = session
 
@@ -167,6 +175,8 @@ internal class TestEntryPoint(
     override fun catalog(): MessageCatalog = catalog
 
     override fun errorTexts(): ErrorTexts = errorTexts
+
+    override fun badges(): BadgeStore = badges
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -197,6 +207,7 @@ internal class LoginRig(
     val toasts: ToastStore,
     val settings: PosSettingsStore,
     val catalog: MessageCatalog,
+    val badges: BadgeRig,
 ) {
     val state get() = model.state.value
 
@@ -248,8 +259,9 @@ internal suspend fun TestScope.startLogin(
         f.holder.open()
         runCurrent()
     }
-    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts)
+    val badges = badgeRigOver(f, gateway, session, toasts, errors, settings, catalog)
+    val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts, badges.store)
     val model = LoginViewModel(entry)
     runCurrent()
-    return LoginRig(f, model, toasts, settings, catalog)
+    return LoginRig(f, model, toasts, settings, catalog, badges)
 }

@@ -79,6 +79,24 @@ class MainActivityTest {
     }
 
     @Test
+    fun withTheReaderOffADigitKeyIsNotTakenByTheBadgeWedge() {
+        composeRule.runOnUiThread {
+            composeRule.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_5))
+        }
+        verify(atLeast = 1) { forwarder.onInteraction() }
+    }
+
+    @Test
+    fun aKeyHeldByTheUsbBadgeWedgeIsSwallowedAndIsNotUserActivity() {
+        composeRule.runOnUiThread {
+            composeRule.activity.wedge.start()
+            val taken = composeRule.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_5))
+            assertEquals(true, taken)
+        }
+        verify(exactly = 0) { forwarder.onInteraction() }
+    }
+
+    @Test
     fun withoutTheOwnerRoleTheKioskStateIsNotOwner() {
         assertEquals(KioskState.NotOwner, composeRule.activity.kiosk.state.value)
     }

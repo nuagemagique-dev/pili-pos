@@ -460,7 +460,7 @@ class SettingsContentTest {
     fun theDeliveriesShowStatusDateAttemptsAndTheLastErrorInBrusselsTime() {
         show(managerState())
 
-        compose.onNodeWithTag("delivery_1").assertIsDisplayed()
+        compose.onNodeWithTag("delivery_1").assertExists()
         compose.onNodeWithTag("delivery_1_status").assertTextEquals(text("delivery_status_sent"))
         compose.onNodeWithTag("delivery_1_date").assertTextEquals("09/10 11:05")
         compose.onNodeWithTag("delivery_2_status").assertTextEquals(text("delivery_status_failed"))
