@@ -282,6 +282,12 @@ pub(crate) struct BarLabels {
     pub(crate) table: &'static str,
     pub(crate) direct_sale: &'static str,
     pub(crate) items_header: &'static str,
+    /// Prefix of a release slip's mention ("SUITE : Plats").
+    pub(crate) release: &'static str,
+    /// Mention of a reprinted slip.
+    pub(crate) duplicate: &'static str,
+    /// Course names, index 0 to 3: Direct, Entrees, Plats, Desserts.
+    pub(crate) courses: [&'static str; 4],
 }
 
 pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
@@ -293,6 +299,9 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Table",
             direct_sale: "Vente directe",
             items_header: "Qte   Article",
+            release: "SUITE",
+            duplicate: "DUPLICATA",
+            courses: ["Direct", "Entrees", "Plats", "Desserts"],
         },
         ReceiptLanguage::Nl => &BarLabels {
             title: "BESTELBON",
@@ -301,6 +310,9 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tafel",
             direct_sale: "Directe verkoop",
             items_header: "Aantal Artikel",
+            release: "VOLGENDE",
+            duplicate: "DUPLICAAT",
+            courses: ["Direct", "Voorgerechten", "Hoofdgerechten", "Desserts"],
         },
         ReceiptLanguage::De => &BarLabels {
             title: "BESTELLSCHEIN",
@@ -309,6 +321,9 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tisch",
             direct_sale: "Direktverkauf",
             items_header: "Menge  Artikel",
+            release: "FOLGEGANG",
+            duplicate: "DUPLIKAT",
+            courses: ["Sofort", "Vorspeisen", "Hauptgerichte", "Desserts"],
         },
     }
 }

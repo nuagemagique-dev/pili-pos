@@ -5,6 +5,7 @@ pub mod auth;
 pub mod bar_slip;
 pub mod checkout;
 pub mod copy;
+pub mod courses;
 pub mod delivery;
 pub mod eft;
 pub mod errors;

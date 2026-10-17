@@ -266,14 +266,18 @@ fn example_bar_slip() {
             BarItem {
                 quantity: 2,
                 name: "Dry Martini".to_string(),
+                course: None,
             },
             BarItem {
                 quantity: 1,
                 name: "Burger du chef".to_string(),
+                course: None,
             },
         ],
         lang: ReceiptLanguage::Fr,
         is_training: false,
+        release: None,
+        duplicate: false,
     };
     let text = render_plain_text(&format_bar_ticket(&slip));
     assert!(!text.contains(','), "a bar ticket never shows a price");

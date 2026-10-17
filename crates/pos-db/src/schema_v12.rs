@@ -136,3 +136,52 @@ BEGIN
     SELECT RAISE(ABORT, 'allergen_change_log is append-only');
 END;
 "#;
+
+/// v62 - courses and "Envoyer la suite" (kitchen printing only).
+///
+/// Kitchen data, never fiscal: nothing here reaches `OrderLine`, a
+/// signed request, a product name or a department. A line has no row
+/// in `order_line_courses` until a course is set for it; no row means
+/// course 0 ("Direct", printed at once). `line_id` carries no foreign
+/// key on purpose: a corrected line is deleted from `order_lines`, but
+/// the journal entries it left (`order_entries.line_id`) still need
+/// their course to be held and netted at release.
+///
+/// `order_course_releases` lists the courses released for an order; the
+/// released course is the highest one, 1 when none (courses 0 and 1 are
+/// printed with the first slip).
+///
+/// `kitchen_slip_entries` records the journal entries a kitchen slip
+/// really printed (only when the printer reported `Printed`), with the
+/// course they had then. Entries signed before this migration are
+/// recorded as printed (their slip was printed or abandoned long ago).
+pub(crate) const MIGRATION_062_COURSES: &str = r#"
+CREATE TABLE IF NOT EXISTS order_line_courses (
+    line_id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    course INTEGER NOT NULL CHECK(course BETWEEN 0 AND 3),
+    -- INSZ of the operator who set it; NULL when the product's category gave it.
+    set_by TEXT,
+    set_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_line_courses_order ON order_line_courses(order_id);
+
+CREATE TABLE IF NOT EXISTS order_course_releases (
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    course INTEGER NOT NULL CHECK(course BETWEEN 1 AND 3),
+    released_by TEXT,
+    released_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (order_id, course)
+);
+
+CREATE TABLE IF NOT EXISTS kitchen_slip_entries (
+    entry_id INTEGER PRIMARY KEY REFERENCES order_entries(id),
+    course INTEGER NOT NULL CHECK(course BETWEEN 0 AND 3),
+    printed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    slip TEXT NOT NULL CHECK(slip IN ('immediate','release','sale'))
+);
+
+INSERT OR IGNORE INTO kitchen_slip_entries (entry_id, course, slip)
+    SELECT id, 0, 'immediate' FROM order_entries WHERE sent_event_id IS NOT NULL;
+"#;

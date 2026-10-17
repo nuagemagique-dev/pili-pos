@@ -209,6 +209,19 @@ pub const ALLERGEN_UNKNOWN: &str = "allergen_unknown";
 /// exist: `allergen_target_not_found|id=<id>`.
 pub const ALLERGEN_TARGET_NOT_FOUND: &str = "allergen_target_not_found";
 
+// Courses (v1.2).
+/// The line already went out on a kitchen slip: its course can no longer change.
+pub const COURSE_ALREADY_SENT: &str = "course_already_sent";
+/// A course outside 0 to 3, or a category that does not exist or is listed
+/// twice: `course_invalid|course=<n>` or `course_invalid|category=<id>`.
+pub const COURSE_INVALID: &str = "course_invalid";
+/// Courses are switched off (Settings, "Service en plusieurs temps").
+pub const COURSES_DISABLED: &str = "courses_disabled";
+/// "Envoyer la suite" with no course waiting and nothing left to print.
+pub const NO_COURSE_HELD: &str = "no_course_held";
+/// A reprint of a course no slip ever printed.
+pub const NOTHING_PRINTED: &str = "nothing_printed";
+
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
 /// and the text as `detail`.
@@ -243,6 +256,11 @@ pub const ALL: &[&str] = &[
     ALERTS_SEND_FAILED,
     ALLERGEN_UNKNOWN,
     ALLERGEN_TARGET_NOT_FOUND,
+    COURSE_ALREADY_SENT,
+    COURSE_INVALID,
+    COURSES_DISABLED,
+    NO_COURSE_HELD,
+    NOTHING_PRINTED,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

@@ -272,7 +272,7 @@ mod tests {
         let out = text(&sheet("fr"));
         let body = out.split("VALABLE").next().unwrap();
         let expected = "\
-                   ALLERGÈNES
+\x20                  ALLERGÈNES
                 Restaurant Demo
                    17/10/2026
 ================================================

@@ -38,6 +38,30 @@ fn slip_printer(config: &PosConfig) -> Option<&str> {
         .filter(|addr| !addr.is_empty())
 }
 
+/// One line of a slip, with the journal entries it stands for (they are
+/// recorded as printed once the printer reports `Printed`).
+#[derive(Debug, Clone)]
+pub(crate) struct SlipItem {
+    pub entry_ids: Vec<i64>,
+    pub quantity: i32,
+    pub name: String,
+    /// `Some` groups the slip by course (v1.2); `None` is the slip as it
+    /// was before courses existed.
+    pub course: Option<i32>,
+}
+
+/// How a slip differs from the plain one.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct SlipMode {
+    /// The course a release slip sends ("SUITE : Plats").
+    pub release: Option<i32>,
+    /// A reprint (DUPLICATA).
+    pub duplicate: bool,
+    /// Record the printed entries with this `kitchen_slip_entries.slip`
+    /// value (`immediate`, `release`, `sale`); `None` records nothing.
+    pub record: Option<&'static str>,
+}
+
 /// Print the slip for `entries`, the order entries just signed.
 pub(crate) async fn print_bar_slip(
     state: &AppState,
@@ -46,7 +70,7 @@ pub(crate) async fn print_bar_slip(
     table: Option<i32>,
     entries: &[OrderLine],
 ) -> SlipOutcome {
-    let items: Vec<BarItem> = {
+    let items: Vec<SlipItem> = {
         let Ok(db) = state.db.lock() else {
             return SlipOutcome::Failed;
         };
@@ -59,12 +83,40 @@ pub(crate) async fn print_bar_slip(
                     true
                 })
             })
-            .map(|e| BarItem {
+            .map(|e| SlipItem {
+                entry_ids: vec![e.id],
                 quantity: e.quantity,
                 name: e.name.clone(),
+                course: None,
             })
             .collect()
     };
+    let record = if table.is_some() { "immediate" } else { "sale" };
+    print_items(
+        state,
+        config,
+        operator_insz,
+        table,
+        items,
+        SlipMode {
+            record: Some(record),
+            ..SlipMode::default()
+        },
+    )
+    .await
+}
+
+/// Print a slip made of `items`. `NothingToPrint` for no item, `NoPrinter`
+/// without an address; the entries are recorded as printed only when the
+/// printer reports it ready.
+pub(crate) async fn print_items(
+    state: &AppState,
+    config: &PosConfig,
+    operator_insz: &str,
+    table: Option<i32>,
+    items: Vec<SlipItem>,
+    mode: SlipMode,
+) -> SlipOutcome {
     if items.is_empty() {
         return SlipOutcome::NothingToPrint;
     }
@@ -76,9 +128,18 @@ pub(crate) async fn print_bar_slip(
         date_time: now_in_belgium().format("%d/%m/%Y %H:%M:%S").to_string(),
         operator: super::operator_name(state, operator_insz),
         table,
-        items,
+        items: items
+            .iter()
+            .map(|i| BarItem {
+                quantity: i.quantity,
+                name: i.name.clone(),
+                course: i.course,
+            })
+            .collect(),
         lang: ReceiptLanguage::from_code(&config.language),
         is_training: config.training_mode,
+        release: mode.release,
+        duplicate: mode.duplicate,
     };
     match pos_print::transport::send_to_printer_with(
         addr,
@@ -87,7 +148,13 @@ pub(crate) async fn print_bar_slip(
     )
     .await
     {
-        Ok(status) if status.ready() => SlipOutcome::Printed,
+        Ok(status) if status.ready() => {
+            if let Some(kind) = mode.record {
+                let ids: Vec<i64> = items.iter().flat_map(|i| i.entry_ids.clone()).collect();
+                record_printed(state, &ids, kind);
+            }
+            SlipOutcome::Printed
+        }
         Ok(status) => {
             tracing::warn!(?status.warnings, addr, "bar slip printer not ready");
             SlipOutcome::Failed
@@ -96,6 +163,17 @@ pub(crate) async fn print_bar_slip(
             tracing::warn!(%err, addr, "bar slip not printed");
             SlipOutcome::Failed
         }
+    }
+}
+
+/// Remember which journal entries a slip printed. Kitchen bookkeeping:
+/// a failure is logged and never undoes the slip.
+pub(crate) fn record_printed(state: &AppState, entry_ids: &[i64], kind: &str) {
+    let Ok(db) = state.db.lock() else {
+        return;
+    };
+    if let Err(err) = pos_db::queries::courses::record_printed(&db, entry_ids, kind) {
+        tracing::warn!(%err, "printed kitchen entries not recorded");
     }
 }
 

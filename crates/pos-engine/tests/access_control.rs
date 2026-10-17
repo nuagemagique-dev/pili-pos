@@ -1063,3 +1063,67 @@ async fn any_operator_reads_the_allergens_and_only_a_manager_edits_them() {
     as_(&app, MANAGER, UserRole::Admin);
     assert_eq!(do_set_allergens(&app.state, edit()), Ok(true));
 }
+
+#[tokio::test]
+async fn any_operator_works_the_courses_and_only_a_manager_sets_them() {
+    use pos_engine::commands::courses::{
+        CourseSettings, do_get_course_settings, do_list_held_courses, do_reprint_course_slip,
+        do_send_next_course, do_set_course_settings, do_set_line_course,
+    };
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    let order = table(&app, MANAGER, 12);
+    app.logout();
+    assert_eq!(
+        do_get_course_settings(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_course_settings(&app.state, CourseSettings::default()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_line_course(&app.state, 1, 1).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_held_courses(&app.state, order).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_send_next_course(&app.state, order).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_reprint_course_slip(&app.state, order, 1)
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert!(do_get_course_settings(&app.state).is_ok());
+        assert_eq!(
+            do_set_course_settings(&app.state, CourseSettings::default()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        // Allowed to try: the refusals below come from the rules, not the role.
+        assert_eq!(
+            do_set_line_course(&app.state, 1, 1).unwrap_err(),
+            errors::COURSES_DISABLED
+        );
+        assert!(do_list_held_courses(&app.state, order).unwrap().is_empty());
+        assert_eq!(
+            do_send_next_course(&app.state, order).await.unwrap_err(),
+            errors::COURSES_DISABLED
+        );
+        assert_eq!(
+            do_reprint_course_slip(&app.state, order, 1)
+                .await
+                .unwrap_err(),
+            errors::NOTHING_PRINTED
+        );
+    }
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_course_settings(&app.state, CourseSettings::default()).is_ok());
+}

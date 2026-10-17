@@ -1,5 +1,6 @@
 pub mod allergens;
 pub mod booking;
+pub mod courses;
 pub mod deliveries;
 pub mod eft;
 pub mod fiscal;

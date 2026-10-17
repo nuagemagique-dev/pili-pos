@@ -132,6 +132,11 @@ const V12_MIGRATIONS: &[Migration] = &[
         name: "allergens",
         sql: crate::schema_v12::MIGRATION_061_ALLERGENS,
     },
+    Migration {
+        version: 62,
+        name: "courses",
+        sql: crate::schema_v12::MIGRATION_062_COURSES,
+    },
 ];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
@@ -341,11 +346,18 @@ mod tests {
     }
 
     /// The v1.2 owner features are migrations 60 to 63, in every build
-    /// (60 owner settings and alerts for now; 61 to 63 follow).
+    /// (60 owner settings and alerts, 61 allergens, 62 courses; 63 follows).
     #[test]
     fn the_v12_migrations_are_60_to_63_and_in_every_build() {
         let v12: Vec<(i64, &str)> = V12_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
-        assert_eq!(v12, vec![(60, "owner-settings-alerts"), (61, "allergens")]);
+        assert_eq!(
+            v12,
+            vec![
+                (60, "owner-settings-alerts"),
+                (61, "allergens"),
+                (62, "courses")
+            ]
+        );
         for (version, _) in &v12 {
             assert!(all_versions().contains(version), "{version}");
             assert!((60..=63).contains(version), "{version}");
@@ -434,6 +446,102 @@ mod tests {
         ] {
             assert!(conn.execute(sql, []).is_err(), "{sql}");
         }
+    }
+
+    #[test]
+    fn migration_62_checks_the_courses_and_backfills_the_printed_entries() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                 VALUES (1, 4, 'dine_in', 'open', '00000000029', '2026-10-17T10:00:00Z');
+             INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B');
+             INSERT INTO order_entries (id, order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                                        vat_code, name, department_id, department_name, kind, created_at)
+                 VALUES (1, 1, 1, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z'),
+                        (2, 1, 2, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z');",
+        )
+        .unwrap();
+        let line = |course: i64| {
+            conn.execute(
+                "INSERT OR REPLACE INTO order_line_courses (line_id, order_id, course) VALUES (1, 1, ?1)",
+                [course],
+            )
+        };
+        assert!(line(0).is_ok() && line(3).is_ok());
+        assert!(line(4).is_err() && line(-1).is_err());
+        let release = |course: i64| {
+            conn.execute(
+                "INSERT INTO order_course_releases (order_id, course) VALUES (1, ?1)",
+                [course],
+            )
+        };
+        assert!(release(2).is_ok());
+        // One release per course, and course 0 is never released.
+        assert!(release(2).is_err() && release(0).is_err());
+        let slip = |entry: i64, kind: &str| {
+            conn.execute(
+                "INSERT INTO kitchen_slip_entries (entry_id, course, slip) VALUES (?1, 1, ?2)",
+                rusqlite::params![entry, kind],
+            )
+        };
+        assert!(slip(1, "release").is_ok());
+        assert!(slip(1, "release").is_err());
+        assert!(slip(2, "nowhere").is_err());
+        assert!(slip(9, "sale").is_err());
+        // A line removed from the order keeps its course row (a held
+        // correction is netted at release).
+        conn.execute("DELETE FROM order_lines", []).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM order_line_courses", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn migration_62_backfills_only_the_entries_a_signed_event_sent() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO orders (id, table_number, order_type, status, user_insz, created_at)
+                 VALUES (1, 4, 'dine_in', 'open', '00000000029', '2026-10-17T10:00:00Z');
+             INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B');",
+        )
+        .unwrap();
+        let event: i64 = {
+            conn.execute_batch(
+                "INSERT INTO fiscal_events (event_type, sequence_number, order_id, pos_id, terminal_id, user_insz, event_data_json)
+                 VALUES ('P', 1, 1, 'pos', 'term', '00000000029', '{}');",
+            )
+            .unwrap();
+            conn.last_insert_rowid()
+        };
+        conn.execute(
+            "INSERT INTO order_entries (id, order_id, line_id, menu_item_id, quantity, unit_price_cents,
+                                        vat_code, name, department_id, department_name, kind, created_at, sent_event_id)
+             VALUES (1, 1, 1, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z', ?1),
+                    (2, 1, 2, 1, 1, 100, 'B', 'x', 'd', 'd', 'entry', '2026-10-17T10:00:00Z', NULL)",
+            [event],
+        )
+        .unwrap();
+        // The migration's statement, run again over the existing rows.
+        conn.execute_batch(
+            "INSERT OR IGNORE INTO kitchen_slip_entries (entry_id, course, slip)
+                SELECT id, 0, 'immediate' FROM order_entries WHERE sent_event_id IS NOT NULL;",
+        )
+        .unwrap();
+        let ids: Vec<i64> = conn
+            .prepare("SELECT entry_id FROM kitchen_slip_entries ORDER BY entry_id")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(ids, vec![1]);
     }
 
     #[test]

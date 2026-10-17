@@ -99,7 +99,7 @@ pub fn do_add_order_line_with_modifiers(
         .then(|| serde_json::to_string(&picked))
         .transpose()
         .map_err(errors::internal)?;
-    pos_db::queries::orders::add_order_line(
+    let line = pos_db::queries::orders::add_order_line(
         &db,
         pos_db::queries::orders::NewOrderLine {
             order_id: input.order_id,
@@ -113,7 +113,10 @@ pub fn do_add_order_line_with_modifiers(
             department_name: &product.department_name,
         },
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    // Kitchen data (v1.2): the line takes its category's course.
+    super::courses::assign_new_line(&db, line.id, line.order_id, line.menu_item_id)?;
+    Ok(line)
 }
 
 /// The options `ids` names, in the menu's order, checked against the

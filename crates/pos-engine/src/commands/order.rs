@@ -115,7 +115,7 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
             ));
         }
     };
-    pos_db::queries::orders::add_order_line(
+    let line = pos_db::queries::orders::add_order_line(
         &db,
         pos_db::queries::orders::NewOrderLine {
             order_id: input.order_id,
@@ -129,7 +129,10 @@ pub fn do_add_order_line(state: &AppState, input: AddOrderLineInput) -> Result<O
             department_name: &product.department_name,
         },
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    // Kitchen data (v1.2): the line takes its category's course.
+    super::courses::assign_new_line(&db, line.id, line.order_id, line.menu_item_id)?;
+    Ok(line)
 }
 
 /// Remove a line from an open order (journalled as a correction).
@@ -173,7 +176,10 @@ pub fn do_update_order_line_quantity(
 
 /// An order whose event waits for the FDM's answer keeps what was sent
 /// (`commands::signing`).
-fn unchanged_while_pending(db: &rusqlite::Connection, order_id: i64) -> Result<(), String> {
+pub(crate) fn unchanged_while_pending(
+    db: &rusqlite::Connection,
+    order_id: i64,
+) -> Result<(), String> {
     if pos_db::queries::pending_signs::order_has_open(db, order_id).map_err(errors::internal)? {
         return Err(errors::ORDER_SIGN_PENDING.into());
     }
@@ -217,7 +223,10 @@ pub fn do_list_cart_lines(
     order_id: i64,
 ) -> Result<Vec<pos_db::queries::orders::CartLine>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    pos_db::queries::orders::get_cart_lines(&db, order_id).map_err(|e| e.to_string())
+    let mut lines =
+        pos_db::queries::orders::get_cart_lines(&db, order_id).map_err(|e| e.to_string())?;
+    super::courses::present_cart(&db, order_id, &mut lines);
+    Ok(lines)
 }
 
 pub fn do_list_open_orders(state: &AppState) -> Result<Vec<Order>, String> {

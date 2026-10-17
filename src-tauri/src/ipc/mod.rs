@@ -8,6 +8,7 @@ pub mod allergens;
 pub mod auth;
 pub mod checkout;
 pub mod copy;
+pub mod courses;
 pub mod delivery;
 pub mod eft;
 pub mod export;

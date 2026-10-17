@@ -304,6 +304,12 @@ pub struct CartLine {
     /// The product's menu code ("A2"), when the catalog gives one.
     pub code: Option<String>,
     pub unsent_quantity: i64,
+    /// The line's course (v1.2, kitchen only): 0 "Direct", 1 to 3. Never
+    /// part of the signed order line.
+    pub course: i32,
+    /// `unsent`, `held` (a course above the released one waits for
+    /// "Envoyer la suite") or `printed` (a kitchen slip carried the line).
+    pub kitchen_state: String,
 }
 
 /// The menu code of a line's product, a column of the mirrored catalog.
@@ -323,16 +329,31 @@ pub fn get_cart_lines(conn: &Connection, order_id: i64) -> Result<Vec<CartLine>,
                     AND entity_id = ol.menu_item_id AND field = 'name' AND lang = 'zh'),
                 COALESCE((SELECT SUM(e.quantity) FROM order_entries e
                           WHERE e.line_id = ol.id AND e.sent_event_id IS NULL), 0),
-                {LINE_CODE}
+                {LINE_CODE},
+                COALESCE((SELECT course FROM order_line_courses WHERE line_id = ol.id), 0),
+                EXISTS (SELECT 1 FROM kitchen_slip_entries k
+                        JOIN order_entries e ON e.id = k.entry_id WHERE e.line_id = ol.id)
          FROM order_lines ol WHERE ol.order_id = ?1 ORDER BY ol.id",
     ))?;
+    let released = super::courses::released_course(conn, order_id)?;
     let rows = stmt.query_map(params![order_id], |row| {
+        let course: i32 = row.get(15)?;
+        let printed: bool = row.get(16)?;
+        let kitchen_state = if printed {
+            "printed"
+        } else if course > released {
+            "held"
+        } else {
+            "unsent"
+        };
         Ok(CartLine {
             line: map_order_line(row)?,
             name_fr: row.get(11)?,
             name_zh: row.get(12)?,
             unsent_quantity: row.get(13)?,
             code: row.get(14)?,
+            course,
+            kitchen_state: kitchen_state.to_string(),
         })
     })?;
     rows.collect()
