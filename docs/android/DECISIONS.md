@@ -1207,3 +1207,136 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   - *Gate result on `android/lane-p8b`.* Lane scope against `602544c` passes, `check_linux_frozen.sh --ref 602544c` reports 17 frozen paths clean, both `check_dossier` runs pass, the `android/` path references, the `EV-nn` references, the em-dash, brand-name and `linux-v1.1` scans find nothing, `kotlin_test_inventory.py --base 602544c` removed 0 (1957 at base and head), `lane_paths.py --check` passes (3920 files, 80 rules, 74 probes). `test_inventory.sh --diff` ran in the `int` worktree (33 GB free, warm `target` and `ui/dist`, `int` left clean): 404 added, 0 removed, ws 1640 >= 1355. The `NOM_FR.md` placeholder no longer shows in the dangling scan.
   - *Gate items that cannot pass yet, by design.* The completeness loop and the dangling `_FR` reference scan list only the three documents of P8a-T5 (EXPORT_NOCTURNE, FLUX_DONNEES, COMMANDES_EN_LIGNE), still unmerged. Phase-exit checks to rerun once T5 is merged.
   - *Gate items run on the lane worktree instead of `int`.* As at the earlier waves, the ancestry test and the dossier checks cannot pass in `int` (still at `602544c`, no dossier files); they ran on the `lane-p8b` worktree with the same scripts. The ancestry check is deferred to the lane merge. Tag `linux-v1.0.0-rc1` does not exist, so `check_linux_frozen.sh --tag` is deferred (the `--ref 602544c` check passes).
+
+## Lane 3-v11 (2026-10-17)
+
+- **V11-D1 Invoicing and Peppol join every build.** The `peppol` cargo feature is removed:
+  `commands/invoice.rs`, `src-tauri/src/ipc/invoice.rs` and `pos-peppol` are compiled in every
+  build (Linux cert, dev, Android FFI). Rationale: both UIs must offer invoices, the Android
+  engine is built with `cert`, and HubRise already set the rule "one binary, switched per
+  installation". Invoices themselves need no switch (an I event is only made when a cashier
+  asks for one); Peppol delivery runs only when the installation has a `peppol` section in
+  `pos.json` / the Android bundle. Consequences handled in T1: `src-tauri/src/main.rs` keeps a
+  single `generate_handler!` list; `check_command_parity.py` drops hygiene rule H7 and its
+  test data; `check_ipc_wrappers.py` keeps working with zero peppol-gated modules;
+  `p2_gate.sh` check `ffi-deps` no longer refuses `pos-peppol` (and `test_p2_gate.sh` follows);
+  `scripts/build_and_hash.sh` no longer requires 0 `pos_peppol` symbols (it reports the count);
+  `scripts/uc_scope.toml` drops `[M150]`; comments in `.github/workflows/test.yml`,
+  `android/rust/pos-ffi/Cargo.toml`, `android/uccheck/pos-uc-check/Cargo.toml`,
+  `android/rust/pos-ffi/src/records/mod.rs`, `CLAUDE.md` are corrected. The v1.0.0 dossiers are
+  NOT edited: they describe v1.0.0.
+- **V11-D2 Migrations 40 and up.** The next free number at this base is 28, but the v1.0.x
+  lanes (`lane-v1-fixes`, `lane-v1-features`) run in parallel and may claim 28+. The v1.1 lane
+  takes its own block: 40 `invoicing`, 41 `sold-out`, 42 `menu-editor` (gaps are allowed by the
+  runner). They live in a new `crates/pos-db/src/schema_v11.rs`, registered in a new
+  `V11_MIGRATIONS` slice of `migrate.rs`, in every build (no feature gate), with a test
+  `the_v11_migrations_are_40_to_42_and_in_every_build`. If the orchestrator wants consecutive
+  numbers at merge time, only `schema_v11.rs`, the registry and that test change.
+- **V11-D3 Invoice lines come from the archive, never from the UI.** The engine builds the
+  invoice (lines, VAT breakdown, totals) from the archived signed requests and FDM responses of
+  the referenced N events. The UI only sends sale event ids and a customer id. Supplier data
+  comes from the configuration.
+- **V11-D4 One invoice per sale.** An N event may be referenced by at most one invoice
+  (`invoice_sales.sale_fiscal_event_id UNIQUE`). A refund N may be invoiced (UC4122). Training
+  (T) events, copies and anything not labelled N are refused.
+- **V11-D5 Invoice numbering.** `invoiceNo = <issue year YYYY><sequence, at least 4 digits>`
+  where the sequence is ONE continuous counter over all invoices of the installation, never
+  reset (AM art. 32 "numérotation continue séparée"); the year prefix keeps the shape of the
+  M150 fixture (`20240005`). Allocated under the sign guard as `MAX(seq)+1` from the `invoices`
+  table; the number travels in the pending sign context (`PendingContext::Invoice`) so a
+  recovered sign keeps it; it commits with the archive (no gap on FDM failure). The print shows
+  the invoice number and the I event counter (`I eventCounter/totalCounter`).
+- **V11-D6 Cost center.** The I request carries `costCenter {id: "C<customer id>", type:
+  CUSTOMER, reference: <customer name, max 600 chars>}` like M150 and UC4121.
+- **V11-D7 No invoice in training mode.** `sign_invoice_fiscal` refuses with `invoice_training_mode`.
+  Conservative: a training invoice would reference training sales and make a T event; nothing in
+  the spec requires it.
+- **V11-D8 Who.** Invoices: `Access::Cashier` (issued at the counter like the sale). Retrying a
+  Peppol delivery and the Peppol panel: `Access::Admin`. Sold-out: `Access::Cashier`. Menu
+  editor and sales reports: `Access::Admin`.
+- **V11-D9 Peppol identifiers.** A Belgian participant is `0208:<10-digit enterprise number>`
+  (the VAT number without `BE`); the current `0208:BE...` value in `invoice.rs` is a bug. Only
+  Belgian customers (`BE` VAT) are delivered over Peppol in v1.1; others are printed only and
+  their delivery row is not created. The supplier id comes from `peppol.sender_id` in the
+  configuration.
+- **V11-D10 Offline-safe lookup.** Customer VAT entry is validated offline (Belgian check digits:
+  the 10-digit number, last two digits = 97 minus the first eight modulo 97; foreign: country
+  prefix plus 2 to 13 alphanumerics). The Peppol lookup is an access point discovery call with a
+  3 s timeout whose result is cached on the customer (`registered`, `not_registered`, `unknown`
+  plus `checked_at`); a failure or no network gives `unknown` and NEVER blocks the invoice (the I
+  event only needs the FDM). The queue worker redoes the lookup before submitting when the
+  status is `unknown` or older than 30 days.
+- **V11-D11 UBL in cents, multi-VAT, already paid.** `pos-peppol` computes in i64 cents (no f64
+  money): line net amount = round(line VAT-inclusive amount / (1 + rate)); per VAT category one
+  `TaxSubtotal` whose taxable amount is the sum of its line net amounts and whose tax amount is
+  round(taxable x rate); event-level price changes become document `AllowanceCharge`s with their
+  tax category; `PrepaidAmount` = VAT-inclusive total of the referenced tickets' product lines and
+  price changes (payment rounding excluded, payment lines are not copied); `PayableRoundingAmount`
+  absorbs the cent differences so that `PayableAmount` is `0.00`; `BuyerReference` = invoice
+  number; no `DueDate`. `vat_label_to_bis` keeps its mapping (A/B/C S, D Z, X O).
+- **V11-D12 Peppol queue.** `peppol_deliveries` (migration 1, never shipped with rows) becomes
+  the queue and audit row; migration 40 adds `attempts`, `next_attempt_at`, `last_attempt_at`,
+  `parked_at`, `lookup_status`; statuses stay `queued` (waiting or retrying), `accepted`,
+  `failed` (parked: refused by the AP, recipient not on Peppol, or authentication error). Every
+  attempt is appended to `peppol_delivery_log` (append-only, triggers). Backoff 30 s doubling,
+  capped at 30 min, retried forever while transient (timeout, 429, 5xx); 4xx refusals and "not
+  registered" park the row with a reason; 401 parks and stops the pass. An admin can re-queue a
+  parked row (`retry_peppol_delivery`). A background loop (`background.rs`, wake on new invoice,
+  `timers.peppol_outbox`, default 60 s) drains the queue, only when `peppol` is configured.
+- **V11-D13 Access point implementation.** `AccessPoint` gains `lookup(participant)`; a
+  `StorecoveAccessPoint` speaking the Storecove API v2 shape (`POST /api/v2/discovery/receives`,
+  `POST /api/v2/document_submissions` with the base64 UBL in `document.rawDocumentData`,
+  `Authorization: Bearer <key>`) is tested ONLY against a local mock: routes added to
+  `crates/pos-fdm-mock` (`/storecove/api/v2/...`, controllable answers, request log), reused by
+  `pos-engine-testkit`. `LoggingAccessPoint` stays (dev default when `peppol.provider` is
+  `logging`). Existing identifiers cited by the v1.0.0 dossiers are kept (see section 9).
+- **V11-D21 Invoice print.** New `pos-print` layout: FACTURE in capitals, invoice number and I
+  counter, seller (name, address, VAT, establishment number), customer (name, address, VAT),
+  issue date, references of the original tickets (`fdmId-N eventCounter/totalCounter` and their
+  ticket numbers and dates), the product lines of those tickets (consolidation allowed, AM art.
+  34), VAT breakdown per rate (base, VAT, total), total, "déjà payé" mention, FDM control data of
+  the I event WITHOUT the digital signature (AM art. 43) and without QR, the footer CECI N'EST PAS
+  UN TICKET DE CAISSE TVA VALABLE. A copy (event C referencing the I) prints the same layout with
+  COPIE and "copie établie le ...". Invoices are always printed on paper in v1.1.
+- **V11-D22 Invoice journal (AM art. 33).** Migration 40 creates the SQL view
+  `v_invoice_journal` (invoice no, date, customer VAT and name, base and VAT per rate, total, I
+  event FDM reference, Peppol status) over append-only tables; the database is the export (as in
+  the v1.0.0 answer "SQLite lisible directement"), and the v1.1 dossier draft gives the query.
+- **V11-D23 Command name `sign_invoice_fiscal` (T1, 2026-10-17).** The plan table names the
+  command `sign_invoice`, but plan section 9 and the v1.0.0 dossier check (`check_dossier.py`
+  rust-ident rule) keep `sign_invoice_fiscal` and `do_sign_invoice_fiscal` as existing
+  identifiers. The Tauri wrapper, the engine function and the FFI method are therefore
+  `sign_invoice_fiscal`; the arguments are those of the plan (`sale_event_ids`, `customer_id`,
+  `employee_insz`). T2 (UI) calls this name. The command count is 96 - 2 old wrappers + 9 new =
+  103, in `check_command_parity.py` and `test_check_command_parity.py`. `do_issue_b2b_invoice`
+  stays an engine function (it queues the delivery of an invoice signed without one) and is not
+  a command.
+- **V11-D24 VAT label X in the UBL (T1).** The plan says X maps to category O; the existing
+  mapping and its test map X to E (exempt) and the golden file follows. Kept unchanged, with the
+  reason recorded here: the v1.0.0 identifier `vat_label_to_bis` is cited by the dossiers. To be
+  revisited with the live Storecove sandbox (owner task).
+- **V11-D25 Customers (T1).** A customer is checked offline when saved: valid VAT number, every
+  address field present (600 characters at most), and a Belgian number goes with a Belgian
+  address (the country is the one of the VAT number when left empty). A VAT number is held by
+  one customer: saving it again updates that customer. Saving and searching are `Access::Cashier`.
+  The Peppol status cached on the customer is used for a new delivery for 30 days, then the
+  delivery starts as `unknown` and the queue asks again (V11-D10).
+- **V11-D26 Archive transaction (T1).** The `invoices`, `invoice_sales` and `peppol_deliveries`
+  rows are written in the same transaction as the I archive and the counter advance
+  (`PendingContext::Invoice`, applied in `signing.rs`), so a request answered late
+  (`resolve_open`) leaves the same rows and the same number as a request answered at once. The
+  print and the queue wake-up happen in the follow-up, with no lock held. A product sold under
+  several VAT labels is listed once per label; price changes of a whole ticket become one line
+  per reason and label; the VAT rows are the FDM's `vatCalc` summed per label.
+- **V11-D27 Copy of an invoice (T1).** A copy (C) of an I event rebuilds the invoice from its
+  rows and the archives of its sales (`CopyTicket::Invoice`) and prints it with COPIE and the
+  copy's own control data; no digital ticket is made for it.
+- **V11-D28 Queue outcomes (T1).** Transient and transport errors stay queued with the backoff;
+  an unreadable answer or a refused document (4xx) parks the delivery; 401 or 403 parks it and
+  stops the pass; a recipient the network does not know parks it before any submission. A
+  lookup that fails or times out never parks anything. `peppol_outbox` is a new engine timer
+  (60 s) and the background loop exists only when the configuration has a `peppol` section.
+- **V11-D29 Gate scripts edited by T1 (Q10).** `check_command_parity.py` drops hygiene rule H7
+  and its test data, `check_ipc_wrappers.py` has no peppol-gated module any more, `p2_gate.sh`
+  `ffi-deps` accepts `pos-peppol`, `build_and_hash.sh` reports the `pos_peppol` symbol count
+  instead of requiring 0, `uc_scope.toml` drops `[M150]`. Self-tests updated.
