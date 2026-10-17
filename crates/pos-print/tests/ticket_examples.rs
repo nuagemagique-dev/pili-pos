@@ -369,6 +369,7 @@ fn base_report(
             event_reductions: (0, 0),
             invoices: vec![],
             rounding_cents: 2,
+            payment_corrections: (0, 0),
         },
     }
 }
@@ -407,4 +408,25 @@ fn example_z_report_de() {
     let data = base_report("Z", Some(1), ReceiptLanguage::De);
     let text = render_plain_text(&pos_print::report::format_report(&data));
     std::fs::write(dir.join("rapport_Z_de.txt"), text).expect("write example");
+}
+
+#[test]
+fn a_z_report_lists_the_payment_corrections_in_every_language() {
+    for (lang, label) in [
+        (ReceiptLanguage::Fr, "Corrections de paiement 2"),
+        (ReceiptLanguage::Nl, "Betalingscorrecties 2"),
+        (ReceiptLanguage::De, "Zahlungskorrekturen 2"),
+    ] {
+        let mut data = base_report("Z", Some(1), lang);
+        // Nothing moved: the line is not printed.
+        let none = render_plain_text(&pos_print::report::format_report(&data));
+        assert!(!none.contains(&label[..label.len() - 2]), "{lang:?}");
+        data.details.payment_corrections = (2, 7800);
+        let text = render_plain_text(&pos_print::report::format_report(&data));
+        let line = text
+            .lines()
+            .find(|l| l.contains(label))
+            .unwrap_or_else(|| panic!("{lang:?}: no corrections line in\n{text}"));
+        assert!(line.contains("78,00") || line.contains("78.00"), "{line}");
+    }
 }

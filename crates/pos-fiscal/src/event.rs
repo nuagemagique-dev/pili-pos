@@ -483,6 +483,63 @@ pub fn build_copy_input(
     }
 }
 
+// ── Event F - Payment correction ───────────────────────────────
+
+/// Build a PaymentCorrectionInput (event F, `signPaymentCorrection`,
+/// Basic Set M132): a sale's payment line of `amount_cents` typed
+/// `from` is taken off (negative PAYMENT line) and the same amount is
+/// put on `to` (positive PAYMENT line). `original_ref` is the FDM
+/// reference of the corrected sale. Both lines are typed by hand
+/// (`MANUAL`), the cash drawer is not named (nothing is put in or out of
+/// it) and nothing is printed (`ticketMedium: NONE`, as the fixture).
+#[allow(clippy::too_many_arguments)]
+pub fn build_payment_correction_input(
+    config: &PosConfig,
+    identity: &SoftwareIdentity,
+    ticket_number: i64,
+    employee_insz: &str,
+    booking: &Booking,
+    original_ref: &FdmReference,
+    from: PaymentType,
+    to: PaymentType,
+    amount_cents: i64,
+) -> PaymentCorrectionInput {
+    let common = build_common_fields(
+        config,
+        identity,
+        ticket_number,
+        employee_insz,
+        booking,
+        TicketMedium::None,
+    );
+    let line = |payment_type: PaymentType, cents: i64| {
+        let (id, name) = payment_line_identity(payment_type);
+        PaymentLineInput {
+            id: id.to_string(),
+            name: name.to_string(),
+            payment_type,
+            provider: None,
+            input_method: InputMethod::Manual,
+            amount: eur(cents),
+            amount_type: PaymentLineType::Payment,
+            foreign_currency: None,
+            reference: None,
+            drawer: None,
+        }
+    };
+    PaymentCorrectionInput {
+        common,
+        financials: vec![line(from, -amount_cents), line(to, amount_cents)],
+        fdm_ref: FdmReferenceInput {
+            fdm_id: original_ref.fdm_id.clone(),
+            fdm_date_time: original_ref.fdm_date_time.clone(),
+            event_label: original_ref.event_label,
+            event_counter: original_ref.event_counter,
+            total_counter: original_ref.total_counter,
+        },
+    }
+}
+
 // ── Event I - Invoice ──────────────────────────────────────────
 
 /// Build an InvoiceInput (event I) for a B2B invoice covering one or
@@ -1061,6 +1118,57 @@ mod tests {
         assert_eq!(copy.fdm_ref.fdm_id, "FDM001");
         assert_eq!(copy.fdm_ref.event_counter, 42);
         assert_eq!(copy.fdm_ref.total_counter, 100);
+    }
+
+    #[test]
+    fn a_payment_correction_takes_the_amount_off_one_method_and_puts_it_on_another() {
+        let config = test_config();
+        let bp_id = Uuid::new_v4().to_string();
+        let original = FdmReference {
+            fdm_id: "FDM001".to_string(),
+            fdm_date_time: "2026-04-09T19:00:00+02:00".to_string(),
+            event_label: EventLabel::N,
+            event_counter: 14,
+            total_counter: 50,
+        };
+        let input = build_payment_correction_input(
+            &config,
+            &ident(),
+            3,
+            "00000000029",
+            &bk(&bp_id),
+            &original,
+            PaymentType::Cash,
+            PaymentType::CardDebit,
+            5200,
+        );
+        let json = serde_json::to_value(&input).unwrap();
+        assert_eq!(json["ticketMedium"], "NONE");
+        assert!(json.get("drawer").is_none());
+        assert!(json.get("transaction").is_none());
+        assert_eq!(json["fdmRef"]["eventCounter"], 14);
+        assert_eq!(json["fdmRef"]["eventLabel"], "N");
+        let f = json["financials"].as_array().unwrap();
+        assert_eq!(f.len(), 2);
+        assert_eq!(
+            (
+                f[0]["type"].as_str(),
+                f[0]["amount"].as_f64(),
+                f[0]["id"].as_str()
+            ),
+            (Some("CASH"), Some(-52.0), Some("1"))
+        );
+        assert_eq!(
+            (
+                f[1]["type"].as_str(),
+                f[1]["amount"].as_f64(),
+                f[1]["id"].as_str()
+            ),
+            (Some("CARD_DEBIT"), Some(52.0), Some("2"))
+        );
+        assert!(f.iter().all(|l| l["inputMethod"] == "MANUAL"
+            && l["amountType"] == "PAYMENT"
+            && l.get("drawer").is_none()));
     }
 
     #[test]

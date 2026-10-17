@@ -406,6 +406,7 @@ fn vi_z_the_official_z_report_example() {
             event_reductions: (0, 0),
             invoices: vec![("314".to_string(), 1204)],
             rounding_cents: 3,
+            payment_corrections: (0, 0),
         },
     };
     let text = normalized(&format_report(&data));

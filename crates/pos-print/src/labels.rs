@@ -162,6 +162,8 @@ pub(crate) struct ReportLabels {
     pub(crate) payments_title: &'static str,
     pub(crate) payments_total: &'static str,
     pub(crate) roundings: &'static str,
+    /// Payment method corrections (count, amount moved).
+    pub(crate) payment_corrections: &'static str,
     /// User report (M182 / M183).
     pub(crate) user_report_prefix: &'static str,
     pub(crate) first_event: &'static str,
@@ -199,6 +201,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "PAIEMENTS ENREGISTRES",
             payments_total: "Total des paiements",
             roundings: "Arrondis",
+            payment_corrections: "Corrections de paiement",
             user_report_prefix: "RAPPORT UTIL.",
             first_event: "Premier event:",
             last_event: "Dernier event:",
@@ -232,6 +235,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "GEREGISTREERDE BETALINGEN",
             payments_total: "Totaal betalingen",
             roundings: "Afrondingen",
+            payment_corrections: "Betalingscorrecties",
             user_report_prefix: "RAPPORT GEBR.",
             first_event: "Eerste event:",
             last_event: "Laatste event:",
@@ -265,6 +269,7 @@ pub(crate) fn report_labels(lang: ReceiptLanguage) -> &'static ReportLabels {
             payments_title: "ERFASSTE ZAHLUNGEN",
             payments_total: "Summe Zahlungen",
             roundings: "Rundungen",
+            payment_corrections: "Zahlungskorrekturen",
             user_report_prefix: "BERICHT BENUTZER",
             first_event: "Erstes Event:",
             last_event: "Letztes Event:",

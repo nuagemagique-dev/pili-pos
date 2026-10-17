@@ -14,7 +14,11 @@
 //!   Σ(VatInput.priceChanges.amount).
 //! - `departments`: the same sum of label N lines, per department.
 //! - `vats`: Σ of the FDM's `vatCalc` of label N events, per VAT label.
-//! - `payments`: the financials of label N events, per payment method.
+//! - `payments`: the financials of label N events, per payment method,
+//!   plus the lines of the payment corrections (label F, operation
+//!   PAYMENT_CORRECTION): a negative line goes to `negativeCorrections`,
+//!   a positive one to `positiveCorrections`, each line counts once in
+//!   `correctionsCount`, and `totalAmount` is normal + both corrections.
 //! - `negQuantities`: negative lines, per reason, counted once, on the
 //!   event that first transmitted them (producers FAQ Q303, AM of 29
 //!   April 2024 art. 29 v): on the order registration (P, ORDER) for
@@ -208,6 +212,20 @@ fn is_sale(event: &ReportEvent) -> bool {
     event.label == EventLabel::N
 }
 
+impl ReportEvent {
+    /// A payment correction (`signPaymentCorrection`) signed as a real
+    /// F event. A training one (label T) never reaches the turnover.
+    pub fn is_payment_correction(&self) -> bool {
+        self.label == EventLabel::F && self.operation() == Some("PAYMENT_CORRECTION")
+    }
+}
+
+/// A sale or a payment correction: the events whose `financials` the
+/// payment totals add up.
+fn counts_in_payments(event: &ReportEvent) -> bool {
+    is_sale(event) || event.is_payment_correction()
+}
+
 // ── Turnover report ────────────────────────────────────────────────
 
 pub fn turnover(events: &[ReportEvent]) -> TurnoverInput {
@@ -215,7 +233,7 @@ pub fn turnover(events: &[ReportEvent]) -> TurnoverInput {
         transactions: transactions(events),
         departments: departments(events),
         vats: vats(events),
-        payments: payments(events.iter().filter(|e| is_sale(e))),
+        payments: payments(events.iter().filter(|e| counts_in_payments(e))),
         drawers_open_count: events
             .iter()
             .filter(|e| e.label == EventLabel::F && e.operation() == Some("DRAWER_OPEN"))
@@ -421,37 +439,59 @@ fn vats(events: &[ReportEvent]) -> Vec<VatTotalInput> {
         .collect()
 }
 
-/// Payments of the given sales, per method (id, name, type) and per
-/// amount type. Payment corrections are not supported in v1.0.0, so
-/// every amount is a normal amount.
-fn payments<'a>(sales: impl Iterator<Item = &'a ReportEvent>) -> Vec<PaymentTotalInput> {
-    // (id, name, type) → (type, amount type → (amount type, cents))
+/// Payments of the given sales and payment corrections, per method
+/// (id, name, type) and per amount type. A sale line is a normal
+/// amount; a correction line is a negative or positive correction (the
+/// line it removes and the line it adds), counted once each.
+fn payments<'a>(events: impl Iterator<Item = &'a ReportEvent>) -> Vec<PaymentTotalInput> {
+    /// Cents per bucket of one amount type.
+    #[derive(Default)]
+    struct Sums {
+        normal: i64,
+        negative: i64,
+        positive: i64,
+        count: i64,
+    }
+    // (id, name, type) -> (type, amount type -> (amount type, sums))
     type Key = (String, String, String);
-    type Amounts = BTreeMap<String, (PaymentLineType, i64)>;
+    type Amounts = BTreeMap<String, (PaymentLineType, Sums)>;
     let mut totals: BTreeMap<Key, (PaymentType, Amounts)> = BTreeMap::new();
-    for financial in sales
-        .filter_map(|e| e.request["financials"].as_array())
-        .flatten()
-    {
-        let Ok(payment_type) = serde_json::from_value::<PaymentType>(financial["type"].clone())
-        else {
+    for event in events {
+        let correction = event.is_payment_correction();
+        let Some(financials) = event.request["financials"].as_array() else {
             continue;
         };
-        let amount_type =
-            serde_json::from_value::<PaymentLineType>(financial["amountType"].clone())
-                .unwrap_or(PaymentLineType::Payment);
-        let key = (
-            financial["id"].as_str().unwrap_or_default().to_string(),
-            financial["name"].as_str().unwrap_or_default().to_string(),
-            format!("{payment_type:?}"),
-        );
-        let (_, amounts) = totals
-            .entry(key)
-            .or_insert_with(|| (payment_type, BTreeMap::new()));
-        amounts
-            .entry(format!("{amount_type:?}"))
-            .or_insert((amount_type, 0))
-            .1 += cents(&financial["amount"]);
+        for financial in financials {
+            let Ok(payment_type) = serde_json::from_value::<PaymentType>(financial["type"].clone())
+            else {
+                continue;
+            };
+            let amount_type =
+                serde_json::from_value::<PaymentLineType>(financial["amountType"].clone())
+                    .unwrap_or(PaymentLineType::Payment);
+            let key = (
+                financial["id"].as_str().unwrap_or_default().to_string(),
+                financial["name"].as_str().unwrap_or_default().to_string(),
+                format!("{payment_type:?}"),
+            );
+            let (_, amounts) = totals
+                .entry(key)
+                .or_insert_with(|| (payment_type, BTreeMap::new()));
+            let sums = &mut amounts
+                .entry(format!("{amount_type:?}"))
+                .or_insert((amount_type, Sums::default()))
+                .1;
+            let amount = cents(&financial["amount"]);
+            if !correction {
+                sums.normal += amount;
+            } else if amount < 0 {
+                sums.negative += amount;
+                sums.count += 1;
+            } else {
+                sums.positive += amount;
+                sums.count += 1;
+            }
+        }
     }
     totals
         .into_iter()
@@ -462,13 +502,13 @@ fn payments<'a>(sales: impl Iterator<Item = &'a ReportEvent>) -> Vec<PaymentTota
                 payment_type,
                 amount: amounts
                     .into_values()
-                    .map(|(amount_type, normal)| PaymentTotalAmountInput {
+                    .map(|(amount_type, sums)| PaymentTotalAmountInput {
                         amount_type,
-                        normal_amount: eur(normal),
-                        negative_corrections: 0.0,
-                        positive_corrections: 0.0,
-                        corrections_count: 0,
-                        total_amount: eur(normal),
+                        normal_amount: eur(sums.normal),
+                        negative_corrections: eur(sums.negative),
+                        positive_corrections: eur(sums.positive),
+                        corrections_count: sums.count,
+                        total_amount: eur(sums.normal + sums.negative + sums.positive),
                         normal_foreign: None,
                         corrections_foreign: None,
                     })
@@ -605,7 +645,7 @@ pub fn users(events: &[ReportEvent]) -> Vec<UserItemInput> {
                         })
                     })
                     .collect(),
-                payments: payments(sales()),
+                payments: payments(events.iter().copied().filter(|e| counts_in_payments(e))),
             }
         })
         .collect()
@@ -1076,6 +1116,161 @@ mod tests {
             ]
         );
         assert!(p.iter().all(|x| x.amount[0].corrections_count == 0));
+    }
+
+    /// A payment correction F event: `lines` are (id, name, type,
+    /// amount) of its financials.
+    fn correction(user: &str, label: EventLabel, lines: &[(&str, &str, &str, f64)]) -> ReportEvent {
+        let financials: Vec<Value> = lines
+            .iter()
+            .map(|(id, name, kind, amount)| {
+                json!({ "id": id, "name": name, "type": kind, "inputMethod": "MANUAL",
+                        "amount": amount, "amountType": "PAYMENT" })
+            })
+            .collect();
+        event(
+            label,
+            json!({ "employeeId": user, "posDateTime": "2026-07-03T13:00:00+02:00",
+                    "financials": financials }),
+            signed("PAYMENT_CORRECTION", 8, Value::Null),
+        )
+    }
+
+    #[test]
+    fn a_payment_correction_moves_the_amount_between_methods() {
+        let l = vec![line("1", ("10", "A"), 1, &[("A", 52.0)])];
+        let events = vec![
+            event(
+                EventLabel::N,
+                sale(U1, "2026-07-03T12:00:00+02:00", l, 52.0, cash(52.0)),
+                signed("SALE", 1, Value::Null),
+            ),
+            correction(
+                U2,
+                EventLabel::F,
+                &[
+                    ("1", "Espèces", "CASH", -52.0),
+                    ("2", "Card", "CARD_DEBIT", 52.0),
+                ],
+            ),
+        ];
+        let p = turnover(&events).payments;
+        let got: Vec<_> = p
+            .iter()
+            .map(|x| {
+                let a = &x.amount[0];
+                (
+                    x.id.as_str(),
+                    a.normal_amount,
+                    a.negative_corrections,
+                    a.positive_corrections,
+                    a.corrections_count,
+                    a.total_amount,
+                )
+            })
+            .collect();
+        // Cash: 52 sold, 52 taken away. Card exists only through the
+        // correction: normal 0, positive 52.
+        assert_eq!(
+            got,
+            vec![
+                ("1", 52.0, -52.0, 0.0, 1, 0.0),
+                ("2", 0.0, 0.0, 52.0, 1, 52.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn corrections_add_up_per_method_with_a_count_per_line() {
+        let events = vec![
+            correction(
+                U1,
+                EventLabel::F,
+                &[
+                    ("1", "Cash", "CASH", -10.0),
+                    ("2", "Card", "CARD_DEBIT", 10.0),
+                ],
+            ),
+            correction(
+                U1,
+                EventLabel::F,
+                &[
+                    ("2", "Card", "CARD_DEBIT", -4.5),
+                    ("1", "Cash", "CASH", 4.5),
+                ],
+            ),
+        ];
+        let p = turnover(&events).payments;
+        let cash = &p[0].amount[0];
+        assert_eq!(
+            (
+                cash.negative_corrections,
+                cash.positive_corrections,
+                cash.corrections_count,
+                cash.total_amount
+            ),
+            (-10.0, 4.5, 2, -5.5)
+        );
+        let card = &p[1].amount[0];
+        assert_eq!(
+            (
+                card.negative_corrections,
+                card.positive_corrections,
+                card.corrections_count,
+                card.total_amount
+            ),
+            (-4.5, 10.0, 2, 5.5)
+        );
+    }
+
+    #[test]
+    fn a_training_correction_and_other_f_events_stay_out_of_the_payments() {
+        let money = event(
+            EventLabel::F,
+            json!({ "employeeId": U1, "financials": [
+                { "id": "MOV1", "name": "x", "type": "CASH", "amount": 20.0, "amountType": "MONEY_IN_OUT" }
+            ] }),
+            signed("MONEY_IN_OUT", 3, Value::Null),
+        );
+        let training = correction(
+            U1,
+            EventLabel::T,
+            &[
+                ("1", "Cash", "CASH", -5.0),
+                ("2", "Card", "CARD_DEBIT", 5.0),
+            ],
+        );
+        assert!(turnover(&[money, training]).payments.is_empty());
+    }
+
+    #[test]
+    fn the_user_report_credits_a_correction_to_the_employee_who_signed_it() {
+        let l = vec![line("1", ("10", "A"), 1, &[("A", 52.0)])];
+        let events = vec![
+            event(
+                EventLabel::N,
+                sale(U1, "2026-07-03T12:00:00+02:00", l, 52.0, cash(52.0)),
+                signed("SALE", 1, Value::Null),
+            ),
+            correction(
+                U2,
+                EventLabel::F,
+                &[
+                    ("1", "Espèces", "CASH", -52.0),
+                    ("2", "Card", "CARD_DEBIT", 52.0),
+                ],
+            ),
+        ];
+        let u = users(&events);
+        let seller = u.iter().find(|x| x.employee_id == U1).unwrap();
+        let manager = u.iter().find(|x| x.employee_id == U2).unwrap();
+        assert_eq!(seller.payments.len(), 1);
+        assert_eq!(seller.payments[0].amount[0].corrections_count, 0);
+        assert_eq!(manager.payments.len(), 2);
+        assert_eq!(manager.payments[0].amount[0].negative_corrections, -52.0);
+        assert_eq!(manager.payments[1].amount[0].positive_corrections, 52.0);
+        // The correction is no sale: the manager's turnover stays 0.
+        assert_eq!(manager.total_amount, 0.0);
     }
 
     #[test]
