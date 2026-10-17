@@ -466,6 +466,19 @@ const coreMessages: Messages = {
   "err_courses_disabled": { fr: "Le service en plusieurs temps est désactivé (Réglages).", en: "Courses are switched off (Settings).", zh: "分道出菜已关闭（设置）。" },
   "err_no_course_held": { fr: "Aucune suite en attente.", en: "No course is waiting.", zh: "没有待出的菜。" },
   "err_nothing_printed": { fr: "Aucun bon n'a été imprimé pour ce temps.", en: "No slip was printed for this course.", zh: "此顺序没有已打印的单据。" },
+  // Gift vouchers (v1.2).
+  "err_gift_vouchers_disabled": { fr: "Les bons cadeaux sont désactivés (Réglages).", en: "Gift vouchers are switched off (Settings).", zh: "礼品券已关闭（设置）。" },
+  "err_gift_voucher_settings_invalid": { fr: "Réglage des bons cadeaux invalide ({field}).", en: "Invalid gift voucher setting ({field}).", zh: "礼品券设置无效（{field}）。" },
+  "err_gift_voucher_amount_invalid": { fr: "Un bon cadeau vaut au moins 1,00 EUR et au plus {max} EUR.", en: "A gift voucher is worth at least EUR 1.00 and at most EUR {max}.", zh: "礼品券面值最低 1.00 欧元，最高 {max} 欧元。" },
+  "err_gift_voucher_line_fixed": { fr: "La quantité d'un bon cadeau ne change pas : ajoutez un autre bon ou supprimez la ligne.", en: "A gift voucher quantity cannot change: add another voucher or remove the line.", zh: "礼品券数量不能修改：请再添加一张或删除该行。" },
+  "err_gift_voucher_not_found": { fr: "Aucun bon cadeau avec ce code.", en: "No gift voucher has this code.", zh: "没有此编号的礼品券。" },
+  "err_gift_voucher_code_invalid": { fr: "Code invalide : 12 chiffres attendus, vérifiez la saisie.", en: "Invalid code: 12 digits expected, check the entry.", zh: "编号无效：应为 12 位数字，请检查输入。" },
+  "err_gift_voucher_lookup_throttled": { fr: "Trop d'essais. Réessayez dans {seconds} secondes.", en: "Too many tries. Try again in {seconds} seconds.", zh: "尝试次数过多，请 {seconds} 秒后重试。" },
+  "err_gift_voucher_not_usable": { fr: "Ce bon cadeau ne peut pas être utilisé ici (annulé, ou émis en mode formation / normal).", en: "This gift voucher cannot be used here (cancelled, or issued in training / normal mode).", zh: "此礼品券无法在此使用（已作废，或在培训/正常模式下发行）。" },
+  "err_gift_voucher_expired": { fr: "Ce bon cadeau a expiré.", en: "This gift voucher has expired.", zh: "此礼品券已过期。" },
+  "err_gift_voucher_insufficient": { fr: "Le montant dépasse le solde du bon cadeau.", en: "The amount is more than the gift voucher balance.", zh: "金额超过礼品券余额。" },
+  "err_gift_voucher_payment_invalid": { fr: "Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l'achat d'un bon cadeau, et un bon ne s'utilise qu'une fois par vente.", en: "Gift voucher payment refused: a voucher or meal voucher cannot pay for a gift voucher, and a voucher is used once per sale.", zh: "礼品券支付被拒绝：礼品券或餐券不能用于购买礼品券，且每笔销售只能使用一次同一张礼品券。" },
+  "err_gift_voucher_used": { fr: "Ce bon cadeau a déjà servi : sa vente ne peut pas être remboursée.", en: "This gift voucher was already used: its sale cannot be refunded.", zh: "此礼品券已被使用：其销售不能退款。" },
 };
 
 // Webshop strings are merged only when HubRise is built in, so the

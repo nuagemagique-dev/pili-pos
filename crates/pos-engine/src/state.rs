@@ -63,6 +63,9 @@ pub struct AppState {
     pub support: crate::commands::support::SupportState,
     /// Wrong PIN attempts (`commands::access::verify_pin`).
     pub pin_throttle: crate::commands::access::PinThrottle,
+    /// Failed gift voucher lookups of the last minute
+    /// (`commands::gift_vouchers`).
+    pub gift_voucher_lookups: crate::commands::gift_vouchers::LookupThrottle,
     /// Held while a fiscal event is signed (`commands::signing`).
     pub signing: crate::commands::signing::SigningLock,
     /// The last FDM status answer (`commands::checkout::do_check_fdm_status`).

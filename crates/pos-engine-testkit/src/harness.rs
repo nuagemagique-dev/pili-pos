@@ -158,6 +158,7 @@ impl TestApp {
             session: Mutex::new(None),
             support: pos_engine::commands::support::SupportState::disabled(),
             pin_throttle: Default::default(),
+            gift_voucher_lookups: Default::default(),
             signing: Default::default(),
             fdm_status_cache: Mutex::new(None),
             session_rules: Default::default(),

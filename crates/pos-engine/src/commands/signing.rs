@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use crate::commands::bar_slip::{self, SlipOutcome};
 use crate::commands::delivery::{self, DeliveryOutcome, ResolvedDelivery};
 use crate::commands::errors;
+use crate::commands::gift_vouchers::{self, GiftVoucherPrint, IssuedVoucher, Redemption};
 use crate::state::AppState;
 
 /// How long a command waits for another event to be signed.
@@ -222,6 +223,13 @@ pub(crate) enum PendingContext {
         /// Absent in requests stored before the terminal existed.
         #[serde(default)]
         eft_payment_ids: Vec<i64>,
+        /// The gift vouchers this sale sells (codes drawn at prepare) and
+        /// redeems: written in its archive transaction, also when the
+        /// answer comes late, so a late answer creates the same codes.
+        #[serde(default)]
+        gift_vouchers_issued: Vec<IssuedVoucher>,
+        #[serde(default)]
+        gift_voucher_redemptions: Vec<Redemption>,
     },
     Refund {
         refund_order_id: i64,
@@ -232,6 +240,10 @@ pub(crate) enum PendingContext {
         delivery: StoredDelivery,
         ticket: TicketDraft,
         webshop_order_id: Option<i64>,
+        /// The gift vouchers the refunded sale sold, cancelled with this
+        /// refund (`vouchers_to_cancel`).
+        #[serde(default)]
+        gift_vouchers_cancelled: Vec<i64>,
     },
     TableOrder {
         bar_slip: BarSlip,
@@ -556,10 +568,20 @@ fn apply(
             ticket,
             hubrise_echo,
             eft_payment_ids,
+            gift_vouchers_issued,
+            gift_voucher_redemptions,
             ..
         } => {
             close_order(*order_id)?;
             crate::commands::eft::mark_used(tx, eft_payment_ids, event_ids[0])?;
+            gift_vouchers::apply_sale(
+                tx,
+                *order_id,
+                event_ids[0],
+                *training,
+                gift_vouchers_issued,
+                gift_voucher_redemptions,
+            )?;
             // Training moves no real money: no payment row.
             if !training {
                 for p in payments {
@@ -587,10 +609,17 @@ fn apply(
             total_cents,
             delivery,
             ticket,
+            gift_vouchers_cancelled,
             ..
         } => {
             // Closed even if it was voided while its answer was awaited.
             close_order(*refund_order_id)?;
+            gift_vouchers::apply_refund(
+                tx,
+                *refund_order_id,
+                event_ids[0],
+                gift_vouchers_cancelled,
+            )?;
             if !training {
                 pay(*refund_order_id, method, *total_cents)?;
             }
@@ -663,6 +692,9 @@ fn apply(
 pub(crate) struct FollowUp {
     pub delivery: Option<DeliveryOutcome>,
     pub slip: Option<SlipOutcome>,
+    /// The voucher and balance slips of a sale that sold or redeemed
+    /// gift vouchers (v1.2).
+    pub vouchers: Vec<GiftVoucherPrint>,
 }
 
 /// Print and send what an archived event gives: its ticket, its bar
@@ -691,6 +723,8 @@ pub(crate) async fn follow_up(
             cash,
             delivery,
             bar_slip,
+            gift_vouchers_issued,
+            gift_voucher_redemptions,
             ..
         } => {
             done.delivery = Some(
@@ -709,6 +743,14 @@ pub(crate) async fn follow_up(
                 Some(slip) => print_slip_of(state, config, slip, committed.event_id()).await,
                 None => SlipOutcome::NothingToPrint,
             });
+            done.vouchers = gift_vouchers::print_after_sale(
+                state,
+                config,
+                committed.event_id(),
+                gift_vouchers_issued,
+                gift_voucher_redemptions,
+            )
+            .await;
         }
         PendingContext::Refund {
             open_drawer,

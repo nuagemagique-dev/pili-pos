@@ -11,6 +11,7 @@ use crate::commands::bar_slip::SlipOutcome;
 use crate::commands::delivery::{self, DeliveryOutcome, TicketDeliveryRequest};
 use crate::commands::eft;
 use crate::commands::errors;
+use crate::commands::gift_vouchers::{self, GiftVoucherPrint};
 #[cfg(feature = "hubrise")]
 use crate::commands::hubrise_push;
 use crate::commands::signing::{
@@ -35,6 +36,9 @@ pub struct CheckoutResult {
     pub delivery: Option<DeliveryOutcome>,
     /// The bar / kitchen slip of the lines not yet sent (sales only).
     pub kitchen_slip: Option<SlipOutcome>,
+    /// The gift vouchers the sale sold and the balance slips it gave
+    /// (v1.2); empty for any other sale.
+    pub gift_voucher_prints: Vec<GiftVoucherPrint>,
 }
 
 impl CheckoutResult {
@@ -48,6 +52,7 @@ impl CheckoutResult {
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         }
     }
 }
@@ -193,6 +198,7 @@ pub(crate) async fn sell(
         fiscal_event_id: Some(committed.event_ids[0]),
         delivery: done.delivery,
         kitchen_slip: done.slip,
+        gift_voucher_prints: done.vouchers,
     })
 }
 
@@ -206,6 +212,7 @@ fn recovered_sale(recovered: signing::Recovered) -> CheckoutResult {
         fiscal_event_id: Some(recovered.committed.event_ids[0]),
         delivery: recovered.follow_up.delivery,
         kitchen_slip: recovered.follow_up.slip,
+        gift_voucher_prints: recovered.follow_up.vouchers,
     }
 }
 
@@ -339,6 +346,17 @@ async fn sell_locked(
     eft::attach_cards(&mut settlement, &terminal_cards);
     let unpaid = matches!(payment, Payment::Unpaid);
 
+    // Gift vouchers (v1.2): the vouchers this sale sells and redeems are
+    // checked here, under the signing lock, and the codes of the new ones
+    // are drawn; they are written with the signed sale (`signing::apply`).
+    let voucher_plan = {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        match gift_vouchers::plan_sale(&db, config, order_id, (!unpaid).then_some(&settlement)) {
+            Ok(plan) => plan,
+            Err(e) => return Ok(Err(CheckoutResult::refused(e))),
+        }
+    };
+
     // The number this sale takes; the counter advances only when the
     // signed sale is archived, so a refused sale leaves no gap.
     let label = if config.training_mode {
@@ -393,6 +411,9 @@ async fn sell_locked(
                 CheckoutPaymentMethod::Cash => ("cash", p.amount_cents + settlement.rounding_cents),
                 CheckoutPaymentMethod::Card => ("card", p.amount_cents),
                 CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
+                // Not a cash, card or meal voucher payment: "other", as the
+                // nightly statistics file counts it (STATS_SCHEMA.md v1).
+                CheckoutPaymentMethod::GiftVoucher => ("other", p.amount_cents),
                 // Paid to the platform or the webshop's provider.
                 CheckoutPaymentMethod::App | CheckoutPaymentMethod::Online => {
                     ("other", p.amount_cents)
@@ -408,11 +429,25 @@ async fn sell_locked(
     // A till sale is echoed to HubRise through the outbox, queued with
     // the sale.
     #[cfg(feature = "hubrise")]
-    let hubrise_echo = (!unpaid && !options.online && state.hubrise_switch.is_on()).then(|| {
+    // A sale that sells a gift voucher is not echoed: HubRise has no such
+    // line, and the echo would not add up (V12-D31).
+    let hubrise_echo = (!unpaid
+        && !options.online
+        && voucher_plan.issued.is_empty()
+        && state.hubrise_switch.is_on())
+    .then(|| {
+        // A gift voucher is HubRise's generic "other" payment.
         let payments: Vec<(&str, i64)> = settlement
             .payments
             .iter()
-            .map(|p| (payment_line_identity(p.payment_type()).1, p.amount_cents))
+            .map(|p| {
+                let name = if p.method == CheckoutPaymentMethod::GiftVoucher {
+                    "Other"
+                } else {
+                    payment_line_identity(p.payment_type()).1
+                };
+                (name, p.amount_cents)
+            })
             .collect();
         let body = hubrise_push::build_hubrise_order_body(&order, &lines, &payments);
         serde_json::to_string(&body).unwrap_or_default()
@@ -435,6 +470,8 @@ async fn sell_locked(
         webshop_order_id,
         hubrise_echo,
         eft_payment_ids: terminal_cards.iter().map(|(id, _)| *id).collect(),
+        gift_vouchers_issued: voucher_plan.issued,
+        gift_voucher_redemptions: voucher_plan.redemptions,
     };
     let prepared = Prepared {
         op,
@@ -463,6 +500,7 @@ async fn sell_locked(
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         })),
         Err(failure) => Ok(Err(CheckoutResult {
             success: false,
@@ -472,6 +510,7 @@ async fn sell_locked(
             fiscal_event_id: None,
             delivery: None,
             kitchen_slip: None,
+            gift_voucher_prints: Vec::new(),
         })),
     }
 }

@@ -1127,3 +1127,87 @@ async fn any_operator_works_the_courses_and_only_a_manager_sets_them() {
     as_(&app, MANAGER, UserRole::Admin);
     assert!(do_set_course_settings(&app.state, CourseSettings::default()).is_ok());
 }
+
+#[tokio::test]
+async fn the_gift_voucher_commands_follow_their_roles() {
+    use pos_engine::commands::gift_vouchers::{
+        GiftVoucherSettings, do_add_gift_voucher_line, do_get_gift_voucher_settings,
+        do_list_gift_vouchers, do_lookup_gift_voucher, do_print_gift_voucher,
+        do_set_gift_voucher_settings,
+    };
+    let app = app().await;
+    as_(&app, MANAGER, UserRole::Admin);
+    let order = table(&app, MANAGER, 13);
+    let on = GiftVoucherSettings {
+        enabled: true,
+        ..GiftVoucherSettings::default()
+    };
+    app.logout();
+    assert_eq!(
+        do_get_gift_voucher_settings(&app.state).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, on.clone()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_gift_vouchers(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    // A cashier reads the setting, sells and looks up; the setting, the
+    // list and the duplicate are the manager's.
+    as_(&app, SERVER, UserRole::Cashier);
+    assert!(do_get_gift_voucher_settings(&app.state).is_ok());
+    assert_eq!(
+        do_set_gift_voucher_settings(&app.state, on.clone()).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        errors::GIFT_VOUCHERS_DISABLED
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        errors::GIFT_VOUCHER_NOT_FOUND
+    );
+    assert_eq!(
+        do_list_gift_vouchers(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    // A waiter reads the setting and does nothing else with vouchers.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert!(do_get_gift_voucher_settings(&app.state).is_ok());
+    assert_eq!(
+        do_add_gift_voucher_line(&app.state, order, 2000).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_lookup_gift_voucher(&app.state, "123456789095").unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    as_(&app, MANAGER, UserRole::Admin);
+    assert!(do_set_gift_voucher_settings(&app.state, on).is_ok());
+    assert!(do_add_gift_voucher_line(&app.state, order, 2000).is_ok());
+    assert!(do_list_gift_vouchers(&app.state, None).unwrap().is_empty());
+    assert_eq!(
+        do_print_gift_voucher(&app.state, 1).await.unwrap_err(),
+        errors::GIFT_VOUCHER_NOT_FOUND
+    );
+}

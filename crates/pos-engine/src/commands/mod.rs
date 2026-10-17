@@ -12,6 +12,7 @@ pub mod errors;
 pub mod export;
 pub mod fdm_monitor;
 pub mod financial;
+pub mod gift_vouchers;
 #[cfg(feature = "hubrise")]
 pub mod hubrise;
 #[cfg(feature = "hubrise")]

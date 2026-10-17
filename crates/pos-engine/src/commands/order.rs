@@ -165,6 +165,11 @@ pub fn do_update_order_line_quantity(
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let order_id = order_of_line(&db, line_id)?;
+    // A gift voucher line is one voucher: its quantity never changes
+    // (add another voucher, or remove the line).
+    if super::gift_vouchers::is_voucher_line(&db, line_id) {
+        return Err(errors::GIFT_VOUCHER_LINE_FIXED.into());
+    }
     unchanged_while_pending(&db, order_id)?;
     let floor = eft::charged_floor(&db, order_id)?;
     let tx = db.unchecked_transaction().map_err(errors::internal)?;

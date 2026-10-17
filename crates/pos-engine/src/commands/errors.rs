@@ -222,6 +222,36 @@ pub const NO_COURSE_HELD: &str = "no_course_held";
 /// A reprint of a course no slip ever printed.
 pub const NOTHING_PRINTED: &str = "nothing_printed";
 
+// Gift vouchers (v1.2).
+/// Gift vouchers are switched off (Settings, "Bons cadeaux").
+pub const GIFT_VOUCHERS_DISABLED: &str = "gift_vouchers_disabled";
+/// A settings value out of range (validity 12 to 36 months, maximum
+/// amount at least 1,00 EUR): `gift_voucher_settings_invalid|field=<name>`.
+pub const GIFT_VOUCHER_SETTINGS_INVALID: &str = "gift_voucher_settings_invalid";
+/// A voucher amount under 1,00 EUR or over the maximum:
+/// `gift_voucher_amount_invalid|max=<euros>`.
+pub const GIFT_VOUCHER_AMOUNT_INVALID: &str = "gift_voucher_amount_invalid";
+/// The quantity of a voucher line cannot change: one line, one voucher.
+pub const GIFT_VOUCHER_LINE_FIXED: &str = "gift_voucher_line_fixed";
+/// No voucher has this code.
+pub const GIFT_VOUCHER_NOT_FOUND: &str = "gift_voucher_not_found";
+/// The code is not 12 digits, or its check digits are wrong.
+pub const GIFT_VOUCHER_CODE_INVALID: &str = "gift_voucher_code_invalid";
+/// Too many failed lookups in a minute: `gift_voucher_lookup_throttled|seconds=<n>`.
+pub const GIFT_VOUCHER_LOOKUP_THROTTLED: &str = "gift_voucher_lookup_throttled";
+/// The voucher cannot be used here: cancelled, or sold in the other mode
+/// (training or normal).
+pub const GIFT_VOUCHER_NOT_USABLE: &str = "gift_voucher_not_usable";
+/// The voucher's validity ended.
+pub const GIFT_VOUCHER_EXPIRED: &str = "gift_voucher_expired";
+/// The part is more than the voucher's balance.
+pub const GIFT_VOUCHER_INSUFFICIENT: &str = "gift_voucher_insufficient";
+/// A voucher part that names no voucher, names one twice, or pays an
+/// order that sells a voucher (a voucher or meal voucher cannot pay a voucher).
+pub const GIFT_VOUCHER_PAYMENT_INVALID: &str = "gift_voucher_payment_invalid";
+/// The voucher sold on this line was already used: it cannot be refunded.
+pub const GIFT_VOUCHER_USED: &str = "gift_voucher_used";
+
 /// A problem of `pos.json` (an English text of
 /// `PosConfig::problems`) as a coded error: its `config_<setting>` code
 /// and the text as `detail`.
@@ -261,6 +291,18 @@ pub const ALL: &[&str] = &[
     COURSES_DISABLED,
     NO_COURSE_HELD,
     NOTHING_PRINTED,
+    GIFT_VOUCHERS_DISABLED,
+    GIFT_VOUCHER_SETTINGS_INVALID,
+    GIFT_VOUCHER_AMOUNT_INVALID,
+    GIFT_VOUCHER_LINE_FIXED,
+    GIFT_VOUCHER_NOT_FOUND,
+    GIFT_VOUCHER_CODE_INVALID,
+    GIFT_VOUCHER_LOOKUP_THROTTLED,
+    GIFT_VOUCHER_NOT_USABLE,
+    GIFT_VOUCHER_EXPIRED,
+    GIFT_VOUCHER_INSUFFICIENT,
+    GIFT_VOUCHER_PAYMENT_INVALID,
+    GIFT_VOUCHER_USED,
     NOT_LOGGED_IN,
     FORBIDDEN,
     NOT_THE_OPERATOR,

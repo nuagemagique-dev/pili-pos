@@ -363,6 +363,7 @@ impl Engine {
                 session: Mutex::new(None),
                 support: crate::commands::support::SupportState::with_program(support_program),
                 pin_throttle: Default::default(),
+                gift_voucher_lookups: Default::default(),
                 signing: Default::default(),
                 fdm_status_cache: Mutex::new(None),
                 session_rules: Default::default(),
