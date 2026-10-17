@@ -973,3 +973,124 @@ async fn wrong_pins_lock_the_user_out_even_for_the_right_pin() {
         .starts_with("pin_locked|")
     );
 }
+
+// ── Invoices and Peppol (v1.1) ─────────────────────────────────
+
+#[tokio::test]
+async fn invoice_commands_follow_the_roles() {
+    use pos_engine::commands::invoice::{
+        B2bCustomerInput, do_invoice_preview, do_list_invoiceable_sales, do_list_invoices,
+        do_list_peppol_deliveries, do_lookup_b2b_customer, do_retry_peppol_delivery,
+        do_save_b2b_customer, do_search_b2b_customers, do_sign_invoice_fiscal,
+    };
+    const CASHIER: &str = "75061189702";
+    let form = || B2bCustomerInput {
+        id: None,
+        vat_number: "BE0308357159".into(),
+        name: "Client".into(),
+        street: "Rue 1".into(),
+        postal_code: "4000".into(),
+        city: "Liege".into(),
+        country_code: String::new(),
+    };
+    let app = app().await;
+    let sale = paid_sale(&app).await;
+
+    // Nobody logged in: everything is refused.
+    app.logout();
+    assert_eq!(
+        do_list_invoiceable_sales(&app.state, None, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_invoice_preview(&app.state, &[sale]).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_search_b2b_customers(&app.state, "BE").unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_save_b2b_customer(&app.state, form()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_invoices(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_peppol_deliveries(&app.state, None).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_retry_peppol_delivery(&app.state, 1).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_lookup_b2b_customer(&app.state, "BE0308357159")
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_sign_invoice_fiscal(&app.state, vec![sale], 1, CASHIER.into())
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // A waiter takes orders, not invoices.
+    as_(&app, APPRENTICE, UserRole::Waiter);
+    assert_eq!(
+        do_list_invoiceable_sales(&app.state, None, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_save_b2b_customer(&app.state, form()).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_sign_invoice_fiscal(&app.state, vec![sale], 1, APPRENTICE.into())
+            .await
+            .unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_list_peppol_deliveries(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+
+    // A cashier invoices and manages customers, but the Peppol panel is for managers.
+    as_(&app, CASHIER, UserRole::Cashier);
+    let customer = do_save_b2b_customer(&app.state, form()).unwrap();
+    assert_eq!(
+        do_search_b2b_customers(&app.state, "BE03").unwrap().len(),
+        1
+    );
+    assert!(do_list_invoiceable_sales(&app.state, None, None).is_ok());
+    assert!(do_list_invoices(&app.state, None).is_ok());
+    assert_eq!(
+        do_list_peppol_deliveries(&app.state, None).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    assert_eq!(
+        do_retry_peppol_delivery(&app.state, 1).unwrap_err(),
+        ERR_FORBIDDEN
+    );
+    // Nobody signs in someone else's name.
+    assert_eq!(
+        do_sign_invoice_fiscal(&app.state, vec![sale], customer.id, MANAGER.into())
+            .await
+            .unwrap_err(),
+        ERR_NOT_THE_OPERATOR
+    );
+    let signed = do_sign_invoice_fiscal(&app.state, vec![sale], customer.id, CASHIER.into())
+        .await
+        .unwrap();
+    assert!(signed.success, "{:?}", signed.error);
+
+    // A manager reaches the panel (Peppol is not set up on this installation).
+    as_(&app, MANAGER, UserRole::Admin);
+    let panel = do_list_peppol_deliveries(&app.state, None).unwrap();
+    assert!(!panel.configured);
+}

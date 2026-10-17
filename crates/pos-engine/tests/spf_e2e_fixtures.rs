@@ -35,6 +35,9 @@ use pos_core::order::OrderType;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::invoice::{
+    B2bCustomerInput, do_save_b2b_customer, do_sign_invoice_fiscal,
+};
 use pos_engine::commands::order::{AddOrderLineInput, do_add_order_line};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::social::{do_work_in, do_work_out};
@@ -511,6 +514,72 @@ async fn m141_work_out() {
 
     assert_matches_fixture("M141", &requests(&app)[0], &vars, &[]);
     app.dump_evidence("M141");
+}
+
+// ── Invoice (I) ────────────────────────────────────────────────────
+
+/// A saved customer named like the fixture's cost center reference.
+fn fixture_customer(app: &TestApp, vars: &Value) -> i64 {
+    do_save_b2b_customer(
+        &app.state,
+        B2bCustomerInput {
+            id: None,
+            vat_number: vars["customerVatNo"].as_str().unwrap().to_string(),
+            name: vars["costCenter"]["reference"]
+                .as_str()
+                .unwrap()
+                .to_string(),
+            street: "Rue du Test 1".to_string(),
+            postal_code: "4000".to_string(),
+            city: "Liege".to_string(),
+            country_code: "BE".to_string(),
+        },
+    )
+    .expect("save customer")
+    .id
+}
+
+#[tokio::test]
+// covers: FAQ_Q505
+async fn m150_invoice() {
+    let sale = variables("M110");
+    let invoice = variables("M150");
+    let app = spf_app(&operator(&invoice)).await;
+    let customer_id = fixture_customer(&app, &invoice);
+    // Two sales, as the fixture's invoice references two events.
+    let mut sale_ids = Vec::new();
+    for _ in 0..2 {
+        let order_id = order_from(&app, &sale, OrderType::DineIn, Some(1));
+        mock_uc(&app, "M110", None).await;
+        let result = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+            .await
+            .unwrap();
+        assert!(result.success, "{:?}", result.error);
+        sale_ids.push(app.fiscal_events().last().unwrap().id);
+    }
+    mock_uc(&app, "M150", None).await;
+
+    let result = do_sign_invoice_fiscal(&app.state, sale_ids, customer_id, operator(&invoice))
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+
+    let ours = &requests(&app)[2];
+    assert_matches_fixture("M150", ours, &invoice, &[]);
+    // The business fields the comparison does not cover: the invoice number is a year and a
+    // sequence, the cost center names the customer.
+    let no = ours["invoiceNo"].as_str().unwrap();
+    assert_eq!(no.len(), 8, "{no}");
+    assert!(no.chars().all(|c| c.is_ascii_digit()), "{no}");
+    assert!(no.ends_with("0001"), "{no}");
+    assert_eq!(ours["costCenter"]["type"], invoice["costCenter"]["type"]);
+    assert_eq!(
+        ours["costCenter"]["reference"],
+        invoice["costCenter"]["reference"]
+    );
+    assert_eq!(ours["costCenter"]["id"], format!("C{customer_id}"));
+    assert_eq!(ours["fdmRefs"].as_array().unwrap().len(), 2);
+    app.dump_evidence("M150");
 }
 
 // ── Copies (C) ─────────────────────────────────────────────────────

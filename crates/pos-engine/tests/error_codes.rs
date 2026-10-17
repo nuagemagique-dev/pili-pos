@@ -105,3 +105,27 @@ fn a_text_with_values_names_them() {
         }
     }
 }
+
+#[test]
+fn the_invoice_and_peppol_codes_are_listed_and_translated() {
+    for code in [
+        errors::INVOICE_NO_SALES,
+        errors::INVOICE_SALE_NOT_FOUND,
+        errors::INVOICE_NOT_A_SALE,
+        errors::INVOICE_SALE_ALREADY_INVOICED,
+        errors::INVOICE_TRAINING_MODE,
+        errors::CUSTOMER_VAT_INVALID,
+        errors::CUSTOMER_INCOMPLETE,
+        errors::CUSTOMER_NOT_FOUND,
+        errors::PEPPOL_NOT_CONFIGURED,
+        errors::PEPPOL_DELIVERY_NOT_FOUND,
+        errors::PEPPOL_DELIVERY_NOT_PARKED,
+        errors::CONFIG_PEPPOL,
+    ] {
+        assert!(errors::ALL.contains(&code), "{code} is not in errors::ALL");
+        let text = entry(&format!("err_{code}")).unwrap_or_else(|| panic!("no text for {code}"));
+        for lang in ["fr:", "en:", "zh:"] {
+            assert!(text.contains(lang), "{code} {lang}");
+        }
+    }
+}
