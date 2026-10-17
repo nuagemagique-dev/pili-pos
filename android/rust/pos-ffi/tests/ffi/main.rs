@@ -10,6 +10,7 @@ mod export;
 mod helpers;
 mod hubrise;
 mod install;
+mod invoice;
 mod lifecycle;
 mod orders;
 mod reports;

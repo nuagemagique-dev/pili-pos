@@ -1,8 +1,8 @@
 //! Ownership of every FFI record and enum (PD56), written by P2-T4 from the engine sources.
 //!
 //! One row per type reachable from the 86 cert commands (parameters and return types, through
-//! their fields), from the event payloads and from the money helpers. `invoice` is excluded
-//! (peppol). The owner is the card that defines the type: the file of a domain card is
+//! their fields), from the event payloads and from the money helpers. `invoice` joined the cert set in v1.1
+//! (V11-D1, invoicing is in every build; its records live in `records/invoice.rs`). The owner is the card that defines the type: the file of a domain card is
 //! `records/<owner>.rs`, the shared ones are in `records/common.rs` (this card).
 //!
 //! - **common**: reachable from two or more domains of the command map
@@ -10,7 +10,7 @@
 //!   never redefines one: it imports it with `use super::common::...`.
 //! - **orders** = order, modifiers, menu, tables, session; **checkout** = checkout, unpaid,
 //!   refund, copy, delivery, print; **reports** = report, social, financial, settings,
-//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop.
+//!   fdm_monitor; **auth** = auth, integrations, support; **hubrise** = hubrise, webshop; **invoice** = invoice (v1.1).
 //! - The FFI name is the engine name, except `Display` (`pos_fiscal::types`), which is
 //!   `FdmMessageDisplay`. No two reachable engine types share a name (`Order`, `Category` and
 //!   `Language` also exist in `pos_hubrise_types` and `pos_catalog`, but none of those is
@@ -120,6 +120,17 @@
 //! | `SwitchChange` | `pos_db::queries::integrations::SwitchChange` | auth | get_integrations, set_hubrise_enabled |
 //! | `User` | `pos_core::user::User` | auth | create_user, get_current_user, list_users (+2 commands) |
 //! | `UserRole` | `pos_core::user::UserRole` | auth | create_user, get_current_user, list_users (+2 commands) |
+//! | `B2bCustomerInput` | `pos_engine::commands::invoice::B2bCustomerInput` | invoice | save_b2b_customer |
+//! | `Customer` | `pos_db::queries::invoicing::Customer` | invoice | save_b2b_customer, search_b2b_customers; inside CustomerLookup |
+//! | `CustomerLookup` | `pos_engine::commands::invoice::CustomerLookup` | invoice | lookup_b2b_customer |
+//! | `Delivery` | `pos_db::queries::invoicing::Delivery` | invoice | list_peppol_deliveries (inside PeppolDeliveries) |
+//! | `InvoicePreview` | `pos_engine::commands::invoice::InvoicePreview` | invoice | invoice_preview |
+//! | `InvoiceResult` | `pos_engine::commands::invoice::InvoiceResult` | invoice | sign_invoice_fiscal |
+//! | `InvoiceSummary` | `pos_engine::commands::invoice::InvoiceSummary` | invoice | list_invoices |
+//! | `InvoiceableSale` | `pos_engine::commands::invoice::InvoiceableSale` | invoice | list_invoiceable_sales, invoice_preview |
+//! | `PeppolDeliveries` | `pos_engine::commands::invoice::PeppolDeliveries` | invoice | list_peppol_deliveries |
+//! | `PreviewLine` | `pos_engine::commands::invoice::PreviewLine` | invoice | invoice_preview (inside InvoicePreview) |
+//! | `PreviewVat` | `pos_engine::commands::invoice::PreviewVat` | invoice | invoice_preview (inside InvoicePreview) |
 //! | `AcceptRequest` | `pos_engine::commands::webshop::AcceptRequest` | hubrise | webshop_accept_order |
 //! | `AcceptResult` | `pos_engine::commands::webshop::AcceptResult` | hubrise | webshop_accept_order |
 //! | `Adoption` | `pos_catalog::apply::Adoption` | hubrise | hubrise_adopt_catalog, hubrise_adoption_preview |
@@ -155,5 +166,6 @@ pub mod common;
 pub mod eft;
 pub mod export;
 pub mod hubrise;
+pub mod invoice;
 pub mod orders;
 pub mod reports;

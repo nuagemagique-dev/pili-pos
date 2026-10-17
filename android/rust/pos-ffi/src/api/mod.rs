@@ -5,5 +5,6 @@ pub mod checkout;
 pub mod eft;
 pub mod export;
 pub mod hubrise;
+pub mod invoice;
 pub mod orders;
 pub mod reports;

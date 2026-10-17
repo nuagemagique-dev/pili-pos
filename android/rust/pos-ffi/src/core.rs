@@ -145,6 +145,7 @@ fn timers_from(options: Option<&EngineTimersMs>) -> Result<EngineTimers, PosErro
         idle_lock: positive_ms("idle_lock_ms", t.idle_lock_ms)?,
         fdm_poll: positive_ms("fdm_poll_ms", t.fdm_poll_ms)?,
         export_outbox: EngineTimers::default().export_outbox,
+        peppol_outbox: EngineTimers::default().peppol_outbox,
     })
 }
 
