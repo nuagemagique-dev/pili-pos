@@ -632,5 +632,12 @@ COPIE). Error texts `err_invoice_*`, `err_customer_*`, `err_peppol_*`, `err_conf
 already in `ui/src/i18n.ts` and in the generated Android strings. `ui/src/api/ipc.ts` is
 unchanged on purpose (UI parity stays green until T2 adds the callers).
 
-**Gate notes.** Targeted per-commit tests were run for each crate; R, F, P, D at the end of the
-task are recorded in the T1 report. `:pos-core:apiDump` is run when `pos-core.api` changes.
+**Gate notes.** R (fmt, clippy workspace and cert, `cargo test --workspace` 1856 passed,
+cert tests), F (fmt, clippy `--locked`, tests `--locked`), P (`check_ipc_wrappers.py`,
+`check_command_parity.py --strict` 103/103 and `--hygiene`, `check_ui_parity.py --strict`,
+`vue_to_android.mjs --check`, `lane_paths.py --check`) and D (three dossier checks, `uc_matrix.py`,
+em-dash scan) are green. The Android A set was NOT run: the host had 4 GB free (other lanes fill
+the shared target), under the 6 GB floor, so `:pos-core:apiDump` is still to run. The FFI added
+methods and records change `android/pos-core/api/pos-core.api`; whoever has disk must run
+`:pos-core:apiDump`, review the diff (only invoice additions expected), then the A set. The
+`lock_parity` scripts pass (`android/uccheck/Cargo.lock` refreshed offline).
