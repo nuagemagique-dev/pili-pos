@@ -95,6 +95,24 @@ impl ReportEvent {
         self.request
             .get("transaction")
             .is_some_and(Value::is_object)
+            || self.is_cost_center_change()
+    }
+
+    /// A table transfer (`signCostCenterChange`): its lines sit in
+    /// `transfer.from[].transaction` and `transfer.to[].transaction`.
+    pub fn is_cost_center_change(&self) -> bool {
+        self.label == EventLabel::P && self.request.get("transfer").is_some_and(Value::is_object)
+    }
+
+    /// Every line of the transfer's items, both sides.
+    fn transfer_lines(&self) -> Vec<&Value> {
+        ["from", "to"]
+            .into_iter()
+            .filter_map(|side| self.request["transfer"][side].as_array())
+            .flatten()
+            .filter_map(|item| item["transaction"]["transactionLines"].as_array())
+            .flatten()
+            .collect()
     }
 
     fn employee_id(&self) -> Option<&str> {
@@ -120,6 +138,7 @@ impl ReportEvent {
     pub fn negative_lines(&self) -> Vec<Value> {
         self.lines()
             .iter()
+            .chain(self.transfer_lines())
             .filter(|l| l["mainProduct"]["quantity"].as_f64().unwrap_or(0.0) < 0.0)
             .cloned()
             .collect()
@@ -155,7 +174,14 @@ fn line_amount(line: &Value) -> i64 {
 }
 
 fn transaction_amount(event: &ReportEvent) -> i64 {
-    event.lines().iter().map(line_amount).sum()
+    // A transfer takes lines off one table and puts them on another:
+    // from and to cancel out (0 for a full move).
+    event
+        .lines()
+        .iter()
+        .chain(event.transfer_lines())
+        .map(line_amount)
+        .sum()
 }
 
 fn label_name(label: EventLabel) -> String {
@@ -456,7 +482,7 @@ fn neg_quantities(events: &[ReportEvent]) -> Vec<NegQuantityTotalInput> {
     // reason → (reason, lines, tickets, amount)
     let mut totals: BTreeMap<String, (NegQuantityReason, i64, i64, i64)> = BTreeMap::new();
     for event in events {
-        let lines = if event.is_order_registration() {
+        let lines = if event.is_order_registration() || event.is_cost_center_change() {
             event.negative_lines()
         } else if is_sale(event) {
             let mut registered = event.registered_negatives.clone();
@@ -758,6 +784,49 @@ mod tests {
         assert_eq!(t.departments[0].amount, 30.4);
         assert_eq!(t.payments[0].amount[0].normal_amount, 30.4);
         assert_eq!(users(&events)[0].total_amount, 30.4);
+    }
+
+    /// A table transfer of 2 x 24,00 EUR from T01 to T05.
+    fn transfer_event() -> ReportEvent {
+        let mut from_line = line("1", ("10", "Aperitifs"), -2, &[("A", -24.0)]);
+        from_line["mainProduct"]["negQuantityReason"] = json!("COST_CENTER_CHANGE");
+        let to_line = line("1", ("10", "Aperitifs"), 2, &[("A", 24.0)]);
+        event(
+            EventLabel::P,
+            json!({
+                "employeeId": U1,
+                "posDateTime": "2026-07-03T11:00:00+02:00",
+                "transfer": {
+                    "from": [{ "costCenter": {"id": "T01"}, "transaction": { "transactionLines": [from_line], "transactionTotal": -24.0 } }],
+                    "to": [{ "costCenter": {"id": "T05"}, "transaction": { "transactionLines": [to_line], "transactionTotal": 24.0 } }],
+                },
+            }),
+            json!({"eventOperation": "COST_CENTER_CHANGE"}),
+        )
+    }
+
+    #[test]
+    fn a_table_transfer_counts_once_under_p_with_an_amount_of_zero() {
+        let t = turnover(&[transfer_event()]);
+        let summary: Vec<_> = t
+            .transactions
+            .iter()
+            .map(|x| (label_name(x.event_label), x.ticket_count, x.amount))
+            .collect();
+        assert_eq!(summary, vec![("P".to_string(), 1, 0.0)]);
+        // Not a sale: no department, VAT or payment.
+        assert!(t.departments.is_empty());
+        assert!(t.payments.is_empty());
+    }
+
+    #[test]
+    fn a_table_transfer_counts_its_negative_lines_under_cost_center_change() {
+        let t = turnover(&[transfer_event()]);
+        assert_eq!(t.neg_quantities.len(), 1);
+        let n = &t.neg_quantities[0];
+        assert_eq!(n.neg_quantity_reason, NegQuantityReason::CostCenterChange);
+        assert_eq!((n.neg_quantity_count, n.ticket_count), (1, 1));
+        assert_eq!(n.amount, -24.0);
     }
 
     #[test]

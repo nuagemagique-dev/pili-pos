@@ -385,6 +385,70 @@ pub fn build_pre_bill_input(
     }
 }
 
+// ── Event P - Cost center change (table transfer) ─────────────
+
+/// Build a CostCenterChangeInput (event P, `signCostCenterChange`,
+/// Basic Set M122): the consolidated `lines` of the order leave table
+/// `from_table` (quantity -q, `negQuantityReason` COST_CENTER_CHANGE)
+/// and arrive on `to_table` (quantity +q), one-to-one, under the same
+/// `reference` (the order's). Price changes already on a line travel
+/// with it: same id, name, scope, type and groupingId on both sides
+/// (producers FAQ Q304 d), negated on the from side. Nothing is
+/// printed (`ticketMedium` NONE, as the fixture).
+pub fn build_cost_center_change_input(
+    config: &PosConfig,
+    identity: &SoftwareIdentity,
+    order: &Order,
+    lines: &[OrderLine],
+    line_changes: &crate::price_change::LineChanges,
+    from_table: i32,
+    to_table: i32,
+    ticket_number: i64,
+    booking: &Booking,
+) -> CostCenterChangeInput {
+    let common = build_common_fields(
+        config,
+        identity,
+        ticket_number,
+        &order.user_insz,
+        booking,
+        TicketMedium::None,
+    );
+    let reference = order_reference(order);
+
+    let mut to_transaction = build_transaction(lines, NegQuantityReason::CostCenterChange);
+    crate::price_change::apply(&mut to_transaction, lines, line_changes);
+
+    let negated_lines: Vec<OrderLine> = lines
+        .iter()
+        .map(|l| OrderLine {
+            quantity: -l.quantity,
+            ..l.clone()
+        })
+        .collect();
+    let negated_changes: crate::price_change::LineChanges = line_changes
+        .iter()
+        .map(|(id, changes)| (*id, changes.iter().map(|c| c.negated()).collect()))
+        .collect();
+    let mut from_transaction =
+        build_transaction(&negated_lines, NegQuantityReason::CostCenterChange);
+    crate::price_change::apply(&mut from_transaction, &negated_lines, &negated_changes);
+
+    CostCenterChangeInput {
+        common,
+        transfer: TransferInput {
+            from: vec![TransferItemInput {
+                cost_center: build_table_cost_center(from_table, &reference),
+                transaction: from_transaction,
+            }],
+            to: vec![TransferItemInput {
+                cost_center: build_table_cost_center(to_table, &reference),
+                transaction: to_transaction,
+            }],
+        },
+    }
+}
+
 // ── Event C - Copy ─────────────────────────────────────────────
 
 /// Build a CopyInput for reprinting a previous event.
@@ -1686,5 +1750,88 @@ mod tests {
         // Calling twice must yield the identical reference - it ties
         // together every P/pre-bill/N event of one order's lifetime.
         assert_eq!(order_reference(&order), order_reference(&order));
+    }
+
+    fn transfer_json(changes: &crate::price_change::LineChanges) -> serde_json::Value {
+        let input = build_cost_center_change_input(
+            &test_config(),
+            &ident(),
+            &test_order(),
+            &test_lines(),
+            changes,
+            1,
+            5,
+            7,
+            &bk("bp"),
+        );
+        serde_json::to_value(&input).unwrap()
+    }
+
+    #[test]
+    fn a_transfer_takes_the_lines_off_one_table_and_puts_them_on_the_other() {
+        let v = transfer_json(&Default::default());
+        assert_eq!(v["ticketMedium"], "NONE");
+        assert_eq!(v["employeeId"], "00000000029");
+        let (from, to) = (&v["transfer"]["from"], &v["transfer"]["to"]);
+        assert_eq!(from.as_array().unwrap().len(), 1);
+        assert_eq!(to.as_array().unwrap().len(), 1);
+        assert_eq!(from[0]["costCenter"]["id"], "T01");
+        assert_eq!(to[0]["costCenter"]["id"], "T05");
+        assert_eq!(from[0]["costCenter"]["type"], "TABLE");
+        // One reference for the whole order, on both sides.
+        assert_eq!(from[0]["costCenter"]["reference"], "O1");
+        assert_eq!(to[0]["costCenter"]["reference"], "O1");
+
+        let f = &from[0]["transaction"]["transactionLines"][0];
+        let t = &to[0]["transaction"]["transactionLines"][0];
+        assert_eq!(f["mainProduct"]["quantity"], -2.0);
+        assert_eq!(f["mainProduct"]["negQuantityReason"], "COST_CENTER_CHANGE");
+        assert_eq!(f["mainProduct"]["vats"][0]["price"], -25.0);
+        assert_eq!(f["lineTotal"], -25.0);
+        assert_eq!(from[0]["transaction"]["transactionTotal"], -25.0);
+        assert_eq!(t["mainProduct"]["quantity"], 2.0);
+        assert!(t["mainProduct"].get("negQuantityReason").is_none());
+        assert_eq!(t["lineTotal"], 25.0);
+        assert_eq!(to[0]["transaction"]["transactionTotal"], 25.0);
+        // Same product on both sides.
+        assert_eq!(f["mainProduct"]["productId"], t["mainProduct"]["productId"]);
+        assert_eq!(f["mainProduct"]["unitPrice"], t["mainProduct"]["unitPrice"]);
+    }
+
+    #[test]
+    fn a_transfer_never_writes_a_negative_zero() {
+        let v = transfer_json(&Default::default());
+        let json = v.to_string();
+        assert!(!json.contains("-0.0"), "{json}");
+    }
+
+    #[test]
+    fn a_transfer_carries_the_price_changes_negated_on_the_from_side() {
+        use crate::price_change::{LineChange, LineChanges};
+        let change = LineChange {
+            grouping_id: 3,
+            id: "promo".to_string(),
+            name: "Promo -10 %".to_string(),
+            scope: PriceChangeScope::Event,
+            change_type: PriceChangeType::Public,
+            amount_cents: -250,
+        };
+        let mut changes = LineChanges::new();
+        changes.insert(1, vec![change]);
+        let v = transfer_json(&changes);
+        let from = &v["transfer"]["from"][0]["transaction"];
+        let to = &v["transfer"]["to"][0]["transaction"];
+        let pf = &from["transactionLines"][0]["mainProduct"]["vats"][0]["priceChanges"][0];
+        let pt = &to["transactionLines"][0]["mainProduct"]["vats"][0]["priceChanges"][0];
+        assert_eq!(pt["amount"], -2.5);
+        assert_eq!(pf["amount"], 2.5);
+        for key in ["id", "name", "scope", "type", "groupingId"] {
+            assert_eq!(pf[key], pt[key], "{key}");
+        }
+        assert_eq!(pt["groupingId"], 3);
+        assert_eq!(to["transactionLines"][0]["lineTotal"], 22.5);
+        assert_eq!(from["transactionLines"][0]["lineTotal"], -22.5);
+        assert_eq!(to["transactionTotal"], 22.5);
+        assert_eq!(from["transactionTotal"], -22.5);
     }
 }

@@ -282,6 +282,8 @@ pub(crate) struct BarLabels {
     pub(crate) table: &'static str,
     pub(crate) direct_sale: &'static str,
     pub(crate) items_header: &'static str,
+    /// Title of the table transfer notice.
+    pub(crate) transfer_title: &'static str,
 }
 
 pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
@@ -293,6 +295,7 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Table",
             direct_sale: "Vente directe",
             items_header: "Qte   Article",
+            transfer_title: "TRANSFERT DE TABLE",
         },
         ReceiptLanguage::Nl => &BarLabels {
             title: "BESTELBON",
@@ -301,6 +304,7 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tafel",
             direct_sale: "Directe verkoop",
             items_header: "Aantal Artikel",
+            transfer_title: "TAFELVERPLAATSING",
         },
         ReceiptLanguage::De => &BarLabels {
             title: "BESTELLSCHEIN",
@@ -309,6 +313,7 @@ pub(crate) fn bar_labels(lang: ReceiptLanguage) -> &'static BarLabels {
             table: "Tisch",
             direct_sale: "Direktverkauf",
             items_header: "Menge  Artikel",
+            transfer_title: "TISCHWECHSEL",
         },
     }
 }
