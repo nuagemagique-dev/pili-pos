@@ -1236,3 +1236,8 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **L1F-C2 Later invoice update has no version.** DECISIONS section 10 files the Linux build as 1.0.0 with no Linux v1.1, so event I and Peppol are "prevus dans une mise a jour certifiee ulterieure" in every annex (no version, no phase name). The SPF manual's own "V1.1" and FPSFIN "1.10" are untouched.
 - **L1F-C3 Advanced Set coverage.** 58 UC folders (the 59th entry is the changelog); the 141 fixtures figure was re-run and is right. The stale workspace total (190) is dropped in favour of `RAPPORT_TESTS_BASELINE_FR.md`. `ModifierDialog.vue` is declared shipped for HubRise options; price changes at entry stay deferred.
 - **L1F-C4 CLAUDE.md tree.** Lists the real `ui/src` files and every crate. Fonts are not in `public/`: they come from the `@fontsource` npm packages (Archivo, JetBrains Mono, Noto Sans) imported in `main.ts`.
+
+### Full gate (T5)
+
+- **L1F-G1 Webshop terminal charge without UI arithmetic.** The p5 `ui-money` check failed on the base (`WebshopOrdersStore.chargeWhatIsLeft`: `sumOf` on `amountCents` and a subtraction on `totalCents`, from the card-terminal work, not from this lane). The rest to charge is now the cash row of `EngineHelpers.settlePreview` over the approved card payments plus a cash part without amount (same rule as the checkout view model). The test rigs build the store with the engine-like `CheckoutNatives`.
+- **L1F-G2 Expected gate failures.** `hygiene-paths`, `linux-frozen` and `freeze-tag` of p5/p6 (and `app-only-scope` of p5) fail because this lane edits `frozen` paths on purpose (user-authorized v1 fixes). The orchestrator clears them at the rc3 freeze. No gate script was changed.

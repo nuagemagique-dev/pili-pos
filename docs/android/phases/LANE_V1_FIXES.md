@@ -248,4 +248,31 @@ Android (`docs/android/dossier/screenshots`, emulator):
 
 ## Results
 
-(Filled by T5.)
+T5 full gate, HEAD `dd2bd43b` (plus this docs commit). Heavy commands through `heavy.sh`.
+
+| Step | Result |
+|---|---|
+| cargo fmt --check | PASS |
+| clippy workspace, all targets, -D warnings | PASS |
+| clippy pili-pos feature cert | PASS |
+| cargo test --workspace | PASS, 1834 passed, 0 failed (rc2 base 1800 passed, 1813 counted incl. ignored; no drop) |
+| cargo test -p pili-pos feature cert | PASS (688 passed with the pos-engine cert run) |
+| cargo test -p pos-engine feature cert | PASS |
+| FFI tests (android/rust) | PASS, 258 passed, 0 failed (the rc2 error-count failure is fixed) |
+| check_ipc_wrappers / check_command_parity / check_ui_parity | PASS |
+| vue_to_android.mjs --check | PASS |
+| ui npm run build | PASS |
+| Playwright | PASS, 365 passed (rc2: 354) |
+| p5_gate.sh | FAIL only on hygiene-paths, linux-frozen, app-only-scope, freeze-tag (frozen paths edited on purpose, DECISIONS L1F-G2); ui-money fixed (L1F-G1); Kotlin tests base 2081, head 2099, removed 0; unit tests 2052, kover LINE 97.3%, BRANCH 75.0%; lint, ktlint, detekt PASS |
+| p6_gate.sh | FAIL only on hygiene-paths, linux-frozen, freeze-tag (same reason); everything else PASS (57 checks, 3 failed) |
+| check_dossier.py (Linux) | PASS |
+| check_dossier.py (Android) | PASS |
+| Em-dash in added lines since b3248d2d | none |
+
+All three lane items (presence registration, meal-voucher cards, dossier consistency) are covered by T1 to T4.
+
+### Captures to retake (final)
+
+Linux (`ui/e2e/captures.spec.ts`): `19_admin_users.png`, `19a_admin_presence.png` (new), `09l_eft_meal_voucher.png` (new, the Linux capture PDF must include it). Runbook entries are written.
+
+Android: `A46_employes.png`, `A124_pointage_par_le_gerant.png` (new), `A125_cheques_repas_terminal.png` (new). `A01_login_tuiles.png` only if the capture data holds a presence-only user (it should not). No change to the example sale, so `09_checkout_done.png` stays.
