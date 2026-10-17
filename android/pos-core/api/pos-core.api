@@ -42,6 +42,34 @@ public final class uniffi/pos_ffi/AcceptResult {
 public final class uniffi/pos_ffi/AcceptResult$Companion {
 }
 
+public final class uniffi/pos_ffi/ActiveBadge {
+	public static final field Companion Luniffi/pos_ffi/ActiveBadge$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/ActiveBadge;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/ActiveBadge;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/ActiveBadge;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInsz ()Ljava/lang/String;
+	public final fun getLinkedAt ()Ljava/lang/String;
+	public final fun getLinkedBy ()Ljava/lang/String;
+	public final fun getLinkedByName ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setInsz (Ljava/lang/String;)V
+	public final fun setLinkedAt (Ljava/lang/String;)V
+	public final fun setLinkedBy (Ljava/lang/String;)V
+	public final fun setLinkedByName (Ljava/lang/String;)V
+	public final fun setName (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/ActiveBadge$Companion {
+}
+
 public final class uniffi/pos_ffi/AddOrderLineInput {
 	public static final field Companion Luniffi/pos_ffi/AddOrderLineInput$Companion;
 	public fun <init> (JJILjava/lang/String;Ljava/lang/Long;)V
@@ -399,6 +427,187 @@ public final class uniffi/pos_ffi/Backlog {
 }
 
 public final class uniffi/pos_ffi/Backlog$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeLink {
+	public static final field Companion Luniffi/pos_ffi/BadgeLink$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/BadgeLink;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/BadgeLink;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/BadgeLink;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInsz ()Ljava/lang/String;
+	public final fun getLinkedAt ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setInsz (Ljava/lang/String;)V
+	public final fun setLinkedAt (Ljava/lang/String;)V
+	public final fun setName (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/BadgeLink$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeLogEntry {
+	public static final field Companion Luniffi/pos_ffi/BadgeLogEntry$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/BadgeLogEntry;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/BadgeLogEntry;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/BadgeLogEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAction ()Ljava/lang/String;
+	public final fun getAt ()Ljava/lang/String;
+	public final fun getBy ()Ljava/lang/String;
+	public final fun getByName ()Ljava/lang/String;
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getInsz ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setAction (Ljava/lang/String;)V
+	public final fun setAt (Ljava/lang/String;)V
+	public final fun setBy (Ljava/lang/String;)V
+	public final fun setByName (Ljava/lang/String;)V
+	public final fun setDetail (Ljava/lang/String;)V
+	public final fun setInsz (Ljava/lang/String;)V
+	public final fun setName (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/BadgeLogEntry$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeOutcome {
+	public static final field Companion Luniffi/pos_ffi/BadgeOutcome$Companion;
+	public fun <init> (Luniffi/pos_ffi/BadgeOutcomeKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/User;)V
+	public final fun component1 ()Luniffi/pos_ffi/BadgeOutcomeKind;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Luniffi/pos_ffi/User;
+	public final fun copy (Luniffi/pos_ffi/BadgeOutcomeKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/User;)Luniffi/pos_ffi/BadgeOutcome;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/BadgeOutcome;Luniffi/pos_ffi/BadgeOutcomeKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/User;ILjava/lang/Object;)Luniffi/pos_ffi/BadgeOutcome;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAt ()Ljava/lang/String;
+	public final fun getError ()Ljava/lang/String;
+	public final fun getInsz ()Ljava/lang/String;
+	public final fun getKind ()Luniffi/pos_ffi/BadgeOutcomeKind;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getUser ()Luniffi/pos_ffi/User;
+	public fun hashCode ()I
+	public final fun setAt (Ljava/lang/String;)V
+	public final fun setError (Ljava/lang/String;)V
+	public final fun setInsz (Ljava/lang/String;)V
+	public final fun setKind (Luniffi/pos_ffi/BadgeOutcomeKind;)V
+	public final fun setName (Ljava/lang/String;)V
+	public final fun setUser (Luniffi/pos_ffi/User;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/BadgeOutcome$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeOutcomeKind : java/lang/Enum {
+	public static final field CLOCK_IN Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static final field CLOCK_OUT Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static final field Companion Luniffi/pos_ffi/BadgeOutcomeKind$Companion;
+	public static final field IGNORED Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static final field LOGGED_IN Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static final field PIN_REQUIRED Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static final field PRESENCE_FAILED Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Luniffi/pos_ffi/BadgeOutcomeKind;
+	public static fun values ()[Luniffi/pos_ffi/BadgeOutcomeKind;
+}
+
+public final class uniffi/pos_ffi/BadgeOutcomeKind$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeOverview {
+	public static final field Companion Luniffi/pos_ffi/BadgeOverview$Companion;
+	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/util/List;)Luniffi/pos_ffi/BadgeOverview;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/BadgeOverview;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/BadgeOverview;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBadges ()Ljava/util/List;
+	public final fun getLog ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun setBadges (Ljava/util/List;)V
+	public final fun setLog (Ljava/util/List;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/BadgeOverview$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeSettingsInput {
+	public static final field Companion Luniffi/pos_ffi/BadgeSettingsInput$Companion;
+	public fun <init> (Ljava/lang/String;ZJJJ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()J
+	public final fun copy (Ljava/lang/String;ZJJJ)Luniffi/pos_ffi/BadgeSettingsInput;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/BadgeSettingsInput;Ljava/lang/String;ZJJJILjava/lang/Object;)Luniffi/pos_ffi/BadgeSettingsInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLoginEnabled ()Z
+	public final fun getReader ()Ljava/lang/String;
+	public final fun getWedgeMaxGapMs ()J
+	public final fun getWedgeMaxLen ()J
+	public final fun getWedgeMinLen ()J
+	public fun hashCode ()I
+	public final fun setLoginEnabled (Z)V
+	public final fun setReader (Ljava/lang/String;)V
+	public final fun setWedgeMaxGapMs (J)V
+	public final fun setWedgeMaxLen (J)V
+	public final fun setWedgeMinLen (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/BadgeSettingsInput$Companion {
+}
+
+public final class uniffi/pos_ffi/BadgeSettingsView {
+	public static final field Companion Luniffi/pos_ffi/BadgeSettingsView$Companion;
+	public fun <init> (Ljava/lang/String;ZJJJZ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()J
+	public final fun component6 ()Z
+	public final fun copy (Ljava/lang/String;ZJJJZ)Luniffi/pos_ffi/BadgeSettingsView;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/BadgeSettingsView;Ljava/lang/String;ZJJJZILjava/lang/Object;)Luniffi/pos_ffi/BadgeSettingsView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLoginEnabled ()Z
+	public final fun getReader ()Ljava/lang/String;
+	public final fun getRelinkNeeded ()Z
+	public final fun getWedgeMaxGapMs ()J
+	public final fun getWedgeMaxLen ()J
+	public final fun getWedgeMinLen ()J
+	public fun hashCode ()I
+	public final fun setLoginEnabled (Z)V
+	public final fun setReader (Ljava/lang/String;)V
+	public final fun setRelinkNeeded (Z)V
+	public final fun setWedgeMaxGapMs (J)V
+	public final fun setWedgeMaxLen (J)V
+	public final fun setWedgeMinLen (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/BadgeSettingsView$Companion {
 }
 
 public final class uniffi/pos_ffi/BundleCheck {
@@ -2008,6 +2217,26 @@ public final class uniffi/pos_ffi/FfiConverterSequenceString : uniffi/pos_ffi/Ff
 	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeActiveBadge : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeActiveBadge;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeAdoption : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAdoption;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -2030,6 +2259,26 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeAdoption : uniffi/pos_
 
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeAttention : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAttention;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeBadgeLogEntry : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeBadgeLogEntry;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
 	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
 	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
@@ -2887,6 +3136,26 @@ public final class uniffi/pos_ffi/FfiConverterTypeAcceptResult : uniffi/pos_ffi/
 	public fun write (Luniffi/pos_ffi/AcceptResult;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterTypeActiveBadge : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeActiveBadge;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/ActiveBadge;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/ActiveBadge;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/ActiveBadge;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/ActiveBadge;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/ActiveBadge;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/ActiveBadge;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/ActiveBadge;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterTypeAddOrderLineInput : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAddOrderLineInput;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -3025,6 +3294,146 @@ public final class uniffi/pos_ffi/FfiConverterTypeBacklog : uniffi/pos_ffi/FfiCo
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/Backlog;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/Backlog;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeLink : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeLink;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeLink;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeLink;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeLink;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeLink;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeLink;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeLink;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeLink;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeLogEntry : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeLogEntry;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeLogEntry;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeLogEntry;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeLogEntry;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeLogEntry;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeLogEntry;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeLogEntry;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeLogEntry;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeOutcome : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeOutcome;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeOutcome;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeOutcome;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeOutcome;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeOutcome;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeOutcome;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeOutcome;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeOutcome;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeOutcomeKind : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeOutcomeKind;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeOutcomeKind;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeOutcomeKind;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeOutcomeKind;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeOutcomeKind;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeOutcomeKind;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeOutcomeKind;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeOutcomeKind;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeOverview : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeOverview;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeOverview;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeOverview;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeOverview;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeOverview;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeOverview;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeOverview;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeOverview;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeSettingsInput : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeSettingsInput;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeSettingsInput;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeSettingsInput;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeSettingsInput;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeSettingsInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeSettingsInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeSettingsInput;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeSettingsInput;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeBadgeSettingsView : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeBadgeSettingsView;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/BadgeSettingsView;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeSettingsView;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/BadgeSettingsView;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/BadgeSettingsView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/BadgeSettingsView;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/BadgeSettingsView;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/BadgeSettingsView;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeBundleCheck : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -6025,6 +6434,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun addOrderLine (Luniffi/pos_ffi/AddOrderLineInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun addOrderLineWithModifiers (Luniffi/pos_ffi/AddWithModifiersInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun backupDatabase (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun badgeTap (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkFdmStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkKitchenPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkMailStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6052,6 +6462,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun generateUserXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun generateXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun generateZReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getBadgeSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getCategories (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun getCleanable ()Luniffi/pos_ffi/UniffiCleaner$Cleanable;
 	public fun getCurrentUser (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6077,6 +6488,8 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun hubriseStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun hubriseSyncCatalog (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun leaveOrder (JLuniffi/pos_ffi/LeaveReason;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun linkBadge (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listBadges (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listCartLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listCopyableTickets (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listEftPayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6105,7 +6518,9 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun remoteSupportRunning (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setBadgeSettings (Luniffi/pos_ffi/BadgeSettingsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6137,6 +6552,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun addOrderLine (Luniffi/pos_ffi/AddOrderLineInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun addOrderLineWithModifiers (Luniffi/pos_ffi/AddWithModifiersInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun backupDatabase (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun badgeTap (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkFdmStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkKitchenPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkMailStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6162,6 +6578,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun generateUserXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun generateXReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun generateZReport (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getBadgeSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getCategories (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getCurrentUser (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getIntegrations (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6184,6 +6601,8 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun hubriseStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseSyncCatalog (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun leaveOrder (JLuniffi/pos_ffi/LeaveReason;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun linkBadge (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listBadges (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listCartLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listCopyableTickets (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listEftPayments (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6212,7 +6631,9 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun remoteSupportRunning (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun revokeBadge (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setBadgeSettings (Luniffi/pos_ffi/BadgeSettingsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
