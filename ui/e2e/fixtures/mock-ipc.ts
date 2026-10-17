@@ -157,6 +157,63 @@ export async function shiftsInit(page: Page, shifts: Array<{ userInsz: string; s
   }, shifts);
 }
 
+
+/** The badge reader setting as the engine reports it (reader off). */
+export const BADGE_SETTINGS_OFF = {
+  reader: 'off',
+  loginEnabled: false,
+  wedgeMaxGapMs: 150,
+  wedgeMinLen: 6,
+  wedgeMaxLen: 32,
+  relinkNeeded: false,
+};
+
+/** One scripted answer of `badge_tap`: an outcome, or a refusal code. */
+export type BadgeTapStep =
+  | { kind: 'ignored' | 'clock_in' | 'clock_out' | 'presence_failed' | 'logged_in' | 'pin_required';
+      insz?: string | null; name?: string | null; at?: string | null; error?: string | null; user?: unknown }
+  | { reject: string };
+
+/**
+ * The badge reader's state, before the page loads: the settings, the active
+ * badges and log `list_badges` returns, the answers of `badge_tap` in turn
+ * (once the script is out, a tap is `ignored`) and the refusal of the next
+ * `link_badge`, if any. The state lives in the page (`window.__badge`) so
+ * the settings, link and revoke handlers stay consistent.
+ */
+export async function badgeInit(
+  page: Page,
+  init: {
+    settings?: Partial<typeof BADGE_SETTINGS_OFF>;
+    badges?: Array<{ insz: string; name: string; linkedAt: string; linkedBy: string; linkedByName: string | null }>;
+    log?: unknown[];
+    taps?: BadgeTapStep[];
+    linkReject?: string;
+    /** Names `link_badge` reports, by INSZ. */
+    names?: Record<string, string>;
+  },
+) {
+  await page.addInitScript(
+    ([settings, rest]) => {
+      (window as any).__badge = {
+        settings,
+        badges: rest.badges ?? [],
+        log: rest.log ?? [],
+        taps: [...(rest.taps ?? [])],
+        linkReject: rest.linkReject ?? null,
+        names: rest.names ?? {},
+      };
+    },
+    [{ ...BADGE_SETTINGS_OFF, ...(init.settings ?? {}) }, init] as const,
+  );
+}
+
+/** Press a badge on a USB wedge reader: the number typed fast, then Enter. */
+export async function scanBadge(page: Page, token: string) {
+  await page.keyboard.type(token, { delay: 5 });
+  await page.keyboard.press('Enter');
+}
+
 /** The engine's FdmHealth (event "fdm-status"); healthy unless overridden. */
 export interface FdmHealthMock {
   connected: boolean;
@@ -246,6 +303,55 @@ function defaultHandlers(): Record<string, Handler> {
     set_active_order: () => undefined,
     lock_session: () => ({ orderError: null }),
     sign_pre_bill: () => 'printed',
+
+
+    // Staff badges: the state lives in `window.__badge` (see `badgeInit`).
+    get_badge_settings: live(() => {
+      const b = (window as any).__badge;
+      return b
+        ? b.settings
+        : { reader: 'off', loginEnabled: false, wedgeMaxGapMs: 150, wedgeMinLen: 6, wedgeMaxLen: 32, relinkNeeded: false };
+    }),
+    set_badge_settings: live((args: any = {}) => {
+      const w = window as any;
+      w.__badge = w.__badge ?? { settings: {}, badges: [], log: [], taps: [], linkReject: null };
+      w.__badge.settings = { ...w.__badge.settings, ...args.input, relinkNeeded: false };
+      w.__badge.log = [
+        { action: 'settings', insz: null, name: null, by: '94060242576', byName: 'Bruno Moyse', at: '2026-10-17 12:10:00', detail: null },
+        ...w.__badge.log,
+      ];
+      return w.__badge.settings;
+    }),
+    list_badges: live(() => {
+      const b = (window as any).__badge;
+      return { badges: b ? b.badges : [], log: b ? b.log : [] };
+    }),
+    link_badge: live((args: any = {}) => {
+      const w = window as any;
+      const b = w.__badge;
+      if (b && b.linkReject) return Promise.reject(b.linkReject);
+      const name = (b && b.names && b.names[args.employeeInsz]) || args.employeeInsz;
+      const at = '2026-10-17 12:15:00';
+      if (b) {
+        b.badges = b.badges.concat([{ insz: args.employeeInsz, name, linkedAt: at, linkedBy: '94060242576', linkedByName: 'Bruno Moyse' }]);
+        b.log = [{ action: 'link', insz: args.employeeInsz, name, by: '94060242576', byName: 'Bruno Moyse', at, detail: null }, ...b.log];
+      }
+      return { insz: args.employeeInsz, name, linkedAt: at };
+    }),
+    revoke_badge: live((args: any = {}) => {
+      const b = (window as any).__badge;
+      if (b) {
+        b.badges = b.badges.filter((x: any) => x.insz !== args.employeeInsz);
+        b.log = [{ action: 'revoke', insz: args.employeeInsz, name: null, by: '94060242576', byName: 'Bruno Moyse', at: '2026-10-17 12:20:00', detail: 'manager' }, ...b.log];
+      }
+      return null;
+    }),
+    badge_tap: live(() => {
+      const b = (window as any).__badge;
+      const step = b && b.taps.shift();
+      if (step && step.reject) return Promise.reject(step.reject);
+      return { kind: 'ignored', insz: null, name: null, at: null, error: null, user: null, ...(step ?? {}) };
+    }),
 
     // Social (S) and financial (F) events
     work_in: () => ({ success: true, error: null }),

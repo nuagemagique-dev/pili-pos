@@ -13,6 +13,8 @@ import {
   fdmHealth,
   fdmMocks,
   shiftsInit,
+  badgeInit,
+  scanBadge,
   eftScript,
   settingsWith,
   DEFAULT_ORDER,
@@ -43,6 +45,9 @@ const SCREENSHOTS_DIR = path.resolve(
  * kiosk is always full-screen, so every capture is a plain viewport
  * shot (no `fullPage`). */
 async function capture(page: Page, name: string) {
+  // PILI_CAPTURES_DRY=1 runs the scenarios (and their assertions) without
+  // writing a PNG, to check a scenario without touching the dossier.
+  if (process.env.PILI_CAPTURES_DRY) return;
   await page.screenshot({
     path: path.join(SCREENSHOTS_DIR, `${name}.png`),
     animations: 'disabled',
@@ -500,15 +505,55 @@ test('18_logout - retour à l\'écran de connexion', async ({ page }) => {
   await capture(page, '18_logout');
 });
 
-test('19_admin_users - employés, présence et formulaire d\'ajout', async ({ page }) => {
+// The badge reader of the captures: a USB wedge reader, badge login on,
+// and one badge already linked (Elisa).
+const BADGE_ELISA = { insz: SERVEUR.insz, name: 'Elisa', linkedAt: '2026-10-17 09:10:00', linkedBy: GERANT.insz, linkedByName: 'Gérant Test' };
+const BADGE_LOG = [
+  { action: 'link', insz: SERVEUR.insz, name: 'Elisa', by: GERANT.insz, byName: 'Gérant Test', at: '2026-10-17 09:10:00', detail: null },
+  { action: 'settings', insz: null, name: null, by: GERANT.insz, byName: 'Gérant Test', at: '2026-10-17 09:05:00', detail: null },
+];
+const BADGE_SETTINGS = { reader: 'usb' as const, loginEnabled: true, wedgeMaxGapMs: 50, wedgeMinLen: 6, wedgeMaxLen: 32 };
+
+test('19_admin_users - employés, présence, badges et formulaire d\'ajout', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS, badges: [BADGE_ELISA], log: BADGE_LOG });
   await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
   await shiftsInit(page, [{ userInsz: SERVEUR.insz, startedAt: '2026-10-17T12:02:00+02:00' }]);
   await loginAndGoto(page, '/settings');
   await expect(page.locator('.worker-row')).toHaveCount(4);
   await expect(page.locator('.worker-row', { hasText: 'Gérant Test' }).locator('.worker-meta')).toContainText('Gérant');
   await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).locator('.worker-meta')).toHaveText('Présence seule');
+  await expect(page.locator('.worker-row', { hasText: 'Elisa' }).getByTestId('badge-state')).toHaveText('Badge lié le 17/10/2026');
+  await expect(page.locator('.worker-row', { hasText: 'Elisa' }).getByTestId('badge-btn')).toHaveText('Retirer le badge');
+  await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('badge-btn')).toHaveText('Lier un badge');
   await expect(page.locator('.role-btn')).toHaveCount(4);
   await capture(page, '19_admin_users');
+});
+
+// Proposed capture (runbook): the "Lecteur de badges" panel of the manager.
+test('19b_admin_badges - le panneau Lecteur de badges', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS, badges: [BADGE_ELISA], log: BADGE_LOG });
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await loginAndGoto(page, '/settings');
+  const panel = page.getByTestId('badge-settings');
+  // The panel is folded by default: unfold it for the capture.
+  await panel.getByTestId('badge-toggle').click();
+  await expect(panel.locator('h2')).toHaveText('Lecteur de badges');
+  await expect(panel.locator('.reader-btn.active')).toHaveText('Lecteur USB');
+  await expect(panel.getByTestId('badge-login-switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(panel.getByTestId('badge-wedgeMaxGapMs')).toHaveText('50');
+  await expect(panel.getByTestId('badge-log').locator('li')).toHaveCount(2);
+  await panel.scrollIntoViewIfNeeded();
+  await capture(page, '19b_admin_badges');
+});
+
+// Proposed capture (runbook): the dialog waiting for the badge to link.
+test('19c_badge_enrol - présentation du badge à lier', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS, badges: [BADGE_ELISA], log: BADGE_LOG });
+  await mockTauriIPC(page, { login: () => GERANT, list_users: () => [...STAFF, CUISINIER] });
+  await loginAndGoto(page, '/settings');
+  await page.locator('.worker-row', { hasText: 'Apprenti Test' }).getByTestId('badge-btn').click();
+  await expect(page.getByTestId('badge-present')).toHaveText('Présentez le badge de Apprenti Test');
+  await capture(page, '19c_badge_enrol');
 });
 
 // Proposed capture (runbook): the manager has just clocked the presence-only employee in.
@@ -519,6 +564,34 @@ test('19a_admin_presence - le Gérant pointe un employé', async ({ page }) => {
   await expect(page.locator('.toast', { hasText: 'Arrivée enregistrée · Cuisinier Test' })).toBeVisible();
   await expect(page.locator('.worker-row', { hasText: 'Cuisinier Test' }).getByTestId('presence-btn')).toHaveText('Départ');
   await capture(page, '19a_admin_presence');
+});
+
+// Proposed capture (runbook): a cashier is at the till and a colleague
+// presents their badge; the till shows the arrival and keeps the cashier.
+test('03b_badge_toast - pointage par badge pendant une vente', async ({ page }) => {
+  await badgeInit(page, {
+    settings: BADGE_SETTINGS,
+    taps: [{ kind: 'clock_in', insz: APPRENTI.insz, name: 'Apprenti Test', at: '2026-10-17T12:02:00+02:00' }],
+  });
+  await mockTauriIPC(page, { login: () => SERVEUR, list_users: () => STAFF, list_tables: () => TABLES_BEFORE });
+  await page.goto('/');
+  await page.waitForTimeout(200);
+  await tapUserTile(page, 'Elisa');
+  await page.waitForURL(/tables/);
+  await scanBadge(page, '04A1B2C3');
+  await expect(page.locator('.toast', { hasText: 'Arrivée · Apprenti Test' })).toHaveText('Arrivée · Apprenti Test · 12:02');
+  await capture(page, '03b_badge_toast');
+});
+
+// Proposed capture (runbook): the login screen with the badge reader on.
+// A separate file: 01_login stays as it is (reader off, the default).
+test('01b_login_badge - invitation à présenter son badge', async ({ page }) => {
+  await badgeInit(page, { settings: BADGE_SETTINGS });
+  await mockTauriIPC(page, { list_users: () => STAFF });
+  await page.goto('/');
+  await expect(page.getByTestId('badge-login-hint')).toHaveText('Ou présentez votre badge');
+  await expect(page.locator('.user-btn')).toHaveCount(3);
+  await capture(page, '01b_login_badge');
 });
 
 test.describe('Section 2 - messages du FDM (§V)', () => {
