@@ -29,6 +29,14 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       `EMULATOR37X2X12X0` pour le profil émulé (EV-16 : tickets et capture A82).
 - [ ] Imprimante thermique Epson TM-m30III raccordée au LAN (TCP 9100,
       ni USB ni Bluetooth), tiroir-caisse RJ11 raccordé à l'imprimante.
+- [ ] Lecteur de badges (option, désactivé par défaut) : si
+      l'établissement pointe ou se connecte par badge, lecteur USB HID de
+      type « clavier » (il tape le numéro de la carte puis Entrée, sans
+      pilote). **L'unité principale du Sunmi D3 Pro n'a pas de NFC** ;
+      « NFC intégré » n'est proposé que sur un appareil qui déclare un
+      lecteur NFC (le NFC de l'écran client optionnel est à confirmer sur
+      place). Le réglage Android qui affiche le clavier virtuel avec un
+      clavier physique reste activé (`MANUEL_INSTALLATION_FR.md` §4.4 bis).
 - [ ] FDM module2 sur le LAN, ou, pour la machine de test, simulateur en
       ligne `https://fdm.module2.be/graphql/` : le terminal a alors un
       accès Internet sortant (`SCHEMA_ASSEMBLAGE_FR.md` §7).
@@ -108,6 +116,11 @@ procédures sont dans `MANUEL_INSTALLATION_FR.md`.
       `language` selon la région linguistique de l'établissement.
 - [ ] Contrôle du FDM « connecté » à l'écran de connexion ; première
       connexion d'un Gérant : événement S signé.
+- [ ] Lecteur de badges : « Désactivé » dans « Config » tant qu'aucun
+      lecteur n'est branché ; avec un lecteur, « Lecteur USB » choisi et un
+      badge de test lié puis retiré (arrivée signée par le FDM,
+      `MANUEL_UTILISATEUR_FR.md` §12.13). La clé des badges est créée sur
+      l'appareil, jamais copiée ni sauvegardée.
 - [ ] Sauvegardes : copie de `pos.db` après chaque rapport Z, les 7 plus
       récentes conservées (`PLATEFORME_ANDROID_FR.md` §5.2 ; commit du
       moteur : À effectuer (EV-19 : commit du changement du moteur)).
@@ -198,7 +211,7 @@ Sans adb : tout se lit à l'écran de la caisse.
 1. Mise sous tension ou redémarrage : l'application, seul écran d'accueil
    du terminal, se lance verrouillée en kiosque. Montrer « À propos »
    (empreintes, deviceId, versions).
-2. Connexion (tuile + PIN) ; montrer l'événement fiscal **S** de
+2. Connexion (tuile + PIN, ou badge si le lecteur est activé) ; montrer l'événement fiscal **S** de
    pointage archivé.
 3. Ouvrir la table 4 ; ajouter trois articles ; « Envoyer en cuisine » :
    événement **P** et bon de commande imprimé (sans prix).

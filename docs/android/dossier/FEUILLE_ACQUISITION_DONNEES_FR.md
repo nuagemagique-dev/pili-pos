@@ -118,6 +118,16 @@ pour le contrôleur (§2.2) : la sauvegarde étant chiffrée pour le
 propriétaire, le contrôleur lit toujours la base elle-même. Détail :
 `EXPORT_NOCTURNE_FR.md`.
 
+### 1.8 Badges du personnel (option, désactivée par défaut)
+
+| Élément | Valeur |
+|---|---|
+| Tables | `badge_settings` (réglage unique), `staff_badges` (liens badge / employé, jamais supprimés), `badge_log` (liens, retraits, réglages ; ajout seul), `badge_scans` (passages ; ajout seul), dans `pos.db` (migration 70) |
+| Donnée du badge | Une empreinte HMAC-SHA256 (64 caractères hexadécimaux) ; **jamais le numéro du badge**, ni en base, ni dans les journaux applicatifs, ni dans un événement fiscal ; les journaux portent une référence de 12 caractères de l'empreinte |
+| Clé de l'empreinte | Fichier `badge.key` dans `files/engine/` : 32 octets aléatoires, mode 0600, créé une fois sur l'appareil. Hors de `pos.db`, donc hors des sauvegardes (§1.2) et des exports ; elle ne quitte jamais l'appareil |
+| Données personnelles associées | INSZ de l'employé, INSZ du Gérant qui a lié ou retiré (`staff_badges.user_insz`, `linked_by`, `revoked_by`, `badge_log`, `badge_scans`) |
+| Finalité | Enregistrement de la présence (événement S) et connexion à la caisse, rien d'autre ; aucune donnée biométrique |
+
 ## 2. Accessibilité
 
 ### 2.1 Sur la machine du commerçant
@@ -191,6 +201,7 @@ GROUP BY method;
 | `payments`, `orders`, `order_lines` | Indéfinie | Données de support nécessaires à la reconstruction d'un ticket |
 | Translations, menu_items, modifier_groups, modifiers | Indéfinie | Données de référence. Le menu est mis à jour en place (y compris par la synchronisation du catalogue, qui désactive sans supprimer) ; l'historique fiscal n'en dépend pas : nom, prix et TVA sont figés dans `order_lines` et `order_entries` |
 | `orders.raw_hubrise_json`, `hubrise_events` (commandes en ligne) | Indéfinie, sans purge automatique | Contiennent des données de clients (§6) |
+| `staff_badges`, `badge_log`, `badge_scans` (badges du personnel) | Indéfinie, jamais supprimées (triggers), avec les données de présence | Audit des accès et de la présence ; l'empreinte est inutilisable sans la clé de l'appareil (§1.8) ; un retrait date la ligne sans l'effacer |
 | Exports nocturnes locaux (§1.7), s'ils sont activés | `keep_days` jours (14 par défaut, de 1 à 365), envoyés ou non, puis supprimés automatiquement | Simples copies, ni sources ni archives : la conservation légale est celle de `fiscal_events` (§1.1), que cette suppression ne touche pas. Un export jamais livré qui est supprimé est compté (« Abandonnés ») et journalisé. La durée de conservation chez le récepteur est décidée par le propriétaire de l'établissement (`PROFIL_ENTREPRISE_FR.md` §6.3). |
 
 **Aucune purge n'est implémentée sur les données légales** : le journal
@@ -208,7 +219,7 @@ journaux au-delà de 90 fichiers, exports locaux au-delà de `keep_days`).
   triggers SQLite refusent toute suppression ou réécriture, même par un
   accès direct à la base (`fiscal_events_no_delete`,
   `fiscal_events_no_rewrite` ; idem `z_reports_*`, `order_entries_*`,
-  `pending_signs_*`, `booking_periods_*` ; liste dans `SCHEMA_ER_FR.md`
+  `pending_signs_*`, `booking_periods_*`, `staff_badges_*` (aucune suppression, retrait seul), `badge_log_*`, `badge_scans_*` ; liste dans `SCHEMA_ER_FR.md`
   §4).
 - Les sauvegardes sont stockées en fichiers indépendants, jamais
   écrasés (le nom inclut le timestamp à la seconde) ; seules les plus
@@ -243,7 +254,7 @@ journaux au-delà de 90 fichiers, exports locaux au-delà de `keep_days`).
 - INSZ stocké dans les colonnes `users.insz`, `orders.user_insz`,
   `fiscal_events.user_insz`, `pending_signs.user_insz`,
   `staff_shifts.user_insz`, `webshop_orders.accepted_by`,
-  `integration_switches.changed_by` et `integration_switch_log.changed_by`,
+  `integration_switches.changed_by`, `integration_switch_log.changed_by`, `staff_badges.user_insz`, `badge_log.user_insz` et `badge_scans.user_insz`,
   ainsi que dans les JSON `fiscal_events.event_data_json` (payload
   envoyé au FDM, obligation fiscale), `pending_signs.request_body`,
   `pending_signs.archive_json` et `pending_signs.context_json`, et
@@ -288,6 +299,13 @@ journaux au-delà de 90 fichiers, exports locaux au-delà de `keep_days`).
   propre à l'installation qui n'est jamais envoyée. Un pseudonyme reste
   une donnée personnelle. Base légale, rôles et durées :
   `PROFIL_ENTREPRISE_FR.md` §6 ; détail : `EXPORT_NOCTURNE_FR.md` §5 et §6.
+- Badges du personnel (§1.8, option désactivée par défaut) : le numéro
+  du badge n'est jamais conservé, seulement son empreinte HMAC-SHA256
+  calculée avec une clé qui reste sur l'appareil (hors base, sauvegardes
+  et exports) ; aucune donnée biométrique ; usage limité à la présence et à
+  la connexion ; l'employé peut refuser le badge (`PROFIL_ENTREPRISE_FR.md`
+  §6.1). Le journal des passages (`badge_scans`) conserve l'heure, l'INSZ
+  et le résultat, jamais le numéro.
 
 ## 7. Procédure d'export à fournir au contrôleur
 

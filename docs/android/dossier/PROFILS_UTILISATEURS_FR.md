@@ -79,6 +79,14 @@ Accès complet. Concrètement, peut :
 - Enregistrer l'arrivée et le départ des autres employés, notamment du
   personnel « Présence seule » (Événement S, `signWorkIn` / `signWorkOut`
   au nom de l'employé ; refusé en mode formation et pour soi-même).
+- Régler le lecteur de badges (désactivé par défaut : « Désactivé »,
+  « Lecteur USB », « NFC intégré » si l'appareil a du NFC ; interrupteur « Connexion par badge » ; réglages du lecteur
+  USB), lier un badge à un employé en confirmant avec **son propre PIN**
+  (un badge est un moyen de connexion) et retirer le badge d'un employé
+  (sans PIN : retirer ne fait que supprimer un accès). Chaque lien,
+  retrait et changement de réglage est journalisé en ajout seul
+  (`badge_log`, qui, quand). Ces actions sont refusées aux autres
+  profils (`forbidden`).
 - Créer des utilisateurs (Gérant, Serveur, Apprenti ou « Présence seule »), en désactiver
   ("Désactiver" ; jamais soi-même ; jamais de suppression : l'INSZ reste
   sur les événements signés) et fixer leur PIN. Créer un Gérant ou
@@ -90,6 +98,11 @@ Profil d'opérateur de caisse standard. Peut :
 
 - Se connecter avec sa tuile (ou son INSZ) + code PIN (Événement S -
   `signWorkIn`, sauf s'il est déjà en service).
+- Se connecter avec son badge à la place du PIN, si le Gérant a activé
+  le lecteur et la connexion par badge (même Événement S). Une fois
+  connecté, son propre badge est refusé (`presence_self` : sa présence
+  passe par la connexion et « Fin de service »), mais il peut présenter
+  le badge d'un collègue pour enregistrer la présence de celui-ci (§3).
 - Verrouiller l'écran, sans pointer son départ ; pointer son départ
   ("Fin de service" sur l'écran de connexion, Événement S -
   `signWorkOut`).
@@ -113,6 +126,9 @@ Profil d'opérateur de caisse standard. Peut :
 Profil restreint. Peut :
 
 - Se connecter, verrouiller l'écran et pointer son départ.
+- Se connecter avec son badge à la place du PIN, si le Gérant a activé
+  le lecteur et la connexion par badge ; présenter le badge d'un
+  collègue pour enregistrer sa présence (§3).
 - Ouvrir / réutiliser une table.
 - Ajouter, retirer ou modifier les lignes d'une commande ouverte
   (chaque correction est journalisée et transmise au FDM).
@@ -151,13 +167,20 @@ ce qui ne lui donne aucun droit supplémentaire. Il :
 - **ne peut pas** se connecter, ni choisir un PIN, ni terminer son
   service lui-même : le moteur refuse ces commandes avec le code
   `presence_only_user`, avant toute vérification de PIN ;
-- n'est pointé que par un Gérant, depuis "Config", panneau "Employés"
+- est pointé par un Gérant, depuis "Config", panneau "Employés"
   (boutons "Arrivée" et "Départ", `commands::social::do_clock_in_employee`
-  et `do_clock_out_employee`) : l'événement S est signé par le FDM au
-  nom de l'employé, et le Gérant qui l'a enregistré est conservé dans
-  `staff_shifts.started_by` / `ended_by` ;
+  et `do_clock_out_employee`), ou par son propre badge (puce suivante) :
+  dans les deux cas l'événement S est signé par le FDM au nom de
+  l'employé ; le Gérant qui l'a enregistré est conservé dans
+  `staff_shifts.started_by` / `ended_by` (vides pour un badge) ;
+- peut recevoir un badge (lié par un Gérant avec son PIN) : lorsqu'il le
+  présente sur le lecteur, depuis n'importe quel écran ou sur l'écran de
+  connexion, le moteur enregistre son arrivée ou son départ
+  (`commands::badges::do_badge_tap`, Événement S au nom de l'employé,
+  `started_by` / `ended_by` vides). Un badge ne lui ouvre jamais de
+  session : il n'a ni PIN ni connexion (aucun droit) ;
 - peut être désactivé comme tout employé (jamais pendant qu'il est en
-  service : code `deactivate_on_shift`).
+  service : code `deactivate_on_shift`) ; son badge est alors retiré.
 
 ## 3. Mécanismes d'enforcement
 
@@ -165,7 +188,7 @@ L'enforcement vit à deux niveaux :
 
 1. **Niveau commandes du moteur** (couche autoritative,
    `crates/pos-engine/src/commands/access.rs`). La connexion (`login`, INSZ +
-   PIN) ouvre une session côté backend ; la déconnexion (`logout`,
+   PIN, ou badge pour un Serveur ou un Apprenti) ouvre une session côté backend ; la déconnexion (`logout`,
    après le pointage de sortie) la ferme. Chaque commande qui signe un
    événement fiscal, modifie un paramètre ou gère les utilisateurs
    vérifie d'abord le rôle de l'opérateur connecté :
@@ -174,9 +197,9 @@ L'enforcement vit à deux niveaux :
    |---|---|---|
    | Personnel | Gérant, Serveur, Apprenti | pointage (S), commandes et lignes, enregistrement de commande (P), commandes en ligne : préparation, "Prête" et retard |
    | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant, commandes en ligne : acceptation, refus, remise, encaissement et clôture |
-   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), pointage d'un autre employé (S), remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
+   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), pointage d'un autre employé (S), retrait d'un badge, réglages du lecteur de badges, remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
    | Plateforme Android | Gérant | export SPF, mise à jour de l'application, export nocturne (export SPF et mise à jour contrôlés par les écrans de l'application, `UpdatePreconditions` et `managerOnly` ; export nocturne contrôlé par le moteur lui-même, qui refuse un opérateur non administrateur) |
-   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | vente clôturée sans paiement, création d'un Gérant, PIN d'un autre employé |
+   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | vente clôturée sans paiement, création d'un Gérant, PIN d'un autre employé, lien d'un badge à un employé |
 
    Une commande refusée renvoie le code `not_logged_in` (aucune
    session) ou `forbidden` (rôle insuffisant) avant tout appel au FDM :
@@ -223,6 +246,14 @@ les cas d'usage M140 et M141) ; le Gérant qui a fait l'enregistrement est
 conservé dans `staff_shifts.started_by` / `ended_by`, pas dans la requête
 envoyée au FDM.
 
+Pour un pointage par badge (`commands::badges::do_badge_tap`),
+`user_insz` est l'INSZ du **titulaire du badge** (même événement S que
+M140 et M141) et `started_by` / `ended_by` restent vides, l'employé s'étant
+enregistré lui-même ; le passage est consigné à part dans `badge_scans`
+(heure, résultat, INSZ, référence de 12 caractères de l'empreinte du
+badge, jamais son numéro). Les liens, retraits et changements de réglage
+sont dans `badge_log`, avec le Gérant qui les a faits.
+
 Ces lignes constituent le **journal Dimona-compatible** exigible par
 l'ONSS et utilisable pour reconstruire intégralement les heures de
 présence du personnel.
@@ -255,6 +286,25 @@ présence du personnel.
   l'interface de présenter ou non le pavé numérique de PIN.
 - L'identité système `00000000029` (robot, enregistrements
   automatiques) ne peut jamais ouvrir de session et n'a pas de tuile.
+- **Connexion par badge.** Désactivée par défaut. Quand le Gérant l'a
+  activée (réglage « Connexion par badge » du panneau « Lecteur de
+  badges »), un Serveur ou un Apprenti peut ouvrir sa session avec son
+  badge sans PIN, par la même procédure que la connexion par PIN moins la
+  vérification du PIN (`commands::badges::do_badge_tap`). Un **Gérant ne
+  se connecte jamais avec un badge seul** : son badge sélectionne son
+  compte et ouvre son clavier de PIN (`pin_required`), la session étant
+  ouverte par la connexion habituelle (INSZ + PIN, verrouillage compris) ;
+  aucune action réservée au Gérant (remboursement, copie, mouvements de
+  caisse, rapports, Z, réglages, utilisateurs, badges) n'est donc possible
+  sans son PIN. Un employé « Présence seule » ne se connecte pas non plus :
+  son badge n'enregistre que sa présence. Un badge scanné n'est pas une
+  activité de l'opérateur connecté (le verrouillage automatique n'est pas
+  repoussé). Un employé peut refuser le badge : son PIN reste valable.
+- **Stockage des badges.** Seule une empreinte HMAC-SHA256 du numéro du
+  badge est stockée (table `staff_badges`, une empreinte active par
+  employé et par badge, jamais supprimée : un retrait ne fait que dater
+  la ligne), avec une clé propre au terminal (`badge.key`, hors de la
+  base, des sauvegardes et de l'export). Voir *SECURITE_BD_FR.md*.
 
 ## 6. Limitations connues
 
