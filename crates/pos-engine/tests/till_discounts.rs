@@ -1128,3 +1128,221 @@ async fn a_direct_sale_counts_its_price_change_corrections() {
     assert_eq!(price_change["negQuantityCount"], 1);
     assert_eq!(price_change["ticketCount"], 1);
 }
+
+// ── Removing the offer of one line ─────────────────────────────────
+
+#[tokio::test]
+async fn removing_an_offered_line_gives_it_back_its_full_price() {
+    let (app, _p) = world().await;
+    let o = takeaway(&app);
+    add(&app, o, 2, 1);
+    let eau = add(&app, o, 3, 1);
+    apply(&app, o, free_line(eau)).await.unwrap();
+    assert_eq!(total(&app, o), 1200);
+
+    let done = remove(&app, o, Some(eau)).await.unwrap();
+
+    assert_eq!(done.order.total_cents, 1500);
+    assert_eq!(total(&app, o), 1500);
+    // Only TILL-FREE-LINE is removed: -300 first, +300 on the correction.
+    let rows = changes(&app, o);
+    assert_eq!(rows.len(), 2, "{rows:?}");
+    assert_eq!((rows[0].3.as_str(), rows[0].5), ("TILL-FREE-LINE", -300));
+    assert_eq!(
+        (rows[1].3.as_str(), rows[1].4.as_str(), rows[1].5),
+        ("TILL-FREE-LINE", "LINE", 300)
+    );
+    assert_ne!(
+        rows[0].1, rows[1].1,
+        "the opposite change is on another entry"
+    );
+    assert_eq!(
+        entries(&app, eau),
+        vec![
+            (1, None, false),
+            (-1, Some("price_change".into()), false),
+            (1, Some("price_change".into()), false),
+        ]
+    );
+    // The audit row names the line and the amount given back.
+    let audit = {
+        let db = app.state.db.lock().unwrap();
+        pos_db::queries::till_discounts::list(&db, o).unwrap()
+    };
+    assert_eq!(audit.len(), 2);
+    assert_eq!(audit[1].action, "remove");
+    assert_eq!(audit[1].line_id, Some(eau));
+    assert_eq!(audit[1].amount_cents, 300);
+
+    // The sale: Maki, then Eau with its change, the PRICE_CHANGE
+    // correction carrying it back, and Eau at its full price.
+    sell(&app, o).await;
+    let sale = requests(&app).pop().unwrap();
+    assert_eq!(line_totals(&sale), vec![1200, 0, 0, 300]);
+    let lines = sale["transaction"]["transactionLines"].as_array().unwrap();
+    assert_eq!(lines[2]["mainProduct"]["quantity"], -1.0);
+    assert_eq!(lines[2]["mainProduct"]["negQuantityReason"], "PRICE_CHANGE");
+    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 1500);
+}
+
+#[tokio::test]
+async fn removing_an_offered_line_on_a_registered_table_signs_the_p_at_once() {
+    let (app, _p) = world().await;
+    let o = table_order(&app, 4);
+    add(&app, o, 2, 1);
+    let eau = add(&app, o, 3, 1);
+    do_sign_table_order(&app.state, o).await.unwrap();
+    apply(&app, o, free_line(eau)).await.unwrap();
+    assert_eq!(labels(&app), vec!["P", "P"]);
+
+    let done = remove(&app, o, Some(eau)).await.unwrap();
+
+    assert_eq!(done.order.total_cents, 1500);
+    assert!(done.registration_error.is_none());
+    assert_eq!(labels(&app), vec!["P", "P", "P"]);
+    let p = &requests(&app)[2];
+    let lines = p["transaction"]["transactionLines"].as_array().unwrap();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0]["mainProduct"]["quantity"], -1.0);
+    assert_eq!(lines[0]["mainProduct"]["negQuantityReason"], "PRICE_CHANGE");
+    assert_eq!(lines[1]["mainProduct"]["quantity"], 1.0);
+    assert!(
+        lines[1]["mainProduct"]["vats"][0]
+            .get("priceChanges")
+            .is_none()
+    );
+    assert_eq!(line_totals(p), vec![0, 300]);
+    assert_eq!(cents(&p["transaction"]["transactionTotal"]), 300);
+}
+
+// ── A free line on a line a P already registered ───────────────────
+
+#[tokio::test]
+async fn a_free_line_on_a_registered_line_goes_through_a_price_change_pair() {
+    let (app, _p) = world().await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 2);
+    let eau = add(&app, o, 3, 1);
+    do_sign_table_order(&app.state, o).await.unwrap();
+
+    let done = apply(&app, o, free_line(eau)).await.unwrap();
+    assert_eq!(done.order.total_cents, 1300);
+    assert_eq!(labels(&app), vec!["P", "P"]);
+
+    let p = &requests(&app)[1];
+    let lines = p["transaction"]["transactionLines"].as_array().unwrap();
+    assert_eq!(lines.len(), 2, "only the Eau is corrected");
+    assert_eq!(lines[0]["mainProduct"]["quantity"], -1.0);
+    assert_eq!(lines[0]["mainProduct"]["productName"], "Eau plate");
+    assert_eq!(lines[0]["mainProduct"]["negQuantityReason"], "PRICE_CHANGE");
+    assert_eq!(lines[1]["mainProduct"]["quantity"], 1.0);
+    let change = &lines[1]["mainProduct"]["vats"][0]["priceChanges"][0];
+    assert_eq!(change["scope"], "LINE");
+    assert_eq!(change["amount"], -3.0);
+    assert_eq!(cents(&lines[1]["lineTotal"]), 0);
+    assert_eq!(line_totals(p), vec![-300, 0]);
+
+    // The sale carries the journal: 2 Sake, the Eau, its pair.
+    sell(&app, o).await;
+    let sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 1300);
+}
+
+// ── A discounted line removed from the cart ────────────────────────
+
+#[tokio::test]
+async fn a_discounted_line_removed_from_the_cart_carries_its_change_negated() {
+    use pos_engine::commands::order::do_remove_order_line;
+    let (app, _p) = world().await;
+    let o = table_order(&app, 4);
+    let sake = add(&app, o, 1, 2);
+    let maki = add(&app, o, 2, 1);
+    do_sign_table_order(&app.state, o).await.unwrap();
+    apply(&app, o, pct(50)).await.unwrap();
+    assert_eq!(total(&app, o), 1250);
+    let changes_before = changes(&app, o).len();
+
+    do_remove_order_line(&app.state, sake).unwrap();
+
+    // Maki is left at 50 %: 6,00.
+    assert_eq!(total(&app, o), 600);
+    let rows = changes(&app, o);
+    assert!(rows.len() > changes_before, "{rows:?}");
+    let negated = rows
+        .iter()
+        .find(|r| r.0 == sake && r.5 > 0)
+        .expect("the removed line's change comes back negated");
+    assert_eq!(negated.3, "TILL-DISCOUNT");
+    assert_eq!(negated.5, 650);
+    // The other line keeps its own discount.
+    assert_eq!(
+        rows.iter()
+            .filter(|r| r.0 == maki)
+            .map(|r| r.5)
+            .sum::<i64>(),
+        -600
+    );
+
+    sell(&app, o).await;
+    let sale = requests(&app).pop().unwrap();
+    assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 600);
+    let lines = sale["transaction"]["transactionLines"].as_array().unwrap();
+    let removed: Vec<_> = lines
+        .iter()
+        .filter(|l| l["mainProduct"]["productName"] == "Sake")
+        .collect();
+    // The last Sake entry is the removal itself (the earlier -q is the
+    // PRICE_CHANGE pair of the discount).
+    let correction = removed
+        .iter()
+        .rev()
+        .find(|l| l["mainProduct"]["quantity"].as_f64().unwrap() < 0.0)
+        .expect("the removed line's -q correction");
+    assert_eq!(correction["mainProduct"]["quantity"], -2.0);
+    assert_eq!(correction["mainProduct"]["negQuantityReason"], "CORRECTION");
+    assert_eq!(cents(&correction["lineTotal"]), -650);
+    assert_eq!(
+        correction["mainProduct"]["vats"][0]["priceChanges"][0]["id"],
+        "TILL-DISCOUNT"
+    );
+    assert_eq!(
+        correction["mainProduct"]["vats"][0]["priceChanges"][0]["amount"],
+        6.5
+    );
+    // The Sake lines net to nothing; only the Maki at 50 % is sold.
+    let net: i64 = removed.iter().map(|l| cents(&l["lineTotal"])).sum();
+    assert_eq!(net, 0);
+}
+
+// ── The pre-bill is reset by a discount ────────────────────────────
+
+fn pre_bill_printed(app: &TestApp, table: i32) -> bool {
+    pos_engine::commands::tables::do_list_tables(&app.state, 25)
+        .unwrap()
+        .into_iter()
+        .find(|t| t.table_number == table)
+        .unwrap()
+        .pre_bill_printed
+}
+
+#[tokio::test]
+async fn a_discount_resets_the_pre_bill_flag() {
+    let (app, _p) = world().await;
+    // Direct attach on a table the FDM does not know yet.
+    let fresh = table_order(&app, 1);
+    add(&app, fresh, 1, 2);
+    do_sign_pre_bill(&app.state, fresh).await.unwrap();
+    assert!(pre_bill_printed(&app, 1));
+    apply(&app, fresh, pct(10)).await.unwrap();
+    assert!(!pre_bill_printed(&app, 1), "apply on an unsent line");
+
+    // A registered table: apply, a new bill, then remove.
+    let known = table_order(&app, 2);
+    add(&app, known, 1, 2);
+    do_sign_table_order(&app.state, known).await.unwrap();
+    apply(&app, known, pct(10)).await.unwrap();
+    do_sign_pre_bill(&app.state, known).await.unwrap();
+    assert!(pre_bill_printed(&app, 2));
+    remove(&app, known, None).await.unwrap();
+    assert!(!pre_bill_printed(&app, 2), "remove on a registered line");
+}

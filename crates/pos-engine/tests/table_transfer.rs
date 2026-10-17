@@ -599,3 +599,121 @@ async fn an_x_report_after_a_move_counts_it_once_under_p_and_its_negative_lines(
     assert_eq!(moved["ticketCount"], 1);
     assert_eq!(moved["amount"], -12.0);
 }
+
+// ── Source outside the plan, pending answers, card payments ─────────
+
+#[tokio::test]
+async fn an_order_left_on_a_table_out_of_the_plan_can_still_be_moved() {
+    use pos_engine::commands::table_plan::do_set_table_plan;
+    let fdm = LossyFdm::start().await;
+    let app = app_with(&fdm).await;
+    do_set_table_plan(&app.state, "1-30").unwrap();
+    let o = table_order(&app, 30);
+    add(&app, o, 1, 1);
+    let other = table_order(&app, 6);
+    add(&app, other, 2, 1);
+    // The plan shrinks while the order is still open on table 30.
+    do_set_table_plan(&app.state, "1-25").unwrap();
+
+    // Only the target must be in the plan: a target outside is refused.
+    assert_eq!(
+        refused(&app, other, 30).await,
+        errors::TABLE_TRANSFER_TARGET_INVALID
+    );
+    assert!(fdm.sent_op("signCostCenterChange").is_empty());
+
+    // The source out of the plan is a valid source.
+    let moved = do_transfer_table(&app.state, o, 5).await.unwrap();
+    assert_eq!((moved.from_table, moved.to_table), (30, 5));
+    assert_eq!(table_of(&app, o), Some(5));
+    let moves = fdm.sent_op("signCostCenterChange");
+    assert_eq!(moves.len(), 1);
+    let requests = requests(&app);
+    let transfer = &requests.last().unwrap()["transfer"];
+    assert_eq!(transfer["from"][0]["costCenter"]["id"], "T30");
+    assert_eq!(transfer["to"][0]["costCenter"]["id"], "T05");
+}
+
+#[tokio::test]
+async fn an_order_whose_own_event_still_waits_for_the_fdm_is_not_moved() {
+    let fdm = LossyFdm::start().await;
+    let app = app_with(&fdm).await;
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 1);
+    // Every answer to the registration of the order is lost.
+    fdm.rule(|op, _| {
+        if op == "signOrder" {
+            Fate::LoseAnswer
+        } else {
+            Fate::Answer
+        }
+    });
+    assert!(do_sign_table_order(&app.state, o).await.is_err());
+    let events = app.fiscal_events().len();
+
+    let error = refused(&app, o, 8).await;
+
+    assert!(
+        error.contains(errors::FDM_ANSWER_PENDING) || error.contains(errors::ORDER_SIGN_PENDING),
+        "{error}"
+    );
+    assert_eq!(table_of(&app, o), Some(4));
+    assert!(fdm.sent_op("signCostCenterChange").is_empty());
+    assert_eq!(app.fiscal_events().len(), events, "no new event archived");
+}
+
+#[tokio::test]
+async fn an_approved_card_payment_travels_with_the_order_and_settles_the_sale() {
+    use pos_eft::CardType;
+    use pos_engine::commands::checkout::{PaymentPart, do_checkout_split};
+    use pos_engine::commands::eft::{do_eft_pay, do_list_unsettled_card_payments};
+    let fdm = LossyFdm::start().await;
+    let mut app = app_with(&fdm).await;
+    let script = app.link_terminal();
+    let o = table_order(&app, 4);
+    add(&app, o, 1, 2);
+    script.on_pay(Ok(approval(1300, "VISA", CardType::Debit)));
+    let payment = do_eft_pay(&app.state, o, 1300).await.unwrap();
+    assert_eq!(payment.status, "approved");
+    let before = do_list_unsettled_card_payments(&app.state).unwrap();
+    assert_eq!(before.len(), 1);
+    assert_eq!(before[0].table_number, Some(4));
+
+    do_transfer_table(&app.state, o, 8).await.unwrap();
+
+    let after = do_list_unsettled_card_payments(&app.state).unwrap();
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].payment_id, payment.id);
+    assert_eq!(after[0].order_id, o);
+    assert_eq!(after[0].table_number, Some(8));
+    assert_eq!(after[0].amount_cents, 1300);
+
+    let sale = do_checkout_split(
+        &app.state,
+        o,
+        &[PaymentPart::terminal(1300, payment.id)],
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(sale.success, "{:?}", sale.error);
+    let request = requests(&app).pop().unwrap();
+    assert_eq!(request["costCenter"]["id"], "T08");
+    assert!(
+        do_list_unsettled_card_payments(&app.state)
+            .unwrap()
+            .is_empty()
+    );
+    let used: bool = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row(
+            "SELECT used_event_id IS NOT NULL FROM eft_payments WHERE id = ?1",
+            [payment.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(used, "the payment is marked used by the sale");
+}

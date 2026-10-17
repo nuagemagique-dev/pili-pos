@@ -682,3 +682,40 @@ async fn the_note_slip_follows_the_ticket_language_and_training() {
     );
     assert!(slips[1].contains("TRAINING"), "{}", slips[1]);
 }
+
+// ── Access ─────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn a_waiter_sets_a_note_and_the_note_slip_names_the_waiter() {
+    const WAITER: &str = "85073003328";
+    let (app, _fdm) = app().await;
+    let printer = PrinterSink::start().await;
+    app.set_printer(&printer.addr);
+    let o = order(&app, Some(7));
+    let line = add(&app, o, 2, 1);
+    app.login_as(WAITER, pos_core::user::UserRole::Waiter);
+
+    // Before the first sending: stored, nothing to print.
+    assert_eq!(
+        note(&app, line, NOTE).await,
+        Ok(SlipOutcome::NothingToPrint)
+    );
+    assert_eq!(stored(&app, line).0.as_deref(), Some(NOTE));
+
+    // After the sending, a change by the waiter prints a note slip.
+    do_sign_table_order(&app.state, o).await.unwrap();
+    assert_eq!(printer.settle_slips(1).await.len(), 1);
+    assert_eq!(
+        note(&app, line, "extra gingembre").await,
+        Ok(SlipOutcome::Printed)
+    );
+    let slips = rendered(&printer.settle_slips(2).await);
+    assert_eq!(slips.len(), 2, "{slips:?}");
+    assert!(slips[1].contains("MODIFICATION"), "{}", slips[1]);
+    assert!(slips[1].contains("Note : extra gingembre"), "{}", slips[1]);
+    assert!(
+        slips[1].contains(&format!("Test {WAITER}")),
+        "the waiter is the operator: {}",
+        slips[1]
+    );
+}
