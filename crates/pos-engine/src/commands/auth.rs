@@ -15,9 +15,18 @@ use crate::state::AppState;
 /// one. The system identity never logs in.
 pub fn do_login(state: &AppState, insz: String, pin: Option<String>) -> Result<User, String> {
     let user = authenticate(state, &insz, pin)?;
-    access::open_session(state, &user)?;
-    state.session_rules.queue_clock_in(&user.insz);
+    open_login_session(state, &user)?;
     Ok(user)
+}
+
+/// What a login does once the user is checked: open the session and
+/// queue the clock-in for the presence worker. A PIN login and a badge
+/// login (`commands::badges`) both end here, so the badge path is the
+/// PIN path minus the PIN check.
+pub(crate) fn open_login_session(state: &AppState, user: &User) -> Result<(), String> {
+    access::open_session(state, user)?;
+    state.session_rules.queue_clock_in(&user.insz);
+    Ok(())
 }
 
 /// Every check of a login, without opening the session: the INSZ, the
@@ -134,8 +143,7 @@ pub fn do_login_with_new_pin(
         has_pin: true,
         ..user
     };
-    access::open_session(state, &user)?;
-    state.session_rules.queue_clock_in(&user.insz);
+    open_login_session(state, &user)?;
     Ok(user)
 }
 
@@ -273,13 +281,23 @@ pub fn do_deactivate_user(state: &AppState, insz: String) -> Result<(), String> 
     if operator.insz == insz {
         return Err(ERR_DEACTIVATE_SELF.to_string());
     }
-    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let mut db = state.db.lock().map_err(|e| e.to_string())?;
     // An inactive user cannot be clocked out: the open shift would
     // stay open for good. The departure is registered first.
     if pos_db::queries::shifts::has_open_shift(&db, &insz).map_err(|e| e.to_string())? {
         return Err(errors::DEACTIVATE_ON_SHIFT.to_string());
     }
-    pos_db::queries::users::deactivate_user(&db, &insz).map_err(user_error)
+    // Their badge goes with them, in the same transaction (L5-D5).
+    let tx = db.transaction().map_err(|e| e.to_string())?;
+    pos_db::queries::users::deactivate_user(&tx, &insz).map_err(user_error)?;
+    pos_db::queries::badges::revoke(
+        &tx,
+        &insz,
+        pos_db::queries::badges::RevokeReason::Deactivated,
+        Some(&operator.insz),
+    )
+    .map_err(errors::internal)?;
+    tx.commit().map_err(errors::internal)
 }
 
 fn user_error(e: rusqlite::Error) -> String {

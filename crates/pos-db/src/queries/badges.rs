@@ -33,6 +33,26 @@ impl RevokeReason {
     }
 }
 
+/// Run `f` atomically: all its writes or none. A savepoint, so it also
+/// works inside a transaction the caller started (the engine groups a
+/// link with its key check, a deactivation with its revocation).
+pub fn atomic<T>(
+    conn: &Connection,
+    f: impl FnOnce(&Connection) -> Result<T, rusqlite::Error>,
+) -> Result<T, rusqlite::Error> {
+    conn.execute_batch("SAVEPOINT badges_atomic")?;
+    match f(conn) {
+        Ok(v) => {
+            conn.execute_batch("RELEASE badges_atomic")?;
+            Ok(v)
+        }
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK TO badges_atomic; RELEASE badges_atomic");
+            Err(e)
+        }
+    }
+}
+
 fn conversion(e: String) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::from(e))
 }
@@ -65,29 +85,29 @@ pub fn set_settings(
     new: &BadgeSettings,
     by: &str,
 ) -> Result<bool, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    if settings(&tx)? == *new {
-        return Ok(false);
-    }
-    tx.execute(
-        "UPDATE badge_settings
+    atomic(conn, |tx| {
+        if settings(tx)? == *new {
+            return Ok(false);
+        }
+        tx.execute(
+            "UPDATE badge_settings
          SET reader = ?1, login_enabled = ?2, wedge_max_gap_ms = ?3,
              wedge_min_len = ?4, wedge_max_len = ?5,
              changed_at = datetime('now'), changed_by = ?6
          WHERE id = 1",
-        params![
-            new.reader.as_str(),
-            i64::from(new.login_enabled),
-            new.wedge_max_gap_ms,
-            new.wedge_min_len,
-            new.wedge_max_len,
-            by
-        ],
-    )?;
-    let detail = serde_json::to_string(new).map_err(|e| conversion(e.to_string()))?;
-    log(&tx, "settings", None, None, Some(&detail), Some(by))?;
-    tx.commit()?;
-    Ok(true)
+            params![
+                new.reader.as_str(),
+                i64::from(new.login_enabled),
+                new.wedge_max_gap_ms,
+                new.wedge_min_len,
+                new.wedge_max_len,
+                by
+            ],
+        )?;
+        let detail = serde_json::to_string(new).map_err(|e| conversion(e.to_string()))?;
+        log(tx, "settings", None, None, Some(&detail), Some(by))?;
+        Ok(true)
+    })
 }
 
 /// The stored key check (`None` until a key exists).
@@ -162,15 +182,15 @@ pub fn active_link_by_user(conn: &Connection, insz: &str) -> Result<Option<Link>
 /// The partial unique indexes refuse a second active badge for the
 /// employee or for the hash; the engine checks both first.
 pub fn link(conn: &Connection, hash: &str, insz: &str, by: &str) -> Result<i64, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    tx.execute(
-        "INSERT INTO staff_badges (badge_hash, user_insz, linked_by) VALUES (?1, ?2, ?3)",
-        params![hash, insz, by],
-    )?;
-    let id = tx.last_insert_rowid();
-    log(&tx, "link", Some(id), Some(insz), None, Some(by))?;
-    tx.commit()?;
-    Ok(id)
+    atomic(conn, |tx| {
+        tx.execute(
+            "INSERT INTO staff_badges (badge_hash, user_insz, linked_by) VALUES (?1, ?2, ?3)",
+            params![hash, insz, by],
+        )?;
+        let id = tx.last_insert_rowid();
+        log(tx, "link", Some(id), Some(insz), None, Some(by))?;
+        Ok(id)
+    })
 }
 
 /// Revoke the active badge of an employee and log it (the reason is the
@@ -182,10 +202,7 @@ pub fn revoke(
     reason: RevokeReason,
     by: Option<&str>,
 ) -> Result<bool, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let revoked = revoke_in(&tx, insz, reason, by)?;
-    tx.commit()?;
-    Ok(revoked)
+    atomic(conn, |tx| revoke_in(tx, insz, reason, by))
 }
 
 fn revoke_in(
@@ -220,22 +237,24 @@ pub fn revoke_all_active(
     reason: RevokeReason,
     by: Option<&str>,
 ) -> Result<usize, rusqlite::Error> {
-    let tx = conn.unchecked_transaction()?;
-    let users: Vec<String> = {
-        let mut stmt =
-            tx.prepare("SELECT user_insz FROM staff_badges WHERE revoked_at IS NULL ORDER BY id")?;
-        stmt.query_map([], |r| r.get(0))?
-            .collect::<Result<_, _>>()?
-    };
-    for insz in &users {
-        revoke_in(&tx, insz, reason, by)?;
-    }
-    tx.commit()?;
-    Ok(users.len())
+    atomic(conn, |tx| {
+        let users: Vec<String> = {
+            let mut stmt = tx.prepare(
+                "SELECT user_insz FROM staff_badges WHERE revoked_at IS NULL ORDER BY id",
+            )?;
+            stmt.query_map([], |r| r.get(0))?
+                .collect::<Result<_, _>>()?
+        };
+        for insz in &users {
+            revoke_in(tx, insz, reason, by)?;
+        }
+        Ok(users.len())
+    })
 }
 
 /// An active badge, as the manager's list shows it (never the hash).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ActiveBadge {
     pub insz: String,
     pub name: String,
@@ -267,6 +286,7 @@ pub fn list_active(conn: &Connection) -> Result<Vec<ActiveBadge>, rusqlite::Erro
 
 /// One row of the audit log, with names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LogEntry {
     pub action: String,
     pub insz: Option<String>,

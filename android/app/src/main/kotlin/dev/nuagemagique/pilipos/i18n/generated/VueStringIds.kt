@@ -97,6 +97,15 @@ internal object VueStringIds {
         this["err_presence_self"] = R.string.err_presence_self
         this["err_presence_already_in"] = R.string.err_presence_already_in
         this["err_presence_not_in"] = R.string.err_presence_not_in
+        this["err_badge_reader_off"] = R.string.err_badge_reader_off
+        this["err_badge_token_invalid"] = R.string.err_badge_token_invalid
+        this["err_badge_key_unavailable"] = R.string.err_badge_key_unavailable
+        this["err_badge_unknown"] = R.string.err_badge_unknown
+        this["err_badge_revoked"] = R.string.err_badge_revoked
+        this["err_badge_in_use"] = R.string.err_badge_in_use
+        this["err_badge_already_linked"] = R.string.err_badge_already_linked
+        this["err_badge_none"] = R.string.err_badge_none
+        this["err_badge_settings_invalid"] = R.string.err_badge_settings_invalid
         this["err_deactivate_on_shift"] = R.string.err_deactivate_on_shift
         this["err_operator_invalid"] = R.string.err_operator_invalid
         this["err_dine_in_needs_table"] = R.string.err_dine_in_needs_table
@@ -257,6 +266,9 @@ internal object VueStringIds {
         this["cash_success"] = R.string.cash_success
         this["cash_failed"] = R.string.cash_failed
         this["cash_drawer_opened"] = R.string.cash_drawer_opened
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["cash_err_amount"] = R.string.cash_err_amount
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
@@ -266,9 +278,6 @@ internal object VueStringIds {
         this["delivery_enter_email_title"] = R.string.delivery_enter_email_title
         this["delivery_email_placeholder"] = R.string.delivery_email_placeholder
         this["delivery_invalid_email"] = R.string.delivery_invalid_email
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
@@ -510,6 +519,9 @@ internal object VueStringIds {
         this["webshop_action_resync"] = R.string.webshop_action_resync
         this["webshop_action_collect_cash"] = R.string.webshop_action_collect_cash
         this["webshop_action_collect_card"] = R.string.webshop_action_collect_card
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_action_refund"] = R.string.webshop_action_refund
         this["webshop_action_close_cancelled"] = R.string.webshop_action_close_cancelled
         this["webshop_cancelled_refund"] = R.string.webshop_cancelled_refund
@@ -519,9 +531,6 @@ internal object VueStringIds {
         this["webshop_changed_after_signing"] = R.string.webshop_changed_after_signing
         this["webshop_attention_unknown_channel"] = R.string.webshop_attention_unknown_channel
         this["webshop_attention_missing_service_type"] = R.string.webshop_attention_missing_service_type
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product

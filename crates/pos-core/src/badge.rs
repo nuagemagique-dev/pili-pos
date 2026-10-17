@@ -199,9 +199,11 @@ mod tests {
 
     #[test]
     fn settings_min_length_cannot_exceed_the_maximum() {
-        let mut s = BadgeSettings::default();
-        s.wedge_min_len = 10;
-        s.wedge_max_len = 10;
+        let mut s = BadgeSettings {
+            wedge_min_len: 10,
+            wedge_max_len: 10,
+            ..BadgeSettings::default()
+        };
         assert_eq!(s.validate(), Ok(()));
         s.wedge_max_len = 9;
         assert_eq!(s.validate(), Err("wedge_min_len"));

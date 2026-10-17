@@ -100,7 +100,7 @@ fn check_manager_presence(
 
 /// Sign the employee's S event. `by` is the manager who registered it,
 /// `None` when the employee did.
-async fn sign_work_event(
+pub(crate) async fn sign_work_event(
     state: &AppState,
     employee_insz: String,
     is_in: bool,

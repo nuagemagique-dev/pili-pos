@@ -24,6 +24,15 @@
     <string name="err_presence_self">您本人的上下班在登录时和\"下班\"时登记</string>
     <string name="err_presence_already_in">该员工已在岗</string>
     <string name="err_presence_not_in">该员工不在岗</string>
+    <string name="err_badge_reader_off">工牌读卡器已关闭</string>
+    <string name="err_badge_token_invalid">无法读取工牌，请重新出示</string>
+    <string name="err_badge_key_unavailable">工牌密钥不可用，请联系技术支持</string>
+    <string name="err_badge_unknown">未知工牌</string>
+    <string name="err_badge_revoked">工牌已解除，请向经理申请新工牌</string>
+    <string name="err_badge_in_use">该工牌已绑定其他员工</string>
+    <string name="err_badge_already_linked">该员工已有工牌，请先解除</string>
+    <string name="err_badge_none">该员工没有工牌</string>
+    <string name="err_badge_settings_invalid">工牌读卡器设置无效</string>
     <string name="err_deactivate_on_shift">该员工在岗，请先登记下班</string>
     <string name="err_operator_invalid">员工无效：请重新登录。</string>
     <string name="err_dine_in_needs_table">堂食订单需要桌号。</string>

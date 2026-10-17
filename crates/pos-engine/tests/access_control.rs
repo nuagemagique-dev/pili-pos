@@ -26,6 +26,10 @@ use pos_engine::commands::auth::{
     ERR_PIN_SETUP_REQUIRED, ERR_SYSTEM_USER, do_create_user, do_deactivate_user, do_login,
     do_login_with_new_pin, do_logout, do_set_pin,
 };
+use pos_engine::commands::badges::{
+    BadgeSettingsInput, do_badge_tap, do_get_badge_settings, do_link_badge, do_list_badges,
+    do_revoke_badge, do_set_badge_settings,
+};
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
@@ -934,6 +938,86 @@ async fn only_a_manager_registers_another_employees_presence() {
             .is_empty(),
         "nothing reached the FDM"
     );
+}
+
+/// The badge commands: the setting is readable by the login screen and a
+/// scan needs no session (the badge is the identification); changing the
+/// setting, listing, linking and removing badges are a manager's.
+#[tokio::test]
+async fn only_a_manager_manages_badges_and_a_scan_needs_no_session() {
+    let app = app().await;
+    insert_user(&app, APPRENTICE, "waiter");
+    let input = || BadgeSettingsInput {
+        reader: "usb".into(),
+        login_enabled: false,
+        wedge_max_gap_ms: 50,
+        wedge_min_len: 6,
+        wedge_max_len: 32,
+    };
+
+    // Nobody logged in: the setting is readable, the rest is refused, a
+    // scan is answered by the engine (the reader is off).
+    app.logout();
+    assert_eq!(do_get_badge_settings(&app.state).unwrap().reader, "off");
+    assert_eq!(
+        do_badge_tap(&app.state, "04A1B2C3".into(), false)
+            .await
+            .unwrap_err(),
+        errors::BADGE_READER_OFF
+    );
+    assert_eq!(
+        do_set_badge_settings(&app.state, input()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(do_list_badges(&app.state).unwrap_err(), ERR_NOT_LOGGED_IN);
+    assert_eq!(
+        do_revoke_badge(&app.state, APPRENTICE.into()).unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_link_badge(
+            &app.state,
+            APPRENTICE.into(),
+            "04A1B2C3".into(),
+            Some("1234".into())
+        )
+        .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+
+    // A server and an apprentice: refused, whatever the reader says.
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(do_get_badge_settings(&app.state).unwrap().reader, "off");
+        assert_eq!(
+            do_set_badge_settings(&app.state, input()).unwrap_err(),
+            ERR_FORBIDDEN,
+            "{insz}"
+        );
+        assert_eq!(do_list_badges(&app.state).unwrap_err(), ERR_FORBIDDEN);
+        assert_eq!(
+            do_revoke_badge(&app.state, APPRENTICE.into()).unwrap_err(),
+            ERR_FORBIDDEN
+        );
+        assert_eq!(
+            do_link_badge(
+                &app.state,
+                APPRENTICE.into(),
+                "04A1B2C3".into(),
+                Some("1234".into())
+            )
+            .unwrap_err(),
+            ERR_FORBIDDEN
+        );
+    }
+    assert_eq!(do_get_badge_settings(&app.state).unwrap().reader, "off");
+
+    as_(&app, MANAGER, UserRole::Admin);
+    assert_eq!(
+        do_set_badge_settings(&app.state, input()).unwrap().reader,
+        "usb"
+    );
+    assert!(do_list_badges(&app.state).is_ok());
 }
 
 #[tokio::test]

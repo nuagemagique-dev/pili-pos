@@ -150,6 +150,11 @@ pub struct EngineTimers {
     /// interval, and at once after a real Z. Nothing runs without an
     /// `export` section in the configuration.
     pub export_outbox: Duration,
+    /// Staff badges: a scan of the same badge is ignored while its
+    /// previous scan is being handled and for this long after it
+    /// finished, whatever its outcome (a card left on the reader must
+    /// not clock in and then out; L5-D10).
+    pub badge_repeat: Duration,
 }
 
 impl Default for EngineTimers {
@@ -161,6 +166,7 @@ impl Default for EngineTimers {
             idle_lock: Duration::from_secs(300),
             fdm_poll: Duration::from_secs(30),
             export_outbox: Duration::from_secs(60),
+            badge_repeat: Duration::from_secs(10),
         }
     }
 }
@@ -274,6 +280,13 @@ impl Engine {
 
         let conn = Connection::open(&db_path)?;
         schema::run_migrations(&conn)?;
+        // A badge key that is gone or changed (a restore on new hardware)
+        // revokes the badges it hashed (L5-D4); never a reason not to open.
+        match crate::badge_key::open_check(&conn, &paths.data_dir) {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(n, "boot: badge key changed, badge(s) revoked"),
+            Err(e) => tracing::warn!(%e, "boot: badge key not checked"),
+        }
 
         let recovered = recover_orphaned_checkouts(&conn).unwrap_or(0);
         if recovered > 0 {
@@ -370,6 +383,7 @@ impl Engine {
                 export,
                 eft_in_flight: Mutex::new(None),
                 eft_line: tokio::sync::Mutex::new(()),
+                badge_repeats: Default::default(),
                 #[cfg(feature = "eft-scripted")]
                 eft_terminal_override: None,
             }),
@@ -732,6 +746,7 @@ mod tests {
         assert_eq!(t.idle_lock, Duration::from_secs(300));
         assert_eq!(t.fdm_poll, Duration::from_secs(30));
         assert_eq!(t.export_outbox, Duration::from_secs(60));
+        assert_eq!(t.badge_repeat, Duration::from_secs(10));
     }
 
     #[test]
