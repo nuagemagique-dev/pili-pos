@@ -35,6 +35,7 @@ import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 @RunWith(RobolectricTestRunner::class)
 class SettingsViewModelTest {
     @get:Rule
@@ -672,6 +673,48 @@ class SettingsViewModelTest {
             val model = SettingsViewModel(env.entry)
             runCurrent()
 
+            assertEquals(mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"), model.state.value.openShifts)
+        }
+
+    @Test
+    fun aFailedOpenShiftsReloadKeepsBothThePreviousUsersAndTheShifts() =
+        runTest {
+            val f = settingsFixture(tmp.root)
+            coEvery { f.engine.listOpenShifts() } returns listOf(OpenShift(CASHIER_INSZ, "2026-10-17T10:02:00Z"))
+            val env = settingsEnv(f, context)
+            openEngine(env)
+            with(env) { loginAs(admin) }
+            val model = SettingsViewModel(env.entry)
+            runCurrent()
+            assertEquals(3, model.state.value.users.size)
+
+            // The users list changed, but the shifts cannot be read: all or nothing.
+            val extra = user("99012345667", "Dana", UserRole.WAITER)
+            coEvery { f.engine.listUsers() } returns listOf(admin, cashier, waiter, extra)
+            coEvery { f.engine.listOpenShifts() } throws PosException.Coded("boom", emptyMap())
+            model.loadUsers()
+
+            assertEquals(listOf(admin, cashier, waiter), model.state.value.users)
+            assertEquals(mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"), model.state.value.openShifts)
+        }
+
+    @Test
+    fun aFailedUsersReloadKeepsTheShiftsToo() =
+        runTest {
+            val f = settingsFixture(tmp.root)
+            coEvery { f.engine.listOpenShifts() } returns listOf(OpenShift(CASHIER_INSZ, "2026-10-17T10:02:00Z"))
+            val env = settingsEnv(f, context)
+            openEngine(env)
+            with(env) { loginAs(admin) }
+            val model = SettingsViewModel(env.entry)
+            runCurrent()
+
+            // The shifts moved on, the users cannot be read: nothing changes.
+            coEvery { f.engine.listOpenShifts() } returns emptyList()
+            coEvery { f.engine.listUsers() } throws PosException.Coded("boom", emptyMap())
+            model.loadUsers()
+
+            assertEquals(3, model.state.value.users.size)
             assertEquals(mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"), model.state.value.openShifts)
         }
 
