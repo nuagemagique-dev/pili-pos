@@ -105,11 +105,19 @@ const MIGRATIONS: &[Migration] = &[
         sql: MIGRATION_011_TABLE_PLAN,
     },
     // Versions 20 to 27 are taken (HUBRISE_MIGRATIONS, CATALOG_MIGRATIONS,
-    // EFT_MIGRATIONS below); 28 is presence registration.
+    // EFT_MIGRATIONS below); 28 is presence registration; 70 is staff
+    // badges (after the other lanes' ranges, see below).
     Migration {
         version: 28,
         name: "presence-registration",
         sql: MIGRATION_028_PRESENCE_REGISTRATION,
+    },
+    // 30, 31, 40 to 4x and 60 to 6x are taken by other lanes of the v1.0
+    // work; 70 is staff badges.
+    Migration {
+        version: 70,
+        name: "staff-badges",
+        sql: crate::schema_badges::MIGRATION_070_STAFF_BADGES,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one. Versions 12 to 19 are kept for the certified
@@ -313,13 +321,15 @@ mod tests {
     }
 
     /// Migration 11 (the table plan) follows them, still below HubRise's 20;
-    /// then 28 (presence registration), in every build.
+    /// then 28 (presence registration), then 70 (staff badges), in every
+    /// build.
     #[test]
-    fn the_base_migrations_are_the_certified_ones_then_presence() {
+    fn the_base_migrations_are_the_certified_ones_then_presence_then_badges() {
         let base: Vec<(i64, &str)> = MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
-        assert_eq!(base.len(), 12);
+        assert_eq!(base.len(), 13);
         assert_eq!(base[10], (11, "table-plan"));
         assert_eq!(base[11], (28, "presence-registration"));
+        assert_eq!(base[12], (70, "staff-badges"));
     }
 
     #[test]

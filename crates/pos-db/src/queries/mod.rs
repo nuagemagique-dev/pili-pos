@@ -1,3 +1,4 @@
+pub mod badges;
 pub mod booking;
 pub mod deliveries;
 pub mod eft;
