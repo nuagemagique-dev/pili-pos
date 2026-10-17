@@ -424,3 +424,44 @@ Notes:
 - `cargo test --workspace` also runs doctests, which fail here only because the shared target dir mixes worktrees (`can't find crate for pos_engine`, stale `pos_core`). Unit and integration targets were run with `--lib --bins --tests` after touching the sources to defeat the cross-worktree mtime freshness; the orchestrator's merged tree builds in its own target.
 - Feature to test map (section 12): every named Rust, Kotlin and Playwright test was checked to exist in the tree (script grep); all pass in the runs above. No uncovered behaviour found, no test added.
 
+
+## Feature to test map
+
+Test round 1 (2026-10-18). Every row names the layer and the tests added for it; the earlier rows of section 12 stay valid for the features they list. "eng" is `crates/pos-engine/tests/badges.rs`, "PW" is `ui/e2e/badges.spec.ts`, Kotlin paths are under `android/app/src/test/kotlin/dev/nuagemagique/pilipos`.
+
+| # | Feature | Layer | Test(s) |
+|---|---|---|---|
+| 1 | `badge.key` concurrent creation and rename fallback | engine unit | `badge_key::tests::concurrent_creators_all_get_the_winners_key` (8 threads behind a barrier), `without_hard_links_the_key_is_stored_by_rename`, `the_rename_fallback_never_overwrites_an_existing_key` (the link step is a fn pointer, `load_or_create_with`) |
+| 2 | Engine open with an unreadable key revokes nothing | engine | eng `opening_the_engine_with_an_unreadable_key_revokes_nothing` |
+| 3 | Reader `nfc` accepted by the engine | engine | eng `the_nfc_reader_links_and_scans_like_any_other` |
+| 4 | `list_badges` log capped at 30, newest first | engine | eng `the_overview_log_carries_the_thirty_latest_rows_newest_first` |
+| 5 | `link_badge` PIN throttle ends in `pin_locked`, nothing linked | engine | eng `repeated_wrong_manager_pins_end_in_pin_locked_and_link_nothing` |
+| 6 | Raw UID in no log line (tracing) | engine | eng `the_raw_badge_number_is_in_no_log_line` (TRACE capture over link, tap, unknown, unreadable key, presence_failed) |
+| 7 | Active link of a deactivated employee: `user_unknown`, journaled `refused` | engine | eng `a_badge_whose_employee_is_no_longer_active_is_refused` |
+| 8 | Precedence: end_shift beats badge login, an open session beats end_shift | engine | eng `end_shift_beats_badge_login_and_an_open_session_beats_end_shift` |
+| 9 | Training: enrolment and revocation allowed, no fiscal event | engine | eng `in_training_a_manager_can_link_and_revoke_without_any_fiscal_event` |
+| 10 | Internal refusal before signing journaled with its code | engine | eng `an_internal_refusal_before_signing_is_journaled_with_its_code` (`previous_day_open`) |
+| 11 | Reader switched to Désactivé at run time; stored `nfc` installs no listener on Linux | Vue | PW `switching the reader to Désactivé releases the keys: a burst is typed again`, `a stored NFC reader installs no listener on Linux: the burst is typed, no tap`, `a stored NFC reader offers no badge login hint and no Lier buttons on Linux` (fix: `stores/badge.ts` `readerOn` is true for `usb` only) |
+| 12 | Ctrl chord, key repeat, IME composition | Vue | PW `a Ctrl chord breaks the burst and the held keys are replayed before it`, `a key repeat inside a burst is swallowed and not counted`, `a key during IME composition is left alone` |
+| 13 | Timing saved in Settings applies without reload | Vue | PW `a wider gap saved without reload turns a slow burst into a badge`, `a longer minimum saved without reload refuses a 6 key burst` |
+| 14 | Replay respects maxlength, read-only, no focus, and the focus at hold time | Vue | PW `a field with a maxlength keeps only what fits`, `a read-only field receives nothing`, `with nothing editable focused the keys are dropped`, `the keys land in the field that was focused when they were held` |
+| 15 | Replayed typing is user activity | Vue | PW `held keys that turn out to be typing are reported to the engine` (no Enter, so only the replay can report) |
+| 16 | Sound cue: high two-tone, low tone, none on ignored; no audio device | Vue | PW `high two-tone on a registration, low tone on a refusal or FDM failure, none on ignored`, `a badge login plays the high two-tone`, `no audio device: the toast still shows` |
+| 17 | `pin_required` for a manager outside the tiles opens the PIN pad | Vue | PW `a manager who is not among the tiles still gets the PIN pad` |
+| 18 | A registered scan on the login screen reloads the on-shift tiles | Vue | PW `a registered scan on the login screen reloads who is on shift` |
+| 19 | Badge log empty state and 6-row cap | Vue | PW `an empty log says so`, `the panel shows the first six rows only, in order` |
+| 20 | Cancel or backdrop during enrolment links nothing and frees the capture | Vue | PW `cancelling at the PIN step after the capture links nothing and frees the reader`, `a tap on the backdrop of the PIN step cancels too`, `a tap on the backdrop of the enrolment closes it and frees the reader` |
+| 21 | Refused revocation keeps the row; backdrop closes the dialog | Vue | PW `a refused removal shows the error and keeps the row`, `a tap on the backdrop of the removal dialog closes it without removing` |
+| 22 | Setting read again on `Resync`; a failed read keeps the reader | Android | `ui/badge/BadgeStoreTest.aResyncReadsTheSettingAgain`, `aFailedReadKeepsThePreviousSettingAndTheReaderRunning` |
+| 23 | `presence_failed` toast carries the FDM text (or the text of a known code) | Android | `BadgeStoreTest.presenceFailedShowsTheRefusalToast` (extended), `presenceFailedWithAKnownCodeShowsItsTextNotTheCode` |
+| 24 | `KeyWedgeSource.configure` replays held keys, then applies the new gap | Android | `ui/badge/KeyWedgeSourceTest.aNewTimingReleasesTheHeldKeysThenAppliesTheNewGap` |
+| 25 | `MainActivity` lifecycle: wedge replay sink, NFC reader mode follows resume and pause | Android | `MainActivityTest.keysTheWedgeReleasesAreReplayedIntoTheViewHierarchyAndCountAsUserActivity`, `MainActivityNfcTest.theReaderModeRunsWhileTheActivityIsResumedAndEndsWithIt` (Hilt, `BadgeModule` swapped for the same bindings minus the device NFC) |
+| 26 | `AndroidNfcSupport`: feature flag, adapter state, null adapter, reader mode | Android | `ui/badge/AndroidNfcSupportTest.*`. The reader flags are not exposed by Robolectric's `ShadowNfcAdapter`: they are read in code review and stay untested (device test list) |
+| 27 | Manifest: NFC permission and `uses-feature android.hardware.nfc required=false` | Android | `ui/badge/NfcManifestTest.*` (parses `src/main/AndroidManifest.xml`) |
+| 28 | Hilt graph: `BadgeOverlay` in the shell overlays, one wedge and one NFC singleton | Android | `BadgeGraphTest.*` |
+| 29 | Badge panel in the narrow layout: managers only, between the plan and the employees | Android | `feature/settings/SettingsBadgeContentTest.onANarrowWindowAManagerGetsTheBadgePanelBetweenThePlanAndTheEmployees`, `onANarrowWindowAWorkerGetsNoBadgePanel` |
+| 30 | Badge log: 6 rows, manager name and Brussels time, revoke row | Android | `SettingsBadgeContentTest.theLogShowsAtMostSixRowsNewestFirst`, `aLogRowNamesTheManagerAndTheBrusselsTime`, `aRevocationRowShowsItsLabelAndTheEmployee` |
+| 31 | `SettingsRoute` wires the panel and dialog lambdas to the real model | Android | `feature/settings/SettingsRouteTest.theBadgeLambdasReachTheRealBadgeModel` (the route's entry point is handed the test stores with `mockkStatic(EntryPointAccessors)`) |
+| 32 | Leaving Settings cancels a waiting capture | Android | `feature/settings/SettingsBadgeModelTest.leavingSettingsWhileTheDialogWaitsCancelsTheCapture` |
+| 33 | Login hints render only under their conditions | Android | `feature/login/LoginContentTest.theTilesHintAtTheBadgeOnlyWithBadgeLoginAndNotInInszMode`, `noBadgeHintInInszMode`, `noBadgeHintWithoutBadgeLogin`, `thePinPadHintsAtTheBadgeInEndShiftModeWithAReader`, `noEndShiftBadgeHintOutsideEndShiftMode`, `noEndShiftBadgeHintWithTheReaderOff` |
+| 34 | Leaving the login screen resets the store's end-shift mode | Android | `feature/login/LoginBadgeTest.leavingTheLoginScreenResetsTheEndShiftModeOfTheStore` |
