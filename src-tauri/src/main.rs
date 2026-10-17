@@ -194,6 +194,9 @@ fn main() {
         // Menu
         ipc::menu::get_categories,
         ipc::menu::get_menu_items,
+        ipc::menu::list_sold_out,
+        ipc::menu::set_sold_out,
+        ipc::menu::clear_sold_out,
         // Orders
         ipc::order::create_order,
         ipc::order::add_order_line,

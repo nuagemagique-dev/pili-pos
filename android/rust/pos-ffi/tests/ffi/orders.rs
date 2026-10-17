@@ -278,6 +278,45 @@ async fn categories_and_menu_items_convert_with_options_set_and_empty() {
 }
 
 #[tokio::test]
+async fn sold_out_products_and_the_menu_flags_convert() {
+    let app = app().await;
+    let none = pos_engine::commands::sold_out::do_list_sold_out(&app.state, None).unwrap();
+    assert!(none.is_empty());
+    let items = menu::do_get_menu_items(&app.state, None, None).unwrap();
+    let records: Vec<ffi::MenuItem> = out_equal(&items);
+    assert!(
+        records
+            .iter()
+            .all(|i| !i.sold_out && i.sold_out_until.is_none())
+    );
+
+    pos_engine::commands::sold_out::do_set_sold_out(&app.state, 1, true, None).unwrap();
+    let list = pos_engine::commands::sold_out::do_set_sold_out(&app.state, 2, false, None).unwrap();
+    let records: Vec<ffi::SoldOutItem> = out_equal(&list);
+    assert_eq!(records.len(), 2);
+    assert!(records[0].until.is_some(), "until the end of the day");
+    assert_eq!(records[1].until, None, "until re-enabled");
+    assert_eq!(records[0].name, "Eau pétillante");
+
+    let items = menu::do_get_menu_items(&app.state, None, None).unwrap();
+    let records: Vec<ffi::MenuItem> = out_equal(&items);
+    assert!(records[0].sold_out && records[0].sold_out_until.is_some());
+    assert!(records[1].sold_out && records[1].sold_out_until.is_none());
+    assert!(!records[2].sold_out);
+
+    // An older payload without the new fields still reads (the fields default).
+    let mut value = json_of(&records[2]);
+    value.as_object_mut().unwrap().remove("sold_out");
+    value.as_object_mut().unwrap().remove("sold_out_until");
+    let back: ffi::MenuItem = serde_json::from_value(value).unwrap();
+    assert!(!back.sold_out);
+    // And the record still refuses a field the engine does not have.
+    let mut value = json_of(&records[2]);
+    value["extra"] = Value::Bool(true);
+    assert!(serde_json::from_value::<ffi::MenuItem>(value).is_err());
+}
+
+#[tokio::test]
 async fn modifier_groups_convert_with_and_without_a_maximum() {
     let app = app().await;
     let groups = modifiers::do_get_item_modifiers_localized(&app.state, 2, Some("fr")).unwrap();
@@ -772,6 +811,18 @@ async fn the_commands_that_need_an_operator_answer_not_logged_in_and_change_noth
         code_of(e.sign_pre_bill(1).await.unwrap_err()),
         "not_logged_in"
     );
+    assert_eq!(
+        code_of(e.set_sold_out(10006, true, None).await.unwrap_err()),
+        "not_logged_in"
+    );
+    assert_eq!(
+        code_of(e.clear_sold_out(10006, None).await.unwrap_err()),
+        "not_logged_in"
+    );
+    assert_eq!(
+        code_of(e.list_sold_out(None).await.unwrap_err()),
+        "not_logged_in"
+    );
 
     // Nothing was written.
     let lines = e.list_order_lines(1).await.unwrap();
@@ -788,6 +839,10 @@ async fn every_method_answers_engine_closed_after_shutdown() {
     e.shutdown().await.unwrap();
     assert!(matches!(e.get_order(1).await, Err(PosError::EngineClosed)));
     assert!(matches!(e.list_tables().await, Err(PosError::EngineClosed)));
+    assert!(matches!(
+        e.list_sold_out(None).await,
+        Err(PosError::EngineClosed)
+    ));
     assert!(matches!(
         e.leave_order(1, ffi::LeaveReason::Idle).await,
         Err(PosError::EngineClosed)

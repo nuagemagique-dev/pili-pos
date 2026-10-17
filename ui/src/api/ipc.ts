@@ -34,6 +34,26 @@ export function getMenuItems(
   return invoke("get_menu_items", { categoryId, lang });
 }
 
+// Sold out ("Épuisé"): cashier and manager.
+export function listSoldOut(lang?: string): Promise<SoldOutItem[]> {
+  return invoke("list_sold_out", { lang });
+}
+
+export function setSoldOut(
+  menuItemId: number,
+  untilEndOfDay: boolean,
+  lang?: string
+): Promise<SoldOutItem[]> {
+  return invoke("set_sold_out", { menuItemId, untilEndOfDay, lang });
+}
+
+export function clearSoldOut(
+  menuItemId: number,
+  lang?: string
+): Promise<SoldOutItem[]> {
+  return invoke("clear_sold_out", { menuItemId, lang });
+}
+
 // Orders
 export function createOrder(input: CreateOrderInput): Promise<Order> {
   return invoke("create_order", { input });

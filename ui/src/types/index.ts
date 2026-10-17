@@ -91,6 +91,20 @@ export interface MenuItem {
   kitchen_printer: boolean;
   sort_order: number;
   active: boolean;
+  /** Sold out right now ("Épuisé"): the till refuses to add it to an order. */
+  sold_out?: boolean;
+  /** End of the business day it is sold out until (RFC 3339); null with `sold_out`: until re-enabled. */
+  sold_out_until?: string | null;
+}
+
+/** A product that is sold out now (`list_sold_out`). */
+export interface SoldOutItem {
+  menu_item_id: number;
+  name: string;
+  /** End of the business day (RFC 3339); null: until re-enabled. */
+  until: string | null;
+  set_by: string;
+  set_at: string;
 }
 
 export interface Order {
