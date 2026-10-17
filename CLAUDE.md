@@ -211,98 +211,106 @@ pili-pos/
 │   │   ├── src/                # commands/, engine.rs, state.rs, background.rs, events.rs, install.rs
 │   │   └── tests/              # integration tests (spf_e2e_*, hubrise_*, access_control, ...)
 │   ├── pos-engine-testkit/     # Test harness (publish = false, outside the certified binary)
-│   ├── pos-core/
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── order.rs        # Order, OrderLine, modifiers
-│   │       ├── menu.rs         # MenuItem, Category, translations
-│   │       ├── vat.rs          # VatCode enum, calculations
-│   │       ├── user.rs         # User, INSZ validation
-│   │       ├── table.rs        # Table management (dine-in)
-│   │       └── config.rs       # POS configuration
-│   ├── pos-fiscal/
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── event.rs        # FiscalEvent enum (N/P/T/C/I/F/S/R)
-│   │       ├── fdm_client.rs   # GraphQL client to FDM
-│   │       ├── signature.rs    # shortSignature = hex(SHA1(digitalSignature))
-│   │       ├── response_check.rs # FDM response vs request consistency check
-│   │       ├── ticket.rs       # Fiscal ticket data structure
-│   │       ├── archive.rs      # JSON archival logic
-│   │       ├── counter.rs      # Sequential numbering
-│   │       └── qr.rs           # QR code generation for tickets
-│   ├── pos-print/
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── escpos.rs       # ESC/POS command builder
-│   │       ├── receipt.rs      # Receipt layout/formatting
-│   │       ├── drawer.rs       # Cash drawer kick (0x1B 0x70 0x00 0x19 0xFA)
-│   │       └── transport.rs    # USB/Serial/TCP printer connection
-│   └── pos-db/
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs
-│           ├── schema.rs       # SQLite schema + migrations
-│           ├── queries/        # Typed query modules
-│           │   ├── orders.rs
-│           │   ├── menu.rs
-│           │   ├── fiscal.rs
-│           │   ├── users.rs
-│           │   └── reports.rs
-│           └── migrate.rs      # Schema migration runner
+│   ├── pos-core/               # Domain types, no I/O
+│   │   └── src/                # lib.rs, order.rs, menu.rs, vat.rs, user.rs, money.rs, config.rs, table.rs, table_plan.rs
+│   ├── pos-fiscal/             # SCE 2.0 protocol: FDM client, events, signatures, tickets, archive
+│   │   └── src/                # event.rs, inputs.rs, fdm_client.rs, fdm_tls.rs, http_tls.rs, signature.rs,
+│   │                           # canonical.rs, response.rs, response_check.rs, ticket.rs, archive.rs, counter.rs,
+│   │                           # identity.rs, payment.rs, price_change.rs, report_totals.rs, types.rs, qr.rs
+│   ├── pos-print/              # ESC/POS rendering and transport
+│   │   └── src/                # escpos.rs, receipt.rs, report.rs, kitchen_ticket.rs, bar_ticket.rs,
+│   │                           # customer_slip.rs, labels.rs, render.rs, drawer.rs, transport.rs
+│   ├── pos-db/                 # SQLite schema, migrations, typed queries
+│   │   └── src/                # schema.rs, schema_catalog.rs, schema_eft.rs, schema_hubrise.rs, migrate.rs,
+│   │       └── queries/        # orders, menu, fiscal, users, reports, shifts, eft, booking, deliveries,
+│   │                           # integrations, pending_signs, price_changes, prints, table_plan
+│   ├── pos-eft/                # Linked card terminal (Worldline, CCV cloud, CCV OPI drivers, scripted terminal)
+│   ├── pos-eft-mock/           # Mock card terminal for development and tests (publish = false)
+│   ├── pos-eft-probe/          # Bench tool: check a real terminal before a go-live
+│   ├── pos-catalog/            # Menu as a mirror of an external catalog (hash, validate, apply)
+│   ├── pos-hubrise/            # HubRise client: OAuth, catalog sync, online orders, outbox
+│   ├── pos-hubrise-types/      # HubRise API types shared by the client and its mock
+│   ├── pos-hubrise-mock/       # HubRise mock HTTP server (tests, demos)
+│   ├── pos-mail/               # Digital ticket by e-mail (Scaleway TEM), outbox
+│   ├── pos-export/             # Nightly encrypted export of an installation
+│   ├── pos-export-mock/        # Test receiver of the nightly export
+│   ├── pos-peppol/             # Belgian Peppol B2B invoices (UBL); not in the cert build
+│   ├── pos-fdm-mock/           # Mock FDM (SCE 2.0 GraphQL) and mock TEM
+│   └── pos-printer-mock/       # Network thermal printer mock
 └── ui/
     ├── index.html              # Vite entry point
     ├── vite.config.ts
     ├── tsconfig.json
-    ├── package.json
-    ├── src/
-    │   ├── main.ts             # Vue app bootstrap + router + pinia
-    │   ├── App.vue             # Root component with <RouterView>
-    │   ├── api/
-    │   │   └── ipc.ts          # Typed Tauri invoke wrappers
-    │   ├── stores/
-    │   │   ├── order.ts        # Pinia store: current order, cart, lines
-    │   │   ├── menu.ts         # Pinia store: categories, items (loaded from Rust)
-    │   │   ├── auth.ts         # Pinia store: current user, INSZ, role; lock and end of shift go through the engine
-    │   │   ├── fdm.ts          # Pinia store: FDM health as classified by the engine monitor
-    │   │   └── pos.ts          # Pinia store: POS config, training mode flag
-    │   ├── composables/
-    │   │   ├── useVat.ts       # VAT calculation helpers
-    │   │   ├── usePrint.ts     # Print trigger composable
-    │   │   └── useCheckout.ts  # Checkout flow orchestration
-    │   ├── router/
-    │   │   └── index.ts        # Vue Router (hash mode)
-    │   ├── views/
-    │   │   ├── LoginView.vue       # INSZ numeric keypad login
-    │   │   ├── TablesView.vue      # Table map / floor plan
-    │   │   ├── OrderView.vue       # Menu grid + cart sidebar (main POS screen)
-    │   │   ├── CheckoutView.vue    # Payment method + FDM call + receipt
-    │   │   ├── ReceiptView.vue     # Receipt preview before print
-    │   │   ├── ReportsView.vue     # X/Z report screen
-    │   │   └── SettingsView.vue    # Admin settings
-    │   ├── components/
-    │   │   ├── MenuGrid.vue        # Category tabs + item buttons grid
-    │   │   ├── CartSidebar.vue     # Order lines list + totals
-    │   │   ├── NumPad.vue          # Reusable numeric keypad (INSZ, quantities, cash amount)
-    │   │   ├── CategoryTabs.vue    # Horizontal scrollable category tabs
-    │   │   ├── MenuItemButton.vue  # Single menu item touch button
-    │   │   ├── OrderLine.vue       # Single line in cart (qty, name, price, delete)
-    │   │   ├── VatSummary.vue      # VAT breakdown table (A/B/C/D)
-    │   │   ├── FdmStatus.vue       # FDM connection indicator (header bar)
-    │   │   ├── TrainingBanner.vue  # "TRAINING MODE" overlay when active
-    │   │   ├── ModifierDialog.vue  # Modal for item modifiers/options
-    │   │   └── PaymentButtons.vue  # Cash / Card / Split payment selection
-    │   ├── types/
-    │   │   └── index.ts            # Shared TS interfaces matching Rust types
-    │   └── styles/
-    │       ├── reset.css
-    │       ├── tokens.css          # CSS custom properties (colors, spacing, radii)
-    │       └── global.css          # Base typography, scrollbar, touch overrides
-    └── public/
-        └── fonts/              # Noto Sans CJK SC for Chinese simplified menu items
+    ├── package.json            # Fonts come from @fontsource packages (Archivo, JetBrains Mono, Noto Sans)
+    ├── e2e/                    # Playwright tests
+    └── src/
+        ├── main.ts             # Vue app bootstrap + router + pinia
+        ├── App.vue             # Root component with <RouterView>
+        ├── i18n.ts             # vue-i18n setup (fr, en, zh) and shared strings
+        ├── i18n-checkout.ts    # Strings of the checkout screen
+        ├── i18n-export.ts      # Strings of the export settings
+        ├── i18n-reports.ts     # Strings of the reports screen
+        ├── i18n-settings.ts    # Strings of the settings screen
+        ├── i18n-webshop.ts     # Strings of the online orders screen
+        ├── api/
+        │   ├── ipc.ts          # Typed Tauri invoke wrappers
+        │   └── ipc-modifiers.ts # Wrappers of the option commands (HubRise builds only)
+        ├── stores/
+        │   ├── order.ts        # Pinia store: current order, cart, lines
+        │   ├── menu.ts         # Pinia store: categories, items (loaded from Rust)
+        │   ├── auth.ts         # Pinia store: current user, INSZ, role; lock and end of shift go through the engine
+        │   ├── fdm.ts          # Pinia store: FDM health as classified by the engine monitor
+        │   ├── pos.ts          # Pinia store: POS config, training mode flag
+        │   ├── eft.ts          # Pinia store: linked card terminal state
+        │   ├── integrations.ts # Pinia store: HubRise and export switches
+        │   ├── delivery.ts     # Pinia store: ticket medium and digital delivery state
+        │   ├── webshopOrders.ts # Pinia store: online orders
+        │   ├── support.ts      # Pinia store: remote support session
+        │   └── toast.ts        # Pinia store: toast notifications
+        ├── composables/
+        │   └── useOrderChime.ts # Sound alert for a new online order
+        ├── utils/              # datetime.ts (Europe/Brussels), format.ts, names.ts, errorMessages.ts, fdmMessages.ts
+        ├── router/
+        │   └── index.ts        # Vue Router (hash mode)
+        ├── views/
+        │   ├── LoginView.vue       # INSZ numeric keypad login
+        │   ├── TablesView.vue      # Table map / floor plan
+        │   ├── OrderView.vue       # Menu grid + cart sidebar (main POS screen)
+        │   ├── CheckoutView.vue    # Payment method + FDM call + receipt
+        │   ├── ReportsView.vue     # X/Z report screen
+        │   ├── SettingsView.vue    # Admin settings
+        │   └── WebshopOrdersView.vue # Online (HubRise) orders
+        ├── components/
+        │   ├── AppHeader.vue       # Header bar (status lights, user, navigation)
+        │   ├── MenuGrid.vue        # Category tabs + item buttons grid
+        │   ├── CategoryTabs.vue    # Horizontal scrollable category tabs
+        │   ├── MenuItemButton.vue  # Single menu item touch button
+        │   ├── CartSidebar.vue     # Order lines list + totals
+        │   ├── OrderLineItem.vue   # Single line in cart (qty, name, price, delete)
+        │   ├── ModifierDialog.vue  # Modal for item options (HubRise)
+        │   ├── NumPad.vue          # Reusable numeric keypad (INSZ, quantities, cash amount)
+        │   ├── EmailKeypad.vue     # Keypad for the customer e-mail address
+        │   ├── PinDialog.vue       # Manager PIN prompt
+        │   ├── PriceDialog.vue     # Price entry for open-price items
+        │   ├── VatSummary.vue      # VAT breakdown table (A/B/C/D)
+        │   ├── StatusLights.vue    # FDM, printer, terminal and network indicators
+        │   ├── FdmAlerts.vue       # FDM alert messages
+        │   ├── EftOverlay.vue      # Card terminal payment overlay
+        │   ├── TicketMediumPicker.vue # Paper or digital ticket choice
+        │   ├── DeliveryOutcomePanel.vue # Result of the digital ticket delivery
+        │   ├── ExportStatusPanel.vue # Nightly export status
+        │   ├── HubriseConnectDialog.vue / HubriseSettings.vue / IntegrationSwitch.vue # HubRise settings
+        │   ├── OnlineOrdersNavButton.vue # Header shortcut to the online orders
+        │   ├── ConfigProblemsBanner.vue / SupportBanner.vue / TrainingBanner.vue # Banners ("TRAINING MODE" when active)
+        │   ├── ToastStack.vue      # Toast notifications
+        │   └── PiliLogo.vue        # Logo
+        ├── types/
+        │   └── index.ts            # Shared TS interfaces matching Rust types
+        ├── assets/webshop/         # Logos shown on the online orders screen
+        └── styles/
+            ├── reset.css
+            ├── tokens.css          # CSS custom properties (colors, spacing, radii)
+            └── global.css          # Base typography, scrollbar, touch overrides
 ```
 
 ---
