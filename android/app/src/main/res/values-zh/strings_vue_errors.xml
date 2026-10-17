@@ -33,6 +33,12 @@
     <string name="err_table_transfer_target_busy">这张桌子已有进行中的订单：请选择空桌。</string>
     <string name="err_table_transfer_target_invalid">这张桌子不在餐厅布局中。</string>
     <string name="err_table_transfer_not_a_table">只有堂食订单才能换桌。</string>
+    <string name="err_discount_already_applied">已有折扣：请先取消。</string>
+    <string name="err_discount_none">没有可取消的折扣。</string>
+    <string name="err_discount_invalid">折扣无效：百分比为 1 至 99，或不超过总额的金额。</string>
+    <string name="err_discount_reason_invalid">请选择折扣原因。</string>
+    <string name="err_discount_online_order">在线订单有自己的折扣：不能在收银台打折。</string>
+    <string name="err_line_has_price_changes">此行有折扣：请先取消再修改数量。</string>
     <string name="err_payment_correction_not_a_sale">只能更正销售小票。</string>
     <string name="err_payment_correction_training">培训销售只能在培训模式下更正，真实销售则不能。</string>
     <string name="err_payment_correction_period_closed">此销售属于已结账（Z报表）的日期。</string>

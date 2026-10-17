@@ -101,6 +101,8 @@ const DEFAULT_CART_LINE = {
   name_fr: 'Maki saumon x8',
   name_zh: '三文鱼细卷',
   unsent_quantity: 1,
+  discount_cents: 0,
+  price_changes: [],
 };
 
 const DEFAULT_TABLE = (n: number) => ({

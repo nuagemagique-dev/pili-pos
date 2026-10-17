@@ -894,6 +894,36 @@
       "zh": "堂食订单需要桌号。",
       "area": "errors"
     },
+    "err_discount_already_applied": {
+      "fr": "Une remise s'applique déjà : retirez-la d'abord.",
+      "en": "A discount already applies: remove it first.",
+      "zh": "已有折扣：请先取消。",
+      "area": "errors"
+    },
+    "err_discount_invalid": {
+      "fr": "Remise non valable : pourcentage de 1 à 99, ou montant jusqu'au total.",
+      "en": "Invalid discount: a percent from 1 to 99, or an amount up to the total.",
+      "zh": "折扣无效：百分比为 1 至 99，或不超过总额的金额。",
+      "area": "errors"
+    },
+    "err_discount_none": {
+      "fr": "Aucune remise à retirer.",
+      "en": "No discount to remove.",
+      "zh": "没有可取消的折扣。",
+      "area": "errors"
+    },
+    "err_discount_online_order": {
+      "fr": "Une commande en ligne a ses propres remises : aucune remise en caisse.",
+      "en": "An online order has its own discounts: none at the till.",
+      "zh": "在线订单有自己的折扣：不能在收银台打折。",
+      "area": "errors"
+    },
+    "err_discount_reason_invalid": {
+      "fr": "Choisissez le motif de la remise.",
+      "en": "Choose the reason for the discount.",
+      "zh": "请选择折扣原因。",
+      "area": "errors"
+    },
     "err_eft_amount_invalid": {
       "fr": "Montant invalide : il doit être positif et ne pas dépasser ce qu'il reste à payer.",
       "en": "Invalid amount: it must be positive and not more than what is left to pay.",
@@ -1090,6 +1120,12 @@
       "fr": "Erreur interne. Contactez votre technicien. ({detail})",
       "en": "Internal error. Contact your technician. ({detail})",
       "zh": "内部错误，请联系技术人员。（{detail}）",
+      "area": "errors"
+    },
+    "err_line_has_price_changes": {
+      "fr": "Cette ligne a une remise : retirez-la avant de changer la quantité.",
+      "en": "This line has a discount: remove it before changing the quantity.",
+      "zh": "此行有折扣：请先取消再修改数量。",
       "area": "errors"
     },
     "err_line_not_found": {
@@ -3587,6 +3623,12 @@
     "payment_correction_same_method",
     "payment_correction_method",
     "payment_correction_rounding",
+    "discount_already_applied",
+    "discount_none",
+    "discount_invalid",
+    "discount_reason_invalid",
+    "discount_online_order",
+    "line_has_price_changes",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",

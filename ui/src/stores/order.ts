@@ -122,6 +122,8 @@ export const useOrderStore = defineStore("order", () => {
       name_fr: item.name_fr ?? null,
       name_zh: item.name_zh ?? null,
       unsent_quantity: quantity,
+      discount_cents: 0,
+      price_changes: [],
     });
     itemCategoryMap.value.set(item.id, item.category_id);
 

@@ -33,6 +33,12 @@
     <string name="err_table_transfer_target_busy">This table already has an open order: pick a free table.</string>
     <string name="err_table_transfer_target_invalid">This table is not in the floor plan.</string>
     <string name="err_table_transfer_not_a_table">Only a dine-in order can change table.</string>
+    <string name="err_discount_already_applied">A discount already applies: remove it first.</string>
+    <string name="err_discount_none">No discount to remove.</string>
+    <string name="err_discount_invalid">Invalid discount: a percent from 1 to 99, or an amount up to the total.</string>
+    <string name="err_discount_reason_invalid">Choose the reason for the discount.</string>
+    <string name="err_discount_online_order">An online order has its own discounts: none at the till.</string>
+    <string name="err_line_has_price_changes">This line has a discount: remove it before changing the quantity.</string>
     <string name="err_payment_correction_not_a_sale">Only a sale ticket can be corrected.</string>
     <string name="err_payment_correction_training">A training sale is corrected in training mode, a real sale outside it.</string>
     <string name="err_payment_correction_period_closed">This sale belongs to a day already closed (Z report).</string>

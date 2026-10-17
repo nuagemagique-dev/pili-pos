@@ -106,6 +106,12 @@ internal object VueStringIds {
         this["err_table_transfer_target_busy"] = R.string.err_table_transfer_target_busy
         this["err_table_transfer_target_invalid"] = R.string.err_table_transfer_target_invalid
         this["err_table_transfer_not_a_table"] = R.string.err_table_transfer_not_a_table
+        this["err_discount_already_applied"] = R.string.err_discount_already_applied
+        this["err_discount_none"] = R.string.err_discount_none
+        this["err_discount_invalid"] = R.string.err_discount_invalid
+        this["err_discount_reason_invalid"] = R.string.err_discount_reason_invalid
+        this["err_discount_online_order"] = R.string.err_discount_online_order
+        this["err_line_has_price_changes"] = R.string.err_line_has_price_changes
         this["err_payment_correction_not_a_sale"] = R.string.err_payment_correction_not_a_sale
         this["err_payment_correction_training"] = R.string.err_payment_correction_training
         this["err_payment_correction_period_closed"] = R.string.err_payment_correction_period_closed
@@ -260,15 +266,15 @@ internal object VueStringIds {
         this["cash_declaration"] = R.string.cash_declaration
         this["cash_declaration_hint"] = R.string.cash_declaration_hint
         this["kitchen_slip_failed"] = R.string.kitchen_slip_failed
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["cash_declared"] = R.string.cash_declared
         this["cash_amount_placeholder"] = R.string.cash_amount_placeholder
         this["cash_reason_placeholder"] = R.string.cash_reason_placeholder
         this["cash_success"] = R.string.cash_success
         this["cash_failed"] = R.string.cash_failed
         this["cash_drawer_opened"] = R.string.cash_drawer_opened
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["cash_err_amount"] = R.string.cash_err_amount
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
@@ -513,15 +519,15 @@ internal object VueStringIds {
         this["hubrise_disconnect_action"] = R.string.hubrise_disconnect_action
         this["hubrise_open_authorize_url"] = R.string.hubrise_open_authorize_url
         this["hubrise_authorize_scan"] = R.string.hubrise_authorize_scan
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["hubrise_code_placeholder"] = R.string.hubrise_code_placeholder
         this["hubrise_complete_connection"] = R.string.hubrise_complete_connection
         this["err_hubrise_not_connected"] = R.string.err_hubrise_not_connected
         this["err_hubrise_order_unknown"] = R.string.err_hubrise_order_unknown
         this["err_hubrise_status_not_allowed"] = R.string.err_hubrise_status_not_allowed
         this["err_hubrise_time_invalid"] = R.string.err_hubrise_time_invalid
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["err_hubrise_menu_managed"] = R.string.err_hubrise_menu_managed
         this["err_hubrise_open_orders"] = R.string.err_hubrise_open_orders
         this["err_webshop_training"] = R.string.err_webshop_training

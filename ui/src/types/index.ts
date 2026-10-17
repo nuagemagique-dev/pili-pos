@@ -119,13 +119,24 @@ export interface OrderLine {
   department_name: string;
 }
 
+/** A price change on a cart line (a till discount, an online order's). */
+export interface CartPriceChange {
+  id: string;
+  name: string;
+  scope: 'LINE' | 'EVENT';
+  amount_cents: number;
+}
+
 /** A cart line: the order line, its product's French and Chinese
- * names, and the quantity not yet sent to the bar / kitchen. */
+ * names, the quantity not yet sent to the bar / kitchen, and its
+ * price changes (`discount_cents` is their sum, negative). */
 export interface CartLine extends OrderLine {
   name_fr: string | null;
   name_zh: string | null;
   code?: string | null;
   unsent_quantity: number;
+  discount_cents: number;
+  price_changes: CartPriceChange[];
 }
 
 export interface User {
