@@ -24,6 +24,8 @@ object EngineErrorCodes {
             "discount_reason_invalid",
             "discount_online_order",
             "line_has_price_changes",
+            "note_too_long",
+            "note_unprintable",
             "config_tables",
             "table_transfer_same_table",
             "table_transfer_target_busy",

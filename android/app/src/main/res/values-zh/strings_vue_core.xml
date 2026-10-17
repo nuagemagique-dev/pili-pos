@@ -223,6 +223,11 @@
     <string name="discount_offer">免费赠送</string>
     <string name="discount_offer_title">整行免费</string>
     <string name="discount_registration_failed">折扣已保存，但提交税务模块失败：将在下次下单时重试。</string>
+    <string name="note_button">备注</string>
+    <string name="note_title">厨房备注</string>
+    <string name="note_placeholder">例如：不要芥末</string>
+    <string name="note_hint_now">将立即在厨房打印</string>
+    <string name="note_hint_with_order">将随订单在厨房打印</string>
     <string name="keypad_space">空格</string>
     <string name="takeaway_started_at">{time} 开始</string>
     <string name="takeaway_start">新外带订单</string>

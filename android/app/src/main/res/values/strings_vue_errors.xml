@@ -38,6 +38,8 @@
     <string name="err_discount_invalid">Remise non valable : pourcentage de 1 à 99, ou montant jusqu\'au total.</string>
     <string name="err_discount_reason_invalid">Choisissez le motif de la remise.</string>
     <string name="err_discount_online_order">Une commande en ligne a ses propres remises : aucune remise en caisse.</string>
+    <string name="err_note_too_long">Note trop longue : 60 caractères au plus.</string>
+    <string name="err_note_unprintable">La note a un caractère que l\'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).</string>
     <string name="err_line_has_price_changes">Cette ligne a une remise : retirez-la avant de changer la quantité.</string>
     <string name="err_payment_correction_not_a_sale">Seul un ticket de vente peut être corrigé.</string>
     <string name="err_payment_correction_training">Une vente d\'entraînement se corrige en mode entraînement, une vente réelle hors entraînement.</string>

@@ -223,6 +223,11 @@
     <string name="discount_offer">Offrir</string>
     <string name="discount_offer_title">Offrir la ligne</string>
     <string name="discount_registration_failed">Remise enregistrée, mais l\'envoi au module fiscal a échoué : il sera refait à la prochaine commande.</string>
+    <string name="note_button">Note</string>
+    <string name="note_title">Note pour la cuisine</string>
+    <string name="note_placeholder">Ex. : sans wasabi</string>
+    <string name="note_hint_now">Imprimée en cuisine maintenant</string>
+    <string name="note_hint_with_order">Imprimée en cuisine avec la commande</string>
     <string name="keypad_space">Espace</string>
     <string name="takeaway_started_at">Commencée à {time}</string>
     <string name="takeaway_start">Nouvelle vente à emporter</string>

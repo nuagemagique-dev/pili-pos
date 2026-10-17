@@ -38,6 +38,8 @@
     <string name="err_discount_invalid">Invalid discount: a percent from 1 to 99, or an amount up to the total.</string>
     <string name="err_discount_reason_invalid">Choose the reason for the discount.</string>
     <string name="err_discount_online_order">An online order has its own discounts: none at the till.</string>
+    <string name="err_note_too_long">Note too long: 60 characters at most.</string>
+    <string name="err_note_unprintable">The note has a character the kitchen printer cannot print (letters, digits and accents only).</string>
     <string name="err_line_has_price_changes">This line has a discount: remove it before changing the quantity.</string>
     <string name="err_payment_correction_not_a_sale">Only a sale ticket can be corrected.</string>
     <string name="err_payment_correction_training">A training sale is corrected in training mode, a real sale outside it.</string>

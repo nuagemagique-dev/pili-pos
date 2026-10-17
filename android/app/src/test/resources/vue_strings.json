@@ -1344,6 +1344,18 @@
       "zh": "不能以其他员工的名义操作。",
       "area": "errors"
     },
+    "err_note_too_long": {
+      "fr": "Note trop longue : 60 caractères au plus.",
+      "en": "Note too long: 60 characters at most.",
+      "zh": "备注太长：最多60个字符。",
+      "area": "errors"
+    },
+    "err_note_unprintable": {
+      "fr": "La note a un caractère que l'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).",
+      "en": "The note has a character the kitchen printer cannot print (letters, digits and accents only).",
+      "zh": "备注含有厨房打印机无法打印的字符（仅限字母、数字和重音符号）。",
+      "area": "errors"
+    },
     "err_nothing_to_refund": {
       "fr": "Choisissez au moins un article à rembourser.",
       "en": "Choose at least one item to refund.",
@@ -2212,6 +2224,36 @@
       "fr": "Pas encore en cuisine",
       "en": "Not sent to the kitchen yet",
       "zh": "未送厨房",
+      "area": "core"
+    },
+    "note_button": {
+      "fr": "Note",
+      "en": "Note",
+      "zh": "备注",
+      "area": "core"
+    },
+    "note_hint_now": {
+      "fr": "Imprimée en cuisine maintenant",
+      "en": "Printed in the kitchen now",
+      "zh": "将立即在厨房打印",
+      "area": "core"
+    },
+    "note_hint_with_order": {
+      "fr": "Imprimée en cuisine avec la commande",
+      "en": "Printed in the kitchen with the order",
+      "zh": "将随订单在厨房打印",
+      "area": "core"
+    },
+    "note_placeholder": {
+      "fr": "Ex. : sans wasabi",
+      "en": "E.g. no wasabi",
+      "zh": "例如：不要芥末",
+      "area": "core"
+    },
+    "note_title": {
+      "fr": "Note pour la cuisine",
+      "en": "Kitchen note",
+      "zh": "厨房备注",
       "area": "core"
     },
     "off_shift": {
@@ -3803,6 +3845,8 @@
     "discount_reason_invalid",
     "discount_online_order",
     "line_has_price_changes",
+    "note_too_long",
+    "note_unprintable",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",

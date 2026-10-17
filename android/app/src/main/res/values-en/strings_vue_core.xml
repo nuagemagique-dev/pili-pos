@@ -223,6 +223,11 @@
     <string name="discount_offer">Give free</string>
     <string name="discount_offer_title">Give the line free</string>
     <string name="discount_registration_failed">Discount saved, but registering it with the fiscal module failed: it is retried with the next order.</string>
+    <string name="note_button">Note</string>
+    <string name="note_title">Kitchen note</string>
+    <string name="note_placeholder">E.g. no wasabi</string>
+    <string name="note_hint_now">Printed in the kitchen now</string>
+    <string name="note_hint_with_order">Printed in the kitchen with the order</string>
     <string name="keypad_space">Space</string>
     <string name="takeaway_started_at">Started at {time}</string>
     <string name="takeaway_start">New takeaway sale</string>

@@ -111,6 +111,8 @@ internal object VueStringIds {
         this["err_discount_invalid"] = R.string.err_discount_invalid
         this["err_discount_reason_invalid"] = R.string.err_discount_reason_invalid
         this["err_discount_online_order"] = R.string.err_discount_online_order
+        this["err_note_too_long"] = R.string.err_note_too_long
+        this["err_note_unprintable"] = R.string.err_note_unprintable
         this["err_line_has_price_changes"] = R.string.err_line_has_price_changes
         this["err_payment_correction_not_a_sale"] = R.string.err_payment_correction_not_a_sale
         this["err_payment_correction_training"] = R.string.err_payment_correction_training
@@ -264,11 +266,11 @@ internal object VueStringIds {
         this["cash_out"] = R.string.cash_out
         this["cash_open_drawer"] = R.string.cash_open_drawer
         this["cash_declaration"] = R.string.cash_declaration
-        this["cash_declaration_hint"] = R.string.cash_declaration_hint
-        this["kitchen_slip_failed"] = R.string.kitchen_slip_failed
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["cash_declaration_hint"] = R.string.cash_declaration_hint
+        this["kitchen_slip_failed"] = R.string.kitchen_slip_failed
         this["cash_declared"] = R.string.cash_declared
         this["cash_amount_placeholder"] = R.string.cash_amount_placeholder
         this["cash_reason_placeholder"] = R.string.cash_reason_placeholder
@@ -355,6 +357,11 @@ internal object VueStringIds {
         this["discount_offer"] = R.string.discount_offer
         this["discount_offer_title"] = R.string.discount_offer_title
         this["discount_registration_failed"] = R.string.discount_registration_failed
+        this["note_button"] = R.string.note_button
+        this["note_title"] = R.string.note_title
+        this["note_placeholder"] = R.string.note_placeholder
+        this["note_hint_now"] = R.string.note_hint_now
+        this["note_hint_with_order"] = R.string.note_hint_with_order
         this["keypad_space"] = R.string.keypad_space
         this["takeaway_started_at"] = R.string.takeaway_started_at
         this["takeaway_start"] = R.string.takeaway_start
@@ -512,6 +519,9 @@ internal object VueStringIds {
         this["webshop_col_ready"] = R.string.webshop_col_ready
         this["webshop_time_ago"] = R.string.webshop_time_ago
         this["webshop_time_ready_at"] = R.string.webshop_time_ready_at
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
         this["webshop_delay_label"] = R.string.webshop_delay_label
@@ -519,9 +529,6 @@ internal object VueStringIds {
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
         this["webshop_status_rejected"] = R.string.webshop_status_rejected
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_status_cancelled"] = R.string.webshop_status_cancelled
         this["webshop_service_delivery"] = R.string.webshop_service_delivery
         this["webshop_service_collection"] = R.string.webshop_service_collection
