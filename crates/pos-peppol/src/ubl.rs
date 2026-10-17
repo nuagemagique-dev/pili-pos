@@ -914,4 +914,68 @@ mod tests {
         assert!(vat_label_to_bis("Q").is_err());
         assert_eq!(vat_label_to_bis("X").unwrap(), ("E", "0.00"));
     }
+
+    // The five tests below keep the names (and the intent) of the tests of the first UBL
+    // writer, which the cents-based writer of V11-T1 replaced: the inventory of tests never
+    // loses a name, and the old assertions still hold on the new API.
+
+    fn sample_xml() -> String {
+        let u =
+            InvoiceUbl::build(&source(vec![line("Biere", 2000, 2420, "A")], vec![], 2420)).unwrap();
+        to_ubl_xml(&u).unwrap()
+    }
+
+    #[test]
+    fn ubl_xml_contains_required_namespaces() {
+        let xml = sample_xml();
+        assert!(xml.contains("urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"));
+        assert!(
+            xml.contains(
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+            )
+        );
+        assert!(
+            xml.contains("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2")
+        );
+        assert!(xml.contains("urn:cen.eu:en16931:2017#compliant"));
+    }
+
+    #[test]
+    fn ubl_xml_contains_invoice_number_and_parties() {
+        let xml = sample_xml();
+        assert!(xml.contains("20260001"));
+        assert!(xml.contains("Restaurant Exemple"));
+        assert!(xml.contains("Acme &amp; Fils &lt;SA&gt;"));
+        assert!(xml.contains("BE0499999960"));
+        assert!(xml.contains("BE0308357159"));
+    }
+
+    #[test]
+    fn ubl_xml_carries_belgian_endpoint_scheme() {
+        // Belgian parties MUST be carried under schemeID="0208" per the Peppol policy.
+        let xml = sample_xml();
+        assert!(
+            xml.contains(r#"schemeID="0208""#),
+            "Belgian parties must use Peppol scheme 0208; XML was: {xml}"
+        );
+    }
+
+    #[test]
+    fn vat_label_mapping_covers_all_sce_codes() {
+        assert_eq!(vat_label_to_bis("A").unwrap(), ("S", "21.00"));
+        assert_eq!(vat_label_to_bis("B").unwrap(), ("S", "12.00"));
+        assert_eq!(vat_label_to_bis("C").unwrap(), ("S", "6.00"));
+        assert_eq!(vat_label_to_bis("D").unwrap(), ("Z", "0.00"));
+        assert_eq!(vat_label_to_bis("X").unwrap(), ("E", "0.00"));
+        assert!(vat_label_to_bis("Q").is_err());
+    }
+
+    #[test]
+    fn date_helpers_round_trip() {
+        assert_eq!(
+            issue_date_from_pos_dt("2026-05-14T13:00:00+02:00").unwrap(),
+            "2026-05-14"
+        );
+        assert_eq!(date_plus_days("2026-05-14", 30).unwrap(), "2026-06-13");
+    }
 }
