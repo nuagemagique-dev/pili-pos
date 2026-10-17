@@ -22,13 +22,14 @@ Android en offre est décrit au §7.
 | P | Commande en cuisine (pro-forma) | `signOrder` | `crates/pos-engine/src/commands/tables.rs::do_sign_table_order` |
 | P | Addition (pré-ticket) | `signPreBill` | `crates/pos-engine/src/commands/tables.rs::do_sign_pre_bill` |
 | T | Vente en formation | `signSale` (isTraining=true) | `do_checkout` / `do_checkout_split` avec `training_mode=true` |
-| T | Présence en formation | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
+| T | Présence en formation (aucune prestation n'est ouverte dans `staff_shifts` ; le Gérant ne peut pas pointer un autre employé en formation) | `signWorkIn` (isTraining=true) | `social::do_work_in` avec `training_mode=true` |
 | C | Copie de ticket | `signCopy` | `crates/pos-engine/src/commands/copy.rs::do_copy_ticket` |
 | I | Facture B2B (absente de la build Android 1.0, voir §3 bis) | `signInvoice` | `crates/pos-engine/src/commands/invoice.rs::do_sign_invoice_fiscal` (émission Peppol/UBL séparée : `do_issue_b2b_invoice`), sous `#[cfg(feature = "peppol")]` |
 | F | Mouvement de fonds | `signMoneyInOut` | `crates/pos-engine/src/commands/financial.rs::do_money_in_out` |
 | F-WAR | Ouverture tiroir hors-vente | `signDrawerOpen` | `crates/pos-engine/src/commands/financial.rs::do_open_drawer_fiscal` |
 | S | Pointage entrée | `signWorkIn` | `crates/pos-engine/src/commands/social.rs::do_work_in` |
 | S | Pointage sortie | `signWorkOut` | `crates/pos-engine/src/commands/social.rs::do_work_out` |
+| S | Pointage d'un autre employé par le Gérant (arrivée, départ ; profil « Présence seule ») | `signWorkIn` / `signWorkOut` au nom de l'employé | `crates/pos-engine/src/commands/social.rs::{do_clock_in_employee,do_clock_out_employee}` |
 | R | Rapport X (intermédiaire) | `signReportTurnoverX` | `crates/pos-engine/src/commands/report.rs::do_generate_x_report` |
 | R | Rapport utilisateurs X | `signReportUserX` | `crates/pos-engine/src/commands/report.rs::do_generate_user_x_report` |
 | R | Rapport Z (clôture, M184) | `signReportTurnoverZ` + `signReportUserZ` (une seule opération GraphQL) | `crates/pos-engine/src/commands/report.rs::do_generate_z_report` |
@@ -284,7 +285,7 @@ L'interface Kotlin et Compose reprend écran par écran l'interface Vue de `pili
 | `check_fdm_status` | Sans appelant côté Vue ; `fdm_health` et `fdm_check_now` le remplacent |
 | `list_fiscal_events` | Sans appelant côté Vue |
 | `sign_table_order` | Sans appelant côté Vue ; `leave_order` enregistre l'événement P |
-| `work_in`, `work_out` | Sans appelant côté Vue ; la connexion fait entrer et `end_shift` fait sortir |
+| `work_in`, `work_out` | Sans appelant côté Vue ; la connexion fait entrer et `end_shift` fait sortir ; le Gérant pointe un autre employé avec `clock_in_employee` et `clock_out_employee` |
 
 ### 7.3 Assistance à distance absente
 

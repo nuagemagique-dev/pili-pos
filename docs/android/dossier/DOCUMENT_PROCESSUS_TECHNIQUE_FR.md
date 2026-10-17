@@ -70,7 +70,7 @@ Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` e
 **Règles qui gardent la logique fiscale dans le moteur.** Aucune règle fiscale ni calcul d'argent n'existe en Kotlin : l'interface affiche, transmet et réagit aux événements, le moteur décide (`docs/android/ENGINE.md` §7).
 
 - L'événement P à la sortie d'une commande : `commands::session::do_leave_order` (sans effet pour une vente à emporter ou une commande non ouverte), `do_set_active_order` (la commande à l'écran) et `do_lock_session` (verrouillage avec enregistrement de la commande active).
-- Le pointage : l'entrée est mise en file par la connexion (`do_login`) et signée par la tâche de présence ; la sortie est signée par `commands::social::do_end_shift`, qui ferme toujours la session.
+- Le pointage : l'entrée est mise en file par la connexion (`do_login`) et signée par la tâche de présence ; la sortie est signée par `commands::social::do_end_shift`, qui ferme toujours la session. Pour le personnel qui n'utilise pas la caisse (profil « Présence seule »), le Gérant signe l'entrée et la sortie depuis l'écran « Config » avec `do_clock_in_employee` et `do_clock_out_employee` (événement S au nom de l'employé).
 - Le verrouillage après 5 minutes d'inactivité : `commands::session::do_user_activity` et `background::run_idle_lock` ; l'interface se borne à transmettre l'activité de l'utilisateur, au plus une fois par seconde.
 - Le suivi du FDM (intervalle, recul, classement de l'état) : `commands::fdm_monitor::do_fdm_health` et l'événement `fdm-status` ; l'interface reçoit le résultat.
 - Le rendu en espèces, la ventilation de la TVA et l'aperçu du règlement : fonctions d'aide du moteur (`settlePreview`, `cashDueCents`, `vatSplit`). Un contrôle automatique (`scripts/android/p6_gate.sh`) interdit à la couche plateforme d'y toucher.
@@ -86,7 +86,7 @@ Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` e
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
 | **I** (Facture) | Hors build Android 1.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build Android (§8) ; événement optionnel dans SCE 2.0 |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
-| **S** (Social) | Connexion de l'opérateur (entrée), fin de service (sortie), règles du moteur (§1) | `commands/social::do_work_in` / `do_work_out` / `do_end_shift` | INSZ + n° employeur |
+| **S** (Social) | Connexion de l'opérateur (entrée), fin de service (sortie), règles du moteur (§1) ; pointage d'un autre employé par le Gérant | `commands/social::do_work_in` / `do_work_out` / `do_end_shift` ; `do_clock_in_employee` / `do_clock_out_employee` | INSZ + n° employeur |
 | **R** (Rapport) | Rapports Z et X | `commands/report::do_generate_x_report` / `do_generate_z_report` | Z est Turnover-Z + User-Z atomique |
 
 Chaque branche :

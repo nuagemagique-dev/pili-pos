@@ -231,9 +231,14 @@ Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`
 - **Capture :** plein écran.
 
 ### `19_admin_users.png`
-- **Action :** "Config", section "Employés".
-- **Écran attendu :** chaque employé (nom, profil, INSZ) avec "PIN" et "Désactiver" ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti).
+- **Action :** "Config", section "Employés", connecté en Gérant. Préparer : un Serveur en service (arrivée enregistrée depuis 12:02), un Apprenti hors service, un employé « Présence seule ».
+- **Écran attendu :** la note « Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici. » ; chaque employé (nom, profil, état « En service depuis 12:02 » ou « Hors service ») avec « Arrivée » ou « Départ », "Code PIN" et "Désactiver" ; la ligne « Présence seule » sans bouton "Code PIN" ; pas de bouton d'arrivée sur la ligne du Gérant connecté ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti / Présence seule).
 - **Capture :** plein écran.
+
+### `19a_admin_presence.png`
+- **Action :** "Config", section "Employés" : toucher « Arrivée » sur la ligne de l'employé « Présence seule ».
+- **Écran attendu :** message « Arrivée enregistrée · <nom> » ; la ligne passe à « En service depuis HH:MM » et son bouton devient « Départ ». Variante facultative : FDM débranché, les deux boutons grisés avec « FDM indisponible : pointage impossible ».
+- **Capture :** plein écran, message visible.
 
 ---
 

@@ -241,6 +241,7 @@ Android (`docs/android/dossier/screenshots`, emulator):
 ## Worker notes
 
 - T1: see DECISIONS, section `Lane 1-v1-fixes`, L1F-A8 (create_user_flagged, uniffi defaults, i18n error texts and ipc.ts wrappers added in T1, Gradle PATH).
+- T2: see DECISIONS, L1F-A9 (UI choices, ZH wording, `SettingsFeatureEntryPoint.fdm()`, goldens re-recorded, dossier files touched). Additional captures to retake (besides section 10): `19a_admin_presence.png` (Linux scenario added to `captures.spec.ts`, runbook entry written) and `A124_pointage_par_le_gerant.png` (Android, runbook row added); `A46_employes.png` and `19_admin_users.png` as listed above.
 
 ## Results
 
