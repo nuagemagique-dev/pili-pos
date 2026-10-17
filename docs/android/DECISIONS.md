@@ -1490,3 +1490,16 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   and nothing is sent. A delivery whose UBL cannot be read is now logged and parked instead of retried silently.
   The UC4121/UC4122 replay limits (generic cash sales) are stated in the update note. Not fixed: VAT X vs
   VATEX-EU-O (V11-D24, confirm on the Storecove sandbox), sold-out resync on HubRise switch-on (V11-D52b).
+- **V11-D54 Scope change: no v1.1, the features are part of v1.0.0.** The user withdrew the separate v1.1 update:
+  certification is v1.0.0 and covers B2B invoices with Peppol (event I, M150, UC4121, UC4122), the sold-out switch,
+  the on-screen menu editor and the non-fiscal sales reports. Consequences: the v1.1 dossier drafts are folded into
+  both v1.0 dossiers (`docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier`) as the annexes FACTURATION_PEPPOL,
+  EDITEUR_CARTE, PRODUIT_EPUISE and RAPPORTS_VENTES, and into the existing documents (manuals, answers to the
+  certification manual, mapping, coverage, schema, security, flows, features list); `docs/internal/v1.1` is deleted
+  and the English design notes live in `docs/internal/design/`. Every "later update", "v1.1" or "outside the
+  perimeter" statement about these features is removed. UC4121 and UC4122 move into the in-scope matrix with replay
+  evidence (`invoice_advanced.rs`); UC4122 first invoices the original sale, as its precondition requires. Peppol
+  stays active only when the installation holds a `peppol` section, and the `logging` provider stays refused in
+  release (V11-D50). Open owner items are unchanged: the Storecove sandbox trial and VAT X versus VATEX-EU-O
+  (V11-D24). The screens of sections 12 "Captures to retake" are still to be captured before the screenshots PDF is
+  final.

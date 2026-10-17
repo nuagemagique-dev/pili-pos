@@ -1,14 +1,12 @@
-# Lane 3-v11: v1.1 features (first certified update after v1.0.0)
+# Lane 3-v11: invoicing, sold-out, menu editor and sales reports (part of v1.0.0)
 
 Branch `android/lane-v11`, worktree `moyun-pos-wt/lane-v11`, base `android/int` at `b3248d2d`.
 Planner: Opus 5.5 (2026-10-17). Workers: Sonnet 5.5. Reviewer: Opus 5.5.
 
-This branch is NOT part of the v1.0.0 certified binary or of its rc3 freeze. It is merged
-only after certification, as the content of the first certified update (v1.1). Every
-existing feature keeps its certified behaviour; the v1.0.0 dossiers
-(`docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier`) are not edited. v1.1 dossier drafts
-(French, brand-neutral) go under `docs/internal/v1.1/`; design notes (English) under
-`docs/internal/v1.1/design/`.
+Scope change (2026-10-17, decision V11-D54): there is no v1.1. These features are part of the v1.0.0
+certification. The v1.0.0 dossiers (`docs/SUBMISSION_ARTIFACTS`, `docs/android/dossier`) now describe them
+(French, brand-neutral); the former drafts under `docs/internal/v1.1/` were folded into them and deleted. English
+design notes are under `docs/internal/design/`.
 
 ## 1. Goal
 
