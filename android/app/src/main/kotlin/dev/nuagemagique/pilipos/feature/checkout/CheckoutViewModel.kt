@@ -220,15 +220,16 @@ internal class CheckoutViewModel(
     /** The method buttons: cash is refused once a cash part is taken (Vue `selectMethod`). */
     fun selectMethod(method: PaymentMethod) {
         val local = own.value
-        if (local.step != CheckoutStep.PAY || method !in snapshot().methods) return
-        if (method == PaymentMethod.CASH && local.taken.any { it.method == PaymentMethod.CASH }) return
+        val usable = local.step == CheckoutStep.PAY && method in snapshot().methods
+        val cashTaken = method == PaymentMethod.CASH && local.taken.any { it.method == PaymentMethod.CASH }
+        if (!usable || cashTaken) return
         if (method == PaymentMethod.GIFT_VOUCHER) {
             // The gift voucher method opens its dialog; the selected method stays as it is.
             own.update { it.copy(voucher = VoucherDialogState()) }
-            return
+        } else {
+            own.update { it.copy(method = method) }
+            launchRecompute(prefill = true)
         }
-        own.update { it.copy(method = method) }
-        launchRecompute(prefill = true)
     }
 
     /** The split buttons: [parts] equal parts, only before the first part is taken (Vue `selectSplit`). */
@@ -356,13 +357,12 @@ internal class CheckoutViewModel(
 
     /** "Utiliser ce bon": the voucher pays the smaller of its balance and what is left (`takeVoucher`). */
     fun applyVoucher() {
-        val local = own.value
-        val found = local.voucher?.found ?: return
-        if (found.status != "active") return
-        val cents = minOf(found.balanceCents, snapshot().amounts.restCents)
-        if (cents <= 0L) return
-        own.update { it.copy(voucher = null) }
-        takeVoucher(found, cents)
+        val found = own.value.voucher?.found
+        val cents = if (found?.status == "active") minOf(found.balanceCents, snapshot().amounts.restCents) else 0L
+        if (found != null && cents > 0L) {
+            own.update { it.copy(voucher = null) }
+            takeVoucher(found, cents)
+        }
     }
 
     private fun takeVoucher(

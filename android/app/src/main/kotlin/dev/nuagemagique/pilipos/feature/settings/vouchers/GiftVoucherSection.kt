@@ -49,24 +49,7 @@ internal fun GiftVoucherSection(
         }
         PanelText(vueText("gv_settings_note"))
         if (state.stored != null) {
-            SectionLabel(vueText("gv_settings_validity"))
-            SettingsTextField(
-                value = state.validity,
-                onValueChange = callbacks.onValidity,
-                placeholder = "12",
-                modifier = Modifier.testTag("gv_validity"),
-                mono = true,
-                numeric = true,
-            )
-            SectionLabel(vueText("gv_settings_max"))
-            SettingsTextField(
-                value = state.maxEuros,
-                onValueChange = callbacks.onMax,
-                placeholder = "500",
-                modifier = Modifier.testTag("gv_max"),
-                mono = true,
-                numeric = true,
-            )
+            VoucherFields(state, callbacks)
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd),
@@ -90,4 +73,29 @@ internal fun GiftVoucherSection(
             }
         }
     }
+}
+
+@Composable
+private fun VoucherFields(
+    state: GiftVoucherUiState,
+    callbacks: GiftVoucherCallbacks,
+) {
+    SectionLabel(vueText("gv_settings_validity"))
+    SettingsTextField(
+        value = state.validity,
+        onValueChange = callbacks.onValidity,
+        placeholder = "12",
+        modifier = Modifier.testTag("gv_validity"),
+        mono = true,
+        numeric = true,
+    )
+    SectionLabel(vueText("gv_settings_max"))
+    SettingsTextField(
+        value = state.maxEuros,
+        onValueChange = callbacks.onMax,
+        placeholder = "500",
+        modifier = Modifier.testTag("gv_max"),
+        mono = true,
+        numeric = true,
+    )
 }

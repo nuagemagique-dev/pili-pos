@@ -48,7 +48,6 @@ internal fun AllergenBar(
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     val source = remember { MutableInteractionSource() }
-    val voucherSource = remember { MutableInteractionSource() }
     FlowRow(
         modifier = modifier.fillMaxWidth().padding(start = d.spaceMd, end = d.spaceMd, top = d.spaceSm),
         horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
@@ -70,22 +69,7 @@ internal fun AllergenBar(
                     .padding(horizontal = 18.dp, vertical = 10.dp)
                     .testTag("allergen_mode"),
         )
-        if (onSellVoucher != null && menu.giftVouchersEnabled) {
-            Text(
-                text = vueText("gv_sell_button"),
-                style = t.body.copy(fontWeight = t.weightBold),
-                color = c.textPrimary,
-                modifier =
-                    Modifier
-                        .heightIn(min = ToggleHeight)
-                        .tapScale(voucherSource)
-                        .clip(RoundedCornerShape(d.radiusMd))
-                        .background(c.bgSurface)
-                        .clickable(interactionSource = voucherSource, indication = null, role = Role.Button, onClick = onSellVoucher)
-                        .padding(horizontal = 18.dp, vertical = 10.dp)
-                        .testTag("gift_voucher_sell"),
-            )
-        }
+        if (onSellVoucher != null && menu.giftVouchersEnabled) SellVoucherButton(onSellVoucher)
         if (menu.allergenMode) {
             Text(
                 text = vueText("allergens_hint"),
@@ -110,4 +94,24 @@ internal fun AllergenBar(
             }
         }
     }
+}
+
+@Composable
+private fun SellVoucherButton(onClick: () -> Unit) {
+    val d = PiliTheme.dimens
+    val source = remember { MutableInteractionSource() }
+    Text(
+        text = vueText("gv_sell_button"),
+        style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
+        color = PiliTheme.colors.textPrimary,
+        modifier =
+            Modifier
+                .heightIn(min = ToggleHeight)
+                .tapScale(source)
+                .clip(RoundedCornerShape(d.radiusMd))
+                .background(PiliTheme.colors.bgSurface)
+                .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .testTag("gift_voucher_sell"),
+    )
 }

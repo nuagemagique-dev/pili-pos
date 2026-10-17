@@ -36,10 +36,12 @@ fun spacedVoucherCode(digits: String): String = digits.chunked(CODE_GROUP).joinT
 
 private const val CODE_GROUP = 4
 
+private const val ISO_DATE_PARTS = 3
+
 /** `2027-10-17` as `17.10.2027`. */
 fun voucherDate(iso: String): String {
     val parts = iso.split("-")
-    return if (parts.size == 3) "${parts[2]}.${parts[1]}.${parts[0]}" else iso
+    return if (parts.size == ISO_DATE_PARTS) "${parts[2]}.${parts[1]}.${parts[0]}" else iso
 }
 
 /**
