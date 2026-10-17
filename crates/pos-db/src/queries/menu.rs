@@ -2,6 +2,8 @@ use pos_core::menu::{Category, MenuItem};
 use pos_core::vat::VatCode;
 use rusqlite::{Connection, params};
 
+use super::allergens;
+
 /// With a mirrored catalog, the grid leaves out hidden categories
 /// (charges) and items not sold on the POS; they still resolve on an
 /// order line.
@@ -89,7 +91,16 @@ pub fn get_menu_items(
         stmt.query_map(params![lang], map_menu_item)?
     };
 
-    rows.collect()
+    let mut items = rows.collect::<Result<Vec<MenuItem>, _>>()?;
+    let declared = allergens::load_all(conn, allergens::Entity::MenuItem)?;
+    for item in &mut items {
+        if let Some(set) = declared.get(&item.id) {
+            item.allergens = set.contains.clone();
+            item.traces = set.may_contain.clone();
+            item.allergens_declared = true;
+        }
+    }
+    Ok(items)
 }
 
 fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
@@ -112,6 +123,9 @@ fn map_menu_item(row: &rusqlite::Row<'_>) -> Result<MenuItem, rusqlite::Error> {
         name_fr: row.get(10)?,
         name_zh: row.get(11)?,
         code: row.get(12)?,
+        allergens: Vec::new(),
+        traces: Vec::new(),
+        allergens_declared: false,
     })
 }
 
@@ -439,6 +453,11 @@ pub struct Modifier {
     pub id: i64,
     pub name: String,
     pub price_cents: i64,
+    /// Allergen codes the option contains / may contain as traces.
+    pub allergens: Vec<String>,
+    pub traces: Vec<String>,
+    /// The option's allergen list is declared (possibly empty).
+    pub allergens_declared: bool,
 }
 
 /// The active option groups of `menu_item_id`, names in `lang` (then
@@ -493,9 +512,20 @@ pub fn get_modifier_groups(
                     id: r.get(0)?,
                     name: r.get(1)?,
                     price_cents: r.get(2)?,
+                    allergens: Vec::new(),
+                    traces: Vec::new(),
+                    allergens_declared: false,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
+    }
+    let declared = allergens::load_all(conn, allergens::Entity::Modifier)?;
+    for option in groups.iter_mut().flat_map(|g| g.options.iter_mut()) {
+        if let Some(set) = declared.get(&option.id) {
+            option.allergens = set.contains.clone();
+            option.traces = set.may_contain.clone();
+            option.allergens_declared = true;
+        }
     }
     // A group with nothing to pick is not offered.
     groups.retain(|g| !g.options.is_empty());

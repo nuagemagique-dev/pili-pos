@@ -121,11 +121,18 @@ const EFT_MIGRATIONS: &[Migration] = &[Migration {
 /// in every build: 60 owner settings and alerts. The later tasks of the
 /// lane append 61 allergens, 62 courses and 63 gift vouchers. Renumbering
 /// at merge touches only `schema_v12.rs`, this slice and its test.
-const V12_MIGRATIONS: &[Migration] = &[Migration {
-    version: 60,
-    name: "owner-settings-alerts",
-    sql: crate::schema_v12::MIGRATION_060_OWNER_SETTINGS_ALERTS,
-}];
+const V12_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 60,
+        name: "owner-settings-alerts",
+        sql: crate::schema_v12::MIGRATION_060_OWNER_SETTINGS_ALERTS,
+    },
+    Migration {
+        version: 61,
+        name: "allergens",
+        sql: crate::schema_v12::MIGRATION_061_ALLERGENS,
+    },
+];
 
 /// Migrations of the HubRise integration (feature `hubrise`), from
 /// version 20 (in the certified binary too).
@@ -338,7 +345,7 @@ mod tests {
     #[test]
     fn the_v12_migrations_are_60_to_63_and_in_every_build() {
         let v12: Vec<(i64, &str)> = V12_MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
-        assert_eq!(v12, vec![(60, "owner-settings-alerts")]);
+        assert_eq!(v12, vec![(60, "owner-settings-alerts"), (61, "allergens")]);
         for (version, _) in &v12 {
             assert!(all_versions().contains(version), "{version}");
             assert!((60..=63).contains(version), "{version}");
@@ -385,6 +392,48 @@ mod tests {
         assert!(insert("nope", "raised", "sent").is_err());
         assert!(insert("fdm", "nope", "sent").is_err());
         assert!(insert("fdm", "raised", "nope").is_err());
+    }
+
+    #[test]
+    fn migration_61_checks_the_allergens_and_logs_append_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO categories (id, sort_order) VALUES (1, 0);
+             INSERT INTO menu_items (id, category_id, price_cents, vat_code) VALUES (1, 1, 100, 'B');",
+        )
+        .unwrap();
+        let insert = |allergen: &str, level: &str| {
+            conn.execute(
+                "INSERT OR REPLACE INTO menu_item_allergens (menu_item_id, allergen, level)
+                 VALUES (1, ?1, ?2)",
+                rusqlite::params![allergen, level],
+            )
+        };
+        assert!(insert("gluten", "contains").is_ok());
+        assert!(insert("molluscs", "may_contain").is_ok());
+        assert!(insert("pollen", "contains").is_err());
+        assert!(insert("milk", "maybe").is_err());
+        assert!(
+            conn.execute(
+                "INSERT INTO allergen_declarations (entity_type, entity_id, source)
+                 VALUES ('menu_item', 1, 'nowhere')",
+                [],
+            )
+            .is_err()
+        );
+        conn.execute(
+            "INSERT INTO allergen_change_log (entity_type, entity_id, before_json, after_json, source)
+             VALUES ('menu_item', 1, '{}', '{}', 'local')",
+            [],
+        )
+        .unwrap();
+        for sql in [
+            "UPDATE allergen_change_log SET source = 'catalog'",
+            "DELETE FROM allergen_change_log",
+        ] {
+            assert!(conn.execute(sql, []).is_err(), "{sql}");
+        }
     }
 
     #[test]
