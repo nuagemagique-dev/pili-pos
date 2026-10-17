@@ -25,6 +25,10 @@ const props = withDefaults(
     valid?: (value: string) => boolean;
     /** Shown under the display while a non-empty buffer is not valid. */
     invalidText?: string;
+    /** A line of explanation under the display. */
+    hint?: string;
+    /** Show "n/max" under the display. */
+    showCounter?: boolean;
     /** Second screen that shows the text large before it is used. */
     confirmStep?: boolean;
     confirmTitle?: string;
@@ -40,6 +44,8 @@ const props = withDefaults(
     space: false,
     valid: () => true,
     invalidText: "",
+    hint: "",
+    showCounter: false,
     confirmStep: false,
     confirmTitle: "",
     editLabel: "",
@@ -110,6 +116,10 @@ function cancel() {
           <span v-else class="email-placeholder">{{ placeholder }}</span>
         </div>
         <p v-if="buffer.length > 0 && !isValid && invalidText" class="email-error">{{ invalidText }}</p>
+        <p v-if="hint || showCounter" class="keypad-info">
+          <span v-if="hint" data-testid="keypad-hint">{{ hint }}</span>
+          <span v-if="showCounter" class="keypad-counter" data-testid="keypad-counter">{{ buffer.length }}/{{ maxLen }}</span>
+        </p>
 
         <div v-if="quickKeys.length" class="quick-keys">
           <button v-for="q in quickKeys" :key="q" class="quick-key" @click="pressQuick(q)">{{ q }}</button>
@@ -180,6 +190,15 @@ function cancel() {
 .email-display.invalid { border-color: var(--accent-danger); }
 .email-placeholder { color: var(--text-secondary); font-weight: var(--font-weight-normal); font-size: var(--font-size-md); }
 .email-error { color: var(--accent-danger); font-size: var(--font-size-sm); }
+.keypad-info {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+.keypad-counter { margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .quick-keys { display: flex; gap: var(--space-sm); flex-wrap: wrap; justify-content: center; }
 .quick-key {

@@ -103,6 +103,7 @@ const DEFAULT_CART_LINE = {
   unsent_quantity: 1,
   discount_cents: 0,
   price_changes: [],
+  kitchen_note: null,
 };
 
 const DEFAULT_TABLE = (n: number) => ({
@@ -219,6 +220,8 @@ function defaultHandlers(): Record<string, Handler> {
     }),
     remove_order_line: () => undefined,
     update_order_line_quantity: () => undefined,
+    // A kitchen note: the slip outcome (a note changed after sending prints one).
+    set_line_note: () => 'nothing_to_print',
     get_order: () => DEFAULT_ORDER,
     list_order_lines: () => [DEFAULT_ORDER_LINE],
     // The cart reads its lines here (both names, quantity not yet sent).

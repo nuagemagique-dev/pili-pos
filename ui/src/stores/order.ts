@@ -94,10 +94,15 @@ export const useOrderStore = defineStore("order", () => {
     // A line with options is never merged into: its options differ.
     // Nor is a line with a price change (a till discount): the engine
     // refuses a quantity change on it, so the product gets a new line.
+    // Nor a line with a kitchen note: "1 with, 1 without" are two lines.
     const existing = item.open_price
       ? undefined
       : lines.value.find(
-          (l) => l.menu_item_id === item.id && !l.modifiers_json && (l.price_changes?.length ?? 0) === 0,
+          (l) =>
+            l.menu_item_id === item.id &&
+            !l.modifiers_json &&
+            (l.price_changes?.length ?? 0) === 0 &&
+            !l.kitchen_note,
         );
     if (existing) {
       await updateQuantityUnreported(existing.id, existing.quantity + quantity);
@@ -131,6 +136,7 @@ export const useOrderStore = defineStore("order", () => {
       unsent_quantity: quantity,
       discount_cents: 0,
       price_changes: [],
+      kitchen_note: null,
     });
     itemCategoryMap.value.set(item.id, item.category_id);
 
@@ -147,6 +153,17 @@ export const useOrderStore = defineStore("order", () => {
     if (currentOrder.value) {
       currentOrder.value = await ipc.getOrder(currentOrder.value.id);
     }
+  }
+
+  /** Write (or clear, with an empty text) the kitchen note of a line. A
+   * refusal is shown as a toast; a note slip that did not print is warned
+   * like a failed order slip. */
+  function setLineNote(lineId: number, note: string) {
+    return reported(async () => {
+      warnIfSlipFailed(await ipc.setLineNote(lineId, note));
+      const line = lines.value.find((l) => l.id === lineId);
+      if (line) line.kitchen_note = note.trim() === "" ? null : note.trim();
+    });
   }
 
   function updateQuantity(lineId: number, quantity: number) {
@@ -300,6 +317,7 @@ export const useOrderStore = defineStore("order", () => {
     addLineWith,
     removeLine,
     updateQuantity,
+    setLineNote,
     loadOpenOrders,
     leave,
     preBill,

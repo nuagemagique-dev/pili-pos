@@ -57,6 +57,13 @@ export function updateOrderLineQuantity(
   return invoke("update_order_line_quantity", { lineId, quantity });
 }
 
+/** Set (or clear, with null or an empty text) the kitchen note of a
+ * line. A note changed after the line went to the kitchen prints a note
+ * slip; the answer says what became of it. Throws the error code. */
+export function setLineNote(lineId: number, note: string | null): Promise<SlipOutcome> {
+  return invoke("set_line_note", { lineId, note });
+}
+
 export function getOrder(orderId: number): Promise<Order> {
   return invoke("get_order", { orderId });
 }

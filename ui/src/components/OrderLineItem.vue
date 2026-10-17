@@ -14,6 +14,8 @@ const props = defineProps<{
   canOffer?: boolean;
   /** A manager may remove the line's own change (an offered line). */
   canRemoveDiscount?: boolean;
+  /** The line's kitchen note may be written or changed. */
+  canNote?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -22,6 +24,7 @@ const emit = defineEmits<{
   remove: [id: number];
   offer: [id: number];
   removeDiscount: [id: number];
+  note: [id: number];
 }>();
 
 const { t } = useI18n();
@@ -78,8 +81,17 @@ defineExpose({
       <span class="line-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
       <span v-if="names.secondary" class="line-sub">{{ names.secondary }}</span>
       <span v-if="notes" class="line-notes">{{ notes }}</span>
+      <span v-if="line.kitchen_note" class="line-kitchen-note" data-testid="line-kitchen-note">{{ line.kitchen_note }}</span>
     </div>
     <span class="line-price">{{ formatPrice(lineNetCents(line)) }}</span>
+    <button
+      v-if="canNote"
+      class="note-btn"
+      :class="{ filled: !!line.kitchen_note }"
+      data-testid="line-note"
+      :aria-label="t('note_button')"
+      @click="emit('note', props.line.id)"
+    >{{ t('note_button') }}</button>
     <button class="remove-btn" :aria-label="t('line_remove')" @click="emit('remove', props.line.id)">
       <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" /></svg>
     </button>
@@ -104,7 +116,7 @@ defineExpose({
 <style scoped>
 .order-line {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 16px;
   min-height: 64px;
@@ -184,6 +196,28 @@ defineExpose({
   font-size: 13px;
   color: var(--accent-warning);
 }
+
+.line-kitchen-note {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-btn {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  transition: transform var(--tap-duration) ease;
+}
+.note-btn.filled { background: var(--bg-pressed); }
+.note-btn:active { transform: scale(var(--tap-scale)); }
 
 .line-extra {
   grid-column: 1 / -1;

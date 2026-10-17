@@ -137,6 +137,8 @@ const coreMessages: Messages = {
   "err_discount_invalid": { fr: "Remise non valable : pourcentage de 1 à 99, ou montant jusqu'au total.", en: "Invalid discount: a percent from 1 to 99, or an amount up to the total.", zh: "折扣无效：百分比为 1 至 99，或不超过总额的金额。" },
   "err_discount_reason_invalid": { fr: "Choisissez le motif de la remise.", en: "Choose the reason for the discount.", zh: "请选择折扣原因。" },
   "err_discount_online_order": { fr: "Une commande en ligne a ses propres remises : aucune remise en caisse.", en: "An online order has its own discounts: none at the till.", zh: "在线订单有自己的折扣：不能在收银台打折。" },
+  "err_note_too_long": { fr: "Note trop longue : 60 caractères au plus.", en: "Note too long: 60 characters at most.", zh: "备注太长：最多60个字符。" },
+  "err_note_unprintable": { fr: "La note a un caractère que l'imprimante de cuisine ne sait pas imprimer (lettres, chiffres et accents seulement).", en: "The note has a character the kitchen printer cannot print (letters, digits and accents only).", zh: "备注含有厨房打印机无法打印的字符（仅限字母、数字和重音符号）。" },
   "err_line_has_price_changes": { fr: "Cette ligne a une remise : retirez-la avant de changer la quantité.", en: "This line has a discount: remove it before changing the quantity.", zh: "此行有折扣：请先取消再修改数量。" },
   "err_payment_correction_not_a_sale": { fr: "Seul un ticket de vente peut être corrigé.", en: "Only a sale ticket can be corrected.", zh: "只能更正销售小票。" },
   "err_payment_correction_training": { fr: "Une vente d'entraînement se corrige en mode entraînement, une vente réelle hors entraînement.", en: "A training sale is corrected in training mode, a real sale outside it.", zh: "培训销售只能在培训模式下更正，真实销售则不能。" },
@@ -438,6 +440,11 @@ const coreMessages: Messages = {
   "discount_offer": { fr: "Offrir", en: "Give free", zh: "免费赠送" },
   "discount_offer_title": { fr: "Offrir la ligne", en: "Give the line free", zh: "整行免费" },
   "discount_registration_failed": { fr: "Remise enregistrée, mais l'envoi au module fiscal a échoué : il sera refait à la prochaine commande.", en: "Discount saved, but registering it with the fiscal module failed: it is retried with the next order.", zh: "折扣已保存，但提交税务模块失败：将在下次下单时重试。" },
+  "note_button": { fr: "Note", en: "Note", zh: "备注" },
+  "note_title": { fr: "Note pour la cuisine", en: "Kitchen note", zh: "厨房备注" },
+  "note_placeholder": { fr: "Ex. : sans wasabi", en: "E.g. no wasabi", zh: "例如：不要芥末" },
+  "note_hint_now": { fr: "Imprimée en cuisine maintenant", en: "Printed in the kitchen now", zh: "将立即在厨房打印" },
+  "note_hint_with_order": { fr: "Imprimée en cuisine avec la commande", en: "Printed in the kitchen with the order", zh: "将随订单在厨房打印" },
   "keypad_space": { fr: "Espace", en: "Space", zh: "空格" },
 
   // Tables screen (Pili)

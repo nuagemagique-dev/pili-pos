@@ -14,6 +14,7 @@ import VatSummary from "./VatSummary.vue";
 import PinDialog from "./PinDialog.vue";
 import TablePickerDialog from "./TablePickerDialog.vue";
 import DiscountDialog from "./DiscountDialog.vue";
+import NoteDialog from "./NoteDialog.vue";
 import type { DiscountInput } from "../types";
 import * as ipc from "../api/ipc";
 
@@ -149,6 +150,19 @@ async function transferTo(toTable: number) {
   }
 }
 
+// Kitchen note of a line: any staff member, on an open order. The dialog
+// says whether the note prints now (the line already went to the kitchen)
+// or with the order.
+const canNote = computed(() => order.currentOrder?.status === "open");
+const noteLineId = ref<number | null>(null);
+const noteLine = computed(() => order.lines.find((l) => l.id === noteLineId.value) ?? null);
+
+async function saveNote(text: string) {
+  const id = noteLineId.value;
+  noteLineId.value = null;
+  if (id !== null) await order.setLineNote(id, text);
+}
+
 // Discount at the till (manager, PIN): an order discount, a line for
 // free, or the removal of either. The dialog collects the input, the PIN
 // confirms it, the engine applies every rule.
@@ -237,6 +251,8 @@ async function onUnpaidClosed() {
         :line="line"
         :can-offer="canOfferLine(line.id)"
         :can-remove-discount="canRemoveLineDiscount(line.id)"
+        :can-note="canNote"
+        @note="noteLineId = $event"
         @increment="increment"
         @decrement="decrement"
         @remove="order.removeLine($event)"
@@ -254,6 +270,8 @@ async function onUnpaidClosed() {
           pending
           :can-offer="canOfferLine(line.id)"
           :can-remove-discount="canRemoveLineDiscount(line.id)"
+          :can-note="canNote"
+          @note="noteLineId = $event"
           @increment="increment"
           @decrement="decrement"
           @remove="order.removeLine($event)"
@@ -330,6 +348,14 @@ async function onUnpaidClosed() {
       :from="order.currentOrder.table_number"
       @confirm="transferTo"
       @cancel="picking = false"
+    />
+
+    <NoteDialog
+      v-if="noteLine"
+      :initial="noteLine.kitchen_note"
+      :sent="noteLine.quantity - (noteLine.unsent_quantity ?? 0) > 0"
+      @confirm="saveNote"
+      @cancel="noteLineId = null"
     />
 
     <DiscountDialog

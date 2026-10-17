@@ -137,6 +137,8 @@ export interface CartLine extends OrderLine {
   unsent_quantity: number;
   discount_cents: number;
   price_changes: CartPriceChange[];
+  /** The note for the kitchen ("sans wasabi"): local, never fiscal. */
+  kitchen_note?: string | null;
 }
 
 /** Why a manager gives a discount (audit only, never signed). */
