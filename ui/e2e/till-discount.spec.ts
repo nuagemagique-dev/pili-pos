@@ -83,6 +83,27 @@ test.describe('Remise button', () => {
     await expect(page.getByTestId('discount-remove')).toHaveCount(0);
     await expect(page.getByTestId('line-offer')).toHaveCount(0);
   });
+
+  test('no removal action on an online order carrying EVENT and LINE changes', async ({ page }) => {
+    // HubRise discounts arrive as price changes; the till must not offer to remove them.
+    const hubrise = {
+      ...PLAIN,
+      online: true,
+      discount_cents: -1800,
+      price_changes: [
+        { id: 'HUBRISE-1', name: 'Promo web', scope: 'EVENT', amount_cents: -1200 },
+        { id: 'HUBRISE-2', name: 'Offert web', scope: 'LINE', amount_cents: -600 },
+      ],
+    };
+    await toOrder(page, [hubrise], 600);
+    await expect(page.locator('.cart-lines')).toBeVisible();
+    // The changes are shown (so the rows are rendered) but nothing can be removed.
+    await expect(page.getByTestId('price-change-row')).toHaveCount(2);
+    await expect(page.getByTestId('discount-remove')).toHaveCount(0);
+    await expect(page.getByTestId('line-remove-discount')).toHaveCount(0);
+    await expect(page.getByTestId('discount-open')).toHaveCount(0);
+    await expect(page.getByTestId('line-offer')).toHaveCount(0);
+  });
 });
 
 test.describe('Order discount', () => {

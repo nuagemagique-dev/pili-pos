@@ -1328,14 +1328,23 @@ fn pre_bill_printed(app: &TestApp, table: i32) -> bool {
 #[tokio::test]
 async fn a_discount_resets_the_pre_bill_flag() {
     let (app, _p) = world().await;
-    // A pre-bill on a table the FDM does not know yet: the line was never
-    // registered, so the discount is stored locally and signs nothing.
+    // Signing the pre-bill first registers every unsent entry as a P ORDER
+    // (sign_table_order_locked), so the line IS registered when the discount
+    // arrives: it is a PRICE_CHANGE pair plus one immediate P.
     let fresh = table_order(&app, 1);
     add(&app, fresh, 1, 2);
     do_sign_pre_bill(&app.state, fresh).await.unwrap();
     assert!(pre_bill_printed(&app, 1));
+    let before = app.fiscal_events().len();
     apply(&app, fresh, pct(10)).await.unwrap();
-    assert!(!pre_bill_printed(&app, 1), "apply on an unsent line");
+    let events = app.fiscal_events();
+    assert_eq!(
+        events.len(),
+        before + 1,
+        "the discount on a line registered by the pre-bill signs one immediate P"
+    );
+    assert_eq!(events.last().unwrap().event_type, "P");
+    assert!(!pre_bill_printed(&app, 1), "apply after the pre-bill");
 
     // A registered table: apply, a new bill, then remove.
     let known = table_order(&app, 2);

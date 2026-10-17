@@ -667,6 +667,44 @@ class MenuViewModelTest {
         }
 
     @Test
+    fun anOnlineOrderWithEventAndLineChangesCannotHaveThemRemoved() =
+        runTest {
+            val changes =
+                listOf(
+                    CartPriceChange("HUBRISE-1", "Promo web", "EVENT", -1200),
+                    CartPriceChange("HUBRISE-2", "Offert web", "LINE", -600),
+                )
+            val world =
+                OrderWorld(
+                    cart =
+                        listOf(
+                            cartLine(
+                                1,
+                                10,
+                                "Maki saumon",
+                                quantity = 2,
+                                online = true,
+                                priceChanges = changes,
+                                discountCents = -1800,
+                            ),
+                        ),
+                )
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            // The EVENT change is there, yet the order discount cannot be removed at the till.
+            assertTrue(r.state.cart.orderDiscounted)
+            assertFalse(r.state.cart.canDiscount)
+            assertFalse(r.state.cart.rows.single().canRemoveDiscount)
+            r.model.askRemoveDiscount()
+            assertEquals(OrderDialog.None, r.state.dialog)
+            r.model.askRemoveDiscount(1)
+            assertEquals(OrderDialog.None, r.state.dialog)
+        }
+
+    @Test
     fun anEmptyOrderCannotBeDiscounted() =
         runTest {
             val world = OrderWorld()
