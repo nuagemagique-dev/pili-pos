@@ -108,6 +108,7 @@ impl TestApp {
             table_count: 25,
             tables: None,
             payment_terminal: None,
+            peppol: None,
             pos_id: "CPOS0031234567".to_string(),
             terminal_id: "POS-1-BAR".to_string(),
             // The terminal's MAC address, as install fills it (§VI row VII).
@@ -162,6 +163,7 @@ impl TestApp {
             session_rules: Default::default(),
             fdm_monitor: Default::default(),
             export: pos_engine::commands::export::ExportState::disabled(),
+            peppol_wake: tokio::sync::Notify::new(),
             eft_in_flight: Mutex::new(None),
             eft_line: tokio::sync::Mutex::new(()),
             eft_terminal_override: None,
