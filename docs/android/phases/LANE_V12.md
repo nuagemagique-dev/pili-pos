@@ -868,3 +868,36 @@ records the precisions and deviations from D11 to D16).
 - **For the merge / the live check (needs the owner, never done here):** create a bot with BotFather, write
   its token in a file named by `alerts.telegram_bot_token_file`, put the chat id in the panel and press the
   test button once. The tests never reach the real Telegram API.
+
+### V12-T3 (Sonnet 5.5, 2026-10-17): C, the 14 EU allergens
+
+Delivered: migration 61 (`schema_v12.rs`, `V12_MIGRATIONS`, `queries/allergens.rs`); `pos-core/src/allergen.rs`
+and the allergen fields of `MenuItem` and `Modifier`; the HubRise tag import (`pos-hubrise/src/catalog_map.rs`,
+`pos-catalog` model, validation `UnknownAllergen`, `apply.rs`); the slip `pos-print/src/allergen_sheet.rs`;
+the engine commands `commands/allergens.rs` (`list_allergens`, `get_allergen_sheet`, `print_allergen_sheet`,
+`set_allergens`) with the errors `allergen_unknown` and `allergen_target_not_found`; four Tauri wrappers (104 in
+all, 102 in the cert build) and the UniFFI facade (error count 119); the Vue UI (`AllergenBadges.vue`,
+`AllergenSheetDialog.vue`, `stores/allergens.ts`, `utils/allergens.ts`, mode and legend in `OrderView.vue`,
+strings, mock handlers, `ui/e2e/allergens.spec.ts`); the Compose UI (`feature/order/AllergenBadges.kt`,
+`AllergenBar.kt`, `AllergenSheetDialog.kt`, view model, grid and option picker) with tests; the drafts
+`docs/internal/v1.2/ALLERGENES_FR.md`, `SCHEMA_BD_V1_2_FR.md` (migration 61) and section C of
+`NOTE_MISE_A_JOUR_V1_2_FR.md`; parity docs, ENGINE.md, FFI.md, PARITY.md, CLAUDE.md. DECISIONS got the T3 entry.
+
+- **Deviations from the plan text (recorded in DECISIONS):** no HubRise upload code (the mapper has none); the
+  catalog never clears a local list it says nothing about; zh prints in French; no Vue wrapper and no screen for
+  `set_allergens` (lane 3 hook).
+- **Tests:** engine 15 scenarios (`tests/allergens.rs`, with a HubRise import submodule) and one access-control
+  test; unit tests in pos-core, pos-db, pos-catalog, pos-hubrise and pos-print (exact French golden of the slip);
+  FFI suite; Playwright 6 new (366 in all); Kotlin: 3 test classes, `kotlin_test_inventory.py` against the merge
+  base: base 2081, head 2152, removed 0 (against the current `android/int` it lists tests that lane 2 of the
+  integration added after the merge base, which this branch does not yet have).
+- **Gates run:** R, F, P, U, A, D as in the Delivered list of T2; see the final report of the task for the
+  results of each run. The four order-screen goldens (`order_menu`, `order_cart`, `order_cart_dialogs`,
+  `order_modifiers`) were re-recorded: the only change is the new "Allergènes" button row.
+- **Captures to retake (orchestrator, plan section 11 items 2 and 3; both products):** order screen with
+  badges on tiles; the "Allergènes" mode with its hint and legend; the product sheet dialog (contains and traces,
+  declared empty, information not available, options); the option picker with badges; the printed sheet for one
+  product and for the whole menu.
+- **Environment findings:** the shared cargo target reuses another lane's artifacts, so `touch` the sources of
+  `crates/` and `src-tauri/` before a gate to force a rebuild; `ANDROID_HOME=$HOME/Library/Android/sdk` is needed
+  for gradle in this worktree (no `local.properties`).

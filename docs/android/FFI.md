@@ -169,6 +169,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | generate_user_x_report | report::do_generate_user_x_report | spawn | posEngine.generateUserXReport() |
 | generate_x_report | report::do_generate_x_report | spawn | posEngine.generateXReport() |
 | generate_z_report | report::do_generate_z_report | spawn | posEngine.generateZReport() |
+| get_allergen_sheet | allergens::do_get_allergen_sheet | blocking | posEngine.getAllergenSheet() |
 | get_categories | menu::do_get_categories | blocking | posEngine.getCategories() |
 | get_current_user | auth::do_get_current_user | blocking | posEngine.getCurrentUser() |
 | get_integrations | integrations::do_get_integrations | blocking | posEngine.getIntegrations() |
@@ -192,6 +193,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | hubrise_status | hubrise::do_hubrise_status | blocking | posEngine.hubriseStatus() |
 | hubrise_sync_catalog | hubrise::do_sync_catalog | spawn | posEngine.hubriseSyncCatalog() |
 | leave_order | session::do_leave_order | spawn | posEngine.leaveOrder() |
+| list_allergens | allergens::do_list_allergens | blocking | posEngine.listAllergens() |
 | list_cart_lines | order::do_list_cart_lines | blocking | posEngine.listCartLines() |
 | list_copyable_tickets | copy::do_list_copyable_tickets | blocking | posEngine.listCopyableTickets() |
 | list_eft_payments | eft::do_list_eft_payments | blocking | posEngine.listEftPayments() |
@@ -214,6 +216,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | money_in_out | financial::do_money_in_out | spawn | posEngine.moneyInOut() |
 | needs_z_report | report::do_needs_z_report | blocking | posEngine.needsZReport() |
 | open_drawer_fiscal | financial::do_open_drawer_fiscal | spawn | posEngine.openDrawerFiscal() |
+| print_allergen_sheet | allergens::do_print_allergen_sheet | spawn | posEngine.printAllergenSheet() |
 | print_missing_original | delivery::do_print_missing_original | spawn | posEngine.printMissingOriginal() |
 | print_webshop_customer | print::do_print_webshop_customer | spawn | posEngine.printWebshopCustomer() |
 | print_webshop_kitchen | print::do_print_webshop_kitchen | spawn | posEngine.printWebshopKitchen() |
@@ -223,6 +226,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
 | send_test_alert | alerts::do_send_test_alert | spawn | posEngine.sendTestAlert() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
+| set_allergens | allergens::do_set_allergens | blocking | posEngine.setAllergens() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
 | set_owner_alerts | alerts::do_set_owner_alerts | blocking | posEngine.setOwnerAlerts() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |

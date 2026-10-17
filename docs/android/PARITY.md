@@ -56,6 +56,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | stores/integrations.ts | ui/state/IntegrationsStore.kt | `get_integrations` `set_hubrise_enabled` |
 | stores/ownerAlerts.ts | feature/settings/alerts/OwnerAlertsViewModel.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
 | i18n.ts (useI18n, language) | ui/text/UiText.kt (PosUiRoot, LocalUiLanguage, vueText, uiText) | - |
+| stores/allergens.ts | feature/order/MenuViewModel.kt (allergen legend, mode and sheet state) | `list_allergens` `get_allergen_sheet` `print_allergen_sheet` |
 | stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` |
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |

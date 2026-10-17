@@ -1359,3 +1359,30 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
     `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); the root `Cargo.lock` gained one dependency edge, `pos-engine` to
     `tracing-subscriber` (a dev-dependency, to read logs in the token test), and no package: the crate was
     already in the lock through `pos-eft`. `android/rust/Cargo.lock` is unchanged.
+
+- **T3: allergens (C), what was built and where it differs from the plan text of V12-D17 to D21.** The model,
+  the import, the display and the sheet are as D17 to D21 describe; migration 61 is the one of D1. Precisions and
+  deviations, all decided while building:
+  - **`catalog_mapper` has no upload path.** The plan asked for the tags to be written back on upload; the
+    mapper only reads the HubRise catalog, so no writer was needed and none was added.
+  - **The catalog never clears a local list when it says nothing.** A catalog source with no tag on an entity
+    leaves a list entered locally untouched. A catalog that has dropped its tags clears a list it declared
+    earlier (source `catalog`) and writes one `allergen_change_log` row; a log row is written only on a real change.
+  - **`allergen:none` combined with other allergen tags is ignored** (the explicit tags win); alone it declares
+    an empty list.
+  - **zh prints in French.** The sheet slip supports fr, nl, en and de; the CP858 code page cannot print
+    Chinese, so a Chinese interface prints the French sheet, as the other slips do.
+  - **Undeclared options are printed as "Information non disponible".** An option without declaration is never
+    printed as "no allergen".
+  - **The footer reuses `invalid_disclaimer`** (the wording "T.V.A." of the other non-fiscal slips) after the
+    regulation line.
+  - **No Vue wrapper for `set_allergens`.** The command exists in the engine, the Tauri wrappers (104 in all, 102 in
+    the cert build) and the FFI facade (error count 119), but neither UI calls it yet: the product editor
+    (lane 3) is the hook.
+  - **Both UIs** show Annex II numbers in small circles (no drawn icons), at most 6 on a tile then "+n", an
+    "Allergènes" mode button on the order screen whose tap opens the product sheet instead of adding it, a
+    legend of the 14 numbers while the mode is on, the badges on the options of the option picker, and a sheet
+    dialog with "Contient", "Traces", the options and the two print buttons (this product, the whole menu).
+    Outside French the French names follow in brackets.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 and T2 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.

@@ -155,6 +155,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `generate_user_x_report` | `report` | `commands::report::do_generate_user_x_report` | async | cert |
 | `generate_x_report` | `report` | `commands::report::do_generate_x_report` | async | cert |
 | `generate_z_report` | `report` | `commands::report::do_generate_z_report` | async | cert |
+| `get_allergen_sheet` | `allergens` | `commands::allergens::do_get_allergen_sheet` | sync | cert |
 | `get_categories` | `menu` | `commands::menu::do_get_categories` | sync | cert |
 | `get_current_user` | `auth` | `commands::auth::do_get_current_user` | sync | cert |
 | `get_integrations` | `integrations` | `commands::integrations::do_get_integrations` | sync | cert |
@@ -179,6 +180,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `hubrise_sync_catalog` | `hubrise` | `commands::hubrise::do_sync_catalog` | async | cert |
 | `issue_b2b_invoice` | `invoice` | `commands::invoice::do_issue_b2b_invoice` | async | peppol only |
 | `leave_order` | `session` | `commands::session::do_leave_order` | async | cert |
+| `list_allergens` | `allergens` | `commands::allergens::do_list_allergens` | sync | cert |
 | `list_cart_lines` | `order` | `commands::order::do_list_cart_lines` | sync | cert |
 | `list_copyable_tickets` | `copy` | `commands::copy::do_list_copyable_tickets` | sync | cert |
 | `list_eft_payments` | `eft` | `commands::eft::do_list_eft_payments` | sync | cert |
@@ -201,6 +203,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `money_in_out` | `financial` | `commands::financial::do_money_in_out` | async | cert |
 | `needs_z_report` | `report` | `commands::report::do_needs_z_report` | sync | cert |
 | `open_drawer_fiscal` | `financial` | `commands::financial::do_open_drawer_fiscal` | async | cert |
+| `print_allergen_sheet` | `allergens` | `commands::allergens::do_print_allergen_sheet` | async | cert |
 | `print_missing_original` | `delivery` | `commands::delivery::do_print_missing_original` | async | cert |
 | `print_webshop_customer` | `print` | `commands::print::do_print_webshop_customer` | async | cert |
 | `print_webshop_kitchen` | `print` | `commands::print::do_print_webshop_kitchen` | async | cert |
@@ -210,6 +213,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `remove_order_line` | `order` | `commands::order::do_remove_order_line` | sync | cert |
 | `send_test_alert` | `alerts` | `commands::alerts::do_send_test_alert` | async | cert |
 | `set_active_order` | `session` | `commands::session::do_set_active_order` | sync | cert |
+| `set_allergens` | `allergens` | `commands::allergens::do_set_allergens` | sync | cert |
 | `set_hubrise_enabled` | `integrations` | `commands::integrations::do_set_hubrise_enabled` | sync | cert |
 | `set_owner_alerts` | `alerts` | `commands::alerts::do_set_owner_alerts` | sync | cert |
 | `set_pin` | `auth` | `commands::auth::do_set_pin` | sync | cert |

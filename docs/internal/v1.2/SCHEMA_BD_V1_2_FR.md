@@ -11,8 +11,9 @@ fiscale existante : elles ajoutent des tables ou des colonnes facultatives.
 | Migration | Nom | Fonction | Contenu |
 | --- | --- | --- | --- |
 | 60 | `owner-settings-alerts` | B. Alertes du propriétaire | `owner_settings`, `owner_settings_log`, `owner_alert_log` |
+| 61 | `allergens` | C. Allergènes | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` |
 
-(Les migrations 61 à 63 s'ajouteront à ce tableau avec leurs fonctions.)
+(Les migrations 62 et 63 s'ajouteront à ce tableau avec leurs fonctions.)
 
 ## Migration 60 : réglages du propriétaire et journal d'alertes
 
@@ -51,3 +52,39 @@ Une ligne par message d'alerte, envoyé ou non (`docs/internal/v1.2/ALERTES_PROP
 Index sur (`kind`, `id`). La table ne s'efface ni ne se modifie (déclencheurs). Les valeurs
 de `kind`, `transition` et `outcome` sont contrôlées par la base (contraintes `CHECK`).
 Aucune ligne n'est purgée : la table reste petite (une ligne par message, au plus 20 messages envoyés par heure).
+
+## Migration 61 : allergènes
+
+### `menu_item_allergens` et `modifier_allergens`
+
+Une ligne par allergène d'un produit (`menu_item_id`) ou d'une option (`modifier_id`).
+
+| Colonne | Type | Valeurs |
+| --- | --- | --- |
+| `menu_item_id` ou `modifier_id` | entier | produit ou option (clé étrangère) |
+| `allergen` | texte | `gluten`, `crustaceans`, `eggs`, `fish`, `peanuts`, `soybeans`, `milk`, `nuts`, `celery`, `mustard`, `sesame`, `sulphites`, `lupin`, `molluscs` (contrôlé par `CHECK`) |
+| `level` | texte | `contains` ou `may_contain` (traces) |
+
+Clé primaire (produit ou option, allergène). Les tables ne contiennent que les allergènes
+présents : une liste vide n'a pas de ligne ici.
+
+### `allergen_declarations`
+
+Une ligne par produit ou option dont la liste est déclarée, même vide. Sans ligne : « information
+non disponible ».
+
+| Colonne | Type | Rôle |
+| --- | --- | --- |
+| `entity_type` | texte | `menu_item` ou `modifier` |
+| `entity_id` | entier | identifiant du produit ou de l'option |
+| `source` | texte | `catalog` (synchronisation) ou `local` (saisie d'un gérant) |
+| `declared_at` | texte | date de la déclaration |
+| `declared_by` | texte, facultatif | gérant à l'origine d'une saisie locale ; vide pour le catalogue |
+
+### `allergen_change_log`
+
+Une ligne par changement réel d'une liste : `id`, `entity_type`, `entity_id`, `before_json`,
+`after_json`, `source`, `changed_by`, `changed_at`. La table ne s'efface ni ne se modifie
+(déclencheurs `no_update` et `no_delete`). Index sur (`entity_type`, `entity_id`, `id`).
+
+Aucune table fiscale n'est modifiée.

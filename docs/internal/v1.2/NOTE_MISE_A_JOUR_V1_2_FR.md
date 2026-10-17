@@ -80,3 +80,37 @@ d'événement fiscal.
 
 **Écrans.** Réglages, panneau « Alertes sur téléphone » (éteint sans jeton, allumé avec
 jeton, résultat du message test) : captures à reprendre après la fusion.
+
+## C. Allergènes : les 14 allergènes à déclaration obligatoire (dans le binaire certifié)
+
+**Ce qui change.** La caisse affiche, sur chaque produit et chaque option, les allergènes
+contenus et les traces possibles (annexe II du règlement (UE) n° 1169/2011), sous forme de
+pastilles numérotées, avec un mode « Allergènes » qui ouvre la fiche du produit, et imprime
+une fiche d'allergènes pour un produit ou pour toute la carte. Les listes viennent du
+catalogue HubRise (étiquettes `allergen:`, `traces:`, `allergen:none`). Même écran et mêmes
+textes sur Linux (Vue) et sur Android (Compose).
+
+**Est-ce dans le binaire certifié ?** Oui : modèle (`pos-core`), migration 61 (quatre
+tables), import du catalogue, ticket `pos-print`, quatre commandes du moteur. Aucune option
+de compilation.
+
+**Impact fiscal.** Aucun. La fonction ne signe rien, n'écrit aucun événement fiscal et
+aucun allergène n'entre dans une demande signée (test). Le ticket d'allergènes est un
+document non fiscal, sans prix, qui porte la mention d'un document non valable pour la T.V.A.
+
+**Données qui quittent la caisse.** Aucune.
+
+**Garde-fous.** Une absence de déclaration s'affiche « information non disponible », jamais
+« aucun allergène » ; un code d'allergène inconnu refuse tout le catalogue ; un catalogue
+silencieux n'efface pas une liste saisie localement ; journal des changements inaltérable.
+
+**Limite connue.** La saisie locale d'une liste par un gérant existe dans le moteur mais n'a
+pas encore d'écran (éditeur de produit d'un autre chantier).
+
+**Tests.** Voir `ALLERGENES_FR.md`, section 8.
+
+**Cas d'usage officiels.** Aucun cas d'usage SPF n'est rejoué : la fonction ne produit pas
+d'événement fiscal.
+
+**Écrans.** Écran de commande avec pastilles, mode « Allergènes » et légende, fiche du
+produit, sélecteur d'options, ticket imprimé : captures à reprendre après la fusion.
