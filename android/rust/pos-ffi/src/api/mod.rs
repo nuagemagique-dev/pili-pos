@@ -4,6 +4,7 @@ pub mod alerts;
 pub mod allergens;
 pub mod auth;
 pub mod checkout;
+pub mod courses;
 pub mod eft;
 pub mod export;
 pub mod hubrise;

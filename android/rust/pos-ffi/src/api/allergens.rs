@@ -18,9 +18,7 @@ impl PosEngine {
     /// The 14 EU allergens in Annex II order, for the legend.
     #[allow(clippy::redundant_closure)] // check_command_parity.py wants the engine call spelled out
     pub async fn list_allergens(&self) -> Result<Vec<AllergenEntry>, PosError> {
-        let entries = self
-            .blocking(|st| allergens::do_list_allergens(st))
-            .await?;
+        let entries = self.blocking(|st| allergens::do_list_allergens(st)).await?;
         convert::out(&entries)
     }
 

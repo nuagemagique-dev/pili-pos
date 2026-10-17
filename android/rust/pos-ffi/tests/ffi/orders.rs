@@ -325,9 +325,12 @@ async fn tables_and_takeaways_convert() {
         status: "occupied".into(),
         opened_at: Some("2026-10-05T18:30:00+00:00".into()),
         pre_bill_printed: true,
+        held_course: Some(2),
     };
     let record: ffi::TableInfo = out_equal(&printed);
     assert!(record.pre_bill_printed);
+    assert_eq!(record.held_course, Some(2));
+    assert_eq!(records[0].held_course, None);
     assert_eq!(
         record.opened_at.as_deref(),
         Some("2026-10-05T18:30:00+00:00")

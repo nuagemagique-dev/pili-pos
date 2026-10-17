@@ -6,6 +6,7 @@ mod allergens;
 mod auth;
 mod checkout;
 mod common;
+mod courses;
 mod eft;
 mod events;
 mod export;

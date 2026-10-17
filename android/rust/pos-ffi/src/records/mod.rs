@@ -69,7 +69,7 @@
 //! | `RequestedMedium` | `pos_engine::commands::delivery::RequestedMedium` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `SessionLocked` | `pos_engine::commands::session::SessionLocked` | common | event session-locked |
 //! | `SignMessages` | `pos_fiscal::fdm_client::SignMessages` | common | event fdm-sign-messages |
-//! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+8 commands) |
+//! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+10 commands) |
 //! | `TicketDeliveryRequest` | `pos_engine::commands::delivery::TicketDeliveryRequest` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `TicketLine` | `pos_fiscal::ticket::TicketLine` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `TicketMedium` | `pos_fiscal::types::TicketMedium` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
@@ -118,6 +118,10 @@
 //! | `SetAllergensInput` | `pos_engine::commands::allergens::SetAllergensInput` | allergens | set_allergens |
 //! | `SheetOptionView` | `pos_engine::commands::allergens::SheetOptionView` | allergens | get_allergen_sheet |
 //! | `SheetProductView` | `pos_engine::commands::allergens::SheetProductView` | allergens | get_allergen_sheet |
+//! | `CategoryCourse` | `pos_engine::commands::courses::CategoryCourse` | courses | get_course_settings, set_course_settings |
+//! | `CourseSettings` | `pos_engine::commands::courses::CourseSettings` | courses | get_course_settings, set_course_settings |
+//! | `HeldCourse` | `pos_engine::commands::courses::HeldCourseView` | courses | list_held_courses |
+//! | `NextCourse` | `pos_engine::commands::courses::NextCourse` | courses | send_next_course |
 //! | `FinancialResult` | `pos_engine::commands::financial::FinancialResult` | reports | money_in_out, open_drawer_fiscal |
 //! | `MoneyDirection` | `pos_engine::commands::financial::MoneyDirection` | reports | money_in_out |
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
@@ -166,6 +170,7 @@ pub mod allergens;
 pub mod auth;
 pub mod checkout;
 pub mod common;
+pub mod courses;
 pub mod eft;
 pub mod export;
 pub mod hubrise;

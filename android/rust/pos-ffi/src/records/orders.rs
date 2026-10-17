@@ -122,6 +122,10 @@ pub struct CartLine {
     pub code: Option<String>,
     /// The quantity not yet sent to the bar or the kitchen.
     pub unsent_quantity: i64,
+    /// The line's course (v1.2, kitchen only): 0 "Direct", 1 to 3.
+    pub course: i32,
+    /// `unsent`, `held` (waits for "Envoyer la suite") or `printed`.
+    pub kitchen_state: String,
 }
 
 /// `pos_core::menu::Category`.
@@ -234,6 +238,8 @@ pub struct TableInfo {
     pub opened_at: Option<String>,
     /// A provisional bill was printed and the order has not changed since.
     pub pre_bill_printed: bool,
+    /// The next course waiting for "Envoyer la suite" (1 to 3), when the table holds one.
+    pub held_course: Option<i32>,
 }
 
 /// `pos_engine::commands::tables::TakeawayInfo`.

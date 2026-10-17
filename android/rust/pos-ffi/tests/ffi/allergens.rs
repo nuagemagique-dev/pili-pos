@@ -124,7 +124,10 @@ fn the_menu_records_default_the_allergen_fields() {
 async fn without_an_operator_the_methods_refuse() {
     let te = crate::support::open_seeded().await;
     let e = &te.engine;
-    assert_eq!(coded(&e.list_allergens().await.unwrap_err()).0, "not_logged_in");
+    assert_eq!(
+        coded(&e.list_allergens().await.unwrap_err()).0,
+        "not_logged_in"
+    );
     assert_eq!(
         coded(&e.get_allergen_sheet(None, None).await.unwrap_err()).0,
         "not_logged_in"
@@ -138,7 +141,9 @@ async fn without_an_operator_the_methods_refuse() {
         "not_logged_in"
     );
     // A cashier reads but does not edit.
-    e.login("75061189702".into(), Some("4444".into())).await.unwrap();
+    e.login("75061189702".into(), Some("4444".into()))
+        .await
+        .unwrap();
     assert_eq!(e.list_allergens().await.unwrap().len(), 14);
     assert_eq!(
         coded(&e.set_allergens(edit(&[], &[])).await.unwrap_err()).0,
@@ -177,9 +182,15 @@ async fn a_manager_edit_shows_on_the_sheet_and_unknown_codes_are_refused() {
     assert_eq!(before.products.len(), 1);
     assert!(!before.products[0].declared, "no information yet");
 
-    assert!(e.set_allergens(edit(&["sulphites"], &["nuts"])).await.unwrap());
     assert!(
-        !e.set_allergens(edit(&["sulphites"], &["nuts"])).await.unwrap(),
+        e.set_allergens(edit(&["sulphites"], &["nuts"]))
+            .await
+            .unwrap()
+    );
+    assert!(
+        !e.set_allergens(edit(&["sulphites"], &["nuts"]))
+            .await
+            .unwrap(),
         "the same list changes nothing"
     );
     let after = e
@@ -223,7 +234,9 @@ async fn the_sheet_prints_on_the_printer() {
         SlipOutcome::Printed
     );
     assert_eq!(
-        e.print_allergen_sheet(None, Some("nl".into())).await.unwrap(),
+        e.print_allergen_sheet(None, Some("nl".into()))
+            .await
+            .unwrap(),
         SlipOutcome::Printed
     );
     e.shutdown().await.unwrap();
