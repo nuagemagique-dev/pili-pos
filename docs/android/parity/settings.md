@@ -17,9 +17,14 @@ screen only calls it through the shared stores and the gateway.
 | ui/src/components/IntegrationSwitch.vue | feature/settings/SettingsScreen.kt (IntegrationPanel) over ui/state/IntegrationsStore.kt | `set_hubrise_enabled` |
 | ui/src/components/HubriseSettings.vue (connection, health, catalog, adoption, channels) | feature/settings/HubriseSection.kt, HubriseViewModel.kt | `hubrise_get_connection_status` `hubrise_status` `hubrise_disconnect` `hubrise_sync_catalog` `hubrise_adoption_preview` `hubrise_adopt_catalog` `hubrise_list_channels` `hubrise_set_channel` |
 | ui/src/components/HubriseConnectDialog.vue | feature/settings/HubriseConnectDialog.kt, HubriseViewModel.kt | `hubrise_start_oauth_flow` `hubrise_complete_oauth` |
+| ui/src/components/PeppolPanel.vue (provider, sender id, queue counts, parked deliveries with reason and Réessayer; managers, only when configured) | feature/settings/PeppolSection.kt, PeppolViewModel.kt, PeppolState.kt | `list_peppol_deliveries` `retry_peppol_delivery` |
 
 ## Differences
 
+- **Peppol panel (V11-T2).** `PeppolPanel.vue` is `PeppolSection` in the third column, after the HubRise section,
+  for managers only; it stays hidden when the installation has no `peppol` section (the engine answers with no
+  provider). Vue reads the queue every 30 seconds; the Android view model does it with `startPolling()` while the
+  settings screen is open, and a Réessayer tap reads again at once.
 - **Remote support is not ported.** `SettingsView.vue` has a remote support column (`SupportBanner`, the support store,
   the PIN confirmation to start it). The Android till has no remote support in v1, so none of it is drawn and no
   support command is called.

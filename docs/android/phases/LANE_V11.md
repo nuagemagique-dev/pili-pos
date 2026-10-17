@@ -641,3 +641,27 @@ the shared target), under the 6 GB floor, so `:pos-core:apiDump` is still to run
 methods and records change `android/pos-core/api/pos-core.api`; whoever has disk must run
 `:pos-core:apiDump`, review the diff (only invoice additions expected), then the A set. The
 `lock_parity` scripts pass (`android/uccheck/Cargo.lock` refreshed offline).
+
+### V11-T2 (A UIs: invoice flow and Peppol panel), 2026-10-17
+
+**Delivered.** Vue: ipc wrappers (nine commands), `stores/invoice.ts`, `TextKeyboard.vue`,
+`InvoiceDialog.vue`, `InvoiceList.vue`, `PeppolPanel.vue`, Reports Tickets tab (checkbox column,
+Facture action, invoiced badge, invoice list), Settings Peppol panel, strings fr/en/zh,
+Playwright specs `invoice.spec.ts` and `peppol.spec.ts`, mock defaults. Android: `InvoiceState`,
+`InvoiceViewModel`, `InvoiceTextField`, `ReportsInvoiceDialog`, `ReportsInvoiceList`, the Tickets
+tab changes, `PeppolState`, `PeppolViewModel`, `PeppolSection`, unit tests for every state and
+view model, Compose content tests, six new goldens. Docs: parity tables, `FACTURATION_PEPPOL_FR.md`,
+section 9 of the update note, decisions V11-D30 to D35. T1's `:pos-core:apiDump` was run first
+(additions only) and committed.
+
+**Deviations.** The command is `sign_invoice_fiscal` (V11-D23). The Vue VAT check is a button, not
+a per-keystroke check, so that the engine stays the only place of the rule (V11-D30). Android
+uses the system keyboard (V11-D31).
+
+**Captures to retake (no emulator in the lane).** Android, French: Reports Tickets tab with
+two ticked sales and the Facture button; invoice dialog customer step (known-customer search,
+Peppol chip unknown, not registered, registered); preview step; result; invoice list with the
+three Peppol statuses; Settings Peppol panel with a parked delivery. Vue: the same screens with
+`TextKeyboard` open on each field. The golden PNGs under `android/app/src/test/screenshots/`
+are Robolectric renders, not device captures. The existing captures of the Reports Tickets tab
+changed (checkbox column) and must be retaken too.

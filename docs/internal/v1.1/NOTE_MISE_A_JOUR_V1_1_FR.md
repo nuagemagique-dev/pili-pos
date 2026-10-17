@@ -109,3 +109,15 @@ continue, perte de réponse récupérée, rapport Z, copie de facture) ; file d'
 simulateur (accepté, 503 puis accepté, refus 422, clé refusée, non inscrit, relance, réseau
 absent, rien sans section `peppol`, client étranger, journal immuable) ; tests de contrat des
 enregistrements de l'interface Android.
+
+## 9. Écrans de facturation et de suivi Peppol
+
+Les deux caisses (Linux et portable) offrent les mêmes écrans, décrits dans le document
+`FACTURATION_PEPPOL_FR.md` : choix des ventes et action « Facture » dans l'onglet « Tickets »,
+fenêtre de facturation en trois étapes (client, aperçu, résultat), liste des factures avec l'état
+de l'envoi Peppol et copie réservée au gérant, panneau Peppol de la configuration (fournisseur,
+compteurs, envois bloqués, « Réessayer »). Le contrôle du numéro de TVA est fait par le moteur,
+hors ligne ; l'absence de réseau ne bloque jamais la facture. La saisie du texte se fait au
+clavier à l'écran sur Linux et au clavier du système sur Android, avec les mêmes règles
+(majuscules, longueurs maximales). Aucune règle fiscale n'est portée par l'écran : il envoie des
+identifiants de ventes et de client, le moteur calcule et signe.

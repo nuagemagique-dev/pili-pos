@@ -1340,3 +1340,23 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   and its test data, `check_ipc_wrappers.py` has no peppol-gated module any more, `p2_gate.sh`
   `ffi-deps` accepts `pos-peppol`, `build_and_hash.sh` reports the `pos_peppol` symbol count
   instead of requiring 0, `uc_scope.toml` drops `[M150]`. Self-tests updated.
+- **V11-D30 VAT check in the invoice dialog (T2).** The Vue "live check" is a Vérifier button calling
+  `lookup_b2b_customer`; the engine checks the digits offline and the UI keeps no copy of the rule. Continuer
+  runs the lookup when none was done. A lookup that cannot reach Peppol answers `unknown` and never blocks the
+  invoice (V11-D10).
+- **V11-D31 Text entry on both UIs (T2).** Vue types customer text with the new `TextKeyboard.vue` (Belgian
+  AZERTY, capitals, digits, accents, `- ' . , / &`, keys 72 x 64). Android uses the system keyboard, and the view
+  model upper-cases and cuts what is typed to the same limits (VAT number 16, postal code 10, country 2, other
+  fields 80), so both UIs send the same text to the engine.
+- **V11-D32 Who sees what (T2).** The Copie button of an invoice is drawn for managers only (the engine refuses
+  `copy_ticket` on an I event to anyone else). The invoice list is drawn only once an invoice exists. The Peppol
+  settings panel is drawn for managers and only when the installation has a `peppol` section.
+- **V11-D33 Peppol panel polling (T2).** The panel reads the queue when the screen opens and every 30 seconds
+  (Vue: a timer of the component; Android: `PeppolViewModel.startPolling()` and `stopPolling()`, the loop is
+  stopped by the test that starts it). A Réessayer tap reads again at once.
+- **V11-D34 Dates and money in the invoice screens (T2).** The issue date is the engine's `YYYY-MM-DD` string,
+  shown as dd/mm/yyyy by formatting the string (no time zone is involved). Kotlin computes no money: totals come
+  from the engine, the sum of the ticked sales is `CashDisplay.sumCents`, display goes through `formatCents`.
+- **V11-D35 Goldens of the invoice screens (T2).** The Peppol settings golden is recorded at 1920 x 1500 dp so
+  that the parked rows below the integration panels are visible. The existing goldens of the tickets tab change
+  with the new checkbox column and the Facture button and are recorded again.
