@@ -155,7 +155,7 @@ est toujours une vente réelle.
 |---|---|
 | Avant l'acceptation | La commande est annulée localement. Rien n'est signé. |
 | Après le N (commande payée) | La commande passe « remboursement à faire ». Rien n'est signé automatiquement. Un Gérant confirme le remboursement avec son PIN : un N de remboursement (`negQuantityReason` `REFUND`) reprend chaque ligne au prix de la vente, frais et remises compris, avec la `fdmRef` de la vente d'origine (FAQ Q301 a). Paiement `APP` ou `ONLINE` : la plateforme ou le prestataire de paiement rembourse le client, le tiroir reste fermé. |
-| Après le P (commande à payer) | La commande passe « clôture à faire ». Chaque ligne est corrigée (`CORRECTION`), puis un N à 0,00 EUR avec un paiement de 0,00 EUR clôt le P avec le même `costCenter`, et son ticket de caisse TVA est imprimé (FAQ Q206, Q209). |
+| Après le P (commande à payer) | La commande passe « clôture à faire ». Chaque ligne est corrigée (`CORRECTION`), puis un N à 0,00 EUR avec un tableau `financials` vide (FAQ Q206 b) clôt le P avec le même `costCenter`, et son ticket de caisse TVA est imprimé (FAQ Q206, Q209). |
 
 Une annulation reçue pendant que la caisse était éteinte est trouvée
 au démarrage suivant : pili-pos-android relit les commandes signées des deux
