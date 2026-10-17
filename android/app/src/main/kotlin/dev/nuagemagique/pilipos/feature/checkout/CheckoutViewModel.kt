@@ -30,6 +30,7 @@ import timber.log.Timber
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.EftPayment
+import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.PaymentMethod
@@ -94,6 +95,7 @@ internal class CheckoutViewModel(
         val summary: CheckoutSummary = CheckoutSummary(),
         val loadTried: Boolean = false,
         val cardManual: Boolean = false,
+        val sendingHeld: Boolean = false,
     )
 
     private data class OrderInputs(
@@ -102,23 +104,34 @@ internal class CheckoutViewModel(
         val labelMode: ProductLabelMode,
         val itemCount: Int,
         val eftActive: Boolean,
+        val nextHeld: Int? = null,
     )
 
     // A terminal is linked and the till is not in training: card parts go to the terminal.
     private val eftActive: Flow<Boolean> =
         combine(settings.settings, settings.trainingMode) { current, training -> current?.paymentTerminal != null && !training }
 
-    private val labelAndTerminal: Flow<Pair<ProductLabel, Boolean>> =
-        combine(settings.productLabel, eftActive) { label, active -> label to active }
+    private data class Look(
+        val label: ProductLabel,
+        val terminal: Boolean,
+        val nextHeld: Int?,
+    )
+
+    // The label, the terminal and the next held course travel together, so that the inputs combine four flows.
+    private val labelAndTerminal: Flow<Look> =
+        combine(settings.productLabel, eftActive, order.courseSettings, order.heldCourses) { label, active, courses, held ->
+            Look(label, active, nextHeldOf(courses.enabled, held))
+        }
 
     private val orderInputs: Flow<OrderInputs> =
-        combine(order.current, order.lines, session.canTakePayment, labelAndTerminal) { current, lines, may, (label, terminal) ->
+        combine(order.current, order.lines, session.canTakePayment, labelAndTerminal) { current, lines, may, (label, terminal, nextHeld) ->
             OrderInputs(
                 order = current,
                 canTakePayment = may,
                 labelMode = if (label == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
                 itemCount = lines.sumOf { it.quantity },
                 eftActive = terminal,
+                nextHeld = nextHeld,
             )
         }
 
@@ -129,6 +142,7 @@ internal class CheckoutViewModel(
             labelMode = if (settings.productLabel.value == ProductLabel.CODE) ProductLabelMode.CODE else ProductLabelMode.NAME,
             itemCount = order.lines.value.sumOf { it.quantity },
             eftActive = eft.active(),
+            nextHeld = nextHeldOf(order.courseSettings.value.enabled, order.heldCourses.value),
         )
 
     private fun snapshot(): CheckoutUiState =
@@ -259,6 +273,21 @@ internal class CheckoutViewModel(
         viewModelScope.launch {
             eft.verify(payment)?.let { adopt(it) }
             recompute(prefill = true)
+        }
+    }
+
+    /**
+     * "Envoyer maintenant" of the held-course warning (`sendHeldNow`): the engine signs what is unsent, releases the
+     * next held course and prints it; a refusal is shown in the footer.
+     */
+    fun sendHeldNow() {
+        if (own.value.sendingHeld || own.value.step != CheckoutStep.PAY) return
+        own.update { it.copy(sendingHeld = true, error = null) }
+        viewModelScope.launch {
+            attempt { order.sendNextCourse() }.onFailure { failure ->
+                own.update { it.copy(error = entry.errors().text(failure, settings.language.value)) }
+            }
+            own.update { it.copy(sendingHeld = false) }
         }
     }
 
@@ -629,10 +658,18 @@ internal class CheckoutViewModel(
             eftActive = inputs.eftActive,
             cardManual = local.cardManual,
             eftOpen = payments.filter { it.isOpen() },
+            nextHeldCourse = inputs.nextHeld,
+            sendingHeld = local.sendingHeld,
         )
     }
 
     private companion object {
+        /** The next held course, when courses are on and one waits. */
+        fun nextHeldOf(
+            enabled: Boolean,
+            held: List<HeldCourse>,
+        ): Int? = if (enabled) held.minOfOrNull { it.course } else null
+
         /** A cash part: it has no amount and pays what is left. */
         val CASH_PART = PaymentPart(PaymentMethod.CASH, null)
 

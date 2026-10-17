@@ -138,6 +138,10 @@ internal data class CheckoutUiState(
     val cardManual: Boolean = false,
     /** The order's payments that wait for the terminal's answer: no sale until they are checked. */
     val eftOpen: List<EftPayment> = emptyList(),
+    /** The next course still held at the table (1 to 3): the sale does not print it, so the screen warns. */
+    val nextHeldCourse: Int? = null,
+    /** "Envoyer maintenant" is running. */
+    val sendingHeld: Boolean = false,
 ) {
     /** The amount being typed, in cents (no arithmetic: the digits are the cents). */
     val entryCents: Long get() = entry.cents

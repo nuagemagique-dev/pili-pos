@@ -158,6 +158,8 @@ class ProductNamesTest {
                 nameZh = "寿司",
                 code = "A2",
                 unsentQuantity = 0,
+                course = 0,
+                kitchenState = "unsent",
             )
         assertEquals(BilingualName("寿司", null, false), bilingualName(line, AppLanguage.ZH, ProductLabelMode.NAME))
         assertEquals(BilingualName("A2", "Sushi", true), bilingualName(line, AppLanguage.EN, ProductLabelMode.CODE))

@@ -171,6 +171,8 @@ internal fun cartLine(
         nameZh = null,
         code = null,
         unsentQuantity = 0,
+        course = 0,
+        kitchenState = "unsent",
     )
 
 internal fun posSettings(): PosSettings =

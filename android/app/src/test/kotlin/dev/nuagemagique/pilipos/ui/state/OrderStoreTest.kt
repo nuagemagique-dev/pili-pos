@@ -24,9 +24,12 @@ import org.junit.rules.TemporaryFolder
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.CheckoutResult
+import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.CreateOrderInput
+import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
+import uniffi.pos_ffi.NextCourse
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderStatus
@@ -81,6 +84,8 @@ class OrderStoreTest {
         nameZh = null,
         code = null,
         unsentQuantity = unsent,
+        course = 0,
+        kitchenState = "unsent",
     )
 
     private fun item(
@@ -797,6 +802,134 @@ class OrderStoreTest {
             r.store.seed(r, order(id = 1), listOf(line(1, 10, quantity = 4, unsent = 3), line(2, 11, unsent = 0), line(3, 12, unsent = -2)))
 
             assertEquals(3, r.store.unsentCount.value)
+        }
+
+    // ── Courses ───────────────────────────────────────────────────
+
+    private fun Rig.stubCourses(
+        enabled: Boolean,
+        held: List<HeldCourse> = emptyList(),
+    ) {
+        coEvery { f.engine.getCourseSettings() } returns CourseSettings(enabled, emptyList())
+        coEvery { f.engine.listHeldCourses(any()) } returns held
+    }
+
+    @Test
+    fun theCoursesSettingAndTheHeldCoursesAreReadWithTheOrder() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            assertTrue(r.store.courseSettings.value.enabled)
+            assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun withCoursesOffTheHeldCoursesAreNotRead() =
+        runTest {
+            val r = rig()
+            r.stubCourses(false)
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            assertFalse(r.store.courseSettings.value.enabled)
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+            coVerify(exactly = 0) { r.f.engine.listHeldCourses(any()) }
+        }
+
+    @Test
+    fun anEngineThatCannotAnswerLeavesCoursesOff() =
+        runTest {
+            val r = rig()
+            coEvery { r.f.engine.getCourseSettings() } throws PosException.Coded("not_ready", emptyMap())
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            assertFalse(r.store.courseSettings.value.enabled)
+            assertEquals(1, r.store.lines.value.size)
+        }
+
+    @Test
+    fun aCourseChangeIsStoredAndTheCartAndHeldCoursesAreReadAgain() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineCourse(1, 1) } returns Unit
+            r.stubCourses(true, emptyList())
+
+            assertTrue(r.store.setLineCourse(1, 1))
+
+            coVerify(exactly = 1) { r.f.engine.setLineCourse(1, 1) }
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun aRefusedCourseChangeIsReportedAndAnswersFalse() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true)
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineCourse(any(), any()) } throws PosException.Coded("course_already_sent", emptyMap())
+
+            r.store.failures.test {
+                assertFalse(r.store.setLineCourse(1, 1))
+                assertTrue(awaitItem() is PosException)
+            }
+        }
+
+    @Test
+    fun sendNextCourseAnswersTheEnginesResultAndReadsTheCartAgain() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1), HeldCourse(3, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            val next = NextCourse(course = 2, signed = null, slip = SlipOutcome.PRINTED)
+            coEvery { r.f.engine.sendNextCourse(1) } returns next
+            r.stubCourses(true, listOf(HeldCourse(3, 1, 1)))
+
+            assertEquals(next, r.store.sendNextCourse())
+
+            assertEquals(listOf(HeldCourse(3, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun aSlipThatDidNotPrintIsReportedOnTheSlipFailures() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.sendNextCourse(1) } returns NextCourse(2, null, SlipOutcome.FAILED)
+
+            r.store.slipFailures.test {
+                r.store.sendNextCourse()
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun aRefusedReleaseIsThrownToTheCaller() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+            coEvery { r.f.engine.sendNextCourse(1) } throws PosException.Coded("fdm_unreachable", emptyMap())
+
+            val refusal = runCatching { r.store.sendNextCourse() }.exceptionOrNull()
+
+            assertTrue(refusal is PosException)
+            assertEquals(listOf(HeldCourse(2, 1, 1)), r.store.heldCourses.value)
+        }
+
+    @Test
+    fun forgettingTheOrderForgetsItsHeldCourses() =
+        runTest {
+            val r = rig()
+            r.stubCourses(true, listOf(HeldCourse(2, 1, 1)))
+            r.store.seed(r, order(id = 1, table = 4), listOf(line(1, 10)))
+
+            r.store.resetLocal()
+
+            assertEquals(emptyList<HeldCourse>(), r.store.heldCourses.value)
         }
 
     /** Puts [order] and [cart] in the store through the engine, as a screen would (loadOrder). */

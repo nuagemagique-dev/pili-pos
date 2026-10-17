@@ -750,6 +750,18 @@
       "zh": "警告",
       "area": "core"
     },
+    "checkout_held_warning": {
+      "fr": "Suite non envoyée : {course}",
+      "en": "Next course not sent: {course}",
+      "zh": "尚未发出：{course}",
+      "area": "core"
+    },
+    "checkout_send_now": {
+      "fr": "Envoyer maintenant",
+      "en": "Send now",
+      "zh": "立即发出",
+      "area": "core"
+    },
     "clear": {
       "fr": "Effacer",
       "en": "Clear",
@@ -827,6 +839,114 @@
       "en": "Ticket copy",
       "zh": "票据副本",
       "area": "core"
+    },
+    "course_0": {
+      "fr": "Direct",
+      "en": "Direct",
+      "zh": "即上",
+      "area": "core"
+    },
+    "course_1": {
+      "fr": "Entrées",
+      "en": "Starters",
+      "zh": "前菜",
+      "area": "core"
+    },
+    "course_2": {
+      "fr": "Plats",
+      "en": "Mains",
+      "zh": "主菜",
+      "area": "core"
+    },
+    "course_3": {
+      "fr": "Desserts",
+      "en": "Desserts",
+      "zh": "甜点",
+      "area": "core"
+    },
+    "course_cancel": {
+      "fr": "Annuler",
+      "en": "Cancel",
+      "zh": "取消",
+      "area": "core"
+    },
+    "course_chip_label": {
+      "fr": "Changer le temps : {course}",
+      "en": "Change course: {course}",
+      "zh": "更改出菜顺序：{course}",
+      "area": "core"
+    },
+    "course_held_tag": {
+      "fr": "En attente",
+      "en": "On hold",
+      "zh": "待出",
+      "area": "core"
+    },
+    "course_picker_title": {
+      "fr": "Temps du service",
+      "en": "Course",
+      "zh": "出菜顺序",
+      "area": "core"
+    },
+    "course_resent": {
+      "fr": "Bon de cuisine renvoyé",
+      "en": "Kitchen slip sent again",
+      "zh": "已重新发送厨房单",
+      "area": "core"
+    },
+    "course_sent": {
+      "fr": "Suite envoyée : {course}",
+      "en": "Next course sent: {course}",
+      "zh": "已发出：{course}",
+      "area": "core"
+    },
+    "courses_categories": {
+      "fr": "Temps de chaque catégorie",
+      "en": "Course of each category",
+      "zh": "各分类的出菜顺序",
+      "area": "settings"
+    },
+    "courses_no_categories": {
+      "fr": "Aucune catégorie",
+      "en": "No category",
+      "zh": "没有分类",
+      "area": "settings"
+    },
+    "courses_note": {
+      "fr": "Le bon de cuisine imprime le premier temps tout de suite et garde les suivants jusqu'à « Envoyer la suite ». Rien de cela n'entre dans les données fiscales.",
+      "en": "The kitchen slip prints the first course at once and holds the next ones until \"Send next course\". None of this enters the fiscal data.",
+      "zh": "厨房单立即打印第一道，其余等待“发出下一道”。这些都不会进入税务数据。",
+      "area": "settings"
+    },
+    "courses_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "courses_saved": {
+      "fr": "Réglage enregistré",
+      "en": "Setting saved",
+      "zh": "已保存",
+      "area": "settings"
+    },
+    "courses_state_off": {
+      "fr": "Inactif",
+      "en": "Off",
+      "zh": "未开启",
+      "area": "settings"
+    },
+    "courses_state_on": {
+      "fr": "Actif",
+      "en": "On",
+      "zh": "已开启",
+      "area": "settings"
+    },
+    "courses_title": {
+      "fr": "Service en plusieurs temps",
+      "en": "Courses",
+      "zh": "分道出菜",
+      "area": "settings"
     },
     "deactivate": {
       "fr": "Désactiver",
@@ -1332,6 +1452,24 @@
       "zh": "每张小票上打印的餐厅名称或地址不能为空。 详情：{detail}",
       "area": "errors"
     },
+    "err_course_already_sent": {
+      "fr": "Cette ligne est déjà partie en cuisine : son temps ne peut plus changer.",
+      "en": "This line already went to the kitchen: its course can no longer change.",
+      "zh": "该菜品已送厨房，无法再更改出菜顺序。",
+      "area": "errors"
+    },
+    "err_course_invalid": {
+      "fr": "Temps du service invalide.",
+      "en": "Invalid course.",
+      "zh": "出菜顺序无效。",
+      "area": "errors"
+    },
+    "err_courses_disabled": {
+      "fr": "Le service en plusieurs temps est désactivé (Réglages).",
+      "en": "Courses are switched off (Settings).",
+      "zh": "分道出菜已关闭（设置）。",
+      "area": "errors"
+    },
     "err_deactivate_self": {
       "fr": "Vous ne pouvez pas vous désactiver vous-même.",
       "en": "You cannot deactivate yourself.",
@@ -1578,6 +1716,12 @@
       "zh": "需要姓名",
       "area": "errors"
     },
+    "err_no_course_held": {
+      "fr": "Aucune suite en attente.",
+      "en": "No course is waiting.",
+      "zh": "没有待出的菜。",
+      "area": "errors"
+    },
     "err_not_logged_in": {
       "fr": "Session fermée : reconnectez-vous.",
       "en": "Session closed: log in again.",
@@ -1594,6 +1738,12 @@
       "fr": "Action au nom d'un autre employé refusée.",
       "en": "Acting for another employee is refused.",
       "zh": "不能以其他员工的名义操作。",
+      "area": "errors"
+    },
+    "err_nothing_printed": {
+      "fr": "Aucun bon n'a été imprimé pour ce temps.",
+      "en": "No slip was printed for this course.",
+      "zh": "此顺序没有已打印的单据。",
       "area": "errors"
     },
     "err_nothing_to_refund": {
@@ -2904,6 +3054,12 @@
       "zh": "学徒",
       "area": "core"
     },
+    "send_next_course": {
+      "fr": "Envoyer la suite ({course})",
+      "en": "Send next course ({course})",
+      "zh": "发出下一道（{course}）",
+      "area": "core"
+    },
     "send_to_kitchen": {
       "fr": "Envoyer en cuisine",
       "en": "Send to kitchen",
@@ -3268,6 +3424,12 @@
       "fr": "Table",
       "en": "Table",
       "zh": "桌",
+      "area": "core"
+    },
+    "table_held_course": {
+      "fr": "Suite : {course}",
+      "en": "Next: {course}",
+      "zh": "待出：{course}",
       "area": "core"
     },
     "tables": {
@@ -3813,6 +3975,11 @@
     "alerts_send_failed",
     "allergen_unknown",
     "allergen_target_not_found",
+    "course_already_sent",
+    "course_invalid",
+    "courses_disabled",
+    "no_course_held",
+    "nothing_printed",
     "not_logged_in",
     "forbidden",
     "not_the_operator",

@@ -246,4 +246,18 @@
     <string name="allergens_no_printer">No printer configured</string>
     <string name="allergens_nothing">No product to print</string>
     <string name="allergens_regulation">Regulation (EU) No 1169/2011, Annex II</string>
+    <string name="course_0">Direct</string>
+    <string name="course_1">Starters</string>
+    <string name="course_2">Mains</string>
+    <string name="course_3">Desserts</string>
+    <string name="course_picker_title">Course</string>
+    <string name="course_cancel">Cancel</string>
+    <string name="course_held_tag">On hold</string>
+    <string name="course_chip_label">Change course: {course}</string>
+    <string name="send_next_course">Send next course ({course})</string>
+    <string name="course_sent">Next course sent: {course}</string>
+    <string name="course_resent">Kitchen slip sent again</string>
+    <string name="table_held_course">Next: {course}</string>
+    <string name="checkout_held_warning">Next course not sent: {course}</string>
+    <string name="checkout_send_now">Send now</string>
 </resources>

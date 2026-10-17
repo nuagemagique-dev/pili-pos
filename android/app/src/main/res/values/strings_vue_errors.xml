@@ -99,6 +99,11 @@
     <string name="err_internal_error">Erreur interne. Contactez votre technicien. ({detail})</string>
     <string name="err_allergen_unknown">Allergène inconnu : {code}.</string>
     <string name="err_allergen_target_not_found">Produit ou option introuvable ({id}).</string>
+    <string name="err_course_already_sent">Cette ligne est déjà partie en cuisine : son temps ne peut plus changer.</string>
+    <string name="err_course_invalid">Temps du service invalide.</string>
+    <string name="err_courses_disabled">Le service en plusieurs temps est désactivé (Réglages).</string>
+    <string name="err_no_course_held">Aucune suite en attente.</string>
+    <string name="err_nothing_printed">Aucun bon n\'a été imprimé pour ce temps.</string>
     <string name="err_hubrise_not_connected">HubRise n\'est pas connecté.</string>
     <string name="err_hubrise_order_unknown">Commande en ligne inconnue.</string>
     <string name="err_hubrise_status_not_allowed">Ce statut ne peut pas être choisi ici.</string>

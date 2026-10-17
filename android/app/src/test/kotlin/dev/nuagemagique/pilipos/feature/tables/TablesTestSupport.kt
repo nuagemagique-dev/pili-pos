@@ -64,6 +64,7 @@ internal fun table(
     totalCents: Long = 0,
     openedAt: String? = null,
     preBill: Boolean = false,
+    heldCourse: Int? = null,
 ): TableInfo =
     TableInfo(
         tableNumber = number,
@@ -73,6 +74,7 @@ internal fun table(
         status = if (orderId != null) "occupied" else "free",
         openedAt = openedAt,
         preBillPrinted = preBill,
+        heldCourse = heldCourse,
     )
 
 internal fun takeaway(

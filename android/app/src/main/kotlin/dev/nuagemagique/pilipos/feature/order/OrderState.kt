@@ -43,6 +43,12 @@ internal sealed interface OrderDialog {
         val busy: Boolean = false,
     ) : OrderDialog
 
+    /** The four courses of the line [lineId] as big buttons (`CoursePickerDialog.vue`); [current] is marked. */
+    data class CoursePicker(
+        val lineId: Long,
+        val current: Int,
+    ) : OrderDialog
+
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
     data class CloseUnpaid(
         val userName: String,
@@ -77,6 +83,12 @@ internal data class OrderCartState(
     val preBilling: Boolean = false,
     /** A manager may close the open order unpaid (`canCloseUnpaid`). */
     val canCloseUnpaid: Boolean = false,
+    /** Courses are on (v1.2): the cart is grouped by course and each line has a chip. */
+    val coursesEnabled: Boolean = false,
+    /** The next course waiting for "Envoyer la suite" (1 to 3); null when none is held. */
+    val nextHeldCourse: Int? = null,
+    /** "Envoyer la suite" is running. */
+    val sendingNext: Boolean = false,
 )
 
 /** What the cart column can ask for. */
@@ -88,6 +100,10 @@ internal data class OrderCartActions(
     val onSend: () -> Unit = {},
     val onPreBill: () -> Unit = {},
     val onCloseUnpaid: () -> Unit = {},
+    /** The course chip of a line: opens the picker. */
+    val onCourse: (lineId: Long) -> Unit = {},
+    /** "Envoyer la suite": release and print the next held course. */
+    val onSendNext: () -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */

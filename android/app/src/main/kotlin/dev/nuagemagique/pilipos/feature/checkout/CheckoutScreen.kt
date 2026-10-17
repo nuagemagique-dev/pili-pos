@@ -70,6 +70,8 @@ internal data class CheckoutCallbacks(
     val onPaper: () -> Unit = {},
     val onCardManual: (Boolean) -> Unit = {},
     val onVerify: (EftPayment) -> Unit = {},
+    /** "Envoyer maintenant": release the next held course. */
+    val onSendHeld: () -> Unit = {},
     val onPrintMissing: suspend (fiscalEventId: Long) -> Boolean = { false },
 )
 
@@ -112,6 +114,7 @@ internal fun CheckoutRoute(
             onPaper = model::chooseDeliveryPaper,
             onCardManual = model::setCardManual,
             onVerify = model::verifyOpen,
+            onSendHeld = model::sendHeldNow,
             onPrintMissing = model::printMissingOriginal,
         )
     PosScaffold(

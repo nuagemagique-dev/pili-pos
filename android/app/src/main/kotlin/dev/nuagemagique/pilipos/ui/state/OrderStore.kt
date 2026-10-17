@@ -18,9 +18,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import uniffi.pos_ffi.AddOrderLineInput
 import uniffi.pos_ffi.CartLine
+import uniffi.pos_ffi.CourseSettings
 import uniffi.pos_ffi.CreateOrderInput
+import uniffi.pos_ffi.HeldCourse
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.MenuItem
+import uniffi.pos_ffi.NextCourse
 import uniffi.pos_ffi.Order
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.OrderType
@@ -62,6 +65,8 @@ class OrderStore
         private val mutableLines = MutableStateFlow<List<CartLine>>(emptyList())
         private val mutableOpenOrders = MutableStateFlow<List<Order>>(emptyList())
         private val mutableUnsentCount = MutableStateFlow(0)
+        private val mutableCourseSettings = MutableStateFlow(CourseSettings(enabled = false, categoryCourses = emptyList()))
+        private val mutableHeldCourses = MutableStateFlow<List<HeldCourse>>(emptyList())
         private val mutableFailures =
             MutableSharedFlow<Throwable>(extraBufferCapacity = BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val mutableSlipFailures =
@@ -88,6 +93,12 @@ class OrderStore
          * takeaway: with the sale). A count of units, not an amount.
          */
         val unsentCount: StateFlow<Int> = mutableUnsentCount.asStateFlow()
+
+        /** The courses setting (`ui/src/stores/order.ts`): off until a manager switches it on. */
+        val courseSettings: StateFlow<CourseSettings> = mutableCourseSettings.asStateFlow()
+
+        /** The courses of [current] that wait for "Envoyer la suite", lowest first; empty with courses off. */
+        val heldCourses: StateFlow<List<HeldCourse>> = mutableHeldCourses.asStateFlow()
 
         /** Cart refusals (order paid meanwhile, product no longer available, session closed). */
         val failures: SharedFlow<Throwable> = mutableFailures.asSharedFlow()
@@ -121,7 +132,10 @@ class OrderStore
                 } else {
                     emptyList()
                 }
-            if (publish(order, cart, seen)) gateway.call { engine -> engine.setActiveOrder(order.id) }
+            if (publish(order, cart, seen)) {
+                gateway.call { engine -> engine.setActiveOrder(order.id) }
+                readCourses(order.id, seen)
+            }
         }
 
         /** Loads an existing order and its lines (re-opening a table) and makes it the active order. */
@@ -130,7 +144,10 @@ class OrderStore
                 val seen = generation.get()
                 val (order, cart) =
                     gateway.call { engine -> engine.getOrder(orderId) to engine.listCartLines(orderId) }
-                if (publish(order, cart, seen)) gateway.call { engine -> engine.setActiveOrder(orderId) }
+                if (publish(order, cart, seen)) {
+                    gateway.call { engine -> engine.setActiveOrder(orderId) }
+                    readCourses(orderId, seen)
+                }
             }
 
         /**
@@ -188,6 +205,39 @@ class OrderStore
                 gateway.call { engine -> engine.updateOrderLineQuantity(lineId, quantity) }
                 mutableCurrent.value?.let { refresh(it.id) }
             }
+        }
+
+        /**
+         * Changes the course of a line (refused once a slip carried it). @return false when the engine refused
+         * (the refusal is on [failures])
+         */
+        suspend fun setLineCourse(
+            lineId: Long,
+            course: Int,
+        ): Boolean =
+            reported {
+                gateway.call { engine -> engine.setLineCourse(lineId, course) }
+                mutableCurrent.value?.let { refresh(it.id) }
+            }
+
+        /**
+         * "Envoyer la suite": the engine signs what is unsent, releases the next held course and prints it. A
+         * refusal (FDM down, nothing held) is thrown to the caller; a slip that did not print is on [slipFailures].
+         */
+        suspend fun sendNextCourse(): NextCourse =
+            mutex.withLock {
+                val order = requireCurrent()
+                val next = gateway.call { engine -> engine.sendNextCourse(order.id) }
+                warnIfSlipFailed(next.signed)
+                warnIfSlipFailed(next.slip)
+                refresh(order.id)
+                next
+            }
+
+        /** Reads the courses setting again (after the manager saved it). */
+        suspend fun reloadCourses() {
+            val seen = generation.get()
+            readCourses(mutableCurrent.value?.id, seen)
         }
 
         /** Reads the open orders again. */
@@ -252,6 +302,7 @@ class OrderStore
                 mutableCurrent.value = null
                 mutableLines.value = emptyList()
                 mutableUnsentCount.value = 0
+                mutableHeldCourses.value = emptyList()
                 categories.clear()
             }
         }
@@ -297,6 +348,7 @@ class OrderStore
             warnIfSlipFailed(outcome)
             // The lines carry the new unsent quantities.
             publishLines(gateway.call { engine -> engine.listCartLines(order.id) }, seen)
+            readCourses(order.id, seen)
         }
 
         @Suppress("TooGenericExceptionCaught", "SwallowedException")
@@ -317,7 +369,39 @@ class OrderStore
             val seen = generation.get()
             val (order, cart) =
                 gateway.call { engine -> engine.getOrder(orderId) to engine.listCartLines(orderId) }
-            publish(order, cart, seen)
+            if (publish(order, cart, seen)) readCourses(orderId, seen)
+        }
+
+        /**
+         * Reads the courses setting and, with courses on, the held courses of [orderId]. A till that does not
+         * answer simply has courses off: the cart stays what the engine listed.
+         */
+        @Suppress("TooGenericExceptionCaught", "SwallowedException")
+        private suspend fun readCourses(
+            orderId: Long?,
+            seen: Int,
+        ) {
+            val read =
+                try {
+                    val settings = gateway.call { engine -> engine.getCourseSettings() }
+                    val held =
+                        if (settings.enabled && orderId != null) {
+                            gateway.call { engine -> engine.listHeldCourses(orderId) }
+                        } else {
+                            emptyList()
+                        }
+                    settings to held
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    CourseSettings(enabled = false, categoryCourses = emptyList()) to emptyList()
+                }
+            synchronized(publishLock) {
+                if (generation.get() == seen) {
+                    mutableCourseSettings.value = read.first
+                    mutableHeldCourses.value = read.second
+                }
+            }
         }
 
         /** Shows [order] and [cart] unless [resetLocal] ran since [seen] was read; answers whether it did. */

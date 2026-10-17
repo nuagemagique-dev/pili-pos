@@ -28,6 +28,14 @@
     <string name="settings_insz_hint">INSZ · 11 digits</string>
     <string name="settings_add_employee">Add employee</string>
     <string name="settings_email_title">Email tickets</string>
+    <string name="courses_title">Courses</string>
+    <string name="courses_state_on">On</string>
+    <string name="courses_state_off">Off</string>
+    <string name="courses_note">The kitchen slip prints the first course at once and holds the next ones until \"Send next course\". None of this enters the fiscal data.</string>
+    <string name="courses_categories">Course of each category</string>
+    <string name="courses_no_categories">No category</string>
+    <string name="courses_save">Save</string>
+    <string name="courses_saved">Setting saved</string>
     <string name="alerts_title">Phone alerts</string>
     <string name="alerts_state_on">On</string>
     <string name="alerts_state_off">Off</string>

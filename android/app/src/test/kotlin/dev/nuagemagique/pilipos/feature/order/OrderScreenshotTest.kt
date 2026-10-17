@@ -98,6 +98,28 @@ class OrderScreenshotTest {
             canCloseUnpaid = true,
         )
 
+    // Courses on: Direct and starters printed, mains and desserts held, "Envoyer la suite (Plats)".
+    private val courseCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 3_450),
+            rows =
+                listOf(
+                    CartRow(cartLine(1, 20, "Saké", kitchenState = "printed", course = 0), LineAmount.Total(600)),
+                    CartRow(cartLine(2, 10, "Edamame", kitchenState = "printed", course = 1), LineAmount.Total(450)),
+                    CartRow(
+                        cartLine(3, 16, "Assortiment 8 pièces", kitchenState = "held", course = 2, unsent = 1),
+                        LineAmount.Total(1_650),
+                    ),
+                    CartRow(cartLine(4, 11, "Nigiri thon", kitchenState = "held", course = 2, unsent = 1), LineAmount.Total(520)),
+                    CartRow(cartLine(5, 19, "Mochi", kitchenState = "held", course = 3), LineAmount.Total(230)),
+                ),
+            canPay = true,
+            vatRows = listOf(VatSplitRow(VatCode.B, 12, 3_450, 370)),
+            unsentCount = 2,
+            coursesEnabled = true,
+            nextHeldCourse = 2,
+        )
+
     private val menu =
         MenuState(
             categories = categories,
@@ -162,6 +184,17 @@ class OrderScreenshotTest {
     fun cartDialogs() {
         val dialog = OrderDialog.CloseUnpaid("Alice Dupont")
         capture(OrderUiState(signedIn = true, menu = menu, cart = fullCart, dialog = dialog), "order_cart_dialogs")
+    }
+
+    @Test
+    fun courses() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = courseCart), "order_courses")
+    }
+
+    @Test
+    fun coursePicker() {
+        val dialog = OrderDialog.CoursePicker(lineId = 3, current = 2)
+        capture(OrderUiState(signedIn = true, menu = menu, cart = courseCart, dialog = dialog), "order_course_picker")
     }
 
     @Test

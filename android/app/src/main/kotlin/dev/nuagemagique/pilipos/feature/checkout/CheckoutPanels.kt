@@ -93,6 +93,7 @@ internal fun PayPanel(
         modifier = modifier.padding(d.spaceLg).testTag("checkout_pay_panel"),
         verticalArrangement = Arrangement.spacedBy(d.spaceMd),
     ) {
+        state.nextHeldCourse?.let { HeldWarning(it, state.sendingHeld, callbacks) }
         MethodRow(state, callbacks)
         SplitRow(state, callbacks)
         if (state.amounts.chips.size > 1) ChipRow(state)
@@ -100,6 +101,45 @@ internal fun PayPanel(
         if (state.mailStatus?.configured == true && state.taken.isEmpty()) TicketRow(state, callbacks, picker)
     }
 }
+
+/** A later course is still held at the table: say so before paying, with "Envoyer maintenant" (`held-warning`). */
+@Composable
+private fun HeldWarning(
+    course: Int,
+    sending: Boolean,
+    callbacks: CheckoutCallbacks,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(c.accentWarning.copy(alpha = HELD_ALPHA), RoundedCornerShape(d.radiusMd))
+                .border(1.dp, c.accentWarning, RoundedCornerShape(d.radiusMd))
+                .padding(horizontal = d.spaceMd, vertical = d.spaceSm)
+                .testTag("checkout_held_warning"),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = vueText("checkout_held_warning", "course" to vueText("course_$course")),
+            style = t.body.copy(fontWeight = t.weightBold),
+            color = c.accentWarning,
+            modifier = Modifier.weight(1f),
+        )
+        PiliButton(
+            text = vueText("checkout_send_now"),
+            onClick = callbacks.onSendHeld,
+            variant = PiliButtonVariant.Secondary,
+            enabled = !sending,
+            modifier = Modifier.height(QuickHeight).testTag("checkout_held_send"),
+        )
+    }
+}
+
+private const val HELD_ALPHA = 0.12f
 
 @Composable
 private fun MethodRow(

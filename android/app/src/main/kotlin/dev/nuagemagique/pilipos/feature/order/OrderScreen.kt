@@ -52,6 +52,8 @@ internal data class OrderCallbacks(
     /** Print the open allergen sheet (`false`) or the whole menu's (`true`). */
     val onAllergenPrint: (Boolean) -> Unit = {},
     val onDismiss: () -> Unit = {},
+    /** A course picked in the picker. */
+    val onCoursePick: (Int) -> Unit = {},
     /** The manager PIN of "customer left without paying"; throws what the engine refused. */
     val onUnpaidPin: suspend (String) -> Unit = {},
     val describeError: (Throwable) -> String = { it.message.orEmpty() },
@@ -88,6 +90,7 @@ internal fun OrderRoute(
             onAllergenMode = model::toggleAllergenMode,
             onAllergenPrint = model::printAllergenSheet,
             onDismiss = model::dismissDialog,
+            onCoursePick = model::pickCourse,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
             onUnpaidDone = {
@@ -104,6 +107,8 @@ internal fun OrderRoute(
             onSend = model::sendToKitchen,
             onPreBill = model::printPreBill,
             onCloseUnpaid = model::askCloseUnpaid,
+            onCourse = model::openCoursePicker,
+            onSendNext = model::sendNextCourse,
         )
     PosScaffold(
         area = HeaderArea.ORDER,
@@ -196,6 +201,7 @@ internal fun BoxScope.OrderDialogs(
         is OrderDialog.AllergenSheet ->
             AllergenSheetDialog(dialog, language, onPrint = callbacks.onAllergenPrint, onClose = callbacks.onDismiss)
         is OrderDialog.CloseUnpaid -> CloseUnpaidDialog(dialog.userName, callbacks)
+        is OrderDialog.CoursePicker -> CoursePickerDialog(dialog.current, callbacks.onCoursePick, callbacks.onDismiss)
     }
 }
 

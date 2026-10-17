@@ -38,6 +38,9 @@ import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryDialog
 import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsCallbacks
 import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsSection
 import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsViewModel
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
+import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
@@ -125,9 +128,11 @@ internal fun SettingsRoute(
     val model = viewModel { SettingsViewModel(entry) }
     val hubriseModel = viewModel { HubriseViewModel(entry) }
     val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
+    val coursesModel = viewModel { CoursesViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
     val alerts by alertsModel.state.collectAsState()
+    val courses by coursesModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -142,6 +147,7 @@ internal fun SettingsRoute(
     val pinActions = pinActionsOf(model)
     val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
     val alertsCallbacks = alertsCallbacksOf(alertsModel)
+    val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -172,6 +178,7 @@ internal fun SettingsRoute(
             callbacks,
             hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
             alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
+            coursesSection = { CoursesSection(courses, coursesCallbacks) },
         )
     }
 }
@@ -257,12 +264,13 @@ internal fun SettingsContent(
     modifier: Modifier = Modifier,
     hubriseSection: @Composable () -> Unit = {},
     alertsSection: @Composable () -> Unit = {},
+    coursesSection: (@Composable () -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).testTag("settings_content")) {
         if (maxWidth >= WideLayoutMin) {
-            WideLayout(state, callbacks, hubriseSection, alertsSection)
+            WideLayout(state, callbacks, hubriseSection, alertsSection, coursesSection)
         } else {
-            NarrowLayout(state, callbacks, hubriseSection, alertsSection)
+            NarrowLayout(state, callbacks, hubriseSection, alertsSection, coursesSection)
         }
     }
 }
@@ -273,6 +281,7 @@ private fun WideLayout(
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
     alertsSection: @Composable () -> Unit,
+    coursesSection: (@Composable () -> Unit)?,
 ) {
     val gap = PiliTheme.dimens.spaceLg
     Row(Modifier.fillMaxSize().padding(gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -283,7 +292,10 @@ private fun WideLayout(
             RowsPanel(state.rows, callbacks.onRow, Modifier.weight(1f), scroll = true)
         }
         if (state.isManager) {
-            EmployeesPanel(state, callbacks, Modifier.weight(1f).fillMaxHeight(), scrollList = true)
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                EmployeesPanel(state, callbacks, Modifier.weight(1f), scrollList = true)
+                if (coursesSection != null) CoursesSlot(coursesSection)
+            }
         }
         Column(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
@@ -305,6 +317,7 @@ private fun NarrowLayout(
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
     alertsSection: @Composable () -> Unit,
+    coursesSection: (@Composable () -> Unit)?,
 ) {
     val gap = PiliTheme.dimens.spaceMd
     Column(
@@ -318,12 +331,21 @@ private fun NarrowLayout(
         if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
         if (state.isManager) alertsSection()
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
+        if (state.isManager && coursesSection != null) coursesSection()
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
         if (state.hubrise.visible) hubriseSection()
         DeliveriesPanel(state.deliveries, state.deliveriesLoading, state.mailStatus, callbacks.onReloadDeliveries)
     }
 }
+
+/** The courses panel under the employees: at most half of the column, scrolling inside when it needs more. */
+@Composable
+private fun CoursesSlot(coursesSection: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().heightIn(max = CoursesMaxHeight).verticalScroll(rememberScrollState())) { coursesSection() }
+}
+
+private val CoursesMaxHeight = 480.dp
 
 // ── Column 1: training, language, product label, rows ─────────────
 

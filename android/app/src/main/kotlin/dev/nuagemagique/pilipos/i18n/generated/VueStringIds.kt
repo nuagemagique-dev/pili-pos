@@ -362,6 +362,25 @@ internal object VueStringIds {
         this["allergens_regulation"] = R.string.allergens_regulation
         this["err_allergen_unknown"] = R.string.err_allergen_unknown
         this["err_allergen_target_not_found"] = R.string.err_allergen_target_not_found
+        this["course_0"] = R.string.course_0
+        this["course_1"] = R.string.course_1
+        this["course_2"] = R.string.course_2
+        this["course_3"] = R.string.course_3
+        this["course_picker_title"] = R.string.course_picker_title
+        this["course_cancel"] = R.string.course_cancel
+        this["course_held_tag"] = R.string.course_held_tag
+        this["course_chip_label"] = R.string.course_chip_label
+        this["send_next_course"] = R.string.send_next_course
+        this["course_sent"] = R.string.course_sent
+        this["course_resent"] = R.string.course_resent
+        this["table_held_course"] = R.string.table_held_course
+        this["checkout_held_warning"] = R.string.checkout_held_warning
+        this["checkout_send_now"] = R.string.checkout_send_now
+        this["err_course_already_sent"] = R.string.err_course_already_sent
+        this["err_course_invalid"] = R.string.err_course_invalid
+        this["err_courses_disabled"] = R.string.err_courses_disabled
+        this["err_no_course_held"] = R.string.err_no_course_held
+        this["err_nothing_printed"] = R.string.err_nothing_printed
         this["method_cash"] = R.string.method_cash
         this["method_card"] = R.string.method_card
         this["method_meal_voucher"] = R.string.method_meal_voucher
@@ -456,6 +475,14 @@ internal object VueStringIds {
         this["settings_insz_hint"] = R.string.settings_insz_hint
         this["settings_add_employee"] = R.string.settings_add_employee
         this["settings_email_title"] = R.string.settings_email_title
+        this["courses_title"] = R.string.courses_title
+        this["courses_state_on"] = R.string.courses_state_on
+        this["courses_state_off"] = R.string.courses_state_off
+        this["courses_note"] = R.string.courses_note
+        this["courses_categories"] = R.string.courses_categories
+        this["courses_no_categories"] = R.string.courses_no_categories
+        this["courses_save"] = R.string.courses_save
+        this["courses_saved"] = R.string.courses_saved
         this["alerts_title"] = R.string.alerts_title
         this["alerts_state_on"] = R.string.alerts_state_on
         this["alerts_state_off"] = R.string.alerts_state_off
@@ -492,6 +519,9 @@ internal object VueStringIds {
         this["alerts_transition_test"] = R.string.alerts_transition_test
         this["alerts_outcome_sent"] = R.string.alerts_outcome_sent
         this["alerts_outcome_failed"] = R.string.alerts_outcome_failed
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["alerts_outcome_suppressed"] = R.string.alerts_outcome_suppressed
         this["alerts_minus"] = R.string.alerts_minus
         this["integrations_title"] = R.string.integrations_title
@@ -519,9 +549,6 @@ internal object VueStringIds {
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
         this["webshop_status_rejected"] = R.string.webshop_status_rejected
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_status_cancelled"] = R.string.webshop_status_cancelled
         this["webshop_service_delivery"] = R.string.webshop_service_delivery
         this["webshop_service_collection"] = R.string.webshop_service_collection

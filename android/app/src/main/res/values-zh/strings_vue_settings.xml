@@ -28,6 +28,14 @@
     <string name="settings_insz_hint">INSZ · 11位</string>
     <string name="settings_add_employee">添加员工</string>
     <string name="settings_email_title">电子邮件票据</string>
+    <string name="courses_title">分道出菜</string>
+    <string name="courses_state_on">已开启</string>
+    <string name="courses_state_off">未开启</string>
+    <string name="courses_note">厨房单立即打印第一道，其余等待“发出下一道”。这些都不会进入税务数据。</string>
+    <string name="courses_categories">各分类的出菜顺序</string>
+    <string name="courses_no_categories">没有分类</string>
+    <string name="courses_save">保存</string>
+    <string name="courses_saved">已保存</string>
     <string name="alerts_title">手机警报</string>
     <string name="alerts_state_on">已开启</string>
     <string name="alerts_state_off">未开启</string>

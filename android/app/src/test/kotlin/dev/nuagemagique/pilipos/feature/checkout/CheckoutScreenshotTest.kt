@@ -114,6 +114,25 @@ class CheckoutScreenshotTest {
     }
 
     @Test
+    fun heldCourse() {
+        capture(
+            base.copy(
+                nextHeldCourse = 2,
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 3_190L,
+                        dueCents = 3_190L,
+                        roundedDueCents = 3_190L,
+                        restShownCents = 3_190L,
+                        shares = listOf(3_190L),
+                        quickAmountsCents = listOf(3_500L, 4_000L, 5_000L),
+                    ),
+            ),
+            "checkout_held_course",
+        )
+    }
+
+    @Test
     fun split() {
         val chips =
             listOf(

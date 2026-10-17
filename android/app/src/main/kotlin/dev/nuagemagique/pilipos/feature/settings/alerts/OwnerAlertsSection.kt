@@ -284,7 +284,7 @@ private fun ValueRow(
 
 /** An on/off switch (`.toggle`, `.kind`): the text and a track with a thumb; [fill] spreads the text and the track over the row. */
 @Composable
-private fun SwitchRow(
+internal fun SwitchRow(
     on: Boolean,
     text: String,
     onClick: () -> Unit,

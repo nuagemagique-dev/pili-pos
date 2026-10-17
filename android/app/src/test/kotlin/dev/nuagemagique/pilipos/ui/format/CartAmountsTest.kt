@@ -53,6 +53,8 @@ class CartAmountsTest {
             nameZh = null,
             code = null,
             unsentQuantity = 0,
+            course = 0,
+            kitchenState = "unsent",
         )
 
     @Test

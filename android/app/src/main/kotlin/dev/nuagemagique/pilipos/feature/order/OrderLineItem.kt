@@ -28,6 +28,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,6 +39,7 @@ import dev.nuagemagique.pilipos.ui.format.bilingualName
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
+import uniffi.pos_ffi.CartLine
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -87,7 +90,10 @@ internal fun OrderLineItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         QuantityStepper(id, row.line.quantity, actions)
-        LineNames(id, names, lineNotes(row.line.modifiersJson), Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            LineNames(id, names, lineNotes(row.line.modifiersJson))
+            if (state.coursesEnabled) CourseChip(row.line, actions)
+        }
         Text(
             text = amountText(row.amount),
             style = t.figure.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
@@ -187,6 +193,55 @@ private fun LineNames(
         }
     }
 }
+
+/**
+ * The course of a line as a small pill under the name (`course-chip` of `OrderLineItem.vue`): a tap opens the
+ * picker; once a slip carried the line the chip is locked, and a line held for "Envoyer la suite" says so.
+ * Test tag: `cart_line_<id>_course`.
+ */
+@Composable
+private fun CourseChip(
+    line: CartLine,
+    actions: OrderCartActions,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    val printed = line.kitchenState == "printed"
+    val held = line.kitchenState == "held"
+    val label = vueText("course_${line.course}")
+    val description = vueText("course_chip_label", "course" to label)
+    Row(
+        modifier =
+            Modifier
+                .padding(top = d.spaceXs)
+                .defaultMinSize(minHeight = ChipHeight)
+                .alpha(if (printed) CHIP_LOCKED_ALPHA else 1f)
+                .background(c.bgSurface, RoundedCornerShape(ChipHeight / 2))
+                .clickable(enabled = !printed, role = Role.Button) { actions.onCourse(line.id) }
+                .padding(horizontal = d.spaceMd)
+                .semantics { contentDescription = description }
+                .testTag("cart_line_${line.id}_course"),
+        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = t.figure.copy(fontSize = t.sizeSm, fontWeight = t.weightBold),
+            color = if (held) c.accentWarning else c.textPrimary,
+        )
+        if (held) {
+            Text(
+                text = vueText("course_held_tag").uppercase(),
+                style = t.figure.copy(fontSize = t.sizeSm),
+                color = c.accentWarning,
+            )
+        }
+    }
+}
+
+private val ChipHeight = 32.dp
+private const val CHIP_LOCKED_ALPHA = 0.55f
 
 /** A 48 dp touch target with an icon; [enabled] false draws it faded and not clickable. */
 @Composable

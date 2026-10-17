@@ -28,6 +28,14 @@
     <string name="settings_insz_hint">INSZ · 11 chiffres</string>
     <string name="settings_add_employee">Ajouter l’employé</string>
     <string name="settings_email_title">Tickets par email</string>
+    <string name="courses_title">Service en plusieurs temps</string>
+    <string name="courses_state_on">Actif</string>
+    <string name="courses_state_off">Inactif</string>
+    <string name="courses_note">Le bon de cuisine imprime le premier temps tout de suite et garde les suivants jusqu\'à « Envoyer la suite ». Rien de cela n\'entre dans les données fiscales.</string>
+    <string name="courses_categories">Temps de chaque catégorie</string>
+    <string name="courses_no_categories">Aucune catégorie</string>
+    <string name="courses_save">Enregistrer</string>
+    <string name="courses_saved">Réglage enregistré</string>
     <string name="alerts_title">Alertes sur téléphone</string>
     <string name="alerts_state_on">Actives</string>
     <string name="alerts_state_off">Inactives</string>

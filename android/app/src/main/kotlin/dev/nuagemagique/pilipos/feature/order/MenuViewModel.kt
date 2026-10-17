@@ -55,6 +55,13 @@ private data class Data(
     val preBilling: Boolean = false,
     val allergenMode: Boolean = false,
     val allergenLegend: List<AllergenEntry> = emptyList(),
+    val sendingNext: Boolean = false,
+)
+
+/** What the cart shows of the courses: the switch and the next held course. */
+private data class Courses(
+    val enabled: Boolean = false,
+    val nextHeld: Int? = null,
 )
 
 /** How the screen speaks and what the signed-in user may do. */
@@ -114,14 +121,27 @@ internal class MenuViewModel(
         ) { language, label, pay, user, manager -> Look(language, label.toMode(), pay, user != null, manager) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, currentLook())
 
+    private val courses: StateFlow<Courses> =
+        combine(order.courseSettings, order.heldCourses) { settings, held ->
+            Courses(settings.enabled, if (settings.enabled) held.minOfOrNull { it.course } else null)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, currentCourses())
+
+    // The unsent count and the courses travel together, so that the state combines five flows.
+    private val unsentAndCourses: StateFlow<Pair<Int, Courses>> =
+        combine(order.unsentCount, courses) { unsent, c -> unsent to c }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, order.unsentCount.value to courses.value)
+
     /** What the screen draws. */
     val state: StateFlow<OrderUiState> =
-        combine(data, order.current, order.lines, look, order.unsentCount) { d, current, lines, l, unsent ->
-            build(d, current, lines, l, unsent)
+        combine(data, order.current, order.lines, look, unsentAndCourses) { d, current, lines, l, extra ->
+            build(d, current, lines, l, extra.first, extra.second)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            build(data.value, order.current.value, order.lines.value, currentLook(), order.unsentCount.value),
+            build(
+                data.value, order.current.value, order.lines.value, currentLook(),
+                unsentAndCourses.value.first, unsentAndCourses.value.second,
+            ),
         )
 
     init {
@@ -153,12 +173,19 @@ internal class MenuViewModel(
             session.isManager.value,
         )
 
+    private fun currentCourses(): Courses {
+        val settings = order.courseSettings.value
+        return Courses(settings.enabled, if (settings.enabled) order.heldCourses.value.minOfOrNull { it.course } else null)
+    }
+
+    @Suppress("LongParameterList")
     private fun build(
         d: Data,
         shared: Order?,
         sharedLines: List<CartLine>,
         l: Look,
         sharedUnsent: Int,
+        c: Courses,
     ): OrderUiState {
         // The order store is shared by every screen: another order than the one of the route is not this screen's (PD205).
         val current = shared?.takeIf { it.id == routeOrderId }
@@ -183,6 +210,9 @@ internal class MenuViewModel(
                     sending = d.sending,
                     preBilling = d.preBilling,
                     canCloseUnpaid = l.isManager && current?.status == OrderStatus.OPEN && lines.isNotEmpty(),
+                    coursesEnabled = current != null && c.enabled,
+                    nextHeldCourse = if (current != null) c.nextHeld else null,
+                    sendingNext = d.sendingNext,
                 ),
             zWarning = d.zWarning,
             dialog = d.dialog,
@@ -463,6 +493,51 @@ internal class MenuViewModel(
                 onFailure = { entry.errors().show(it, language, entry.catalog().text("pre_bill_failed", language), ERROR_TTL_MS) },
             )
             data.update { it.copy(preBilling = false) }
+        }
+    }
+
+    // ── Courses ───────────────────────────────────────────────────
+
+    /** The course chip of a line: opens the picker, unless a slip already carried the line (its chip is locked). */
+    fun openCoursePicker(lineId: Long) {
+        val line = order.lines.value.firstOrNull { it.id == lineId } ?: return
+        if (!isRouteOrderCurrent() || line.kitchenState == "printed") return
+        data.update { it.copy(dialog = OrderDialog.CoursePicker(lineId, line.course)) }
+    }
+
+    /** A course picked in the picker (`pickCourse`): the dialog closes and a different course is stored. */
+    fun pickCourse(course: Int) {
+        val open = data.value.dialog as? OrderDialog.CoursePicker ?: return
+        data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent() || course == open.current) return
+        // A refusal (course_already_sent) is on OrderStore.failures, shown by run().
+        viewModelScope.launch { order.setLineCourse(open.lineId, course) }
+    }
+
+    /**
+     * "Envoyer la suite" (`sendNextCourse`): the engine signs what is unsent, releases the next held course and
+     * prints it. Ignored while it runs and when no course is held.
+     */
+    fun sendNextCourse() {
+        if (!isRouteOrderCurrent() || data.value.sendingNext || courses.value.nextHeld == null) return
+        data.update { it.copy(sendingNext = true) }
+        viewModelScope.launch {
+            val language = settings.language.value
+            val catalog = entry.catalog()
+            attempt { order.sendNextCourse() }.fold(
+                onSuccess = { next ->
+                    val course = next.course
+                    val text =
+                        if (course == null) {
+                            catalog.text("course_resent", language)
+                        } else {
+                            catalog.text("course_sent", language, mapOf("course" to catalog.text("course_$course", language)))
+                        }
+                    entry.toasts().show(text, ToastVariant.Success)
+                },
+                onFailure = { entry.errors().show(it, language, null, ERROR_TTL_MS) },
+            )
+            data.update { it.copy(sendingNext = false) }
         }
     }
 
