@@ -1194,6 +1194,78 @@
       "zh": "原始票据不完整（{field}），请联系技术人员。",
       "area": "errors"
     },
+    "err_payment_correction_already_done": {
+      "fr": "Le paiement de cette vente a déjà été corrigé une fois.",
+      "en": "This sale's payment was already corrected once.",
+      "zh": "此销售的付款已更正过一次。",
+      "area": "errors"
+    },
+    "err_payment_correction_bad_line": {
+      "fr": "Cette ligne de paiement n'existe pas.",
+      "en": "This payment line does not exist.",
+      "zh": "此付款行不存在。",
+      "area": "errors"
+    },
+    "err_payment_correction_method": {
+      "fr": "Ce moyen de paiement n'est pas accepté en caisse (espèces, carte, titres-repas).",
+      "en": "This payment method is not taken at the till (cash, card, meal vouchers).",
+      "zh": "收银台不接受此付款方式（现金、银行卡、餐券）。",
+      "area": "errors"
+    },
+    "err_payment_correction_not_a_sale": {
+      "fr": "Seul un ticket de vente peut être corrigé.",
+      "en": "Only a sale ticket can be corrected.",
+      "zh": "只能更正销售小票。",
+      "area": "errors"
+    },
+    "err_payment_correction_online": {
+      "fr": "Une commande en ligne est payée par la plateforme : son paiement ne se corrige pas ici.",
+      "en": "An online order is paid through the platform: its payment is not corrected here.",
+      "zh": "在线订单由平台收款：不能在此更正。",
+      "area": "errors"
+    },
+    "err_payment_correction_period_closed": {
+      "fr": "Cette vente appartient à une journée déjà clôturée (rapport Z).",
+      "en": "This sale belongs to a day already closed (Z report).",
+      "zh": "此销售属于已结账（Z报表）的日期。",
+      "area": "errors"
+    },
+    "err_payment_correction_refunded": {
+      "fr": "Cette vente a été remboursée (en tout ou en partie) : son paiement ne peut plus être corrigé.",
+      "en": "This sale was refunded (in whole or in part): its payment can no longer be corrected.",
+      "zh": "此销售已退款（全部或部分）：不能再更正付款。",
+      "area": "errors"
+    },
+    "err_payment_correction_rounding": {
+      "fr": "Cette correction demanderait un arrondi : elle n'est pas possible pour cette vente.",
+      "en": "This correction would need rounding: it is not possible for this sale.",
+      "zh": "此更正需要四舍五入：此销售无法更正。",
+      "area": "errors"
+    },
+    "err_payment_correction_same_method": {
+      "fr": "Choisissez un autre moyen de paiement que celui de la ligne.",
+      "en": "Choose a payment method other than the line's.",
+      "zh": "请选择与该行不同的付款方式。",
+      "area": "errors"
+    },
+    "err_payment_correction_terminal_card": {
+      "fr": "Une carte prise sur le terminal lié ne peut pas être corrigée.",
+      "en": "A card taken on the linked terminal cannot be corrected.",
+      "zh": "通过关联终端刷的卡不能更正。",
+      "area": "errors"
+    },
+    "err_payment_correction_training": {
+      "fr": "Une vente d'entraînement se corrige en mode entraînement, une vente réelle hors entraînement.",
+      "en": "A training sale is corrected in training mode, a real sale outside it.",
+      "zh": "培训销售只能在培训模式下更正，真实销售则不能。",
+      "area": "errors"
+    },
+    "err_payment_correction_unpaid": {
+      "fr": "Cette vente n'a pas été payée : aucun paiement à corriger.",
+      "en": "This sale was not paid: no payment to correct.",
+      "zh": "此销售未付款：没有可更正的付款。",
+      "area": "errors"
+    },
     "err_payment_exceeds_total": {
       "fr": "Les paiements dépassent le total.",
       "en": "The payments exceed the total.",
@@ -2316,6 +2388,102 @@
       "zh": "其他金额",
       "area": "reports"
     },
+    "reports_pc_action": {
+      "fr": "Corriger le paiement",
+      "en": "Correct payment",
+      "zh": "更正付款",
+      "area": "reports"
+    },
+    "reports_pc_confirm": {
+      "fr": "Corriger",
+      "en": "Correct",
+      "zh": "更正",
+      "area": "reports"
+    },
+    "reports_pc_corrected": {
+      "fr": "Paiement corrigé : {from} → {to}",
+      "en": "Payment corrected: {from} → {to}",
+      "zh": "付款已更正：{from} → {to}",
+      "area": "reports"
+    },
+    "reports_pc_done": {
+      "fr": "Paiement corrigé",
+      "en": "Payment corrected",
+      "zh": "付款已更正",
+      "area": "reports"
+    },
+    "reports_pc_line": {
+      "fr": "{method} · {amount} €",
+      "en": "{method} · {amount} €",
+      "zh": "{method} · {amount} €",
+      "area": "reports"
+    },
+    "reports_pc_method_card": {
+      "fr": "Carte",
+      "en": "Card",
+      "zh": "银行卡",
+      "area": "reports"
+    },
+    "reports_pc_method_cash": {
+      "fr": "Espèces",
+      "en": "Cash",
+      "zh": "现金",
+      "area": "reports"
+    },
+    "reports_pc_method_meal_voucher": {
+      "fr": "Titres-repas",
+      "en": "Meal vouchers",
+      "zh": "餐券",
+      "area": "reports"
+    },
+    "reports_pc_not_possible": {
+      "fr": "Ce paiement ne peut pas être corrigé",
+      "en": "This payment cannot be corrected",
+      "zh": "此付款无法更正",
+      "area": "reports"
+    },
+    "reports_pc_pick_line": {
+      "fr": "Quelle ligne de paiement faut-il corriger ?",
+      "en": "Which payment line is wrong?",
+      "zh": "要更正哪一笔付款？",
+      "area": "reports"
+    },
+    "reports_pc_pick_method": {
+      "fr": "Payé en réalité par",
+      "en": "Actually paid by",
+      "zh": "实际付款方式",
+      "area": "reports"
+    },
+    "reports_pc_pin_hint": {
+      "fr": "Confirmez la correction du paiement avec votre code PIN.",
+      "en": "Confirm the payment correction with your PIN.",
+      "zh": "请输入PIN码确认付款更正。",
+      "area": "reports"
+    },
+    "reports_pc_summary": {
+      "fr": "{from} {amount} € → {to} {amount} €",
+      "en": "{from} {amount} € → {to} {amount} €",
+      "zh": "{from} {amount} € → {to} {amount} €",
+      "area": "reports"
+    },
+    "reports_pc_terminal": {
+      "fr": "Terminal",
+      "en": "Terminal",
+      "zh": "终端",
+      "area": "reports"
+    },
+    "reports_pc_terminal_note": {
+      "fr": "Une carte prise sur le terminal ne se corrige pas.",
+      "en": "A card taken on the terminal cannot be corrected.",
+      "zh": "通过终端刷的卡不能更正。",
+      "area": "reports"
+    },
+    "reports_pc_title": {
+      "fr": "Corriger le paiement",
+      "en": "Correct the payment",
+      "zh": "更正付款",
+      "area": "reports"
+    },
     "reports_reason_fond_de_caisse": {
       "fr": "Fond de caisse",
       "en": "Cash float",
@@ -3407,6 +3575,18 @@
     "fdm_zh_vendor_1": "收银机无权与黑匣子通信。"
   },
   "engineErrorCodes": [
+    "payment_correction_not_a_sale",
+    "payment_correction_training",
+    "payment_correction_period_closed",
+    "payment_correction_unpaid",
+    "payment_correction_online",
+    "payment_correction_refunded",
+    "payment_correction_already_done",
+    "payment_correction_bad_line",
+    "payment_correction_terminal_card",
+    "payment_correction_same_method",
+    "payment_correction_method",
+    "payment_correction_rounding",
     "config_tables",
     "table_transfer_same_table",
     "table_transfer_target_busy",

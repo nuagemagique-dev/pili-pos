@@ -6,6 +6,18 @@ object EngineErrorCodes {
     /** errors::ALL. */
     val ALL: List<String> =
         listOf(
+            "payment_correction_not_a_sale",
+            "payment_correction_training",
+            "payment_correction_period_closed",
+            "payment_correction_unpaid",
+            "payment_correction_online",
+            "payment_correction_refunded",
+            "payment_correction_already_done",
+            "payment_correction_bad_line",
+            "payment_correction_terminal_card",
+            "payment_correction_same_method",
+            "payment_correction_method",
+            "payment_correction_rounding",
             "config_tables",
             "table_transfer_same_table",
             "table_transfer_target_busy",

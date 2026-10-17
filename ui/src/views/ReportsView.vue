@@ -15,6 +15,7 @@ import AppHeader from "../components/AppHeader.vue";
 import TicketMediumPicker from "../components/TicketMediumPicker.vue";
 import DeliveryOutcomePanel from "../components/DeliveryOutcomePanel.vue";
 import PriceDialog from "../components/PriceDialog.vue";
+import PaymentCorrectionDialog from "../components/PaymentCorrectionDialog.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -367,6 +368,48 @@ async function loadTickets() {
   }
   refundEvents.value = refundable.status === "fulfilled" ? refundable.value : [];
   ticketsLoaded.value = true;
+  void loadCorrections();
+}
+
+// ── Payment correction (manager): one action per sale ────────────
+/** The correction each sale already has, by fiscal event id. */
+const corrections = ref<Map<number, ipc.CorrectionDone>>(new Map());
+const correctionTarget = ref<TicketRow | null>(null);
+
+/** A sale ticket (N, or T in training) the payment of which may be corrected. */
+function isSaleRow(row: TicketRow): boolean {
+  if (row.totalCents <= 0) return false;
+  if (row.copyable) return row.copyable.eventLabel === "N" || row.copyable.eventLabel === "T";
+  return row.refundable !== null;
+}
+
+/** Best effort: which sales were corrected, to mark them. */
+async function loadCorrections() {
+  if (!auth.isManager) return;
+  const next = new Map<number, ipc.CorrectionDone>();
+  await Promise.allSettled(
+    ticketRows.value.filter(isSaleRow).map(async (row) => {
+      const payments = await ipc.listSalePayments(row.fiscalEventId);
+      if (payments.corrected) next.set(row.fiscalEventId, payments.corrected);
+    }),
+  );
+  corrections.value = next;
+}
+
+function correctionText(c: ipc.CorrectionDone): string {
+  const name = (type: string) => {
+    if (type === "CASH") return t("reports_pc_method_cash");
+    if (type.startsWith("CARD")) return t("reports_pc_method_card");
+    if (type === "CHEQUE_MEAL") return t("reports_pc_method_meal_voucher");
+    return type;
+  };
+  return t("reports_pc_corrected", { from: name(c.fromType), to: name(c.toType) });
+}
+
+function onCorrected() {
+  correctionTarget.value = null;
+  toast.show(t("reports_pc_done"), "success");
+  loadTickets();
 }
 
 watch(tab, (next) => {
@@ -662,12 +705,34 @@ function formatRefundTime(iso: string): string {
                   class="refund-btn"
                   @click="openRefund(row.refundable)"
                 >{{ t('refund_confirm') }}</button>
+                <span
+                  v-if="auth.isManager && corrections.get(row.fiscalEventId)"
+                  class="corrected-mark"
+                  :data-testid="`corrected-${row.fiscalEventId}`"
+                >{{ correctionText(corrections.get(row.fiscalEventId)!) }}</span>
+                <button
+                  v-else-if="auth.isManager && isSaleRow(row)"
+                  class="correct-btn"
+                  :data-testid="`correct-payment-${row.fiscalEventId}`"
+                  @click="correctionTarget = row"
+                >{{ t('reports_pc_action') }}</button>
               </span>
             </li>
           </ul>
         </div>
       </section>
     </div>
+
+    <!-- Payment correction (event F): lines, new method, PIN -->
+    <Teleport to="body">
+      <PaymentCorrectionDialog
+        v-if="correctionTarget"
+        :fiscal-event-id="correctionTarget.fiscalEventId"
+        :ticket-number="correctionTarget.ticketNumber"
+        @done="onCorrected"
+        @cancel="correctionTarget = null"
+      />
+    </Teleport>
 
     <!-- Z history: pick the report to reprint -->
     <Teleport to="body">
@@ -983,8 +1048,9 @@ function formatRefundTime(iso: string): string {
 .rt-time { font-family: var(--font-mono); font-size: 17px; color: var(--text-secondary); }
 .rt-total { font-family: var(--font-mono); font-size: 22px; font-weight: var(--font-weight-bold); text-align: right; }
 .rt-total.negative { color: var(--accent-danger); }
-.row-actions { display: flex; gap: 8px; justify-content: flex-end; min-width: 368px; }
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; min-width: 368px; flex-wrap: wrap; }
 .copy-ticket-btn,
+.correct-btn,
 .refund-btn {
   height: 64px; min-width: 180px; padding: 0 20px; border-radius: var(--radius-md);
   font-size: 18px; font-weight: var(--font-weight-bold);
@@ -992,7 +1058,13 @@ function formatRefundTime(iso: string): string {
 }
 .copy-ticket-btn { background: var(--bg-surface); color: var(--text-primary); }
 .refund-btn { background: transparent; color: var(--text-primary); border: 2px solid var(--accent-danger); }
+.correct-btn { background: transparent; color: var(--text-primary); border: 2px solid var(--border); }
+.corrected-mark {
+  align-self: center; font-size: 16px; font-weight: var(--font-weight-bold);
+  color: var(--text-secondary); max-width: 260px; text-align: right;
+}
 .copy-ticket-btn:active,
+.correct-btn:active,
 .refund-btn:active { transform: scale(var(--tap-scale)); }
 
 /* ── Modals (Z history, refund, copy) ─────────────────────── */

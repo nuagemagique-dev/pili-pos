@@ -106,6 +106,18 @@ internal object VueStringIds {
         this["err_table_transfer_target_busy"] = R.string.err_table_transfer_target_busy
         this["err_table_transfer_target_invalid"] = R.string.err_table_transfer_target_invalid
         this["err_table_transfer_not_a_table"] = R.string.err_table_transfer_not_a_table
+        this["err_payment_correction_not_a_sale"] = R.string.err_payment_correction_not_a_sale
+        this["err_payment_correction_training"] = R.string.err_payment_correction_training
+        this["err_payment_correction_period_closed"] = R.string.err_payment_correction_period_closed
+        this["err_payment_correction_unpaid"] = R.string.err_payment_correction_unpaid
+        this["err_payment_correction_online"] = R.string.err_payment_correction_online
+        this["err_payment_correction_refunded"] = R.string.err_payment_correction_refunded
+        this["err_payment_correction_already_done"] = R.string.err_payment_correction_already_done
+        this["err_payment_correction_bad_line"] = R.string.err_payment_correction_bad_line
+        this["err_payment_correction_terminal_card"] = R.string.err_payment_correction_terminal_card
+        this["err_payment_correction_same_method"] = R.string.err_payment_correction_same_method
+        this["err_payment_correction_method"] = R.string.err_payment_correction_method
+        this["err_payment_correction_rounding"] = R.string.err_payment_correction_rounding
         this["err_order_no_lines"] = R.string.err_order_no_lines
         this["err_payment_invalid"] = R.string.err_payment_invalid
         this["err_payment_exceeds_total"] = R.string.err_payment_exceeds_total
@@ -254,6 +266,9 @@ internal object VueStringIds {
         this["cash_success"] = R.string.cash_success
         this["cash_failed"] = R.string.cash_failed
         this["cash_drawer_opened"] = R.string.cash_drawer_opened
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["cash_err_amount"] = R.string.cash_err_amount
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
@@ -266,9 +281,6 @@ internal object VueStringIds {
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_cancel"] = R.string.delivery_cancel
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
@@ -404,6 +416,22 @@ internal object VueStringIds {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
+        this["reports_pc_action"] = R.string.reports_pc_action
+        this["reports_pc_title"] = R.string.reports_pc_title
+        this["reports_pc_pick_line"] = R.string.reports_pc_pick_line
+        this["reports_pc_line"] = R.string.reports_pc_line
+        this["reports_pc_terminal"] = R.string.reports_pc_terminal
+        this["reports_pc_terminal_note"] = R.string.reports_pc_terminal_note
+        this["reports_pc_pick_method"] = R.string.reports_pc_pick_method
+        this["reports_pc_method_cash"] = R.string.reports_pc_method_cash
+        this["reports_pc_method_card"] = R.string.reports_pc_method_card
+        this["reports_pc_method_meal_voucher"] = R.string.reports_pc_method_meal_voucher
+        this["reports_pc_summary"] = R.string.reports_pc_summary
+        this["reports_pc_confirm"] = R.string.reports_pc_confirm
+        this["reports_pc_pin_hint"] = R.string.reports_pc_pin_hint
+        this["reports_pc_done"] = R.string.reports_pc_done
+        this["reports_pc_corrected"] = R.string.reports_pc_corrected
+        this["reports_pc_not_possible"] = R.string.reports_pc_not_possible
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -491,6 +519,9 @@ internal object VueStringIds {
         this["err_hubrise_order_unknown"] = R.string.err_hubrise_order_unknown
         this["err_hubrise_status_not_allowed"] = R.string.err_hubrise_status_not_allowed
         this["err_hubrise_time_invalid"] = R.string.err_hubrise_time_invalid
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["err_hubrise_menu_managed"] = R.string.err_hubrise_menu_managed
         this["err_hubrise_open_orders"] = R.string.err_hubrise_open_orders
         this["err_webshop_training"] = R.string.err_webshop_training
@@ -519,9 +550,6 @@ internal object VueStringIds {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity

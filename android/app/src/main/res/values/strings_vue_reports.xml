@@ -30,4 +30,20 @@
     <string name="reports_tickets_title">Tickets récents</string>
     <string name="reports_tickets_hint">Choisissez un ticket pour en faire une copie ou le rembourser.</string>
     <string name="reports_copy">Copie</string>
+    <string name="reports_pc_action">Corriger le paiement</string>
+    <string name="reports_pc_title">Corriger le paiement</string>
+    <string name="reports_pc_pick_line">Quelle ligne de paiement faut-il corriger ?</string>
+    <string name="reports_pc_line">{method} · {amount} €</string>
+    <string name="reports_pc_terminal">Terminal</string>
+    <string name="reports_pc_terminal_note">Une carte prise sur le terminal ne se corrige pas.</string>
+    <string name="reports_pc_pick_method">Payé en réalité par</string>
+    <string name="reports_pc_method_cash">Espèces</string>
+    <string name="reports_pc_method_card">Carte</string>
+    <string name="reports_pc_method_meal_voucher">Titres-repas</string>
+    <string name="reports_pc_summary">{from} {amount} € → {to} {amount} €</string>
+    <string name="reports_pc_confirm">Corriger</string>
+    <string name="reports_pc_pin_hint">Confirmez la correction du paiement avec votre code PIN.</string>
+    <string name="reports_pc_done">Paiement corrigé</string>
+    <string name="reports_pc_corrected">Paiement corrigé : {from} → {to}</string>
+    <string name="reports_pc_not_possible">Ce paiement ne peut pas être corrigé</string>
 </resources>

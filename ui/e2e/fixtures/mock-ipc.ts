@@ -297,6 +297,13 @@ function defaultHandlers(): Record<string, Handler> {
     // Refund (event N, negative lines)
     list_refundable_events: () => [],
     list_copyable_tickets: () => [],
+    // Payment correction (event F): a cash sale of 52,00 EUR by default.
+    list_sale_payments: () => ({
+      fiscalEventId: 1, ticketNumber: 1, totalCents: 5200,
+      lines: [{ index: 0, paymentType: 'CASH', name: 'Cash', amountCents: 5200, inputMethod: 'MANUAL', amountType: 'PAYMENT', brand: null }],
+      correctable: true, refusal: null, corrected: null,
+    }),
+    correct_payment: () => ({ success: true, error: null }),
     refund_checkout: live(({ delivery }: any = {}) => {
       function maskEmailForMock(email: string): string {
         const at = email.indexOf('@');
