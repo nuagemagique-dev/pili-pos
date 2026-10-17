@@ -68,7 +68,9 @@ pub(crate) fn access_point(
                 client, base, &key, entity,
             )))
         }
-        _ => Ok(Box::new(LoggingAccessPoint)),
+        // Nothing is sent by the logging provider: debug builds only.
+        _ if cfg!(debug_assertions) => Ok(Box::new(LoggingAccessPoint)),
+        _ => Err(errors::CONFIG_PEPPOL.to_string()),
     }
 }
 

@@ -813,10 +813,22 @@ impl PeppolConfig {
 
     /// What would make the delivery unusable. Each message starts with
     /// `peppol.<field>: `.
+    ///
+    /// The `logging` provider sends nothing, so a release build refuses it:
+    /// it would show every B2B invoice as delivered (V11-D12).
     pub fn problems(&self) -> Vec<String> {
+        self.problems_with(cfg!(debug_assertions))
+    }
+
+    fn problems_with(&self, allow_logging: bool) -> Vec<String> {
         let mut out = Vec::new();
         match self.provider.as_str() {
-            "logging" => {}
+            "logging" if allow_logging => {}
+            "logging" => out.push(
+                "peppol.provider: logging sends nothing and is refused in a release build, \
+                 use storecove"
+                    .to_string(),
+            ),
             "storecove" => {
                 match &self.base_url {
                     Some(u) if u.starts_with("https://") || u.starts_with("http://") => {}
@@ -1648,6 +1660,33 @@ mod tests {
             supplier_city: "Liège".into(),
             supplier_country: "BE".into(),
         }
+    }
+
+    #[test]
+    fn the_logging_provider_is_refused_in_a_release_build() {
+        let mut p = PeppolConfig {
+            provider: "logging".into(),
+            base_url: None,
+            api_key_file: None,
+            legal_entity_id: None,
+            sender_id: "0208:0308357159".into(),
+            supplier_street: "Rue 1".into(),
+            supplier_postal_code: "4000".into(),
+            supplier_city: "Liege".into(),
+            supplier_country: "BE".into(),
+        };
+        let release = p.problems_with(false);
+        assert!(
+            release.iter().any(|m| m.starts_with("peppol.provider:")),
+            "{release:?}"
+        );
+        assert!(
+            p.problems_with(true)
+                .iter()
+                .all(|m| !m.starts_with("peppol.provider:"))
+        );
+        p.provider = "nope".into();
+        assert!(!p.problems_with(true).is_empty());
     }
 
     #[test]
