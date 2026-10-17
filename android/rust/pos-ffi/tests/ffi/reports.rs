@@ -368,6 +368,8 @@ async fn commands_that_need_an_operator_are_refused_without_a_session() {
         e.backup_database().await.unwrap_err(),
         e.work_in(MANAGER_INSZ.into()).await.unwrap_err(),
         e.work_out(MANAGER_INSZ.into()).await.unwrap_err(),
+        e.clock_in_employee(INSZ.into()).await.unwrap_err(),
+        e.clock_out_employee(INSZ.into()).await.unwrap_err(),
         e.money_in_out(
             MANAGER_INSZ.into(),
             1000,
@@ -621,6 +623,66 @@ async fn signing_commands_run_for_the_operator() {
     assert_eq!(history.len(), 1);
     assert_eq!(history[0].sequence_number, 1);
     t.rig.engine.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_manager_registers_the_presence_of_a_presence_only_employee() {
+    let t = open_with_gate(false).await;
+    let e = &t.rig.engine;
+    e.login(MANAGER_INSZ.into(), Some(MANAGER_PIN.into()))
+        .await
+        .unwrap();
+    let kitchen = e
+        .create_user(pos_ffi::records::auth::CreateUserInput {
+            insz: INSZ.into(),
+            name: "Cuisine".into(),
+            role: "waiter".into(),
+            initial_pin: None,
+            operator_pin: None,
+            presence_only: true,
+        })
+        .await
+        .unwrap();
+    assert!(kitchen.presence_only && !kitchen.has_pin);
+
+    // Refusals are coded, nothing is signed.
+    let err = e.clock_out_employee(INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "presence_not_in"), "{err:?}");
+    let err = e.clock_in_employee(MANAGER_INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "presence_self"), "{err:?}");
+    assert!(
+        !e.list_open_shifts()
+            .await
+            .unwrap()
+            .iter()
+            .any(|s| s.user_insz == INSZ)
+    );
+
+    let r = e.clock_in_employee(INSZ.into()).await.unwrap();
+    assert!(r.success, "{:?}", r.error);
+    let open = e.list_open_shifts().await.unwrap();
+    assert!(open.iter().any(|s| s.user_insz == INSZ), "{open:?}");
+    let err = e.clock_in_employee(INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "presence_already_in"), "{err:?}");
+    // On shift: not deactivable.
+    let err = e.deactivate_user(INSZ.into()).await.unwrap_err();
+    assert!(coded(&err, "deactivate_on_shift"), "{err:?}");
+
+    let r = e.clock_out_employee(INSZ.into()).await.unwrap();
+    assert!(r.success, "{:?}", r.error);
+    assert!(
+        !e.list_open_shifts()
+            .await
+            .unwrap()
+            .iter()
+            .any(|s| s.user_insz == INSZ)
+    );
+
+    // They never log in.
+    e.logout().await.unwrap();
+    let err = e.login(INSZ.into(), None).await.unwrap_err();
+    assert!(coded(&err, "presence_only_user"), "{err:?}");
+    e.shutdown().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]

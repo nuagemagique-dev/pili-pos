@@ -128,6 +128,8 @@ export function createUser(input: {
   role: string;
   initialPin?: string;
   operatorPin?: string;
+  /** Role must be `waiter`; no PIN is stored. */
+  presenceOnly?: boolean;
 }): Promise<User> {
   return invoke("create_user", { input });
 }
@@ -481,6 +483,17 @@ export function workIn(employeeInsz: string): Promise<SocialResult> {
 
 export function workOut(employeeInsz: string): Promise<SocialResult> {
   return invoke("work_out", { employeeInsz });
+}
+
+/** A manager registers another employee's arrival (S event of the employee).
+ * Refusals are thrown error codes; an FDM failure is `success: false`. */
+export function clockInEmployee(employeeInsz: string): Promise<SocialResult> {
+  return invoke("clock_in_employee", { employeeInsz });
+}
+
+/** A manager registers another employee's departure. */
+export function clockOutEmployee(employeeInsz: string): Promise<SocialResult> {
+  return invoke("clock_out_employee", { employeeInsz });
 }
 
 /** An employee on shift: clocked in, not yet clocked out. */

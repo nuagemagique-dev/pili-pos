@@ -238,6 +238,10 @@ Android (`docs/android/dossier/screenshots`, emulator):
 - `A01_login_tuiles.png` only if the capture data includes a presence-only user (it should not appear).
 - Any capture listed by `CAPTURES_ECRAN_FR.pdf` that shows the employees panel or an approved terminal part.
 
+## Worker notes
+
+- T1: see DECISIONS, section `Lane 1-v1-fixes`, L1F-A8 (create_user_flagged, uniffi defaults, i18n error texts and ipc.ts wrappers added in T1, Gradle PATH).
+
 ## Results
 
 (Filled by T5.)

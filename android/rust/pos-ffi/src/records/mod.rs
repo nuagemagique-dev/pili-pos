@@ -111,7 +111,7 @@
 //! | `OpenShift` | `pos_db::queries::shifts::OpenShift` | reports | list_open_shifts |
 //! | `PosSettings` | `pos_engine::commands::settings::PosSettings` | reports | get_settings |
 //! | `ReportResult` | `pos_engine::commands::report::ReportResult` | reports | generate_user_x_report, generate_x_report, generate_z_report |
-//! | `SocialResult` | `pos_engine::commands::social::SocialResult` | reports | end_shift, work_in, work_out |
+//! | `SocialResult` | `pos_engine::commands::social::SocialResult` | reports | clock_in_employee, clock_out_employee, end_shift, work_in, work_out |
 //! | `ZReportSummary` | `pos_db::queries::reports::ZReportSummary` | reports | list_z_reports |
 //! | `CreateUserInput` | `pos_engine::commands::auth::CreateUserInput` | auth | create_user |
 //! | `Integrations` | `pos_engine::commands::integrations::Integrations` | auth | get_integrations, set_hubrise_enabled |

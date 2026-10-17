@@ -134,6 +134,8 @@ export interface User {
   role: UserRole;
   active: boolean;
   has_pin: boolean;
+  /** Kitchen staff who never use the till: no login, no PIN, a manager clocks them in and out. */
+  presence_only?: boolean;
 }
 
 export interface CreateOrderInput {

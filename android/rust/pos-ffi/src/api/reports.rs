@@ -89,6 +89,30 @@ impl PosEngine {
         convert::out(&result)
     }
 
+    /// A manager registers another employee's arrival (S event of the
+    /// employee, the manager kept for the audit).
+    pub async fn clock_in_employee(&self, employee_insz: String) -> Result<SocialResult, PosError> {
+        let result = self
+            .spawn(move |engine| async move {
+                pos_engine::commands::social::do_clock_in_employee(&engine, employee_insz).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
+    /// A manager registers another employee's departure.
+    pub async fn clock_out_employee(
+        &self,
+        employee_insz: String,
+    ) -> Result<SocialResult, PosError> {
+        let result = self
+            .spawn(move |engine| async move {
+                pos_engine::commands::social::do_clock_out_employee(&engine, employee_insz).await
+            })
+            .await?;
+        convert::out(&result)
+    }
+
     /// End the employee's shift: PIN check, clock-out, session closed.
     pub async fn end_shift(
         &self,

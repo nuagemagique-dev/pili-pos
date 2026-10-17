@@ -747,25 +747,29 @@ public final class uniffi/pos_ffi/CreateOrderInput$Companion {
 
 public final class uniffi/pos_ffi/CreateUserInput {
 	public static final field Companion Luniffi/pos_ffi/CreateUserInput$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
 	public final fun component5 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Luniffi/pos_ffi/CreateUserInput;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/CreateUserInput;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/CreateUserInput;
+	public final fun component6 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Luniffi/pos_ffi/CreateUserInput;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CreateUserInput;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Luniffi/pos_ffi/CreateUserInput;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInitialPin ()Ljava/lang/String;
 	public final fun getInsz ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOperatorPin ()Ljava/lang/String;
+	public final fun getPresenceOnly ()Z
 	public final fun getRole ()Ljava/lang/String;
 	public fun hashCode ()I
 	public final fun setInitialPin (Ljava/lang/String;)V
 	public final fun setInsz (Ljava/lang/String;)V
 	public final fun setName (Ljava/lang/String;)V
 	public final fun setOperatorPin (Ljava/lang/String;)V
+	public final fun setPresenceOnly (Z)V
 	public final fun setRole (Ljava/lang/String;)V
 	public fun toString ()Ljava/lang/String;
 }
@@ -6024,6 +6028,8 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun checkPaymentTerminal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun checkout (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun clockInEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun clockOutEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun close ()V
 	public fun closeUnpaid (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun copyTicket (JLjava/lang/String;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6134,6 +6140,8 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun checkPaymentTerminal (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkPrinter (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun checkout (JLjava/util/List;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun clockInEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun clockOutEmployee (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun closeUnpaid (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun copyTicket (JLjava/lang/String;Luniffi/pos_ffi/TicketDeliveryRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun createOrder (Luniffi/pos_ffi/CreateOrderInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -7172,25 +7180,29 @@ public final class uniffi/pos_ffi/UnsettledCardPayment$Companion {
 
 public final class uniffi/pos_ffi/User {
 	public static final field Companion Luniffi/pos_ffi/User$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZ)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZZ)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Luniffi/pos_ffi/UserRole;
 	public final fun component4 ()Z
 	public final fun component5 ()Z
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZ)Luniffi/pos_ffi/User;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/User;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZILjava/lang/Object;)Luniffi/pos_ffi/User;
+	public final fun component6 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZZ)Luniffi/pos_ffi/User;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/User;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/UserRole;ZZZILjava/lang/Object;)Luniffi/pos_ffi/User;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getActive ()Z
 	public final fun getHasPin ()Z
 	public final fun getInsz ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
+	public final fun getPresenceOnly ()Z
 	public final fun getRole ()Luniffi/pos_ffi/UserRole;
 	public fun hashCode ()I
 	public final fun setActive (Z)V
 	public final fun setHasPin (Z)V
 	public final fun setInsz (Ljava/lang/String;)V
 	public final fun setName (Ljava/lang/String;)V
+	public final fun setPresenceOnly (Z)V
 	public final fun setRole (Luniffi/pos_ffi/UserRole;)V
 	public fun toString ()Ljava/lang/String;
 }
