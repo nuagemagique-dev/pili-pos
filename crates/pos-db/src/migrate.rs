@@ -413,7 +413,7 @@ mod tests {
     }
 
     /// The till discounts are migration 30 and the kitchen notes 31, in
-    /// every build; 28 and 29 stay free.
+    /// every build, after 28 (presence registration); 29 stays free.
     #[test]
     fn the_till_migrations_are_30_and_31_in_every_build() {
         let till: Vec<(i64, &str)> = TILL_MIGRATIONS
@@ -422,8 +422,9 @@ mod tests {
             .collect();
         assert_eq!(till, vec![(30, "till-discounts"), (31, "kitchen-notes")]);
         let versions = all_versions();
-        assert!(versions.contains(&30) && versions.contains(&31));
-        assert!(!versions.contains(&28) && !versions.contains(&29));
+        assert!(!versions.contains(&29));
+        let from_28: Vec<i64> = versions.into_iter().filter(|v| *v >= 28).collect();
+        assert_eq!(from_28, vec![28, 30, 31]);
     }
 
     #[test]
