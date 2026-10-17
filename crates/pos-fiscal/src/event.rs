@@ -321,6 +321,14 @@ fn financial_lines(payments: &[PaymentSpec<'_>], rounding_cents: i64) -> Vec<Pay
         reference: spec.terminal.and_then(|t| t.reference.clone()),
         drawer: None,
     };
+    // A sale settled at 0,00 EUR (100 % discount, "Offert"): FAQ Q206 b
+    // allows an empty `financials` array (or a `PAY 0` cash line). The
+    // empty array is sent: no payment row appears in the reports for a
+    // payment that moved no money. The N event and its VAT ticket exist
+    // all the same (Q206 a, Q209).
+    if rounding_cents == 0 && payments.iter().all(|p| p.amount_cents == 0) {
+        return Vec::new();
+    }
     let mut out = Vec::new();
     for spec in payments {
         out.push(line(spec, spec.amount_cents, PaymentLineType::Payment));
@@ -1046,6 +1054,37 @@ mod tests {
         assert_eq!(f[0]["id"], "2");
         assert_eq!(f[0]["inputMethod"], "MANUAL");
         assert_eq!(f[0]["type"], "CARD_DEBIT");
+    }
+
+    #[test]
+    fn a_sale_settled_at_zero_sends_empty_financials_faq_q206() {
+        use crate::payment::{PaymentPart, settle};
+        let (config, order, lines) = (test_config(), test_order(), test_lines());
+        let bp_id = Uuid::new_v4().to_string();
+        let zero = settle(0, &[PaymentPart::cash()]).unwrap();
+        let sale =
+            build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &zero);
+        let json = serde_json::to_value(&sale).unwrap();
+        assert_eq!(json["financials"], serde_json::json!([]));
+        // The refund builder follows the same rule.
+        let refund = build_sale_input(
+            &config,
+            &ident(),
+            &order,
+            &lines,
+            1,
+            &bk(&bp_id),
+            PaymentType::Cash,
+            0,
+            0,
+            None,
+        );
+        assert!(refund.financials.is_empty());
+        // Any money moved keeps its lines.
+        let paid = settle(1000, &[PaymentPart::cash()]).unwrap();
+        let sale =
+            build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &paid);
+        assert_eq!(sale.financials.len(), 1);
     }
 
     #[test]

@@ -347,11 +347,10 @@ async fn offert_is_signed_at_zero_and_printed() {
     let sale = requests(&app).pop().unwrap();
     assert_eq!(cents(&sale["transaction"]["transactionTotal"]), 0);
     assert_eq!(line_totals(&sale), vec![0, 0]);
-    // A cash payment of 0 (FAQ Q206): a VAT ticket is delivered.
-    let financials = sale["financials"].as_array().unwrap();
-    assert_eq!(financials.len(), 1);
-    assert_eq!(financials[0]["type"], "CASH");
-    assert_eq!(cents(&financials[0]["amount"]), 0);
+    // FAQ Q206 b: no money moved, so `financials` is the empty array
+    // (the other form it allows is a `PAY 0` cash line). The N event
+    // and its VAT ticket exist all the same.
+    assert_eq!(sale["financials"], serde_json::json!([]));
     assert_ne!(sale["ticketMedium"], "NONE");
     assert!(event > 0);
     let tickets = printer.settle(1).await;
