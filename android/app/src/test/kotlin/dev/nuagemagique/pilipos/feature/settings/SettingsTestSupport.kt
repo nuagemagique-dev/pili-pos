@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.engine.EngineEvents
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
@@ -32,6 +33,7 @@ import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.DeliveryView
@@ -246,7 +248,19 @@ internal fun TestScope.settingsEnv(
     val helpers = EngineHelpers(f.natives, f.dispatcher)
     val delivery = DeliveryStore(gateway, errors, settings)
     val eft = EftStore(gateway, errors, settings, backgroundScope)
-    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, eft, backgroundScope)
+    val webshop =
+        WebshopOrdersStore(
+            gateway,
+            f.events,
+            errors,
+            toasts,
+            integrations,
+            settings,
+            catalog,
+            eft,
+            EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
+            backgroundScope,
+        )
     val fdm = FdmStore(gateway, f.events, errors, toasts, FdmTexts(catalog), settings, backgroundScope)
     val entry =
         TestSettingsEntryPoint(
