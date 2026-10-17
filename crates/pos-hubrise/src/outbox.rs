@@ -136,6 +136,10 @@ pub async fn run_loop(ctx: OutboxCtx, cancel: CancellationToken) {
         if let Err(e) = process_pending(&ctx.http, &ctx.db).await {
             tracing::warn!(?e, "hubrise outbox pass error");
         }
+        // The sold-out products to push to the HubRise inventory (V11-D15).
+        if let Err(e) = crate::inventory::process_pending(&ctx.http, &ctx.db).await {
+            tracing::warn!(?e, "hubrise inventory pass error");
+        }
     }
 }
 
