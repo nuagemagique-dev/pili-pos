@@ -56,14 +56,21 @@ La base est organisée en 12 domaines logiques :
 +-----------------------+   +-----------------------------+
 
 +-------------------------------+   +--------------------------+
-|  COMMANDES EN LIGNE (HubRise, |   |  PEPPOL (livraisons B2B) |
-|  migrations 20 à 25)          |   |  peppol_deliveries :     |
-|  webshop_orders,              |   |  table présente, jamais  |
-|  hubrise_channels,            |   |  écrite par la build     |
-|  hubrise_cash_payment_refs,   |   |  cert (hors v1.0.0)      |
+|  COMMANDES EN LIGNE (HubRise, |   |  FACTURATION (migration 40)|
+|  migrations 20 à 25)          |   |  b2b_customers, invoices,|
+|  webshop_orders,              |   |  invoice_sales,          |
+|  hubrise_channels,            |   |  peppol_deliveries,      |
+|  hubrise_cash_payment_refs,   |   |  peppol_delivery_log     |
 |  hubrise_connection/events/   |   +--------------------------+
 |  outbox, order_price_changes, |
 |  integration_switches/_log    |
++-------------------------------+
+
++-------------------------------+   +--------------------------------+
+|  PRODUIT ÉPUISÉ (migration 41)|   |  ÉDITEUR DE CARTE (migration 42)|
+|  menu_item_sold_out,          |   |  menu_change_log (append-only) |
+|  sold_out_log (append-only),  |   +--------------------------------+
+|  hubrise_inventory_sync       |
 +-------------------------------+
 
 +-------------------------------+   +--------------------------------+
@@ -420,29 +427,69 @@ La base est organisée en 12 domaines logiques :
                                (append-only par triggers)
 ```
 
-### 2.7 Peppol (hors binaire certifié v1.0.0)
+### 2.7 Facturation et Peppol (migration 40)
 
 ```
++------------------+   1..n   +---------------+   1..n   +-----------------+
+|  b2b_customers   |<---------|   invoices    |---------->|  invoice_sales  |
+|------------------|          |---------------|           |-----------------|
+| id INT PK        |          | id INT PK     |           | invoice_id FK   |
+| vat_number UNIQ  |          | invoice_seq   |           | sale_fiscal_    |
+| name, street,    |          | invoice_no    |           |   event_id UNIQ |
+| postal_code,     |          | customer_id FK|           | position        |
+| city, country    |          | customer_json |           +--------+--------+
+| peppol_status    |          | issue_date    |                    |
+| peppol_checked_at|          | total_cents   |                    | n..1
++------------------+          | vat_json      |                    v
+                              | fiscal_event_ |              fiscal_events
+                              |   id FK UNIQ  |--------------> (event_type='I'
+                              +-------+-------+                 et ventes 'N')
+                                      | 1..n
+                                      v
++--------------------------+   +--------------------------+
+|   peppol_deliveries      |   |   peppol_delivery_log    |
+|--------------------------|   |--------------------------|
+| id              INT PK   |<--| delivery_id FK           |
+| fiscal_event_id INT FK   |   | attempt, outcome         |
+| invoice_no      TEXT     |   | http_status, detail, at  |
+| customer_endpoint_id     |   +--------------------------+
+| ap_vendor, ap_message_id |
+| ubl_xml, ap_response_json|   Vue v_invoice_journal :
+| status (queued|accepted| |   invoices + fiscal_events
+|         failed)          |   + dernier envoi Peppol
+| attempts, next_attempt_at|
+| last_attempt_at,         |
+| parked_at, lookup_status |
+| error_msg, created_at,   |
+| accepted_at              |
 +--------------------------+
-|   peppol_deliveries      |
-|--------------------------|
-| id              INT PK   |
-| fiscal_event_id INT FK   |---+
-| invoice_no      TEXT     |   |
-| customer_       TEXT     |   |
-|     endpoint_id          |   |
-| ap_vendor       TEXT     |   | 0..1
-| ap_message_id   TEXT     |   v
-| ubl_xml         TEXT     |  fiscal_events
-| ap_response_    TEXT     |  (event_type='I')
-|     json                 |
-| status          TEXT     |
-| error_msg       TEXT     |
-| created_at      TEXT     |
-| accepted_at     TEXT     |
-+--------------------------+
-(créée par la migration 1 dans toute build, jamais écrite par la
- build cert : l'événement I est hors périmètre de la v1.0.0)
+(invoices, invoice_sales et peppol_delivery_log sont en ajout seul,
+ par déclencheurs)
+```
+
+### 2.7 bis Produit épuisé et éditeur de carte (migrations 41 et 42)
+
+```
++---------------------------+   +---------------------------+
+|     menu_item_sold_out    |   |       sold_out_log        |
+|---------------------------|   |---------------------------|
+| menu_item_id INT PK, FK   |   | id INT PK                 |
+| until TEXT (NULL = jusqu'à|   | menu_item_id FK           |
+|   réactivation)           |   | action set|clear|expired  |
+| set_by, set_at            |   | until, by, at             |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
+
++---------------------------+   +---------------------------+
+|  hubrise_inventory_sync   |   |    menu_change_log        |
+|---------------------------|   |---------------------------|
+| menu_item_id INT PK, FK   |   | id INT PK                 |
+| sku_ref, dirty, version   |   | entity_type, entity_id    |
+| attempts, next_attempt_at |   | action create|update      |
+| last_attempt_at, parked_at|   | before_json, after_json   |
+| error_msg, synced_at      |   | changed_by, changed_at    |
++---------------------------+   +---------------------------+
+                                (ajout seul, par déclencheurs)
 ```
 
 ### 2.8 Plan de salle (migration 11)
@@ -517,7 +564,12 @@ un `card_type` (`CHECK`).
 | `booking_periods` → `fiscal_events` | 0..1 → 1 | `closing_event_id` : l'événement R qui clôt la période ; un événement ne peut être archivé dans une période close |
 | `pending_signs` → `fiscal_events` | 0..1 → 1 | `fiscal_event_id` : l'événement archivé (premier événement si `ticket_count = 2`) |
 | `z_reports` → `fiscal_events` | 0..1 → 1 | Chaque Z archive un event R correspondant. `sequence_number` n'est pas unique (la contrainte d'unicité est portée par `fiscal_events`) |
-| `peppol_deliveries` → `fiscal_events` | 0..1 → 1 | Liée à un event I ; table jamais écrite par la build cert |
+| `peppol_deliveries` → `fiscal_events` | 0..1 → 1 | Liée à un event I ; une ligne par facture envoyée sur Peppol |
+| `invoices` → `fiscal_events` | 1 → 1 | L'événement I de la facture (unique) |
+| `invoice_sales` → `invoices`, `fiscal_events` | N → 1 et 1 → 1 | Les ventes N couvertes par la facture ; une vente figure sur une seule facture (unique) |
+| `invoices` → `b2b_customers` | N → 0..1 | Le client ; la facture garde son instantané |
+| `peppol_delivery_log` → `peppol_deliveries` | N → 1 | Une ligne par tentative d'envoi |
+| `menu_item_sold_out`, `sold_out_log`, `hubrise_inventory_sync` → `menu_items` | 0..1 → 1, N → 1, 0..1 → 1 | Produit épuisé et sa transmission au stock HubRise |
 | `ticket_deliveries` → `fiscal_events` | 0..N → 1 | Une ligne par ticket dont le support demandé inclut l'e-mail (`DIGITAL`/`PAPER_DIGITAL`) ; ajoutée dans la même transaction que l'event N/T/C correspondant |
 | `original_prints` → `fiscal_events` | 0..1 → 1 | Au plus une ligne par événement dont l'original a été imprimé (contrainte de clé primaire = garde applicative contre une seconde impression) |
 | `webshop_orders` → `orders` | 1 → 1 | Une ligne par commande en ligne, à côté de sa ligne `orders` |
@@ -546,9 +598,14 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `order_price_changes` | `order_price_changes_no_delete`, `order_price_changes_no_update` | Ni DELETE, ni UPDATE |
 | `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
 | `table_plan_log` | `table_plan_log_no_update`, `table_plan_log_no_delete` | Ni DELETE, ni UPDATE |
+| `invoices` | `invoices_no_update`, `invoices_no_delete` | Ni DELETE, ni UPDATE |
+| `invoice_sales` | `invoice_sales_no_update`, `invoice_sales_no_delete` | Ni DELETE, ni UPDATE |
+| `peppol_delivery_log` | `peppol_delivery_log_no_update`, `peppol_delivery_log_no_delete` | Ni DELETE, ni UPDATE |
+| `sold_out_log` | `sold_out_log_no_update`, `sold_out_log_no_delete` | Ni DELETE, ni UPDATE |
+| `menu_change_log` | `menu_change_log_no_update`, `menu_change_log_no_delete` | Ni DELETE, ni UPDATE |
 | `eft_payments` | `eft_payments_no_delete`, `eft_payments_starts_sent`, `eft_payments_request_fixed`, `eft_payments_status_moves`, `eft_payments_answer_final`, `eft_payments_used_once` | Pas de DELETE ; une ligne naît `sent` et non utilisée ; la demande (commande, montant, référence, opérateur) est immuable ; seuls `sent` et `unknown` changent de statut ; une réponse définitive ne change plus (hors `used_event_id`, posé une fois pour un paiement `approved`) |
 
-Soit 29 triggers.
+Soit 39 triggers.
 
 Pour les autres tables (catalogue, commandes en cours, paiements, utilisateurs, `staff_shifts`, tables HubRise hors journal) les opérations UPDATE/DELETE sont autorisées via la couche commandes. Les `orders` sont marquées `status='closed'` ou `status='voided'` plutôt que supprimées. Le catalogue synchronisé met à jour ses lignes en place ; l'historique fiscal ne dépend pas de ces lignes (nom et prix sont figés dans `order_lines` / `order_entries`).
 

@@ -58,8 +58,13 @@ Au niveau colonne :
   `eft_payments.amount_cents > 0`.
 - `users.role IN ('admin','cashier','waiter')` - restreint les
   rôles à ceux mappés sur les profils SCE 2.0.
-- `peppol_deliveries.status IN ('queued','accepted','failed')` -
-  restreint les statuts de livraison Peppol.
+- `peppol_deliveries.status IN ('queued','accepted','failed')` et
+  `peppol_deliveries.lookup_status`, `b2b_customers.peppol_status IN
+  ('unknown','registered','not_registered')` (migration 40) - restreignent
+  les statuts de livraison et de recherche Peppol.
+- `sold_out_log.action IN ('set','clear','expired')` (migration 41),
+  `menu_change_log.entity_type` et `menu_change_log.action IN
+  ('create','update')` (migration 42).
 
 ### 1.4 Contraintes d'unicité
 
@@ -103,6 +108,9 @@ la suppression, même par un accès direct à la base :
   changent de statut, jamais vers `sent` ; une réponse `approved`,
   `declined`, `cancelled` ou `not_sent` ne change plus ; `used_event_id`
   se pose une seule fois, pour un paiement `approved` ;
+- `invoices_*`, `invoice_sales_*` et `peppol_delivery_log_*` (migration 40 : factures émises et tentatives
+  d'envoi Peppol, jamais de `UPDATE` ni de `DELETE`), `sold_out_log_*`
+  (migration 41) et `menu_change_log_*` (migration 42) ;
 - `ticket_deliveries_*`, `original_prints_*`, `order_price_changes_*`,
   `integration_switch_log_*` et `table_plan_log_*` (liste complète dans `SCHEMA_ER_FR.md` §4).
 
@@ -472,8 +480,14 @@ des données de clients, ce qu'il ne faisait pas sans elle :
   effacée (envoi réussi, repli papier, ou au plus tard 72 h après) ; une
   forme masquée reste. Le ticket et l'adresse du destinataire sont
   transmis à Scaleway Transactional Email pour l'envoi.
-- **Facture B2B** : hors binaire certifié v1.0.0 (aucune donnée de
-  client B2B n'est donc traitée).
+- **Facture B2B.** Le nom, l'adresse et le numéro de TVA du client
+  professionnel sont conservés dans `b2b_customers` (table de travail,
+  modifiable) et, figés, dans `invoices.customer_json` et dans le
+  document UBL `peppol_deliveries.ubl_xml` (ajout seul, conservés comme
+  le journal fiscal). Ils ne sont transmis à un tiers que pour un client
+  belge et si l'installation a une section `peppol` : le document est
+  alors envoyé au point d'accès Peppol (Storecove). Aucune donnée de
+  particulier : une facture est établie pour un numéro de TVA contrôlé.
 
 Jeton HubRise. `hubrise_connection.access_token` (jeton d'accès OAuth au
 compte HubRise de l'établissement) est stocké **en clair** dans

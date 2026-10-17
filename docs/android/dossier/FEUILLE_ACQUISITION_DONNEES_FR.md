@@ -242,7 +242,7 @@ journaux au-delà de 90 fichiers, exports locaux au-delà de `keep_days`).
   identifiante.
 - INSZ stocké dans les colonnes `users.insz`, `orders.user_insz`,
   `fiscal_events.user_insz`, `pending_signs.user_insz`,
-  `staff_shifts.user_insz`, `webshop_orders.accepted_by`,
+  `staff_shifts.user_insz`, `invoices.created_by`, `b2b_customers.updated_by`, `menu_item_sold_out.set_by`, `sold_out_log.by`, `menu_change_log.changed_by`, `webshop_orders.accepted_by`,
   `integration_switches.changed_by` et `integration_switch_log.changed_by`,
   ainsi que dans les JSON `fiscal_events.event_data_json` (payload
   envoyé au FDM, obligation fiscale), `pending_signs.request_body`,

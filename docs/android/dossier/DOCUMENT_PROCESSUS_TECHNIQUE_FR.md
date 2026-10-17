@@ -84,7 +84,7 @@ Sur Android, le moteur est enveloppé par deux couches. `android/rust/pos-ffi` e
 | **P** (Pro forma) | L'opérateur envoie la commande en cuisine, ou quitte la commande (règle du moteur, §1) | `commands/tables::do_sign_table_order` (appelée par `commands/session::do_leave_order`) | Table ouverte ; pas d'incrément du compteur N |
 | **T** (Formation) | L'opérateur est en mode formation | Comme N mais `is_training=true` dans l'input ; watermark UI |
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
-| **I** (Facture) | Hors build Android 1.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build Android (§8) ; événement optionnel dans SCE 2.0 |
+| **I** (Facture) | L'opérateur établit une facture à partir de ventes déjà encaissées (Rapports, onglet Tickets, « Facture ») | `commands/invoice::do_sign_invoice_fiscal` | Une vente, une facture ; numéro `<année><séquence>` sans trou ; copie C possible ; `FACTURATION_PEPPOL_FR.md` |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
 | **S** (Social) | Connexion de l'opérateur (entrée), fin de service (sortie), règles du moteur (§1) | `commands/social::do_work_in` / `do_work_out` / `do_end_shift` | INSZ + n° employeur |
 | **R** (Rapport) | Rapports Z et X | `commands/report::do_generate_x_report` / `do_generate_z_report` | Z est Turnover-Z + User-Z atomique |
@@ -310,10 +310,10 @@ SQLite qui archive l'événement signé, de sorte que :
 
 | Build | Features Cargo | Produit |
 |---|---|---|
-| Android (APK déclaré) | `pos-ffi` construit `pos-engine` avec `default-features = false, features = ["cert"]` (`hubrise` seul), profil `android-release`, cible `aarch64-linux-android` | `libpos_ffi.so` dans l'APK : commandes en ligne présentes, activées par installation (`COMMANDES_EN_LIGNE_FR.md`) ; sans facturation Peppol (`DECISION_PEPPOL_AP_FR.md`) |
+| Android (APK déclaré) | `pos-ffi` construit `pos-engine` avec `default-features = false, features = ["cert"]` (`hubrise` seul), profil `android-release`, cible `aarch64-linux-android` | `libpos_ffi.so` dans l'APK : commandes en ligne présentes, activées par installation (`COMMANDES_EN_LIGNE_FR.md`) ; facturation B2B (événement I) et file d'envoi Peppol présentes, sans fonction Cargo (`FACTURATION_PEPPOL_FR.md`) |
 | Développement | même bibliothèque, version suffixée `-dev` (adb actif) | jamais une version déclarée |
 
-Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre de dépendances de `pos-ffi` : `pos-engine` présent, `pos-peppol` et `tauri` absents) et la reproductibilité de l'APK par `scripts/android/check_repro.sh`. Empreintes de l'APK, de `libpos_ffi.so` et construction reproduite : À effectuer (EV-01, EV-02, EV-05).
+Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre de dépendances de `pos-ffi` : `pos-engine` présent, `pos-peppol` admis, `tauri` absent) et la reproductibilité de l'APK par `scripts/android/check_repro.sh`. Empreintes de l'APK, de `libpos_ffi.so` et construction reproduite : À effectuer (EV-01, EV-02, EV-05).
 
 ## 9. Carte des sources
 
@@ -344,6 +344,12 @@ Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre 
 | Financier (événements F) | `crates/pos-engine/src/commands/financial.rs` |
 | Copie (événements C) | `crates/pos-engine/src/commands/copy.rs` |
 | Sérialiseur UBL Peppol | `crates/pos-peppol/src/ubl.rs` |
+| Facture imprimée (ESC/POS) | `crates/pos-print/src/invoice.rs` |
+| File d'envoi Peppol (essais, journal) | `crates/pos-engine/src/commands/peppol_queue.rs` |
+| Produit épuisé | `crates/pos-engine/src/commands/sold_out.rs` |
+| Éditeur de carte | `crates/pos-engine/src/commands/menu_admin.rs` |
+| Rapport de ventes non fiscal | `crates/pos-engine/src/commands/sales_report.rs` |
+| Tables de la v1.0.0 : facturation, épuisé, éditeur (migrations 40 à 42) | `crates/pos-db/src/schema_v11.rs` |
 | AccessPoint Peppol | `crates/pos-peppol/src/access_point.rs` |
 | Commandes Peppol (enveloppe IPC : `src-tauri/src/ipc/invoice.rs`) | `crates/pos-engine/src/commands/invoice.rs` |
 | Résolution du support + commandes ticket numérique | `crates/pos-engine/src/commands/delivery.rs` |
@@ -358,7 +364,7 @@ Vérifications : le contrôle `ffi_deps` de `scripts/android/p2_gate.sh` (arbre 
 | Layout ticket | `crates/pos-print/src/receipt.rs` |
 | Transport imprimante | `crates/pos-print/src/transport.rs` |
 
-Les trois lignes Peppol ci-dessus désignent du code présent dans le dépôt mais absent de la build Android (§8).
+Les trois lignes Peppol ci-dessus désignent du code compilé dans la build Android (§8). L'enveloppe IPC `src-tauri/src/ipc/invoice.rs` est celle de Linux ; sur Android, la façade UniFFI (`android/rust/pos-ffi/src/`) expose les mêmes commandes.
 
 ## 10. Couche plateforme Android
 

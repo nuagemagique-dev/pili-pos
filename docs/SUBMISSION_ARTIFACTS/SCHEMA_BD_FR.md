@@ -9,7 +9,7 @@ liste **chaque table**, **chaque champ**, son **type**, sa **longueur**
 **Mode** : WAL (Write-Ahead Logging) - atomique crash-safe.
 **Fichier vivant** : `/var/lib/pili-pos/pos.db` en production.
 **Source de vérité du schéma** : `crates/pos-db/src/schema.rs`,
-`schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs` (lecture machine via
+`schema_hubrise.rs`, `schema_catalog.rs`, `schema_eft.rs` et `schema_v11.rs` (lecture machine via
 `sqlite3 pos.db ".schema"`).
 
 ## 1. Tables de référence
@@ -252,6 +252,55 @@ vers `sent`), `eft_payments_answer_final` (une réponse `approved`,
 `declined`, `cancelled` ou `not_sent` ne change plus) et
 `eft_payments_used_once` (seul un paiement `approved` est utilisé, une
 fois).
+
+### 2.6 `menu_item_sold_out`, `sold_out_log` (migration `041`)
+
+Produit déclaré « Épuisé » (annexe *PRODUIT_EPUISE_FR.md*). Aucun effet
+fiscal : ni événement, ni compteur.
+
+`menu_item_sold_out` : l'état courant, une ligne par produit épuisé.
+
+| Champ | Type | Description |
+|---|---|---|
+| `menu_item_id` | INTEGER (PK, FK → `menu_items.id`) | Produit épuisé |
+| `until` | TEXT (nullable) | Fin de la journée commerciale (RFC 3339, décalage de Bruxelles) ; NULL = jusqu'à réactivation |
+| `set_by` | TEXT | INSZ de l'opérateur qui l'a déclaré |
+| `set_at` | TEXT | Date / heure (défaut `datetime('now')`) |
+
+`sold_out_log` Attention : APPEND-ONLY. Chaque déclaration, levée et expiration.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `menu_item_id` | INTEGER (FK) | Produit |
+| `action` | TEXT | `set`, `clear` ou `expired` (contraint) |
+| `until` | TEXT (nullable) | Fin de journée de la déclaration |
+| `by` | TEXT (nullable) | INSZ de l'opérateur (NULL pour une expiration) |
+| `at` | TEXT | Date / heure |
+
+Index : `idx_sold_out_log_item(menu_item_id)`. Déclencheurs
+`sold_out_log_no_update` et `sold_out_log_no_delete`.
+
+### 2.7 `menu_change_log` Attention : APPEND-ONLY (migration `042`)
+
+Journal de l'éditeur de carte (annexe *EDITEUR_CARTE_FR.md*) : chaque
+création et chaque modification d'une catégorie, d'un produit, d'un
+groupe d'options ou d'une option. L'éditeur écrit les tables de la carte
+du §1 ; rien n'y est supprimé (le champ `active` masque un élément).
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `entity_type` | TEXT | `category`, `product`, `modifier_group` ou `modifier` (contraint) |
+| `entity_id` | INTEGER | Identifiant de l'élément |
+| `action` | TEXT | `create` ou `update` (contraint) |
+| `before_json` | TEXT (nullable) | La ligne avant la modification (noms par langue compris) ; NULL à la création |
+| `after_json` | TEXT | La ligne après la modification |
+| `changed_by` | TEXT | INSZ du gérant |
+| `changed_at` | TEXT | Date / heure |
+
+Index : `idx_menu_change_log_entity(entity_type, entity_id)`.
+Déclencheurs `menu_change_log_no_update` et `menu_change_log_no_delete`.
 
 ## 3. Tables fiscales (append-only)
 
@@ -510,31 +559,114 @@ period is closed`, code applicatif `period_closed`) l'archivage d'un
 déjà fermée (`booking_periods.closed_at` non nul). Un événement signé
 ne peut donc pas être rattaché à un jour déjà clôturé.
 
-## 4. Tables Peppol (hors binaire certifié v1.0.0)
+## 4. Tables de facturation et Peppol (migration `040`)
 
-### 4.1 `peppol_deliveries`
+Annexe *FACTURATION_PEPPOL_FR.md*. Les tables `invoices`, `invoice_sales`
+et `peppol_delivery_log` sont en ajout seul ; la vue `v_invoice_journal`
+est le sous-journal des factures émises de l'article 33 de l'arrêté
+ministériel du 29 avril 2024.
 
-Audit trail des factures B2B livrées via Access Point Peppol. La table
-est créée par la migration 1 dans toute build, mais le code Peppol
-(`#[cfg(feature = "peppol")]`) n'est pas dans le binaire certifié de la
-v1.0.0 : aucune ligne n'y est jamais écrite.
+### 4.1 `b2b_customers`
+
+Les clients à qui une facture est adressée. Table de travail, modifiable
+(la facture garde son propre instantané du client, `invoices.customer_json`).
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `vat_number` | TEXT | Numéro de TVA (unique) |
+| `name`, `street`, `postal_code`, `city` | TEXT | Identité et adresse |
+| `country_code` | TEXT | Pays (`BE` par défaut) |
+| `peppol_status` | TEXT | Dernier résultat de la recherche Peppol : `unknown` (défaut), `registered` ou `not_registered` (contraint) |
+| `peppol_checked_at` | TEXT (nullable) | Date de cette recherche |
+| `created_at`, `updated_at`, `updated_by` | TEXT | Création et dernière modification |
+
+### 4.2 `invoices` Attention : APPEND-ONLY
+
+Une ligne par événement I signé.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `invoice_seq` | INTEGER | Séquence continue de toutes les factures, jamais remise à zéro (unique) |
+| `invoice_no` | TEXT | Numéro de facture : année d'émission et séquence (unique) |
+| `fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | L'événement I archivé (unique) |
+| `customer_id` | INTEGER (FK, nullable) | Le client |
+| `customer_json` | TEXT | Le client tel qu'imprimé (nom, adresse, TVA), figé à la signature |
+| `issue_date` | TEXT | Date d'émission |
+| `total_cents` | INTEGER | Total en centimes (négatif si le remboursement l'emporte) |
+| `vat_json` | TEXT | Base, TVA et total par code de TVA, en centimes |
+| `created_by` | TEXT | INSZ de l'opérateur |
+| `created_at` | TEXT | Date / heure |
+
+Déclencheurs `invoices_no_update` et `invoices_no_delete`.
+
+### 4.3 `invoice_sales` Attention : APPEND-ONLY
+
+Les ventes (événements N) couvertes par chaque facture.
+
+| Champ | Type | Description |
+|---|---|---|
+| `invoice_id` | INTEGER (FK → `invoices.id`) | La facture |
+| `sale_fiscal_event_id` | INTEGER (FK → `fiscal_events.id`) | La vente ; **unique** : une vente figure sur une seule facture |
+| `position` | INTEGER | Rang de la vente dans la facture (clé primaire avec `invoice_id`) |
+
+Déclencheurs `invoice_sales_no_update` et `invoice_sales_no_delete`.
+
+### 4.4 `peppol_deliveries`
+
+File d'envoi et audit des factures livrées par un point d'accès Peppol.
+La table est créée par la migration 1 ; la migration 40 la transforme en
+file d'attente. Une ligne par facture envoyée sur Peppol (clients
+belges, installation avec une section `peppol`).
 
 | Champ | Type | Description |
 |---|---|---|
 | `id` | INTEGER | Clé primaire |
 | `fiscal_event_id` | INTEGER (FK) | Lien vers l'événement I correspondant |
 | `invoice_no` | TEXT | Numéro de facture émetteur |
-| `customer_endpoint_id` | TEXT | Identifiant Peppol du destinataire (`0208:BE...`) |
-| `ap_vendor` | TEXT | Nom du fournisseur AP ("storecove", "unifiedpost", "logging-only") |
-| `ap_message_id` | TEXT (nullable) | ID retourné par l'AP |
-| `ubl_xml` | TEXT | Document UBL 2.1 complet pour audit |
-| `ap_response_json` | TEXT (nullable) | Réponse de l'AP |
-| `status` | TEXT | `queued`, `accepted`, ou `failed` (contraint) |
-| `error_msg` | TEXT (nullable) | Message d'erreur si `failed` |
-| `created_at` | TEXT | Date / heure de l'envoi |
-| `accepted_at` | TEXT (nullable) | Date / heure d'acceptation par l'AP |
+| `customer_endpoint_id` | TEXT | Identifiant Peppol du destinataire (`0208:` et le numéro d'entreprise) |
+| `ap_vendor` | TEXT | Fournisseur du point d'accès (`storecove` ; `logging` en développement) |
+| `ap_message_id` | TEXT (nullable) | ID retourné par le point d'accès |
+| `ubl_xml` | TEXT | Document UBL 2.1 complet, pour audit |
+| `ap_response_json` | TEXT (nullable) | Réponse du point d'accès |
+| `status` | TEXT | `queued` (en attente ou à retenter), `accepted` (remis) ou `failed` (mis de côté) ; contraint |
+| `error_msg` | TEXT (nullable) | Raison de l'échec ou de la mise de côté |
+| `created_at` | TEXT | Date / heure de la mise en file |
+| `accepted_at` | TEXT (nullable) | Date / heure d'acceptation par le point d'accès |
+| `attempts` | INTEGER (migration `040`) | Nombre de tentatives |
+| `next_attempt_at` | TEXT (nullable, migration `040`) | Prochaine tentative |
+| `last_attempt_at` | TEXT (nullable, migration `040`) | Dernière tentative |
+| `parked_at` | TEXT (nullable, migration `040`) | Mis de côté |
+| `lookup_status` | TEXT (migration `040`) | Résultat de la recherche du destinataire : `unknown`, `registered` ou `not_registered` |
 
-Index : `idx_peppol_deliveries_invoice(invoice_no)`.
+Index : `idx_peppol_deliveries_invoice(invoice_no)` et
+`idx_peppol_deliveries_queue(next_attempt_at)` (partiel, `WHERE status = 'queued'`).
+
+### 4.5 `peppol_delivery_log` Attention : APPEND-ONLY
+
+Chaque tentative d'envoi, quel que soit son résultat.
+
+| Champ | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Clé primaire |
+| `delivery_id` | INTEGER (FK → `peppol_deliveries.id`) | L'envoi |
+| `attempt` | INTEGER | Numéro de la tentative |
+| `outcome` | TEXT | Résultat |
+| `http_status` | INTEGER (nullable) | Code HTTP |
+| `detail` | TEXT (nullable) | Détail |
+| `at` | TEXT | Date / heure |
+
+Déclencheurs `peppol_delivery_log_no_update` et `peppol_delivery_log_no_delete`.
+
+### 4.6 Vue `v_invoice_journal`
+
+Une ligne par facture, dans l'ordre de la séquence : `invoice_no`,
+`issue_date`, `customer_vat_number`, `customer_name`, base et TVA des
+codes A, B et C (`base_a_cents`, `vat_a_cents`, ...), base D et X, total,
+`fdm_id`, `event_label`, `fdm_datetime`, `event_sequence` (numéro d'ordre
+de l'événement I) et `peppol_status` (état du dernier envoi). La requête
+d'audit est dans *FACTURATION_PEPPOL_FR.md* §5.
 
 ## 5. Tables des commandes en ligne (migrations 20 à 25)
 
@@ -674,12 +806,29 @@ La migration 21 ajoute aussi `categories.hidden`, `menu_items.kind`,
 lignes en place (jamais de suppression) ; l'historique fiscal est figé
 dans `order_lines` et `order_entries`.
 
+### 5.8 `hubrise_inventory_sync` (migration `041`)
+
+État de stock d'un produit épuisé à transmettre à HubRise (seulement si
+HubRise est activé et si le produit a une référence de SKU ; voir
+*PRODUIT_EPUISE_FR.md* §4). Une ligne par produit.
+
+| Champ | Type | Description |
+|---|---|---|
+| `menu_item_id` | INTEGER (PK, FK → `menu_items.id`) | Produit |
+| `sku_ref` | TEXT | Référence de SKU dans le catalogue HubRise |
+| `dirty` | INTEGER | 1 = à transmettre |
+| `version` | INTEGER | Compte les changements : un changement fait pendant un envoi n'est pas perdu |
+| `attempts`, `next_attempt_at`, `last_attempt_at`, `parked_at`, `error_msg` | | File de nouvelles tentatives, comme `hubrise_outbox` |
+| `synced_at` | TEXT (nullable) | Dernier envoi réussi |
+
+Index : `idx_hubrise_inventory_sync_dirty(dirty)` (partiel, `WHERE dirty = 1`).
+
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **dix-neuf
-migrations** existent (1 à 11, puis 20 à 27 ; 12 à 19 sont réservées aux
-correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **vingt-deux
+migrations** existent (1 à 11, 20 à 27, puis 40 à 42 ; 12 à 19 et 28 à 39 sont
+réservées aux correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
 | Version | Nom | Contenu |
@@ -703,6 +852,9 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 25 | `integration-switch` | `integration_switches`, `integration_switch_log` et ses déclencheurs (§5.4). |
 | 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
 | 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
+| 40 | `invoicing` | `b2b_customers`, `invoices`, `invoice_sales`, colonnes de file de `peppol_deliveries`, `peppol_delivery_log`, vue `v_invoice_journal` (§4). |
+| 41 | `sold-out` | `menu_item_sold_out`, `sold_out_log`, `hubrise_inventory_sync` (§2.6, §5.8). |
+| 42 | `menu-editor` | `menu_change_log` et ses déclencheurs (§2.7). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette
