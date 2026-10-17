@@ -763,3 +763,50 @@ Run both `check_dossier.py` runs after any change in `crates/`.
 ## 14. Worker notes
 
 (Each task appends its entry here.)
+
+### V12-T1 (Sonnet 5.5, 2026-10-17): A, accountant export
+
+Delivered: `crates/pos-accounting` (workspace member, `publish = false`, library `pos_accounting` plus
+binary `pili-accounting`; modules `source`, `parse`, `aggregate`, `reconcile`, `csv`, `files`,
+`journal`, `readme`, `error`, `bin/pili-accounting`), its tests (`tests/reconcile_report_day.rs`,
+`synthetic.rs` with `tests/golden/*.csv`, `cli.rs`, `isolation.rs`, 32 unit tests), README (English),
+a line in `CLAUDE.md`, the drafts `docs/internal/v1.2/NOTE_MISE_A_JOUR_V1_2_FR.md` (section A) and
+`docs/internal/v1.2/EXPORT_COMPTABLE_FR.md`, and the heading `## Lane 4-v12 (2026-10-17)` at the end of
+`docs/android/DECISIONS.md` with V12-D1 to V12-D10 and the base F result.
+
+- **Base gate F** (at `c35b7d46`): fmt, clippy `--locked` and `cargo test --workspace --locked` in
+  `android/rust` all green. `every_code_of_both_lists_maps_to_coded` passes at this base (it failed at
+  `6a7b5fc8` in `gates-rc2.log`, fixed upstream since). Nothing to hide for later tasks.
+- **Deviations from the plan (all recorded in DECISIONS):** the tool has no POS crate as a run-time
+  dependency (stricter than the plan); a non-empty `pos.db-wal` beside the file is refused (immutable
+  mode would ignore it); output rows are per booking period (a Z), not per calendar date; three
+  accounts added to the default list (tips 489100, unpaid sales 400000, sales D 700300 and X 700400)
+  so that every day balances; Yuki uses a decimal comma; Winbooks and Yuki layouts are best effort (Q1).
+- **Engine tests build the archive with `pos-engine-testkit`:** the Reports 1.3 day with the published
+  responses (T1 to T8, M184 Z) and a mixed day on the admission mock FDM. The synthetic tests build an
+  archive row by row in a migrated database file (for exact goldens, dates, tampering and the M150 and
+  gift voucher shapes). The snapshot of an in-memory archive is `VACUUM INTO`.
+- **Gates run:** R (fmt, clippy workspace, clippy `cert`, `cargo test --workspace` with 148 passing suites, `cargo test -p pili-pos --no-default-features --features cert`, `cargo test -p pos-engine --no-default-features --features cert`: all green), P (ipc wrappers 96/96,
+  command parity strict and hygiene, UI parity strict, Vue to Android strings, `lane_paths --check`
+  all PASS), D (`check_dossier.py` for the Linux dossier, the Android dossier and `docs/internal/v1.2`
+  all exit 0; no em-dash in changed files; `uc_matrix.py` in check mode). F was run at the base only:
+  this task changes nothing under `android/`.
+- **Ownership:** `lane_paths.py --owner` says `frozen` for `crates/`, `Cargo.toml`, `Cargo.lock`
+  (expected, plan section 7) and gives no owner to `docs/internal/v1.2/`; the plan names these paths,
+  `LANES.md` was not edited.
+- **Captures to retake (orchestrator):** none on a screen; item 12 of section 11 (text sample): run
+  `pili-accounting` on a demo archive and keep `LISEZMOI.txt` and a few lines of `journal.csv`.
+- **For T6 / the merge:** root `Cargo.lock` gained the `pos-accounting` package (only workspace
+  crates and crates already in the lock); `android/rust/Cargo.lock` and `android/uccheck/Cargo.lock`
+  are untouched (the tool is not in their graph; `tests/isolation.rs` checks it). The testkit's
+  `Cargo.toml` comment now names the second dev-dependent.
+- **Environment finding (shared target):** worktrees that hold the same crate names and versions share
+  cargo artifact file names in `shared-target` (path dependencies are hashed relative to the workspace
+  root), and cargo's mtime check then treats another lane's fresh artifact as fresh. Here `cargo test
+  --workspace` linked `pos-db` against lane 3's `pos-core` (which has `sold_out`) and failed with
+  `E0063 missing fields sold_out and sold_out_until in MenuItem` although this tree has no such field.
+  Fix used: `touch` the sources of `crates/` and `src-tauri/` of this worktree (mtime only), which makes
+  cargo rebuild the workspace crates from this tree. Expect lanes to flip each other's artifacts when
+  they build one after the other; a failure that names a field of another lane is this, not a bug.
+  `ui/dist` was also missing in the fresh worktree (`pili-pos` needs it: `(cd ui && npm ci && npm run
+  build)` once; both untracked).

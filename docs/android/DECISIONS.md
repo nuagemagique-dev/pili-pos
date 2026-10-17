@@ -1207,3 +1207,100 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
   - *Gate result on `android/lane-p8b`.* Lane scope against `602544c` passes, `check_linux_frozen.sh --ref 602544c` reports 17 frozen paths clean, both `check_dossier` runs pass, the `android/` path references, the `EV-nn` references, the em-dash, brand-name and `linux-v1.1` scans find nothing, `kotlin_test_inventory.py --base 602544c` removed 0 (1957 at base and head), `lane_paths.py --check` passes (3920 files, 80 rules, 74 probes). `test_inventory.sh --diff` ran in the `int` worktree (33 GB free, warm `target` and `ui/dist`, `int` left clean): 404 added, 0 removed, ws 1640 >= 1355. The `NOM_FR.md` placeholder no longer shows in the dangling scan.
   - *Gate items that cannot pass yet, by design.* The completeness loop and the dangling `_FR` reference scan list only the three documents of P8a-T5 (EXPORT_NOCTURNE, FLUX_DONNEES, COMMANDES_EN_LIGNE), still unmerged. Phase-exit checks to rerun once T5 is merged.
   - *Gate items run on the lane worktree instead of `int`.* As at the earlier waves, the ancestry test and the dossier checks cannot pass in `int` (still at `602544c`, no dossier files); they ran on the `lane-p8b` worktree with the same scripts. The ancestry check is deferred to the lane merge. Tag `linux-v1.0.0-rc1` does not exist, so `check_linux_frozen.sh --tag` is deferred (the `--ref 602544c` check passes).
+
+## Lane 4-v12 (2026-10-17)
+
+Owner features for the v1.2 certified update (plan `docs/android/phases/LANE_V12.md`). This section is
+appended by each task of the lane; T1 (accountant export) wrote the first entries.
+
+- **Base gate F (T1, before any change).** At `c35b7d46` (the lane base `b3248d2d` plus the plan commit),
+  in `android/rust`: `cargo fmt --all --check` clean, `cargo clippy --workspace --all-targets --locked
+  -- -D warnings` clean, `cargo test --workspace --locked` green (pos-ffi 24 passed, the second suite 233
+  passed, 0 failed). `error::tests::every_code_of_both_lists_maps_to_coded`, which failed in
+  `gates-rc2.log` at `6a7b5fc8`, passes at this base: it was fixed upstream between the two commits. No
+  failure exists at the base of this lane.
+- **V12-D1 Migrations 60 to 63.** 60 `owner-settings-alerts` (B), 61 `allergens` (C), 62 `courses` (D),
+  63 `gift-vouchers` (E), in a new `crates/pos-db/src/schema_v12.rs`, registered in a `V12_MIGRATIONS`
+  slice of `migrate.rs`, in every build (no cargo feature), with the test
+  `the_v12_migrations_are_60_to_63_and_in_every_build` extended by each task. T1 adds none (the export
+  tool is stand-alone and changes no schema). Renumbering at merge touches `schema_v12.rs`, the registry
+  and that test only.
+- **V12-D2 One owner-settings store.** `owner_settings(key, value_json, changed_at, changed_by)` and the
+  append-only `owner_settings_log`; keys `alerts`, `courses`, `gift_vouchers`; no `CHECK` on the key;
+  values validated in Rust with `deny_unknown_fields`; an absent key means the feature's defaults (off);
+  every set writes the row and a log row in one transaction. Implemented by T2.
+- **V12-D3 Who.** Settings of B, D, E and allergen edits: `Access::Admin`. Sending the next course,
+  changing a line's course, selling and redeeming a voucher, voucher lookup, printing allergen sheets:
+  any logged-in staff that may already do the underlying action. The voucher list and duplicates: admin.
+- **V12-D4 Off by default, today's behaviour kept.** With B, D and E off every existing test passes
+  unchanged and the till behaves as v1.0.0 and v1.1. C only shows data the catalog or an admin entered.
+- **V12-D5 A separate tool, outside the certified binary.** New crate `crates/pos-accounting`
+  (`publish = false`, library plus binary `pili-accounting`), a workspace member that no shipped crate
+  depends on. `crates/pos-accounting/tests/isolation.rs` fails if the `Cargo.toml` of `pos-engine`,
+  `src-tauri`, `android/rust/pos-ffi` (and `android/rust`, `pos-core`, `pos-db`, `pos-fiscal`,
+  `pos-print`, `pos-export`) names `pos-accounting`, if the Android lock files name it, or if its own
+  `[dependencies]` name a `pos-*` crate. Choice made in T1: the tool has no POS crate as a run-time
+  dependency (it parses the archive as plain SQLite and JSON), which is stricter than the plan (the plan
+  allowed `pos-engine-testkit` as a dev-dependency only; the tests also dev-depend on `pos-engine`,
+  `pos-core`, `pos-db` and `pos-fiscal` to drive the real commands and migrations). Rationale: an
+  on-till screen would grow the certified binary and need an SPF update for every format tweak an
+  accountant asks for.
+- **V12-D6 Input is a copy of `pos.db`.** `SQLITE_OPEN_READ_ONLY` with the URI `mode=ro&immutable=1`;
+  `--db` takes a file or an SPF export folder (its `pos.db` is used and `MANIFEST.sha256`, `sha256sum`
+  format, is verified when present: `manifest_mismatch`); a database whose `_migrations_applied` lacks
+  version 4 is refused (`not_a_pili_db`). Added in T1 (conservative reading): a non-empty `pos.db-wal`
+  beside the file is refused (`db_unreadable`), because immutable mode ignores a WAL and the copy of a
+  live database would silently miss what the WAL still holds; the SPF export and a backup are
+  consistent single files.
+- **V12-D7 Signed data only.** Rows read: `fiscal_events` with `fdm_response_json` not null and type N, I
+  or F (an event whose signed `event_label` differs from its type is skipped), the closing R event of
+  each period, `z_reports` and `booking_periods`. Never `orders`, `order_lines`, `payments`. Training
+  (T), copy (C), pro forma (P), social (S) and X reports are never read. Channel from the signed cost
+  center (`TABLE` dine-in, none takeaway, other online); a refund without a cost center of its own
+  takes the channel of the ticket its `fdmRef` names, found in the archive; refund detection as in
+  `pos-export/src/stats.rs`. A gift voucher sale is a line whose `departmentId` (or `productId`) is `GV`.
+- **V12-D8 Period equals closed booking periods.** `--month` or `--from/--to`, filtered on
+  `booking_periods.booking_date`. Rows are per booking period, not per calendar date: two Z on one date
+  (two periods) give two rows, each with its Z number. Reconciliation per period against the signed Z:
+  N ticket count, turnover (Σ lines after price changes), VAT base, VAT and total per label (Z `vats`
+  against Σ `vatCalc`), payments per `(type, amountType)` (Z `totalAmount`). Any gap is
+  `RECONCILIATION_FAILED` (exit 2) naming the date, the Z number and the field; nothing is written. An
+  open period is left out and named in `LISEZMOI.txt`; a range with only open periods is `period_open`,
+  a range with no period `empty_range`. Not reconciled (no Z counterpart): invoices, cash movements,
+  gift voucher rows.
+- **V12-D9 Formats.** Detail CSVs UTF-8 with BOM, `;`, CRLF, decimal comma (`--decimal point`), an
+  integer `_centimes` column next to every amount; free text from the till that starts with `=`, `+`,
+  `-` or `@` gets a leading apostrophe. The generic journal profile is the reference (decimal point,
+  `YYYY-MM-DD`). `winbooks` and `yuki` are best effort from public import descriptions (Winbooks:
+  `DBKCODE;DBKTYPE=PRI;DOCNUMBER;DOCORDER;ACCOUNTGL;BOOKYEAR;PERIOD;DATE=YYYY/MM/DD;COMMENT;AMOUNTEUR`
+  signed debit positive, `VATCODE`; Yuki: `Date=dd-mm-yyyy;Journal;Reference;Account;Description;Debit;
+  Credit;VATCode` with a decimal comma, the one place the plan left open); both need a test import at the
+  accountant (open question Q1). Exact Online goes through the generic file. Default accounts: sales
+  700000/700100/700200/700300/700400 for labels A/B/C/D/X, VAT 451021/451012/451006, cash 570000, card
+  580000, meal vouchers 580100, app 580200, online 580300, other 580900, gift vouchers outstanding
+  489000, rounding 657000 (cost) and 757000 (income), tips to return 489100, sales not collected 400000
+  (the last three are T1 additions to the plan's list, needed for a day to balance: tips, unpaid sales
+  and the D/X sales). The journal debits collections per method (payments, rounding, tips), debits
+  unpaid sales, credits sales per label (VAT X gift voucher lines go to 489000, not to a sales
+  account), VAT as total minus the FDM's base, rounding and tips; a redeemed voucher debits 489000. An
+  unbalanced entry is `journal_unbalanced` (it cannot happen on a day that reconciles). An accounts file
+  with an unknown key or an invalid account number is refused (`accounts_invalid`).
+- **V12-D10 Output folder.** `export-comptable-<from>-<to>/` written under a `.partial` name and renamed
+  (a stale `.partial` of an interrupted run is replaced); an existing folder is never overwritten
+  (`out_exists`). Files: `jours.csv`, `tva.csv`, `paiements.csv`, `remboursements.csv`, `factures.csv`,
+  `bons_cadeaux.csv`, `mouvements_caisse.csv`, `rapports_z.csv`, `journal.csv`, `LISEZMOI.txt` (French,
+  source file name and SHA-256, periods included and left out, conventions) and `MANIFEST.sha256`
+  (sorted, `sha256sum` format). The only run-dependent value is the generation time in `LISEZMOI.txt`.
+  No INSZ and no operator name; the customer name and VAT number only in `factures.csv`; the label of a
+  cash movement is the text typed at the till (documented in the dossier draft).
+- **T1: invoices (I events).** `factures.csv` takes the M150 shape (`invoiceNo`, `customerVatNo`,
+  `fdmRefs`; the customer name from `customerName`, `customer.name` or `costCenter.name` when present)
+  and gets its amounts from the archived sales the `fdmRefs` name; tickets not in the archive are listed
+  and counted in `tickets_introuvables`, never guessed. Invoices are informative: their tickets are
+  already in the sales of their own period.
+- **T1: expected failures of the p5/p6 gates on this lane (plan section 7).** `hygiene-paths`
+  (changes outside `android/`, `scripts/android/`, `docs/android/`), `hygiene-root-lock` (root
+  `Cargo.toml` and `Cargo.lock` gain the `pos-accounting` package), `linux-frozen` and `freeze-tag`.
+  `python3 scripts/android/lane_paths.py --owner` reports `frozen` for `crates/`, `Cargo.toml` and
+  `Cargo.lock`, and no owner for `docs/internal/v1.2/`: the plan prescribes these paths, so they are
+  edited; `LANES.md` is not touched (`lane_paths.py --check` passes).
