@@ -495,13 +495,13 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Arrondissement des paiements cash | ☑ | Roundings | Obligatoire pour le cash, implémenté (arrondi belge à 5 centimes) |
 | Arrondissement carte EFT | ☐ | Roundings | Optionnel (manuel : « à décider une fois pour toute à l'installation ») : décidé, pas d'arrondi des paiements par carte EFT, pour toutes les installations. Seul le reste payé en espèces est arrondi |
 | Gestion des livraisons | ☑ | - | Commandes en ligne uniquement (plateformes de livraison et webshop, par HubRise, activé par installation) : livraison ou enlèvement, signées par le FDM (N, ou P puis N à la remise). Aucune livraison n'est saisie à la caisse. *Voir : COMMANDES_EN_LIGNE_FR.md* |
-| Réductions | ☑ | UC223 | Uniquement les remises des commandes en ligne (code promo, réduction du webshop ou de la plateforme) : `priceChanges` de portée `EVENT`, type `PUBLIC`, réparties sur les lignes de produits (`crates/pos-engine/src/commands/price_changes.rs`, `crates/pos-fiscal/src/price_change.rs`, migration 23, test `crates/pos-engine/tests/hubrise_discounts.rs`). Aucune remise n'est saisie à la caisse : les modificateurs +/- sur prix oui, les réductions globales non. *Voir : COMMANDES_EN_LIGNE_FR.md* §5 |
+| Réductions | ☑ | UC223 | Remises des commandes en ligne (code promo, réduction du webshop ou de la plateforme) et remise saisie à la caisse par un Gérant avec son code PIN : pourcentage, montant ou « Offert » sur toute la commande ou sur une ligne. Ce sont des `priceChanges` (`crates/pos-engine/src/commands/price_changes.rs`, `crates/pos-fiscal/src/price_change.rs`, migration 30, tests `crates/pos-engine/tests/hubrise_discounts.rs` et `crates/pos-engine/tests/till_discounts.rs`). Le motif reste dans la table locale `till_discounts` (append-only), jamais dans la transaction signée. *Voir : MANUEL_UTILISATEUR_FR.md* §5.3 |
 | Produits composés | ☐ | UC280 | Fixtures parsent, UI non implémentée (Advanced Set) |
-| Modification de prix ligne | ☐ | UC220 | Pas de modification de prix de portée ligne (ni à la caisse ni dans les commandes en ligne) |
-| Modification de prix event | ☑ | UC223 | Commandes en ligne uniquement (cf. « Réductions ») : remise de portée `EVENT` répartie sur les lignes. La transaction construite par pili-pos est comparée à la fixture officielle UC223 (test `crates/pos-fiscal/tests/price_change_uc.rs`). Pas de modification de prix d'événement à la caisse |
+| Modification de prix ligne | ☑ | UC229B | À la caisse, seulement « Offert » sur une ligne entière (portée `LINE`, ligne à 0,00, identifiant `TILL-FREE-LINE`) ; pas de remise partielle sur une ligne. Test `crates/pos-engine/tests/till_discounts.rs` |
+| Modification de prix event | ☑ | UC223 | Remise de portée `EVENT` répartie sur les lignes, pour les commandes en ligne et pour la remise saisie à la caisse (identifiant `TILL-DISCOUNT`, Gérant + code PIN). La transaction construite par pili-pos est comparée à la fixture officielle UC223 (test `crates/pos-fiscal/tests/price_change_uc.rs`) |
 | Modification de prix multiple | ☐ | UC224 | Plusieurs remises de portée `EVENT` sont possibles sur une commande en ligne (un `groupingId` par remise), mais le scénario UC224 (remise de ligne combinée à une remise de ticket) n'est pas rejoué : pas de fixture UC224 dans les tests |
 | Corrections (modif quantité) | ☑ | UC230 | Correction d'une ligne avant paiement : quantité abaissée ou ligne retirée sur une commande ouverte, journalisée (`order_entries`, `kind` = `correction`) et envoyée avec `negQuantityReason` `CORRECTION` ; fixture UC230 rejouée (test `uc230_a_line_corrected_before_payment`). Après encaissement, la correction est un remboursement (M111/M112B) |
-| Article offert/gratuit (100% réduction) | ☐ | - | Hors MVP |
+| Article offert/gratuit (100% réduction) | ☑ | UC229B | « Offrir » sur une ligne, ou « Offert » sur toute la commande : signé à 0,00 et imprimé (test `crates/pos-engine/tests/till_discounts.rs`) |
 | Happy Hour programmé | ☐ | - | Hors MVP |
 | Gestion des clients | ☐ | - | B2C, pas de base clients |
 | Réduction membre | ☐ | - | Idem |
@@ -803,7 +803,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 | XII. Total à payer TVA comprise | ☑ | ☑ | - (pas encore payé) | ☑ | ☑ | - |
 | XIII. Base imposable par taux | ☑ | ☑ | - | ☑ | ☑ | - |
 | XIV. Montant TVA par taux | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications prix non-lignes | ☐ à la caisse (aucune remise saisie) ; la remise d'une commande en ligne est imprimée sous chaque ligne qu'elle touche | ☐ | ☐ | ☐ | ☐ | - |
+| XV. Modifications prix non-lignes | ☑ à la caisse (Gérant + code PIN, remise sur la commande) et pour une commande en ligne ; imprimée sous chaque ligne qu'elle touche | ☐ | ☐ | ☐ | ☐ | - |
 | XVI. Données FDM (footer, fdmId, dateTime, label, counters, shortSignature) | ☑ | ☑ | ☑ (sans shortSignature) | ☑ (sans shortSignature) | ☑ (sans shortSignature) | - |
 | XVII. Lignes paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - | - | ☑ (FICTIF) | - |
 | XVIII. QR Code URL FDM | ☑ | ☑ | - (sans QR, le FDM ne renvoie pas de verificationUrl pour P) | ☑ | ☑ | - |

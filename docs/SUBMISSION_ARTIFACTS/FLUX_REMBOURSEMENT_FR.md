@@ -39,7 +39,9 @@ Le flux reflète l'encaissement standard de
    - `refund_discounted_line` : une ligne de commande en ligne portant
      une remise (la remise est répartie sur ses lignes : une partie
      rembourserait une part que personne ne peut établir) ; la
-     commande entière se rembourse, remises comprises.
+     commande entière se rembourse, remises comprises, y compris une
+     remise saisie à la caisse par un Gérant : le remboursement porte
+     sur le montant net, ligne par ligne, avec les remises en négatif.
 2. **Contrôles, puis construction de la commande de remboursement.**
    Chaque article est d'abord contrôlé (présent sur le ticket
    original, quantité positive, total remboursé sur l'ensemble des

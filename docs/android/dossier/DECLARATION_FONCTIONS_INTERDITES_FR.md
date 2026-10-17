@@ -77,6 +77,14 @@ fiscal après sa signature par le FDM.
   à la main d'une vente de la journée en cours, et n'est possible
   qu'une fois par vente (`crates/pos-engine/src/commands/payment_correction.rs::do_correct_payment`).
 
+La remise de caisse n'ouvre aucune modification : elle n'altère ni un
+ticket signé ni un événement archivé. Elle n'est possible que sur une
+commande ouverte, par un Gérant confirmé par son PIN ; sur une commande
+déjà enregistrée en salle elle signe un événement P de plus. Chaque pose
+et chaque retrait s'inscrit dans la table `till_discounts`, qui refuse
+`UPDATE` et `DELETE` (déclencheurs `till_discounts_no_update` et
+`till_discounts_no_delete`), avec le Gérant et le motif.
+
 ## 3. Ajout rétroactif d'enregistrements antidatés
 
 Le système **ne permet pas** l'ajout d'un événement fiscal portant

@@ -106,6 +106,18 @@ les porte en quantité positive (table de destination). Le prix, le
 code TVA et la remise portée par une ligne sont conservés tels quels
 (même `groupingId`) ; rien n'est recalculé.
 
+## Lignes d'une vente remisée à la caisse
+
+Une remise saisie à la caisse par un Gérant (pourcentage, montant ou
+« Offert ») est signée comme un `priceChanges`, jamais comme une ligne
+supplémentaire du ticket. Une remise de commande est de portée `EVENT`
+(identifiant `TILL-DISCOUNT`), répartie sur les lignes au centime près ;
+un article offert est de portée `LINE` (`TILL-FREE-LINE`, ou `TILL-FREE`
+pour toute la commande) et sa ligne est signée à 0,00. Chaque changement
+est une paire dans le journal (`PRICE_CHANGE`) : la pose et, le cas
+échéant, son retrait, qui rétablit le prix d'origine. Le motif n'est
+pas dans la transaction signée.
+
 ## Codes TVA
 
 - **A = 21%** - alcools, boissons rafraîchissantes

@@ -285,9 +285,26 @@ vente sans paiement (§7.5).
   il s'ajoute au panier (à droite).
 - Dans le panier, "+" ajoute une unité et "−" en retire une, sans
   descendre sous 1. Pour retirer une ligne, toucher la croix à sa
-  droite. Il n'y a pas de bouton de remise : le POS ne propose pas de
-  remise à la saisie (les remises d'une commande en ligne viennent de la
-  plateforme, §12.8).
+  droite.
+- **Remise (Gérant, code PIN)** : le panier propose « Remise » (sur
+  toute la commande) et, sur une ligne, « Offrir ». « Remise » ouvre la
+  fenêtre « Remise » : choisir « % » (raccourcis 5, 10, 15, 20
+  et 50 %), « Montant » (à taper comme sur un terminal de paiement) ou
+  « Offert », puis un motif (« Geste commercial », « Repas du personnel »,
+  « Problème de service », « Autre ») et, si besoin, une précision libre de 120
+  caractères au plus. L'aperçu montre le total après remise ; « Appliquer la remise »
+  demande le code PIN d'un Gérant. Le panier, l'écran de paiement et le
+  ticket affichent alors le prix net, avec une ligne « Remise » sous la
+  ligne concernée. « Retirer la remise » (même code PIN) annule la
+  remise. Une seule remise s'applique à la fois (retirer l'actuelle avant d'en
+  poser une autre) ; elle ne peut pas dépasser le total, et un article
+  offert garde sa ligne à 0,00 sur le ticket. Une ligne remisée n'est
+  plus fusionnée avec une nouvelle unité du même article. Sur une
+  commande déjà enregistrée en salle (§6), la remise est signée
+  tout de suite (événement P) ; si le FDM ne répond pas, un avertissement
+  s'affiche et l'envoi est refait à la commande suivante. Le motif reste dans
+  le journal local de la caisse et n'est jamais envoyé au FDM. Les
+  remises d'une commande en ligne viennent de la plateforme (§12.8).
 - **Prix libre** : certains articles n'ont pas de prix fixe (ex. "Plat
   du jour"). En les touchant, la fenêtre "Prix libre" demande le
   prix : taper les chiffres comme sur un terminal de paiement

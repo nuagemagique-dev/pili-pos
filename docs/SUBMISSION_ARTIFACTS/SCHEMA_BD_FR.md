@@ -585,6 +585,22 @@ successives l'incrémentant (FAQ producteurs Q304). Index
 `idx_order_price_changes_order(order_id, entry_id)`. Déclencheurs
 refusant `UPDATE` et `DELETE`.
 
+### 5.3 bis `till_discounts` (ajout seul, migration `030`)
+
+Journal local des remises saisies à la caisse par un Gérant (ce qui ne
+part jamais au FDM : le motif). Une ligne par pose (`action` = `apply`)
+ou par retrait (`remove`) : `order_id`, `line_id` (NULL pour une remise
+de commande), `kind` (`percent` / `amount` / `free`, NULL au retrait),
+`value`, `amount_cents` (négatif à la pose), `change_id`, `grouping_id`,
+`reason_code`, `reason_text` (facultatif), `manager_insz` (le Gérant qui
+a confirmé par son PIN) et `created_at`. Index
+`idx_till_discounts_order(order_id, id)`. Déclencheurs refusant `UPDATE`
+et `DELETE`. La migration ajoute aussi `order_entries.till_op`
+(`price_change` ou NULL) qui marque les lignes du journal portant une
+remise de caisse, non modifiable une fois posée. Les montants signés
+sont dans `order_price_changes` (§5.3) avec les identifiants
+`TILL-DISCOUNT`, `TILL-FREE` et `TILL-FREE-LINE`.
+
 ### 5.4 `integration_switches`, `integration_switch_log` (ajout seul)
 
 `integration_switches` : état de l'interrupteur (`name` = `hubrise`,
@@ -703,6 +719,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 25 | `integration-switch` | `integration_switches`, `integration_switch_log` et ses déclencheurs (§5.4). |
 | 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
 | 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
+| 30 | `till-discounts` | `till_discounts`, ses déclencheurs et la colonne `order_entries.till_op` (§5.3 bis). |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

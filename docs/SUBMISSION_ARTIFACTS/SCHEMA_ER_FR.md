@@ -523,6 +523,7 @@ un `card_type` (`CHECK`).
 | `webshop_orders` → `orders` | 1 → 1 | Une ligne par commande en ligne, à côté de sa ligne `orders` |
 | `webshop_orders` → `fiscal_events` | N → 0..1 | `p_event_id`, `n_event_id`, `refund_event_id` |
 | `order_price_changes` → `orders`, `order_entries` | N → 1 | Remises d'une commande en ligne, par ligne du journal ; `line_id` désigne la ligne d'`order_lines` |
+| `till_discounts` → `orders`, `order_entries` | N → 1 | Pose ou retrait d'une remise de caisse (motif et Gérant, jamais envoyés au FDM) ; `line_id` NULL pour une remise de commande |
 | `translations` → (polymorphe) | N → 1 | Traduction d'un champ d'une entité (category / menu_item / modifier_group / modifier) dans une langue (FR / NL / DE / EN / ZH) |
 | `translations` → `languages` | N → 1 | Référence le code langue |
 | `fiscal_counters` (autonome) | - | Pas de FK ; clé `event_label` ∈ {N, P, T, C, I, F, S, R} |
@@ -544,6 +545,7 @@ Les tables ci-dessous sont protégées **au niveau de la base** par des triggers
 | `original_prints` | `original_prints_no_delete`, `original_prints_no_update` | Ni DELETE, ni UPDATE, aucune exception |
 | `pending_signs` | `pending_signs_request_immutable`, `pending_signs_context_on_resolution`, `pending_signs_no_reopen`, `pending_signs_no_delete` | Ce qui a été envoyé est immuable ; une ligne résolue ne change plus ; pas de DELETE |
 | `order_price_changes` | `order_price_changes_no_delete`, `order_price_changes_no_update` | Ni DELETE, ni UPDATE |
+| `till_discounts` | `till_discounts_no_delete`, `till_discounts_no_update` | Ni DELETE, ni UPDATE |
 | `integration_switch_log` | `integration_switch_log_no_update`, `integration_switch_log_no_delete` | Ni DELETE, ni UPDATE |
 | `table_plan_log` | `table_plan_log_no_update`, `table_plan_log_no_delete` | Ni DELETE, ni UPDATE |
 | `eft_payments` | `eft_payments_no_delete`, `eft_payments_starts_sent`, `eft_payments_request_fixed`, `eft_payments_status_moves`, `eft_payments_answer_final`, `eft_payments_used_once` | Pas de DELETE ; une ligne naît `sent` et non utilisée ; la demande (commande, montant, référence, opérateur) est immuable ; seuls `sent` et `unknown` changent de statut ; une réponse définitive ne change plus (hors `used_event_id`, posé une fois pour un paiement `approved`) |
@@ -577,6 +579,7 @@ Index explicites (hors index implicites des clés primaires et des contraintes U
 | `hubrise_outbox` | `idx_hubrise_outbox_order` (partiel, `WHERE sent_at IS NULL`) | `hubrise_order_id, id` | Envoi dans l'ordre, par commande |
 | `webshop_orders` | `idx_webshop_orders_state` | `fiscal_state, resolution` | Liste des commandes en ligne par état |
 | `order_price_changes` | `idx_order_price_changes_order` | `order_id, entry_id` | Remises d'une commande |
+| `till_discounts` | `idx_till_discounts_order` | `order_id, id` | Remises de caisse d'une commande |
 | `eft_payments` | `idx_eft_payments_order` | `order_id` | Paiements carte d'une commande |
 | `eft_payments` | `idx_eft_payments_open` (partiel, `WHERE status IN ('sent','unknown')`) | `status` | Paiements qui attendent encore leur réponse |
 

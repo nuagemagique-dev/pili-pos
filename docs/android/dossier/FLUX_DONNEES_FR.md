@@ -104,6 +104,19 @@ touche « Changer de table », choisit la table libre et valide.
 Le compteur **N** reste intact. Une réponse du FDM arrivée en retard a
 le même effet.
 
+## 2 ter. Remise à la caisse (priceChanges)
+
+1. Le Gérant choisit la remise (pourcentage, montant ou « Offert », sur
+   la commande ou sur une ligne) et la confirme par son PIN.
+2. La caisse calcule le net, répartit la remise au centime près et
+   inscrit la pose dans `order_price_changes` et `till_discounts`.
+3. Commande en cours : la remise part avec la vente (N, §3) en
+   `priceChanges`. Commande déjà enregistrée en salle : un événement P est
+   signé tout de suite ; sans réponse du FDM, il est repris
+   (`pending_signs`).
+4. « Retirer la remise » (même PIN) inscrit un retrait et rétablit le
+   prix d'origine. Le motif ne quitte jamais la caisse.
+
 ## 3. Le client paie - Vente (Événement N)
 
 **Action utilisateur.** Le client demande l'addition. L'opérateur tape

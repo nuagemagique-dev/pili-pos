@@ -105,6 +105,14 @@ Chaque branche :
 6. Retourne les données de ticket à l'UI ; l'UI déclenche l'impression
    via `pos-print`.
 
+**Remise de caisse.** Les commandes `apply_discount` et `remove_discount`
+(Gérant confirmé par son PIN) calculent la remise sur le net de la
+commande, la répartissent au centime près sur les lignes et la
+transmettent en `priceChanges` : sur une commande en cours elle part avec
+la vente (N) ; sur une commande déjà enregistrée en salle elle signe un
+événement P immédiat, repris par `pending_signs` si le FDM ne répond pas.
+Le motif et le Gérant restent dans `till_discounts` (migration 30).
+
 ## 3. Signature / vérification
 
 ### 3.1 Transport

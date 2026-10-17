@@ -33,12 +33,12 @@ colonne par type de ticket émis par pili-pos.
 | IX. Date et heure de délivrance | ☑ | ☑ | ☑ | ☑ | ☑ | ☑ |
 | X. N° de ticket continu (série ininterrompue) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XI.1. Lignes produits : qté, désignation, prix, code TVA | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | ☑ (désignation seule, pas de prix) |
-| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
+| XI.2. Modifications de prix sur la ligne | ☑ (commandes en ligne et « Offrir » à la caisse : remise imprimée sous sa ligne) | ☑ (remise reprise en négatif) | N/A | ☑ (copie d'une vente en ligne) | N/A | - |
 | XI.3. GTIN (optionnel) | N/A | N/A | N/A | N/A | N/A | - |
 | XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | - |
 | XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (jamais sur une addition) | ☑ | ☑ | - |
 | XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications de prix hors lignes produits | N/A (les remises d'une commande en ligne sont réparties sur les lignes et imprimées sous chacune, voir XI.2) | N/A | N/A | N/A | N/A | - |
+| XV. Modifications de prix hors lignes produits | ☑ (la remise d'une commande, saisie à la caisse par un Gérant ou venue d'une commande en ligne, est répartie sur les lignes et imprimée sous chacune, voir XI.2 ; « Offert » signe la vente à 0,00) | N/A | N/A | N/A | N/A | - |
 | XVI.I. Pied de page configuré par SPF Finances | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.II. fdmId | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.III. fdmDateTime | ☑ | ☑ | ☑ | ☑ | ☑ | - |

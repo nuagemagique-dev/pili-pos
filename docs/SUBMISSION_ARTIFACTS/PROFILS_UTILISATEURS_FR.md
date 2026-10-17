@@ -139,7 +139,7 @@ L'enforcement vit à deux niveaux :
    | Personnel | Gérant, Serveur, Apprenti | pointage (S), commandes et lignes, enregistrement de commande (P), commandes en ligne : préparation, "Prête" et retard |
    | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant, commandes en ligne : acceptation, refus, remise, encaissement et clôture |
    | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
-   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | vente clôturée sans paiement, démarrage de l'assistance à distance, création d'un Gérant, PIN d'un autre employé |
+   | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | remise ou article offert à la caisse (et son retrait), vente clôturée sans paiement, démarrage de l'assistance à distance, création d'un Gérant, PIN d'un autre employé |
 
    Une commande refusée renvoie le code `not_logged_in` (aucune
    session) ou `forbidden` (rôle insuffisant) avant tout appel au FDM :
