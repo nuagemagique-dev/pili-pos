@@ -303,6 +303,13 @@ async fn an_invoice_has_a_copy() {
     let no = invoice.invoice_no.unwrap();
     assert!(printed[1].contains(&no) && printed[2].contains(&no));
     assert!(printed[2].contains("COPIE"), "{}", printed[2]);
+    // The copy's own control data sits under the copy label.
+    assert!(
+        printed[2].contains("Informations FDM de la copie"),
+        "{}",
+        printed[2]
+    );
+    assert!(!printed[2].contains("Informations FDM d'origine"));
     assert!(!printed[1].contains("COPIE"));
 }
 

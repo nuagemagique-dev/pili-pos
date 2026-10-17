@@ -343,7 +343,7 @@ pub fn format_invoice(inv: &InvoicePrint) -> Vec<u8> {
 
     // A copy: its own control data and the time it was made.
     if let Some(copy) = &inv.copy {
-        p.textln(l.original_fdm);
+        p.textln(l.copy_fdm);
         p.style(TextStyle {
             font_b: true,
             ..Default::default()
@@ -520,6 +520,13 @@ mod tests {
         assert!(text.contains("COPIE"));
         assert!(text.contains("Copie etablie le 18.10.2026 09:05"));
         assert!(text.contains("Event: C; eventCounter: 2;"));
+        // The C counters sit under the copy's own label, never under the
+        // "original" one, and the I counters stay under the main block.
+        let copy_at = text.find("Informations FDM de la copie :").unwrap();
+        let c_at = text.find("Event: C; eventCounter: 2;").unwrap();
+        let i_at = text.find("Event: I; eventCounter: 3;").unwrap();
+        assert!(i_at < copy_at && copy_at < c_at);
+        assert!(!text.contains("Informations FDM d'origine"));
         // Everything the original shows is still there.
         for line in [
             "Facture nr. 20260001",
