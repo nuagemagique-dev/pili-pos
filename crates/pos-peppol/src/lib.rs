@@ -24,5 +24,5 @@ pub use access_point::{
     StorecoveAccessPoint,
 };
 pub use errors::PeppolError;
-pub use participant::{VatNumber, be_participant_id, parse_vat_number};
+pub use participant::{InvalidVat, VatNumber, be_participant_id, parse_vat_number};
 pub use ubl::{Address, InvoiceSource, InvoiceUbl, LineItem, Party, to_ubl_xml};

@@ -266,7 +266,8 @@ async fn open() -> Rig {
     )
     .unwrap();
 
-    let seed = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../src-tauri/seed_spf_test.sql");
+    let seed = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../src-tauri/seed_spf_test.sql");
     pos_engine::install::init_db(&dir.path().join("data").join("pos.db"), Some(&seed))
         .expect("seed the database");
     let options: EngineOptions = options_for(dir.path());
@@ -341,7 +342,10 @@ async fn a_sale_becomes_an_invoice_delivered_over_the_logging_provider() {
     let customer = e.save_b2b_customer(form()).await.expect("save customer");
     assert_eq!(customer.vat_number, "BE0308357159");
     assert_eq!(customer.country_code, "BE");
-    let found = e.search_b2b_customers("BE0308".into()).await.expect("search");
+    let found = e
+        .search_b2b_customers("BE0308".into())
+        .await
+        .expect("search");
     assert_eq!(found.len(), 1);
 
     let ids = vec![sales[0].fiscal_event_id];
@@ -363,7 +367,10 @@ async fn a_sale_becomes_an_invoice_delivered_over_the_logging_provider() {
     // The sale is invoiced now: a second invoice is refused.
     let again = e.invoice_preview(ids).await.expect("preview");
     assert!(
-        again.problems.iter().any(|p| p.starts_with("invoice_sale_already_invoiced")),
+        again
+            .problems
+            .iter()
+            .any(|p| p.starts_with("invoice_sale_already_invoiced")),
         "{:?}",
         again.problems
     );

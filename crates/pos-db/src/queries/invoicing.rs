@@ -472,11 +472,11 @@ pub fn log_attempt(
     Ok(())
 }
 
-/// The log of one delivery, oldest first: `(attempt, outcome, http_status, detail)`.
-pub fn delivery_log(
-    conn: &Connection,
-    delivery_id: i64,
-) -> rusqlite::Result<Vec<(i64, String, Option<i64>, Option<String>)>> {
+/// One attempt of the log: `(attempt, outcome, http_status, detail)`.
+pub type LogRow = (i64, String, Option<i64>, Option<String>);
+
+/// The log of one delivery, oldest first.
+pub fn delivery_log(conn: &Connection, delivery_id: i64) -> rusqlite::Result<Vec<LogRow>> {
     let mut stmt = conn.prepare(
         "SELECT attempt, outcome, http_status, detail FROM peppol_delivery_log
          WHERE delivery_id = ?1 ORDER BY id",

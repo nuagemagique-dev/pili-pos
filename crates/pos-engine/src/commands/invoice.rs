@@ -576,7 +576,7 @@ fn party_of(c: &Customer) -> InvoiceParty {
 /// A customer form, checked: the VAT number offline, every address field present.
 fn validate_customer(input: &B2bCustomerInput) -> Result<q::NewCustomer, String> {
     let vat = parse_vat_number(&input.vat_number)
-        .map_err(|()| errors::CUSTOMER_VAT_INVALID.to_string())?;
+        .map_err(|_| errors::CUSTOMER_VAT_INVALID.to_string())?;
     let field = |name: &str, value: &str| -> Result<String, String> {
         let v = value.trim();
         if v.is_empty() || v.chars().count() > NAME_MAX_CHARS {
@@ -660,8 +660,7 @@ pub async fn do_lookup_b2b_customer(
     vat_number: &str,
 ) -> Result<CustomerLookup, String> {
     access::operator(state, Access::Cashier)?;
-    let vat =
-        parse_vat_number(vat_number).map_err(|()| errors::CUSTOMER_VAT_INVALID.to_string())?;
+    let vat = parse_vat_number(vat_number).map_err(|_| errors::CUSTOMER_VAT_INVALID.to_string())?;
     let customer = {
         let db = state.db.lock().map_err(errors::internal)?;
         q::find_customer_by_vat(&db, &vat.canonical).map_err(errors::internal)?
@@ -755,7 +754,7 @@ pub fn do_list_invoiceable_sales(
 fn check_sales(
     db: &rusqlite::Connection,
     ids: &[i64],
-) -> Result<(Vec<(SaleDoc, Option<String>)>, Vec<String>), String> {
+) -> Result<(Vec<SaleDoc>, Vec<String>), String> {
     let mut ids = ids.to_vec();
     ids.sort_unstable();
     ids.dedup();
@@ -771,7 +770,7 @@ fn check_sales(
                     errors::INVOICE_SALE_ALREADY_INVOICED,
                     &[("event", &id), ("invoice", &no)],
                 )),
-                None => sales.push((sale, None)),
+                None => sales.push(sale),
             },
             Err(e) => problems.push(e),
         }
@@ -792,9 +791,7 @@ pub fn do_invoice_preview(
     if training {
         problems.insert(0, errors::INVOICE_TRAINING_MODE.to_string());
     }
-    let doc = InvoiceDoc {
-        sales: sales.into_iter().map(|(s, _)| s).collect(),
-    };
+    let doc = InvoiceDoc { sales };
     Ok(InvoicePreview {
         sales: doc.sales.iter().map(|s| invoiceable(s, None)).collect(),
         lines: doc.preview_lines(),
@@ -872,7 +869,7 @@ fn build_ubl(
     facts: &InvoiceFacts<'_>,
 ) -> Result<String, String> {
     let customer_vat = parse_vat_number(&facts.customer.vat_number)
-        .map_err(|()| errors::CUSTOMER_VAT_INVALID.to_string())?;
+        .map_err(|_| errors::CUSTOMER_VAT_INVALID.to_string())?;
     let customer_participant = customer_vat
         .participant_id()
         .ok_or_else(|| errors::CUSTOMER_VAT_INVALID.to_string())?;
@@ -1050,16 +1047,14 @@ pub async fn do_sign_invoice_fiscal(
             .map_err(errors::internal)?
             .ok_or_else(|| errors::CUSTOMER_NOT_FOUND.to_string())?;
         let vat = parse_vat_number(&customer.vat_number)
-            .map_err(|()| errors::CUSTOMER_VAT_INVALID.to_string())?;
+            .map_err(|_| errors::CUSTOMER_VAT_INVALID.to_string())?;
 
         // The sales, each checked again under the lock.
         let (checked, problems) = check_sales(&db, &ids)?;
         if let Some(first) = problems.into_iter().next() {
             return Err(first);
         }
-        let doc = InvoiceDoc {
-            sales: checked.into_iter().map(|(s, _)| s).collect(),
-        };
+        let doc = InvoiceDoc { sales: checked };
         let fdm_refs: Vec<FdmReference> = doc.sales.iter().map(|s| s.fdm_ref.clone()).collect();
 
         // The next ticket number of the I counter, and the continuous invoice number. Both
@@ -1315,7 +1310,7 @@ pub fn do_issue_b2b_invoice(state: &AppState, fiscal_event_id: i64) -> Result<Op
     let customer: InvoiceParty =
         serde_json::from_str(&invoice.customer_json).map_err(errors::internal)?;
     let Some(participant) = parse_vat_number(&customer.vat_number)
-        .map_err(|()| errors::CUSTOMER_VAT_INVALID.to_string())?
+        .map_err(|_| errors::CUSTOMER_VAT_INVALID.to_string())?
         .participant_id()
     else {
         return Ok(None);

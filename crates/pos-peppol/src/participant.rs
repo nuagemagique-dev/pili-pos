@@ -8,6 +8,18 @@
 /// The Peppol scheme of the Belgian enterprise number (CBE/KBO).
 pub const BE_SCHEME: &str = "0208";
 
+/// The typed VAT number does not pass the offline check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InvalidVat;
+
+impl std::fmt::Display for InvalidVat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("invalid VAT number")
+    }
+}
+
+impl std::error::Error for InvalidVat {}
+
 /// A VAT number that passed the offline check, in its canonical spelling.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VatNumber {
@@ -58,26 +70,26 @@ pub fn be_participant_id(vat: &str) -> String {
 /// number is `BE` and 10 digits (a legacy 9-digit number gets its leading 0) with valid
 /// check digits. A foreign number is a two-letter country prefix and 2 to 13 alphanumerics.
 /// A number without a prefix is read as Belgian.
-pub fn parse_vat_number(input: &str) -> Result<VatNumber, ()> {
+pub fn parse_vat_number(input: &str) -> Result<VatNumber, InvalidVat> {
     let cleaned: String = input
         .chars()
         .filter(|c| !matches!(c, ' ' | '.' | '-' | '/'))
         .flat_map(char::to_uppercase)
         .collect();
     if cleaned.is_empty() || !cleaned.is_ascii() {
-        return Err(());
+        return Err(InvalidVat);
     }
     let starts_with_letters = cleaned.as_bytes()[0].is_ascii_alphabetic();
     let (country, rest) = if starts_with_letters {
         if cleaned.len() < 4 {
-            return Err(());
+            return Err(InvalidVat);
         }
         cleaned.split_at(2)
     } else {
         ("BE", cleaned.as_str())
     };
     if !country.bytes().all(|b| b.is_ascii_uppercase()) {
-        return Err(());
+        return Err(InvalidVat);
     }
     if country == "BE" {
         let digits = if rest.len() == 9 {
@@ -86,7 +98,7 @@ pub fn parse_vat_number(input: &str) -> Result<VatNumber, ()> {
             rest.to_string()
         };
         if !is_valid_be_enterprise_number(&digits) {
-            return Err(());
+            return Err(InvalidVat);
         }
         return Ok(VatNumber {
             country: "BE".to_string(),
@@ -94,7 +106,7 @@ pub fn parse_vat_number(input: &str) -> Result<VatNumber, ()> {
         });
     }
     if !(2..=13).contains(&rest.len()) || !rest.bytes().all(|b| b.is_ascii_alphanumeric()) {
-        return Err(());
+        return Err(InvalidVat);
     }
     Ok(VatNumber {
         country: country.to_string(),
