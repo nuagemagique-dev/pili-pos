@@ -1,10 +1,10 @@
-# Rapports de ventes non fiscaux (version 1.1)
+# Rapports de ventes non fiscaux
 
-Document de travail du dossier de la mise à jour v1.1. Il répond à la question du manuel de
+Annexe du dossier de certification de la version 1.0.0. Elle répond à la question du manuel de
 certification, section L « Rapports » : « Le POS dispose-t-il d'autres rapports que les rapports
 obligatoires X et Z ? Si oui uniquement : veuillez les décrire et montrer comment ils correspondent
 aux montants des rapports fiscaux. Veuillez également fournir les requêtes utilisées. » La réponse
-de la version 1.0.0 était **NON**. Elle devient **OUI** avec la version 1.1, pour un seul rapport :
+est **OUI**, pour un seul rapport :
 le **rapport de ventes**, un document de gestion **non fiscal**. Il répond aussi à la FAQ des
 producteurs, question 508 : un rapport interne doit être cohérent avec les données des rapports Z
 fiscaux.
@@ -22,7 +22,7 @@ de contrôle, aucune écriture dans une table. Il lit uniquement ce qui est déj
 | Par heure | Les heures (heure de Bruxelles lue dans `posDateTime`) où il y a eu des ventes, avec le nombre de tickets, le montant et une barre proportionnelle. L'ordre commence à l'heure de fin de journée de l'installation (`day_end_hour`), puisque la journée commerciale commence là. |
 | Concordance | Pour chaque période comptable de la plage : le numéro du rapport Z qui l'a clôturée, le montant des ventes recalculé, le chiffre d'affaires N que ce Z a imprimé, et une marque : « identique », « écart de x,xx € », ou « période en cours (pas encore de Z) ». |
 | Totaux | Nombre de tickets (remboursements compris), total des ventes, dont remboursements ; modifications de prix de niveau ticket ; arrondi de caisse (affiché à part, **hors total**, voir plus bas). |
-| Écran | Quatrième onglet « Ventes » de l'écran Rapports, identique sur la caisse Linux et sur la caisse portable Android, en français, néerlandais, anglais et chinois à l'écran. |
+| Écran | Quatrième onglet « Ventes » de l'écran Rapports, en français, néerlandais, anglais et chinois à l'écran. |
 | Impression | Bouton « Imprimer » : même contenu sur l'imprimante de tickets, sous le titre RAPPORT DE VENTES et DOCUMENT NON FISCAL. Pieds de page : « CECI N'EST PAS UN RAPPORT FISCAL » et « CECI N'EST PAS UN TICKET DE CAISSE TVA VALABLE ». Aucun contrôle de signature, aucun QR code, aucun numéro de ticket fiscal. |
 | Droits | Gérant seulement (comme les rapports X et Z). |
 
@@ -119,4 +119,4 @@ dernier contrôle par la marque de concordance de chaque période.
 | `a_gap_with_the_z_is_shown_and_two_zs_on_one_date_are_two_rows` | Écart affiché, deux Z le même jour = deux lignes |
 | `the_range_is_limited_to_92_days`, `only_a_manager_may_read_or_print_it` | Plage et droits |
 | `crates/pos-print/src/sales_report.rs` (tests) | Titre, deux mentions de pied, aucun mot des rapports fiscaux dans le titre |
-| `ui/e2e/sales-report.spec.ts`, `SalesViewModelTest`, `SalesContentTest` | Les deux écrans : plages, tableaux, barres, concordance, impression |
+| `ui/e2e/sales-report.spec.ts` | L'écran : plages, tableaux, barres, concordance, impression |

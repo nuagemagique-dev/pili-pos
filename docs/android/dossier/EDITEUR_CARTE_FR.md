@@ -1,9 +1,9 @@
-# Éditeur de carte à l'écran (version 1.1)
+# Éditeur de carte à l'écran
 
-Document de travail du dossier de la mise à jour v1.1. Il décrit l'éditeur de carte : un
+Annexe du dossier de certification de la version 1.0.0. Elle décrit l'éditeur de carte : un
 gérant crée et modifie les catégories, les produits, les groupes d'options et les options
-directement à la caisse, sans passer par un catalogue externe. Il remplace les §3 à §5 de
-`MANUEL_PROGRAMMATION_FR.md` pour la v1.1. La fonction n'a **aucun effet fiscal** : elle ne
+directement à la caisse, sans passer par un catalogue externe. Elle complète les §3 à §5 de
+*MANUEL_PROGRAMMATION_FR.md*. La fonction n'a **aucun effet fiscal** : elle ne
 produit aucun événement, ne touche à aucun compteur et ne modifie ni un ticket, ni un rapport,
 ni une commande en cours (voir le §4).
 
@@ -71,6 +71,15 @@ nom, le prix (9,90 EUR) et la TVA du produit ainsi que le nom de la catégorie. 
 les lignes déjà saisies sont intactes, que l'événement P signé est identique octet pour octet,
 que la vente N signée ensuite porte encore le nom, le département, le prix unitaire, l'étiquette
 de TVA et le total d'origine, et qu'une nouvelle commande utilise bien les nouvelles valeurs.
+
+Un cas particulier concerne les rapports X et Z. Le nom du département d'une vente est celui de
+la catégorie **au moment où la ligne a été ajoutée** (instantané ci-dessus) ; le rapport regroupe
+les ventes par identifiant **et** par nom de département. Si un gérant renomme une catégorie
+au milieu d'une période comptable, les ventes de cette catégorie faites avant et après le
+changement apparaissent donc sur **deux lignes du même identifiant de département** (l'ancien
+et le nouveau nom) dans les rapports X et Z de la période. Les montants et les totaux ne
+changent pas : seule la ventilation par nom est scindée. Recommandation d'exploitation : renommer
+une catégorie après le rapport Z, jamais en cours de période.
 
 ## 5. Tests
 

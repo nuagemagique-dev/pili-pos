@@ -1,6 +1,6 @@
-# Produit épuisé (version 1.1)
+# Produit épuisé
 
-Document de travail du dossier de la mise à jour v1.1. Il décrit la fonction « Épuisé » : un
+Annexe du dossier de certification de la version 1.0.0. Elle décrit la fonction « Épuisé » : un
 caissier ou un gérant déclare qu'un produit n'est plus disponible, la caisse refuse alors de
 l'ajouter à une commande, et, si la caisse est reliée à HubRise, l'état du produit est transmis
 au stock en ligne. La fonction n'a **aucun effet fiscal** : elle ne produit aucun événement,
@@ -20,9 +20,7 @@ ne touche à aucun compteur et ne modifie ni un ticket ni un rapport.
 
 L'apprenti (profil sans droit d'encaissement) voit les produits grisés et le message
 de refus, mais n'a ni le bouton « Épuisé » ni la liste : le moteur refuse ces commandes à un
-profil qui ne peut pas encaisser. Les deux écrans (caisse Linux et caisse portable Android)
-offrent les mêmes boutons, les mêmes textes (français, anglais, chinois) et le même
-comportement.
+profil qui ne peut pas encaisser. L'écran est disponible en français, en anglais et en chinois.
 
 ## 2. Règle appliquée par le moteur
 
