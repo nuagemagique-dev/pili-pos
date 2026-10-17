@@ -54,3 +54,15 @@ checks, end of shift); the screen only calls it through the shared stores and th
   bundled brand font and logo asset land (PD106).
 - **Fonts and sizes.** Text sizes use the theme tokens only; the Vue sizes that have no token (40, 26, 18 px) use the
   nearest token or a multiple of one.
+- **Badge scan on the login screen (lane 5-nfc, Vue side).** The scan handling is global (`stores/badge.ts`, one
+  capture-phase keyboard listener while the reader is `usb`, installed before any other keyboard listener); the login
+  screen only adds three things. (1) The hint `login_badge_hint` ("Ou présentez votre badge", tag `badge-login-hint`)
+  under the tiles, when the reader is on and badge login is enabled. (2) Its "Fin de service" mode is mirrored into
+  the store (`endShiftMode`), so a scan in that mode is sent as `badge_tap(token, true)`; the pad shows
+  `end_shift_badge_hint` (tag `end-shift-badge-hint`) while the reader is on, and closes when the scan registered a
+  departure. (3) The outcome `pin_required` (a manager's badge) selects that manager's tile and opens their PIN
+  pad (the same path as a tap on the tile, so a manager without a PIN still gets the first-PIN dialog); a badge never
+  opens a manager session. The outcome `logged_in` stores the user and goes where a PIN login goes
+  (`goAfterLogin`). A registered arrival or departure reloads the tiles' shift state. Refusals and presence toasts are
+  the ones of the whole app (`badge_clock_in`, `badge_clock_out`, `badge_presence_failed`, the `err_` texts) with a
+  high or a low tone (Web Audio on Vue, `AudioTrack` on Android).

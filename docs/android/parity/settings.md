@@ -62,3 +62,25 @@ screen only calls it through the shared stores and the gateway.
 - **Layout.** Three columns on a window of 900 dp or more (training, language, product label and the rows; the
   employees; the information, the HubRise switch, the HubRise panel and the deliveries), a single scrolling column
   otherwise. The third column scrolls as a whole instead of each panel growing and scrolling inside.
+- **Badge reader and badges (lane 5-nfc, Vue side).** Managers only (the engine refuses the commands to the others,
+  the panel is not drawn for other roles). Vue: `components/BadgeSettings.vue` is a panel at the end of the third column, folded by default (its
+  header, tag `badge-toggle`, shows the reader and unfolds it: it must not squeeze the other panels of the column), with `get_badge_settings` / `set_badge_settings` / `list_badges` over `stores/badge.ts`. It
+  offers two reader choices, "Désactivé" and "Lecteur USB" (no built-in NFC on Linux); a stored `nfc` value
+  selects neither and shows `settings_badge_nfc_unavailable`. With a reader on, the "Connexion par badge" switch and
+  its note appear; with the USB reader the three timing fields (gap, minimum and maximum length) are typed on the
+  `NumPad` and applied by one "Enregistrer" button (the reader and the switch apply at the tap, each one sends the
+  whole `BadgeSettingsInput`). A refusal shows its `err_` text and the stored values come back. The `relinkNeeded`
+  banner, the privacy note and the six latest `badge_log` rows (action, name, manager, Brussels time) close the panel.
+  Test tags: `badge-settings`, `badge-login-switch`, `badge-wedgeMaxGapMs`, `badge-wedgeMinLen`,
+  `badge-wedgeMaxLen`, `badge-timing-save`, `badge-nfc-unavailable`, `badge-relink`, `badge-error`, `badge-log`.
+  The Android screen has the same content plus a third choice, "NFC intégré", drawn only when the device reports
+  `FEATURE_NFC` (and `settings_badge_nfc_disabled` when the adapter is off).
+- **Employees and badges (lane 5-nfc, Vue side).** While the reader is on, a manager sees on every row "Badge lié le
+  JJ/MM/AAAA" or "Aucun badge" (`badge-state`) and one button (`badge-btn`): "Lier un badge" or "Retirer le badge".
+  Linking opens `BadgeEnrolDialog.vue`: "Présentez le badge de {name}" with "Retour", the next scan is captured (never
+  sent as a tap), 30 seconds at most (then the toast `badge_capture_timeout`), then the existing PIN dialog asks for the
+  MANAGER's own PIN and `link_badge(employeeInsz, token, operatorPin)` runs; success shows "Badge lié · {name}".
+  A wrong PIN keeps the dialog; any other refusal (`badge_in_use`, `badge_already_linked`...) closes it with the error
+  toast. Removing asks a confirmation dialog first (`badge-revoke-dialog`, `badge-revoke-confirm`), then
+  `revoke_badge` and the toast "Badge retiré · {name}". The list and the log are read again after every change, and
+  the employees are read again after a registered scan (`presenceVersion`).
