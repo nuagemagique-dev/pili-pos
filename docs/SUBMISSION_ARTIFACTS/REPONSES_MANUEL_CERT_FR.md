@@ -30,7 +30,7 @@ Convention :
 
 | Item | Réponse |
 |---|---|
-| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **à l'exclusion de M150 (event I, hors périmètre v1.0.0, cf. §III.F)**. Nombre exact d'UC couverts par les preuves d'annexe : 17 UC dans le périmètre v1.0.0 (14 du Basic Set : M110, M111, M112B, M121, M123, M130, M131, M140, M141, M160, M161, M170, M171, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`, M150 exclu). |
+| ☑ Document PDF complété | Voir `RESULTATS_TESTS_UC_FR.pdf` (annexe). Couvre les UC du Basic Set + Reports avec JSON request, JSON response et ticket pour chaque UC, **M150 (event I) compris** et les deux UC de facture de l'Advanced Set (UC4121 et UC4122). Nombre exact d'UC couverts par les preuves d'annexe : 18 UC du Basic Set et de Reports (15 du Basic Set : M110, M111, M112B, M121, M123, M130, M131, M140, M141, M150, M160, M161, M170, M171, M172 ; 3 de Reports : M180, M182, M184 ; `docs/SUBMISSION_ARTIFACTS/evidence/uc/`), plus UC4121 et UC4122. |
 
 ## §I.C Manuels du POS
 
@@ -269,7 +269,7 @@ Remarques point I (matériel) : aucune option exotique. Configuration mono-termi
 
 | Item | Réponse |
 |---|---|
-| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Trois connexions sortantes sont possibles, chacune seulement quand elle est activée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com` ; (c) si un terminal de paiement relié est configuré (`pos.json::payment_terminal`, §III.F), en HTTPS (443) vers le nuage du fournisseur (Worldline ou CCV) ou, pour OPI, en TCP vers le terminal sur le LAN du restaurant (aucune sortie Internet). Sans ces trois configurations, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
+| Le POS nécessite une connexion Internet | ☐ Non par défaut (le POS communique uniquement avec le FDM sur le LAN local). Toutefois, le FDM lui-même nécessite Internet pour communiquer avec SPF Finances. Quatre connexions sortantes sont possibles, chacune seulement quand elle est activée : (a) si le ticket numérique par e-mail est configuré (`pos.json::digital_ticket`, §III.H), vers `api.scaleway.com` pour l'envoi des e-mails ; (b) si les commandes en ligne sont activées (`pos.json::hubrise_enabled`, coupé par défaut donc coupé sur la machine de test, §III.M), vers `api.hubrise.com` (commandes reçues, statuts, catalogue, ventes de la caisse sans données de client) et, le temps de l'autorisation du compte HubRise par le Gérant (OAuth), vers `manager.hubrise.com` ; (c) si un terminal de paiement relié est configuré (`pos.json::payment_terminal`, §III.F), en HTTPS (443) vers le nuage du fournisseur (Worldline ou CCV) ou, pour OPI, en TCP vers le terminal sur le LAN du restaurant (aucune sortie Internet) ; (d) si l'envoi des factures sur Peppol est configuré (section `peppol` de `pos.json`, absente par défaut donc absente sur la machine de test), en HTTPS (443) vers le point d'accès Peppol (`peppol.base_url`, `api.storecove.com`), pour un client belge seulement, sans que la facture en dépende (*FACTURATION_PEPPOL_FR.md*). Sans ces quatre configurations, aucun trafic sortant n'est initié par le POS lui-même au-delà du FDM. |
 | La connexion Internet peut se faire par | ☑ Ethernet (recommandé pour fiabilité) - ☐ Wifi (techniquement possible, déconseillé en production) |
 | Besoins spécifiques pour la mise en place du réseau | IP statique pour le FDM (réservation DHCP recommandée). Aucun port entrant à ouvrir sur le POS. Le POS ouvre une connexion sortante TCP vers l'IP/port GraphQL du FDM, et, seulement si elles sont activées, des connexions sortantes HTTPS (443) vers `api.scaleway.com` (ticket numérique configuré) et vers `api.hubrise.com` (`hubrise_enabled`, plus `manager.hubrise.com` pour l'autorisation OAuth) ; avec un terminal de paiement relié, HTTPS (443) vers le nuage du fournisseur ou TCP vers le terminal sur le LAN (OPI : le canal 1 du terminal se connecte à la caisse sur `device_port`, 4102 par défaut). RustDesk (accès distant du distributeur, §II.E) ouvre lui aussi une connexion sortante, mais uniquement quand un Gérant démarre une session depuis la caisse - jamais au démarrage du terminal. |
 
@@ -339,7 +339,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 | S - Social | Obligatoire (☑) | N/A | N/A | N/A |
 | P - Pro Forma | ☑ | ☑ | ☐ (pas câblé sur `sign_table_order`/`sign_pre_bill` en v1.0.0) | ☑ (via M161 signCopy_Order) |
 | T - Mode Training | ☑ | ☑ (avec watermark TRAINING) | ☑ (même commande `checkout::checkout`, mentions TRAINING conservées) | ☑ (via M172 signCopy_Training) |
-| I - Invoice | ☐ non disponible en v1.0.0 (mise à jour certifiée prévue v1.1) | ☐ | ☐ | ☐ |
+| I - Invoice | ☑ (M150, UC4121, UC4122 ; `invoice::do_sign_invoice_fiscal`) | ☑ (facture papier, sans signature numérique ni QR, AM art. 43) | ☑ (document UBL envoyé sur Peppol : client belge, installation avec section `peppol`) | ☑ (événement C sur l'événement I, gérant) |
 | C - Copy | ☑ (M160/M161/M172) | ☑ | ☑ (e-mail, `copy::copy_ticket` - sans lien/QR, le FDM ne renvoie pas de `verificationUrl` pour C) | Interdit (par la spec) |
 | F - Financial | ☑ (M130 money_in_out, M131 drawer_open) | ☐ (events F sont non-imprimés en standard) | ☐ | ☐ |
 
@@ -473,8 +473,8 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Division de table | ☐ | - | Idem |
 | Division d'addition (parts égales) | ☐ | - | Idem |
 | Division d'addition (montants égaux) | ☐ | - | Idem |
-| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` : HubRise est dans le binaire, seul `peppol` en est absent, voir `src-tauri/Cargo.toml`). Mise à jour certifiée prévue v1.1 *Voir : DECISION_PEPPOL_AP_FR.md* |
-| Note de crédit | ☐ | - | Reporté avec Peppol / event I (cf. *FLUX_REMBOURSEMENT_FR.md* §3) |
+| Invoice (I) | ☑ | M150 | Disponible dans tous les binaires (aucune fonction Cargo) : facture à un client professionnel à partir de ventes déjà encaissées, numérotation continue, impression, copie, journal (art. 33), envoi Peppol. *Voir : FACTURATION_PEPPOL_FR.md* et *DECISION_PEPPOL_AP_FR.md* |
+| Note de crédit | ☑ | UC4122 | Pas de note de crédit autonome : un remboursement (N négatif) se reprend sur une facture ; *voir FLUX_REMBOURSEMENT_FR.md* §3 |
 | Copy (C) | ☑ | M160 | OK |
 | Training (T) | ☑ | M171 | OK |
 | Gestion des cash flows | ☑ | M130 | OK |
@@ -513,13 +513,12 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 
 ### Remarque importante - facturation B2B Peppol
 
-À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Cette obligation est **hors périmètre de la build cert v1.0.0** de `pili-pos` :
+À partir du 01.01.2026, toutes les factures B2B doivent être émises via le réseau Peppol (BIS Billing 3.0). Comment `pili-pos` s'y conforme (API du POS vers un point d'accès Peppol) :
 
-- **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active pas `peppol`, mais active `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
-- **Table d'audit** `peppol_deliveries` existe dans le schéma pour une activation future, mais n'est alimentée par aucun flux en v1.0.0.
-- **Mise à jour certifiée prévue v1.1** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
-
-**En attendant v1.1**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `pili-pos`**, via l'outil de comptabilité/facturation du restaurant. `pili-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
+- **Facture** : l'événement fiscal **I** est signé par le module de contrôle à partir de ventes déjà encaissées, puis la facture est imprimée sur papier (*FACTURATION_PEPPOL_FR.md*). La fonction est dans tous les binaires de la version 1.0.0.
+- **Envoi** : pour un client belge et dans une installation qui a une section `peppol`, le **sérialiseur UBL 2.1** (BIS Billing 3.0, `crates/pos-peppol`) produit le document, mis en file dans `peppol_deliveries` puis envoyé au **point d'accès** (API Storecove v2, *DECISION_PEPPOL_AP_FR.md*), avec nouvelles tentatives et journal en ajout seul (`peppol_delivery_log`). L'envoi ne bloque jamais la facture : sans réseau, elle est établie et imprimée, l'envoi attend dans la base. Un client étranger reçoit la facture imprimée seulement.
+- **Non-conformité** : une installation sans section `peppol` imprime la facture mais ne l'envoie pas ; la section `peppol` est une condition de mise en service d'une installation qui facture des clients professionnels belges (*MANUEL_INSTALLATION_FR.md*). Le logiciel ne désactive pas lui-même la facture dans ce cas (le manuel de certification demande de désactiver l'émission en cas de non-conformité : l'exploitant ne doit pas facturer de client belge assujetti sans la section).
+- **Réserve** : le point d'accès n'a été exercé que contre un simulateur local ; l'essai sur le bac à sable du fournisseur reste à faire par l'exploitant avant la mise en service (*DECISION_PEPPOL_AP_FR.md*).
 
 ## §III.G CostCenterChange (Gestion de Table)
 
@@ -615,7 +614,8 @@ l'implémentation, la table exigence → code → test, et
 | Rapports Z : Un seul rapport par BookingDate | ☑ Oui (la clôture Z incrémente `bookingDate` ; deux Z dans la même journée fiscale sont refusés au niveau applicatif) |
 | Rapports Financier Z et Utilisateurs Z : sont-ils liés et émis ensemble ? | ☑ Oui (M184 - mutation GraphQL aliasant `signReportTurnoverZ` + `signReportUserZ` dans une seule opération atomique - cf. *COUVERTURE_RAPPORTS_FR.md* §M184) |
 | Rapports Financier Z et Utilisateurs Z : sont-ils émis automatiquement ? | ☑ Oui, en filet de sécurité. Le Z normal est celui du Gérant (« Fin de journée », après recompte de caisse). Si une journée reste ouverte sans Z, la caisse la clôture seule (`commands/report.rs::close_overdue_day`, au démarrage puis chaque minute, une fois la journée passée selon `day_end_hour`) avec le même Z combiné, signé au nom de l'identité système `00000000029` (FAQ Q501c, test `crates/pos-engine/tests/spf_e2e_auto_z.rs`). Tant que ce Z n'est pas fait, aucun nouvel événement n'entre dans l'ancienne journée. Pas de Z automatique en mode formation ni pour une journée sans événement ; si le FDM est injoignable, le Z est retenté à la minute suivante. |
-| Le POS dispose-t-il d'autres rapports que les rapports obligatoires X et Z ? | ☐ Non. Seuls X (turnover + user) et Z (turnover + user) sont implémentés. |
+| Le POS dispose-t-il d'autres rapports que les rapports obligatoires X et Z ? | ☑ Oui, un seul : le **rapport de ventes**, document de gestion **non fiscal** (par produit, par heure, avec concordance avec les rapports Z). Il ne signe rien, n'ajoute aucun événement et ne touche à aucun compteur. |
+| Description du rapport, correspondance avec les montants fiscaux, requêtes utilisées | *Voir : RAPPORTS_VENTES_FR.md* §1 (description), §2 (correspondance avec les rapports Z : total des ventes = chiffre d'affaires N du Z) et §3 (requêtes) |
 | Calcul des totaux (turnover, users, posDevices, fdmDevices) | Calculés par `crates/pos-fiscal/src/report_totals.rs` **exclusivement à partir des événements fiscaux archivés et signés** de la période d'ouverture en cours (`booking_periods`, cf. §III.J), jamais des tables `orders`/`order_lines`/`payments` mutables - conforme POS v2.2 §2.2.2. Détail : `departments`, `payments` et `negQuantities` sont calculés à partir des événements N uniquement ; `vats` est la somme du `vatCalc` renvoyé par le FDM pour chaque N (repli sur les taux standard A/B/C si absent) ; `users[].totalAmount` est la somme des `transactionTotal` des N de l'employé, et la plage d'activité (`first`/`lastPosDateTime`) couvre tous ses événements **sauf** les rapports R eux-mêmes. Chaque moyen de paiement a son propre `financials.id` (spec §2.2.2) - `"1"` espèces, `"2"` carte - pour que les rapports les distinguent. Tous les montants sont additionnés en centimes (pas de flottants) pour éviter la perte de centime observée avant ce correctif (3,04 € devenait 3,03 €). |
 | Rapport Z en mode formation | ☐ Un Z de formation **ne consomme pas de numéro de Z** et **ne clôture pas** la période d'ouverture (`booking_periods` reste ouverte) - cohérent avec le principe que les événements T ne comptent jamais fiscalement. |
 | Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20260821_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`crates/pos-engine/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc pili-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Sans terminal de paiement relié, les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement) ; avec un terminal relié, le terminal rend le type de carte (`CARD_DEBIT`, `CARD_CREDIT` ou `CARD_UNKNOWN`, ids "2", "6" et "7"), compté à part dans les rapports. |
@@ -670,7 +670,7 @@ Le manuel comprend une procédure de test détaillée par mutation (M110, M111, 
 **Statut pili-pos :**
 
 - Les 22 UC du Basic Set v1.8, les 5 UC de Reports v1.3 et les 141 fixtures (59 UC) de l'Advanced Set v1.6 sont chargées et parsées par les tests automatisés (*Voir : COUVERTURE_FIXTURES_FR.md, COUVERTURE_RAPPORTS_FR.md, COUVERTURE_ADVANCED_SET_FR.md*).
-- Dans le Basic Set, 18 des 22 UC ont un test automatisé ; les 4 autres sont exclues et déclarées : M150 (event I), M122 et M132, hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 17 UC (14 Basic Set, 3 Reports) sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
+- Dans le Basic Set, 19 des 22 UC ont un test automatisé (M150 compris) ; les 3 autres sont exclues et déclarées : M122 et M132, hors périmètre ; M112A, non applicable (le remboursement partiel est toujours émis en ticket séparé, M112B). Dans Reports, M180 à M184 ont des tests de fixtures (M181 et M183 par le Z combiné M184) et les 8 tickets T1 à T8 sont rejoués. Les tests e2e applicatifs (commande Tauri → tx SQLite → archive) rejouent ces UC avec la requête construite par pili-pos ; les JSON de 18 UC (15 Basic Set dont M150, 3 Reports), plus UC4121 et UC4122, sont dans `evidence/uc/`. *Voir : RAPPORT_TESTS_BASELINE_FR.md*.
 - **Document détaillé par UC** avec JSON request/response et ticket : *Voir : RESULTATS_TESTS_UC_FR.pdf*.
 
 Récap mappings UC <-> commande Tauri <-> test :
@@ -688,16 +688,13 @@ Récap mappings UC <-> commande Tauri <-> test :
 | M141 | signWorkOut | `social::work_out` | `spf_e2e_basic::m141_*` |
 | M160 | signCopy | `copy::copy_ticket` | `spf_e2e_basic::m160_*` |
 | M170/171/172 | signSale/Copy training | (mêmes commandes, flag is_training) | `spf_e2e_basic::m170_*` / `m171_*` / `m172_*` |
-| M150 | signInvoice | `invoice::sign_invoice_fiscal` | `spf_e2e_basic::m150_*` |
+| M150 | signInvoice | `invoice::do_sign_invoice_fiscal` | `spf_e2e_fixtures::m150_invoice`, `spf_e2e_basic::m150_*` |
 | M161 | signCopy (commande P) | `copy::copy_ticket` | `spf_e2e_basic::m161_*` |
 | M180 | signReportTurnoverX | `report::generate_x_report` | `spf_e2e_reports::m180_*` |
 | M182 | signReportUserX | `report::generate_user_x_report` | `spf_e2e_reports::m182_*` |
 | M184 (Z combiné) | signReportTurnoverZ + signReportUserZ (un document) | `report::generate_z_report` | `spf_e2e_reports::m184_*` |
 
-La ligne M150 ci-dessus décrit la couverture de test (code + e2e réels,
-sous les features par défaut) ; elle n'implique pas que l'événement I
-soit disponible dans la build cert v1.0.0 soumise - voir §III.F et
-*DECISION_PEPPOL_AP_FR.md*.
+Les cas de facture de l'Advanced Set (UC4121, UC4122) sont rejoués par `invoice_advanced.rs` (*RESULTATS_TESTS_UC_FR.md*).
 
 ## §IV - Arrondissement des méthodes de paiement
 
@@ -838,9 +835,23 @@ Les libellés FR sont ceux de la loi : arrêté royal du 30 décembre 2009, art.
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
+*Voir : FACTURATION_PEPPOL_FR.md* §4 (impression) et *DECISION_PEPPOL_AP_FR.md*. `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture continu, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice`, archive l'événement I et imprime la facture (`crates/pos-print/src/invoice.rs`). Les 11 éléments obligatoires (a-k) de la facture imprimée :
 
-Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de mise à jour v1.1, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
+| Réf. | Objet | Réponse |
+|---|---|---|
+| a | Le titre « FACTURE » | ☑ FACTURE (néerlandais FACTUUR, allemand RECHNUNG selon la langue de l'installation) |
+| b | Nom | ☑ Nom du vendeur et du client |
+| c | Adresse | ☑ Adresse du vendeur et du client |
+| d | Numéro d'identification à la T.V.A | ☑ Numéro de TVA du vendeur et du client |
+| e | Référence au(x) numéro(s) de ticket(s) original/originaux (FdmRefs array) | ☑ Liste « Tickets d'origine » : identifiant du module de contrôle, label, compteurs, numéro et date de chaque ticket |
+| f | Quantité | ☑ Quantité de chaque ligne (négative sur un remboursement) |
+| g | Nature des bien(s) et service(s) | ☑ Désignation de chaque ligne des tickets d'origine |
+| h | Prix TVA incluse, base imposable, taux de TVA appliqué, montant de la TVA | ☑ Prix TVA incluse et code de TVA par ligne ; base, TVA et total par taux dans le tableau de TVA |
+| i | Ventilation du montant de la TVA à payer par taux de TVA | ☑ Tableau de TVA par taux (TVA calculée par le module de contrôle pour les tickets) |
+| j | Mention « Ceci n'est pas un ticket de caisse T.V.A valable » | ☑ « CECI N'EST PAS UN TICKET DE CAISSE T.V.A. VALABLE » (néerlandais et allemand : voir les libellés) |
+| k | Le pied de page FDM : FdmId, FdmDateTime, eventLabel, eventCounter, totalCounter, shortSignature | ☑ pour les cinq premiers éléments (événement I). `shortSignature` : non applicable, la réponse du module de contrôle à un événement I n'en porte pas (fixture M150) et l'article 43 de l'arrêté ministériel prévoit que la signature numérique n'est pas mentionnée sur les impressions autres que le ticket de caisse T.V.A. ; par prudence, le code QR est omis aussi |
+
+Les autres points du manuel (testing de la facture) : cohérence des montants et des numéros de ticket avec les tickets d'origine (☑, lignes et TVA lues dans l'archive signée) ; numérotation unique et continue (☑, `<année><séquence>` sans trou) ; document de sortie (☑, la facture papier et le document UBL conservé dans `peppol_deliveries.ubl_xml` ; la base est l'export, vue `v_invoice_journal`) ; impression papier, numérique ou les deux (☑, papier ; UBL sur Peppol pour un client belge) ; montant présenté hors TVA (☑, base imposable et TVA par taux).
 
 ---
 
@@ -872,7 +883,7 @@ Recap des réponses clés DAS (extrait, le détail est dans l'annexe) :
 | Date de certification | (à compléter par le SPF Finances) |
 | Agent de certification | (à compléter par le SPF Finances) |
 | SCE basé sur un système Cloud | ☐ Non |
-| Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`) - §III.B |
+| Connexion internet requise | ☐ Non par défaut (le POS parle au FDM sur le LAN ; seul le FDM nécessite Internet). Sorties HTTPS (443) optionnelles, seulement si activées : `api.scaleway.com` (ticket numérique), `api.hubrise.com` et `manager.hubrise.com` (commandes en ligne, `hubrise_enabled`), point d'accès Peppol `api.storecove.com` (envoi des factures, section `peppol`) - §III.B |
 | Connexion avec des logiciels externes (commande en ligne) | ☑ Oui : HubRise, coupé par défaut (`hubrise_enabled`, activé par installation par un Gérant) ; *COMMANDES_EN_LIGNE_FR.md* |
 | Connexion POS-FDM | ☑ Ethernet |
 | Périphériques supplémentaires | ☐ Non |
@@ -959,6 +970,10 @@ Dans le texte des annexes, un renvoi à `NOM_FR.md` désigne l'annexe `NOM_FR.pd
 | 31 | GARANTIE_MAJ_LANGUES_FR.pdf | §II.E + §VI (langue du ticket) |
 | 32 | TICKET_NUMERIQUE_FR.pdf | §III.H |
 | 33 | COMMANDES_EN_LIGNE_FR.pdf | §III.M + livraison, commandes en ligne |
+| 34 | FACTURATION_PEPPOL_FR.pdf | §III.F (facture B2B, Peppol), §III.B |
+| 35 | EDITEUR_CARTE_FR.pdf | §I.C (édition de la carte), §III |
+| 36 | PRODUIT_EPUISE_FR.pdf | §III (produit épuisé) |
+| 37 | RAPPORTS_VENTES_FR.pdf | §III.L (autre rapport, non fiscal) |
 
 Plus :
 - `20250115_FORMULAIRE DEMANDE_CERTIF_POS-FDM_signe.pdf` - formulaire SPF rempli et signé.

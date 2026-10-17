@@ -278,6 +278,7 @@ on refait un lot signé et on le réimporte.
 | `kitchen_printer_address` | Facultatif. Imprimante du bar ou de la cuisine (« BON DE COMMANDE » sans prix) ; absent : le bon sort sur `printer_address`. | Configuration imprimante |
 | `training_mode` | `false` en production, **à ne jamais laisser `true`**. Valeur de départ : un Gérant peut changer le mode dans « Config » (§4.7). | Distributeur |
 | `hubrise_enabled`, `hubrise` | Facultatifs. Commandes en ligne (`COMMANDES_EN_LIGNE_FR.md`) : `hubrise_enabled` à `true` et bloc `hubrise` (`client_id`, `client_secret_file` relatif au lot). Connexion ensuite par un Gérant : « Config », panneau « HubRise », code QR puis code d'autorisation. | Client |
+| `peppol` | Facultatif. Envoi des factures B2B sur le réseau Peppol (`FACTURATION_PEPPOL_FR.md`, `DECISION_PEPPOL_AP_FR.md`) : `provider` (`storecove` obligatoire en production), `base_url`, `api_key_file` (fichier du lot contenant la seule clé de l'API, chemin relatif au lot), `legal_entity_id`, `sender_id` (`0208:` et le numéro d'entreprise à 10 chiffres), `supplier_street`, `supplier_postal_code`, `supplier_city`, `supplier_country` (`BE` par défaut). Sans cette section, une facture est établie et imprimée mais n'est pas envoyée. | Client |
 | `table_count` | Nombre de tables du plan de salle, à partir de 1 ; défaut `20`. | Client |
 | `day_end_hour` | Heure belge (0 à 12) de fin de journée commerciale ; défaut `5`. Une journée restée ouverte au-delà est clôturée par un rapport Z automatique (FAQ producteurs Q501). | Client |
 | `language` | Langue par défaut de l'interface : `fr`, `nl`, `de`, `en`, `zh`. Les mentions fiscales imprimées suivent cette clé, restreinte à fr/nl/de (toute autre valeur : FR). | Client |
@@ -488,7 +489,7 @@ Avant de quitter le site :
 
 Le technicien seul modifie l'identité et le réseau (`pos_id`,
 `restaurant_*`, `fdm_*`, imprimantes, `language`, `day_end_hour`,
-`table_count`, `digital_ticket`, `hubrise`, `export`), par un nouveau lot
+`table_count`, `digital_ticket`, `hubrise`, `peppol`, `export`), par un nouveau lot
 signé. `training_mode` et `hubrise_enabled` ont leur valeur de départ dans
 le lot, puis le Gérant les change dans « Config » (panneaux « Mode
 Formation » et « Intégrations » ; le premier réglage vaut jusqu'au
@@ -506,7 +507,7 @@ mise à jour (§8).
 
 **Réseau.** Sortant seulement : FDM (HTTPS 443 ou HTTP 80) et imprimante
 (TCP 9100) sur le LAN, `api.scaleway.com` si `digital_ticket`,
-`manager.hubrise.com` et `api.hubrise.com` si HubRise, le point de
+`manager.hubrise.com` et `api.hubrise.com` si HubRise, `api.storecove.com` si `peppol`, le point de
 réception de l'export nocturne si `export`, et l'artefact public de mise
 à jour quand un Gérant la lance. Aucun port en entrée
 (`PLATEFORME_ANDROID_FR.md` §6).
