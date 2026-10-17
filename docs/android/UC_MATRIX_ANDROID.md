@@ -15,10 +15,10 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 | Statut | Nombre |
 |---|---|
 | Couvert (scénario Android) | 47 |
-| Couvert (tests moteur exécutés sur l'appareil) | 28 |
+| Couvert (tests moteur exécutés sur l'appareil) | 32 |
 | En attente | 0 |
 | Exclu sur Android | 24 |
-| Hors périmètre | 55 |
+| Hors périmètre | 51 |
 | Non applicable | 1 |
 | Couvert par un autre identifiant | 0 |
 | MANQUANT | 0 |
@@ -79,12 +79,12 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 | UC221A | Modification de prix sur une ligne (cas A) | - | - | - | Hors périmètre |
 | UC221B | Modification de prix sur une ligne (cas B) | - | - | - | Hors périmètre |
 | UC222 | Modification de prix sur un produit composite | - | - | - | Hors périmètre |
-| UC223 | Modification de prix au niveau de l'event de vente | `40_advanced/020_UC223.json` | PASS | `uc223_event_discount_matches_the_published_transaction` | Couvert (scénario Android) |
+| UC223 | Modification de prix au niveau de l'event de vente | `40_advanced/020_UC223.json` | PASS | `uc223_event_discount_at_the_till`, `uc223_event_discount_matches_the_published_transaction` | Couvert (scénario Android) |
 | UC224 | Modifications de prix multiples sur une vente | - | - | - | Hors périmètre |
-| UC225A | Modification de prix en vente indirecte (cas A) | - | - | - | Hors périmètre |
-| UC225B | Modification de prix en vente indirecte (cas B) | - | - | - | Hors périmètre |
+| UC225A | Modification de prix en vente indirecte (cas A) | - | - | `uc225a_discount_after_registration` | Couvert (tests moteur exécutés sur l'appareil) |
+| UC225B | Modification de prix en vente indirecte (cas B) | - | - | `uc225a_discount_after_registration` | Couvert (tests moteur exécutés sur l'appareil) |
 | UC226 | Modification de prix | - | - | - | Hors périmètre |
-| UC229B | Article gratuit en vente directe | - | - | - | Hors périmètre |
+| UC229B | Article gratuit en vente directe | - | - | `uc229b_free_line_at_the_till` | Couvert (tests moteur exécutés sur l'appareil) |
 | UC230 | Correction d'une ligne de vente avant paiement | `40_advanced/030_UC230.json` | PASS | `uc230_a_line_corrected_before_payment` | Couvert (scénario Android) |
 | UC240 | Scission de table vers une nouvelle table | - | - | - | Hors périmètre |
 | UC241 | Scission de table vers une table existante | - | - | - | Hors périmètre |
@@ -141,7 +141,7 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 | ROUND3 | Arrondi cash, vente combinée 14,86 EUR (situation 3, arrondi -0,01 EUR) | `50_rounding/030_ROUND3.json` | PASS | `round3_14_86_is_paid_14_85`, `round3_both_desserts_cash` | Couvert (scénario Android) |
 | ROUND4 | Arrondi avec chèques-repas non arrondis + solde cash (situation 4, arrondi +0,01 EUR) | `50_rounding/040_ROUND4.json` | PASS | `round4_meal_vouchers_then_cash`, `round4_meal_vouchers_then_cash_rounds_the_cash_rest_only` | Couvert (scénario Android) |
 | ROUND5 | Arrondi multi-paiements: chèques-repas + carte de débit + cash (situation 5, arrondi -0,01 EUR) | `50_rounding/050_ROUND5.json` | PASS | `round5_meal_vouchers_card_and_cash` | Couvert (scénario Android) |
-| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | - | - | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +18 | Couvert (tests moteur exécutés sur l'appareil) |
+| VI_BAR | Contenu des autres tickets sans désignation spécifique (cuisine, bar) | - | - | `vi_bar_a_bar_ticket_never_shows_a_price`, `vi_bar_a_correction_prints_as_a_negative_line`, `vi_bar_a_correction_prints_its_negative_quantity`, `vi_bar_a_direct_sale_has_no_table` +24 | Couvert (tests moteur exécutés sur l'appareil) |
 | VI_COPY | Contenu du ticket copie (réimpression) | - | - | `vi_copy_m160_a_copy_reproduces_the_original_sale`, `vi_copy_m161_a_copy_of_a_pre_bill_is_not_a_vat_ticket`, `vi_copy_the_copy_mark_and_the_original_block_follow_the_language`, `vi_copy_the_official_copy_example` +1 | Couvert (tests moteur exécutés sur l'appareil) |
 | VI_N | Contenu du ticket de vente (event N, ticket de caisse TVA) | - | - | `vi_n_a_sale_ticket_has_no_original_block`, `vi_n_the_issuer_legal_name_is_printed`, `vi_n_the_official_vat_ticket_example`, `vi_n_uc201_the_ticket_shows_the_sale_total_and_the_rounding_apart` | Couvert (tests moteur exécutés sur l'appareil) |
 | VI_PROFORMA | Contenu du ticket pro forma (aperçu d'addition) | - | - | `vi_proforma_m123_the_pre_bill_says_addition_provisoire_without_vat`, `vi_proforma_the_official_pre_bill_example` | Couvert (tests moteur exécutés sur l'appareil) |
@@ -188,7 +188,7 @@ Légende du statut : Couvert (scénario Android) (un scénario liste l'identifia
 | FAQ_Q207 | Règles d'usage de signPreBill et signOrder en gestion de table | - | - | `faq_q207_a_second_order_carries_only_the_new_lines` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q209 | Ticket de caisse TVA obligatoire même pour une vente à 0,00 EUR | - | - | `faq_q206_a_zero_sale_is_signed_with_a_vat_ticket` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q211 | Unicité de la référence de costCenter | - | - | `faq_q211_each_table_session_has_its_own_reference` | Couvert (tests moteur exécutés sur l'appareil) |
-| FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | - | Hors périmètre |
+| FAQ_Q212 | Évolution de la référence de costCenter lors d'un transfert de table | - | - | `m122_cost_center_change` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q301 | Distinction entre motifs REFUND et CORRECTION (negQuantityReason) | - | - | `m111_full_refund`, `negative_quantity_reason_depends_on_the_sale`, `uc230_a_line_corrected_before_payment` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q303 | Base de comptage des negQuantityReason dans le rapport X/Z | - | - | `a_table_correction_counts_on_its_order_registration`, `negative_lines_are_counted_per_reason` | Couvert (tests moteur exécutés sur l'appareil) |
 | FAQ_Q401 | Money In/Out obligatoire dès que la caisse encaisse du cash, même sans tiroir | - | - | `m130_money_in`, `m130_money_in_out_archives_f_event` | Couvert (tests moteur exécutés sur l'appareil) |

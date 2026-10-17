@@ -239,7 +239,7 @@ changement journalisé). Détail : `COMMANDES_EN_LIGNE_FR.md`.
 - Remises en `priceChanges` ; frais des plateformes exclus par défaut.
 - Remise à la caisse : pourcentage, montant ou « Offert » sur la commande
   ou sur une ligne, confirmée par le PIN d'un Gérant, signée en
-  `priceChanges` (`TILL-DISCOUNT`, `TILL-FREE`) ; le motif reste dans la
+  `priceChanges` (`TILL-DISCOUNT`, `TILL-FREE`, et `TILL-FREE-LINE` pour une ligne offerte, portée LINE) ; le motif reste dans la
   table locale `till_discounts`.
 - Menu de la caisse reflet du catalogue HubRise, verrouillé pendant la
   connexion.

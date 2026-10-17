@@ -130,15 +130,17 @@ fn label_str(label: EventLabel) -> &'static str {
 }
 
 /// The archived events that carry `fdm_ref` as their `fdmRef`, among
-/// the event types `types`: refunds (N) or corrections (F, T).
+/// the FDM event operations `operations`: refunds (`SALE`) or
+/// corrections (`PAYMENT_CORRECTION`). The operation, not the label,
+/// tells them apart: in training mode every event is labelled T.
 fn referencing(
     db: &Connection,
     fdm_ref: &FdmReference,
-    types: &[&str],
-) -> Result<Vec<(String, String, String)>, String> {
+    operations: &[&str],
+) -> Result<Vec<(String, String)>, String> {
     let mut stmt = db
         .prepare(
-            "SELECT event_type, event_data_json, created_at FROM fiscal_events
+            "SELECT event_data_json, created_at, fdm_response_json FROM fiscal_events
              WHERE json_extract(event_data_json, '$.fdmRef.fdmId') = ?1
                AND json_extract(event_data_json, '$.fdmRef.fdmDateTime') = ?2
                AND json_extract(event_data_json, '$.fdmRef.eventLabel') = ?3
@@ -156,22 +158,35 @@ fn referencing(
                 fdm_ref.event_counter,
                 fdm_ref.total_counter,
             ],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            },
         )
         .map_err(errors::internal)?
-        .collect::<Result<Vec<(String, String, String)>, _>>()
+        .collect::<Result<Vec<_>, _>>()
         .map_err(errors::internal)?;
     Ok(rows
         .into_iter()
-        .filter(|(t, _, _)| types.contains(&t.as_str()))
+        .filter(|(_, _, response)| {
+            response
+                .as_deref()
+                .and_then(|j| serde_json::from_str::<Value>(j).ok())
+                .and_then(|v| v["eventOperation"].as_str().map(str::to_string))
+                .is_some_and(|op| operations.contains(&op.as_str()))
+        })
+        .map(|(data, at, _)| (data, at))
         .collect())
 }
 
 /// The correction already made to the sale, if any.
 fn existing_correction(db: &Connection, sale: &Sale) -> Result<Option<CorrectionDone>, String> {
-    let found = referencing(db, &sale.fdm_ref, &["F", "T"])?
+    let found = referencing(db, &sale.fdm_ref, &["PAYMENT_CORRECTION"])?
         .into_iter()
-        .find_map(|(_, json, at)| {
+        .find_map(|(json, at)| {
             let v: Value = serde_json::from_str(&json).ok()?;
             let f = v["financials"].as_array()?;
             if f.len() != 2 {
@@ -253,7 +268,7 @@ fn sale_refusal(
     if online_line || online_order {
         return Ok(Some(errors::PAYMENT_CORRECTION_ONLINE));
     }
-    if !referencing(db, &sale.fdm_ref, &["N"])?.is_empty() {
+    if !referencing(db, &sale.fdm_ref, &["SALE"])?.is_empty() {
         return Ok(Some(errors::PAYMENT_CORRECTION_REFUNDED));
     }
     if existing_correction(db, sale)?.is_some() {

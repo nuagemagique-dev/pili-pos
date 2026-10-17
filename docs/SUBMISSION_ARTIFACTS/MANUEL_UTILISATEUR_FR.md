@@ -740,8 +740,8 @@ Refus (le texte s'affiche dans la fenêtre) :
 - le nouveau moyen doit différer de celui de la ligne ;
 - une correction qui demanderait un arrondi en espèces est refusée.
 
-Si le FDM ne répond pas, rien n'est enregistré et la vente reste
-corrigeable. Le PIN est celui du Gérant connecté.
+Si le FDM ne répond pas, la réponse peut arriver plus tard : la demande reste en
+attente et la correction est reprise au prochain essai ou par la tâche de fond (§7.4). Le PIN est celui du Gérant connecté.
 
 ## 10. Rapports X et Z (événements R)
 

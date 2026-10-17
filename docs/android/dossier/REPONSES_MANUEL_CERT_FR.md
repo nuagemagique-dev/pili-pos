@@ -812,7 +812,7 @@ Tableau des 18 éléments obligatoires × 6 types de tickets. *Voir : TICKETS_EX
 | XII. Total à payer TVA comprise | ☑ | ☑ | - (pas encore payé) | ☑ | ☑ | - |
 | XIII. Base imposable par taux | ☑ | ☑ | - | ☑ | ☑ | - |
 | XIV. Montant TVA par taux | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications prix non-lignes | ☑ à la caisse (Gérant + code PIN, remise sur la commande) et pour une commande en ligne ; imprimée sous chaque ligne qu'elle touche | ☐ | ☐ | ☐ | ☐ | - |
+| XV. Modifications prix non-lignes | ☑ à la caisse (Gérant + code PIN, remise sur la commande) et pour une commande en ligne ; imprimée sous chaque ligne qu'elle touche | ☑ (remise reprise en négatif) | ☑ (l'addition imprime les remises) | ☐ | ☐ | - |
 | XVI. Données FDM (footer, fdmId, dateTime, label, counters, shortSignature) | ☑ | ☑ | ☑ (sans shortSignature) | ☑ (sans shortSignature) | ☑ (sans shortSignature) | - |
 | XVII. Lignes paiement (arrondi, tips, remboursements) | ☑ | ☑ (négatif) | - | - | ☑ (FICTIF) | - |
 | XVIII. QR Code URL FDM | ☑ | ☑ | - (sans QR, le FDM ne renvoie pas de verificationUrl pour P) | ☑ | ☑ | - |

@@ -151,7 +151,7 @@ Règles :
   ligne est en espèces et que la vente a un arrondi, ou si le nouveau
   moyen est espèces et que le montant n'est pas un multiple de 5
   centimes ;
-- si le FDM ne répond pas, rien n'est signé (même circuit qu'une vente).
+- si le FDM ne répond pas, la demande reste en attente : un nouvel essai ou la tâche de fond archive la réponse arrivée plus tard, sans second ticket (même circuit qu'une vente, MANUEL_UTILISATEUR §7.4).
 
 Dans les rapports X et Z, la ligne retirée va en « corrections
 négatives » et la ligne ajoutée en « corrections positives » du moyen
@@ -162,9 +162,7 @@ ligne « Corrections de paiement » (nombre et montant ajouté). Pour tout
 autre cas (moyen de paiement non corrigeable, vente d'une journée
 clôturée), l'opérateur utilise le remboursement puis une nouvelle vente.
 
-Fixture M132 : rejeu `m132_payment_correction`, un seul écart déclaré
-(type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`, car sans
-terminal relié l'opérateur ne distingue pas débit et crédit).
+Fixture M132 : rejeu `m132_payment_correction`. La comparaison porte sur le type, le montant et le type de montant de chaque ligne de paiement ; un écart est déclaré (type de la carte, `CARD_DEBIT` au lieu de `CARD_CREDIT`, car sans terminal relié l'opérateur ne distingue pas débit et crédit). Deux autres différences ne sont pas comparées : la nouvelle ligne de carte part en saisie manuelle (`inputMethod` MANUAL, la fixture a AUTOMATIC) et la ligne d'espèces n'indique pas de tiroir (champ optionnel, la fixture nomme le tiroir 1).
 
 ---
 

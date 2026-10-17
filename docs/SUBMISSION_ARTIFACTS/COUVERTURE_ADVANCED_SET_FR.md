@@ -149,7 +149,8 @@ conséquence :
 | Élément | Phase plan | Statut actuel | Reporté à |
 |---|---|---|---|
 | Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | Phase 10 |
-| `ModifierDialog.vue`, `PriceChangeDialog.vue` | 5 | Non implémenté | Phase 10 |
+| `ModifierDialog.vue` | 5 | Non implémenté | Phase 10 |
+| `DiscountDialog.vue` (remise sur le ticket, article offert) | 5 | Livré : UC223, UC225A étape 2, UC225B étape 2 et UC229B sont couverts par la caisse ; rejoués par le moteur depuis la caisse : `uc223_event_discount_at_the_till` (écart listé : costCenter TABLE), `uc225a_discount_after_registration` (UC225A étape 2 et UC225B étape 2 ; écart listé : la remise de commande est de portée EVENT, la fixture à une ligne utilise LINE), `uc229b_free_line_at_the_till` (écarts listés : costCenter TABLE, libellé de TVA du Coca Cola A au catalogue contre B dans la requête de la fixture) ; UC4118 et UC4101 restent hors périmètre | - |
 | Impl correcte de `pos-core::table.rs`, tables schéma `tables` / `table_orders` | 6 | `table.rs` est un stub de 9 lignes | Phase 10 |
 | UI `TableSplitDialog.vue`, `VoucherKeypad.vue` | 6 | Non implémentée | Phase 10 |
 | Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | Phase 10 |

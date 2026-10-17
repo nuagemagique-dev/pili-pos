@@ -440,6 +440,63 @@ async fn a_refund_and_a_sale_closed_unpaid_are_refused() {
     );
 }
 
+/// In training mode every event is labelled T: a refund and a
+/// correction of a training sale are told apart by their FDM operation,
+/// not by the label.
+#[tokio::test]
+async fn training_events_are_told_apart_by_their_fdm_operation() {
+    let (app, _fdm) = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    let n = cash_sale(&app, 5200).await;
+    assert_eq!(correct(&app, n, 0, PaymentMethod::Card).await, None);
+    let last = app.fiscal_events().pop().unwrap();
+    assert_eq!(last.event_type, "T");
+
+    // The T correction counts as the correction, and not as a refund.
+    assert_eq!(
+        refused(&app, n, 0, PaymentMethod::MealVoucher).await,
+        errors::PAYMENT_CORRECTION_ALREADY_DONE
+    );
+    assert!(list(&app, n).corrected.is_some());
+
+    // A T event that names a second training sale and that the FDM
+    // answered as a SALE is a refund of it: it blocks the correction
+    // and is not taken for a correction.
+    let m = cash_sale(&app, 3000).await;
+    let events = app.fiscal_events();
+    let sale_m = events.iter().find(|e| e.id == m).unwrap();
+    let mut data: serde_json::Value =
+        serde_json::from_str(last.event_data_json.as_deref().unwrap()).unwrap();
+    let response: serde_json::Value =
+        serde_json::from_str(sale_m.fdm_response_json.as_deref().unwrap()).unwrap();
+    data["fdmRef"] = response["fdmRef"].clone();
+    let answer = last
+        .fdm_response_json
+        .unwrap()
+        .replace("PAYMENT_CORRECTION", "SALE");
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "INSERT INTO fiscal_events (event_type, sequence_number, pos_id, terminal_id,
+                 user_insz, event_data_json, fdm_response_json)
+             VALUES ('T', 9999, 'p', 't', ?1, ?2, ?3)",
+            rusqlite::params![MANAGER, data.to_string(), answer],
+        )
+        .unwrap();
+    assert_eq!(
+        refused(&app, m, 0, PaymentMethod::MealVoucher).await,
+        errors::PAYMENT_CORRECTION_REFUNDED
+    );
+    let listed = list(&app, m);
+    assert_eq!(
+        listed.refusal.as_deref(),
+        Some(errors::PAYMENT_CORRECTION_REFUNDED)
+    );
+    assert!(listed.corrected.is_none(), "a refund is no correction");
+}
+
 #[tokio::test]
 async fn an_event_that_is_not_a_sale_is_refused() {
     let (app, _fdm) = app().await;

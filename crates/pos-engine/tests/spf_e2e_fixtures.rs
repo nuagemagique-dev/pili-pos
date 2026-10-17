@@ -435,6 +435,7 @@ async fn m123_pre_bill() {
     app.dump_evidence("M123");
 }
 
+// covers: FAQ_Q212
 #[tokio::test]
 async fn m122_cost_center_change() {
     let vars = variables("M122");
@@ -966,7 +967,7 @@ async fn uc223_event_discount_at_the_till() {
 /// negQuantityReason PRICE_CHANGE, then +2 with the change (UC225A
 /// 2_ORDER). The cash sale then carries the journal: +2, -2
 /// PRICE_CHANGE, +2 with the change (UC225B 2_SALE, "version B").
-// covers: UC225A
+// covers: UC225A, UC225B
 #[tokio::test]
 async fn uc225a_discount_after_registration() {
     use pos_engine::commands::auth::do_set_pin;

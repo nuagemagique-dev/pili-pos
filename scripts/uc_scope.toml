@@ -203,15 +203,15 @@ reason = "Le produit composite n'est pas implémenté dans pili-pos v1.0.0."
 kind = "hors_perimetre"
 
 [UC220]
-reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
+reason = "Le scénario est rejoué avec une remise de portée EVENT (remise sur le ticket, commande en ligne ou saisie à la caisse, voir UC223) ; la modification de prix de portée ligne de ce scénario n'est pas rejouée de bout en bout (le moteur envoie la portée LINE seulement pour une ligne offerte, voir UC229B)."
 kind = "hors_perimetre"
 
 [UC221A]
-reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
+reason = "Le scénario est rejoué avec une remise de portée EVENT (remise sur le ticket, commande en ligne ou saisie à la caisse, voir UC223) ; la modification de prix de portée ligne de ce scénario n'est pas rejouée de bout en bout (le moteur envoie la portée LINE seulement pour une ligne offerte, voir UC229B)."
 kind = "hors_perimetre"
 
 [UC221B]
-reason = "La modification de prix de portée ligne n'est pas implémentée dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées au FDM (voir UC223)."
+reason = "Le scénario est rejoué avec une remise de portée EVENT (remise sur le ticket, commande en ligne ou saisie à la caisse, voir UC223) ; la modification de prix de portée ligne de ce scénario n'est pas rejouée de bout en bout (le moteur envoie la portée LINE seulement pour une ligne offerte, voir UC229B)."
 kind = "hors_perimetre"
 
 [UC222]
@@ -219,23 +219,11 @@ reason = "La modification de prix sur un produit composite n'est pas implément�
 kind = "hors_perimetre"
 
 [UC224]
-reason = "Le scénario UC224 (remise de ligne combinée à une remise de ticket) n'est pas rejoué dans pili-pos v1.0.0 : seules les remises de portée EVENT des commandes en ligne HubRise sont envoyées, sans modification de prix de ligne."
-kind = "hors_perimetre"
-
-[UC225A]
-reason = "La modification de prix en vente indirecte n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC225B]
-reason = "La modification de prix en vente indirecte n'est pas implémentée dans pili-pos v1.0.0."
+reason = "Le scénario UC224 (plusieurs modifications de prix cumulées sur une même ligne) n'est pas rejoué : la caisse n'accepte qu'une remise par commande, de portée EVENT, ou une ligne offerte (portée LINE)."
 kind = "hors_perimetre"
 
 [UC226]
-reason = "La modification de prix n'est pas implémentée dans pili-pos v1.0.0."
-kind = "hors_perimetre"
-
-[UC229B]
-reason = "L'article gratuit en vente directe (remise à 100% via priceChange) n'est pas implémenté dans pili-pos v1.0.0."
+reason = "Le scénario UC226 (modification de prix sur un produit composite ou cumulée) n'est pas rejoué : le produit composite n'existe pas, et la remise de la caisse est couverte par UC223, UC225A, UC225B et UC229B."
 kind = "hors_perimetre"
 
 [UC280]
@@ -285,6 +273,3 @@ kind = "hors_perimetre"
 # FAQ producteurs
 # ---------------------------------------------------------------------------
 
-[FAQ_Q212]
-reason = "Le transfert de table (et donc le changement de référence du costCenter qui l'accompagne) n'existe pas dans pili-pos v1.0.0."
-kind = "hors_perimetre"

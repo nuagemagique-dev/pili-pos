@@ -32,7 +32,7 @@ Réponse au tableau « Contenu du ticket » du manuel §VI. Une ligne par élém
 | XII. Total à payer TVA comprise | ☑ | ☑ (négatif) | ☑ | ☑ | ☑ | - |
 | XIII. Base imposable par taux de TVA (calculée par le FDM) | ☑ | ☑ | - (jamais sur une addition) | ☑ | ☑ | - |
 | XIV. Montant TVA par taux (calculé par le FDM) | ☑ | ☑ | - | ☑ | ☑ | - |
-| XV. Modifications de prix hors lignes produits | ☑ (la remise d'une commande, saisie à la caisse par un Gérant ou venue d'une commande en ligne, est répartie sur les lignes et imprimée sous chacune, voir XI.2 ; « Offert » signe la vente à 0,00) | N/A | N/A | N/A | N/A | - |
+| XV. Modifications de prix hors lignes produits | ☑ (la remise d'une commande, saisie à la caisse par un Gérant ou venue d'une commande en ligne, est répartie sur les lignes et imprimée sous chacune, voir XI.2 ; « Offert » signe la vente à 0,00) | ☑ (remise reprise en négatif) | ☑ (l'addition imprime les remises) | N/A | N/A | - |
 | XVI.I. Pied de page configuré par SPF Finances (imprimé quand le FDM en renvoie ; le simulateur du banc n'en renvoie pas, la zone reste vide) | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.II. fdmId | ☑ | ☑ | ☑ | ☑ | ☑ | - |
 | XVI.III. fdmDateTime | ☑ | ☑ | ☑ | ☑ | ☑ | - |

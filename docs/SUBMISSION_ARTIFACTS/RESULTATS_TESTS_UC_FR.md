@@ -2214,7 +2214,7 @@ Aucun écart.
 
 ## M132_signPaymentCorrection
 
-La correction de paiement est disponible pour une ligne de paiement saisie a la main d'une vente de la journee en cours (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; le rejeu applicatif la compare a la requete construite par pili-pos. Seul ecart declare : la fixture corrige vers une carte de credit (`CARD_CREDIT`), alors que, sans terminal relie, une carte saisie a la main est toujours `CARD_DEBIT` (*REPONSES_MANUEL_CERT_FR.md* §III.F).
+La correction de paiement est disponible pour une ligne de paiement saisie a la main d'une vente de la journee en cours (*REPONSES_MANUEL_CERT_FR.md*, tableau des fonctionnalites). Les valeurs ci-dessous sont celles de la fixture ; le rejeu applicatif la compare a la requete construite par pili-pos. Un ecart declare : la fixture corrige vers une carte de credit (`CARD_CREDIT`), alors que, sans terminal relie, une carte saisie a la main est toujours `CARD_DEBIT` (*REPONSES_MANUEL_CERT_FR.md* §III.F). Deux differences ne sont pas comparees (la comparaison porte sur le type, le montant et le type de montant de chaque ligne) : la nouvelle ligne de carte part en saisie manuelle (`inputMethod` MANUAL, la fixture a AUTOMATIC) et la ligne d'especes n'indique pas de tiroir (champ optionnel, la fixture nomme le tiroir 1).
 
 **Mutation invoquee :** `signPaymentCorrection`
 

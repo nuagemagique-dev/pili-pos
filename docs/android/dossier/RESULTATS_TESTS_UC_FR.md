@@ -36,7 +36,7 @@ Transfert de table (attribution). Rejeu applicatif côté moteur : `m122_cost_ce
 ## M131_signDrawerOpen
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M132_signPaymentCorrection
-Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correction`, un seul écart déclaré (type de carte `CARD_DEBIT` au lieu de `CARD_CREDIT`). À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture sur le terminal émulé).
+Correction de paiement. Rejeu applicatif côté moteur : `m132_payment_correction`, un écart déclaré (type de carte `CARD_DEBIT` au lieu de `CARD_CREDIT`). Deux différences ne sont pas comparées (la comparaison porte sur le type, le montant et le type de montant de chaque ligne) : la nouvelle ligne de carte part en saisie manuelle (`inputMethod` MANUAL, la fixture a AUTOMATIC) et la ligne d'espèces n'indique pas de tiroir (champ optionnel, la fixture nomme le tiroir 1). À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture sur le terminal émulé).
 ## M133_signMoneyInOut_DrawerDeclaration
 À effectuer (EV-06 : champs vérifiés, requête construite par le moteur, réponse du FDM et comparaison avec la fixture).
 ## M140_signWorkIn

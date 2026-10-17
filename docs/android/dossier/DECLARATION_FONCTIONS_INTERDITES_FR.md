@@ -89,8 +89,8 @@ La note de cuisine d'une ligne (60 caractères au plus) ne modifie aucun
 enregistrement fiscal : elle est écrite dans une colonne locale de
 `order_lines` (`kitchen_note`), ne passe ni dans un message au FDM, ni dans
 le journal `order_entries`, ni sur un ticket TVA ; elle n'est possible que
-sur une commande ouverte et jamais sur une commande en ligne ou déjà
-signée.
+sur une commande ouverte et jamais sur une commande en ligne ou
+clôturée (une commande de table déjà enregistrée par un P reste ouverte et accepte une note).
 
 ## 3. Ajout rétroactif d'enregistrements antidatés
 
