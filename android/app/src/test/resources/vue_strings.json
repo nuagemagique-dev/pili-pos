@@ -1596,6 +1596,78 @@
       "zh": "此操作仅限其他角色。",
       "area": "errors"
     },
+    "err_gift_voucher_amount_invalid": {
+      "fr": "Un bon cadeau vaut au moins 1,00 EUR et au plus {max} EUR.",
+      "en": "A gift voucher is worth at least EUR 1.00 and at most EUR {max}.",
+      "zh": "礼品券面值最低 1.00 欧元，最高 {max} 欧元。",
+      "area": "errors"
+    },
+    "err_gift_voucher_code_invalid": {
+      "fr": "Code invalide : 12 chiffres attendus, vérifiez la saisie.",
+      "en": "Invalid code: 12 digits expected, check the entry.",
+      "zh": "编号无效：应为 12 位数字，请检查输入。",
+      "area": "errors"
+    },
+    "err_gift_voucher_expired": {
+      "fr": "Ce bon cadeau a expiré.",
+      "en": "This gift voucher has expired.",
+      "zh": "此礼品券已过期。",
+      "area": "errors"
+    },
+    "err_gift_voucher_insufficient": {
+      "fr": "Le montant dépasse le solde du bon cadeau.",
+      "en": "The amount is more than the gift voucher balance.",
+      "zh": "金额超过礼品券余额。",
+      "area": "errors"
+    },
+    "err_gift_voucher_line_fixed": {
+      "fr": "La quantité d'un bon cadeau ne change pas : ajoutez un autre bon ou supprimez la ligne.",
+      "en": "A gift voucher quantity cannot change: add another voucher or remove the line.",
+      "zh": "礼品券数量不能修改：请再添加一张或删除该行。",
+      "area": "errors"
+    },
+    "err_gift_voucher_lookup_throttled": {
+      "fr": "Trop d'essais. Réessayez dans {seconds} secondes.",
+      "en": "Too many tries. Try again in {seconds} seconds.",
+      "zh": "尝试次数过多，请 {seconds} 秒后重试。",
+      "area": "errors"
+    },
+    "err_gift_voucher_not_found": {
+      "fr": "Aucun bon cadeau avec ce code.",
+      "en": "No gift voucher has this code.",
+      "zh": "没有此编号的礼品券。",
+      "area": "errors"
+    },
+    "err_gift_voucher_not_usable": {
+      "fr": "Ce bon cadeau ne peut pas être utilisé ici (annulé, ou émis en mode formation / normal).",
+      "en": "This gift voucher cannot be used here (cancelled, or issued in training / normal mode).",
+      "zh": "此礼品券无法在此使用（已作废，或在培训/正常模式下发行）。",
+      "area": "errors"
+    },
+    "err_gift_voucher_payment_invalid": {
+      "fr": "Paiement par bon cadeau refusé : un bon, ou un titre-repas, ne paie pas l'achat d'un bon cadeau, et un bon ne s'utilise qu'une fois par vente.",
+      "en": "Gift voucher payment refused: a voucher or meal voucher cannot pay for a gift voucher, and a voucher is used once per sale.",
+      "zh": "礼品券支付被拒绝：礼品券或餐券不能用于购买礼品券，且每笔销售只能使用一次同一张礼品券。",
+      "area": "errors"
+    },
+    "err_gift_voucher_settings_invalid": {
+      "fr": "Réglage des bons cadeaux invalide ({field}).",
+      "en": "Invalid gift voucher setting ({field}).",
+      "zh": "礼品券设置无效（{field}）。",
+      "area": "errors"
+    },
+    "err_gift_voucher_used": {
+      "fr": "Ce bon cadeau a déjà servi : sa vente ne peut pas être remboursée.",
+      "en": "This gift voucher was already used: its sale cannot be refunded.",
+      "zh": "此礼品券已被使用：其销售不能退款。",
+      "area": "errors"
+    },
+    "err_gift_vouchers_disabled": {
+      "fr": "Les bons cadeaux sont désactivés (Réglages).",
+      "en": "Gift vouchers are switched off (Settings).",
+      "zh": "礼品券已关闭（设置）。",
+      "area": "errors"
+    },
     "err_hubrise_channel_invalid": {
       "fr": "Réglage de canal non valable.",
       "en": "Invalid channel setting.",
@@ -2112,6 +2184,264 @@
       "zh": "生成",
       "area": "core"
     },
+    "gv_applied": {
+      "fr": "Bon {code} : {amount}",
+      "en": "Voucher {code}: {amount}",
+      "zh": "礼品券 {code}：{amount}",
+      "area": "checkout"
+    },
+    "gv_apply": {
+      "fr": "Utiliser ce bon",
+      "en": "Use this voucher",
+      "zh": "使用此券",
+      "area": "checkout"
+    },
+    "gv_balance": {
+      "fr": "Solde",
+      "en": "Balance",
+      "zh": "余额",
+      "area": "checkout"
+    },
+    "gv_code_label": {
+      "fr": "Code du bon (12 chiffres)",
+      "en": "Voucher code (12 digits)",
+      "zh": "礼品券编号（12位）",
+      "area": "checkout"
+    },
+    "gv_dialog_title": {
+      "fr": "Payer avec un bon cadeau",
+      "en": "Pay with a gift voucher",
+      "zh": "使用礼品券支付",
+      "area": "checkout"
+    },
+    "gv_disabled_note": {
+      "fr": "Les bons cadeaux sont désactivés dans les réglages.",
+      "en": "Gift vouchers are switched off in the settings.",
+      "zh": "礼品券功能已在设置中关闭。",
+      "area": "reports"
+    },
+    "gv_empty": {
+      "fr": "Aucun bon",
+      "en": "No voucher",
+      "zh": "没有礼品券",
+      "area": "reports"
+    },
+    "gv_expires": {
+      "fr": "Valable jusqu'au {date}",
+      "en": "Valid until {date}",
+      "zh": "有效期至 {date}",
+      "area": "checkout"
+    },
+    "gv_face": {
+      "fr": "Valeur",
+      "en": "Face value",
+      "zh": "面值",
+      "area": "reports"
+    },
+    "gv_filter_all": {
+      "fr": "Tous",
+      "en": "All",
+      "zh": "全部",
+      "area": "reports"
+    },
+    "gv_issued_on": {
+      "fr": "Émis le {date}",
+      "en": "Issued {date}",
+      "zh": "发行于 {date}",
+      "area": "reports"
+    },
+    "gv_line_badge": {
+      "fr": "Bon",
+      "en": "Voucher",
+      "zh": "券",
+      "area": "core"
+    },
+    "gv_list_title": {
+      "fr": "Bons émis",
+      "en": "Vouchers issued",
+      "zh": "已发礼品券",
+      "area": "reports"
+    },
+    "gv_lookup": {
+      "fr": "Chercher",
+      "en": "Look up",
+      "zh": "查询",
+      "area": "checkout"
+    },
+    "gv_lookup_title": {
+      "fr": "Vérifier un bon",
+      "en": "Check a voucher",
+      "zh": "查询礼品券",
+      "area": "reports"
+    },
+    "gv_movement_cancel": {
+      "fr": "Annulation",
+      "en": "Cancellation",
+      "zh": "作废",
+      "area": "reports"
+    },
+    "gv_movement_issue": {
+      "fr": "Émission",
+      "en": "Issue",
+      "zh": "发行",
+      "area": "reports"
+    },
+    "gv_movement_redeem": {
+      "fr": "Utilisation",
+      "en": "Use",
+      "zh": "使用",
+      "area": "reports"
+    },
+    "gv_movements": {
+      "fr": "Mouvements",
+      "en": "Movements",
+      "zh": "明细",
+      "area": "reports"
+    },
+    "gv_print_balance_ok": {
+      "fr": "Solde imprimé",
+      "en": "Balance printed",
+      "zh": "余额已打印",
+      "area": "checkout"
+    },
+    "gv_print_failed": {
+      "fr": "Bon non imprimé : le réimprimer depuis Rapports, Bons cadeaux.",
+      "en": "Voucher not printed: print it again from Reports, Gift vouchers.",
+      "zh": "礼品券未打印：请在“报表-礼品券”中重新打印。",
+      "area": "checkout"
+    },
+    "gv_print_no_printer": {
+      "fr": "Aucune imprimante : le bon n'est pas imprimé.",
+      "en": "No printer: the voucher is not printed.",
+      "zh": "没有打印机：礼品券未打印。",
+      "area": "checkout"
+    },
+    "gv_print_voucher_ok": {
+      "fr": "Bon imprimé",
+      "en": "Voucher printed",
+      "zh": "礼品券已打印",
+      "area": "checkout"
+    },
+    "gv_reprint": {
+      "fr": "Réimprimer",
+      "en": "Print again",
+      "zh": "重新打印",
+      "area": "reports"
+    },
+    "gv_reprinted": {
+      "fr": "Bon réimprimé (DUPLICATA)",
+      "en": "Voucher printed again (DUPLICATA)",
+      "zh": "已重新打印（DUPLICATA）",
+      "area": "reports"
+    },
+    "gv_sell_button": {
+      "fr": "Bon cadeau",
+      "en": "Gift voucher",
+      "zh": "礼品券",
+      "area": "core"
+    },
+    "gv_sell_item": {
+      "fr": "Montant du bon",
+      "en": "Voucher amount",
+      "zh": "礼品券金额",
+      "area": "core"
+    },
+    "gv_sell_title": {
+      "fr": "Vendre un bon cadeau",
+      "en": "Sell a gift voucher",
+      "zh": "出售礼品券",
+      "area": "core"
+    },
+    "gv_settings_max": {
+      "fr": "Montant maximum (€)",
+      "en": "Maximum amount (€)",
+      "zh": "最高金额（€）",
+      "area": "settings"
+    },
+    "gv_settings_note": {
+      "fr": "Bon cadeau multi-usage : vendu sans TVA, la TVA est due à l'achat des produits. Le bon est imprimé à la vente.",
+      "en": "Multi-purpose gift voucher: sold without VAT, the VAT is due when goods are bought with it. The voucher is printed at the sale.",
+      "zh": "多用途礼品券：出售时不计增值税，购买商品时再计税。出售时打印礼品券。",
+      "area": "settings"
+    },
+    "gv_settings_off": {
+      "fr": "Inactif",
+      "en": "Off",
+      "zh": "未开启",
+      "area": "settings"
+    },
+    "gv_settings_on": {
+      "fr": "Actif",
+      "en": "On",
+      "zh": "已开启",
+      "area": "settings"
+    },
+    "gv_settings_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "gv_settings_saved": {
+      "fr": "Réglage enregistré",
+      "en": "Setting saved",
+      "zh": "已保存",
+      "area": "settings"
+    },
+    "gv_settings_title": {
+      "fr": "Bons cadeaux",
+      "en": "Gift vouchers",
+      "zh": "礼品券",
+      "area": "settings"
+    },
+    "gv_settings_validity": {
+      "fr": "Validité (mois)",
+      "en": "Validity (months)",
+      "zh": "有效期（月）",
+      "area": "settings"
+    },
+    "gv_sold_no_other": {
+      "fr": "Un bon cadeau vendu se règle en espèces ou par carte.",
+      "en": "A gift voucher sold is paid in cash or by card.",
+      "zh": "出售的礼品券只能用现金或银行卡支付。",
+      "area": "checkout"
+    },
+    "gv_status_active": {
+      "fr": "Valide",
+      "en": "Valid",
+      "zh": "有效",
+      "area": "checkout"
+    },
+    "gv_status_cancelled": {
+      "fr": "Annulé",
+      "en": "Cancelled",
+      "zh": "已作废",
+      "area": "checkout"
+    },
+    "gv_status_expired": {
+      "fr": "Expiré",
+      "en": "Expired",
+      "zh": "已过期",
+      "area": "checkout"
+    },
+    "gv_status_used": {
+      "fr": "Épuisé",
+      "en": "Used up",
+      "zh": "已用完",
+      "area": "checkout"
+    },
+    "gv_training_tag": {
+      "fr": "Bon d'entraînement",
+      "en": "Training voucher",
+      "zh": "培训券",
+      "area": "checkout"
+    },
+    "gv_use_amount": {
+      "fr": "Montant utilisé",
+      "en": "Amount used",
+      "zh": "使用金额",
+      "area": "checkout"
+    },
     "hubrise_account_label": {
       "fr": "Compte",
       "en": "Account",
@@ -2452,6 +2782,12 @@
       "fr": "Espèces",
       "en": "Cash",
       "zh": "现金",
+      "area": "checkout"
+    },
+    "method_gift_voucher": {
+      "fr": "Bon cadeau",
+      "en": "Gift voucher",
+      "zh": "礼品券",
       "area": "checkout"
     },
     "method_meal_voucher": {
@@ -2974,6 +3310,12 @@
       "fr": "Tickets",
       "en": "Tickets",
       "zh": "票据",
+      "area": "reports"
+    },
+    "reports_tab_vouchers": {
+      "fr": "Bons cadeaux",
+      "en": "Gift vouchers",
+      "zh": "礼品券",
       "area": "reports"
     },
     "reports_tickets_hint": {
@@ -3980,6 +4322,18 @@
     "courses_disabled",
     "no_course_held",
     "nothing_printed",
+    "gift_vouchers_disabled",
+    "gift_voucher_settings_invalid",
+    "gift_voucher_amount_invalid",
+    "gift_voucher_line_fixed",
+    "gift_voucher_not_found",
+    "gift_voucher_code_invalid",
+    "gift_voucher_lookup_throttled",
+    "gift_voucher_not_usable",
+    "gift_voucher_expired",
+    "gift_voucher_insufficient",
+    "gift_voucher_payment_invalid",
+    "gift_voucher_used",
     "not_logged_in",
     "forbidden",
     "not_the_operator",

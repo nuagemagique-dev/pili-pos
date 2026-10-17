@@ -130,6 +130,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 
 | Command | Module | Engine function | Call | Build |
 |---|---|---|---|---|
+| `add_gift_voucher_line` | `gift_vouchers` | `commands::gift_vouchers::do_add_gift_voucher_line` | sync | cert |
 | `add_order_line` | `order` | `commands::order::do_add_order_line` | sync | cert |
 | `add_order_line_with_modifiers` | `modifiers` | `commands::modifiers::do_add_order_line_with_modifiers` | sync | cert |
 | `backup_database` | `report` | `commands::report::do_backup_database` | sync | cert |
@@ -159,6 +160,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `get_categories` | `menu` | `commands::menu::do_get_categories` | sync | cert |
 | `get_course_settings` | `courses` | `commands::courses::do_get_course_settings` | sync | cert |
 | `get_current_user` | `auth` | `commands::auth::do_get_current_user` | sync | cert |
+| `get_gift_voucher_settings` | `gift_vouchers` | `commands::gift_vouchers::do_get_gift_voucher_settings` | sync | cert |
 | `get_integrations` | `integrations` | `commands::integrations::do_get_integrations` | sync | cert |
 | `get_item_modifiers` | `modifiers` | `commands::modifiers::do_get_item_modifiers_localized` | sync | cert |
 | `get_menu_items` | `menu` | `commands::menu::do_get_menu_items` | sync | cert |
@@ -186,6 +188,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `list_copyable_tickets` | `copy` | `commands::copy::do_list_copyable_tickets` | sync | cert |
 | `list_eft_payments` | `eft` | `commands::eft::do_list_eft_payments` | sync | cert |
 | `list_fiscal_events` | `copy` | `commands::copy::do_list_fiscal_events` | sync | cert |
+| `list_gift_vouchers` | `gift_vouchers` | `commands::gift_vouchers::do_list_gift_vouchers` | sync | cert |
 | `list_held_courses` | `courses` | `commands::courses::do_list_held_courses` | sync | cert |
 | `list_open_orders` | `order` | `commands::order::do_list_open_orders` | sync | cert |
 | `list_open_shifts` | `social` | `commands::social::do_list_open_shifts` | sync | cert |
@@ -202,10 +205,12 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `login` | `auth` | `commands::auth::do_login` | sync | cert |
 | `login_with_new_pin` | `auth` | `commands::auth::do_login_with_new_pin` | sync | cert |
 | `logout` | `auth` | `commands::auth::do_logout` | sync | cert |
+| `lookup_gift_voucher` | `gift_vouchers` | `commands::gift_vouchers::do_lookup_gift_voucher` | sync | cert |
 | `money_in_out` | `financial` | `commands::financial::do_money_in_out` | async | cert |
 | `needs_z_report` | `report` | `commands::report::do_needs_z_report` | sync | cert |
 | `open_drawer_fiscal` | `financial` | `commands::financial::do_open_drawer_fiscal` | async | cert |
 | `print_allergen_sheet` | `allergens` | `commands::allergens::do_print_allergen_sheet` | async | cert |
+| `print_gift_voucher` | `gift_vouchers` | `commands::gift_vouchers::do_print_gift_voucher` | async | cert |
 | `print_missing_original` | `delivery` | `commands::delivery::do_print_missing_original` | async | cert |
 | `print_webshop_customer` | `print` | `commands::print::do_print_webshop_customer` | async | cert |
 | `print_webshop_kitchen` | `print` | `commands::print::do_print_webshop_kitchen` | async | cert |
@@ -219,6 +224,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `set_active_order` | `session` | `commands::session::do_set_active_order` | sync | cert |
 | `set_allergens` | `allergens` | `commands::allergens::do_set_allergens` | sync | cert |
 | `set_course_settings` | `courses` | `commands::courses::do_set_course_settings` | sync | cert |
+| `set_gift_voucher_settings` | `gift_vouchers` | `commands::gift_vouchers::do_set_gift_voucher_settings` | sync | cert |
 | `set_hubrise_enabled` | `integrations` | `commands::integrations::do_set_hubrise_enabled` | sync | cert |
 | `set_line_course` | `courses` | `commands::courses::do_set_line_course` | sync | cert |
 | `set_owner_alerts` | `alerts` | `commands::alerts::do_set_owner_alerts` | sync | cert |

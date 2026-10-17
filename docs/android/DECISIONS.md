@@ -1446,3 +1446,74 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
   - **Expected failures of the p5/p6 gates on this lane** are those of T1 to T3 (`hygiene-paths`,
     `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
 
+- **V12-D24 Multi-purpose vouchers only (T5, E).** Implemented: MPV. The sale is a line at VAT X (no VAT at
+  issue), the use is a payment (VAT is due on the goods bought). Deferred, with the reasons in
+  `docs/internal/v1.2/BONS_CADEAUX_FR.md` section 8: (1) SPV (UC270, UC271): VAT due at sale, use as a negative line
+  `negQuantityReason VOUCHER` whose VAT split must mirror the sale; the UC271 fixture splits a voucher sold at B 75
+  into A -18 / B -40 at use (a different total and VAT mix than the sale), which no clean rule reproduces, so the
+  reading is ambiguous and we do not guess (Q4); (2) voucher to cash (UC4105): vouchers are not exchangeable for
+  cash, no need; (3) refund to a voucher (Q6). `scripts/uc_scope.toml` no longer lists UC260, UC261, UC262 (covered
+  by `spf_e2e_gift_vouchers.rs`); UC270, UC271 and UC4105 stay `hors_perimetre` with "différé en v1.2" reasons.
+- **V12-D25 Sale as a system product (T5, E), as built.** Migration 63 inserts category 990000 `pili:system`
+  (inactive) and item 990001 `pili:gift-voucher` (VAT X/X, `out_of_scope`, no kitchen printer, free price,
+  inactive) with fr/en/nl/zh names; the ids are fixed and far above any catalog id so rows and fixtures never
+  collide, and `ensure_system_item` re-runs the idempotent SQL where a test seed or a catalog reset removed the
+  rows. `add_gift_voucher_line(order_id, amount_cents)` (cashier) adds one line of quantity 1, name in the
+  establishment language, department `GV`; amount 1,00 to `max_amount_cents` (`gift_voucher_amount_invalid`
+  with `max=500,00`, formatted with a comma); `gift_vouchers_disabled` while the switch is off. The quantity cannot
+  change (`gift_voucher_line_fixed`, checked in `do_update_order_line_quantity`); the line can be removed. An order
+  that sells a voucher is paid in cash or by card only (`gift_voucher_payment_invalid`).
+- **V12-D26 Issue at the N commit (T5, E), as built.** `plan_sale` runs under the sign guard in
+  `checkout::sell_locked`: it draws one code per voucher line (10 digits from the OS generator plus 2 check digits
+  `97 - n mod 97`) and stores them in `PendingContext::Sale.gift_vouchers_issued` (serde default), so a lost answer
+  that is recovered later issues the same vouchers (tested: one voucher, not two). `signing::apply` writes the
+  voucher and its `issue` movement in the archive transaction. Training sales write `training = 1` vouchers, which
+  only serve in training, and real vouchers do not serve in training. Lookups that fail (shape, check digits,
+  unknown code) all count toward the throttle: 5 a minute per terminal (`AppState.gift_voucher_lookups`).
+- **V12-D27 Use is a `VOUCHER_STORE` payment (T5, E), as built.** `PaymentMethod::GiftVoucher` maps to
+  `PaymentType::VoucherStore`, line identity ("8", "Gift voucher"), MANUAL, exact, never rounded.
+  `PaymentPart.gift_voucher_id` is required for a gift voucher part and refused on any other part (`settle`).
+  The checks run at prepare under the sign guard (exists, same training mode, not cancelled, not expired at the local
+  date, balance covers the part, one part per voucher); the `redeem` movement is written in `apply` unconditionally.
+  A voucher worth more than the bill pays the rest of the bill and keeps the balance (no change). The `payments`
+  row stores the method `other`. The HubRise echo of a till sale is skipped when the sale sells a voucher (a voucher
+  line has no HubRise product), and a voucher payment is named "Other" in the echo.
+- **V12-D28 Refunds (T5, E), as built.** Refunding a voucher sale line cancels that voucher in the refund's archive
+  transaction (`PendingContext::Refund.gift_vouchers_cancelled`, serde default) when it was never used; otherwise
+  `gift_voucher_used`. The refund picks, among the original order's voucher lines of the same unit price, the
+  unused vouchers not yet cancelled, and refuses when there are fewer than the quantity refunded. A refund of a sale
+  paid by voucher stays a cash refund with the manager confirmation; the voucher is not re-credited (Q6).
+- **V12-D29 Settings and expiry (T5, E).** `gift_vouchers {enabled = false, validity_months 12..36 (12),
+  max_amount_cents 100..1 000 000 (50 000)}` in the V12-D2 store (read by any operator, stored by an administrator,
+  logged). `expires_on` is the issue local date plus the validity; expiry is not an event: an expired voucher is
+  refused at payment (`gift_voucher_expired`) and a manager can still look it up.
+- **V12-D30 Printed voucher (T5, E), as built.** After the N is committed and recorded, `follow_up` prints the
+  voucher (value, code large with a QR, dates, rules, the sale reference, "not a valid VAT ticket") and, when a
+  payment leaves a balance, a balance slip with the code masked to its last 4 digits. Both go to the ticket printer
+  and a row of `gift_voucher_prints` is written only when the slip reports `Printed`. `print_gift_voucher`
+  (administrator) prints a DUPLICATA and records it. The checkout result carries `gift_voucher_prints` (voucher id,
+  `voucher` or `balance`, outcome) for the done screen.
+- **V12-D31 Reports (T5, E).** X and Z need no change (the FDM `vatCalc` carries X; payments are grouped by
+  identity, name and type). The printed Z names the payment "Bon cadeau" (fr), "Cadeaubon" (nl), "Geschenkgutschein"
+  (de), "Gift voucher" (en); `labels.rs` matches "gift", "cadeau" and `VOUCHER_STORE`.
+- **T5: deviations and precisions, all decided while building.**
+  - **Fixed ids 990000 and 990001** instead of ids taken at insert time (V12-D25 left it open): fixtures and the
+    SPF test seed delete the whole menu, so the seed keeps the two system rows (`entity_id NOT IN (990000, 990001)`)
+    and `do_add_gift_voucher_line` calls `ensure_system_item` as a defence.
+  - **Gift voucher part and `settle`.** A part with an amount above 0 is accepted only when
+    `(method == GiftVoucher) == gift_voucher_id.is_some()`, and a cash part may not name a voucher; the plan only
+    said the id exists.
+  - **A sale that sells a voucher cannot be closed unpaid** (the voucher would exist without a payment).
+  - **The voucher slip is printed on the ticket printer**, not on a new printer role; `gift_voucher_prints` is
+    written only for a printed slip, as the kitchen entries are.
+  - **UC260's card is MANUAL here**; the fixture's terminal payment is AUTOMATIC. `business_view` does not compare
+    `inputMethod`, so the test asserts it explicitly. Deviations: UC260 `productId` and `departmentId`; UC261 the
+    composite-menu `lineType` and `vats` (as in UC4109); UC262 `transactionLines[1].vats[0].label` (an order is
+    dine-in or takeaway as a whole, sold as takeaway the burger takes label C).
+  - **UI.** The gift voucher panel sits under the courses panel in the second column of Settings on both UIs
+    (a manager only). The "Bon cadeau" method hides, with the meal vouchers, while the sale sells a voucher, and it
+    opens its dialog without becoming the selected method (cash stays selected under it). The Reports tab shows
+    only while the setting is on. A number input of the Vue panel gives a number once it holds one: the draft
+    converts with `String(...)` first (found by the Playwright spec).
+  - **Not done:** a QR scan of the code (typing only, as the plan says); the `max` of the amount error is shown in
+    the establishment language of the browser/engine text, not localised beyond the comma.

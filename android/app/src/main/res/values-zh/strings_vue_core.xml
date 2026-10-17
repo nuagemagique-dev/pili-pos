@@ -260,4 +260,8 @@
     <string name="table_held_course">待出：{course}</string>
     <string name="checkout_held_warning">尚未发出：{course}</string>
     <string name="checkout_send_now">立即发出</string>
+    <string name="gv_sell_button">礼品券</string>
+    <string name="gv_sell_title">出售礼品券</string>
+    <string name="gv_sell_item">礼品券金额</string>
+    <string name="gv_line_badge">券</string>
 </resources>

@@ -30,4 +30,18 @@
     <string name="reports_tickets_title">最近票据</string>
     <string name="reports_tickets_hint">选择一张票据进行复制或退款。</string>
     <string name="reports_copy">副本</string>
+    <string name="reports_tab_vouchers">礼品券</string>
+    <string name="gv_lookup_title">查询礼品券</string>
+    <string name="gv_list_title">已发礼品券</string>
+    <string name="gv_filter_all">全部</string>
+    <string name="gv_empty">没有礼品券</string>
+    <string name="gv_face">面值</string>
+    <string name="gv_issued_on">发行于 {date}</string>
+    <string name="gv_reprint">重新打印</string>
+    <string name="gv_reprinted">已重新打印（DUPLICATA）</string>
+    <string name="gv_movements">明细</string>
+    <string name="gv_movement_issue">发行</string>
+    <string name="gv_movement_redeem">使用</string>
+    <string name="gv_movement_cancel">作废</string>
+    <string name="gv_disabled_note">礼品券功能已在设置中关闭。</string>
 </resources>

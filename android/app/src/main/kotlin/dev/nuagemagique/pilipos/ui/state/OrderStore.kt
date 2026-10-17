@@ -183,6 +183,19 @@ class OrderStore
                 refresh(order.id)
             }
 
+        /**
+         * Sells a gift voucher of [amountCents]: a fixed-quantity line of the system product (v1.2). The engine
+         * checks the setting, the amount and the order.
+         *
+         * @return false when the engine refused (the refusal is on [failures])
+         */
+        suspend fun addGiftVoucher(amountCents: Long): Boolean =
+            reported {
+                val order = requireCurrent()
+                gateway.call { engine -> engine.addGiftVoucherLine(order.id, amountCents) }
+                refresh(order.id)
+            }
+
         /** Removes a line. @return false when the engine refused (the refusal is on [failures]) */
         suspend fun removeLine(lineId: Long): Boolean =
             reported {

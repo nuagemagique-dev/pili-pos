@@ -30,4 +30,18 @@
     <string name="reports_tickets_title">Recent tickets</string>
     <string name="reports_tickets_hint">Choose a ticket to copy or refund it.</string>
     <string name="reports_copy">Copy</string>
+    <string name="reports_tab_vouchers">Gift vouchers</string>
+    <string name="gv_lookup_title">Check a voucher</string>
+    <string name="gv_list_title">Vouchers issued</string>
+    <string name="gv_filter_all">All</string>
+    <string name="gv_empty">No voucher</string>
+    <string name="gv_face">Face value</string>
+    <string name="gv_issued_on">Issued {date}</string>
+    <string name="gv_reprint">Print again</string>
+    <string name="gv_reprinted">Voucher printed again (DUPLICATA)</string>
+    <string name="gv_movements">Movements</string>
+    <string name="gv_movement_issue">Issue</string>
+    <string name="gv_movement_redeem">Use</string>
+    <string name="gv_movement_cancel">Cancellation</string>
+    <string name="gv_disabled_note">Gift vouchers are switched off in the settings.</string>
 </resources>

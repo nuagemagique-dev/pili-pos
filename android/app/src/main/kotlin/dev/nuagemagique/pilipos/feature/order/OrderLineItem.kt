@@ -33,17 +33,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.format.BilingualName
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
 import dev.nuagemagique.pilipos.ui.format.formatEuro
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
-import uniffi.pos_ffi.CartLine
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
+import uniffi.pos_ffi.CartLine
 
 private val ControlSize = 48.dp
 private val QuantityWidth = 28.dp
@@ -89,10 +90,11 @@ internal fun OrderLineItem(
         horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuantityStepper(id, row.line.quantity, actions)
+        val voucher = row.line.departmentId == GIFT_VOUCHER_DEPARTMENT
+        if (voucher) VoucherBadge(id) else QuantityStepper(id, row.line.quantity, actions)
         Column(Modifier.weight(1f)) {
             LineNames(id, names, lineNotes(row.line.modifiersJson))
-            if (state.coursesEnabled) CourseChip(row.line, actions)
+            if (state.coursesEnabled && !voucher) CourseChip(row.line, actions)
         }
         Text(
             text = amountText(row.amount),
@@ -117,6 +119,28 @@ internal fun OrderLineItem(
         }
     }
 }
+
+/** A gift voucher sold has a fixed quantity (one line per voucher): a badge replaces the stepper. Tag `cart_line_<id>_voucher`. */
+@Composable
+private fun VoucherBadge(id: Long) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    Text(
+        text = vueText("gv_line_badge"),
+        style = t.body.copy(fontWeight = t.weightBold),
+        color = c.selectedFg,
+        textAlign = TextAlign.Center,
+        modifier =
+            Modifier
+                .width(VoucherBadgeWidth)
+                .background(c.selectedBg, RoundedCornerShape(d.radiusMd))
+                .padding(vertical = 12.dp)
+                .testTag("cart_line_${id}_voucher"),
+    )
+}
+
+private val VoucherBadgeWidth = 96.dp
 
 /** The minus, the quantity and the plus; the minus stops at 1. */
 @Composable

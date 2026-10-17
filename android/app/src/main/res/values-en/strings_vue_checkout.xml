@@ -39,4 +39,23 @@
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV cloud</string>
     <string name="eft_kind_ccv_opi">CCV local network</string>
+    <string name="method_gift_voucher">Gift voucher</string>
+    <string name="gv_dialog_title">Pay with a gift voucher</string>
+    <string name="gv_code_label">Voucher code (12 digits)</string>
+    <string name="gv_lookup">Look up</string>
+    <string name="gv_balance">Balance</string>
+    <string name="gv_expires">Valid until {date}</string>
+    <string name="gv_status_active">Valid</string>
+    <string name="gv_status_used">Used up</string>
+    <string name="gv_status_expired">Expired</string>
+    <string name="gv_status_cancelled">Cancelled</string>
+    <string name="gv_training_tag">Training voucher</string>
+    <string name="gv_use_amount">Amount used</string>
+    <string name="gv_apply">Use this voucher</string>
+    <string name="gv_applied">Voucher {code}: {amount}</string>
+    <string name="gv_sold_no_other">A gift voucher sold is paid in cash or by card.</string>
+    <string name="gv_print_voucher_ok">Voucher printed</string>
+    <string name="gv_print_balance_ok">Balance printed</string>
+    <string name="gv_print_failed">Voucher not printed: print it again from Reports, Gift vouchers.</string>
+    <string name="gv_print_no_printer">No printer: the voucher is not printed.</string>
 </resources>

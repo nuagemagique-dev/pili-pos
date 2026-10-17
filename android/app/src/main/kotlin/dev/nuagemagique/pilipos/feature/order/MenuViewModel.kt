@@ -56,6 +56,7 @@ private data class Data(
     val allergenMode: Boolean = false,
     val allergenLegend: List<AllergenEntry> = emptyList(),
     val sendingNext: Boolean = false,
+    val giftVouchersEnabled: Boolean = false,
 )
 
 /** What the cart shows of the courses: the switch and the next held course. */
@@ -139,8 +140,12 @@ internal class MenuViewModel(
             viewModelScope,
             SharingStarted.Eagerly,
             build(
-                data.value, order.current.value, order.lines.value, currentLook(),
-                unsentAndCourses.value.first, unsentAndCourses.value.second,
+                data.value,
+                order.current.value,
+                order.lines.value,
+                currentLook(),
+                unsentAndCourses.value.first,
+                unsentAndCourses.value.second,
             ),
         )
 
@@ -155,6 +160,7 @@ internal class MenuViewModel(
                 if (event is PosEvent.CatalogUpdated || event is PosEvent.Resync) reload.update { it + 1 }
             }
         }
+        viewModelScope.launch { active.collect { on -> if (on) loadGiftVoucherSetting() } }
         viewModelScope.launch {
             order.lines.collectLatest { lines ->
                 val amounts = amountsOf(lines)
@@ -196,7 +202,7 @@ internal class MenuViewModel(
             menu =
                 MenuState(
                     d.categories, d.selectedCategoryId, d.items, quantities, l.language, l.labelMode, d.loaded,
-                    d.allergenMode, d.allergenLegend,
+                    d.allergenMode, d.allergenLegend, d.giftVouchersEnabled,
                 ),
             cart =
                 OrderCartState(
@@ -366,6 +372,28 @@ internal class MenuViewModel(
                 }
             }
         }
+    }
+
+    // ── Gift vouchers ─────────────────────────────────────────────
+
+    /** Reads the gift voucher switch (`load` of `giftVouchers.ts`); a till that does not answer has vouchers off. */
+    private suspend fun loadGiftVoucherSetting() {
+        val enabled = attempt { gateway.call { engine -> engine.getGiftVoucherSettings() } }.map { it.enabled }.getOrDefault(false)
+        data.update { it.copy(giftVouchersEnabled = enabled) }
+    }
+
+    /** The "Bon cadeau" button: asks for the amount of the voucher. */
+    fun askGiftVoucher() {
+        if (!isRouteOrderCurrent() || !data.value.giftVouchersEnabled) return
+        data.update { it.copy(dialog = OrderDialog.SellVoucher) }
+    }
+
+    /** The amount typed for the voucher (`handleVoucherAmount`): a refusal is on OrderStore.failures, shown by run(). */
+    fun confirmGiftVoucher(amountCents: Long) {
+        if (data.value.dialog != OrderDialog.SellVoucher) return
+        data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent()) return
+        viewModelScope.launch { order.addGiftVoucher(amountCents) }
     }
 
     // ── Allergens ─────────────────────────────────────────────────

@@ -928,3 +928,29 @@ The course never enters `OrderLine`, product names, departments, P/N/T/pre-bill 
   the checkout warning for a held course; printed slips: first course at P, "SUITE : Plats", direct-sale
   headers, DUPLICATA.
 - **Note:** the Tables tag may wrap when two tags share a card (held course plus another tag).
+
+### V12-T5 (Sonnet 5.5, 2026-10-17): E, multi-purpose gift vouchers (UC260, UC261, UC262)
+
+Delivered: migration 63 (system category 990000 and item 990001, `gift_vouchers`, `gift_voucher_movements`,
+`gift_voucher_prints`, append-only triggers); `PaymentMethod::GiftVoucher` (VOUCHER_STORE, MANUAL, exact, stored
+as `other`); the code (10 digits plus 2 check digits) drawn at prepare and kept in the pending context; issue at the
+N commit, redemption and refund cancellation in `signing::apply`; six engine commands (settings get/set, add line,
+lookup with a 5 a minute throttle, list, print duplicate) with 12 error codes; voucher, balance and DUPLICATA slips
+(`pos-print`); Tauri wrappers and the UniFFI facade (114/114); the Vue UI (order button and amount dialog, voucher
+badge on the line, checkout method and code dialog, Reports tab, Settings panel, mock handlers,
+`ui/e2e/gift-vouchers.spec.ts`); the Compose UI with the same behaviour; `uc_scope.toml`; drafts
+`BONS_CADEAUX_FR.md`, section E of the NOTE, migration 63 in `SCHEMA_BD_V1_2_FR.md`; parity docs, ENGINE.md,
+FFI.md, PARITY.md, CLAUDE.md. DECISIONS got V12-D24..D31 and the deviations. SPV, UC4105 and refund-to-voucher are
+deferred (V12-D24).
+
+- **Tests:** engine `tests/gift_vouchers.rs` (34) and `spf_e2e_gift_vouchers.rs` (UC260, UC261, UC262); FFI suite;
+  Playwright `gift-vouchers.spec.ts` (14, passing); Kotlin: `GiftVoucherViewModelTest`, `GiftVoucherSectionTest`,
+  `GiftVoucherScreenshotTest`, `CheckoutGiftVoucherTest`, `OrderGiftVoucherTest`, `ReportsVouchersTest`,
+  `ReportsVouchersScreenshotTest`, `GiftVouchersTest`.
+- **Captures to retake (orchestrator; both products):** order screen "Bon cadeau" button, the amount dialog and the
+  voucher line with its badge; checkout "Bon cadeau" method, the code dialog (lookup, balance, amount) and the done
+  screen notes about slips; Reports "Bons cadeaux" tab (list, filters, masked codes, reprint); Settings "Bons cadeaux"
+  panel (off and on); printed slips: the voucher (value, code, QR, dates, rules), the balance slip (masked code),
+  the DUPLICATA.
+- **Environment findings:** shared heavy slots are often busy with other lanes; use a distinct `PW_PORT` for
+  Playwright (the default port 1420 is shared); the test seed deletes the whole menu, hence the preserved system rows.

@@ -43,6 +43,9 @@ internal sealed interface OrderDialog {
         val busy: Boolean = false,
     ) : OrderDialog
 
+    /** The amount of a gift voucher to sell (`sellingVoucher` of `OrderView.vue`). */
+    data object SellVoucher : OrderDialog
+
     /** The four courses of the line [lineId] as big buttons (`CoursePickerDialog.vue`); [current] is marked. */
     data class CoursePicker(
         val lineId: Long,
@@ -121,6 +124,8 @@ internal data class MenuState(
     val allergenMode: Boolean = false,
     /** The 14 allergens in Annex order (`list_allergens`), read when the mode is first turned on. */
     val allergenLegend: List<AllergenEntry> = emptyList(),
+    /** Gift vouchers are on (v1.2): the "Bon cadeau" button shows next to "Allergènes". */
+    val giftVouchersEnabled: Boolean = false,
 )
 
 /** What the order screen shows. */

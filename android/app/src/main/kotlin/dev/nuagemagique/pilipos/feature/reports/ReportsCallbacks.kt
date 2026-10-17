@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.reports
 
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -63,6 +64,16 @@ internal data class ReportsCallbacks(
     val cash: CashCallbacks = CashCallbacks(),
     val tickets: TicketsCallbacks = TicketsCallbacks(),
     val delivery: DeliveryCallbacks = DeliveryCallbacks(),
+    val vouchers: VouchersCallbacks = VouchersCallbacks(),
+)
+
+/** Every action of the gift vouchers tab. */
+internal data class VouchersCallbacks(
+    val onKey: (NumPadKey) -> Unit = {},
+    val onLookup: () -> Unit = {},
+    val onFilter: (String?) -> Unit = {},
+    val onToggle: (Long) -> Unit = {},
+    val onReprint: (Long) -> Unit = {},
 )
 
 /** What the delivery picker shows: the mail probe, the choice made and whether a paper original may be printed. */
@@ -93,6 +104,14 @@ internal fun reportsCallbacks(
         day = dayCallbacks(model, openPicker),
         cash = cashCallbacks(model),
         tickets = ticketsCallbacks(model, delivery, openPicker),
+        vouchers =
+            VouchersCallbacks(
+                onKey = model::voucherKey,
+                onLookup = model::lookupVoucher,
+                onFilter = model::filterVouchers,
+                onToggle = model::toggleVoucher,
+                onReprint = model::reprintVoucher,
+            ),
         delivery =
             DeliveryCallbacks(
                 onPaper = delivery::setPaper,

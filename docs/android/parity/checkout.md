@@ -13,6 +13,7 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | --- | --- | --- |
 | ui/src/views/CheckoutView.vue | feature/checkout/CheckoutScreen.kt (CheckoutRoute, CheckoutContent), CheckoutPanels.kt, CheckoutViewModel.kt, CheckoutState.kt, CheckoutEntryPoint.kt | `checkout` |
 | CheckoutView.vue (`held-warning`, `sendHeldNow`: "Envoyer maintenant") | feature/checkout/CheckoutPanels.kt (HeldWarning), CheckoutViewModel.kt (sendHeldNow) over ui/state/OrderStore.kt | `send_next_course` |
+| CheckoutView.vue ("Bon cadeau" method, `GiftVoucherDialog.vue`, voucher notes `gv-prints` on the done screen) | feature/checkout/GiftVoucherDialog.kt, CheckoutPanels.kt (MethodRow), CheckoutScreen.kt (VoucherPrints), CheckoutViewModel.kt (voucherKey, lookupVoucher, applyVoucher) with ui/components/GiftVouchers.kt | `lookup_gift_voucher` `checkout` |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt (TicketMediumPicker, TicketMediumKeypad) bound to ui/state/DeliveryStore.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |

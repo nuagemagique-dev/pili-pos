@@ -3,6 +3,9 @@ package dev.nuagemagique.pilipos.feature.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_CODE_LENGTH
+import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.pressVoucherKey
 import dev.nuagemagique.pilipos.ui.feedback.DEFAULT_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ERROR_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
@@ -23,6 +26,7 @@ import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.RefundItem
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.RequestedMedium
+import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.TicketDeliveryRequest
 
 /** How many recent sales the refund list asks for (`listRefundableEvents(20)` of `ReportsView.vue`). */
@@ -72,7 +76,10 @@ internal class ReportsViewModel(
 
     /** Loads the day tab: the Z history and the reminder that a Z is due (`onMounted`). */
     fun load() {
-        viewModelScope.launch { loadDay() }
+        viewModelScope.launch {
+            loadDay()
+            loadVoucherSetting()
+        }
     }
 
     /** Chooses a tab; leaving the day tab disarms the Z, opening the tickets tab loads the lists. */
@@ -80,6 +87,81 @@ internal class ReportsViewModel(
         disarmZ()
         own.update { it.copy(tab = tab) }
         if (tab == ReportsTab.TICKETS) loadTickets()
+        if (tab == ReportsTab.VOUCHERS) viewModelScope.launch { loadVouchers() }
+    }
+
+    // ── Gift vouchers tab ─────────────────────────────────────────
+
+    /** Reads the gift voucher switch (`load` of `giftVouchers.ts`): the tab is offered only when it is on. */
+    private suspend fun loadVoucherSetting() {
+        val enabled = attempt { entry.gateway().call { engine -> engine.getGiftVoucherSettings() } }.map { it.enabled }.getOrDefault(false)
+        val manager = entry.session().isManager.value
+        own.update { it.copy(vouchers = it.vouchers.copy(enabled = enabled, manager = manager)) }
+    }
+
+    /** The list of the vouchers for a manager, with the status filter (`loadList`). */
+    private suspend fun loadVouchers() {
+        if (!entry.session().isManager.value) return
+        val filter = own.value.vouchers.filter
+        attempt { entry.gateway().call { engine -> engine.listGiftVouchers(filter) } }.fold(
+            onSuccess = { list -> own.update { it.copy(vouchers = it.vouchers.copy(list = list, listError = null)) } },
+            onFailure = { failure ->
+                val text = entry.errors().text(failure, language())
+                own.update { it.copy(vouchers = it.vouchers.copy(listError = text)) }
+            },
+        )
+    }
+
+    /** A key of the code pad: a change of the digits forgets the voucher found and the refusal. */
+    fun voucherKey(key: NumPadKey) {
+        own.update {
+            val v = it.vouchers
+            it.copy(vouchers = v.copy(digits = pressVoucherKey(v.digits, key), found = null, lookupError = null))
+        }
+    }
+
+    /** "Chercher": the engine finds the voucher by its code. */
+    fun lookupVoucher() {
+        val v = own.value.vouchers
+        if (v.digits.length != GIFT_VOUCHER_CODE_LENGTH || v.busy) return
+        own.update { it.copy(vouchers = v.copy(busy = true, lookupError = null)) }
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.lookupGiftVoucher(v.digits) } }.fold(
+                onSuccess = { found -> own.update { it.copy(vouchers = it.vouchers.copy(found = found, busy = false)) } },
+                onFailure = { failure ->
+                    val text = entry.errors().text(failure, language())
+                    own.update { it.copy(vouchers = it.vouchers.copy(found = null, lookupError = text, busy = false)) }
+                },
+            )
+        }
+    }
+
+    /** A filter button of the list; null shows all the vouchers. */
+    fun filterVouchers(status: String?) {
+        own.update { it.copy(vouchers = it.vouchers.copy(filter = status)) }
+        viewModelScope.launch { loadVouchers() }
+    }
+
+    /** Opens or closes the movements of a voucher of the list. */
+    fun toggleVoucher(id: Long) {
+        own.update { it.copy(vouchers = it.vouchers.copy(open = if (it.vouchers.open == id) null else id)) }
+    }
+
+    /** "Réimprimer": prints the voucher again, marked DUPLICATA (managers only). */
+    fun reprintVoucher(id: Long) {
+        viewModelScope.launch {
+            attempt { entry.gateway().call { engine -> engine.printGiftVoucher(id) } }.fold(
+                onSuccess = { outcome ->
+                    when (outcome) {
+                        SlipOutcome.PRINTED -> toast(ToastVariant.Success, text("gv_reprinted"), REPORT_TOAST_MS)
+                        SlipOutcome.NO_PRINTER -> toast(ToastVariant.Warning, text("gv_print_no_printer"), WARNING_TOAST_MS)
+                        SlipOutcome.FAILED -> toast(ToastVariant.Warning, text("kitchen_slip_failed"), WARNING_TOAST_MS)
+                        SlipOutcome.NOTHING_TO_PRINT -> Unit
+                    }
+                },
+                onFailure = { errorOf(it, ERROR_TOAST_TTL_MS) },
+            )
+        }
     }
 
     private suspend fun loadDay() {
@@ -563,6 +645,9 @@ internal class ReportsViewModel(
     private companion object {
         /** Lifetime of the toast of a generated report, in milliseconds (4000 in `ReportsView.vue`). */
         const val REPORT_TOAST_MS: Long = 4000L
+
+        /** Lifetime of a print warning toast, in milliseconds (8000 in `warnIfSlipFailed`). */
+        const val WARNING_TOAST_MS: Long = 8000L
 
         /** Paper is the engine default: the Vue screen sends no request for it. */
         fun deliveryOf(request: TicketDeliveryRequest): TicketDeliveryRequest? =

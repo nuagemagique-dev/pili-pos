@@ -865,16 +865,17 @@ async fn the_refund_of_an_unused_voucher_sale_cancels_it() {
     let v = voucher(&app, id);
     assert!(v.cancelled);
     assert_eq!(v.balance_cents, 0);
-    let conn = app.state.db.lock().unwrap();
-    let moves = store::movements(&conn, id).unwrap();
-    assert_eq!(
-        moves
-            .iter()
-            .map(|m| (m.kind.as_str(), m.amount_cents))
-            .collect::<Vec<_>>(),
-        [("issue", 5000), ("cancel", -5000)]
-    );
-    drop(conn);
+    {
+        let conn = app.state.db.lock().unwrap();
+        let moves = store::movements(&conn, id).unwrap();
+        assert_eq!(
+            moves
+                .iter()
+                .map(|m| (m.kind.as_str(), m.amount_cents))
+                .collect::<Vec<_>>(),
+            [("issue", 5000), ("cancel", -5000)]
+        );
+    }
     let view = do_lookup_gift_voucher(&app.state, &voucher(&app, id).code).unwrap();
     assert_eq!(view.status, "cancelled");
     // It can no longer pay.

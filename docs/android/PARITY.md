@@ -58,6 +58,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | i18n.ts (useI18n, language) | ui/text/UiText.kt (PosUiRoot, LocalUiLanguage, vueText, uiText) | - |
 | stores/allergens.ts | feature/order/MenuViewModel.kt (allergen legend, mode and sheet state) | `list_allergens` `get_allergen_sheet` `print_allergen_sheet` |
 | stores/order.ts (courses: courseSettings, heldCourses, setLineCourse, sendNextCourse) | ui/state/OrderStore.kt (courseSettings, heldCourses, setLineCourse, sendNextCourse) | `get_course_settings` `set_line_course` `list_held_courses` `send_next_course` |
+| stores/giftVouchers.ts, stores/order.ts (addGiftVoucher) | feature/order/MenuViewModel.kt, feature/checkout/CheckoutViewModel.kt, feature/reports/ReportsViewModel.kt (each reads `get_gift_voucher_settings`), ui/state/OrderStore.kt (addGiftVoucher) | `get_gift_voucher_settings` `add_gift_voucher_line` |
 | stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` |
 | utils/names.ts | ui/format/ProductNames.kt | - |
 | stores/fdm.ts | ui/fdm/FdmStore.kt | `fdm_health` `fdm_check_now` |

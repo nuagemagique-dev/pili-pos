@@ -39,4 +39,23 @@
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV 云端</string>
     <string name="eft_kind_ccv_opi">CCV 局域网</string>
+    <string name="method_gift_voucher">礼品券</string>
+    <string name="gv_dialog_title">使用礼品券支付</string>
+    <string name="gv_code_label">礼品券编号（12位）</string>
+    <string name="gv_lookup">查询</string>
+    <string name="gv_balance">余额</string>
+    <string name="gv_expires">有效期至 {date}</string>
+    <string name="gv_status_active">有效</string>
+    <string name="gv_status_used">已用完</string>
+    <string name="gv_status_expired">已过期</string>
+    <string name="gv_status_cancelled">已作废</string>
+    <string name="gv_training_tag">培训券</string>
+    <string name="gv_use_amount">使用金额</string>
+    <string name="gv_apply">使用此券</string>
+    <string name="gv_applied">礼品券 {code}：{amount}</string>
+    <string name="gv_sold_no_other">出售的礼品券只能用现金或银行卡支付。</string>
+    <string name="gv_print_voucher_ok">礼品券已打印</string>
+    <string name="gv_print_balance_ok">余额已打印</string>
+    <string name="gv_print_failed">礼品券未打印：请在“报表-礼品券”中重新打印。</string>
+    <string name="gv_print_no_printer">没有打印机：礼品券未打印。</string>
 </resources>

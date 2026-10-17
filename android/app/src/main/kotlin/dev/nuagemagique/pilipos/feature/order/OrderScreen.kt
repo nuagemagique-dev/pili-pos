@@ -52,6 +52,10 @@ internal data class OrderCallbacks(
     /** Print the open allergen sheet (`false`) or the whole menu's (`true`). */
     val onAllergenPrint: (Boolean) -> Unit = {},
     val onDismiss: () -> Unit = {},
+    /** The "Bon cadeau" button: ask for the amount of a voucher to sell. */
+    val onSellVoucher: () -> Unit = {},
+    /** The amount typed for the voucher. */
+    val onVoucherAmount: (Long) -> Unit = {},
     /** A course picked in the picker. */
     val onCoursePick: (Int) -> Unit = {},
     /** The manager PIN of "customer left without paying"; throws what the engine refused. */
@@ -90,6 +94,8 @@ internal fun OrderRoute(
             onAllergenMode = model::toggleAllergenMode,
             onAllergenPrint = model::printAllergenSheet,
             onDismiss = model::dismissDialog,
+            onSellVoucher = model::askGiftVoucher,
+            onVoucherAmount = model::confirmGiftVoucher,
             onCoursePick = model::pickCourse,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
@@ -159,7 +165,7 @@ internal fun OrderContent(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 CategoryTabs(menu.categories, menu.selectedCategoryId, menu.language, callbacks.onCategory)
-                AllergenBar(menu, callbacks.onAllergenMode)
+                AllergenBar(menu, callbacks.onAllergenMode, onSellVoucher = callbacks.onSellVoucher)
                 MenuGrid(
                     items = menu.items,
                     categoryColor = parseCategoryColor(color),
@@ -194,6 +200,14 @@ internal fun BoxScope.OrderDialogs(
                 itemName = dialog.item.name,
                 texts = defaultAmountDialogTexts(),
                 onConfirm = callbacks.onPrice,
+                onCancel = callbacks.onDismiss,
+            )
+        OrderDialog.SellVoucher ->
+            AmountDialog(
+                title = vueText("gv_sell_title"),
+                itemName = vueText("gv_sell_item"),
+                texts = defaultAmountDialogTexts(),
+                onConfirm = callbacks.onVoucherAmount,
                 onCancel = callbacks.onDismiss,
             )
         is OrderDialog.Modifiers ->

@@ -39,4 +39,23 @@
     <string name="eft_kind_worldline_terminal_api">Worldline</string>
     <string name="eft_kind_ccv_payment_api">CCV cloud</string>
     <string name="eft_kind_ccv_opi">CCV réseau local</string>
+    <string name="method_gift_voucher">Bon cadeau</string>
+    <string name="gv_dialog_title">Payer avec un bon cadeau</string>
+    <string name="gv_code_label">Code du bon (12 chiffres)</string>
+    <string name="gv_lookup">Chercher</string>
+    <string name="gv_balance">Solde</string>
+    <string name="gv_expires">Valable jusqu\'au {date}</string>
+    <string name="gv_status_active">Valide</string>
+    <string name="gv_status_used">Épuisé</string>
+    <string name="gv_status_expired">Expiré</string>
+    <string name="gv_status_cancelled">Annulé</string>
+    <string name="gv_training_tag">Bon d\'entraînement</string>
+    <string name="gv_use_amount">Montant utilisé</string>
+    <string name="gv_apply">Utiliser ce bon</string>
+    <string name="gv_applied">Bon {code} : {amount}</string>
+    <string name="gv_sold_no_other">Un bon cadeau vendu se règle en espèces ou par carte.</string>
+    <string name="gv_print_voucher_ok">Bon imprimé</string>
+    <string name="gv_print_balance_ok">Solde imprimé</string>
+    <string name="gv_print_failed">Bon non imprimé : le réimprimer depuis Rapports, Bons cadeaux.</string>
+    <string name="gv_print_no_printer">Aucune imprimante : le bon n\'est pas imprimé.</string>
 </resources>

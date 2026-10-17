@@ -381,6 +381,22 @@ internal object VueStringIds {
         this["err_courses_disabled"] = R.string.err_courses_disabled
         this["err_no_course_held"] = R.string.err_no_course_held
         this["err_nothing_printed"] = R.string.err_nothing_printed
+        this["err_gift_vouchers_disabled"] = R.string.err_gift_vouchers_disabled
+        this["err_gift_voucher_settings_invalid"] = R.string.err_gift_voucher_settings_invalid
+        this["err_gift_voucher_amount_invalid"] = R.string.err_gift_voucher_amount_invalid
+        this["err_gift_voucher_line_fixed"] = R.string.err_gift_voucher_line_fixed
+        this["err_gift_voucher_not_found"] = R.string.err_gift_voucher_not_found
+        this["err_gift_voucher_code_invalid"] = R.string.err_gift_voucher_code_invalid
+        this["err_gift_voucher_lookup_throttled"] = R.string.err_gift_voucher_lookup_throttled
+        this["err_gift_voucher_not_usable"] = R.string.err_gift_voucher_not_usable
+        this["err_gift_voucher_expired"] = R.string.err_gift_voucher_expired
+        this["err_gift_voucher_insufficient"] = R.string.err_gift_voucher_insufficient
+        this["err_gift_voucher_payment_invalid"] = R.string.err_gift_voucher_payment_invalid
+        this["err_gift_voucher_used"] = R.string.err_gift_voucher_used
+        this["gv_sell_button"] = R.string.gv_sell_button
+        this["gv_sell_title"] = R.string.gv_sell_title
+        this["gv_sell_item"] = R.string.gv_sell_item
+        this["gv_line_badge"] = R.string.gv_line_badge
         this["method_cash"] = R.string.method_cash
         this["method_card"] = R.string.method_card
         this["method_meal_voucher"] = R.string.method_meal_voucher
@@ -419,6 +435,25 @@ internal object VueStringIds {
         this["eft_kind_worldline_terminal_api"] = R.string.eft_kind_worldline_terminal_api
         this["eft_kind_ccv_payment_api"] = R.string.eft_kind_ccv_payment_api
         this["eft_kind_ccv_opi"] = R.string.eft_kind_ccv_opi
+        this["method_gift_voucher"] = R.string.method_gift_voucher
+        this["gv_dialog_title"] = R.string.gv_dialog_title
+        this["gv_code_label"] = R.string.gv_code_label
+        this["gv_lookup"] = R.string.gv_lookup
+        this["gv_balance"] = R.string.gv_balance
+        this["gv_expires"] = R.string.gv_expires
+        this["gv_status_active"] = R.string.gv_status_active
+        this["gv_status_used"] = R.string.gv_status_used
+        this["gv_status_expired"] = R.string.gv_status_expired
+        this["gv_status_cancelled"] = R.string.gv_status_cancelled
+        this["gv_training_tag"] = R.string.gv_training_tag
+        this["gv_use_amount"] = R.string.gv_use_amount
+        this["gv_apply"] = R.string.gv_apply
+        this["gv_applied"] = R.string.gv_applied
+        this["gv_sold_no_other"] = R.string.gv_sold_no_other
+        this["gv_print_voucher_ok"] = R.string.gv_print_voucher_ok
+        this["gv_print_balance_ok"] = R.string.gv_print_balance_ok
+        this["gv_print_failed"] = R.string.gv_print_failed
+        this["gv_print_no_printer"] = R.string.gv_print_no_printer
         this["reports_tab_day"] = R.string.reports_tab_day
         this["reports_tab_cash"] = R.string.reports_tab_cash
         this["reports_tab_tickets"] = R.string.reports_tab_tickets
@@ -448,6 +483,20 @@ internal object VueStringIds {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
+        this["reports_tab_vouchers"] = R.string.reports_tab_vouchers
+        this["gv_lookup_title"] = R.string.gv_lookup_title
+        this["gv_list_title"] = R.string.gv_list_title
+        this["gv_filter_all"] = R.string.gv_filter_all
+        this["gv_empty"] = R.string.gv_empty
+        this["gv_face"] = R.string.gv_face
+        this["gv_issued_on"] = R.string.gv_issued_on
+        this["gv_reprint"] = R.string.gv_reprint
+        this["gv_reprinted"] = R.string.gv_reprinted
+        this["gv_movements"] = R.string.gv_movements
+        this["gv_movement_issue"] = R.string.gv_movement_issue
+        this["gv_movement_redeem"] = R.string.gv_movement_redeem
+        this["gv_movement_cancel"] = R.string.gv_movement_cancel
+        this["gv_disabled_note"] = R.string.gv_disabled_note
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -470,6 +519,9 @@ internal object VueStringIds {
         this["settings_support_unavailable"] = R.string.settings_support_unavailable
         this["settings_support_banner_note"] = R.string.settings_support_banner_note
         this["settings_pin_set"] = R.string.settings_pin_set
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["settings_pin_missing"] = R.string.settings_pin_missing
         this["settings_pin_button"] = R.string.settings_pin_button
         this["settings_insz_hint"] = R.string.settings_insz_hint
@@ -519,11 +571,16 @@ internal object VueStringIds {
         this["alerts_transition_test"] = R.string.alerts_transition_test
         this["alerts_outcome_sent"] = R.string.alerts_outcome_sent
         this["alerts_outcome_failed"] = R.string.alerts_outcome_failed
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["alerts_outcome_suppressed"] = R.string.alerts_outcome_suppressed
         this["alerts_minus"] = R.string.alerts_minus
+        this["gv_settings_title"] = R.string.gv_settings_title
+        this["gv_settings_on"] = R.string.gv_settings_on
+        this["gv_settings_off"] = R.string.gv_settings_off
+        this["gv_settings_note"] = R.string.gv_settings_note
+        this["gv_settings_validity"] = R.string.gv_settings_validity
+        this["gv_settings_max"] = R.string.gv_settings_max
+        this["gv_settings_save"] = R.string.gv_settings_save
+        this["gv_settings_saved"] = R.string.gv_settings_saved
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on

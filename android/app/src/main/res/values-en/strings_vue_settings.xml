@@ -74,4 +74,12 @@
     <string name="alerts_outcome_failed">Failed</string>
     <string name="alerts_outcome_suppressed">Held back (hourly limit)</string>
     <string name="alerts_minus">Group (minus sign)</string>
+    <string name="gv_settings_title">Gift vouchers</string>
+    <string name="gv_settings_on">On</string>
+    <string name="gv_settings_off">Off</string>
+    <string name="gv_settings_note">Multi-purpose gift voucher: sold without VAT, the VAT is due when goods are bought with it. The voucher is printed at the sale.</string>
+    <string name="gv_settings_validity">Validity (months)</string>
+    <string name="gv_settings_max">Maximum amount (€)</string>
+    <string name="gv_settings_save">Save</string>
+    <string name="gv_settings_saved">Setting saved</string>
 </resources>

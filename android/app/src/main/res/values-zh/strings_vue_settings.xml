@@ -74,4 +74,12 @@
     <string name="alerts_outcome_failed">失败</string>
     <string name="alerts_outcome_suppressed">已拦截（每小时上限）</string>
     <string name="alerts_minus">群组（负号）</string>
+    <string name="gv_settings_title">礼品券</string>
+    <string name="gv_settings_on">已开启</string>
+    <string name="gv_settings_off">未开启</string>
+    <string name="gv_settings_note">多用途礼品券：出售时不计增值税，购买商品时再计税。出售时打印礼品券。</string>
+    <string name="gv_settings_validity">有效期（月）</string>
+    <string name="gv_settings_max">最高金额（€）</string>
+    <string name="gv_settings_save">保存</string>
+    <string name="gv_settings_saved">已保存</string>
 </resources>

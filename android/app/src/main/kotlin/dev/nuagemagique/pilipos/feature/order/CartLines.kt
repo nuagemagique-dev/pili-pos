@@ -25,7 +25,6 @@ import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
-import uniffi.pos_ffi.OrderType
 
 private val PendingDot = 10.dp
 private val ActionHeight = 64.dp
@@ -110,7 +109,7 @@ private fun CourseHeader(course: Int) {
 
 /** "Envoyer la suite (Plats)": signs what is unsent, releases the next held course and prints it. */
 @Composable
-private fun NextCourseButton(
+internal fun NextCourseButton(
     course: Int,
     sending: Boolean,
     actions: OrderCartActions,
@@ -128,4 +127,3 @@ private fun NextCourseButton(
         )
     }
 }
-

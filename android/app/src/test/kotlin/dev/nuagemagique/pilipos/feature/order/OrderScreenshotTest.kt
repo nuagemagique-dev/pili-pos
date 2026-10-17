@@ -197,6 +197,42 @@ class OrderScreenshotTest {
         capture(OrderUiState(signedIn = true, menu = menu, cart = courseCart, dialog = dialog), "order_course_picker")
     }
 
+    // Gift vouchers on: the "Bon cadeau" button in the strip above the products, and a voucher sold in the cart.
+    private val voucherCart =
+        OrderCartState(
+            order = order(table = 4, totalCents = 4_150),
+            rows =
+                listOf(
+                    CartRow(cartLine(1, 10, "Nigiri saumon", quantity = 2, nameZh = "三文鱼寿司"), LineAmount.Total(960)),
+                    CartRow(
+                        cartLine(2, 990_001, "Bon cadeau", unitPriceCents = 3_190).copy(departmentId = "GV"),
+                        LineAmount.PerUnit(1, 3_190),
+                    ),
+                ),
+            canPay = true,
+        )
+
+    @Test
+    fun giftVoucher() {
+        capture(
+            OrderUiState(signedIn = true, menu = menu.copy(giftVouchersEnabled = true), cart = voucherCart),
+            "order_gift_voucher",
+        )
+    }
+
+    @Test
+    fun giftVoucherAmountDialog() {
+        capture(
+            OrderUiState(
+                signedIn = true,
+                menu = menu.copy(giftVouchersEnabled = true),
+                cart = voucherCart,
+                dialog = OrderDialog.SellVoucher,
+            ),
+            "order_gift_voucher_amount",
+        )
+    }
+
     @Test
     fun empty() {
         capture(OrderUiState(signedIn = true), "order_empty")

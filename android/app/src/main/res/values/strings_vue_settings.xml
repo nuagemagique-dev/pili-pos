@@ -74,4 +74,12 @@
     <string name="alerts_outcome_failed">Échec</string>
     <string name="alerts_outcome_suppressed">Retenu (limite horaire)</string>
     <string name="alerts_minus">Groupe (signe -)</string>
+    <string name="gv_settings_title">Bons cadeaux</string>
+    <string name="gv_settings_on">Actif</string>
+    <string name="gv_settings_off">Inactif</string>
+    <string name="gv_settings_note">Bon cadeau multi-usage : vendu sans TVA, la TVA est due à l\'achat des produits. Le bon est imprimé à la vente.</string>
+    <string name="gv_settings_validity">Validité (mois)</string>
+    <string name="gv_settings_max">Montant maximum (€)</string>
+    <string name="gv_settings_save">Enregistrer</string>
+    <string name="gv_settings_saved">Réglage enregistré</string>
 </resources>

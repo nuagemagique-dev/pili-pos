@@ -41,6 +41,9 @@ import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsViewModel
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesCallbacks
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesSection
 import dev.nuagemagique.pilipos.feature.settings.courses.CoursesViewModel
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherCallbacks
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherSection
+import dev.nuagemagique.pilipos.feature.settings.vouchers.GiftVoucherViewModel
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
@@ -129,10 +132,12 @@ internal fun SettingsRoute(
     val hubriseModel = viewModel { HubriseViewModel(entry) }
     val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
     val coursesModel = viewModel { CoursesViewModel(entry) }
+    val vouchersModel = viewModel { GiftVoucherViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
     val alerts by alertsModel.state.collectAsState()
     val courses by coursesModel.state.collectAsState()
+    val vouchers by vouchersModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -148,6 +153,8 @@ internal fun SettingsRoute(
     val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
     val alertsCallbacks = alertsCallbacksOf(alertsModel)
     val coursesCallbacks = CoursesCallbacks(coursesModel::toggleEnabled, coursesModel::setCourse, coursesModel::save)
+    val vouchersCallbacks =
+        GiftVoucherCallbacks(vouchersModel::toggleEnabled, vouchersModel::setValidity, vouchersModel::setMax, vouchersModel::save)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -178,7 +185,12 @@ internal fun SettingsRoute(
             callbacks,
             hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
             alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
-            coursesSection = { CoursesSection(courses, coursesCallbacks) },
+            coursesSection = {
+                Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
+                    CoursesSection(courses, coursesCallbacks)
+                    GiftVoucherSection(vouchers, vouchersCallbacks)
+                }
+            },
         )
     }
 }

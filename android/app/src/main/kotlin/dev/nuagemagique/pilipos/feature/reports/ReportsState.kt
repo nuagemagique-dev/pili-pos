@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.reports
 import uniffi.pos_ffi.CheckoutResult
 import uniffi.pos_ffi.CopyResult
 import uniffi.pos_ffi.CopyableTicket
+import uniffi.pos_ffi.GiftVoucherView
 import uniffi.pos_ffi.OrderLine
 import uniffi.pos_ffi.RefundableEvent
 import uniffi.pos_ffi.ReportResult
@@ -19,7 +20,33 @@ internal enum class ReportsTab {
 
     /** Copy and refund from one list of tickets. */
     TICKETS,
+
+    /** Gift vouchers (v1.2): lookup by code, and for a manager the list with the duplicate. */
+    VOUCHERS,
 }
+
+/** The statuses the manager's list filters on, `null` being all of them (`FILTERS` of `GiftVouchersReport.vue`). */
+internal val VOUCHER_FILTERS: List<String?> = listOf(null, "active", "used", "expired", "cancelled")
+
+/**
+ * The gift vouchers tab (`GiftVouchersReport.vue`): the lookup of a code (any role) and, for a manager, the list.
+ * [enabled] is the setting; the tab is offered only then. Codes are masked everywhere.
+ */
+internal data class VouchersState(
+    val enabled: Boolean = false,
+    val manager: Boolean = false,
+    /** The digits of the code typed for the lookup. */
+    val digits: String = "",
+    val found: GiftVoucherView? = null,
+    val lookupError: String? = null,
+    val busy: Boolean = false,
+    /** The status filter of the list; null is all. */
+    val filter: String? = null,
+    val list: List<GiftVoucherView> = emptyList(),
+    val listError: String? = null,
+    /** The voucher whose movements are open. */
+    val open: Long? = null,
+)
 
 /** The report a button of the day tab generates. */
 internal enum class ReportKind {
@@ -273,6 +300,7 @@ internal data class ReportsState(
     val day: DayState = DayState(),
     val cash: CashState = CashState(),
     val tickets: TicketsState = TicketsState(),
+    val vouchers: VouchersState = VouchersState(),
     /** The copy flow, or null when no copy is in progress. */
     val copyFlow: CopyFlow? = null,
     /** The refund flow, or null when no refund is in progress. */

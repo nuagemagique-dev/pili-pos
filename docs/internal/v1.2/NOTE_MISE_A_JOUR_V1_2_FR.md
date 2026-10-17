@@ -8,6 +8,7 @@ fonctions documentées : chaque section dit si la fonction touche le binaire cer
 | --- | --- | --- | --- |
 | A. Export comptable | Non : outil séparé | lit les données signées, n'écrit rien | sans objet |
 | B. Alertes sur téléphone | Oui, dans le moteur | aucune : ne signe rien, ne lit ni ticket ni rapport | désactivée |
+| E. Bons cadeaux à usage multiple | Oui, dans le moteur | vente T.V.A. X ; paiement `VOUCHER_STORE` ; cas officiels UC260 à UC262 rejoués | désactivée |
 
 ## A. Export comptable (hors du binaire certifié)
 
@@ -152,3 +153,41 @@ fonction ne change aucun octet imprimé ni signé.
 pastilles, sélecteur de temps et bouton « Envoyer la suite », plan de salle (« Suite : Plats »),
 avertissement à l'encaissement, tickets imprimés (premier envoi, « SUITE : Plats », vente
 directe avec en-têtes, DUPLICATA) : captures à reprendre après la fusion.
+
+## E. Bons cadeaux à usage multiple (dans le binaire certifié)
+
+**Ce qui change.** Un gérant peut activer (Réglages, panneau « Bons cadeaux ») la vente et
+l'acceptation de bons cadeaux. À l'écran de commande, le bouton « Bon cadeau » demande un montant
+et ajoute au panier un produit système (T.V.A. X, département GV). À l'encaissement, la méthode
+« Bon cadeau » demande le code à 12 chiffres, montre le solde et la validité, et règle le plus
+petit du solde et du reste à payer. Le bon vendu s'imprime après la vente ; un solde restant
+s'imprime sur un petit ticket. L'onglet « Bons cadeaux » des rapports recherche un bon par son
+code et, pour un gérant, liste les bons et réimprime un duplicata. Même écran et mêmes textes
+sur Linux (Vue) et sur Android (Compose).
+
+**Est-ce dans le binaire certifié ?** Oui : migration 63 (produit système et trois tables), six
+commandes du moteur, tickets `pos-print`, un moyen de paiement de plus. Aucune option de
+compilation. Éteint par défaut ; éteint, les ventes sont inchangées.
+
+**Impact fiscal.** Vente d'un bon : ligne T.V.A. X (hors champ), aucune T.V.A. à la vente, la
+T.V.A. est due sur les marchandises achetées avec le bon. Utilisation : un paiement de type
+`VOUCHER_STORE` (identité 8, « Gift voucher », saisie `MANUAL`), montant exact, jamais arrondi.
+Les cas officiels du jeu avancé UC260, UC261 et UC262 sont rejoués et conformes, avec des écarts
+expliqués (voir `BONS_CADEAUX_FR.md`, section 9). Le code d'un bon n'entre dans aucune demande
+signée ni aucun ticket de T.V.A.
+
+**Données qui quittent la caisse.** Aucune. Une vente qui vend un bon n'est pas renvoyée à HubRise.
+
+**Garde-fous.** Code à 12 chiffres dont 2 de contrôle ; recherches limitées à 5 échecs par
+minute ; code masqué partout sauf sur le bon imprimé ; un bon utilisé ne peut pas être remboursé
+(`gift_voucher_used`) ; un bon expiré, annulé, d'un autre mode (formation) ou insuffisant est
+refusé avant l'envoi au module fiscal ; les trois tables sont en ajout seulement.
+
+**Différé.** Bons à usage unique (UC270, UC271), conversion d'un bon en espèces (UC4105),
+remboursement vers un bon : voir `BONS_CADEAUX_FR.md`, section 8.
+
+**Tests.** Voir `BONS_CADEAUX_FR.md`, section 11.
+
+**Écrans.** Réglages (panneau « Bons cadeaux »), commande (bouton, saisie du montant, ligne avec
+pastille), encaissement (méthode, saisie du code, notes d'impression), rapports (onglet « Bons
+cadeaux »), tickets imprimés (bon, solde, duplicata) : captures à reprendre après la fusion.

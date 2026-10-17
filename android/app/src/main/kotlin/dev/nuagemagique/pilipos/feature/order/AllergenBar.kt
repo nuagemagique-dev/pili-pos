@@ -34,19 +34,21 @@ private val LegendBadge = 20.dp
 
 /**
  * The allergen strip above the products (`allergen-bar` of `OrderView.vue`): the "Allergènes" toggle and, while the
- * mode is on, the hint and the legend of the 14 numbers. Test tags: `allergen_mode`, `allergen_legend`,
- * `allergen_legend_<n>`.
+ * mode is on, the hint and the legend of the 14 numbers, and, with gift vouchers on, the "Bon cadeau" button. Test
+ * tags: `allergen_mode`, `gift_voucher_sell`, `allergen_legend`, `allergen_legend_<n>`.
  */
 @Composable
 internal fun AllergenBar(
     menu: MenuState,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    onSellVoucher: (() -> Unit)? = null,
 ) {
     val c = PiliTheme.colors
     val d = PiliTheme.dimens
     val t = PiliTheme.typography
     val source = remember { MutableInteractionSource() }
+    val voucherSource = remember { MutableInteractionSource() }
     FlowRow(
         modifier = modifier.fillMaxWidth().padding(start = d.spaceMd, end = d.spaceMd, top = d.spaceSm),
         horizontalArrangement = Arrangement.spacedBy(d.spaceMd),
@@ -68,6 +70,22 @@ internal fun AllergenBar(
                     .padding(horizontal = 18.dp, vertical = 10.dp)
                     .testTag("allergen_mode"),
         )
+        if (onSellVoucher != null && menu.giftVouchersEnabled) {
+            Text(
+                text = vueText("gv_sell_button"),
+                style = t.body.copy(fontWeight = t.weightBold),
+                color = c.textPrimary,
+                modifier =
+                    Modifier
+                        .heightIn(min = ToggleHeight)
+                        .tapScale(voucherSource)
+                        .clip(RoundedCornerShape(d.radiusMd))
+                        .background(c.bgSurface)
+                        .clickable(interactionSource = voucherSource, indication = null, role = Role.Button, onClick = onSellVoucher)
+                        .padding(horizontal = 18.dp, vertical = 10.dp)
+                        .testTag("gift_voucher_sell"),
+            )
+        }
         if (menu.allergenMode) {
             Text(
                 text = vueText("allergens_hint"),

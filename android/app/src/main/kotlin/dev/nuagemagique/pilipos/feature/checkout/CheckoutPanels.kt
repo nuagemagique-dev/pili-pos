@@ -70,6 +70,7 @@ private fun methodLabel(method: PaymentMethod): String =
         PaymentMethod.CASH -> vueText("method_cash")
         PaymentMethod.CARD -> vueText("method_card")
         PaymentMethod.MEAL_VOUCHER -> vueText("method_meal_voucher")
+        PaymentMethod.GIFT_VOUCHER -> vueText("method_gift_voucher")
         else -> method.name
     }
 
@@ -77,6 +78,7 @@ private fun methodTag(method: PaymentMethod): String =
     when (method) {
         PaymentMethod.CASH -> "checkout_method_cash"
         PaymentMethod.CARD -> "checkout_method_card"
+        PaymentMethod.GIFT_VOUCHER -> "checkout_method_gift_voucher"
         else -> "checkout_method_meal_voucher"
     }
 
@@ -147,7 +149,7 @@ private fun MethodRow(
     callbacks: CheckoutCallbacks,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd)) {
-        TILL_METHODS.forEach { method ->
+        state.methods.forEach { method ->
             PiliButton(
                 text = methodLabel(method),
                 onClick = { callbacks.onMethod(method) },
@@ -649,7 +651,8 @@ private fun TakenRow(
     val partName = vueText("part_n", "n" to (index + 1))
     val value = uiText(R.string.ui_checkout_paid_part, "amount" to formatCents(part.cents))
     if (!part.locked) {
-        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to methodLabel(part.method))
+        val method = methodLabel(part.method) + (part.codeMasked?.let { " · $it" } ?: "")
+        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to method)
         FootRow(label, value, "checkout_part_$index")
         return
     }

@@ -260,4 +260,8 @@
     <string name="table_held_course">Suite : {course}</string>
     <string name="checkout_held_warning">Suite non envoyée : {course}</string>
     <string name="checkout_send_now">Envoyer maintenant</string>
+    <string name="gv_sell_button">Bon cadeau</string>
+    <string name="gv_sell_title">Vendre un bon cadeau</string>
+    <string name="gv_sell_item">Montant du bon</string>
+    <string name="gv_line_badge">Bon</string>
 </resources>

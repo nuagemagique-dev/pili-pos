@@ -260,4 +260,8 @@
     <string name="table_held_course">Next: {course}</string>
     <string name="checkout_held_warning">Next course not sent: {course}</string>
     <string name="checkout_send_now">Send now</string>
+    <string name="gv_sell_button">Gift voucher</string>
+    <string name="gv_sell_title">Sell a gift voucher</string>
+    <string name="gv_sell_item">Voucher amount</string>
+    <string name="gv_line_badge">Voucher</string>
 </resources>

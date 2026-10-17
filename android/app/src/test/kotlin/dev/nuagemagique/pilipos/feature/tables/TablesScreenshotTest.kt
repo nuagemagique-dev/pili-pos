@@ -108,8 +108,13 @@ class TablesScreenshotTest {
                     2 -> table(2, orderId = 40, lines = 3, totalCents = 2_550, openedAt = "2026-10-09 10:00:00", heldCourse = 2)
                     4 ->
                         table(
-                            4, orderId = 41, lines = 8, totalCents = 18_940, openedAt = "2026-10-09 09:12:00",
-                            preBill = true, heldCourse = 3,
+                            4,
+                            orderId = 41,
+                            lines = 8,
+                            totalCents = 18_940,
+                            openedAt = "2026-10-09 09:12:00",
+                            preBill = true,
+                            heldCourse = 3,
                         )
                     else -> it
                 }

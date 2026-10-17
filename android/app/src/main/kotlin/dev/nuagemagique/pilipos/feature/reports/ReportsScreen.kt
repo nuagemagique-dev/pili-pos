@@ -87,12 +87,13 @@ internal fun ReportsContent(
         modifier = modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).padding(horizontal = d.spaceXl, vertical = d.spaceLg),
         verticalArrangement = Arrangement.spacedBy(d.spaceLg),
     ) {
-        TabBar(state.tab, callbacks.onTab)
+        TabBar(state.tab, state.vouchers.enabled, callbacks.onTab)
         Box(Modifier.weight(1f).fillMaxWidth().testTag("reports_body")) {
             when (state.tab) {
                 ReportsTab.DAY -> DayTab(state.day, callbacks.day)
                 ReportsTab.CASH -> CashTab(state.cash, callbacks.cash)
                 ReportsTab.TICKETS -> TicketsTab(state.tickets, callbacks.tickets)
+                ReportsTab.VOUCHERS -> VouchersTab(state.vouchers, callbacks.vouchers)
             }
         }
     }
@@ -101,10 +102,12 @@ internal fun ReportsContent(
 @Composable
 private fun TabBar(
     selected: ReportsTab,
+    vouchers: Boolean,
     onTab: (ReportsTab) -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm)) {
-        ReportsTab.entries.forEach { tab ->
+        // The gift vouchers tab is offered only while the setting is on.
+        ReportsTab.entries.filter { it != ReportsTab.VOUCHERS || vouchers }.forEach { tab ->
             val key = tabKey(tab)
             ChoiceButton(
                 text = vueText(key),
@@ -121,6 +124,7 @@ private fun tabKey(tab: ReportsTab): String =
         ReportsTab.DAY -> "reports_tab_day"
         ReportsTab.CASH -> "reports_tab_cash"
         ReportsTab.TICKETS -> "reports_tab_tickets"
+        ReportsTab.VOUCHERS -> "reports_tab_vouchers"
     }
 
 /**
