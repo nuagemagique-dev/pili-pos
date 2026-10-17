@@ -164,6 +164,18 @@ internal object VueStringIds {
         this["err_config_digital_ticket"] = R.string.err_config_digital_ticket
         this["err_config_export"] = R.string.err_config_export
         this["err_config_payment_terminal"] = R.string.err_config_payment_terminal
+        this["err_config_peppol"] = R.string.err_config_peppol
+        this["err_invoice_no_sales"] = R.string.err_invoice_no_sales
+        this["err_invoice_sale_not_found"] = R.string.err_invoice_sale_not_found
+        this["err_invoice_not_a_sale"] = R.string.err_invoice_not_a_sale
+        this["err_invoice_sale_already_invoiced"] = R.string.err_invoice_sale_already_invoiced
+        this["err_invoice_training_mode"] = R.string.err_invoice_training_mode
+        this["err_customer_vat_invalid"] = R.string.err_customer_vat_invalid
+        this["err_customer_incomplete"] = R.string.err_customer_incomplete
+        this["err_customer_not_found"] = R.string.err_customer_not_found
+        this["err_peppol_not_configured"] = R.string.err_peppol_not_configured
+        this["err_peppol_delivery_not_found"] = R.string.err_peppol_delivery_not_found
+        this["err_peppol_delivery_not_parked"] = R.string.err_peppol_delivery_not_parked
         this["err_config_other"] = R.string.err_config_other
         this["err_internal_error"] = R.string.err_internal_error
         this["pin_choose"] = R.string.pin_choose
@@ -254,6 +266,9 @@ internal object VueStringIds {
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
         this["delivery_email"] = R.string.delivery_email
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["delivery_both"] = R.string.delivery_both
         this["delivery_unreachable_note"] = R.string.delivery_unreachable_note
         this["delivery_enter_email_title"] = R.string.delivery_enter_email_title
@@ -266,9 +281,6 @@ internal object VueStringIds {
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
         this["delivery_outcome_queued"] = R.string.delivery_outcome_queued
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_print_missing"] = R.string.delivery_print_missing
         this["delivery_settings_title"] = R.string.delivery_settings_title
         this["delivery_settings_refresh"] = R.string.delivery_settings_refresh
@@ -507,6 +519,9 @@ internal object VueStringIds {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity
@@ -519,9 +534,6 @@ internal object VueStringIds {
         this["hubrise_catalog_title"] = R.string.hubrise_catalog_title
         this["hubrise_catalog_synced"] = R.string.hubrise_catalog_synced
         this["hubrise_catalog_never"] = R.string.hubrise_catalog_never
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_catalog_rejected"] = R.string.hubrise_catalog_rejected
         this["hubrise_catalog_sync_ok"] = R.string.hubrise_catalog_sync_ok
         this["hubrise_adoption_title"] = R.string.hubrise_adoption_title

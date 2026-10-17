@@ -5,8 +5,8 @@
 # Implements the five steps declared in
 # docs/SUBMISSION_ARTIFACTS/GARANTIE_MAJ_LANGUES_FR.md §1.2:
 #   1. Compile the certification build (HubRise in, switched per
-#      installation; no peppol).
-#   2. Verify the binary has the HubRise integration and no invoicing.
+#      installation; invoicing in every build).
+#   2. Verify the binary has the HubRise integration (and report the invoicing symbols).
 #   3. Verify the source compiled into the binary contains no
 #      DELETE/UPDATE on fiscal_events.
 #   4. Compute SHA-1, SHA-256 and MD5 of the binary.
@@ -35,7 +35,8 @@ echo "── 1/5 Certification build ──────────────�
 
 echo "── 2/5 Integration check ────────────────────────────────"
 # One binary for every installation: the HubRise integration is in it
-# (off unless switched on), invoicing is not.
+# (off unless switched on), invoicing (event I, Peppol queue) is in every
+# build since v1.1 (V11-D1).
 # Count, not `grep -q`: with pipefail, grep quitting early kills
 # `strings` with SIGPIPE and the pipeline reads as a failure.
 SWITCH_REFS=$(strings "$BINARY" | grep -c "integration_switch_log" || true)
@@ -44,11 +45,7 @@ if [[ "$SWITCH_REFS" -eq 0 ]]; then
     exit 1
 fi
 PEPPOL_SYMS=$(nm "$BINARY" 2>/dev/null | grep -c pos_peppol || true)
-if [[ "$PEPPOL_SYMS" != "0" ]]; then
-    echo "✗ found $PEPPOL_SYMS pos_peppol symbol(s): invoicing is not in the v1.0.0 cert scope"
-    exit 1
-fi
-echo "✓ HubRise integration present (switched per installation), no invoicing"
+echo "✓ HubRise integration present (switched per installation), invoicing present ($PEPPOL_SYMS pos_peppol symbols)"
 # devUrl (localhost:1420) is part of the config Tauri always embeds, so
 # its presence proves nothing. Without custom-protocol the bundle is not
 # embedded at all: check that every built asset's path is in the binary.
@@ -135,7 +132,7 @@ MD5           : ${MD5}
 
 Checks
   HubRise integration ............ present (installation switch, off by default)
-  pos_peppol symbols ............. 0
+  pos_peppol symbols ............. ${PEPPOL_SYMS}
   fiscal_events DELETE/UPDATE .... none in source
 REPORT_EOF
 

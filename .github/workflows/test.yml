@@ -15,7 +15,7 @@ env:
 jobs:
   # ── Layer 1: Rust - format, lint and every test ──────────────
   # Both feature sets: the default development build and the
-  # certification build (no HubRise, no Peppol). Unit tests, the SPF
+  # certification build (HubRise in; invoicing is in both). Unit tests, the SPF
   # fixture replays (Basic Set, Reports scenario) and the integration
   # suites all run here; any failure or warning blocks.
   rust:

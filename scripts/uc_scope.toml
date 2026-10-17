@@ -26,10 +26,6 @@ kind = "hors_perimetre"
 reason = "La correction de paiement est hors périmètre de pili-pos v1.0.0."
 kind = "hors_perimetre"
 
-[M150]
-reason = "La facturation (event I, intégration Peppol) est hors périmètre du build de certification ; elle est prévue pour pili-pos v1.1."
-kind = "hors_perimetre"
-
 [M181]
 reason = "pili-pos émet toujours le rapport Z combiné (M184) ; il n'émet jamais de rapport Z du chiffre d'affaires séparé des utilisateurs."
 kind = "couvert_par"
