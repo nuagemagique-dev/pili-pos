@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.settings
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.fdm.health
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import io.mockk.coEvery
@@ -25,7 +26,10 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.CreateUserInput
+import uniffi.pos_ffi.FdmSeverity
+import uniffi.pos_ffi.OpenShift
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.SocialResult
 import uniffi.pos_ffi.TablePlan
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
@@ -654,6 +658,137 @@ class SettingsViewModelTest {
         assertEquals("?", avatarInitial(""))
         assertEquals("🍣", avatarInitial("🍣 sushi"))
     }
+
+    // ── Presence registration by a manager ────────────────────────
+
+    @Test
+    fun theOpenShiftsLoadWithTheEmployees() =
+        runTest {
+            val f = settingsFixture(tmp.root)
+            coEvery { f.engine.listOpenShifts() } returns listOf(OpenShift(CASHIER_INSZ, "2026-10-17T10:02:00Z"))
+            val env = settingsEnv(f, context)
+            openEngine(env)
+            with(env) { loginAs(admin) }
+            val model = SettingsViewModel(env.entry)
+            runCurrent()
+
+            assertEquals(mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"), model.state.value.openShifts)
+        }
+
+    @Test
+    fun aManagerClocksAnEmployeeInThenOutAndThePanelReloadsEachTime() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.clockInEmployee(WAITER_INSZ) } returns SocialResult(true, null)
+            coEvery { r.engine.clockOutEmployee(WAITER_INSZ) } returns SocialResult(true, null)
+
+            coEvery { r.engine.listOpenShifts() } returns listOf(OpenShift(WAITER_INSZ, "2026-10-17T10:02:00Z"))
+            r.model.togglePresence(waiter)
+            runCurrent()
+            coVerify(exactly = 1) { r.engine.clockInEmployee(WAITER_INSZ) }
+            assertEquals(r.env.text("settings_presence_done_in", mapOf("name" to "Chen")), r.env.lastToast().message)
+            assertEquals(ToastVariant.Success, r.env.lastToast().variant)
+            assertEquals("2026-10-17T10:02:00Z", r.state.openShifts[WAITER_INSZ])
+            assertNull(r.state.presenceBusy)
+
+            coEvery { r.engine.listOpenShifts() } returns emptyList()
+            r.model.togglePresence(waiter)
+            runCurrent()
+            coVerify(exactly = 1) { r.engine.clockOutEmployee(WAITER_INSZ) }
+            assertEquals(r.env.text("settings_presence_done_out", mapOf("name" to "Chen")), r.env.lastToast().message)
+            assertNull(r.state.openShifts[WAITER_INSZ])
+        }
+
+    @Test
+    fun anFdmFailureShowsTheFdmTextAndLeavesTheStateAlone() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.clockInEmployee(WAITER_INSZ) } returns SocialResult(false, "FDM unreachable")
+
+            r.model.togglePresence(waiter)
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.env.lastToast().variant)
+            assertTrue(r.state.openShifts.isEmpty())
+            assertNull(r.state.presenceBusy)
+        }
+
+    @Test
+    fun aRefusalCodeShowsItsText() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.clockInEmployee(WAITER_INSZ) } throws PosException.Coded("presence_already_in", emptyMap())
+
+            r.model.togglePresence(waiter)
+            runCurrent()
+
+            assertEquals(r.env.text("err_presence_already_in"), r.env.lastToast().message)
+            assertEquals(ToastVariant.Error, r.env.lastToast().variant)
+        }
+
+    @Test
+    fun noPresenceCallWhileTheFdmIsDownOrTrainingIsOn() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.fdmHealth() } returns health(FdmSeverity.BLOCKING)
+            r.env.fdm.load()
+            runCurrent()
+            assertEquals(PresenceBlock.FdmDown, r.state.presenceBlock)
+
+            r.model.togglePresence(waiter)
+            runCurrent()
+            coVerify(exactly = 0) { r.engine.clockInEmployee(any()) }
+
+            coEvery { r.engine.fdmHealth() } returns health()
+            r.env.fdm.load()
+            coEvery { r.engine.setTrainingMode(true) } returns true
+            r.model.toggleTraining()
+            runCurrent()
+            assertEquals(PresenceBlock.Training, r.state.presenceBlock)
+            r.model.togglePresence(waiter)
+            runCurrent()
+            coVerify(exactly = 0) { r.engine.clockInEmployee(any()) }
+        }
+
+    @Test
+    fun aSecondTapWhileACallRunsIsIgnored() =
+        runTest {
+            val r = start()
+            val gate = CompletableDeferred<Unit>()
+            coEvery { r.engine.clockInEmployee(WAITER_INSZ) } coAnswers
+                {
+                    gate.await()
+                    SocialResult(true, null)
+                }
+
+            r.model.togglePresence(waiter)
+            runCurrent()
+            assertEquals(WAITER_INSZ, r.state.presenceBusy)
+            r.model.togglePresence(cashier)
+            gate.complete(Unit)
+            runCurrent()
+
+            coVerify(exactly = 1) { r.engine.clockInEmployee(any()) }
+            coVerify(exactly = 0) { r.engine.clockInEmployee(CASHIER_INSZ) }
+        }
+
+    @Test
+    fun aPresenceOnlyEmployeeIsCreatedAsAWaiterWithTheFlagAndNoPin() =
+        runTest {
+            val r = start()
+            val input = CreateUserInput(NEW_INSZ, "Dan", "waiter", null, null, true)
+            coEvery { r.engine.createUser(input) } returns user(NEW_INSZ, "Dan", UserRole.WAITER, hasPin = false, presenceOnly = true)
+            r.model.setNewName("Dan")
+            r.model.setNewInsz(NEW_INSZ)
+            r.model.setNewRole(NewRole.Presence)
+
+            r.model.addEmployee()
+            runCurrent()
+
+            coVerify(exactly = 1) { r.engine.createUser(input) }
+            assertNull(r.state.pin)
+            assertEquals("", r.state.form.name)
+        }
 
     @Test
     fun refreshLoadsEverythingAgain() =

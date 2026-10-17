@@ -84,6 +84,9 @@ class SettingsScreenshotTest {
     fun users() {
         val state =
             managerState().copy(
+                // The manager's view of presence: one employee on shift, one presence-only kitchen employee.
+                users = listOf(admin, cashier, waiter, cook),
+                openShifts = mapOf(CASHIER_INSZ to "2026-10-17T10:02:00Z"),
                 confirmDeactivate = CASHIER_INSZ,
                 form =
                     NewEmployeeForm(

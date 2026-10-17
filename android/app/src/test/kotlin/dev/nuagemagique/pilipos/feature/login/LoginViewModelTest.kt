@@ -71,6 +71,32 @@ class LoginViewModelTest {
         }
 
     @Test
+    fun presenceOnlyStaffHaveNoTile() =
+        runTest {
+            val f = fixture()
+            val cook = user("88010112345", "Dao", UserRole.WAITER, hasPin = false, presenceOnly = true)
+            stubReads(f.engine, users = listOf(admin, cook, cashier))
+
+            val r = start(f)
+
+            assertEquals(listOf(admin, cashier), r.state.users)
+            assertFalse(r.state.numpadMode)
+        }
+
+    @Test
+    fun aListOfPresenceOnlyStaffAloneGivesTheNumpadMode() =
+        runTest {
+            val f = fixture()
+            val cook = user("88010112345", "Dao", UserRole.WAITER, hasPin = false, presenceOnly = true)
+            stubReads(f.engine, users = listOf(cook))
+
+            val r = start(f)
+
+            assertTrue(r.state.users.isEmpty())
+            assertTrue(r.state.numpadMode)
+        }
+
+    @Test
     fun anEmptyUserListGivesTheNumpadMode() =
         runTest {
             val f = fixture()

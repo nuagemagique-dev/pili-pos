@@ -85,6 +85,7 @@ internal data class SettingsCallbacks(
     val onAddEmployee: () -> Unit = {},
     val onPin: (User) -> Unit = {},
     val onDeactivate: (String) -> Unit = {},
+    val onPresence: (User) -> Unit = {},
     val onToggleHubrise: () -> Unit = {},
     val onReloadDeliveries: () -> Unit = {},
 )
@@ -180,6 +181,7 @@ private fun settingsCallbacks(
         onAddEmployee = model::addEmployee,
         onPin = model::openPin,
         onDeactivate = model::deactivate,
+        onPresence = model::togglePresence,
         onToggleHubrise = model::toggleHubrise,
         onReloadDeliveries = model::reloadDeliveries,
     )
@@ -440,9 +442,18 @@ private fun EmployeesPanel(
 ) {
     Panel(modifier = modifier.testTag("settings_workers")) {
         PanelTitle(vueText("employees"))
+        PanelText(vueText("settings_presence_note"), Modifier.testTag("settings_presence_note"))
+        val block = state.presenceBlock
+        if (state.isManager && block != null) {
+            PanelText(
+                vueText(if (block == PresenceBlock.Training) "err_presence_training" else "settings_presence_fdm_down"),
+                Modifier.testTag("settings_presence_block"),
+                color = PiliTheme.colors.accentWarning,
+            )
+        }
         val listModifier = if (scrollList) Modifier.weight(1f).verticalScroll(rememberScrollState()) else Modifier
         Column(listModifier.fillMaxWidth()) {
-            state.users.forEach { user -> WorkerRow(user, state.isSelf(user.insz), callbacks) }
+            state.users.forEach { user -> WorkerRow(user, state, callbacks) }
         }
         AddEmployeeForm(state.form, callbacks)
     }
@@ -451,9 +462,11 @@ private fun EmployeesPanel(
 @Composable
 private fun WorkerRow(
     user: User,
-    self: Boolean,
+    state: SettingsUiState,
     callbacks: SettingsCallbacks,
 ) {
+    val self = state.isSelf(user.insz)
+    val since = state.openShifts[user.insz]
     val colors = PiliTheme.colors
     Column(Modifier.fillMaxWidth().testTag("worker_" + user.insz)) {
         Row(
@@ -475,15 +488,24 @@ private fun WorkerRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    vueText("role_" + user.role.name.lowercase()) + " · " +
-                        vueText(if (user.hasPin) "settings_pin_set" else "settings_pin_missing"),
+                    if (user.presenceOnly) {
+                        vueText("role_presence")
+                    } else {
+                        vueText("role_" + user.role.name.lowercase()) + " · " +
+                            vueText(if (user.hasPin) "settings_pin_set" else "settings_pin_missing")
+                    },
                     style = PiliTheme.typography.body,
-                    color = if (user.hasPin) colors.textSecondary else colors.accentWarning,
+                    color = if (user.hasPin || user.presenceOnly) colors.textSecondary else colors.accentWarning,
                     modifier = Modifier.testTag("worker_" + user.insz + "_meta"),
                 )
+                ShiftState(user.insz, since)
             }
             GapRow {
-                ActionButton(vueText("settings_pin_button"), { callbacks.onPin(user) }, Modifier.testTag("worker_" + user.insz + "_pin"))
+                if (state.isManager && !self) PresenceButton(user, since != null, state, callbacks)
+                if (!user.presenceOnly) {
+                    val pinTag = "worker_" + user.insz + "_pin"
+                    ActionButton(vueText("settings_pin_button"), { callbacks.onPin(user) }, Modifier.testTag(pinTag))
+                }
                 if (!self) {
                     ActionButton(
                         vueText("deactivate"),
@@ -495,6 +517,42 @@ private fun WorkerRow(
         }
         Hairline()
     }
+}
+
+/** "En service depuis HH:MM" (Brussels time of [since]) or "Hors service". */
+@Composable
+private fun ShiftState(
+    insz: String,
+    since: String?,
+) {
+    val colors = PiliTheme.colors
+    Text(
+        if (since == null) {
+            vueText("settings_off_shift")
+        } else {
+            vueText("settings_on_shift_since", "time" to PosDateTime.formatTimestamp(since, PosDateTime::formatTime))
+        },
+        style = PiliTheme.typography.body,
+        color = if (since == null) colors.textSecondary else colors.textPrimary,
+        modifier = Modifier.testTag("worker_" + insz + "_presence"),
+    )
+}
+
+/** "Arrivée" when [onShift] is false, "Départ" when true; off while the FDM is down, in training or a call runs. */
+@Composable
+private fun PresenceButton(
+    user: User,
+    onShift: Boolean,
+    state: SettingsUiState,
+    callbacks: SettingsCallbacks,
+) {
+    val suffix = if (onShift) "_presence_out" else "_presence_in"
+    ActionButton(
+        vueText(if (onShift) "settings_presence_out" else "settings_presence_in"),
+        { callbacks.onPresence(user) },
+        Modifier.testTag("worker_" + user.insz + suffix),
+        enabled = state.presenceBlock == null && state.presenceBusy == null,
+    )
 }
 
 @Composable

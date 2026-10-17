@@ -11,14 +11,19 @@ import uniffi.pos_ffi.User
 
 /** The role of a new employee, in the order of the Vue role buttons (`roles` of `SettingsView.vue`). */
 internal enum class NewRole(
-    /** The engine role string of `CreateUserInput.role`. */
+    /** The button id (and test tag): the engine role string, or `presence` for the presence-only profile. */
     val code: String,
     /** The Vue key of the button label (`role_<code>`). */
     val labelKey: String,
+    /** The engine role string of `CreateUserInput.role` (a presence-only user is a waiter in the database). */
+    val engineRole: String = code,
+    /** True for the presence-only profile: `CreateUserInput.presenceOnly`, no PIN. */
+    val presenceOnly: Boolean = false,
 ) {
     Admin("admin", "role_admin"),
     Cashier("cashier", "role_cashier"),
     Waiter("waiter", "role_waiter"),
+    Presence("presence", "role_presence", engineRole = "waiter", presenceOnly = true),
 }
 
 /** Whose PIN the manager is setting. */
@@ -102,6 +107,12 @@ internal data class SettingsUiState(
     val info: PosSettings? = null,
     /** The employees, as the engine listed them (active and inactive). */
     val users: List<User> = emptyList(),
+    /** The employees on shift: INSZ to the start of the shift (an engine UTC string), from `list_open_shifts`. */
+    val openShifts: Map<String, String> = emptyMap(),
+    /** True while the FDM store says the FDM is connected (the presence buttons need it). */
+    val fdmConnected: Boolean = false,
+    /** The INSZ whose presence call is running (one at a time), or null. */
+    val presenceBusy: String? = null,
     /** The INSZ whose deactivate button is armed (second tap needed), or null. */
     val confirmDeactivate: String? = null,
     val form: NewEmployeeForm = NewEmployeeForm(),
@@ -116,6 +127,24 @@ internal data class SettingsUiState(
 ) {
     /** True when the user [insz] is the operator himself (no deactivate button, own PIN flow). */
     fun isSelf(insz: String): Boolean = insz == currentInsz
+
+    /** Why the presence buttons are off: [PresenceBlock.Training] first, then [PresenceBlock.FdmDown]; null when they work. */
+    val presenceBlock: PresenceBlock?
+        get() =
+            when {
+                training -> PresenceBlock.Training
+                !fdmConnected -> PresenceBlock.FdmDown
+                else -> null
+            }
+}
+
+/** Why a manager cannot register a presence now (`presenceBlock` of `SettingsView.vue`). */
+internal enum class PresenceBlock {
+    /** Training mode is on: the engine refuses (`presence_training`). */
+    Training,
+
+    /** The FDM store says the FDM is not connected. */
+    FdmDown,
 }
 
 /** The first letter of a name for the avatar (`initial` of `SettingsView.vue`, surrogate pairs kept whole). */

@@ -27,5 +27,13 @@
     <string name="settings_pin_button">Code PIN</string>
     <string name="settings_insz_hint">INSZ · 11 chiffres</string>
     <string name="settings_add_employee">Ajouter l’employé</string>
+    <string name="settings_presence_in">Arrivée</string>
+    <string name="settings_presence_out">Départ</string>
+    <string name="settings_on_shift_since">En service depuis {time}</string>
+    <string name="settings_off_shift">Hors service</string>
+    <string name="settings_presence_done_in">Arrivée enregistrée · {name}</string>
+    <string name="settings_presence_done_out">Départ enregistré · {name}</string>
+    <string name="settings_presence_fdm_down">FDM indisponible : pointage impossible</string>
+    <string name="settings_presence_note">Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici.</string>
     <string name="settings_email_title">Tickets par email</string>
 </resources>

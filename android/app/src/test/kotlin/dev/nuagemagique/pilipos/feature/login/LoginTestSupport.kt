@@ -40,13 +40,15 @@ internal const val ADMIN_INSZ = "85010100123"
 internal const val CASHIER_INSZ = "90020200234"
 internal const val WAITER_INSZ = "95030300345"
 
+@Suppress("LongParameterList")
 internal fun user(
     insz: String,
     name: String,
     role: UserRole,
     hasPin: Boolean = true,
     active: Boolean = true,
-): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin)
+    presenceOnly: Boolean = false,
+): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin, presenceOnly = presenceOnly)
 
 internal val admin = user(ADMIN_INSZ, "Alice", UserRole.ADMIN)
 internal val cashier = user(CASHIER_INSZ, "Bob", UserRole.CASHIER)

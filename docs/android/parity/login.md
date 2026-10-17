@@ -16,6 +16,9 @@ checks, end of shift); the screen only calls it through the shared stores and th
 
 ## Differences
 
+- **Presence-only staff have no tile (lane 1-v1-fixes).** Both screens drop the users flagged `presence_only` from the
+  tiles (kitchen staff never log in; a manager clocks them in and out from Settings). Typing their INSZ in "Autre
+  (INSZ)" shows the engine's `presence_only_user` text. When only presence-only users exist, the INSZ entry shows.
 - **No redirect on start.** Vue has no redirect here, and the Compose screen adds none either (PD205): it never
   navigates when it starts, only after an action of the operator succeeded. A test proves that no effect is sent
   while the screen loads and while the operator only browses (tile, PIN panel, INSZ entry, language).

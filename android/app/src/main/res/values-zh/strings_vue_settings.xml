@@ -27,5 +27,13 @@
     <string name="settings_pin_button">PIN码</string>
     <string name="settings_insz_hint">INSZ · 11位</string>
     <string name="settings_add_employee">添加员工</string>
+    <string name="settings_presence_in">上班打卡</string>
+    <string name="settings_presence_out">下班打卡</string>
+    <string name="settings_on_shift_since">{time} 起上班中</string>
+    <string name="settings_off_shift">未上班</string>
+    <string name="settings_presence_done_in">已登记上班 · {name}</string>
+    <string name="settings_presence_done_out">已登记下班 · {name}</string>
+    <string name="settings_presence_fdm_down">FDM 不可用，无法打卡</string>
+    <string name="settings_presence_note">不使用收银机的员工（厨房）：由经理在此登记上下班。</string>
     <string name="settings_email_title">电子邮件票据</string>
 </resources>
