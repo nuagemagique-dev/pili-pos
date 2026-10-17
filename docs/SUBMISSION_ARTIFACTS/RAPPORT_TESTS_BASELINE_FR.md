@@ -19,12 +19,13 @@ attribué à des modifications futures.
 
 ```
 strings target/release/pili-pos | grep -c integration_switch_log   # > 0 : commandes en ligne présentes
-nm target/release/pili-pos | grep -c pos_peppol                    # 0 : facturation B2B absente
+nm target/release/pili-pos | grep -c pos_peppol                    # compte informatif : code de facturation présent
 ```
 
 Les commandes en ligne font partie du binaire certifié et s'activent
 par installation (`COMMANDES_EN_LIGNE_FR.md`) ; la facturation B2B
-(feature `peppol`) en est absente.
+(événement I) et la file d'envoi Peppol en font partie aussi, sans
+fonction Cargo (`FACTURATION_PEPPOL_FR.md`).
 
 ---|---|
 | Par défaut | **493** |
@@ -249,8 +250,8 @@ champs/arguments optionnels. Aucun changement de sémantique de test.
 
 | Fichier | Changement |
 |---|---|
-| `src-tauri/Cargo.toml` | Feature `cert` = `custom-protocol` + `hubrise` ; la facturation B2B (`peppol`) reste hors du binaire cert. |
-| `src-tauri/src/main.rs`, `src-tauri/src/ipc/mod.rs` | Commandes Tauri de la facturation B2B gardées derrière `#[cfg(feature = "peppol")]`. |
+| `src-tauri/Cargo.toml` | Feature `cert` = `custom-protocol` + `hubrise` ; la facturation B2B et la file Peppol sont compilées dans toute build, sans fonction Cargo. |
+| `src-tauri/src/main.rs`, `src-tauri/src/ipc/mod.rs` | Commandes Tauri de la facturation B2B (liste unique, sans condition de compilation). |
 | `crates/pos-engine/src/commands/checkout.rs` | **Bug fix** : passait `restaurant_est_no: ""` à `TicketParams`, passe désormais `&config.restaurant_est_no`. |
 | `ui/src/router/index.ts` | Écran des commandes en ligne accessible seulement si l'intégration est activée pour l'installation. |
 
@@ -279,7 +280,7 @@ cargo test --workspace --no-fail-fast
 
 # Build certification
 cargo build --package pili-pos --no-default-features --features cert
-nm target/debug/pili-pos | grep -c pos_peppol   # → 0
+nm target/debug/pili-pos | grep -c pos_peppol   # compte informatif
 
 # Build UI (un seul bundle, commandes en ligne activées à l'exécution)
 npm --prefix ui run build

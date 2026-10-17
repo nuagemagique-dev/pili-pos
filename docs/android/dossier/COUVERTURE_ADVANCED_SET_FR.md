@@ -158,6 +158,20 @@ Le manuel de certification exerce le flux fiscal via des scénarios variables.js
 
 ---
 
+## Factures : UC4121 et UC4122 (rejoués)
+
+Les deux UC de facture sont rejoués par `crates/pos-engine/tests/invoice_advanced.rs`,
+par la commande de facturation de l'écran, contre le module de contrôle simulé.
+UC4121 : facture de trois ventes. UC4122 : facture d'un remboursement et de deux
+ventes, la vente remboursée ayant d'abord été facturée (précondition du scénario).
+Les ventes sont encaissées au comptant, le crédit client du scénario n'existant pas
+dans le produit. Le test compare la requête archivée à la fixture (champs métier égaux,
+références des ventes comparées valeur par valeur à celles que le module de contrôle a
+répondues). Pièces : *RESULTATS_TESTS_UC_FR.md* (sections UC4121 et UC4122) et
+`evidence/uc/`. Détail : *FACTURATION_PEPPOL_FR.md*.
+
+---
+
 ## Reproductibilité
 
 ```bash
