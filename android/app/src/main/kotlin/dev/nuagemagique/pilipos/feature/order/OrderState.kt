@@ -42,6 +42,13 @@ internal sealed interface OrderDialog {
         val baseCents: Long,
     ) : OrderDialog
 
+    /** "Note": the kitchen note of line [lineId]; [sent] when the line already went to the kitchen (it prints now). */
+    data class Note(
+        val lineId: Long,
+        val initial: String,
+        val sent: Boolean,
+    ) : OrderDialog
+
     /** The manager PIN that confirms a discount or its removal; [userName] is shown as the hint. */
     data class DiscountPin(
         val userName: String,
@@ -75,6 +82,8 @@ internal data class CartRow(
     val canOffer: Boolean = false,
     /** A manager may remove the line's own change (an offered line). */
     val canRemoveDiscount: Boolean = false,
+    /** The line's kitchen note may be written or changed (any staff member, open order). */
+    val canNote: Boolean = false,
 )
 
 /**
@@ -121,6 +130,7 @@ internal data class OrderCartActions(
     val onRemoveOrderDiscount: () -> Unit = {},
     val onOffer: (lineId: Long) -> Unit = {},
     val onRemoveLineDiscount: (lineId: Long) -> Unit = {},
+    val onNote: (lineId: Long) -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */

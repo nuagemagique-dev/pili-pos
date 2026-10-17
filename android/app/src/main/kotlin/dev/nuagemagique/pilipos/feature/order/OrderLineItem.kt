@@ -28,6 +28,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,8 +61,9 @@ private val Hairline = 1.dp
  * the quantity and the unit price as text for a line the VAT split leaves out (code X); nothing is computed here.
  *
  * Under the line each public price change is a row (`_change_<n>`), with the manager's `_offer` and
- * `_remove_discount` buttons. Test tags: `cart_line_<id>`, `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`,
- * `_notes`, `_amount`, `_remove`.
+ * `_remove_discount` buttons. The "Note" button (`_note`, filled when the line has one) opens the kitchen note
+ * dialog; the note shows under the name in italics (`_kitchen_note`). Test tags: `cart_line_<id>`,
+ * `cart_line_<id>_minus`, `_qty`, `_plus`, `_name`, `_sub`, `_notes`, `_kitchen_note`, `_amount`, `_note`, `_remove`.
  */
 @Composable
 internal fun OrderLineItem(
@@ -94,7 +96,7 @@ internal fun OrderLineItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             QuantityStepper(id, row.line.quantity, actions)
-            LineNames(id, names, lineNotes(row.line.modifiersJson), Modifier.weight(1f))
+            LineNames(id, names, lineNotes(row.line.modifiersJson), row.line.kitchenNote, Modifier.weight(1f))
             Text(
                 text = amountText(row.amount),
                 style = t.figure.copy(fontSize = t.sizeLg, fontWeight = t.weightBold),
@@ -102,6 +104,14 @@ internal fun OrderLineItem(
                 maxLines = 1,
                 modifier = Modifier.testTag("cart_line_${id}_amount"),
             )
+            if (row.canNote) {
+                PiliButton(
+                    text = vueText("note_button"),
+                    onClick = { actions.onNote(id) },
+                    variant = if (row.line.kitchenNote.isNullOrEmpty()) PiliButtonVariant.Secondary else PiliButtonVariant.Primary,
+                    modifier = Modifier.testTag("cart_line_${id}_note"),
+                )
+            }
             // Destructive: set apart by a rule, never where the minus is.
             Box(
                 modifier =
@@ -206,6 +216,7 @@ private fun LineNames(
     id: Long,
     names: BilingualName,
     notes: String,
+    kitchenNote: String?,
     modifier: Modifier = Modifier,
 ) {
     val c = PiliTheme.colors
@@ -235,6 +246,16 @@ private fun LineNames(
                 style = t.body.copy(fontSize = t.sizeSm),
                 color = c.accentWarning,
                 modifier = Modifier.testTag("cart_line_${id}_notes"),
+            )
+        }
+        if (!kitchenNote.isNullOrEmpty()) {
+            Text(
+                text = kitchenNote,
+                style = t.body.copy(fontSize = t.sizeSm, fontStyle = FontStyle.Italic),
+                color = c.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("cart_line_${id}_kitchen_note"),
             )
         }
     }

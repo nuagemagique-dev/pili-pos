@@ -54,12 +54,14 @@ private fun cartRow(
     amount: LineAmount?,
     manager: Boolean,
     orderDiscounted: Boolean,
+    canNote: Boolean,
 ): CartRow =
     CartRow(
         line = line,
         amount = amount,
         canOffer = manager && !orderDiscounted && line.priceChanges.isEmpty(),
         canRemoveDiscount = manager && line.priceChanges.any { it.scope == SCOPE_LINE },
+        canNote = canNote,
     )
 
 /** How often the Z-report reminder is checked again, in milliseconds (5 minutes in `OrderView.vue`). */
@@ -194,7 +196,16 @@ internal class MenuViewModel(
             cart =
                 OrderCartState(
                     order = current,
-                    rows = lines.map { cartRow(it, d.amounts[it.id], l.isManager && current?.status == OrderStatus.OPEN, orderDiscounted) },
+                    rows =
+                        lines.map {
+                            cartRow(
+                                it,
+                                d.amounts[it.id],
+                                l.isManager && current?.status == OrderStatus.OPEN,
+                                orderDiscounted,
+                                current?.status == OrderStatus.OPEN,
+                            )
+                        },
                     language = l.language,
                     labelMode = l.labelMode,
                     canPay = l.canPay,
@@ -502,6 +513,25 @@ internal class MenuViewModel(
     fun unpaidClosed() {
         data.update { it.copy(dialog = OrderDialog.None) }
         entry.toasts().show(entry.catalog().text("unpaid_closed", settings.language.value), ToastVariant.Success)
+    }
+
+    // ── Kitchen note ──────────────────────────────────────────────
+
+    /** The "Note" button of a line (`noteLineId` of `CartSidebar.vue`): opens the note dialog with the line's note. */
+    fun askNote(lineId: Long) {
+        val line = order.lines.value.firstOrNull { it.id == lineId }
+        if (!isRouteOrderCurrent() || line == null || order.current.value?.status != OrderStatus.OPEN) return
+        // Sent: part of the line already went to the kitchen, so a changed note prints a note slip now.
+        val sent = line.quantity - line.unsentQuantity > 0
+        data.update { it.copy(dialog = OrderDialog.Note(lineId, line.kitchenNote.orEmpty(), sent)) }
+    }
+
+    /** The note typed in the dialog (`saveNote`); an empty text clears it. A refusal is shown by [run]. */
+    fun saveNote(text: String) {
+        val dialog = data.value.dialog as? OrderDialog.Note ?: return
+        data.update { it.copy(dialog = OrderDialog.None) }
+        if (!isRouteOrderCurrent()) return
+        viewModelScope.launch { order.setLineNote(dialog.lineId, text) }
     }
 
     // ── Discount at the till ──────────────────────────────────────

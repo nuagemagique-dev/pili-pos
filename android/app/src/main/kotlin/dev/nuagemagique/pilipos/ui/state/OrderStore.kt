@@ -201,6 +201,22 @@ class OrderStore
             }
         }
 
+        /**
+         * Sets (or, with an empty text, clears) the kitchen note of a line. A note slip that did not print is
+         * emitted on [slipFailures]; the lines are read again, so the engine's trimmed text is what the cart shows.
+         *
+         * @return false when the engine refused (the refusal is on [failures])
+         */
+        suspend fun setLineNote(
+            lineId: Long,
+            note: String,
+        ): Boolean =
+            reported {
+                val outcome = gateway.call { engine -> engine.setLineNote(lineId, note.trim().ifEmpty { null }) }
+                warnIfSlipFailed(outcome)
+                mutableCurrent.value?.let { refresh(it.id) }
+            }
+
         /** Reads the open orders again. */
         suspend fun loadOpenOrders() {
             mutableOpenOrders.value = gateway.call { engine -> engine.listOpenOrders() }
@@ -331,12 +347,14 @@ class OrderStore
             val order = requireCurrent()
             // A line with options is never merged into (its options differ), nor is an open-price line, nor a line with
             // a price change (a till discount): the engine refuses a quantity change on it, so the product gets a new line.
+            // Nor a line with a kitchen note: "1 with, 1 without" are two lines.
             val existing =
                 if (item.openPrice) {
                     null
                 } else {
                     mutableLines.value.firstOrNull {
-                        it.menuItemId == item.id && it.modifiersJson.isNullOrEmpty() && it.priceChanges.isEmpty()
+                        it.menuItemId == item.id && it.modifiersJson.isNullOrEmpty() &&
+                            it.priceChanges.isEmpty() && it.kitchenNote.isNullOrEmpty()
                     }
                 }
             if (existing != null) {

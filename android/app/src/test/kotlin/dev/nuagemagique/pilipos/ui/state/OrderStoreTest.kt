@@ -73,6 +73,7 @@ class OrderStoreTest {
         modifiers: String? = null,
         unitPriceCents: Long = 500,
         priceChanges: List<CartPriceChange> = emptyList(),
+        kitchenNote: String? = null,
     ) = CartLine(
         id = id,
         orderId = 1,
@@ -91,6 +92,7 @@ class OrderStoreTest {
         unsentQuantity = unsent,
         discountCents = 0,
         priceChanges = priceChanges,
+        kitchenNote = kitchenNote,
     )
 
     private fun item(
@@ -902,6 +904,76 @@ class OrderStoreTest {
 
             coVerify(exactly = 1) { r.f.engine.updateOrderLineQuantity(1L, 2) }
             coVerify(exactly = 0) { r.f.engine.addOrderLine(any()) }
+        }
+
+    @Test
+    fun addingTheSameProductAgainOpensANewLineWhenTheLineHasAKitchenNote() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+            coEvery { r.f.engine.addOrderLine(any()) } returns orderLine(10)
+
+            r.store.addItem(item(10))
+
+            coVerify(exactly = 1) { r.f.engine.addOrderLine(any()) }
+            coVerify(exactly = 0) { r.f.engine.updateOrderLineQuantity(any(), any()) }
+        }
+
+    @Test
+    fun aKitchenNoteIsSentAndTheLinesAreReadAgain() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineNote(1L, "sans wasabi") } returns SlipOutcome.NOTHING_TO_PRINT
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+
+            assertTrue(r.store.setLineNote(1L, "  sans wasabi "))
+
+            assertEquals("sans wasabi", r.store.lines.value.single().kitchenNote)
+            coVerify(exactly = 1) { r.f.engine.setLineNote(1L, "sans wasabi") }
+        }
+
+    @Test
+    fun anEmptyKitchenNoteClearsIt() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+            coEvery { r.f.engine.setLineNote(1L, null) } returns SlipOutcome.NOTHING_TO_PRINT
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10)))
+
+            assertTrue(r.store.setLineNote(1L, "   "))
+
+            assertNull(r.store.lines.value.single().kitchenNote)
+            coVerify(exactly = 1) { r.f.engine.setLineNote(1L, null) }
+        }
+
+    @Test
+    fun aNoteSlipThatDidNotPrintIsEmittedOnSlipFailures() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            coEvery { r.f.engine.setLineNote(1L, "sans wasabi") } returns SlipOutcome.FAILED
+            r.stubReads(order(id = 1, table = 3), listOf(line(1, 10, kitchenNote = "sans wasabi")))
+
+            r.store.slipFailures.test {
+                r.store.setLineNote(1L, "sans wasabi")
+                awaitItem()
+            }
+        }
+
+    @Test
+    fun aRefusedNoteIsReportedAndTheCartKeepsItsLines() =
+        runTest {
+            val r = rig()
+            r.store.seed(r, order(id = 1, table = 3), listOf(line(1, 10)))
+            val refusal = PosException.Coded("note_too_long", emptyMap())
+            coEvery { r.f.engine.setLineNote(any(), any()) } throws refusal
+
+            r.store.failures.test {
+                assertFalse(r.store.setLineNote(1L, "x".repeat(61)))
+                assertSame(refusal, awaitItem())
+            }
+            assertNull(r.store.lines.value.single().kitchenNote)
         }
 
     @Test

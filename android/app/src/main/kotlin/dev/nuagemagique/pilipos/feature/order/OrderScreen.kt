@@ -61,6 +61,8 @@ internal data class OrderCallbacks(
     val onDiscountPin: suspend (String) -> Unit = {},
     /** The discount was applied or removed. */
     val onDiscountDone: () -> Unit = {},
+    /** The text typed in the note dialog (empty clears the note). */
+    val onNoteSaved: (String) -> Unit = {},
 )
 
 /**
@@ -96,6 +98,7 @@ internal fun OrderRoute(
             onDiscountChosen = model::chooseDiscount,
             onDiscountPin = model::confirmDiscountPin,
             onDiscountDone = model::discountDone,
+            onNoteSaved = model::saveNote,
             onUnpaidDone = {
                 model.unpaidClosed()
                 navigator.navigate(TablesRoutes.TABLES)
@@ -115,6 +118,7 @@ internal fun OrderRoute(
             onRemoveOrderDiscount = { model.askRemoveDiscount() },
             onOffer = { model.askDiscount(it) },
             onRemoveLineDiscount = { model.askRemoveDiscount(it) },
+            onNote = model::askNote,
         )
     PosScaffold(
         area = HeaderArea.ORDER,
@@ -208,6 +212,7 @@ internal fun BoxScope.OrderDialogs(
         is OrderDialog.Discount ->
             DiscountDialog(dialog.baseCents, dialog.lineId, onConfirm = callbacks.onDiscountChosen, onCancel = callbacks.onDismiss)
         is OrderDialog.DiscountPin -> DiscountPinDialog(dialog, callbacks)
+        is OrderDialog.Note -> NoteDialog(dialog.initial, dialog.sent, onConfirm = callbacks.onNoteSaved, onCancel = callbacks.onDismiss)
     }
 }
 

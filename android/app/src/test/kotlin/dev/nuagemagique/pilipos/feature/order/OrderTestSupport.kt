@@ -99,6 +99,7 @@ internal fun cartLine(
     unsent: Long = 0,
     discountCents: Long = 0,
     priceChanges: List<CartPriceChange> = emptyList(),
+    kitchenNote: String? = null,
 ): CartLine =
     CartLine(
         id = id,
@@ -118,6 +119,7 @@ internal fun cartLine(
         unsentQuantity = unsent,
         discountCents = discountCents,
         priceChanges = priceChanges,
+        kitchenNote = kitchenNote,
     )
 
 internal fun orderLine(menuItemId: Long): OrderLine =

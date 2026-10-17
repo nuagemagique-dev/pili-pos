@@ -284,6 +284,55 @@ fn example_bar_slip() {
     std::fs::write(dir.join("ticket_bar.txt"), text).expect("write example");
 }
 
+#[test]
+fn example_bar_slip_with_notes() {
+    use pos_print::bar_ticket::{BarItem, BarTicket, format_bar_ticket};
+    let slip = BarTicket {
+        date_time: "03/07/2026 12:31:05".to_string(),
+        operator: "Marie Dupont".to_string(),
+        table: Some(4),
+        items: vec![
+            BarItem {
+                quantity: 2,
+                name: "Dry Martini".to_string(),
+                note: None,
+            },
+            BarItem {
+                quantity: 1,
+                name: "Burger du chef".to_string(),
+                note: Some("allergie arachide - sans oignons".to_string()),
+            },
+        ],
+        lang: ReceiptLanguage::Fr,
+        is_training: false,
+    };
+    let text = render_plain_text(&format_bar_ticket(&slip));
+    assert!(text.contains("> allergie arachide - sans oignons"));
+    assert!(!text.contains(','), "a bar ticket never shows a price");
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("ticket_bar_note.txt"), text).expect("write example");
+}
+
+#[test]
+fn example_note_slip() {
+    use pos_print::bar_ticket::{NoteSlip, format_note_slip};
+    let slip = NoteSlip {
+        date_time: "03/07/2026 12:38:12".to_string(),
+        operator: "Marie Dupont".to_string(),
+        table: Some(4),
+        product_name: "Burger du chef".to_string(),
+        note: Some("bien cuit".to_string()),
+        lang: ReceiptLanguage::Fr,
+        is_training: false,
+    };
+    let text = render_plain_text(&format_note_slip(&slip));
+    assert!(text.contains("Note : bien cuit") && !text.contains(" x "));
+    let Some(dir) = out_dir() else { return };
+    std::fs::create_dir_all(&dir).expect("create examples dir");
+    std::fs::write(dir.join("ticket_note_slip.txt"), text).expect("write example");
+}
+
 // ── X / Z reports ──────────────────────────────────────────────
 
 fn base_report(

@@ -176,6 +176,7 @@ internal fun cartLine(
         unsentQuantity = 0,
         discountCents = discountCents,
         priceChanges = priceChanges,
+        kitchenNote = null,
     )
 
 internal fun posSettings(): PosSettings =

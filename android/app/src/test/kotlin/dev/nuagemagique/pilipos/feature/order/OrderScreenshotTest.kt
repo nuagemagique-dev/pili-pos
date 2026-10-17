@@ -288,4 +288,47 @@ class OrderScreenshotTest {
         rule.waitForIdle()
         rule.onRoot().captureRoboImage("src/test/screenshots/order/order_discount_dialog.png")
     }
+
+    // Two lines with a note: one still to send, one already in the kitchen; "Note" is filled on both.
+    private val notedCart =
+        fullCart.copy(
+            rows =
+                listOf(
+                    CartRow(
+                        cartLine(1, 10, "Nigiri saumon", quantity = 2, nameZh = "三文鱼寿司", kitchenNote = "sans wasabi"),
+                        LineAmount.Total(960),
+                        canNote = true,
+                    ),
+                    CartRow(
+                        cartLine(2, 16, "Assortiment 8 pièces", quantity = 1, nameZh = "拼盘八件"),
+                        LineAmount.Total(1_650),
+                        canNote = true,
+                    ),
+                    CartRow(
+                        cartLine(
+                            3,
+                            11,
+                            "Nigiri thon",
+                            quantity = 3,
+                            unitPriceCents = 520,
+                            nameZh = "金枪鱼寿司",
+                            unsent = 3,
+                            kitchenNote = "allergie arachide",
+                        ),
+                        LineAmount.Total(1_560),
+                        canNote = true,
+                    ),
+                ),
+        )
+
+    @Test
+    fun cartWithKitchenNotes() {
+        capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart), "order_cart_note")
+    }
+
+    @Test
+    fun noteDialog() {
+        val dialog = OrderDialog.Note(1L, "sans wasabi", true)
+        capture(OrderUiState(signedIn = true, menu = menu, cart = notedCart, dialog = dialog), "order_note_dialog")
+    }
 }

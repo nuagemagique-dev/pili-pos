@@ -853,4 +853,133 @@ class MenuViewModelTest {
 
             assertEquals(ToastVariant.Warning, r.lastToast().variant)
         }
+
+    // ── Kitchen note ──────────────────────────────────────────────
+
+    @Test
+    fun everyLineOfAnOpenOrderCanBeNoted() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            assertTrue(r.state.cart.rows.single().canNote)
+        }
+
+    @Test
+    fun theNoteButtonOpensTheDialogWithTheNoteAndSaysItPrintsWithTheOrderWhenNothingWasSent() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 2, unsent = 2, kitchenNote = "sans wasabi")))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askNote(1L)
+
+            assertEquals(OrderDialog.Note(1L, "sans wasabi", false), r.state.dialog)
+        }
+
+    @Test
+    fun aLineThatWentToTheKitchenPrintsItsNoteNow() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 2, unsent = 0)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askNote(1L)
+
+            assertEquals(OrderDialog.Note(1L, "", true), r.state.dialog)
+        }
+
+    @Test
+    fun aPartlySentLineAlsoPrintsItsNoteNow() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", quantity = 3, unsent = 1)))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askNote(1L)
+
+            assertEquals(OrderDialog.Note(1L, "", true), r.state.dialog)
+        }
+
+    @Test
+    fun savingTheNoteSendsItToTheEngineAndTheCartShowsIt() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.setLineNote(1L, "sans wasabi") } returns SlipOutcome.NOTHING_TO_PRINT
+            r.model.askNote(1L)
+            world.cart = listOf(cartLine(1, 10, "Maki saumon", kitchenNote = "sans wasabi"))
+
+            r.model.saveNote("sans wasabi")
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setLineNote(1L, "sans wasabi") }
+            assertEquals(OrderDialog.None, r.state.dialog)
+            assertEquals("sans wasabi", r.state.cart.rows.single().line.kitchenNote)
+        }
+
+    @Test
+    fun anEmptyTextClearsTheNote() =
+        runTest {
+            val world = OrderWorld(cart = listOf(cartLine(1, 10, "Maki saumon", kitchenNote = "sans wasabi")))
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.setLineNote(1L, null) } returns SlipOutcome.NOTHING_TO_PRINT
+            r.model.askNote(1L)
+            world.cart = listOf(cartLine(1, 10, "Maki saumon"))
+
+            r.model.saveNote("")
+            runCurrent()
+
+            coVerify(exactly = 1) { f.engine.setLineNote(1L, null) }
+            assertNull(r.state.cart.rows.single().line.kitchenNote)
+        }
+
+    @Test
+    fun aRefusedNoteIsShownAsAnErrorToast() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+            coEvery { f.engine.setLineNote(any(), any()) } throws PosException.Coded("note_unprintable", emptyMap())
+            r.model.askNote(1L)
+
+            r.model.saveNote("不要芥末")
+            runCurrent()
+
+            assertEquals(ToastVariant.Error, r.lastToast().variant)
+        }
+
+    @Test
+    fun askingForANoteOnAnUnknownLineOpensNothing() =
+        runTest {
+            val world = cartWithOneLine()
+            val f = orderFixture(tmp.root, world)
+            val r = startOrder(f, world, context)
+            r.login()
+            runCurrent()
+
+            r.model.askNote(99L)
+            r.model.saveNote("sans wasabi")
+            runCurrent()
+
+            assertEquals(OrderDialog.None, r.state.dialog)
+            coVerify(exactly = 0) { f.engine.setLineNote(any(), any()) }
+        }
 }

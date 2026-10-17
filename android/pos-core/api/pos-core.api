@@ -484,7 +484,7 @@ public final class uniffi/pos_ffi/CallbackEvent$Companion {
 
 public final class uniffi/pos_ffi/CartLine {
 	public static final field Companion Luniffi/pos_ffi/CartLine$Companion;
-	public fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;)V
+	public fun <init> (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;)V
 	public final fun component1 ()J
 	public final fun component10 ()Ljava/lang/String;
 	public final fun component11 ()Ljava/lang/String;
@@ -494,6 +494,7 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun component15 ()J
 	public final fun component16 ()J
 	public final fun component17 ()Ljava/util/List;
+	public final fun component18 ()Ljava/lang/String;
 	public final fun component2 ()J
 	public final fun component3 ()J
 	public final fun component4 ()I
@@ -502,8 +503,8 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Ljava/lang/String;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;)Luniffi/pos_ffi/CartLine;
-	public static synthetic fun copy$default (Luniffi/pos_ffi/CartLine;JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;ILjava/lang/Object;)Luniffi/pos_ffi/CartLine;
+	public final fun copy (JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;)Luniffi/pos_ffi/CartLine;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/CartLine;JJJIJLuniffi/pos_ffi/VatCode;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/List;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/CartLine;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getCreatedAt ()Ljava/lang/String;
@@ -511,6 +512,7 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun getDepartmentName ()Ljava/lang/String;
 	public final fun getDiscountCents ()J
 	public final fun getId ()J
+	public final fun getKitchenNote ()Ljava/lang/String;
 	public final fun getMenuItemId ()J
 	public final fun getModifiersJson ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
@@ -529,6 +531,7 @@ public final class uniffi/pos_ffi/CartLine {
 	public final fun setDepartmentName (Ljava/lang/String;)V
 	public final fun setDiscountCents (J)V
 	public final fun setId (J)V
+	public final fun setKitchenNote (Ljava/lang/String;)V
 	public final fun setMenuItemId (J)V
 	public final fun setModifiersJson (Ljava/lang/String;)V
 	public final fun setName (Ljava/lang/String;)V
@@ -6521,6 +6524,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTrainingMode (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6631,6 +6635,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setLineNote (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTrainingMode (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
