@@ -12,6 +12,7 @@ internal fun eftPayment(
     brand: String? = if (status == EFT_APPROVED) "Bancontact" else null,
     detail: String? = null,
     used: Boolean = false,
+    mealVoucher: Boolean = false,
 ): EftPayment =
     EftPayment(
         id = id,
@@ -23,6 +24,7 @@ internal fun eftPayment(
         terminalReference = if (status == EFT_APPROVED) "T-$id" else null,
         authorisationCode = null,
         maskedPan = null,
+        mealVoucher = mealVoucher,
         detail = detail,
         createdAt = "2026-10-12T10:00:00+02:00",
         used = used,

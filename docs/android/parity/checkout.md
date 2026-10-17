@@ -60,3 +60,8 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
   go through `ErrorPresenter` and are shown in the footer, back on the pay step with the parts kept.
 - **New order.** The finish button of the done screen goes to the tables (the order is gone); Vue goes to the order
   route, which bounces to the tables when there is no order.
+- **Meal-voucher card on the terminal.** `EftPayment.meal_voucher` (the stored brand is Edenred, Pluxee, Monizze or
+  Payflip) is kept on the taken part (Vue `TakenPart.mealVoucher`, Compose `TakenPart.mealVoucher`). The part stays
+  method `card` toward the engine (same `eft_payment_id` payload) but is named by the meal-voucher label ("Part 1 ·
+  Chèques-repas · Edenred") on the paid-part row and the part chip (Vue `takenLabel`, Compose `displayMethod`). No new
+  string.

@@ -92,6 +92,6 @@ remote_support_running excluded no remote support in v1, DECISIONS section 7
 check_fdm_status excluded no Vue caller; fdm_health and fdm_check_now replace it
 list_fiscal_events excluded no Vue caller
 sign_table_order excluded no Vue caller; leave_order registers the P
-work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b
-work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b
+work_in excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else with clock_in_employee from the employees panel (own presence stays login and end of shift, so no UI calls work_in)
+work_out excluded no Vue caller; login clocks in and end_shift clocks out since P1b; a manager clocks someone else out with clock_out_employee from the employees panel (no UI calls work_out)
 ```

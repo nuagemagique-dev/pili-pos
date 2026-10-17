@@ -44,7 +44,7 @@ fn engine_payment(full: bool) -> EngineEftPayment {
         "id": 7, "order_id": 3, "amount_cents": 1250, "status": "approved",
         "card_type": text("debit"), "brand": text("Bancontact"),
         "terminal_reference": text("T-1"), "authorisation_code": text("A1B2C3"),
-        "masked_pan": text("************1234"), "detail": text("none"),
+        "masked_pan": text("************1234"), "meal_voucher": full, "detail": text("none"),
         "created_at": "2026-10-12T10:00:00+02:00", "used": full
     }))
     .unwrap()
@@ -68,6 +68,7 @@ impl<'de> serde::Deserialize<'de> for EngineEftPaymentShape {
             terminal_reference: record.terminal_reference,
             authorisation_code: record.authorisation_code,
             masked_pan: record.masked_pan,
+            meal_voucher: record.meal_voucher,
             detail: record.detail,
             created_at: record.created_at,
             used: record.used,
@@ -82,6 +83,7 @@ fn a_payment_with_every_option_set_converts_field_by_field() {
     assert_eq!(record.brand.as_deref(), Some("Bancontact"));
     assert_eq!(record.masked_pan.as_deref(), Some("************1234"));
     assert!(record.used);
+    assert!(record.meal_voucher);
     assert_eq!(to_value(&engine).unwrap(), to_value(&record).unwrap());
 }
 

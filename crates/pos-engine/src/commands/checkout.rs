@@ -4,7 +4,7 @@ use pos_fiscal::event::build_sale_input_split;
 use pos_fiscal::fdm_client::{SignMutation, SignRequest};
 use pos_fiscal::payment::{PaymentError, Settlement, payment_line_identity};
 use pos_fiscal::ticket::{FiscalTicket, TicketDraft, TicketPayment};
-use pos_fiscal::types::EventLabel;
+use pos_fiscal::types::{EventLabel, PaymentType};
 
 use crate::commands::access::{self, Access};
 use crate::commands::bar_slip::SlipOutcome;
@@ -391,6 +391,11 @@ async fn sell_locked(
         .map(|p| {
             let (method, amount_cents) = match p.method {
                 CheckoutPaymentMethod::Cash => ("cash", p.amount_cents + settlement.rounding_cents),
+                // A meal-voucher card taken on the linked terminal is
+                // history as a meal voucher, like the signed line.
+                CheckoutPaymentMethod::Card if p.payment_type() == PaymentType::ChequeMeal => {
+                    ("meal_voucher", p.amount_cents)
+                }
                 CheckoutPaymentMethod::Card => ("card", p.amount_cents),
                 CheckoutPaymentMethod::MealVoucher => ("meal_voucher", p.amount_cents),
                 // Paid to the platform or the webshop's provider.

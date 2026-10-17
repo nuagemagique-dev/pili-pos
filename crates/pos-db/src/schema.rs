@@ -601,6 +601,18 @@ BEGIN
 END;
 "#;
 
+/// Migration 28: presence registration. A user can be "presence only"
+/// (kitchen staff clocked in and out by a manager, never logging in),
+/// and the local shift index records who registered each end.
+pub(crate) const MIGRATION_028_PRESENCE_REGISTRATION: &str = r#"
+ALTER TABLE users ADD COLUMN presence_only INTEGER NOT NULL DEFAULT 0
+    CHECK (presence_only IN (0, 1));
+-- INSZ of who registered the clock-in / clock-out (NULL: the employee
+-- themself, or a row from before this migration).
+ALTER TABLE staff_shifts ADD COLUMN started_by TEXT;
+ALTER TABLE staff_shifts ADD COLUMN ended_by TEXT;
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;

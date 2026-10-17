@@ -1,5 +1,6 @@
 package dev.nuagemagique.pilipos.feature.checkout
 
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -16,6 +17,7 @@ import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
@@ -186,6 +188,27 @@ class CheckoutContentTest {
         compose.onNodeWithTag("checkout_chip_1").assertTextContains("Espèces · 20,10 €", substring = true)
         compose.onNodeWithTag("checkout_chip_2").assertTextContains("20,10 €", substring = true)
         text("checkout_part_0").assertTextEquals("− 20,11 €")
+    }
+
+    @Test
+    fun thePaidChipOfAMealVoucherCardIsLabelledWithTheMealVoucherMethod() {
+        val chips =
+            listOf(
+                PartChip(ChipState.PAID, PaymentMethod.MEAL_VOUCHER, 800L),
+                PartChip(ChipState.CURRENT, PaymentMethod.CASH, 352L),
+            )
+        val taken = listOf(TakenPart(PaymentMethod.CARD, 800L, 0L, eftPaymentId = 12L, brand = "Edenred", mealVoucher = true))
+        show(base.copy(splitCount = 2, taken = taken, amounts = base.amounts.copy(chips = chips)))
+
+        val meal = catalog.text("method_meal_voucher", AppLanguage.FR)
+        compose.onNodeWithTag("checkout_chip_0").assertTextContains("$meal · 8,00 € ✓", substring = true)
+        val shown =
+            compose
+                .onNodeWithTag("checkout_chip_0")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.Text]
+                .joinToString(" ") { it.text }
+        assertFalse(shown, shown.contains(catalog.text("method_card", AppLanguage.FR)))
     }
 
     @Test

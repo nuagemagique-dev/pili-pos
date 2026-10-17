@@ -156,7 +156,11 @@ rend lui-même le type de carte (méthode `AUTOMATIC`) et les rapports
 comptent chaque type à part : `"2"`/`"Card"` (`CARD_DEBIT`),
 `"6"`/`"Credit card"` (`CARD_CREDIT`) et `"7"`/`"Card (type unknown)"`
 (`CARD_UNKNOWN`), sans jamais mélanger deux types dans un même
-décompte (`crates/pos-fiscal/src/payment.rs`).
+décompte (`crates/pos-fiscal/src/payment.rs`). Une carte de chèques-repas
+(Edenred, Pluxee, Monizze, Payflip), reconnue à la marque que rend le
+terminal, est une ligne `CHEQUE_MEAL` (`"3"`/`"Meal voucher"`, méthode
+`AUTOMATIC`) : elle se totalise dans la même rangée que les chèques-repas
+saisis à la main, qui ne diffèrent que par la méthode.
 
 ### Rejeu du scénario complet InputReport (T1-T8)
 

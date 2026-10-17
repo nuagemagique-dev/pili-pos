@@ -207,7 +207,7 @@ rapports pour voir les totaux en cours.
 
 ## 6. Fin de service - Pointage sortie (Événement S)
 
-**Action utilisateur.** L'opérateur tape "Pointer sortie".
+**Action utilisateur.** L'opérateur touche sa tuile sur l'écran de connexion, puis "Fin de service".
 
 **Circulation des données.**
 
@@ -218,6 +218,31 @@ rapports pour voir les totaux en cours.
    `staff_shifts` est clos dans la même transaction.
 3. Le moteur ferme la session dans tous les cas ; l'interface revient à l'écran
    de login.
+
+## 6 bis. Pointage d'un autre employé par le Gérant (Événement S)
+
+**Action utilisateur.** Le Gérant ouvre "Config", panneau "Employés", et
+touche "Arrivée" ou "Départ" sur la ligne d'un employé qui n'utilise pas
+la caisse (profil « Présence seule », cuisine, plonge) ou qui n'a pas pu
+se pointer lui-même.
+
+**Circulation des données.**
+
+1. UI → `commands::social::do_clock_in_employee` ou
+   `do_clock_out_employee` (Gérant uniquement). Le moteur refuse, sans
+   rien signer, dans cet ordre : appelant non Gérant, mode formation,
+   utilisateur système, employé inconnu ou désactivé, le Gérant
+   lui-même, arrivée alors que l'employé est en service, départ alors
+   qu'il ne l'est pas.
+2. Événement **S** construit au nom de l'**employé** (`employeeId` et
+   `fiscal_events.user_insz` : son INSZ) par `commands::social::sign_work_event`,
+   comme pour la connexion et la fin de service. Verrou de signature,
+   JSON canonique, FDM, archivage.
+3. Dans la même transaction, le poste de `staff_shifts` est ouvert ou
+   clos et le Gérant est inscrit dans `started_by` ou `ended_by`.
+4. Si le FDM est injoignable ou refuse, la commande répond « échec » avec
+   le texte du FDM : rien n'est archivé, `staff_shifts` ne change pas.
+5. L'UI relit les employés et les postes ouverts.
 
 ## 7. Exception - Facture B2B (Événement I + Peppol) - hors binaire certifié v1.0.0
 

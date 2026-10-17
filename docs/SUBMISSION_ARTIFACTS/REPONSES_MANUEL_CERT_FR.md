@@ -184,7 +184,7 @@ L'identité bit-à-bit entre la build cert soumise au SPF Finances et la build d
 
 Toute modification du logiciel POS post-certification nécessite une nouvelle demande de certification (mise à jour). Sur la machine de test, le nouveau binaire est remis sur clé USB, puis installé sur place via `deploy/update.sh <binaire> --sha1 <SHA-1 déclaré>`, qui refuse tout binaire dont le SHA-1 diffère de la valeur déclarée. Aucune mise à jour automatique en arrière-plan n'est implémentée : c'est une décision explicite de scellement. *Voir : GARANTIE_MAJ_LANGUES_FR.md* §2.
 
-**Correctifs urgents.** La procédure du SPF Finances (Introduction à la certification, 2026-09-03, §4) prévoit : « Les mises à jour ayant un impact sur le volet SCE ne peuvent être installées chez les clients qu'après avoir été certifiées par nos soins. Les corrections urgentes de bugs ou les solutions à des blocages chez des clients constituent une exception à cette règle, mais doivent tout de même nous être signalées. » pili-pos s'y conforme : un correctif urgent peut être installé chez un client avant la nouvelle certification, à condition d'être signalé au SPF Finances, et il figure dans la demande de mise à jour suivante. Dans la base, les versions de migration 11 à 19 sont réservées à ces correctifs certifiés (`crates/pos-db/src/migrate.rs`) ; l'intégration HubRise commence à la version 20.
+**Correctifs urgents.** La procédure du SPF Finances (Introduction à la certification, 2026-09-03, §4) prévoit : « Les mises à jour ayant un impact sur le volet SCE ne peuvent être installées chez les clients qu'après avoir été certifiées par nos soins. Les corrections urgentes de bugs ou les solutions à des blocages chez des clients constituent une exception à cette règle, mais doivent tout de même nous être signalées. » pili-pos s'y conforme : un correctif urgent peut être installé chez un client avant la nouvelle certification, à condition d'être signalé au SPF Finances, et il figure dans la demande de mise à jour suivante. Dans la base, les versions de migrations 12 à 19 sont réservées à ces correctifs certifiés (`crates/pos-db/src/migrate.rs`) ; l'intégration HubRise commence à la version 20.
 
 **Solution d'accès à distance pour l'agent SPF :**
 
@@ -339,7 +339,7 @@ Stockage des données utilisateur : table `users` (`insz` PK 11 chiffres, `name`
 | S - Social | Obligatoire (☑) | N/A | N/A | N/A |
 | P - Pro Forma | ☑ | ☑ | ☐ (pas câblé sur `sign_table_order`/`sign_pre_bill` en v1.0.0) | ☑ (via M161 signCopy_Order) |
 | T - Mode Training | ☑ | ☑ (avec watermark TRAINING) | ☑ (même commande `checkout::checkout`, mentions TRAINING conservées) | ☑ (via M172 signCopy_Training) |
-| I - Invoice | ☐ non disponible en v1.0.0 (mise à jour certifiée prévue v1.1) | ☐ | ☐ | ☐ |
+| I - Invoice | ☐ non disponible en v1.0.0 (mise à jour certifiée ultérieure) | ☐ | ☐ | ☐ |
 | C - Copy | ☑ (M160/M161/M172) | ☑ | ☑ (e-mail, `copy::copy_ticket` - sans lien/QR, le FDM ne renvoie pas de `verificationUrl` pour C) | Interdit (par la spec) |
 | F - Financial | ☑ (M130 money_in_out, M131 drawer_open) | ☐ (events F sont non-imprimés en standard) | ☐ | ☐ |
 
@@ -439,17 +439,26 @@ L'enregistrement du temps de présence est implémenté via l'event **S** (Work 
 
 1. Construit un `WorkInput` avec `pos_id`, `pos_date_time`, `terminal_id`, `employee_insz`, `device_id`.
 2. Envoie un `signWorkIn` au FDM.
-3. Sur succès, archive l'event S dans `fiscal_events` et bascule `users.social_status='present'`.
+3. Sur succès, archive l'event S dans `fiscal_events` et, dans la même transaction, ouvre la prestation de l'employé dans `staff_shifts` (index local des prestations ouvertes, migration 9), sauf pour un événement d'entraînement : un S étiqueté T n'enregistre aucune présence et ne touche jamais `staff_shifts`. La signature est factorisée dans `commands::social::sign_work_event`, partagée par la connexion, la fin de service et l'enregistrement par le Gérant décrit ci-dessous.
 
 Le même mécanisme côté `work_out`, mais à la fin de service seulement : le bouton « Verrouiller » de l'en-tête appelle `commands::session::do_lock_session` du moteur, qui enregistre la commande en cours puis verrouille la session, et l'employé reste en service (aucun S sortant ; à la reconnexion, aucun second `work_in` n'est émis tant que l'employé est en service). Le départ (`signWorkOut`) est signé depuis l'écran de connexion : l'employé en service touche sa tuile, puis « Fin de service » (avec son PIN s'il en a un) ; le moteur (`commands::social::do_end_shift`) contrôle le PIN, signe le départ au nom de l'employé, puis referme la session ; l'interface (`ui/src/views/LoginView.vue`) ne fait que l'appeler.
 
 **Enregistrement séparé pour les utilisateurs qui n'utilisent pas le POS :**
 
-L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manager de pointer des employés qui ne touchent pas le POS au quotidien (cuisine, salle). Ces pointages génèrent quand même des events S avec l'INSZ de l'employé concerné.
+Le manuel de certification (§II.E) impose que la présence reste enregistrable pour le personnel qui n'utilise pas la caisse (cuisine, plonge). Deux fonctions du moteur le permettent, réservées au rôle Gérant (`Access::Admin`) :
+
+- `commands::social::do_clock_in_employee` signe l'arrivée (`signWorkIn`) d'un autre employé ;
+- `commands::social::do_clock_out_employee` signe son départ (`signWorkOut`).
+
+Dans les deux cas l'événement S est celui de l'employé : le champ `employeeId` de la requête et la colonne `fiscal_events.user_insz` portent l'INSZ de l'employé, comme dans les cas d'usage M140 et M141. Le Gérant qui a fait l'enregistrement est conservé à part, dans `staff_shifts.started_by` (arrivée) et `staff_shifts.ended_by` (départ), pour l'audit ; il n'apparaît pas dans la requête envoyée au FDM. Depuis l'écran « Config » de la caisse, le panneau « Employés » affiche pour chaque autre employé actif « En service depuis HH:MM » ou « Hors service » et un seul bouton, « Arrivée » ou « Départ » (le Gérant n'a pas de bouton sur sa propre ligne : sa présence passe par la connexion et « Fin de service »). L'interface (`ui/src/views/SettingsView.vue`) ne fait qu'appeler ces deux commandes, puis relire la liste des employés et des prestations ouvertes.
+
+Règles du moteur, dans cet ordre, sans rien signer ni faire avancer de compteur en cas de refus : appelant qui n'est pas Gérant (`forbidden`) ; mode formation actif (`presence_training`) ; utilisateur système (`system_user`) ; employé inconnu ou désactivé (`user_unknown`) ; le Gérant lui-même (`presence_self`) ; arrivée alors que l'employé est déjà en service (`presence_already_in`) ; départ alors qu'il ne l'est pas (`presence_not_in`). Le mode formation est refusé parce qu'un événement T n'enregistre aucune présence : enregistrer celle d'un autre employé en formation serait trompeur. Si le FDM est injoignable ou refuse, la commande répond « échec » avec le texte du FDM, rien n'est archivé et `staff_shifts` ne change pas ; l'interface désactive en outre les deux boutons avec la mention « FDM indisponible : pointage impossible » tant que le FDM n'est pas connecté. La désactivation d'un employé en service est refusée (`deactivate_on_shift`) : le Gérant enregistre d'abord son départ.
+
+Les employés qui ne se servent jamais de la caisse sont créés avec le profil « Présence seule » (`users.presence_only = 1`, rôle `waiter` en base, aucun droit). Un tel employé n'a pas de PIN, n'apparaît pas sur les tuiles de l'écran de connexion et ne peut ni se connecter, ni choisir un PIN, ni terminer son service lui-même (erreur `presence_only_user`) : seul le Gérant enregistre son arrivée et son départ. Ses événements S figurent dans les rapports par utilisateur comme ceux de tout employé.
 
 | Item | Réponse |
 |---|---|
-| ☑ Description de l'utilisation | *Voir : MANUEL_UTILISATEUR_FR.md* §3 "Pointage d'arrivée et de départ" |
+| ☑ Description de l'utilisation | *Voir : MANUEL_UTILISATEUR_FR.md* §3 "Pointage d'arrivée et de départ" et §12.3 "Employés" |
 | ☑ L'enregistrement du temps de présence est lié aux boutons "Work In / Work Out" | Oui |
 
 ## §III.F Fonctionnalités avancées
@@ -473,7 +482,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Division de table | ☐ | - | Idem |
 | Division d'addition (parts égales) | ☐ | - | Idem |
 | Division d'addition (montants égaux) | ☐ | - | Idem |
-| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` : HubRise est dans le binaire, seul `peppol` en est absent, voir `src-tauri/Cargo.toml`). Mise à jour certifiée prévue v1.1 *Voir : DECISION_PEPPOL_AP_FR.md* |
+| Invoice (I) | ☐ | M150 | Non disponible en v1.0.0. Le code (`crates/pos-peppol`) existe mais le feature flag `peppol` n'est pas activé dans la build cert (`cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` : HubRise est dans le binaire, seul `peppol` en est absent, voir `src-tauri/Cargo.toml`). Mise à jour certifiée ultérieure *Voir : DECISION_PEPPOL_AP_FR.md* |
 | Note de crédit | ☐ | - | Reporté avec Peppol / event I (cf. *FLUX_REMBOURSEMENT_FR.md* §3) |
 | Copy (C) | ☑ | M160 | OK |
 | Training (T) | ☑ | M171 | OK |
@@ -485,7 +494,7 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 | Carte de crédit | ☑ | - | OK (même flux que débit). Sans terminal relié, l'opérateur ne distingue pas débit et crédit : toujours `CARD_DEBIT`. Avec un terminal relié, le terminal renvoie lui-même le type (POS spec v2.2, `paymentLine.inputMethod`) : `CARD_CREDIT` (id "6", "Credit card") ou `CARD_UNKNOWN` (id "7", "Card (type unknown)") ont leur propre ligne, pour que les rapports ne mélangent pas deux types dans un même décompte. La marque de la carte est dans `provider`, l'identifiant de transaction du terminal dans `reference` |
 | Crédit client | ☐ | - | Pas de système clients (B2C) |
 | Facturation à l'hôtel | ☐ | - | Non supporté (POS destiné à la restauration) |
-| Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé |
+| Chèque repas | ☑ | ROUND4, ROUND5 | Chèques-repas électroniques (`CHEQUE_MEAL`, id "3"), montant exact jamais arrondi, sans rendu, tiroir fermé. Avec un terminal relié, une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip), reconnue à la marque que rend le terminal, est payée avec « Carte » et signée `CHEQUE_MEAL` (id "3", "Meal voucher", `AUTOMATIC`, marque dans `provider`) : même identité que la saisie manuelle, donc une seule rangée dans les rapports |
 | Paiement en plusieurs moyens (un ticket) | ☑ | UC4119, ROUND4, ROUND5 | Carte et chèques-repas pour un montant exact, espèces pour le reste (seul le reste en espèces est arrondi, ligne ROUNDING à part). Une ligne PAYMENT par moyen (`crates/pos-fiscal/src/payment.rs`) |
 | Vente sans paiement (client parti sans payer) | ☑ | UC4109 | Gérant + PIN : N signé avec `financials: []`, ticket TVA "Non paye", ni tiroir ni paiement, jamais remboursable (`crates/pos-engine/src/commands/unpaid.rs`). La description POS v2.2 ne prévoit des `financials` vides que pour un montant nul ; pili-pos suit le cas d'utilisation officiel UC4109_2 (58 EUR, `financials: []`) |
 | Changement de paiement (M132) | ☐ | M132 | Reporté (cf. *FLUX_REMBOURSEMENT_FR.md* §2) |
@@ -517,9 +526,9 @@ L'écran de gestion des utilisateurs (rôle Admin uniquement) permet à un manag
 
 - **Sérialiseur UBL** et trait `AccessPoint` existent dans le workspace (crate `pos-peppol`, deux implémentations : `LoggingAccessPoint` no-op et `StorecoveAccessPoint` squelette de production) et sont couverts par des tests unitaires, mais ce code n'est **pas compilé dans la build cert** : `cargo build --release --no-default-features --features cert` n'active pas `peppol`, mais active `hubrise` (`src-tauri/Cargo.toml` : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]`). L'événement fiscal **I (Invoice)** n'est donc pas disponible en v1.0.0.
 - **Table d'audit** `peppol_deliveries` existe dans le schéma pour une activation future, mais n'est alimentée par aucun flux en v1.0.0.
-- **Mise à jour certifiée prévue v1.1** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
+- **Mise à jour certifiée ultérieure** : câblage de l'Access Point (Storecove pressenti - voir *DECISION_PEPPOL_AP_FR.md*) et activation du feature flag `peppol`, suivis d'une nouvelle demande de certification (procédure §II.E).
 
-**En attendant v1.1**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `pili-pos`**, via l'outil de comptabilité/facturation du restaurant. `pili-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
+**En attendant cette mise à jour**, les factures B2B du restaurant (cas exceptionnels - client entreprise, établissement voisin) sont émises **en dehors de `pili-pos`**, via l'outil de comptabilité/facturation du restaurant. `pili-pos` reste la seule source pour les events N/P/T/C/F/S/R fiscalisés ; aucune facture B2B n'est émise ni imprimée par le POS en v1.0.0.
 
 ## §III.G CostCenterChange (Gestion de Table)
 
@@ -618,7 +627,7 @@ l'implémentation, la table exigence → code → test, et
 | Le POS dispose-t-il d'autres rapports que les rapports obligatoires X et Z ? | ☐ Non. Seuls X (turnover + user) et Z (turnover + user) sont implémentés. |
 | Calcul des totaux (turnover, users, posDevices, fdmDevices) | Calculés par `crates/pos-fiscal/src/report_totals.rs` **exclusivement à partir des événements fiscaux archivés et signés** de la période d'ouverture en cours (`booking_periods`, cf. §III.J), jamais des tables `orders`/`order_lines`/`payments` mutables - conforme POS v2.2 §2.2.2. Détail : `departments`, `payments` et `negQuantities` sont calculés à partir des événements N uniquement ; `vats` est la somme du `vatCalc` renvoyé par le FDM pour chaque N (repli sur les taux standard A/B/C si absent) ; `users[].totalAmount` est la somme des `transactionTotal` des N de l'employé, et la plage d'activité (`first`/`lastPosDateTime`) couvre tous ses événements **sauf** les rapports R eux-mêmes. Chaque moyen de paiement a son propre `financials.id` (spec §2.2.2) - `"1"` espèces, `"2"` carte - pour que les rapports les distinguent. Tous les montants sont additionnés en centimes (pas de flottants) pour éviter la perte de centime observée avant ce correctif (3,04 € devenait 3,03 €). |
 | Rapport Z en mode formation | ☐ Un Z de formation **ne consomme pas de numéro de Z** et **ne clôture pas** la période d'ouverture (`booking_periods` reste ouverte) - cohérent avec le principe que les événements T ne comptent jamais fiscalement. |
-| Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20260821_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`crates/pos-engine/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc pili-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Sans terminal de paiement relié, les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement) ; avec un terminal relié, le terminal rend le type de carte (`CARD_DEBIT`, `CARD_CREDIT` ou `CARD_UNKNOWN`, ids "2", "6" et "7"), compté à part dans les rapports. |
+| Rejeu du scénario officiel Reports v1.3 | Les 8 tickets `T1`-`T8` du scénario SPF (`docs/20260821_UC_Reports_1.3/`) sont rejoués deux fois par les tests : purement via `report_totals` (`crates/pos-fiscal/tests/report_totals_fixtures.rs`) et de bout en bout via les commandes réelles (`crates/pos-engine/tests/spf_e2e_report_fixtures.rs`). Les deux correspondent aux rapports publiés M180-M184, avec un écart assumé et documenté dans le test : le rapport publié compte 3 tickets P pour 198 € (T1 exclu), alors que le scénario enregistre 4 événements P (commandes T1/T5/T6 + pré-addition T7) pour 250 € ; la spec définit `ticketCount` comme le nombre d'événements du label sur la `bookingDate` (§2.2.2 turnover), donc pili-pos rapporte 4 et 250 € - conforme à la spec, différent du chiffre publié dans la fixture. Sans terminal de paiement relié, les paiements carte sont toujours `CARD_DEBIT` (l'opérateur ne distingue pas débit/crédit à l'encaissement) ; avec un terminal relié, le terminal rend le type de carte (`CARD_DEBIT`, `CARD_CREDIT` ou `CARD_UNKNOWN`, ids "2", "6" et "7", ou `CHEQUE_MEAL` id "3" pour une carte de chèques-repas), compté à part dans les rapports. |
 
 ## §III.M Intégration des tiers-parties
 
@@ -838,9 +847,9 @@ Les libellés FR sont ceux de la loi : arrêté royal du 30 décembre 2009, art.
 
 ## Contenu obligatoire de la facture imprimée (B2B)
 
-*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée v1.1.
+*Voir : DECISION_PEPPOL_AP_FR.md* + *FLUX_REMBOURSEMENT_FR.md* §3. L'émission de factures B2B (event I) est implémentée de bout en bout côté code : `invoice::do_sign_invoice_fiscal` construit l'InvoiceInput (n° de facture séquentiel, TVA client, `fdmRefs` vers les ventes sous-jacentes - forme de la fixture M150), l'envoie au FDM via `signInvoice` et archive l'événement I - exercé en e2e (`spf_e2e_basic::m150_*`) sous les features par défaut (`hubrise` + `peppol`). Mais ce code est **hors périmètre de la build cert v1.0.0** : `cert = ["custom-protocol", "hubrise", "pos-engine/cert"]` n'active pas `peppol`, donc `invoice.rs` n'est pas compilé dans le binaire soumis. **Aucune facture B2B n'est émise ni imprimée par le POS au rendez-vous d'admission.** L'UI complète + le câblage AP Peppol sont planifiés pour la mise à jour certifiée ultérieure.
 
-Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de mise à jour v1.1, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
+Les 11 éléments obligatoires (a-k) sur la facture seront couverts et cochés au dossier de la mise à jour certifiée ultérieure, une fois le feature flag `peppol` activé dans une build cert et le flux UI complet livré.
 
 ---
 

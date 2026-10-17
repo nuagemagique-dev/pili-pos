@@ -47,7 +47,7 @@ l'écran via le socket QMP de l'instance en cours.
 La section 3 (tickets imprimés) reste manuelle - voir plus bas.
 
 **Nommage.** `01_` à `19_` : flux fonctionnels ; `09a_` à `09g_` :
-ticket numérique ; `09h_` à `09k_`, `01a_`, `03a_`, `15a_` : terminal de paiement lié (EFT) ; `20_` à `49_` : messages du FDM (§V) et écrans
+ticket numérique ; `09h_` à `09l_`, `01a_`, `03a_`, `15a_` : terminal de paiement lié (EFT) ; `20_` à `49_` : messages du FDM (§V) et écrans
 additionnels (`45_` à `49_` : assistance à distance, PIN, FDM_ANSWER_PENDING, remboursement par ligne) ; `50_` à `56_` : tickets imprimés.
 
 ---
@@ -170,6 +170,12 @@ Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`
 - **Écran attendu :** « Réponse du terminal inconnue », le message « La carte a peut-être été débitée... », boutons "Vérifier" et "Fermer" ; la vente reste bloquée (« Un paiement par carte attend la réponse du terminal »).
 - **Capture :** plein écran.
 
+### `09l_eft_meal_voucher.png` (proposée, à produire par le script de captures puis à ajouter au PDF)
+- **Mock :** `eftScript` avec un paiement accepté de marque « Edenred ».
+- **Action :** « Carte », terminal, taper un montant partiel, « Valider ».
+- **Écran attendu :** la part prise s'affiche « Part 1 · Chèques-repas · Edenred » avec la pastille « Accepté ».
+- **Capture :** plein écran.
+
 ### `01a_login_terminal_row.png`
 - **Action :** écran de connexion avec un terminal relié et joignable.
 - **Écran attendu :** panneau "Démarrage" avec la ligne « Terminal de paiement : connecté ».
@@ -231,9 +237,14 @@ Le mock IPC simule le terminal (`eftScript`, `settingsWith({ paymentTerminal })`
 - **Capture :** plein écran.
 
 ### `19_admin_users.png`
-- **Action :** "Config", section "Employés".
-- **Écran attendu :** chaque employé (nom, profil, INSZ) avec "PIN" et "Désactiver" ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti).
+- **Action :** "Config", section "Employés", connecté en Gérant. Préparer : un Serveur en service (arrivée enregistrée depuis 12:02), un Apprenti hors service, un employé « Présence seule ».
+- **Écran attendu :** la note « Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici. » ; chaque employé (nom, profil, état « En service depuis 12:02 » ou « Hors service ») avec « Arrivée » ou « Départ », "Code PIN" et "Désactiver" ; la ligne « Présence seule » sans bouton "Code PIN" ; pas de bouton d'arrivée sur la ligne du Gérant connecté ; formulaire "Ajouter" (nom, INSZ, profil Gérant / Serveur / Apprenti / Présence seule).
 - **Capture :** plein écran.
+
+### `19a_admin_presence.png`
+- **Action :** "Config", section "Employés" : toucher « Arrivée » sur la ligne de l'employé « Présence seule ».
+- **Écran attendu :** message « Arrivée enregistrée · <nom> » ; la ligne passe à « En service depuis HH:MM » et son bouton devient « Départ ». Variante facultative : FDM débranché, les deux boutons grisés avec « FDM indisponible : pointage impossible ».
+- **Capture :** plein écran, message visible.
 
 ---
 

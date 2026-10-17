@@ -19,6 +19,12 @@
     <string name="err_name_required">需要姓名</string>
     <string name="err_role_invalid">未知角色</string>
     <string name="err_deactivate_self">不能停用自己。</string>
+    <string name="err_presence_only_user">该员工仅用于考勤，不能登录收银机</string>
+    <string name="err_presence_training">培训模式下不能为员工打卡，请先退出培训模式。</string>
+    <string name="err_presence_self">您本人的上下班在登录时和\"下班\"时登记</string>
+    <string name="err_presence_already_in">该员工已在岗</string>
+    <string name="err_presence_not_in">该员工不在岗</string>
+    <string name="err_deactivate_on_shift">该员工在岗，请先登记下班</string>
     <string name="err_operator_invalid">员工无效：请重新登录。</string>
     <string name="err_dine_in_needs_table">堂食订单需要桌号。</string>
     <string name="err_takeaway_has_no_table">外带订单没有桌号。</string>

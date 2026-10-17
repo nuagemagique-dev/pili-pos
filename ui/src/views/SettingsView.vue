@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDayTime, formatTimestamp } from "../utils/datetime";
+import { formatDayTime, formatTime, formatTimestamp } from "../utils/datetime";
 import { useIntegrationsStore } from "../stores/integrations";
 import IntegrationSwitch from "../components/IntegrationSwitch.vue";
 import { computed, defineAsyncComponent, onMounted, ref } from "vue";
@@ -17,6 +17,7 @@ import ExportStatusPanel from "../components/ExportStatusPanel.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
+import { useFdmStore } from "../stores/fdm";
 
 // The HubRise panel, while the integration is shown (its own chunk).
 const HubriseSettings = defineAsyncComponent(() => import("../components/HubriseSettings.vue"));
@@ -26,6 +27,7 @@ const { t } = useI18n();
 const pos = usePosStore();
 const auth = useAuthStore();
 const toast = useToastStore();
+const fdm = useFdmStore();
 
 /** The backend refuses the switch while an order is open. */
 async function toggleTraining() {
@@ -108,13 +110,55 @@ async function confirmWithManagerPin(operatorPin: string) {
 const ownPin = computed(() => pinFor.value?.insz === auth.currentUser?.insz);
 const newName = ref("");
 const newInsz = ref("");
-const newRole = ref<"admin" | "cashier" | "waiter">("cashier");
-// PROFILS_UTILISATEURS_FR.md §1: Gérant, Serveur, Apprenti.
-const roles = ["admin", "cashier", "waiter"] as const;
+const newRole = ref<"admin" | "cashier" | "waiter" | "presence">("cashier");
+// PROFILS_UTILISATEURS_FR.md §1: Gérant, Serveur, Apprenti, and the
+// presence-only profile (a waiter row that cannot log in).
+const roles = ["admin", "cashier", "waiter", "presence"] as const;
 const addError = ref<string | null>(null);
 
 // Deactivation takes two taps: the first arms the row's button.
 const confirmDeactivate = ref<string | null>(null);
+
+// Open shifts by INSZ (the local index of S events), with the start time.
+const openShifts = ref<Record<string, string>>({});
+// The INSZ whose presence call is running (one at a time).
+const presenceBusy = ref<string | null>(null);
+
+function roleLabel(w: User): string {
+  return w.presence_only ? t("role_presence") : t(`role_${w.role}`);
+}
+
+function shiftLabel(w: User): string {
+  const since = openShifts.value[w.insz];
+  if (!since) return t("settings_off_shift");
+  return t("settings_on_shift_since", { time: formatTimestamp(since, formatTime) });
+}
+
+// Why the presence buttons are off, or null when they work.
+const presenceBlock = computed<string | null>(() => {
+  if (pos.trainingMode) return describeError("presence_training");
+  if (!fdm.connected) return t("settings_presence_fdm_down");
+  return null;
+});
+
+async function togglePresence(w: User) {
+  if (presenceBlock.value || presenceBusy.value) return;
+  const clockIn = !openShifts.value[w.insz];
+  presenceBusy.value = w.insz;
+  try {
+    const r = clockIn ? await ipc.clockInEmployee(w.insz) : await ipc.clockOutEmployee(w.insz);
+    if (r.success) {
+      toast.show(t(clockIn ? "settings_presence_done_in" : "settings_presence_done_out", { name: w.name }), "success");
+    } else {
+      toast.show(describeError(r.error), "error", 6000);
+    }
+  } catch (e) {
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    presenceBusy.value = null;
+    await loadWorkers();
+  }
+}
 
 async function deactivate(insz: string) {
   if (confirmDeactivate.value !== insz) {
@@ -131,7 +175,11 @@ async function deactivate(insz: string) {
 }
 
 async function loadWorkers() {
-  try { workers.value = await ipc.listUsers(); } catch { /* empty */ }
+  try {
+    const [users, shifts] = await Promise.all([ipc.listUsers(), ipc.listOpenShifts()]);
+    workers.value = users;
+    openShifts.value = Object.fromEntries(shifts.map((s) => [s.userInsz, s.startedAt]));
+  } catch { /* empty */ }
 }
 
 async function addWorker() {
@@ -146,7 +194,11 @@ async function addWorker() {
     return;
   }
   try {
-    await ipc.createUser({ insz: newInsz.value, name: newName.value, role: newRole.value });
+    await ipc.createUser(
+      newRole.value === "presence"
+        ? { insz: newInsz.value, name: newName.value, role: "waiter", presenceOnly: true }
+        : { insz: newInsz.value, name: newName.value, role: newRole.value },
+    );
     newName.value = "";
     newInsz.value = "";
     await loadWorkers();
@@ -331,17 +383,28 @@ onMounted(() => {
       <!-- Column 2: employees -->
       <section class="panel workers-section">
         <h2>{{ t('employees') }}</h2>
+        <p class="panel-text">{{ t('settings_presence_note') }}</p>
+        <p v-if="auth.isManager && presenceBlock" class="presence-block" data-testid="presence-block">{{ presenceBlock }}</p>
         <div class="worker-list">
           <div v-for="w in workers" :key="w.insz" class="worker-row">
             <span class="avatar">{{ initial(w.name) }}</span>
             <span class="worker-text">
               <span class="worker-name">{{ w.name }}</span>
-              <span class="worker-meta" :class="{ 'no-pin': !w.has_pin }">
-                {{ t(`role_${w.role}`) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
+              <span v-if="w.presence_only" class="worker-meta">{{ roleLabel(w) }}</span>
+              <span v-else class="worker-meta" :class="{ 'no-pin': !w.has_pin }">
+                {{ roleLabel(w) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
               </span>
+              <span class="worker-presence" :class="{ on: !!openShifts[w.insz] }" data-testid="presence-state">{{ shiftLabel(w) }}</span>
             </span>
             <span class="worker-actions">
-              <button class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
+              <button
+                v-if="auth.isManager && w.insz !== auth.currentUser?.insz"
+                class="presence-btn"
+                data-testid="presence-btn"
+                :disabled="!!presenceBlock || presenceBusy !== null"
+                @click="togglePresence(w)"
+              >{{ openShifts[w.insz] ? t('settings_presence_out') : t('settings_presence_in') }}</button>
+              <button v-if="!w.presence_only" class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
               <button
                 v-if="w.insz !== auth.currentUser?.insz"
                 class="deactivate-btn"
@@ -534,12 +597,13 @@ onMounted(() => {
   background: var(--bg-surface); border-radius: 12px;
 }
 .label-btns { grid-template-columns: repeat(2, 1fr); }
+.role-btns { grid-template-columns: repeat(4, 1fr); }
 .lang-btn, .label-btn, .role-btn {
   border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); color: var(--text-primary);
   transition: transform var(--tap-duration) ease;
 }
 .lang-btn, .label-btn { height: 56px; font-size: 18px; }
-.role-btn { height: 48px; font-size: 16px; }
+.role-btn { height: 48px; font-size: 15px; padding: 0 4px; }
 .lang-btn.active, .label-btn.active, .role-btn.active { background: var(--selected-bg); color: var(--selected-fg); }
 .lang-btn:active, .label-btn:active, .role-btn:active { transform: scale(var(--tap-scale)); }
 
@@ -570,16 +634,20 @@ onMounted(() => {
 .worker-name { font-size: 19px; font-weight: var(--font-weight-bold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .worker-meta { font-size: 15px; color: var(--text-secondary); }
 .worker-meta.no-pin { color: var(--accent-warning); }
+.worker-presence { font-size: 15px; color: var(--text-secondary); }
+.worker-presence.on { color: var(--text-primary); font-weight: var(--font-weight-bold); }
+.presence-block { color: var(--accent-warning); font-size: 15px; }
 .worker-actions { display: flex; gap: 8px; }
-.pin-btn, .deactivate-btn {
+.presence-btn:disabled { opacity: 0.4; }
+.presence-btn, .pin-btn, .deactivate-btn {
   height: 48px; padding: 0 16px; border-radius: var(--radius-sm);
   background: var(--bg-surface); font-size: 15px; font-weight: var(--font-weight-bold);
   transition: transform var(--tap-duration) ease;
 }
-.pin-btn { color: var(--text-primary); }
+.presence-btn, .pin-btn { color: var(--text-primary); }
 .deactivate-btn { color: var(--text-secondary); }
 .deactivate-btn.armed { background: var(--accent-danger); color: var(--text-on-accent); }
-.pin-btn:active, .deactivate-btn:active { transform: scale(var(--tap-scale)); }
+.presence-btn:active:not(:disabled), .pin-btn:active, .deactivate-btn:active { transform: scale(var(--tap-scale)); }
 
 .add-worker { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
 .add-fields { display: flex; gap: 8px; }

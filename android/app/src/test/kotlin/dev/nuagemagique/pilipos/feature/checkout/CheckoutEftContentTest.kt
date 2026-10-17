@@ -123,6 +123,17 @@ class CheckoutEftContentTest {
     }
 
     @Test
+    fun aMealVoucherCardIsNamedMealVouchersWithItsIssuer() {
+        val locked = TakenPart(PaymentMethod.CARD, 800L, 0L, eftPaymentId = 12L, brand = "Edenred", mealVoucher = true)
+        show(card.copy(method = PaymentMethod.CASH, taken = listOf(locked)))
+
+        val meal = catalog.text("method_meal_voucher", AppLanguage.FR)
+        // The locked row reads "Part 1 · <method> · <brand>": the method is the meal voucher, not the card.
+        compose.onNodeWithText("$meal · Edenred", substring = true).assertIsDisplayed()
+        node("checkout_part_eft_0").assertTextEquals(ui(R.string.ui_eft_approved))
+    }
+
+    @Test
     fun aPartTypedByHandHasNoBadge() {
         show(card.copy(method = PaymentMethod.CASH, taken = listOf(TakenPart(PaymentMethod.CARD, 800L, 0L))))
 

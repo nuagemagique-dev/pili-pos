@@ -17,6 +17,9 @@ pub struct EftPayment {
     pub terminal_reference: Option<String>,
     pub authorisation_code: Option<String>,
     pub masked_pan: Option<String>,
+    /// The approved card is a meal-voucher card (Edenred, Pluxee, Monizze, Payflip): the sale signs
+    /// it as `CHEQUE_MEAL`.
+    pub meal_voucher: bool,
     /// Why it was declined, what is missing for an unknown one.
     pub detail: Option<String>,
     pub created_at: String,

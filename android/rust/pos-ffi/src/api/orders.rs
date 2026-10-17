@@ -363,6 +363,7 @@ mod flow {
                     role: pos_core::user::UserRole::Admin,
                     active: true,
                     has_pin: true,
+                    presence_only: false,
                 });
                 Ok(())
             })

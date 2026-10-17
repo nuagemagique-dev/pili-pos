@@ -139,7 +139,7 @@ Free functions, all `suspend`:
 
 ## 11. Command parity
 
-The parity script (`scripts/android/check_command_parity.py`) checks that each of the 88 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
+The parity script (`scripts/android/check_command_parity.py`) checks that each of the 96 cert commands has its wrapper, its engine function and a method of the same name on `PosEngine`, with the same parameter names. The table below is generated; `scripts/android/p2_gate.sh --exit` compares it byte for byte with `python3 scripts/android/check_command_parity.py --markdown`. Regenerate it, never edit it by hand.
 
 <!-- parity:begin -->
 | Command | Engine function | Call | FFI method (Kotlin) |
@@ -153,6 +153,8 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | check_payment_terminal | eft::do_check_payment_terminal | spawn | posEngine.checkPaymentTerminal() |
 | check_printer | print::do_check_printer | spawn | posEngine.checkPrinter() |
 | checkout | checkout::do_checkout_split | spawn | posEngine.checkout() |
+| clock_in_employee | social::do_clock_in_employee | spawn | posEngine.clockInEmployee() |
+| clock_out_employee | social::do_clock_out_employee | spawn | posEngine.clockOutEmployee() |
 | close_unpaid | unpaid::do_close_unpaid | spawn | posEngine.closeUnpaid() |
 | copy_ticket | copy::do_copy_ticket_with | spawn | posEngine.copyTicket() |
 | create_order | order::do_create_order | blocking | posEngine.createOrder() |
@@ -239,7 +241,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | work_in | social::do_work_in | spawn | posEngine.workIn() |
 | work_out | social::do_work_out | spawn | posEngine.workOut() |
 
-Parity: 94/94.
+Parity: 96/96.
 <!-- parity:end -->
 
 ## 12. JVM tests, mocks and gates

@@ -62,7 +62,7 @@ pub(crate) fn masked_pan(receipt: &str) -> Option<String> {
 
 /// The first card brand a receipt names, in the display spelling.
 pub(crate) fn brand_in(receipt: &str) -> Option<String> {
-    const NAMES: [(&str, &str); 13] = [
+    const NAMES: [(&str, &str); 19] = [
         ("BANCONTACT", "Bancontact"),
         ("BCMC", "Bancontact"),
         ("MAESTRO", "Maestro"),
@@ -76,6 +76,12 @@ pub(crate) fn brand_in(receipt: &str) -> Option<String> {
         ("DINERS", "Diners Club"),
         ("JCB", "JCB"),
         ("UNIONPAY", "UnionPay"),
+        ("EDENRED", "Edenred"),
+        ("TICKET RESTAURANT", "Edenred"),
+        ("PLUXEE", "Pluxee"),
+        ("SODEXO", "Pluxee"),
+        ("MONIZZE", "Monizze"),
+        ("PAYFLIP", "Payflip"),
     ];
     let upper = receipt.to_uppercase();
     NAMES
@@ -102,6 +108,21 @@ mod tests {
             Some("057737")
         );
         assert_eq!(field(RECEIPT, &["Nothing"]), None);
+    }
+
+    #[test]
+    fn a_meal_voucher_receipt_names_its_issuer() {
+        for (line, brand) in [
+            ("EDENRED", "Edenred"),
+            ("Ticket Restaurant", "Edenred"),
+            ("PLUXEE", "Pluxee"),
+            ("SODEXO PASS", "Pluxee"),
+            ("Monizze", "Monizze"),
+            ("PAYFLIP", "Payflip"),
+        ] {
+            let receipt = format!("   Purchase\n   {line}\n   XXXXXXXXXXXX0119\n");
+            assert_eq!(brand_in(&receipt).as_deref(), Some(brand), "{line}");
+        }
     }
 
     #[test]

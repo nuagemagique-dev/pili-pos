@@ -166,6 +166,10 @@ enregistrée auprès du FDM (§6.1).
   Un employé sans PIN touche sa tuile puis "Fin de service" sans PIN.
 - "Verrouiller" et le verrouillage automatique ne pointent **pas** le
   départ (§2.3).
+- **Pour le personnel qui n'utilise pas la caisse** (cuisine, plonge), le
+  Gérant enregistre l'arrivée et le départ dans "Config", panneau
+  "Employés" (§12.3) : un seul bouton par employé, "Arrivée" ou "Départ".
+  Le même événement S est signé, au nom de l'employé.
 
 Si le FDM ne répond pas, la connexion ou la fin de service se fait quand
 même, mais un message rouge l'indique : "Pointage non enregistré", suivi
@@ -394,7 +398,7 @@ n'empêche pas de se connecter ni de vendre.
 
 Captures : `09h` (choix "Terminal" ou "Saisie manuelle"), `09i` (fenêtre
 "Paiement sur le terminal"), `09j` (paiement refusé) et `09k` (réponse
-inconnue et bouton "Vérifier").
+inconnue et bouton "Vérifier"), `09l` (carte de chèques-repas acceptée).
 
 1. Choisir "Carte" (le choix "Terminal" est actif, l'écran indique "Le
    montant est envoyé au terminal à la validation"), laisser ou taper le
@@ -432,6 +436,17 @@ inconnue et bouton "Vérifier").
    la ligne est alors `MANUAL`. Ce repli est refusé tant qu'un paiement de
    cette commande attend sa réponse ou qu'un paiement accepté n'est pas
    encore utilisé par la vente.
+
+Une carte de chèques-repas (Edenred, Pluxee, Monizze, Payflip) se paie
+elle aussi avec "Carte" quand un terminal est relié : la caisse la
+reconnaît à la marque que le terminal rend et l'enregistre comme
+chèques-repas. La part s'affiche alors "Chèques-repas · Edenred", le
+ticket imprime "Chèques-repas Edenred" (la copie aussi), et les rapports
+comptent ces montants avec les chèques-repas saisis à la main (une seule
+rangée). Le bouton "Chèques-repas" reste la saisie manuelle (chèques
+papier ou terminal autonome). Les cartes éco-chèques, cadeau, sport ou
+culture ne sont pas des chèques-repas : elles ne sont pas reconnues
+comme telles et restent des cartes.
 
 Tant qu'un paiement accepté n'est pas enregistré dans la vente de sa
 commande, la table ou la vente à emporter porte la pastille "Carte
@@ -749,18 +764,38 @@ fixée à l'installation, pas ce choix.
 La liste montre chaque employé (nom, profil, "PIN défini" ou "sans
 PIN") avec deux boutons :
 
+- **"Arrivée" / "Départ"** (Gérant, pour les autres employés) : la ligne
+  de chaque employé dit "En service depuis HH:MM" ou "Hors service" ; le
+  bouton enregistre son arrivée ou son départ au nom de l'employé
+  (événement S signé par le FDM), puis la caisse affiche "Arrivée
+  enregistrée · <nom>" ou "Départ enregistré · <nom>". Le Gérant n'a pas
+  de bouton sur sa propre ligne : sa présence est celle de la connexion
+  et de "Fin de service" (§3). Les boutons sont grisés, avec la mention
+  "FDM indisponible : pointage impossible", tant que le voyant "FDM"
+  n'est pas vert, et, avec la mention du mode formation, tant que le
+  mode formation est actif. Si le FDM refuse, son message s'affiche et
+  rien n'est enregistré.
 - **"Code PIN"** : fixer ou changer son PIN (§2.2).
 - **"Désactiver"** : pour un employé qui quitte l'établissement. Toucher
   deux fois ("Confirmer ?"). Son historique reste dans l'archive ; il
   ne peut plus se connecter. On ne peut pas se désactiver soi-même.
 
 "Ajouter" : taper le nom et l'INSZ (11 chiffres), choisir le profil
-(Gérant, Serveur ou Apprenti), puis "Ajouter l’employé". Pour un Serveur
+(Gérant, Serveur, Apprenti ou "Présence seule"), puis "Ajouter l’employé". Pour un Serveur
 ou un Apprenti, demander ensuite à l'employé de fixer son PIN (§2.2).
 Pour un **nouveau Gérant**, la caisse demande d'abord le PIN du nouveau
 Gérant (deux fois), puis "Confirmez avec votre PIN de gérant" : le
 Gérant qui le crée tape son propre PIN. Le nouveau Gérant a donc son PIN
 dès sa création.
+
+Le profil **"Présence seule"** est pour le personnel qui n'utilise jamais
+la caisse (cuisine, plonge) : pas de PIN, pas de tuile sur l'écran de
+connexion, aucun droit. La ligne affiche "Présence seule" sans bouton
+"Code PIN" (le bouton "Désactiver" reste). Seul le Gérant enregistre son
+arrivée et son départ, avec les boutons ci-dessus. On ne peut pas
+désactiver un employé en service : enregistrer d'abord son départ. Pour
+qu'un employé "Présence seule" devienne un utilisateur de la caisse, le
+désactiver puis le créer à nouveau avec le même INSZ et le profil voulu.
 
 ### 12.4 Informations
 
@@ -984,6 +1019,13 @@ Messages de la caisse elle-même :
 | La journée de cet enregistrement est déjà clôturée : rien n'a été enregistré. | Un enregistrement visait une journée déjà close | Refaire l'opération |
 | Une autre opération était en cours : rien n'a été enregistré, réessayez. | Deux opérations simultanées | Réessayer |
 | Trop de PIN incorrects : réessayez dans {seconds} s. | Verrou après 5 PIN erronés (§2.2) | Attendre la fin du décompte |
+| Employé enregistré pour la présence seulement : pas de connexion à la caisse | Un employé du profil "Présence seule" a tenté de se connecter, de fixer un PIN ou de terminer son service | Le Gérant enregistre sa présence dans "Config" (§12.3) |
+| Mode formation : le pointage d'un employé est impossible. Quittez le mode formation. | Le Gérant a touché "Arrivée" ou "Départ" en mode formation (un événement d'entraînement n'enregistre aucune présence) | Quitter le mode formation (§12.1), puis recommencer |
+| Votre arrivée et votre départ se font à la connexion et par « Fin de service » | Le Gérant a tenté de pointer sa propre présence depuis le panneau "Employés" | Se connecter, ou utiliser "Fin de service" (§3) |
+| Cet employé est déjà en service | "Arrivée" pour un employé dont l'arrivée est déjà enregistrée (liste pas à jour) | Actualiser le panneau ; au besoin enregistrer le départ |
+| Cet employé n'est pas en service | "Départ" pour un employé qui n'est pas en service | Actualiser le panneau |
+| Cet employé est en service : enregistrez d'abord son départ | Désactivation d'un employé dont le départ n'est pas enregistré | Enregistrer son départ (§12.3), puis le désactiver |
+| FDM indisponible : pointage impossible | Les deux boutons du panneau "Employés" sont grisés tant que le voyant "FDM" n'est pas vert | Attendre le retour du FDM (§14.1) |
 
 ### 14.2 Autres problèmes
 

@@ -36,7 +36,8 @@ use crate::schema::{
     MIGRATION_004_FISCAL_ARCHIVE_APPEND_ONLY, MIGRATION_005_TICKET_DELIVERIES,
     MIGRATION_006_ORIGINAL_PRINTS, MIGRATION_007_GERMAN_LANGUAGE,
     MIGRATION_008_MEAL_VOUCHER_PAYMENTS, MIGRATION_009_SHIFTS_AND_PRE_BILL,
-    MIGRATION_010_PENDING_SIGNS, MIGRATION_011_TABLE_PLAN, SCHEMA_SQL,
+    MIGRATION_010_PENDING_SIGNS, MIGRATION_011_TABLE_PLAN, MIGRATION_028_PRESENCE_REGISTRATION,
+    SCHEMA_SQL,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +103,13 @@ const MIGRATIONS: &[Migration] = &[
         version: 11,
         name: "table-plan",
         sql: MIGRATION_011_TABLE_PLAN,
+    },
+    // Versions 20 to 27 are taken (HUBRISE_MIGRATIONS, CATALOG_MIGRATIONS,
+    // EFT_MIGRATIONS below); 28 is presence registration.
+    Migration {
+        version: 28,
+        name: "presence-registration",
+        sql: MIGRATION_028_PRESENCE_REGISTRATION,
     },
     // Future schema diffs go here, as a new entry rather than an edit
     // of an existing one. Versions 12 to 19 are kept for the certified
@@ -304,12 +312,76 @@ mod tests {
         assert_eq!(certified, (1..=10).collect::<Vec<_>>());
     }
 
-    /// Migration 11 (the table plan) follows them, still below HubRise's 20.
+    /// Migration 11 (the table plan) follows them, still below HubRise's 20;
+    /// then 28 (presence registration), in every build.
     #[test]
-    fn the_certified_migrations_end_with_the_table_plan() {
-        let certified: Vec<(i64, &str)> = MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
-        assert_eq!(certified.len(), 11);
-        assert_eq!(certified[10], (11, "table-plan"));
+    fn the_base_migrations_are_the_certified_ones_then_presence() {
+        let base: Vec<(i64, &str)> = MIGRATIONS.iter().map(|m| (m.version, m.name)).collect();
+        assert_eq!(base.len(), 12);
+        assert_eq!(base[10], (11, "table-plan"));
+        assert_eq!(base[11], (28, "presence-registration"));
+    }
+
+    #[test]
+    fn presence_registration_adds_its_columns_with_safe_defaults() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO users (insz, name, role) VALUES ('11111111111', 'A', 'waiter')",
+            [],
+        )
+        .unwrap();
+        let flag: i64 = conn
+            .query_row("SELECT presence_only FROM users", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(flag, 0);
+        // The CHECK refuses anything but 0 or 1.
+        assert!(
+            conn.execute("UPDATE users SET presence_only = 2", [])
+                .is_err()
+        );
+        conn.execute(
+            "INSERT INTO staff_shifts (user_insz, started_at) VALUES ('11111111111', 'x')",
+            [],
+        )
+        .unwrap();
+        let (a, b): (Option<String>, Option<String>) = conn
+            .query_row("SELECT started_by, ended_by FROM staff_shifts", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!((a, b), (None, None));
+    }
+
+    #[test]
+    fn an_existing_database_keeps_its_users_unflagged_and_does_not_rerun_28() {
+        // A database at version 27 (before this migration).
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        conn.execute_batch(
+            "INSERT INTO users (insz, name, role) VALUES ('11111111111', 'A', 'waiter');
+             UPDATE users SET presence_only = 1;
+             ALTER TABLE users DROP COLUMN presence_only;
+             ALTER TABLE staff_shifts DROP COLUMN started_by;
+             ALTER TABLE staff_shifts DROP COLUMN ended_by;
+             DELETE FROM _migrations_applied WHERE version = 28;",
+        )
+        .unwrap();
+        run_migrations(&conn).unwrap();
+        let flag: i64 = conn
+            .query_row("SELECT presence_only FROM users", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(flag, 0, "existing users keep 0");
+        // A second run does not add the columns again (it would fail).
+        run_migrations(&conn).unwrap();
+        let applied: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _migrations_applied WHERE version = 28",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(applied, 1);
     }
 
     /// The payment terminal's table is migration 27, in every build.

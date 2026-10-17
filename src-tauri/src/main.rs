@@ -277,6 +277,8 @@ fn main() {
         // Social (Event S - ONSS clock in/out)
         ipc::social::work_in,
         ipc::social::work_out,
+        ipc::social::clock_in_employee,
+        ipc::social::clock_out_employee,
         ipc::social::end_shift,
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
@@ -392,6 +394,8 @@ fn main() {
         // Social (Event S - ONSS clock in/out)
         ipc::social::work_in,
         ipc::social::work_out,
+        ipc::social::clock_in_employee,
+        ipc::social::clock_out_employee,
         ipc::social::end_shift,
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,

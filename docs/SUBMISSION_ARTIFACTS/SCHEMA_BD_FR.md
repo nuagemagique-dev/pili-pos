@@ -434,8 +434,9 @@ Utilisateurs du POS. INSZ comme clé primaire. Voir
 | `role` | TEXT | `admin`, `cashier`, ou `waiter` (contraint) |
 | `pin_hash` | TEXT (nullable) | Hash bcrypt du PIN optionnel |
 | `active` | INTEGER | 1 = utilisateur actif, 0 = désactivé |
+| `presence_only` | INTEGER | 0 par défaut, 1 = personnel sans accès à la caisse (profil « Présence seule », `PROFILS_UTILISATEURS_FR.md` §2.4) : pas de PIN, pas de connexion, pointé par un Gérant. CHECK 0 ou 1 (migration `028`) |
 
-### 3.8 bis `staff_shifts` (migration `009`)
+### 3.8 bis `staff_shifts` (migration `009`, colonnes d'audit ajoutées par `028`)
 
 Index local des postes de travail : une ligne par prestation, ouverte
 par un événement S `WorkIn` signé et close par un S `WorkOut` signé,
@@ -451,10 +452,13 @@ mis à jour).
 | `user_insz` | TEXT | INSZ de l'employé (pas de clé étrangère) |
 | `started_at` | TEXT (ISO 8601, UTC) | Début du poste |
 | `ended_at` | TEXT (nullable) | Fin du poste ; NULL = poste ouvert |
+| `started_by` | TEXT (nullable) | INSZ de la personne qui a enregistré l'arrivée : l'employé lui-même (connexion) ou le Gérant qui l'a pointé ; NULL pour les lignes d'avant la migration `028` (migration `028`) |
+| `ended_by` | TEXT (nullable) | Idem pour le départ (migration `028`) |
 
 Index : `idx_staff_shifts_open(user_insz, ended_at)`. Au plus un poste
 ouvert par employé (la requête d'ouverture ne crée rien s'il en existe
-un).
+un). Un événement S d'entraînement (étiquette T) n'ouvre ni ne ferme
+jamais de poste : l'index ne reflète que la présence réelle.
 
 ### 3.9 `pending_signs` (migration `010`)
 
@@ -677,8 +681,8 @@ dans `order_lines` et `order_entries`.
 ## 6. Migrations
 
 Système de migrations versionné dans
-`crates/pos-db/src/migrate.rs`. À la version actuelle, **dix-neuf
-migrations** existent (1 à 11, puis 20 à 27 ; 12 à 19 sont réservées aux
+`crates/pos-db/src/migrate.rs`. À la version actuelle, **vingt
+migrations** existent (1 à 11, puis 20 à 28 ; 12 à 19 sont réservées aux
 correctifs du binaire certifié), appliquées dans l'ordre et consignées dans la
 table `_migrations_applied` (`version`, `name`, `applied_at`) :
 
@@ -703,6 +707,7 @@ table `_migrations_applied` (`version`, `name`, `applied_at`) :
 | 25 | `integration-switch` | `integration_switches`, `integration_switch_log` et ses déclencheurs (§5.4). |
 | 26 | `product-codes` | Colonne `code` de `menu_items` (code de menu affiché, sans effet fiscal). |
 | 27 | `eft-payments` | `eft_payments`, ses index et ses six déclencheurs (§2.5, terminal de paiement relié). |
+| 28 | `presence-registration` | Colonne `users.presence_only` (profil « Présence seule », §3.8) et colonnes d'audit `staff_shifts.started_by` / `ended_by` (§3.8 bis) : le Gérant qui pointe un autre employé. Non conditionnée par une fonctionnalité de compilation. |
 
 Chaque migration s'exécute dans sa propre transaction `BEGIN
 IMMEDIATE` ; un échec entraîne un `ROLLBACK` complet de cette

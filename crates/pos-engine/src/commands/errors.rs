@@ -35,6 +35,18 @@ pub const SYSTEM_USER: &str = "system_user";
 pub const NAME_REQUIRED: &str = "name_required";
 pub const ROLE_INVALID: &str = "role_invalid";
 pub const DEACTIVATE_SELF: &str = "deactivate_self";
+/// A presence-only employee cannot log in, end a shift or have a PIN.
+pub const PRESENCE_ONLY_USER: &str = "presence_only_user";
+/// An employee on shift cannot be deactivated: clock them out first.
+pub const DEACTIVATE_ON_SHIFT: &str = "deactivate_on_shift";
+/// A manager clocking an employee in or out while training mode is on.
+pub const PRESENCE_TRAINING: &str = "presence_training";
+/// A manager clocking themself in or out (login and end of shift do it).
+pub const PRESENCE_SELF: &str = "presence_self";
+/// Clock-in for an employee already on shift.
+pub const PRESENCE_ALREADY_IN: &str = "presence_already_in";
+/// Clock-out for an employee who is not on shift.
+pub const PRESENCE_NOT_IN: &str = "presence_not_in";
 
 // Orders.
 pub const OPERATOR_INVALID: &str = "operator_invalid";
@@ -234,6 +246,12 @@ pub const ALL: &[&str] = &[
     NAME_REQUIRED,
     ROLE_INVALID,
     DEACTIVATE_SELF,
+    PRESENCE_ONLY_USER,
+    DEACTIVATE_ON_SHIFT,
+    PRESENCE_TRAINING,
+    PRESENCE_SELF,
+    PRESENCE_ALREADY_IN,
+    PRESENCE_NOT_IN,
     OPERATOR_INVALID,
     DINE_IN_NEEDS_TABLE,
     TAKEAWAY_HAS_NO_TABLE,

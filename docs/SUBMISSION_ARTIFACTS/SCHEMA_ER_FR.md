@@ -2,7 +2,7 @@
 
 **Date :** 2026-10-03
 **Référence :** §II.C "Relations entre les tables" du manuel de certification.
-**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 27).
+**Source de vérité :** `crates/pos-db/src/schema.rs`, `schema_hubrise.rs`, `schema_catalog.rs` et `schema_eft.rs`, assemblés par `crates/pos-db/src/migrate.rs` (le SQL définit le schéma exact ; ce document reflète la révision actuelle : migrations 1 à 11, puis 20 à 28).
 
 Ce document décrit visuellement les relations entre les tables de la
 base SQLite `pos.db`. Pour l'inventaire détaillé champ-par-champ,
@@ -290,10 +290,14 @@ La base est organisée en 12 domaines logiques :
 | name   TEXT         |  - - -| user_insz  TEXT     |
 | role   TEXT         | lien  | started_at TEXT     |
 | pin_hash TEXT       | appli-| ended_at   TEXT     |
-| active   INT        | catif +---------------------+
-+---------------------+       (migration 9 ; index local des postes
- role : admin|cashier|waiter   ouverts par un S WorkIn, clos par un
-                               S WorkOut ; sans FK)
+| active   INT        | catif | started_by TEXT     |
+| presence_only INT   |       | ended_by   TEXT     |
++---------------------+       +---------------------+
+ role : admin|cashier|waiter   (migration 9 ; index local des postes
+ presence_only : 0|1           ouverts par un S WorkIn, clos par un
+ (migration 28)                S WorkOut ; sans FK ; started_by et
+                               ended_by : migration 28, INSZ de qui a
+                               enregistré, NULL avant)
 ```
 
 ### 2.5 Ticket numérique et impressions d'original
@@ -606,15 +610,15 @@ l'interrupteur, qui reçoit au moins la valeur de départ.
 
 Le schéma est versionné via `pos-db::migrate::run_migrations`. La table `_migrations_applied` enregistre chaque migration appliquée (`version`, `name`, `applied_at`). Aucune modification de schéma post-cert n'est possible sans une nouvelle demande de certification (Article 109 du manuel).
 
-Version actuelle du schéma : migrations `1` à `11`, puis `20` à `27`
-(dix-neuf migrations ; 12 à 19 sont réservées aux correctifs du binaire
+Version actuelle du schéma : migrations `1` à `11`, puis `20` à `28`
+(vingt migrations ; 12 à 19 sont réservées aux correctifs du binaire
 certifié) : `initial-schema`, `catalogue-fiscal-fields`,
 `booking-periods`, `fiscal-archive-append-only`, `ticket-deliveries`,
 `original-prints`, `german-language`, `meal-voucher-payments`,
 `shifts-and-pre-bill`, `pending-signs`, `table-plan`, `hubrise-transport`,
 `catalog-sync`, `webshop-orders`, `price-changes`,
 `platform-charges`, `integration-switch`, `product-codes`,
-`eft-payments` - liste exacte dans
+`eft-payments`, `presence-registration` - liste exacte dans
 `SCHEMA_BD_FR.md` §6 et `crates/pos-db/src/migrate.rs`
 (`MIGRATIONS`, `HUBRISE_MIGRATIONS`, `CATALOG_MIGRATIONS`). Les
-migrations 20 à 27 font partie du binaire certifié.
+migrations 20 à 28 font partie du binaire certifié.

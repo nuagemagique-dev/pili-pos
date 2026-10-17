@@ -35,7 +35,7 @@ sans aucune modification de code.
 
 | Métrique | Valeur |
 |---|---|
-| Total fixtures découvertes (sur 59 dossiers UC, sous-dossiers multi-étapes inclus) | **141** |
+| Total fixtures découvertes (sur 58 dossiers UC, sous-dossiers multi-étapes inclus) | **141** |
 | **Passantes** | **141** |
 | Échouées | 0 |
 | Labels d'événements exercés dans ce set | N, P, F, C, I |
@@ -150,11 +150,11 @@ Le manuel de certification exerce le flux fiscal via des scénarios variables.js
 
 | Élément | Phase plan | Statut actuel | Reporté à |
 |---|---|---|---|
-| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | Phase 10 |
-| Plan de salle complet avec split et fusion (le plan Android ouvre et reprend des commandes) | 6 | Non implémenté ; `pos-core::table.rs` est un stub de 9 lignes | Phase 10 |
-| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | Phase 10 |
+| Builder produit composite + champ `OrderLine.line_kind` | 5 | Forme de réponse déjà acceptée ; helpers côté requête absents | mise à jour certifiée ultérieure |
+| Plan de salle complet avec split et fusion (le plan Android ouvre et reprend des commandes) | 6 | Non implémenté ; `pos-core::table.rs` est un stub de 9 lignes | mise à jour certifiée ultérieure |
+| Table schéma `currency_rates`, champs currency/tip de `FinancialInput` | 7 | Forme de réponse déjà acceptée | mise à jour certifiée ultérieure |
 
-**Impact cert :** aucun. Le dossier cert déclarera dans le formulaire de demande quels flux opérateur sont accessibles depuis la build actuelle, et la validation côté fixtures ci-dessus prouve que le protocole fiscal est satisfait pour les 141 scénarios Advanced Set quand déclenchés (via le harnais de test, durant le rendez-vous d'admission, ou, après la mise en service, via le travail de complétion de l'interface en Phase 10). Résultats des UC joués sur le terminal émulé : `À effectuer (EV-06 : résultats des UC)`, voir `RESULTATS_TESTS_UC_FR.md`.
+**Impact cert :** aucun. Le dossier cert déclarera dans le formulaire de demande quels flux opérateur sont accessibles depuis la build actuelle, et la validation côté fixtures ci-dessus prouve que le protocole fiscal est satisfait pour les 141 scénarios Advanced Set quand déclenchés (via le harnais de test, durant le rendez-vous d'admission, ou, après la mise en service, via le travail de complétion de l'interface dans une mise à jour certifiée ultérieure). Résultats des UC joués sur le terminal émulé : `À effectuer (EV-06 : résultats des UC)`, voir `RESULTATS_TESTS_UC_FR.md`.
 
 ---
 

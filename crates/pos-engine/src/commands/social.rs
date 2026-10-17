@@ -1,3 +1,4 @@
+use pos_core::user::SYSTEM_INSZ;
 use serde::{Deserialize, Serialize};
 
 use pos_fiscal::event::build_work_in_out;
@@ -21,21 +22,90 @@ pub struct SocialResult {
 /// Register employee clock-in (ONSS presence start).
 /// Sends event S (signWorkIn) to the FDM.
 pub async fn do_work_in(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
-    do_work_event(state, employee_insz, true).await
+    access::operator_named(state, &employee_insz, Access::Staff)?;
+    sign_work_event(state, employee_insz, true, None).await
 }
 
 /// Register employee clock-out (ONSS presence end).
 /// Sends event S (signWorkOut) to the FDM.
 pub async fn do_work_out(state: &AppState, employee_insz: String) -> Result<SocialResult, String> {
-    do_work_event(state, employee_insz, false).await
+    access::operator_named(state, &employee_insz, Access::Staff)?;
+    sign_work_event(state, employee_insz, false, None).await
 }
 
-async fn do_work_event(
+/// A manager registers the arrival of another employee (kitchen staff
+/// who never use the till, or anyone who forgot). The S event is the
+/// employee's (`employeeId` and the archived `user_insz`); the manager
+/// is kept in `staff_shifts.started_by`.
+///
+/// Refusals, in this order, nothing signed: not a manager (`forbidden`),
+/// training mode (`presence_training`), the system identity
+/// (`system_user`), an unknown or inactive employee (`user_unknown`),
+/// the manager themself (`presence_self`), an employee already on shift
+/// (`presence_already_in`). An FDM failure is `Ok` with `success: false`.
+pub async fn do_clock_in_employee(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<SocialResult, String> {
+    let manager = check_manager_presence(state, &employee_insz, true)?;
+    sign_work_event(state, employee_insz, true, Some(manager)).await
+}
+
+/// A manager registers the departure of another employee: the mirror of
+/// [`do_clock_in_employee`], refused with `presence_not_in` when the
+/// employee is not on shift.
+pub async fn do_clock_out_employee(
+    state: &AppState,
+    employee_insz: String,
+) -> Result<SocialResult, String> {
+    let manager = check_manager_presence(state, &employee_insz, false)?;
+    sign_work_event(state, employee_insz, false, Some(manager)).await
+}
+
+/// The checks of a manager-registered presence; returns the manager's
+/// INSZ.
+fn check_manager_presence(
+    state: &AppState,
+    employee_insz: &str,
+    is_in: bool,
+) -> Result<String, String> {
+    let manager = access::operator(state, Access::Admin)?;
+    let training = state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .training_mode;
+    if training {
+        return Err(errors::PRESENCE_TRAINING.to_string());
+    }
+    if employee_insz == SYSTEM_INSZ {
+        return Err(errors::SYSTEM_USER.to_string());
+    }
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    // `get_user` only finds active users.
+    pos_db::queries::users::get_user(&db, employee_insz)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| errors::USER_UNKNOWN.to_string())?;
+    if manager.insz == employee_insz {
+        return Err(errors::PRESENCE_SELF.to_string());
+    }
+    let on_shift =
+        pos_db::queries::shifts::has_open_shift(&db, employee_insz).map_err(|e| e.to_string())?;
+    match (is_in, on_shift) {
+        (true, true) => Err(errors::PRESENCE_ALREADY_IN.to_string()),
+        (false, false) => Err(errors::PRESENCE_NOT_IN.to_string()),
+        _ => Ok(manager.insz),
+    }
+}
+
+/// Sign the employee's S event. `by` is the manager who registered it,
+/// `None` when the employee did.
+async fn sign_work_event(
     state: &AppState,
     employee_insz: String,
     is_in: bool,
+    by: Option<String>,
 ) -> Result<SocialResult, String> {
-    access::operator_named(state, &employee_insz, Access::Staff)?;
     let kind = if is_in { Kind::WorkIn } else { Kind::WorkOut };
     let op = Op::new(kind, &employee_insz);
     let guard = match signing::begin(state, &op).await {
@@ -81,6 +151,7 @@ async fn do_work_event(
         context: PendingContext::Work {
             insz: employee_insz,
             is_in,
+            by,
         },
     };
     match signing::sign(state, &guard, &config, prepared).await {

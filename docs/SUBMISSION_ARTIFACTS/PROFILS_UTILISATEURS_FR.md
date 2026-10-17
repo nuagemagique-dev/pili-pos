@@ -25,6 +25,9 @@ Chaque utilisateur du POS est stocké dans la table `users`
   `validate_insz` dans `crates/pos-core/src/user.rs:51`) ;
 - son rôle (`admin` / `cashier` / `waiter`) ;
 - un hash bcrypt de son code PIN (facultatif) ;
+- un drapeau `presence_only` (profil « Présence seule », §2.4) : 0 pour
+  tout employé qui utilise la caisse, 1 pour le personnel qui n'y a pas
+  accès ;
 - un drapeau `active` pour désactiver un utilisateur sans le supprimer
   (la suppression n'est autorisée que pour les utilisateurs n'ayant
   jamais effectué d'événement fiscal - voir §III.C).
@@ -58,9 +61,12 @@ Accès complet. Concrètement, peut :
   journalisé.
 - Changer le plan de salle (les numéros de table, panneau "Plan de
   salle"). Chaque changement est journalisé en ajout seul.
+- Enregistrer l'arrivée et le départ des autres employés, notamment du
+  personnel « Présence seule » (Événement S, `signWorkIn` / `signWorkOut`
+  au nom de l'employé ; refusé en mode formation et pour soi-même).
 - Accéder à la page Paramètres (bouton "Config", `SettingsView.vue`) et
   à la vue Rapports.
-- Créer des utilisateurs (Gérant, Serveur ou Apprenti), en désactiver
+- Créer des utilisateurs (Gérant, Serveur, Apprenti ou « Présence seule »), en désactiver
   ("Désactiver" ; jamais soi-même ; jamais de suppression : l'INSZ reste
   sur les événements signés) et fixer leur PIN. Créer un Gérant ou
   changer le PIN d'un autre employé demande le PIN du Gérant connecté.
@@ -117,6 +123,27 @@ un Apprenti prend les commandes comme d'habitude mais ne peut toujours
 pas encaisser ; ce qu'un Serveur ou un Gérant encaisse est alors un
 événement de formation (T).
 
+### 2.4 Présence seule (`Waiter` avec `presence_only`)
+
+Profil du personnel qui n'utilise jamais la caisse (cuisine, plonge) et
+dont la présence doit pourtant être enregistrée (manuel de
+certification, §II.E). Ce n'est pas un quatrième rôle : en base,
+l'employé est un `Waiter` dont la colonne `users.presence_only` vaut 1,
+ce qui ne lui donne aucun droit supplémentaire. Il :
+
+- n'a **pas de PIN** et n'apparaît pas sur les tuiles de l'écran de
+  connexion ;
+- **ne peut pas** se connecter, ni choisir un PIN, ni terminer son
+  service lui-même : le moteur refuse ces commandes avec le code
+  `presence_only_user`, avant toute vérification de PIN ;
+- n'est pointé que par un Gérant, depuis "Config", panneau "Employés"
+  (boutons "Arrivée" et "Départ", `commands::social::do_clock_in_employee`
+  et `do_clock_out_employee`) : l'événement S est signé par le FDM au
+  nom de l'employé, et le Gérant qui l'a enregistré est conservé dans
+  `staff_shifts.started_by` / `ended_by` ;
+- peut être désactivé comme tout employé (jamais pendant qu'il est en
+  service : code `deactivate_on_shift`).
+
 ## 3. Mécanismes d'enforcement
 
 L'enforcement vit à deux niveaux :
@@ -132,7 +159,7 @@ L'enforcement vit à deux niveaux :
    |---|---|---|
    | Personnel | Gérant, Serveur, Apprenti | pointage (S), commandes et lignes, enregistrement de commande (P), commandes en ligne : préparation, "Prête" et retard |
    | Encaissement | Gérant, Serveur | addition (P), vente (N), impression d'un original manquant, commandes en ligne : acceptation, refus, remise, encaissement et clôture |
-   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
+   | Gestion | Gérant | remboursement, copie (C), mouvements de caisse et tiroir (F), rapports X/Z (R), mode formation, utilisateurs (création, désactivation, PIN des autres), pointage d'un autre employé (S), remboursement d'une commande en ligne, interrupteur, catalogue et canaux HubRise, sauvegarde |
    | Gestion avec PIN | Gérant, PIN de l'opérateur confirmé | vente clôturée sans paiement, démarrage de l'assistance à distance, création d'un Gérant, PIN d'un autre employé |
 
    Une commande refusée renvoie le code `not_logged_in` (aucune
@@ -148,9 +175,12 @@ L'enforcement vit à deux niveaux :
    Serveur). Cette couche est purement ergonomique.
 
 L'INSZ de chaque événement est celui de l'opérateur connecté : une
-commande qui nomme un autre opérateur (pointage, remboursement,
-copie, mouvement de caisse, rapport) est refusée
-(code `not_the_operator`). Une vente est signée au nom
+commande qui nomme un autre opérateur (remboursement, copie, mouvement
+de caisse, rapport, ou le pointage « personnel » `work_in` / `work_out`)
+est refusée (code `not_the_operator`). Seule exception, voulue : un
+Gérant peut pointer un autre employé avec `clock_in_employee` /
+`clock_out_employee`, et l'événement S est alors signé au nom de cet
+employé (§2.4, §4). Une vente est signée au nom
 du Serveur ou du Gérant qui encaisse, même si la commande a été prise
 par un autre membre du personnel.
 
@@ -167,6 +197,12 @@ Chaque connexion d'un employé qui n'est pas encore en service
 - `user_insz` = INSZ de l'opérateur
 - `created_at` = horodatage de l'événement
 - `fdm_response_json` = réponse signée du FDM
+
+Pour le personnel « Présence seule », ou lorsqu'un Gérant pointe un
+autre employé, `user_insz` est l'INSZ de l'**employé** pointé (comme dans
+les cas d'usage M140 et M141) ; le Gérant qui a fait l'enregistrement est
+conservé dans `staff_shifts.started_by` / `ended_by`, pas dans la requête
+envoyée au FDM.
 
 Ces lignes constituent le **journal Dimona-compatible** exigible par
 l'ONSS et utilisable pour reconstruire intégralement les heures de
@@ -203,6 +239,10 @@ présence du personnel.
 
 ## 6. Limitations connues
 
+- Un employé « Présence seule » ne peut pas devenir utilisateur de la
+  caisse par modification : le Gérant le désactive (après avoir
+  enregistré son départ) puis le crée à nouveau avec le même INSZ et le
+  profil voulu (réactivation de l'INSZ existant).
 - Pas de distinction entre Gérant et Technicien : les deux utilisent
   le rôle `admin`. Le manuel SCE 2.0 ne les distingue pas dans la
   matrice de capacités ; les deux profils ont accès complet.

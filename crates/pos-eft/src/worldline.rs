@@ -694,6 +694,26 @@ mod tests {
     }
 
     #[test]
+    fn a_meal_voucher_card_brand_is_normalized_to_its_issuer() {
+        for (raw, brand) in [
+            ("EDENRED", "Edenred"),
+            ("Ticket Restaurant", "Edenred"),
+            ("SODEXO", "Pluxee"),
+        ] {
+            let text = TIP.replace(
+                "\"CardBrand\": \"VISA CREDIT\"",
+                &format!("\"CardBrand\": \"{raw}\""),
+            );
+            let out = interpret_payment(&parsed(&text), "R26197055", Some(10_411)).unwrap();
+            let Outcome::Approved(a) = out else {
+                panic!("{out:?}")
+            };
+            assert_eq!(a.brand.as_deref(), Some(brand), "{raw}");
+            assert!(crate::brand::is_meal_voucher(a.brand.as_deref()), "{raw}");
+        }
+    }
+
+    #[test]
     fn an_amount_that_differs_from_the_request_is_unknown() {
         let out = interpret_payment(&parsed(TIP), "R26197055", Some(10_000)).unwrap();
         assert!(matches!(out, Outcome::Unknown { .. }), "{out:?}");

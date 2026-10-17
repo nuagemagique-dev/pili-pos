@@ -5,6 +5,8 @@ package dev.nuagemagique.pilipos.feature.webshop
 import android.content.Context
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
@@ -21,6 +23,7 @@ import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.AcceptResult
@@ -282,7 +285,19 @@ internal suspend fun TestScope.startWebshop(
     val settings = PosSettingsStore(context, gateway, f.events, backgroundScope)
     val integrations = IntegrationsStore(gateway, f.events, backgroundScope)
     val eft = EftStore(gateway, errors, settings, backgroundScope)
-    val store = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, eft, backgroundScope)
+    val store =
+        WebshopOrdersStore(
+            gateway,
+            f.events,
+            errors,
+            toasts,
+            integrations,
+            settings,
+            catalog,
+            eft,
+            EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
+            backgroundScope,
+        )
     store.clock = clock
     if (open) {
         f.holder.open()

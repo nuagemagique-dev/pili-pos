@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.engine.EngineEvents
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
@@ -17,6 +18,8 @@ import dev.nuagemagique.pilipos.nav.NavRegistry
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.nav.registryOf
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
+import dev.nuagemagique.pilipos.ui.fdm.FdmStore
+import dev.nuagemagique.pilipos.ui.fdm.health
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.state.DeliveryStore
@@ -30,6 +33,7 @@ import io.mockk.coEvery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import uniffi.pos_ffi.DeliveryView
@@ -46,17 +50,23 @@ internal const val CASHIER_INSZ = "90020200234"
 internal const val WAITER_INSZ = "95030300345"
 internal const val NEW_INSZ = "99040400456"
 
+@Suppress("LongParameterList")
 internal fun user(
     insz: String,
     name: String,
     role: UserRole,
     hasPin: Boolean = true,
     active: Boolean = true,
-): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin)
+    presenceOnly: Boolean = false,
+): User = User(insz = insz, name = name, role = role, active = active, hasPin = hasPin, presenceOnly = presenceOnly)
 
 internal val admin = user(ADMIN_INSZ, "Alice", UserRole.ADMIN)
 internal val cashier = user(CASHIER_INSZ, "Bob", UserRole.CASHIER)
 internal val waiter = user(WAITER_INSZ, "Chen", UserRole.WAITER, hasPin = false)
+
+/** Kitchen staff who never use the till: a waiter row with the presence-only flag and no PIN. */
+internal const val COOK_INSZ = "88010112345"
+internal val cook = user(COOK_INSZ, "Dao", UserRole.WAITER, hasPin = false, presenceOnly = true)
 
 internal fun engineSettings(training: Boolean = false): PosSettings =
     PosSettings(
@@ -101,6 +111,8 @@ internal fun stubReads(
     hubrise: Boolean = false,
 ) {
     coEvery { engine.listUsers() } returns users
+    coEvery { engine.listOpenShifts() } returns emptyList()
+    coEvery { engine.fdmHealth() } returns health()
     coEvery { engine.checkMailStatus() } returns mail()
     coEvery { engine.listTicketDeliveries(50L) } returns listOf(delivery(1L), delivery(2L))
     coEvery { engine.getSettings() } returns engineSettings()
@@ -140,6 +152,7 @@ internal class TestSettingsEntryPoint(
     private val registry: NavRegistry,
     private val delivery: DeliveryStore,
     private val webshop: WebshopOrdersStore,
+    private val fdm: FdmStore,
 ) : SettingsFeatureEntryPoint {
     override fun gateway(): EngineGateway = gateway
 
@@ -165,6 +178,8 @@ internal class TestSettingsEntryPoint(
 
     override fun webshop(): WebshopOrdersStore = webshop
 
+    override fun fdm(): FdmStore = fdm
+
     override fun qrMatrices(): QrMatrices = QrMatrices(helpers)
 }
 
@@ -182,6 +197,7 @@ internal class SettingsEnv(
     val integrations: IntegrationsStore,
     val delivery: DeliveryStore,
     val webshop: WebshopOrdersStore,
+    val fdm: FdmStore,
 ) {
     /** The French text of Vue [key]. */
     fun text(
@@ -232,12 +248,25 @@ internal fun TestScope.settingsEnv(
     val helpers = EngineHelpers(f.natives, f.dispatcher)
     val delivery = DeliveryStore(gateway, errors, settings)
     val eft = EftStore(gateway, errors, settings, backgroundScope)
-    val webshop = WebshopOrdersStore(gateway, f.events, errors, toasts, integrations, settings, catalog, eft, backgroundScope)
+    val webshop =
+        WebshopOrdersStore(
+            gateway,
+            f.events,
+            errors,
+            toasts,
+            integrations,
+            settings,
+            catalog,
+            eft,
+            EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
+            backgroundScope,
+        )
+    val fdm = FdmStore(gateway, f.events, errors, toasts, FdmTexts(catalog), settings, backgroundScope)
     val entry =
         TestSettingsEntryPoint(
-            gateway, f.events, helpers, session, settings, integrations, errors, toasts, catalog, testRegistry(), delivery, webshop,
+            gateway, f.events, helpers, session, settings, integrations, errors, toasts, catalog, testRegistry(), delivery, webshop, fdm,
         )
-    return SettingsEnv(f, entry, feed, toasts, errors, catalog, session, settings, integrations, delivery, webshop)
+    return SettingsEnv(f, entry, feed, toasts, errors, catalog, session, settings, integrations, delivery, webshop, fdm)
 }
 
 /** Opens the engine and lets the stores load. */

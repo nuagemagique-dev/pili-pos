@@ -225,6 +225,34 @@ test('a PIN-protected user typed by INSZ gets the PIN overlay', async ({ page })
   await expect(page.locator('.pin-user')).toHaveText(DEFAULT_USER_WITH_PIN.name);
 });
 
+test.describe('Presence-only staff', () => {
+  const COOK = { insz: '88010112345', name: 'Chen', role: 'waiter', active: true, has_pin: false, presence_only: true };
+
+  test('have no tile on the login screen', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, COOK] });
+    await page.goto('/');
+    await expect(page.locator('.user-btn')).toHaveCount(1);
+    await expect(page.locator('.user-name')).toHaveText('Bruno Moyse');
+  });
+
+  test('with only presence-only staff the INSZ numpad opens directly', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [COOK] });
+    await page.goto('/');
+    await expect(page.locator('.user-btn')).toHaveCount(0);
+    await expect(page.locator('.numpad-section')).toBeVisible();
+  });
+
+  test('typing their INSZ shows the presence_only_user error', async ({ page }) => {
+    await mockTauriIPC(page, { list_users: () => [DEFAULT_USER, COOK] });
+    await page.goto('/');
+    await overrideIPC(page, 'login', { __reject: 'presence_only_user' });
+    await page.click('.other-btn');
+    for (const d of COOK.insz) await page.click(`.numpad-section .nk:has-text("${d}")`);
+    await page.locator('.submit-btn').click();
+    await expect(page.locator('.error-msg')).toContainText('présence seulement');
+  });
+});
+
 test.describe('Shifts (clock-in / clock-out, event S)', () => {
   const ON_SHIFT = [{ userInsz: DEFAULT_USER.insz, startedAt: '2026-09-26T09:02:00Z' }];
 

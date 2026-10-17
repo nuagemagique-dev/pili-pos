@@ -1,6 +1,8 @@
 package dev.nuagemagique.pilipos.ui.state
 
 import dev.nuagemagique.pilipos.engine.EngineFixture
+import dev.nuagemagique.pilipos.engine.EngineHelpers
+import dev.nuagemagique.pilipos.feature.checkout.CheckoutNatives
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
@@ -15,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -151,6 +154,7 @@ class WebshopOrdersStoreTest {
                 settings,
                 I18nTestSupport.catalog(),
                 eft,
+                EngineHelpers(CheckoutNatives(), UnconfinedTestDispatcher(testScheduler)),
                 backgroundScope,
             )
         store.clock = Clock.fixed(now, ZoneOffset.UTC)

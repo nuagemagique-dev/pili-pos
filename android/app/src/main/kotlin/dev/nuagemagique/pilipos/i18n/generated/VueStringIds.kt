@@ -92,6 +92,12 @@ internal object VueStringIds {
         this["err_name_required"] = R.string.err_name_required
         this["err_role_invalid"] = R.string.err_role_invalid
         this["err_deactivate_self"] = R.string.err_deactivate_self
+        this["err_presence_only_user"] = R.string.err_presence_only_user
+        this["err_presence_training"] = R.string.err_presence_training
+        this["err_presence_self"] = R.string.err_presence_self
+        this["err_presence_already_in"] = R.string.err_presence_already_in
+        this["err_presence_not_in"] = R.string.err_presence_not_in
+        this["err_deactivate_on_shift"] = R.string.err_deactivate_on_shift
         this["err_operator_invalid"] = R.string.err_operator_invalid
         this["err_dine_in_needs_table"] = R.string.err_dine_in_needs_table
         this["err_takeaway_has_no_table"] = R.string.err_takeaway_has_no_table
@@ -213,6 +219,7 @@ internal object VueStringIds {
         this["role_admin"] = R.string.role_admin
         this["role_cashier"] = R.string.role_cashier
         this["role_waiter"] = R.string.role_waiter
+        this["role_presence"] = R.string.role_presence
         this["info"] = R.string.info
         this["printer_none"] = R.string.printer_none
         this["settings_name_placeholder"] = R.string.settings_name_placeholder
@@ -259,6 +266,9 @@ internal object VueStringIds {
         this["delivery_enter_email_title"] = R.string.delivery_enter_email_title
         this["delivery_email_placeholder"] = R.string.delivery_email_placeholder
         this["delivery_invalid_email"] = R.string.delivery_invalid_email
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
@@ -266,9 +276,6 @@ internal object VueStringIds {
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
         this["delivery_outcome_queued"] = R.string.delivery_outcome_queued
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_print_missing"] = R.string.delivery_print_missing
         this["delivery_settings_title"] = R.string.delivery_settings_title
         this["delivery_settings_refresh"] = R.string.delivery_settings_refresh
@@ -418,6 +425,14 @@ internal object VueStringIds {
         this["settings_pin_button"] = R.string.settings_pin_button
         this["settings_insz_hint"] = R.string.settings_insz_hint
         this["settings_add_employee"] = R.string.settings_add_employee
+        this["settings_presence_in"] = R.string.settings_presence_in
+        this["settings_presence_out"] = R.string.settings_presence_out
+        this["settings_on_shift_since"] = R.string.settings_on_shift_since
+        this["settings_off_shift"] = R.string.settings_off_shift
+        this["settings_presence_done_in"] = R.string.settings_presence_done_in
+        this["settings_presence_done_out"] = R.string.settings_presence_done_out
+        this["settings_presence_fdm_down"] = R.string.settings_presence_fdm_down
+        this["settings_presence_note"] = R.string.settings_presence_note
         this["settings_email_title"] = R.string.settings_email_title
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
@@ -504,6 +519,9 @@ internal object VueStringIds {
         this["webshop_changed_after_signing"] = R.string.webshop_changed_after_signing
         this["webshop_attention_unknown_channel"] = R.string.webshop_attention_unknown_channel
         this["webshop_attention_missing_service_type"] = R.string.webshop_attention_missing_service_type
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
@@ -519,9 +537,6 @@ internal object VueStringIds {
         this["hubrise_catalog_title"] = R.string.hubrise_catalog_title
         this["hubrise_catalog_synced"] = R.string.hubrise_catalog_synced
         this["hubrise_catalog_never"] = R.string.hubrise_catalog_never
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_catalog_rejected"] = R.string.hubrise_catalog_rejected
         this["hubrise_catalog_sync_ok"] = R.string.hubrise_catalog_sync_ok
         this["hubrise_adoption_title"] = R.string.hubrise_adoption_title

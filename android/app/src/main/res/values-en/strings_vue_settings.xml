@@ -27,5 +27,13 @@
     <string name="settings_pin_button">PIN code</string>
     <string name="settings_insz_hint">INSZ · 11 digits</string>
     <string name="settings_add_employee">Add employee</string>
+    <string name="settings_presence_in">Clock in</string>
+    <string name="settings_presence_out">Clock out</string>
+    <string name="settings_on_shift_since">On shift since {time}</string>
+    <string name="settings_off_shift">Off shift</string>
+    <string name="settings_presence_done_in">Clock-in registered · {name}</string>
+    <string name="settings_presence_done_out">Clock-out registered · {name}</string>
+    <string name="settings_presence_fdm_down">FDM unavailable: clocking in or out is not possible</string>
+    <string name="settings_presence_note">Staff without till access (kitchen): the manager registers their clock-in and clock-out here.</string>
     <string name="settings_email_title">Email tickets</string>
 </resources>

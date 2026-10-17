@@ -115,7 +115,8 @@ internal class LoginViewModel(
     private suspend fun loadUsers() {
         attempt { entry.gateway().call { engine -> engine.listUsers() } }.fold(
             onSuccess = { list ->
-                val active = list.filter { it.active }
+                // Presence-only staff (kitchen) never log in: no tile for them.
+                val active = list.filter { it.active && !it.presenceOnly }
                 own.update { it.copy(users = active, numpadMode = active.isEmpty()) }
             },
             onFailure = { own.update { it.copy(numpadMode = true) } },

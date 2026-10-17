@@ -126,7 +126,8 @@ impl PaymentPart {
 /// the payment line.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TerminalCard {
-    /// `CARD_DEBIT`, `CARD_CREDIT` or `CARD_UNKNOWN`.
+    /// `CARD_DEBIT`, `CARD_CREDIT`, `CARD_UNKNOWN`, or `CHEQUE_MEAL` for
+    /// a meal-voucher card (Edenred, Pluxee, Monizze, Payflip).
     pub card_type: PaymentType,
     /// The card brand: the payment line's `provider`.
     pub brand: Option<String>,
@@ -149,11 +150,14 @@ pub struct SettledPayment {
 impl SettledPayment {
     /// The payment type of its line: the method's, or, for a card the
     /// linked terminal took, the card type it returned (a terminal card
-    /// type that is not a card type is `CARD_UNKNOWN`).
+    /// type that is neither a card type nor `CHEQUE_MEAL` is
+    /// `CARD_UNKNOWN`).
     pub fn payment_type(&self) -> PaymentType {
         match (&self.terminal, self.method) {
             (Some(t), PaymentMethod::Card) => match t.card_type {
-                PaymentType::CardDebit | PaymentType::CardCredit => t.card_type,
+                PaymentType::CardDebit | PaymentType::CardCredit | PaymentType::ChequeMeal => {
+                    t.card_type
+                }
                 _ => PaymentType::CardUnknown,
             },
             _ => self.method.payment_type(),
@@ -470,6 +474,32 @@ mod tests {
         let part: PaymentPart =
             serde_json::from_str(r#"{"method":"card","amount_cents":100}"#).unwrap();
         assert_eq!(part, PaymentPart::of(Card, 100));
+    }
+
+    #[test]
+    fn a_terminal_card_keeps_debit_credit_and_meal_voucher_and_nothing_else() {
+        use PaymentType::*;
+        let settled = |card_type| SettledPayment {
+            method: Card,
+            amount_cents: 500,
+            eft_payment_id: Some(1),
+            terminal: Some(TerminalCard {
+                card_type,
+                brand: Some("Edenred".into()),
+                reference: None,
+            }),
+        };
+        assert_eq!(settled(CardDebit).payment_type(), CardDebit);
+        assert_eq!(settled(CardCredit).payment_type(), CardCredit);
+        assert_eq!(settled(ChequeMeal).payment_type(), ChequeMeal);
+        assert_eq!(settled(CardUnknown).payment_type(), CardUnknown);
+        assert_eq!(settled(Cash).payment_type(), CardUnknown);
+        assert_eq!(settled(Online).payment_type(), CardUnknown);
+        // The line identity is the manual meal voucher's.
+        assert_eq!(
+            payment_line_identity(settled(ChequeMeal).payment_type()),
+            payment_line_identity(MealVoucher.payment_type())
+        );
     }
 
     #[test]

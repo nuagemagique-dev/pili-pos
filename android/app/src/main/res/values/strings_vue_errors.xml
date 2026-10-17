@@ -19,6 +19,12 @@
     <string name="err_name_required">Nom requis</string>
     <string name="err_role_invalid">Profil inconnu</string>
     <string name="err_deactivate_self">Vous ne pouvez pas vous désactiver vous-même.</string>
+    <string name="err_presence_only_user">Employé enregistré pour la présence seulement : pas de connexion à la caisse</string>
+    <string name="err_presence_training">Mode formation : le pointage d\'un employé est impossible. Quittez le mode formation.</string>
+    <string name="err_presence_self">Votre arrivée et votre départ se font à la connexion et par « Fin de service »</string>
+    <string name="err_presence_already_in">Cet employé est déjà en service</string>
+    <string name="err_presence_not_in">Cet employé n\'est pas en service</string>
+    <string name="err_deactivate_on_shift">Cet employé est en service : enregistrez d\'abord son départ</string>
     <string name="err_operator_invalid">Employé invalide : reconnectez-vous.</string>
     <string name="err_dine_in_needs_table">Une commande sur place a besoin d\'une table.</string>
     <string name="err_takeaway_has_no_table">Une commande à emporter n\'a pas de table.</string>

@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.ui.state
 import dev.nuagemagique.pilipos.di.ApplicationScope
 import dev.nuagemagique.pilipos.engine.EngineEvents
 import dev.nuagemagique.pilipos.engine.EngineGateway
+import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.ui.feedback.ERROR_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
@@ -68,6 +69,7 @@ class WebshopOrdersStore
         private val settings: PosSettingsStore,
         private val catalog: MessageCatalog,
         private val eft: EftStore,
+        private val helpers: EngineHelpers,
         @ApplicationScope scope: CoroutineScope,
     ) {
         private val mutableOrders = MutableStateFlow<List<WebshopOrderSummary>>(emptyList())
@@ -236,8 +238,12 @@ class WebshopOrdersStore
         private suspend fun chargeWhatIsLeft(order: WebshopOrderSummary): Boolean {
             val checked = eft.open().all { waiting -> eft.verify(waiting) != null }
             if (!checked) return false
-            val paid = eft.approved().sumOf { it.amountCents }
-            return paid >= order.totalCents || eft.charge(order.id, order.totalCents - paid) != null
+            // The UI computes no money: what is left is the cash row of the engine's settlement over the approved
+            // card payments plus a cash part without amount.
+            val held = eft.approved().map { PaymentPart(PaymentMethod.CARD, it.amountCents) }
+            val preview = helpers.settlePreview(order.totalCents, held + PaymentPart(PaymentMethod.CASH, null))
+            val rest = preview.payments.firstOrNull { it.method == PaymentMethod.CASH }?.amountCents ?: 0L
+            return rest == 0L || eft.charge(order.id, rest) != null
         }
 
         /** A prepaid order leaves: its sale is already signed. */

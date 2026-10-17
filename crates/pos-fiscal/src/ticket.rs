@@ -365,11 +365,15 @@ pub fn printed_payments(request: &serde_json::Value) -> (Vec<TicketPayment>, Opt
         .map(|f| TicketPayment {
             method: printed_method(f),
             amount: cents(&f["amount"]) as f64 / 100.0,
-            // The provider of a card line is the brand its terminal gave.
-            brand: f["type"]
-                .as_str()
-                .filter(|t| t.starts_with("CARD"))
-                .and_then(|_| f["provider"].as_str())
+            // The provider of a card line, or of any line a terminal
+            // took (`AUTOMATIC`, such as a meal-voucher card), is the
+            // brand it gave.
+            brand: Some(&f)
+                .filter(|f| {
+                    f["type"].as_str().is_some_and(|t| t.starts_with("CARD"))
+                        || f["inputMethod"] == "AUTOMATIC"
+                })
+                .and_then(|f| f["provider"].as_str())
                 .filter(|b| !b.trim().is_empty())
                 .map(str::to_string),
         })
@@ -517,6 +521,20 @@ mod tests {
         let brands: Vec<_> = payments.iter().map(|p| p.brand.as_deref()).collect();
         assert_eq!(brands, [Some("Bancontact"), Some("Visa"), None, None]);
         assert_eq!(payments[1].method, "Card");
+    }
+
+    #[test]
+    fn a_copy_of_a_terminal_meal_voucher_prints_the_brand_like_the_original() {
+        let request = json!({"financials": [
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL", "provider": "Edenred",
+             "inputMethod": "AUTOMATIC", "reference": "T1", "amountType": "PAYMENT", "amount": 9.0},
+            {"id": "3", "name": "Meal voucher", "type": "CHEQUE_MEAL",
+             "inputMethod": "MANUAL", "amountType": "PAYMENT", "amount": 4.0},
+        ]});
+        let (payments, _) = printed_payments(&request);
+        assert_eq!(payments[0].method, "Meal voucher");
+        assert_eq!(payments[0].brand.as_deref(), Some("Edenred"));
+        assert_eq!(payments[1].brand, None);
     }
 
     #[test]

@@ -11,6 +11,7 @@ screen only calls it through the shared stores and the gateway.
 | Vue | Compose | Commands |
 | --- | --- | --- |
 | ui/src/views/SettingsView.vue (employees: list, add, deactivate, PIN) | feature/settings/SettingsScreen.kt (SettingsRoute, SettingsContent, SettingsDialogs), SettingsViewModel.kt | `list_users` `create_user` `deactivate_user` `set_pin` |
+| SettingsView.vue (employees: presence registered by a manager, presence-only profile) | feature/settings/SettingsScreen.kt (EmployeesPanel, WorkerRow), SettingsViewModel.kt (`togglePresence`) over ui/fdm/FdmStore.kt | `clock_in_employee` `clock_out_employee` `list_open_shifts` |
 | SettingsView.vue (training mode) | feature/settings/SettingsScreen.kt (TrainingPanel) over ui/state/PosSettingsStore.kt | `set_training_mode` |
 | SettingsView.vue (table plan, managers) | feature/settings/SettingsScreen.kt (TablePlanPanel), SettingsViewModel.kt | `get_table_plan` `set_table_plan` |
 | SettingsView.vue (ticket deliveries and the mail status) | feature/settings/SettingsScreen.kt (DeliveriesPanel) over ui/state/DeliveryStore.kt | `list_ticket_deliveries` `check_mail_status` |
@@ -30,6 +31,18 @@ screen only calls it through the shared stores and the gateway.
   panel in the first column, and comes first on a window narrower than 900 dp.
 - **Employees are for managers.** The employees panel (list, add form, PIN and deactivate buttons) is drawn for a
   manager only; Vue draws it for any role and lets the engine refuse. The other panels are drawn for every role.
+- **Presence registered by a manager (lane 1-v1-fixes).** Same behaviour on both screens: the panel loads `list_users`
+  and `list_open_shifts` together and reads both again after every action; a manager sees, on each other employee's
+  row, "En service depuis HH:MM" (Brussels time of `startedAt`) or "Hors service" and one button, "Arrivée" or
+  "Départ" (the operator's own row has none: their presence is the login and "Fin de service"). Success shows
+  "Arrivée enregistrée" or "Départ enregistré" with the name; `success: false` shows the FDM error with the FDM
+  texts, a refusal code its `err_` text. The buttons are off, with a note under the panel text, while the FDM store
+  says not connected (`settings_presence_fdm_down`) and, with the `err_presence_training` text, while training mode
+  is on. A presence-only employee shows "Présence seule", has no "Code PIN" button and keeps "Désactiver"; the add
+  form has a fourth profile choice "Présence seule" (`tag settings_role_presence`) that sends role `waiter` with
+  `presenceOnly`, and opens no PIN dialog. Test tags: `worker_<insz>_presence` (the state line),
+  `worker_<insz>_presence_in` and `worker_<insz>_presence_out` (the button), `settings_presence_note`,
+  `settings_presence_block`.
 - **Deactivation asks in a dialog.** Vue arms the button for a second tap. The view model keeps the two taps (the
   first arms, the second deactivates) and the screen shows the armed state as a `ConfirmDialog` naming the employee.
 - **PIN dialogs.** The three Vue `PinDialog`s become the `PinDialog` of `ui/components/` in the scaffold's overlay

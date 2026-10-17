@@ -909,6 +909,47 @@ mod tests {
             assert_eq!(f[0]["inputMethod"], "AUTOMATIC");
             assert!(f[0].get("provider").is_none() && f[0].get("reference").is_none());
         }
+        // A meal-voucher card is the meal voucher line, taken by the terminal.
+        let mut s = settle(
+            1000,
+            &[
+                PaymentPart::terminal(400, 5),
+                PaymentPart::of(PaymentMethod::MealVoucher, 600),
+            ],
+        )
+        .unwrap();
+        let terminal_index = s
+            .payments
+            .iter()
+            .position(|p| p.eft_payment_id.is_some())
+            .unwrap();
+        s.payments[terminal_index].terminal = Some(TerminalCard {
+            card_type: PaymentType::ChequeMeal,
+            brand: Some("Edenred".into()),
+            reference: Some("TXN-7".into()),
+        });
+        let sale = build_sale_input_split(&config, &ident(), &order, &lines, 1, &bk(&bp_id), &s);
+        let f = serde_json::to_value(&sale.financials).unwrap();
+        let auto = f
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|l| l["inputMethod"] == "AUTOMATIC")
+            .unwrap();
+        assert_eq!(auto["id"], "3");
+        assert_eq!(auto["name"], "Meal voucher");
+        assert_eq!(auto["type"], "CHEQUE_MEAL");
+        assert_eq!(auto["provider"], "Edenred");
+        assert_eq!(auto["reference"], "TXN-7");
+        assert_eq!(auto["amountType"], "PAYMENT");
+        let manual = f
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|l| l["type"] == "CHEQUE_MEAL" && l["inputMethod"] == "MANUAL")
+            .unwrap();
+        assert_eq!(manual["id"], "3");
+        assert!(manual.get("provider").is_none());
         // A part without terminal data is the manual card, unchanged.
         let manual = settle(1000, &[PaymentPart::of(PaymentMethod::Card, 1000)]).unwrap();
         let sale =

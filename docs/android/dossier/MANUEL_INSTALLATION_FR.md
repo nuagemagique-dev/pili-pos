@@ -330,7 +330,9 @@ l'export se lit dans « Export nocturne » (`MANUEL_UTILISATEUR_FR.md`).
 de paiement autonome, que l'opérateur saisit à la caisse (méthode
 `MANUAL`, type `CARD_DEBIT`). Avec cette section, la caisse envoie le
 montant au terminal et enregistre sa réponse (ligne de paiement
-`AUTOMATIC`, `MANUEL_UTILISATEUR_FR.md` §7.2). Trois protocoles sont pris
+`AUTOMATIC`, `MANUEL_UTILISATEUR_FR.md` §7.2 ; une carte de chèques-repas
+Edenred, Pluxee, Monizze ou Payflip, reconnue à la marque que rend le
+terminal, est signée `CHEQUE_MEAL`). Trois protocoles sont pris
 en charge, chacun d'après une spécification publique ; `kind` choisit
 l'un d'eux :
 

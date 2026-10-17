@@ -876,6 +876,12 @@
       "zh": "每张小票上打印的餐厅名称或地址不能为空。 详情：{detail}",
       "area": "errors"
     },
+    "err_deactivate_on_shift": {
+      "fr": "Cet employé est en service : enregistrez d'abord son départ",
+      "en": "This employee is on shift: clock them out first",
+      "zh": "该员工在岗，请先登记下班",
+      "area": "errors"
+    },
     "err_deactivate_self": {
       "fr": "Vous ne pouvez pas vous désactiver vous-même.",
       "en": "You cannot deactivate yourself.",
@@ -1252,6 +1258,36 @@
       "fr": "PIN incorrect",
       "en": "Wrong PIN",
       "zh": "PIN错误",
+      "area": "errors"
+    },
+    "err_presence_already_in": {
+      "fr": "Cet employé est déjà en service",
+      "en": "This employee is already on shift",
+      "zh": "该员工已在岗",
+      "area": "errors"
+    },
+    "err_presence_not_in": {
+      "fr": "Cet employé n'est pas en service",
+      "en": "This employee is not on shift",
+      "zh": "该员工不在岗",
+      "area": "errors"
+    },
+    "err_presence_only_user": {
+      "fr": "Employé enregistré pour la présence seulement : pas de connexion à la caisse",
+      "en": "This employee is registered for presence only and cannot log in",
+      "zh": "该员工仅用于考勤，不能登录收银机",
+      "area": "errors"
+    },
+    "err_presence_self": {
+      "fr": "Votre arrivée et votre départ se font à la connexion et par « Fin de service »",
+      "en": "Your own clock-in and clock-out happen at login and with \"End of shift\"",
+      "zh": "您本人的上下班在登录时和\"下班\"时登记",
+      "area": "errors"
+    },
+    "err_presence_training": {
+      "fr": "Mode formation : le pointage d'un employé est impossible. Quittez le mode formation.",
+      "en": "Training mode: an employee cannot be clocked in or out. Leave training mode.",
+      "zh": "培训模式下不能为员工打卡，请先退出培训模式。",
       "area": "errors"
     },
     "err_previous_day_open": {
@@ -2442,6 +2478,12 @@
       "zh": "服务员",
       "area": "core"
     },
+    "role_presence": {
+      "fr": "Présence seule",
+      "en": "Presence only",
+      "zh": "仅考勤",
+      "area": "core"
+    },
     "role_waiter": {
       "fr": "Apprenti",
       "en": "Apprentice",
@@ -2544,6 +2586,18 @@
       "zh": "姓名",
       "area": "core"
     },
+    "settings_off_shift": {
+      "fr": "Hors service",
+      "en": "Off shift",
+      "zh": "未上班",
+      "area": "settings"
+    },
+    "settings_on_shift_since": {
+      "fr": "En service depuis {time}",
+      "en": "On shift since {time}",
+      "zh": "{time} 起上班中",
+      "area": "settings"
+    },
     "settings_payment_terminal_label": {
       "fr": "Terminal de paiement",
       "en": "Payment terminal",
@@ -2579,6 +2633,42 @@
       "en": "POS ID",
       "zh": "POS ID",
       "area": "core"
+    },
+    "settings_presence_done_in": {
+      "fr": "Arrivée enregistrée · {name}",
+      "en": "Clock-in registered · {name}",
+      "zh": "已登记上班 · {name}",
+      "area": "settings"
+    },
+    "settings_presence_done_out": {
+      "fr": "Départ enregistré · {name}",
+      "en": "Clock-out registered · {name}",
+      "zh": "已登记下班 · {name}",
+      "area": "settings"
+    },
+    "settings_presence_fdm_down": {
+      "fr": "FDM indisponible : pointage impossible",
+      "en": "FDM unavailable: clocking in or out is not possible",
+      "zh": "FDM 不可用，无法打卡",
+      "area": "settings"
+    },
+    "settings_presence_in": {
+      "fr": "Arrivée",
+      "en": "Clock in",
+      "zh": "上班打卡",
+      "area": "settings"
+    },
+    "settings_presence_note": {
+      "fr": "Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici.",
+      "en": "Staff without till access (kitchen): the manager registers their clock-in and clock-out here.",
+      "zh": "不使用收银机的员工（厨房）：由经理在此登记上下班。",
+      "area": "settings"
+    },
+    "settings_presence_out": {
+      "fr": "Départ",
+      "en": "Clock out",
+      "zh": "下班打卡",
+      "area": "settings"
     },
     "settings_printer_label": {
       "fr": "Imprimante",
@@ -3367,6 +3457,12 @@
     "name_required",
     "role_invalid",
     "deactivate_self",
+    "presence_only_user",
+    "deactivate_on_shift",
+    "presence_training",
+    "presence_self",
+    "presence_already_in",
+    "presence_not_in",
     "operator_invalid",
     "dine_in_needs_table",
     "takeaway_has_no_table",

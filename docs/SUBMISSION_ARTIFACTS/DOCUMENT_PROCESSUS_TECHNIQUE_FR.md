@@ -82,7 +82,7 @@ binaire certifié.
 | **C** (Copie) | Réimpression d'un ticket antérieur | `commands/copy::do_copy_ticket_with` | Porte un `fdmRef` vers l'original |
 | **I** (Facture) | Hors binaire certifié v1.0.0 | Code sous `#[cfg(feature = "peppol")]` (`commands/invoice.rs`) | Absent de la build cert (§8) ; événement optionnel dans SCE 2.0 |
 | **F** (Financier) | Mouvement caisse, ouverture seule du tiroir | `commands/financial::do_money_in_out` / `do_open_drawer_fiscal` | F-WAR pour ouverture tiroir |
-| **S** (Social) | Pointage entrée / sortie de l'opérateur | `commands/social::do_work_in` / `do_work_out` | INSZ + n° employeur |
+| **S** (Social) | Pointage entrée / sortie de l'opérateur ; pointage d'un autre employé par le Gérant | `commands/social::do_work_in` / `do_work_out` ; `do_clock_in_employee` / `do_clock_out_employee` | INSZ + n° employeur |
 | **R** (Rapport) | Rapports Z et X | `commands/report::do_generate_x_report` / `do_generate_z_report` | Z est Turnover-Z + User-Z atomique |
 
 Chaque branche :
@@ -304,7 +304,13 @@ SQLite qui archive l'événement signé, de sorte que :
   (`CARD_DEBIT` id "2" "Card", `CARD_CREDIT` id "6" "Credit card",
   `CARD_UNKNOWN` id "7" "Card (type unknown)"), `provider` = marque de la
   carte, `reference` = identifiant de transaction du terminal
-  (`crates/pos-fiscal/src/payment.rs`). Les paiements carte ne sont
+  (`crates/pos-fiscal/src/payment.rs`). Une carte de chèques-repas
+  (marque Edenred, Pluxee, Monizze ou Payflip, reconnue par la marque
+  normalisée que le terminal rend, correspondance exacte) est signée
+  `CHEQUE_MEAL` id "3" "Meal voucher", `AUTOMATIC`, avec la marque en
+  `provider` : la même identité que le chèque-repas saisi, donc une
+  seule rangée dans les rapports. Les variantes éco, cadeau, sport et
+  culture ne sont pas des chèques-repas. Les paiements carte ne sont
   jamais arrondis, pour toute installation. Le remboursement reste rendu
   en espèces ; l'annulation d'un paiement carte accepté n'est pas prise
   en charge.

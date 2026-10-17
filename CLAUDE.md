@@ -200,7 +200,7 @@ pili-pos/
 │   ├── src/
 │   │   ├── main.rs             # Tauri entry point: CLI, logging, window, health check, EngineConfig
 │   │   ├── lib.rs              # Library facade (cli, events, ipc, paths)
-│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 96 in all, 94 in the cert build)
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 98 in all, 96 in the cert build)
 │   │   ├── events.rs           # TauriEventSink (engine events to the webview)
 │   │   ├── cli.rs              # --version, --init-db, --check-config
 │   │   └── paths.rs            # Linux install paths
@@ -211,98 +211,106 @@ pili-pos/
 │   │   ├── src/                # commands/, engine.rs, state.rs, background.rs, events.rs, install.rs
 │   │   └── tests/              # integration tests (spf_e2e_*, hubrise_*, access_control, ...)
 │   ├── pos-engine-testkit/     # Test harness (publish = false, outside the certified binary)
-│   ├── pos-core/
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── order.rs        # Order, OrderLine, modifiers
-│   │       ├── menu.rs         # MenuItem, Category, translations
-│   │       ├── vat.rs          # VatCode enum, calculations
-│   │       ├── user.rs         # User, INSZ validation
-│   │       ├── table.rs        # Table management (dine-in)
-│   │       └── config.rs       # POS configuration
-│   ├── pos-fiscal/
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── event.rs        # FiscalEvent enum (N/P/T/C/I/F/S/R)
-│   │       ├── fdm_client.rs   # GraphQL client to FDM
-│   │       ├── signature.rs    # shortSignature = hex(SHA1(digitalSignature))
-│   │       ├── response_check.rs # FDM response vs request consistency check
-│   │       ├── ticket.rs       # Fiscal ticket data structure
-│   │       ├── archive.rs      # JSON archival logic
-│   │       ├── counter.rs      # Sequential numbering
-│   │       └── qr.rs           # QR code generation for tickets
-│   ├── pos-print/
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── escpos.rs       # ESC/POS command builder
-│   │       ├── receipt.rs      # Receipt layout/formatting
-│   │       ├── drawer.rs       # Cash drawer kick (0x1B 0x70 0x00 0x19 0xFA)
-│   │       └── transport.rs    # USB/Serial/TCP printer connection
-│   └── pos-db/
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs
-│           ├── schema.rs       # SQLite schema + migrations
-│           ├── queries/        # Typed query modules
-│           │   ├── orders.rs
-│           │   ├── menu.rs
-│           │   ├── fiscal.rs
-│           │   ├── users.rs
-│           │   └── reports.rs
-│           └── migrate.rs      # Schema migration runner
+│   ├── pos-core/               # Domain types, no I/O
+│   │   └── src/                # lib.rs, order.rs, menu.rs, vat.rs, user.rs, money.rs, config.rs, table.rs, table_plan.rs
+│   ├── pos-fiscal/             # SCE 2.0 protocol: FDM client, events, signatures, tickets, archive
+│   │   └── src/                # event.rs, inputs.rs, fdm_client.rs, fdm_tls.rs, http_tls.rs, signature.rs,
+│   │                           # canonical.rs, response.rs, response_check.rs, ticket.rs, archive.rs, counter.rs,
+│   │                           # identity.rs, payment.rs, price_change.rs, report_totals.rs, types.rs, qr.rs
+│   ├── pos-print/              # ESC/POS rendering and transport
+│   │   └── src/                # escpos.rs, receipt.rs, report.rs, kitchen_ticket.rs, bar_ticket.rs,
+│   │                           # customer_slip.rs, labels.rs, render.rs, drawer.rs, transport.rs
+│   ├── pos-db/                 # SQLite schema, migrations, typed queries
+│   │   └── src/                # schema.rs, schema_catalog.rs, schema_eft.rs, schema_hubrise.rs, migrate.rs,
+│   │       └── queries/        # orders, menu, fiscal, users, reports, shifts, eft, booking, deliveries,
+│   │                           # integrations, pending_signs, price_changes, prints, table_plan
+│   ├── pos-eft/                # Linked card terminal (Worldline, CCV cloud, CCV OPI drivers, scripted terminal)
+│   ├── pos-eft-mock/           # Mock card terminal for development and tests (publish = false)
+│   ├── pos-eft-probe/          # Bench tool: check a real terminal before a go-live
+│   ├── pos-catalog/            # Menu as a mirror of an external catalog (hash, validate, apply)
+│   ├── pos-hubrise/            # HubRise client: OAuth, catalog sync, online orders, outbox
+│   ├── pos-hubrise-types/      # HubRise API types shared by the client and its mock
+│   ├── pos-hubrise-mock/       # HubRise mock HTTP server (tests, demos)
+│   ├── pos-mail/               # Digital ticket by e-mail (Scaleway TEM), outbox
+│   ├── pos-export/             # Nightly encrypted export of an installation
+│   ├── pos-export-mock/        # Test receiver of the nightly export
+│   ├── pos-peppol/             # Belgian Peppol B2B invoices (UBL); not in the cert build
+│   ├── pos-fdm-mock/           # Mock FDM (SCE 2.0 GraphQL) and mock TEM
+│   └── pos-printer-mock/       # Network thermal printer mock
 └── ui/
     ├── index.html              # Vite entry point
     ├── vite.config.ts
     ├── tsconfig.json
-    ├── package.json
-    ├── src/
-    │   ├── main.ts             # Vue app bootstrap + router + pinia
-    │   ├── App.vue             # Root component with <RouterView>
-    │   ├── api/
-    │   │   └── ipc.ts          # Typed Tauri invoke wrappers
-    │   ├── stores/
-    │   │   ├── order.ts        # Pinia store: current order, cart, lines
-    │   │   ├── menu.ts         # Pinia store: categories, items (loaded from Rust)
-    │   │   ├── auth.ts         # Pinia store: current user, INSZ, role; lock and end of shift go through the engine
-    │   │   ├── fdm.ts          # Pinia store: FDM health as classified by the engine monitor
-    │   │   └── pos.ts          # Pinia store: POS config, training mode flag
-    │   ├── composables/
-    │   │   ├── useVat.ts       # VAT calculation helpers
-    │   │   ├── usePrint.ts     # Print trigger composable
-    │   │   └── useCheckout.ts  # Checkout flow orchestration
-    │   ├── router/
-    │   │   └── index.ts        # Vue Router (hash mode)
-    │   ├── views/
-    │   │   ├── LoginView.vue       # INSZ numeric keypad login
-    │   │   ├── TablesView.vue      # Table map / floor plan
-    │   │   ├── OrderView.vue       # Menu grid + cart sidebar (main POS screen)
-    │   │   ├── CheckoutView.vue    # Payment method + FDM call + receipt
-    │   │   ├── ReceiptView.vue     # Receipt preview before print
-    │   │   ├── ReportsView.vue     # X/Z report screen
-    │   │   └── SettingsView.vue    # Admin settings
-    │   ├── components/
-    │   │   ├── MenuGrid.vue        # Category tabs + item buttons grid
-    │   │   ├── CartSidebar.vue     # Order lines list + totals
-    │   │   ├── NumPad.vue          # Reusable numeric keypad (INSZ, quantities, cash amount)
-    │   │   ├── CategoryTabs.vue    # Horizontal scrollable category tabs
-    │   │   ├── MenuItemButton.vue  # Single menu item touch button
-    │   │   ├── OrderLine.vue       # Single line in cart (qty, name, price, delete)
-    │   │   ├── VatSummary.vue      # VAT breakdown table (A/B/C/D)
-    │   │   ├── FdmStatus.vue       # FDM connection indicator (header bar)
-    │   │   ├── TrainingBanner.vue  # "TRAINING MODE" overlay when active
-    │   │   ├── ModifierDialog.vue  # Modal for item modifiers/options
-    │   │   └── PaymentButtons.vue  # Cash / Card / Split payment selection
-    │   ├── types/
-    │   │   └── index.ts            # Shared TS interfaces matching Rust types
-    │   └── styles/
-    │       ├── reset.css
-    │       ├── tokens.css          # CSS custom properties (colors, spacing, radii)
-    │       └── global.css          # Base typography, scrollbar, touch overrides
-    └── public/
-        └── fonts/              # Noto Sans CJK SC for Chinese simplified menu items
+    ├── package.json            # Fonts come from @fontsource packages (Archivo, JetBrains Mono, Noto Sans)
+    ├── e2e/                    # Playwright tests
+    └── src/
+        ├── main.ts             # Vue app bootstrap + router + pinia
+        ├── App.vue             # Root component with <RouterView>
+        ├── i18n.ts             # vue-i18n setup (fr, en, zh) and shared strings
+        ├── i18n-checkout.ts    # Strings of the checkout screen
+        ├── i18n-export.ts      # Strings of the export settings
+        ├── i18n-reports.ts     # Strings of the reports screen
+        ├── i18n-settings.ts    # Strings of the settings screen
+        ├── i18n-webshop.ts     # Strings of the online orders screen
+        ├── api/
+        │   ├── ipc.ts          # Typed Tauri invoke wrappers
+        │   └── ipc-modifiers.ts # Wrappers of the option commands (HubRise builds only)
+        ├── stores/
+        │   ├── order.ts        # Pinia store: current order, cart, lines
+        │   ├── menu.ts         # Pinia store: categories, items (loaded from Rust)
+        │   ├── auth.ts         # Pinia store: current user, INSZ, role; lock and end of shift go through the engine
+        │   ├── fdm.ts          # Pinia store: FDM health as classified by the engine monitor
+        │   ├── pos.ts          # Pinia store: POS config, training mode flag
+        │   ├── eft.ts          # Pinia store: linked card terminal state
+        │   ├── integrations.ts # Pinia store: HubRise and export switches
+        │   ├── delivery.ts     # Pinia store: ticket medium and digital delivery state
+        │   ├── webshopOrders.ts # Pinia store: online orders
+        │   ├── support.ts      # Pinia store: remote support session
+        │   └── toast.ts        # Pinia store: toast notifications
+        ├── composables/
+        │   └── useOrderChime.ts # Sound alert for a new online order
+        ├── utils/              # datetime.ts (Europe/Brussels), format.ts, names.ts, errorMessages.ts, fdmMessages.ts
+        ├── router/
+        │   └── index.ts        # Vue Router (hash mode)
+        ├── views/
+        │   ├── LoginView.vue       # INSZ numeric keypad login
+        │   ├── TablesView.vue      # Table map / floor plan
+        │   ├── OrderView.vue       # Menu grid + cart sidebar (main POS screen)
+        │   ├── CheckoutView.vue    # Payment method + FDM call + receipt
+        │   ├── ReportsView.vue     # X/Z report screen
+        │   ├── SettingsView.vue    # Admin settings
+        │   └── WebshopOrdersView.vue # Online (HubRise) orders
+        ├── components/
+        │   ├── AppHeader.vue       # Header bar (status lights, user, navigation)
+        │   ├── MenuGrid.vue        # Category tabs + item buttons grid
+        │   ├── CategoryTabs.vue    # Horizontal scrollable category tabs
+        │   ├── MenuItemButton.vue  # Single menu item touch button
+        │   ├── CartSidebar.vue     # Order lines list + totals
+        │   ├── OrderLineItem.vue   # Single line in cart (qty, name, price, delete)
+        │   ├── ModifierDialog.vue  # Modal for item options (HubRise)
+        │   ├── NumPad.vue          # Reusable numeric keypad (INSZ, quantities, cash amount)
+        │   ├── EmailKeypad.vue     # Keypad for the customer e-mail address
+        │   ├── PinDialog.vue       # Manager PIN prompt
+        │   ├── PriceDialog.vue     # Price entry for open-price items
+        │   ├── VatSummary.vue      # VAT breakdown table (A/B/C/D)
+        │   ├── StatusLights.vue    # FDM, printer, terminal and network indicators
+        │   ├── FdmAlerts.vue       # FDM alert messages
+        │   ├── EftOverlay.vue      # Card terminal payment overlay
+        │   ├── TicketMediumPicker.vue # Paper or digital ticket choice
+        │   ├── DeliveryOutcomePanel.vue # Result of the digital ticket delivery
+        │   ├── ExportStatusPanel.vue # Nightly export status
+        │   ├── HubriseConnectDialog.vue / HubriseSettings.vue / IntegrationSwitch.vue # HubRise settings
+        │   ├── OnlineOrdersNavButton.vue # Header shortcut to the online orders
+        │   ├── ConfigProblemsBanner.vue / SupportBanner.vue / TrainingBanner.vue # Banners ("TRAINING MODE" when active)
+        │   ├── ToastStack.vue      # Toast notifications
+        │   └── PiliLogo.vue        # Logo
+        ├── types/
+        │   └── index.ts            # Shared TS interfaces matching Rust types
+        ├── assets/webshop/         # Logos shown on the online orders screen
+        └── styles/
+            ├── reset.css
+            ├── tokens.css          # CSS custom properties (colors, spacing, radii)
+            └── global.css          # Base typography, scrollbar, touch overrides
 ```
 
 ---
@@ -557,7 +565,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - One binary for every installation (decided 2026-10-03): the `cert` feature includes `hubrise`; only invoicing (`peppol`) stays out. Whether HubRise runs is the installation's switch: `hubrise_enabled` in `pos.json` (default off), then an admin in Settings; every change in the append-only `integration_switch_log` (migration 25, `commands/integrations.rs`). Off: no poller pass, no outbox pass, no till sale echoed, accept/reject/sync/connect refused (`hubrise_disabled`); settling an already signed order (handover, refund, closing) always works. Switching off is refused while online orders are unsettled. The UI reads the switch at runtime (`stores/integrations.ts`), no build-time flag. The installation's OAuth client is the `hubrise` section of `pos.json` (`client_id`, `client_secret_file`, URLs default to the real HubRise; `commands/hubrise.rs::oauth_config`): without it a release build refuses to connect (`hubrise_not_configured`), a debug build falls back to the `HUBRISE_*` variables of `.env`, else the local mock.
 - Every online order (Deliveroo, Uber Eats, own webshop) must end in an N event signed by the FDM (SPF FAQ Q203). Prepaid: N at acceptance (APP for platforms, ONLINE for the webshop). Unpaid: P at acceptance, N at handover. Rejected orders are never signed; a cancellation after N is a manager-confirmed refund N.
 - The POS menu mirrors the HubRise catalog (`crates/pos-catalog`, source-neutral; HubRise mapping in `pos-hubrise/src/catalog_map.rs`). Stable ids by `external_id`, deactivate never delete, invalid catalogs refused whole. Local menu editing is locked while a source manages the menu.
-- Migrations: 1 to 9 base, 10 pending_signs (signing recovery), 11 table plan (`table_plan`, `table_plan_log` append-only; `commands/table_plan.rs`), 12 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`, 25 the integration switch), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 27 payment terminal (`schema_eft.rs`, not feature-gated: `eft_payments`, never deleted, a final answer never changes), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`).
+- Migrations: 1 to 9 base, 10 pending_signs (signing recovery), 11 table plan (`table_plan`, `table_plan_log` append-only; `commands/table_plan.rs`), 12 to 19 reserved for certified hotfixes, 20+ HubRise (`schema_hubrise.rs`, 25 the integration switch), 21 catalog sync (`schema_catalog.rs`, feature `catalog-sync`), 27 payment terminal (`schema_eft.rs`, not feature-gated: `eft_payments`, never deleted, a final answer never changes), 23 price changes (`order_price_changes`: an online order's discounts, spread over its product lines and sent as priceChanges of scope EVENT; `pos-fiscal/src/price_change.rs`), 28 presence registration (`users.presence_only`, `staff_shifts.started_by` / `ended_by`; not feature-gated: a manager clocks a presence-only employee in and out with `commands::social::do_clock_in_employee` / `do_clock_out_employee`).
 - Tests run against `pos-hubrise-mock` in-process (`crates/pos-engine/tests/hubrise_*.rs`).
 
 ### Table plan (in the certified binary)
@@ -567,7 +575,7 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 - With a `payment_terminal` section in `pos.json` (`worldline_terminal_api`, `ccv_payment_api` or `ccv_opi`; drivers in `crates/pos-eft`) the till asks the card terminal for the amount instead of the operator typing the card: `eft_pay`, `eft_abort`, `eft_check` (any user), `list_eft_payments` (`commands/eft.rs`; errors `eft_not_configured`, `eft_amount_invalid`, `eft_pending`, `eft_busy`, `eft_unreachable`, `eft_rejected`, `eft_payment_not_usable`, `eft_below_charged`, `eft_edit_pending`; an order edit may not bring the total under its approved unused card payments). `get_settings` tells the UI which kind is linked (`paymentTerminal`); without it nothing changes (manual card, `MANUAL`, `CARD_DEBIT`).
 - `list_unsettled_card_payments` (`UnsettledCardPayment`: payment_id, order_id, order_type, table_number, amount_cents, brand, created_at) lists the approved card payments no sale has settled yet: the Z step of both UIs warns about them (never blocks) and the table plan / takeaway list mark their orders.
 - `check_payment_terminal` (`PaymentTerminalStatus`: configured, kind, connected, busy, detail) feeds the header light and the start-up row, only when configured; it never charges and never probes while a payment holds `AppState::eft_line` (answers busy).
-- Every payment is stored in `eft_payments` (migration 27) BEFORE the terminal is called; at start a `sent` row becomes `unknown`. Nothing is charged unless the FDM is operational right now (AM art. 14). A payment waiting for its answer (`sent`, `unknown`) blocks other payments and its order's sale until `eft_check`; an approved payment must be used by the sale (`PaymentPart.eft_payment_id`, exact amount) or the sale is refused. The signed line is `AUTOMATIC` with the terminal's card type (ids 2/6/7), the brand as `provider`, the terminal's id as `reference`; payments are marked used in the sale's commit. Card payments are never rounded; refunds stay cash; reversing an approved payment is not supported yet.
+- Every payment is stored in `eft_payments` (migration 27) BEFORE the terminal is called; at start a `sent` row becomes `unknown`. Nothing is charged unless the FDM is operational right now (AM art. 14). A payment waiting for its answer (`sent`, `unknown`) blocks other payments and its order's sale until `eft_check`; an approved payment must be used by the sale (`PaymentPart.eft_payment_id`, exact amount) or the sale is refused. The signed line is `AUTOMATIC` with the terminal's card type (ids 2/6/7; a meal-voucher brand, exact match on Edenred, Pluxee, Monizze or Payflip after `pos_eft::brand::normalize`, is `CHEQUE_MEAL` id 3 "Meal voucher", the manual meal voucher's identity, and `EftPayment.meal_voucher` is true), the brand as `provider`, the terminal's id as `reference`; payments are marked used in the sale's commit. Card payments are never rounded; refunds stay cash; reversing an approved payment is not supported yet.
 - Tests use `Terminal::scripted` through the `eft-scripted` feature of `pos-engine` (testkit only): `crates/pos-engine/tests/eft_*.rs`.
 
 ---

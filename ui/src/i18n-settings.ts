@@ -60,6 +60,23 @@ export const settingsMessages: Messages = {
   "settings_pin_button": { fr: "Code PIN", en: "PIN code", zh: "PIN码" },
   "settings_insz_hint": { fr: "INSZ · 11 chiffres", en: "INSZ · 11 digits", zh: "INSZ · 11位" },
   "settings_add_employee": { fr: "Ajouter l’employé", en: "Add employee", zh: "添加员工" },
+  // Presence registration by the manager (lane 1-v1-fixes)
+  "settings_presence_in": { fr: "Arrivée", en: "Clock in", zh: "上班打卡" },
+  "settings_presence_out": { fr: "Départ", en: "Clock out", zh: "下班打卡" },
+  "settings_on_shift_since": { fr: "En service depuis {time}", en: "On shift since {time}", zh: "{time} 起上班中" },
+  "settings_off_shift": { fr: "Hors service", en: "Off shift", zh: "未上班" },
+  "settings_presence_done_in": { fr: "Arrivée enregistrée · {name}", en: "Clock-in registered · {name}", zh: "已登记上班 · {name}" },
+  "settings_presence_done_out": { fr: "Départ enregistré · {name}", en: "Clock-out registered · {name}", zh: "已登记下班 · {name}" },
+  "settings_presence_fdm_down": {
+    fr: "FDM indisponible : pointage impossible",
+    en: "FDM unavailable: clocking in or out is not possible",
+    zh: "FDM 不可用，无法打卡",
+  },
+  "settings_presence_note": {
+    fr: "Personnel sans accès à la caisse (cuisine) : le Gérant enregistre son arrivée et son départ ici.",
+    en: "Staff without till access (kitchen): the manager registers their clock-in and clock-out here.",
+    zh: "不使用收银机的员工（厨房）：由经理在此登记上下班。",
+  },
 
   // Email tickets panel
   "settings_email_title": { fr: "Tickets par email", en: "Email tickets", zh: "电子邮件票据" },

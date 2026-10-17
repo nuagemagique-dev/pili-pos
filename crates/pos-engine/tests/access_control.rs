@@ -38,7 +38,9 @@ use pos_engine::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
 };
 use pos_engine::commands::settings::{ERR_OPEN_ORDERS, do_get_settings, do_set_training_mode};
-use pos_engine::commands::social::{do_work_in, do_work_out};
+use pos_engine::commands::social::{
+    do_clock_in_employee, do_clock_out_employee, do_work_in, do_work_out,
+};
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_engine::commands::unpaid::do_close_unpaid;
 
@@ -253,6 +255,18 @@ async fn nothing_is_signed_without_a_logged_in_operator() {
     );
     assert_eq!(
         do_work_out(&app.state, MANAGER.into()).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_clock_in_employee(&app.state, SERVER.into())
+            .await
+            .unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_clock_out_employee(&app.state, SERVER.into())
+            .await
+            .unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(add_line(&app, open).unwrap_err(), ERR_NOT_LOGGED_IN);
@@ -831,6 +845,7 @@ async fn a_new_manager_gets_a_pin_confirmed_by_the_creating_manager() {
         role: "admin".into(),
         initial_pin: initial.map(Into::into),
         operator_pin: operator.map(Into::into),
+        presence_only: false,
     };
 
     assert_eq!(
@@ -884,6 +899,41 @@ async fn a_server_or_apprentice_without_pin_still_logs_in() {
         assert!(!user.has_pin, "{insz}");
         do_logout(&app.state).unwrap();
     }
+}
+
+/// Registering someone else's presence is a manager's act: a server and
+/// an apprentice are refused before anything is signed.
+#[tokio::test]
+async fn only_a_manager_registers_another_employees_presence() {
+    let app = app().await;
+    insert_user(&app, APPRENTICE, "waiter");
+    let before = app.fiscal_events().len();
+    for (insz, role) in [(SERVER, UserRole::Cashier), (APPRENTICE, UserRole::Waiter)] {
+        as_(&app, insz, role);
+        assert_eq!(
+            do_clock_in_employee(&app.state, APPRENTICE.into())
+                .await
+                .unwrap_err(),
+            ERR_FORBIDDEN,
+            "{insz} in"
+        );
+        assert_eq!(
+            do_clock_out_employee(&app.state, APPRENTICE.into())
+                .await
+                .unwrap_err(),
+            ERR_FORBIDDEN,
+            "{insz} out"
+        );
+    }
+    assert_eq!(app.fiscal_events().len(), before, "nothing signed");
+    assert!(
+        app.fdm
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "nothing reached the FDM"
+    );
 }
 
 #[tokio::test]

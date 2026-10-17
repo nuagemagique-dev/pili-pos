@@ -609,13 +609,14 @@ private fun TakenRow(
     val partName = vueText("part_n", "n" to (index + 1))
     val value = uiText(R.string.ui_checkout_paid_part, "amount" to formatCents(part.cents))
     if (!part.locked) {
-        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to methodLabel(part.method))
+        val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to methodLabel(part.displayMethod))
         FootRow(label, value, "checkout_part_$index")
         return
     }
+    val method = methodLabel(part.displayMethod)
     val label =
-        part.brand?.let { uiText(R.string.ui_eft_locked_part, "part" to partName, "method" to methodLabel(part.method), "brand" to it) }
-            ?: uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to methodLabel(part.method))
+        part.brand?.let { uiText(R.string.ui_eft_locked_part, "part" to partName, "method" to method, "brand" to it) }
+            ?: uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to method)
     Row(
         Modifier.fillMaxWidth().testTag("checkout_part_locked_$index"),
         horizontalArrangement = Arrangement.SpaceBetween,

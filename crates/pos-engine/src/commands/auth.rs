@@ -41,6 +41,11 @@ pub(crate) fn authenticate(
     let user = pos_db::queries::users::get_user(&db, insz)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| errors::USER_UNKNOWN.to_string())?;
+    // A presence-only employee never logs in: refused before any PIN
+    // check, so no throttle entry is made for them.
+    if user.presence_only {
+        return Err(errors::PRESENCE_ONLY_USER.to_string());
+    }
 
     if user.role == UserRole::Admin && !user.has_pin {
         let claimed = pos_db::queries::users::any_admin_has_pin(&db).map_err(|e| e.to_string())?;
@@ -111,6 +116,9 @@ pub fn do_login_with_new_pin(
         .map_err(|e| e.to_string())?
         .filter(|u| u.active)
         .ok_or_else(|| errors::USER_UNKNOWN.to_string())?;
+    if user.presence_only {
+        return Err(errors::PRESENCE_ONLY_USER.to_string());
+    }
     if !pos_db::queries::users::set_first_pin_hash(&db, &insz, &hash).map_err(user_error)? {
         let manager_tile = user.role == UserRole::Admin && !user.has_pin;
         return Err(if manager_tile {
@@ -155,6 +163,10 @@ pub struct CreateUserInput {
     /// The creating manager's own PIN.
     #[serde(default)]
     pub operator_pin: Option<String>,
+    /// A kitchen employee who never uses the till: role must be
+    /// `waiter`, no PIN is stored, a manager clocks them in and out.
+    #[serde(default)]
+    pub presence_only: bool,
 }
 
 /// Create a user. Managers only; a new manager gets their first PIN
@@ -175,6 +187,9 @@ pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, 
         .role
         .parse()
         .map_err(|_: String| errors::ROLE_INVALID.to_string())?;
+    if input.presence_only && role != UserRole::Waiter {
+        return Err(errors::ROLE_INVALID.to_string());
+    }
     let first_pin_hash = if role == UserRole::Admin {
         let pin = input.initial_pin.as_deref().unwrap_or_default();
         if !valid_pin(pin) {
@@ -191,8 +206,14 @@ pub fn do_create_user(state: &AppState, input: CreateUserInput) -> Result<User, 
 
     let mut db = state.db.lock().map_err(|e| e.to_string())?;
     let tx = db.transaction().map_err(|e| e.to_string())?;
-    let mut user = pos_db::queries::users::create_user(&tx, &input.insz, &input.name, role)
-        .map_err(|e| e.to_string())?;
+    let mut user = pos_db::queries::users::create_user_flagged(
+        &tx,
+        &input.insz,
+        &input.name,
+        role,
+        input.presence_only,
+    )
+    .map_err(|e| e.to_string())?;
     if let Some(hash) = first_pin_hash {
         pos_db::queries::users::set_pin_hash(&tx, &input.insz, &hash).map_err(user_error)?;
         user.has_pin = true;
@@ -223,6 +244,17 @@ pub fn do_set_pin(
     if !valid_pin(&new_pin) {
         return Err(ERR_PIN_FORMAT.to_string());
     }
+    // A presence-only employee has no PIN, ever (refused before the
+    // manager is asked for their own).
+    {
+        let db = state.db.lock().map_err(|e| e.to_string())?;
+        if pos_db::queries::users::get_user(&db, &insz)
+            .map_err(|e| e.to_string())?
+            .is_some_and(|u| u.presence_only)
+        {
+            return Err(errors::PRESENCE_ONLY_USER.to_string());
+        }
+    }
     if other {
         let operator_pin = operator_pin.ok_or_else(|| errors::PIN_REQUIRED.to_string())?;
         access::confirmed_operator(state, &operator.insz, &operator_pin, Access::Admin)?;
@@ -242,6 +274,11 @@ pub fn do_deactivate_user(state: &AppState, insz: String) -> Result<(), String> 
         return Err(ERR_DEACTIVATE_SELF.to_string());
     }
     let db = state.db.lock().map_err(|e| e.to_string())?;
+    // An inactive user cannot be clocked out: the open shift would
+    // stay open for good. The departure is registered first.
+    if pos_db::queries::shifts::has_open_shift(&db, &insz).map_err(|e| e.to_string())? {
+        return Err(errors::DEACTIVATE_ON_SHIFT.to_string());
+    }
     pos_db::queries::users::deactivate_user(&db, &insz).map_err(user_error)
 }
 

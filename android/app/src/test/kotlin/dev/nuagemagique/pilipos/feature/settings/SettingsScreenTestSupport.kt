@@ -47,6 +47,7 @@ internal fun managerState(
         currentInsz = ADMIN_INSZ,
         info = engineSettings(),
         users = listOf(admin, cashier, waiter),
+        fdmConnected = true,
         deliveries = listOf(delivery(1L), delivery(2L).copy(status = "failed", attempts = 3L, lastError = "smtp 550")),
         mailStatus = mail(),
         hubrise = hubrise,

@@ -215,6 +215,7 @@ impl Rig {
             role,
             active: true,
             has_pin: false,
+            presence_only: false,
         });
     }
 
