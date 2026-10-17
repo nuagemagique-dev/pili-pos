@@ -54,6 +54,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | stores/pos.ts | ui/state/PosSettingsStore.kt | `get_settings` `set_training_mode` |
 | stores/auth.ts | ui/state/SessionStore.kt | `login` `login_with_new_pin` `logout` `lock_session` `end_shift` |
 | stores/integrations.ts | ui/state/IntegrationsStore.kt | `get_integrations` `set_hubrise_enabled` |
+| stores/ownerAlerts.ts | feature/settings/alerts/OwnerAlertsViewModel.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
 | i18n.ts (useI18n, language) | ui/text/UiText.kt (PosUiRoot, LocalUiLanguage, vueText, uiText) | - |
 | stores/order.ts | ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` `add_order_line` `remove_order_line` `update_order_line_quantity` `leave_order` `sign_pre_bill` `close_unpaid` `list_open_orders` |
 | utils/names.ts | ui/format/ProductNames.kt | - |

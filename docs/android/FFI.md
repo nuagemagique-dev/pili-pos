@@ -175,6 +175,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | get_item_modifiers | modifiers::do_get_item_modifiers_localized | blocking | posEngine.getItemModifiers() |
 | get_menu_items | menu::do_get_menu_items | blocking | posEngine.getMenuItems() |
 | get_order | order::do_get_order | blocking | posEngine.getOrder() |
+| get_owner_alerts | alerts::do_get_owner_alerts | blocking | posEngine.getOwnerAlerts() |
 | get_settings | settings::do_get_settings | blocking | posEngine.getSettings() |
 | get_table_plan | table_plan::do_get_table_plan | blocking | posEngine.getTablePlan() |
 | hubrise_adopt_catalog | hubrise::do_adopt_catalog | blocking | posEngine.hubriseAdoptCatalog() |
@@ -199,6 +200,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | list_open_shifts | social::do_list_open_shifts | blocking | posEngine.listOpenShifts() |
 | list_open_takeaways | tables::do_list_open_takeaways | blocking | posEngine.listOpenTakeaways() |
 | list_order_lines | order::do_list_order_lines | blocking | posEngine.listOrderLines() |
+| list_owner_alert_log | alerts::do_list_owner_alert_log | blocking | posEngine.listOwnerAlertLog() |
 | list_refundable_events | refund::do_list_refundable_events | blocking | posEngine.listRefundableEvents() |
 | list_tables | tables::do_list_configured_tables | blocking | posEngine.listTables() |
 | list_ticket_deliveries | delivery::do_list_ticket_deliveries | blocking | posEngine.listTicketDeliveries() |
@@ -219,8 +221,10 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | remote_support_running | support::do_remote_support_running | blocking | posEngine.remoteSupportRunning() |
 | remote_support_status | support::do_remote_support_status | blocking | posEngine.remoteSupportStatus() |
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
+| send_test_alert | alerts::do_send_test_alert | spawn | posEngine.sendTestAlert() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
+| set_owner_alerts | alerts::do_set_owner_alerts | blocking | posEngine.setOwnerAlerts() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |
 | set_training_mode | settings::do_set_training_mode | blocking | posEngine.setTrainingMode() |

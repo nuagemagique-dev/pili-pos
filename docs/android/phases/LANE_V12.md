@@ -810,3 +810,61 @@ a line in `CLAUDE.md`, the drafts `docs/internal/v1.2/NOTE_MISE_A_JOUR_V1_2_FR.m
   they build one after the other; a failure that names a field of another lane is this, not a bug.
   `ui/dist` was also missing in the fresh worktree (`pili-pos` needs it: `(cd ui && npm ci && npm run
   build)` once; both untracked).
+
+### V12-T2 (Sonnet 5.5, 2026-10-17): B, owner alerts
+
+Delivered: migration 60 (`crates/pos-db/src/schema_v12.rs`, `V12_MIGRATIONS`, `queries/owner_settings.rs`,
+`integrations::waiting_online_orders`); engine module `crates/pos-engine/src/alerts/` (`rules.rs`,
+`telegram.rs`, `text.rs`, `mod.rs`) and `commands/alerts.rs`, `commands/owner_settings.rs`; the `alerts`
+section of `pos.json` (`pos-core` config, `config_alerts` in `check_config`); four Tauri wrappers
+(100 in all, 98 in the cert build) and the UniFFI facade (5 records, 4 methods, error count 117); the Vue
+panel (`OwnerAlertsSettings.vue`, `NumberEntryDialog.vue`, `stores/ownerAlerts.ts`, strings, mock handlers,
+`ui/e2e/owner-alerts.spec.ts`); the Compose panel (`feature/settings/alerts/`) with tests and three
+goldens; the drafts `docs/internal/v1.2/ALERTES_PROPRIETAIRE_FR.md`, `SCHEMA_BD_V1_2_FR.md` and section B of
+`NOTE_MISE_A_JOUR_V1_2_FR.md`; parity docs, ENGINE.md, FFI.md, PARITY.md, CLAUDE.md. DECISIONS got the T2
+entry under the lane heading (V12-D2 to D4 were already written by T1 and are unchanged; the T2 entry
+records the precisions and deviations from D11 to D16).
+
+- **Deviations from the plan text (recorded in DECISIONS):** the loop is spawned in every start and idles
+  while the settings are off (so a switch-on needs no restart; `the_loops_tick_and_stop_on_shutdown`
+  counts 8 background tasks now); tick and probe interval are module constants, not `EngineTimers` fields;
+  the worker builds its own HTTP client with a 10 s timeout instead of `shared_http`; the Vue panel sits in
+  the third column (with `panel-grow`, it scrolls inside itself) because the first column already
+  overflows with the export panel; the title is "Alertes sur téléphone" (plan section 11 item 1).
+- **Tests:** engine 27 scenarios against a mock Bot API (`tests/owner_alerts.rs`) plus 40 unit tests in
+  the module; pos-db 80; pos-core 149; FFI 5; Playwright 6 (`owner-alerts.spec.ts`, 360 in all); Kotlin 44
+  new tests (number entry rules, view model, section, dialog, goldens). `kotlin_test_inventory.py`: base
+  2081, head 2125, removed 0.
+- **Gates run:** R (fmt, clippy workspace, clippy `cert`, `cargo test --workspace` including
+  `error_codes`, `access_control`, `config_check`, `cargo test -p pili-pos --no-default-features
+  --features cert`, `cargo test -p pos-engine --no-default-features --features cert`: all green), F (fmt,
+  clippy `--locked`, `cargo test --workspace --locked`: green; `check_lock_parity.sh` identical), P (ipc
+  wrappers 100/100, command parity strict 98/98 and hygiene, UI parity strict, Vue to Android strings
+  `--check`, `lane_paths --check`: PASS), U (`npm run build` and the whole Playwright suite: 360 passed),
+  A (`ktlintCheck detekt :pos-core:apiCheck :app:testDebugUnitTest :app:verifyRoborazziDebug
+  :app:koverVerifyDebug` green; `lint` green on its own run, see below), D (`check_dossier.py` three
+  dossiers exit 0, `uc_matrix.py` check mode, no em-dash in the changed files).
+- **Environment findings:** (1) `./gradlew lint` failed once inside the same invocation with "Unexpected
+  failure during lint analysis of ProvisioningE2eTest.kt" (a Kotlin FIR resolution error in lint, androidTest,
+  a file this task does not touch); the same task passes when run alone, so it is a lint flake under the
+  2 GB heap, not a defect. (2) `bash scripts/android/uc_lock_parity.sh` fails at this lane's base,
+  before and after T2: `android/uccheck/Cargo.lock` records the workspace crates at version 1.1.0 while this
+  lane's crates are 1.0.0 (the lock came from the v1.1 line); `cargo tree --locked` therefore wants to
+  rewrite it. Left untouched; resolved by the merge with the v1.1 version bump. `android/rust/Cargo.lock`
+  is unchanged (`check_lock_parity.sh`: 341 packages, identical). (3) Gradle's own cargo build writes
+  `target/android-rust` inside the worktree (untracked, ignored).
+- **Expected failures of the p5/p6 gates:** `hygiene-paths`, `hygiene-root-lock` (root `Cargo.lock` gained
+  the edge `pos-engine` to `tracing-subscriber`, a dev-dependency, no new package), `linux-frozen`,
+  `freeze-tag`.
+- **Ownership:** `lane_paths.py --owner` says `frozen` for the `crates/`, `src-tauri/`, `ui/` and `android/rust/pos-ffi` paths this
+  task edits (the Linux code and the FFI facade) and gives none to `docs/internal/v1.2/`; the plan names them, `LANES.md` was not edited.
+- **Captures to retake (orchestrator, plan section 11 item 1; both products):** Settings, panel "Alertes sur
+  téléphone": (a) off with the token absent ("Robot Telegram absent", test button off); (b) on with the
+  token configured and a chat id (group id with the minus sign), switches, thresholds; (c) the number dialog
+  for the chat id; (d) after "Envoyer un message test": the green "Message test envoyé" line and the log
+  with a TEST row and an ALERTE row held back ("Retenu (limite horaire)"); (e) a refused test (error line
+  with the HTTP code). The Compose goldens `settings/alerts_*.png` cover a, b and c on the 1920 dp window.
+  Also keep one real message of each language (fr, zh, en) from the live check below.
+- **For the merge / the live check (needs the owner, never done here):** create a bot with BotFather, write
+  its token in a file named by `alerts.telegram_bot_token_file`, put the chat id in the panel and press the
+  test button once. The tests never reach the real Telegram API.

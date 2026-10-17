@@ -161,6 +161,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `get_item_modifiers` | `modifiers` | `commands::modifiers::do_get_item_modifiers_localized` | sync | cert |
 | `get_menu_items` | `menu` | `commands::menu::do_get_menu_items` | sync | cert |
 | `get_order` | `order` | `commands::order::do_get_order` | sync | cert |
+| `get_owner_alerts` | `alerts` | `commands::alerts::do_get_owner_alerts` | sync | cert |
 | `get_settings` | `settings` | `commands::settings::do_get_settings` | sync | cert |
 | `get_table_plan` | `table_plan` | `commands::table_plan::do_get_table_plan` | sync | cert |
 | `hubrise_adopt_catalog` | `hubrise` | `commands::hubrise::do_adopt_catalog` | sync | cert |
@@ -186,6 +187,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `list_open_shifts` | `social` | `commands::social::do_list_open_shifts` | sync | cert |
 | `list_open_takeaways` | `tables` | `commands::tables::do_list_open_takeaways` | sync | cert |
 | `list_order_lines` | `order` | `commands::order::do_list_order_lines` | sync | cert |
+| `list_owner_alert_log` | `alerts` | `commands::alerts::do_list_owner_alert_log` | sync | cert |
 | `list_refundable_events` | `refund` | `commands::refund::do_list_refundable_events` | sync | cert |
 | `list_tables` | `tables` | `commands::tables::do_list_configured_tables` | sync | cert |
 | `list_ticket_deliveries` | `delivery` | `commands::delivery::do_list_ticket_deliveries` | sync | cert |
@@ -206,8 +208,10 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `remote_support_running` | `support` | `commands::support::do_remote_support_running` | sync | cert |
 | `remote_support_status` | `support` | `commands::support::do_remote_support_status` | sync | cert |
 | `remove_order_line` | `order` | `commands::order::do_remove_order_line` | sync | cert |
+| `send_test_alert` | `alerts` | `commands::alerts::do_send_test_alert` | async | cert |
 | `set_active_order` | `session` | `commands::session::do_set_active_order` | sync | cert |
 | `set_hubrise_enabled` | `integrations` | `commands::integrations::do_set_hubrise_enabled` | sync | cert |
+| `set_owner_alerts` | `alerts` | `commands::alerts::do_set_owner_alerts` | sync | cert |
 | `set_pin` | `auth` | `commands::auth::do_set_pin` | sync | cert |
 | `set_table_plan` | `table_plan` | `commands::table_plan::do_set_table_plan` | sync | cert |
 | `set_training_mode` | `settings` | `commands::settings::do_set_training_mode` | sync | cert |

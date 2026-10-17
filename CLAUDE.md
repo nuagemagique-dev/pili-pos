@@ -201,7 +201,7 @@ pili-pos/
 │   ├── src/
 │   │   ├── main.rs             # Tauri entry point: CLI, logging, window, health check, EngineConfig
 │   │   ├── lib.rs              # Library facade (cli, events, ipc, paths)
-│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 96 in all, 94 in the cert build)
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 100 in all, 98 in the cert build)
 │   │   ├── events.rs           # TauriEventSink (engine events to the webview)
 │   │   ├── cli.rs              # --version, --init-db, --check-config
 │   │   └── paths.rs            # Linux install paths
@@ -563,6 +563,9 @@ The MVP is the minimum to run a single dine-in service at Tokyo Sushi Bar with f
 
 ### Table plan (in the certified binary)
 - Table plan (decided 2026-10-10): which table numbers the Tables screen shows, as numbers and ranges ("1-12, 20-25", 1 to 999, at most 200). `pos.json` gives the starting value (`tables`, else 1 to `table_count`); a manager changes it in Settings, panel "Plan de salle" (`get_table_plan` anyone, `set_table_plan` managers, error `table_plan_invalid`). Same switch semantics as HubRise: first start or a NEW `pos.json` plan sets it, otherwise the last value stays; every change in the append-only `table_plan_log`. A table out of the plan with an open order stays visible. No fiscal data depends on it (`crates/pos-core/src/table_plan.rs`).
+
+### Owner alerts (in the certified binary, off by default)
+- Telegram messages to the owner's phone (v1.2, decisions V12-D11 to D16): the FDM stops answering, a printer or the card terminal is down, the day's Z is missing at its deadline, an online order waits. Engine module `crates/pos-engine/src/alerts/` (`rules.rs` pure dedupe and rate-limit state machine, `telegram.rs` channel, `text.rs` fr/zh/en messages, `mod.rs` worker loop started by `start_background`), commands `get_owner_alerts`, `set_owner_alerts`, `send_test_alert`, `list_owner_alert_log` (`commands/alerts.rs`, managers only; errors `alerts_invalid`, `alerts_token_missing`, `alerts_send_failed`). Settings live in `owner_settings` (migration 60, `owner_settings_log` and `owner_alert_log` append-only); an absent key is off. The bot token is a file (`alerts.telegram_bot_token_file` in `pos.json`), never in the database, a log or a screen. Messages carry no personal data, never block a sale or a Z, and are capped at 20 per hour. Panel "Alertes sur téléphone" on both UIs; dossier draft `docs/internal/v1.2/ALERTES_PROPRIETAIRE_FR.md`.
 
 ### Payment terminal (EFT)
 - With a `payment_terminal` section in `pos.json` (`worldline_terminal_api`, `ccv_payment_api` or `ccv_opi`; drivers in `crates/pos-eft`) the till asks the card terminal for the amount instead of the operator typing the card: `eft_pay`, `eft_abort`, `eft_check` (any user), `list_eft_payments` (`commands/eft.rs`; errors `eft_not_configured`, `eft_amount_invalid`, `eft_pending`, `eft_busy`, `eft_unreachable`, `eft_rejected`, `eft_payment_not_usable`, `eft_below_charged`, `eft_edit_pending`; an order edit may not bring the total under its approved unused card payments). `get_settings` tells the UI which kind is linked (`paymentTerminal`); without it nothing changes (manual card, `MANUAL`, `CARD_DEBIT`).

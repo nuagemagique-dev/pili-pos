@@ -1304,3 +1304,58 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
   `python3 scripts/android/lane_paths.py --owner` reports `frozen` for `crates/`, `Cargo.toml` and
   `Cargo.lock`, and no owner for `docs/internal/v1.2/`: the plan prescribes these paths, so they are
   edited; `LANES.md` is not touched (`lane_paths.py --check` passes).
+
+- **T2: owner alerts (B), what was built and where it differs from the plan text of V12-D11 to D16.**
+  The settings, the log and the worker are as D11 to D16 describe; migration 60 and the owner-settings store
+  are the ones of D1 and D2 (D2 to D4 above are unchanged by T2). Deviations and precisions, all decided
+  while building:
+  - **The loop is always spawned** (`start_background` starts `alerts::run_owner_alerts` in every build); it
+    reads the settings every tick and does nothing while they are off, so switching the alerts on needs no
+    restart. The tick (30 s) and the probe interval (5 min) are constants of the module, not `EngineTimers`
+    fields; tests drive `run_pass(state, now)` directly with a fixed clock and a mock Bot API.
+  - **Its own HTTP client**, built from `state.http_tls` with a 10 s timeout per attempt, instead of
+    `state.shared_http` (the shared client carries no timeout and is used by the HubRise paths). Same TLS
+    policy. No lock (`state.db`, the signing lock) is held while a request is in flight.
+  - **State changes when the decision is taken**, whether the send then succeeds or not: a raised alert is open
+    (and its reminder clock runs) even if Telegram refused the message; the failure is in `owner_alert_log`
+    as `failed`. A resolved message is sent only if the owner was told (a `sent` raise or reminder exists);
+    an alert nobody heard about closes silently.
+  - **Global cap of 20 per rolling hour counts `sent` rows** (test messages and `suppressed` rows excluded).
+    A message above the cap is not sent and is logged `suppressed`. After a restart the book is seeded from the
+    log (last raise or reminder younger than the reminder period, 24 h when reminders are off, reopens the
+    alert; `test` rows never count).
+  - **Debounce:** `fdm` 2 minutes and 1 observation (the monitor already polls), `printer` and `terminal`
+    2 consecutive observations (probes 5 minutes apart), `z_missing` and `online_waiting` 1 observation.
+  - **Probes only when safe.** The FDM is judged only while a session is open (the monitor polls only then).
+    Printers are probed (`TcpPrinter::send(&[])`, then `status.ready()`) only while a session is open and the
+    signing lock is free (`signing::try_acquire`, dropped at once: a sale or a print in progress is detected
+    through it); the terminal only when `eft_line` is free (`do_check_payment_terminal` answers busy
+    otherwise). A probe skipped is no observation.
+  - **`z_missing`:** the open booking period's booking date plus one day at `z_deadline_hour` (default
+    `day_end_hour + 1`, 0 to 12), Europe/Brussels with DST; skipped in training mode. The panel and
+    `get_owner_alerts` return the effective hour as a number.
+  - **`online_waiting`:** only while the HubRise switch is on; `webshop_orders` rows with
+    `fiscal_state = 'pending'` and `resolved_at` older than `online_wait_minutes`; the message carries the
+    channel names (control characters stripped, cut) and the counts, nothing else.
+  - **Messages** are French, Chinese or English per the setting, with the installation label (setting, else
+    the terminal id) and the Brussels local time since when; they hold no personal data (checked by a test in
+    the three languages with a customer name, an address and an amount in the order).
+  - **Test message:** one attempt, not three; a failure is the error `alerts_send_failed|detail=...` so the
+    panel can say why; the row is logged with transition `test` and kind `test`.
+  - **Telegram:** `POST {api_base}/bot{token}/sendMessage`, 3 attempts with 2 s then 4 s of backoff, no retry on
+    a 4xx other than 429, `ok = false` in a 2xx body is a refusal. Transport errors go through
+    `reqwest::Error::without_url` and a `/bot***/` redaction; a test greps logs, rows and error texts for the
+    token.
+  - **Validation (`alerts_invalid|field=`):** chat id optional `-` then 1 to 20 digits (empty only while
+    disabled), label up to 40 characters without control characters, language fr, zh or en,
+    `z_deadline_hour` 0 to 12, `online_wait_minutes` 1 to 120, `reminder_minutes` 0 to 1440. `alerts_token_missing`
+    when the test or the worker finds no readable token; `config_alerts` from `--check-config` when the token
+    file or the address is unusable.
+  - **Both UIs:** a draft-and-save panel ("Alertes sur téléphone") with the master switch, the token pill, the
+    chat id and the three numbers typed on the shared keypad in a small number dialog (a separate minus toggle
+    for a group chat id; `NumPad` itself is unchanged), a label field, the language, one switch per kind, save,
+    "send a test message" (saves a changed draft first) and the last 20 log rows. Managers only on both.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); the root `Cargo.lock` gained one dependency edge, `pos-engine` to
+    `tracing-subscriber` (a dev-dependency, to read logs in the token test), and no package: the crate was
+    already in the lock through `pos-eft`. `android/rust/Cargo.lock` is unchanged.
