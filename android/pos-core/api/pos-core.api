@@ -6318,24 +6318,6 @@ public final class uniffi/pos_ffi/FfiConverterTypeZReportSummary : uniffi/pos_ff
 	public fun write (Luniffi/pos_ffi/ZReportSummary;Ljava/nio/ByteBuffer;)V
 }
 
-public final class uniffi/pos_ffi/FfiConverterUInt : uniffi/pos_ffi/FfiConverter {
-	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterUInt;
-	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
-	public fun allocationSize-j8A87jM (I)J
-	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun lift-OGnWXxg (I)I
-	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
-	public fun liftFromRustBuffer-OGnWXxg (Luniffi/pos_ffi/RustBuffer$ByValue;)I
-	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
-	public fun lower-WZ4Q5Ns (I)Ljava/lang/Integer;
-	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
-	public fun lowerIntoRustBuffer-WZ4Q5Ns (I)Luniffi/pos_ffi/RustBuffer$ByValue;
-	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
-	public fun read-OGnWXxg (Ljava/nio/ByteBuffer;)I
-	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
-	public fun write-qim9Vi0 (ILjava/nio/ByteBuffer;)V
-}
-
 public final class uniffi/pos_ffi/FinancialResult {
 	public static final field Companion Luniffi/pos_ffi/FinancialResult$Companion;
 	public fun <init> (ZLjava/lang/String;)V
@@ -8273,22 +8255,22 @@ public final class uniffi/pos_ffi/SalesDay$Companion {
 
 public final class uniffi/pos_ffi/SalesHour {
 	public static final field Companion Luniffi/pos_ffi/SalesHour$Companion;
-	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1-pVg5ArA ()I
+	public fun <init> (JJJJ)V
+	public final fun component1 ()J
 	public final fun component2 ()J
 	public final fun component3 ()J
-	public final fun component4-pVg5ArA ()I
-	public final fun copy-3R98-nQ (IJJI)Luniffi/pos_ffi/SalesHour;
-	public static synthetic fun copy-3R98-nQ$default (Luniffi/pos_ffi/SalesHour;IJJIILjava/lang/Object;)Luniffi/pos_ffi/SalesHour;
+	public final fun component4 ()J
+	public final fun copy (JJJJ)Luniffi/pos_ffi/SalesHour;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/SalesHour;JJJJILjava/lang/Object;)Luniffi/pos_ffi/SalesHour;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAmountCents ()J
-	public final fun getBarPercent-pVg5ArA ()I
-	public final fun getHour-pVg5ArA ()I
+	public final fun getBarPercent ()J
+	public final fun getHour ()J
 	public final fun getTickets ()J
 	public fun hashCode ()I
 	public final fun setAmountCents (J)V
-	public final fun setBarPercent-WZ4Q5Ns (I)V
-	public final fun setHour-WZ4Q5Ns (I)V
+	public final fun setBarPercent (J)V
+	public final fun setHour (J)V
 	public final fun setTickets (J)V
 	public fun toString ()Ljava/lang/String;
 }
