@@ -688,3 +688,32 @@ empty list. The existing order screen captures changed (the "Épuisé" and "Prod
 category tabs and the grid for cashiers and managers) and must be retaken. Android goldens recorded:
 `order_soldout_mode`, `order_soldout_dialog`, `order_soldout_list` (Robolectric renders, not device captures).
 
+
+### V11-T4 (C menu editor), 2026-10-17
+
+**Delivered.** Migration 42 `menu-editor` (`menu_change_log`, no-update and no-delete triggers, migrate tests),
+`pos_db::queries::menu_admin`, `commands/menu_admin.rs` (six commands, `Access::Admin`, refused with
+`hubrise_menu_managed` while a catalog manages the menu, `menu_invalid|field=` and `menu_not_found`),
+`MenuItem.has_modifiers` (core, FFI record, TS type), Tauri wrappers, FFI facade and records, `menu_editor.rs` tests
+(art. 44 test included), `access_control` and `error_codes` rows, Vue (`MenuEditorPanel.vue`, `MenuEditorView.vue`,
+`TextKeyboard` extension, route with admin guard, strings in `i18n-settings.ts`, Playwright `menu-editor.spec.ts`,
+option picker on `has_modifiers`), Android (`feature/settings/menu/`: screen, view model, state, entry; settings row;
+unit tests, content tests, four goldens `menu_editor_product`, `menu_editor_group`, `menu_editor_locked`,
+`menu_editor_history`), parity docs, `EDITEUR_CARTE_FR.md` and section 11 of the update note, decisions V11-D17 to
+D19, D36a and D37 to D39.
+
+**Deviations from the plan text.** Android entry is a settings row opening a second `FeatureEntry` (V11-D38), prices
+use `AmountDialog` with a new `initialDigits`; the FFI names are a `HashMap`; reads of the editor data are not refused
+while a catalog manages the menu (only saves are); the Vue panel sits in the third settings column (V11-D39). Existing
+tests that keyed the option picker on the HubRise switch were adapted, none removed (`kotlin_test_inventory`: removed
+0). `FeatureEntriesTest` now expects ten entries and the route `SettingsRoutes.MENU`.
+
+**Gate notes.** `cargo test --workspace` needed the lane crates touched (stale pos-core and pos-db rlibs of another
+lane in the shared target made `pos-engine` fail to compile once; a `touch` of the crate roots fixed it). Android
+`lint` crashed once inside the Kotlin analysis of `lintAnalyzeDebugAndroidTest` and passed on the rerun.
+
+**Captures to retake (no emulator in the lane).** Both UIs, French (zh for the name fields): Settings with the Carte
+panel (open and locked by a catalog); the editor with a product selected (price pad open, VAT pickers); a group with
+its options; Historique with three rows; the refusal text under the form. On Linux the TextKeyboard open on a name
+field and the plain Chinese field. The golden PNGs under `android/app/src/test/screenshots/settings/` are Robolectric
+renders, not device captures.

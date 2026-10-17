@@ -145,3 +145,25 @@ seulement. Le détail est dans le document `PRODUIT_EPUISE_FR.md`.
 **Tests.** Voir la section 5 de `PRODUIT_EPUISE_FR.md`. Aucun cas du jeu d'essais de
 l'administration n'est concerné.
 
+## 11. Éditeur de carte
+
+**Ce qui change.** Un gérant crée et modifie les catégories, les produits (prix, TVA sur place
+et à emporter, noms en français, néerlandais, anglais et chinois), les groupes d'options et les
+options directement à la caisse, sans catalogue externe. Rien n'est supprimé : un élément est
+masqué. L'éditeur est verrouillé tant qu'un catalogue externe gère la carte. Le choix des
+options à la vente ne dépend plus de HubRise : il s'ouvre dès qu'un produit possède un groupe
+actif avec au moins une option active.
+
+**Pourquoi.** Tenir la carte à jour sur une installation sans HubRise, avec un historique de
+qui a changé quoi.
+
+**Impact fiscal.** Aucun : pas d'événement, pas de compteur, pas de ticket ni de rapport
+modifié. Une commande ouverte et un événement signé gardent leur nom, leur prix, leur TVA et
+leur département tels qu'ils étaient à l'ajout de la ligne (article 44 de l'arrêté ministériel
+du 29 avril 2024) ; un test le démontre.
+
+**Journal.** Chaque création et modification est conservée dans un journal en ajout seulement
+(avant, après, auteur, date). Le détail est dans le document `EDITEUR_CARTE_FR.md`.
+
+**Tests.** Voir le §5 de `EDITEUR_CARTE_FR.md`. Aucun cas du jeu d'essais de l'administration
+n'est concerné.

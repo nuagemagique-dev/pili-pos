@@ -170,7 +170,7 @@ internal class MenuEditorViewModel(
         if (s.busy || s.locked || !entry.session().isManager.value) return
         own.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
-            attempt { entry.gateway().call { engine -> send(engine, form) } }.fold(
+            attempt { send(form) }.fold(
                 onSuccess = { saved -> afterSave(form, saved) },
                 onFailure = { failure ->
                     val text = entry.errors().text(failure, language())
@@ -181,35 +181,42 @@ internal class MenuEditorViewModel(
         }
     }
 
-    private suspend fun send(
-        engine: uniffi.pos_ffi.PosEngineInterface,
-        form: MenuForm,
-    ): MenuSaved {
+    private suspend fun send(form: MenuForm): MenuSaved {
         val names = form.names.mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
+        val gateway = entry.gateway()
         return when (form.kind) {
-            FormKind.Category -> engine.menuSaveCategory(SaveCategoryInput(form.id, names, form.sortOrder, form.color, form.active))
+            FormKind.Category ->
+                gateway.call { engine ->
+                    engine.menuSaveCategory(SaveCategoryInput(form.id, names, form.sortOrder, form.color, form.active))
+                }
             FormKind.Product ->
-                engine.menuSaveProduct(
-                    SaveProductInput(
-                        form.id,
-                        form.parentId,
-                        names,
-                        form.priceCents,
-                        form.vatCode,
-                        form.vatCodeTakeaway,
-                        form.kitchenPrinter,
-                        form.code?.trim()?.takeIf { it.isNotEmpty() },
-                        form.openPrice,
-                        form.sortOrder,
-                        form.active,
-                    ),
-                )
+                gateway.call { engine ->
+                    engine.menuSaveProduct(
+                        SaveProductInput(
+                            form.id,
+                            form.parentId,
+                            names,
+                            form.priceCents,
+                            form.vatCode,
+                            form.vatCodeTakeaway,
+                            form.kitchenPrinter,
+                            form.code?.trim()?.takeIf { it.isNotEmpty() },
+                            form.openPrice,
+                            form.sortOrder,
+                            form.active,
+                        ),
+                    )
+                }
             FormKind.Group ->
-                engine.menuSaveModifierGroup(
-                    SaveModifierGroupInput(form.id, form.parentId, names, form.minSelect, form.maxSelect, form.sortOrder, form.active),
-                )
+                gateway.call { engine ->
+                    engine.menuSaveModifierGroup(
+                        SaveModifierGroupInput(form.id, form.parentId, names, form.minSelect, form.maxSelect, form.sortOrder, form.active),
+                    )
+                }
             FormKind.Option ->
-                engine.menuSaveModifier(SaveModifierInput(form.id, form.parentId, names, form.priceCents, form.sortOrder, form.active))
+                gateway.call { engine ->
+                    engine.menuSaveModifier(SaveModifierInput(form.id, form.parentId, names, form.priceCents, form.sortOrder, form.active))
+                }
         }
     }
 

@@ -1394,3 +1394,25 @@ The user asked on 2026-10-06 to chain all phases without stopping. These answers
 - **V11-D36 Error count (T3).** `errors::ALL` now has 126 codes (one more: `product_sold_out`); the FFI test
   `every_code_of_both_lists_maps_to_coded` follows.
 
+- **V11-D17 Menu editor (T4).** Implemented as planned: migration 42 `menu_change_log` (append-only triggers), six
+  commands in `commands/menu_admin.rs` (`menu_admin_get`, `menu_save_category`, `menu_save_product`,
+  `menu_save_modifier_group`, `menu_save_modifier`, `list_menu_changes`), all `Access::Admin`. Saves are refused with
+  `hubrise_menu_managed` while `pos_catalog::apply::managed_by` returns a source; reads are not refused, so the screen
+  can say who manages the menu. A save that changes nothing writes no log row. The log row holds the entry before and
+  after as JSON (names per language included) and the INSZ of the author. Validation codes: `menu_invalid|field=<f>`
+  and `menu_not_found`. The art. 44 test is `art_44_an_edit_never_changes_an_open_order_or_a_signed_event`.
+- **V11-D18 has_modifiers (T4).** `MenuItem.has_modifiers` is computed in the menu query (core, FFI record, TS type);
+  both UIs open the option picker on it instead of the HubRise switch. Existing tests were adapted, none removed.
+- **V11-D19 Text entry (T4).** Vue: `TextKeyboard` for the Latin names and the code, a plain field for the Chinese
+  name; Android: the system keyboard. The Chinese field is a plain input on Linux (hardware keyboard or paste).
+- **V11-D37 FFI names as a map (T4).** The FFI records carry the names as `HashMap<String, String>` (UniFFI has no
+  `BTreeMap`); the engine keeps a `BTreeMap`, so the serialised form is the same (the FFI test compares the two).
+- **V11-D38 Android entry point and price entry (T4).** The Android editor is a second `FeatureEntry` reached from the
+  settings row `settings.menu` (managers, order 100), not a panel of the settings screen. Prices use the shared
+  `AmountDialog`, which gains `initialDigits` (the current price in cents), instead of an inline numeric pad. The
+  dialog is raised at the root of the editor, because a dialog drawn inside the scrolling form is laid out off screen.
+- **V11-D39 Carte panel placement (T4).** The Vue panel sits in the third settings column, after the HubRise switch;
+  in the first column it pushed the nightly export panel over the table plan panel on a 1080 px screen.
+- **V11-D36a Error count (T4).** `errors::ALL` now has 128 codes (`menu_invalid`, `menu_not_found`); the FFI test
+  `every_code_of_both_lists_maps_to_coded` follows.
+

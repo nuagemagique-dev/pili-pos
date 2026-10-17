@@ -37,8 +37,9 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
   selected category is kept, and the first one is selected when it is gone.
 - **Z reminder.** `needs_z_report` is checked when the screen opens and every 5 minutes while it is composed; a
   failure leaves the banner as it was and shows nothing.
-- **Options only with HubRise on.** As Vue, a product asks for its options only when the HubRise switch is on; a
-  product without option groups is added plainly. A free-price product never asks for options.
+- **Options when the product has some (V11-D18).** As Vue, a product asks for its options when the engine says it has
+  some (`MenuItem.has_modifiers`: at least one active group with an active option), whatever the HubRise switch; a
+  product without options is added plainly. A free-price product never asks for options.
 - **No total in the options dialog (PD208, PD219).** Vue previews `price + sum of the picked options`. The Compose
   dialog shows the product price and the own price of each option and no total; the engine prices the line
   (`add_order_line_with_modifiers` sends only ids). The confirm caption is the plain "Ajouter".
