@@ -28,4 +28,16 @@
     <string name="settings_insz_hint">INSZ · 11 digits</string>
     <string name="settings_add_employee">Add employee</string>
     <string name="settings_email_title">Email tickets</string>
+    <string name="peppol_title">Peppol</string>
+    <string name="peppol_provider">Provider</string>
+    <string name="peppol_sender">Sender id</string>
+    <string name="peppol_queued">Queued</string>
+    <string name="peppol_accepted">Delivered</string>
+    <string name="peppol_failed">Parked</string>
+    <string name="peppol_parked_title">Parked deliveries</string>
+    <string name="peppol_none_parked">No parked delivery.</string>
+    <string name="peppol_reason">Reason: {reason}</string>
+    <string name="peppol_attempts">{n} attempt(s)</string>
+    <string name="peppol_retry">Retry</string>
+    <string name="peppol_retried">Delivery put back in the queue.</string>
 </resources>

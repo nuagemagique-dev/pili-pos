@@ -404,6 +404,61 @@ internal object VueStringIds {
         this["reports_tickets_title"] = R.string.reports_tickets_title
         this["reports_tickets_hint"] = R.string.reports_tickets_hint
         this["reports_copy"] = R.string.reports_copy
+        this["invoice_action"] = R.string.invoice_action
+        this["invoice_action_count"] = R.string.invoice_action_count
+        this["invoice_select_hint"] = R.string.invoice_select_hint
+        this["invoice_select_row"] = R.string.invoice_select_row
+        this["invoice_invoiced_by"] = R.string.invoice_invoiced_by
+        this["invoice_title"] = R.string.invoice_title
+        this["invoice_step_customer"] = R.string.invoice_step_customer
+        this["invoice_step_preview"] = R.string.invoice_step_preview
+        this["invoice_step_done"] = R.string.invoice_step_done
+        this["invoice_sales_chosen"] = R.string.invoice_sales_chosen
+        this["invoice_vat_label"] = R.string.invoice_vat_label
+        this["invoice_vat_check"] = R.string.invoice_vat_check
+        this["invoice_vat_checking"] = R.string.invoice_vat_checking
+        this["invoice_search_label"] = R.string.invoice_search_label
+        this["invoice_search_placeholder"] = R.string.invoice_search_placeholder
+        this["invoice_no_match"] = R.string.invoice_no_match
+        this["invoice_field_name"] = R.string.invoice_field_name
+        this["invoice_field_street"] = R.string.invoice_field_street
+        this["invoice_field_postal_code"] = R.string.invoice_field_postal_code
+        this["invoice_field_city"] = R.string.invoice_field_city
+        this["invoice_field_country"] = R.string.invoice_field_country
+        this["invoice_peppol_registered"] = R.string.invoice_peppol_registered
+        this["invoice_peppol_not_registered"] = R.string.invoice_peppol_not_registered
+        this["invoice_peppol_unknown"] = R.string.invoice_peppol_unknown
+        this["invoice_peppol_not_registered_note"] = R.string.invoice_peppol_not_registered_note
+        this["invoice_peppol_unknown_note"] = R.string.invoice_peppol_unknown_note
+        this["invoice_foreign_note"] = R.string.invoice_foreign_note
+        this["invoice_continue"] = R.string.invoice_continue
+        this["invoice_preview_customer"] = R.string.invoice_preview_customer
+        this["invoice_preview_tickets"] = R.string.invoice_preview_tickets
+        this["invoice_preview_lines"] = R.string.invoice_preview_lines
+        this["invoice_preview_vat"] = R.string.invoice_preview_vat
+        this["invoice_vat_base"] = R.string.invoice_vat_base
+        this["invoice_vat_amount"] = R.string.invoice_vat_amount
+        this["invoice_vat_total"] = R.string.invoice_vat_total
+        this["invoice_total"] = R.string.invoice_total
+        this["invoice_already_paid"] = R.string.invoice_already_paid
+        this["invoice_confirm"] = R.string.invoice_confirm
+        this["invoice_done_title"] = R.string.invoice_done_title
+        this["invoice_printed"] = R.string.invoice_printed
+        this["invoice_not_printed"] = R.string.invoice_not_printed
+        this["invoice_delivery_queued"] = R.string.invoice_delivery_queued
+        this["invoice_delivery_none"] = R.string.invoice_delivery_none
+        this["invoice_failed"] = R.string.invoice_failed
+        this["invoices_title"] = R.string.invoices_title
+        this["invoices_hint"] = R.string.invoices_hint
+        this["invoices_none"] = R.string.invoices_none
+        this["invoice_status_queued"] = R.string.invoice_status_queued
+        this["invoice_status_accepted"] = R.string.invoice_status_accepted
+        this["invoice_status_failed"] = R.string.invoice_status_failed
+        this["invoice_status_none"] = R.string.invoice_status_none
+        this["invoice_copy"] = R.string.invoice_copy
+        this["keyboard_backspace"] = R.string.keyboard_backspace
+        this["keyboard_space"] = R.string.keyboard_space
+        this["keyboard_next"] = R.string.keyboard_next
         this["settings_training_on"] = R.string.settings_training_on
         this["settings_training_off"] = R.string.settings_training_off
         this["settings_training_effect"] = R.string.settings_training_effect
@@ -431,6 +486,18 @@ internal object VueStringIds {
         this["settings_insz_hint"] = R.string.settings_insz_hint
         this["settings_add_employee"] = R.string.settings_add_employee
         this["settings_email_title"] = R.string.settings_email_title
+        this["peppol_title"] = R.string.peppol_title
+        this["peppol_provider"] = R.string.peppol_provider
+        this["peppol_sender"] = R.string.peppol_sender
+        this["peppol_queued"] = R.string.peppol_queued
+        this["peppol_accepted"] = R.string.peppol_accepted
+        this["peppol_failed"] = R.string.peppol_failed
+        this["peppol_parked_title"] = R.string.peppol_parked_title
+        this["peppol_none_parked"] = R.string.peppol_none_parked
+        this["peppol_reason"] = R.string.peppol_reason
+        this["peppol_attempts"] = R.string.peppol_attempts
+        this["peppol_retry"] = R.string.peppol_retry
+        this["peppol_retried"] = R.string.peppol_retried
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
@@ -452,6 +519,9 @@ internal object VueStringIds {
         this["webshop_time_ready"] = R.string.webshop_time_ready
         this["webshop_own_label"] = R.string.webshop_own_label
         this["webshop_delay_label"] = R.string.webshop_delay_label
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_action_reprint"] = R.string.webshop_action_reprint
         this["webshop_status_in_delivery"] = R.string.webshop_status_in_delivery
         this["webshop_status_completed"] = R.string.webshop_status_completed
@@ -519,9 +589,6 @@ internal object VueStringIds {
         this["webshop_attention_no_items"] = R.string.webshop_attention_no_items
         this["webshop_attention_item_without_ref"] = R.string.webshop_attention_item_without_ref
         this["webshop_attention_unknown_product"] = R.string.webshop_attention_unknown_product
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_unknown_option"] = R.string.webshop_attention_unknown_option
         this["webshop_attention_unknown_charge"] = R.string.webshop_attention_unknown_charge
         this["webshop_attention_fractional_quantity"] = R.string.webshop_attention_fractional_quantity

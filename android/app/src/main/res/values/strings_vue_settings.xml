@@ -28,4 +28,16 @@
     <string name="settings_insz_hint">INSZ · 11 chiffres</string>
     <string name="settings_add_employee">Ajouter l’employé</string>
     <string name="settings_email_title">Tickets par email</string>
+    <string name="peppol_title">Peppol</string>
+    <string name="peppol_provider">Fournisseur</string>
+    <string name="peppol_sender">Identifiant d\'envoi</string>
+    <string name="peppol_queued">En attente</string>
+    <string name="peppol_accepted">Remises</string>
+    <string name="peppol_failed">Bloquées</string>
+    <string name="peppol_parked_title">Envois bloqués</string>
+    <string name="peppol_none_parked">Aucun envoi bloqué.</string>
+    <string name="peppol_reason">Motif : {reason}</string>
+    <string name="peppol_attempts">{n} tentative(s)</string>
+    <string name="peppol_retry">Réessayer</string>
+    <string name="peppol_retried">Envoi remis en file d\'attente.</string>
 </resources>

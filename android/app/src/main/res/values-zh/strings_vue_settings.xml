@@ -28,4 +28,16 @@
     <string name="settings_insz_hint">INSZ · 11位</string>
     <string name="settings_add_employee">添加员工</string>
     <string name="settings_email_title">电子邮件票据</string>
+    <string name="peppol_title">Peppol</string>
+    <string name="peppol_provider">服务商</string>
+    <string name="peppol_sender">发送方标识</string>
+    <string name="peppol_queued">排队中</string>
+    <string name="peppol_accepted">已送达</string>
+    <string name="peppol_failed">已阻塞</string>
+    <string name="peppol_parked_title">已阻塞的发送</string>
+    <string name="peppol_none_parked">没有阻塞的发送。</string>
+    <string name="peppol_reason">原因：{reason}</string>
+    <string name="peppol_attempts">{n} 次尝试</string>
+    <string name="peppol_retry">重试</string>
+    <string name="peppol_retried">发送已重新排队。</string>
 </resources>
