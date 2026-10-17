@@ -113,6 +113,9 @@ internal class CheckoutNatives(
     /** Every `settlePreview` call, to prove what the view model asked of the engine. */
     val previews: MutableList<Pair<Long, List<PaymentPart>>> = mutableListOf()
 
+    /** When set, the VAT helper throws it (the recap falls back to the lines' own prices). */
+    var vatFailure: Throwable? = null
+
     override suspend fun settlePreview(
         totalCents: Long,
         parts: List<PaymentPart>,
@@ -126,8 +129,10 @@ internal class CheckoutNatives(
         parts: List<PaymentPart>,
     ): Long = settleLikeEngine(totalCents, parts).cashDueCents
 
-    override suspend fun vatSplit(lines: List<VatLine>): List<VatSplitRow> =
-        lines.filter { it.vatCode != VatCode.X }.map { VatSplitRow(it.vatCode, 6, it.unitPriceCents * it.quantity, 0L) }
+    override suspend fun vatSplit(lines: List<VatLine>): List<VatSplitRow> {
+        vatFailure?.let { throw it }
+        return lines.filter { it.vatCode != VatCode.X }.map { VatSplitRow(it.vatCode, 6, it.unitPriceCents * it.quantity, 0L) }
+    }
 }
 
 internal fun checkoutOrder(
@@ -319,12 +324,14 @@ internal fun TestScope.checkoutFixture(
 
 /** Builds the view model over real stores on [f]; the engine is opened and [user] logged in first unless told not to. */
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LongParameterList")
 internal suspend fun TestScope.startCheckout(
     f: EngineFixture,
     context: Context,
     open: Boolean = true,
     user: User? = cashier,
     orderId: Long = ORDER_ID,
+    natives: CheckoutNatives = CheckoutNatives(),
 ): CheckoutRig {
     val gateway = f.gateway(this)
     val toasts = ToastStore(backgroundScope)
@@ -336,7 +343,6 @@ internal suspend fun TestScope.startCheckout(
     val order = OrderStore(gateway, f.events, backgroundScope)
     val delivery = DeliveryStore(gateway, errors, settings)
     val eft = EftStore(gateway, errors, settings, backgroundScope)
-    val natives = CheckoutNatives()
     val helpers = EngineHelpers(natives, f.dispatcher)
     if (open) {
         f.holder.open()
