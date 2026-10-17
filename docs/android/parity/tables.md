@@ -13,6 +13,7 @@ through the shared stores and the gateway.
 | --- | --- | --- |
 | ui/src/views/TablesView.vue | feature/tables/TablesScreen.kt (TablesRoute, TablesContent), TablesViewModel.kt, TablesEntryPoint.kt | `list_tables` `list_open_takeaways` |
 | TablesView.vue (selectTable, resumeTakeaway, newTakeaway through the order store) | feature/tables/TablesViewModel.kt over ui/state/OrderStore.kt | `create_order` `get_order` `list_cart_lines` `set_active_order` |
+| TablesView.vue (`held-course-N` tag, "Suite : Plats") | feature/tables/TablesScreen.kt (TableTop, tag `table_N_held`) | `list_tables` |
 | components/AppHeader.vue (own PIN dialog, tap on the user) | ui/scaffold/HeaderViewModel.kt (submitPin), PosScaffold.kt (OwnPinDialog), AppHeader.kt | `set_pin` |
 | components/AppHeader.vue (lock, new takeaway, workspaces) and the leave guard of router/index.ts | ui/scaffold/HeaderViewModel.kt, HeaderActions.kt over ui/state/SessionStore.kt and OrderStore.leaveIfActive | `lock_session` `leave_order` |
 | components/StatusLights.vue | ui/scaffold/StatusLights.kt (StatusLights, DeviceLights, GatewayLightProbe) | `check_printer` `check_kitchen_printer` `hubrise_status` |

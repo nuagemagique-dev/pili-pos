@@ -114,3 +114,41 @@ d'événement fiscal.
 
 **Écrans.** Écran de commande avec pastilles, mode « Allergènes » et légende, fiche du
 produit, sélecteur d'options, ticket imprimé : captures à reprendre après la fusion.
+
+## D. Service en plusieurs temps : entrées, plats, desserts (dans le binaire certifié)
+
+**Ce qui change.** Un gérant peut activer (Réglages, panneau « Service en plusieurs temps »)
+l'envoi de la cuisine en plusieurs temps : chaque catégorie a un temps (Direct, Entrées,
+Plats, Desserts). Le premier ticket de cuisine imprime le Direct et les entrées ; le bouton
+« Envoyer la suite » imprime ensuite les plats, puis les desserts. Le panier est groupé par
+temps, une pastille permet de changer le temps d'une ligne, le plan de salle indique « Suite :
+Plats » et l'encaissement avertit si un temps n'a pas été envoyé. Même écran et mêmes textes
+sur Linux (Vue) et sur Android (Compose).
+
+**Est-ce dans le binaire certifié ?** Oui : migration 62 (trois tables), six commandes du moteur,
+ticket `pos-print`. Aucune option de compilation. Éteint par défaut ; éteint, les tickets sont
+identiques octet pour octet à ceux d'avant (test).
+
+**Impact fiscal.** Aucun. Le temps est une donnée de cuisine : il n'entre dans aucune demande
+signée (P, N, T, pré-addition), aucun nom de produit, aucun département ni le ticket de T.V.A.
+(test sur tous les textes archivés). Les tickets de cuisine ne portent aucun montant et
+gardent la mention d'un document non valable pour la T.V.A. Fondement : spécification
+sections 8.1 et 8.2 (consolidation des imprimés, jamais des messages du module fiscal) et FAQ
+Q210 b.
+
+**Données qui quittent la caisse.** Aucune.
+
+**Garde-fous.** Un ticket de cuisine ne suit qu'un P signé (module fiscal absent : « Envoyer la
+suite » est refusé, rien n'est imprimé) ; une ligne n'est enregistrée comme imprimée que si le
+ticket est réellement sorti ; une correction d'une ligne déjà imprimée sort tout de suite ; un
+temps retenu n'est jamais imprimé par la caisse seule à l'encaissement.
+
+**Tests.** Voir `SERVICES_CUISINE_FR.md`, section 7.
+
+**Cas d'usage officiels.** Les cas d'usage SPF rejoués ne sont pas modifiés : éteinte, la
+fonction ne change aucun octet imprimé ni signé.
+
+**Écrans.** Réglages (panneau « Service en plusieurs temps »), panier groupé par temps avec
+pastilles, sélecteur de temps et bouton « Envoyer la suite », plan de salle (« Suite : Plats »),
+avertissement à l'encaissement, tickets imprimés (premier envoi, « SUITE : Plats », vente
+directe avec en-têtes, DUPLICATA) : captures à reprendre après la fusion.

@@ -18,6 +18,7 @@ screen only calls it through the shared stores and the gateway.
 | ui/src/components/HubriseSettings.vue (connection, health, catalog, adoption, channels) | feature/settings/HubriseSection.kt, HubriseViewModel.kt | `hubrise_get_connection_status` `hubrise_status` `hubrise_disconnect` `hubrise_sync_catalog` `hubrise_adoption_preview` `hubrise_adopt_catalog` `hubrise_list_channels` `hubrise_set_channel` |
 | ui/src/components/HubriseConnectDialog.vue | feature/settings/HubriseConnectDialog.kt, HubriseViewModel.kt | `hubrise_start_oauth_flow` `hubrise_complete_oauth` |
 | ui/src/components/OwnerAlertsSettings.vue, ui/src/stores/ownerAlerts.ts (phone alerts: settings, test message, log; managers) | feature/settings/alerts/OwnerAlertsSection.kt, OwnerAlertsViewModel.kt, OwnerAlertsState.kt | `get_owner_alerts` `set_owner_alerts` `send_test_alert` `list_owner_alert_log` |
+| ui/src/components/CoursesSettings.vue (courses: switch and course per category; managers) | feature/settings/courses/CoursesSection.kt, CoursesViewModel.kt, CoursesState.kt | `get_course_settings` `set_course_settings` |
 | ui/src/components/NumberEntryDialog.vue (chat id with a minus toggle, small numbers) | feature/settings/alerts/NumberEntryDialog.kt over ui/components/NumPad.kt | none |
 
 ## Differences

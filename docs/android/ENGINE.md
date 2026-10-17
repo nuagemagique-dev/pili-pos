@@ -157,6 +157,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `generate_z_report` | `report` | `commands::report::do_generate_z_report` | async | cert |
 | `get_allergen_sheet` | `allergens` | `commands::allergens::do_get_allergen_sheet` | sync | cert |
 | `get_categories` | `menu` | `commands::menu::do_get_categories` | sync | cert |
+| `get_course_settings` | `courses` | `commands::courses::do_get_course_settings` | sync | cert |
 | `get_current_user` | `auth` | `commands::auth::do_get_current_user` | sync | cert |
 | `get_integrations` | `integrations` | `commands::integrations::do_get_integrations` | sync | cert |
 | `get_item_modifiers` | `modifiers` | `commands::modifiers::do_get_item_modifiers_localized` | sync | cert |
@@ -185,6 +186,7 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `list_copyable_tickets` | `copy` | `commands::copy::do_list_copyable_tickets` | sync | cert |
 | `list_eft_payments` | `eft` | `commands::eft::do_list_eft_payments` | sync | cert |
 | `list_fiscal_events` | `copy` | `commands::copy::do_list_fiscal_events` | sync | cert |
+| `list_held_courses` | `courses` | `commands::courses::do_list_held_courses` | sync | cert |
 | `list_open_orders` | `order` | `commands::order::do_list_open_orders` | sync | cert |
 | `list_open_shifts` | `social` | `commands::social::do_list_open_shifts` | sync | cert |
 | `list_open_takeaways` | `tables` | `commands::tables::do_list_open_takeaways` | sync | cert |
@@ -211,10 +213,14 @@ The shell's own reads (`PILI_POS_CONFIG`, `PILI_KIOSK`, `.env` through `dotenvy`
 | `remote_support_running` | `support` | `commands::support::do_remote_support_running` | sync | cert |
 | `remote_support_status` | `support` | `commands::support::do_remote_support_status` | sync | cert |
 | `remove_order_line` | `order` | `commands::order::do_remove_order_line` | sync | cert |
+| `reprint_course_slip` | `courses` | `commands::courses::do_reprint_course_slip` | async | cert |
+| `send_next_course` | `courses` | `commands::courses::do_send_next_course` | async | cert |
 | `send_test_alert` | `alerts` | `commands::alerts::do_send_test_alert` | async | cert |
 | `set_active_order` | `session` | `commands::session::do_set_active_order` | sync | cert |
 | `set_allergens` | `allergens` | `commands::allergens::do_set_allergens` | sync | cert |
+| `set_course_settings` | `courses` | `commands::courses::do_set_course_settings` | sync | cert |
 | `set_hubrise_enabled` | `integrations` | `commands::integrations::do_set_hubrise_enabled` | sync | cert |
+| `set_line_course` | `courses` | `commands::courses::do_set_line_course` | sync | cert |
 | `set_owner_alerts` | `alerts` | `commands::alerts::do_set_owner_alerts` | sync | cert |
 | `set_pin` | `auth` | `commands::auth::do_set_pin` | sync | cert |
 | `set_table_plan` | `table_plan` | `commands::table_plan::do_set_table_plan` | sync | cert |

@@ -1386,3 +1386,63 @@ appended by each task of the lane; T1 (accountant export) wrote the first entrie
     Outside French the French names follow in brackets.
   - **Expected failures of the p5/p6 gates on this lane** are those of T1 and T2 (`hygiene-paths`,
     `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
+
+- **V12-D22 The course stays out of the signed payload (T4, D).** The course is kitchen data (spec 8.1:
+  kitchen and bar prints never carry an amount; spec 8.2: a printout may be consolidated and regrouped, never
+  an FDM message; FAQ Q210 b: what the POS does for the kitchen display stays at the POS). It lives in
+  `CartLine` (`course`, `kitchen_state`) and `TableInfo` (`held_course`) and in the three tables of migration 62;
+  it never enters `OrderLine` (the fiscal builders), a product name, a department, a P, N or T request, the
+  pre-bill or the VAT ticket. Tests: the signed requests of a sale are identical with courses on or off, and
+  every archived request and ticket text, every database text column and every receipt of a three-course sale
+  is searched for course data (`tests/courses.rs`, `the_course_never_reaches_a_signed_request_a_name_or_the_vat_ticket`).
+- **V12-D23 Rules (T4, D), as built.** Courses 0 "Direct", 1 "Entrées", 2 "Plats", 3 "Desserts"; setting `courses`
+  `{enabled, category_courses}` in the V12-D2 store (read by any operator, stored by an administrator, logged).
+  Switched off, the slips are byte-identical to the ones before (a hand-rebuilt legacy layout in `pos-print` and
+  a full-service comparison in the engine tests). A new line takes the course of its category (0 when unmapped);
+  a change is refused with `course_already_sent` once a slip carried the line, `courses_disabled` when the switch
+  is off, `course_invalid` outside 0 to 3. The released course starts at 1; a P (or the N of a direct sale)
+  prints the entries of course 0 or not above the released course, grouped under `-- <Course> --` headers, and
+  holds the others. `send_next_course` signs the unsent lines first through the table-order path (FDM down:
+  refused, nothing signed, printed or released; a course whose entries are already signed prints without the
+  FDM), releases the lowest held course and prints it. A correction of a printed line prints at once; a
+  correction of a held line is netted at the release; a net quantity of 0 prints nothing. A sale that closes a
+  table with a held course does not print it; both UIs warn at checkout. `reprint_course_slip` prints again
+  what was printed for a course, marked DUPLICATA, and records nothing (`nothing_printed` when no slip carried
+  the course). `kitchen_slip_entries` is written only when the slip reports `Printed`; a failed print leaves
+  the entries unprinted and the next P, release or catch-up prints them.
+- **T4: deviations and precisions, all decided while building.**
+  - **No foreign key from `order_line_courses.line_id` to `order_lines`.** `order_lines.id` is not
+    AUTOINCREMENT, so the id of a removed line can come back; creating a line clears any stale course row
+    first (`clear_line_course`), then writes its own. `order_id` keeps its foreign key.
+  - **The migration backfills `kitchen_slip_entries`.** Journal entries already registered by a signed event
+    before the migration are recorded as printed (course 0, `immediate`), so switching courses on in the middle
+    of a service never reprints old lines. The plan text did not mention it.
+  - **The legacy slip path records entries too.** `print_bar_slip` (the path taken with the switch off) is
+    unchanged in output but records its entries on `Printed`, so a switch turned on mid-service is consistent.
+  - **`send_next_course` with nothing held.** When no course is held but signed entries are still unprinted
+    (an earlier slip failed), it prints them again and answers `course: null`; with nothing at all to print it
+    is `no_course_held`. The plan only had the error.
+  - **A P that registers nothing new still prints the catch-up** (entries signed earlier whose slip did not
+    print) when courses are on; with the switch off the behaviour is the one of before (no retry), as tested.
+  - **`set_course_settings` validates and canonicalises.** Courses 0 to 3, every category must exist and appear
+    once, a category on 0 is dropped (an unmapped category is "Direct"); the stored value is returned.
+  - **Table plan badge** is `TableInfo.held_course` (the lowest held course, 1 to 3, null otherwise).
+  - **Takeaways** group their cart by course and print headers like a direct sale; the "Envoyer la suite"
+    button and the checkout warning are for dine-in orders only.
+  - **Headers and the release line** on the slip are `-- Plats --` between course groups and `SUITE : Plats`
+    under the table line; course names follow the slip language (fr, nl, de); the zh interface prints French.
+  - **UI placement.** The panel "Service en plusieurs temps" sits in the second column of Settings under the
+    employees on both UIs (a manager only, at most half the column, scrolling inside). Two first tries in the first
+    and third columns of the Vue screen pushed the table plan and the HubRise switch out of reach (the
+    existing Playwright tests could not click them). The cart on both UIs keeps the amber "not sent" mark per line
+    but drops the separate "not sent" block while courses are on (the course groups replace it).
+  - **`reprint_course_slip` has no screen.** The command, its Tauri wrapper, the FFI method and the Vue wrapper
+    exist and are tested, but neither UI calls it yet (no reprint action on the order screen in this release); the
+    UI parity file declares it `excluded`.
+  - **Two failures of earlier tasks were fixed here because the gates of this task hit them.** The French allergen
+    sheet golden in `pos-print` lost its first line indent to a string continuation (`\` then a newline strips
+    leading spaces; the test now starts the literal with `\x20`), and `cargo fmt` in `android/rust` reformatted
+    two lines of the allergens facade and its test.
+  - **Expected failures of the p5/p6 gates on this lane** are those of T1 to T3 (`hygiene-paths`,
+    `hygiene-root-lock`, `linux-frozen`, `freeze-tag`); no dependency was added.
+

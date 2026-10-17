@@ -17,6 +17,7 @@ an order is sent or left, the closing unpaid); the screen only calls it through 
 | stores/menu.ts | feature/order/MenuViewModel.kt (loadMenu, selectCategory; reload on language, CatalogUpdated, Resync) | `get_categories` `get_menu_items` |
 | components/AllergenBadges.vue, OrderView.vue (Allergènes mode, hint, legend) | feature/order/AllergenBadges.kt, AllergenBar.kt, MenuViewModel.kt (toggleAllergenMode), MenuGrid.kt, ModifierDialog.kt | `list_allergens` |
 | components/AllergenSheetDialog.vue, stores/allergens.ts | feature/order/AllergenSheetDialog.kt, MenuViewModel.kt (openAllergenSheet, printAllergenSheet) | `get_allergen_sheet` `print_allergen_sheet` |
+| components/CartSidebar.vue (course groups, `course-label`, "Envoyer la suite"), components/OrderLineItem.vue (course chip), components/CoursePickerDialog.vue | feature/order/OrderCartColumn.kt (CourseHeader, NextCourseButton), OrderLineItem.kt (CourseChip), CoursePickerDialog.kt, MenuViewModel.kt (openCoursePicker, pickCourse, sendNextCourse) over ui/state/OrderStore.kt | `set_line_course` `list_held_courses` `send_next_course` |
 | components/CategoryTabs.vue | feature/order/CategoryTabs.kt | - |
 | components/MenuGrid.vue | feature/order/MenuGrid.kt (MenuGrid) | - |
 | components/MenuItemButton.vue | feature/order/MenuGrid.kt (MenuItemButton, ItemLabel) over ui/format/ProductNames.kt | - |

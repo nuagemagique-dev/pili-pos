@@ -171,6 +171,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | generate_z_report | report::do_generate_z_report | spawn | posEngine.generateZReport() |
 | get_allergen_sheet | allergens::do_get_allergen_sheet | blocking | posEngine.getAllergenSheet() |
 | get_categories | menu::do_get_categories | blocking | posEngine.getCategories() |
+| get_course_settings | courses::do_get_course_settings | blocking | posEngine.getCourseSettings() |
 | get_current_user | auth::do_get_current_user | blocking | posEngine.getCurrentUser() |
 | get_integrations | integrations::do_get_integrations | blocking | posEngine.getIntegrations() |
 | get_item_modifiers | modifiers::do_get_item_modifiers_localized | blocking | posEngine.getItemModifiers() |
@@ -198,6 +199,7 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | list_copyable_tickets | copy::do_list_copyable_tickets | blocking | posEngine.listCopyableTickets() |
 | list_eft_payments | eft::do_list_eft_payments | blocking | posEngine.listEftPayments() |
 | list_fiscal_events | copy::do_list_fiscal_events | blocking | posEngine.listFiscalEvents() |
+| list_held_courses | courses::do_list_held_courses | blocking | posEngine.listHeldCourses() |
 | list_open_orders | order::do_list_open_orders | blocking | posEngine.listOpenOrders() |
 | list_open_shifts | social::do_list_open_shifts | blocking | posEngine.listOpenShifts() |
 | list_open_takeaways | tables::do_list_open_takeaways | blocking | posEngine.listOpenTakeaways() |
@@ -224,10 +226,14 @@ The parity script (`scripts/android/check_command_parity.py`) checks that each o
 | remote_support_running | support::do_remote_support_running | blocking | posEngine.remoteSupportRunning() |
 | remote_support_status | support::do_remote_support_status | blocking | posEngine.remoteSupportStatus() |
 | remove_order_line | order::do_remove_order_line | blocking | posEngine.removeOrderLine() |
+| reprint_course_slip | courses::do_reprint_course_slip | spawn | posEngine.reprintCourseSlip() |
+| send_next_course | courses::do_send_next_course | spawn | posEngine.sendNextCourse() |
 | send_test_alert | alerts::do_send_test_alert | spawn | posEngine.sendTestAlert() |
 | set_active_order | session::do_set_active_order | blocking | posEngine.setActiveOrder() |
 | set_allergens | allergens::do_set_allergens | blocking | posEngine.setAllergens() |
+| set_course_settings | courses::do_set_course_settings | blocking | posEngine.setCourseSettings() |
 | set_hubrise_enabled | integrations::do_set_hubrise_enabled | blocking | posEngine.setHubriseEnabled() |
+| set_line_course | courses::do_set_line_course | blocking | posEngine.setLineCourse() |
 | set_owner_alerts | alerts::do_set_owner_alerts | blocking | posEngine.setOwnerAlerts() |
 | set_pin | auth::do_set_pin | blocking | posEngine.setPin() |
 | set_table_plan | table_plan::do_set_table_plan | blocking | posEngine.setTablePlan() |

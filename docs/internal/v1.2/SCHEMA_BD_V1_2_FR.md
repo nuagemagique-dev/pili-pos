@@ -12,8 +12,9 @@ fiscale existante : elles ajoutent des tables ou des colonnes facultatives.
 | --- | --- | --- | --- |
 | 60 | `owner-settings-alerts` | B. Alertes du propriétaire | `owner_settings`, `owner_settings_log`, `owner_alert_log` |
 | 61 | `allergens` | C. Allergènes | `menu_item_allergens`, `modifier_allergens`, `allergen_declarations`, `allergen_change_log` |
+| 62 | `courses` | D. Service en plusieurs temps | `order_line_courses`, `order_course_releases`, `kitchen_slip_entries` |
 
-(Les migrations 62 et 63 s'ajouteront à ce tableau avec leurs fonctions.)
+(La migration 63 s'ajoutera à ce tableau avec leurs fonctions.)
 
 ## Migration 60 : réglages du propriétaire et journal d'alertes
 
@@ -88,3 +89,46 @@ Une ligne par changement réel d'une liste : `id`, `entity_type`, `entity_id`, `
 (déclencheurs `no_update` et `no_delete`). Index sur (`entity_type`, `entity_id`, `id`).
 
 Aucune table fiscale n'est modifiée.
+
+## Migration 62 : service en plusieurs temps
+
+Données de cuisine uniquement, jamais fiscales (`docs/internal/v1.2/SERVICES_CUISINE_FR.md`).
+
+### `order_line_courses`
+
+Le temps d'une ligne de commande. Une ligne sans ligne ici est au temps 0 (Direct).
+
+| Colonne | Type | Rôle |
+| --- | --- | --- |
+| `line_id` | entier, clé primaire | ligne de commande (sans clé étrangère : l'identifiant d'une ligne supprimée peut être réutilisé) |
+| `order_id` | entier | commande (clé étrangère) |
+| `course` | entier | 0 à 3 (contrôlé par `CHECK`) |
+| `set_by` | texte, facultatif | opérateur qui a changé le temps ; vide quand la catégorie l'a donné |
+| `set_at` | texte | date |
+
+Index sur `order_id`.
+
+### `order_course_releases`
+
+Un temps libéré par « Envoyer la suite ». Sans ligne, le temps libéré est 1.
+
+| Colonne | Type | Rôle |
+| --- | --- | --- |
+| `order_id`, `course` | clé primaire | commande et temps libéré (1 à 3, contrôlé par `CHECK`) |
+| `released_by` | texte, facultatif | opérateur |
+| `released_at` | texte | date |
+
+### `kitchen_slip_entries`
+
+Une ligne du journal de commande, une fois imprimée sur un ticket de cuisine ou de bar.
+Écrite seulement quand le ticket est sorti.
+
+| Colonne | Type | Rôle |
+| --- | --- | --- |
+| `entry_id` | entier, clé primaire | ligne du journal `order_entries` (clé étrangère) |
+| `course` | entier | 0 à 3 |
+| `printed_at` | texte | date |
+| `slip` | texte | `immediate` (envoi habituel), `release` (suite) ou `sale` (vente directe), contrôlé par `CHECK` |
+
+La migration reprend comme déjà imprimées (temps 0, `immediate`) les lignes du journal déjà
+enregistrées par un événement signé. Aucune table fiscale n'est modifiée.

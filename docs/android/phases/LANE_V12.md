@@ -901,3 +901,30 @@ strings, mock handlers, `ui/e2e/allergens.spec.ts`); the Compose UI (`feature/or
 - **Environment findings:** the shared cargo target reuses another lane's artifacts, so `touch` the sources of
   `crates/` and `src-tauri/` before a gate to force a rebuild; `ANDROID_HOME=$HOME/Library/Android/sdk` is needed
   for gradle in this worktree (no `local.properties`).
+
+### V12-T4 (Sonnet 5.5, 2026-10-17): D, courses and "Envoyer la suite" (kitchen only)
+
+Delivered: migration 62 (`schema_v12.rs`: `order_line_courses`, `order_course_releases`, `kitchen_slip_entries`,
+backfill; `queries/courses.rs`; `CartLine.course` and `kitchen_state`); the `courses` setting; six engine
+commands (`commands/courses.rs`) with the errors `course_already_sent`, `course_invalid`, `courses_disabled`,
+`no_course_held`, `nothing_printed`; the V12-D23 correction rules; the release slip "SUITE : <course>" and its
+DUPLICATA (`pos-print`); Tauri wrappers and the UniFFI facade; the Vue UI (`CoursePickerDialog.vue`,
+`CoursesSettings.vue`, course groups in the cart, held course on the table plan and at checkout, mock handlers,
+`ui/e2e/courses.spec.ts`); the Compose UI (`CoursePickerDialog.kt`, `CartLines.kt`, `settings/courses/*`, held tags
+on the table card and the checkout) with tests and six new goldens; the drafts `SERVICES_CUISINE_FR.md`, section D
+of the NOTE and migration 62 in `SCHEMA_BD_V1_2_FR.md`; parity docs, ENGINE.md, FFI.md, PARITY.md, CLAUDE.md
+counts. DECISIONS got V12-D22, V12-D23 and the deviations under "Lane 4-v12 (2026-10-17)".
+The course never enters `OrderLine`, product names, departments, P/N/T/pre-bill requests or the VAT ticket.
+
+- **Tests:** engine `tests/courses.rs` (20 scenarios) and one access-control test; unit tests in pos-db and
+  pos-print; FFI suite; Playwright `courses.spec.ts` (12); Kotlin: new classes `CoursesCartTest`,
+  `CoursesFlowTest`, `CoursesViewModelTest`, `CoursesSectionTest`, `CoursesScreenshotTest`,
+  `CheckoutHeldCourseTest`, `TablesHeldCourseTest`, plus 9 cases in `OrderStoreTest`.
+- **Fixes made on the way to earlier tasks:** the allergen slip golden test (`\x20` indent) and the
+  `cargo fmt` drift in `android/rust/pos-ffi` allergens files. Stray tracked `.kt-E` files from T3 in the order
+  feature tests were noticed (to be removed by the orchestrator).
+- **Captures to retake (orchestrator; both products):** Settings "Service en plusieurs temps" panel (off and on);
+  the cart grouped by course with chips, the picker and "Envoyer la suite"; the table plan "Suite : Plats";
+  the checkout warning for a held course; printed slips: first course at P, "SUITE : Plats", direct-sale
+  headers, DUPLICATA.
+- **Note:** the Tables tag may wrap when two tags share a card (held course plus another tag).
