@@ -36,10 +36,12 @@ use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
 use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
 use pos_engine::commands::order::{AddOrderLineInput, do_add_order_line};
+use pos_engine::commands::payment_correction::do_correct_payment;
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::social::{do_work_in, do_work_out};
 use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
+use pos_fiscal::payment::PaymentMethod;
 
 // ── Setup ──────────────────────────────────────────────────────────
 
@@ -485,6 +487,55 @@ async fn m122_cost_center_change() {
 }
 
 // ── Financial (F) ──────────────────────────────────────────────────
+
+/// M132: the payment method of a cash sale corrected to a card. The
+/// corrected sale is M110 (52 EUR in cash); the correction cites its
+/// reference.
+#[tokio::test]
+async fn m132_payment_correction() {
+    use pos_engine::commands::auth::do_set_pin;
+    const PIN: &str = "4321";
+    let sale = variables("M110");
+    let vars = variables("M132");
+    let app = spf_app(&operator(&vars)).await;
+    do_set_pin(&app.state, operator(&vars), PIN.into(), None).unwrap();
+    let order_id = order_from(&app, &sale, OrderType::DineIn, Some(1));
+    // The sale's FDM response carries the reference the correction cites.
+    mock_uc(&app, "M110", Some(&vars["fdmRef"])).await;
+    mock_uc(&app, "M132", None).await;
+
+    let sold = do_checkout(&app.state, order_id, CheckoutPaymentMethod::Cash)
+        .await
+        .unwrap();
+    assert!(sold.success, "{:?}", sold.error);
+    let original = app.fiscal_events()[0].id;
+
+    let done = do_correct_payment(
+        &app.state,
+        original,
+        0,
+        PaymentMethod::Card,
+        operator(&vars),
+        PIN.into(),
+    )
+    .await
+    .unwrap();
+    assert!(done.success, "{:?}", done.error);
+
+    let correction = &requests(&app)[1];
+    assert_matches_fixture(
+        "M132",
+        correction,
+        &vars,
+        &[Deviation {
+            path: "financials[0].type",
+            reason: "without a linked terminal the operator cannot tell debit from credit: a card typed by hand is CARD_DEBIT, MANUAL (REPONSES_MANUEL_CERT §III.F)",
+        }],
+    );
+    assert_eq!(correction["fdmRef"], vars["fdmRef"]);
+    assert_eq!(correction["ticketMedium"], "NONE");
+    app.dump_evidence("M132");
+}
 
 #[tokio::test]
 // covers: FAQ_Q401

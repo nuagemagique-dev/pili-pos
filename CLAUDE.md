@@ -200,7 +200,7 @@ pili-pos/
 │   ├── src/
 │   │   ├── main.rs             # Tauri entry point: CLI, logging, window, health check, EngineConfig
 │   │   ├── lib.rs              # Library facade (cli, events, ipc, paths)
-│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 97 in all, 95 in the cert build)
+│   │   ├── ipc/                # Tauri command wrappers (one call into pos-engine each, 99 in all, 97 in the cert build)
 │   │   ├── events.rs           # TauriEventSink (engine events to the webview)
 │   │   ├── cli.rs              # --version, --init-db, --check-config
 │   │   └── paths.rs            # Linux install paths

@@ -282,6 +282,8 @@ fn main() {
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,
+        ipc::financial::list_sale_payments,
+        ipc::financial::correct_payment,
         // HubRise
         ipc::hubrise::hubrise_get_connection_status,
         ipc::hubrise::hubrise_start_oauth_flow,
@@ -398,6 +400,8 @@ fn main() {
         // Financial (Event F - cash in/out, drawer)
         ipc::financial::money_in_out,
         ipc::financial::open_drawer_fiscal,
+        ipc::financial::list_sale_payments,
+        ipc::financial::correct_payment,
         // No invoice (I event) commands: invoicing is not part of the
         // v1.0.0 certification scope.
         // HubRise (switched per installation, ipc::integrations)

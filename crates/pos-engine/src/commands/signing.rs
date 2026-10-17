@@ -71,6 +71,7 @@ pub(crate) enum Kind {
     TableOrder,
     PreBill,
     TableTransfer,
+    PaymentCorrection,
     WebshopOrder,
     ReportX,
     ReportUserX,
@@ -84,12 +85,13 @@ pub(crate) enum Kind {
 }
 
 impl Kind {
-    const ALL: [Kind; 15] = [
+    const ALL: [Kind; 16] = [
         Kind::Sale,
         Kind::Refund,
         Kind::TableOrder,
         Kind::PreBill,
         Kind::TableTransfer,
+        Kind::PaymentCorrection,
         Kind::WebshopOrder,
         Kind::ReportX,
         Kind::ReportUserX,
@@ -109,6 +111,7 @@ impl Kind {
             Kind::TableOrder => "table_order",
             Kind::PreBill => "pre_bill",
             Kind::TableTransfer => "table_transfer",
+            Kind::PaymentCorrection => "payment_correction",
             Kind::WebshopOrder => "webshop_order",
             Kind::ReportX => "report_x",
             Kind::ReportUserX => "report_user_x",
@@ -249,6 +252,12 @@ pub(crate) enum PendingContext {
         from_table: i32,
         to_table: i32,
         operator_insz: String,
+    },
+    /// The payment method of sale `corrected_event_id` (its archive
+    /// id) corrected (`signPaymentCorrection`). No local table changes:
+    /// the reports read the archive; the context only names the sale.
+    PaymentCorrection {
+        corrected_event_id: i64,
     },
     WebshopOrder {
         order_id: i64,
@@ -689,6 +698,7 @@ fn apply(
         | PendingContext::ReportUserX { .. }
         | PendingContext::Money
         | PendingContext::Drawer
+        | PendingContext::PaymentCorrection { .. }
         | PendingContext::Invoice { .. } => Ok((None, None)),
     }
 }
@@ -860,7 +870,10 @@ pub(crate) async fn follow_up(
         PendingContext::WebshopOrder { .. } => {}
         #[cfg(not(feature = "hubrise"))]
         PendingContext::WebshopOrder { .. } => {}
-        PendingContext::Work { .. } | PendingContext::Money | PendingContext::Invoice { .. } => {}
+        PendingContext::Work { .. }
+        | PendingContext::Money
+        | PendingContext::PaymentCorrection { .. }
+        | PendingContext::Invoice { .. } => {}
     }
     done
 }

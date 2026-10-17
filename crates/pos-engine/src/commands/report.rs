@@ -720,7 +720,25 @@ fn report_details(
             .filter(|a| a.amount_type == PaymentLineType::Rounding)
             .map(|a| cents(a.total_amount))
             .sum(),
+        payment_corrections: payment_corrections(&turnover.payments),
     }
+}
+
+/// Payment corrections (event F) of the report: their number (each
+/// one is a negative and a positive line) and the amount they moved to
+/// another method.
+fn payment_corrections(payments: &[PaymentTotalInput]) -> (i64, i64) {
+    let (lines, moved) = payments
+        .iter()
+        .flat_map(|p| &p.amount)
+        .filter(|a| a.amount_type == PaymentLineType::Payment)
+        .fold((0, 0), |(lines, moved), a| {
+            (
+                lines + a.corrections_count,
+                moved + cents(a.positive_corrections),
+            )
+        });
+    (lines / 2, moved)
 }
 
 /// Printed payment lines: the signed totals, with the number of

@@ -72,6 +72,32 @@ pub const TABLE_TRANSFER_TARGET_INVALID: &str = "table_transfer_target_invalid";
 /// an online order.
 pub const TABLE_TRANSFER_NOT_A_TABLE: &str = "table_transfer_not_a_table";
 
+// Payment correction (an F event, signPaymentCorrection).
+/// Only a sale ticket (N, or T in training) is corrected: not a refund, a copy or any other event.
+pub const PAYMENT_CORRECTION_NOT_A_SALE: &str = "payment_correction_not_a_sale";
+/// A training sale is corrected only in training, a real sale only outside it.
+pub const PAYMENT_CORRECTION_TRAINING: &str = "payment_correction_training";
+/// The sale belongs to a booking period a Z report has already closed.
+pub const PAYMENT_CORRECTION_PERIOD_CLOSED: &str = "payment_correction_period_closed";
+/// A sale closed unpaid has no payment to correct.
+pub const PAYMENT_CORRECTION_UNPAID: &str = "payment_correction_unpaid";
+/// An online order (APP / ONLINE payment) is paid by the platform, not at the till.
+pub const PAYMENT_CORRECTION_ONLINE: &str = "payment_correction_online";
+/// The sale was refunded, in whole or in part, since it was signed.
+pub const PAYMENT_CORRECTION_REFUNDED: &str = "payment_correction_refunded";
+/// One correction per sale: this sale's payment was already corrected.
+pub const PAYMENT_CORRECTION_ALREADY_DONE: &str = "payment_correction_already_done";
+/// The line index is not a payment line of the sale.
+pub const PAYMENT_CORRECTION_BAD_LINE: &str = "payment_correction_bad_line";
+/// A card the linked terminal approved is never corrected (no reversal support).
+pub const PAYMENT_CORRECTION_TERMINAL_CARD: &str = "payment_correction_terminal_card";
+/// The new method is the one the line already has.
+pub const PAYMENT_CORRECTION_SAME_METHOD: &str = "payment_correction_same_method";
+/// The new method is not one the till takes (cash, card, meal voucher).
+pub const PAYMENT_CORRECTION_METHOD: &str = "payment_correction_method";
+/// The correction would need a ROUNDING line: a cash line of a rounded sale, or a cash amount that is not a multiple of 5 cents.
+pub const PAYMENT_CORRECTION_ROUNDING: &str = "payment_correction_rounding";
+
 // Tickets: copies and refunds.
 pub const EVENT_NOT_FOUND: &str = "event_not_found";
 /// `field`: what the archived original lacks.
@@ -214,6 +240,18 @@ pub fn config_problem(problem: &str) -> String {
 
 /// Every code, for the translation check.
 pub const ALL: &[&str] = &[
+    PAYMENT_CORRECTION_NOT_A_SALE,
+    PAYMENT_CORRECTION_TRAINING,
+    PAYMENT_CORRECTION_PERIOD_CLOSED,
+    PAYMENT_CORRECTION_UNPAID,
+    PAYMENT_CORRECTION_ONLINE,
+    PAYMENT_CORRECTION_REFUNDED,
+    PAYMENT_CORRECTION_ALREADY_DONE,
+    PAYMENT_CORRECTION_BAD_LINE,
+    PAYMENT_CORRECTION_TERMINAL_CARD,
+    PAYMENT_CORRECTION_SAME_METHOD,
+    PAYMENT_CORRECTION_METHOD,
+    PAYMENT_CORRECTION_ROUNDING,
     CONFIG_TABLES,
     TABLE_TRANSFER_SAME_TABLE,
     TABLE_TRANSFER_TARGET_BUSY,

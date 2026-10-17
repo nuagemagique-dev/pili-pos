@@ -33,6 +33,7 @@ use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order, do_remove_order_line,
     do_update_order_line_quantity,
 };
+use pos_engine::commands::payment_correction::{do_correct_payment, do_list_sale_payments};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
@@ -42,6 +43,7 @@ use pos_engine::commands::social::{do_work_in, do_work_out};
 use pos_engine::commands::table_transfer::do_transfer_table;
 use pos_engine::commands::tables::{do_sign_pre_bill, do_sign_table_order};
 use pos_engine::commands::unpaid::do_close_unpaid;
+use pos_fiscal::payment::PaymentMethod;
 
 const MANAGER: &str = "94060242576";
 const SERVER: &str = "84022899837";
@@ -124,6 +126,17 @@ async fn manager_commands(
     insz: &str,
     sale: i64,
 ) -> Vec<(&'static str, Result<(), String>)> {
+    // Before the refund: a refunded sale is no longer corrected.
+    let correction = do_correct_payment(
+        &app.state,
+        sale,
+        0,
+        PaymentMethod::MealVoucher,
+        insz.into(),
+        MANAGER_PIN.into(),
+    )
+    .await
+    .unwrap();
     let refund = do_refund_checkout(
         &app.state,
         sale,
@@ -159,6 +172,13 @@ async fn manager_commands(
                 .success
                 .then_some(())
                 .ok_or(refund.error.unwrap_or_default()),
+        ),
+        (
+            "payment correction",
+            correction
+                .success
+                .then_some(())
+                .ok_or(correction.error.unwrap_or_default()),
         ),
         (
             "copy",
@@ -250,6 +270,10 @@ async fn nothing_is_signed_without_a_logged_in_operator() {
     );
     assert_eq!(
         do_transfer_table(&app.state, open, 2).await.unwrap_err(),
+        ERR_NOT_LOGGED_IN
+    );
+    assert_eq!(
+        do_list_sale_payments(&app.state, sale).unwrap_err(),
         ERR_NOT_LOGGED_IN
     );
     assert_eq!(
