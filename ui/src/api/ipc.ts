@@ -1069,3 +1069,109 @@ export function listPeppolDeliveries(limit?: number): Promise<PeppolDeliveries> 
 export function retryPeppolDelivery(deliveryId: number): Promise<void> {
   return invoke("retry_peppol_delivery", { deliveryId });
 }
+
+// Menu editor (managers; saves are refused while a catalog manages the menu, V11-D17).
+/** Names per language code (`fr`, `nl`, `en`, `zh`, `de`). */
+export type MenuNames = Record<string, string>;
+
+export interface AdminCategory {
+  id: number;
+  names: MenuNames;
+  sort_order: number;
+  color: string | null;
+  active: boolean;
+}
+
+export interface AdminProduct {
+  id: number;
+  category_id: number;
+  names: MenuNames;
+  price_cents: number;
+  vat_code: string;
+  vat_code_takeaway: string | null;
+  kitchen_printer: boolean;
+  code: string | null;
+  open_price: boolean;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface AdminGroup {
+  id: number;
+  menu_item_id: number;
+  names: MenuNames;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface AdminOption {
+  id: number;
+  group_id: number;
+  names: MenuNames;
+  price_cents: number;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface MenuAdmin {
+  /** The source that manages the menu (`hubrise`): the editor is then read-only. */
+  managed_by: string | null;
+  /** Language codes a name can be given in; the first is required. */
+  languages: string[];
+  categories: AdminCategory[];
+  products: AdminProduct[];
+  groups: AdminGroup[];
+  options: AdminOption[];
+}
+
+export interface MenuSaved {
+  id: number;
+  menu: MenuAdmin;
+}
+
+export interface MenuChange {
+  id: number;
+  entity_type: "category" | "product" | "modifier_group" | "modifier";
+  entity_id: number;
+  action: "create" | "update";
+  label: string;
+  changed_fields: string[];
+  before_json: string | null;
+  after_json: string;
+  changed_by: string;
+  changed_by_name: string;
+  changed_at: string;
+}
+
+export type SaveCategoryInput = Omit<AdminCategory, "id"> & { id: number | null };
+export type SaveProductInput = Omit<AdminProduct, "id"> & { id: number | null };
+export type SaveModifierGroupInput = Omit<AdminGroup, "id"> & { id: number | null };
+export type SaveModifierInput = Omit<AdminOption, "id"> & { id: number | null };
+
+/** The whole menu with its names per language, hidden entries included. */
+export function menuAdminGet(): Promise<MenuAdmin> {
+  return invoke("menu_admin_get");
+}
+
+export function menuSaveCategory(input: SaveCategoryInput): Promise<MenuSaved> {
+  return invoke("menu_save_category", { input });
+}
+
+export function menuSaveProduct(input: SaveProductInput): Promise<MenuSaved> {
+  return invoke("menu_save_product", { input });
+}
+
+export function menuSaveModifierGroup(input: SaveModifierGroupInput): Promise<MenuSaved> {
+  return invoke("menu_save_modifier_group", { input });
+}
+
+export function menuSaveModifier(input: SaveModifierInput): Promise<MenuSaved> {
+  return invoke("menu_save_modifier", { input });
+}
+
+/** The change log of the menu, newest first. */
+export function listMenuChanges(limit?: number): Promise<MenuChange[]> {
+  return invoke("list_menu_changes", { limit });
+}

@@ -15,6 +15,7 @@ import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
 import PeppolPanel from "../components/PeppolPanel.vue";
+import MenuEditorPanel from "../components/MenuEditorPanel.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -397,6 +398,9 @@ onMounted(() => {
 
         <!-- Digital tickets (admin) - never shows the address itself -->
         <IntegrationSwitch class="panel" />
+
+        <!-- Menu editor (manager only) -->
+        <MenuEditorPanel v-if="auth.isManager" class="panel" />
 
         <section class="panel deliveries-section" :class="{ 'panel-grow': !integrations.hubriseVisible }">
           <div class="panel-head">

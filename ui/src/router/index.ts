@@ -31,6 +31,14 @@ routes.push({
   beforeEnter: () => useIntegrationsStore().hubriseVisible || { name: "tables" },
 });
 
+// The menu editor (managers). Lazy: out of the main chunk.
+routes.push({
+  path: "/menu-editor",
+  name: "menu-editor",
+  component: () => import("../views/MenuEditorView.vue"),
+  beforeEnter: () => useAuthStore().isManager || { name: "tables" },
+});
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes,

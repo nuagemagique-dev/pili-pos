@@ -5,6 +5,7 @@
 // accents of French names and the punctuation of addresses. The
 // component owns no text: it returns the whole new value through
 // v-model, so one keyboard can serve several fields.
+import { ref } from "vue";
 import { useI18n } from "../i18n";
 
 const props = withDefaults(
@@ -12,8 +13,10 @@ const props = withDefaults(
     modelValue: string;
     /** Longest text the field accepts. */
     maxLength?: number;
+    /** Offers a lower case key (menu names are not printed in capitals). */
+    caseToggle?: boolean;
   }>(),
-  { maxLength: 80 }
+  { maxLength: 80, caseToggle: false }
 );
 
 const emit = defineEmits<{
@@ -23,6 +26,8 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const lower = ref(false);
+const shown = (ch: string) => (lower.value ? ch.toLowerCase() : ch);
 
 const DIGITS = "1234567890".split("");
 const ROWS = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"].map((r) => r.split(""));
@@ -31,7 +36,7 @@ const PUNCTUATION = ["-", "'", ".", ",", "/", "&"];
 
 function press(ch: string) {
   if (props.modelValue.length >= props.maxLength) return;
-  emit("update:modelValue", props.modelValue + ch);
+  emit("update:modelValue", props.modelValue + shown(ch));
 }
 
 function backspace() {
@@ -49,7 +54,7 @@ function clear() {
       <button v-for="d in DIGITS" :key="d" class="key" @click="press(d)">{{ d }}</button>
     </div>
     <div v-for="(row, i) in ROWS" :key="i" class="kbd-row">
-      <button v-for="ch in row" :key="ch" class="key" @click="press(ch)">{{ ch }}</button>
+      <button v-for="ch in row" :key="ch" class="key" @click="press(ch)">{{ shown(ch) }}</button>
       <button
         v-if="i === ROWS.length - 1"
         class="key key-back"
@@ -58,11 +63,20 @@ function clear() {
       >&#9003;</button>
     </div>
     <div class="kbd-row">
-      <button v-for="a in ACCENTS" :key="a" class="key key-accent" @click="press(a)">{{ a }}</button>
+      <button v-for="a in ACCENTS" :key="a" class="key key-accent" @click="press(a)">{{ shown(a) }}</button>
       <button v-for="p in PUNCTUATION" :key="p" class="key key-punct" @click="press(p)">{{ p }}</button>
     </div>
     <div class="kbd-row">
       <button class="key key-clear" @click="clear">{{ t('clear') }}</button>
+      <button
+        v-if="caseToggle"
+        class="key key-case"
+        :class="{ on: lower }"
+        :aria-pressed="lower"
+        :aria-label="t('menu_ed_case')"
+        data-testid="keyboard-case"
+        @click="lower = !lower"
+      >Aa</button>
       <button class="key key-space" :aria-label="t('keyboard_space')" @click="press(' ')">&#9251;</button>
       <button class="key key-enter" @click="emit('submit')">{{ t('keyboard_next') }}</button>
     </div>
@@ -104,6 +118,8 @@ function clear() {
 .key-punct { color: var(--text-secondary); }
 .key-back { color: var(--accent-danger); }
 .key-clear { width: 152px; color: var(--accent-warning); font-size: var(--font-size-md); }
+.key-case { font-size: var(--font-size-md); color: var(--text-secondary); }
+.key-case.on { background: var(--selected-bg); color: var(--selected-fg); }
 .key-space { width: 440px; }
 .key-enter { width: 152px; font-size: var(--font-size-md); }
 </style>

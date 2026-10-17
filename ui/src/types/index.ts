@@ -95,6 +95,8 @@ export interface MenuItem {
   sold_out?: boolean;
   /** End of the business day it is sold out until (RFC 3339); null with `sold_out`: until re-enabled. */
   sold_out_until?: string | null;
+  /** The product has an active option group with an active option: the picker opens (V11-D18). */
+  has_modifiers?: boolean;
 }
 
 /** A product that is sold out now (`list_sold_out`). */

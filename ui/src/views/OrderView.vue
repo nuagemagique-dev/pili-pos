@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
-import { useIntegrationsStore } from "../stores/integrations";
 import { useRouter } from "vue-router";
 import { useMenuStore } from "../stores/menu";
 import { useOrderStore } from "../stores/order";
@@ -77,9 +76,8 @@ async function checkZReport() {
 // Free-price product waiting for its price (PriceDialog open).
 const pricing = ref<MenuItem | null>(null);
 
-// Option picker for a product with option groups (from a mirrored
-// catalog); its own chunk. With HubRise off the menu is plain.
-const integrations = useIntegrationsStore();
+// Option picker for a product with option groups (from a mirrored catalog or made in the menu
+// editor); its own chunk.
 const ModifierDialog = defineAsyncComponent(() => import("../components/ModifierDialog.vue"));
 // Product whose options are being picked; the dialog adds it plainly
 // when it has none.
@@ -111,7 +109,9 @@ async function handleAddItem(item: MenuItem) {
     pricing.value = item;
     return;
   }
-  if (integrations.hubriseEnabled) {
+  // The option picker opens for a product that has option groups (V11-D18), whoever manages the
+  // menu: the local editor creates them too.
+  if (item.has_modifiers) {
     choosing.value = item;
     return;
   }
@@ -178,7 +178,7 @@ async function handlePriceConfirmed(priceCents: number) {
 
     <component
       :is="ModifierDialog"
-      v-if="integrations.hubriseEnabled && choosing"
+      v-if="choosing"
       :key="choosing.id"
       :item="choosing"
       @done="choosing = null"

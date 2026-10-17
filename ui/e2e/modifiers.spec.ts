@@ -23,7 +23,7 @@ async function orderScreen(page: import('@playwright/test').Page) {
     get_order: () => ({ ...DEFAULT_ORDER, total_cents: 0 }),
     list_cart_lines: () => [],
     get_categories: () => [DEFAULT_CATEGORY],
-    get_menu_items: () => [DEFAULT_MENU_ITEM, { ...DEFAULT_MENU_ITEM, id: 2, name: 'Coca-Cola', price_cents: 300 }],
+    get_menu_items: () => [{ ...DEFAULT_MENU_ITEM, has_modifiers: true }, { ...DEFAULT_MENU_ITEM, id: 2, name: 'Coca-Cola', price_cents: 300 }],
     get_item_modifiers: live(({ menuItemId }: any) => (menuItemId === 1 ? GROUPS_JSON : [])),
     add_order_line_with_modifiers: live(({ input }: any) => ({
       id: 77, order_id: input.order_id, menu_item_id: input.menu_item_id, quantity: input.quantity,
