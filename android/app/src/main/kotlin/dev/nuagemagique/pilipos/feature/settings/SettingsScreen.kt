@@ -33,6 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.Lazy
 import dev.nuagemagique.pilipos.R
+import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryActions
+import dev.nuagemagique.pilipos.feature.settings.alerts.NumberEntryDialog
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsCallbacks
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsSection
+import dev.nuagemagique.pilipos.feature.settings.alerts.OwnerAlertsViewModel
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.nav.NavRegistry
@@ -119,8 +124,10 @@ internal fun SettingsRoute(
     val entry = rememberEntryPoint<SettingsFeatureEntryPoint>()
     val model = viewModel { SettingsViewModel(entry) }
     val hubriseModel = viewModel { HubriseViewModel(entry) }
+    val alertsModel = viewModel { OwnerAlertsViewModel(entry) }
     val loaded by model.state.collectAsState()
     val hubrise by hubriseModel.state.collectAsState()
+    val alerts by alertsModel.state.collectAsState()
     val pending by entry.webshop().pendingCount.collectAsState()
     LaunchedEffect(hubriseModel) {
         hubriseModel.effects.collect {
@@ -134,6 +141,7 @@ internal fun SettingsRoute(
     val callbacks = settingsCallbacks(model, navigator)
     val pinActions = pinActionsOf(model)
     val hubriseCallbacks = hubriseCallbacksOf(hubriseModel)
+    val alertsCallbacks = alertsCallbacksOf(alertsModel)
     val connectActions = HubriseConnectActions(onSubmit = hubriseModel::submitCode, onCancel = hubriseModel::cancelConnect)
     val qr = remember(entry) { entry.qrMatrices() }
     LaunchedEffect(model) { entry.delivery().refreshMailStatus() }
@@ -154,11 +162,17 @@ internal fun SettingsRoute(
                 onConfirmDisconnect = hubriseModel::confirmDisconnect,
                 onCancelDisconnect = hubriseModel::cancelDisconnect,
             )
+            alerts.entry?.let { number ->
+                NumberEntryDialog(number, alertsActionsOf(alertsModel))
+            }
         },
     ) {
-        SettingsContent(state, callbacks, hubriseSection = {
-            HubriseSection(hubrise, pending, hubriseCallbacks)
-        })
+        SettingsContent(
+            state,
+            callbacks,
+            hubriseSection = { HubriseSection(hubrise, pending, hubriseCallbacks) },
+            alertsSection = { OwnerAlertsSection(alerts, alertsCallbacks) },
+        )
     }
 }
 
@@ -194,6 +208,27 @@ private fun pinActionsOf(model: SettingsViewModel): SettingsPinActions =
         onCancel = model::closePin,
     )
 
+/** What the owner alerts panel calls on [model]. */
+private fun alertsCallbacksOf(model: OwnerAlertsViewModel): OwnerAlertsCallbacks =
+    OwnerAlertsCallbacks(
+        onToggleEnabled = model::toggleEnabled,
+        onToggleKind = model::toggleKind,
+        onLanguage = model::setLanguage,
+        onLabel = model::setLabel,
+        onEdit = model::openEntry,
+        onSave = model::save,
+        onTest = model::sendTest,
+    )
+
+/** What the number dialog of the owner alerts panel calls on [model]. */
+private fun alertsActionsOf(model: OwnerAlertsViewModel): NumberEntryActions =
+    NumberEntryActions(
+        onKey = model::pressKey,
+        onMinus = model::toggleMinus,
+        onConfirm = model::confirmEntry,
+        onCancel = model::cancelEntry,
+    )
+
 /** What the HubRise panel calls on [model]. */
 private fun hubriseCallbacksOf(model: HubriseViewModel): HubriseCallbacks =
     HubriseCallbacks(
@@ -221,12 +256,13 @@ internal fun SettingsContent(
     callbacks: SettingsCallbacks,
     modifier: Modifier = Modifier,
     hubriseSection: @Composable () -> Unit = {},
+    alertsSection: @Composable () -> Unit = {},
 ) {
     BoxWithConstraints(modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary).testTag("settings_content")) {
         if (maxWidth >= WideLayoutMin) {
-            WideLayout(state, callbacks, hubriseSection)
+            WideLayout(state, callbacks, hubriseSection, alertsSection)
         } else {
-            NarrowLayout(state, callbacks, hubriseSection)
+            NarrowLayout(state, callbacks, hubriseSection, alertsSection)
         }
     }
 }
@@ -236,6 +272,7 @@ private fun WideLayout(
     state: SettingsUiState,
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
+    alertsSection: @Composable () -> Unit,
 ) {
     val gap = PiliTheme.dimens.spaceLg
     Row(Modifier.fillMaxSize().padding(gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -253,6 +290,7 @@ private fun WideLayout(
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+            if (state.isManager) alertsSection()
             InfoPanel(state.info)
             IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)
             if (state.hubrise.visible) hubriseSection()
@@ -266,6 +304,7 @@ private fun NarrowLayout(
     state: SettingsUiState,
     callbacks: SettingsCallbacks,
     hubriseSection: @Composable () -> Unit,
+    alertsSection: @Composable () -> Unit,
 ) {
     val gap = PiliTheme.dimens.spaceMd
     Column(
@@ -277,6 +316,7 @@ private fun NarrowLayout(
         LanguagePanel(state.language, callbacks.onLanguage)
         ProductLabelPanel(state.productLabel, callbacks.onProductLabel)
         if (state.isManager) TablePlanPanel(state.tablePlan, callbacks)
+        if (state.isManager) alertsSection()
         if (state.isManager) EmployeesPanel(state, callbacks, Modifier, scrollList = false)
         InfoPanel(state.info)
         IntegrationPanel(state.hubrise, callbacks.onToggleHubrise)

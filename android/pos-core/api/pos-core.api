@@ -120,6 +120,87 @@ public final class uniffi/pos_ffi/Adoption {
 public final class uniffi/pos_ffi/Adoption$Companion {
 }
 
+public final class uniffi/pos_ffi/AlertKinds {
+	public static final field Companion Luniffi/pos_ffi/AlertKinds$Companion;
+	public fun <init> (ZZZZZ)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun copy (ZZZZZ)Luniffi/pos_ffi/AlertKinds;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertKinds;ZZZZZILjava/lang/Object;)Luniffi/pos_ffi/AlertKinds;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFdm ()Z
+	public final fun getOnlineWaiting ()Z
+	public final fun getPrinter ()Z
+	public final fun getTerminal ()Z
+	public final fun getZMissing ()Z
+	public fun hashCode ()I
+	public final fun setFdm (Z)V
+	public final fun setOnlineWaiting (Z)V
+	public final fun setPrinter (Z)V
+	public final fun setTerminal (Z)V
+	public final fun setZMissing (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AlertKinds$Companion {
+}
+
+public final class uniffi/pos_ffi/AlertLogRow {
+	public static final field Companion Luniffi/pos_ffi/AlertLogRow$Companion;
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;)Luniffi/pos_ffi/AlertLogRow;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertLogRow;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/AlertLogRow;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCreatedAt ()Ljava/lang/String;
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getHttpStatus ()Ljava/lang/Long;
+	public final fun getId ()J
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getOutcome ()Ljava/lang/String;
+	public final fun getTransition ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun setCreatedAt (Ljava/lang/String;)V
+	public final fun setDetail (Ljava/lang/String;)V
+	public final fun setHttpStatus (Ljava/lang/Long;)V
+	public final fun setId (J)V
+	public final fun setKind (Ljava/lang/String;)V
+	public final fun setOutcome (Ljava/lang/String;)V
+	public final fun setTransition (Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AlertLogRow$Companion {
+}
+
+public final class uniffi/pos_ffi/AlertTestResult {
+	public static final field Companion Luniffi/pos_ffi/AlertTestResult$Companion;
+	public fun <init> (ZLjava/lang/String;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;)Luniffi/pos_ffi/AlertTestResult;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/AlertTestResult;ZLjava/lang/String;ILjava/lang/Object;)Luniffi/pos_ffi/AlertTestResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getSent ()Z
+	public fun hashCode ()I
+	public final fun setDetail (Ljava/lang/String;)V
+	public final fun setSent (Z)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/AlertTestResult$Companion {
+}
+
 public abstract class uniffi/pos_ffi/ApplyOutcome {
 	public static final field Companion Luniffi/pos_ffi/ApplyOutcome$Companion;
 }
@@ -2021,6 +2102,26 @@ public final class uniffi/pos_ffi/FfiConverterSequenceTypeAdoption : uniffi/pos_
 	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
 }
 
+public final class uniffi/pos_ffi/FfiConverterSequenceTypeAlertLogRow : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAlertLogRow;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Ljava/util/List;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/util/List;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Ljava/util/List;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Ljava/util/List;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Ljava/util/List;Ljava/nio/ByteBuffer;)V
+}
+
 public final class uniffi/pos_ffi/FfiConverterSequenceTypeAttention : uniffi/pos_ffi/FfiConverterRustBuffer {
 	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterSequenceTypeAttention;
 	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
@@ -2938,6 +3039,66 @@ public final class uniffi/pos_ffi/FfiConverterTypeAdoption : uniffi/pos_ffi/FfiC
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/Adoption;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/Adoption;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAlertKinds : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAlertKinds;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AlertKinds;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertKinds;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertKinds;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AlertKinds;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AlertKinds;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AlertKinds;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AlertKinds;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAlertLogRow : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAlertLogRow;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AlertLogRow;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertLogRow;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertLogRow;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AlertLogRow;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AlertLogRow;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AlertLogRow;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AlertLogRow;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeAlertTestResult : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeAlertTestResult;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/AlertTestResult;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertTestResult;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/AlertTestResult;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/AlertTestResult;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/AlertTestResult;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/AlertTestResult;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/AlertTestResult;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypeApplyOutcome : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -4196,6 +4357,46 @@ public final class uniffi/pos_ffi/FfiConverterTypeOriginalControlData : uniffi/p
 	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/OriginalControlData;
 	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
 	public fun write (Luniffi/pos_ffi/OriginalControlData;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeOwnerAlerts : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeOwnerAlerts;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/OwnerAlerts;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlerts;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlerts;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/OwnerAlerts;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/OwnerAlerts;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/OwnerAlerts;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/OwnerAlerts;Ljava/nio/ByteBuffer;)V
+}
+
+public final class uniffi/pos_ffi/FfiConverterTypeOwnerAlertsInput : uniffi/pos_ffi/FfiConverterRustBuffer {
+	public static final field INSTANCE Luniffi/pos_ffi/FfiConverterTypeOwnerAlertsInput;
+	public synthetic fun allocationSize-I7RO_PI (Ljava/lang/Object;)J
+	public fun allocationSize-I7RO_PI (Luniffi/pos_ffi/OwnerAlertsInput;)J
+	public synthetic fun lift (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun lift (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public synthetic fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Ljava/lang/Object;
+	public fun liftFromRustBuffer (Luniffi/pos_ffi/RustBuffer$ByValue;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public synthetic fun lower (Ljava/lang/Object;)Ljava/lang/Object;
+	public synthetic fun lower (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lower (Luniffi/pos_ffi/OwnerAlertsInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun lowerIntoRustBuffer (Ljava/lang/Object;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public fun lowerIntoRustBuffer (Luniffi/pos_ffi/OwnerAlertsInput;)Luniffi/pos_ffi/RustBuffer$ByValue;
+	public synthetic fun read (Ljava/nio/ByteBuffer;)Ljava/lang/Object;
+	public fun read (Ljava/nio/ByteBuffer;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public synthetic fun write (Ljava/lang/Object;Ljava/nio/ByteBuffer;)V
+	public fun write (Luniffi/pos_ffi/OwnerAlertsInput;Ljava/nio/ByteBuffer;)V
 }
 
 public final class uniffi/pos_ffi/FfiConverterTypePatchStatusRequest : uniffi/pos_ffi/FfiConverterRustBuffer {
@@ -5926,6 +6127,83 @@ public final class uniffi/pos_ffi/OriginalControlData {
 public final class uniffi/pos_ffi/OriginalControlData$Companion {
 }
 
+public final class uniffi/pos_ffi/OwnerAlerts {
+	public static final field Companion Luniffi/pos_ffi/OwnerAlerts$Companion;
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJZ)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Luniffi/pos_ffi/AlertKinds;
+	public final fun component6 ()J
+	public final fun component7 ()J
+	public final fun component8 ()J
+	public final fun component9 ()Z
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJZ)Luniffi/pos_ffi/OwnerAlerts;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/OwnerAlerts;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJZILjava/lang/Object;)Luniffi/pos_ffi/OwnerAlerts;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChatId ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getKinds ()Luniffi/pos_ffi/AlertKinds;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getLanguage ()Ljava/lang/String;
+	public final fun getOnlineWaitMinutes ()J
+	public final fun getReminderMinutes ()J
+	public final fun getTokenConfigured ()Z
+	public final fun getZDeadlineHour ()J
+	public fun hashCode ()I
+	public final fun setChatId (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setKinds (Luniffi/pos_ffi/AlertKinds;)V
+	public final fun setLabel (Ljava/lang/String;)V
+	public final fun setLanguage (Ljava/lang/String;)V
+	public final fun setOnlineWaitMinutes (J)V
+	public final fun setReminderMinutes (J)V
+	public final fun setTokenConfigured (Z)V
+	public final fun setZDeadlineHour (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/OwnerAlerts$Companion {
+}
+
+public final class uniffi/pos_ffi/OwnerAlertsInput {
+	public static final field Companion Luniffi/pos_ffi/OwnerAlertsInput$Companion;
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJ)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Luniffi/pos_ffi/AlertKinds;
+	public final fun component6 ()J
+	public final fun component7 ()J
+	public final fun component8 ()J
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJ)Luniffi/pos_ffi/OwnerAlertsInput;
+	public static synthetic fun copy$default (Luniffi/pos_ffi/OwnerAlertsInput;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Luniffi/pos_ffi/AlertKinds;JJJILjava/lang/Object;)Luniffi/pos_ffi/OwnerAlertsInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChatId ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getKinds ()Luniffi/pos_ffi/AlertKinds;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getLanguage ()Ljava/lang/String;
+	public final fun getOnlineWaitMinutes ()J
+	public final fun getReminderMinutes ()J
+	public final fun getZDeadlineHour ()J
+	public fun hashCode ()I
+	public final fun setChatId (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setKinds (Luniffi/pos_ffi/AlertKinds;)V
+	public final fun setLabel (Ljava/lang/String;)V
+	public final fun setLanguage (Ljava/lang/String;)V
+	public final fun setOnlineWaitMinutes (J)V
+	public final fun setReminderMinutes (J)V
+	public final fun setZDeadlineHour (J)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class uniffi/pos_ffi/OwnerAlertsInput$Companion {
+}
+
 public final class uniffi/pos_ffi/PatchStatusRequest {
 	public static final field Companion Luniffi/pos_ffi/PatchStatusRequest$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
@@ -6051,6 +6329,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun getItemModifiers (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getUniffiIsDestroyed ()Z
@@ -6076,6 +6355,7 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun listOpenShifts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listOpenTakeaways (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listOrderLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun listOwnerAlertLog (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listRefundableEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listTables (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun listTicketDeliveries (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6096,8 +6376,10 @@ public class uniffi/pos_ffi/PosEngine : java/lang/AutoCloseable, uniffi/pos_ffi/
 	public fun remoteSupportRunning (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun sendTestAlert (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun setTrainingMode (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6157,6 +6439,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun getItemModifiers (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getMenuItems (Ljava/lang/Long;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getOrder (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getOwnerAlerts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getSettings (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getTablePlan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun hubriseAdoptCatalog (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6181,6 +6464,7 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun listOpenShifts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listOpenTakeaways (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listOrderLines (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun listOwnerAlertLog (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listRefundableEvents (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listTables (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun listTicketDeliveries (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -6201,8 +6485,10 @@ public abstract interface class uniffi/pos_ffi/PosEngineInterface {
 	public abstract fun remoteSupportRunning (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun remoteSupportStatus (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun removeOrderLine (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun sendTestAlert (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setActiveOrder (Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setHubriseEnabled (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setOwnerAlerts (Luniffi/pos_ffi/OwnerAlertsInput;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setPin (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTablePlan (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setTrainingMode (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
