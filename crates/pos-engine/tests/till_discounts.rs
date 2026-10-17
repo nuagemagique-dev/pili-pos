@@ -1328,7 +1328,8 @@ fn pre_bill_printed(app: &TestApp, table: i32) -> bool {
 #[tokio::test]
 async fn a_discount_resets_the_pre_bill_flag() {
     let (app, _p) = world().await;
-    // Direct attach on a table the FDM does not know yet.
+    // A pre-bill on a table the FDM does not know yet: the line was never
+    // registered, so the discount is stored locally and signs nothing.
     let fresh = table_order(&app, 1);
     add(&app, fresh, 1, 2);
     do_sign_pre_bill(&app.state, fresh).await.unwrap();
