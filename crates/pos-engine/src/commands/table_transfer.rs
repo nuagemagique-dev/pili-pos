@@ -113,7 +113,7 @@ pub async fn do_transfer_table(
 }
 
 /// Whether the order sits on `table` now (a late commit may have kept it
-/// on its source table, V1F-D29).
+/// on its source table, V1F-D60).
 fn is_on_table(state: &AppState, order_id: i64, table: i32) -> Result<bool, String> {
     let db = state.db.lock().map_err(errors::internal)?;
     let current: Option<i32> = db

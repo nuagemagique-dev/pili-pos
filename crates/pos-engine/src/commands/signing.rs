@@ -633,7 +633,7 @@ fn apply(
             // must never hold two open orders on one table. An answer that
             // arrives late can find the target taken meanwhile: an order
             // with lines opened there after the check. Then the order
-            // stays on its source table (V1F-D29) and the caller
+            // stays on its source table (V1F-D60) and the caller
             // reports `table_transfer_not_moved`.
             let busy: bool = tx
                 .query_row(
