@@ -23,6 +23,9 @@
     <string name="err_dine_in_needs_table">A dine-in order needs a table.</string>
     <string name="err_takeaway_has_no_table">A takeaway order has no table.</string>
     <string name="err_table_plan_invalid">Write the table numbers like this: 1-12, 20-25 (1 to 999, at most 200 tables).</string>
+    <string name="err_alerts_invalid">Invalid alert setting: {field}.</string>
+    <string name="err_alerts_token_missing">The Telegram bot token is not configured on this till (alerts section of pos.json).</string>
+    <string name="err_alerts_send_failed">The message was not sent: {detail}</string>
     <string name="err_quantity_positive">The quantity must be at least 1.</string>
     <string name="err_order_not_open">This order is already closed.</string>
     <string name="err_price_positive">Enter a price greater than zero.</string>
@@ -91,6 +94,7 @@
     <string name="err_config_digital_ticket">Invalid e-mail ticket setting. Detail: {detail}</string>
     <string name="err_config_export">Invalid nightly export setting. Detail: {detail}</string>
     <string name="err_config_payment_terminal">Invalid payment terminal setting. Detail: {detail}</string>
+    <string name="err_config_alerts">Invalid owner alerts setting (token file or address). Detail: {detail}</string>
     <string name="err_config_other">Invalid or unreadable configuration. Detail: {detail}</string>
     <string name="err_internal_error">Internal error. Contact your technician. ({detail})</string>
     <string name="err_hubrise_not_connected">HubRise is not connected.</string>

@@ -861,3 +861,66 @@ export function getTablePlan(): Promise<TablePlan> {
 export function setTablePlan(plan: string): Promise<TablePlan> {
   return invoke("set_table_plan", { plan });
 }
+
+// ── Owner alerts (Telegram messages to the owner's phone) ──────────
+
+/** One switch per kind of alert. */
+export interface AlertKinds {
+  fdm: boolean;
+  printer: boolean;
+  terminal: boolean;
+  z_missing: boolean;
+  online_waiting: boolean;
+}
+
+/** What the owner edits. */
+export interface OwnerAlertsInput {
+  enabled: boolean;
+  chat_id: string;
+  label: string;
+  language: "fr" | "zh" | "en";
+  kinds: AlertKinds;
+  z_deadline_hour: number;
+  online_wait_minutes: number;
+  reminder_minutes: number;
+}
+
+/** The settings as stored, plus whether the bot token can be read (the token never leaves the engine). */
+export interface OwnerAlerts extends Omit<OwnerAlertsInput, "language"> {
+  language: string;
+  token_configured: boolean;
+}
+
+export interface AlertTestResult {
+  sent: boolean;
+  detail: string;
+}
+
+export interface AlertLogRow {
+  id: number;
+  kind: string;
+  transition: string;
+  detail: string | null;
+  outcome: string;
+  http_status: number | null;
+  created_at: string;
+}
+
+export function getOwnerAlerts(): Promise<OwnerAlerts> {
+  return invoke("get_owner_alerts");
+}
+
+/** Managers only. Logged. */
+export function setOwnerAlerts(input: OwnerAlertsInput): Promise<OwnerAlerts> {
+  return invoke("set_owner_alerts", { input });
+}
+
+/** Managers only. Sends one message now; refuses with `alerts_send_failed|detail=...`. */
+export function sendTestAlert(): Promise<AlertTestResult> {
+  return invoke("send_test_alert");
+}
+
+/** Managers only. Newest first. */
+export function listOwnerAlertLog(limit: number): Promise<AlertLogRow[]> {
+  return invoke("list_owner_alert_log", { limit });
+}

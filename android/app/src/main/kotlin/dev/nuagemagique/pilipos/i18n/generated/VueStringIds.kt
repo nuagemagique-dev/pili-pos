@@ -96,6 +96,9 @@ internal object VueStringIds {
         this["err_dine_in_needs_table"] = R.string.err_dine_in_needs_table
         this["err_takeaway_has_no_table"] = R.string.err_takeaway_has_no_table
         this["err_table_plan_invalid"] = R.string.err_table_plan_invalid
+        this["err_alerts_invalid"] = R.string.err_alerts_invalid
+        this["err_alerts_token_missing"] = R.string.err_alerts_token_missing
+        this["err_alerts_send_failed"] = R.string.err_alerts_send_failed
         this["err_quantity_positive"] = R.string.err_quantity_positive
         this["err_order_not_open"] = R.string.err_order_not_open
         this["err_price_positive"] = R.string.err_price_positive
@@ -164,6 +167,7 @@ internal object VueStringIds {
         this["err_config_digital_ticket"] = R.string.err_config_digital_ticket
         this["err_config_export"] = R.string.err_config_export
         this["err_config_payment_terminal"] = R.string.err_config_payment_terminal
+        this["err_config_alerts"] = R.string.err_config_alerts
         this["err_config_other"] = R.string.err_config_other
         this["err_internal_error"] = R.string.err_internal_error
         this["pin_choose"] = R.string.pin_choose
@@ -262,13 +266,13 @@ internal object VueStringIds {
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["delivery_cancel"] = R.string.delivery_cancel
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
         this["delivery_outcome_queued"] = R.string.delivery_outcome_queued
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_print_missing"] = R.string.delivery_print_missing
         this["delivery_settings_title"] = R.string.delivery_settings_title
         this["delivery_settings_refresh"] = R.string.delivery_settings_refresh
@@ -419,6 +423,44 @@ internal object VueStringIds {
         this["settings_insz_hint"] = R.string.settings_insz_hint
         this["settings_add_employee"] = R.string.settings_add_employee
         this["settings_email_title"] = R.string.settings_email_title
+        this["alerts_title"] = R.string.alerts_title
+        this["alerts_state_on"] = R.string.alerts_state_on
+        this["alerts_state_off"] = R.string.alerts_state_off
+        this["alerts_token_ok"] = R.string.alerts_token_ok
+        this["alerts_token_missing_pill"] = R.string.alerts_token_missing_pill
+        this["alerts_token_missing_note"] = R.string.alerts_token_missing_note
+        this["alerts_chat_id"] = R.string.alerts_chat_id
+        this["alerts_chat_id_unset"] = R.string.alerts_chat_id_unset
+        this["alerts_label"] = R.string.alerts_label
+        this["alerts_label_placeholder"] = R.string.alerts_label_placeholder
+        this["alerts_language"] = R.string.alerts_language
+        this["alerts_kinds"] = R.string.alerts_kinds
+        this["alerts_kind_fdm"] = R.string.alerts_kind_fdm
+        this["alerts_kind_printer"] = R.string.alerts_kind_printer
+        this["alerts_kind_terminal"] = R.string.alerts_kind_terminal
+        this["alerts_kind_z_missing"] = R.string.alerts_kind_z_missing
+        this["alerts_kind_online_waiting"] = R.string.alerts_kind_online_waiting
+        this["alerts_z_deadline"] = R.string.alerts_z_deadline
+        this["alerts_online_wait"] = R.string.alerts_online_wait
+        this["alerts_reminder"] = R.string.alerts_reminder
+        this["alerts_value_minutes"] = R.string.alerts_value_minutes
+        this["alerts_value_hour"] = R.string.alerts_value_hour
+        this["alerts_value_never"] = R.string.alerts_value_never
+        this["alerts_save"] = R.string.alerts_save
+        this["alerts_saved"] = R.string.alerts_saved
+        this["alerts_test"] = R.string.alerts_test
+        this["alerts_test_sent"] = R.string.alerts_test_sent
+        this["alerts_note"] = R.string.alerts_note
+        this["alerts_log_title"] = R.string.alerts_log_title
+        this["alerts_log_empty"] = R.string.alerts_log_empty
+        this["alerts_transition_raised"] = R.string.alerts_transition_raised
+        this["alerts_transition_reminder"] = R.string.alerts_transition_reminder
+        this["alerts_transition_resolved"] = R.string.alerts_transition_resolved
+        this["alerts_transition_test"] = R.string.alerts_transition_test
+        this["alerts_outcome_sent"] = R.string.alerts_outcome_sent
+        this["alerts_outcome_failed"] = R.string.alerts_outcome_failed
+        this["alerts_outcome_suppressed"] = R.string.alerts_outcome_suppressed
+        this["alerts_minus"] = R.string.alerts_minus
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
@@ -477,6 +519,9 @@ internal object VueStringIds {
         this["hubrise_complete_connection"] = R.string.hubrise_complete_connection
         this["err_hubrise_not_connected"] = R.string.err_hubrise_not_connected
         this["err_hubrise_order_unknown"] = R.string.err_hubrise_order_unknown
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["err_hubrise_status_not_allowed"] = R.string.err_hubrise_status_not_allowed
         this["err_hubrise_time_invalid"] = R.string.err_hubrise_time_invalid
         this["err_hubrise_menu_managed"] = R.string.err_hubrise_menu_managed
@@ -519,9 +564,6 @@ internal object VueStringIds {
         this["hubrise_catalog_title"] = R.string.hubrise_catalog_title
         this["hubrise_catalog_synced"] = R.string.hubrise_catalog_synced
         this["hubrise_catalog_never"] = R.string.hubrise_catalog_never
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_catalog_rejected"] = R.string.hubrise_catalog_rejected
         this["hubrise_catalog_sync_ok"] = R.string.hubrise_catalog_sync_ok
         this["hubrise_adoption_title"] = R.string.hubrise_adoption_title

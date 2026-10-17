@@ -23,6 +23,9 @@
     <string name="err_dine_in_needs_table">堂食订单需要桌号。</string>
     <string name="err_takeaway_has_no_table">外带订单没有桌号。</string>
     <string name="err_table_plan_invalid">请按此格式填写桌号：1-12, 20-25（1至999，最多200张桌）。</string>
+    <string name="err_alerts_invalid">警报设置无效：{field}。</string>
+    <string name="err_alerts_token_missing">此收银机未配置 Telegram 机器人令牌（pos.json 的 alerts 部分）。</string>
+    <string name="err_alerts_send_failed">消息未发送：{detail}</string>
     <string name="err_quantity_positive">数量至少为1。</string>
     <string name="err_order_not_open">该订单已结束。</string>
     <string name="err_price_positive">请输入大于零的价格。</string>
@@ -91,6 +94,7 @@
     <string name="err_config_digital_ticket">电子邮件小票设置无效。 详情：{detail}</string>
     <string name="err_config_export">夜间导出设置无效。 详情：{detail}</string>
     <string name="err_config_payment_terminal">支付终端设置无效。 详情：{detail}</string>
+    <string name="err_config_alerts">店主警报设置无效（令牌文件或地址）。 详情：{detail}</string>
     <string name="err_config_other">配置无效或无法读取。 详情：{detail}</string>
     <string name="err_internal_error">内部错误，请联系技术人员。（{detail}）</string>
     <string name="err_hubrise_not_connected">HubRise未连接。</string>

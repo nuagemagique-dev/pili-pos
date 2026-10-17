@@ -458,6 +458,17 @@ function defaultHandlers(): Record<string, Handler> {
     get_table_plan: () => ({ plan: '1-20', table_count: 20, log: [] }),
     set_table_plan: (args: any) => ({ plan: args.plan, table_count: 0, log: [] }),
 
+    // Owner alerts: off, no token, until a spec says otherwise.
+    get_owner_alerts: () => ({
+      enabled: false, chat_id: '', label: '', language: 'fr',
+      kinds: { fdm: true, printer: true, terminal: true, z_missing: true, online_waiting: true },
+      z_deadline_hour: 5, online_wait_minutes: 5, reminder_minutes: 60,
+      token_configured: false,
+    }),
+    set_owner_alerts: (args: any) => ({ ...args.input, token_configured: false }),
+    send_test_alert: () => ({ sent: true, detail: 'ok' }),
+    list_owner_alert_log: () => [],
+
     // HubRise: switched on by default (the webshop specs use it).
     get_integrations: () => ({ hubrise_enabled: true, online_orders_open: 0, hubrise_log: [] }),
     set_hubrise_enabled: (args: any) => ({

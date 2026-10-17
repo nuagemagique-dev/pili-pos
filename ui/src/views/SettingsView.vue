@@ -14,6 +14,7 @@ import * as ipc from "../api/ipc";
 import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
+import OwnerAlertsSettings from "../components/OwnerAlertsSettings.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -393,6 +394,9 @@ onMounted(() => {
 
         <!-- Digital tickets (admin) - never shows the address itself -->
         <IntegrationSwitch class="panel" />
+
+        <!-- Owner alerts: Telegram messages (manager only); scrolls inside its panel -->
+        <OwnerAlertsSettings v-if="auth.isManager" class="panel panel-grow" />
 
         <section class="panel deliveries-section" :class="{ 'panel-grow': !integrations.hubriseVisible }">
           <div class="panel-head">

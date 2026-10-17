@@ -12,6 +12,234 @@
       "zh": "添加",
       "area": "core"
     },
+    "alerts_chat_id": {
+      "fr": "Conversation Telegram",
+      "en": "Telegram chat",
+      "zh": "Telegram 会话",
+      "area": "settings"
+    },
+    "alerts_chat_id_unset": {
+      "fr": "Non renseignée",
+      "en": "Not set",
+      "zh": "未设置",
+      "area": "settings"
+    },
+    "alerts_kind_fdm": {
+      "fr": "La boîte noire ne répond plus",
+      "en": "The FDM stops answering",
+      "zh": "黑匣子无响应",
+      "area": "settings"
+    },
+    "alerts_kind_online_waiting": {
+      "fr": "Une commande en ligne attend",
+      "en": "An online order is waiting",
+      "zh": "有网上订单在等待",
+      "area": "settings"
+    },
+    "alerts_kind_printer": {
+      "fr": "Une imprimante est injoignable",
+      "en": "A printer is unreachable",
+      "zh": "打印机无法连接",
+      "area": "settings"
+    },
+    "alerts_kind_terminal": {
+      "fr": "Le terminal de paiement est injoignable",
+      "en": "The payment terminal is unreachable",
+      "zh": "支付终端无法连接",
+      "area": "settings"
+    },
+    "alerts_kind_z_missing": {
+      "fr": "Le Z du jour n'est pas fait",
+      "en": "The day's Z is not done",
+      "zh": "当日 Z 报表未完成",
+      "area": "settings"
+    },
+    "alerts_kinds": {
+      "fr": "Prévenir quand",
+      "en": "Warn when",
+      "zh": "在以下情况提醒",
+      "area": "settings"
+    },
+    "alerts_label": {
+      "fr": "Nom dans les messages",
+      "en": "Name in the messages",
+      "zh": "消息中的名称",
+      "area": "settings"
+    },
+    "alerts_label_placeholder": {
+      "fr": "Vide : identifiant de la caisse",
+      "en": "Empty: the till identifier",
+      "zh": "留空：使用收银机标识",
+      "area": "settings"
+    },
+    "alerts_language": {
+      "fr": "Langue des messages",
+      "en": "Message language",
+      "zh": "消息语言",
+      "area": "settings"
+    },
+    "alerts_log_empty": {
+      "fr": "Aucun message pour l'instant",
+      "en": "No message yet",
+      "zh": "暂无消息",
+      "area": "settings"
+    },
+    "alerts_log_title": {
+      "fr": "Derniers messages",
+      "en": "Latest messages",
+      "zh": "最近消息",
+      "area": "settings"
+    },
+    "alerts_minus": {
+      "fr": "Groupe (signe -)",
+      "en": "Group (minus sign)",
+      "zh": "群组（负号）",
+      "area": "settings"
+    },
+    "alerts_note": {
+      "fr": "Les messages ne contiennent ni nom de client, ni adresse, ni montant, ni numéro de ticket. Ils ne bloquent jamais la caisse.",
+      "en": "Messages never contain a customer name, an address, an amount or a ticket number. They never block the till.",
+      "zh": "消息不含客户姓名、地址、金额或小票号码，也不会阻止收银机运行。",
+      "area": "settings"
+    },
+    "alerts_online_wait": {
+      "fr": "Commande en ligne en attente depuis",
+      "en": "Online order waiting for",
+      "zh": "网上订单等待时间",
+      "area": "settings"
+    },
+    "alerts_outcome_failed": {
+      "fr": "Échec",
+      "en": "Failed",
+      "zh": "失败",
+      "area": "settings"
+    },
+    "alerts_outcome_sent": {
+      "fr": "Envoyé",
+      "en": "Sent",
+      "zh": "已发送",
+      "area": "settings"
+    },
+    "alerts_outcome_suppressed": {
+      "fr": "Retenu (limite horaire)",
+      "en": "Held back (hourly limit)",
+      "zh": "已拦截（每小时上限）",
+      "area": "settings"
+    },
+    "alerts_reminder": {
+      "fr": "Rappel toutes les",
+      "en": "Remind every",
+      "zh": "提醒间隔",
+      "area": "settings"
+    },
+    "alerts_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "alerts_saved": {
+      "fr": "Enregistré",
+      "en": "Saved",
+      "zh": "已保存",
+      "area": "settings"
+    },
+    "alerts_state_off": {
+      "fr": "Inactives",
+      "en": "Off",
+      "zh": "未开启",
+      "area": "settings"
+    },
+    "alerts_state_on": {
+      "fr": "Actives",
+      "en": "On",
+      "zh": "已开启",
+      "area": "settings"
+    },
+    "alerts_test": {
+      "fr": "Envoyer un message test",
+      "en": "Send a test message",
+      "zh": "发送测试消息",
+      "area": "settings"
+    },
+    "alerts_test_sent": {
+      "fr": "Message test envoyé",
+      "en": "Test message sent",
+      "zh": "测试消息已发送",
+      "area": "settings"
+    },
+    "alerts_title": {
+      "fr": "Alertes sur téléphone",
+      "en": "Phone alerts",
+      "zh": "手机警报",
+      "area": "settings"
+    },
+    "alerts_token_missing_note": {
+      "fr": "Le jeton du robot n'est pas configuré sur cette caisse. Il se règle à l'installation (pos.json), jamais ici.",
+      "en": "The bot token is not configured on this till. It is set at installation (pos.json), never here.",
+      "zh": "此收银机未配置机器人令牌。令牌在安装时设置（pos.json），不在此处设置。",
+      "area": "settings"
+    },
+    "alerts_token_missing_pill": {
+      "fr": "Robot Telegram absent",
+      "en": "Telegram bot missing",
+      "zh": "缺少 Telegram 机器人",
+      "area": "settings"
+    },
+    "alerts_token_ok": {
+      "fr": "Robot Telegram configuré",
+      "en": "Telegram bot configured",
+      "zh": "Telegram 机器人已配置",
+      "area": "settings"
+    },
+    "alerts_transition_raised": {
+      "fr": "Alerte",
+      "en": "Alert",
+      "zh": "警报",
+      "area": "settings"
+    },
+    "alerts_transition_reminder": {
+      "fr": "Rappel",
+      "en": "Reminder",
+      "zh": "提醒",
+      "area": "settings"
+    },
+    "alerts_transition_resolved": {
+      "fr": "Résolu",
+      "en": "Resolved",
+      "zh": "已恢复",
+      "area": "settings"
+    },
+    "alerts_transition_test": {
+      "fr": "Test",
+      "en": "Test",
+      "zh": "测试",
+      "area": "settings"
+    },
+    "alerts_value_hour": {
+      "fr": "{n} h",
+      "en": "{n} h",
+      "zh": "{n} 点",
+      "area": "settings"
+    },
+    "alerts_value_minutes": {
+      "fr": "{n} min",
+      "en": "{n} min",
+      "zh": "{n} 分钟",
+      "area": "settings"
+    },
+    "alerts_value_never": {
+      "fr": "Jamais",
+      "en": "Never",
+      "zh": "从不",
+      "area": "settings"
+    },
+    "alerts_z_deadline": {
+      "fr": "Z attendu avant",
+      "en": "Z expected before",
+      "zh": "Z 报表截止时间",
+      "area": "settings"
+    },
     "amount": {
       "fr": "Montant",
       "en": "Amount",
@@ -762,6 +990,24 @@
       "zh": "等份",
       "area": "checkout"
     },
+    "err_alerts_invalid": {
+      "fr": "Réglage des alertes invalide : {field}.",
+      "en": "Invalid alert setting: {field}.",
+      "zh": "警报设置无效：{field}。",
+      "area": "errors"
+    },
+    "err_alerts_send_failed": {
+      "fr": "Le message n'est pas parti : {detail}",
+      "en": "The message was not sent: {detail}",
+      "zh": "消息未发送：{detail}",
+      "area": "errors"
+    },
+    "err_alerts_token_missing": {
+      "fr": "Le jeton du robot Telegram n'est pas configuré sur cette caisse (section alerts de pos.json).",
+      "en": "The Telegram bot token is not configured on this till (alerts section of pos.json).",
+      "zh": "此收银机未配置 Telegram 机器人令牌（pos.json 的 alerts 部分）。",
+      "area": "errors"
+    },
     "err_already_printed": {
       "fr": "Le ticket original est déjà imprimé : imprimez une copie.",
       "en": "The original ticket is already printed: print a copy.",
@@ -778,6 +1024,12 @@
       "fr": "Une autre opération était en cours : rien n'a été enregistré, réessayez.",
       "en": "Another operation was in progress: nothing was recorded, try again.",
       "zh": "另一操作正在进行：未记录任何内容，请重试。",
+      "area": "errors"
+    },
+    "err_config_alerts": {
+      "fr": "Réglage des alertes propriétaire invalide (fichier du jeton ou adresse). Détail : {detail}",
+      "en": "Invalid owner alerts setting (token file or address). Detail: {detail}",
+      "zh": "店主警报设置无效（令牌文件或地址）。 详情：{detail}",
       "area": "errors"
     },
     "err_config_day_end_hour": {
@@ -3350,7 +3602,11 @@
     "config_digital_ticket",
     "config_export",
     "config_payment_terminal",
+    "config_alerts",
     "config_other",
+    "alerts_invalid",
+    "alerts_token_missing",
+    "alerts_send_failed",
     "not_logged_in",
     "forbidden",
     "not_the_operator",
