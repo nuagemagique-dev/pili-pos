@@ -88,7 +88,8 @@ impl ReportEvent {
         })
     }
 
-    fn lines(&self) -> &[Value] {
+    /// The transaction lines of the event's request.
+    pub fn lines(&self) -> &[Value] {
         self.request["transaction"]["transactionLines"]
             .as_array()
             .map(Vec::as_slice)

@@ -147,6 +147,13 @@ fn build_transaction(lines: &[OrderLine], neg_reason: NegQuantityReason) -> Tran
     }
 }
 
+/// The transaction of `lines` with the journal's default reason, for
+/// the unit tests of the modules that adjust it.
+#[cfg(test)]
+pub(crate) fn build_transaction_for_tests(lines: &[OrderLine]) -> TransactionInput {
+    build_transaction(lines, NegQuantityReason::Correction)
+}
+
 /// The `reference` that ties together every event of one order (its P
 /// orders, pre-bills and the final N): stable for the order's lifetime.
 pub fn order_reference(order: &Order) -> String {
