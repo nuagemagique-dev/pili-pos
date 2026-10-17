@@ -264,6 +264,10 @@ pub(crate) enum PendingContext {
     Work {
         insz: String,
         is_in: bool,
+        /// INSZ of who registered it when not the employee (a manager).
+        /// Absent in contexts stored before migration 28.
+        #[serde(default)]
+        by: Option<String>,
     },
     Money,
     Drawer,
@@ -502,7 +506,15 @@ fn commit(
         }
         event_ids.push(id);
     }
-    let (ticket, delivery_id) = apply(&tx, &state.identity, events, context, &event_ids, &results)?;
+    let (ticket, delivery_id) = apply(
+        &tx,
+        &state.identity,
+        label,
+        events,
+        context,
+        &event_ids,
+        &results,
+    )?;
     let resolved = serde_json::to_string(&context.resolved()).map_err(errors::internal)?;
     pending_signs::mark_signed(&tx, pending_id, event_ids[0], &resolved)
         .map_err(errors::internal)?;
@@ -528,6 +540,7 @@ fn archive_error(e: rusqlite::Error) -> String {
 fn apply(
     tx: &rusqlite::Connection,
     identity: &pos_fiscal::identity::SoftwareIdentity,
+    label: EventLabel,
     events: &[ArchiveSpec],
     context: &PendingContext,
     event_ids: &[i64],
@@ -635,15 +648,18 @@ fn apply(
                 delivery::enqueue_in_tx(tx, event_ids[0], &delivery.resolved(), ticket.as_ref())?;
             Ok((ticket, delivery_id))
         }
-        PendingContext::Work { insz, is_in } => {
-            // The screen lock keeps a shift open; only a signed
-            // clock-out ends it.
-            if *is_in {
-                pos_db::queries::shifts::open_shift(tx, insz)
-            } else {
-                pos_db::queries::shifts::close_shift(tx, insz)
+        PendingContext::Work { insz, is_in, by } => {
+            // The local index reflects real presence only: a training
+            // (T) event registers none. The screen lock keeps a shift
+            // open; only a signed clock-out ends it.
+            if label != EventLabel::T {
+                if *is_in {
+                    pos_db::queries::shifts::open_shift(tx, insz, by.as_deref())
+                } else {
+                    pos_db::queries::shifts::close_shift(tx, insz, by.as_deref())
+                }
+                .map_err(errors::internal)?;
             }
-            .map_err(errors::internal)?;
             Ok((None, None))
         }
         PendingContext::TableOrder { .. }
@@ -990,5 +1006,43 @@ impl Stored {
             events: serde_json::from_str(&row.archive_json).map_err(errors::internal)?,
             context: serde_json::from_str(&row.context_json).map_err(errors::internal)?,
         })
+    }
+}
+
+#[cfg(test)]
+mod work_context_tests {
+    use super::PendingContext;
+
+    /// A `pending_signs` row written before migration 28 has no `by`.
+    #[test]
+    fn a_stored_work_context_without_by_still_parses() {
+        for is_in in [true, false] {
+            let old = format!(r#"{{"type":"work","insz":"12345678958","is_in":{is_in}}}"#);
+            let context: PendingContext = serde_json::from_str(&old).expect("old context");
+            match context {
+                PendingContext::Work {
+                    insz,
+                    is_in: parsed,
+                    by,
+                } => {
+                    assert_eq!(insz, "12345678958");
+                    assert_eq!(parsed, is_in);
+                    assert_eq!(by, None);
+                }
+                _ => panic!("not a work context"),
+            }
+        }
+    }
+
+    #[test]
+    fn the_manager_survives_a_round_trip() {
+        let context = PendingContext::Work {
+            insz: "12345678958".into(),
+            is_in: true,
+            by: Some("94060242576".into()),
+        };
+        let json = serde_json::to_string(&context).unwrap();
+        let back: PendingContext = serde_json::from_str(&json).unwrap();
+        assert!(matches!(back, PendingContext::Work { by: Some(b), .. } if b == "94060242576"));
     }
 }

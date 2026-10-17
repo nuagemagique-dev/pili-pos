@@ -92,6 +92,12 @@ internal object VueStringIds {
         this["err_name_required"] = R.string.err_name_required
         this["err_role_invalid"] = R.string.err_role_invalid
         this["err_deactivate_self"] = R.string.err_deactivate_self
+        this["err_presence_only_user"] = R.string.err_presence_only_user
+        this["err_presence_training"] = R.string.err_presence_training
+        this["err_presence_self"] = R.string.err_presence_self
+        this["err_presence_already_in"] = R.string.err_presence_already_in
+        this["err_presence_not_in"] = R.string.err_presence_not_in
+        this["err_deactivate_on_shift"] = R.string.err_deactivate_on_shift
         this["err_operator_invalid"] = R.string.err_operator_invalid
         this["err_dine_in_needs_table"] = R.string.err_dine_in_needs_table
         this["err_takeaway_has_no_table"] = R.string.err_takeaway_has_no_table
@@ -260,15 +266,15 @@ internal object VueStringIds {
         this["delivery_email_placeholder"] = R.string.delivery_email_placeholder
         this["delivery_invalid_email"] = R.string.delivery_invalid_email
         this["delivery_confirm_title"] = R.string.delivery_confirm_title
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["delivery_confirm_btn"] = R.string.delivery_confirm_btn
         this["delivery_edit"] = R.string.delivery_edit
         this["delivery_cancel"] = R.string.delivery_cancel
         this["delivery_outcome_printed"] = R.string.delivery_outcome_printed
         this["delivery_outcome_sent"] = R.string.delivery_outcome_sent
         this["delivery_outcome_queued"] = R.string.delivery_outcome_queued
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["delivery_print_missing"] = R.string.delivery_print_missing
         this["delivery_settings_title"] = R.string.delivery_settings_title
         this["delivery_settings_refresh"] = R.string.delivery_settings_refresh
@@ -513,15 +519,15 @@ internal object VueStringIds {
         this["webshop_attention_bad_price"] = R.string.webshop_attention_bad_price
         this["webshop_attention_vat_mismatch"] = R.string.webshop_attention_vat_mismatch
         this["webshop_attention_discount"] = R.string.webshop_attention_discount
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["webshop_attention_total_mismatch"] = R.string.webshop_attention_total_mismatch
         this["webshop_attention_payment_unclear"] = R.string.webshop_attention_payment_unclear
         this["hubrise_menu_managed_banner"] = R.string.hubrise_menu_managed_banner
         this["hubrise_catalog_title"] = R.string.hubrise_catalog_title
         this["hubrise_catalog_synced"] = R.string.hubrise_catalog_synced
         this["hubrise_catalog_never"] = R.string.hubrise_catalog_never
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["hubrise_catalog_rejected"] = R.string.hubrise_catalog_rejected
         this["hubrise_catalog_sync_ok"] = R.string.hubrise_catalog_sync_ok
         this["hubrise_adoption_title"] = R.string.hubrise_adoption_title

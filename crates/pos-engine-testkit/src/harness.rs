@@ -196,6 +196,7 @@ impl TestApp {
             role,
             active: true,
             has_pin: false,
+            presence_only: false,
         };
         *self.state.session.lock().unwrap() = Some(user);
     }

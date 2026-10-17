@@ -79,6 +79,7 @@ fn operator() -> User {
         role: UserRole::Cashier,
         active: true,
         has_pin: false,
+        presence_only: false,
     }
 }
 
