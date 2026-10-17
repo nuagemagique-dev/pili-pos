@@ -35,5 +35,19 @@
     <string name="settings_presence_done_out">Clock-out registered · {name}</string>
     <string name="settings_presence_fdm_down">FDM unavailable: clocking in or out is not possible</string>
     <string name="settings_presence_note">Staff without till access (kitchen): the manager registers their clock-in and clock-out here.</string>
+    <string name="settings_badges">Badge reader</string>
+    <string name="badge_reader_off">Off</string>
+    <string name="badge_reader_usb">USB reader</string>
+    <string name="settings_badge_login">Badge login</string>
+    <string name="settings_badge_login_note">Managers still enter their PIN after the badge.</string>
+    <string name="settings_badge_usb_timing">USB reader timing</string>
+    <string name="settings_badge_gap">Maximum gap between characters (ms)</string>
+    <string name="settings_badge_min_len">Minimum code length</string>
+    <string name="settings_badge_max_len">Maximum code length</string>
+    <string name="settings_badge_nfc_unavailable">No NFC on this device: choose a USB reader</string>
+    <string name="settings_badge_relink">The badge key was renewed: link the badges again</string>
+    <string name="settings_badge_privacy">Only a keyed hash of the badge is kept, never its number. Used for presence and login only.</string>
+    <string name="settings_badge_log">Latest events</string>
+    <string name="settings_badge_log_empty">No event yet</string>
     <string name="settings_email_title">Email tickets</string>
 </resources>

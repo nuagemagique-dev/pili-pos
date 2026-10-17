@@ -35,5 +35,19 @@
     <string name="settings_presence_done_out">已登记下班 · {name}</string>
     <string name="settings_presence_fdm_down">FDM 不可用，无法打卡</string>
     <string name="settings_presence_note">不使用收银机的员工（厨房）：由经理在此登记上下班。</string>
+    <string name="settings_badges">工牌读卡器</string>
+    <string name="badge_reader_off">关闭</string>
+    <string name="badge_reader_usb">USB 读卡器</string>
+    <string name="settings_badge_login">刷工牌登录</string>
+    <string name="settings_badge_login_note">经理刷工牌后仍需输入 PIN。</string>
+    <string name="settings_badge_usb_timing">USB 读卡器参数</string>
+    <string name="settings_badge_gap">字符最大间隔（毫秒）</string>
+    <string name="settings_badge_min_len">卡号最短长度</string>
+    <string name="settings_badge_max_len">卡号最长长度</string>
+    <string name="settings_badge_nfc_unavailable">本设备没有 NFC，请选择 USB 读卡器</string>
+    <string name="settings_badge_relink">工牌密钥已更新，请重新绑定工牌</string>
+    <string name="settings_badge_privacy">仅保存工牌的加密指纹，从不保存卡号，仅用于考勤和登录。</string>
+    <string name="settings_badge_log">最近记录</string>
+    <string name="settings_badge_log_empty">暂无记录</string>
     <string name="settings_email_title">电子邮件票据</string>
 </resources>

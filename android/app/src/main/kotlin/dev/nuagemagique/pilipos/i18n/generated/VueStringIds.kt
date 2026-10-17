@@ -97,6 +97,23 @@ internal object VueStringIds {
         this["err_presence_self"] = R.string.err_presence_self
         this["err_presence_already_in"] = R.string.err_presence_already_in
         this["err_presence_not_in"] = R.string.err_presence_not_in
+        this["badge_link"] = R.string.badge_link
+        this["badge_revoke"] = R.string.badge_revoke
+        this["badge_revoke_confirm"] = R.string.badge_revoke_confirm
+        this["badge_linked_on"] = R.string.badge_linked_on
+        this["badge_none_label"] = R.string.badge_none_label
+        this["badge_present_for"] = R.string.badge_present_for
+        this["badge_capture_timeout"] = R.string.badge_capture_timeout
+        this["badge_linked_done"] = R.string.badge_linked_done
+        this["badge_revoked_done"] = R.string.badge_revoked_done
+        this["badge_log_link"] = R.string.badge_log_link
+        this["badge_log_revoke"] = R.string.badge_log_revoke
+        this["badge_log_settings"] = R.string.badge_log_settings
+        this["badge_clock_in"] = R.string.badge_clock_in
+        this["badge_clock_out"] = R.string.badge_clock_out
+        this["badge_presence_failed"] = R.string.badge_presence_failed
+        this["login_badge_hint"] = R.string.login_badge_hint
+        this["end_shift_badge_hint"] = R.string.end_shift_badge_hint
         this["err_badge_reader_off"] = R.string.err_badge_reader_off
         this["err_badge_token_invalid"] = R.string.err_badge_token_invalid
         this["err_badge_key_unavailable"] = R.string.err_badge_key_unavailable
@@ -249,6 +266,9 @@ internal object VueStringIds {
         this["copy_kind_training"] = R.string.copy_kind_training
         this["refund"] = R.string.refund
         this["refund_select_ticket"] = R.string.refund_select_ticket
+    }
+
+    private fun MutableMap<String, Int>.part1() {
         this["refund_select_items"] = R.string.refund_select_items
         this["refund_confirm"] = R.string.refund_confirm
         this["refund_success"] = R.string.refund_success
@@ -266,9 +286,6 @@ internal object VueStringIds {
         this["cash_success"] = R.string.cash_success
         this["cash_failed"] = R.string.cash_failed
         this["cash_drawer_opened"] = R.string.cash_drawer_opened
-    }
-
-    private fun MutableMap<String, Int>.part1() {
         this["cash_err_amount"] = R.string.cash_err_amount
         this["training_banner"] = R.string.training_banner
         this["delivery_paper"] = R.string.delivery_paper
@@ -442,6 +459,20 @@ internal object VueStringIds {
         this["settings_presence_done_out"] = R.string.settings_presence_done_out
         this["settings_presence_fdm_down"] = R.string.settings_presence_fdm_down
         this["settings_presence_note"] = R.string.settings_presence_note
+        this["settings_badges"] = R.string.settings_badges
+        this["badge_reader_off"] = R.string.badge_reader_off
+        this["badge_reader_usb"] = R.string.badge_reader_usb
+        this["settings_badge_login"] = R.string.settings_badge_login
+        this["settings_badge_login_note"] = R.string.settings_badge_login_note
+        this["settings_badge_usb_timing"] = R.string.settings_badge_usb_timing
+        this["settings_badge_gap"] = R.string.settings_badge_gap
+        this["settings_badge_min_len"] = R.string.settings_badge_min_len
+        this["settings_badge_max_len"] = R.string.settings_badge_max_len
+        this["settings_badge_nfc_unavailable"] = R.string.settings_badge_nfc_unavailable
+        this["settings_badge_relink"] = R.string.settings_badge_relink
+        this["settings_badge_privacy"] = R.string.settings_badge_privacy
+        this["settings_badge_log"] = R.string.settings_badge_log
+        this["settings_badge_log_empty"] = R.string.settings_badge_log_empty
         this["settings_email_title"] = R.string.settings_email_title
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
@@ -488,6 +519,9 @@ internal object VueStringIds {
         this["webshop_toast_printer_missing"] = R.string.webshop_toast_printer_missing
         this["status_orders"] = R.string.status_orders
         this["hubrise_section_help"] = R.string.hubrise_section_help
+    }
+
+    private fun MutableMap<String, Int>.part2() {
         this["hubrise_status_label"] = R.string.hubrise_status_label
         this["hubrise_connected"] = R.string.hubrise_connected
         this["hubrise_disconnected"] = R.string.hubrise_disconnected
@@ -519,9 +553,6 @@ internal object VueStringIds {
         this["webshop_action_resync"] = R.string.webshop_action_resync
         this["webshop_action_collect_cash"] = R.string.webshop_action_collect_cash
         this["webshop_action_collect_card"] = R.string.webshop_action_collect_card
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["webshop_action_refund"] = R.string.webshop_action_refund
         this["webshop_action_close_cancelled"] = R.string.webshop_action_close_cancelled
         this["webshop_cancelled_refund"] = R.string.webshop_cancelled_refund

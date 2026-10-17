@@ -78,6 +78,39 @@ export const settingsMessages: Messages = {
     zh: "不使用收银机的员工（厨房）：由经理在此登记上下班。",
   },
 
+
+  // Badge reader panel (manager): NFC or USB wedge reader for presence and login
+  "settings_badges": { fr: "Lecteur de badges", en: "Badge reader", zh: "工牌读卡器" },
+  "badge_reader_off": { fr: "Désactivé", en: "Off", zh: "关闭" },
+  "badge_reader_usb": { fr: "Lecteur USB", en: "USB reader", zh: "USB 读卡器" },
+  "settings_badge_login": { fr: "Connexion par badge", en: "Badge login", zh: "刷工牌登录" },
+  "settings_badge_login_note": {
+    fr: "Les Gérants saisissent toujours leur PIN après le badge.",
+    en: "Managers still enter their PIN after the badge.",
+    zh: "经理刷工牌后仍需输入 PIN。",
+  },
+  "settings_badge_usb_timing": { fr: "Réglages du lecteur USB", en: "USB reader timing", zh: "USB 读卡器参数" },
+  "settings_badge_gap": { fr: "Écart maximal entre caractères (ms)", en: "Maximum gap between characters (ms)", zh: "字符最大间隔（毫秒）" },
+  "settings_badge_min_len": { fr: "Longueur minimale du code", en: "Minimum code length", zh: "卡号最短长度" },
+  "settings_badge_max_len": { fr: "Longueur maximale du code", en: "Maximum code length", zh: "卡号最长长度" },
+  "settings_badge_nfc_unavailable": {
+    fr: "Pas de NFC sur cet appareil : choisissez un lecteur USB",
+    en: "No NFC on this device: choose a USB reader",
+    zh: "本设备没有 NFC，请选择 USB 读卡器",
+  },
+  "settings_badge_relink": {
+    fr: "La clé des badges a été renouvelée : liez de nouveau les badges",
+    en: "The badge key was renewed: link the badges again",
+    zh: "工牌密钥已更新，请重新绑定工牌",
+  },
+  "settings_badge_privacy": {
+    fr: "Seule une empreinte chiffrée du badge est conservée, jamais son numéro. Usage : présence et connexion uniquement.",
+    en: "Only a keyed hash of the badge is kept, never its number. Used for presence and login only.",
+    zh: "仅保存工牌的加密指纹，从不保存卡号，仅用于考勤和登录。",
+  },
+  "settings_badge_log": { fr: "Derniers événements", en: "Latest events", zh: "最近记录" },
+  "settings_badge_log_empty": { fr: "Aucun événement", en: "No event yet", zh: "暂无记录" },
+
   // Email tickets panel
   "settings_email_title": { fr: "Tickets par email", en: "Email tickets", zh: "电子邮件票据" },
 
