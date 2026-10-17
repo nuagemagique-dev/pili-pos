@@ -79,6 +79,7 @@ internal sealed interface TablesEffect {
  * is shown as an error toast. It never navigates by itself: [TablesEffect.OpenOrder] is sent after an action of the
  * operator succeeded (PD205).
  */
+@Suppress("TooManyFunctions") // One entry per tap of the screen, the move mode included.
 internal class TablesViewModel(
     private val entry: TablesEntryPoint,
     private val clock: Clock = Clock.systemUTC(),

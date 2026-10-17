@@ -486,11 +486,11 @@ class RealRepo(unittest.TestCase):
         r = self.script("--hygiene")
         self.assertEqual((r.returncode, r.stdout), (0, "hygiene: no pos-ffi yet\n"))
 
-    def test_markdown_lists_the_94_cert_commands(self):
+    def test_markdown_lists_the_95_cert_commands(self):
         r = self.script("--markdown")
         self.assertEqual(r.returncode, 0, r.stderr)
         rows = [l for l in r.stdout.splitlines() if l.startswith("| ") and l[2].islower()]
-        self.assertEqual(len(rows), 94)
+        self.assertEqual(len(rows), 95)
         self.assertNotIn("sign_invoice_fiscal", r.stdout)
         self.assertNotIn("issue_b2b_invoice", r.stdout)
         if not (REAL_ROOT / cp.DEFAULT_FFI).exists():

@@ -147,7 +147,8 @@ internal fun TablesRoute(navigator: AppNavigator) {
  * The tables screen, stateless: the table grid (5 columns, occupied tables filled with their total, free ones
  * dashed) and the open takeaways on the right with the new takeaway button, laid out for 1920 x 1080 dp. Without a
  * user it shows an empty state instead. The "Déplacer une table" bar sits over the grid. Test tags: `tables_grid`,
- * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `tables_none`, `takeaways_panel`, `takeaway_<orderId>`, `takeaway_new`, `tables_empty`.
+ * `move_toggle`, `move_hint`, `table_<number>`, `table_<number>_total`, `tables_none`, `takeaways_panel`,
+ * `takeaway_<orderId>`, `takeaway_new`, `tables_empty`.
  */
 @Composable
 internal fun TablesContent(

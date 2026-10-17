@@ -821,7 +821,8 @@ class OrderStoreTest {
         runTest {
             val r = rig()
             r.store.seed(r, order(id = 1, table = 3), emptyList())
-            coEvery { r.f.engine.transferTable(9L, 5) } returns TableTransferResult(9L, 4, 5, SlipOutcome.NOTHING_TO_PRINT, SlipOutcome.PRINTED)
+            coEvery { r.f.engine.transferTable(9L, 5) } returns
+                TableTransferResult(9L, 4, 5, SlipOutcome.NOTHING_TO_PRINT, SlipOutcome.PRINTED)
 
             r.store.transferOrder(9L, 5)
 

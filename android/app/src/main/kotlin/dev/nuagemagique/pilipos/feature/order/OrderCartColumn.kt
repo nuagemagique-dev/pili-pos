@@ -89,27 +89,7 @@ internal fun OrderCartColumn(
                 .drawBehind { drawRect(c.border, size = Size(Hairline.toPx(), size.height)) }
                 .testTag("cart_column"),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().drawBottomLine(c.border).padding(horizontal = d.spaceMd, vertical = d.spaceMd),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = cartTitle(state.order),
-                style = t.title,
-                color = c.textPrimary,
-                modifier = Modifier.weight(1f).testTag("cart_title"),
-            )
-            if (state.canTransfer) {
-                PiliButton(
-                    text = vueText("transfer_table"),
-                    onClick = actions.onTransfer,
-                    variant = PiliButtonVariant.Secondary,
-                    modifier = Modifier.padding(horizontal = d.spaceSm).testTag("cart_transfer"),
-                )
-            }
-            OpenedAt(state.order)
-        }
+        CartHeader(state, actions)
         Column(
             modifier =
                 Modifier
@@ -323,3 +303,34 @@ private fun Modifier.drawBottomLine(color: Color): Modifier =
     drawBehind { drawRect(color, topLeft = Offset(0f, size.height - Hairline.toPx()), size = Size(size.width, Hairline.toPx())) }
 
 private fun Modifier.drawTopLine(color: Color): Modifier = drawBehind { drawRect(color, size = Size(size.width, Hairline.toPx())) }
+
+/** The title of the order, "Change table" when the order can move, and the opening time. */
+@Composable
+private fun CartHeader(
+    state: OrderCartState,
+    actions: OrderCartActions,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    Row(
+        modifier = Modifier.fillMaxWidth().drawBottomLine(c.border).padding(horizontal = d.spaceMd, vertical = d.spaceMd),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = cartTitle(state.order),
+            style = PiliTheme.typography.title,
+            color = c.textPrimary,
+            modifier = Modifier.weight(1f).testTag("cart_title"),
+        )
+        if (state.canTransfer) {
+            PiliButton(
+                text = vueText("transfer_table"),
+                onClick = actions.onTransfer,
+                variant = PiliButtonVariant.Secondary,
+                modifier = Modifier.padding(horizontal = d.spaceSm).testTag("cart_transfer"),
+            )
+        }
+        OpenedAt(state.order)
+    }
+}
