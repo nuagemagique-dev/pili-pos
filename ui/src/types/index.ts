@@ -132,6 +132,10 @@ export interface CartLine extends OrderLine {
   name_zh: string | null;
   code?: string | null;
   unsent_quantity: number;
+  /** Kitchen course: 0 "Direct", 1 "Entrées", 2 "Plats", 3 "Desserts". */
+  course: number;
+  /** `unsent`, `held` (waits for "Envoyer la suite") or `printed`. */
+  kitchen_state: "unsent" | "held" | "printed";
 }
 
 export interface User {

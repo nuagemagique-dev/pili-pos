@@ -101,6 +101,8 @@ const DEFAULT_CART_LINE = {
   name_fr: 'Maki saumon x8',
   name_zh: '三文鱼细卷',
   unsent_quantity: 1,
+  course: 0,
+  kitchen_state: 'unsent',
 };
 
 const DEFAULT_TABLE = (n: number) => ({
@@ -111,6 +113,7 @@ const DEFAULT_TABLE = (n: number) => ({
   status: 'free',
   openedAt: null,
   preBillPrinted: false,
+  heldCourse: null,
 });
 
 // The 14 allergens of Annex II (what `list_allergens` returns).
@@ -486,6 +489,14 @@ function defaultHandlers(): Record<string, Handler> {
     set_owner_alerts: (args: any) => ({ ...args.input, token_configured: false }),
     send_test_alert: () => ({ sent: true, detail: 'ok' }),
     list_owner_alert_log: () => [],
+
+    // Courses: off until a spec says otherwise.
+    get_course_settings: () => ({ enabled: false, category_courses: [] }),
+    set_course_settings: live((args: any) => args.input),
+    set_line_course: () => null,
+    list_held_courses: () => [],
+    send_next_course: () => ({ course: null, signed: null, slip: 'nothing_to_print' }),
+    reprint_course_slip: () => 'printed',
 
     // The 14 EU allergens: the legend, and an undeclared product by default.
     list_allergens: () => ALLERGEN_LEGEND,

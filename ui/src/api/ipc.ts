@@ -295,6 +295,8 @@ export interface TableInfo {
   openedAt: string | null;
   /** A provisional bill was printed and the order has not changed since. */
   preBillPrinted: boolean;
+  /** The next course waiting for "Envoyer la suite" (1 to 3), when courses are on. */
+  heldCourse: number | null;
 }
 
 export function listTables(): Promise<TableInfo[]> {
@@ -979,4 +981,61 @@ export function getAllergenSheet(menuItemId: number | null, lang?: string): Prom
 /** Prints the sheet (fr, nl, en or de); a printer failure is the outcome, not an error. */
 export function printAllergenSheet(menuItemId: number | null, lang?: string): Promise<SlipOutcome> {
   return invoke("print_allergen_sheet", { menuItemId, lang });
+}
+
+// ── Courses and "Envoyer la suite" (kitchen printing only) ─────────
+
+/** A category and the course its products take (1 to 3; 0 is "Direct"). */
+export interface CategoryCourse {
+  category_id: number;
+  course: number;
+}
+
+export interface CourseSettings {
+  enabled: boolean;
+  category_courses: CategoryCourse[];
+}
+
+/** A course waiting for "Envoyer la suite". */
+export interface HeldCourse {
+  course: number;
+  lines: number;
+  quantity: number;
+}
+
+/** What "Envoyer la suite" did. */
+export interface NextCourse {
+  /** The course released; null when the call printed again what a failed slip had not delivered. */
+  course: number | null;
+  /** The slip of the P that registered the unsent lines first. */
+  signed: SlipOutcome | null;
+  slip: SlipOutcome;
+}
+
+export function getCourseSettings(): Promise<CourseSettings> {
+  return invoke("get_course_settings");
+}
+
+/** Managers only. */
+export function setCourseSettings(input: CourseSettings): Promise<CourseSettings> {
+  return invoke("set_course_settings", { input });
+}
+
+/** Refused with `course_already_sent` once a slip carried the line. */
+export function setLineCourse(lineId: number, course: number): Promise<void> {
+  return invoke("set_line_course", { lineId, course });
+}
+
+export function listHeldCourses(orderId: number): Promise<HeldCourse[]> {
+  return invoke("list_held_courses", { orderId });
+}
+
+/** Signs the unsent lines first (FDM down: refused, nothing printed), then releases and prints. */
+export function sendNextCourse(orderId: number): Promise<NextCourse> {
+  return invoke("send_next_course", { orderId });
+}
+
+/** Prints a course slip again, marked DUPLICATA. */
+export function reprintCourseSlip(orderId: number, course: number): Promise<SlipOutcome> {
+  return invoke("reprint_course_slip", { orderId, course });
 }

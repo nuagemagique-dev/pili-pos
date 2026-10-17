@@ -95,6 +95,7 @@ async function selectTable(table: ipc.TableInfo) {
           <span class="table-top">
             <span class="table-num">{{ tbl.tableNumber }}</span>
             <span v-if="tbl.preBillPrinted" class="bill-tag">{{ t('pre_bill') }}</span>
+            <span v-if="tbl.heldCourse" class="bill-tag" :data-testid="`held-course-${tbl.tableNumber}`">{{ t('table_held_course', { course: t(`course_${tbl.heldCourse}`) }) }}</span>
             <span v-if="tbl.orderId && cardCharged.has(tbl.orderId)" class="bill-tag charged-tag" data-testid="card-charged">{{ t('card_charged_badge') }}</span>
           </span>
           <span v-if="tbl.status === 'occupied'" class="table-info">

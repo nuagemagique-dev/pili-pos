@@ -15,6 +15,7 @@ import AppHeader from "../components/AppHeader.vue";
 import PinDialog from "../components/PinDialog.vue";
 import ExportStatusPanel from "../components/ExportStatusPanel.vue";
 import OwnerAlertsSettings from "../components/OwnerAlertsSettings.vue";
+import CoursesSettings from "../components/CoursesSettings.vue";
 import { hasMessage, useI18n } from "../i18n";
 import { describeError } from "../utils/errorMessages";
 import { useSupportStore } from "../stores/support";
@@ -329,51 +330,54 @@ onMounted(() => {
         </section>
       </div>
 
-      <!-- Column 2: employees -->
-      <section class="panel workers-section">
-        <h2>{{ t('employees') }}</h2>
-        <div class="worker-list">
-          <div v-for="w in workers" :key="w.insz" class="worker-row">
-            <span class="avatar">{{ initial(w.name) }}</span>
-            <span class="worker-text">
-              <span class="worker-name">{{ w.name }}</span>
-              <span class="worker-meta" :class="{ 'no-pin': !w.has_pin }">
-                {{ t(`role_${w.role}`) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
+      <!-- Column 2: employees, and the courses of the kitchen slips (manager only; scrolls inside its panel) -->
+      <div class="column">
+        <section class="panel workers-section">
+          <h2>{{ t('employees') }}</h2>
+          <div class="worker-list">
+            <div v-for="w in workers" :key="w.insz" class="worker-row">
+              <span class="avatar">{{ initial(w.name) }}</span>
+              <span class="worker-text">
+                <span class="worker-name">{{ w.name }}</span>
+                <span class="worker-meta" :class="{ 'no-pin': !w.has_pin }">
+                  {{ t(`role_${w.role}`) }} · {{ w.has_pin ? t('settings_pin_set') : t('settings_pin_missing') }}
+                </span>
               </span>
-            </span>
-            <span class="worker-actions">
-              <button class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
-              <button
-                v-if="w.insz !== auth.currentUser?.insz"
-                class="deactivate-btn"
-                :class="{ armed: confirmDeactivate === w.insz }"
-                @click="deactivate(w.insz)"
-              >{{ confirmDeactivate === w.insz ? t('confirm_deactivate') : t('deactivate') }}</button>
-            </span>
+              <span class="worker-actions">
+                <button class="pin-btn" @click="openPin(w)">{{ t('settings_pin_button') }}</button>
+                <button
+                  v-if="w.insz !== auth.currentUser?.insz"
+                  class="deactivate-btn"
+                  :class="{ armed: confirmDeactivate === w.insz }"
+                  @click="deactivate(w.insz)"
+                >{{ confirmDeactivate === w.insz ? t('confirm_deactivate') : t('deactivate') }}</button>
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div class="add-worker">
-          <div class="section-label">{{ t('add') }}</div>
-          <div class="add-fields">
-            <input v-model="newName" class="field" :placeholder="t('settings_name_placeholder')" />
-            <input v-model="newInsz" class="field mono" :placeholder="t('settings_insz_hint')" maxlength="11" inputmode="numeric" />
+          <div class="add-worker">
+            <div class="section-label">{{ t('add') }}</div>
+            <div class="add-fields">
+              <input v-model="newName" class="field" :placeholder="t('settings_name_placeholder')" />
+              <input v-model="newInsz" class="field mono" :placeholder="t('settings_insz_hint')" maxlength="11" inputmode="numeric" />
+            </div>
+            <div class="segmented role-btns" role="radiogroup" :aria-label="t('role')">
+              <button
+                v-for="r in roles"
+                :key="r"
+                class="role-btn"
+                role="radio"
+                :aria-checked="newRole === r"
+                :class="{ active: newRole === r }"
+                @click="newRole = r"
+              >{{ t(`role_${r}`) }}</button>
+            </div>
+            <p v-if="addError" class="add-error">{{ addError }}</p>
+            <button class="add-btn" @click="addWorker">{{ t('settings_add_employee') }}</button>
           </div>
-          <div class="segmented role-btns" role="radiogroup" :aria-label="t('role')">
-            <button
-              v-for="r in roles"
-              :key="r"
-              class="role-btn"
-              role="radio"
-              :aria-checked="newRole === r"
-              :class="{ active: newRole === r }"
-              @click="newRole = r"
-            >{{ t(`role_${r}`) }}</button>
-          </div>
-          <p v-if="addError" class="add-error">{{ addError }}</p>
-          <button class="add-btn" @click="addWorker">{{ t('settings_add_employee') }}</button>
-        </div>
-      </section>
+        </section>
+        <CoursesSettings v-if="auth.isManager" class="panel courses-section" />
+      </div>
 
       <!-- Column 3: info, email tickets, HubRise -->
       <div class="column">
@@ -616,6 +620,8 @@ onMounted(() => {
 .info-value { font-family: var(--font-mono); text-align: right; overflow-wrap: anywhere; }
 
 /* ── Email tickets ──────────────────────────────────────────── */
+.column > .workers-section { flex: 1; }
+.courses-section { flex-shrink: 0; max-height: 50%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .deliveries-section { flex-shrink: 1; max-height: 45%; }
 .deliveries-section.panel-grow { max-height: none; }
 .refresh-btn {

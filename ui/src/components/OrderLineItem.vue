@@ -9,12 +9,15 @@ const props = defineProps<{
   line: CartLine;
   /** Not yet sent to the bar / kitchen: amber mark on the left. */
   pending?: boolean;
+  /** Courses are on: show the course chip. */
+  showCourse?: boolean;
 }>();
 
 const emit = defineEmits<{
   increment: [id: number];
   decrement: [id: number];
   remove: [id: number];
+  course: [id: number];
 }>();
 
 const { t } = useI18n();
@@ -68,6 +71,19 @@ defineExpose({
       <span class="line-name" :class="{ code: names.isCode }">{{ names.primary }}</span>
       <span v-if="names.secondary" class="line-sub">{{ names.secondary }}</span>
       <span v-if="notes" class="line-notes">{{ notes }}</span>
+      <!-- Course chip: tap opens the picker; locked once a slip carried the line. -->
+      <button
+        v-if="showCourse"
+        class="course-chip"
+        :class="line.kitchen_state"
+        :disabled="line.kitchen_state === 'printed'"
+        :aria-label="t('course_chip_label', { course: t(`course_${line.course}`) })"
+        :data-testid="`course-chip-${line.id}`"
+        @click="emit('course', props.line.id)"
+      >
+        {{ t(`course_${line.course}`) }}
+        <span v-if="line.kitchen_state === 'held'" class="chip-held">{{ t('course_held_tag') }}</span>
+      </button>
     </div>
     <span class="line-price">{{ formatPrice(line.unit_price_cents * line.quantity) }}</span>
     <button class="remove-btn" :aria-label="t('line_remove')" @click="emit('remove', props.line.id)">
@@ -159,6 +175,26 @@ defineExpose({
   font-size: 13px;
   color: var(--accent-warning);
 }
+
+/* A small pill under the name; the tap target is the whole row of the chip. */
+.course-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+}
+.course-chip:disabled { opacity: 0.55; }
+.course-chip.held { color: var(--accent-warning); }
+.chip-held { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .line-price {
   font-family: var(--font-mono);

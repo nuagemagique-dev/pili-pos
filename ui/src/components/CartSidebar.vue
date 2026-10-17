@@ -11,6 +11,8 @@ import { formatTimestamp, formatTime, minutesSince } from "../utils/datetime";
 import OrderLineItem from "./OrderLineItem.vue";
 import VatSummary from "./VatSummary.vue";
 import PinDialog from "./PinDialog.vue";
+import CoursePickerDialog from "./CoursePickerDialog.vue";
+import type { CartLine } from "../types";
 
 const router = useRouter();
 const order = useOrderStore();
@@ -28,6 +30,50 @@ const sentLines = computed(() =>
 const pendingLines = computed(() =>
   isDineIn.value ? order.lines.filter((l) => (l.unsent_quantity ?? 0) > 0) : [],
 );
+
+// Courses on: the lines are grouped by course, lowest first, under a
+// header. A takeaway groups too (its slip is printed with the same headers).
+const courseGroups = computed(() => {
+  const groups = new Map<number, CartLine[]>();
+  for (const line of order.lines) {
+    const list = groups.get(line.course) ?? [];
+    list.push(line);
+    groups.set(line.course, list);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([course, lines]) => ({ course, lines }));
+});
+
+const pickingLine = ref<CartLine | null>(null);
+
+async function pickCourse(course: number) {
+  const line = pickingLine.value;
+  pickingLine.value = null;
+  if (line && course !== line.course) await order.setLineCourse(line.id, course);
+}
+
+// "Envoyer la suite": signs what is unsent, releases the next held
+// course and prints it.
+const sendingNext = ref(false);
+
+async function sendNextCourse() {
+  if (sendingNext.value || order.nextHeldCourse === null) return;
+  sendingNext.value = true;
+  try {
+    const next = await order.sendNextCourse();
+    if (next) {
+      toast.show(
+        next.course === null ? t("course_resent") : t("course_sent", { course: t(`course_${next.course}`) }),
+        "success",
+      );
+    }
+  } catch (e) {
+    toast.show(describeError(e), "error", 6000);
+  } finally {
+    sendingNext.value = false;
+  }
+}
 
 // "19:05 · 37 min": when the order was opened, and for how long.
 const now = ref(new Date());
@@ -129,6 +175,23 @@ async function onUnpaidClosed() {
     </div>
 
     <div class="cart-lines scroll-touch">
+      <template v-if="order.coursesEnabled">
+        <template v-for="group in courseGroups" :key="group.course">
+          <div class="course-label" :data-testid="`course-group-${group.course}`">{{ t(`course_${group.course}`) }}</div>
+          <OrderLineItem
+            v-for="line in group.lines"
+            :key="line.id"
+            :line="line"
+            :pending="isDineIn && (line.unsent_quantity ?? 0) > 0"
+            show-course
+            @increment="increment"
+            @decrement="decrement"
+            @remove="order.removeLine($event)"
+            @course="pickingLine = order.lines.find((l) => l.id === $event) ?? null"
+          />
+        </template>
+      </template>
+      <template v-else>
       <OrderLineItem
         v-for="line in sentLines"
         :key="line.id"
@@ -150,6 +213,7 @@ async function onUnpaidClosed() {
           @decrement="decrement"
           @remove="order.removeLine($event)"
         />
+      </template>
       </template>
       <div v-if="order.lines.length === 0" class="cart-empty">
         {{ t('no_items') }}
@@ -186,6 +250,16 @@ async function onUnpaidClosed() {
         </button>
       </div>
 
+      <button
+        v-if="isDineIn && order.nextHeldCourse !== null"
+        class="next-course-btn"
+        :disabled="sendingNext"
+        data-testid="send-next-course"
+        @click="sendNextCourse"
+      >
+        {{ t('send_next_course', { course: t(`course_${order.nextHeldCourse}`) }) }}
+      </button>
+
       <!-- UX guide §2.3: the main action, always bottom right. -->
       <button
         v-if="auth.canTakePayment"
@@ -197,6 +271,13 @@ async function onUnpaidClosed() {
         <span class="checkout-amount">{{ formatPrice(order.totalCents) }} €</span>
       </button>
     </div>
+
+    <CoursePickerDialog
+      v-if="pickingLine"
+      :current="pickingLine.course"
+      @pick="pickCourse"
+      @cancel="pickingLine = null"
+    />
 
     <PinDialog
       v-if="confirmUnpaid && auth.currentUser"
@@ -265,6 +346,17 @@ async function onUnpaidClosed() {
   height: 10px;
   border-radius: 50%;
   background: var(--accent-warning);
+}
+
+/* Course header of the grouped cart. */
+.course-label {
+  padding: 14px 0 4px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .cart-empty {
@@ -356,6 +448,19 @@ async function onUnpaidClosed() {
   align-items: center;
   justify-content: center;
 }
+
+/* Releases the next held course: the kitchen's second action, above Pay. */
+.next-course-btn {
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+  transition: transform var(--tap-duration) ease;
+}
+.next-course-btn:active { transform: scale(var(--tap-scale)); }
+.next-course-btn:disabled { opacity: 0.35; pointer-events: none; }
 
 /* Volt: the screen's one main action. Full width × 80 px (§4.1 ≥ 72). */
 .checkout-btn {

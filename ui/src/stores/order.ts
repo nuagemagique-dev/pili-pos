@@ -35,6 +35,14 @@ export const useOrderStore = defineStore("order", () => {
   // Client-side lookup: menu_item_id → category_id
   const itemCategoryMap = ref<Map<number, number>>(new Map());
 
+  // Courses (kitchen printing only): the setting and the courses of the
+  // current order that wait for "Envoyer la suite".
+  const courseSettings = ref<ipc.CourseSettings>({ enabled: false, category_courses: [] });
+  const heldCourses = ref<ipc.HeldCourse[]>([]);
+  const coursesEnabled = computed(() => courseSettings.value.enabled);
+  /** The next course waiting at the current order, 1 to 3. */
+  const nextHeldCourse = computed(() => heldCourses.value[0]?.course ?? null);
+
   const totalCents = computed(() =>
     lines.value.reduce((sum, line) => sum + line.unit_price_cents * line.quantity, 0)
   );
@@ -57,6 +65,7 @@ export const useOrderStore = defineStore("order", () => {
     // A busy table returns its open order: show its lines.
     lines.value = tableNumber ? await ipc.listCartLines(currentOrder.value.id) : [];
     await ipc.setActiveOrder(currentOrder.value.id);
+    await loadCourses();
   }
 
   /**
@@ -74,6 +83,59 @@ export const useOrderStore = defineStore("order", () => {
     currentOrder.value = order;
     lines.value = orderLines;
     await ipc.setActiveOrder(orderId);
+    await loadCourses();
+  }
+
+  /** Read the courses setting, then the held courses of the order. A
+   * till that does not answer simply has courses off. */
+  async function loadCourses() {
+    try {
+      courseSettings.value = await ipc.getCourseSettings();
+    } catch {
+      courseSettings.value = { enabled: false, category_courses: [] };
+    }
+    await refreshCourses();
+  }
+
+  /** With courses on, the engine owns each line's course and state: read
+   * the cart and the held courses again after any change. */
+  async function refreshCourses() {
+    const current = currentOrder.value;
+    if (!courseSettings.value.enabled || !current) {
+      heldCourses.value = [];
+      return;
+    }
+    try {
+      lines.value = await ipc.listCartLines(current.id);
+      heldCourses.value = await ipc.listHeldCourses(current.id);
+    } catch {
+      // The cart stays as it is; the next action reads it again.
+    }
+  }
+
+  /** Change a line's course (refused once a slip carried it). */
+  function setLineCourse(lineId: number, course: number) {
+    return reported(async () => {
+      await ipc.setLineCourse(lineId, course);
+      await refreshCourses();
+    });
+  }
+
+  /** "Envoyer la suite": sign what is unsent, release the next held
+   * course and print it. A refusal (FDM down, nothing held) is thrown for
+   * the caller's toast. */
+  async function sendNextCourse(): Promise<ipc.NextCourse | null> {
+    const current = currentOrder.value;
+    if (!current) return null;
+    try {
+      const next = await ipc.sendNextCourse(current.id);
+      warnIfSlipFailed(next.signed);
+      warnIfSlipFailed(next.slip);
+      return next;
+    } finally {
+      await refreshCourses();
+      if (currentOrder.value) currentOrder.value = await ipc.getOrder(currentOrder.value.id);
+    }
   }
 
   /** `unitPriceCents` is the operator-entered price of a free-price
@@ -122,10 +184,14 @@ export const useOrderStore = defineStore("order", () => {
       name_fr: item.name_fr ?? null,
       name_zh: item.name_zh ?? null,
       unsent_quantity: quantity,
+      // The engine gives the course; with courses on the cart is read again.
+      course: 0,
+      kitchen_state: "unsent",
     });
     itemCategoryMap.value.set(item.id, item.category_id);
 
     currentOrder.value = await ipc.getOrder(currentOrder.value.id);
+    await refreshCourses();
   }
 
   function removeLine(lineId: number) {
@@ -138,6 +204,7 @@ export const useOrderStore = defineStore("order", () => {
     if (currentOrder.value) {
       currentOrder.value = await ipc.getOrder(currentOrder.value.id);
     }
+    await refreshCourses();
   }
 
   function updateQuantity(lineId: number, quantity: number) {
@@ -157,6 +224,7 @@ export const useOrderStore = defineStore("order", () => {
     if (currentOrder.value) {
       currentOrder.value = await ipc.getOrder(currentOrder.value.id);
     }
+    await refreshCourses();
   }
 
   async function loadOpenOrders() {
@@ -180,6 +248,7 @@ export const useOrderStore = defineStore("order", () => {
     warnIfSlipFailed(await ipc.leaveOrder(current.id, reason));
     // Only a dine-in order sent anything: the badge shows the unsent units.
     if (current.order_type === "dine_in") markAllSent();
+    await refreshCourses();
   }
 
   /** Everything ordered so far went out with a signed P (or the sale). */
@@ -193,6 +262,7 @@ export const useOrderStore = defineStore("order", () => {
     // Entries not yet registered are sent as an order first.
     warnIfSlipFailed(await ipc.signPreBill(currentOrder.value.id));
     markAllSent();
+    await refreshCourses();
   }
 
   /** Close the current order unpaid, confirmed by the manager's PIN.
@@ -214,6 +284,7 @@ export const useOrderStore = defineStore("order", () => {
   function resetLocal() {
     currentOrder.value = null;
     lines.value = [];
+    heldCourses.value = [];
     itemCategoryMap.value.clear();
   }
 
@@ -229,6 +300,13 @@ export const useOrderStore = defineStore("order", () => {
     openOrders,
     totalCents,
     unsentCount,
+    courseSettings,
+    heldCourses,
+    coursesEnabled,
+    nextHeldCourse,
+    loadCourses,
+    setLineCourse,
+    sendNextCourse,
     startOrder,
     loadOrder,
     addItem,

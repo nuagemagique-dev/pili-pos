@@ -66,6 +66,20 @@ export const settingsMessages: Messages = {
 
   // HubRise panel
 
+  // Courses panel (v1.2): "Service en plusieurs temps"
+  "courses_title": { fr: "Service en plusieurs temps", en: "Courses", zh: "分道出菜" },
+  "courses_state_on": { fr: "Actif", en: "On", zh: "已开启" },
+  "courses_state_off": { fr: "Inactif", en: "Off", zh: "未开启" },
+  "courses_note": {
+    fr: "Le bon de cuisine imprime le premier temps tout de suite et garde les suivants jusqu'à « Envoyer la suite ». Rien de cela n'entre dans les données fiscales.",
+    en: "The kitchen slip prints the first course at once and holds the next ones until \"Send next course\". None of this enters the fiscal data.",
+    zh: "厨房单立即打印第一道，其余等待“发出下一道”。这些都不会进入税务数据。",
+  },
+  "courses_categories": { fr: "Temps de chaque catégorie", en: "Course of each category", zh: "各分类的出菜顺序" },
+  "courses_no_categories": { fr: "Aucune catégorie", en: "No category", zh: "没有分类" },
+  "courses_save": { fr: "Enregistrer", en: "Save", zh: "保存" },
+  "courses_saved": { fr: "Réglage enregistré", en: "Setting saved", zh: "已保存" },
+
   // Owner alerts panel (v1.2): Telegram messages to the owner's phone
   "alerts_title": { fr: "Alertes sur téléphone", en: "Phone alerts", zh: "手机警报" },
   "alerts_state_on": { fr: "Actives", en: "On", zh: "已开启" },

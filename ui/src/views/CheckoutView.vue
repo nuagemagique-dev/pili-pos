@@ -357,6 +357,22 @@ onMounted(async () => {
 });
 onUnmounted(() => eft.clear());
 
+// Courses still held at the table: the sale does not print them. Warn
+// before paying; "Envoyer maintenant" releases the next one.
+const sendingNext = ref(false);
+async function sendHeldNow() {
+  if (sendingNext.value) return;
+  sendingNext.value = true;
+  error.value = null;
+  try {
+    await order.sendNextCourse();
+  } catch (e) {
+    error.value = describeError(e);
+  } finally {
+    sendingNext.value = false;
+  }
+}
+
 async function doCheckout(all: TakenPart[]) {
   if (!order.currentOrder) return;
   error.value = null;
@@ -399,6 +415,12 @@ function finish() {
 
     <div v-if="step === 'pay'" class="pay-row">
       <section class="pay-main">
+        <div v-if="order.nextHeldCourse !== null" class="held-warning" role="alert" data-testid="held-warning">
+          <span>{{ t('checkout_held_warning', { course: t(`course_${order.nextHeldCourse}`) }) }}</span>
+          <button class="held-send" :disabled="sendingNext" data-testid="held-send-now" @click="sendHeldNow">
+            {{ t('checkout_send_now') }}
+          </button>
+        </div>
         <!-- §7.2: the three methods side by side -->
         <div class="methods">
           <button
@@ -880,6 +902,20 @@ button:active:not(:disabled) { transform: scale(var(--tap-scale)); }
 .rest-row { display: flex; justify-content: space-between; align-items: baseline; }
 .total-label { font-size: 20px; font-weight: 700; }
 .rest-amount { font-family: var(--font-mono); font-size: 44px; font-weight: 700; line-height: 1.1; }
+
+.held-warning {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-radius: 10px; font-size: 16px; font-weight: 700;
+  color: var(--accent-warning);
+  background: color-mix(in srgb, var(--accent-warning) 12%, transparent);
+  border: 1px solid var(--accent-warning);
+}
+.held-send {
+  height: 56px; padding: 0 20px; border-radius: var(--radius-md);
+  background: var(--selected-bg); color: var(--selected-fg);
+  font-size: 16px; font-weight: 700; flex-shrink: 0;
+}
+.held-send:disabled { opacity: 0.4; }
 
 .error-msg {
   color: var(--accent-danger);

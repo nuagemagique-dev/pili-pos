@@ -446,6 +446,26 @@ const coreMessages: Messages = {
   "allergens_regulation": { fr: "Règlement (UE) n° 1169/2011, annexe II", en: "Regulation (EU) No 1169/2011, Annex II", zh: "欧盟法规 (EU) 1169/2011 附件二" },
   "err_allergen_unknown": { fr: "Allergène inconnu : {code}.", en: "Unknown allergen: {code}.", zh: "未知过敏原：{code}。" },
   "err_allergen_target_not_found": { fr: "Produit ou option introuvable ({id}).", en: "Product or option not found ({id}).", zh: "找不到商品或选项（{id}）。" },
+  // Courses and "Envoyer la suite" (v1.2, kitchen printing only).
+  "course_0": { fr: "Direct", en: "Direct", zh: "即上" },
+  "course_1": { fr: "Entrées", en: "Starters", zh: "前菜" },
+  "course_2": { fr: "Plats", en: "Mains", zh: "主菜" },
+  "course_3": { fr: "Desserts", en: "Desserts", zh: "甜点" },
+  "course_picker_title": { fr: "Temps du service", en: "Course", zh: "出菜顺序" },
+  "course_cancel": { fr: "Annuler", en: "Cancel", zh: "取消" },
+  "course_held_tag": { fr: "En attente", en: "On hold", zh: "待出" },
+  "course_chip_label": { fr: "Changer le temps : {course}", en: "Change course: {course}", zh: "更改出菜顺序：{course}" },
+  "send_next_course": { fr: "Envoyer la suite ({course})", en: "Send next course ({course})", zh: "发出下一道（{course}）" },
+  "course_sent": { fr: "Suite envoyée : {course}", en: "Next course sent: {course}", zh: "已发出：{course}" },
+  "course_resent": { fr: "Bon de cuisine renvoyé", en: "Kitchen slip sent again", zh: "已重新发送厨房单" },
+  "table_held_course": { fr: "Suite : {course}", en: "Next: {course}", zh: "待出：{course}" },
+  "checkout_held_warning": { fr: "Suite non envoyée : {course}", en: "Next course not sent: {course}", zh: "尚未发出：{course}" },
+  "checkout_send_now": { fr: "Envoyer maintenant", en: "Send now", zh: "立即发出" },
+  "err_course_already_sent": { fr: "Cette ligne est déjà partie en cuisine : son temps ne peut plus changer.", en: "This line already went to the kitchen: its course can no longer change.", zh: "该菜品已送厨房，无法再更改出菜顺序。" },
+  "err_course_invalid": { fr: "Temps du service invalide.", en: "Invalid course.", zh: "出菜顺序无效。" },
+  "err_courses_disabled": { fr: "Le service en plusieurs temps est désactivé (Réglages).", en: "Courses are switched off (Settings).", zh: "分道出菜已关闭（设置）。" },
+  "err_no_course_held": { fr: "Aucune suite en attente.", en: "No course is waiting.", zh: "没有待出的菜。" },
+  "err_nothing_printed": { fr: "Aucun bon n'a été imprimé pour ce temps.", en: "No slip was printed for this course.", zh: "此顺序没有已打印的单据。" },
 };
 
 // Webshop strings are merged only when HubRise is built in, so the
