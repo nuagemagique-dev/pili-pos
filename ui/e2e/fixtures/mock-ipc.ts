@@ -14,6 +14,9 @@
  */
 import type { Page } from '@playwright/test';
 
+// Handlers run inside the page, so they inline the meal-voucher brands the engine accepts
+// (pos_eft::brand::is_meal_voucher): Edenred, Pluxee, Monizze, Payflip.
+
 // ── Default fixtures ────────────────────────────────────────────
 
 // A manager always has a PIN (a manager without one must choose it at
@@ -424,7 +427,7 @@ function defaultHandlers(): Record<string, Handler> {
           id, order_id: args.orderId, amount_cents: args.amountCents, status: step.status,
           card_type: ok ? 'debit' : null, brand: ok ? (step.brand ?? 'Bancontact') : null,
           terminal_reference: ok ? `T-${id}` : null, authorisation_code: ok ? 'A1' : null,
-          masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, detail: step.detail ?? null,
+          masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(step.brand), detail: step.detail ?? null,
           created_at: '2026-10-12 10:00:00', used: false,
         };
       }
@@ -457,7 +460,7 @@ function defaultHandlers(): Record<string, Handler> {
         ...base, status: step.status,
         card_type: ok ? 'debit' : null, brand: ok ? (step.brand ?? 'Bancontact') : null,
         terminal_reference: ok ? `T-${args.id}` : null, authorisation_code: ok ? 'A1' : null,
-        masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, detail: step.detail ?? null,
+        masked_pan: ok ? 'XXXX XXXX XXXX 1234' : null, meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(step.brand), detail: step.detail ?? null,
       };
       if (e) e.payments[args.id] = next;
       return next;
@@ -704,7 +707,7 @@ export async function eftScript(
       payments[k.id] = {
         ...k, card_type: ok ? 'debit' : null, brand: ok ? (k.brand ?? 'Bancontact') : null,
         terminal_reference: ok ? `T-${k.id}` : null, authorisation_code: null, masked_pan: null,
-        detail: null, created_at: '2026-10-12 09:00:00', used: false,
+        meal_voucher: ok && ['Edenred', 'Pluxee', 'Monizze', 'Payflip'].includes(k.brand), detail: null, created_at: '2026-10-12 09:00:00', used: false,
       };
     }
     (window as any).__eft = {

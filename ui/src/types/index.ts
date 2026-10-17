@@ -31,6 +31,8 @@ export interface EftPayment {
   terminal_reference: string | null;
   authorisation_code: string | null;
   masked_pan: string | null;
+  /** The approved card is a meal-voucher card (Edenred, Pluxee, Monizze, Payflip): the sale signs it as CHEQUE_MEAL. */
+  meal_voucher: boolean;
   /** Why it was declined, what is missing for an unknown one. */
   detail: string | null;
   created_at: string;

@@ -290,6 +290,29 @@ test.describe('card payment on the linked terminal', () => {
     ]);
   });
 
+  test('a meal-voucher card is a locked part named Chèques-repas, still sent as a card part', async ({ page }) => {
+    await toCheckout(page, {
+      terminal: 'worldline_terminal_api',
+      pay: [{ status: 'approved', brand: 'Edenred' }, { status: 'approved', brand: 'Bancontact' }],
+    });
+    await page.locator('.card-btn').click();
+    for (const d of '5') await page.locator('.nk', { hasText: d }).first().click();
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.paid-part')).toContainText('Chèques-repas');
+    await expect(page.locator('.paid-part')).toContainText('Edenred');
+    await expect(page.locator('.paid-part')).not.toContainText('Carte');
+    await expect(page.getByTestId('eft-approved')).toBeVisible();
+    await page.locator('.card-btn').click();
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.success-icon')).toBeVisible();
+    const [call] = await ipcCalls(page, 'checkout');
+    // The part stays a card part: the engine classifies it from the stored brand.
+    expect(call.payments).toEqual([
+      { method: 'card', amount_cents: 500, eft_payment_id: 100 },
+      { method: 'card', amount_cents: 700, eft_payment_id: 101 },
+    ]);
+  });
+
   test('no terminal linked: the manual card flow is unchanged', async ({ page }) => {
     await toCheckout(page);
     await page.locator('.card-btn').click();

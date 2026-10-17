@@ -50,6 +50,9 @@ interface TakenPart {
   eftPaymentId?: number;
   /** The card brand the terminal gave ("Bancontact"). */
   brand?: string | null;
+  /** The approved terminal card is a meal-voucher card: shown (and signed)
+   * as meal vouchers, the part itself stays method card. */
+  mealVoucher?: boolean;
 }
 
 const step = ref<"pay" | "processing" | "done">("pay");
@@ -156,6 +159,11 @@ function methodLabel(m: Method): string {
   return t(`method_${m}`);
 }
 
+/** What a part taken is called: a meal-voucher card is a meal voucher. */
+function takenLabel(p: TakenPart): string {
+  return methodLabel(p.mealVoucher ? "meal_voucher" : p.method);
+}
+
 /** Every part: taken, the current one, and the ones to come. */
 const partChips = computed(() => {
   const count = Math.max(splitCount.value, parts.value.length + (restCents.value > 0 ? 1 : 0));
@@ -164,7 +172,7 @@ const partChips = computed(() => {
   for (let i = 0; i < count; i++) {
     const taken = parts.value[i];
     if (taken) {
-      chips.push({ state: "paid", label: `${methodLabel(taken.method)} · ${formatPrice(taken.cents)} € ✓` });
+      chips.push({ state: "paid", label: `${takenLabel(taken)} · ${formatPrice(taken.cents)} € ✓` });
       continue;
     }
     const amount = i >= splitCount.value - 1 ? left : Math.min(shares.value[i], left);
@@ -324,7 +332,7 @@ async function validate() {
 function adopt(p: EftPayment) {
   if (p.status !== "approved" || p.used) return;
   if (parts.value.some((x) => x.eftPaymentId === p.id)) return;
-  parts.value.push({ method: "card", cents: p.amount_cents, changeCents: 0, eftPaymentId: p.id, brand: p.brand });
+  parts.value.push({ method: "card", cents: p.amount_cents, changeCents: 0, eftPaymentId: p.id, brand: p.brand, mealVoucher: p.meal_voucher });
 }
 
 /** Charge `cents` on the terminal (the overlay waits for the card). */
@@ -523,7 +531,7 @@ function finish() {
             :class="{ locked: p.eftPaymentId !== undefined }"
           >
             <span>
-              {{ t('part_n', { n: i + 1 }) }} · {{ methodLabel(p.method) }}
+              {{ t('part_n', { n: i + 1 }) }} · {{ takenLabel(p) }}
               <template v-if="p.eftPaymentId !== undefined">
                 <template v-if="p.brand"> · {{ p.brand }}</template>
                 <span class="eft-badge" data-testid="eft-approved">{{ t('eft_approved') }}</span>

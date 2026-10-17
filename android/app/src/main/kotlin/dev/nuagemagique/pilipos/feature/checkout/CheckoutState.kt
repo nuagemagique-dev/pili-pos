@@ -34,7 +34,12 @@ internal data class TakenPart(
     val eftPaymentId: Long? = null,
     /** The card brand the terminal gave ("Bancontact"). */
     val brand: String? = null,
+    /** The approved terminal card is a meal-voucher card: shown as meal vouchers, the part stays a card. */
+    val mealVoucher: Boolean = false,
 ) {
+    /** The method the part is called by: a meal-voucher card is a meal voucher. */
+    val displayMethod: PaymentMethod get() = if (mealVoucher) PaymentMethod.MEAL_VOUCHER else method
+
     /** The card was charged: the part cannot be removed and its amount is fixed. */
     val locked: Boolean get() = eftPaymentId != null
 }

@@ -360,7 +360,9 @@ internal class CheckoutViewModel(
             } else {
                 added = true
                 local.copy(
-                    taken = local.taken + TakenPart(PaymentMethod.CARD, payment.amountCents, 0L, payment.id, payment.brand),
+                    taken =
+                        local.taken +
+                            TakenPart(PaymentMethod.CARD, payment.amountCents, 0L, payment.id, payment.brand, payment.mealVoucher),
                 )
             }
         }
@@ -564,7 +566,7 @@ internal class CheckoutViewModel(
         for (index in 0 until count) {
             val taken = local.taken.getOrNull(index)
             if (taken != null) {
-                chips += PartChip(ChipState.PAID, taken.method, taken.cents)
+                chips += PartChip(ChipState.PAID, taken.displayMethod, taken.cents)
                 continue
             }
             val amount = if (index >= local.splitCount - 1) left else minOf(shares[index], left)

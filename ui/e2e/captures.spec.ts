@@ -846,7 +846,7 @@ test.describe('Écrans additionnels (45-49, 09g)', () => {
 });
 
 // ── Terminal de paiement lié (EFT) ─────────────────────────────────
-// Captures 01a, 03a, 03b, 09h-09k, 15a. The terminal is scripted
+// Captures 01a, 03a, 03b, 09h-09l, 15a. The terminal is scripted
 // through eftScript / settingsWith / check_payment_terminal /
 // list_unsettled_card_payments (mock-ipc.ts); nothing is charged.
 
@@ -929,6 +929,16 @@ test.describe('Terminal de paiement lié (EFT)', () => {
     await expect(page.getByTestId('eft-title')).toHaveText('Paiement refusé');
     await expect(page.getByTestId('eft-detail')).toHaveText('Carte refusée par la banque');
     await capture(page, '09j_eft_declined');
+  });
+
+  test('09l - carte de chèques-repas acceptée : Chèques-repas · Edenred', async ({ page }) => {
+    await eftCheckout(page, { pay: [{ status: 'approved', brand: 'Edenred' }] });
+    await page.locator('.card-btn').click();
+    for (const d of '5') await page.locator('.nk', { hasText: d }).first().click();
+    await page.locator('.validate-btn').click();
+    await expect(page.locator('.paid-part')).toContainText('Chèques-repas');
+    await expect(page.locator('.paid-part')).toContainText('Edenred');
+    await capture(page, '09l_eft_meal_voucher');
   });
 
   test('09k - réponse inconnue : Vérifier', async ({ page }) => {

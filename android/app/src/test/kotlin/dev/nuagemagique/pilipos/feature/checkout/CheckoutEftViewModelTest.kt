@@ -316,6 +316,23 @@ class CheckoutEftViewModelTest {
         }
 
     @Test
+    fun anApprovedMealVoucherCardKeepsTheFlagAndStaysACardPartForTheEngine() =
+        runTest {
+            val r = started(1_152, listed = listOf(eftPayment(23, EFT_APPROVED, 1_152, brand = "Edenred", mealVoucher = true)))
+
+            val part = r.state.taken.single()
+            assertTrue(part.mealVoucher)
+            assertEquals(PaymentMethod.MEAL_VOUCHER, part.displayMethod)
+            assertEquals(PaymentMethod.CARD, part.method)
+
+            r.model.validate()
+            runCurrent()
+            coVerify(exactly = 1) {
+                r.f.engine.checkout(ORDER_ID, listOf(PaymentPart(PaymentMethod.CARD, 1_152L, 23L)), null)
+            }
+        }
+
+    @Test
     fun aPartlyPaidOrderLeavesTheRestToAnotherMethod() =
         runTest {
             val r = started(1_152, listed = listOf(eftPayment(21, EFT_APPROVED, 500, brand = null)))
