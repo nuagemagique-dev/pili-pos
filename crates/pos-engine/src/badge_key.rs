@@ -64,6 +64,15 @@ pub fn badge_ref(hash: &str) -> &str {
 /// operating system's randomness. A key that exists is never replaced; a
 /// file of another size is an error and is left alone.
 pub fn load_or_create(data_dir: &Path) -> Result<[u8; KEY_LEN], String> {
+    load_or_create_with(data_dir, |from, to| fs::hard_link(from, to))
+}
+
+/// `load_or_create` with the link step injectable, so a test can force
+/// the rename fallback of a file system without hard links.
+fn load_or_create_with(
+    data_dir: &Path,
+    link: fn(&Path, &Path) -> std::io::Result<()>,
+) -> Result<[u8; KEY_LEN], String> {
     let path = data_dir.join(KEY_FILE);
     if let Some(key) = read_key(&path)? {
         return Ok(key);
@@ -73,7 +82,7 @@ pub fn load_or_create(data_dir: &Path) -> Result<[u8; KEY_LEN], String> {
     getrandom::fill(&mut key).map_err(|e| format!("badge key: no randomness: {e}"))?;
     let tmp = temp_path(data_dir);
     write_private(&tmp, &key)?;
-    let linked = fs::hard_link(&tmp, &path);
+    let linked = link(&tmp, &path);
     let _ = fs::remove_file(&tmp);
     match linked {
         Ok(()) => Ok(key),
@@ -287,6 +296,78 @@ mod tests {
         let err = load_or_create(dir.path()).unwrap_err();
         assert!(err.contains("5 bytes"), "{err}");
         assert_eq!(fs::read(&path).unwrap(), b"short");
+    }
+
+    fn leftovers(dir: &Path) -> Vec<String> {
+        fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n != KEY_FILE)
+            .collect()
+    }
+
+    #[test]
+    fn concurrent_creators_all_get_the_winners_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let barrier = std::sync::Barrier::new(8);
+        let keys: Vec<_> = std::thread::scope(|s| {
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    s.spawn(|| {
+                        barrier.wait();
+                        load_or_create(dir.path())
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+        let first = *keys[0].as_ref().expect("the first creator got a key");
+        for key in &keys {
+            assert_eq!(key.as_ref().expect("every creator succeeds"), &first);
+        }
+        assert_eq!(fs::read(dir.path().join(KEY_FILE)).unwrap(), first);
+        assert!(
+            leftovers(dir.path()).is_empty(),
+            "{:?}",
+            leftovers(dir.path())
+        );
+    }
+
+    fn no_hard_links(_: &Path, _: &Path) -> std::io::Result<()> {
+        Err(std::io::Error::from(ErrorKind::Unsupported))
+    }
+
+    #[test]
+    fn without_hard_links_the_key_is_stored_by_rename() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = load_or_create_with(dir.path(), no_hard_links).unwrap();
+        assert_eq!(fs::read(dir.path().join(KEY_FILE)).unwrap(), key);
+        assert!(
+            leftovers(dir.path()).is_empty(),
+            "{:?}",
+            leftovers(dir.path())
+        );
+        assert_eq!(load_or_create(dir.path()).unwrap(), key);
+    }
+
+    #[test]
+    fn the_rename_fallback_never_overwrites_an_existing_key() {
+        // The key appears between the first read and the link step: the
+        // link refuses (as a racing creator's would not), the fallback
+        // must read the winner's key, not replace it.
+        fn winner_appears(_: &Path, target: &Path) -> std::io::Result<()> {
+            fs::write(target, [9u8; KEY_LEN])?;
+            Err(std::io::Error::from(ErrorKind::Unsupported))
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let key = load_or_create_with(dir.path(), winner_appears).unwrap();
+        assert_eq!(key, [9u8; KEY_LEN]);
+        assert_eq!(fs::read(dir.path().join(KEY_FILE)).unwrap(), [9u8; KEY_LEN]);
+        assert!(
+            leftovers(dir.path()).is_empty(),
+            "{:?}",
+            leftovers(dir.path())
+        );
     }
 
     #[test]

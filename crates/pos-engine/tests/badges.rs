@@ -1402,3 +1402,324 @@ async fn in_training_a_badge_login_opens_no_shift() {
     );
     rig.stop().await;
 }
+
+// ── Test round 1: the paths no test reached ───────────────────
+
+/// A reader that the engine does not know the hardware of (L5-D1):
+/// `nfc` links and scans like `usb`.
+#[tokio::test]
+async fn the_nfc_reader_links_and_scans_like_any_other() {
+    let app = app().await;
+    set_reader(&app.state, "nfc", false);
+    link(&app.state, ANNA, T_ANNA);
+    let out = tap(&app, T_ANNA).await.unwrap();
+    assert_eq!(out.kind, BadgeOutcomeKind::ClockIn);
+    let sent = work_requests(&app.fdm).await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0]["query"].as_str().unwrap().contains("signWorkIn"));
+    assert_eq!(sent[0]["variables"]["data"]["employeeId"], ANNA);
+    assert_eq!(
+        do_get_badge_settings(&app.state).unwrap().reader,
+        "nfc",
+        "the engine keeps the value"
+    );
+}
+
+#[tokio::test]
+async fn the_overview_log_carries_the_thirty_latest_rows_newest_first() {
+    let app = app().await;
+    // 1 settings row from app(), then 17 link/revoke pairs: 35 rows.
+    for _ in 0..17 {
+        link(&app.state, ANNA, T_ANNA);
+        do_revoke_badge(&app.state, ANNA.into()).unwrap();
+    }
+    link(&app.state, ANNA, T_ANNA);
+    let total = log_rows(&app.state).len();
+    assert!(total > 30, "{total} rows");
+    let overview = do_list_badges(&app.state).unwrap();
+    assert_eq!(overview.log.len(), 30);
+    assert_eq!(overview.log[0].action, "link", "the newest first");
+    assert_eq!(overview.log[1].action, "revoke");
+    // The cap drops the oldest rows: the settings row is gone.
+    assert!(overview.log.iter().all(|l| l.action != "settings"));
+    assert_eq!(overview.badges.len(), 1);
+}
+
+#[tokio::test]
+async fn repeated_wrong_manager_pins_end_in_pin_locked_and_link_nothing() {
+    let app = app().await;
+    let logged = log_rows(&app.state).len();
+    let mut locked = None;
+    for _ in 0..10 {
+        let err =
+            do_link_badge(&app.state, ANNA.into(), T_ANNA.into(), Some("0000".into())).unwrap_err();
+        if err.starts_with(errors::PIN_LOCKED) {
+            locked = Some(err);
+            break;
+        }
+        assert_eq!(err, errors::PIN_WRONG);
+    }
+    assert!(locked.is_some(), "the throttle never locked");
+    // The right PIN is refused while the lockout lasts.
+    let err = do_link_badge(&app.state, ANNA.into(), T_ANNA.into(), Some(PIN.into())).unwrap_err();
+    assert!(err.starts_with(errors::PIN_LOCKED), "{err}");
+    assert_eq!(active_badges(&app.state), 0);
+    assert_eq!(log_rows(&app.state).len(), logged, "no link row");
+    assert!(
+        pos_db::queries::badges::key_check(&app.state.db.lock().unwrap())
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_badge_whose_employee_is_no_longer_active_is_refused() {
+    let app = app().await;
+    link(&app.state, ANNA, T_ANNA);
+    // Bypass the engine's revoke-on-deactivate: the link stays active.
+    pos_db::queries::users::deactivate_user(&app.state.db.lock().unwrap(), ANNA).unwrap();
+    assert_eq!(active_badges(&app.state), 1);
+
+    assert_eq!(tap(&app, T_ANNA).await.unwrap_err(), errors::USER_UNKNOWN);
+    let scan = scans(&app.state);
+    assert_eq!(scan.len(), 1);
+    assert_eq!(scan[0].0, "refused");
+    assert_eq!(scan[0].1.as_deref(), Some(ANNA));
+    assert_eq!(scan[0].3.as_deref(), Some(errors::USER_UNKNOWN));
+    assert!(work_requests(&app.fdm).await.is_empty());
+}
+
+#[tokio::test]
+async fn end_shift_beats_badge_login_and_an_open_session_beats_end_shift() {
+    let app = app().await;
+    real_manager(&app);
+    set_reader(&app.state, "usb", true);
+    link(&app.state, BOB, T_BOB);
+    link(&app.state, REAL_MANAGER, T_MANAGER);
+    link(&app.state, ANNA, T_ANNA);
+    {
+        let db = app.state.db.lock().unwrap();
+        pos_db::queries::shifts::open_shift(&db, BOB, None).unwrap();
+        pos_db::queries::shifts::open_shift(&db, REAL_MANAGER, None).unwrap();
+    }
+    app.logout();
+
+    // Step 3 before step 4: a cashier is clocked out, not logged in.
+    let out = tap_end_shift(&app, T_BOB).await.unwrap();
+    assert_eq!(out.kind, BadgeOutcomeKind::ClockOut);
+    assert_eq!(session_insz(&app.state), None);
+    // A manager is clocked out, not asked for a PIN.
+    let out = tap_end_shift(&app, T_MANAGER).await.unwrap();
+    assert_eq!(out.kind, BadgeOutcomeKind::ClockOut);
+    assert_eq!(session_insz(&app.state), None);
+    let sent = work_requests(&app.fdm).await;
+    assert_eq!(sent.len(), 2);
+    assert!(
+        sent.iter()
+            .all(|r| r["query"].as_str().unwrap().contains("signWorkOut"))
+    );
+
+    // Step 2 before step 3: with a session open, end_shift is moot and
+    // the off-shift Anna is clocked IN (toggle), not presence_not_in.
+    app.login_as(MANAGER, UserRole::Admin);
+    let out = tap_end_shift(&app, T_ANNA).await.unwrap();
+    assert_eq!(out.kind, BadgeOutcomeKind::ClockIn);
+    assert_eq!(work_requests(&app.fdm).await.len(), 3);
+}
+
+#[tokio::test]
+async fn in_training_a_manager_can_link_and_revoke_without_any_fiscal_event() {
+    let app = app().await;
+    app.state.config.lock().unwrap().training_mode = true;
+    link(&app.state, ANNA, T_ANNA);
+    let overview = do_list_badges(&app.state).unwrap();
+    assert_eq!(overview.badges.len(), 1);
+    assert_eq!(overview.badges[0].insz, ANNA);
+    do_revoke_badge(&app.state, ANNA.into()).unwrap();
+    assert_eq!(active_badges(&app.state), 0);
+    assert!(app.fiscal_events().is_empty());
+    assert!(
+        app.fdm
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "the FDM saw nothing"
+    );
+}
+
+#[tokio::test]
+async fn an_internal_refusal_before_signing_is_journaled_with_its_code() {
+    let app = app().await;
+    link(&app.state, ANNA, T_ANNA);
+    link(&app.state, BOB, T_BOB);
+    // One real arrival opens the booking period...
+    assert_eq!(kind(tap(&app, T_ANNA).await), BadgeOutcomeKind::ClockIn);
+    // ...which then belongs to a business day that is over: no event
+    // goes into it (`booking` answers before anything is signed).
+    let day_end = i64::from(app.state.config.lock().unwrap().day_end_hour);
+    let date = (pos_fiscal::event::now_in_belgium()
+        - chrono::Duration::hours(day_end)
+        - chrono::Duration::days(2))
+    .date_naive()
+    .to_string();
+    app.state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "UPDATE booking_periods SET booking_date = ?1 WHERE closed_at IS NULL",
+            rusqlite::params![date],
+        )
+        .unwrap();
+    let events = s_events(&app).len();
+
+    assert_eq!(
+        tap(&app, T_BOB).await.unwrap_err(),
+        errors::PREVIOUS_DAY_OPEN
+    );
+    let scan = scans(&app.state);
+    assert_eq!(scan.len(), 2);
+    assert_eq!(scan[1].0, "refused");
+    assert_eq!(scan[1].1.as_deref(), Some(BOB));
+    assert_eq!(scan[1].3.as_deref(), Some(errors::PREVIOUS_DAY_OPEN));
+    assert_eq!(s_events(&app).len(), events, "no S event archived");
+    assert_eq!(work_requests(&app.fdm).await.len(), 1);
+}
+
+// ── An unreadable key at open, and logs without the badge number ──
+
+#[tokio::test]
+async fn opening_the_engine_with_an_unreadable_key_revokes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let open = || {
+        Engine::open(EngineConfig {
+            paths: EnginePaths::under(dir.path().to_path_buf()),
+            config: ConfigSource::DevelopmentDefaults,
+            events: Arc::new(pos_engine::NullSink),
+            timers: EngineTimers::default(),
+            identity: pos_engine::SoftwareIdentity::new("pili-pos/1.0.0").unwrap(),
+            http_tls: pos_engine::HttpTls::Platform,
+            device_id_override: None,
+            support_program: None,
+        })
+    };
+    {
+        let engine = open().expect("open the engine");
+        let db = engine.db.lock().unwrap();
+        db.execute_batch(
+            "INSERT INTO users (insz, name, role) VALUES ('12345678901', 'M', 'admin');
+             INSERT INTO users (insz, name, role) VALUES ('12345678958', 'A', 'waiter');",
+        )
+        .unwrap();
+        let key = pos_engine::badge_key::load_or_create(dir.path()).unwrap();
+        pos_db::queries::badges::set_key_check(&db, &pos_engine::badge_key::key_check(&key))
+            .unwrap();
+        pos_db::queries::badges::link(
+            &db,
+            &pos_engine::badge_key::hash_token(&key, T_ANNA),
+            ANNA,
+            MANAGER,
+        )
+        .unwrap();
+    }
+    let key_file = dir.path().join(pos_engine::badge_key::KEY_FILE);
+    std::fs::write(&key_file, b"12345").unwrap();
+
+    let engine = open().expect("the open never fails on a bad key file");
+    let db = engine.db.lock().unwrap();
+    assert_eq!(pos_db::queries::badges::list_active(&db).unwrap().len(), 1);
+    assert!(!pos_db::queries::badges::relink_needed(&db).unwrap());
+    let revokes: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM badge_log WHERE action = 'revoke'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(revokes, 0);
+    drop(db);
+    assert_eq!(std::fs::read(&key_file).unwrap(), b"12345", "left alone");
+}
+
+/// A `MakeWriter` collecting everything the engine logs.
+#[derive(Clone, Default)]
+struct Captured(Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for Captured {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for Captured {
+    type Writer = Captured;
+
+    fn make_writer(&'a self) -> Captured {
+        self.clone()
+    }
+}
+
+#[tokio::test]
+async fn the_raw_badge_number_is_in_no_log_line() {
+    let captured = Captured::default();
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_ansi(false)
+        .with_writer(captured.clone())
+        .finish();
+    // The test runtime is current-thread: every task logs on this thread.
+    let _guard = tracing::subscriber::set_default(subscriber);
+
+    let app = app().await;
+    link(&app.state, ANNA, T_ANNA);
+    link(&app.state, BOB, T_BOB);
+    assert_eq!(kind(tap(&app, T_ANNA).await), BadgeOutcomeKind::ClockIn);
+    // Unknown badge.
+    tap(&app, "DEADBEEF").await.unwrap_err();
+    // Unreadable key (the warn line), then restored.
+    let good = std::fs::read(key_path(&app)).unwrap();
+    std::fs::write(key_path(&app), b"not a key").unwrap();
+    assert_eq!(
+        tap(&app, T_BOB).await.unwrap_err(),
+        errors::BADGE_KEY_UNAVAILABLE
+    );
+    do_link_badge(
+        &app.state,
+        KITCHEN.into(),
+        T_KITCHEN.into(),
+        Some(PIN.into()),
+    )
+    .unwrap_err();
+    std::fs::write(key_path(&app), good).unwrap();
+    // presence_failed: an FDM that refuses.
+    let failing = TestApp::new().await;
+    fdm_errors(&failing.fdm).await;
+    seed(&failing.state);
+    set_reader(&failing.state, "usb", false);
+    link(&failing.state, BOB, T_BOB);
+    assert_eq!(
+        kind(tap(&failing, T_BOB).await),
+        BadgeOutcomeKind::PresenceFailed
+    );
+
+    let text = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+    assert!(
+        text.contains("badge key unavailable"),
+        "sanity: the capture sees the engine's warnings:\n{text}"
+    );
+    for token in [T_ANNA, T_BOB, T_KITCHEN, "DEADBEEF"] {
+        let number = u32::from_str_radix(token, 16).unwrap();
+        for needle in [token.to_string(), token.to_lowercase(), number.to_string()] {
+            assert!(
+                !text.contains(&needle),
+                "{needle} found in the logs:\n{text}"
+            );
+        }
+    }
+}
