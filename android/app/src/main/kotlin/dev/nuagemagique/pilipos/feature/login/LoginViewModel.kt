@@ -3,6 +3,8 @@ package dev.nuagemagique.pilipos.feature.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nuagemagique.pilipos.i18n.AppLanguage
+import dev.nuagemagique.pilipos.ui.badge.PinRequest
+import dev.nuagemagique.pilipos.ui.badge.READER_OFF
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadState
@@ -10,6 +12,7 @@ import dev.nuagemagique.pilipos.ui.feedback.DEFAULT_TOAST_TTL_MS
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.scaffold.PRINTER_POLL_MS
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -17,10 +20,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import uniffi.pos_ffi.BadgeSettingsView
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
@@ -55,6 +62,7 @@ internal class LoginViewModel(
     fdm: FdmProbe = StoreFdmProbe(entry.fdm()),
 ) : ViewModel() {
     private val settings = entry.settings()
+    private val badges = entry.badges()
     private val checks = LoginStartupChecks(entry.gateway(), fdm)
     private val own = MutableStateFlow(LoginUiState())
     private val effectChannel = Channel<LoginEffect>(Channel.BUFFERED)
@@ -64,12 +72,18 @@ internal class LoginViewModel(
 
     /** What the screen draws. */
     val state: StateFlow<LoginUiState> =
-        combine(own, settings.settings, settings.language, settings.trainingMode) { base, engine, language, training ->
-            withSettings(base, engine, language, training)
+        combine(
+            own,
+            settings.settings,
+            settings.language,
+            settings.trainingMode,
+            badges.settings,
+        ) { base, engine, language, training, reader ->
+            withSettings(base, engine, language, training, reader)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            withSettings(own.value, settings.settings.value, settings.language.value, settings.trainingMode.value),
+            withSettings(own.value, settings.settings.value, settings.language.value, settings.trainingMode.value, badges.settings.value),
         )
 
     /** One-shot effects, each delivered once. */
@@ -79,6 +93,48 @@ internal class LoginViewModel(
         viewModelScope.launch { runChecks() }
         viewModelScope.launch { loadShifts() }
         viewModelScope.launch { loadUsers() }
+        observeBadges()
+    }
+
+    override fun onCleared() {
+        badges.setEndShiftMode(false)
+    }
+
+    // ── Badge reader (lane 5) ─────────────────────────────────────
+
+    /**
+     * What the badge store says to this screen: a manager's badge opens their PIN pad (never a session, L5-D6), a
+     * cashier's badge already opened the session (the same way out as a PIN login), the end-of-shift mode of the
+     * PIN pad is told to the store (a scan then clocks its holder out), and a registered arrival or departure
+     * refreshes the tiles (and closes an open end-of-shift pad, whose job a badge has done).
+     */
+    private fun observeBadges() {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) { badges.pinRequests.collect { openPinFor(it) } }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            badges.loggedIn.collect {
+                own.update { current -> current.copy(pin = null, firstPin = null) }
+                effectChannel.send(LoginEffect.GoToTables)
+            }
+        }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            own.map { it.pin?.endShift == true }.distinctUntilChanged().collect { badges.setEndShiftMode(it) }
+        }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            badges.presenceVersion.drop(1).collect {
+                if (own.value.pin?.endShift == true) cancelPin()
+                loadShifts()
+            }
+        }
+    }
+
+    private fun openPinFor(request: PinRequest) {
+        own.update { it.copy(error = null, numpadMode = false) }
+        val known = own.value.users.firstOrNull { it.insz == request.insz }
+        if (known != null) {
+            onTile(known)
+        } else {
+            openPin(User(insz = request.insz, name = request.name, role = UserRole.ADMIN, active = true, hasPin = true))
+        }
     }
 
     // ── Start-up loading ──────────────────────────────────────────
@@ -351,8 +407,11 @@ internal class LoginViewModel(
             engine: PosSettings?,
             language: AppLanguage,
             training: Boolean,
+            reader: BadgeSettingsView?,
         ): LoginUiState =
             base.copy(
+                badgeReaderOn = reader != null && reader.reader != READER_OFF,
+                badgeLoginOn = reader != null && reader.reader != READER_OFF && reader.loginEnabled,
                 footer = listOfNotNull(engine?.restaurantName, engine?.terminalId).filter { it.isNotEmpty() }.joinToString(" · "),
                 version = engine?.posSwVersion.orEmpty(),
                 language = language,

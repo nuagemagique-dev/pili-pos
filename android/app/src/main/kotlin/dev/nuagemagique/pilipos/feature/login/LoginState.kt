@@ -90,6 +90,10 @@ internal data class LoginUiState(
     val language: AppLanguage = AppLanguage.FR,
     /** True while the till is in training mode. */
     val training: Boolean = false,
+    /** True when a badge reader is chosen (the end-of-shift pad invites to present the badge). */
+    val badgeReaderOn: Boolean = false,
+    /** True when the reader is on and a badge logs the cashiers and waiters in (the tiles invite to present it). */
+    val badgeLoginOn: Boolean = false,
 ) {
     /** When the open shift of [insz] started, or null when that operator is off shift. */
     fun shiftStart(insz: String): String? = shifts.firstOrNull { it.userInsz == insz }?.startedAt

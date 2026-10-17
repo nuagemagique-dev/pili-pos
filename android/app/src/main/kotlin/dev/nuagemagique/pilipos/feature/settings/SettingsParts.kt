@@ -46,7 +46,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 
 /** Side of the avatar circle of an employee. */
-private val AvatarSize = 48.dp
+internal val AvatarSize = 48.dp
 
 /** Side of the dot of a status pill. */
 private val DotSize = 8.dp

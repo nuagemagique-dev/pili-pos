@@ -8,6 +8,7 @@ import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.engine.EngineHelpers
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.NavRegistry
+import dev.nuagemagique.pilipos.ui.badge.BadgeStore
 import dev.nuagemagique.pilipos.ui.components.QrMatrices
 import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
@@ -64,6 +65,9 @@ internal interface SettingsFeatureEntryPoint {
 
     /** The FDM health: the presence buttons of the employees panel are off while it is not connected. */
     fun fdm(): FdmStore
+
+    /** The badge reader: its setting, the enrolment capture and the badge list (lane 5). */
+    fun badges(): BadgeStore
 
     /** The QR matrices of the engine: the HubRise authorize link is drawn from them (PD218). */
     fun qrMatrices(): QrMatrices

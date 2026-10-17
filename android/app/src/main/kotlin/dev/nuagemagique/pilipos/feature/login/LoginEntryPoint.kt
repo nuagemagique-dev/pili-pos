@@ -6,6 +6,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.nuagemagique.pilipos.engine.EngineGateway
 import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
+import dev.nuagemagique.pilipos.ui.badge.BadgeStore
 import dev.nuagemagique.pilipos.ui.fdm.FdmStore
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
@@ -43,6 +44,9 @@ internal interface LoginEntryPoint {
 
     /** The Vue texts. */
     fun catalog(): MessageCatalog
+
+    /** The badge reader: a manager's badge opens their PIN pad, a cashier's badge logs in (lane 5). */
+    fun badges(): BadgeStore
 
     /** The screen text of an engine refusal. */
     fun errorTexts(): ErrorTexts

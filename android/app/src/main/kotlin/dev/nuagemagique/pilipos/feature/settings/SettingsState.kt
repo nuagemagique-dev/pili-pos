@@ -3,6 +3,7 @@ package dev.nuagemagique.pilipos.feature.settings
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
+import uniffi.pos_ffi.ActiveBadge
 import uniffi.pos_ffi.DeliveryView
 import uniffi.pos_ffi.MailStatus
 import uniffi.pos_ffi.PosSettings
@@ -124,7 +125,19 @@ internal data class SettingsUiState(
     val mailStatus: MailStatus? = null,
     val hubrise: HubriseSwitchState = HubriseSwitchState(),
     val tablePlan: TablePlanState = TablePlanState(),
+    /** The badge reader panel of a manager. */
+    val badge: BadgePanelState = BadgePanelState(),
+    /** The enrolment dialog (capture, then the manager's PIN), or null. */
+    val enrol: BadgeEnrolFlow? = null,
+    /** The badge removal waiting for its confirmation, or null. */
+    val revokeBadge: BadgeRevokeAsk? = null,
 ) {
+    /** The employees rows show the badge state and buttons: a manager, with a reader chosen. */
+    val showBadges: Boolean get() = isManager && badge.readerOn
+
+    /** The active badge of the employee [insz], or null. */
+    fun badgeOf(insz: String): ActiveBadge? = badge.overview?.badges?.firstOrNull { it.insz == insz }
+
     /** True when the user [insz] is the operator himself (no deactivate button, own PIN flow). */
     fun isSelf(insz: String): Boolean = insz == currentInsz
 
