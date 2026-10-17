@@ -1,8 +1,8 @@
 //! UC4121 (invoice of three sales) and UC4122 (invoice of a refund and two sales) of the
 //! Advanced Set 1.6, replayed field by field against the published signInvoice requests.
 //!
-//! The sales of both use payment type CUSTOMER CREDIT (customer accounts are a non-goal of
-//! v1.1), so the sales here are cash sales; the invoice request does not depend on how the
+//! The sales of both use payment type CUSTOMER CREDIT (customer accounts are not part of
+//! the product), so the sales here are cash sales; the invoice request does not depend on how the
 //! sales were paid. The invoice is compared like every other fixture: business fields equal
 //! (`costCenter.type`, `customerVatNo`, the labels of `fdmRefs`) and the identification fields
 //! by format; the invoice number is checked for its year and sequence format, not its value.
@@ -38,6 +38,7 @@ fn assert_invoice_matches(uc: &str, app: &TestApp, fixture: &Value, sales: &[i64
     let ours: Value = serde_json::from_str(
         events
             .iter()
+            .rev()
             .find(|e| e.event_type == "I")
             .unwrap()
             .event_data_json
@@ -105,8 +106,26 @@ async fn uc4122_an_invoice_of_a_refund_and_two_sales() {
         .collect();
     assert_eq!(labels, ["N", "N", "N"], "the refund is an N too");
 
-    // A sale, refunded (the refund is a negative N), then two other sales.
+    // The scenario precondition: the sold ticket (4 dame blanche) "had already been invoiced",
+    // so the original sale is invoiced first, then refunded (the refund is a negative N), then
+    // two other sales are made.
     let original = app.sell_cash(4608).await;
+    let first_invoice =
+        do_sign_invoice_fiscal(&app.state, vec![original], customer, OPERATOR.into())
+            .await
+            .unwrap();
+    assert!(first_invoice.success, "{:?}", first_invoice.error);
+    assert_eq!(app.counter_for(EventLabel::I), 1);
+    // The precondition holds: the original sale is now on an invoice and cannot be invoiced again.
+    let again = do_invoice_preview(&app.state, &[original]).unwrap();
+    assert!(
+        again
+            .problems
+            .iter()
+            .any(|p| p.starts_with("invoice_sale_already_invoiced")),
+        "the original sale must be reported as already invoiced: {:?}",
+        again.problems
+    );
     let item: i64 = app
         .state
         .db
@@ -144,5 +163,7 @@ async fn uc4122_an_invoice_of_a_refund_and_two_sales() {
         .await
         .unwrap();
     assert!(result.success, "{:?}", result.error);
+    // Two invoices in all: the one of the original sale, then this one (the last I event).
+    assert_eq!(app.counter_for(EventLabel::I), 2);
     assert_invoice_matches("UC4122", &app, &fixture, &invoiced);
 }

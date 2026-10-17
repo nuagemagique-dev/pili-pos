@@ -291,9 +291,8 @@ def run_check():
             print(p)
         return 1
     total = len(wrappers)
-    without = len([k for k in names if k[0] not in peppol_mods])
     ok = total - len(problems)
-    print(f"commands: {total} ({without} without peppol), single-call: {ok}/{total}")
+    print(f"commands: {total}, single-call: {ok}/{total}")
     return 0
 
 

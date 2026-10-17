@@ -96,7 +96,7 @@ class CheckerTest(unittest.TestCase):
     def test_valid_wrappers(self):
         code, out = self.run_check(VALID, MAIN)
         self.assertEqual(code, 0, out)
-        self.assertIn("commands: 3 (3 without peppol), single-call: 3/3", out)
+        self.assertIn("commands: 3, single-call: 3/3", out)
 
     def test_two_statements(self):
         src = wrapper(
