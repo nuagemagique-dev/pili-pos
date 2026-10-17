@@ -61,6 +61,8 @@ object EngineErrorCodes {
             "fixed_price",
             "product_unavailable",
             "product_sold_out",
+            "menu_invalid",
+            "menu_not_found",
             "line_not_found",
             "order_no_lines",
             "order_total_negative",

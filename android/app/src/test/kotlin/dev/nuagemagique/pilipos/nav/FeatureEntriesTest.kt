@@ -51,10 +51,10 @@ class FeatureEntriesTest {
     fun theSetHoldsSevenFeaturesAndThePlatform() {
         hiltRule.inject()
         assertEquals(
-            setOf("login", "tables", "order", "checkout", "reports", "settings", "webshop", "platform", "nightly"),
+            setOf("login", "tables", "order", "checkout", "reports", "settings", "settings-menu", "webshop", "platform", "nightly"),
             entries.map { it.area }.toSet(),
         )
-        assertEquals(9, entries.size)
+        assertEquals(10, entries.size)
     }
 
     @Test
@@ -70,6 +70,7 @@ class FeatureEntriesTest {
                 CheckoutRoutes.CHECKOUT,
                 ReportsRoutes.REPORTS,
                 SettingsRoutes.SETTINGS,
+                SettingsRoutes.MENU,
                 WebshopRoutes.WEBSHOP,
                 PlatformRoutes.ABOUT,
                 NightlyRoutes.NIGHTLY,
@@ -97,7 +98,7 @@ class FeatureEntriesTest {
         val about = settings.single { it.id == "platform.about" }
         assertEquals(PlatformRoutes.ABOUT, about.route)
         assertEquals(registry.settingsEntries, registry.settingsEntries.sortedWith(compareBy({ it.order }, { it.id })))
-        assertTrue(registry.entries.size == 9)
+        assertTrue(registry.entries.size == 10)
     }
 
     @Test

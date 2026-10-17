@@ -114,6 +114,8 @@ internal object VueStringIds {
         this["err_fixed_price"] = R.string.err_fixed_price
         this["err_product_unavailable"] = R.string.err_product_unavailable
         this["err_product_sold_out"] = R.string.err_product_sold_out
+        this["err_menu_invalid"] = R.string.err_menu_invalid
+        this["err_menu_not_found"] = R.string.err_menu_not_found
         this["err_line_not_found"] = R.string.err_line_not_found
         this["err_order_no_lines"] = R.string.err_order_no_lines
         this["err_payment_invalid"] = R.string.err_payment_invalid
@@ -264,11 +266,11 @@ internal object VueStringIds {
         this["refund_none"] = R.string.refund_none
         this["cash_section"] = R.string.cash_section
         this["cash_in"] = R.string.cash_in
-        this["cash_out"] = R.string.cash_out
-        this["cash_open_drawer"] = R.string.cash_open_drawer
     }
 
     private fun MutableMap<String, Int>.part1() {
+        this["cash_out"] = R.string.cash_out
+        this["cash_open_drawer"] = R.string.cash_open_drawer
         this["cash_declaration"] = R.string.cash_declaration
         this["cash_declaration_hint"] = R.string.cash_declaration_hint
         this["kitchen_slip_failed"] = R.string.kitchen_slip_failed
@@ -511,6 +513,89 @@ internal object VueStringIds {
         this["peppol_attempts"] = R.string.peppol_attempts
         this["peppol_retry"] = R.string.peppol_retry
         this["peppol_retried"] = R.string.peppol_retried
+        this["menu_editor_title"] = R.string.menu_editor_title
+        this["menu_editor_open"] = R.string.menu_editor_open
+        this["menu_editor_note"] = R.string.menu_editor_note
+        this["menu_editor_locked"] = R.string.menu_editor_locked
+        this["menu_ed_title"] = R.string.menu_ed_title
+        this["menu_ed_categories"] = R.string.menu_ed_categories
+    }
+
+    private fun MutableMap<String, Int>.part2() {
+        this["menu_ed_products"] = R.string.menu_ed_products
+        this["menu_ed_add_category"] = R.string.menu_ed_add_category
+        this["menu_ed_add_product"] = R.string.menu_ed_add_product
+        this["menu_ed_history"] = R.string.menu_ed_history
+        this["menu_ed_select_hint"] = R.string.menu_ed_select_hint
+        this["menu_ed_hidden"] = R.string.menu_ed_hidden
+        this["menu_ed_empty_products"] = R.string.menu_ed_empty_products
+        this["menu_ed_new_category"] = R.string.menu_ed_new_category
+        this["menu_ed_new_product"] = R.string.menu_ed_new_product
+        this["menu_ed_name"] = R.string.menu_ed_name
+        this["menu_ed_lang_fr"] = R.string.menu_ed_lang_fr
+        this["menu_ed_lang_nl"] = R.string.menu_ed_lang_nl
+        this["menu_ed_lang_en"] = R.string.menu_ed_lang_en
+        this["menu_ed_lang_zh"] = R.string.menu_ed_lang_zh
+        this["menu_ed_lang_de"] = R.string.menu_ed_lang_de
+        this["menu_ed_required"] = R.string.menu_ed_required
+        this["menu_ed_zh_note"] = R.string.menu_ed_zh_note
+        this["menu_ed_case"] = R.string.menu_ed_case
+        this["menu_ed_category"] = R.string.menu_ed_category
+        this["menu_ed_price"] = R.string.menu_ed_price
+        this["menu_ed_vat"] = R.string.menu_ed_vat
+        this["menu_ed_vat_takeaway"] = R.string.menu_ed_vat_takeaway
+        this["menu_ed_vat_same"] = R.string.menu_ed_vat_same
+        this["menu_ed_vat_a"] = R.string.menu_ed_vat_a
+        this["menu_ed_vat_b"] = R.string.menu_ed_vat_b
+        this["menu_ed_vat_c"] = R.string.menu_ed_vat_c
+        this["menu_ed_vat_d"] = R.string.menu_ed_vat_d
+        this["menu_ed_vat_x"] = R.string.menu_ed_vat_x
+        this["menu_ed_code"] = R.string.menu_ed_code
+        this["menu_ed_kitchen"] = R.string.menu_ed_kitchen
+        this["menu_ed_open_price"] = R.string.menu_ed_open_price
+        this["menu_ed_active"] = R.string.menu_ed_active
+        this["menu_ed_position"] = R.string.menu_ed_position
+        this["menu_ed_color"] = R.string.menu_ed_color
+        this["menu_ed_color_none"] = R.string.menu_ed_color_none
+        this["menu_ed_save"] = R.string.menu_ed_save
+        this["menu_ed_saved"] = R.string.menu_ed_saved
+        this["menu_ed_cancel"] = R.string.menu_ed_cancel
+        this["menu_ed_groups"] = R.string.menu_ed_groups
+        this["menu_ed_add_group"] = R.string.menu_ed_add_group
+        this["menu_ed_new_group"] = R.string.menu_ed_new_group
+        this["menu_ed_group"] = R.string.menu_ed_group
+        this["menu_ed_group_min"] = R.string.menu_ed_group_min
+        this["menu_ed_group_max"] = R.string.menu_ed_group_max
+        this["menu_ed_options"] = R.string.menu_ed_options
+        this["menu_ed_add_option"] = R.string.menu_ed_add_option
+        this["menu_ed_new_option"] = R.string.menu_ed_new_option
+        this["menu_ed_option"] = R.string.menu_ed_option
+        this["menu_ed_save_first"] = R.string.menu_ed_save_first
+        this["menu_ed_edit"] = R.string.menu_ed_edit
+        this["menu_ed_history_title"] = R.string.menu_ed_history_title
+        this["menu_ed_history_empty"] = R.string.menu_ed_history_empty
+        this["menu_ed_history_by"] = R.string.menu_ed_history_by
+        this["menu_ed_action_create"] = R.string.menu_ed_action_create
+        this["menu_ed_action_update"] = R.string.menu_ed_action_update
+        this["menu_ed_entity_category"] = R.string.menu_ed_entity_category
+        this["menu_ed_entity_product"] = R.string.menu_ed_entity_product
+        this["menu_ed_entity_modifier_group"] = R.string.menu_ed_entity_modifier_group
+        this["menu_ed_entity_modifier"] = R.string.menu_ed_entity_modifier
+        this["menu_ed_field_names"] = R.string.menu_ed_field_names
+        this["menu_ed_field_sort_order"] = R.string.menu_ed_field_sort_order
+        this["menu_ed_field_color"] = R.string.menu_ed_field_color
+        this["menu_ed_field_active"] = R.string.menu_ed_field_active
+        this["menu_ed_field_category_id"] = R.string.menu_ed_field_category_id
+        this["menu_ed_field_price_cents"] = R.string.menu_ed_field_price_cents
+        this["menu_ed_field_vat_code"] = R.string.menu_ed_field_vat_code
+        this["menu_ed_field_vat_code_takeaway"] = R.string.menu_ed_field_vat_code_takeaway
+        this["menu_ed_field_kitchen_printer"] = R.string.menu_ed_field_kitchen_printer
+        this["menu_ed_field_code"] = R.string.menu_ed_field_code
+        this["menu_ed_field_open_price"] = R.string.menu_ed_field_open_price
+        this["menu_ed_field_menu_item_id"] = R.string.menu_ed_field_menu_item_id
+        this["menu_ed_field_min_select"] = R.string.menu_ed_field_min_select
+        this["menu_ed_field_max_select"] = R.string.menu_ed_field_max_select
+        this["menu_ed_field_group_id"] = R.string.menu_ed_field_group_id
         this["integrations_title"] = R.string.integrations_title
         this["integrations_hubrise_text"] = R.string.integrations_hubrise_text
         this["integrations_on"] = R.string.integrations_on
@@ -519,9 +604,6 @@ internal object VueStringIds {
         this["integrations_turn_off"] = R.string.integrations_turn_off
         this["integrations_log"] = R.string.integrations_log
         this["integrations_source_config"] = R.string.integrations_source_config
-    }
-
-    private fun MutableMap<String, Int>.part2() {
         this["integrations_source_admin"] = R.string.integrations_source_admin
         this["integrations_settle_first"] = R.string.integrations_settle_first
         this["settings_hubrise_pending"] = R.string.settings_hubrise_pending

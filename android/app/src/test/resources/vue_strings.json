@@ -1152,6 +1152,18 @@
       "zh": "该行已不存在。",
       "area": "errors"
     },
+    "err_menu_invalid": {
+      "fr": "Valeur invalide dans la carte : {field}.",
+      "en": "Invalid value in the menu: {field}.",
+      "zh": "菜单中的值无效：{field}。",
+      "area": "errors"
+    },
+    "err_menu_not_found": {
+      "fr": "Cet élément de la carte n'existe plus.",
+      "en": "This menu entry no longer exists.",
+      "zh": "该菜单项已不存在。",
+      "area": "errors"
+    },
     "err_modifier_count": {
       "fr": "« {group} » : choisir entre {min} et {max}.",
       "en": "\"{group}\": pick between {min} and {max}.",
@@ -2243,6 +2255,486 @@
       "en": "MEAL VOUCHERS",
       "zh": "餐券",
       "area": "core"
+    },
+    "menu_ed_action_create": {
+      "fr": "Création",
+      "en": "Created",
+      "zh": "新建",
+      "area": "settings"
+    },
+    "menu_ed_action_update": {
+      "fr": "Modification",
+      "en": "Changed",
+      "zh": "修改",
+      "area": "settings"
+    },
+    "menu_ed_active": {
+      "fr": "Visible à la caisse",
+      "en": "Shown on the till",
+      "zh": "在收银机上显示",
+      "area": "settings"
+    },
+    "menu_ed_add_category": {
+      "fr": "Nouvelle catégorie",
+      "en": "New category",
+      "zh": "新建分类",
+      "area": "settings"
+    },
+    "menu_ed_add_group": {
+      "fr": "Ajouter un groupe",
+      "en": "Add a group",
+      "zh": "添加选项组",
+      "area": "settings"
+    },
+    "menu_ed_add_option": {
+      "fr": "Ajouter une option",
+      "en": "Add an option",
+      "zh": "添加选项",
+      "area": "settings"
+    },
+    "menu_ed_add_product": {
+      "fr": "Nouveau produit",
+      "en": "New product",
+      "zh": "新建商品",
+      "area": "settings"
+    },
+    "menu_ed_cancel": {
+      "fr": "Annuler",
+      "en": "Cancel",
+      "zh": "取消",
+      "area": "settings"
+    },
+    "menu_ed_case": {
+      "fr": "Majuscules / minuscules",
+      "en": "Upper / lower case",
+      "zh": "大小写切换",
+      "area": "settings"
+    },
+    "menu_ed_categories": {
+      "fr": "Catégories",
+      "en": "Categories",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_category": {
+      "fr": "Catégorie",
+      "en": "Category",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_code": {
+      "fr": "Code du menu",
+      "en": "Menu code",
+      "zh": "菜单编号",
+      "area": "settings"
+    },
+    "menu_ed_color": {
+      "fr": "Couleur",
+      "en": "Colour",
+      "zh": "颜色",
+      "area": "settings"
+    },
+    "menu_ed_color_none": {
+      "fr": "Aucune",
+      "en": "None",
+      "zh": "无",
+      "area": "settings"
+    },
+    "menu_ed_edit": {
+      "fr": "Modifier",
+      "en": "Edit",
+      "zh": "编辑",
+      "area": "settings"
+    },
+    "menu_ed_empty_products": {
+      "fr": "Aucun produit dans cette catégorie.",
+      "en": "No product in this category.",
+      "zh": "该分类下没有商品。",
+      "area": "settings"
+    },
+    "menu_ed_entity_category": {
+      "fr": "catégorie",
+      "en": "category",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_entity_modifier": {
+      "fr": "option",
+      "en": "option",
+      "zh": "选项",
+      "area": "settings"
+    },
+    "menu_ed_entity_modifier_group": {
+      "fr": "groupe d'options",
+      "en": "option group",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_entity_product": {
+      "fr": "produit",
+      "en": "product",
+      "zh": "商品",
+      "area": "settings"
+    },
+    "menu_ed_field_active": {
+      "fr": "visibilité",
+      "en": "visibility",
+      "zh": "显示",
+      "area": "settings"
+    },
+    "menu_ed_field_category_id": {
+      "fr": "catégorie",
+      "en": "category",
+      "zh": "分类",
+      "area": "settings"
+    },
+    "menu_ed_field_code": {
+      "fr": "code",
+      "en": "code",
+      "zh": "编号",
+      "area": "settings"
+    },
+    "menu_ed_field_color": {
+      "fr": "couleur",
+      "en": "colour",
+      "zh": "颜色",
+      "area": "settings"
+    },
+    "menu_ed_field_group_id": {
+      "fr": "groupe",
+      "en": "group",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_field_kitchen_printer": {
+      "fr": "bon de cuisine",
+      "en": "kitchen slip",
+      "zh": "厨房单",
+      "area": "settings"
+    },
+    "menu_ed_field_max_select": {
+      "fr": "maximum",
+      "en": "maximum",
+      "zh": "最多",
+      "area": "settings"
+    },
+    "menu_ed_field_menu_item_id": {
+      "fr": "produit",
+      "en": "product",
+      "zh": "商品",
+      "area": "settings"
+    },
+    "menu_ed_field_min_select": {
+      "fr": "minimum",
+      "en": "minimum",
+      "zh": "最少",
+      "area": "settings"
+    },
+    "menu_ed_field_names": {
+      "fr": "nom",
+      "en": "name",
+      "zh": "名称",
+      "area": "settings"
+    },
+    "menu_ed_field_open_price": {
+      "fr": "prix libre",
+      "en": "open price",
+      "zh": "自定价格",
+      "area": "settings"
+    },
+    "menu_ed_field_price_cents": {
+      "fr": "prix",
+      "en": "price",
+      "zh": "价格",
+      "area": "settings"
+    },
+    "menu_ed_field_sort_order": {
+      "fr": "position",
+      "en": "position",
+      "zh": "位置",
+      "area": "settings"
+    },
+    "menu_ed_field_vat_code": {
+      "fr": "TVA sur place",
+      "en": "VAT dine-in",
+      "zh": "堂食税率",
+      "area": "settings"
+    },
+    "menu_ed_field_vat_code_takeaway": {
+      "fr": "TVA à emporter",
+      "en": "VAT takeaway",
+      "zh": "外带税率",
+      "area": "settings"
+    },
+    "menu_ed_group": {
+      "fr": "Groupe d'options",
+      "en": "Option group",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_group_max": {
+      "fr": "Maximum",
+      "en": "Maximum",
+      "zh": "最多",
+      "area": "settings"
+    },
+    "menu_ed_group_min": {
+      "fr": "Minimum",
+      "en": "Minimum",
+      "zh": "最少",
+      "area": "settings"
+    },
+    "menu_ed_groups": {
+      "fr": "Groupes d'options",
+      "en": "Option groups",
+      "zh": "选项组",
+      "area": "settings"
+    },
+    "menu_ed_hidden": {
+      "fr": "Masqué",
+      "en": "Hidden",
+      "zh": "已隐藏",
+      "area": "settings"
+    },
+    "menu_ed_history": {
+      "fr": "Historique",
+      "en": "History",
+      "zh": "历史记录",
+      "area": "settings"
+    },
+    "menu_ed_history_by": {
+      "fr": "par {name}",
+      "en": "by {name}",
+      "zh": "由 {name}",
+      "area": "settings"
+    },
+    "menu_ed_history_empty": {
+      "fr": "Aucune modification.",
+      "en": "No change yet.",
+      "zh": "暂无修改。",
+      "area": "settings"
+    },
+    "menu_ed_history_title": {
+      "fr": "Historique des modifications",
+      "en": "Change history",
+      "zh": "修改历史",
+      "area": "settings"
+    },
+    "menu_ed_kitchen": {
+      "fr": "Imprimer sur le bon de cuisine",
+      "en": "Print on the kitchen slip",
+      "zh": "打印到厨房单",
+      "area": "settings"
+    },
+    "menu_ed_lang_de": {
+      "fr": "allemand",
+      "en": "German",
+      "zh": "德语",
+      "area": "settings"
+    },
+    "menu_ed_lang_en": {
+      "fr": "anglais",
+      "en": "English",
+      "zh": "英语",
+      "area": "settings"
+    },
+    "menu_ed_lang_fr": {
+      "fr": "français",
+      "en": "French",
+      "zh": "法语",
+      "area": "settings"
+    },
+    "menu_ed_lang_nl": {
+      "fr": "néerlandais",
+      "en": "Dutch",
+      "zh": "荷兰语",
+      "area": "settings"
+    },
+    "menu_ed_lang_zh": {
+      "fr": "chinois",
+      "en": "Chinese",
+      "zh": "中文",
+      "area": "settings"
+    },
+    "menu_ed_name": {
+      "fr": "Nom ({lang})",
+      "en": "Name ({lang})",
+      "zh": "名称（{lang}）",
+      "area": "settings"
+    },
+    "menu_ed_new_category": {
+      "fr": "Nouvelle catégorie",
+      "en": "New category",
+      "zh": "新分类",
+      "area": "settings"
+    },
+    "menu_ed_new_group": {
+      "fr": "Nouveau groupe",
+      "en": "New group",
+      "zh": "新选项组",
+      "area": "settings"
+    },
+    "menu_ed_new_option": {
+      "fr": "Nouvelle option",
+      "en": "New option",
+      "zh": "新选项",
+      "area": "settings"
+    },
+    "menu_ed_new_product": {
+      "fr": "Nouveau produit",
+      "en": "New product",
+      "zh": "新商品",
+      "area": "settings"
+    },
+    "menu_ed_open_price": {
+      "fr": "Prix libre",
+      "en": "Open price",
+      "zh": "自定价格",
+      "area": "settings"
+    },
+    "menu_ed_option": {
+      "fr": "Option",
+      "en": "Option",
+      "zh": "选项",
+      "area": "settings"
+    },
+    "menu_ed_options": {
+      "fr": "Options",
+      "en": "Options",
+      "zh": "选项",
+      "area": "settings"
+    },
+    "menu_ed_position": {
+      "fr": "Position",
+      "en": "Position",
+      "zh": "位置",
+      "area": "settings"
+    },
+    "menu_ed_price": {
+      "fr": "Prix (€)",
+      "en": "Price (€)",
+      "zh": "价格（€）",
+      "area": "settings"
+    },
+    "menu_ed_products": {
+      "fr": "Produits",
+      "en": "Products",
+      "zh": "商品",
+      "area": "settings"
+    },
+    "menu_ed_required": {
+      "fr": "obligatoire",
+      "en": "required",
+      "zh": "必填",
+      "area": "settings"
+    },
+    "menu_ed_save": {
+      "fr": "Enregistrer",
+      "en": "Save",
+      "zh": "保存",
+      "area": "settings"
+    },
+    "menu_ed_save_first": {
+      "fr": "Enregistrez le produit pour lui ajouter des options.",
+      "en": "Save the product to add options.",
+      "zh": "请先保存商品，再添加选项。",
+      "area": "settings"
+    },
+    "menu_ed_saved": {
+      "fr": "Carte enregistrée",
+      "en": "Menu saved",
+      "zh": "菜单已保存",
+      "area": "settings"
+    },
+    "menu_ed_select_hint": {
+      "fr": "Choisissez un élément à modifier ou créez-en un.",
+      "en": "Pick an entry to edit or create one.",
+      "zh": "请选择要编辑的项目或新建一个。",
+      "area": "settings"
+    },
+    "menu_ed_title": {
+      "fr": "Édition de la carte",
+      "en": "Menu editor",
+      "zh": "菜单编辑",
+      "area": "settings"
+    },
+    "menu_ed_vat": {
+      "fr": "TVA sur place",
+      "en": "VAT dine-in",
+      "zh": "堂食税率",
+      "area": "settings"
+    },
+    "menu_ed_vat_a": {
+      "fr": "A · 21 %",
+      "en": "A · 21 %",
+      "zh": "A · 21 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_b": {
+      "fr": "B · 12 %",
+      "en": "B · 12 %",
+      "zh": "B · 12 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_c": {
+      "fr": "C · 6 %",
+      "en": "C · 6 %",
+      "zh": "C · 6 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_d": {
+      "fr": "D · 0 %",
+      "en": "D · 0 %",
+      "zh": "D · 0 %",
+      "area": "settings"
+    },
+    "menu_ed_vat_same": {
+      "fr": "Idem sur place",
+      "en": "Same as dine-in",
+      "zh": "同堂食",
+      "area": "settings"
+    },
+    "menu_ed_vat_takeaway": {
+      "fr": "TVA à emporter",
+      "en": "VAT takeaway",
+      "zh": "外带税率",
+      "area": "settings"
+    },
+    "menu_ed_vat_x": {
+      "fr": "X · hors champ",
+      "en": "X · out of scope",
+      "zh": "X · 不适用",
+      "area": "settings"
+    },
+    "menu_ed_zh_note": {
+      "fr": "Le chinois se saisit avec un clavier physique ou par collage : ce poste n'a pas de méthode de saisie.",
+      "en": "Chinese is typed on a physical keyboard or pasted: this till has no input method.",
+      "zh": "中文请使用物理键盘输入或粘贴：本收银机没有输入法。",
+      "area": "settings"
+    },
+    "menu_editor_locked": {
+      "fr": "La carte est gérée par {source} : modifiez-la là.",
+      "en": "The menu is managed by {source}: edit it there.",
+      "zh": "菜单由 {source} 管理，请在那里修改。",
+      "area": "settings"
+    },
+    "menu_editor_note": {
+      "fr": "Catégories, produits, groupes d'options et options. Rien n'est supprimé : un élément masqué disparaît de la caisse. Chaque modification est conservée dans l'historique.",
+      "en": "Categories, products, option groups and options. Nothing is deleted: a hidden entry disappears from the till. Every change is kept in the history.",
+      "zh": "分类、商品、选项组和选项。不会删除任何内容：隐藏的项目不再显示在收银机上。每次修改都会保存在历史记录中。",
+      "area": "settings"
+    },
+    "menu_editor_open": {
+      "fr": "Modifier la carte",
+      "en": "Edit the menu",
+      "zh": "编辑菜单",
+      "area": "settings"
+    },
+    "menu_editor_title": {
+      "fr": "Carte",
+      "en": "Menu",
+      "zh": "菜单",
+      "area": "settings"
     },
     "method_card": {
       "fr": "Carte",
@@ -3942,6 +4434,8 @@
     "fixed_price",
     "product_unavailable",
     "product_sold_out",
+    "menu_invalid",
+    "menu_not_found",
     "line_not_found",
     "order_no_lines",
     "order_total_negative",

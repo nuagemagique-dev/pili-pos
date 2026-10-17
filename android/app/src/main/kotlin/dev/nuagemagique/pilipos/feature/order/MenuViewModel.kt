@@ -76,7 +76,7 @@ private data class Look(
  * current one once ready when another one (or none) is current, checks the Z-report reminder (`needs_z_report`) on
  * open and every [Z_CHECK_MS] while [runClock] runs, and turns the taps on products into cart changes through
  * [OrderStore][dev.nuagemagique.pilipos.ui.state.OrderStore]: a plain product is added, a free-price one asks for
- * its price first, and with HubRise on a product with options asks for the picks (`get_item_modifiers`,
+ * its price first, and a product that has option groups (`MenuItem.hasModifiers`) asks for the picks (`get_item_modifiers`,
  * `add_order_line_with_modifiers`).
  *
  * It also runs the cart column (`CartSidebar.vue`): quantity steps, removal, send to kitchen, the provisional
@@ -305,7 +305,7 @@ internal class MenuViewModel(
         }
         // Every tap counts (OrderView.vue): OrderStore runs the cart actions one after the other, so taps queue up.
         viewModelScope.launch {
-            if (entry.integrations().hubriseEnabled.value) askModifiers(item) else order.addItem(item)
+            if (item.hasModifiers) askModifiers(item) else order.addItem(item)
         }
     }
 
@@ -328,7 +328,7 @@ internal class MenuViewModel(
             else -> false
         }
 
-    /** With HubRise on, a product with options asks for the picks; one without options is added plainly. */
+    /** A product that has option groups (`hasModifiers`, V11-D18) asks for the picks; one whose groups are empty is added plainly. */
     private suspend fun askModifiers(item: MenuItem) {
         val language = settings.language.value
         attempt { gateway.call { engine -> engine.getItemModifiers(item.id, language.code) } }.fold(

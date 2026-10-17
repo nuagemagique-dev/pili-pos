@@ -103,6 +103,7 @@ class OrderStoreTest {
         active = true,
         soldOut = false,
         soldOutUntil = null,
+        hasModifiers = false,
     )
 
     private fun orderLine(menuItemId: Long) =

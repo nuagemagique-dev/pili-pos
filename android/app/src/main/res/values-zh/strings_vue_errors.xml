@@ -29,6 +29,8 @@
     <string name="err_fixed_price">商品{product}为固定价格。</string>
     <string name="err_product_unavailable">商品{product}不可用。</string>
     <string name="err_product_sold_out">该商品已售罄。</string>
+    <string name="err_menu_invalid">菜单中的值无效：{field}。</string>
+    <string name="err_menu_not_found">该菜单项已不存在。</string>
     <string name="err_line_not_found">该行已不存在。</string>
     <string name="err_order_no_lines">订单为空。</string>
     <string name="err_payment_invalid">付款无效：请检查金额。</string>

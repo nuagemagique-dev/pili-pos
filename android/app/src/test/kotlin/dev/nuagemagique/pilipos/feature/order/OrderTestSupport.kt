@@ -71,6 +71,7 @@ internal fun menuItem(
     nameZh: String? = null,
     soldOut: Boolean = false,
     soldOutUntil: String? = null,
+    hasModifiers: Boolean = false,
 ): MenuItem =
     MenuItem(
         id = id,
@@ -88,6 +89,7 @@ internal fun menuItem(
         active = true,
         soldOut = soldOut,
         soldOutUntil = soldOutUntil,
+        hasModifiers = hasModifiers,
     )
 
 internal fun soldOutItem(
