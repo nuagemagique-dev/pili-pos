@@ -32,7 +32,9 @@ export const useBadgeStore = defineStore("badge", () => {
   // show who is on shift.
   const presenceVersion = ref(0);
 
-  const readerOn = computed(() => settings.value != null && settings.value.reader !== "off");
+  // Linux has no NFC source: a stored `nfc` (a restore from other hardware)
+  // reads nothing here, so it shows no badge hint nor "Lier" button either.
+  const readerOn = computed(() => settings.value?.reader === "usb");
   const loginOn = computed(() => readerOn.value && settings.value?.loginEnabled === true);
 
   async function load() {
